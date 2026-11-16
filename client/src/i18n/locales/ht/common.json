@@ -6703,5 +6703,12 @@
     "menu": {
       "storeScoped": "Se moun ki gen aksè nan tout magazen yo ki jere meni pataje a. Sèvi ak meni magazen pa w la pou chanje disponiblite oswa pri la."
     }
+  },
+  "businessLaunchAttachments": {
+    "download": "Telechaje",
+    "remove": "Retire",
+    "shareWithConsultant": "Pataje ak konsiltan ki asiyen an",
+    "shared": "Pataje",
+    "onlyMe": "Mwen sèlman"
   }
 }

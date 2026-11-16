@@ -6703,5 +6703,12 @@
     "menu": {
       "storeScoped": "Le menu partagé est géré par les personnes ayant accès à tous les établissements. Utilisez le menu de votre établissement pour y modifier la disponibilité ou les prix."
     }
+  },
+  "businessLaunchAttachments": {
+    "download": "Télécharger",
+    "remove": "Supprimer",
+    "shareWithConsultant": "Partager avec le consultant assigné",
+    "shared": "Partagé",
+    "onlyMe": "Moi uniquement"
   }
 }

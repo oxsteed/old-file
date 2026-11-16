@@ -6703,5 +6703,12 @@
     "menu": {
       "storeScoped": "El menú compartido lo gestionan quienes tienen acceso a todas las tiendas. Usa el menú de tu tienda para cambiar allí la disponibilidad o los precios."
     }
+  },
+  "businessLaunchAttachments": {
+    "download": "Descargar",
+    "remove": "Quitar",
+    "shareWithConsultant": "Compartir con el consultor asignado",
+    "shared": "Compartido",
+    "onlyMe": "Solo yo"
   }
 }

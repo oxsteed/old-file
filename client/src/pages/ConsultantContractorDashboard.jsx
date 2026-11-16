@@ -101,7 +101,118 @@ function centsToFriendly(cents) {
   }).format(n);
 }
 
-function ReferralCard({ referral, onSave, savingId, payingAllowed, tx }) {
+function ReferralAttachments({ referral, userId, tx }) {
+  const { t } = useTranslation();
+  const [attachments, setAttachments] = useState([]);
+  const [visibility, setVisibility] = useState('consultant_only');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function loadAttachments() {
+    try {
+      const { data } = await api.get(`/consulting/business-launch/requests/${encodeURIComponent(referral.id)}/attachments`);
+      setAttachments(data?.attachments || []);
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.attachments.loadError', 'Attachments could not be loaded.'));
+    }
+  }
+
+  useEffect(() => {
+    loadAttachments();
+  }, [referral.id]);
+
+  async function uploadAttachment(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    setError('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('visibility', visibility);
+      await api.post(`/consulting/business-launch/requests/${encodeURIComponent(referral.id)}/attachments`, form);
+      await loadAttachments();
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.attachments.uploadError', 'Attachment upload failed.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function downloadAttachment(attachment) {
+    try {
+      const { data } = await api.get(`/consulting/business-launch/attachments/${encodeURIComponent(attachment.id)}/download`);
+      if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.attachments.downloadError', 'Attachment download failed.'));
+    }
+  }
+
+  async function removeAttachment(attachment) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.delete(`/consulting/business-launch/attachments/${encodeURIComponent(attachment.id)}`);
+      await loadAttachments();
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.attachments.removeError', 'Attachment removal failed.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/45 p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+            {tx('consultantContractorDashboard.attachments.label', 'Case attachments')}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            {tx('consultantContractorDashboard.attachments.visibilityHint', 'Shared files are visible to the applicant; adviser-only files stay in this consultant workspace.')}
+          </p>
+        </div>
+        <label className="inline-flex items-center gap-2 text-xs text-gray-400">
+          <span>{tx('consultantContractorDashboard.attachments.shareAs', 'Share as')}</span>
+          <select value={visibility} onChange={(event) => setVisibility(event.target.value)} disabled={busy} className="rounded-xl border border-gray-700 bg-gray-900 px-2 py-1.5 text-xs text-white">
+            <option value="consultant_only">{tx('consultantContractorDashboard.attachments.consultantOnly', 'Consultant only')}</option>
+            <option value="shared">{tx('consultantContractorDashboard.attachments.shared', 'Shared')}</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="space-y-2">
+        {attachments.map((attachment) => (
+          <div key={attachment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-800 bg-[#111318] px-3 py-2 text-xs">
+            <span className="min-w-0 truncate text-gray-200">{attachment.originalName}</span>
+            <span className="flex shrink-0 items-center gap-2">
+              <span className="text-gray-500">{attachment.visibility === 'shared' ? tx('consultantContractorDashboard.attachments.shared', 'Shared') : tx('consultantContractorDashboard.attachments.consultantOnly', 'Consultant only')}</span>
+              <button type="button" onClick={() => downloadAttachment(attachment)} className="font-semibold text-indigo-300 hover:text-indigo-200">
+                {t('businessLaunchAttachments.download')}
+              </button>
+              {String(attachment.uploadedBy) === String(userId) && (
+                <button type="button" disabled={busy} onClick={() => removeAttachment(attachment)} className="font-semibold text-orange-300 hover:text-orange-200 disabled:opacity-50">
+                  {t('businessLaunchAttachments.remove')}
+                </button>
+              )}
+            </span>
+          </div>
+        ))}
+        {!attachments.length && !error ? <p className="text-xs text-gray-500">{tx('consultantContractorDashboard.attachments.empty', 'No case attachments yet.')}</p> : null}
+        {error ? <p role="alert" className="text-xs text-orange-200">{error}</p> : null}
+      </div>
+
+      <label className="mt-3 inline-flex cursor-pointer items-center rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs font-semibold text-gray-200 transition hover:border-gray-500">
+        {busy ? tx('consultantContractorDashboard.attachments.uploading', 'Uploading…') : tx('consultantContractorDashboard.attachments.add', 'Add attachment')}
+        <input type="file" className="sr-only" onChange={uploadAttachment} disabled={busy} accept="image/*,application/pdf,.doc,.docx" />
+      </label>
+    </div>
+  );
+}
+
+function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId }) {
   const [draft, setDraft] = useState({
     consultant_assignment_status: referral.consultant_assignment_status || 'assigned',
     consultant_status_notes: referral.consultant_status_notes || '',
@@ -216,6 +327,8 @@ function ReferralCard({ referral, onSave, savingId, payingAllowed, tx }) {
       <div className="mt-3 text-xs text-gray-500">
         {tx('consultantContractorDashboard.referral.targetMarketLabel', 'Target market')}: {referral.target_market || tx('consultantContractorDashboard.referral.targetMarketMissing', 'Not provided')}<br />
       </div>
+
+      <ReferralAttachments referral={referral} userId={userId} tx={tx} />
     </article>
   );
 }
@@ -535,6 +648,7 @@ export default function ConsultantContractorDashboard() {
                       savingId={savingReferralId}
                       payingAllowed={payingReferralAccess?.allowed !== false}
                       tx={tx}
+                      userId={user?.id}
                     />
                   ))}
                 </div>

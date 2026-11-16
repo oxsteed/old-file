@@ -6703,5 +6703,12 @@
     "menu": {
       "storeScoped": "The shared menu is managed by people with access to every store. Use your store's menu to change availability or prices there."
     }
+  },
+  "businessLaunchAttachments": {
+    "download": "Download",
+    "remove": "Remove",
+    "shareWithConsultant": "Share with the assigned consultant",
+    "shared": "Shared",
+    "onlyMe": "Only me"
   }
 }
