@@ -2,6 +2,7 @@
 const AppError = require('../utils/appError');
 const sourcingService = require('../services/sourcingService');
 const supplierService = require('../services/supplierService');
+const recurringProcurementService = require('../services/recurringProcurementService');
 const { buildActionContext } = require('../middleware/requireLogisticsAccess');
 const { getAvailableActions } = require('../services/logisticsStateMachine');
 
@@ -39,7 +40,9 @@ exports.getRequest = async (req, res, next) => {
     const request = await sourcingService.getSourcingRequest(req.params.id);
     if (!request) return next(new AppError('Sourcing request not found', 404, 'not_found'));
     // Only owner, assigned operator, or admin can view
-    if (!req.isAdmin && request.user_id !== req.user.id) {
+    const businessScoped = request.business_id
+      && await recurringProcurementService.hasBusinessProcurementAccess(request.business_id, req.user.id);
+    if (!req.isAdmin && request.user_id !== req.user.id && !businessScoped) {
       return next(new AppError('Not authorized', 403, 'forbidden'));
     }
     // Advisory, additive: which status transitions the viewer may perform

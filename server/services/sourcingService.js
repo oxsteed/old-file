@@ -3,6 +3,7 @@ const pool = require('../db');
 const crypto = require('crypto');
 const { logLogisticsAction } = require('./logisticsAuditService');
 const { applyTransition } = require('./logisticsStateMachine');
+const { assertBusinessProcurementAccess, listProcurementBusinessIds } = require('./recurringProcurementService');
 
 function svcError(message, status, code, details) {
   const err = new Error(message);
@@ -30,6 +31,8 @@ async function createSourcingRequest(data, userId) {
     private_label, custom_mfg, deadline, notes,
   } = data;
 
+  if (business_id) await assertBusinessProcurementAccess(business_id, userId);
+
   const result = await pool.query(
     `INSERT INTO sourcing_requests
        (reference,user_id,business_id,lane_id,title,category,description,specs,
@@ -55,7 +58,13 @@ async function listSourcingRequests({
 } = {}) {
   const conditions = ['1=1'];
   const params = [];
-  if (userId)           { conditions.push(`sr.user_id = $${params.push(userId)}`); }
+  if (userId) {
+    const accessibleBusinessIds = await listProcurementBusinessIds(userId);
+    const userParam = params.push(userId);
+    const businessParam = params.push(accessibleBusinessIds);
+    conditions.push(`(sr.user_id = $${userParam}
+      OR (sr.business_id IS NOT NULL AND sr.business_id = ANY($${businessParam}::int[])))`);
+  }
   if (businessId)       { conditions.push(`sr.business_id = $${params.push(businessId)}`); }
   if (status)           { conditions.push(`sr.status = $${params.push(status)}`); }
   if (laneId)           { conditions.push(`sr.lane_id = $${params.push(laneId)}`); }

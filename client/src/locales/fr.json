@@ -19678,6 +19678,9 @@
         "title": "Corridors commerciaux éligibles"
       },
       "form": {
+        "business": "Contexte de l'entreprise",
+        "chooseBusiness": "Choisissez une entreprise",
+        "businessRequired": "Choisissez une entreprise et ajoutez un titre au programme",
         "anyLane": "Tout corridor approuvé",
         "budgetMax": "Budget max (USD)",
         "cadence": "Fréquence",

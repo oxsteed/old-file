@@ -31,8 +31,8 @@ exports.getProgram = async (req, res, next) => {
 
 exports.createProgram = async (req, res, next) => {
   try {
-    if (!req.body.title) {
-      return next(new AppError('title is required', 400, 'validation_failed'));
+    if (!req.body.title || !req.body.business_id) {
+      return next(new AppError('title and business_id are required', 400, 'validation_failed'));
     }
     const program = await recurringService.createProgram(req.body, req.user.id, {
       includeAll: Boolean(req.isAdmin),

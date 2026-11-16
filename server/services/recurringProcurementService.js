@@ -2,6 +2,14 @@
 
 const pool = require('../db');
 const { logLogisticsAction } = require('./logisticsAuditService');
+const permissionsService = require('./permissionsService');
+
+const PROCUREMENT_PERMISSION_CODES = new Set([
+  'analytics.view_ops',
+  'products.manage',
+  'settings.general',
+  'team.assign_permissions',
+]);
 
 function validationError(message, statusCode = 400, code = 'validation_failed') {
   const error = new Error(message);
@@ -14,23 +22,7 @@ async function validateReferences({ businessId, sourcingRequestId, actorUserId, 
   if (includeAll) return;
 
   if (businessId) {
-    const business = await pool.query(
-      `SELECT 1
-       FROM businesses b
-       WHERE b.id = $1
-         AND (b.user_id = $2 OR EXISTS (
-           SELECT 1 FROM business_members bm
-           WHERE bm.business_id = b.id
-             AND bm.member_id = $2
-             AND bm.status = 'active'
-             AND bm.role = 'manager'
-         ))
-       LIMIT 1`,
-      [businessId, actorUserId]
-    );
-    if (!business.rows.length) {
-      throw validationError('You do not have permission to use this business', 403, 'business_access_denied');
-    }
+    await assertBusinessProcurementAccess(businessId, actorUserId);
   }
 
   if (sourcingRequestId) {
@@ -51,6 +43,63 @@ async function validateReferences({ businessId, sourcingRequestId, actorUserId, 
   }
 }
 
+async function businessProcurementAccessRows(userId, businessId = null) {
+  const result = await pool.query(
+    `SELECT b.id, b.user_id, bm.id AS membership_id, bm.role
+       FROM businesses b
+       LEFT JOIN business_members bm
+         ON bm.business_id = b.id
+        AND bm.member_id = $1
+        AND bm.status = 'active'
+      WHERE b.deleted_at IS NULL
+        AND b.is_active = TRUE
+        AND ($2::int IS NULL AND (b.user_id = $1 OR bm.member_id = $1) OR b.id = $2::int)
+      ORDER BY b.id`,
+    [userId, businessId || null]
+  );
+  return result.rows;
+}
+
+async function hasBusinessProcurementAccess(businessId, userId) {
+  if (!businessId || !userId) return false;
+  const rows = await businessProcurementAccessRows(userId, businessId);
+  const row = rows.find((item) => String(item.id) === String(businessId));
+  if (!row) return false;
+  if (String(row.user_id) === String(userId) || row.role === 'manager') return true;
+  const { permissions } = await permissionsService.getEffectivePermissions({
+    businessId: row.id,
+    userId,
+    role: row.role,
+    membershipId: row.membership_id,
+  });
+  return [...permissions].some((permission) => PROCUREMENT_PERMISSION_CODES.has(permission));
+}
+
+async function assertBusinessProcurementAccess(businessId, userId) {
+  if (!(await hasBusinessProcurementAccess(businessId, userId))) {
+    throw validationError('You do not have permission to use this business for procurement', 403, 'business_procurement_access_denied');
+  }
+}
+
+async function listProcurementBusinessIds(userId) {
+  const rows = await businessProcurementAccessRows(userId);
+  const ids = [];
+  for (const row of rows) {
+    if (String(row.user_id) === String(userId) || row.role === 'manager') {
+      ids.push(row.id);
+      continue;
+    }
+    const { permissions } = await permissionsService.getEffectivePermissions({
+      businessId: row.id,
+      userId,
+      role: row.role,
+      membershipId: row.membership_id,
+    });
+    if ([...permissions].some((permission) => PROCUREMENT_PERMISSION_CODES.has(permission))) ids.push(row.id);
+  }
+  return ids;
+}
+
 async function listPrograms({
   userId,
   businessId,
@@ -64,9 +113,15 @@ async function listPrograms({
   const params = [];
 
   if (!includeAll && userId) {
-    conditions.push(`(rp.owner_user_id = $${params.push(userId)} OR sr.user_id = $${params.push(userId)})`);
+    const accessibleBusinessIds = await listProcurementBusinessIds(userId);
+    const ownerParam = params.push(userId);
+    const businessParam = params.push(accessibleBusinessIds);
+    conditions.push(`(rp.business_id IS NOT NULL AND (rp.owner_user_id = $${ownerParam}
+      OR sr.user_id = $${ownerParam}
+      OR rp.business_id = ANY($${businessParam}::int[])))`);
   }
   if (businessId) {
+    if (!includeAll && userId) await assertBusinessProcurementAccess(businessId, userId);
     conditions.push(`rp.business_id = $${params.push(businessId)}`);
   }
   if (status) {
@@ -134,6 +189,10 @@ async function createProgram(data, ownerUserId, { includeAll = false } = {}) {
     last_run_date,
     notes,
   } = data;
+
+  if (!business_id && !includeAll) {
+    throw validationError('business_id is required for procurement programs', 400, 'business_required');
+  }
 
   await validateReferences({
     businessId: business_id || null,
@@ -233,4 +292,7 @@ module.exports = {
   getProgram,
   createProgram,
   updateProgram,
+  hasBusinessProcurementAccess,
+  assertBusinessProcurementAccess,
+  listProcurementBusinessIds,
 };

@@ -19678,6 +19678,9 @@
         "title": "Koridò biznis elijib"
       },
       "form": {
+        "business": "Kontèks biznis",
+        "chooseBusiness": "Chwazi yon biznis",
+        "businessRequired": "Chwazi yon biznis epi ajoute yon tit pwogram",
         "anyLane": "Nenpòt koridò apwouve",
         "budgetMax": "Bidjè max (USD)",
         "cadence": "Frekans",

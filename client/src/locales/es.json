@@ -19678,6 +19678,9 @@
         "title": "Rutas comerciales elegibles"
       },
       "form": {
+        "business": "Contexto empresarial",
+        "chooseBusiness": "Elige una empresa",
+        "businessRequired": "Elige una empresa y añade un título al programa",
         "anyLane": "Cualquier ruta aprobada",
         "budgetMax": "Presupuesto máx. (USD)",
         "cadence": "Frecuencia",
