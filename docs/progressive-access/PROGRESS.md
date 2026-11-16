@@ -18,7 +18,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 
 | WP | Title | Phase | Status | Commit | Tests |
 | --- | --- | --- | --- | --- | --- |
-| WP-001 | Signup entry and intent selector | P2 | implemented (server + JoinPage continuation) | 242cb47a6, pending | progressiveAccessSignup.db.test.js; JoinPage follows access.nextStep |
+| WP-001 | Signup entry and intent selector | P2 | implemented (server + JoinPage continuation) | 242cb47a6, c55e4966e | progressiveAccessSignup.db.test.js; JoinPage follows access.nextStep |
 | WP-002 | Registration start and pending identity | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |
 | WP-003 | OTP finalization and bootstrap | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |
 | WP-004 | Login and legacy mode inputs | P2 | in progress | bb9a413fa | login mode gate (modeGate.js); dedicated login test pending |
