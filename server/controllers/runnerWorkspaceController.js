@@ -1,6 +1,26 @@
 'use strict';
 
 const pool = require('../db');
+const permissionsService = require('../services/permissionsService');
+
+// WP-070: open offers (customer name, order details) are for people who may
+// take runner work there now. Tasks already assigned to the caller stay
+// visible so a committed delivery can still be finished after the runner
+// permission is withdrawn.
+const OFFER_PERMISSIONS = ['runner.update', 'runner.manage', 'orders.manage'];
+async function offerRestaurantIds(userId, workspaces) {
+  const ids = [];
+  for (const w of workspaces) {
+    if (w.role === 'owner') { ids.push(w.restaurant_id); continue; }
+    try {
+      const { permissions } = await permissionsService.getEffectivePermissions({
+        businessId: w.business_id, userId, role: w.role, membershipId: w.membership_id,
+      });
+      if (permissionsService.hasAny(permissions, OFFER_PERMISSIONS)) ids.push(w.restaurant_id);
+    } catch (_) { /* fail closed: no offers from this workspace */ }
+  }
+  return ids;
+}
 
 const AUTHORIZED_RESTAURANTS_SQL = `
   SELECT DISTINCT ON (fr.id)
@@ -100,8 +120,9 @@ exports.getUnifiedInbox = async (req, res, next) => {
       return res.json({ workspaces: [], offers: [], assignments: [] });
     }
 
+    const offerIds = await offerRestaurantIds(req.user.id, workspaces);
     const [{ rows: offers }, { rows: assignments }] = await Promise.all([
-      pool.query(
+      offerIds.length === 0 ? { rows: [] } : pool.query(
         `SELECT t.*,
                 w.business_id,
                 w.restaurant_name,
@@ -112,7 +133,7 @@ exports.getUnifiedInbox = async (req, res, next) => {
                 o.tip_cents,
                 o.metadata AS order_metadata
            FROM restaurant_runner_tasks t
-           JOIN (VALUES ${restaurantIds.map((_, index) => `($${index + 2}::bigint)`).join(',')}) authorized(restaurant_id)
+           JOIN (VALUES ${offerIds.map((_, index) => `($${index + 2}::bigint)`).join(',')}) authorized(restaurant_id)
              ON authorized.restaurant_id = t.restaurant_id
            JOIN food_restaurants fr ON fr.id = t.restaurant_id
            JOIN businesses b ON b.id = fr.business_id
@@ -134,7 +155,7 @@ exports.getUnifiedInbox = async (req, res, next) => {
           ORDER BY CASE WHEN t.status = 'Ready' THEN 0 ELSE 1 END,
                    COALESCE(t.delivery_eta_at, t.created_at) ASC
           LIMIT 200`,
-        [req.user.id, ...restaurantIds]
+        [req.user.id, ...offerIds]
       ),
       pool.query(
         `SELECT t.*,
@@ -175,4 +196,4 @@ exports.getUnifiedInbox = async (req, res, next) => {
   }
 };
 
-exports._test = { loadWorkspaces, AUTHORIZED_RESTAURANTS_SQL };
+exports._test = { loadWorkspaces, AUTHORIZED_RESTAURANTS_SQL, offerRestaurantIds };

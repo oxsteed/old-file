@@ -184,6 +184,7 @@ test('completes the runner task, order, inventory, and kitchen event in one flow
 });
 
 test('returns restaurant-labelled offers and assigned tasks across workspaces', async () => {
+  const spy = jest.spyOn(permissionsService, 'getEffectivePermissions').mockResolvedValue({ permissions: new Set(['runner.update']) });
   mockQuery
     .mockResolvedValueOnce({ rows: [
       { restaurant_id: 7, business_id: 40, restaurant_name: 'North Kitchen', business_name: 'Ox Group', role: 'employee' },
@@ -199,9 +200,11 @@ test('returns restaurant-labelled offers and assigned tasks across workspaces', 
   expect(res.body.assignments[0]).toMatchObject({ restaurant_id: 7, restaurant_name: 'North Kitchen' });
   expect(mockQuery.mock.calls[1][1]).toEqual([USER_ID, 7, 9]);
   expect(mockQuery.mock.calls[2][0]).toMatch(/t\.assigned_to = \$1/);
+  spy.mockRestore();
 });
 
 test('runner inbox queries enforce assigned store scope for operational tasks', async () => {
+  const spy = jest.spyOn(permissionsService, 'getEffectivePermissions').mockResolvedValue({ permissions: new Set(['runner.update']) });
   mockQuery
     .mockResolvedValueOnce({ rows: [
       { restaurant_id: 7, business_id: 40, restaurant_name: 'North Kitchen', business_name: 'Ox Group', role: 'employee' },
@@ -215,6 +218,26 @@ test('runner inbox queries enforce assigned store scope for operational tasks', 
   expect(mockQuery.mock.calls[1][0]).toMatch(/restaurant_location_memberships/);
   expect(mockQuery.mock.calls[1][0]).toMatch(/t\.location_id IN/);
   expect(mockQuery.mock.calls[2][0]).toMatch(/scope_lm\.location_id/);
+  spy.mockRestore();
+});
+
+test('WP-070: no runner permission means no open offers, but own assigned deliveries stay', async () => {
+  const spy = jest.spyOn(permissionsService, 'getEffectivePermissions')
+    .mockResolvedValueOnce({ permissions: new Set(['runner.update']) })
+    .mockResolvedValueOnce({ permissions: new Set(['business.view']) });
+  mockQuery
+    .mockResolvedValueOnce({ rows: [
+      { restaurant_id: 7, business_id: 40, restaurant_name: 'North Kitchen', business_name: 'Ox Group', role: 'employee', membership_id: 2 },
+      { restaurant_id: 9, business_id: 41, restaurant_name: 'South Kitchen', business_name: 'South Foods', role: 'representative', membership_id: 3 },
+    ] })
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ id: 72, restaurant_id: 9, assigned_to: USER_ID }] });
+  const res = await request(buildApp()).get('/api/runner/inbox');
+  expect(res.status).toBe(200);
+  expect(mockQuery.mock.calls[1][1]).toEqual([USER_ID, 7]); // offers: only where the user may run
+  expect(mockQuery.mock.calls[2][1]).toEqual([USER_ID, 7, 9]); // own assignments: every workspace
+  expect(res.body.assignments).toHaveLength(1);
+  spy.mockRestore();
 });
 
 test('returns an empty inbox when the user has no active restaurant access', async () => {
