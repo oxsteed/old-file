@@ -810,6 +810,24 @@ retry handling. Audit notification preferences, transition-derived recipients,
 outbox retries, and webhook authenticity; run the relevant delivery/retry
 suites and record any provider-availability limits before the next checkpoint.
 
+WP-099 is currently an evidence checkpoint. Email preference mutations require
+authentication, while one-click and tokenized unsubscribe paths stay explicit;
+resubscribe is the only ordinary path that clears the global unsubscribe state.
+Message-notification retry is an operations-admin action with a strict limiter,
+impersonation rejection, and an audit entry. Provider failures are retained in
+the outbox/dead-letter flow rather than reported as successful delivery, and
+support-channel webhook ingestion verifies its signature before opening a
+transaction. `emailPreferences.test.js`, `messageNotificationOutbox.test.js`,
+`messageOutboxAdmin.test.js`, `notificationEmailFailurePropagation.test.js`,
+and `supportChatController.test.js` pass (34 tests); support webhook,
+guest-email privacy, and calendar retry suites pass (14 tests). No source
+change was needed in this checkpoint.
+**Exact next action (resume here):** move to WP-100, Audit, finance and
+exceptional administration. Verify that access-request review cannot act as a
+financial override or expose cross-organization investigation data; run the
+admin audit, step-up, maker/checker, and investigation-scope suites before the
+next checkpoint.
+
 History of what is done (newest last):
 
 
