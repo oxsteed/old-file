@@ -657,7 +657,7 @@ WP-026 now also places `requireHelperCapability` before the helper profile's
 legacy role middleware, and `requireRole` accepts that marker only for helper
 role groups. This keeps the off/shadow behavior unchanged while allowing an
 approved customer-role helper to edit the helper profile when enforcement is on.
-The helper enforcement contract passes 21 tests and the profile buffer/gallery
+The helper enforcement contract passes 22 tests and the profile buffer/gallery
 regressions pass 5 tests.
 
 WP-089 is currently an evidence checkpoint rather than a source change. The

@@ -10,7 +10,7 @@ jest.mock('../services/access/accessService', () => ({ can: jest.fn() }));
 const access = require('../services/access/accessService');
 const logger = require('../utils/logger');
 const { requireHelperCapability, isHelperActor } = require('../middleware/requireAccess');
-const { requireHelperWorkEligible } = require('../middleware/helperOnboardingMiddleware');
+const { requireHelperWorkEligible, requireHelperStep } = require('../middleware/helperOnboardingMiddleware');
 const requireRole = require('../middleware/requireRole');
 
 function run(mw, req) {
@@ -96,6 +96,21 @@ describe('helper capability gate', () => {
     const deny = await run(requireRole('helper', 'helper_pro', 'broker'), blocked);
     expect(pass.nextCalled).toBe(true);
     expect(deny.res.statusCode).toBe(403);
+  });
+
+  test('helper onboarding steps accept an approved customer-role helper', async () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+    access.can.mockResolvedValue({ allowed: true, reason: 'grant' });
+    const req = { user: user('customer') };
+    await run(requireHelperCapability, req);
+    const onboarding = require('../services/helperOnboarding');
+    jest.spyOn(onboarding, 'loadHelperOnboarding').mockResolvedValue({
+      user: { role: 'customer' },
+      steps: { email: true },
+    });
+    const result = await run(requireHelperStep('profile'), req);
+    expect(result.nextCalled).toBe(true);
+    expect(result.res.statusCode).toBe(200);
   });
 
   test('enforce: approved helper capability remains usable when subscription access is expired', async () => {

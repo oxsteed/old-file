@@ -81,7 +81,8 @@ function requireHelperStep(step) {
     try {
       const { loadHelperOnboarding, missingFor } = require('../services/helperOnboarding');
       const onboarding = await loadHelperOnboarding(req.user.id);
-      if (!onboarding || onboarding.user.role !== 'helper') {
+      const capabilityApproved = req.accessCapabilities?.['helper.offer_services'] === true;
+      if (!onboarding || (onboarding.user.role !== 'helper' && !capabilityApproved)) {
         return res.status(403).json({ error: 'Helper account required', code: 'helper_required' });
       }
       const missing = missingFor(step, onboarding);
