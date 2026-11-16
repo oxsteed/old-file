@@ -25,6 +25,25 @@ async function collect(business, ctx) {
     return { items, freshness };
   }
 
+  // WP-050: the same gate as requireBusinessMessageAccess('view') and
+  // messageScopeClause — without message visibility nothing is counted, and
+  // assigned-only staff count only conversations assigned to them (no names
+  // or counts from other people's threads leak through the badge).
+  const perms = ctx.permissions;
+  const has = (code) => !perms || perms.has(code);
+  const viewAll = has('messages.view_all');
+  if (!has('business.view') || !(viewAll || has('messages.view_assigned'))) {
+    convTrack.done(false);
+    msgTrack.done(false);
+    return { items, freshness };
+  }
+  const scopeParams = [business.id];
+  let scopeSql = '';
+  if (!viewAll) {
+    scopeParams.push(ctx.userId);
+    scopeSql = ' AND c.assigned_to_user_id = $2::uuid';
+  }
+
   const { rows } = await ctx.pool.query(
     `SELECT c.id, c.customer_name, c.customer_email, c.last_message_at,
             c.created_at, c.updated_at,
@@ -47,8 +66,8 @@ async function collect(business, ctx) {
        FROM business_conversations c
       WHERE c.business_id = $1
         AND c.conversation_type = 'customer'
-        AND c.status = 'active'`,
-    [business.id]
+        AND c.status = 'active'${scopeSql}`,
+    scopeParams
   );
 
   for (const c of rows) {

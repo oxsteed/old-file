@@ -68,7 +68,8 @@ const ADAPTERS = loadAdapters();
 async function resolveBusinesses(userId, businessIdFilter) {
   const { rows } = await pool.query(
     `SELECT b.id, b.business_name, b.user_id,
-            CASE WHEN b.user_id = $1 THEN 'owner' ELSE COALESCE(m.role, 'member') END AS role
+            CASE WHEN b.user_id = $1 THEN 'owner' ELSE COALESCE(m.role, 'member') END AS role,
+            CASE WHEN b.user_id = $1 THEN NULL ELSE m.id END AS membership_id
        FROM businesses b
        LEFT JOIN business_members m
          ON m.business_id = b.id AND m.member_id = $1 AND m.status = 'active'
@@ -84,6 +85,18 @@ async function resolveBusinesses(userId, businessIdFilter) {
     throw err;
   }
   return rows;
+}
+
+// WP-050: fail closed — if permissions can't be resolved, permission-gated
+// adapters (messages) count nothing instead of everything.
+async function effectivePermissions(business, userId) {
+  try {
+    return (await require('../permissionsService').getEffectivePermissions({
+      businessId: business.id, userId, role: business.role, membershipId: business.membership_id || null,
+    })).permissions || new Set();
+  } catch {
+    return new Set();
+  }
 }
 
 async function restaurantsForBusiness(businessId, tableExists) {
@@ -222,6 +235,9 @@ async function collectAttention(opts) {
       business,
       // F-02: store-assigned staff only see their stores' orders.
       locationIds: role === 'owner' ? null : await assignedLocationIds(business.id, userId, tableExists),
+      // WP-050: effective business permissions (role defaults + overrides),
+      // so attention badges agree with the queue/search/send gates.
+      permissions: await effectivePermissions(business, userId),
     };
 
     const runnable = CATEGORIES.filter((c) => canSeeFinance || !FINANCE_CATEGORIES.has(c));
