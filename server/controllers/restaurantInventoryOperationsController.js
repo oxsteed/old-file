@@ -100,6 +100,27 @@ async function getTransferScope(restaurant, userId) {
   return getLocationScope(restaurant, userId);
 }
 
+// WP-066: storage areas and suppliers are shared by every store of the
+// restaurant (and an upsert overwrites the existing record), so creating or
+// changing them needs all-store scope. A named responsible person must be the
+// owner or an active member of this business.
+async function requireAllStoreInventory(restaurant, userId) {
+  const scope = await getTransferScope(restaurant, userId);
+  if (scope?.mode === 'assigned') {
+    throw new AppError('All-store access is required to change shared inventory records', 403, 'location_scope_forbidden');
+  }
+}
+async function assertTeamUser(client, restaurant, userId) {
+  if (!userId) return null;
+  const { rows } = await client.query(
+    `SELECT 1 FROM businesses b
+      WHERE b.id = $2 AND (b.user_id::text = $1::text OR EXISTS (
+        SELECT 1 FROM business_members bm WHERE bm.business_id = b.id AND bm.member_id::text = $1::text AND bm.status = 'active'))`,
+    [String(userId), restaurant.business_id]);
+  if (!rows.length) throw new AppError('Validation failed', 400, 'validation_failed', { responsibleUserId: 'Must be someone on this team' });
+  return userId;
+}
+
 async function requireInventoryPermission(userId, restaurant, permissions) {
   if (restaurant.effective_role === 'owner') return;
   const result = await getEffectivePermissions({
@@ -607,10 +628,12 @@ exports.createArea = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
+    await requireAllStoreInventory(restaurant, req.user.id);
     const name = text(req.body.name, 160);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const areaType = AREA_TYPES.has(req.body.areaType) ? req.body.areaType : 'other';
     const area = await withTransaction(pool, async (client) => {
+      const responsibleUserId = await assertTeamUser(client, restaurant, req.body.responsibleUserId || null);
       const { rows: [upserted] } = await client.query(
         `INSERT INTO restaurant_inventory_storage_areas
            (restaurant_id, name, area_type, temperature_range, responsible_user_id, created_by)
@@ -619,7 +642,7 @@ exports.createArea = async (req, res, next) => {
            SET area_type = EXCLUDED.area_type, temperature_range = EXCLUDED.temperature_range,
                responsible_user_id = EXCLUDED.responsible_user_id, is_active = TRUE, updated_at = NOW()
         RETURNING *`,
-        [restaurantId, name, areaType, text(req.body.temperatureRange, 80), req.body.responsibleUserId || null, req.user.id]
+        [restaurantId, name, areaType, text(req.body.temperatureRange, 80), responsibleUserId, req.user.id]
       );
       await logInventoryAudit(client, auditEntry(restaurant, 'area_upserted', 'area', upserted.id, req, {
         name: upserted.name,
@@ -661,6 +684,7 @@ exports.createSupplier = async (req, res, next) => {
     const restaurantId = positiveInt(req.params.restaurantId);
     const restaurant = await restaurantAccess(req.user.id, restaurantId);
     await requireInventoryPermission(req.user.id, restaurant, MANAGE_INVENTORY);
+    await requireAllStoreInventory(restaurant, req.user.id);
     const name = text(req.body.name, 160);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const status = SUPPLIER_STATUSES.has(req.body.status) ? req.body.status : 'active';
