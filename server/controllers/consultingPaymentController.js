@@ -4,6 +4,8 @@ const logger = require('../utils/logger');
 const { processExternalRefund } = require('../services/externalRefundService');
 const { completeConsultingPaymentFromIntent } = require('../services/consultingPaymentService');
 const { logAdminAction } = require('../services/auditService');
+const { consultantEnforcement } = require('../services/access/flags');
+const { checkPayingAccess, bookingDenial } = require('../services/access/consultantGate');
 
 function usablePaymentIntent(intent) {
   const id = typeof intent?.id === 'string' ? intent.id.trim() : '';
@@ -63,7 +65,8 @@ exports.createPaymentIntent = async (req, res) => {
     // Get session details - uses cs.user_id (the canonical column on consulting_sessions)
     const { rows: sessionRows } = await db.query(
       `SELECT cs.id, cs.user_id, cs.email, cs.first_name, cs.last_name,
-              cs.service_tier, css.id as scheduled_id
+              cs.service_tier, css.id AS scheduled_id,
+              COALESCE(css.consultant_assigned_id, cs.consultant_assigned_id) AS assigned_consultant_id
        FROM consulting_sessions cs
        LEFT JOIN consulting_sessions_scheduled css ON cs.id = css.session_id
        WHERE cs.id = $1`,
@@ -85,6 +88,11 @@ exports.createPaymentIntent = async (req, res) => {
 
     if (!session.scheduled_id) {
       return res.status(400).json({ error: 'Session must be scheduled before payment' });
+    }
+
+    if (!isAdmin && session.assigned_consultant_id && consultantEnforcement() === 'enforce') {
+      const decision = await checkPayingAccess(session.assigned_consultant_id);
+      if (!decision.allowed) return res.status(409).json(bookingDenial(decision));
     }
 
     // Idempotency: don't create a second processing payment for the same session.

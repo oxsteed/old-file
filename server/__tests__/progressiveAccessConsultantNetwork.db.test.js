@@ -26,6 +26,13 @@ jest.mock('../middleware/auth', () => ({
     return next();
   },
 }));
+jest.mock('../utils/email', () => ({
+  sendEmail: jest.fn().mockResolvedValue({ success: true }),
+  sendEmailOrThrow: jest.fn().mockResolvedValue({ success: true }),
+}));
+jest.mock('../services/notificationService', () => ({
+  sendNotification: jest.fn().mockResolvedValue({ success: true }),
+}));
 
 const describeDb = dbUrl ? describe : describe.skip;
 const capability = 'consultant.accept_paying_clients';
@@ -41,6 +48,8 @@ describeDb('assigned consultant referrals (WP-074)', () => {
     app.use(express.json());
     app.use('/api/consulting/contractor', require('../routes/consultantNetwork'));
     app.use('/api/consulting/business-launch', require('../routes/businessLaunch'));
+    app.use('/api/scheduling', require('../routes/consultantScheduling'));
+    app.use('/api/consulting', require('../routes/consultingPayment'));
   });
 
   afterEach(() => {
@@ -170,5 +179,73 @@ describeDb('assigned consultant referrals (WP-074)', () => {
     } finally {
       warning.mockRestore();
     }
+  });
+
+  test('WP-075: the assigned consultant grant controls slots, checkout and booking without changing existing appointments', async () => {
+    process.env.ACCESS_CONSULTANT_ENFORCEMENT = 'enforce';
+    const consultant = await addUser();
+    const reviewer = await addUser('super_admin');
+    const customer = await addUser();
+    const stranger = await addUser();
+    const slotDate = new Date(Date.now() + 7 * 864e5);
+    const date = slotDate.toISOString().slice(0, 10);
+    await db.query('UPDATE users SET onboarding_completed = TRUE WHERE id = $1', [consultant]);
+
+    const addSession = async () => (await db.query(
+      `INSERT INTO consulting_sessions (user_id, email, first_name, last_name, consultant_assigned_id)
+       VALUES ($1, $2, 'Customer', 'Fixture', $3) RETURNING id`,
+      [customer, `pa-booking-${customer}@example.invalid`, consultant],
+    )).rows[0].id;
+    const firstId = await addSession();
+    const secondId = await addSession();
+    const schedule = (id, actor = customer, selected = consultant) => request(app)
+      .post('/api/scheduling/sessions').set('x-test-user', actor)
+      .send({ consultingSessionId: id, consultantId: selected });
+    const book = (id, selected = consultant, actor = customer) => request(app)
+      .post(`/api/scheduling/sessions/${id}/book-slot`).set('x-test-user', actor)
+      .send({ consultantId: selected, date, startTime: '09:00', durationMinutes: 120 });
+    const slots = () => request(app).get(`/api/scheduling/consultants/${consultant}/available-slots`).query({ date });
+
+    await request(app).post(`/api/scheduling/consultants/${consultant}/availability`)
+      .set('x-test-user', consultant)
+      .send({ dayOfWeek: slotDate.getUTCDay(), startTime: '09:00', endTime: '13:00' }).expect(200);
+    await slots().expect(404);
+    await schedule(firstId).expect(409);
+    const grantId = await approve(consultant, reviewer);
+
+    const availability = await slots().expect(200);
+    expect(availability.body.map((slot) => slot.slot_start)).toEqual(['09:00:00', '10:00:00', '11:00:00', '12:00:00']);
+    await schedule(firstId, stranger).expect(403);
+    await schedule(firstId, customer, stranger).expect(409);
+    const attempts = await Promise.all([schedule(firstId), schedule(firstId)]);
+    expect(attempts.map(({ status }) => status).sort()).toEqual([200, 201]);
+    expect(attempts[0].body.id).toBe(attempts[1].body.id);
+    const first = attempts[0].body.id;
+    const second = (await schedule(secondId).expect(201)).body.id;
+    await book(first, stranger).expect(409);
+    await book(first, consultant, stranger).expect(403);
+    await book(first).expect(402);
+    await db.query(
+      `INSERT INTO consulting_payments (session_scheduled_id, amount_cents, service_tier, status)
+       SELECT id, 10000, 'initial', 'completed' FROM consulting_sessions_scheduled WHERE id = ANY($1::bigint[])`,
+      [[first, second]],
+    );
+
+    const bookings = await Promise.all([book(first), book(second)]);
+    expect(bookings.map(({ status }) => status).sort()).toEqual([200, 409]);
+    const confirmed = bookings.find(({ status }) => status === 200).body;
+    const unfinished = confirmed.id === first ? second : first;
+    const afterBooking = await slots().expect(200);
+    expect(afterBooking.body.map((slot) => slot.slot_start)).toEqual(['11:00:00', '12:00:00']);
+
+    await db.query('UPDATE access_grants SET expires_at = NOW() - INTERVAL \'1 day\' WHERE id = $1', [grantId]);
+    await slots().expect(404);
+    await book(unfinished).expect(409);
+    const stored = await schedule(confirmed.session_id).expect(200);
+    expect(stored.body).toMatchObject({ id: confirmed.id, status: 'confirmed', alreadyScheduled: true });
+    const declinedPayment = await request(app).post('/api/consulting/payment-intent')
+      .set('x-test-user', customer).send({ sessionId: firstId, packageId: 1 }).expect(409);
+    expect(declinedPayment.body.error).toBe('consultant_pending_platform_approval');
+    expect(require('stripe').__mockInstance.paymentIntents.create).not.toHaveBeenCalled();
   });
 });

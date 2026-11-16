@@ -43,4 +43,12 @@ async function checkPayingAccess(userId, { client, lockGrant = false } = {}) {
   return { ...legacy, code: 'platform_approval_required', mode: 'consultant', action: ACTION };
 }
 
-module.exports = { checkPayingAccess };
+function bookingDenial(decision) {
+  return {
+    error: 'consultant_pending_platform_approval',
+    message: 'This consultant is still completing OxSteed verification and cannot accept bookings yet.',
+    ...(decision.current_status && { current_status: decision.current_status }),
+  };
+}
+
+module.exports = { checkPayingAccess, bookingDenial };
