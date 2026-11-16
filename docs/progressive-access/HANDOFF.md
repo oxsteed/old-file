@@ -421,7 +421,8 @@ through the whole form with fixture responses. `npm run build:ci` passed. The UI
 reuses existing strings verified present in all 20 locale catalogs.
 
 WP-076 attachment checkpoint `3b7991c1a`, with applicant controls in
-`3e2fded67`. Private case objects now use
+`3e2fded67`, consultant controls in `50032e617`, and the browser fixture in
+`19c531b5b`. Private case objects now use
 `business-launch/private/<request-id>/...` and only the applicant, current
 assigned adviser, or an operations reviewer can list or download an attachment.
 Visibility is explicit, and the uploader can remove their own file. The object
@@ -432,16 +433,16 @@ existing upload validation, malware scan, private storage, signed URL, and
 deletion-queue primitives. The applicant Business Launch status modal now lists,
 downloads, uploads, and removes files using only server-provided metadata. The
 UI keeps shared and applicant-only visibility choices inside the selected
-request. Consultant file controls and live acceptance remain open.
+request. The assigned consultant referral card now lists shared/consultant-only
+files, supports explicit upload visibility, and keeps the ownership application
+identifier out of the consultant response. The browser fixture covers shared
+versus applicant-only controls. Live acceptance and exact-head CI remain open.
 
-**Exact next action (resume here):** Add attachment controls to the assigned
-consultant referral detail surface if the existing dashboard has one. Keep
-consultant-only files out of customer responses and never expose the ownership
-application identifier. Add a browser fixture for shared versus applicant-only
-files if the existing Business Launch browser harness can cover the modal.
-After that, begin WP-077 (`<a id="wp-077">` in SPEC.md) by mounting an investor
-reporting test and fixing the variadic `requireRole` contract only where the
-mounted route demonstrates a real denial or bypass.
+**Exact next action (resume here):** Begin WP-077 (`<a id="wp-077">` in
+SPEC.md). First mount an investor reporting test against the real route and
+confirm whether the variadic `requireRole` contract causes a denial or bypass.
+Fix that contract only where the mounted route demonstrates the defect, then
+add the narrowest investor audience/approval test and checkpoint both docs.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
