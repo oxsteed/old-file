@@ -89,3 +89,21 @@ test('rejects a non-US stop', async () => {
   expect(res.status).toBe(400);
   expect(res.body.code).toBe('delivery_domestic_only');
 });
+
+test('each size carries an honest standard-to-rush price range around the exact standard total', async () => {
+  const res = await request(buildApp())
+    .post('/delivery/estimate')
+    .send({ origin: ORIGIN, destination: DESTINATION, packageType: 'medium', weightLbs: 25, serviceLevel: 'standard' });
+
+  expect(res.status).toBe(200);
+  const { calculateLocalDeliveryPrice } = require('../services/localDeliveryPricing');
+  const miles = res.body.estimate.route.distanceMiles;
+  for (const [size, weightLbs] of Object.entries({ small: 5, medium: 25, large: 75, oversized: 150 })) {
+    const entry = res.body.estimate.sizePrices[size];
+    const standard = calculateLocalDeliveryPrice({ distanceMiles: miles, packageType: size, weightLbs, serviceLevel: 'standard' }).cents.customerTotal;
+    const rush = calculateLocalDeliveryPrice({ distanceMiles: miles, packageType: size, weightLbs, serviceLevel: 'rush' }).cents.customerTotal;
+    expect(entry.customerTotalCents).toBe(standard);
+    expect(entry.range).toEqual({ minCents: standard, maxCents: rush });
+    expect(entry.range.maxCents).toBeGreaterThanOrEqual(entry.range.minCents);
+  }
+});

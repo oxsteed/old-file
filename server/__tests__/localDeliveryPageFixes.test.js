@@ -76,10 +76,11 @@ describe('estimate per-size prices (item 9)', () => {
     // fare, 12% platform fee (min $2.99). Small and medium both land on the
     // minimum fare; large and oversized price above it.
     expect(res.body.estimate.sizePrices).toEqual({
-      small: { customerTotalCents: 1799 },
-      medium: { customerTotalCents: 1799 },
-      large: { customerTotalCents: 2399 },
-      oversized: { customerTotalCents: 3808 },
+      // range: standard (low) to rush (high) for the same route and size.
+      small: { customerTotalCents: 1799, range: { minCents: 1799, maxCents: 1799 } },
+      medium: { customerTotalCents: 1799, range: { minCents: 1799, maxCents: 2190 } },
+      large: { customerTotalCents: 2399, range: { minCents: 2399, maxCents: 3176 } },
+      oversized: { customerTotalCents: 3808, range: { minCents: 3808, maxCents: 5141 } },
     });
   });
 });

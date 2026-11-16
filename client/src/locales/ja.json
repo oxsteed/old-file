@@ -18170,6 +18170,18 @@
     "responseTime": "アクセシビリティに関するお問い合わせには、2営業日以内のご返信を目指しています。"
   },
   "delivery": {
+    "estimate": {
+      "priceRangeLabel": "見積価格",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "通常から特急サービスまで",
+      "standardTotal": "通常",
+      "signInToBook": "ログインして予約",
+      "signInNote": "予約するにはログインまたはアカウントを作成してください。見積もりは入力されたままです。"
+    },
+    "routePreview": {
+      "sample": "サンプルルートです。見積もりを取得するとあなたのルートが表示されます。",
+      "sampleLabel": "集荷から配達までのサンプルルートのプレビュー"
+    },
     "metaTitle": "OxSteed 配達 - ポイントツーポイント",
     "metaDescription": "OxSteedで、シンプルなポイントツーポイント配達を予約したり、近くの配達の仕事を引き受けたりできます。",
     "eyebrow": "シンプルな地域配達",

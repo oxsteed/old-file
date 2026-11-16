@@ -18032,6 +18032,18 @@
     "responseTime": "Tunalenga kujibu maoni ya ufikiaji ndani ya siku 2 za kazi."
   },
   "delivery": {
+    "estimate": {
+      "priceRangeLabel": "Bei inayokadiriwa",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Kutoka huduma ya kawaida hadi ya haraka",
+      "standardTotal": "Kawaida",
+      "signInToBook": "Ingia ili uweke nafasi",
+      "signInNote": "Ingia au fungua akaunti ili uweke nafasi. Makadirio yako yatabaki yamejazwa."
+    },
+    "routePreview": {
+      "sample": "Njia ya mfano. Pata makadirio ili uone yako.",
+      "sampleLabel": "Onyesho la njia ya mfano kutoka kuchukua hadi kufikisha"
+    },
     "metaTitle": "OxSteed Delivery - Moja kwa moja",
     "metaDescription": "Weka oda ya usafirishaji rahisi wa moja kwa moja au twaa kazi za usafirishaji zilizo karibu nawe kupitia OxSteed.",
     "eyebrow": "Usafirishaji rahisi wa ndani",

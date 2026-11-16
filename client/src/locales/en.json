@@ -20695,7 +20695,13 @@
       "continue": "Continue to book",
       "distance": "Distance",
       "routeTime": "Route time",
-      "sizePrices": "Price by size"
+      "sizePrices": "Price by size",
+      "priceRangeLabel": "Estimated price",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Standard to rush service",
+      "standardTotal": "Standard",
+      "signInToBook": "Sign in to book",
+      "signInNote": "Sign in or create an account to book. Your estimate stays filled in."
     },
     "tabs": {
       "driving": "Driving"
@@ -20711,7 +20717,9 @@
       "title": "Route preview",
       "label": "Schematic route from pickup to drop-off",
       "driver": "Driver",
-      "schematic": "Schematic, not to scale"
+      "schematic": "Schematic, not to scale",
+      "sample": "Sample route. Get an estimate to see yours.",
+      "sampleLabel": "Sample route preview from pickup to drop-off"
     },
     "pricingNote": "Pricing uses a minimum fare, included distance, package size, service speed, and a clear platform fee.",
     "pricing": {

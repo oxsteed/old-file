@@ -20695,7 +20695,13 @@
       "continue": "Continuar con la reserva",
       "distance": "Distancia",
       "routeTime": "Tiempo de ruta",
-      "sizePrices": "Precio por tamaño"
+      "sizePrices": "Precio por tamaño",
+      "priceRangeLabel": "Precio estimado",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "De servicio estándar a urgente",
+      "standardTotal": "Estándar",
+      "signInToBook": "Inicia sesión para reservar",
+      "signInNote": "Inicia sesión o crea una cuenta para reservar. Tu estimación se mantiene completada."
     },
     "tabs": {
       "driving": "Conduciendo"
@@ -20711,7 +20717,9 @@
       "title": "Vista previa de la ruta",
       "label": "Ruta esquemática desde la recogida hasta la entrega",
       "driver": "Conductor",
-      "schematic": "Esquema, no a escala"
+      "schematic": "Esquema, no a escala",
+      "sample": "Ruta de ejemplo. Obtén una estimación para ver la tuya.",
+      "sampleLabel": "Vista previa de ruta de ejemplo de la recogida a la entrega"
     },
     "pricingNote": "El precio usa una tarifa mínima, distancia incluida, tamaño del paquete, rapidez del servicio y una tarifa de plataforma clara.",
     "pricing": {

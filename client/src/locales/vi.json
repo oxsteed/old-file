@@ -18170,6 +18170,18 @@
     "responseTime": "Chúng tôi hướng tới phản hồi về khả năng tiếp cận trong vòng 2 ngày làm việc."
   },
   "delivery": {
+    "estimate": {
+      "priceRangeLabel": "Giá ước tính",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Từ dịch vụ tiêu chuẩn đến hỏa tốc",
+      "standardTotal": "Tiêu chuẩn",
+      "signInToBook": "Đăng nhập để đặt",
+      "signInNote": "Đăng nhập hoặc tạo tài khoản để đặt. Ước tính của bạn vẫn được giữ."
+    },
+    "routePreview": {
+      "sample": "Tuyến đường mẫu. Nhận ước tính để xem tuyến của bạn.",
+      "sampleLabel": "Xem trước tuyến đường mẫu từ điểm lấy đến điểm giao"
+    },
     "metaTitle": "OxSteed Delivery - Giao hàng điểm đến điểm",
     "metaDescription": "Đặt dịch vụ giao hàng đơn giản từ điểm này đến điểm khác hoặc nhận việc giao hàng gần bạn cùng OxSteed.",
     "eyebrow": "Giao hàng địa phương đơn giản",

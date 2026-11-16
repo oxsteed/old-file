@@ -18170,6 +18170,18 @@
     "responseTime": "접근성 피드백에 2영업일 이내에 답변하는 것을 목표로 합니다."
   },
   "delivery": {
+    "estimate": {
+      "priceRangeLabel": "예상 가격",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "일반부터 긴급 서비스까지",
+      "standardTotal": "일반",
+      "signInToBook": "로그인하여 예약",
+      "signInNote": "예약하려면 로그인하거나 계정을 만드세요. 견적은 그대로 유지됩니다."
+    },
+    "routePreview": {
+      "sample": "예시 경로입니다. 견적을 받아 내 경로를 확인하세요.",
+      "sampleLabel": "픽업부터 배송까지의 예시 경로 미리보기"
+    },
     "metaTitle": "OxSteed Delivery - 지점 간 배송",
     "metaDescription": "OxSteed에서 간단한 지점 간 배송을 예약하거나 근처의 배송 일을 수락하세요.",
     "eyebrow": "간편한 지역 배송",

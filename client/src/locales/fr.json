@@ -20695,7 +20695,13 @@
       "continue": "Continuer la réservation",
       "distance": "Distance",
       "routeTime": "Durée du trajet",
-      "sizePrices": "Prix par taille"
+      "sizePrices": "Prix par taille",
+      "priceRangeLabel": "Prix estimé",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Du service standard à l’express",
+      "standardTotal": "Standard",
+      "signInToBook": "Connectez-vous pour réserver",
+      "signInNote": "Connectez-vous ou créez un compte pour réserver. Votre estimation reste remplie."
     },
     "tabs": {
       "driving": "Conduite"
@@ -20711,7 +20717,9 @@
       "title": "Aperçu de l'itinéraire",
       "label": "Itinéraire schématique du retrait à la remise",
       "driver": "Chauffeur",
-      "schematic": "Schéma, sans échelle"
+      "schematic": "Schéma, sans échelle",
+      "sample": "Itinéraire d’exemple. Obtenez une estimation pour voir le vôtre.",
+      "sampleLabel": "Aperçu d’un itinéraire d’exemple, du ramassage à la livraison"
     },
     "pricingNote": "Le prix tient compte d’un minimum, de la distance incluse, de la taille du colis, de la vitesse et de frais de plateforme clairs.",
     "pricing": {

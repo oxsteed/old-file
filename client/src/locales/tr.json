@@ -18170,6 +18170,18 @@
     "responseTime": "Erişilebilirlik geri bildirimine 2 iş günü içinde yanıt vermeyi hedefliyoruz."
   },
   "delivery": {
+    "estimate": {
+      "priceRangeLabel": "Tahmini fiyat",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Standarttan acil hizmete",
+      "standardTotal": "Standart",
+      "signInToBook": "Rezervasyon için giriş yapın",
+      "signInNote": "Rezervasyon için giriş yapın veya hesap oluşturun. Tahmininiz doldurulmuş kalır."
+    },
+    "routePreview": {
+      "sample": "Örnek rota. Kendi rotanızı görmek için tahmin alın.",
+      "sampleLabel": "Alıştan teslimata örnek rota önizlemesi"
+    },
     "metaTitle": "OxSteed Teslimat - Noktadan noktaya",
     "metaDescription": "OxSteed ile basit bir noktadan noktaya teslimat rezervasyonu yapın veya yakınınızdaki teslimat işlerini üstlenin.",
     "eyebrow": "Basit yerel teslimat",

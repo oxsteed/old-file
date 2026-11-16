@@ -932,6 +932,18 @@ const careersApplyLimiter = rateLimit({
   message: { error: 'Too many applications sent. Please try again later.', code: 'careers_apply_rate_limited' },
 });
 
+// Public delivery estimate on the signed-out /delivery page: 20 per hour per
+// IP. Each call may geocode and route, so the budget is strict.
+const deliveryPublicEstimateLimiter = rateLimit({
+  ...createStoreOption('rl:delivery_public_estimate:'),
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => `ip:${req.ip}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many estimates. Please try again later.', code: 'delivery_estimate_rate_limited' },
+});
+
 const careersGuestLimiter = rateLimit({
   ...createStoreOption('rl:careers_guest:'),
   windowMs: 60 * 60 * 1000,
@@ -973,6 +985,7 @@ const careersOauthLimiter = careersLimiter('careers_oauth', 60 * 60 * 1000, 20, 
 const careersAlertLimiter = careersLimiter('careers_alert', 60 * 60 * 1000, 60, 'careers_alert_rate_limited', 'Too many changes. Please try again later.');
 
 module.exports = {
+  deliveryPublicEstimateLimiter,
   careersMessageLimiter,
   careersReportLimiter,
   careersContentLimiter,

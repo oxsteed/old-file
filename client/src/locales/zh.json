@@ -18170,6 +18170,18 @@
     "responseTime": "我们的目标是在 2 个工作日内回复无障碍反馈。"
   },
   "delivery": {
+    "estimate": {
+      "priceRangeLabel": "预估价格",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "从标准到加急服务",
+      "standardTotal": "标准",
+      "signInToBook": "登录以预订",
+      "signInNote": "登录或创建账户以预订。您的估价会保留。"
+    },
+    "routePreview": {
+      "sample": "示例路线。获取估价以查看您的路线。",
+      "sampleLabel": "从取件到送达的示例路线预览"
+    },
     "metaTitle": "OxSteed 配送 - 点对点",
     "metaDescription": "通过 OxSteed 预订简单的点对点配送，或认领附近的配送任务。",
     "eyebrow": "简单本地配送",

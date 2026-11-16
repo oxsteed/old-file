@@ -20695,7 +20695,13 @@
       "continue": "Kontinye pou rezève",
       "distance": "Distans",
       "routeTime": "Tan wout la",
-      "sizePrices": "Pri pa gwosè"
+      "sizePrices": "Pri pa gwosè",
+      "priceRangeLabel": "Pri estime",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Soti nan sèvis estanda rive nan sèvis ijan",
+      "standardTotal": "Estanda",
+      "signInToBook": "Konekte pou rezève",
+      "signInNote": "Konekte oswa kreye yon kont pou rezève. Estimasyon ou an ap rete ranpli."
     },
     "tabs": {
       "driving": "Kondwi"
@@ -20711,7 +20717,9 @@
       "title": "Apèsi wout la",
       "label": "Wout eskemantik depi lè yo pran l rive lè yo remèt li",
       "driver": "Chofè",
-      "schematic": "Eskema, san echèl"
+      "schematic": "Eskema, san echèl",
+      "sample": "Wout egzanp. Mande yon estimasyon pou wè pa ou a.",
+      "sampleLabel": "Apèsi yon wout egzanp soti nan ranmasaj rive nan livrezon"
     },
     "pricingNote": "Pri a sèvi ak yon minimòm, distans ki ladan l, gwosè pakè a, vitès sèvis la ak yon frè platfòm ki klè.",
     "pricing": {

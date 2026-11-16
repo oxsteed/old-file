@@ -336,6 +336,35 @@ exports.quote = async (req, res, next) => {
   }
 };
 
+// Prices one route for the instant estimate. Shared by the signed-in and the
+// public estimate endpoints. sizePrices carries, per size, the exact standard
+// total plus an honest range: the low end is standard service and the high
+// end is rush, both priced by the live model for this route. Demand stays at
+// the default multiplier here; a booked quote is always re-priced.
+async function buildEstimate(body) {
+  const resolved = await resolveStopCoordinates(body);
+  const input = requestInput(resolved);
+  const result = await calculateLocalDeliveryQuote(input);
+  const maxMiles = Math.min(300, Math.max(1, Number(process.env.DELIVERY_MAX_ROUTE_MILES) || 150));
+  if (result.route.distanceMiles > maxMiles) throw new AppError('This route exceeds the local delivery service area', 400, 'delivery_service_area_unsupported');
+  const sizePrices = {};
+  for (const size of Object.keys(PACKAGE_TYPES)) {
+    const priceAt = (serviceLevel) => calculateLocalDeliveryPrice({
+      distanceMiles: result.route.distanceMiles,
+      packageType: size,
+      weightLbs: SIZE_DEFAULT_WEIGHT_LBS[size],
+      serviceLevel,
+    }).cents.customerTotal;
+    const standard = priceAt('standard');
+    const rush = priceAt('rush');
+    sizePrices[size] = {
+      customerTotalCents: standard,
+      range: { minCents: Math.min(standard, rush), maxCents: Math.max(standard, rush) },
+    };
+  }
+  return { result, sizePrices, resolved };
+}
+
 // Instant estimate for the signed-in delivery page. Prices the route from the
 // two stops and the size only, using the same route and pricing code as a
 // bookable quote. It writes no quote row and cannot be booked: the full
@@ -344,28 +373,71 @@ exports.quote = async (req, res, next) => {
 // window is required here.
 exports.estimate = async (req, res, next) => {
   try {
-    const resolved = await resolveStopCoordinates(req.body);
-    const input = requestInput(resolved);
-    const result = await calculateLocalDeliveryQuote(input);
-    const maxMiles = Math.min(300, Math.max(1, Number(process.env.DELIVERY_MAX_ROUTE_MILES) || 150));
-    if (result.route.distanceMiles > maxMiles) throw new AppError('This route exceeds the local delivery service area', 400, 'delivery_service_area_unsupported');
-    // Per-size prices for the same route, priced server-side from the live
-    // model (never hardcoded on the client): each size is repriced with its
-    // representative weight at standard service. Price depends on the size
-    // surcharge, not the exact weight, which only has to stay under the cap.
-    const sizePrices = {};
-    for (const size of Object.keys(PACKAGE_TYPES)) {
-      const priced = calculateLocalDeliveryPrice({
-        distanceMiles: result.route.distanceMiles,
-        packageType: size,
-        weightLbs: SIZE_DEFAULT_WEIGHT_LBS[size],
-        serviceLevel: 'standard',
-      });
-      sizePrices[size] = { customerTotalCents: priced.cents.customerTotal };
-    }
+    const { result, sizePrices, resolved } = await buildEstimate(req.body);
     // Return the located stops, not just coordinates, so the client can carry
     // the resolved city/state/country into the intake form and the booking.
     res.json({ success: true, estimate: { ...result, sizePrices, origin: resolved.origin, destination: resolved.destination } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const PUBLIC_STOP_FIELDS = ['address', 'display', 'city', 'state', 'country', 'lat', 'lng'];
+
+function publicStop(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new AppError('Complete stop addresses are required', 400, 'delivery_addresses_required');
+  }
+  const stop = {};
+  for (const key of PUBLIC_STOP_FIELDS) {
+    const value = input[key];
+    if (value === undefined || value === null || value === '') continue;
+    if (key === 'lat' || key === 'lng') {
+      const number = Number(value);
+      const limit = key === 'lat' ? 90 : 180;
+      if (!Number.isFinite(number) || Math.abs(number) > limit) throw new AppError('Invalid stop coordinates', 400, 'delivery_coordinates_invalid');
+      stop[key] = number;
+    } else {
+      if (typeof value !== 'string' || value.length > 500) throw new AppError('Invalid stop address', 400, 'delivery_addresses_required');
+      stop[key] = value.trim();
+    }
+  }
+  return stop;
+}
+
+// Public instant estimate for the signed-out /delivery page. Strict per-IP
+// rate limit and the bot-check hook are applied in the route. Only the two
+// stops and the size are read; every other field is dropped, nothing is
+// stored, and the response carries only what the page shows (no pricing
+// breakdown or driver payout).
+exports.publicEstimate = async (req, res, next) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const packageType = body.packageType;
+    if (!Object.prototype.hasOwnProperty.call(SIZE_DEFAULT_WEIGHT_LBS, packageType)) {
+      throw new AppError('Choose an item size', 400, 'delivery_shipment_invalid');
+    }
+    const { result, sizePrices, resolved } = await buildEstimate({
+      origin: publicStop(body.origin),
+      destination: publicStop(body.destination),
+      packageType,
+      weightLbs: SIZE_DEFAULT_WEIGHT_LBS[packageType],
+      serviceLevel: 'standard',
+    });
+    const located = (stop) => ({
+      address: stop.address, city: stop.city, state: stop.state, country: stop.country, lat: stop.lat, lng: stop.lng,
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      success: true,
+      estimate: {
+        route: { distanceMiles: result.route.distanceMiles, durationMinutes: result.route.durationMinutes },
+        pricing: { currency: result.pricing.currency || 'USD', cents: { customerTotal: sizePrices[packageType].customerTotalCents } },
+        sizePrices,
+        origin: located(resolved.origin),
+        destination: located(resolved.destination),
+      },
+    });
   } catch (error) {
     next(error);
   }
