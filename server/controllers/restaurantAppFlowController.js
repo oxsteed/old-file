@@ -8838,14 +8838,24 @@ async function loadCrewShift(restaurantId, shiftId, locationScope = null) {
   return shift;
 }
 
-async function validateCrewAssignee(restaurantId, assignedTo) {
+async function validateCrewAssignee(restaurantId, assignedTo, locationId = null) {
   if (!assignedTo) return null;
+  let assigneeAccess;
   try {
-    await requireRestaurantAccess(assignedTo, restaurantId);
+    assigneeAccess = await requireRestaurantAccess(assignedTo, restaurantId);
   } catch (err) {
     throw new AppError('Validation failed', 400, 'validation_failed', {
       assignedTo: 'Assignee must be an active member of this restaurant',
     });
+  }
+  // WP-071: a store task goes to someone who works at that store.
+  if (locationId) {
+    const assigneeScope = await getLocationScope(assigneeAccess, assignedTo);
+    if (assigneeScope.mode === 'assigned' && !assigneeScope.location_ids.map(Number).includes(Number(locationId))) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        assignedTo: 'Assignee does not work at this store',
+      });
+    }
   }
   return assignedTo;
 }
@@ -9142,9 +9152,9 @@ exports.createCrewTask = async (req, res, next) => {
     if (!title) throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Title is required' });
     const assignedTo = req.body.assignedTo || req.body.assigned_to || null;
     const shiftId = parsePositiveInt(req.body.shiftId || req.body.shift_id);
-    await validateCrewAssignee(restaurantId, assignedTo);
     const shift = await loadCrewShift(restaurantId, shiftId, locationScope);
     const locationId = parsePositiveInt(req.body.locationId || req.body.location_id) || parsePositiveInt(shift?.location_id);
+    await validateCrewAssignee(restaurantId, assignedTo, locationId);
     if (locationScope.mode === 'assigned'
       && (!locationId || !locationScope.location_ids.includes(locationId))) {
       throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
@@ -9263,7 +9273,7 @@ exports.updateCrewTask = async (req, res, next) => {
     }
     const assignedTo = hasAssignee ? (req.body.assignedTo || req.body.assigned_to || null) : existing.assigned_to;
     const shiftId = hasShift ? parsePositiveInt(req.body.shiftId || req.body.shift_id) : existing.shift_id;
-    if (hasAssignee) await validateCrewAssignee(restaurantId, assignedTo);
+    if (hasAssignee) await validateCrewAssignee(restaurantId, assignedTo, existing.location_id);
     if (hasShift) await loadCrewShift(restaurantId, shiftId, locationScope);
     const approve = false;
     const task = await withTransaction(pool, async (client) => {
