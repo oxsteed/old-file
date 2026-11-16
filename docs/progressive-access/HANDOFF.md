@@ -750,6 +750,22 @@ through unauthenticated access, a different reviewer, revoked reviewer, signed
 URL replay, and unsafe-file cases, then confirm public Media and food assets
 remain unaffected before moving to WP-096.
 
+WP-096 is currently an evidence checkpoint. Paid product entitlement is now
+derived from the current product tier and billing status exposed by the auth
+identity, while helper capability remains a separate progressive-access
+precondition. An active paid tier and first-year trial continue to unlock
+Pro-only product surfaces; an explicitly expired or cancelled paid product tier
+does not. Legacy membership entitlements remain supported, and a subscription
+renewal updates billing state without minting or duplicating an
+`access_grants` row. The helper enforcement, subscription lifecycle, QR, paid
+entitlement, auth contract, and client navigation suites pass (58 server tests,
+11 auth tests, and 15 client tests).
+**Exact next action (resume here):** run the populated second-device renewal
+scenario for a customer-class user with an already active helper grant; verify
+the renewal is idempotent, the existing grant remains the only grant, core
+helper affordances still work while billing is expired, and Pro/trial-only
+actions follow the current billing/trial policy before moving to WP-097.
+
 History of what is done (newest last):
 
 
