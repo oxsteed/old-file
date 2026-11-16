@@ -395,6 +395,64 @@ function DetailField({ icon: Icon, label, value }) {
 function DetailModal({ request, onClose }) {
   const { t } = useTranslation();
   const items = safeItems(request.setup_items_selected);
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const [attachmentError, setAttachmentError] = useState(null);
+  const [attachmentVisibility, setAttachmentVisibility] = useState('shared');
+
+  const loadAttachments = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/consulting/business-launch/requests/${encodeURIComponent(request.id)}/attachments`);
+      setAttachments(data?.attachments || []);
+      setAttachmentError(null);
+    } catch (error) {
+      setAttachmentError(error.response?.data?.error || t('businessLaunchStatus.loadError', { defaultValue: 'Attachments could not be loaded.' }));
+    }
+  }, [request.id, t]);
+
+  useEffect(() => {
+    loadAttachments();
+  }, [loadAttachments]);
+
+  const uploadAttachment = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setAttachmentBusy(true);
+    setAttachmentError(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('visibility', attachmentVisibility);
+      await api.post(`/consulting/business-launch/requests/${encodeURIComponent(request.id)}/attachments`, form);
+      await loadAttachments();
+    } catch (error) {
+      setAttachmentError(error.response?.data?.error || t('businessLaunchStatus.loadError', { defaultValue: 'Attachment upload failed.' }));
+    } finally {
+      setAttachmentBusy(false);
+    }
+  };
+
+  const downloadAttachment = async (attachment) => {
+    try {
+      const { data } = await api.get(`/consulting/business-launch/attachments/${encodeURIComponent(attachment.id)}/download`);
+      if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      setAttachmentError(error.response?.data?.error || t('businessLaunchStatus.loadError', { defaultValue: 'Attachment download failed.' }));
+    }
+  };
+
+  const removeAttachment = async (attachment) => {
+    setAttachmentBusy(true);
+    try {
+      await api.delete(`/consulting/business-launch/attachments/${encodeURIComponent(attachment.id)}`);
+      await loadAttachments();
+    } catch (error) {
+      setAttachmentError(error.response?.data?.error || t('businessLaunchStatus.loadError', { defaultValue: 'Attachment removal failed.' }));
+    } finally {
+      setAttachmentBusy(false);
+    }
+  };
   const summary = t(`businessLaunchStatus.${STATUS_COPY[request.status] || 'desc_pending'}`, { defaultValue: '' });
   const packageName = t(
     `businessLaunchStatus.${PACKAGE_DISPLAY[request.package_selected] || 'selectedPackage'}`,
@@ -510,6 +568,46 @@ function DetailModal({ request, onClose }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) 320px', gap: '1rem' }}>
           <div style={{ display: 'grid', gap: '1rem' }}>
+            <section
+              aria-labelledby="business-launch-attachments"
+              style={{
+                border: '1px solid rgba(148,163,184,0.14)',
+                borderRadius: '22px',
+                padding: '1rem',
+                background: 'rgba(255,255,255,0.02)',
+              }}
+            >
+              <h3 id="business-launch-attachments" style={{ margin: '0 0 0.9rem', fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--muted-text)' }}>
+                {t('support.attachments', { defaultValue: 'Attachments' })}
+              </h3>
+              <div style={{ display: 'grid', gap: '0.65rem' }}>
+                {attachments.map((attachment) => (
+                  <div key={attachment.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.6rem', fontSize: '0.82rem' }}>
+                    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--app-text)' }}>{attachment.originalName}</span>
+                    <span style={{ display: 'inline-flex', gap: '0.5rem', flexShrink: 0 }}>
+                      <button type="button" onClick={() => downloadAttachment(attachment)} style={{ color: '#A5B4FC', background: 'none', border: 0, cursor: 'pointer', fontWeight: 700 }}>
+                        {t('common.download', { defaultValue: 'Download' })}
+                      </button>
+                      {String(attachment.uploadedBy) === String(request.user_id) && (
+                        <button type="button" disabled={attachmentBusy} onClick={() => removeAttachment(attachment)} style={{ color: '#FDBA74', background: 'none', border: 0, cursor: 'pointer', fontWeight: 700 }}>
+                          {t('common.delete', { defaultValue: 'Remove' })}
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                ))}
+                {!attachments.length && !attachmentError && <p style={{ margin: 0, color: 'var(--muted-text)', fontSize: '0.84rem' }}>{t('support.noAttachments', { defaultValue: 'No attachments yet.' })}</p>}
+                {attachmentError && <p role="alert" style={{ margin: 0, color: '#FDBA74', fontSize: '0.84rem' }}>{attachmentError}</p>}
+                <label style={{ display: 'grid', gap: '0.45rem', color: 'var(--muted-text)', fontSize: '0.8rem' }}>
+                  <span>{t('common.shareWith', { defaultValue: 'Share with the assigned consultant' })}</span>
+                  <select value={attachmentVisibility} onChange={(event) => setAttachmentVisibility(event.target.value)} disabled={attachmentBusy} style={{ background: 'var(--app-bg)', color: 'var(--app-text)', border: '1px solid rgba(148,163,184,0.2)', borderRadius: '10px', padding: '0.45rem' }}>
+                    <option value="shared">{t('common.shared', { defaultValue: 'Shared' })}</option>
+                    <option value="applicant_only">{t('common.private', { defaultValue: 'Only me' })}</option>
+                  </select>
+                  <input type="file" onChange={uploadAttachment} disabled={attachmentBusy} accept="image/*,application/pdf,.doc,.docx" />
+                </label>
+              </div>
+            </section>
             <section
               style={{
                 border: '1px solid rgba(148,163,184,0.14)',
