@@ -828,6 +828,32 @@ financial override or expose cross-organization investigation data; run the
 admin audit, step-up, maker/checker, and investigation-scope suites before the
 next checkpoint.
 
+WP-100 is currently an evidence checkpoint. The reviewer path in
+`services/access/reviewService.js` resolves the reviewer’s capability-specific
+authority again inside the request-row lock, and an approval only changes the
+access request decision, the scoped `access_grants` row, the access outbox, and
+the projection version. It does not call treasury, wallet, payout, balance, or
+investigation-note APIs. Treasury routes keep read (`view_financials`) and write
+(`manage_financials` or super-admin) authority separate; sensitive money rails
+retain the existing step-up, maker/checker, idempotency, and impersonation
+guards. Investigation access remains purpose-limited, named-approver-bound,
+time-bounded, scope-bounded, and audit-logged, with resource hiding for
+out-of-scope organizations.
+
+The focused run of `adminOpsPrivacy.test.js`, `adminPermissionScope.test.js`,
+`adminGrantLookup.test.js`, `adminUserAccountB6.test.js`, `statementAdmin.test.js`,
+`investigationAccess.test.js`, `investigationRead.test.js`,
+`progressiveAccessDecisions.test.js`, `dualApprovalGating.test.js`,
+`dualApprovalService.test.js`, and `treasury.test.js` passed (137 tests; 8
+environment-gated skips). The disposable/populated cross-organization
+approval-without-financial-override scenario and exact-head CI remain open; the
+unit evidence confirms the platform access decision has no financial mutation
+or investigation-note read path.
+**Exact next action (resume here):** move to WP-101, Reputation, trust,
+cancellations and restrictions. Audit late revocation, hold/restriction
+predicates, and cancellation/refund ownership across customer and approved
+provider experiences before recording the next checkpoint.
+
 History of what is done (newest last):
 
 
