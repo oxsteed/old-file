@@ -193,6 +193,13 @@ describe('helper capability gate', () => {
     expect(disputes).toMatch(/router\.post\('\/:disputeId\/evidence',[\s\S]*requireDisputeHelperCapability/);
   });
 
+  test('marketplace product review writes use progressive helper access', () => {
+    const route = fs.readFileSync(path.join(__dirname, '../routes/marketplaceProducts.js'), 'utf8');
+    const controller = fs.readFileSync(path.join(__dirname, '../controllers/marketplaceProductsController.js'), 'utf8');
+    expect(route).toMatch(/router\.post\('\/:productId\/reviews', authenticate, requireHelperCapability/);
+    expect(controller).toMatch(/req\.accessCapabilities\?\.\['helper\.offer_services'\]/);
+  });
+
   describe('hiring a helper (jobs.assign)', () => {
     const { assertHelperCanBeHired } = require('../controllers/jobController');
 

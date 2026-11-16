@@ -72,7 +72,7 @@ export default function ProductReviewsSection({
     }
     return t('productReviews.timeAgo.yearsAgo', { value: Math.floor(seconds / 31536000) });
   };
-  const { user } = useAuth();
+  const { user, hasHelperAccess } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,7 +114,7 @@ export default function ProductReviewsSection({
     fetchReviews();
   }, [productId, currentPage, t]);
 
-  const isHelper = user && ['helper', 'helper_pro', 'broker'].includes(user.role);
+  const isHelper = Boolean(user && hasHelperAccess);
 
   const handleLoadMore = () => {
     if (hasMore) {

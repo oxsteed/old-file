@@ -1257,6 +1257,19 @@ ratings across jobs, helper products, businesses, and bookings; preserve
 customer/provider ownership and add capability-aware provider mutations where
 the server still trusts a legacy role.
 
+WP-030 is now in progress with the marketplace product-review checkpoint. The
+product-review POST route uses `requireHelperCapability`, its controller accepts
+the enforced capability marker for customer-role helpers, and
+`ProductReviewsSection` derives the form visibility from `hasHelperAccess`
+instead of `users.role`. Public review reads and customer-owned job/business/
+food review flows remain unchanged. The focused server contract passes and the
+new client contract confirms the role-only check is gone; no live review
+submission or moderation acceptance has been claimed.
+**Exact next action (resume here):** run the focused product/job/business/food
+review and moderation suites together, then audit helper review edit/delete,
+business response, booking completion eligibility, and report/hide paths before
+closing WP-030.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

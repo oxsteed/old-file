@@ -608,8 +608,11 @@ const submitProductReview = async (req, res) => {
       return sendError(res, 400, 'Rating must be between 1 and 5');
     }
 
-    // Verify user is a helper
-    if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)) {
+    // The route gate establishes the progressive capability marker for an
+    // approved customer-role helper; legacy helper roles remain compatible when
+    // enforcement is off or shadowing.
+    if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)
+      && req.accessCapabilities?.['helper.offer_services'] !== true) {
       return sendError(res, 403, 'Only helpers can submit reviews');
     }
 

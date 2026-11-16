@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, optionalAuth, requireRole } = require('../middleware/auth');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 // ADM-037: the admin-only product sync sat behind authenticate+requireRole
 // with no TOTP enforcement.
 const { requireAdminTotp } = require('../middleware/adminAuth');
@@ -44,7 +45,7 @@ router.get('/:productId/frequently-bought', optionalAuth, marketplaceProductsCon
 router.get('/:productId/reviews', optionalAuth, marketplaceProductsController.getProductReviews);
 
 // Submit product review (authenticated helpers only)
-router.post('/:productId/reviews', authenticate, marketplaceProductsController.submitProductReview);
+router.post('/:productId/reviews', authenticate, requireHelperCapability, marketplaceProductsController.submitProductReview);
 
 // Sync from Home Depot (admin/scheduler only)
 router.post('/sync-homedepot', authenticate, requireRole('admin', 'super_admin'), requireAdminTotp, marketplaceProductsController.syncFromHomeDepot);
