@@ -21,6 +21,13 @@ const submitReport = async (req, res, next) => {
     const { reportedUserId, bookingId, reportType, description } = req.body;
     const reporterId = req.user.id;
 
+    const normalizedBookingId = Number(bookingId);
+    if (!Number.isInteger(normalizedBookingId) || normalizedBookingId <= 0) {
+      throw new AppError('A valid rental booking is required', 400, 'validation_failed', {
+        bookingId: 'Must reference a rental booking',
+      });
+    }
+
     // Validate report type
     const validTypes = ['non_payment', 'tool_damage', 'non_return', 'fraud', 'other'];
     if (!validTypes.includes(reportType)) {
@@ -35,12 +42,32 @@ const submitReport = async (req, res, next) => {
       throw new AppError('Cannot report yourself', 400, 'validation_failed', { reportedUserId: 'Cannot be the same as reporter' });
     }
 
+    // A rental report is a party-scoped action. Do not trust a caller-supplied
+    // counterparty id or let a user use a booking they do not own/rent.
+    const bookingResult = await db.query(
+      `SELECT customer_id, owner_id
+         FROM tool_rentals_bookings
+        WHERE id = $1
+          AND (customer_id = $2 OR owner_id = $2)`,
+      [normalizedBookingId, reporterId]
+    );
+    const booking = bookingResult.rows[0];
+    if (!booking) {
+      throw new AppError('Rental booking not found', 404, 'not_found');
+    }
+    const counterpartyId = String(booking.customer_id) === String(reporterId)
+      ? booking.owner_id
+      : booking.customer_id;
+    if (!counterpartyId || String(counterpartyId) !== String(reportedUserId)) {
+      throw new AppError('The reported user is not a party to this rental', 403, 'forbidden');
+    }
+
     // Prevent duplicate reports for same user+booking combo (within 30 days)
     const existingReport = await db.query(
       `SELECT id FROM user_reports
        WHERE reporter_id = $1 AND reported_user_id = $2 AND booking_id = $3
        AND created_at > NOW() - INTERVAL '30 days'`,
-      [reporterId, reportedUserId, bookingId]
+      [reporterId, reportedUserId, normalizedBookingId]
     );
 
     if (existingReport.rows.length > 0) {
@@ -56,7 +83,7 @@ const submitReport = async (req, res, next) => {
        (reporter_id, reported_user_id, booking_id, report_type, description, status, severity)
        VALUES ($1, $2, $3, $4, $5, 'open', $6)
        RETURNING id, report_type, status, severity, created_at`,
-      [reporterId, reportedUserId, bookingId, reportType, description.trim(), severity]
+      [reporterId, reportedUserId, normalizedBookingId, reportType, description.trim(), severity]
     );
 
     const report = result.rows[0];

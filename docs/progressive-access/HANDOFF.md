@@ -1399,6 +1399,22 @@ authorization, dispute evidence, replay/idempotency, and post-listing-revoke
 behavior; then add the smallest missing capability-aware contract and focused
 tests.
 
+WP-038 is implemented on the branch. The existing rental state machine keeps
+customer return confirmation before owner completion, and deposit resolution is
+owner-bound, valid only for a completed/payment-confirmed booking, and guarded
+by an atomic `deposit_status = 'held'` update so a replay cannot resolve the
+same deposit twice. The rental report path now requires a valid booking owned
+or rented by the reporter and derives the only permitted counterparty from that
+booking, preventing guessed booking IDs and overexposed rider details. Focused
+rental tests passed 19/19 and the progressive rental contract suite passed 5/5;
+edited server files pass `node --check`. No populated browser, payment-provider,
+or live dispute acceptance is claimed.
+**Exact next action (resume here):** begin WP-039 Marketplace product catalog.
+Audit public product reads, seller/member mutation scope, pending seller drafts,
+approval-aware publication, checkout independence, and cross-business catalog
+isolation; then add the smallest missing capability-aware contract and focused
+tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

@@ -29,4 +29,19 @@ describe('progressive access tool-rental boundary (WP-037)', () => {
     expect(source).toMatch(/router\.post\('\/bookings', authenticate, toolBookingsController\.createBooking\)/);
     expect(source).not.toMatch(/toolOwnerCapabilityGate,?\s*toolBookingsController\.createBooking/);
   });
+
+  test('deposit resolution is owner-bound and single-use', () => {
+    const source = read('controllers/invoiceController.js');
+    expect(source).toMatch(/String\(booking\.owner_id\) !== String\(req\.user\.id\)/);
+    expect(source).toMatch(/WHERE id = \$1 AND deposit_status = 'held'/);
+    expect(source).toMatch(/Deposit was already resolved/);
+  });
+
+  test('rental damage reports bind both parties to the booking', () => {
+    const source = read('controllers/userReportController.js');
+    expect(source).toMatch(/FROM tool_rentals_bookings/);
+    expect(source).toMatch(/customer_id = \$2 OR owner_id = \$2/);
+    expect(source).toMatch(/reported user is not a party to this rental/);
+    expect(source).toMatch(/normalizedBookingId/);
+  });
 });
