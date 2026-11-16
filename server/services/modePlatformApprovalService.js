@@ -30,6 +30,33 @@ const POLICY_ACTIONS = Object.freeze({
   consultant: new Set(['accept_paying_booking']),
 });
 const POLICY_FIELD_TYPES = new Set(['text', 'textarea', 'number', 'url', 'email', 'date', 'select']);
+const PUBLIC_FIELD_KEYS = Object.freeze([
+  'name', 'type', 'label', 'required', 'hint', 'placeholder', 'options',
+  'minLength', 'maxLength', 'min', 'max', 'rows',
+]);
+
+// Policy JSON is admin-editable and may contain reviewer-only annotations or
+// future private rules. Applicant-facing surfaces get a deliberately narrow
+// question projection instead of the stored object verbatim.
+function publicApplicationSchema(schema) {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return {};
+  const result = {};
+  if (Array.isArray(schema.fields)) {
+    result.fields = schema.fields
+      .filter((field) => field && typeof field === 'object' && !Array.isArray(field))
+      .map((field) => Object.fromEntries(
+        PUBLIC_FIELD_KEYS
+          .filter((key) => Object.prototype.hasOwnProperty.call(field, key))
+          .map((key) => [key, field[key]]),
+      ));
+  }
+  // A public revision marker is useful for optimistic form refreshes; all
+  // other schema-level metadata remains reviewer-only by default.
+  if (typeof schema.version === 'string' || Number.isInteger(schema.version)) {
+    result.version = schema.version;
+  }
+  return result;
+}
 
 function policyValidationError(message, details = {}) {
   const err = new Error(message);
@@ -383,7 +410,7 @@ async function canPerformAction(userId, mode, action) {
       mode: policy.mode,
       auto_approve: policy.auto_approve,
       gated_actions: gated,
-      application_schema: policy.application_schema,
+      application_schema: publicApplicationSchema(policy.application_schema),
     },
   };
 }
@@ -573,5 +600,6 @@ module.exports = {
   decideApproval,
   listPendingApprovals,
   listApprovalsForUser,
+  publicApplicationSchema,
   invalidatePolicy,
 };

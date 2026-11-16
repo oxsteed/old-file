@@ -47,7 +47,7 @@ exports.getMine = async (req, res) => {
         requires_approval: policy.requires_approval,
         auto_approve: policy.auto_approve,
         gated_actions: policy.gated_actions,
-        application_schema: policy.application_schema,
+        application_schema: svc.publicApplicationSchema(policy.application_schema),
       } : null,
     });
   } catch (err) {
@@ -95,7 +95,7 @@ exports.listPublicPolicies = async (_req, res) => {
         requires_approval: p.requires_approval,
         auto_approve: p.auto_approve,
         gated_actions: p.gated_actions,
-        application_schema: p.application_schema,
+        application_schema: svc.publicApplicationSchema(p.application_schema),
       })),
     });
   } catch (err) {

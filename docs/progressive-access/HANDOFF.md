@@ -963,6 +963,17 @@ discovery. Audit the public-versus-reviewer policy revision contract, run its
 focused tests, and update this ledger plus the next action in the same pushed
 checkpoint.
 
+WP-010 is now an implementation checkpoint. Public policy discovery, the
+applicant's policy view, and the structured `platform_approval_required` gate
+response now pass application schemas through a narrow applicant-question
+projection. Reviewer-only or arbitrary admin metadata is not exposed, while
+the full schema remains available to super-admin policy editing and server-side
+validation. `modePlatformApprovalPublicSchema.test.js` and
+`progressiveAccessDecisions.test.js` pass (39 tests).
+**Exact next action (resume here):** audit WP-011, Applicant status and
+resubmission, including needs-information history, stale client revision
+handling, prefill/scope retention, and opaque cross-account case privacy.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
