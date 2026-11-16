@@ -84,7 +84,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-064 | Restaurant menu and catalog management | P3 | implemented | e5c7fd666 | __tests__/progressiveAccessRestaurantCatalog.db.test.js |
 | WP-065 | Restaurant host stand and reservations | P3 | implemented | 51792b4db | __tests__/progressiveAccessRestaurantHost.db.test.js |
 | WP-066 | Cashier POS and drawer operations | P3 | implemented | 0d5143fcd | __tests__/progressiveAccessRestaurantInventory.db.test.js; POS/drawer/device: restaurantStoreIsolation.db.test.js (CI) |
-| WP-067 | Kitchen and queue displays | P3 | planned | | |
+| WP-067 | Kitchen and queue displays | P3 | implemented | fa69c958d | __tests__/progressiveAccessRestaurantDisplays.db.test.js |
 | WP-068 | Inventory and purchase operations | P3 | planned | | |
 | WP-069 | Crew shifts, time clock, and reports | P3 | planned | | |
 | WP-070 | Restaurant runner and delivery | P3 | planned | | |

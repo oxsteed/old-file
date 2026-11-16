@@ -311,8 +311,17 @@ WP-066 done: `restaurantInventoryOperationsController` — `requireAllStoreInven
 device/receipt isolation is the existing CI suite `restaurantStoreIsolation.db.test.js`.
 Evidence: `progressiveAccessRestaurantInventory.db.test.js`.
 
+WP-067 done: in `restaurantAppFlowController`, `getKitchenFeed` and `ackKitchenTicket` now
+bind a paired display (`req.displayDevice.locationId`) to its store (they were
+restaurant-wide; the DB test fails without the fix). Pre-existing bug fixed: ticket ack
+always returned 500 on PostgreSQL (`$1` varchar/text inference; `accepted_at` compared
+`$2`, the promised time). Pairings without a store stay restaurant-wide (legacy).
+Not covered yet: personal details on public queue boards (queue_board feed). Check it
+under WP-068/069 if they touch queue screens.
+Evidence: `progressiveAccessRestaurantDisplays.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-067 (SPEC.md, search `<a id="wp-067">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-068 (SPEC.md, search `<a id="wp-068">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
