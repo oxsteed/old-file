@@ -173,6 +173,32 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
 
 ## Next step
 
+### PR #794 signup and activation checkpoint
+
+- `31035c379` repairs the fraud reporting, tax identity, and support attachment
+  test fixtures to exercise the current authorization checks. `e5edccf47`
+  updates the UI tracking registry on both client and server.
+- WP-026 (`a1111322f`, regression in `e5edccf47`): an approved Helper who starts
+  as a Customer can save a profile, complete onboarding, bid on another user's
+  job, and post their own job in the same session. Revocation blocks bidding.
+- WP-046 and WP-060 (`e5edccf47`): Business Workspace first publication
+  binds an approved proposal to one owned, unpublished draft. The name and
+  country must match, along with any region, city, and postal code supplied in
+  the proposal. The grant retains its source request and decision. An incomplete
+  setup rolls back the binding. Competing drafts cannot reuse the approval.
+  Applications links approved owners to Business Workspace.
+- Local verification used a disposable migrated PostgreSQL database. Ten
+  focused Jest suites passed (110 tests), including the three repaired suites
+  and the signup-to-first-action flows for Helper, service business, and
+  restaurant. `npm run build:ci`, growth instrumentation check, and the Arabic
+  Applications Chrome check also passed. The browser check used a fixture API.
+
+Check the updated PR CI. Continue AC-025 with real browser tabs and an active
+food order. For AC-029, verify the public listing, reviewer record, and matching
+or correcting proposal details in a connected browser. Email delivery and
+external identity verification need live acceptance. WP-045 remains the next
+planned work package.
+
 WP-007 done: `services/access/evidence.js` — Didit verified/duplicate and Stripe Identity
 verified callbacks bump `evidence_revision` on the same user's open applications (stale
 reviewer decisions then 409 `request_version_conflict`); `GET /api/admin/access-requests/:id`
