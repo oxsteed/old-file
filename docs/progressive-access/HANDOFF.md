@@ -779,7 +779,9 @@ signup or access state. Existing signed offer links and HMAC partner postbacks
 remain consent-gated, partner/currency/click scoped, and receipt-idempotent;
 they never create a progressive access grant. Focused auth and affiliate route
 suites pass (42 tests), and referral/partner/affiliate payout suites pass (79
-tests).
+tests). Frontend reference verification found 0 issues, signup/navigation tests
+pass (19 tests), and `build:ci` typecheck/build plus `verify:dist-assets` pass
+with 1,203 emitted assets.
 **Exact next action (resume here):** run a populated referral scenario in which
 an existing referrer shares a link that preselects Helper intent, the new user
 finishes customer-first signup, and the same user resumes the draft application
