@@ -65,7 +65,8 @@ exports.listQuotes = async (req, res, next) => {
 };
 
 exports.getQuote = async (req, res, next) => {
-  const { businessId, id: quoteId } = req.params;
+  const { businessId } = req.params;
+  const quoteId = req.params.quoteId || req.params.id; // routes use :quoteId
   try {
     const row = await pool.query(
       'SELECT * FROM business_quotes WHERE id=$1 AND business_id=$2', [quoteId, businessId]
@@ -116,7 +117,8 @@ exports.createQuote = async (req, res, next) => {
 };
 
 exports.updateQuote = async (req, res, next) => {
-  const { businessId, id: quoteId } = req.params;
+  const { businessId } = req.params;
+  const quoteId = req.params.quoteId || req.params.id; // routes use :quoteId
   const { client_name, client_email, title, line_items, tax_rate, valid_until, status } = req.body;
   try {
     const existingResult = await pool.query(
@@ -153,7 +155,8 @@ exports.updateQuote = async (req, res, next) => {
 };
 
 exports.sendQuote = async (req, res, next) => {
-  const { businessId, id: quoteId } = req.params;
+  const { businessId } = req.params;
+  const quoteId = req.params.quoteId || req.params.id; // routes use :quoteId
   try {
     const row = await pool.query(
       `UPDATE business_quotes SET status='sent', updated_at=NOW() WHERE id=$1 AND business_id=$2 AND status='draft' RETURNING *`,
@@ -187,15 +190,18 @@ exports.respondToQuote = async (req, res, next) => {
 };
 
 exports.deleteQuote = async (req, res, next) => {
-  const { businessId, id: quoteId } = req.params;
+  const { businessId } = req.params;
+  const quoteId = req.params.quoteId || req.params.id; // routes use :quoteId
   try {
-    await pool.query('DELETE FROM business_quotes WHERE id=$1 AND business_id=$2', [quoteId, businessId]);
+    const { rowCount } = await pool.query('DELETE FROM business_quotes WHERE id=$1 AND business_id=$2', [quoteId, businessId]);
+    if (!rowCount) return res.status(404).json({ error: 'Not found' });
     res.json({ success: true });
   } catch (err) { next(err); }
 };
 
 exports.convertToInvoice = async (req, res, next) => {
-  const { businessId, id: quoteId } = req.params;
+  const { businessId } = req.params;
+  const quoteId = req.params.quoteId || req.params.id; // routes use :quoteId
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

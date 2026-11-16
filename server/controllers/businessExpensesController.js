@@ -40,7 +40,8 @@ exports.createExpense = async (req, res, next) => {
 };
 
 exports.updateExpense = async (req, res, next) => {
-  const { businessId, id: expenseId } = req.params;
+  const { businessId } = req.params;
+  const expenseId = req.params.expenseId || req.params.id; // routes use :expenseId
   const { category, description, amount_cents, expense_date, receipt_url, notes } = req.body;
   try {
     const row = await pool.query(
@@ -55,9 +56,11 @@ exports.updateExpense = async (req, res, next) => {
 };
 
 exports.deleteExpense = async (req, res, next) => {
-  const { businessId, id: expenseId } = req.params;
+  const { businessId } = req.params;
+  const expenseId = req.params.expenseId || req.params.id; // routes use :expenseId
   try {
-    await pool.query('DELETE FROM business_expenses WHERE id=$1 AND business_id=$2', [expenseId, businessId]);
+    const { rowCount } = await pool.query('DELETE FROM business_expenses WHERE id=$1 AND business_id=$2', [expenseId, businessId]);
+    if (!rowCount) return res.status(404).json({ error: 'Not found' });
     res.json({ success: true });
   } catch (err) { next(err); }
 };
