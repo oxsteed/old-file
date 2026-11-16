@@ -1206,13 +1206,17 @@ business membership authorization. Helper-scoped chat mutations use
 `requireHelperCapability`, and chat booking's helper eligibility query accepts
 the projection-aware standing predicate without changing `users.role`. Mobile
 booking payment/confirmation remains customer-owned and intentionally ungated.
-The route/controller contract remains focused and no populated live calendar
-acceptance has been claimed.
-**Exact next action (resume here):** run the expanded WP-027 focused suites,
-then inspect calendar visibility/reschedule behavior in the client and any
-remaining mobile read surfaces. Add a browser contract only if the client still
-assumes a legacy helper role; otherwise close WP-027 and move to WP-028 quote
-requests with the same provider-mutation boundary.
+The existing CalendarPage already uses the projected `hasHelperAccess` client
+flag, so no additional browser code change was needed; the client retirement
+contract and frontend-reference verification remain green. The expanded server
+set passes (73 tests across five suites), and no populated live calendar
+acceptance has been claimed. WP-027 is implemented on this branch.
+**Exact next action (resume here):** begin WP-028 Quotes and quote requests.
+Audit direct helper quote creation, chat quote share/revise, customer response,
+business quote coexistence, and quote-to-booking transitions for the same
+customer-first versus provider-mutation boundary; retain the off/shadow/enforce
+switch behavior and add focused server/client contracts before pushing the next
+small checkpoint.
 
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
