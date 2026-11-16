@@ -93,7 +93,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-073 | Restaurant and multi-location statements | P3 | implemented | 8a9ff51c5 | __tests__/progressiveAccessRestaurantStatements.db.test.js, statementCenter.test.js |
 | WP-074 | Consultant profile and referral pipeline | P4 | implemented | 40573c463 | progressiveAccessConsultantNetwork.db.test.js; client navbar navigation and build:ci |
 | WP-075 | Consultant booking, scheduling and billing | P4 | implemented | 8fbe8b4e7 | progressiveAccessConsultantNetwork.db.test.js; 5 existing scheduling, notifications and payment suites; isolated migration and immutable history check |
-| WP-076 | Business launch journey | P4 | planned | | |
+| WP-076 | Business launch journey | P4 | in progress | 954117d8a | PostgreSQL verifies signed-in and guest intake, pending Owner access, consultant match/reassignment, and scoped action items. Explicit case-to-application links, attachment visibility, and browser acceptance still open. |
 | WP-077 | Investor reporting and audience access | P4 | planned | | |
 | WP-078 | Franchise application, review and territory | P4 | planned | | |
 | WP-079 | Logistics buyer and checkout | P4 | planned | | |
@@ -175,7 +175,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-047 | Inventory transfer permissions | planned | |
 | AC-048 | Tips, payroll and view-only employee | planned | |
 | AC-049 | Careers hiring from an approved business | planned | |
-| AC-050 | Assigned consultant eligibility | server evidence (partial) | progressiveAccessConsultantNetwork.db.test.js: assigned referrals, approval/revoke, customer redaction, off/shadow parity, and paid booking with grant and exact assignee; expiry closes new booking and checkout. Browser, market selection and live provider checks pending. |
+| AC-050 | Assigned consultant eligibility | server evidence (partial) | progressiveAccessConsultantNetwork.db.test.js: approval/revoke, customer redaction, off/shadow parity, paid booking with exact assignee and expiry denial. Business Launch market matching, assignment, reassignment, and customer-only action item visibility pass with an independently pending Owner application. Browser and live provider checks pending. |
 | AC-051 | Investor report and metric evidence | planned | |
 | AC-052 | Franchise applicant to territory operator | planned | |
 | AC-053 | Tool owner publication versus renter | planned | |

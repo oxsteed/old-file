@@ -391,14 +391,24 @@ arithmetic. It applies on the disposable PostgreSQL database, migration history
 validation passed, and six targeted server suites passed (54 tests, no skips).
 Real provider payment and browser acceptance remain open.
 
-**Exact next action (resume here):** Phase 4, WP-076 (SPEC.md, search
-`<a id="wp-076">`). Trace the business-launch intake and status audiences,
-adviser assignment and consulting action items. Keep an Owner application
-pending while an independent advisory request is created and assigned. Verify
-the request stays with its actual requester and the intended adviser, with
-case progress and private notes scoped correctly. Check legacy guest-to-account
-lookup and demonstrate that advisory activity never creates ownership or an
-access grant.
+WP-076 server checkpoint `954117d8a`. Signed-in Business Launch intake persists
+with its requester. Verified email may recover guest records; linked records keep
+their owner. Enforce-mode market matching and referral assignment require an
+effective consultant grant. Reassignment clears the former adviser's status
+notes and timestamps. Four focused server suites passed (37 tests), including
+the full intake and assignment flow, an independently pending Owner application
+with zero Owner grants, and participant-scoped consulting action items. Explicit
+advisory case-to-application links, attachment visibility, and the browser
+journey remain open for WP-076.
+
+**Exact next action (resume here):** Harden `client/src/hooks/useAccessProjection.js`
+against a verified account change while `/api/me/access` is in flight. The singleton
+promise publishes to every hook subscriber and React state can render the old
+projection during an identity change. Key snapshots and in-flight responses by
+account and the existing `client/src/api/authSessionEpoch.js` boundary. Verify
+delayed old-account results cannot populate the new account's navigation, then
+resume WP-076 at the case-to-application link and attachment audience, or use the
+updated ledger if that work has already been saved.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
