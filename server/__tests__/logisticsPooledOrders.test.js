@@ -41,10 +41,15 @@ function buildApp(asUser) {
   const app = express();
   app.use(express.json());
   if (asUser) {
-    app.use((req, _res, next) => { req.user = { id: 'user-1' }; next(); });
+    app.use((req, _res, next) => {
+      req.user = typeof asUser === 'object' ? asUser : { id: 'user-1' };
+      next();
+    });
   }
   app.get('/campaigns', pooledCtrl.listPooledOrders);
   app.get('/campaigns/:id', pooledCtrl.getPooledOrder);
+  app.post('/campaigns', pooledCtrl.createPooledOrder);
+  app.post('/campaigns/:id/join', pooledCtrl.joinPooledOrder);
   app.get('/organizer/campaigns', pooledCtrl.listOrganizerCampaigns);
   app.post('/campaigns/:id/submit', pooledCtrl.submitForReview);
   app.post('/campaigns/:id/review', pooledCtrl.reviewCampaign);
@@ -278,6 +283,97 @@ describe('GET /campaigns/:id — visibility', () => {
     pooledOrderService.getPooledOrder.mockResolvedValue(null);
     const res = await request(guestApp()).get('/campaigns/999');
     expect(res.status).toBe(404);
+  });
+});
+
+describe('progressive logistics campaign lifecycle', () => {
+  const { resolveLogisticsRole, countryOnFile } = require('../middleware/requireLogisticsAccess');
+
+  test('approved-grant customer can create, edit, submit, and read their own campaign state', async () => {
+    const user = { id: 'approved-customer', role: 'customer', default_mode: 'customer' };
+    resolveLogisticsRole.mockResolvedValue('organizer');
+    countryOnFile.mockResolvedValue('US');
+    pooledOrderService.createPooledOrder.mockResolvedValue({
+      id: 17, organizer_user_id: user.id, title: 'Approved draft', status: 'draft', approval_state: 'draft',
+    });
+    pooledOrderService.updateCampaignDraft.mockResolvedValue({
+      id: 17, organizer_user_id: user.id, title: 'Approved draft v2', status: 'draft', approval_state: 'draft',
+    });
+    pooledOrderService.submitCampaignForReview.mockResolvedValue({
+      id: 17, organizer_user_id: user.id, title: 'Approved draft v2', status: 'draft', approval_state: 'pending_review',
+    });
+    pooledOrderService.getPooledOrder.mockResolvedValue({
+      id: 17, organizer_user_id: user.id, title: 'Approved draft v2', status: 'draft', approval_state: 'pending_review',
+    });
+
+    const app = buildApp(user);
+    const create = await request(app).post('/campaigns').send({ title: 'Approved draft', lane_id: 3, target_moq: 10 });
+    expect(create.status).toBe(201);
+    expect(pooledOrderService.createPooledOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Approved draft', lane_id: 3, target_moq: 10 }),
+      user.id,
+      expect.objectContaining({ userCountry: 'US', userRole: 'organizer' })
+    );
+
+    const edit = await request(app).patch('/campaigns/17').send({ title: 'Approved draft v2' });
+    expect(edit.status).toBe(200);
+    expect(pooledOrderService.updateCampaignDraft).toHaveBeenCalledWith(
+      '17', user.id, { title: 'Approved draft v2' },
+      expect.objectContaining({ userCountry: 'US', userRole: 'organizer' })
+    );
+
+    const submit = await request(app).post('/campaigns/17/submit');
+    expect(submit.status).toBe(200);
+    expect(submit.body.data.approval_state).toBe('pending_review');
+    expect(pooledOrderService.submitCampaignForReview).toHaveBeenCalledWith(
+      '17', user.id,
+      expect.objectContaining({ userCountry: 'US', userRole: 'organizer' })
+    );
+
+    const reviewState = await request(app).get('/campaigns/17');
+    expect(reviewState.status).toBe(200);
+    expect(reviewState.body.data.approval_state).toBe('pending_review');
+    expect(pooledOrderService.describeActions).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 17 }),
+      expect.objectContaining({ isOwner: true, userRole: 'organizer' })
+    );
+  });
+
+  test('pending customer can join a public campaign but cannot submit or edit a foreign draft', async () => {
+    const user = { id: 'pending-customer', role: 'customer', default_mode: 'customer' };
+    resolveLogisticsRole.mockResolvedValue('individual_buyer');
+    countryOnFile.mockResolvedValue('US');
+    pooledOrderService.joinPooledOrder.mockResolvedValue({ id: 21, pooled_order_id: 9, user_id: user.id, committed_qty: 2 });
+    const app = buildApp(user);
+
+    const join = await request(app).post('/campaigns/9/join').send({ committed_qty: 2 });
+    expect(join.status).toBe(200);
+    expect(pooledOrderService.joinPooledOrder).toHaveBeenCalledWith(
+      '9', user.id,
+      expect.objectContaining({ committedQty: 2 })
+    );
+
+    const denied = new Error('Only the campaign organizer can submit it for review');
+    denied.code = 'not_owner';
+    denied.status = 403;
+    pooledOrderService.submitCampaignForReview.mockRejectedValue(denied);
+    pooledOrderService.updateCampaignDraft.mockRejectedValue({
+      message: 'Only the campaign organizer can edit this draft', code: 'not_owner', status: 403,
+    });
+
+    const submit = await request(app).post('/campaigns/9/submit');
+    expect(submit.status).toBe(403);
+    expect(pooledOrderService.submitCampaignForReview).toHaveBeenCalledWith(
+      '9', user.id,
+      expect.objectContaining({ userCountry: 'US', userRole: 'individual_buyer' })
+    );
+
+    const edit = await request(app).patch('/campaigns/9').send({ title: 'Foreign edit' });
+    expect(edit.status).toBe(403);
+    expect(pooledOrderService.updateCampaignDraft).toHaveBeenCalledWith(
+      '9', user.id, { title: 'Foreign edit' },
+      expect.objectContaining({ userCountry: 'US', userRole: 'individual_buyer' })
+    );
   });
 });
 
