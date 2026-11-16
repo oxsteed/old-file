@@ -168,12 +168,17 @@ describe('helper capability gate', () => {
   test('booking provider mutations use the same helper capability boundary', () => {
     const bookings = fs.readFileSync(path.join(__dirname, '../routes/bookings.js'), 'utf8');
     const controller = fs.readFileSync(path.join(__dirname, '../controllers/bookingController.js'), 'utf8');
+    const chat = fs.readFileSync(path.join(__dirname, '../routes/chat.js'), 'utf8');
+    const chatController = fs.readFileSync(path.join(__dirname, '../controllers/chatBookingRequestsController.js'), 'utf8');
     expect(bookings).toMatch(/router\.post\('\/:bookingId\/accept', requireAuth, requireBookingProviderCapability/);
     expect(bookings).toMatch(/router\.post\('\/:bookingId\/decline', requireAuth, requireBookingProviderCapability/);
     expect(bookings).toMatch(/router\.post\('\/:bookingId\/helper-cancel', requireAuth, requireBookingProviderCapability/);
     expect(bookings).toMatch(/router\.post\('\/:bookingId\/counter-propose', requireAuth, requireBookingProviderCapability/);
     expect(controller).toMatch(/publicHelperStandingPredicate\('u'\)/);
     expect(controller).toMatch(/helper_capability_granted/);
+    expect(chat).toMatch(/booking-requests.*requireChatHelperProviderCapability/);
+    expect(chatController).toMatch(/publicHelperStandingPredicate\('users'\)/);
+    expect(chatController).toMatch(/req\.accessCapabilities\?\.\['helper\.offer_services'\]/);
   });
 
   describe('hiring a helper (jobs.assign)', () => {

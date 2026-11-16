@@ -40,6 +40,29 @@ const chatCreditPay = require('../controllers/chatOxsteedCreditPaymentController
 const chatBookingRequests = require('../controllers/chatBookingRequestsController');
 const chatClientIntakes = require('../controllers/chatClientIntakeController');
 
+// In-chat booking routes serve both customer requests and provider actions.
+// Resolve the linked conversation/booking first so business members keep their
+// existing business-scope authorization while helper-owned provider actions
+// use the progressive helper capability gate.
+const requireChatHelperProviderCapability = async (req, res, next) => {
+  try {
+    const bookingId = req.params?.id;
+    const conversationId = req.body?.conversationId || req.body?.conversation_id;
+    const query = bookingId
+      ? ['SELECT helper_id, business_id FROM booking_requests WHERE id = $1', bookingId]
+      : ['SELECT helper_id, business_id FROM conversations WHERE id = $1', conversationId];
+    if (!query[1]) return next();
+    const { rows } = await pool.query(query[0], [query[1]]);
+    const target = rows[0];
+    if (target && !target.business_id && String(target.helper_id) === String(req.user?.id)) {
+      return requireHelperCapability(req, res, next);
+    }
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+};
+
 // Quote sharing/revision supports both business and helper quotes. Only the
 // helper provider mutations need progressive helper access; business quotes
 // continue through their existing membership/ownership checks.
@@ -180,11 +203,11 @@ router.post('/agreements/:id/revise', chatLimiter, authenticate, upload.single('
 
 
 // ── In-chat booking request accept / decline / propose ───────────────────────
-router.post('/booking-requests', chatLimiter, authenticate, chatBookingRequests.createChatBookingRequest);
+router.post('/booking-requests', chatLimiter, authenticate, requireChatHelperProviderCapability, chatBookingRequests.createChatBookingRequest);
 router.get('/booking-requests/:id', chatLimiter, optionalAuth, chatBookingRequests.getBookingRequest);
-router.post('/booking-requests/:id/accept', chatLimiter, authenticate, rejectImpersonated, chatBookingRequests.acceptBookingRequest);
-router.post('/booking-requests/:id/decline', chatLimiter, authenticate, rejectImpersonated, chatBookingRequests.declineBookingRequest);
-router.post('/booking-requests/:id/propose', chatLimiter, authenticate, rejectImpersonated, chatBookingRequests.proposeBookingTime);
+router.post('/booking-requests/:id/accept', chatLimiter, authenticate, rejectImpersonated, requireChatHelperProviderCapability, chatBookingRequests.acceptBookingRequest);
+router.post('/booking-requests/:id/decline', chatLimiter, authenticate, rejectImpersonated, requireChatHelperProviderCapability, chatBookingRequests.declineBookingRequest);
+router.post('/booking-requests/:id/propose', chatLimiter, authenticate, rejectImpersonated, requireChatHelperProviderCapability, chatBookingRequests.proposeBookingTime);
 router.post('/booking-requests/:id/customer-accept', chatLimiter, optionalAuth, chatBookingRequests.customerAcceptBookingRequest);
 router.post('/booking-requests/:id/customer-decline', chatLimiter, optionalAuth, chatBookingRequests.customerDeclineBookingRequest);
 

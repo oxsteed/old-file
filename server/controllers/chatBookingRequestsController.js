@@ -26,6 +26,7 @@ const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 const { withTransaction } = require('../utils/transaction');
 const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
+const { publicHelperStandingPredicate } = require('./helpersController');
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
 
@@ -650,12 +651,15 @@ exports.createChatBookingRequest = async (req, res, next) => {
     }
     if (!businessId) {
       const { rows: [helper] } = await pool.query(
-        'SELECT id, role, is_active FROM users WHERE id = $1 AND deleted_at IS NULL',
+        `SELECT id, role, is_active,
+                (${publicHelperStandingPredicate('users')}) AS helper_capability_granted
+           FROM users
+          WHERE id = $1 AND deleted_at IS NULL`,
         [helperId],
       );
       if (!helper) return bad(res, 404, 'Helper not found', 'HELPER_NOT_FOUND');
       if (!helper.is_active) return bad(res, 400, 'Helper is not accepting bookings', 'HELPER_INACTIVE');
-      if (!HELPER_ROLES.includes(helper.role)) {
+      if (!HELPER_ROLES.includes(helper.role) && !helper.helper_capability_granted && req.accessCapabilities?.['helper.offer_services'] !== true) {
         return bad(res, 400, 'User is not accepting bookings', 'INVALID_HELPER');
       }
     }

@@ -1199,11 +1199,20 @@ ownership-scoped. Customer cancel/respond/convert paths remain customer-owned
 and are not helper-gated. The route/controller contract suite
 passes together with the existing booking bridge tests; no populated live
 calendar acceptance has been claimed.
-**Exact next action (resume here):** run the focused booking/controller suites,
-then audit calendar visibility and reschedule paths (including chat booking
-requests and mobile wrappers) for provider actions that bypass the route gate.
-Add only the missing capability boundary and a customer-first regression before
-continuing WP-027.
+WP-027's chat/calendar follow-up now covers in-chat provider actions. Chat
+booking create/accept/decline/propose routes resolve the linked conversation or
+booking before applying the helper gate, so business conversations still use
+business membership authorization. Helper-scoped chat mutations use
+`requireHelperCapability`, and chat booking's helper eligibility query accepts
+the projection-aware standing predicate without changing `users.role`. Mobile
+booking payment/confirmation remains customer-owned and intentionally ungated.
+The route/controller contract remains focused and no populated live calendar
+acceptance has been claimed.
+**Exact next action (resume here):** run the expanded WP-027 focused suites,
+then inspect calendar visibility/reschedule behavior in the client and any
+remaining mobile read surfaces. Add a browser contract only if the client still
+assumes a legacy helper role; otherwise close WP-027 and move to WP-028 quote
+requests with the same provider-mutation boundary.
 
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
