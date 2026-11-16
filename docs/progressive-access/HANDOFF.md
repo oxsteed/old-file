@@ -465,8 +465,9 @@ First mount the declared franchise routes and document whether the existing
 application/territory records can be connected to progressive grants without
 granting an unscoped territory or changing `users.role`.
 
-WP-078 is now in progress at `83c6c82a9` and the latest pushed UI checkpoint is
-`4140a091a`. `franchise_applications` already
+WP-078 is now in progress at `83c6c82a9`; the latest pushed UI checkpoint is
+`4140a091a` and the admin acceptance checkpoint is `179378c97`.
+`franchise_applications` already
 contains the applicant/owner, approval status, linked business, and desired
 territory fields; there is no separate territory-assignment table. The safe
 boundary is therefore an active `launched` application with a non-null linked
@@ -482,11 +483,17 @@ and its franchise quick links are now projection-aware at `4140a091a`; the
 browser fixture proves an approved customer-class applicant has no territory
 link, an activated owner gets both entry points after the grant appears, and a
 revoked grant removes them again.
-**Exact next action (resume here):** add admin/browser acceptance for franchise
-activation, owner reassignment, and a revoked territory link, using the real
-review/activation controls and recording the grant/projection transition. Keep
-the status route readable for pending applicants and do not change
-`users.role`. Then populate live territory acceptance before moving to WP-079.
+`franchiseAdminAccess.browser-check.cjs` now exercises the real HQ review and
+activation controls: activation grants owner A, reassignment grants owner B and
+records A revoked, and a rejected status records B revoked. Together with the
+disposable PostgreSQL test and the applicant/territory browser fixtures, this
+covers the local activation, reassignment, and revoked-link acceptance path.
+**Exact next action (resume here):** perform populated live territory acceptance
+with the real approved/activated owner and a second non-owner account while
+`ACCESS_FRANCHISE_ENFORCEMENT` is enforce, recording the projection response,
+territory API calls, and revoke/reassignment behavior without changing
+`users.role`. If live credentials or populated records are unavailable, record
+that limitation and keep the exact-head CI link open before moving to WP-079.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
