@@ -21,8 +21,8 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-001 | Signup entry and intent selector | P2 | in progress | 242cb47a6 | server done (signupIntent field); client selector pending |
 | WP-002 | Registration start and pending identity | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |
 | WP-003 | OTP finalization and bootstrap | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |
-| WP-004 | Login and legacy mode inputs | P2 | in progress | pending | login mode gate (modeGate.js); dedicated login test pending |
-| WP-005 | Signed-in profile edit and account type removal | P2 | implemented | pending | progressiveAccessModeGate.db.test.js (profile, mobile, switch) |
+| WP-004 | Login and legacy mode inputs | P2 | in progress | bb9a413fa | login mode gate (modeGate.js); dedicated login test pending |
+| WP-005 | Signed-in profile edit and account type removal | P2 | implemented | bb9a413fa | progressiveAccessModeGate.db.test.js (profile, mobile, switch) |
 | WP-006 | Dedicated helper registration | P2 | planned | | |
 | WP-007 | Verification and provider callbacks | P2 | planned | | |
 | WP-008 | Business team access requests | P2 | planned | | |
@@ -30,7 +30,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-010 | Access policy and form discovery | P1 | implemented (server) | 3e19ebd25, fc9a8422d, 87a95318e | progressiveAccessDecisions.test.js; progressiveAccess.db.test.js |
 | WP-011 | Applicant status and resubmission | P1 | implemented (server API) | 87a95318e | progressiveAccess.db.test.js (11, real PG) |
 | WP-012 | Platform review and audit | P1 | implemented (server API) | 87a95318e | progressiveAccess.db.test.js (11, real PG) |
-| WP-013 | Role switch retirement | P5 | in progress | pending | switch-role authority gate behind ACCESS_LEGACY_SWITCH_RETIRED; UI retirement pending |
+| WP-013 | Role switch retirement | P5 | in progress | bb9a413fa | switch-role authority gate behind ACCESS_LEGACY_SWITCH_RETIRED; UI retirement pending |
 | WP-014 | Current-user projection and resume | P1 | implemented (server API) | 87a95318e | progressiveAccess.db.test.js (11, real PG) |
 | WP-015 | Home and dashboard routing | P2 | planned | | |
 | WP-016 | Navigation, notices and settings | P2 | planned | | |
