@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -19,7 +19,7 @@ import {
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { EstimateCard, storeEstimatePrefill } from '../components/delivery/DeliveryEstimate';
-import { estimateDeliveryPublic } from '../api/delivery';
+import { estimateDeliveryPublic, getDeliveryPublicCaptchaConfig } from '../api/delivery';
 import './DeliveryLandingPage.css';
 
 function Step({ index, title, description }) {
@@ -60,6 +60,14 @@ function FaqItem({ question, answer, open, onToggle }) {
 export default function DeliveryLandingPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  // The server says whether the public estimate needs a bot check; the
+  // widget renders only then. Refetched if the server asks for a check this
+  // page did not know about (config changed after load).
+  const [captcha, setCaptcha] = useState(null);
+  const loadCaptcha = useCallback(() => {
+    getDeliveryPublicCaptchaConfig().then(setCaptcha).catch(() => setCaptcha(null));
+  }, []);
+  useEffect(() => { loadCaptcha(); }, [loadCaptcha]);
   const [openFaq, setOpenFaq] = useState(null);
 
   const steps = [
@@ -121,6 +129,8 @@ export default function DeliveryLandingPage() {
             <EstimateCard
               t={t}
               requestEstimate={estimateDeliveryPublic}
+              captcha={captcha}
+              onCaptchaRequired={loadCaptcha}
               continueLabel={t('delivery.estimate.signInToBook')}
               continueNote={t('delivery.estimate.signInNote')}
               onContinue={(prefill) => {

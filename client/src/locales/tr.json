@@ -18170,6 +18170,12 @@
     "responseTime": "Erişilebilirlik geri bildirimine 2 iş günü içinde yanıt vermeyi hedefliyoruz."
   },
   "delivery": {
+    "captcha": {
+      "label": "Hızlı güvenlik kontrolü",
+      "required": "Tahmin almak için güvenlik kontrolünü tamamlayın.",
+      "failed": "Güvenlik kontrolü tamamlanamadı. Lütfen tekrar deneyin.",
+      "unavailable": "Güvenlik kontrolü yüklenemedi. Sayfayı yenileyip tekrar deneyin."
+    },
     "estimate": {
       "priceRangeLabel": "Tahmini fiyat",
       "priceRange": "{{min}} – {{max}}",

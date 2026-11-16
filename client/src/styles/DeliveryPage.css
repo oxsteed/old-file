@@ -362,7 +362,7 @@
 .delivery-info__block { padding: 20px; border: 1px solid rgba(148, 163, 184, .17); border-radius: 22px; background: rgba(15, 23, 42, .72); }
 .delivery-info__block h2 { margin: 0 0 12px; font-size: 1.05rem; }
 .delivery-info__block p { margin: 0 0 10px; color: #cbd5e1; font-size: .9rem; line-height: 1.55; }
-.delivery-info__block ul { margin: 0; padding-left: 18px; color: #cbd5e1; font-size: .9rem; line-height: 1.6; }
+.delivery-info__block ul { margin: 0; padding-inline-start: 18px; color: #cbd5e1; font-size: .9rem; line-height: 1.6; }
 .delivery-info__block li { margin-bottom: 6px; }
 .delivery-info__steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
 .delivery-info__steps li { display: grid; gap: 2px; }
@@ -417,3 +417,13 @@
 [data-theme='light'] .delivery-estimate-total span, [data-theme='light'] .delivery-estimate-total small, [data-theme='light'] .delivery-estimate-facts dt { color: #475569; }
 .delivery-page--public .delivery-landing-hero__coverage { justify-content: flex-start; margin-block: 16px 0; }
 .delivery-page--public .delivery-landing-hero__ctas { justify-content: flex-start; margin-block-start: 16px; }
+.delivery-captcha { display: grid; gap: 6px; justify-items: start; min-block-size: 65px; }
+.delivery-captcha .turnstile-widget { max-inline-size: 100%; overflow: hidden; }
+/* Light theme / RTL review (2026-11-16): step numbers were light-on-light,
+   and the public hero kept the signed-in page backdrop in light theme. */
+[data-theme='light'] .delivery-steps__number { background: #fff7ed; color: #9a3412; }
+[data-theme='light'] .delivery-page--public { background: none; }
+.delivery-route-preview figcaption span { white-space: nowrap; }
+[data-theme='light'] .delivery-info__block { border-color: rgba(15, 23, 42, .12); background: rgba(255, 255, 255, .9); box-shadow: 0 18px 45px rgba(15, 23, 42, .08); }
+[data-theme='light'] .delivery-info__block h2, [data-theme='light'] .delivery-info__steps strong, [data-theme='light'] .delivery-info__faq dt { color: #172033; }
+[data-theme='light'] .delivery-info__block p, [data-theme='light'] .delivery-info__block ul, [data-theme='light'] .delivery-info__steps span, [data-theme='light'] .delivery-info__faq dd { color: #475569; }

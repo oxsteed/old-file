@@ -11,6 +11,7 @@ import { build } from 'esbuild';
 const apiMock = `
   export const estimateDelivery = async () => ({});
   export const estimateDeliveryPublic = async () => ({});
+  export const getDeliveryPublicCaptchaConfig = async () => null;
   export const getCustomerTrackingState = async () => ({});
   export const deliveryMoney = (cents) => '$' + (cents / 100).toFixed(2);
   export const deliveryUnit = (value, unit) => value + ' ' + unit;
@@ -37,6 +38,10 @@ async function load() {
         import DeliveryLandingPage from './src/pages/DeliveryLandingPage.jsx';
         import * as estimate from './src/components/delivery/DeliveryEstimate.jsx';
         export const renderLanding = () => renderToString(<MemoryRouter><DeliveryLandingPage /></MemoryRouter>);
+        import TurnstileWidget, { loadTurnstile, TURNSTILE_SCRIPT_SRC } from './src/components/TurnstileWidget.jsx';
+        export const renderCard = (props) => renderToString(<estimate.EstimateCard t={(k) => k} onContinue={() => {}} {...props} />);
+        export const renderWidget = (props) => renderToString(<TurnstileWidget {...props} />);
+        export { loadTurnstile, TURNSTILE_SCRIPT_SRC };
         export const renderPrice = (props) => renderToString(<estimate.EstimatePrice t={(k, v) => v ? k + JSON.stringify(v) : k} {...props} />);
         export { estimate };`,
       resolveDir: fileURLToPath(new URL('..', import.meta.url)),
@@ -143,4 +148,51 @@ test('the public estimate card sends signed-out visitors to sign in with the est
   assert.match(source, /navigate\(`\/login\?next=\$\{encodeURIComponent\('\/delivery'\)\}`\)/);
   const page = readFileSync(new URL('../src/pages/DeliveryPage.jsx', import.meta.url), 'utf8');
   assert.match(page, /takeEstimatePrefill\(\)/);
+});
+
+test('the estimate card renders the Turnstile widget only when the server enables the bot check', async () => {
+  const { renderCard, renderWidget } = await loaded;
+  const off = renderCard({});
+  assert.doesNotMatch(off, /turnstile-widget|delivery\.captcha\.label/);
+  const disabled = renderCard({ captcha: { enabled: false, siteKey: null } });
+  assert.doesNotMatch(disabled, /turnstile-widget/);
+  const on = renderCard({ captcha: { enabled: true, provider: 'turnstile', siteKey: 'site-key' } });
+  assert.match(on, /data-testid="turnstile-widget"/);
+  assert.match(on, /delivery\.captcha\.label/);
+  assert.equal(renderWidget({ siteKey: '' }), '');
+});
+
+test('the Turnstile script loads once and a failed load can be retried', async () => {
+  const { loadTurnstile, TURNSTILE_SCRIPT_SRC } = await loaded;
+  const appended = [];
+  const doc = { createElement: () => ({}), head: { appendChild: (node) => appended.push(node) } };
+  const win = {};
+  const first = loadTurnstile(doc, win);
+  assert.equal(loadTurnstile(doc, win), first, 'one in-flight load');
+  assert.equal(appended.length, 1);
+  assert.equal(appended[0].src, TURNSTILE_SCRIPT_SRC);
+  appended[0].onerror();
+  await assert.rejects(first, /turnstile_unavailable/);
+  const retry = loadTurnstile(doc, win);
+  assert.equal(appended.length, 2, 'a failed load is retried');
+  win.turnstile = { render: () => 'id' };
+  appended[1].onload();
+  assert.equal(await retry, win.turnstile);
+  assert.equal(await loadTurnstile(doc, win), win.turnstile);
+});
+
+test('the public estimate sends the token, resets the single-use widget, and asks again on expiry or rejection', () => {
+  const card = readFileSync(new URL('../src/components/delivery/DeliveryEstimate.jsx', import.meta.url), 'utf8');
+  assert.match(card, /captchaOn \? \{ captchaToken \} : \{\}/);
+  assert.match(card, /captchaRef\.current\?\.reset\(\)/);
+  assert.match(card, /onExpire=\{\(\) => setCaptchaToken\(''\)\}/);
+  assert.match(card, /captcha_required' \|\| captchaCode === 'captcha_failed'/);
+  const landing = readFileSync(new URL('../src/pages/DeliveryLandingPage.jsx', import.meta.url), 'utf8');
+  assert.match(landing, /getDeliveryPublicCaptchaConfig\(\)/);
+  assert.match(landing, /onCaptchaRequired=\{loadCaptcha\}/);
+  const dir = new URL('../src/locales/', import.meta.url);
+  for (const file of readdirSync(dir).filter((name) => name.endsWith('.json'))) {
+    const captcha = JSON.parse(readFileSync(new URL(file, dir), 'utf8')).delivery.captcha;
+    for (const key of ['label', 'required', 'failed', 'unavailable']) assert.ok(captcha?.[key], `${file} delivery.captcha.${key}`);
+  }
 });

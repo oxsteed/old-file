@@ -20660,6 +20660,12 @@
     "responseTime": "Bay paj, travay, aparèy, navigatè ak teknoloji asistans si sa konsène. Di nou ki lòt fòma oswa èd ou bezwen. Nou egzamine rapò epi bay baryè aksè priyorite."
   },
   "delivery": {
+    "captcha": {
+      "label": "Ti verifikasyon sekirite",
+      "required": "Fè verifikasyon sekirite a pou w jwenn yon estimasyon.",
+      "failed": "Verifikasyon sekirite a pa pase. Tanpri fè l ankò.",
+      "unavailable": "Verifikasyon sekirite a pa t ka chaje. Rafrechi paj la epi eseye ankò."
+    },
     "driverPayoutHistory": {
       "title": "Istwa peman mwen",
       "subtitle": "Peman ki akimile pou livrezon ou te konplete yo. Operasyon apwouve peman yo epi anrejistre referans peman an; peman ki peye ak ki anile pa ka chanje.",

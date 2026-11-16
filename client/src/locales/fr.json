@@ -20660,6 +20660,12 @@
     "responseTime": "Indiquez la page, la tâche, l’appareil, le navigateur et, le cas échéant, la technologie d’assistance. Précisez le format ou l’aide souhaitée. Nous examinons les signalements et priorisons les obstacles d’accès."
   },
   "delivery": {
+    "captcha": {
+      "label": "Vérification de sécurité rapide",
+      "required": "Effectuez la vérification de sécurité pour obtenir une estimation.",
+      "failed": "La vérification de sécurité n’a pas abouti. Veuillez la refaire.",
+      "unavailable": "La vérification de sécurité n’a pas pu se charger. Actualisez la page et réessayez."
+    },
     "driverPayoutHistory": {
       "title": "Mon historique de paiements",
       "subtitle": "Paiements accumulés pour les livraisons que vous avez effectuées. Les opérations approuvent les paiements et enregistrent la référence de paiement; les paiements payés et annulés ne peuvent pas changer.",

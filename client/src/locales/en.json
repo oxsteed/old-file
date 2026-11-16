@@ -20660,6 +20660,12 @@
     "responseTime": "Please include the page, task, device, browser, and assistive technology if relevant. Tell us the alternative format or assistance you need. We review reports and prioritize barriers affecting access."
   },
   "delivery": {
+    "captcha": {
+      "label": "Quick security check",
+      "required": "Complete the security check to get an estimate.",
+      "failed": "The security check didn't go through. Please complete it again.",
+      "unavailable": "The security check couldn't load. Refresh the page and try again."
+    },
     "driverPayoutHistory": {
       "title": "My payout history",
       "subtitle": "Payouts accrued from deliveries you completed. Operations approves payouts and records the payment reference; paid and voided payouts cannot change.",

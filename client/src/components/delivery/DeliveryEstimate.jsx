@@ -1,7 +1,8 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, DollarSign, Loader2 } from 'lucide-react';
 import AddressAutocomplete from '../AddressAutocomplete';
+import TurnstileWidget from '../TurnstileWidget';
 import {
   estimateDelivery,
   getCustomerTrackingState,
@@ -133,6 +134,8 @@ export function EstimateCard({
   requestEstimate = estimateDelivery,
   continueLabel,
   continueNote,
+  captcha = null,
+  onCaptchaRequired,
 }) {
   const { i18n } = useTranslation();
   const [origin, setOrigin] = useState(emptyPlace);
@@ -143,6 +146,13 @@ export function EstimateCard({
   const [estimate, setEstimate] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Bot check for the public estimate: shown only when the server's captcha
+  // config is enabled. Each token is single-use, so the widget is reset after
+  // every request; an expired token is dropped and the visitor re-checks.
+  const captchaOn = Boolean(captcha?.enabled);
+  const captchaRef = useRef(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaFailed, setCaptchaFailed] = useState(false);
   const standardCents = estimate ? (estimate.sizePrices?.[size]?.customerTotalCents ?? estimate.pricing.cents.customerTotal) : null;
   const money = (cents) => deliveryMoney(cents, i18n.language, estimate?.pricing?.currency);
 
@@ -157,6 +167,14 @@ export function EstimateCard({
       setError(t('delivery.ui.usOnly'));
       return;
     }
+    if (captchaOn && (!captcha.siteKey || captchaFailed)) {
+      setError(t('delivery.captcha.unavailable'));
+      return;
+    }
+    if (captchaOn && !captchaToken) {
+      setError(t('delivery.captcha.required'));
+      return;
+    }
     setBusy(true);
     try {
       const response = await requestEstimate({
@@ -165,15 +183,27 @@ export function EstimateCard({
         packageType: size,
         weightLbs: SIZE_DEFAULT_WEIGHT_LBS[size],
         serviceLevel: 'standard',
+        ...(captchaOn ? { captchaToken } : {}),
       });
       setEstimate(response.estimate);
       if (response.estimate?.origin) setOrigin((previous) => mergeLocatedStop(previous, response.estimate.origin));
       if (response.estimate?.destination) setDestination((previous) => mergeLocatedStop(previous, response.estimate.destination));
     } catch (requestError) {
       setEstimate(null);
-      setError(deliveryError(requestError, t, 'delivery.errors.quote'));
+      const captchaCode = requestError?.response?.data?.error;
+      if (captchaCode === 'captcha_required' || captchaCode === 'captcha_failed') {
+        setError(t(captchaOn ? 'delivery.captcha.failed' : 'delivery.captcha.required'));
+        // The server enforces a check this page did not know about yet.
+        if (!captchaOn) onCaptchaRequired?.();
+      } else {
+        setError(deliveryError(requestError, t, 'delivery.errors.quote'));
+      }
     } finally {
       setBusy(false);
+      if (captchaOn) {
+        setCaptchaToken('');
+        captchaRef.current?.reset();
+      }
     }
   };
 
@@ -237,6 +267,19 @@ export function EstimateCard({
             <p className="delivery-estimate-hint">{t('delivery.customer.quoteHint')}</p>
             <RoutePreview sample t={t} />
           </>
+        )}
+        {captchaOn && captcha.siteKey && (
+          <div className="delivery-captcha">
+            <span className="delivery-estimate-defaults">{t('delivery.captcha.label')}</span>
+            <TurnstileWidget
+              ref={captchaRef}
+              siteKey={captcha.siteKey}
+              language={i18n.language}
+              onToken={(token) => { setCaptchaToken(token); setCaptchaFailed(false); }}
+              onExpire={() => setCaptchaToken('')}
+              onError={() => { setCaptchaToken(''); setCaptchaFailed(true); }}
+            />
+          </div>
         )}
         {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
         <button type="submit" className="delivery-button delivery-button--primary delivery-button--wide" disabled={busy}>

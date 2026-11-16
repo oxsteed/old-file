@@ -18170,6 +18170,12 @@
     "responseTime": "Wir bemühen uns, innerhalb von 2 Werktagen auf Feedback zur Barrierefreiheit zu antworten."
   },
   "delivery": {
+    "captcha": {
+      "label": "Kurze Sicherheitsprüfung",
+      "required": "Schließe die Sicherheitsprüfung ab, um eine Schätzung zu erhalten.",
+      "failed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte wiederhole sie.",
+      "unavailable": "Die Sicherheitsprüfung konnte nicht geladen werden. Lade die Seite neu und versuche es erneut."
+    },
     "estimate": {
       "priceRangeLabel": "Geschätzter Preis",
       "priceRange": "{{min}} – {{max}}",

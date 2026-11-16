@@ -18170,6 +18170,12 @@
     "responseTime": "我们的目标是在 2 个工作日内回复无障碍反馈。"
   },
   "delivery": {
+    "captcha": {
+      "label": "快速安全验证",
+      "required": "完成安全验证以获取估价。",
+      "failed": "安全验证未通过，请重新完成。",
+      "unavailable": "安全验证无法加载。请刷新页面后重试。"
+    },
     "estimate": {
       "priceRangeLabel": "预估价格",
       "priceRange": "{{min}} – {{max}}",

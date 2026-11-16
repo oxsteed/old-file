@@ -4,8 +4,8 @@
 // oracle was closed by making responses uniform; this middleware is the
 // integration point for a CAPTCHA/attestation provider when Emile wants one.
 //
-// Disabled by default: set CAPTCHA_ENABLED=true plus CAPTCHA_PROVIDER and
-// CAPTCHA_SECRET to enforce. Until then it is a passthrough and changes
+// Disabled by default: set CAPTCHA_ENABLED=true plus CAPTCHA_PROVIDER,
+// CAPTCHA_SECRET and CAPTCHA_SITE_KEY (public widget key) to enforce. Until then it is a passthrough and changes
 // nothing.
 //
 // Follow-up decision for Emile: pick a provider (Cloudflare Turnstile,
@@ -70,4 +70,21 @@ function isCaptchaEnabled() {
   return ENABLED;
 }
 
-module.exports = { verifyCaptcha, isCaptchaEnabled };
+// Public, non-secret widget config for clients that front a verifyCaptcha
+// route (for example the signed-out delivery estimate). The site key is
+// public by design; the secret never leaves the server. Clients render the
+// widget only when `enabled` is true, so turning CAPTCHA_ENABLED on does not
+// strand a page that has no widget.
+// Read at load, like ENABLED, so the widget config always matches what the
+// middleware enforces.
+const SITE_KEY = String(process.env.CAPTCHA_SITE_KEY || '').trim();
+
+function captchaClientConfig() {
+  return {
+    enabled: ENABLED,
+    provider: PROVIDER,
+    siteKey: ENABLED && SITE_KEY ? SITE_KEY : null,
+  };
+}
+
+module.exports = { verifyCaptcha, isCaptchaEnabled, captchaClientConfig };
