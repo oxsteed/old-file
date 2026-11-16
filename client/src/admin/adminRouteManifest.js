@@ -53,6 +53,8 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   enforcement: defineRoute('/admin/enforcement', { grant: 'manage_users' }),
   contentRemovals: defineRoute('/admin/content-removals', { grant: 'moderate_content' }),
   mediaFlags: defineRoute('/admin/media-flags', { grant: 'moderate_content' }),
+  // Progressive access (WP-012): reviewer queue; the server scopes it per capability.
+  accessRequests: defineRoute('/admin/access-requests', { grant: 'review_access_requests' }),
   foodOrders: defineRoute('/admin/food-orders', { grant: 'manage_orders' }),
   foodOrderDetail: defineRoute('/admin/food-orders/:id', { grant: 'manage_orders' }),
   // Track D: restaurant admin and support surfaces.

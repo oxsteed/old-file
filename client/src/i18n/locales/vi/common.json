@@ -4022,6 +4022,40 @@
       "alreadyOpen": "Bạn đã có một đơn đăng ký đang mở cho mục này.",
       "alreadyGranted": "Bạn đã có quyền truy cập này."
     },
-    "openApplications": "Mở đơn đăng ký"
+    "openApplications": "Mở đơn đăng ký",
+    "admin": {
+      "nav": "Đơn xin quyền truy cập",
+      "title": "Đơn xin quyền truy cập",
+      "subtitle": "Xét duyệt đơn xin quyền người giúp việc, doanh nghiệp và các quyền khác.",
+      "status": "Trạng thái",
+      "capability": "Loại quyền",
+      "all": "Tất cả",
+      "empty": "Không có đơn nào khớp với bộ lọc này.",
+      "loadMore": "Tải thêm",
+      "select": "Chọn một đơn để xét duyệt.",
+      "applicant": "Người nộp đơn",
+      "emailVerified": "Email đã xác minh",
+      "identityVerified": "Danh tính đã xác minh",
+      "yes": "Có",
+      "no": "Không",
+      "answers": "Câu trả lời",
+      "history": "Lịch sử",
+      "currentAccess": "Quyền hiện tại",
+      "policyChanged": "Chính sách đã thay đổi sau khi gửi đơn. Việc phê duyệt sẽ kiểm tra chính sách hiện tại.",
+      "reasonCode": "Lý do hiển thị cho người nộp đơn",
+      "note": "Ghi chú nội bộ (người nộp đơn không thấy)",
+      "informationRequest": "Người nộp đơn cần bổ sung gì?",
+      "actions": {
+        "claim": "Bắt đầu xét duyệt",
+        "request_information": "Yêu cầu thông tin",
+        "approve": "Phê duyệt",
+        "decline": "Từ chối"
+      },
+      "decided": "Đã lưu quyết định",
+      "errors": {
+        "selfReview": "Bạn không thể tự xét duyệt đơn của mình.",
+        "notPermitted": "Bạn không có quyền quyết định đơn này."
+      }
+    }
   }
 }

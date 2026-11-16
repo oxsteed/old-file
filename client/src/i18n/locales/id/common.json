@@ -4022,6 +4022,40 @@
       "alreadyOpen": "Anda sudah memiliki pengajuan terbuka untuk ini.",
       "alreadyGranted": "Anda sudah memiliki akses ini."
     },
-    "openApplications": "Buka pengajuan"
+    "openApplications": "Buka pengajuan",
+    "admin": {
+      "nav": "Pengajuan akses",
+      "title": "Pengajuan akses",
+      "subtitle": "Tinjau pengajuan akses penyedia jasa, bisnis, dan lainnya.",
+      "status": "Status",
+      "capability": "Jenis akses",
+      "all": "Semua",
+      "empty": "Tidak ada pengajuan yang cocok dengan filter ini.",
+      "loadMore": "Muat lebih banyak",
+      "select": "Pilih pengajuan untuk ditinjau.",
+      "applicant": "Pemohon",
+      "emailVerified": "Email terverifikasi",
+      "identityVerified": "Identitas terverifikasi",
+      "yes": "Ya",
+      "no": "Tidak",
+      "answers": "Jawaban",
+      "history": "Riwayat",
+      "currentAccess": "Akses saat ini",
+      "policyChanged": "Kebijakan berubah setelah pengajuan dikirim. Persetujuan memeriksa kebijakan saat ini.",
+      "reasonCode": "Alasan yang dilihat pemohon",
+      "note": "Catatan internal (tidak terlihat oleh pemohon)",
+      "informationRequest": "Apa yang harus ditambahkan pemohon?",
+      "actions": {
+        "claim": "Mulai tinjauan",
+        "request_information": "Minta informasi",
+        "approve": "Setujui",
+        "decline": "Tolak"
+      },
+      "decided": "Keputusan disimpan",
+      "errors": {
+        "selfReview": "Anda tidak dapat meninjau pengajuan Anda sendiri.",
+        "notPermitted": "Anda tidak memiliki izin untuk memutuskan pengajuan ini."
+      }
+    }
   }
 }

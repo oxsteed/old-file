@@ -6653,6 +6653,40 @@
       "alreadyOpen": "You already have an open application for this.",
       "alreadyGranted": "You already have this access."
     },
-    "openApplications": "Open applications"
+    "openApplications": "Open applications",
+    "admin": {
+      "nav": "Access applications",
+      "title": "Access applications",
+      "subtitle": "Review applications for helper, business and other access.",
+      "status": "Status",
+      "capability": "Access type",
+      "all": "All",
+      "empty": "No applications match these filters.",
+      "loadMore": "Load more",
+      "select": "Select an application to review it.",
+      "applicant": "Applicant",
+      "emailVerified": "Email verified",
+      "identityVerified": "Identity verified",
+      "yes": "Yes",
+      "no": "No",
+      "answers": "Answers",
+      "history": "History",
+      "currentAccess": "Current access",
+      "policyChanged": "The policy changed after this was submitted. Approval checks the current policy.",
+      "reasonCode": "Reason shown to the applicant",
+      "note": "Internal note (not shown to the applicant)",
+      "informationRequest": "What should the applicant add?",
+      "actions": {
+        "claim": "Start review",
+        "request_information": "Ask for information",
+        "approve": "Approve",
+        "decline": "Decline"
+      },
+      "decided": "Decision saved",
+      "errors": {
+        "selfReview": "You cannot review your own application.",
+        "notPermitted": "You do not have permission to decide this application."
+      }
+    }
   }
 }

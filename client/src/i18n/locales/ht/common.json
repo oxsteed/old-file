@@ -6653,6 +6653,40 @@
       "alreadyOpen": "Ou deja gen yon aplikasyon ouvè pou sa.",
       "alreadyGranted": "Ou deja gen aksè sa a."
     },
-    "openApplications": "Louvri aplikasyon yo"
+    "openApplications": "Louvri aplikasyon yo",
+    "admin": {
+      "nav": "Aplikasyon pou aksè",
+      "title": "Aplikasyon pou aksè",
+      "subtitle": "Revize aplikasyon pou aksè èd, biznis ak lòt aksè.",
+      "status": "Estati",
+      "capability": "Kalite aksè",
+      "all": "Tout",
+      "empty": "Pa gen aplikasyon ki koresponn ak filtè sa yo.",
+      "loadMore": "Chaje plis",
+      "select": "Chwazi yon aplikasyon pou revize l.",
+      "applicant": "Aplikan",
+      "emailVerified": "Imèl verifye",
+      "identityVerified": "Idantite verifye",
+      "yes": "Wi",
+      "no": "Non",
+      "answers": "Repons",
+      "history": "Istorik",
+      "currentAccess": "Aksè aktyèl",
+      "policyChanged": "Règ la chanje apre yo te voye aplikasyon an. Apwobasyon an tcheke règ aktyèl la.",
+      "reasonCode": "Rezon aplikan an ap wè",
+      "note": "Nòt entèn (aplikan an pa wè l)",
+      "informationRequest": "Kisa aplikan an dwe ajoute?",
+      "actions": {
+        "claim": "Kòmanse revizyon",
+        "request_information": "Mande enfòmasyon",
+        "approve": "Apwouve",
+        "decline": "Refize"
+      },
+      "decided": "Desizyon an sove",
+      "errors": {
+        "selfReview": "Ou pa ka revize pwòp aplikasyon ou.",
+        "notPermitted": "Ou pa gen pèmisyon pou deside aplikasyon sa a."
+      }
+    }
   }
 }

@@ -4022,6 +4022,40 @@
       "alreadyOpen": "この項目の申請はすでに進行中です。",
       "alreadyGranted": "このアクセス権はすでにお持ちです。"
     },
-    "openApplications": "申請を開く"
+    "openApplications": "申請を開く",
+    "admin": {
+      "nav": "アクセス申請",
+      "title": "アクセス申請",
+      "subtitle": "ヘルパー、ビジネスなどのアクセス申請を審査します。",
+      "status": "ステータス",
+      "capability": "アクセスの種類",
+      "all": "すべて",
+      "empty": "この条件に一致する申請はありません。",
+      "loadMore": "さらに読み込む",
+      "select": "審査する申請を選択してください。",
+      "applicant": "申請者",
+      "emailVerified": "メール確認済み",
+      "identityVerified": "本人確認済み",
+      "yes": "はい",
+      "no": "いいえ",
+      "answers": "回答",
+      "history": "履歴",
+      "currentAccess": "現在のアクセス",
+      "policyChanged": "提出後にポリシーが変更されました。承認時は現在のポリシーで確認します。",
+      "reasonCode": "申請者に表示される理由",
+      "note": "内部メモ（申請者には表示されません）",
+      "informationRequest": "申請者に追加してほしい内容",
+      "actions": {
+        "claim": "審査を開始",
+        "request_information": "情報を依頼",
+        "approve": "承認",
+        "decline": "却下"
+      },
+      "decided": "決定を保存しました",
+      "errors": {
+        "selfReview": "自分の申請は審査できません。",
+        "notPermitted": "この申請を決定する権限がありません。"
+      }
+    }
   }
 }

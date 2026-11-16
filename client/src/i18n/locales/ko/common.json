@@ -4022,6 +4022,40 @@
       "alreadyOpen": "이미 진행 중인 신청이 있습니다.",
       "alreadyGranted": "이미 이 권한이 있습니다."
     },
-    "openApplications": "신청 열기"
+    "openApplications": "신청 열기",
+    "admin": {
+      "nav": "접근 권한 신청",
+      "title": "접근 권한 신청",
+      "subtitle": "도우미, 사업체 등 접근 권한 신청을 검토하세요.",
+      "status": "상태",
+      "capability": "권한 유형",
+      "all": "전체",
+      "empty": "이 필터와 일치하는 신청이 없습니다.",
+      "loadMore": "더 불러오기",
+      "select": "검토할 신청을 선택하세요.",
+      "applicant": "신청자",
+      "emailVerified": "이메일 인증됨",
+      "identityVerified": "본인 인증됨",
+      "yes": "예",
+      "no": "아니요",
+      "answers": "답변",
+      "history": "기록",
+      "currentAccess": "현재 권한",
+      "policyChanged": "제출 후 정책이 변경되었습니다. 승인 시 현재 정책을 확인합니다.",
+      "reasonCode": "신청자에게 표시할 사유",
+      "note": "내부 메모(신청자에게 표시되지 않음)",
+      "informationRequest": "신청자가 무엇을 추가해야 하나요?",
+      "actions": {
+        "claim": "검토 시작",
+        "request_information": "정보 요청",
+        "approve": "승인",
+        "decline": "거절"
+      },
+      "decided": "결정을 저장했습니다",
+      "errors": {
+        "selfReview": "본인의 신청은 검토할 수 없습니다.",
+        "notPermitted": "이 신청을 결정할 권한이 없습니다."
+      }
+    }
   }
 }

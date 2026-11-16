@@ -4022,6 +4022,40 @@
       "alreadyOpen": "Você já tem uma solicitação aberta para isso.",
       "alreadyGranted": "Você já tem este acesso."
     },
-    "openApplications": "Abrir solicitações"
+    "openApplications": "Abrir solicitações",
+    "admin": {
+      "nav": "Solicitações de acesso",
+      "title": "Solicitações de acesso",
+      "subtitle": "Analise solicitações de acesso de prestador, empresa e outros.",
+      "status": "Status",
+      "capability": "Tipo de acesso",
+      "all": "Todos",
+      "empty": "Nenhuma solicitação corresponde a esses filtros.",
+      "loadMore": "Carregar mais",
+      "select": "Selecione uma solicitação para analisá-la.",
+      "applicant": "Solicitante",
+      "emailVerified": "E-mail verificado",
+      "identityVerified": "Identidade verificada",
+      "yes": "Sim",
+      "no": "Não",
+      "answers": "Respostas",
+      "history": "Histórico",
+      "currentAccess": "Acesso atual",
+      "policyChanged": "A política mudou depois do envio. A aprovação verifica a política atual.",
+      "reasonCode": "Motivo exibido ao solicitante",
+      "note": "Nota interna (não exibida ao solicitante)",
+      "informationRequest": "O que o solicitante deve adicionar?",
+      "actions": {
+        "claim": "Iniciar análise",
+        "request_information": "Pedir informações",
+        "approve": "Aprovar",
+        "decline": "Recusar"
+      },
+      "decided": "Decisão salva",
+      "errors": {
+        "selfReview": "Você não pode analisar sua própria solicitação.",
+        "notPermitted": "Você não tem permissão para decidir esta solicitação."
+      }
+    }
   }
 }

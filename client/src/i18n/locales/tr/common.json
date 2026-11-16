@@ -4022,6 +4022,40 @@
       "alreadyOpen": "Bunun için zaten açık bir başvurunuz var.",
       "alreadyGranted": "Bu erişime zaten sahipsiniz."
     },
-    "openApplications": "Başvuruları aç"
+    "openApplications": "Başvuruları aç",
+    "admin": {
+      "nav": "Erişim başvuruları",
+      "title": "Erişim başvuruları",
+      "subtitle": "Yardımcı, işletme ve diğer erişim başvurularını inceleyin.",
+      "status": "Durum",
+      "capability": "Erişim türü",
+      "all": "Tümü",
+      "empty": "Bu filtrelerle eşleşen başvuru yok.",
+      "loadMore": "Daha fazla yükle",
+      "select": "İncelemek için bir başvuru seçin.",
+      "applicant": "Başvuran",
+      "emailVerified": "E-posta doğrulandı",
+      "identityVerified": "Kimlik doğrulandı",
+      "yes": "Evet",
+      "no": "Hayır",
+      "answers": "Yanıtlar",
+      "history": "Geçmiş",
+      "currentAccess": "Mevcut erişim",
+      "policyChanged": "Politika gönderimden sonra değişti. Onay mevcut politikayı kontrol eder.",
+      "reasonCode": "Başvurana gösterilecek neden",
+      "note": "İç not (başvuran göremez)",
+      "informationRequest": "Başvuran ne eklemeli?",
+      "actions": {
+        "claim": "İncelemeyi başlat",
+        "request_information": "Bilgi iste",
+        "approve": "Onayla",
+        "decline": "Reddet"
+      },
+      "decided": "Karar kaydedildi",
+      "errors": {
+        "selfReview": "Kendi başvurunuzu inceleyemezsiniz.",
+        "notPermitted": "Bu başvuru hakkında karar verme izniniz yok."
+      }
+    }
   }
 }

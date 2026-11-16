@@ -6653,6 +6653,40 @@
       "alreadyOpen": "Vous avez déjà une demande ouverte pour cela.",
       "alreadyGranted": "Vous avez déjà cet accès."
     },
-    "openApplications": "Ouvrir les demandes"
+    "openApplications": "Ouvrir les demandes",
+    "admin": {
+      "nav": "Demandes d'accès",
+      "title": "Demandes d'accès",
+      "subtitle": "Examinez les demandes d'accès prestataire, entreprise et autres.",
+      "status": "Statut",
+      "capability": "Type d'accès",
+      "all": "Tous",
+      "empty": "Aucune demande ne correspond à ces filtres.",
+      "loadMore": "Charger plus",
+      "select": "Sélectionnez une demande pour l’examiner.",
+      "applicant": "Demandeur",
+      "emailVerified": "E-mail vérifié",
+      "identityVerified": "Identité vérifiée",
+      "yes": "Oui",
+      "no": "Non",
+      "answers": "Réponses",
+      "history": "Historique",
+      "currentAccess": "Accès actuel",
+      "policyChanged": "La politique a changé après l'envoi. L'approbation vérifie la politique actuelle.",
+      "reasonCode": "Motif affiché au demandeur",
+      "note": "Note interne (non visible par le demandeur)",
+      "informationRequest": "Que doit ajouter le demandeur ?",
+      "actions": {
+        "claim": "Commencer l'examen",
+        "request_information": "Demander des informations",
+        "approve": "Approuver",
+        "decline": "Refuser"
+      },
+      "decided": "Décision enregistrée",
+      "errors": {
+        "selfReview": "Vous ne pouvez pas examiner votre propre demande.",
+        "notPermitted": "Vous n'avez pas l'autorisation de statuer sur cette demande."
+      }
+    }
   }
 }

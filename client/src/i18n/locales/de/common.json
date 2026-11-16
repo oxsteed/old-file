@@ -4022,6 +4022,40 @@
       "alreadyOpen": "Du hast dafür bereits einen offenen Antrag.",
       "alreadyGranted": "Du hast diesen Zugang bereits."
     },
-    "openApplications": "Anträge öffnen"
+    "openApplications": "Anträge öffnen",
+    "admin": {
+      "nav": "Zugangsanträge",
+      "title": "Zugangsanträge",
+      "subtitle": "Prüfe Anträge für Helfer-, Unternehmens- und weitere Zugänge.",
+      "status": "Status",
+      "capability": "Zugangsart",
+      "all": "Alle",
+      "empty": "Keine Anträge entsprechen diesen Filtern.",
+      "loadMore": "Mehr laden",
+      "select": "Wähle einen Antrag zur Prüfung aus.",
+      "applicant": "Antragsteller",
+      "emailVerified": "E-Mail bestätigt",
+      "identityVerified": "Identität bestätigt",
+      "yes": "Ja",
+      "no": "Nein",
+      "answers": "Antworten",
+      "history": "Verlauf",
+      "currentAccess": "Aktueller Zugang",
+      "policyChanged": "Die Richtlinie hat sich nach dem Einreichen geändert. Die Genehmigung prüft die aktuelle Richtlinie.",
+      "reasonCode": "Begründung für den Antragsteller",
+      "note": "Interne Notiz (für den Antragsteller nicht sichtbar)",
+      "informationRequest": "Was soll der Antragsteller ergänzen?",
+      "actions": {
+        "claim": "Prüfung beginnen",
+        "request_information": "Informationen anfordern",
+        "approve": "Genehmigen",
+        "decline": "Ablehnen"
+      },
+      "decided": "Entscheidung gespeichert",
+      "errors": {
+        "selfReview": "Du kannst deinen eigenen Antrag nicht prüfen.",
+        "notPermitted": "Du bist nicht berechtigt, über diesen Antrag zu entscheiden."
+      }
+    }
   }
 }

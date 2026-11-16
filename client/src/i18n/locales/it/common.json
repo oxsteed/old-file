@@ -4022,6 +4022,40 @@
       "alreadyOpen": "Hai già una richiesta aperta per questo.",
       "alreadyGranted": "Hai già questo accesso."
     },
-    "openApplications": "Apri richieste"
+    "openApplications": "Apri richieste",
+    "admin": {
+      "nav": "Richieste di accesso",
+      "title": "Richieste di accesso",
+      "subtitle": "Esamina le richieste di accesso come collaboratore, attività e altro.",
+      "status": "Stato",
+      "capability": "Tipo di accesso",
+      "all": "Tutti",
+      "empty": "Nessuna richiesta corrisponde a questi filtri.",
+      "loadMore": "Carica altro",
+      "select": "Seleziona una richiesta da esaminare.",
+      "applicant": "Richiedente",
+      "emailVerified": "Email verificata",
+      "identityVerified": "Identità verificata",
+      "yes": "Sì",
+      "no": "No",
+      "answers": "Risposte",
+      "history": "Cronologia",
+      "currentAccess": "Accesso attuale",
+      "policyChanged": "La policy è cambiata dopo l'invio. L'approvazione verifica la policy attuale.",
+      "reasonCode": "Motivo mostrato al richiedente",
+      "note": "Nota interna (non visibile al richiedente)",
+      "informationRequest": "Cosa deve aggiungere il richiedente?",
+      "actions": {
+        "claim": "Avvia revisione",
+        "request_information": "Chiedi informazioni",
+        "approve": "Approva",
+        "decline": "Rifiuta"
+      },
+      "decided": "Decisione salvata",
+      "errors": {
+        "selfReview": "Non puoi esaminare la tua richiesta.",
+        "notPermitted": "Non hai l’autorizzazione per decidere questa richiesta."
+      }
+    }
   }
 }

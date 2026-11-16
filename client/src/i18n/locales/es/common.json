@@ -6653,6 +6653,40 @@
       "alreadyOpen": "Ya tienes una solicitud abierta para esto.",
       "alreadyGranted": "Ya tienes este acceso."
     },
-    "openApplications": "Abrir solicitudes"
+    "openApplications": "Abrir solicitudes",
+    "admin": {
+      "nav": "Solicitudes de acceso",
+      "title": "Solicitudes de acceso",
+      "subtitle": "Revisa solicitudes de acceso como ayudante, negocio y más.",
+      "status": "Estado",
+      "capability": "Tipo de acceso",
+      "all": "Todos",
+      "empty": "Ninguna solicitud coincide con estos filtros.",
+      "loadMore": "Cargar más",
+      "select": "Selecciona una solicitud para revisarla.",
+      "applicant": "Solicitante",
+      "emailVerified": "Correo verificado",
+      "identityVerified": "Identidad verificada",
+      "yes": "Sí",
+      "no": "No",
+      "answers": "Respuestas",
+      "history": "Historial",
+      "currentAccess": "Acceso actual",
+      "policyChanged": "La política cambió después del envío. La aprobación verifica la política actual.",
+      "reasonCode": "Motivo que verá el solicitante",
+      "note": "Nota interna (el solicitante no la ve)",
+      "informationRequest": "¿Qué debe agregar el solicitante?",
+      "actions": {
+        "claim": "Iniciar revisión",
+        "request_information": "Pedir información",
+        "approve": "Aprobar",
+        "decline": "Rechazar"
+      },
+      "decided": "Decisión guardada",
+      "errors": {
+        "selfReview": "No puedes revisar tu propia solicitud.",
+        "notPermitted": "No tienes permiso para decidir esta solicitud."
+      }
+    }
   }
 }

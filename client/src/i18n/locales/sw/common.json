@@ -4020,6 +4020,40 @@
       "alreadyOpen": "Tayari una ombi lililo wazi kwa hili.",
       "alreadyGranted": "Tayari una ufikiaji huu."
     },
-    "openApplications": "Fungua maombi"
+    "openApplications": "Fungua maombi",
+    "admin": {
+      "nav": "Maombi ya ufikiaji",
+      "title": "Maombi ya ufikiaji",
+      "subtitle": "Kagua maombi ya ufikiaji wa msaidizi, biashara na mengine.",
+      "status": "Hali",
+      "capability": "Aina ya ufikiaji",
+      "all": "Yote",
+      "empty": "Hakuna maombi yanayolingana na vichujio hivi.",
+      "loadMore": "Pakia zaidi",
+      "select": "Chagua ombi ili kulikagua.",
+      "applicant": "Mwombaji",
+      "emailVerified": "Barua pepe imethibitishwa",
+      "identityVerified": "Utambulisho umethibitishwa",
+      "yes": "Ndiyo",
+      "no": "Hapana",
+      "answers": "Majibu",
+      "history": "Historia",
+      "currentAccess": "Ufikiaji wa sasa",
+      "policyChanged": "Sera ilibadilika baada ya ombi kutumwa. Idhini hukagua sera ya sasa.",
+      "reasonCode": "Sababu itakayoonyeshwa kwa mwombaji",
+      "note": "Dokezo la ndani (mwombaji hataliona)",
+      "informationRequest": "Mwombaji aongeze nini?",
+      "actions": {
+        "claim": "Anza ukaguzi",
+        "request_information": "Omba maelezo",
+        "approve": "Idhinisha",
+        "decline": "Kataa"
+      },
+      "decided": "Uamuzi umehifadhiwa",
+      "errors": {
+        "selfReview": "Huwezi kukagua ombi lako mwenyewe.",
+        "notPermitted": "Huna ruhusa ya kuamua ombi hili."
+      }
+    }
   }
 }

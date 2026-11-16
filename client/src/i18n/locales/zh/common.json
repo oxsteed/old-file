@@ -4022,6 +4022,40 @@
       "alreadyOpen": "您已有一个进行中的此项申请。",
       "alreadyGranted": "您已拥有此权限。"
     },
-    "openApplications": "打开申请"
+    "openApplications": "打开申请",
+    "admin": {
+      "nav": "访问权限申请",
+      "title": "访问权限申请",
+      "subtitle": "审核帮手、企业及其他访问权限的申请。",
+      "status": "状态",
+      "capability": "权限类型",
+      "all": "全部",
+      "empty": "没有符合筛选条件的申请。",
+      "loadMore": "加载更多",
+      "select": "选择一个申请进行审核。",
+      "applicant": "申请人",
+      "emailVerified": "邮箱已验证",
+      "identityVerified": "身份已验证",
+      "yes": "是",
+      "no": "否",
+      "answers": "回答",
+      "history": "历史记录",
+      "currentAccess": "当前权限",
+      "policyChanged": "提交后政策已更改。批准时将按当前政策核查。",
+      "reasonCode": "向申请人显示的原因",
+      "note": "内部备注（申请人不可见）",
+      "informationRequest": "申请人需要补充什么？",
+      "actions": {
+        "claim": "开始审核",
+        "request_information": "要求补充信息",
+        "approve": "批准",
+        "decline": "拒绝"
+      },
+      "decided": "决定已保存",
+      "errors": {
+        "selfReview": "您不能审核自己的申请。",
+        "notPermitted": "您无权对此申请作出决定。"
+      }
+    }
   }
 }
