@@ -301,6 +301,40 @@ ddescribe('progressive access (real database, mounted routes)', () => {
     expect(await count("SELECT COUNT(*) AS n FROM access_outbox WHERE grant_id = $1 AND event_type LIKE 'access_grant.%'", [grantId])).toBe(3);
   });
 
+  test('outbox delivers once after commit, retries failures with backoff, never duplicates (WP-020)', async () => {
+    const { processAccessOutbox, buildMessage } = require('../services/access/outboxWorker');
+    // Drain anything earlier tests enqueued.
+    await processAccessOutbox({ notify: async () => ({ success: true }) });
+    const u = await newUser('outbox');
+    await pool.query("UPDATE users SET preferred_language = 'ar' WHERE id = $1", [u]);
+    const r = (await as(u).post('/api/me/access-requests', { capability: 'helper.offer_services', answers: HELPER_ANSWERS, submit: true })).body.request;
+    await as(reviewer).post(`/api/admin/access-requests/${r.id}/decision`, { decision: 'approve', expectedVersion: 1 });
+    let calls = [];
+    let fail = true;
+    const flaky = async (msg) => { calls.push(msg); if (fail) throw new Error('smtp down'); return { success: true }; };
+    const first = await processAccessOutbox({ notify: flaky });
+    expect(first.failed).toBe(2);
+    const { rows: pend } = await pool.query("SELECT status, attempts, last_error FROM access_outbox WHERE request_id = $1 ORDER BY id", [r.id]);
+    expect(pend.every((p) => p.status === 'pending' && p.attempts === 1 && p.last_error === 'smtp down')).toBe(true);
+    // Not due yet: nothing re-sent.
+    calls = [];
+    await processAccessOutbox({ notify: flaky });
+    expect(calls.filter((c) => c.data.request_id === r.id)).toHaveLength(0);
+    await pool.query("UPDATE access_outbox SET next_attempt_at = NOW() WHERE request_id = $1", [r.id]);
+    fail = false;
+    calls = [];
+    const second = await processAccessOutbox({ notify: flaky });
+    expect(second.sent).toBeGreaterThanOrEqual(2);
+    const mine = calls.filter((c) => c.data.request_id === r.id);
+    expect(mine.map((c) => c.data.event).sort()).toEqual(['access_request.approved', 'access_request.submitted']);
+    expect(mine.every((c) => c.idempotencyKey.startsWith('access-outbox:') && c.action_url.startsWith('/settings/applications'))).toBe(true);
+    expect(mine.find((c) => c.data.event === 'access_request.approved').title).toBe(buildMessage('access_request.approved', 'helper.offer_services', 'ar').title);
+    calls = [];
+    await processAccessOutbox({ notify: flaky });
+    expect(calls.filter((c) => c.data.request_id === r.id)).toHaveLength(0);
+    expect(await count('SELECT COUNT(*) AS n FROM access_grants WHERE source_request_id = $1', [r.id])).toBe(1);
+  });
+
   test('flags off: APIs answer feature_disabled', async () => {
     const u = await newUser('flagoff');
     process.env.ACCESS_REQUESTS_ENABLED = 'false';
