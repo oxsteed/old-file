@@ -239,8 +239,9 @@ async function buildRestaurantSettlement(userId) {
   // (assertMerchantFinanceStanding): the restaurant's recorded owner, the
   // business owner (businesses.user_id; owners are never stored in
   // business_members), or an active manager member.
-  const { rows: restaurants } = await pool.query(
-    `SELECT DISTINCT fr.id, fr.display_name, fr.business_id
+  const { rows: candidateRestaurants } = await pool.query(
+    `SELECT DISTINCT fr.id, fr.display_name, fr.business_id,
+            (fr.owner_user_id = $1 OR b.user_id = $1) AS is_owner
        FROM food_restaurants fr
        LEFT JOIN businesses b ON b.id = fr.business_id
        LEFT JOIN business_members bm
@@ -248,6 +249,14 @@ async function buildRestaurantSettlement(userId) {
       WHERE fr.owner_user_id = $1 OR b.user_id = $1 OR bm.role = 'manager'
       ORDER BY fr.display_name ASC`,
     [userId]);
+  // WP-073: managers also need finance read and no store boundary.
+  const { memberHasFinanceRead } = require('./access/financeStanding');
+  const restaurants = [];
+  for (const row of candidateRestaurants) {
+    if (row.is_owner || await memberHasFinanceRead(pool, { businessId: row.business_id, userId, restaurantId: row.id })) {
+      restaurants.push(row);
+    }
+  }
   const hasAccount = restaurants.length > 0;
   const setupState = hasAccount ? 'ready' : 'unavailable';
 
