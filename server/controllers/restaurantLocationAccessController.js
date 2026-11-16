@@ -7,7 +7,31 @@ const permissions = require('../services/permissionsService');
 const { attachScope, requireBrand } = require('../services/restaurantReviewScope');
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
-const { normalizeLocationIds, normalizeId } = require('../services/restaurantLocationAccessService');
+const { normalizeLocationIds, normalizeId, getLocationScope } = require('../services/restaurantLocationAccessService');
+
+// WP-061: a store-scoped operator administers only inside their own stores.
+// They cannot widen anyone (including themself) to another store, clear a
+// boundary (which means "all stores"), edit their own or a higher-ranked
+// membership, or grant a store role above their own.
+const STORE_ROLE_RANK = { owner: 5, manager: 4, representative: 3, support_agent: 2, employee: 1 };
+async function assertWithinCallerScope(restaurant, userId, { membership, locationIds = null, roleOverride = null, clearing = false }) {
+  if (restaurant.effective_role === 'owner') return;
+  const scope = await getLocationScope(restaurant, userId);
+  const callerRank = STORE_ROLE_RANK[restaurant.effective_role] || 0;
+  if (String(membership.member_id) === String(userId)) {
+    throw new AppError('You cannot change your own store access', 403, 'store_scope_self');
+  }
+  if ((STORE_ROLE_RANK[membership.role] || 0) >= callerRank) {
+    throw new AppError('You cannot change store access for this teammate', 403, 'store_scope_rank');
+  }
+  if (roleOverride && (STORE_ROLE_RANK[roleOverride] || 0) >= callerRank) {
+    throw new AppError('You cannot grant a store role at or above your own', 403, 'store_scope_rank');
+  }
+  if (scope.mode !== 'assigned') return;
+  if (clearing || (locationIds || []).some((id) => !scope.location_ids.includes(normalizeId(id)))) {
+    throw new AppError('You can only manage access to your own stores', 403, 'store_scope_outside');
+  }
+}
 
 async function loadRestaurant(userId, restaurantId) {
   const id = normalizeId(restaurantId);
@@ -87,6 +111,7 @@ exports.replace = async (req, res, next) => {
         [membershipId, restaurant.business_id]
       );
       if (!member || !member.member_id) throw new AppError('Staff member not found', 404, 'staff_not_found');
+      await assertWithinCallerScope(restaurant, req.user.id, { membership: member, locationIds, roleOverride });
       const { rows: validLocations } = await client.query(
         `SELECT id FROM restaurant_locations
           WHERE restaurant_id = $1 AND id = ANY($2::bigint[])`,
@@ -150,6 +175,10 @@ exports.clear = async (req, res, next) => {
     const membershipId = normalizeId(req.params.membershipId);
     if (!membershipId) throw new AppError('A valid membership is required', 400, 'invalid_membership_id');
     const rows = await withTransaction(pool, async (client) => {
+      const { rows: [member] } = await client.query(
+        'SELECT id, member_id, role FROM business_members WHERE id = $1 AND business_id = $2', [membershipId, restaurant.business_id]);
+      if (!member) throw new AppError('Staff member not found', 404, 'staff_not_found');
+      await assertWithinCallerScope(restaurant, req.user.id, { membership: member, clearing: true });
       const { rows } = await client.query(
         `UPDATE restaurant_location_memberships lm
           SET status = 'revoked', updated_at = NOW()
