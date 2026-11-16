@@ -28,6 +28,7 @@ function buildTicketJoinQuery(ticketId, userId, guestConversationId) {
     text: `SELECT 1
            FROM support_conversations sc
            LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+           LEFT JOIN support_employers se ON se.id = sa.employer_id
            LEFT JOIN users cu
              ON cu.id = $2
             AND cu.is_active = TRUE
@@ -38,7 +39,11 @@ function buildTicketJoinQuery(ticketId, userId, guestConversationId) {
                OR (
                  cu.id IS NOT NULL
                  AND ($2 = sc.customer_id
-                   OR sa.user_id = $2
+                   OR (
+                     sa.user_id = $2
+                     AND sa.status = 'active'
+                     AND (se.kind = 'platform' OR (se.kind = 'business' AND se.business_id = sc.business_id))
+                   )
                    OR cu.role IN ('admin', 'super_admin'))
                )
              )`,
@@ -303,12 +308,29 @@ class WebSocketService {
 
         try {
           const conversation = await pool.query(
-            `SELECT id, status
-             FROM support_conversations
-             WHERE id = $1 AND status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})`,
+            `SELECT sc.id, sc.business_id, sc.agent_id, sc.status,
+                    sa.user_id AS assigned_agent_user_id,
+                    sa.status AS assigned_agent_status,
+                    se.kind AS assigned_agent_employer_kind,
+                    se.business_id AS assigned_agent_business_id
+             FROM support_conversations sc
+             LEFT JOIN support_agents sa ON sa.id = sc.agent_id
+             LEFT JOIN support_employers se ON se.id = sa.employer_id
+             WHERE sc.id = $1 AND sc.status NOT IN (${TERMINAL_CONVERSATION_STATUS_SQL})`,
             [ticketId]
           );
           if (!conversation.rows.length) return;
+          const ticket = conversation.rows[0];
+          const agentAllowed = !isAgent
+            || ['admin', 'super_admin'].includes(socket.userRole)
+            || (
+            ticket.assigned_agent_user_id === socket.userId
+            && ticket.assigned_agent_status === 'active'
+            && (ticket.assigned_agent_employer_kind === 'platform'
+              || (ticket.assigned_agent_employer_kind === 'business'
+                && String(ticket.assigned_agent_business_id) === String(ticket.business_id)))
+          );
+          if (!agentAllowed) return;
 
           const result = await withTransaction(pool, async (client) => {
             const inserted = await client.query(

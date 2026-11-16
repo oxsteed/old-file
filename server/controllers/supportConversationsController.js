@@ -372,8 +372,9 @@ async function getConversation(req, res) {
       LEFT JOIN users u ON sc.customer_id = u.id
       LEFT JOIN support_agents sa ON sc.agent_id = sa.id
       LEFT JOIN users au ON sa.user_id = au.id
-      WHERE sc.id = $1`,
-      [conversationId]
+      WHERE sc.id = $1
+        AND ($2::integer IS NULL OR sc.business_id = $2::integer)`,
+      [conversationId, req.params.businessId || null]
     );
 
     if (!result.rows.length) return sendError(res, 404, 'Conversation not found');
@@ -390,6 +391,13 @@ async function getConversation(req, res) {
     if (!isCustomer && conversation.agent_id) {
       const ag = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
       isAssignedAgent = ag.rows.length && ag.rows[0].user_id === req.user.id;
+      if (isAssignedAgent && !isPlatformAdmin) {
+        isAssignedAgent = await supportEmployerService.userIsActiveAssignedAgent(
+          conversation.business_id,
+          req.user.id,
+          conversation.agent_id,
+        );
+      }
     }
     let canBiz = false;
     if (!isCustomer && !isAssignedAgent && !isPlatformAdmin) {
@@ -958,8 +966,9 @@ async function authorizeConversationAccess(conversationId, req) {
             ) AS customer_name
      FROM support_conversations sc
      LEFT JOIN users u ON u.id = sc.customer_id
-     WHERE sc.id = $1`,
-    [conversationId]
+     WHERE sc.id = $1
+       AND ($2::integer IS NULL OR sc.business_id = $2::integer)`,
+    [conversationId, req.params.businessId || null]
   );
   if (!result.rows.length) return { conversation: null, allowed: false };
 
@@ -970,6 +979,13 @@ async function authorizeConversationAccess(conversationId, req) {
   if (conversation.agent_id) {
     const agent = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
     isAssignedAgent = agent.rows[0]?.user_id === req.user?.id;
+    if (isAssignedAgent && !isPlatformAdmin) {
+      isAssignedAgent = await supportEmployerService.userIsActiveAssignedAgent(
+        conversation.business_id,
+        req.user?.id,
+        conversation.agent_id,
+      );
+    }
   }
   let canManageBusiness = false;
   if (!isCustomer && !isAssignedAgent && !isPlatformAdmin && conversation.business_id != null) {
@@ -1850,8 +1866,9 @@ async function updateConversationStatus(req, res) {
        FROM support_conversations sc
        LEFT JOIN users u ON u.id = sc.customer_id
        LEFT JOIN notification_preferences np ON np.user_id = sc.customer_id
-       WHERE sc.id = $1`,
-      [conversationId]
+       WHERE sc.id = $1
+         AND ($2::integer IS NULL OR sc.business_id = $2::integer)`,
+      [conversationId, req.params.businessId || null]
     );
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
@@ -1867,6 +1884,13 @@ async function updateConversationStatus(req, res) {
     if (conversation.agent_id) {
       const ag = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
       isAssignedAgent = ag.rows[0]?.user_id === req.user.id;
+      if (isAssignedAgent && !isPlatformAdmin) {
+        isAssignedAgent = await supportEmployerService.userIsActiveAssignedAgent(
+          conversation.business_id,
+          req.user.id,
+          conversation.agent_id,
+        );
+      }
     }
     const can = isPlatformAdmin
       || isAssignedAgent
@@ -2043,8 +2067,9 @@ async function addMessage(req, res) {
        FROM support_conversations sc
        LEFT JOIN users u ON u.id = sc.customer_id
        LEFT JOIN notification_preferences np ON np.user_id = sc.customer_id
-       WHERE sc.id = $1`,
-      [conversationId]
+       WHERE sc.id = $1
+         AND ($2::integer IS NULL OR sc.business_id = $2::integer)`,
+      [conversationId, req.params.businessId || null]
     );
     if (!convResult.rows.length) return sendError(res, 404, 'Conversation not found');
 
@@ -2058,6 +2083,13 @@ async function addMessage(req, res) {
       const ag = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
       assignedAgentUserId = ag.rows[0]?.user_id || null;
       isAssignedAgent = ag.rows.length && ag.rows[0].user_id === req.user.id;
+      if (isAssignedAgent && !isPlatformAdmin) {
+        isAssignedAgent = await supportEmployerService.userIsActiveAssignedAgent(
+          conversation.business_id,
+          req.user.id,
+          conversation.agent_id,
+        );
+      }
     }
     let canManageBusiness = false;
     if (!isCustomer && !isAssignedAgent && !isPlatformAdmin) {
@@ -2314,8 +2346,9 @@ async function sendConversationEmail(req, res) {
               ) AS customer_name
        FROM support_conversations sc
        LEFT JOIN users u ON u.id = sc.customer_id
-       WHERE sc.id = $1`,
-      [conversationId]
+       WHERE sc.id = $1
+         AND ($2::integer IS NULL OR sc.business_id = $2::integer)`,
+      [conversationId, req.params.businessId || null]
     );
     if (!rows.length) return sendError(res, 404, 'Conversation not found');
 
@@ -2325,6 +2358,13 @@ async function sendConversationEmail(req, res) {
     if (conversation.agent_id) {
       const agent = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
       isAssignedAgent = agent.rows[0]?.user_id === req.user.id;
+      if (isAssignedAgent && !isPlatformAdmin) {
+        isAssignedAgent = await supportEmployerService.userIsActiveAssignedAgent(
+          conversation.business_id,
+          req.user.id,
+          conversation.agent_id,
+        );
+      }
     }
     const canManageBusiness = !isPlatformAdmin && !isAssignedAgent
       ? await supportEmployerService.userCanAdministrateBusiness(conversation.business_id, req.user.id)

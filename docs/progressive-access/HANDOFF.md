@@ -1364,6 +1364,24 @@ customer identity projection, attachment/download access, unread/realtime events
 and revocation behavior; then add the smallest missing capability-aware contract
 and focused tests.
 
+WP-036 is implemented on the branch. The audit found that queue visibility was
+correctly employer-scoped, but an already-assigned support agent could retain
+conversation actions after employer access was revoked, and the legacy socket
+path trusted stale ticket-room membership. Assigned replies, attachments,
+status/lifecycle actions, releases, ticket joins, and socket sends now re-check
+active support employment for the conversation's business at action time.
+Resource-scoped handlers also bind the URL business to the conversation before
+loading or mutating a case. Company administration remains
+owner/manager/representative scoped, while platform support remains separately
+authorized. Focused server tests passed 124/124 across the progressive-access,
+support route/live, routing, and socket join suites; all edited server files
+pass `node --check`. No populated browser or live revocation acceptance is
+claimed.
+**Exact next action (resume here):** begin WP-037 Listings and rental participant
+setup. Audit rent search, booking, listing publication, owner/inventory scope,
+pending applicant drafts, listing policy checks, and post-revocation behavior;
+then add the smallest missing capability-aware contract and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

@@ -422,11 +422,11 @@ async function releaseConversation(req, res) {
     const conversation = convResult.rows[0];
     let allowed = false;
     if (conversation.agent_id) {
-      const ag = await query(
-        'SELECT 1 FROM support_agents WHERE id = $1 AND user_id = $2',
-        [conversation.agent_id, req.user.id]
+      allowed = await supportEmployerService.userIsActiveAssignedAgent(
+        conversation.business_id,
+        req.user.id,
+        conversation.agent_id,
       );
-      allowed = ag.rows.length > 0;
     }
     if (!allowed && supportEmployerService.isPlatformAdmin(req.user.role)) {
       allowed = true;
