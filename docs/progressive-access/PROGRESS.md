@@ -166,12 +166,12 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-038 | Business marketing and late revocation | planned | |
 | AC-039 | Carrier context on material order | planned | |
 | AC-040 | Merchant private draft becomes eligible | planned | |
-| AC-041 | One manager grant in two restaurant locations | planned | |
+| AC-041 | One manager grant in two restaurant locations | server evidence (partial) | progressiveAccessRestaurantStores/Menu/Orders/Crew.db.test.js (store A vs B: list, row, PATCH, export) |
 | AC-042 | Existing guest order after owner approval | planned | |
 | AC-043 | Cashier attempts foreign ticket | planned | |
 | AC-044 | Reconcile offline terminal after revocation | planned | |
 | AC-045 | Device and human cross-scope isolation | planned | |
-| AC-046 | Runner sees one assigned delivery | planned | |
+| AC-046 | Runner sees one assigned delivery | server evidence (partial) | progressiveAccessRestaurantRunner.db.test.js (inbox vs direct claim, foreign task; proof upload not yet) |
 | AC-047 | Inventory transfer permissions | planned | |
 | AC-048 | Tips, payroll and view-only employee | planned | |
 | AC-049 | Careers hiring from an approved business | planned | |
@@ -186,7 +186,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-058 | Media selected author after revoke | planned | |
 | AC-059 | Media report and share visibility | planned | |
 | AC-060 | Creator payment wallet and role | planned | |
-| AC-061 | Statements permission revoked mid-export | planned | |
+| AC-061 | Statements permission revoked mid-export | server evidence (partial) | progressiveAccessRestaurantStatements.db.test.js (archive re-checks standing per request; export jobs not yet) |
 | AC-062 | Credit cashier and account isolation | planned | |
 | AC-063 | Payout retry and expired grant | planned | |
 | AC-064 | Authorized and unauthorized refund reviewer | planned | |
