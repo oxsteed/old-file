@@ -1,6 +1,7 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 const countriesUtil = require('../utils/countries');
+const access = require('../services/access/accessService');
 
 const APPLICATION_STATUSES = new Set([
   'inquiry',
@@ -18,6 +19,7 @@ const AGREEMENT_STATUSES = new Set(['draft', 'sent', 'signed', 'waived']);
 const TRAINING_STATUSES = new Set(['not_started', 'scheduled', 'in_progress', 'completed']);
 const READINESS_STATUSES = new Set(['not_ready', 'planning', 'ready', 'launched']);
 const CHECKLIST_STATUSES = new Set(['pending', 'in_progress', 'completed', 'blocked', 'waived']);
+const FRANCHISE_POLICY_VERSION = 'franchise-policy-1';
 
 const DEFAULT_CHECKLIST = [
   ['intake_review', 'Initial intake review', 'franchise_hq', 10],
@@ -63,6 +65,61 @@ function parseNonNegativeInt(value, fallback = null) {
 function normalizeCurrencyCode(value) {
   const code = String(value || '').trim().toUpperCase();
   return /^[A-Z]{3}$/.test(code) ? code : 'USD';
+}
+
+/**
+ * Keep the progressive franchise entitlement aligned with the current
+ * launched application. A self grant is intentionally issued only after a
+ * linked business exists; the territory controller still resolves the exact
+ * active application before returning data. Reassignment/revocation bumps the
+ * browser projection so an open workspace loses access promptly.
+ */
+async function syncFranchiseGrant(client, {
+  ownerUserId,
+  status,
+  linkedBusinessId,
+  actorId = null,
+  revokeUserIds = [],
+} = {}) {
+  const currentEligible = ownerUserId && status === 'launched' && linkedBusinessId;
+  const affected = new Set((revokeUserIds || []).filter(Boolean).map(String));
+  if (currentEligible) affected.add(String(ownerUserId));
+
+  if (currentEligible) {
+    const { rows } = await client.query(
+      `INSERT INTO access_grants (
+         user_id, capability, subject_type, subject_key, status, provenance,
+         provenance_reason, policy_version, granted_by, status_changed_at,
+         status_changed_by, status_reason_code, version, updated_at
+       ) VALUES ($1, 'franchise.operate', 'self', 'self', 'active', 'admin',
+         'territory_assignment', $2, $3, NOW(), $3, 'territory_assigned', 1, NOW())
+       ON CONFLICT (user_id, capability, subject_key) DO UPDATE SET
+         status = 'active', provenance = 'admin',
+         provenance_reason = 'territory_assignment', policy_version = EXCLUDED.policy_version,
+         granted_by = EXCLUDED.granted_by, granted_at = NOW(),
+         status_changed_at = NOW(), status_changed_by = EXCLUDED.status_changed_by,
+         status_reason_code = 'territory_assigned', version = access_grants.version + 1,
+         updated_at = NOW()
+       RETURNING user_id, status, version`,
+      [ownerUserId, FRANCHISE_POLICY_VERSION, actorId],
+    );
+    if (rows.length) await access.bumpProjection(client, ownerUserId);
+  }
+
+  for (const userId of affected) {
+    if (currentEligible && String(userId) === String(ownerUserId)) continue;
+    const { rows } = await client.query(
+      `UPDATE access_grants
+          SET status = 'revoked', status_changed_at = NOW(), status_changed_by = $2,
+              status_reason_code = 'territory_assignment_ended', version = version + 1,
+              updated_at = NOW()
+        WHERE user_id = $1 AND capability = 'franchise.operate' AND subject_key = 'self'
+          AND status IN ('active', 'suspended')
+        RETURNING user_id`,
+      [userId, actorId],
+    );
+    if (rows.length) await access.bumpProjection(client, userId);
+  }
 }
 
 async function ensureProgram(client) {
@@ -636,7 +693,12 @@ async function updateFranchiseApplication(req, res) {
         }
       }
 
-      const before = await client.query('SELECT status FROM franchise_applications WHERE id = $1', [applicationId]);
+      const before = await client.query(
+        `SELECT status, owner_user_id, linked_business_id
+           FROM franchise_applications
+          WHERE id = $1`,
+        [applicationId],
+      );
       if (!before.rows.length) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
@@ -646,9 +708,20 @@ async function updateFranchiseApplication(req, res) {
         `UPDATE franchise_applications
             SET ${updates.join(', ')}, updated_at = NOW()
           WHERE id = $${idx}
-          RETURNING id, status, agreement_status, training_status, launch_readiness_status`,
+          RETURNING id, status, owner_user_id, linked_business_id,
+                    agreement_status, training_status, launch_readiness_status`,
         values
       );
+
+      await syncFranchiseGrant(client, {
+        ownerUserId: updateResult.rows[0].owner_user_id,
+        status: updateResult.rows[0].status,
+        linkedBusinessId: updateResult.rows[0].linked_business_id,
+        actorId: req.user?.id || null,
+        revokeUserIds: before.rows[0].status === 'launched' && before.rows[0].linked_business_id
+          ? [before.rows[0].owner_user_id]
+          : [],
+      });
 
       await logActivity(
         client,
@@ -1296,6 +1369,13 @@ async function activateFranchiseStore(req, res) {
           WHERE id = $2`,
         [business.id, applicationId]
       );
+
+      await syncFranchiseGrant(client, {
+        ownerUserId: application.owner_user_id,
+        status: 'launched',
+        linkedBusinessId: business.id,
+        actorId: req.user?.id || null,
+      });
 
       await logActivity(
         client,
