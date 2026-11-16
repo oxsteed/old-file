@@ -146,6 +146,9 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
     (scheduler = `queued_by`, else `created_by`; must still be owner or active manager). The
     alternative — sending anyway because a manager approved it earlier — was rejected as
     unsafe. Legacy scheduled rows with neither column set also return to draft.
+17. **Waitlist and client-package lists are no longer any-member**: employees/support agents
+    lose the business-wide waitlist (needs customers.view_all or calendar.view_all) and see
+    only the client packages of customers they serve.
 16. **Lead access now requires the `leads.*` permissions** (employees and support agents lose
     the lead list they could previously read); quoting needs `quotes.create`.
 
@@ -219,8 +222,15 @@ quote/expense/recurring deletes 404 for unknown ids. Recurring billing has no un
 scheduler (generation is a manual manager action), so revocation stops it. Evidence:
 `progressiveAccessInvoices.db.test.js`.
 
+WP-055 done: waitlist list needs `customers.view_all|calendar.view_all` (matches the hub tab
+gate), update/remove need `calendar.manage_all` (were any-member); client packages list needs
+`customers.view_all|view_assigned` and, without view_all, shows only customers the member
+serves (an appointment with them as staff); redeem needs `calendar.manage_all|manage_self`,
+self-only redeems only for served customers (404 otherwise). Evidence:
+`progressiveAccessPackages.db.test.js`. (Decision 17.)
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-055 (business packages, services and waitlists; SPEC.md line ~3327). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-056 (integrations and brand linkage; SPEC.md line ~3355). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
