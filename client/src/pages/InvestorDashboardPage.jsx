@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
+import useAccessProjection from '../hooks/useAccessProjection';
 import PageShell from '../components/PageShell';
 import api from '../api/axios';
 import InvestorEvidencePanel from '../components/investor/InvestorEvidencePanel';
@@ -193,9 +194,10 @@ function PipelineRow({ status, count, total, labels }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function InvestorDashboardPage() {
-  const { user, switchRole } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const accessProjection = useAccessProjection(user);
 
   const [period, setPeriod] = useState('30d');
   const [kpis, setKpis] = useState(null);
@@ -205,13 +207,17 @@ export default function InvestorDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Ensure investor role
+  const legacyInvestor = ['investor', 'admin', 'super_admin'].includes(user?.role ?? user?.default_mode);
+  const hasInvestorAccess = legacyInvestor || accessProjection?.personal?.includes('investor.reporting');
+
+  // Customer-class accounts use the approved projection; they do not need a
+  // legacy mode switch to reach the same reporting workspace.
   useEffect(() => {
     if (!user) return;
-    if (!['investor', 'admin', 'super_admin'].includes(user.role ?? user.default_mode)) {
-      switchRole('investor').catch(() => navigate('/dashboard', { replace: true }));
+    if (!legacyInvestor && accessProjection && !hasInvestorAccess) {
+      navigate('/dashboard', { replace: true });
     }
-  }, [user, switchRole, navigate]);
+  }, [user, legacyInvestor, accessProjection, hasInvestorAccess, navigate]);
 
   const load = useCallback(async (p = period) => {
     setLoading(true);
@@ -235,7 +241,9 @@ export default function InvestorDashboardPage() {
     }
   }, [period, t]);
 
-  useEffect(() => { load(period); }, [period, load]);
+  useEffect(() => {
+    if (hasInvestorAccess) load(period);
+  }, [period, load, hasInvestorAccess]);
 
   const periods = [
     { key: '7d', label: t('investorDashboard.periods.sevenDays') },
