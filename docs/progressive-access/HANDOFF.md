@@ -1087,6 +1087,20 @@ acceptance. If a native client is added later, make it consume `data.access`
 optionally (never require the field from an old server) and add its contract to
 this package before enabling the rollout for that client.
 
+WP-018's browser acceptance is now covered by
+`client/scripts/passkeyVirtualAuthenticator.browser-check.cjs`. It launches the
+local Chrome channel with a CDP CTAP2 virtual authenticator and completes both a
+resident-key registration and a required-user-verification assertion on a local
+fixture origin; no production account, credential, or server is used. The
+existing 16 server passkey/two-factor tests, 7 client passkey/session contract
+tests, and locale verification remain green. This is synthetic browser evidence,
+not physical-device or live-provider evidence.
+**Exact next action (resume here):** run the combined WP-018 focused command
+(`passkeysSetup.test.mjs`, `sessionsSetup.test.mjs`, the three server passkey/
+two-factor suites, and `passkeyVirtualAuthenticator.browser-check.cjs`), record
+the exact-head CI state, then continue with WP-021 Account deletion, export and
+privacy while keeping the native-device limitation explicit.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
