@@ -17,6 +17,7 @@ const { lookupGrants } = require('../../middleware/adminAuth');
 const { tx, idempotent, writeDecision, enqueue, assertVersion, err, subjectKey } = access._internal;
 
 const REVIEW_PERMISSIONS = Object.freeze([...new Set(registry.listCapabilities().map((c) => c.reviewPermission))]);
+const INVESTOR_DATASETS = new Set(['overview', 'revenue', 'franchise', 'supply_demand', 'evidence', 'exports']);
 
 /** Load the reviewer's live authority (re-read on every call; never cached). */
 async function loadReviewer(user, db = pool) {
@@ -208,6 +209,21 @@ async function decide(user, id, { action, expectedVersion, reasonCode = null, no
           row.id, decisionId, cap.version, user.id],
       );
       grantId = g[0].id;
+      if (row.capability === 'investor.reporting') {
+        const answers = row.answers || {};
+        const datasets = (Array.isArray(answers.requestedReports) ? answers.requestedReports : [])
+          .map((value) => String(value).trim().toLowerCase())
+          .filter((value, index, values) => INVESTOR_DATASETS.has(value) && values.indexOf(value) === index);
+        if (!datasets.length) throw err(409, 'policy_changed', 'The investor audience must request at least one supported report.');
+        await client.query(
+          `INSERT INTO investor_reporting_audiences (user_id, grant_id, audience_key, datasets)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (grant_id) DO UPDATE
+             SET user_id = EXCLUDED.user_id, audience_key = EXCLUDED.audience_key,
+                 datasets = EXCLUDED.datasets, status = 'active', revoked_at = NULL, updated_at = NOW()`,
+          [row.applicant_id, grantId, String(answers.audience || '').trim(), datasets],
+        );
+      }
     }
     if (['approve', 'decline', 'request_information'].includes(action)) {
       await enqueue(client, {

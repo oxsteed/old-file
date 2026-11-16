@@ -26,10 +26,18 @@ const allowInvestor = (req, res, next) => {
   return res.status(403).json({ error: 'Insufficient permissions' });
 };
 
-router.get('/kpis',          authenticate, requireInvestorCapability, allowInvestor, getKpis);
-router.get('/revenue-chart', authenticate, requireInvestorCapability, allowInvestor, getRevenueChart);
-router.get('/franchise',     authenticate, requireInvestorCapability, allowInvestor, getFranchisePipeline);
-router.get('/supply-demand', authenticate, requireInvestorCapability, allowInvestor, getSupplyDemand);
-router.get('/evidence/:metric', authenticate, requireInvestorCapability, allowInvestor, getEvidence);
+function requireInvestorDataset(dataset) {
+  return (req, res, next) => {
+    const audience = req.investorAudience;
+    if (!audience || audience.datasets?.includes(dataset) || audience.datasets?.includes('all')) return next();
+    return res.status(403).json({ error: 'This reporting audience does not include that dataset', code: 'investor_dataset_not_granted', dataset });
+  };
+}
+
+router.get('/kpis',          authenticate, requireInvestorCapability, allowInvestor, requireInvestorDataset('overview'), getKpis);
+router.get('/revenue-chart', authenticate, requireInvestorCapability, allowInvestor, requireInvestorDataset('revenue'), getRevenueChart);
+router.get('/franchise',     authenticate, requireInvestorCapability, allowInvestor, requireInvestorDataset('franchise'), getFranchisePipeline);
+router.get('/supply-demand', authenticate, requireInvestorCapability, allowInvestor, requireInvestorDataset('supply_demand'), getSupplyDemand);
+router.get('/evidence/:metric', authenticate, requireInvestorCapability, allowInvestor, requireInvestorDataset('evidence'), getEvidence);
 
 module.exports = router;

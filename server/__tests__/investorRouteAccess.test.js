@@ -2,7 +2,7 @@
 
 const express = require('express');
 const request = require('supertest');
-jest.mock('../services/access/accessService', () => ({ can: jest.fn() }));
+jest.mock('../services/access/accessService', () => ({ can: jest.fn(), getInvestorAudience: jest.fn() }));
 const investorRoutes = require('../routes/investor');
 const access = require('../services/access/accessService');
 
@@ -29,6 +29,7 @@ describe('mounted investor reporting access', () => {
   beforeEach(() => {
     delete process.env.ACCESS_INVESTOR_ENFORCEMENT;
     access.can.mockReset();
+    access.getInvestorAudience.mockReset();
   });
 
   test.each(['investor', 'admin', 'super_admin'])('%s reaches KPI reporting', async (role) => {
@@ -46,10 +47,12 @@ describe('mounted investor reporting access', () => {
   test('enforce mode lets an approved customer-class grant reach reporting', async () => {
     process.env.ACCESS_INVESTOR_ENFORCEMENT = 'enforce';
     access.can.mockResolvedValue({ allowed: true, reason: 'grant' });
+    access.getInvestorAudience.mockResolvedValue({ id: 'audience-1', datasets: ['overview'] });
     const response = await request(mountedFixture()).get('/api/investor/kpis').set('x-test-role', 'customer');
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ reached: true });
     expect(access.can).toHaveBeenCalledWith('investor-fixture', 'investor.reporting');
+    expect(access.getInvestorAudience).toHaveBeenCalledWith('investor-fixture');
   });
 
   test('enforce mode denies a customer without an approved grant', async () => {
@@ -58,5 +61,14 @@ describe('mounted investor reporting access', () => {
     const response = await request(mountedFixture()).get('/api/investor/kpis').set('x-test-role', 'customer');
     expect(response.status).toBe(403);
     expect(response.body).toMatchObject({ code: 'access_required', capability: 'investor.reporting' });
+  });
+
+  test('enforce mode denies an approved grant without a live audience', async () => {
+    process.env.ACCESS_INVESTOR_ENFORCEMENT = 'enforce';
+    access.can.mockResolvedValue({ allowed: true, reason: 'grant' });
+    access.getInvestorAudience.mockResolvedValue(null);
+    const response = await request(mountedFixture()).get('/api/investor/kpis').set('x-test-role', 'customer');
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ code: 'investor_audience_required', capability: 'investor.reporting' });
   });
 });

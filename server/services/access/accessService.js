@@ -138,6 +138,24 @@ async function can(userId, capability, subject, db = pool) {
   return resolver.evaluate(facts, capability, subject);
 }
 
+async function getInvestorAudience(userId, db = pool) {
+  const { rows } = await db.query(
+    `SELECT a.id, a.audience_key, a.datasets, a.expires_at
+       FROM investor_reporting_audiences a
+       JOIN access_grants g ON g.id = a.grant_id
+      WHERE a.user_id = $1
+        AND g.user_id = a.user_id
+        AND g.capability = 'investor.reporting'
+        AND g.status = 'active'
+        AND a.status = 'active'
+        AND (a.expires_at IS NULL OR a.expires_at > NOW())
+      ORDER BY a.created_at DESC, a.id DESC
+      LIMIT 1`,
+    [userId],
+  );
+  return rows[0] || null;
+}
+
 // ── serialization ───────────────────────────────────────────────────────────
 function subjectDisplay(row) {
   if (row.subject_type === 'self') return { kind: 'self' };
@@ -429,6 +447,7 @@ module.exports = {
   projectionVersion,
   bumpProjection,
   can,
+  getInvestorAudience,
   // applicant
   createRequest,
   applicantTransition,

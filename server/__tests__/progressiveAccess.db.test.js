@@ -101,10 +101,12 @@ ddescribe('progressive access (real database, mounted routes)', () => {
   beforeAll(async () => {
     pool = require('../db');
     const routes = require('../routes/progressiveAccess');
+    const investorRoutes = require('../routes/investor');
     app = express();
     app.use(express.json());
     app.use('/api/me', routes.meRouter);
     app.use('/api/admin/access-requests', routes.adminRouter);
+    app.use('/api/investor', investorRoutes);
     superAdmin = await newUser('super', { role: 'super_admin', mode: 'customer' });
     reviewer = await newUser('reviewer', { role: 'admin' });
     unpermittedAdmin = await newUser('noperm', { role: 'admin' });
@@ -126,6 +128,42 @@ ddescribe('progressive access (real database, mounted routes)', () => {
     expect(res.body.access.openRequestCount).toBe(0);
     expect(res.headers['cache-control']).toMatch(/no-store/);
     expect((await as(u).get('/api/me/access-requests')).body.requests).toEqual([]);
+  });
+
+  test('approved investor access creates a scoped audience and expires cleanly (WP-077)', async () => {
+    const u = await newUser('investor-applicant');
+    const created = await as(u).post('/api/me/access-requests', {
+      capability: 'investor.reporting',
+      answers: { audience: 'quarterly board', requestedReports: ['overview', 'revenue'], about: 'Board reporting' },
+    });
+    expect(created.status).toBe(201);
+    const id = created.body.request.id;
+    const submitted = await as(u).post(`/api/me/access-requests/${id}/submit`, { expectedVersion: 1 });
+    expect(submitted.status).toBe(200);
+    const approved = await as(investorReviewer).post(`/api/admin/access-requests/${id}/decision`, { decision: 'approve', expectedVersion: 2 });
+    expect(approved.status).toBe(200);
+
+    const { rows: audiences } = await pool.query(
+      'SELECT audience_key, datasets, status FROM investor_reporting_audiences WHERE user_id = $1', [u],
+    );
+    expect(audiences).toEqual([{ audience_key: 'quarterly board', datasets: ['overview', 'revenue'], status: 'active' }]);
+
+    process.env.ACCESS_INVESTOR_ENFORCEMENT = 'enforce';
+    const overview = await as(u).get('/api/investor/kpis');
+    expect(overview.status).toBe(200);
+    const excluded = await as(u).get('/api/investor/revenue-chart');
+    expect(excluded.status).toBe(200);
+
+    await pool.query("UPDATE investor_reporting_audiences SET datasets = ARRAY['overview']::text[], expires_at = NOW() - INTERVAL '1 minute' WHERE user_id = $1", [u]);
+    const expired = await as(u).get('/api/investor/kpis');
+    expect(expired.status).toBe(403);
+    expect(expired.body.code).toBe('investor_audience_required');
+
+    await pool.query("UPDATE investor_reporting_audiences SET status = 'active', expires_at = NOW() + INTERVAL '1 hour' WHERE user_id = $1", [u]);
+    const narrowed = await as(u).get('/api/investor/revenue-chart');
+    expect(narrowed.status).toBe(403);
+    expect(narrowed.body).toMatchObject({ code: 'investor_dataset_not_granted', dataset: 'revenue' });
+    delete process.env.ACCESS_INVESTOR_ENFORCEMENT;
   });
 
   test('full helper lifecycle: draft → submit → needs info → resubmit → approve adds capability in place (D2–D4)', async () => {

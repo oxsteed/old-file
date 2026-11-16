@@ -36,7 +36,7 @@ function isHelperActor(req) {
   return LEGACY_HELPER_ROLES.includes(req.user.role);
 }
 
-function requireCapability(capability, { modeFn }) {
+function requireCapability(capability, { modeFn, audienceLoader = null } = {}) {
   return async function accessCapabilityGate(req, res, next) {
     const mode = modeFn();
     if (mode === 'off' || !req.user) return next();
@@ -70,12 +70,31 @@ function requireCapability(capability, { modeFn }) {
         reason: decision.reason === 'account_inactive' ? 'account_inactive' : 'not_granted',
       });
     }
+    if (audienceLoader) {
+      let audience;
+      try {
+        audience = await audienceLoader(req.user.id);
+      } catch (err) {
+        return next(err);
+      }
+      if (!audience) {
+        return res.status(403).json({
+          error: 'This needs an approved reporting audience. Apply from Settings → Applications.',
+          code: 'investor_audience_required',
+          capability,
+        });
+      }
+      req.investorAudience = audience;
+    }
     req.accessCapabilities = { ...(req.accessCapabilities || {}), [capability]: true };
     return next();
   };
 }
 
 const requireHelperCapability = requireCapability('helper.offer_services', { modeFn: flags.helperEnforcement });
-const requireInvestorCapability = requireCapability('investor.reporting', { modeFn: flags.investorEnforcement });
+const requireInvestorCapability = requireCapability('investor.reporting', {
+  modeFn: flags.investorEnforcement,
+  audienceLoader: async (userId) => require('../services/access/accessService').getInvestorAudience(userId),
+});
 
 module.exports = { requireCapability, requireHelperCapability, requireInvestorCapability, isHelperActor, hasCapability };

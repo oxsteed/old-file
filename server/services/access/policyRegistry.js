@@ -160,7 +160,7 @@ const CAPABILITIES = Object.freeze({
   }),
   'investor.reporting': Object.freeze({
     key: 'investor.reporting',
-    version: 'investor-policy-1',
+    version: 'investor-policy-2',
     intent: 'request_reporting',
     subjectTypes: Object.freeze(['self']),
     reviewerClass: 'platform',
@@ -169,7 +169,11 @@ const CAPABILITIES = Object.freeze({
     legacyModes: Object.freeze(['investor']),
     legacyRoles: Object.freeze([]),
     activationRequirements: Object.freeze([]),
-    form: Object.freeze({ fields: Object.freeze([answerField('about', 'text', { maxLength: 2000 })]) }),
+    form: Object.freeze({ fields: Object.freeze([
+      answerField('audience', 'string', { required: true, maxLength: 160 }),
+      answerField('requestedReports', 'string_list', { required: true, maxItems: 6, maxLength: 80 }),
+      answerField('about', 'text', { maxLength: 2000 }),
+    ]) }),
   }),
   'franchise.operate': Object.freeze({
     key: 'franchise.operate',
