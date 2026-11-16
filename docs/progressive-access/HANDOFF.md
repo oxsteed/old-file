@@ -155,6 +155,8 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
     presses the button (the approval belongs to the canonical owner, not the operator).
 19. **Managers cannot change their own or a peer manager's store boundary**, nor hand
     out a store role at their own rank; only the owner (or a higher role) can.
+20. **Store-scoped staff cannot change the shared (brand) menu**; they 86 items or set
+    store prices through their store's menu. Shared-menu edits need all-store scope.
 
 ## Next step
 
@@ -277,8 +279,14 @@ store-scoped managers off `location-access`; store menu checks `getLocationRole`
 self-edit, no editing a peer/higher membership, no store role at/above own rank, no
 location outside own stores (decision 19). Evidence: `progressiveAccessRestaurantStores.db.test.js`.
 
+WP-062 done: `foodController.assertBrandMenuManage` (menu.manage + all-store scope) on the
+10 shared-menu mutations (categories, items, duplicate, modifier groups);
+`GET /food/restaurants/:id/menu/manage` returns `canEditBrandMenu`; `RestaurantMenuManager`
+hides edit affordances and shows `progressiveAccess.menu.storeScoped` when false
+(decision 20). Public storefront reads unchanged. Evidence: `progressiveAccessRestaurantMenu.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-062 (SPEC.md, search `<a id="wp-062">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-063 (restaurant order management and service cycle; SPEC.md, search `<a id="wp-063">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
