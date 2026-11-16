@@ -73,6 +73,9 @@ const sampleOrders = [
 
 beforeEach(() => {
   jest.clearAllMocks();
+  const logisticsAccess = require('../middleware/requireLogisticsAccess');
+  logisticsAccess.resolveLogisticsRole.mockResolvedValue('individual_buyer');
+  logisticsAccess.countryOnFile.mockResolvedValue('US');
   pooledOrderService.listPooledOrders.mockResolvedValue({ orders: sampleOrders, total: 42 });
   pooledOrderService.listOrganizerCampaigns.mockResolvedValue({ orders: sampleOrders, total: 42 });
   pooledOrderService.describeActions.mockResolvedValue({ actions: [], blockers: [] });
@@ -288,6 +291,7 @@ describe('GET /campaigns/:id — visibility', () => {
 
 describe('progressive logistics campaign lifecycle', () => {
   const { resolveLogisticsRole, countryOnFile } = require('../middleware/requireLogisticsAccess');
+  const { recordPlacementApproval } = require('../services/logisticsTransitionGuards');
 
   test('approved-grant customer can create, edit, submit, and read their own campaign state', async () => {
     const user = { id: 'approved-customer', role: 'customer', default_mode: 'customer' };
@@ -346,6 +350,12 @@ describe('progressive logistics campaign lifecycle', () => {
     pooledOrderService.joinPooledOrder.mockResolvedValue({ id: 21, pooled_order_id: 9, user_id: user.id, committed_qty: 2 });
     const app = buildApp(user);
 
+    const browse = await request(app).get('/campaigns').query({ limit: 10 });
+    expect(browse.status).toBe(200);
+    expect(pooledOrderService.listPooledOrders).toHaveBeenCalledWith(
+      expect.objectContaining({ excludeDrafts: true, publicSafe: true, limit: 10 })
+    );
+
     const join = await request(app).post('/campaigns/9/join').send({ committed_qty: 2 });
     expect(join.status).toBe(200);
     expect(pooledOrderService.joinPooledOrder).toHaveBeenCalledWith(
@@ -374,6 +384,43 @@ describe('progressive logistics campaign lifecycle', () => {
       '9', user.id, { title: 'Foreign edit' },
       expect.objectContaining({ userCountry: 'US', userRole: 'individual_buyer' })
     );
+  });
+
+  test('Operations approval publishes the campaign and placement state is visible to its organizer', async () => {
+    const reviewer = { id: 'ops-reviewer', role: 'admin', default_mode: 'customer' };
+    const organizer = { id: 'approved-customer', role: 'customer', default_mode: 'customer' };
+    pooledOrderService.reviewCampaign.mockResolvedValue({
+      id: 17, organizer_user_id: organizer.id, title: 'Published pool', status: 'open', approval_state: 'approved',
+    });
+    const review = await request(buildApp(reviewer)).post('/campaigns/17/review').send({ decision: 'approve' });
+    expect(review.status).toBe(200);
+    expect(review.body.data).toMatchObject({ status: 'open', approval_state: 'approved' });
+
+    recordPlacementApproval.mockResolvedValue({
+      id: 55, pooled_order_id: 17, decision: 'placement_approved', from_state: 'locked', to_state: 'placed',
+    });
+    const placement = await request(buildApp(reviewer))
+      .post('/campaigns/17/placement-approval')
+      .send({ reason: 'Supplier capacity confirmed' });
+    expect(placement.status).toBe(200);
+    expect(placement.body.data).toMatchObject({ decision: 'placement_approved', to_state: 'placed' });
+
+    resolveLogisticsRole.mockResolvedValue('organizer');
+    pooledOrderService.getPooledOrder.mockResolvedValue({
+      id: 17,
+      organizer_user_id: organizer.id,
+      title: 'Published pool',
+      status: 'placed',
+      approval_state: 'approved',
+      placement_approval: { decision: 'placement_approved', to_state: 'placed' },
+    });
+    const visible = await request(buildApp(organizer)).get('/campaigns/17');
+    expect(visible.status).toBe(200);
+    expect(visible.body.data).toMatchObject({
+      status: 'placed',
+      approval_state: 'approved',
+      placement_approval: { decision: 'placement_approved', to_state: 'placed' },
+    });
   });
 });
 
