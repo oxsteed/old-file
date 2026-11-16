@@ -63,7 +63,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-043 | Media creator marketplace and sharing | P4 | planned | | |
 | WP-044 | Learn, personal interests, and resources | P4 | planned | | |
 | WP-045 | Personal finances and planned needs | P4 | planned | | |
-| WP-046 | Business setup and existing ownership | P3 | planned | | |
+| WP-046 | Business setup and existing ownership | P3 | implemented | e97008ac9 | progressiveAccessBusiness.db.test.js (4), businessCategories.test.js |
 | WP-047 | Workspace context and multiple organizations | P3 | planned | | |
 | WP-048 | Permission overrides and delegated administration | P3 | planned | | |
 | WP-049 | Staff scheduling and dispatch | P3 | planned | | |

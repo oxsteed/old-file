@@ -92,7 +92,7 @@ Spec "Commit-sized delivery sequence" + "Phase 0–5":
 - **Flags** (server env, all default **off**, exposed to client through boot):
   `ACCESS_REQUESTS_ENABLED`, `ACCESS_PROJECTION_ENABLED`,
   `ACCESS_CUSTOMER_FIRST_SIGNUP`, `ACCESS_HELPER_ENFORCEMENT` (`off|shadow|enforce`),
-  `ACCESS_LEGACY_SWITCH_RETIRED`.
+  `ACCESS_LEGACY_SWITCH_RETIRED`, `ACCESS_BUSINESS_ENFORCEMENT` (`off|shadow|enforce`, WP-046).
 
 ## Decisions for Emile (safe default implemented, behind config)
 
@@ -124,6 +124,17 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
     stage, ≤30 min) restarts in the general flow; authenticated helper onboarding routes
     (`/finalize`, `/w9`, ...) are unchanged.
 
+12. **Publishing a new business/restaurant needs an approved application** under
+    `ACCESS_BUSINESS_ENFORCEMENT=enforce` (`business.own`; a restaurant accepts
+    `restaurant.own` or `business.own`; self grant or a grant for that business). Creating and
+    editing a private draft stays open to everyone. Default `off` (legacy: anyone may publish);
+    run `shadow` first and watch `access.shadow_mismatch gate=business_publish`. Already
+    published businesses are untouched.
+13. **No ownership claims through applications.** An application may name an existing
+    business only if the applicant is already its canonical owner; someone else's id answers
+    404 like an unknown id. Ownership transfer/claims of existing businesses stay a
+    support/admin process.
+
 ## Next step
 
 WP-007 done: `services/access/evidence.js` — Didit verified/duplicate and Stripe Identity
@@ -143,8 +154,12 @@ shortcuts, Settings › Applications re-reads on focus and announces changes pol
 WP-020 done: notification copy in all 20 locales (`services/access/outboxCopy.js`), real
 `sendNotification` dedupe across a worker timeout, owner-only link (DB test).
 
-**Exact next action (resume here):** Phase 3 starting
-at WP-046. Small open items: a login-path test for WP-004; helper-only routes still using
+WP-046 done: per-owner advisory lock in `addBusiness`/`setPrimary` (fixes a pre-existing
+500 on concurrent creates hitting `idx_businesses_one_primary`), claim restriction in
+`accessService.resolveSubject`, `services/access/businessGate.js` publish gate.
+
+**Exact next action (resume here):** Phase 3 continuing
+at WP-047 (workspace context and multiple organizations). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
