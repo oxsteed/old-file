@@ -536,9 +536,24 @@ clipboard, with localized copy in en/es/fr/ht/ar. Focused server suites (109
 tests), the browser fixture, frontend reference scan, inline-style guard, and
 `npm run build:ci` pass locally; build emitted 1,203 assets.
 **Exact next action (resume here):** run exact-head PR CI and attempt populated
-live campaign acceptance (or record the unavailable-data limitation), then move
-to WP-081 (Business procurement and restocking). Do not claim live acceptance or
-remote CI until observed.
+live campaign acceptance (or record the unavailable-data limitation). WP-081 is
+now checkpointed locally and the next implementation package is WP-082
+(Logistics distribution and fulfillment). Do not claim live acceptance or remote
+CI until observed.
+
+WP-081 is checkpointed at `1e89d5ca2` (business-scoped procurement and sourcing).
+The recurring-program service now resolves owner, manager, and effective
+permission-based procurement authority on the canonical business, rejects
+missing or unauthorized `business_id` values, and hides unscoped personal
+programs from procurement listings. Sourcing requests use the same authority
+for create, list, and request-detail access, and a linked request must belong to
+the selected business. `BusinessProcurementPage` now requires a business
+selection, filters linked requests to that business, and sends the canonical
+business ID on program creation. Focused server suites (138 tests) and the full
+client build gate (1,203 assets) pass locally.
+**Exact next action (resume here):** inspect WP-082's distributor assignment,
+shipment, warehouse, and revocation boundaries; add server-authoritative
+assignment checks and browser evidence before moving to WP-083.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
