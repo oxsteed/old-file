@@ -130,7 +130,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-002 | Helper intent survives OTP | in progress | signup DB test; bid denial pending WP-026 |
 | AC-003 | Owner intent with application failure | in progress | signup DB test; retry-from-resume pending client |
 | AC-004 | Unverified email and pending account | planned | |
-| AC-005 | OTP retry, expiry and resend | planned |  |
+| AC-005 | OTP retry, expiry and resend | server evidence | progressiveAccessSignup.db.test.js (resend → old code fails, new code keeps intent) |
 | AC-006 | Same email and two signup entry points | planned | |
 | AC-007 | Legacy mode forged on signup | implemented | progressiveAccessSignup.db.test.js (server) |
 | AC-008 | Resume application on second device | planned | |

@@ -137,4 +137,24 @@ ddescribe('customer-first signup (real database)', () => {
     const { rows: [u] } = await pool.query('SELECT role::text, default_mode FROM users WHERE id = $1', [res.body.user.id]);
     expect(u).toEqual({ role: 'helper', default_mode: 'helper' });
   });
+
+  test('OTP resend: the prior code stops working, the current one finalizes and keeps the intent (AC-005)', async () => {
+    const { sendOTPEmail } = require('../utils/email');
+    sendOTPEmail.mockClear();
+    const { token } = await signup({ defaultMode: 'helper' });
+    const resend = fakeRes();
+    await ctrl.resendRegistrationOTP(fakeReq({ token }), resend);
+    expect(resend.statusCode).toBe(200);
+    const freshCode = sendOTPEmail.mock.calls.at(-1)[1];
+    expect(freshCode).toMatch(/^\d{6}$/);
+    const old = fakeRes();
+    await ctrl.verifyRegistrationOTP(fakeReq({ token, otp: freshCode === '123456' ? '654321' : '123456' }), old);
+    expect(old.statusCode).toBeGreaterThanOrEqual(400);
+    const ok = fakeRes();
+    await ctrl.verifyRegistrationOTP(fakeReq({ token, otp: freshCode }), ok);
+    expect(ok.statusCode).toBe(201);
+    expect(ok.body.access).toMatchObject({ signupIntent: 'offer_services', nextStep: { type: 'application', capability: 'helper.offer_services' } });
+    const { rows } = await pool.query('SELECT role::text FROM users WHERE id = $1', [ok.body.user.id]);
+    expect(rows[0].role).toBe('customer');
+  });
 });

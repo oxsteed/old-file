@@ -151,7 +151,7 @@ Next (in order):
    mode writes that would lift `customer` to a helper-class role without a held capability
    are ignored (`mode_change_ignored`), switch-role returns 403 `access_required`, and login
    ignores the mode. Test `__tests__/progressiveAccessModeGate.db.test.js`. Still to do:
-   a login-path test (WP-004) and AC-005 (OTP resend keeps intent).
+   a login-path test (WP-004). AC-005 is covered in the signup DB suite.
 2. (server part done) Helper enforcement WP-026: `middleware/requireAccess.js`
    (`requireHelperCapability`, `isHelperActor`) on `POST /api/bids`, `PUT /api/bids/:id`,
    `POST /api/bids/:id/reconfirm`; `requireHelperWorkEligible` and `bidController.createBid`
