@@ -678,6 +678,13 @@ reference verification plus typecheck pass locally. The exact next action is to
 record the CI result for `3c954caed`, then continue the remaining planned access
 packages without removing the compatibility endpoint.
 
+WP-017 has now been audited as an in-progress checkpoint. The existing
+session-epoch fence, cross-tab refresh lock, transient-refresh policy, cookie
+CSRF boundary, and session-scope checks pass locally (32 unit/server tests).
+The authenticated browser matrix in `client/scripts/loginSession.browser-check.cjs`
+still needs to run in a configured browser environment; do not call WP-017
+complete from the unit evidence alone.
+
 WP-089 is currently an evidence checkpoint rather than a source change. The
 platform governance routes (`server/routes/governance.js`) require both live
 admin authentication and `requireSuperAdmin`; regular admin permission grants

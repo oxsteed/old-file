@@ -34,7 +34,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-014 | Current-user projection and resume | P1 | implemented (server + Settings entry) | 87a95318e, d47c5ff86, 47fcd2ff2 | progressiveAccess.db.test.js; signupResume and account ID in GET /api/me/access; accessProjection.browser-check.cjs for late responses after an identity change. |
 | WP-015 | Home and dashboard routing | P2 | implemented | f3e3f2985 | homeModeRouting.test.mjs (WP-015) |
 | WP-016 | Navigation, notices and settings | P2 | implemented | f3e3f2985 | navbarNavigation.test.mjs (WP-016) |
-| WP-017 | JWT, CSRF and cross-tab session safety | P2 | planned | | |
+| WP-017 | JWT, CSRF and cross-tab session safety | P2 | in progress | (this checkpoint) | Existing session-epoch/refresh-lock implementation; `authRefreshCoordinator.test.mjs` + `authRefreshPolicy.test.mjs` (10), `csrf.test.js` + `csrfSessionScope.test.js` (22) pass. Authenticated browser cross-tab acceptance (`loginSession.browser-check.cjs`) and exact-head CI remain open. |
 | WP-018 | Two-factor authentication and passkeys | P2 | planned | | |
 | WP-019 | Sessions on native API and PWA | P2 | planned | | |
 | WP-020 | Notification and application messages | P2 | implemented | cba40e04e | progressiveAccess.db.test.js (outbox, real in-app), progressiveAccessOutboxCopy.test.js |
