@@ -9,6 +9,7 @@
 jest.unmock('pg');
 
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 const RAW_URL = process.env.ACCESS_TEST_DATABASE_URL || '';
 function isDisposableDb(value) {
@@ -84,6 +85,31 @@ ddescribe('legacy mode writes under progressive access (real database)', () => {
     expect(res.statusCode).toBe(403);
     expect(res.body).toMatchObject({ code: 'access_required', capability: 'business.own' });
     expect((await roleOf(u.id)).role).toBe('customer');
+  });
+
+  test('login ignores a privileged legacy mode input and preserves the customer account (WP-004)', async () => {
+    process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = 'true';
+    const u = await makeUser();
+    await pool.query('UPDATE users SET password_hash = $2 WHERE id = $1', [u.id, await bcrypt.hash('Correct-password-123!', 4)]);
+    const res = fakeRes();
+    const next = (err) => { if (err) throw err; };
+    await ctrl.login({
+      body: {
+        email: u.email,
+        password: 'Correct-password-123!',
+        termsAgreed: true,
+        agreementName: 'Mode Fixture',
+        operatingMode: 'helper',
+      },
+      headers: { 'user-agent': 'progressive-access-test' },
+      ip: '127.0.0.1',
+      socket: { remoteAddress: '127.0.0.1' },
+    }, res, next);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.user.default_mode).toBe('customer');
+    expect(res.body.user.role).toBe('customer');
+    expect((await roleOf(u.id)).role).toBe('customer');
+    expect((await roleOf(u.id)).default_mode).toBe('customer');
   });
 
   test('a customer-class view is still switchable, and a held grant unlocks its view', async () => {

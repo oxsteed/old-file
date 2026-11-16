@@ -649,7 +649,7 @@ locally (75 tests).
 **Exact next action (resume here):** run the populated support/refund acceptance
 with a view-only support actor, a legitimately privileged actor, and a wrong
 business/context retry; then inspect WP-089 platform staff grants and governance.
-Small open items: a login-path test for WP-004; helper-only routes still using
+Small open items: helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
@@ -1010,11 +1010,10 @@ and the client retirement contract passes (2 tests), with frontend-reference and
 locale verification plus the local typecheck/build recorded for this checkpoint.
 The legacy endpoint is intentionally retained for compatibility and must not be
 removed until all consumers and rollout flags are retired.
-**Exact next action (resume here):** complete the Phase 0 baseline inventory in
-`docs/progressive-access/BASELINE.md`, then add the dedicated WP-004 login-path
-test that proves login ignores legacy mode inputs while the progressive flag is
-on. Keep the remaining WP-008 populated two-business approval/revoked-approver
-acceptance and exact-head CI evidence open until separately verified.
+**Exact next action (resume here):** move to the remaining WP-008 evidence gap:
+populate the two-business pending-approval and revoked-approver acceptance
+scenario, then run exact-head CI for the pushed checkpoint. Keep the legacy
+compatibility endpoint and rollout flags intact while that evidence is gathered.
 
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
@@ -1041,8 +1040,8 @@ Next (in order):
    `ACCESS_CUSTOMER_FIRST_SIGNUP` or `ACCESS_LEGACY_SWITCH_RETIRED` on, profile/mobile
    mode writes that would lift `customer` to a helper-class role without a held capability
    are ignored (`mode_change_ignored`), switch-role returns 403 `access_required`, and login
-   ignores the mode. Test `__tests__/progressiveAccessModeGate.db.test.js`. Still to do:
-   a login-path test (WP-004). AC-005 is covered in the signup DB suite.
+   ignores the mode. Test `__tests__/progressiveAccessModeGate.db.test.js` now includes the
+   populated login-path assertion. AC-005 is covered in the signup DB suite.
 2. (server part done) Helper enforcement WP-026: `middleware/requireAccess.js`
    (`requireHelperCapability`, `isHelperActor`) on `POST /api/bids`, `PUT /api/bids/:id`,
    `POST /api/bids/:id/reconfirm`; `requireHelperWorkEligible` and `bidController.createBid`

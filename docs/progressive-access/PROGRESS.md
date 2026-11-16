@@ -10,7 +10,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | --- | --- | --- | --- |
 | Handoff + ledger docs | implemented | (this commit) | n/a |
 | Decisions-already-made product tests (D1–D7) | implemented | 3e19ebd25 | server/__tests__/progressiveAccessDecisions.test.js (35) |
-| Baseline inventory of mode/role authority (docs/progressive-access/BASELINE.md) | planned | | |
+| Baseline inventory of mode/role authority (docs/progressive-access/BASELINE.md) | implemented | (this checkpoint) | authority map and migration hazards |
 | Legacy backfill (services/access/backfill.js, scripts/access-backfill.js) | implemented | 4eb2e22eb | progressiveAccess.db.test.js backfill case |
 | Access outbox delivery job | implemented | 7d936e6fb | progressiveAccess.db.test.js outbox case |
 
@@ -21,7 +21,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-001 | Signup entry and intent selector | P2 | implemented (server + JoinPage continuation) | 242cb47a6, c55e4966e | progressiveAccessSignup.db.test.js; JoinPage follows access.nextStep |
 | WP-002 | Registration start and pending identity | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |
 | WP-003 | OTP finalization and bootstrap | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |
-| WP-004 | Login and legacy mode inputs | P2 | in progress | bb9a413fa | login mode gate (modeGate.js); dedicated login test pending |
+| WP-004 | Login and legacy mode inputs | P2 | implemented | bb9a413fa, (this checkpoint) | `progressiveAccessModeGate.db.test.js` (6), including populated login with privileged legacy mode input |
 | WP-005 | Signed-in profile edit and account type removal | P2 | implemented | bb9a413fa | progressiveAccessModeGate.db.test.js (profile, mobile, switch) |
 | WP-006 | Dedicated helper registration | P2 | implemented (server, flag-gated) | dd02c9826 | progressiveAccessHelperEnforcement.test.js (dedicated registration closed → general signup) |
 | WP-007 | Verification and provider callbacks | P2 | implemented | da21ff6fe | progressiveAccess.db.test.js (WP-007) |
