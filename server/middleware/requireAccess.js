@@ -76,5 +76,6 @@ function requireCapability(capability, { modeFn }) {
 }
 
 const requireHelperCapability = requireCapability('helper.offer_services', { modeFn: flags.helperEnforcement });
+const requireInvestorCapability = requireCapability('investor.reporting', { modeFn: flags.investorEnforcement });
 
-module.exports = { requireCapability, requireHelperCapability, isHelperActor, hasCapability };
+module.exports = { requireCapability, requireHelperCapability, requireInvestorCapability, isHelperActor, hasCapability };
