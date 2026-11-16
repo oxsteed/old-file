@@ -32,6 +32,9 @@ const { logSecurityEvent, extractRequestDetails } = require('../services/auditLo
 const { recordLoginAgreement } = require('../services/loginAgreementService'); // Review P1-1-F05
 const { consumeTotpCounter } = require('../services/totpReplayGuard'); // Domain 6 #7
 const modeRoleUtil = require('../utils/modeRole');
+const accessFlags = require('../services/access/flags');
+const signupIntent = require('../services/access/signupIntent');
+const accessModeGate = require('../services/access/modeGate');
 const { readDeviceFingerprint } = require('../utils/deviceFingerprint'); // Review P2-6-F12
 const { normalizeStoredPublicUrl } = require('../utils/storage');
 const { liftExpiredSuspension } = require('../utils/suspension');
@@ -231,6 +234,8 @@ function formatAuthUser(user) {
     tier_selected:         !!user.tier_selected,
     w9_completed:          !!user.w9_completed,
     terms_accepted:        !!user.terms_accepted,
+    tier:                  user.tier || 'free',
+    subscription_status:   user.subscription_status || 'none',
     membership_tier:       user.membership_tier,
     effective_tier:        getEffectiveTier(user),
     is_trial_active:       isTrialActive(user),
@@ -310,7 +315,8 @@ async function login(req, res, next) {
               u.onboarding_status, u.onboarding_completed,
               u.contact_completed, u.profile_completed,
               u.tier_selected, u.w9_completed, u.terms_accepted,
-              u.membership_tier, u.id_verified, u.background_check_passed,
+              u.tier, u.membership_tier, u.subscription_status,
+              u.id_verified, u.background_check_passed,
               u.city, u.state, u.zip_code, u.totp_enabled,
               u.trial_started_at, u.trial_ends_at, u.didit_status, u.didit_verified_at,
               u.default_mode,
@@ -457,7 +463,17 @@ async function login(req, res, next) {
         message: 'Please provide your 2FA code to complete login.'
       });
     }
-    if (!isAdminUser && requestedOperatingMode && requestedOperatingMode !== user.default_mode) {
+    // WP-004: under progressive access a sign-in mode choice may only pick a
+    // view the account already holds; it is ignored (not an error) otherwise.
+    let loginModeAllowed = true;
+    if (!isAdminUser && requestedOperatingMode && requestedOperatingMode !== user.default_mode
+        && accessModeGate.gateActive()) {
+      const gate = await accessModeGate.checkModeChange({
+        userId: user.id, currentRole: user.role, targetMode: requestedOperatingMode,
+      });
+      loginModeAllowed = gate.allowed;
+    }
+    if (!isAdminUser && loginModeAllowed && requestedOperatingMode && requestedOperatingMode !== user.default_mode) {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
@@ -778,7 +794,8 @@ async function loginWith2FA(req, res, next) {
     const { rows: fullRows } = await pool.query(
      `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.role, u.email_verified, u.is_verified,
        u.onboarding_status, u.onboarding_completed, u.contact_completed, u.profile_completed,
-       u.tier_selected, u.w9_completed, u.terms_accepted, u.membership_tier, u.id_verified,
+       u.tier_selected, u.w9_completed, u.terms_accepted,
+       u.tier, u.membership_tier, u.subscription_status, u.id_verified,
        u.background_check_passed, u.city, u.state, u.zip_code,
        u.preferred_language, u.default_mode,
        u.trial_started_at, u.trial_ends_at, u.didit_status, u.didit_verified_at,
@@ -1102,7 +1119,7 @@ async function refreshToken(req, res, next) {
               onboarding_status, onboarding_completed,
               contact_completed, profile_completed,
               tier_selected, w9_completed, terms_accepted,
-              membership_tier, id_verified, background_check_passed,
+              tier, membership_tier, subscription_status, id_verified, background_check_passed,
               city, state, zip_code,
               preferred_language,
               trial_started_at, trial_ends_at, didit_status, didit_verified_at,
@@ -1367,7 +1384,14 @@ async function startRegistration(req, res) {
     }
     // role written to pending_registrations.role — derived from mode so
     // existing role-based RBAC works on day one for helper-mode signups.
-    const dbRole = modePref && MODES_REQUIRING_HELPER_ROLE.has(modePref) ? 'helper' : 'customer';
+    // Progressive access (WP-001/002): with customer-first signup the choice
+    // is an intent stored apart from authority; the pending row is customer.
+    const customerFirst = accessFlags.customerFirstSignup();
+    const intentFields = customerFirst ? signupIntent.startFields(req.body) : null;
+    const dbRole = customerFirst
+      ? 'customer'
+      : (modePref && MODES_REQUIRING_HELPER_ROLE.has(modePref) ? 'helper' : 'customer');
+    const storedMode = customerFirst ? 'customer' : modePref;
     const line1 = String(addressLine1 ?? address_line1 ?? '').trim();
     const cityTrim = String(city || '').trim();
     // Country defaults to 'US' so existing US-only clients (helper signup,
@@ -1414,6 +1438,12 @@ async function startRegistration(req, res) {
         : [rules.maxLen(20), rules.postalFor(countryCode), rules.noScript],
     });
     const signupErrors = errs || {};
+    // Attribution is an opaque referral code, not a free-form redirect or
+    // approval input. Keep only the identifier format emitted by OxSteed and
+    // reject malformed values before they reach pending-registration storage.
+    if (normalized.ref && !/^[A-Za-z0-9_-]{1,50}$/.test(normalized.ref)) {
+      signupErrors.ref = 'Referral code is invalid';
+    }
     if (!isSignupPasswordValid(password)) signupErrors.password = 'Use 8–128 characters and at least two of uppercase letters, numbers, and symbols';
     if (normalized.ageConfirmed !== true) signupErrors.ageConfirmed = 'Age confirmation required';
     if (Object.keys(signupErrors).length) return res.status(400).json({ error: 'validation_failed', code: 'validation_failed', fields: signupErrors });
@@ -1486,18 +1516,20 @@ async function startRegistration(req, res) {
       `INSERT INTO pending_registrations (
          token, email, password_hash, first_name, last_name, phone, zip_code,
          address_line1, city, state, country,
-         age_confirmed, role, referral_ref, default_mode
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         age_confirmed, role, referral_ref, default_mode, signup_intent, signup_return_to
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        ON CONFLICT (email) DO UPDATE SET
          token = $1, password_hash = $3, first_name = $4, last_name = $5, phone = $6, zip_code = $7,
          address_line1 = $8, city = $9, state = $10, country = $11,
-         age_confirmed = $12, role = $13, referral_ref = $14, default_mode = $15, updated_at = NOW(),
+         age_confirmed = $12, role = $13, referral_ref = $14, default_mode = $15,
+         signup_intent = $16, signup_return_to = $17, updated_at = NOW(),
          expires_at = NOW() + interval '30 minutes', otp_code = NULL, otp_expires_at = NULL
        RETURNING id, expires_at`,
       [
         token, normalized.email, passwordHash, normalized.firstName, normalized.lastName, formattedPhone, normalizedZip,
         normalized.addressLine1, normalized.city, normalizedState, normalized.country,
-        normalized.ageConfirmed, dbRole, normalized.ref, modePref,
+        normalized.ageConfirmed, dbRole, normalized.ref, storedMode,
+        intentFields ? intentFields.intent : null, intentFields ? intentFields.returnTo : null,
       ],
     );
     if (insertRows.length === 0) {
@@ -1631,8 +1663,11 @@ async function verifyRegistrationOTP(req, res) {
     // Carry the user's chosen mode through; derive role from it via the
     // single source of truth in modeRole.js. Falls back to 'customer'/legacy
     // role for pending rows that pre-date migration 270.
-    const pendingDefaultMode = normalizeDefaultMode(pending.default_mode);
-    const derivedRole = pendingDefaultMode
+    // Progressive access (WP-003): customer-first signup always creates a
+    // customer; the intent becomes a resumable application after commit.
+    const customerFirstFinalize = accessFlags.customerFirstSignup();
+    const pendingDefaultMode = customerFirstFinalize ? 'customer' : normalizeDefaultMode(pending.default_mode);
+    const derivedRole = customerFirstFinalize ? 'customer' : pendingDefaultMode
       ? modeRoleUtil.roleForMode(pendingDefaultMode)
       : (pending.role && ['customer', 'helper'].includes(pending.role) ? pending.role : 'customer');
     const pendingRole = derivedRole;
@@ -1654,7 +1689,7 @@ async function verifyRegistrationOTP(req, res) {
            $13,$14,$15,$16,$17,
            $18,$19,$20,
            'onboarding_complete', TRUE, TRUE, TRUE, TRUE,
-           TRUE, 'tier1', $22, pending.signup_device_fingerprint
+           TRUE, 'tier1', $22, $23
          ) RETURNING *`,
         [
           pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code,
@@ -1663,7 +1698,7 @@ async function verifyRegistrationOTP(req, res) {
           pending.age_confirmed,
           pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode,
           trial_started_at, trial_ends_at, referrerId,
-          pendingRole, pendingDefaultMode,
+          pendingRole, pendingDefaultMode, pending.signup_device_fingerprint || null,
         ]
       );
       const growthRole = ['customer', 'helper'].includes(pendingRole) ? pendingRole : 'customer';
@@ -1737,7 +1772,7 @@ async function verifyRegistrationOTP(req, res) {
     // event in jobController.afterJobCompleted, which is idempotent per
     // referred user.
     if (referrerId) {
-      pool.query(
+      await pool.query(
         `UPDATE users SET referrals_count = referrals_count + 1 WHERE id = $1`, [referrerId]
       ).catch(err => logger.error('Failed to increment referrals_count', { err }));
     }
@@ -1778,8 +1813,16 @@ async function verifyRegistrationOTP(req, res) {
     setRefreshTokenCookie(res, tokens.refreshToken);
     setAccessTokenCookie(res, tokens.accessToken);
     await issueSessionCsrf(res, user.id, tokens.sid);
-    res.status(201).json({ user: formatAuthUser(user), accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+    const accessContinuation = customerFirstFinalize ? await signupIntent.finalize(user.id, pending) : undefined;
+    res.status(201).json({
+      user: formatAuthUser(user), accessToken: tokens.accessToken, refreshToken: tokens.refreshToken,
+      ...(accessContinuation ? { access: accessContinuation } : {}),
+    });
   } catch (err) {
+    // A concurrent finalize already created this account (unique email).
+    if (err && err.code === '23505' && /email/.test(String(err.constraint || err.detail || ''))) {
+      return res.status(409).json({ error: 'This account was already created. Please sign in.', code: 'account_already_created' });
+    }
     logger.error('Verify registration OTP error', { err });
     res.status(500).json({ error: 'Verification failed', code: 'verification_failed' });
   }
@@ -2109,6 +2152,7 @@ async function updateProfile(req, res) {
     // invalidation all happen atomically — same code path as /switch-role.
     let updatedUser = null;
     let didModeSwitch = false;
+    let modeChangeIgnored = null;
     let modeTokens = null;
     await client.query('BEGIN');
     if (requestedMode && requestedMode !== currentMode) {
@@ -2142,12 +2186,22 @@ async function updateProfile(req, res) {
         }
       }
 
-      updatedUser = await modeRoleUtil.applyModeSwitch(client, req.user.id, requestedMode);
-      if (!updatedUser) {
-        await client.query('ROLLBACK');
-        return res.status(409).json({ error: 'state_conflict' });
+      // WP-005: under progressive access a profile write never raises
+      // authority. A mode that would need an unheld capability is ignored
+      // (the rest of the profile still saves) and reported back.
+      const gate = await accessModeGate.checkModeChange(
+        { userId: req.user.id, currentRole, targetMode: requestedMode }, client,
+      );
+      if (!gate.allowed) {
+        modeChangeIgnored = { code: gate.code, capability: gate.capability };
+      } else {
+        updatedUser = await modeRoleUtil.applyModeSwitch(client, req.user.id, requestedMode);
+        if (!updatedUser) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'state_conflict' });
+        }
+        didModeSwitch = true;
       }
-      didModeSwitch = true;
     }
 
     // P2-8-F11: changing the phone number must reset phone_verified. A
@@ -2238,6 +2292,7 @@ async function updateProfile(req, res) {
       success: true,
       user: formatAuthUser(finalRow),
       mode_switched: didModeSwitch,
+      ...(modeChangeIgnored ? { mode_change_ignored: modeChangeIgnored } : {}),
       ...(modeTokens || {}),
     });
   } catch (err) {
@@ -2659,6 +2714,20 @@ async function switchRole(req, res) {
         return res.status(403).json({
           error: 'mode_not_granted',
           message: `You don't have an active "${memberRole}" membership on any workspace.`,
+        });
+      }
+    }
+
+    {
+      // WP-013 / WP-005: switching may change the view but never raises
+      // authority while progressive access is on.
+      const gate = await accessModeGate.checkModeChange({ userId, currentRole, targetMode: newMode }, client);
+      if (!gate.allowed) {
+        return res.status(403).json({
+          error: 'access_required',
+          code: 'access_required',
+          capability: gate.capability,
+          message: 'Apply for this access from Settings → Applications.',
         });
       }
     }

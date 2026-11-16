@@ -3,7 +3,9 @@
 const { mockQuery, resetMocks } = require('./setup');
 
 jest.mock('../services/supportEmployerService', () => ({
-  userCanAccessBusinessConversations: jest.fn().mockResolvedValue(true),
+  isPlatformAdmin: jest.fn().mockReturnValue(false),
+  userCanAdministrateBusiness: jest.fn().mockResolvedValue(false),
+  userIsActiveAssignedAgent: jest.fn().mockResolvedValue(true),
 }));
 jest.mock('../services/socketService', () => ({
   broadcastToConversation: jest.fn(),
@@ -33,7 +35,7 @@ beforeEach(() => {
 });
 
 test('cleans an attachment when the signed URL is unavailable', async () => {
-  mockQuery.mockResolvedValueOnce({ rows: [{ id: 'conv-1' }] });
+  mockQuery.mockResolvedValueOnce({ rows: [{ id: 'conv-1', agent_id: 'user-1' }] });
   storage.getSignedDownloadUrl.mockResolvedValueOnce(null);
 
   const res = response();

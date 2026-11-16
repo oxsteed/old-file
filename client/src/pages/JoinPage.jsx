@@ -50,7 +50,13 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const [pageParams] = useSearchParams();
   const params = embedded ? new URLSearchParams(embeddedSearch) : pageParams;
   const presetMode = params.get('mode');
-  const referralRef = params.get('ref');
+  // Carry only the referral identifier understood by the signup API. Other
+  // query parameters (including forged approval-style flags) never become
+  // signup authority or application state.
+  const rawReferralRef = params.get('ref');
+  const referralRef = rawReferralRef && /^[A-Za-z0-9_-]{1,50}$/.test(rawReferralRef)
+    ? rawReferralRef
+    : null;
   const [draft] = useState(loadDraft);
   const [form, setForm] = useState(() => ({ ...EMPTY, country: detectCountryFromLocale(), ...draft?.form, password: '',
     defaultMode: MODES.includes(presetMode) ? presetMode : MODES.includes(draft?.form?.defaultMode) ? draft.form.defaultMode : 'customer' }));
@@ -191,6 +197,14 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
       persistSessionPayload(data); completed.current = true;
       try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* storage unavailable */ }
       setUser(data.user);
+      // Progressive access (WP-001..003): with customer-first signup the server
+      // returns access.nextStep; an owner/helper intent continues as an
+      // application on the customer account instead of a role switch.
+      const nextStep = data.access?.nextStep;
+      if (nextStep?.type === 'application') {
+        navigate(nextStep.requestId ? `/settings/applications?request=${encodeURIComponent(nextStep.requestId)}` : '/settings/applications', { replace: true });
+        return;
+      }
       navigate(postSignupRouteForMode(data.user.default_mode || form.defaultMode), { replace: true });
     } catch (error) { setOtpError(recoveryMessage(error)); setOtpDigits(Array(6).fill('')); }
     finally { operation.current = false; setBusy(''); }

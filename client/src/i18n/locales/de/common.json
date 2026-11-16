@@ -3875,5 +3875,202 @@
     "signIn": "Anmelden",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Anträge",
+    "pageSubtitle": "Sieh, was dein Konto kann, und beantrage mehr.",
+    "backToSettings": "Zurück zu den Einstellungen",
+    "loading": "Wird geladen…",
+    "unavailable": "Anträge sind für dein Konto noch nicht verfügbar.",
+    "loadFailed": "Deine Anträge konnten nicht geladen werden.",
+    "heldTitle": "Was du jetzt tun kannst",
+    "organizations": "Organisationen, denen du angehörst: {{count}}",
+    "requestsTitle": "Deine Anträge",
+    "noRequests": "Du hast noch keine Anträge.",
+    "applyTitle": "Mehr beantragen",
+    "editTitle": "Antrag: {{capability}}",
+    "reviewerAsked": "Die prüfende Person fragte:",
+    "choose": "Auswählen…",
+    "listHint": "Trenne Einträge mit Kommas.",
+    "withdrawTitle": "Antrag zurückziehen?",
+    "withdrawConfirm": "Dein Antrag für {{capability}} wird geschlossen. Du kannst später erneut beantragen.",
+    "capabilities": {
+      "customer": "Hilfe beauftragen und bestellen",
+      "helper": {
+        "offer_services": "Dienstleistungen anbieten"
+      },
+      "business": {
+        "own": "Ein Unternehmen führen"
+      },
+      "restaurant": {
+        "own": "Ein Restaurant führen"
+      },
+      "consultant": {
+        "accept_paying_clients": "Zahlende Kunden beraten"
+      },
+      "tool_owner": {
+        "list_equipment": "Geräte vermieten"
+      },
+      "logistics": {
+        "ship": "Mit Logistik versenden"
+      },
+      "investor": {
+        "reporting": "Investorenberichte"
+      },
+      "franchise": {
+        "operate": "Ein Franchise betreiben"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "Gib Angebote für Aufträge ab und werde für deine Arbeit bezahlt."
+      },
+      "business": {
+        "own": "Richte die Seite und das Team deines Unternehmens ein."
+      },
+      "restaurant": {
+        "own": "Nimm Essensbestellungen für dein Restaurant an."
+      },
+      "consultant": {
+        "accept_paying_clients": "Nimm bezahlte Beratungsaufträge an."
+      },
+      "tool_owner": {
+        "list_equipment": "Vermiete deine Werkzeuge und Geräte."
+      },
+      "logistics": {
+        "ship": "Buche und verwalte Sendungen."
+      },
+      "investor": {
+        "reporting": "Sieh dir Investorenberichte an."
+      }
+    },
+    "status": {
+      "draft": "Entwurf",
+      "submitted": "Eingereicht",
+      "in_review": "In Prüfung",
+      "needs_information": "Informationen benötigt",
+      "approved": "Genehmigt",
+      "declined": "Abgelehnt",
+      "withdrawn": "Zurückgezogen"
+    },
+    "reasons": {
+      "review_complete": "Prüfung abgeschlossen.",
+      "service_area_required": "Füge das Gebiet hinzu, in dem du arbeitest.",
+      "service_categories_required": "Füge die Dienstleistungen hinzu, die du anbietest.",
+      "identity_verification_required": "Bestätige deine Identität, um fortzufahren.",
+      "business_details_required": "Füge weitere Angaben zum Unternehmen hinzu.",
+      "ownership_not_verified": "Wir konnten nicht bestätigen, dass dir dieses Unternehmen gehört.",
+      "duplicate_request": "Du hast dafür bereits einen Antrag.",
+      "not_eligible_in_market": "Das ist in deiner Region noch nicht verfügbar.",
+      "policy_not_met": "Dieser Antrag erfüllt unsere Anforderungen nicht.",
+      "other_contact_support": "Bitte wende dich für Details an den Support."
+    },
+    "fields": {
+      "serviceCategories": "Angebotene Dienstleistungen",
+      "serviceArea": "Einsatzgebiet",
+      "about": "Über dich",
+      "businessName": "Name des Unternehmens",
+      "businessType": "Unternehmensform",
+      "restaurantName": "Name des Restaurants",
+      "cuisine": "Küche",
+      "areasOfExpertise": "Fachgebiete",
+      "bio": "Beruflicher Werdegang",
+      "sampleWorkUrl": "Link zu einer Arbeitsprobe",
+      "yearsExperience": "Jahre Erfahrung",
+      "area": {
+        "country": "Ländercode (2 Buchstaben)",
+        "region": "Bundesland oder Region",
+        "city": "Stadt",
+        "postalCode": "Postleitzahl"
+      }
+    },
+    "options": {
+      "llc": "GmbH",
+      "sole_prop": "Einzelunternehmen",
+      "corp": "Aktiengesellschaft",
+      "partnership": "Personengesellschaft",
+      "other": "Sonstiges"
+    },
+    "fieldErrors": {
+      "invalid": "Bitte prüfe diese Antwort.",
+      "required": "Dieses Feld ist erforderlich.",
+      "too_many": "Zu viele Einträge.",
+      "unknown_field": "Dieses Feld gehört nicht zum Formular."
+    },
+    "actions": {
+      "save": "Entwurf speichern",
+      "submit": "Antrag einreichen",
+      "resubmit": "Aktualisierte Antworten senden",
+      "close": "Schließen",
+      "continue": "Weiter",
+      "withdraw": "Zurückziehen",
+      "apply": "Beantragen",
+      "retry": "Erneut versuchen",
+      "cancel": "Abbrechen",
+      "confirmWithdraw": "Antrag zurückziehen"
+    },
+    "toast": {
+      "save": "Entwurf gespeichert",
+      "submit": "Antrag eingereicht",
+      "resubmit": "Antworten gesendet",
+      "withdraw": "Antrag zurückgezogen"
+    },
+    "errors": {
+      "versionConflict": "Dieser Antrag wurde in einem anderen Tab geändert. Wir haben ihn neu geladen.",
+      "validation": "Einige Antworten benötigen deine Aufmerksamkeit.",
+      "generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+      "alreadyOpen": "Du hast dafür bereits einen offenen Antrag.",
+      "alreadyGranted": "Du hast diesen Zugang bereits."
+    },
+    "openApplications": "Anträge öffnen",
+    "admin": {
+      "nav": "Zugangsanträge",
+      "title": "Zugangsanträge",
+      "subtitle": "Prüfe Anträge für Helfer-, Unternehmens- und weitere Zugänge.",
+      "status": "Status",
+      "capability": "Zugangsart",
+      "all": "Alle",
+      "empty": "Keine Anträge entsprechen diesen Filtern.",
+      "loadMore": "Mehr laden",
+      "select": "Wähle einen Antrag zur Prüfung aus.",
+      "applicant": "Antragsteller",
+      "emailVerified": "E-Mail bestätigt",
+      "identityVerified": "Identität bestätigt",
+      "yes": "Ja",
+      "no": "Nein",
+      "answers": "Antworten",
+      "history": "Verlauf",
+      "currentAccess": "Aktueller Zugang",
+      "policyChanged": "Die Richtlinie hat sich nach dem Einreichen geändert. Die Genehmigung prüft die aktuelle Richtlinie.",
+      "reasonCode": "Begründung für den Antragsteller",
+      "note": "Interne Notiz (für den Antragsteller nicht sichtbar)",
+      "informationRequest": "Was soll der Antragsteller ergänzen?",
+      "actions": {
+        "claim": "Prüfung beginnen",
+        "request_information": "Informationen anfordern",
+        "approve": "Genehmigen",
+        "decline": "Ablehnen"
+      },
+      "decided": "Entscheidung gespeichert",
+      "errors": {
+        "selfReview": "Du kannst deinen eigenen Antrag nicht prüfen.",
+        "notPermitted": "Du bist nicht berechtigt, über diesen Antrag zu entscheiden."
+      }
+    },
+    "accessRequired": "Dafür brauchst du zuerst einen genehmigten Zugang.",
+    "home": {
+      "accessChanged": "Dein Zugriff auf dieses Dashboard hat sich geändert, daher siehst du deine persönliche Startseite."
+    },
+    "accessUpdated": "Dein Zugriff wurde aktualisiert.",
+    "orgRoles": {
+      "owner": "Inhaber",
+      "manager": "Manager",
+      "representative": "Vertreter",
+      "employee": "Mitarbeiter",
+      "support_agent": "Support-Mitarbeiter"
+    },
+    "menu": {
+      "storeScoped": "Die gemeinsame Speisekarte verwalten Personen mit Zugriff auf alle Filialen. Nutze die Speisekarte deiner Filiale, um dort Verfügbarkeit oder Preise zu ändern."
+    }
   }
 }

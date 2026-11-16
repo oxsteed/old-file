@@ -1,0 +1,93 @@
+.bl-attachments {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 22px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.bl-attachments__title {
+  margin: 0 0 0.9rem;
+  color: var(--muted-text);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.bl-attachments__list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.bl-attachments__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+
+.bl-attachments__name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bl-attachments__actions {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.bl-attachments__download,
+.bl-attachments__remove {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.bl-attachments__download {
+  color: #a5b4fc;
+}
+
+.bl-attachments__remove,
+.bl-attachments__error {
+  color: #fdba74;
+}
+
+.bl-attachments__empty {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 0.84rem;
+}
+
+.bl-attachments__upload {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--muted-text);
+  font-size: 0.8rem;
+}
+
+.bl-attachments__select {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 0.45rem;
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+.bl-attachments__remove:disabled,
+.bl-attachments__download:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 640px) {
+  .bl-attachments__row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

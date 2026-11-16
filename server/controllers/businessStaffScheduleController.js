@@ -246,6 +246,14 @@ exports.deleteShift = async (req, res, next) => {
         WHERE id=$1 AND business_id=$2 AND cancelled_at IS NULL RETURNING *`,
       [shiftId, businessId]
     );
+    if (!deleted) {
+      // WP-049: an already-cancelled shift of this business stays an
+      // idempotent success; an id from another business (or none) is a
+      // plain 404 that reveals nothing about the foreign row.
+      const { rowCount } = await pool.query(
+        'SELECT 1 FROM business_staff_shifts WHERE id = $1 AND business_id = $2', [shiftId, businessId]);
+      if (!rowCount) return res.status(404).json({ error: 'Not found' });
+    }
     const scheduleChange = deleted ? await recordScheduleChange(req, { businessId, before: deleted, after: null, changeType: 'deleted' }) : null;
     res.json({ success: true, ...(scheduleChange ? { schedule_change: scheduleChange } : {}) });
   } catch (err) { next(err); }

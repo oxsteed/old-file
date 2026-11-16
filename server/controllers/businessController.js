@@ -234,6 +234,9 @@ async function addBusiness(req, res, next) {
     }
 
     const { biz, reused } = await withTransaction(pool, async (client) => {
+      // WP-046: serialize creation per owner so duplicate wizard submits
+      // (with or without a key) can never create two primary businesses.
+      await client.query("SELECT pg_advisory_xact_lock(hashtext('business_owner_primary:' || $1::text))", [String(req.user.id)]);
       if (idempotencyKey) {
         const { rows: [existingByKey] } = await client.query(
           `SELECT * FROM businesses
@@ -416,7 +419,7 @@ async function updateBusiness(req, res, next) {
     // that, otherwise fall back to whatever the row already has.
     const { rows: [existingBusiness] } = await pool.query(
       `SELECT address_country, business_kind, industry_category, business_mode,
-              business_type, setup_status, published_at, logo_url, cover_photo_url
+              business_type, setup_status, published_at, is_listed, logo_url, cover_photo_url
          FROM businesses WHERE id = $1`,
       [id]
     );
@@ -471,10 +474,11 @@ async function updateBusiness(req, res, next) {
     const sensitiveActive = isOwner && is_active != null ? is_active : null;
     const listingVisibility = isOwner && typeof is_listed === 'boolean' ? is_listed : null;
     const requestsPublication = sensitiveActive === true || listingVisibility === true;
+    const enforcementOn = require('../services/access/flags').businessEnforcement() === 'enforce';
     if (
       requestsPublication
-      && existingBusiness?.setup_status !== 'active'
       && !existingBusiness?.published_at
+      && (existingBusiness?.setup_status !== 'active' || (enforcementOn && !existingBusiness?.is_listed))
     ) {
       throw new AppError(
         'Complete business setup before publishing this business.',
@@ -769,14 +773,32 @@ async function completeBusinessOnboarding(req, res, next) {
     if (req.user.id !== access.owner_id) {
       throw new AppError('Only the business owner can publish this business', 403, 'forbidden');
     }
-    const readiness = await loadBusinessSetupReadiness(pool, access.id);
-    if (!readiness?.readyToPublish) {
-      throw new AppError('Complete the required setup before publishing', 409, 'business_setup_incomplete', {
-        missing: readiness?.checks.filter((check) => !check.complete).map((check) => check.id) || [],
-      });
-    }
+    const { business, readiness, denied } = await withTransaction(pool, async (client) => {
+      if (require('../services/access/flags').businessEnforcement() !== 'off') {
+        const { rows: [draft] } = await client.query(
+          `SELECT id, business_kind, business_name, published_at,
+                  address_country, address_state, address_city, address_zip
+             FROM businesses
+            WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+            FOR UPDATE`,
+          [access.id, req.user.id],
+        );
+        if (!draft) throw new AppError('Business not found', 404, 'not_found');
+        const gate = await require('../services/access/businessGate').checkPublish(client, {
+          userId: req.user.id,
+          businessId: access.id,
+          kind: draft.business_kind,
+          proposalDraft: req.impersonatedBy ? null : draft,
+        });
+        if (!gate.allowed) return { denied: gate };
+      }
 
-    const { business } = await withTransaction(pool, async (client) => {
+      const readiness = await loadBusinessSetupReadiness(client, access.id);
+      if (!readiness?.readyToPublish) {
+        throw new AppError('Complete the required setup before publishing', 409, 'business_setup_incomplete', {
+          missing: readiness?.checks.filter((check) => !check.complete).map((check) => check.id) || [],
+        });
+      }
       const { rows: [published] } = await client.query(
         `UPDATE businesses
             SET setup_status = 'active', is_active = TRUE, is_listed = TRUE,
@@ -840,9 +862,17 @@ async function completeBusinessOnboarding(req, res, next) {
          VALUES ($1,$2,'owner','business.published','business',$3,$4::jsonb,$5)`,
         [access.id, req.user.id, String(access.id), JSON.stringify(published), req.impersonatedBy || null]
       );
-      return { business: published };
+      return { business: published, readiness };
     }, 'business_publish');
 
+    if (denied) {
+      return res.status(403).json({
+        error: 'This needs approved access first.',
+        code: 'access_required',
+        capability: denied.capability,
+        next: `/settings/applications?apply=${encodeURIComponent(denied.capability)}`,
+      });
+    }
     return res.json({ business: withBusinessCapabilities(business), readiness });
   } catch (err) {
     next(err);
@@ -1048,11 +1078,19 @@ async function setPrimary(req, res, next) {
     const { id } = req.params;
     const userId = req.user.id;
 
-    await pool.query('UPDATE businesses SET is_primary = FALSE WHERE user_id = $1', [userId]);
-    const { rows: [biz] } = await pool.query(
-      'UPDATE businesses SET is_primary = TRUE WHERE id = $1 AND user_id = $2 RETURNING *',
-      [id, userId]
-    );
+    // WP-046: one transaction under the same per-owner lock as creation, and
+    // the target is checked first, so a foreign/unknown id never clears the
+    // caller's current primary.
+    const biz = await withTransaction(pool, async (client) => {
+      await client.query("SELECT pg_advisory_xact_lock(hashtext('business_owner_primary:' || $1::text))", [String(userId)]);
+      const { rows: [target] } = await client.query(
+        'SELECT id FROM businesses WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL FOR UPDATE', [id, userId]);
+      if (!target) return null;
+      await client.query('UPDATE businesses SET is_primary = FALSE WHERE user_id = $1 AND id <> $2 AND is_primary = TRUE', [userId, id]);
+      const { rows: [updated] } = await client.query(
+        'UPDATE businesses SET is_primary = TRUE WHERE id = $1 AND user_id = $2 RETURNING *', [id, userId]);
+      return updated;
+    }, 'business_set_primary');
 
     if (!biz) throw new AppError('Business not found', 404, 'not_found');
     return res.json({ business: biz });

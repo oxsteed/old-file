@@ -1,5 +1,8 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const { withTransaction } = require('../utils/transaction');
+const { consultantEnforcement, requestsEnabled } = require('../services/access/flags');
+const { checkPayingAccess } = require('../services/access/consultantGate');
 
 const REFERRAL_STATUSES = [
   'assigned',
@@ -14,12 +17,8 @@ const REFERRAL_STATUSES = [
   'paused',
 ];
 
-// Statuses that constitute the consultant "taking a paying client" and
-// therefore require OxSteed platform approval (see migration 272 +
-// server/services/modePlatformApprovalService.js). Anything else — intro
-// messages, scheduling discovery calls — is fine without approval.
-// (Review P2-7-F09: the paying-status set moved to routes/consultantNetwork.js
-// where the shared middleware is mounted conditionally.)
+const PAYING_STATUSES = new Set(['engaged', 'won']);
+const isAdmin = (user) => ['admin', 'super_admin'].includes(user.role);
 
 function splitList(value) {
   if (Array.isArray(value)) {
@@ -74,11 +73,11 @@ async function getProfileWithIdentity(userId) {
   return rows[0] || null;
 }
 
-async function logReferralEvent({ requestId, actorId, eventType, noteText = null, metadata = {} }) {
-  await db.query(
+async function logReferralEvent(client, { requestId, actorId, eventType, noteText, metadata }) {
+  await client.query(
     `INSERT INTO consulting_request_referral_log (request_id, actor_id, event_type, note_text, metadata)
      VALUES ($1, $2, $3, $4, $5::jsonb)`,
-    [requestId, actorId || null, eventType, noteText, JSON.stringify(metadata || {})]
+    [requestId, actorId, eventType, noteText, JSON.stringify(metadata)]
   );
 }
 
@@ -217,7 +216,7 @@ exports.getMyConsultantDashboard = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const [{ rows: summaryRows }, { rows: referralRows }, { rows: activityRows }] = await Promise.all([
+    const [{ rows: summaryRows }, { rows: referralRows }, { rows: activityRows }, payingReferralAccess] = await Promise.all([
       db.query(
         `SELECT
            COUNT(*) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')) AS active_referrals,
@@ -263,13 +262,15 @@ exports.getMyConsultantDashboard = async (req, res) => {
         [req.user.id]
       ),
       db.query(
-        `SELECT id, request_id, event_type, note_text, metadata, created_at
-         FROM consulting_request_referral_log
-         WHERE actor_id = $1
-         ORDER BY created_at DESC
+        `SELECT log.id, log.request_id, log.event_type, log.note_text, log.metadata, log.created_at
+         FROM consulting_request_referral_log log
+         JOIN consulting_requests cr ON cr.id = log.request_id AND cr.consultant_assigned_id = $1
+         WHERE log.actor_id = $1
+         ORDER BY log.created_at DESC
          LIMIT 15`,
         [req.user.id]
       ),
+      consultantEnforcement() === 'enforce' ? getPayingReferralAccess(req.user) : null,
     ]);
 
     return res.json({
@@ -284,12 +285,25 @@ exports.getMyConsultantDashboard = async (req, res) => {
       referrals: referralRows,
       activity: activityRows,
       referralStatuses: REFERRAL_STATUSES,
+      ...(payingReferralAccess && { payingReferralAccess }),
     });
   } catch (err) {
     logger.error('getMyConsultantDashboard error', { err });
     return res.status(500).json({ error: 'Failed to load consultant dashboard.' });
   }
 };
+
+async function getPayingReferralAccess(user) {
+  const canApply = requestsEnabled(user.id);
+  if (isAdmin(user)) return { allowed: true, canApply };
+  try {
+    const decision = await checkPayingAccess(user.id);
+    return { allowed: decision.allowed, canApply };
+  } catch (error) {
+    logger.warn('consultant referral access unavailable', { code: error.code });
+    return { allowed: false, canApply: false, unavailable: true };
+  }
+}
 
 exports.updateMyReferral = async (req, res) => {
   try {
@@ -304,62 +318,76 @@ exports.updateMyReferral = async (req, res) => {
     if (!REFERRAL_STATUSES.includes(consultant_assignment_status)) {
       return res.status(400).json({ error: 'Invalid referral status.' });
     }
-
-    const existing = await db.query(
-      `SELECT id, consultant_assigned_id, consultant_assignment_status
-       FROM consulting_requests
-       WHERE id = $1`,
-      [requestId]
-    );
-
-    if (!existing.rows.length) {
+    if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestId)) {
       return res.status(404).json({ error: 'Referral not found.' });
     }
-
-    if (existing.rows[0].consultant_assigned_id !== req.user.id) {
-      return res.status(403).json({ error: 'You are not assigned to this referral.' });
+    if (consultant_status_notes != null && typeof consultant_status_notes !== 'string') {
+      return res.status(400).json({ error: 'Invalid referral notes.' });
+    }
+    if (consultant_follow_up_at && (typeof consultant_follow_up_at !== 'string' || !Number.isFinite(Date.parse(consultant_follow_up_at)))) {
+      return res.status(400).json({ error: 'Invalid referral follow-up date.' });
     }
 
-    // Review P2-7-F09: the platform-approval gate now lives in the
-    // requirePlatformApproval middleware, mounted on this route (conditional
-    // on paying-status transitions). The inline duplicate was removed so the
-    // middleware stays the single source of truth.
+    const outcome = await withTransaction(db, async (client) => {
+      const { rows: [existing] } = await client.query(
+        `SELECT consultant_assignment_status FROM consulting_requests
+         WHERE id = $1 AND consultant_assigned_id = $2 FOR UPDATE`,
+        [requestId, req.user.id],
+      );
+      if (!existing) return { status: 404, body: { error: 'Referral not found.' } };
 
-    const { rows } = await db.query(
-      `UPDATE consulting_requests
-       SET consultant_assignment_status = $1,
-           consultant_status_notes = $2,
-           consultant_follow_up_at = $3,
-           consultant_last_contacted_at = CASE WHEN $4::boolean THEN NOW() ELSE consultant_last_contacted_at END,
-           consultant_intro_sent_at = CASE
-             WHEN $1 = 'intro_sent' AND consultant_intro_sent_at IS NULL THEN NOW()
-             ELSE consultant_intro_sent_at
-           END,
-           updated_at = NOW()
-       WHERE id = $5
-       RETURNING *`,
-      [
-        consultant_assignment_status,
-        consultant_status_notes?.trim() || null,
-        consultant_follow_up_at || null,
-        mark_contacted === true,
+      if (PAYING_STATUSES.has(consultant_assignment_status) && !isAdmin(req.user)) {
+        let decision;
+        try {
+          decision = await checkPayingAccess(req.user.id, { client, lockGrant: true });
+        } catch (error) {
+          logger.error('consultant referral access unavailable', { code: error.code });
+          return { status: 503, body: {
+            error: 'platform_approval_unavailable', mode: 'consultant', action: 'accept_paying_booking', retryable: true,
+          } };
+        }
+        if (!decision.allowed) {
+          const { code, capability, mode, action, current_status, policy } = decision;
+          const body = capability
+            ? { error: 'This needs approved access.', code, capability, canApply: requestsEnabled(req.user.id) }
+            : { error: code, mode, action, current_status, policy };
+          return { status: 403, body };
+        }
+      }
+
+      const note = consultant_status_notes?.trim() || null;
+      const followUpAt = consultant_follow_up_at || null;
+      const { rows: [referral] } = await client.query(
+        `UPDATE consulting_requests
+         SET consultant_assignment_status = $1::varchar,
+             consultant_status_notes = $2,
+             consultant_follow_up_at = $3,
+             consultant_last_contacted_at = CASE WHEN $4::boolean THEN NOW() ELSE consultant_last_contacted_at END,
+             consultant_intro_sent_at = CASE
+               WHEN $1::varchar = 'intro_sent' AND consultant_intro_sent_at IS NULL THEN NOW()
+               ELSE consultant_intro_sent_at
+             END,
+             updated_at = NOW()
+         WHERE id = $5 AND consultant_assigned_id = $6
+         RETURNING id, consultant_assigned_id, consultant_assignment_status, consultant_status_notes,
+                   consultant_follow_up_at, consultant_last_contacted_at, consultant_intro_sent_at, updated_at`,
+        [consultant_assignment_status, note, followUpAt, mark_contacted === true, requestId, req.user.id],
+      );
+
+      await logReferralEvent(client, {
         requestId,
-      ]
-    );
-
-    await logReferralEvent({
-      requestId,
-      actorId: req.user.id,
-      eventType: 'consultant_status_updated',
-      noteText: consultant_status_notes?.trim() || null,
-      metadata: {
-        previous_status: existing.rows[0].consultant_assignment_status,
-        new_status: consultant_assignment_status,
-        follow_up_at: consultant_follow_up_at || null,
-      },
-    });
-
-    return res.json({ referral: rows[0] });
+        actorId: req.user.id,
+        eventType: 'consultant_status_updated',
+        noteText: note,
+        metadata: {
+          previous_status: existing.consultant_assignment_status,
+          new_status: consultant_assignment_status,
+          follow_up_at: followUpAt,
+        },
+      });
+      return { status: 200, body: { referral } };
+    }, 'consultant_referral_update');
+    return res.status(outcome.status).json(outcome.body);
   } catch (err) {
     logger.error('updateMyReferral error', { err });
     return res.status(500).json({ error: 'Failed to update referral.' });

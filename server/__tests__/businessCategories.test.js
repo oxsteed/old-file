@@ -78,6 +78,7 @@ describe('business category long-term wiring', () => {
   test('creates a linked draft restaurant when business mode is food', async () => {
     mockEntityMint();
     mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // WP-046 per-owner creation lock
       .mockResolvedValueOnce({ rows: [{ count: '0' }] })
       .mockResolvedValueOnce({
         rows: [{
@@ -138,6 +139,7 @@ describe('business category long-term wiring', () => {
   test('does not create a food restaurant for service marketplace businesses', async () => {
     mockEntityMint();
     mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // WP-046 per-owner creation lock
       .mockResolvedValueOnce({ rows: [{ count: '1' }] })
       .mockResolvedValueOnce({
         rows: [{
@@ -191,6 +193,7 @@ describe('business category long-term wiring', () => {
   test('derives the compatibility mode on the server instead of trusting the client', async () => {
     mockEntityMint();
     mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // WP-046 per-owner creation lock
       .mockResolvedValueOnce({ rows: [{ count: '0' }] })
       .mockResolvedValueOnce({
         rows: [{
@@ -226,6 +229,7 @@ describe('business category long-term wiring', () => {
   });
 
   test('returns an existing business when the creation idempotency key is retried', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // WP-046 per-owner creation lock
     mockQuery.mockResolvedValueOnce({
       rows: [{
         id: 11,

@@ -471,6 +471,7 @@ router.get('/export', authenticate, async (req, res) => {
     Object.assign(exportData,await require('../growth/rights').exportData(pool,userId));
     Object.assign(exportData,await require('../services/careers/privacy').exportData(pool,userId));
     Object.assign(exportData,await require('../services/customer360Privacy').exportData(pool,userId));
+    Object.assign(exportData,await require('../services/access/privacy').exportData(pool,userId));
     const archiveBuffer = await buildExportArchive(exportData);
     const consumed = await pool.query(
       `UPDATE privacy_export_verifications
@@ -711,6 +712,7 @@ router.delete('/delete-account', strictLimiter, authenticate, requireSensitiveRe
       await require('../services/privacyActivityData').erase(conn,userId);
       await require('../services/careers/privacy').erase(conn,userId);
       await require('../services/customer360Privacy').erase(conn,userId);
+      await require('../services/access/privacy').revokeForDeletion(conn,userId);
       if(process.env.GROWTH_SUBJECT_PEPPER)await require('../growth/rights').erase(conn,userId);
       await conn.query(`UPDATE users SET ${baseSets.join(', ')} WHERE ${userIdEq('id')}`,params);
     },'privacy_delete_growth');

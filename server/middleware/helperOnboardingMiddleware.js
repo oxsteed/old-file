@@ -57,6 +57,10 @@ function requireOnboardingStep(minimumStep) {
 function requireTaxIdentity(req, res, next) {
   const { isDiditVerificationFresh } = require('../utils/diditGate');
   const user = req.user || {};
+  const capabilityApproved = req.accessCapabilities?.['helper.offer_services'] === true;
+  if (!capabilityApproved && user.role !== 'helper') {
+    return res.status(403).json({ error: 'Helper access required.', code: 'helper_required' });
+  }
   if (!user.w9_completed) {
     return res.status(403).json({
       error: 'Complete your W-9 tax form before receiving payouts.',
@@ -81,7 +85,8 @@ function requireHelperStep(step) {
     try {
       const { loadHelperOnboarding, missingFor } = require('../services/helperOnboarding');
       const onboarding = await loadHelperOnboarding(req.user.id);
-      if (!onboarding || onboarding.user.role !== 'helper') {
+      const capabilityApproved = req.accessCapabilities?.['helper.offer_services'] === true;
+      if (!onboarding || (onboarding.user.role !== 'helper' && !capabilityApproved)) {
         return res.status(403).json({ error: 'Helper account required', code: 'helper_required' });
       }
       const missing = missingFor(step, onboarding);
@@ -103,7 +108,8 @@ function requireListingEligible(req, res, next) {
   if (!req.body || req.body.is_listed !== true) return next();
   const { loadHelperOnboarding } = require('../services/helperOnboarding');
   return loadHelperOnboarding(req.user.id).then((onboarding) => {
-    if (!onboarding || !['helper', 'helper_pro', 'broker'].includes(onboarding.user.role)) {
+    const capabilityApproved = req.accessCapabilities?.['helper.offer_services'] === true;
+    if (!onboarding || (!['helper', 'helper_pro', 'broker'].includes(onboarding.user.role) && !capabilityApproved)) {
       return res.status(403).json({ error: 'Helper account required', code: 'helper_required' });
     }
     if (!onboarding.user.onboarding_completed || !onboarding.canAppearInSearch) {
@@ -128,7 +134,9 @@ function requireHelperWorkEligible(req, res, next) {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required', code: 'auth_required' });
   }
-  if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)) {
+  // Progressive access (WP-026): an enforced helper capability satisfies the
+  // legacy role check; with enforcement off this is the old role test.
+  if (!require('./requireAccess').isHelperActor(req)) {
     return res.status(403).json({ error: 'Helper account required', code: 'helper_required' });
   }
   const { loadHelperOnboarding } = require('../services/helperOnboarding');

@@ -19062,6 +19062,7 @@
       "retry": "Retry",
       "notFound": "This item could not be found.",
       "campaignPreviewTitle": "Campaign preview",
+      "share": "Share",
       "requestPreviewTitle": "Request preview",
       "orderPreviewTitle": "Order preview",
       "shipmentPreviewTitle": "Shipment preview",
@@ -19158,6 +19159,9 @@
     },
     "procurement": {
       "form": {
+        "business": "Business context",
+        "chooseBusiness": "Choose a business",
+        "businessRequired": "Choose a business and add a program title",
         "titleRequired": "Program title is required",
         "created": "Recurring procurement program created",
         "title": "Recurring procurement planner",

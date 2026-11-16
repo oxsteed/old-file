@@ -3875,5 +3875,202 @@
     "signIn": "Đăng nhập",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Đơn đăng ký",
+    "pageSubtitle": "Xem tài khoản của bạn có thể làm gì và đăng ký thêm.",
+    "backToSettings": "Quay lại cài đặt",
+    "loading": "Đang tải…",
+    "unavailable": "Tài khoản của bạn chưa thể dùng tính năng đăng ký.",
+    "loadFailed": "Chúng tôi không thể tải các đơn đăng ký của bạn.",
+    "heldTitle": "Những gì bạn có thể làm ngay",
+    "organizations": "Tổ chức bạn tham gia: {{count}}",
+    "requestsTitle": "Đơn đăng ký của bạn",
+    "noRequests": "Bạn chưa có đơn đăng ký nào.",
+    "applyTitle": "Đăng ký thêm",
+    "editTitle": "Đơn đăng ký: {{capability}}",
+    "reviewerAsked": "Người xét duyệt đã hỏi:",
+    "choose": "Chọn…",
+    "listHint": "Phân tách các mục bằng dấu phẩy.",
+    "withdrawTitle": "Rút đơn đăng ký?",
+    "withdrawConfirm": "Đơn đăng ký {{capability}} của bạn sẽ được đóng. Bạn có thể đăng ký lại sau.",
+    "capabilities": {
+      "customer": "Thuê người giúp và đặt hàng",
+      "helper": {
+        "offer_services": "Cung cấp dịch vụ"
+      },
+      "business": {
+        "own": "Điều hành doanh nghiệp"
+      },
+      "restaurant": {
+        "own": "Điều hành nhà hàng"
+      },
+      "consultant": {
+        "accept_paying_clients": "Tư vấn cho khách hàng trả phí"
+      },
+      "tool_owner": {
+        "list_equipment": "Cho thuê thiết bị"
+      },
+      "logistics": {
+        "ship": "Gửi hàng bằng dịch vụ hậu cần"
+      },
+      "investor": {
+        "reporting": "Báo cáo nhà đầu tư"
+      },
+      "franchise": {
+        "operate": "Vận hành nhượng quyền"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "Đặt giá cho công việc và được trả tiền cho công sức của bạn."
+      },
+      "business": {
+        "own": "Thiết lập trang và đội ngũ doanh nghiệp của bạn."
+      },
+      "restaurant": {
+        "own": "Nhận đơn đặt món cho nhà hàng của bạn."
+      },
+      "consultant": {
+        "accept_paying_clients": "Nhận các hợp đồng tư vấn có trả phí."
+      },
+      "tool_owner": {
+        "list_equipment": "Cho thuê dụng cụ và thiết bị của bạn."
+      },
+      "logistics": {
+        "ship": "Đặt và quản lý lô hàng."
+      },
+      "investor": {
+        "reporting": "Xem báo cáo nhà đầu tư."
+      }
+    },
+    "status": {
+      "draft": "Bản nháp",
+      "submitted": "Đã gửi",
+      "in_review": "Đang xét duyệt",
+      "needs_information": "Cần thêm thông tin",
+      "approved": "Đã duyệt",
+      "declined": "Bị từ chối",
+      "withdrawn": "Đã rút"
+    },
+    "reasons": {
+      "review_complete": "Đã xét duyệt xong.",
+      "service_area_required": "Thêm khu vực bạn làm việc.",
+      "service_categories_required": "Thêm các dịch vụ bạn cung cấp.",
+      "identity_verification_required": "Xác minh danh tính của bạn để tiếp tục.",
+      "business_details_required": "Thêm thông tin chi tiết về doanh nghiệp.",
+      "ownership_not_verified": "Chúng tôi không thể xác nhận bạn là chủ doanh nghiệp này.",
+      "duplicate_request": "Bạn đã có đơn đăng ký cho mục này.",
+      "not_eligible_in_market": "Tính năng này chưa có ở khu vực của bạn.",
+      "policy_not_met": "Đơn đăng ký này không đáp ứng yêu cầu của chúng tôi.",
+      "other_contact_support": "Vui lòng liên hệ bộ phận hỗ trợ để biết chi tiết."
+    },
+    "fields": {
+      "serviceCategories": "Dịch vụ bạn cung cấp",
+      "serviceArea": "Khu vực phục vụ",
+      "about": "Giới thiệu",
+      "businessName": "Tên doanh nghiệp",
+      "businessType": "Loại hình doanh nghiệp",
+      "restaurantName": "Tên nhà hàng",
+      "cuisine": "Ẩm thực",
+      "areasOfExpertise": "Lĩnh vực chuyên môn",
+      "bio": "Tiểu sử nghề nghiệp",
+      "sampleWorkUrl": "Liên kết tới mẫu công việc",
+      "yearsExperience": "Số năm kinh nghiệm",
+      "area": {
+        "country": "Mã quốc gia (2 chữ cái)",
+        "region": "Tiểu bang hoặc khu vực",
+        "city": "Thành phố",
+        "postalCode": "Mã bưu chính"
+      }
+    },
+    "options": {
+      "llc": "Công ty TNHH",
+      "sole_prop": "Doanh nghiệp tư nhân",
+      "corp": "Công ty cổ phần",
+      "partnership": "Công ty hợp danh",
+      "other": "Khác"
+    },
+    "fieldErrors": {
+      "invalid": "Kiểm tra lại câu trả lời này.",
+      "required": "Trường này là bắt buộc.",
+      "too_many": "Quá nhiều mục.",
+      "unknown_field": "Trường này không thuộc biểu mẫu."
+    },
+    "actions": {
+      "save": "Lưu bản nháp",
+      "submit": "Gửi đơn đăng ký",
+      "resubmit": "Gửi câu trả lời đã cập nhật",
+      "close": "Đóng",
+      "continue": "Tiếp tục",
+      "withdraw": "Rút",
+      "apply": "Đăng ký",
+      "retry": "Thử lại",
+      "cancel": "Hủy",
+      "confirmWithdraw": "Rút đơn đăng ký"
+    },
+    "toast": {
+      "save": "Đã lưu bản nháp",
+      "submit": "Đã gửi đơn đăng ký",
+      "resubmit": "Đã gửi câu trả lời",
+      "withdraw": "Đã rút đơn đăng ký"
+    },
+    "errors": {
+      "versionConflict": "Đơn đăng ký này đã thay đổi ở tab khác. Chúng tôi đã tải lại.",
+      "validation": "Một số câu trả lời cần được chú ý.",
+      "generic": "Đã xảy ra lỗi. Vui lòng thử lại.",
+      "alreadyOpen": "Bạn đã có một đơn đăng ký đang mở cho mục này.",
+      "alreadyGranted": "Bạn đã có quyền truy cập này."
+    },
+    "openApplications": "Mở đơn đăng ký",
+    "admin": {
+      "nav": "Đơn xin quyền truy cập",
+      "title": "Đơn xin quyền truy cập",
+      "subtitle": "Xét duyệt đơn xin quyền người giúp việc, doanh nghiệp và các quyền khác.",
+      "status": "Trạng thái",
+      "capability": "Loại quyền",
+      "all": "Tất cả",
+      "empty": "Không có đơn nào khớp với bộ lọc này.",
+      "loadMore": "Tải thêm",
+      "select": "Chọn một đơn để xét duyệt.",
+      "applicant": "Người nộp đơn",
+      "emailVerified": "Email đã xác minh",
+      "identityVerified": "Danh tính đã xác minh",
+      "yes": "Có",
+      "no": "Không",
+      "answers": "Câu trả lời",
+      "history": "Lịch sử",
+      "currentAccess": "Quyền hiện tại",
+      "policyChanged": "Chính sách đã thay đổi sau khi gửi đơn. Việc phê duyệt sẽ kiểm tra chính sách hiện tại.",
+      "reasonCode": "Lý do hiển thị cho người nộp đơn",
+      "note": "Ghi chú nội bộ (người nộp đơn không thấy)",
+      "informationRequest": "Người nộp đơn cần bổ sung gì?",
+      "actions": {
+        "claim": "Bắt đầu xét duyệt",
+        "request_information": "Yêu cầu thông tin",
+        "approve": "Phê duyệt",
+        "decline": "Từ chối"
+      },
+      "decided": "Đã lưu quyết định",
+      "errors": {
+        "selfReview": "Bạn không thể tự xét duyệt đơn của mình.",
+        "notPermitted": "Bạn không có quyền quyết định đơn này."
+      }
+    },
+    "accessRequired": "Việc này cần quyền truy cập đã được duyệt trước.",
+    "home": {
+      "accessChanged": "Quyền truy cập bảng điều khiển đó của bạn đã thay đổi, nên bạn đang xem Trang chủ cá nhân."
+    },
+    "accessUpdated": "Quyền truy cập của bạn đã được cập nhật.",
+    "orgRoles": {
+      "owner": "Chủ sở hữu",
+      "manager": "Quản lý",
+      "representative": "Đại diện",
+      "employee": "Nhân viên",
+      "support_agent": "Nhân viên hỗ trợ"
+    },
+    "menu": {
+      "storeScoped": "Thực đơn chung do những người có quyền truy cập mọi cửa hàng quản lý. Hãy dùng thực đơn của cửa hàng bạn để thay đổi tình trạng món hoặc giá tại đó."
+    }
   }
 }

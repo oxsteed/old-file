@@ -3875,5 +3875,202 @@
     "signIn": "サインイン",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "申請",
+    "pageSubtitle": "アカウントでできることを確認し、追加を申請できます。",
+    "backToSettings": "設定に戻る",
+    "loading": "読み込み中…",
+    "unavailable": "このアカウントではまだ申請を利用できません。",
+    "loadFailed": "申請を読み込めませんでした。",
+    "heldTitle": "今できること",
+    "organizations": "所属している組織：{{count}}",
+    "requestsTitle": "あなたの申請",
+    "noRequests": "まだ申請はありません。",
+    "applyTitle": "さらに申請する",
+    "editTitle": "申請：{{capability}}",
+    "reviewerAsked": "審査担当者からの質問：",
+    "choose": "選択してください…",
+    "listHint": "項目はカンマで区切ってください。",
+    "withdrawTitle": "申請を取り下げますか？",
+    "withdrawConfirm": "「{{capability}}」の申請は終了します。後で再度申請できます。",
+    "capabilities": {
+      "customer": "依頼と注文",
+      "helper": {
+        "offer_services": "サービスを提供する"
+      },
+      "business": {
+        "own": "ビジネスを運営する"
+      },
+      "restaurant": {
+        "own": "レストランを運営する"
+      },
+      "consultant": {
+        "accept_paying_clients": "有料クライアントへのコンサルティング"
+      },
+      "tool_owner": {
+        "list_equipment": "機材を貸し出す"
+      },
+      "logistics": {
+        "ship": "物流で発送する"
+      },
+      "investor": {
+        "reporting": "投資家向けレポート"
+      },
+      "franchise": {
+        "operate": "フランチャイズを運営する"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "仕事に入札し、作業の報酬を受け取れます。"
+      },
+      "business": {
+        "own": "ビジネスのページとチームを設定します。"
+      },
+      "restaurant": {
+        "own": "レストランの料理の注文を受け付けます。"
+      },
+      "consultant": {
+        "accept_paying_clients": "有料のコンサルティング案件を受けられます。"
+      },
+      "tool_owner": {
+        "list_equipment": "工具や機材を貸し出せます。"
+      },
+      "logistics": {
+        "ship": "配送の予約と管理ができます。"
+      },
+      "investor": {
+        "reporting": "投資家向けレポートを閲覧できます。"
+      }
+    },
+    "status": {
+      "draft": "下書き",
+      "submitted": "提出済み",
+      "in_review": "審査中",
+      "needs_information": "情報が必要",
+      "approved": "承認済み",
+      "declined": "却下",
+      "withdrawn": "取り下げ済み"
+    },
+    "reasons": {
+      "review_complete": "審査が完了しました。",
+      "service_area_required": "活動地域を追加してください。",
+      "service_categories_required": "提供するサービスを追加してください。",
+      "identity_verification_required": "続行するには本人確認を行ってください。",
+      "business_details_required": "ビジネスの詳細を追加してください。",
+      "ownership_not_verified": "このビジネスの所有者であることを確認できませんでした。",
+      "duplicate_request": "この項目の申請はすでにあります。",
+      "not_eligible_in_market": "お住まいの地域ではまだご利用いただけません。",
+      "policy_not_met": "この申請は要件を満たしていません。",
+      "other_contact_support": "詳しくはサポートにお問い合わせください。"
+    },
+    "fields": {
+      "serviceCategories": "提供するサービス",
+      "serviceArea": "サービス地域",
+      "about": "自己紹介",
+      "businessName": "ビジネス名",
+      "businessType": "事業形態",
+      "restaurantName": "レストラン名",
+      "cuisine": "料理のジャンル",
+      "areasOfExpertise": "専門分野",
+      "bio": "職歴紹介",
+      "sampleWorkUrl": "作品サンプルへのリンク",
+      "yearsExperience": "経験年数",
+      "area": {
+        "country": "国コード（2文字）",
+        "region": "州または地域",
+        "city": "市区町村",
+        "postalCode": "郵便番号"
+      }
+    },
+    "options": {
+      "llc": "合同会社",
+      "sole_prop": "個人事業主",
+      "corp": "株式会社",
+      "partnership": "パートナーシップ",
+      "other": "その他"
+    },
+    "fieldErrors": {
+      "invalid": "この回答を確認してください。",
+      "required": "この項目は必須です。",
+      "too_many": "項目が多すぎます。",
+      "unknown_field": "この項目はフォームに含まれていません。"
+    },
+    "actions": {
+      "save": "下書きを保存",
+      "submit": "申請を提出",
+      "resubmit": "更新した回答を送信",
+      "close": "閉じる",
+      "continue": "続ける",
+      "withdraw": "取り下げる",
+      "apply": "申請する",
+      "retry": "再試行",
+      "cancel": "キャンセル",
+      "confirmWithdraw": "申請を取り下げる"
+    },
+    "toast": {
+      "save": "下書きを保存しました",
+      "submit": "申請を提出しました",
+      "resubmit": "回答を送信しました",
+      "withdraw": "申請を取り下げました"
+    },
+    "errors": {
+      "versionConflict": "この申請は別のタブで変更されました。再読み込みしました。",
+      "validation": "確認が必要な回答があります。",
+      "generic": "問題が発生しました。もう一度お試しください。",
+      "alreadyOpen": "この項目の申請はすでに進行中です。",
+      "alreadyGranted": "このアクセス権はすでにお持ちです。"
+    },
+    "openApplications": "申請を開く",
+    "admin": {
+      "nav": "アクセス申請",
+      "title": "アクセス申請",
+      "subtitle": "ヘルパー、ビジネスなどのアクセス申請を審査します。",
+      "status": "ステータス",
+      "capability": "アクセスの種類",
+      "all": "すべて",
+      "empty": "この条件に一致する申請はありません。",
+      "loadMore": "さらに読み込む",
+      "select": "審査する申請を選択してください。",
+      "applicant": "申請者",
+      "emailVerified": "メール確認済み",
+      "identityVerified": "本人確認済み",
+      "yes": "はい",
+      "no": "いいえ",
+      "answers": "回答",
+      "history": "履歴",
+      "currentAccess": "現在のアクセス",
+      "policyChanged": "提出後にポリシーが変更されました。承認時は現在のポリシーで確認します。",
+      "reasonCode": "申請者に表示される理由",
+      "note": "内部メモ（申請者には表示されません）",
+      "informationRequest": "申請者に追加してほしい内容",
+      "actions": {
+        "claim": "審査を開始",
+        "request_information": "情報を依頼",
+        "approve": "承認",
+        "decline": "却下"
+      },
+      "decided": "決定を保存しました",
+      "errors": {
+        "selfReview": "自分の申請は審査できません。",
+        "notPermitted": "この申請を決定する権限がありません。"
+      }
+    },
+    "accessRequired": "先にアクセスの承認が必要です。",
+    "home": {
+      "accessChanged": "そのダッシュボードへのアクセス権が変更されたため、個人用ホームを表示しています。"
+    },
+    "accessUpdated": "アクセス権が更新されました。",
+    "orgRoles": {
+      "owner": "オーナー",
+      "manager": "マネージャー",
+      "representative": "担当者",
+      "employee": "従業員",
+      "support_agent": "サポート担当"
+    },
+    "menu": {
+      "storeScoped": "共通メニューはすべての店舗にアクセスできる人が管理します。自店舗の提供状況や価格を変えるには、店舗メニューを使ってください。"
+    }
   }
 }

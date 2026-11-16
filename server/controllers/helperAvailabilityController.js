@@ -15,6 +15,7 @@ const pool   = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const availabilityService = require('../services/helperAvailabilityService');
+const accessFlags = require('../services/access/flags');
 
 const DAYS = [0, 1, 2, 3, 4, 5, 6]; // Sun=0 … Sat=6
 const HHMM = /^\d{2}:\d{2}$/;
@@ -284,6 +285,17 @@ exports.getAvailableSlots = async (req, res, next) => {
 
   try {
     // Hidden-by-admin profiles must not surface bookable slots.
+    const publicStanding = accessFlags.projectionEnabled()
+      ? `(u.role IN ('helper', 'helper_pro', 'broker')
+          OR EXISTS (
+            SELECT 1 FROM access_grants ag
+             WHERE ag.user_id = u.id
+               AND ag.capability = 'helper.offer_services'
+               AND ag.subject_type = 'self'
+               AND ag.status = 'active'
+               AND (ag.expires_at IS NULL OR ag.expires_at > NOW())
+          ))`
+      : "u.role IN ('helper', 'helper_pro', 'broker')";
     const { rows: visRows } = await pool.query(
       `SELECT 1 FROM helper_profiles hp
        JOIN users u ON u.id = hp.user_id
@@ -293,6 +305,7 @@ exports.getAvailableSlots = async (req, res, next) => {
          AND u.is_active = TRUE
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
+         AND ${publicStanding}
          AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [helperId]

@@ -4,21 +4,24 @@ const { sendEmailOrThrow } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
-const platformApprovalSvc = require('../services/modePlatformApprovalService');
+const { withTransaction } = require('../utils/transaction');
+const { consultantEnforcement } = require('../services/access/flags');
+const { checkPayingAccess, bookingDenial } = require('../services/access/consultantGate');
 
 async function publicConsultantExists(consultantId) {
+  const enforce = consultantEnforcement() === 'enforce';
   const { rows } = await db.query(
     `SELECT u.id
        FROM users u
       WHERE u.id = $1
-        AND u.default_mode = 'consultant'
+        ${enforce ? '' : "AND u.default_mode = 'consultant'"}
         AND u.deleted_at IS NULL
         AND u.is_active = TRUE
         AND u.email_verified = TRUE
         AND u.onboarding_completed = TRUE`,
     [consultantId]
   );
-  return rows.length > 0;
+  return rows.length > 0 && (!enforce || (await checkPayingAccess(consultantId)).allowed);
 }
 
 function canManageConsultant(req, consultantId) {
@@ -225,9 +228,10 @@ exports.getAvailableSlots = async (req, res) => {
         `SELECT 1 FROM consulting_sessions_scheduled
          WHERE consultant_assigned_id = $1
            AND scheduled_date = $2
-           AND scheduled_time = $3
+           AND scheduled_time < $4::time
+           AND scheduled_time + make_interval(mins => COALESCE(duration_minutes, 120)) > $3::time
            AND status IN ('confirmed', 'completed')`,
-        [consultantId, date, slot.slot_start]
+        [consultantId, date, slot.slot_start, slot.slot_end]
       );
 
       if (isBooked.rows.length === 0) {
@@ -316,24 +320,34 @@ exports.createScheduledSession = async (req, res) => {
     // Idempotent: the scheduled table has a UNIQUE(session_id), and a
     // retried or refreshed "Schedule session" click must return the row
     // instead of failing on the unique constraint.
-    const { rows: existingRows } = await db.query(
-      `SELECT id, session_id, scheduled_date, scheduled_time, duration_minutes,
+    const selectScheduled = `SELECT id, session_id, scheduled_date, scheduled_time, duration_minutes,
               consultant_assigned_id, meeting_link, timezone, status
-       FROM consulting_sessions_scheduled WHERE session_id = $1`,
-      [consultingSessionId]
-    );
+       FROM consulting_sessions_scheduled WHERE session_id = $1`;
+    const { rows: existingRows } = await db.query(selectScheduled, [consultingSessionId]);
     if (existingRows.length > 0) {
       return res.json({ ...existingRows[0], alreadyScheduled: true });
+    }
+
+    const assignedConsultant = consultantId || session.consultant_assigned_id || null;
+    if (!isAdmin && assignedConsultant && consultantEnforcement() === 'enforce') {
+      const decision = await checkPayingAccess(assignedConsultant);
+      if (!decision.allowed) return res.status(409).json(bookingDenial(decision));
     }
 
     const { rows } = await db.query(
       `INSERT INTO consulting_sessions_scheduled
          (session_id, scheduled_date, scheduled_time, duration_minutes, consultant_assigned_id, status)
        VALUES ($1, '1970-01-01', '00:00', 120, $2, 'pending_confirmation')
+       ON CONFLICT (session_id) DO NOTHING
        RETURNING id, session_id, scheduled_date, scheduled_time, duration_minutes,
                  consultant_assigned_id, meeting_link, timezone, status`,
-      [consultingSessionId, consultantId || session.consultant_assigned_id || null]
+      [consultingSessionId, assignedConsultant]
     );
+    if (!rows.length) {
+      const { rows: [scheduled] } = await db.query(selectScheduled, [consultingSessionId]);
+      if (!scheduled) return res.status(409).json({ error: 'Session changed. Please retry.' });
+      return res.json({ ...scheduled, alreadyScheduled: true });
+    }
 
     // Notifications audit item 53: the assigned consultant was never told
     // a session was scheduled. Notify through the shared sendNotification
@@ -465,17 +479,9 @@ exports.bookTimeSlot = async (req, res) => {
     // booking pinned to their calendar. We check the *consultant* (not the
     // caller) — they're the one who needs OxSteed sign-off. Admins bypass.
     if (!isAdmin) {
-      const consultantCheck = await platformApprovalSvc.canPerformAction(
-        consultantId,
-        'consultant',
-        'accept_paying_booking',
-      );
+      const consultantCheck = await checkPayingAccess(consultantId);
       if (!consultantCheck.allowed) {
-        return res.status(409).json({
-          error: 'consultant_pending_platform_approval',
-          message: 'This consultant is still completing OxSteed verification and cannot accept bookings yet.',
-          current_status: consultantCheck.current_status,
-        });
+        return res.status(409).json(bookingDenial(consultantCheck));
       }
     }
 
@@ -505,9 +511,10 @@ exports.bookTimeSlot = async (req, res) => {
       return res.status(409).json({ error: 'Selected time slot is not available' });
     }
 
-    // Atomic conflict-check + update via conditional WHERE to avoid double booking.
+    // Under enforcement, serialize competing bookings before checking for overlaps.
     // Note: status valid values per migration 103 CHECK: pending_confirmation, confirmed, completed, no_show, cancelled.
-    const { rows: updated } = await db.query(
+    const enforce = consultantEnforcement() === 'enforce';
+    const writeBooking = (client) => client.query(
       `UPDATE consulting_sessions_scheduled css_target
        SET scheduled_date = $1,
            scheduled_time = $2,
@@ -518,20 +525,38 @@ exports.bookTimeSlot = async (req, res) => {
            status = 'confirmed',
            updated_at = NOW()
        WHERE css_target.id = $7
+         ${enforce ? "AND css_target.status = 'pending_confirmation' AND ($10::boolean OR css_target.consultant_assigned_id IS NULL OR css_target.consultant_assigned_id = $6)" : ''}
          AND NOT EXISTS (
            SELECT 1 FROM consulting_sessions_scheduled other
            WHERE other.consultant_assigned_id = $6
              AND other.scheduled_date = $1
              AND other.scheduled_time < $9
-             AND (other.scheduled_time + (other.duration_minutes || ' minutes')::INTERVAL)::TIME > $8
+           AND other.scheduled_time + make_interval(mins => COALESCE(other.duration_minutes, 120)) > $8
              AND other.status IN ('confirmed', 'completed')
              AND other.id <> $7
          )
        RETURNING *`,
       [date, startTime, durationMinutes, meetingLink || null,
        timezone || 'America/New_York', consultantId, sessionId,
-       startTime, endTime]
+       startTime, endTime, ...(enforce ? [isAdmin] : [])]
     );
+    let outcome;
+    if (enforce) {
+      outcome = await withTransaction(db, async (client) => {
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [
+          `consulting-booking:${consultantId}:${date}`,
+        ]);
+        if (!isAdmin) {
+          const decision = await checkPayingAccess(consultantId, { client, lockGrant: true });
+          if (!decision.allowed) return { denial: bookingDenial(decision) };
+        }
+        return writeBooking(client);
+      }, 'confirm_consulting_booking');
+    } else {
+      outcome = await writeBooking(db);
+    }
+    if (outcome.denial) return res.status(409).json(outcome.denial);
+    const updated = outcome.rows;
 
     if (updated.length === 0) {
       return res.status(409).json({ error: 'Time slot conflicts with another session' });
@@ -612,7 +637,7 @@ exports.getNextAvailableDates = async (req, res) => {
       const dateStr = d.toISOString().split('T')[0];
 
       const { rows: slots } = await db.query(
-        `SELECT slot_start FROM get_consultant_available_slots($1, $2, $3)`,
+        `SELECT slot_start, slot_end FROM get_consultant_available_slots($1, $2, $3)`,
         [consultantId, dateStr, durationMinutes]
       );
 
@@ -624,9 +649,10 @@ exports.getNextAvailableDates = async (req, res) => {
             `SELECT 1 FROM consulting_sessions_scheduled
              WHERE consultant_assigned_id = $1
                AND scheduled_date = $2
-               AND scheduled_time = $3
+               AND scheduled_time < $4::time
+               AND scheduled_time + make_interval(mins => COALESCE(duration_minutes, 120)) > $3::time
                AND status IN ('confirmed', 'completed')`,
-            [consultantId, dateStr, slot.slot_start]
+            [consultantId, dateStr, slot.slot_start, slot.slot_end]
           );
 
           if (booked.length === 0) {

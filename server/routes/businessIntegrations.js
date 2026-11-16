@@ -6,20 +6,26 @@ const { scopeExempt } = require('../middleware/scopeGates');
 const { requireAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const ctrl = require('../controllers/businessIntegrationsController');
+// WP-056: integration status, Stripe account ids and webhook URLs are
+// sensitive settings, not public brand data — reading them needs
+// settings.integrations (the hub tab's gate), not just membership.
+const requirePermission = require('../middleware/requirePermission');
 
-// GET /:businessId/integrations — read-only, any member
+// GET /:businessId/integrations — members with settings.integrations
 router.get(
   '/:businessId/integrations',
   requireAuth,
   requireBusinessAccess({ minRole: 'any' }),
+  requirePermission('settings.integrations'),
   ctrl.getIntegrations
 );
 
-// GET /:businessId/webhooks — any member
+// GET /:businessId/webhooks — members with settings.integrations
 router.get(
   '/:businessId/webhooks',
   requireAuth,
   requireBusinessAccess({ minRole: 'any' }),
+  requirePermission('settings.integrations'),
   ctrl.listWebhooks
 );
 

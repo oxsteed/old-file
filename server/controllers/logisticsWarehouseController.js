@@ -163,10 +163,19 @@ exports.listDeliveryOrders = async (req, res, next) => {
     // Non-staff callers only ever see their own recipient records; staff
     // with warehouse.manage (or admins) may optionally filter by recipient.
     const seeAll = canSeeAllWarehouse(req);
+    const assignedDistributor = !seeAll && ['reseller', 'franchise_buyer'].includes(req.logisticsRole);
     const recipientUserId = seeAll ? (req.query.recipient_user_id || null) : req.user.id;
     const conditions = ['1=1'];
     const params = [];
-    if (recipientUserId) { conditions.push(`d.recipient_user_id = $${params.push(recipientUserId)}`); }
+    if (recipientUserId) {
+      const recipientParam = params.push(recipientUserId);
+      if (assignedDistributor) {
+        const assignedParam = params.push(recipientUserId);
+        conditions.push(`(d.recipient_user_id = $${recipientParam} OR d.assigned_to = $${assignedParam})`);
+      } else {
+        conditions.push(`d.recipient_user_id = $${recipientParam}`);
+      }
+    }
     if (req.query.status) { conditions.push(`d.status = $${params.push(req.query.status)}`); }
 
     const result = await pool.query(
@@ -202,6 +211,7 @@ exports.getDeliveryOrder = async (req, res, next) => {
     const delivery = await warehouseService.getDeliveryOrder(req.params.id, {
       userId: req.user.id,
       isAdmin: canSeeAllWarehouse(req),
+      allowAssigned: !canSeeAllWarehouse(req) && ['reseller', 'franchise_buyer'].includes(req.logisticsRole),
     });
     if (!delivery) return next(new AppError('Delivery order not found', 404, 'not_found'));
     // Advisory, additive: which status transitions the viewer may perform
@@ -218,7 +228,7 @@ exports.updateDeliveryStatus = async (req, res, next) => {
     if (!status) return next(new AppError('status is required', 400, 'validation_failed'));
     const delivery = await warehouseService.transitionDeliveryOrder(
       req.params.id, status, req.user.id,
-      { notes, carrier, trackingNumber: tracking_number, assignedTo: assigned_to }
+      { notes, carrier, trackingNumber: tracking_number, assignedTo: assigned_to, actorRole: req.logisticsRole }
     );
     res.json({ success: true, data: delivery });
   } catch (err) {

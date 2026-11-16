@@ -4,6 +4,7 @@ const express = require('express');
 const router  = express.Router();
 const { scopeExempt } = require('../middleware/scopeGates');
 const { authenticate, optionalAuth } = require('../middleware/auth');
+const requireEmailVerified = require('../middleware/requireEmailVerified');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
@@ -76,13 +77,13 @@ const {
 router.get('/invoices/public/:token', getPublicInvoice);
 
 // ── Vortex redeem (no business id - must be before /:id routes) ───────────────
-router.post('/vortex/redeem',                authenticate, rejectImpersonated, requireVortexEnabled, vortexRedeemLimiter, redeemToken);
+router.post('/vortex/redeem',                authenticate, requireEmailVerified, rejectImpersonated, requireVortexEnabled, vortexRedeemLimiter, redeemToken);
 router.get('/categories',                    listBusinessCategories);
 
 // ── Member invitations (must come before /:id routes) ─────────────────────────
-router.get('/invitations',                   authenticate, listMyInvitations);
-router.post('/invitations/:id/accept',       authenticate, acceptInvitation);
-router.post('/invitations/:id/decline',      authenticate, declineInvitation);
+router.get('/invitations',                   authenticate, requireEmailVerified, listMyInvitations);
+router.post('/invitations/:id/accept',       authenticate, requireEmailVerified, acceptInvitation);
+router.post('/invitations/:id/decline',      authenticate, requireEmailVerified, declineInvitation);
 router.get('/managed',                       authenticate, listManagedBusinesses);
 router.get('/media/:assetId',                getBusinessMediaAsset);
 

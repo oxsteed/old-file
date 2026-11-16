@@ -377,6 +377,7 @@ exports.identityWebhook = async (req, res, next) => {
         await db.query(
           'UPDATE users SET identity_verified = TRUE, id_verified = TRUE WHERE id = $1', [transitioned[0].user_id]
         );
+        await require('../services/access/evidence').recordIdentityEvidence(transitioned[0].user_id, { provider: 'stripe_identity', outcome: 'verified' });
         try {
           await db.query(
             'UPDATE helper_profiles SET is_identity_verified = TRUE, updated_at = NOW() WHERE user_id = $1',

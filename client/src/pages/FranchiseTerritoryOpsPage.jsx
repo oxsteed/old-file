@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import PageShell from '../components/PageShell';
+import { useAuth } from '../hooks/useAuth';
+import useAccessProjection from '../hooks/useAccessProjection';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 // Zero-decimal currencies (mirrors server revenueDivisor): their minor unit
@@ -87,6 +89,8 @@ const TRAINING_LABEL_KEYS = {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function FranchiseTerritoryOpsPage() {
+  const { user } = useAuth();
+  const accessProjection = useAccessProjection(user);
   const { t } = useTranslation();
   const [stats, setStats]     = useState(null);
   const [helpers, setHelpers] = useState([]);
@@ -96,6 +100,10 @@ export default function FranchiseTerritoryOpsPage() {
   // is sent as ?currency= so operators outside the US stop seeing every
   // revenue tile silently converted to dollars by the USD default.
   const [currency, setCurrency] = useState('USD');
+  const projectedAccess = accessProjection?.access || accessProjection;
+  const projectionControlsTerritory = Boolean(accessProjection?.flags?.accessProjection);
+  const hasFranchiseAccess = projectedAccess?.personal?.includes('franchise.operate');
+  const territoryBlocked = projectionControlsTerritory && !hasFranchiseAccess;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,7 +122,15 @@ export default function FranchiseTerritoryOpsPage() {
     }
   }, [t, currency]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (territoryBlocked) {
+      setLoading(false);
+      setStats(null);
+      setHelpers([]);
+      return;
+    }
+    load();
+  }, [load, territoryBlocked]);
 
   const app      = stats?.application ?? {};
   const kpis     = stats?.territory_kpis ?? {};
@@ -130,6 +146,28 @@ export default function FranchiseTerritoryOpsPage() {
   const trainingLabel = app.training_status && TRAINING_LABEL_KEYS[app.training_status]
     ? t(TRAINING_LABEL_KEYS[app.training_status])
     : app.training_status || '—';
+
+  if (territoryBlocked) {
+    return (
+      <PageShell>
+        <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center px-4">
+          <div className="max-w-lg text-center space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 border border-orange-500/20">
+              <Building2 size={13} />
+              {t('franchiseTerritoryPage.noTerritory.badge')}
+            </div>
+            <h1 className="text-2xl font-bold">{t('franchiseTerritoryPage.noTerritory.title')}</h1>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              {t('franchiseTerritoryPage.noTerritory.description')}
+            </p>
+            <Link to="/franchise/status" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
+              {t('franchiseTerritoryPage.noTerritory.viewApplication')} <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+      </PageShell>
+    );
+  }
 
   // ── Not launched yet ─────────────────────────────────────────
   if (!loading && stats && !stats.has_territory) {

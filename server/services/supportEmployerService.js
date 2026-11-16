@@ -92,6 +92,16 @@ async function findAgentForConversationBusiness(businessId, userId) {
   return rows[0] || null;
 }
 
+/**
+ * Assignment is not standing access. Re-check the current employer standing
+ * whenever an assigned agent performs a conversation action.
+ */
+async function userIsActiveAssignedAgent(businessId, userId, agentId) {
+  if (!businessId || !userId || !agentId) return false;
+  const agent = await findAgentForConversationBusiness(businessId, userId);
+  return Boolean(agent && String(agent.id) === String(agentId));
+}
+
 async function findPlatformAgent(userId) {
   const { rows } = await query(
     `SELECT sa.*
@@ -317,6 +327,7 @@ module.exports = {
   platformAdminSupportAllowed,
   isPlatformAdmin,
   findAgentForConversationBusiness,
+  userIsActiveAssignedAgent,
   findPlatformAgent,
   userCanAccessBusinessConversations,
   userCanManageBusiness,

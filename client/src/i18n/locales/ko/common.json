@@ -3875,5 +3875,202 @@
     "signIn": "로그인",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "신청",
+    "pageSubtitle": "계정으로 할 수 있는 일을 확인하고 더 신청하세요.",
+    "backToSettings": "설정으로 돌아가기",
+    "loading": "불러오는 중…",
+    "unavailable": "아직 계정에서 신청 기능을 사용할 수 없습니다.",
+    "loadFailed": "신청 내역을 불러오지 못했습니다.",
+    "heldTitle": "지금 할 수 있는 일",
+    "organizations": "소속된 조직: {{count}}",
+    "requestsTitle": "내 신청",
+    "noRequests": "아직 신청 내역이 없습니다.",
+    "applyTitle": "더 신청하기",
+    "editTitle": "신청: {{capability}}",
+    "reviewerAsked": "검토자의 질문:",
+    "choose": "선택…",
+    "listHint": "항목은 쉼표로 구분하세요.",
+    "withdrawTitle": "신청을 철회할까요?",
+    "withdrawConfirm": "{{capability}} 신청이 종료됩니다. 나중에 다시 신청할 수 있습니다.",
+    "capabilities": {
+      "customer": "도움 요청 및 주문",
+      "helper": {
+        "offer_services": "서비스 제공"
+      },
+      "business": {
+        "own": "사업체 운영"
+      },
+      "restaurant": {
+        "own": "레스토랑 운영"
+      },
+      "consultant": {
+        "accept_paying_clients": "유료 고객 컨설팅"
+      },
+      "tool_owner": {
+        "list_equipment": "장비 대여"
+      },
+      "logistics": {
+        "ship": "물류로 배송"
+      },
+      "investor": {
+        "reporting": "투자자 보고서"
+      },
+      "franchise": {
+        "operate": "프랜차이즈 운영"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "작업에 입찰하고 일한 만큼 대가를 받으세요."
+      },
+      "business": {
+        "own": "사업체 페이지와 팀을 설정하세요."
+      },
+      "restaurant": {
+        "own": "레스토랑의 음식 주문을 받으세요."
+      },
+      "consultant": {
+        "accept_paying_clients": "유료 컨설팅 의뢰를 수락하세요."
+      },
+      "tool_owner": {
+        "list_equipment": "공구와 장비를 대여하세요."
+      },
+      "logistics": {
+        "ship": "배송을 예약하고 관리하세요."
+      },
+      "investor": {
+        "reporting": "투자자 보고서를 확인하세요."
+      }
+    },
+    "status": {
+      "draft": "임시 저장",
+      "submitted": "제출됨",
+      "in_review": "검토 중",
+      "needs_information": "정보 필요",
+      "approved": "승인됨",
+      "declined": "거절됨",
+      "withdrawn": "철회됨"
+    },
+    "reasons": {
+      "review_complete": "검토가 완료되었습니다.",
+      "service_area_required": "활동 지역을 추가하세요.",
+      "service_categories_required": "제공하는 서비스를 추가하세요.",
+      "identity_verification_required": "계속하려면 본인 인증을 하세요.",
+      "business_details_required": "사업체에 대한 세부 정보를 더 추가하세요.",
+      "ownership_not_verified": "이 사업체의 소유자임을 확인할 수 없습니다.",
+      "duplicate_request": "이미 이 항목에 대한 신청이 있습니다.",
+      "not_eligible_in_market": "아직 거주 지역에서는 이용할 수 없습니다.",
+      "policy_not_met": "이 신청은 요건을 충족하지 않습니다.",
+      "other_contact_support": "자세한 내용은 고객 지원에 문의하세요."
+    },
+    "fields": {
+      "serviceCategories": "제공하는 서비스",
+      "serviceArea": "서비스 지역",
+      "about": "소개",
+      "businessName": "사업체 이름",
+      "businessType": "사업체 유형",
+      "restaurantName": "레스토랑 이름",
+      "cuisine": "요리 종류",
+      "areasOfExpertise": "전문 분야",
+      "bio": "경력 소개",
+      "sampleWorkUrl": "작업 샘플 링크",
+      "yearsExperience": "경력 연수",
+      "area": {
+        "country": "국가 코드(2자)",
+        "region": "주 또는 지역",
+        "city": "도시",
+        "postalCode": "우편번호"
+      }
+    },
+    "options": {
+      "llc": "유한책임회사",
+      "sole_prop": "개인사업자",
+      "corp": "주식회사",
+      "partnership": "합명회사",
+      "other": "기타"
+    },
+    "fieldErrors": {
+      "invalid": "이 답변을 확인하세요.",
+      "required": "필수 항목입니다.",
+      "too_many": "항목이 너무 많습니다.",
+      "unknown_field": "이 항목은 양식에 포함되지 않습니다."
+    },
+    "actions": {
+      "save": "임시 저장",
+      "submit": "신청 제출",
+      "resubmit": "수정한 답변 보내기",
+      "close": "닫기",
+      "continue": "계속",
+      "withdraw": "철회",
+      "apply": "신청",
+      "retry": "다시 시도",
+      "cancel": "취소",
+      "confirmWithdraw": "신청 철회"
+    },
+    "toast": {
+      "save": "임시 저장했습니다",
+      "submit": "신청을 제출했습니다",
+      "resubmit": "답변을 보냈습니다",
+      "withdraw": "신청을 철회했습니다"
+    },
+    "errors": {
+      "versionConflict": "다른 탭에서 이 신청이 변경되어 다시 불러왔습니다.",
+      "validation": "확인이 필요한 답변이 있습니다.",
+      "generic": "문제가 발생했습니다. 다시 시도하세요.",
+      "alreadyOpen": "이미 진행 중인 신청이 있습니다.",
+      "alreadyGranted": "이미 이 권한이 있습니다."
+    },
+    "openApplications": "신청 열기",
+    "admin": {
+      "nav": "접근 권한 신청",
+      "title": "접근 권한 신청",
+      "subtitle": "도우미, 사업체 등 접근 권한 신청을 검토하세요.",
+      "status": "상태",
+      "capability": "권한 유형",
+      "all": "전체",
+      "empty": "이 필터와 일치하는 신청이 없습니다.",
+      "loadMore": "더 불러오기",
+      "select": "검토할 신청을 선택하세요.",
+      "applicant": "신청자",
+      "emailVerified": "이메일 인증됨",
+      "identityVerified": "본인 인증됨",
+      "yes": "예",
+      "no": "아니요",
+      "answers": "답변",
+      "history": "기록",
+      "currentAccess": "현재 권한",
+      "policyChanged": "제출 후 정책이 변경되었습니다. 승인 시 현재 정책을 확인합니다.",
+      "reasonCode": "신청자에게 표시할 사유",
+      "note": "내부 메모(신청자에게 표시되지 않음)",
+      "informationRequest": "신청자가 무엇을 추가해야 하나요?",
+      "actions": {
+        "claim": "검토 시작",
+        "request_information": "정보 요청",
+        "approve": "승인",
+        "decline": "거절"
+      },
+      "decided": "결정을 저장했습니다",
+      "errors": {
+        "selfReview": "본인의 신청은 검토할 수 없습니다.",
+        "notPermitted": "이 신청을 결정할 권한이 없습니다."
+      }
+    },
+    "accessRequired": "먼저 승인된 권한이 필요합니다.",
+    "home": {
+      "accessChanged": "해당 대시보드에 대한 접근 권한이 변경되어 개인 홈을 표시하고 있습니다."
+    },
+    "accessUpdated": "접근 권한이 업데이트되었습니다.",
+    "orgRoles": {
+      "owner": "소유자",
+      "manager": "관리자",
+      "representative": "담당자",
+      "employee": "직원",
+      "support_agent": "지원 상담원"
+    },
+    "menu": {
+      "storeScoped": "공유 메뉴는 모든 매장에 접근할 수 있는 사람이 관리합니다. 내 매장의 판매 여부나 가격을 바꾸려면 매장 메뉴를 사용하세요."
+    }
   }
 }

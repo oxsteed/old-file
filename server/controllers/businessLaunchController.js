@@ -5,6 +5,8 @@ const escapeHtml = require('../utils/escapeHtml');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { logAdminAction } = require('../services/auditService');
 const { csvCell } = require('../utils/csv');
+const { consultantEnforcement } = require('../services/access/flags');
+const { checkPayingAccess } = require('../services/access/consultantGate');
 
 function sanitizeCountry(code) {
   const value = String(code || '').trim().toUpperCase();
@@ -36,6 +38,7 @@ async function submitBusinessLaunchRequest(req, res) {
     urgency,
     package_selected,
     package_price,
+    access_request_id,
   } = req.body;
 
   // Validation
@@ -46,12 +49,30 @@ async function submitBusinessLaunchRequest(req, res) {
   if (!skill_description || !target_market || !operating_country || !operating_state || !package_selected) {
     return res.status(400).json({ error: 'Missing required fields (country and state/city required)' });
   }
+  const setupItems = Array.isArray(setup_items_selected) ? setup_items_selected : [];
+  const applicationId = access_request_id == null ? null : String(access_request_id);
+  if (applicationId !== null && (!req.user?.id || !/^[1-9]\d{0,17}$/.test(applicationId))) {
+    return res.status(404).json({ error: 'Application not found.', code: 'access_request_not_found' });
+  }
 
   try {
     const client = await db.connect();
 
     try {
       await client.query('BEGIN');
+
+      if (applicationId !== null) {
+        const application = await client.query(
+          `SELECT id FROM access_requests
+           WHERE id = $1 AND applicant_id = $2 AND capability IN ('business.own', 'restaurant.own')
+             AND status IN ('draft', 'submitted', 'in_review', 'needs_information')
+           FOR SHARE`, [applicationId, req.user.id],
+        );
+        if (!application.rowCount) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Application not found.', code: 'access_request_not_found' });
+        }
+      }
 
       // Insert the consulting request
       const result = await client.query(
@@ -60,10 +81,10 @@ async function submitBusinessLaunchRequest(req, res) {
           skill_description, target_market, has_revenue, business_name_decided,
           business_name, operating_country, operating_state, setup_items_selected, select_all_chosen,
           current_phase, additional_notes, urgency, package_selected, package_price,
-          status
+          status, access_request_id
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'pending'
+          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'pending', $21
         ) RETURNING id, created_at`,
         [
           req.user?.id || null,
@@ -79,13 +100,14 @@ async function submitBusinessLaunchRequest(req, res) {
           business_name || null,
           operating_country,
           operating_state,
-          JSON.stringify(setup_items_selected || []),
+          JSON.stringify(setupItems),
           select_all_chosen || false,
           current_phase || null,
           additional_notes || null,
           urgency,
           package_selected,
           package_price,
+          applicationId,
         ]
       );
 
@@ -100,10 +122,10 @@ async function submitBusinessLaunchRequest(req, res) {
         first_name,
         package_selected,
         package_price,
-        setup_items_selected,
+        setupItems,
         select_all_chosen
       ).catch(err => {
-        logger.error('Failed to send confirmation email', { requestId, email, err });
+        logger.error('Failed to send confirmation email', { requestId, code: err.code });
       });
 
       // Send admin notification (non-blocking)
@@ -115,7 +137,7 @@ async function submitBusinessLaunchRequest(req, res) {
         package_selected,
         urgency,
         operating_state,
-        setup_items_selected: select_all_chosen ? 'All items' : setup_items_selected.length,
+        setup_items_selected: select_all_chosen ? 'All items' : setupItems.length,
         createdAt,
       }).catch(err => {
         logger.error('Failed to send admin notification', { requestId, err });
@@ -123,7 +145,6 @@ async function submitBusinessLaunchRequest(req, res) {
 
       logger.info('Business launch request submitted', {
         requestId,
-        email,
         package_selected,
         urgency,
       });
@@ -385,6 +406,7 @@ async function getMatchedConsultants(req, res) {
   const country = sanitizeCountry(req.query.country);
   const region = String(req.query.region || '').trim();
   const packagePriceCents = Math.max(0, Math.round(Number(req.query.package_price || 0) * 100));
+  const enforce = consultantEnforcement() === 'enforce';
 
   try {
     const result = await db.query(
@@ -424,6 +446,16 @@ async function getMatchedConsultants(req, res) {
        LEFT JOIN consulting_requests cr ON cr.consultant_assigned_id = p.user_id
        WHERE p.is_active = TRUE
          AND p.accepts_new_referrals = TRUE
+         ${enforce ? `
+         AND u.is_active = TRUE AND u.deleted_at IS NULL AND NOT COALESCE(u.is_banned, FALSE)
+         AND (NOT COALESCE(u.is_suspended, FALSE) OR u.suspended_until <= NOW())
+         AND EXISTS (
+           SELECT 1 FROM access_grants ag
+           WHERE ag.user_id = p.user_id
+             AND ag.capability = 'consultant.accept_paying_clients'
+             AND ag.subject_key = 'self' AND ag.status = 'active'
+             AND (ag.expires_at IS NULL OR ag.expires_at > NOW())
+         )` : ''}
          AND ($3::integer = 0 OR p.minimum_package_price_cents <= $3)
          AND (
            $1::text IS NULL
@@ -431,7 +463,7 @@ async function getMatchedConsultants(req, res) {
            OR p.accepts_virtual_consulting = TRUE
          )
        GROUP BY p.user_id, u.id
-       HAVING COUNT(cr.id) FILTER (
+       HAVING p.active_referral_limit < 0 OR COUNT(cr.id) FILTER (
          WHERE cr.consultant_assigned_id = p.user_id
            AND cr.consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')
        ) < p.active_referral_limit
@@ -485,7 +517,8 @@ async function assignConsultant(req, res) {
          JOIN users u ON u.id = p.user_id
          WHERE p.user_id = $1
            AND p.is_active = TRUE
-           AND p.accepts_new_referrals = TRUE`,
+           AND p.accepts_new_referrals = TRUE
+         FOR UPDATE OF p`,
         [consultant_user_id]
       );
 
@@ -495,14 +528,22 @@ async function assignConsultant(req, res) {
       }
 
       const consultant = consultantResult.rows[0];
+      if (consultantEnforcement() === 'enforce') {
+        const decision = await checkPayingAccess(consultant_user_id, { client, lockGrant: true });
+        if (!decision.allowed) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'This consultant is not eligible for a new referral.', code: 'consultant_access_inactive' });
+        }
+      }
       const totalPriceCents = Math.max(0, Math.round(Number(launchRequest.package_price || 0) * 100));
 
       const activeReferralCountResult = await client.query(
         `SELECT COUNT(*)::int AS active_referrals
          FROM consulting_requests
          WHERE consultant_assigned_id = $1
+           AND id <> $2
            AND consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')`,
-        [consultant_user_id]
+        [consultant_user_id, id]
       );
 
       if (consultant.active_referral_limit >= 0 && activeReferralCountResult.rows[0].active_referrals >= consultant.active_referral_limit) {
@@ -535,7 +576,11 @@ async function assignConsultant(req, res) {
              estimated_total_price_cents = $4,
              estimated_oxsteed_share_cents = $5,
              estimated_consultant_share_cents = $6,
-             consultant_status_notes = COALESCE($7, consultant_status_notes),
+             consultant_status_notes = CASE WHEN consultant_assigned_id = $1
+               THEN COALESCE($7, consultant_status_notes) ELSE $7 END,
+             consultant_follow_up_at = CASE WHEN consultant_assigned_id = $1 THEN consultant_follow_up_at END,
+             consultant_last_contacted_at = CASE WHEN consultant_assigned_id = $1 THEN consultant_last_contacted_at END,
+             consultant_intro_sent_at = CASE WHEN consultant_assigned_id = $1 THEN consultant_intro_sent_at END,
              updated_at = NOW()
          WHERE id = $8
          RETURNING *`,
@@ -573,10 +618,10 @@ async function assignConsultant(req, res) {
         to: consultant.email,
         subject: 'New OxSteed local consulting referral assigned',
         html: `
-          <p>Hi ${consultant.first_name},</p>
-          <p>OxSteed assigned you a new business-launch referral for ${launchRequest.first_name} ${launchRequest.last_name}.</p>
-          <p><strong>Market:</strong> ${launchRequest.operating_country || '-'} / ${launchRequest.operating_state || '-'}</p>
-          <p><strong>Package:</strong> ${launchRequest.package_selected || '-'} (${launchRequest.package_price || 0})</p>
+          <p>Hi ${escapeHtml(consultant.first_name)},</p>
+          <p>OxSteed assigned you a new business-launch referral for ${escapeHtml(launchRequest.first_name)} ${escapeHtml(launchRequest.last_name)}.</p>
+          <p><strong>Market:</strong> ${escapeHtml(launchRequest.operating_country || '-')} / ${escapeHtml(launchRequest.operating_state || '-')}</p>
+          <p><strong>Package:</strong> ${escapeHtml(launchRequest.package_selected || '-')} (${escapeHtml(launchRequest.package_price || 0)})</p>
           <p><strong>Your estimated share:</strong> $${(consultantShareCents / 100).toFixed(2)}</p>
           <p>Log in to your contractor dashboard to review the lead and continue the introduction.</p>
         `,
@@ -588,11 +633,11 @@ async function assignConsultant(req, res) {
         to: launchRequest.email,
         subject: 'OxSteed matched you with a local consultant',
         html: `
-          <p>Hi ${launchRequest.first_name},</p>
-          <p>OxSteed has matched your business-launch request with ${consultant.first_name} ${consultant.last_name}${consultant.home_city ? ` in ${consultant.home_city}` : ''}.</p>
+          <p>Hi ${escapeHtml(launchRequest.first_name)},</p>
+          <p>OxSteed has matched your business-launch request with ${escapeHtml(consultant.first_name)} ${escapeHtml(consultant.last_name)}${consultant.home_city ? ` in ${escapeHtml(consultant.home_city)}` : ''}.</p>
           <p>Your consultant will continue the introduction and next-step planning through the platform.</p>
-          <p><strong>Consultant:</strong> ${consultant.first_name} ${consultant.last_name}</p>
-          <p><strong>Specialties:</strong> ${(consultant.specialties || []).join(', ') || 'Business launch support'}</p>
+          <p><strong>Consultant:</strong> ${escapeHtml(consultant.first_name)} ${escapeHtml(consultant.last_name)}</p>
+          <p><strong>Specialties:</strong> ${escapeHtml((consultant.specialties || []).join(', ') || 'Business launch support')}</p>
         `,
       }).catch((err) => {
         logger.warn('Failed to send client consultant intro email', { id, err: err.message });
@@ -978,30 +1023,36 @@ async function notifyAdminOfNewRequest(data) {
  */
 async function getUserBusinessLaunchRequests(req, res) {
   const userId = req.user?.id;
-  const email = req.user?.email;
+  const email = req.user?.email_verified ? req.user.email : null;
 
   if (!userId && !email) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
   try {
-    // Get requests for logged-in user (by user_id or email)
+    // A verified email recovers guest submissions only. Linked requests
+    // remain with the account that submitted them.
     const result = await db.query(
-      `SELECT * FROM consulting_requests
-       WHERE (user_id = $1 OR email = $2)
+      `SELECT id, user_id, email, first_name, last_name, phone, referral_source,
+              skill_description, target_market, has_revenue, business_name_decided,
+              business_name, operating_country, operating_state, setup_items_selected,
+              select_all_chosen, current_phase, additional_notes, urgency,
+              package_selected, package_price, status, access_request_id, created_at, updated_at
+       FROM consulting_requests
+       WHERE user_id = $1 OR (user_id IS NULL AND LOWER(email) = LOWER($2))
        ORDER BY created_at DESC`,
       [userId || null, email]
     );
 
     return res.json(result.rows);
   } catch (err) {
-    logger.error('Error fetching user business launch requests', { userId, email, err });
+    logger.error('Error fetching user business launch requests', { userId, code: err.code });
     return res.status(500).json({ error: 'Failed to fetch requests' });
   }
 }
 
 /**
- * Search Business Launch requests by email (public)
+ * Search Business Launch requests by email (authenticated)
  * GET /api/consulting/business-launch/search?email=
  */
 async function searchBusinessLaunchRequests(req, res) {
@@ -1010,7 +1061,7 @@ async function searchBusinessLaunchRequests(req, res) {
   }
 
   const { email } = req.query;
-  if (!email) {
+  if (typeof email !== 'string' || !email.trim()) {
     return res.status(400).json({ error: 'Email parameter required' });
   }
 
@@ -1020,7 +1071,7 @@ async function searchBusinessLaunchRequests(req, res) {
   // Prevents enumeration of other users' business intake details.
   const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
   const requesterEmail = (req.user.email || '').toLowerCase().trim();
-  if (!isAdmin && requesterEmail !== normalizedEmail) {
+  if (!isAdmin && (!req.user.email_verified || requesterEmail !== normalizedEmail)) {
     return res.status(403).json({ error: 'Can only search your own email' });
   }
 
@@ -1032,8 +1083,9 @@ async function searchBusinessLaunchRequests(req, res) {
               setup_items_selected
        FROM consulting_requests
        WHERE LOWER(email) = $1
+         AND ($2::boolean OR user_id IS NULL OR user_id = $3)
        ORDER BY created_at DESC`,
-      [normalizedEmail]
+      [normalizedEmail, isAdmin, req.user.id]
     );
 
     return res.json(result.rows);

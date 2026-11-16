@@ -185,7 +185,7 @@ exports.updateWaitlistEntry = async (req, res, next) => {
 exports.removeFromWaitlist = async (req, res, next) => {
   const { businessId, entryId } = req.params;
   try {
-    await pool.query(
+    const removed = await pool.query(
       `UPDATE appointment_waitlist w
          SET status = 'cancelled', updated_at = NOW()
        FROM business_services bs
@@ -194,6 +194,7 @@ exports.removeFromWaitlist = async (req, res, next) => {
          AND bs.business_id = $2`,
       [entryId, businessId]
     );
+    if (!removed.rowCount) return res.status(404).json({ error: 'Not found' });
     res.json({ success: true });
   } catch (err) { next(err); }
 };

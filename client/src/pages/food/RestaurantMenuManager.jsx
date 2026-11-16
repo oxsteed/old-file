@@ -17,6 +17,7 @@ import {
 } from '../../api/food';
 import { listMenuFoodCosts } from '../../api/restaurants';
 import { apiErrorMessage } from './foodShared';
+import { useTranslation } from 'react-i18next';
 
 const blankItem = () => ({
   name: '',
@@ -77,7 +78,9 @@ function parseCsv(text) {
 }
 
 export default function RestaurantMenuManager({ t, restaurant }) {
+  const { t: accessT } = useTranslation('common');
   const [menuData, setMenuData] = useState({ menu: [], uncategorizedItems: [] });
+  const readOnly = menuData?.canEditBrandMenu === false;
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -340,11 +343,16 @@ export default function RestaurantMenuManager({ t, restaurant }) {
           <Link className="fd-btn fd-btn-secondary" to={`/restaurants/r/${restaurant.id}`} target="_blank" rel="noreferrer">
             {t('food.menuManager.preview', 'Preview customer menu')}
           </Link>
+          {!readOnly && (
           <button type="button" className="fd-btn" onClick={() => setItemEditor({ item: null, form: blankItem() })} data-track="ui.e0bc80ad9e.1">
             + {t('food.menuManager.addItem', 'Add item')}
           </button>
+          )}
         </div>
       </header>
+      {readOnly && (
+        <p className="fd-menu-manager-readonly" role="status">{accessT('progressiveAccess.menu.storeScoped')}</p>
+      )}
 
       <div className="fd-menu-manager-stats" aria-label={t('food.menuManager.summary', 'Menu summary')}>
         <span><strong>{activeItems.length}</strong> {t('food.menuManager.items', 'items')}</span>
@@ -352,7 +360,7 @@ export default function RestaurantMenuManager({ t, restaurant }) {
         <span><strong>{soldOutCount}</strong> {t('food.menuManager.soldOut', 'sold out')}</span>
       </div>
 
-      <div className="fd-menu-manager-tools">
+      {!readOnly && <div className="fd-menu-manager-tools">
         <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setCategoryEditor({ id: null, name: '', description: '', isActive: true })} data-track="ui.e0bc80ad9e.2">
           + {t('food.merchant.addCategory', 'Add category')}
         </button>
@@ -379,7 +387,7 @@ export default function RestaurantMenuManager({ t, restaurant }) {
             : t('food.menuManager.showFoodCost')}
         </button>
         <input ref={csvInputRef} type="file" accept=".csv,text/csv" hidden onChange={handleCsvImport} />
-      </div>
+      </div>}
 
       {foodCosts && (
         <section className="fd-menu-food-cost" aria-label={t('food.menuManager.foodCostTitle')} data-testid="menu-food-cost">
@@ -463,7 +471,7 @@ export default function RestaurantMenuManager({ t, restaurant }) {
               <h3>{section.name}</h3>
               <span>{t('food.menuManager.itemCount', '{{count}} items', { count: section.items.length })}</span>
             </div>
-            {section.category && (
+            {section.category && !readOnly && (
               <div className="fd-menu-category-actions">
                 <button type="button" disabled={working || sectionIndex === 0} onClick={() => moveCategory(section, -1)} aria-label={t('food.menuManager.moveCategoryUp', 'Move category up')} data-track="ui.e0bc80ad9e.11">↑</button>
                 <button type="button" disabled={working || sectionIndex === sections.length - 1} onClick={() => moveCategory(section, 1)} aria-label={t('food.menuManager.moveCategoryDown', 'Move category down')} data-track="ui.e0bc80ad9e.12">↓</button>
@@ -505,7 +513,7 @@ export default function RestaurantMenuManager({ t, restaurant }) {
                     {(item.modifierGroups?.length || 0) > 0 && <span>{t('food.menuManager.optionGroups', '{{count}} option groups', { count: item.modifierGroups.length })}</span>}
                   </div>
                 </div>
-                <div className="fd-menu-owner-actions">
+                {!readOnly && <div className="fd-menu-owner-actions">
                   <button type="button" disabled={working || itemIndex === 0} onClick={() => moveItem(item, section.items, -1)} aria-label={t('food.menuManager.moveItemUp', 'Move item up')} data-track="ui.e0bc80ad9e.15">↑</button>
                   <button type="button" disabled={working || itemIndex === section.items.length - 1} onClick={() => moveItem(item, section.items, 1)} aria-label={t('food.menuManager.moveItemDown', 'Move item down')} data-track="ui.e0bc80ad9e.16">↓</button>
                   <button type="button" onClick={() => setItemEditor({ item, form: itemToForm(item) })} data-track="ui.e0bc80ad9e.17">{t('food.common.edit', 'Edit')}</button>
@@ -513,7 +521,7 @@ export default function RestaurantMenuManager({ t, restaurant }) {
                   <button type="button" onClick={() => mutate(() => updateFoodMenuItem(restaurant.id, item.id, { archived: !item.archived_at }), item.archived_at ? t('food.menuManager.restored', 'Item restored') : t('food.menuManager.archived', 'Item archived'))} data-track="ui.e0bc80ad9e.19">
                     {item.archived_at ? t('food.menuManager.restore', 'Restore') : t('food.menuManager.archive', 'Archive')}
                   </button>
-                </div>
+                </div>}
               </div>
             ))}
           </div>

@@ -13,10 +13,11 @@ const express  = require('express');
 const router   = express.Router();
 const pool     = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 const { assertCanQuoteJob, bidFromAcceptedQuote } = require('../services/jobQuoteBridge');
 
 // ── Create / send a quote ────────────────────────────────────────────────────
-router.post('/', authenticate, async (req, res, next) => {
+router.post('/', authenticate, requireHelperCapability, async (req, res, next) => {
   const helperId = req.user.id;
   const { job_id, line_items, tax_rate = 0, notes, valid_days = 7 } = req.body;
 
@@ -46,7 +47,9 @@ router.post('/', authenticate, async (req, res, next) => {
   try {
     // Review P1-134: the job must exist, be open, and not belong to the
     // quoting helper.
-    const gate = await assertCanQuoteJob(job_id, helperId);
+    const gate = await assertCanQuoteJob(job_id, helperId, pool, {
+      allowCapability: req.accessCapabilities?.['helper.offer_services'] === true,
+    });
     if (!gate.ok) return res.status(gate.status).json({ error: gate.error, code: gate.code });
     const row = await pool.query(`
       INSERT INTO helper_quotes

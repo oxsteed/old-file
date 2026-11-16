@@ -30,10 +30,10 @@ export const JOB_STATUS_KEYS = {
 // Open statuses still accept bids (shared with server/services/jobStatusPolicy.js).
 export const BIDDABLE_JOB_STATUSES = Object.freeze(['published', 'matched', 'negotiating']);
 
-export function jobDetailView({ job, user, bids = [], bidsStatus = 'idle', canApplyToJobs = false, needsOnboarding = false, reviewEligible = false }) {
+export function jobDetailView({ job, user, bids = [], bidsStatus = 'idle', canApplyToJobs = false, needsOnboarding = false, reviewEligible = false, hasHelperAccess = false }) {
   const isOwner = Boolean(user && samePartyId(user.id, job.client_id));
   const isAssignedHelper = Boolean(user && !isOwner && samePartyId(user.id, job.assigned_helper_id));
-  const isHelper = Boolean(user && ['helper', 'helper_pro', 'broker'].includes(user.role));
+  const isHelper = Boolean(user && (['helper', 'helper_pro', 'broker'].includes(user.role) || hasHelperAccess));
   const validBids = jobList(bids).filter(bid => typeof bid === 'object');
   const visibleBids = isOwner ? validBids : validBids.filter(bid => user && samePartyId(bid.helper_id, user.id));
   const hasAlreadyBid = visibleBids.some(bid => user && samePartyId(bid.helper_id, user.id));

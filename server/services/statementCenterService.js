@@ -239,8 +239,9 @@ async function buildRestaurantSettlement(userId) {
   // (assertMerchantFinanceStanding): the restaurant's recorded owner, the
   // business owner (businesses.user_id; owners are never stored in
   // business_members), or an active manager member.
-  const { rows: restaurants } = await pool.query(
-    `SELECT DISTINCT fr.id, fr.display_name, fr.business_id
+  const { rows: candidateRestaurants } = await pool.query(
+    `SELECT DISTINCT fr.id, fr.display_name, fr.business_id,
+            (fr.owner_user_id = $1 OR b.user_id = $1) AS is_owner
        FROM food_restaurants fr
        LEFT JOIN businesses b ON b.id = fr.business_id
        LEFT JOIN business_members bm
@@ -248,6 +249,14 @@ async function buildRestaurantSettlement(userId) {
       WHERE fr.owner_user_id = $1 OR b.user_id = $1 OR bm.role = 'manager'
       ORDER BY fr.display_name ASC`,
     [userId]);
+  // WP-073: managers also need finance read and no store boundary.
+  const { memberHasFinanceRead } = require('./access/financeStanding');
+  const restaurants = [];
+  for (const row of candidateRestaurants) {
+    if (row.is_owner || await memberHasFinanceRead(pool, { businessId: row.business_id, userId, restaurantId: row.id })) {
+      restaurants.push(row);
+    }
+  }
   const hasAccount = restaurants.length > 0;
   const setupState = hasAccount ? 'ready' : 'unavailable';
 
@@ -408,16 +417,25 @@ async function buildHelperEarnings(userId) {
 }
 
 async function buildBusiness(userId) {
-  // Business owner (businesses.user_id) or an active manager member — the
-  // same standing the settlement archive requires.
-  const { rows: businesses } = await pool.query(
+  // Business owners always read statements. Managers must also hold the
+  // canonical payouts.view finance permission; ordinary membership is not a
+  // financial grant. This mirrors settlementStatementArchive standing.
+  const { rows: candidates } = await pool.query(
     `SELECT DISTINCT b.id, b.business_name AS name
+            , (b.user_id = $1) AS is_owner
        FROM businesses b
        LEFT JOIN business_members bm
          ON bm.business_id = b.id AND bm.member_id = $1 AND bm.status = 'active'
       WHERE b.user_id = $1 OR bm.role = 'manager'
       ORDER BY b.business_name ASC`,
     [userId]);
+  const { memberHasFinanceRead } = require('./access/financeStanding');
+  const businesses = [];
+  for (const candidate of candidates) {
+    if (candidate.is_owner !== false || await memberHasFinanceRead(pool, { businessId: candidate.id, userId })) {
+      businesses.push(candidate);
+    }
+  }
   const hasAccount = businesses.length > 0;
   const setupState = hasAccount ? 'ready' : 'unavailable';
 

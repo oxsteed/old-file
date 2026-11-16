@@ -8,6 +8,21 @@ const rateLimit = require('express-rate-limit');
 const router   = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requireAdmin, requirePermission }  = require('../middleware/adminAuth');
+const accessFlags = require('../services/access/flags');
+const { requireAnyCapability } = require('../middleware/requireAccess');
+
+const requireLearnAuthorAccess = requireAnyCapability([
+  {
+    capability: 'helper.offer_services',
+    modeFn: accessFlags.helperEnforcement,
+    legacyAllowedFn: (req) => ['helper', 'helper_pro', 'broker'].includes(req.user?.role) || req.user?.is_helper === true,
+  },
+  {
+    capability: 'consultant.accept_paying_clients',
+    modeFn: accessFlags.consultantEnforcement,
+    legacyAllowedFn: (req) => req.user?.role === 'consultant',
+  },
+]);
 
 // Click tracking is a public, anonymous endpoint — give it its own tight
 // bucket (60 requests per minute per IP) instead of the shared general pool.
@@ -105,8 +120,8 @@ const videoSubmitLimiter = rateLimit({
 router.get('/completions',           authenticate, getCompletions);
 router.post('/completions',          authenticate, recordCompletion);
 router.get('/badges',                authenticate, getBadges);
-router.post('/guides/submit',        authenticate, submitGuide);
-router.post('/submissions',          authenticate, submitGuide);
+router.post('/guides/submit',        authenticate, requireLearnAuthorAccess, submitGuide);
+router.post('/submissions',          authenticate, requireLearnAuthorAccess, submitGuide);
 router.get('/submissions/mine',      authenticate, getMySubmissions);
 // Community video for an existing guide — 24h auto-publish unless blocked.
 router.post('/guides/:id/videos',    authenticate, videoSubmitLimiter, submitGuideVideo);

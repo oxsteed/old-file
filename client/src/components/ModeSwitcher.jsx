@@ -9,7 +9,7 @@
 // signed-in users.
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -22,11 +22,13 @@ import {
 import { LAUNCH_SWITCHER_MODES } from '../utils/launchScope';
 import { navbarMode } from '../utils/navbarNavigation';
 import { useNavDisclosure } from '../hooks/useNavDisclosure';
+import useAccessProjection from '../hooks/useAccessProjection';
 
 export default function ModeSwitcher({ compact = false }) {
   const { t } = useTranslation();
   const { user, switchRole } = useAuth();
   const navigate = useNavigate();
+  const accessProjection = useAccessProjection(user);
   const current = navbarMode(user);
   const { open, setOpen, containerRef: menuRef, triggerRef, panelId } = useNavDisclosure(current);
   const [memberships, setMemberships] = useState([]);
@@ -80,6 +82,34 @@ export default function ModeSwitcher({ compact = false }) {
 
   // Logged-out users have no mode; a single mode is still a visible label.
   if (!user) return null;
+
+  // Progressive access retires the legacy mode switcher. Approved capabilities
+  // appear as permanent navigation/workspace access; the account remains on
+  // its customer foundation while applications are handled in one place.
+  if (accessProjection?.flags?.accessProjection) {
+    return (
+      <Link
+        to="/settings/applications"
+        className="ox-btn ox-btn-ghost ox-btn-sm"
+        style={{
+          display: 'inline-flex',
+          minHeight: '44px',
+          alignItems: 'center',
+          gap: '0.4rem',
+          padding: compact ? '0.3rem 0.5rem' : '0.4rem 0.65rem',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--color-border)',
+          background: 'var(--color-surface)',
+          color: 'var(--color-text)',
+          fontSize: 'var(--text-sm)',
+          fontWeight: 500,
+          textDecoration: 'none',
+        }}
+      >
+        <span>{t('progressiveAccess.pageTitle', { defaultValue: 'Applications' })}</span>
+      </Link>
+    );
+  }
 
   const currentMeta = MODE_CATALOG[current] || MODE_CATALOG.customer;
   const currentLabel = t(currentMeta.labelKey, { defaultValue: current });

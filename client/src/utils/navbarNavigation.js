@@ -1,6 +1,7 @@
 import { canAccessBusinessHub, canPostJobs } from './modeAccess.js';
 import { businessHubLandingPath } from './businessProfileForm.js';
 import { LAUNCH_VISIBILITY } from './launchScope.js';
+import { resolveHomeMode, capabilityShortcuts, projectionActive, hasCapability } from './accessProjection.js';
 
 const BUSINESS_MODES = new Set(['business_owner', 'business_manager', 'business_representative', 'business_employee']);
 
@@ -19,8 +20,12 @@ export function navbarWorkspacePath(pathname = '', savedBusinessId) {
 
 const link = (id, to, labelKey, primary = false) => ({ id, to, labelKey, primary });
 
-export function navbarNavigation(user, { dashboardPath = '/dashboard', workspacePath = '/business-hub', showSupportWorkspace = false } = {}) {
-  const mode = navbarMode(user);
+// WP-016: `projection` ({ access, flags } from GET /api/me/access) makes the
+// shared navigation capability-aware: a view whose access was removed falls
+// back to the customer navigation, and capabilities the person holds but is
+// not viewing get account-menu shortcuts. Null projection = legacy behaviour.
+export function navbarNavigation(user, { dashboardPath = '/dashboard', workspacePath = '/business-hub', showSupportWorkspace = false, projection = null } = {}) {
+  const mode = resolveHomeMode(user, navbarMode(user), projection).mode;
   const effectiveUser = user ? { ...user, default_mode: mode } : null;
   const business = BUSINESS_MODES.has(mode);
   const helper = mode === 'helper';
@@ -52,6 +57,13 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
   const account = [];
   if (customer) account.push(link('dashboard', dashboardPath, 'nav.dashboard'), link('foodOrders', '/orders', 'nav.foodOrders'));
   if (helper && canAccessBusinessHub(effectiveUser)) account.push(link('workspace', workspacePath, 'nav.businessWorkspace'));
+  for (const item of capabilityShortcuts(mode, projection)) {
+    if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
+  }
+  if (LAUNCH_VISIBILITY.consulting && mode !== 'consultant' && projectionActive(projection)
+      && hasCapability(projection.access, 'consultant.accept_paying_clients')) {
+    account.push(link('consultantReferrals', '/consulting/contractor-dashboard', 'consultantContractorDashboard.page.title'));
+  }
   account.push(link('settings', '/settings', 'nav.settings'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
   if (showSupportWorkspace && !primary.some(item => item.to === '/support/agent')) {
     account.push(link('support', '/support/agent', 'nav.supportWorkspace'));

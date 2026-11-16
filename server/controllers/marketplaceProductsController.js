@@ -164,6 +164,8 @@ const getProductDetail = async (req, res) => {
       LEFT JOIN marketplace_product_skills mps ON mp.id = mps.product_id
       LEFT JOIN skills_lookup sl ON mps.skill_id = sl.id
       WHERE mp.id = $1
+        AND mp.is_active = TRUE
+        AND mp.is_available = TRUE
       GROUP BY mp.id
     `;
 
@@ -340,6 +342,7 @@ const searchProducts = async (req, res) => {
       LEFT JOIN marketplace_product_skills mps ON mp.id = mps.product_id
       LEFT JOIN skills_lookup sl ON mps.skill_id = sl.id
       WHERE mp.is_active = TRUE
+        AND mp.is_available = TRUE
         AND to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, ''))
             @@ plainto_tsquery('english', $1)
     `;
@@ -376,6 +379,7 @@ const searchProducts = async (req, res) => {
       FROM marketplace_products mp
       LEFT JOIN marketplace_product_skills mps ON mp.id = mps.product_id
       WHERE mp.is_active = TRUE
+        AND mp.is_available = TRUE
         AND to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, ''))
             @@ plainto_tsquery('english', $1)
     `;
@@ -608,8 +612,11 @@ const submitProductReview = async (req, res) => {
       return sendError(res, 400, 'Rating must be between 1 and 5');
     }
 
-    // Verify user is a helper
-    if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)) {
+    // The route gate establishes the progressive capability marker for an
+    // approved customer-role helper; legacy helper roles remain compatible when
+    // enforcement is off or shadowing.
+    if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)
+      && req.accessCapabilities?.['helper.offer_services'] !== true) {
       return sendError(res, 403, 'Only helpers can submit reviews');
     }
 

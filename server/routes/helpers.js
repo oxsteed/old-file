@@ -12,6 +12,7 @@ const {
 } = require('../controllers/businessInvoiceController');
 const { generalLimiter, directoryLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { requireListingEligible } = require('../middleware/helperOnboardingMiddleware');
 
@@ -19,19 +20,19 @@ const { requireListingEligible } = require('../middleware/helperOnboardingMiddle
 router.post('/:id/remove-credential', requireAdmin, requirePermission('manage_users'), removeCredential);
 
 // ── Authenticated helper-owner endpoints (must come before /:id wildcards) ──
-router.get('/me/listing',       authenticate, getMyListingStatus);
-router.put('/me/listing',       authenticate, requireListingEligible, toggleListing);
-router.get('/me/availability',  authenticate, getMyAvailability);
-router.put('/me/availability',  authenticate, toggleAvailability);
+router.get('/me/listing',       authenticate, requireHelperCapability, getMyListingStatus);
+router.put('/me/listing',       authenticate, requireHelperCapability, requireListingEligible, toggleListing);
+router.get('/me/availability',  authenticate, requireHelperCapability, getMyAvailability);
+router.put('/me/availability',  authenticate, requireHelperCapability, toggleAvailability);
 
 // ── Helper invoices (authenticated, helper-scoped) ─────────────────────────────
-router.get('/invoices',                        authenticate, listHelperInvoices);
-router.post('/invoices',                       authenticate, createHelperInvoice);
-router.put('/invoices/:invoiceId',             authenticate, updateHelperInvoice);
-router.post('/invoices/:invoiceId/pay',        authenticate, markHelperInvoicePaid);
-router.post('/invoices/:invoiceId/send',       authenticate, sendHelperInvoice);
-router.post('/invoices/:invoiceId/void',       authenticate, voidHelperInvoice);
-router.delete('/invoices/:invoiceId',          authenticate, deleteHelperInvoice);
+router.get('/invoices',                        authenticate, requireHelperCapability, listHelperInvoices);
+router.post('/invoices',                       authenticate, requireHelperCapability, createHelperInvoice);
+router.put('/invoices/:invoiceId',             authenticate, requireHelperCapability, updateHelperInvoice);
+router.post('/invoices/:invoiceId/pay',        authenticate, requireHelperCapability, markHelperInvoicePaid);
+router.post('/invoices/:invoiceId/send',       authenticate, requireHelperCapability, sendHelperInvoice);
+router.post('/invoices/:invoiceId/void',       authenticate, requireHelperCapability, voidHelperInvoice);
+router.delete('/invoices/:invoiceId',          authenticate, requireHelperCapability, deleteHelperInvoice);
 
 // ── Public directory endpoints ───────────────────────────────────────────────
 // SECURITY: Use directoryLimiter (stricter) to prevent bulk enumeration

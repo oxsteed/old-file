@@ -8,20 +8,27 @@ const { withTransaction } = require('../utils/transaction');
 const { sendNotification } = require('../services/notificationService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 
-async function loadAuthorizedConversation(req, conversationId) {
+async function loadAuthorizedConversation(req, conversationId, { requireAction = false } = {}) {
   const { businessId } = req.params;
   if (!businessId || !req.user?.id) return null;
+  const result = await query(
+    'SELECT id, business_id, customer_id, agent_id, status FROM support_conversations WHERE id = $1 AND business_id = $2',
+    [conversationId, businessId]
+  );
+  const conversation = result.rows[0] || null;
+  if (!conversation) return null;
+  if (requireAction) {
+    const canAct = supportEmployerService.isPlatformAdmin(req.user.role)
+      || await supportEmployerService.userCanAdministrateBusiness(businessId, req.user.id)
+      || await supportEmployerService.userIsActiveAssignedAgent(businessId, req.user.id, conversation.agent_id);
+    return canAct ? conversation : null;
+  }
   const canAccess = await supportEmployerService.userCanAccessBusinessConversations(
     businessId,
     req.user.id,
     req.user.role
   );
-  if (!canAccess) return null;
-  const result = await query(
-    'SELECT id, business_id, customer_id, agent_id, status FROM support_conversations WHERE id = $1 AND business_id = $2',
-    [conversationId, businessId]
-  );
-  return result.rows[0] || null;
+  return canAccess ? conversation : null;
 }
 
 async function loadAuthorizedMessage(req, messageId) {
@@ -207,7 +214,7 @@ async function addAttachment(req, res) {
       return sendValidationError(res, { attachmentName: 'Must be 255 characters or fewer' });
     }
     // Authorize before touching storage so a denied caller cannot orphan an object.
-    const conversation = await loadAuthorizedConversation(req, conversationId);
+    const conversation = await loadAuthorizedConversation(req, conversationId, { requireAction: true });
     if (!conversation) return sendError(res, 403, 'Access denied');
     uploadedKey = await uploadFile(req.file.buffer, 'support-conversations', req.file.originalname, req.file.mimetype);
     if (!uploadedKey) {

@@ -11,6 +11,7 @@ const profileChecks = new Set(['name', 'category', 'location', 'description']);
 
 export default function BusinessOnboarding({ businessId, onAttentionAction }) {
   const { t, i18n } = useTranslation('attention');
+  const { t: accessT } = useTranslation('common');
   const text = (key, opts) => t(`onboarding.${key}`, opts);
   const { user } = useAuth();
   const { setDirty, clearDirty } = useDirtyForm();
@@ -75,7 +76,10 @@ export default function BusinessOnboarding({ businessId, onAttentionAction }) {
       onAttentionAction?.();
     } catch (error) {
       if (version !== generation.current) return;
-      if ([403, 404].includes(error?.response?.status)) {
+      if (publish && error?.response?.data?.code === 'access_required') {
+        // WP-046: publishing is the reviewed step; the draft stays editable.
+        setNotice('accessRequired');
+      } else if ([403, 404].includes(error?.response?.status)) {
         setData(null); setState('unavailable'); clearDirty();
       } else {
         setNotice(publish && error?.response?.status === 409 ? 'incomplete' : 'saveError');
@@ -133,6 +137,10 @@ export default function BusinessOnboarding({ businessId, onAttentionAction }) {
         is dirty, with no reason given. Say so next to them instead of
         auto-publishing unsaved edits. */}
     {dirty && !busy && <p>{text('saveFirst')}</p>}
-    {notice && <p role={['saveError', 'incomplete'].includes(notice) ? 'alert' : 'status'}>{text(notice)}</p>}
+    {notice === 'accessRequired' && <p role="alert">
+      {accessT('progressiveAccess.accessRequired')}{' '}
+      <Link to="/settings/applications" data-track="ui.access.business.apply">{accessT('progressiveAccess.openApplications')}</Link>
+    </p>}
+    {notice && notice !== 'accessRequired' && <p role={['saveError', 'incomplete'].includes(notice) ? 'alert' : 'status'}>{text(notice)}</p>}
   </section>;
 }

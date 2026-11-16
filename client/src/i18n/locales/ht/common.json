@@ -6506,5 +6506,212 @@
     "signIn": "Konekte",
     "noTerms": "Okenn kondisyon poko pibliye pou lajan sa a.",
     "retry": "Eseye ankò"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Aplikasyon",
+    "pageSubtitle": "Gade sa kont ou ka fè epi aplike pou plis.",
+    "backToSettings": "Retounen nan paramèt yo",
+    "loading": "Chajman…",
+    "unavailable": "Aplikasyon poko disponib sou kont ou.",
+    "loadFailed": "Nou pa t kapab chaje aplikasyon ou yo.",
+    "heldTitle": "Sa ou ka fè kounye a",
+    "organizations": "Òganizasyon ou fè pati: {{count}}",
+    "requestsTitle": "Aplikasyon ou yo",
+    "noRequests": "Ou poko gen okenn aplikasyon.",
+    "applyTitle": "Aplike pou plis",
+    "editTitle": "Aplikasyon: {{capability}}",
+    "reviewerAsked": "Revizè a mande:",
+    "choose": "Chwazi…",
+    "listHint": "Separe chak eleman ak yon vigil.",
+    "withdrawTitle": "Retire aplikasyon an?",
+    "withdrawConfirm": "Aplikasyon {{capability}} ou a pral fèmen. Ou ka aplike ankò pita.",
+    "capabilities": {
+      "customer": "Anboche èd epi kòmande",
+      "helper": {
+        "offer_services": "Ofri sèvis"
+      },
+      "business": {
+        "own": "Jere yon biznis"
+      },
+      "restaurant": {
+        "own": "Jere yon restoran"
+      },
+      "consultant": {
+        "accept_paying_clients": "Konseye kliyan k ap peye"
+      },
+      "tool_owner": {
+        "list_equipment": "Lwe ekipman"
+      },
+      "logistics": {
+        "ship": "Voye ak lojistik"
+      },
+      "investor": {
+        "reporting": "Rapò pou envestisè"
+      },
+      "franchise": {
+        "operate": "Opere yon franchiz"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "Fè òf sou travay epi touche pou travay ou."
+      },
+      "business": {
+        "own": "Mete paj ak ekip biznis ou an plas."
+      },
+      "restaurant": {
+        "own": "Resevwa kòmand manje pou restoran ou."
+      },
+      "consultant": {
+        "accept_paying_clients": "Aksepte travay konsiltasyon peye."
+      },
+      "tool_owner": {
+        "list_equipment": "Lwe zouti ak ekipman ou yo."
+      },
+      "logistics": {
+        "ship": "Rezève epi jere anbakman."
+      },
+      "investor": {
+        "reporting": "Gade rapò pou envestisè yo."
+      }
+    },
+    "status": {
+      "draft": "Bouyon",
+      "submitted": "Voye",
+      "in_review": "Ap revize",
+      "needs_information": "Bezwen enfòmasyon",
+      "approved": "Apwouve",
+      "declined": "Refize",
+      "withdrawn": "Retire"
+    },
+    "reasons": {
+      "review_complete": "Revizyon an fini.",
+      "service_area_required": "Ajoute zòn kote ou travay la.",
+      "service_categories_required": "Ajoute sèvis ou ofri yo.",
+      "identity_verification_required": "Verifye idantite ou pou kontinye.",
+      "business_details_required": "Ajoute plis detay sou biznis la.",
+      "ownership_not_verified": "Nou pa t ka konfime se ou ki mèt biznis sa a.",
+      "duplicate_request": "Ou deja gen yon aplikasyon pou sa.",
+      "not_eligible_in_market": "Sa a poko disponib nan zòn ou.",
+      "policy_not_met": "Aplikasyon sa a pa satisfè kondisyon nou yo.",
+      "other_contact_support": "Tanpri kontakte sipò pou plis detay."
+    },
+    "fields": {
+      "serviceCategories": "Sèvis ou ofri",
+      "serviceArea": "Zòn sèvis",
+      "about": "Konsènan",
+      "audience": "Odyans rapò a",
+      "requestedReports": "Rapò ou bezwen",
+      "businessName": "Non biznis la",
+      "businessType": "Kalite biznis",
+      "restaurantName": "Non restoran an",
+      "cuisine": "Kizin",
+      "areasOfExpertise": "Domèn ekspètiz",
+      "bio": "Biyografi pwofesyonèl",
+      "sampleWorkUrl": "Lyen pou yon egzanp travay",
+      "yearsExperience": "Ane eksperyans",
+      "area": {
+        "country": "Kòd peyi (2 lèt)",
+        "region": "Eta oswa rejyon",
+        "city": "Vil",
+        "postalCode": "Kòd postal"
+      }
+    },
+    "options": {
+      "llc": "LLC",
+      "sole_prop": "Antrepriz endividyèl",
+      "corp": "Korporasyon",
+      "partnership": "Asosyasyon",
+      "other": "Lòt"
+    },
+    "fieldErrors": {
+      "invalid": "Verifye repons sa a.",
+      "required": "Chan sa a obligatwa.",
+      "too_many": "Twòp eleman.",
+      "unknown_field": "Chan sa a pa fè pati fòm nan."
+    },
+    "actions": {
+      "save": "Sove bouyon an",
+      "submit": "Voye aplikasyon an",
+      "resubmit": "Voye repons ki mete ajou yo",
+      "close": "Fèmen",
+      "continue": "Kontinye",
+      "withdraw": "Retire",
+      "apply": "Aplike",
+      "retry": "Eseye ankò",
+      "cancel": "Anile",
+      "confirmWithdraw": "Retire aplikasyon an"
+    },
+    "toast": {
+      "save": "Bouyon an sove",
+      "submit": "Aplikasyon an voye",
+      "resubmit": "Repons yo voye",
+      "withdraw": "Aplikasyon an retire"
+    },
+    "errors": {
+      "versionConflict": "Aplikasyon sa a chanje nan yon lòt onglè. Nou rechaje l.",
+      "validation": "Gen kèk repons ki bezwen atansyon.",
+      "generic": "Gen yon bagay ki pa mache. Tanpri eseye ankò.",
+      "alreadyOpen": "Ou deja gen yon aplikasyon ouvè pou sa.",
+      "alreadyGranted": "Ou deja gen aksè sa a."
+    },
+    "openApplications": "Louvri aplikasyon yo",
+    "admin": {
+      "nav": "Aplikasyon pou aksè",
+      "title": "Aplikasyon pou aksè",
+      "subtitle": "Revize aplikasyon pou aksè èd, biznis ak lòt aksè.",
+      "status": "Estati",
+      "capability": "Kalite aksè",
+      "all": "Tout",
+      "empty": "Pa gen aplikasyon ki koresponn ak filtè sa yo.",
+      "loadMore": "Chaje plis",
+      "select": "Chwazi yon aplikasyon pou revize l.",
+      "applicant": "Aplikan",
+      "emailVerified": "Imèl verifye",
+      "identityVerified": "Idantite verifye",
+      "yes": "Wi",
+      "no": "Non",
+      "answers": "Repons",
+      "history": "Istorik",
+      "currentAccess": "Aksè aktyèl",
+      "policyChanged": "Règ la chanje apre yo te voye aplikasyon an. Apwobasyon an tcheke règ aktyèl la.",
+      "reasonCode": "Rezon aplikan an ap wè",
+      "note": "Nòt entèn (aplikan an pa wè l)",
+      "informationRequest": "Kisa aplikan an dwe ajoute?",
+      "investorConfirm": "Mwen verifye odyans ak rapò yo mande yo; apwobasyon an kreye sèlman aksè rapò sa a ki limite.",
+      "actions": {
+        "claim": "Kòmanse revizyon",
+        "request_information": "Mande enfòmasyon",
+        "approve": "Apwouve",
+        "decline": "Refize"
+      },
+      "decided": "Desizyon an sove",
+      "errors": {
+        "selfReview": "Ou pa ka revize pwòp aplikasyon ou.",
+        "notPermitted": "Ou pa gen pèmisyon pou deside aplikasyon sa a."
+      }
+    },
+    "accessRequired": "Sa a mande yon aksè apwouve anvan.",
+    "home": {
+      "accessChanged": "Aksè ou sou tablo bò sa a chanje, kidonk w ap wè paj akèy pèsonèl ou."
+    },
+    "accessUpdated": "Aksè ou mete ajou.",
+    "orgRoles": {
+      "owner": "Pwopriyetè",
+      "manager": "Manadjè",
+      "representative": "Reprezantan",
+      "employee": "Anplwaye",
+      "support_agent": "Ajan sipò"
+    },
+    "menu": {
+      "storeScoped": "Se moun ki gen aksè nan tout magazen yo ki jere meni pataje a. Sèvi ak meni magazen pa w la pou chanje disponiblite oswa pri la."
+    }
+  },
+  "businessLaunchAttachments": {
+    "download": "Telechaje",
+    "remove": "Retire",
+    "shareWithConsultant": "Pataje ak konsiltan ki asiyen an",
+    "shared": "Pataje",
+    "onlyMe": "Mwen sèlman"
   }
 }

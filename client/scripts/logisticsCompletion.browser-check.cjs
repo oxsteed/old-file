@@ -56,6 +56,7 @@ test('Logistics responsive layouts, previews, quote actions, checkout delta and 
   }
   const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));const c=await seed(page);
   await page.goto(f.url+'/logistics');await page.getByRole('button',{name:c.logistics.tables.preview,exact:true}).click();await page.getByRole('dialog').waitFor();await page.keyboard.press('Shift+Tab');assert.equal(await page.evaluate(()=>document.querySelector('[role=dialog]').contains(document.activeElement)),true);await page.keyboard.press('Escape');assert.equal(await page.getByRole('dialog').count(),0);
+  await page.evaluate(()=>window.switchUser({id:'pending-customer',role:'customer',default_mode:'customer',organizer_access:'pending'}));
   await page.goto(f.url+'/logistics/checkout?purchase_order_id=1');await page.getByRole('radio',{name:/OxSteed Credit/}).check();await page.getByRole('button',{name:c.logistics.checkout.confirm.continue}).click();await page.getByRole('checkbox').check();await page.getByRole('button',{name:/Confirm and pay/}).click();
   assert.equal(await page.evaluate(()=>window.calls.find(c=>c.name==='createPaymentAttempt').args[0].amount_cents),1500);
   await page.goto(f.url+'/logistics/operations/finance');const labels=c.logistics.staff;

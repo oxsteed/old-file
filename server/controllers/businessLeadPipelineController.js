@@ -85,7 +85,8 @@ exports.deleteLead = async (req, res, next) => {
   const { businessId } = req.params;
   const id = req.params.leadId || req.params.id;
   try {
-    await pool.query('DELETE FROM business_leads WHERE id=$1 AND business_id=$2', [id, businessId]);
+    const { rowCount } = await pool.query('DELETE FROM business_leads WHERE id=$1 AND business_id=$2', [id, businessId]);
+    if (!rowCount) return res.status(404).json({ error: 'Not found' });
     res.json({ success: true });
   } catch (err) { next(err); }
 };
@@ -96,6 +97,9 @@ exports.createLeadQuote = async (req, res, next) => {
   const { description, amount_cents, valid_until } = req.body;
   if (!amount_cents) return res.status(400).json({ error: 'amount_cents is required' });
   try {
+    // WP-052: the lead must belong to this business (no quotes on foreign leads).
+    const owned = await pool.query('SELECT 1 FROM business_leads WHERE id=$1 AND business_id=$2', [id, businessId]);
+    if (!owned.rows.length) return res.status(404).json({ error: 'Not found' });
     const row = await pool.query(
       `INSERT INTO lead_quotes (lead_id, description, amount_cents, valid_until) VALUES ($1,$2,$3,$4) RETURNING *`,
       [id, description, amount_cents, valid_until]

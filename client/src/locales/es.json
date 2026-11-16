@@ -19062,6 +19062,7 @@
       "retry": "Reintentar",
       "notFound": "No se pudo encontrar este elemento.",
       "campaignPreviewTitle": "Vista previa de la campaña",
+      "share": "Compartir",
       "requestPreviewTitle": "Vista previa de la solicitud",
       "orderPreviewTitle": "Vista previa del pedido",
       "shipmentPreviewTitle": "Vista previa del envío",
@@ -19677,6 +19678,9 @@
         "title": "Rutas comerciales elegibles"
       },
       "form": {
+        "business": "Contexto empresarial",
+        "chooseBusiness": "Elige una empresa",
+        "businessRequired": "Elige una empresa y añade un título al programa",
         "anyLane": "Cualquier ruta aprobada",
         "budgetMax": "Presupuesto máx. (USD)",
         "cadence": "Frecuencia",

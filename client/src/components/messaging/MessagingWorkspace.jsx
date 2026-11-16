@@ -67,7 +67,8 @@ function normalizeBusinessConversation(conversation) {
 
 export default function MessagingWorkspace({ role = 'auto', businessId = null, embedded = false }) {
   const { t } = useTranslation();
-  const { user, isHelper: accountIsHelper } = useAuth();
+  const { user, isHelper: legacyIsHelper, hasHelperAccess } = useAuth();
+  const accountIsHelper = legacyIsHelper || hasHelperAccess;
   const location = useLocation();
   const helperRoute = Boolean(businessId) || location.pathname.startsWith('/helper/messages') || role === 'helper';
   const basePath = businessId ? `/business/${businessId}/workspace/messages` : helperRoute ? '/helper/messages' : '/messages';

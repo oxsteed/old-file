@@ -8,6 +8,7 @@ import { isTransientRefreshFailure } from '../api/authRefreshPolicy';
 import { advanceAuthEpoch, currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
 import { broadcastAuthSession, subscribeAuthSession } from '../api/authSessionSync';
 import { isHelperOnboardingComplete } from '../utils/helperOnboarding';
+import useAccessProjection from '../hooks/useAccessProjection';
 
 export const AuthContext = createContext(null);
 
@@ -44,6 +45,7 @@ export function AuthProvider({ children }) {
   const [initialized, setInitialized] = useState(false);
   const [sessionRecovering, setSessionRecovering] = useState(false);
   const { syncLanguageFromServer } = useLanguage();
+  const accessProjection = useAccessProjection(user);
   const captureEpoch = useCallback(() => ({ local: sessionEpoch.current, transport: currentAuthEpoch() }), []);
   const isCurrentEpoch = useCallback(epoch => epoch.local === sessionEpoch.current && isCurrentAuthEpoch(epoch.transport), []);
 
@@ -285,6 +287,10 @@ export function AuthProvider({ children }) {
 
   const onboardingComplete = isOnboardingComplete(user);
   const isHelper = ['helper', 'helper_pro', 'broker'].includes(user?.role);
+  const hasHelperAccess = isHelper || Boolean(
+    accessProjection?.flags?.accessProjection
+    && accessProjection.access?.personal?.includes('helper.offer_services')
+  );
   const isCustomer = user?.role === 'customer';
   const membershipTier = getMembershipTier(user);
   // Helper capability reporting must use the derived truth, not the summary
@@ -293,15 +299,15 @@ export function AuthProvider({ children }) {
   // before identity verification lands. isOnboardingComplete itself is
   // intentionally untouched: it drives dashboard fetching and routing.
   // Non-helper roles have no helper onboarding, so they keep the summary.
-  const helperOnboardingComplete = isHelper ? isHelperOnboardingComplete(user) : onboardingComplete;
-  const needsOnboarding = isHelper && !helperOnboardingComplete;
-  const isRestrictedHelper = isHelper && !helperOnboardingComplete;
+  const helperOnboardingComplete = hasHelperAccess ? isHelperOnboardingComplete(user) : onboardingComplete;
+  const needsOnboarding = hasHelperAccess && !helperOnboardingComplete;
+  const isRestrictedHelper = hasHelperAccess && !helperOnboardingComplete;
 
   const canBrowseJobs = true;
-  const canBid = isHelper && helperOnboardingComplete;
+  const canBid = hasHelperAccess && helperOnboardingComplete;
   const canApplyToJobs = canBid;
-  const canReceivePayouts = isHelper && helperOnboardingComplete;
-  const canAppearInSearch = isHelper && helperOnboardingComplete;
+  const canReceivePayouts = hasHelperAccess && helperOnboardingComplete;
+  const canAppearInSearch = hasHelperAccess && helperOnboardingComplete;
 
   const value = useMemo(() => ({
     user,
@@ -310,6 +316,7 @@ export function AuthProvider({ children }) {
     sessionRecovering,
     isAuthenticated: !!user,
     isHelper,
+    hasHelperAccess,
     isCustomer,
     membershipTier,
     isOnboardingComplete: onboardingComplete,
@@ -337,6 +344,7 @@ export function AuthProvider({ children }) {
     initialized,
     sessionRecovering,
     isHelper,
+    hasHelperAccess,
     isCustomer,
     membershipTier,
     onboardingComplete,

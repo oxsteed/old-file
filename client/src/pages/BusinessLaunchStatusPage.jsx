@@ -21,6 +21,7 @@ import {
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
+import '../styles/BusinessLaunchStatus.css';
 
 const STATUS_PROGRESS = {
   pending: 10,
@@ -395,6 +396,64 @@ function DetailField({ icon: Icon, label, value }) {
 function DetailModal({ request, onClose }) {
   const { t } = useTranslation();
   const items = safeItems(request.setup_items_selected);
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const [attachmentError, setAttachmentError] = useState(null);
+  const [attachmentVisibility, setAttachmentVisibility] = useState('shared');
+
+  const loadAttachments = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/consulting/business-launch/requests/${encodeURIComponent(request.id)}/attachments`);
+      setAttachments(data?.attachments || []);
+      setAttachmentError(null);
+    } catch (error) {
+      setAttachmentError(error.response?.data?.error || t('businessLaunchStatus.loadError', { defaultValue: 'Attachments could not be loaded.' }));
+    }
+  }, [request.id, t]);
+
+  useEffect(() => {
+    loadAttachments();
+  }, [loadAttachments]);
+
+  const uploadAttachment = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setAttachmentBusy(true);
+    setAttachmentError(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('visibility', attachmentVisibility);
+      await api.post(`/consulting/business-launch/requests/${encodeURIComponent(request.id)}/attachments`, form);
+      await loadAttachments();
+    } catch (error) {
+      setAttachmentError(error.response?.data?.error || t('businessLaunchStatus.loadError', { defaultValue: 'Attachment upload failed.' }));
+    } finally {
+      setAttachmentBusy(false);
+    }
+  };
+
+  const downloadAttachment = async (attachment) => {
+    try {
+      const { data } = await api.get(`/consulting/business-launch/attachments/${encodeURIComponent(attachment.id)}/download`);
+      if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      setAttachmentError(error.response?.data?.error || t('businessLaunchStatus.loadError', { defaultValue: 'Attachment download failed.' }));
+    }
+  };
+
+  const removeAttachment = async (attachment) => {
+    setAttachmentBusy(true);
+    try {
+      await api.delete(`/consulting/business-launch/attachments/${encodeURIComponent(attachment.id)}`);
+      await loadAttachments();
+    } catch (error) {
+      setAttachmentError(error.response?.data?.error || t('businessLaunchStatus.loadError', { defaultValue: 'Attachment removal failed.' }));
+    } finally {
+      setAttachmentBusy(false);
+    }
+  };
   const summary = t(`businessLaunchStatus.${STATUS_COPY[request.status] || 'desc_pending'}`, { defaultValue: '' });
   const packageName = t(
     `businessLaunchStatus.${PACKAGE_DISPLAY[request.package_selected] || 'selectedPackage'}`,
@@ -510,6 +569,41 @@ function DetailModal({ request, onClose }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) 320px', gap: '1rem' }}>
           <div style={{ display: 'grid', gap: '1rem' }}>
+            <section
+              aria-labelledby="business-launch-attachments"
+              className="bl-attachments"
+            >
+              <h3 id="business-launch-attachments" className="bl-attachments__title">
+                {t('support.attachments', { defaultValue: 'Attachments' })}
+              </h3>
+              <div className="bl-attachments__list">
+                {attachments.map((attachment) => (
+                  <div key={attachment.id} className="bl-attachments__row">
+                    <span className="bl-attachments__name">{attachment.originalName}</span>
+                    <span className="bl-attachments__actions">
+                      <button type="button" onClick={() => downloadAttachment(attachment)} className="bl-attachments__download" data-track="ui.478f2e3593.8">
+                        {t('businessLaunchAttachments.download')}
+                      </button>
+                      {String(attachment.uploadedBy) === String(request.user_id) && (
+                        <button type="button" disabled={attachmentBusy} onClick={() => removeAttachment(attachment)} className="bl-attachments__remove" data-track="ui.478f2e3593.9">
+                          {t('businessLaunchAttachments.remove')}
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                ))}
+                {!attachments.length && !attachmentError && <p className="bl-attachments__empty">{t('support.noAttachments', { defaultValue: 'No attachments yet.' })}</p>}
+                {attachmentError && <p role="alert" className="bl-attachments__error">{attachmentError}</p>}
+                <label className="bl-attachments__upload">
+                  <span>{t('businessLaunchAttachments.shareWithConsultant')}</span>
+                  <select value={attachmentVisibility} onChange={(event) => setAttachmentVisibility(event.target.value)} disabled={attachmentBusy} className="bl-attachments__select">
+                    <option value="shared">{t('businessLaunchAttachments.shared')}</option>
+                    <option value="applicant_only">{t('businessLaunchAttachments.onlyMe')}</option>
+                  </select>
+                  <input type="file" onChange={uploadAttachment} disabled={attachmentBusy} accept="image/*,application/pdf,.doc,.docx" />
+                </label>
+              </div>
+            </section>
             <section
               style={{
                 border: '1px solid rgba(148,163,184,0.14)',

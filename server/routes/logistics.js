@@ -22,7 +22,7 @@ const capabilitiesCtrl = require('../controllers/logisticsCapabilitiesController
 const paymentsCtrl  = require('../controllers/logisticsPaymentController');
 const dashboardCountsCtrl = require('../controllers/logisticsDashboardCountsController');
 const requireLogisticsPayments = require('../middleware/requireLogisticsPayments');
-const { requireLogisticsCapability, requireLaneAccess, requireCountryOnFile } = require('../middleware/requireLogisticsAccess');
+const { requireLogisticsCapability, requireLaneAccess, requireCountryOnFile, requireDeliveryActor } = require('../middleware/requireLogisticsAccess');
 // Capability gates. Each resolves the caller's server-derived capabilities
 // (the same model served to the UI via GET /api/logistics/capabilities) and
 // enforces them on mutations; admins / super_admins always pass. Effective
@@ -86,6 +86,7 @@ router.get('/organizer/campaigns',     requireAuth, pooledCtrl.listOrganizerCamp
 // convention in this router). Ownership and approval-state guards live in
 // the service; editing never changes the approval state.
 router.patch('/campaigns/:id',        requireAuth, pooledCtrl.updatePooledOrder);
+router.post('/campaigns/:id/rollover', requireAuth, pooledCtrl.rolloverCampaign);
 // Draft submission and Operations review (approval state stays separate
 // from the fulfillment status; every decision is recorded with history).
 router.post('/campaigns/:id/submit',   requireAuth, pooledCtrl.submitForReview);
@@ -139,7 +140,7 @@ router.post('/allocations/:id/release',       requireAuth, requireWarehouseOps, 
 router.get('/deliveries',                     requireAuth, requireWarehouseRead, whCtrl.listDeliveryOrders);
 router.post('/deliveries',                    requireAuth, requireWarehouseOps, whCtrl.createDeliveryOrder);
 router.get('/deliveries/:id',                 requireAuth, requireWarehouseRead, whCtrl.getDeliveryOrder);
-router.patch('/deliveries/:id/status',        requireAuth, requireWarehouseOps, whCtrl.updateDeliveryStatus);
+router.patch('/deliveries/:id/status',        requireAuth, requireDeliveryActor(), whCtrl.updateDeliveryStatus);
 
 // ─── Dashboard counts ──────────────────────────────────────────
 // Lightweight authoritative counters for the workspace dashboards; see

@@ -275,14 +275,20 @@ async function createDeliveryOrder(data, actorUserId) {
   return result.rows[0];
 }
 
-async function getDeliveryOrder(id, { userId = null, isAdmin = false } = {}) {
+async function getDeliveryOrder(id, { userId = null, isAdmin = false, allowAssigned = false } = {}) {
   // Ownership is enforced in the query (not just the route): non-staff
   // callers only match rows where they are the recipient, so cross-buyer
   // reads return null and surface as 404 without leaking existence.
   const conditions = ['d.id = $1'];
   const params = [id];
   if (!isAdmin && userId != null) {
-    conditions.push(`d.recipient_user_id = $${params.push(userId)}`);
+    if (allowAssigned) {
+      const recipientParam = params.push(userId);
+      const assignedParam = params.push(userId);
+      conditions.push(`(d.recipient_user_id = $${recipientParam} OR d.assigned_to = $${assignedParam})`);
+    } else {
+      conditions.push(`d.recipient_user_id = $${params.push(userId)}`);
+    }
   }
   const result = await pool.query(
     `SELECT d.*,

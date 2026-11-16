@@ -92,7 +92,13 @@ exports.listClientPackages = async (req, res, next) => {
   try {
     let where = 'WHERE cp.business_id = $1';
     const params = [businessId];
-    if (customer_id) { where += ' AND cp.customer_id = $2'; params.push(customer_id); }
+    if (customer_id) { params.push(customer_id); where += ` AND cp.customer_id = $${params.length}`; }
+    // WP-055: without customers.view_all, only customers this member serves.
+    if (!(req.permissions instanceof Set && req.permissions.has('customers.view_all'))) {
+      params.push(req.user.id);
+      where += ` AND EXISTS (SELECT 1 FROM business_appointments a WHERE a.business_id = cp.business_id
+                  AND a.customer_id = cp.customer_id AND a.staff_id = $${params.length})`;
+    }
     const rows = await pool.query(
       `SELECT cp.*, p.name AS package_name,
               COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name) AS customer_name
@@ -133,6 +139,8 @@ exports.issueClientPackage = async (req, res, next) => {
 exports.redeemSession = async (req, res, next) => {
   const { businessId, clientPackageId } = req.params;
   try {
+    // WP-055: calendar.manage_self may only redeem for a customer this member serves.
+    const selfOnly = !(req.permissions instanceof Set && req.permissions.has('calendar.manage_all'));
     const row = await pool.query(
       `UPDATE business_client_packages
        SET sessions_remaining = sessions_remaining - 1,
@@ -140,10 +148,20 @@ exports.redeemSession = async (req, res, next) => {
            updated_at=NOW(),
            status = CASE WHEN sessions_remaining - 1 <= 0 THEN 'exhausted' ELSE status END
        WHERE id=$1 AND business_id=$2 AND sessions_remaining > 0 AND status='active'
+         AND (NOT $3::boolean OR EXISTS (SELECT 1 FROM business_appointments a WHERE a.business_id = $2
+               AND a.customer_id = business_client_packages.customer_id AND a.staff_id = $4))
        RETURNING *`,
-      [clientPackageId, businessId]
+      [clientPackageId, businessId, selfOnly, req.user.id]
     );
-    if (!row.rows.length) return res.status(400).json({ error: 'No sessions remaining or package not active' });
+    if (!row.rows.length) {
+      const exists = await pool.query(
+        `SELECT 1 FROM business_client_packages cp WHERE cp.id=$1 AND cp.business_id=$2
+            AND (NOT $3::boolean OR EXISTS (SELECT 1 FROM business_appointments a WHERE a.business_id = $2
+                  AND a.customer_id = cp.customer_id AND a.staff_id = $4))`,
+        [clientPackageId, businessId, selfOnly, req.user.id]);
+      if (!exists.rows.length) return res.status(404).json({ error: 'Not found' });
+      return res.status(400).json({ error: 'No sessions remaining or package not active' });
+    }
     res.json(row.rows[0]);
   } catch (err) { next(err); }
 };

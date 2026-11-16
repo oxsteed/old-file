@@ -13,6 +13,8 @@ import ModeSwitcher from './ModeSwitcher';
 import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
 import { MODE_CATALOG, routeForMode } from '../utils/modeRouter';
 import { navbarMode, navbarNavigation, navbarLinkActive, navbarWorkspacePath } from '../utils/navbarNavigation';
+import { resolveHomeMode } from '../utils/accessProjection';
+import useAccessProjection from '../hooks/useAccessProjection';
 import { readLastBusinessHubId } from '../utils/businessProfileForm';
 import { useNavDisclosure } from '../hooks/useNavDisclosure';
 import { useSupportWorkspaceAccess } from '../hooks/useSupportWorkspaceAccess';
@@ -36,14 +38,15 @@ export default function Navbar() {
   const location = useLocation();
   const { unreadCount: unreadNotifs } = useNotifications();
   const { unreadCount: unreadMsgs } = useUnreadMessages();
-  const currentMode = navbarMode(user);
+  const accessProjection = useAccessProjection(user);
+  const currentMode = resolveHomeMode(user, navbarMode(user), accessProjection).mode;
   const { open: mobileOpen, setOpen: setMobileOpen, containerRef: mobileRef, triggerRef: mobileTriggerRef, panelId: mobilePanelId } = useNavDisclosure(currentMode);
   const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
   const showSupportWorkspaceNav = useSupportWorkspaceAccess(user);
   const resourcesMenuRef = useRef(null);
   const dashboardPath = routeForMode(currentMode);
   const workspacePath = navbarWorkspacePath(location.pathname, readLastBusinessHubId());
-  const navigation = navbarNavigation(user, { dashboardPath, workspacePath, showSupportWorkspace: showSupportWorkspaceNav });
+  const navigation = navbarNavigation(user, { dashboardPath, workspacePath, showSupportWorkspace: showSupportWorkspaceNav, projection: accessProjection });
   const showBusinessHub = !!user && navigation.showBusinessSwitcher;
   const modeLabel = t(MODE_CATALOG[currentMode]?.labelKey || 'modes.customer.label');
 

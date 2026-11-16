@@ -6,6 +6,7 @@ const { authenticate } = require('../middleware/auth');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
 const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const { requireHelperStep } = require('../middleware/helperOnboardingMiddleware');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 const { authLimiter } = require('../middleware/rateLimiter');
 
 const {
@@ -23,10 +24,24 @@ const {
 } = require('../controllers/helperRegistrationController');
 
 // Public (no auth)
-router.post('/start',       authLimiter, startRegistration);
-router.post('/verify-otp',  authLimiter, verifyOTP);
-router.post('/resend-otp',  authLimiter, resendOTP);
-router.post('/send-otp',    authLimiter, resendOTP);  // alias for frontend
+// Progressive access (WP-006): with customer-first signup on, the dedicated
+// helper registration (which creates users.role='helper' with no review) is
+// closed; helpers sign up as customers with the offer_services intent and
+// apply. The general flow keeps the intent through OTP.
+function dedicatedRegistrationClosed(_req, res, next) {
+  if (!require('../services/access/flags').customerFirstSignup()) return next();
+  return res.status(410).json({
+    error: 'Sign up through the main signup and choose Offer services.',
+    code: 'use_general_signup',
+    signupIntent: 'offer_services',
+    next: '/join?mode=helper',
+  });
+}
+
+router.post('/start',       authLimiter, dedicatedRegistrationClosed, startRegistration);
+router.post('/verify-otp',  authLimiter, dedicatedRegistrationClosed, verifyOTP);
+router.post('/resend-otp',  authLimiter, dedicatedRegistrationClosed, resendOTP);
+router.post('/send-otp',    authLimiter, dedicatedRegistrationClosed, resendOTP);  // alias for frontend
 router.get('/categories',   getCategories);
 // Review P2-482: the deprecated completion endpoint created accounts from an
 // email alone and returned 500s. Account creation happens in /verify-otp now.
@@ -43,11 +58,11 @@ router.post('/tier',        authenticate, (_req, res) => res.status(410).json({
   code: 'endpoint_retired',
 }));
 router.post('/w9',          authenticate, saveW9);
-router.post('/accept-terms', authenticate, acceptTerms);
+router.post('/accept-terms', authenticate, requireHelperCapability, acceptTerms);
 // Review P2-477: records the signup checkbox against the pending registration
 // (version, time, hashed IP, user agent) before the account exists.
-router.post('/registration-terms', authLimiter, acceptPendingTerms);
-router.post('/finalize',    authenticate, requireHelperStep('finalize'), finalizeRegistration);
+router.post('/registration-terms', authLimiter, dedicatedRegistrationClosed, acceptPendingTerms);
+router.post('/finalize',    authenticate, requireHelperCapability, requireHelperStep('finalize'), finalizeRegistration);
 // Review P2-2-F08/P2-7-F05: POST /payment was a no-op stub ("Payment step
 // recorded") with no client caller; removed. POST /profile and
 // POST /update-contact were the retired wizard's split profile/contact steps,
@@ -66,6 +81,7 @@ router.post('/profile-photo', authenticate, (_req, res) => res.status(410).json(
 // Review P2-7-F08: server-side terms gate (was client-side only).
 router.put('/onboarding/profile',
   authenticate,
+  requireHelperCapability,
   requireEmailVerified,
   requireTermsAcceptance,
   requireHelperStep('profile'),
@@ -76,6 +92,7 @@ router.put('/onboarding/profile',
 // (/verify-identity + webhook). Removed.
 router.put('/onboarding/background-check',
   authenticate,
+  requireHelperCapability,
   requireEmailVerified,
   requireTermsAcceptance,
   requireHelperStep('background'),
@@ -83,6 +100,7 @@ router.put('/onboarding/background-check',
 );
 router.get('/onboarding/status',
   authenticate,
+  requireHelperCapability,
   getOnboardingStatus
 );
 

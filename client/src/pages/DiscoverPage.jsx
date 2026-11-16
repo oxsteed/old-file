@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -119,9 +119,24 @@ export default function DiscoverPage() {
   const [popular, setPopular] = useState([]);
   const [popularLoading, setPopularLoading] = useState(false);
   const [recent, setRecent] = useState(() => readRecent());
+  const requestGeneration = useRef(0);
 
   const radius = Math.min(150, Math.max(5, parseInt(radiusParam || '60', 10) || 60));
   const limit = 20;
+
+  const buildDiscoverHref = useCallback((term, nextRadius = radius) => {
+    const params = new URLSearchParams({ q: String(term || '').trim(), radius: String(nextRadius) });
+    if (resultType) params.set('type', resultType);
+    if (lat && lng) {
+      params.set('lat', lat);
+      params.set('lng', lng);
+    }
+    if (city && state) {
+      params.set('city', city);
+      params.set('state', state);
+    }
+    return `/discover?${params.toString()}`;
+  }, [city, lat, lng, radius, resultType, state]);
 
   const highlightTerms = useMemo(() => {
     const base = [q.trim(), ...expandedTerms].filter(Boolean);
@@ -135,6 +150,7 @@ export default function DiscoverPage() {
   }, [q, expandedTerms]);
 
   const loadPopular = useCallback(async () => {
+    const generation = ++requestGeneration.current;
     setPopularLoading(true);
     try {
       const params = { radius: 60, ...(resultType ? { type: resultType } : {}), ...(city && state ? { city, state } : {}) };
@@ -143,15 +159,18 @@ export default function DiscoverPage() {
         params.lng = lng;
       }
       const { data } = await api.get('/discover/popular', { params });
+      if (generation !== requestGeneration.current) return;
       setPopular(data.results || []);
     } catch {
+      if (generation !== requestGeneration.current) return;
       setPopular([]);
     } finally {
-      setPopularLoading(false);
+      if (generation === requestGeneration.current) setPopularLoading(false);
     }
   }, [lat, lng, resultType, city, state]);
 
   const load = useCallback(async (nextOffset = 0, append = false) => {
+    const generation = ++requestGeneration.current;
     if (!q.trim()) {
       setResults([]);
       setExpandedTerms([]);
@@ -169,6 +188,7 @@ export default function DiscoverPage() {
         params.lng = lng;
       }
       const { data } = await api.get('/discover', { params });
+      if (generation !== requestGeneration.current) return;
       const rows = data.results || [];
       setExpandedTerms(data.expandedTerms || []);
       setTotal(data.total ?? rows.length);
@@ -182,13 +202,14 @@ export default function DiscoverPage() {
         setRecent(readRecent());
       }
     } catch (e) {
+      if (generation !== requestGeneration.current) return;
       setError(t('discover.loadError'));
       if (!append) {
         setResults([]);
         setExpandedTerms([]);
       }
     } finally {
-      setLoading(false);
+      if (generation === requestGeneration.current) setLoading(false);
     }
   }, [q, lat, lng, radius, t, limit, resultType, city, state]);
 
@@ -293,7 +314,7 @@ export default function DiscoverPage() {
                   {recent.map((term) => (
                     <Link
                       key={term}
-                      to={`/discover?q=${encodeURIComponent(term)}&radius=${radius}${lat && lng ? `&lat=${lat}&lng=${lng}` : ''}`}
+                      to={buildDiscoverHref(term)}
                       className="px-3 py-1.5 rounded-full bg-gray-800 border border-gray-600 text-sm text-gray-200 hover:border-orange-500/50"
                     >
                       {term}
@@ -409,7 +430,7 @@ export default function DiscoverPage() {
                   <li key={a.id} className="flex justify-between gap-2 items-center border-t border-gray-800 pt-2 first:border-0 first:pt-0">
                     <span>
                       <Link
-                        to={`/discover?q=${encodeURIComponent(a.query)}&radius=${a.radius_miles}`}
+                        to={buildDiscoverHref(a.query, a.radius_miles)}
                         className="text-orange-400 hover:underline"
                       >
                         {a.query}

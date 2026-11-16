@@ -12,6 +12,7 @@ const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { trialDefaults, hasProAccess } = require('../utils/trial');
 const { validate, rules } = require('../utils/validate');
 const { assertRegistrationsOpen } = require('../middleware/maintenanceGate'); // Review P3-7-F07
+const { hasCapability } = require('../middleware/requireAccess');
 const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
 const { ONBOARDING_COLUMNS, deriveHelperOnboarding } = require('../services/helperOnboarding');
@@ -466,13 +467,14 @@ async function resendOTP(req, res) {
 async function submitOnboardingProfile(req, res) {
   try {
     const userId = req.user.id;
+    const approved = hasCapability(req, 'helper.offer_services');
     const { phone, city, state, zip_code, bio, skills } = req.body;
 
     if (!phone || !city || !state || !zip_code)
       return res.status(400).json({ error: 'Required profile fields missing' });
 
     // Update contact fields on users table (no bio/skills - those live in helper_profiles)
-    await pool.query(`
+    const { rowCount } = await pool.query(`
       UPDATE users SET
         phone             = $1,
         city              = $2,
@@ -482,8 +484,9 @@ async function submitOnboardingProfile(req, res) {
         contact_completed = true,
         onboarding_status = CASE WHEN onboarding_status = 'verified_pending_onboarding'
                                  THEN 'onboarding_in_progress' ELSE onboarding_status END
-      WHERE id = $5 AND role = 'helper'
-    `, [phone, city, state, zip_code, userId]);
+      WHERE id = $5 AND (role = 'helper' OR $6::boolean)
+    `, [phone, city, state, zip_code, userId, approved]);
+    if (!rowCount) return res.status(404).json({ error: 'Helper not found' });
 
     // Upsert bio and location into helper_profiles
     await pool.query(`
@@ -509,6 +512,7 @@ async function submitOnboardingProfile(req, res) {
 async function submitBackgroundCheck(req, res) {
   try {
     const userId = req.user.id;
+    const approved = hasCapability(req, 'helper.offer_services');
     const { background_check_consent } = req.body;
 
     if (!background_check_consent)
@@ -520,9 +524,9 @@ async function submitBackgroundCheck(req, res) {
         background_check_status = COALESCE(background_check_status, 'consented'),
         onboarding_status       = CASE WHEN onboarding_status = 'verified_pending_onboarding'
                                        THEN 'onboarding_in_progress' ELSE onboarding_status END
-      WHERE id = $1 AND role = 'helper'
+      WHERE id = $1 AND (role = 'helper' OR $2::boolean)
       RETURNING background_check_status, background_check_passed
-    `, [userId]);
+    `, [userId, approved]);
     if (!rows.length) return res.status(404).json({ error: 'Helper not found' });
 
     res.json({ message: 'Background check consent recorded', onboarding_step: 'background_submitted',
@@ -537,10 +541,11 @@ async function submitBackgroundCheck(req, res) {
 async function getOnboardingStatus(req, res) {
   try {
     const userId = req.user.id;
+    const approved = hasCapability(req, 'helper.offer_services');
     const { rows } = await pool.query(
       `SELECT ${ONBOARDING_COLUMNS}, membership_tier, trial_ends_at, tier_selected, w9_completed
-       FROM users WHERE id = $1 AND role = 'helper'`,
-      [userId]
+       FROM users WHERE id = $1 AND (role = 'helper' OR $2::boolean)`,
+      [userId, approved]
     );
     if (!rows.length)
       return res.status(404).json({ error: 'Helper not found' });
@@ -633,6 +638,7 @@ async function saveW9(req, res) {
 async function acceptTerms(req, res) {
   try {
     const userId = req.user.id;
+    const approved = hasCapability(req, 'helper.offer_services');
     const termsVersion = TERMS_CONFIG?.terms_of_service?.version || '2026-03-20';
     const { rows } = await pool.query(
       `UPDATE users
@@ -642,13 +648,14 @@ async function acceptTerms(req, res) {
            terms_acceptance_ip = $2,
            terms_acceptance_ua = $3,
            updated_at          = NOW()
-       WHERE id = $4 AND role = 'helper'
+       WHERE id = $4 AND (role = 'helper' OR $5::boolean)
        RETURNING id`,
       [
         termsVersion,
         hashIP(req.ip || 'unknown')?.slice(0, TERMS_IP_HASH_MAX_LEN) || null,
         req.headers['user-agent'] || '',
-        userId
+        userId,
+        approved
       ]
     );
     if (rows.length === 0) {
@@ -696,17 +703,18 @@ async function acceptPendingTerms(req, res) {
 async function finalizeRegistration(req, res) {
   try {
     const userId = req.user.id;
+    const approved = hasCapability(req, 'helper.offer_services');
     const { rows } = await pool.query(
       `UPDATE users
        SET onboarding_completed = TRUE,
            onboarding_status    = 'onboarding_complete',
            updated_at           = NOW()
-       WHERE id = $1 AND role = 'helper'
+       WHERE id = $1 AND (role = 'helper' OR $2::boolean)
          AND email_verified AND profile_completed AND contact_completed
          AND terms_accepted AND terms_accepted_at IS NOT NULL AND terms_version IS NOT NULL
          AND (id_verified OR identity_verified OR didit_status = 'verified')
        RETURNING id`,
-      [userId]
+      [userId, approved]
     );
     if (!rows.length) {
       // Review P2-593: prerequisites are re-checked in the UPDATE itself.

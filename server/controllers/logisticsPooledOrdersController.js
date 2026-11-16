@@ -14,10 +14,12 @@ const APPROVAL_ERROR_MAP = {
   not_business_member:          [403, 'forbidden'],
   pooled_order_not_found:       [404, 'not_found'],
   not_owner:                    [403, 'forbidden'],
+  organizer_access_required:    [403, 'access_required'],
   self_approval:                [403, 'self_approval'],
   campaign_not_draft:           [409, 'campaign_not_draft'],
   campaign_not_editable:        [409, 'campaign_not_editable'],
   campaign_not_pending_review:  [409, 'campaign_not_pending_review'],
+  campaign_not_rolloverable:    [409, 'campaign_not_rolloverable'],
   approval_blockers:            [422, 'approval_blockers'],
   review_reason_required:       [400, 'validation_failed'],
   invalid_review_decision:      [400, 'validation_failed'],
@@ -195,6 +197,18 @@ exports.updatePooledOrder = async (req, res, next) => {
       userRole: logisticsRole,
     });
     res.json({ success: true, data: order });
+  } catch (err) { next(toHttpError(err) || err); }
+};
+
+exports.rolloverCampaign = async (req, res, next) => {
+  try {
+    const logisticsRole = await resolveLogisticsRole(req.user);
+    const order = await pooledOrderService.rolloverCampaign(req.params.id, req.user.id, {
+      userCountry: await requiredViewerCountry(req),
+      userRole: logisticsRole,
+      data: req.body || {},
+    });
+    res.status(201).json({ success: true, data: order });
   } catch (err) { next(toHttpError(err) || err); }
 };
 

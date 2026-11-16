@@ -27,6 +27,7 @@ test('cancels an orphaned marketplace intent and order when transaction recordin
       .mockResolvedValueOnce({ rows: [{ id: 'cart-1' }] }) // cart
       .mockResolvedValueOnce({ rows: [{
         product_id: 'product-1', price_cents: 2500, quantity: 1, quantity_available: 3,
+        is_active: true, is_available: true,
         affiliate_url: null, business_product_id: null, source_business_id: null,
       }] }) // items
       .mockResolvedValueOnce({ rows: [] }) // advisory lock
@@ -63,6 +64,7 @@ test('fails closed and cancels the order when Stripe omits the client secret', a
       .mockResolvedValueOnce({ rows: [{ id: 'cart-1' }] }) // cart
       .mockResolvedValueOnce({ rows: [{
         product_id: 'product-1', price_cents: 2500, quantity: 1, quantity_available: 3,
+        is_active: true, is_available: true,
         affiliate_url: null, business_product_id: null, source_business_id: null,
       }] }) // items
       .mockResolvedValueOnce({ rows: [] }) // advisory lock
@@ -99,6 +101,7 @@ test('rejects a reusable marketplace payment row without a client secret', async
       .mockResolvedValueOnce({ rows: [{ id: 'cart-1' }] }) // cart
       .mockResolvedValueOnce({ rows: [{
         product_id: 'product-1', price_cents: 2500, quantity: 1, quantity_available: 3,
+        is_active: true, is_available: true,
         affiliate_url: null, business_product_id: null, source_business_id: null,
       }] }) // items
       .mockResolvedValueOnce({ rows: [] }) // advisory lock

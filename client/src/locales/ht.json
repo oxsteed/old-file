@@ -19062,6 +19062,7 @@
       "retry": "Eseye ankò",
       "notFound": "Nou pa t ka jwenn atik sa a.",
       "campaignPreviewTitle": "Apèsi kanpay la",
+      "share": "Pataje",
       "requestPreviewTitle": "Apèsi demann lan",
       "orderPreviewTitle": "Apèsi kòmand lan",
       "shipmentPreviewTitle": "Apèsi chajman an",
@@ -19677,6 +19678,9 @@
         "title": "Koridò biznis elijib"
       },
       "form": {
+        "business": "Kontèks biznis",
+        "chooseBusiness": "Chwazi yon biznis",
+        "businessRequired": "Chwazi yon biznis epi ajoute yon tit pwogram",
         "anyLane": "Nenpòt koridò apwouve",
         "budgetMax": "Bidjè max (USD)",
         "cadence": "Frekans",

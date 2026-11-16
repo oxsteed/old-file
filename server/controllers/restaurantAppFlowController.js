@@ -2100,6 +2100,26 @@ exports.updatePublishing = async (req, res, next) => {
     if (status && !allowedStatus.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Status must be draft, active, or paused' });
     }
+    // WP-060: opening a never-published (draft) storefront is the reviewed
+    // step — the canonical owner needs approved restaurant.own/business.own for
+    // themself or this business (ACCESS_BUSINESS_ENFORCEMENT). Re-activating a
+    // paused store and every other edit stay on the restaurant's own state machine.
+    if (status === 'active' && (!restaurant.status || restaurant.status === 'draft')
+        && require('../services/access/flags').businessEnforcement() !== 'off') {
+      const gate = await require('../services/access/businessGate').checkPublish(pool, {
+        userId: restaurant.owner_user_id || restaurant.business_owner_id,
+        businessId: restaurant.business_id,
+        kind: 'restaurant',
+      });
+      if (!gate.allowed) {
+        return res.status(403).json({
+          error: 'This needs approved access first.',
+          code: 'access_required',
+          capability: gate.capability,
+          next: `/settings/applications?apply=${encodeURIComponent(gate.capability)}`,
+        });
+      }
+    }
 
     const rawFulfillmentModes = req.body.fulfillmentModes ?? req.body.fulfillment_modes;
     let fulfillmentModes = null;
@@ -7503,6 +7523,10 @@ exports.ackKitchenTicket = async (req, res, next) => {
       );
       if (!displayRestaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
       restaurant = { ...displayRestaurant, effective_role: 'display_device' };
+      // WP-067: a display paired to one store acknowledges that store's tickets only.
+      if (req.displayDevice.locationId != null) {
+        locationScope = { mode: 'assigned', location_ids: [Number(req.displayDevice.locationId)] };
+      }
     } else {
       restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
       await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
@@ -7539,23 +7563,25 @@ exports.ackKitchenTicket = async (req, res, next) => {
       }
       const { rows: [order] } = await client.query(
         `UPDATE food_orders
+            -- WP-067: explicit casts — $1 was inferred as both varchar and text
+            -- (500 on every ack), and accepted_at compared the promised time ($2).
             SET status = CASE
-                  WHEN status = 'received' THEN $1
-                  WHEN status = 'accepted' AND $1 = 'preparing' THEN 'preparing'
+                  WHEN status = 'received' THEN $1::varchar
+                  WHEN status = 'accepted' AND $1::text = 'preparing' THEN 'preparing'
                   ELSE status
                 END,
                 accepted_at = CASE
-                  WHEN $2 IN ('acknowledged','preparing','quality_check','ready')
+                  WHEN $1::text IN ('accepted','preparing')
                     THEN COALESCE(accepted_at, NOW())
                   ELSE accepted_at
                 END,
                 kitchen_stage = CASE
-                  WHEN $1 = 'preparing' THEN 'preparing'
+                  WHEN $1::text = 'preparing' THEN 'preparing'
                   ELSE 'acknowledged'
                 END,
                 kitchen_acknowledged_at = COALESCE(kitchen_acknowledged_at, NOW()),
                 preparation_started_at = CASE
-                  WHEN $1 = 'preparing' THEN COALESCE(preparation_started_at, NOW())
+                  WHEN $1::text = 'preparing' THEN COALESCE(preparation_started_at, NOW())
                   ELSE preparation_started_at
                 END,
                 promised_at = COALESCE($2::timestamptz, promised_at, NOW() + ($3::int * INTERVAL '1 minute')),
@@ -7918,8 +7944,11 @@ exports.getKitchenFeed = async (req, res, next) => {
       itemFilter = `AND (foi.station_label = $${params.length} OR foi.station_label IS NULL)`;
       itemHaving = 'HAVING COUNT(foi.id) > 0';
     }
+    // WP-067: a display paired to one store sees that store's feed only.
     const feedLocationIds = device?.location_id
       ? [Number(device.location_id)]
+      : req.displayDevice?.locationId != null
+        ? [Number(req.displayDevice.locationId)]
       : locationScope?.mode === 'assigned'
         ? locationScope.location_ids
         : null;
@@ -8809,14 +8838,24 @@ async function loadCrewShift(restaurantId, shiftId, locationScope = null) {
   return shift;
 }
 
-async function validateCrewAssignee(restaurantId, assignedTo) {
+async function validateCrewAssignee(restaurantId, assignedTo, locationId = null) {
   if (!assignedTo) return null;
+  let assigneeAccess;
   try {
-    await requireRestaurantAccess(assignedTo, restaurantId);
+    assigneeAccess = await requireRestaurantAccess(assignedTo, restaurantId);
   } catch (err) {
     throw new AppError('Validation failed', 400, 'validation_failed', {
       assignedTo: 'Assignee must be an active member of this restaurant',
     });
+  }
+  // WP-071: a store task goes to someone who works at that store.
+  if (locationId) {
+    const assigneeScope = await getLocationScope(assigneeAccess, assignedTo);
+    if (assigneeScope.mode === 'assigned' && !assigneeScope.location_ids.map(Number).includes(Number(locationId))) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        assignedTo: 'Assignee does not work at this store',
+      });
+    }
   }
   return assignedTo;
 }
@@ -9113,9 +9152,9 @@ exports.createCrewTask = async (req, res, next) => {
     if (!title) throw new AppError('Validation failed', 400, 'validation_failed', { title: 'Title is required' });
     const assignedTo = req.body.assignedTo || req.body.assigned_to || null;
     const shiftId = parsePositiveInt(req.body.shiftId || req.body.shift_id);
-    await validateCrewAssignee(restaurantId, assignedTo);
     const shift = await loadCrewShift(restaurantId, shiftId, locationScope);
     const locationId = parsePositiveInt(req.body.locationId || req.body.location_id) || parsePositiveInt(shift?.location_id);
+    await validateCrewAssignee(restaurantId, assignedTo, locationId);
     if (locationScope.mode === 'assigned'
       && (!locationId || !locationScope.location_ids.includes(locationId))) {
       throw new AppError('You do not have access to this store', 403, 'location_scope_forbidden');
@@ -9234,7 +9273,7 @@ exports.updateCrewTask = async (req, res, next) => {
     }
     const assignedTo = hasAssignee ? (req.body.assignedTo || req.body.assigned_to || null) : existing.assigned_to;
     const shiftId = hasShift ? parsePositiveInt(req.body.shiftId || req.body.shift_id) : existing.shift_id;
-    if (hasAssignee) await validateCrewAssignee(restaurantId, assignedTo);
+    if (hasAssignee) await validateCrewAssignee(restaurantId, assignedTo, existing.location_id);
     if (hasShift) await loadCrewShift(restaurantId, shiftId, locationScope);
     const approve = false;
     const task = await withTransaction(pool, async (client) => {

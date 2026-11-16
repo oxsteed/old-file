@@ -6506,5 +6506,212 @@
     "signIn": "Sign in",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Applications",
+    "pageSubtitle": "See what your account can do and apply for more.",
+    "backToSettings": "Back to settings",
+    "loading": "Loading…",
+    "unavailable": "Applications are not available on your account yet.",
+    "loadFailed": "We couldn't load your applications.",
+    "heldTitle": "What you can do now",
+    "organizations": "Organizations you belong to: {{count}}",
+    "requestsTitle": "Your applications",
+    "noRequests": "You have no applications yet.",
+    "applyTitle": "Apply for more",
+    "editTitle": "Application: {{capability}}",
+    "reviewerAsked": "The reviewer asked:",
+    "choose": "Choose…",
+    "listHint": "Separate items with commas.",
+    "withdrawTitle": "Withdraw application?",
+    "withdrawConfirm": "Your {{capability}} application will be closed. You can apply again later.",
+    "capabilities": {
+      "customer": "Hire help and order",
+      "helper": {
+        "offer_services": "Offer services"
+      },
+      "business": {
+        "own": "Run a business"
+      },
+      "restaurant": {
+        "own": "Run a restaurant"
+      },
+      "consultant": {
+        "accept_paying_clients": "Consult for paying clients"
+      },
+      "tool_owner": {
+        "list_equipment": "List equipment for rent"
+      },
+      "logistics": {
+        "ship": "Ship with logistics"
+      },
+      "investor": {
+        "reporting": "Investor reporting"
+      },
+      "franchise": {
+        "operate": "Operate a franchise"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "Bid on jobs and get paid for your work."
+      },
+      "business": {
+        "own": "Set up a business page and team."
+      },
+      "restaurant": {
+        "own": "Take food orders for your restaurant."
+      },
+      "consultant": {
+        "accept_paying_clients": "Accept paid consulting engagements."
+      },
+      "tool_owner": {
+        "list_equipment": "Rent out your tools and equipment."
+      },
+      "logistics": {
+        "ship": "Book and manage shipments."
+      },
+      "investor": {
+        "reporting": "View investor reports."
+      }
+    },
+    "status": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "in_review": "In review",
+      "needs_information": "Needs information",
+      "approved": "Approved",
+      "declined": "Declined",
+      "withdrawn": "Withdrawn"
+    },
+    "reasons": {
+      "review_complete": "Review complete.",
+      "service_area_required": "Add the area where you work.",
+      "service_categories_required": "Add the services you offer.",
+      "identity_verification_required": "Verify your identity to continue.",
+      "business_details_required": "Add more details about the business.",
+      "ownership_not_verified": "We could not confirm that you own this business.",
+      "duplicate_request": "You already have an application for this.",
+      "not_eligible_in_market": "This is not available in your area yet.",
+      "policy_not_met": "This application does not meet our requirements.",
+      "other_contact_support": "Please contact support for details."
+    },
+    "fields": {
+      "serviceCategories": "Services you offer",
+      "serviceArea": "Service area",
+      "about": "About",
+      "audience": "Reporting audience",
+      "requestedReports": "Reports you need",
+      "businessName": "Business name",
+      "businessType": "Business type",
+      "restaurantName": "Restaurant name",
+      "cuisine": "Cuisine",
+      "areasOfExpertise": "Areas of expertise",
+      "bio": "Professional bio",
+      "sampleWorkUrl": "Link to sample work",
+      "yearsExperience": "Years of experience",
+      "area": {
+        "country": "Country code (2 letters)",
+        "region": "State or region",
+        "city": "City",
+        "postalCode": "Postal code"
+      }
+    },
+    "options": {
+      "llc": "LLC",
+      "sole_prop": "Sole proprietorship",
+      "corp": "Corporation",
+      "partnership": "Partnership",
+      "other": "Other"
+    },
+    "fieldErrors": {
+      "invalid": "Check this answer.",
+      "required": "This is required.",
+      "too_many": "Too many items.",
+      "unknown_field": "This field is not part of the form."
+    },
+    "actions": {
+      "save": "Save draft",
+      "submit": "Submit application",
+      "resubmit": "Send updated answers",
+      "close": "Close",
+      "continue": "Continue",
+      "withdraw": "Withdraw",
+      "apply": "Apply",
+      "retry": "Try again",
+      "cancel": "Cancel",
+      "confirmWithdraw": "Withdraw application"
+    },
+    "toast": {
+      "save": "Draft saved",
+      "submit": "Application submitted",
+      "resubmit": "Answers sent",
+      "withdraw": "Application withdrawn"
+    },
+    "errors": {
+      "versionConflict": "This application changed in another tab. We reloaded it.",
+      "validation": "Some answers need attention.",
+      "generic": "Something went wrong. Please try again.",
+      "alreadyOpen": "You already have an open application for this.",
+      "alreadyGranted": "You already have this access."
+    },
+    "openApplications": "Open applications",
+    "admin": {
+      "nav": "Access applications",
+      "title": "Access applications",
+      "subtitle": "Review applications for helper, business and other access.",
+      "status": "Status",
+      "capability": "Access type",
+      "all": "All",
+      "empty": "No applications match these filters.",
+      "loadMore": "Load more",
+      "select": "Select an application to review it.",
+      "applicant": "Applicant",
+      "emailVerified": "Email verified",
+      "identityVerified": "Identity verified",
+      "yes": "Yes",
+      "no": "No",
+      "answers": "Answers",
+      "history": "History",
+      "currentAccess": "Current access",
+      "policyChanged": "The policy changed after this was submitted. Approval checks the current policy.",
+      "reasonCode": "Reason shown to the applicant",
+      "note": "Internal note (not shown to the applicant)",
+      "informationRequest": "What should the applicant add?",
+      "investorConfirm": "I reviewed the requested audience and datasets; approval creates only this scoped reporting access.",
+      "actions": {
+        "claim": "Start review",
+        "request_information": "Ask for information",
+        "approve": "Approve",
+        "decline": "Decline"
+      },
+      "decided": "Decision saved",
+      "errors": {
+        "selfReview": "You cannot review your own application.",
+        "notPermitted": "You do not have permission to decide this application."
+      }
+    },
+    "accessRequired": "This needs approved access first.",
+    "home": {
+      "accessChanged": "Your access to that dashboard changed, so you're seeing your personal Home."
+    },
+    "accessUpdated": "Your access was updated.",
+    "orgRoles": {
+      "owner": "Owner",
+      "manager": "Manager",
+      "representative": "Representative",
+      "employee": "Employee",
+      "support_agent": "Support agent"
+    },
+    "menu": {
+      "storeScoped": "The shared menu is managed by people with access to every store. Use your store's menu to change availability or prices there."
+    }
+  },
+  "businessLaunchAttachments": {
+    "download": "Download",
+    "remove": "Remove",
+    "shareWithConsultant": "Share with the assigned consultant",
+    "shared": "Shared",
+    "onlyMe": "Only me"
   }
 }

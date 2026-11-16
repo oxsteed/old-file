@@ -19073,6 +19073,7 @@
       "retry": "إعادة المحاولة",
       "notFound": "تعذّر العثور على هذا العنصر.",
       "campaignPreviewTitle": "معاينة الحملة",
+      "share": "مشاركة",
       "requestPreviewTitle": "معاينة الطلب",
       "orderPreviewTitle": "معاينة أمر الشراء",
       "shipmentPreviewTitle": "معاينة الشحنة",
@@ -19688,6 +19689,9 @@
         "title": "ممرات الأعمال المؤهلة"
       },
       "form": {
+        "business": "سياق النشاط التجاري",
+        "chooseBusiness": "اختر نشاطاً تجارياً",
+        "businessRequired": "اختر نشاطاً تجارياً وأضف عنواناً للبرنامج",
         "anyLane": "أي ممر معتمد",
         "budgetMax": "الحد الأقصى للميزانية (دولار)",
         "cadence": "التكرار",

@@ -100,6 +100,7 @@ import { formatDate, formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import { isBusinessHubTabLaunched, LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { canAccessBusinessHub } from '../utils/modeAccess';
+import useAccessProjection from '../hooks/useAccessProjection';
 import TabErrorBoundary from '../components/TabErrorBoundary';
 const HiringPipelineBoard = lazyDefault(() => import('../components/careers/HiringPipelineBoard'));
 import {
@@ -170,9 +171,9 @@ export default function BusinessHubPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const { businessId: workspaceBusinessId } = useParams();
+  const projection = useAccessProjection(user);
 
-  // guard — capability/mode check (helper-class + business_owner/team), not role list
-  if (!user || !canAccessBusinessHub(user)) {
+  if (!canAccessBusinessHub(user, projection)) {
     return (
       <PageShell>
         <PageMeta title={t('businessHub.metaTitle')} description={t('businessHub.metaDesc')} />
@@ -191,6 +192,7 @@ export default function BusinessHubPage() {
 
 function BusinessHubInner() {
   const { t } = useTranslation();
+  const { t: accessT } = useTranslation('common');
   const { user } = useAuth();
   const currency = user?.preferred_currency
     || (user?.country ? getDefaultCurrency(user.country) : null)
@@ -1483,6 +1485,12 @@ function BusinessHubInner() {
       toast.success(t('businessCreation.published', 'Your business is now live.'));
       await loadBusinesses();
     } catch (error) {
+      if (error?.response?.data?.code === 'access_required') {
+        // WP-046: publishing needs an approved application; keep the draft.
+        toast.error(accessT('progressiveAccess.accessRequired'));
+        navigate('/settings/applications');
+        return;
+      }
       const missing = error?.response?.data?.fields?.missing;
       const message = Array.isArray(missing) && missing.length
         ? t('businessCreation.missingSetup', 'Complete the missing setup: {{items}}', { items: missing.join(', ') })

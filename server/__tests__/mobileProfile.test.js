@@ -72,7 +72,11 @@ function userRow(overrides = {}) {
   };
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  delete process.env.ACCESS_PROJECTION_ENABLED;
+  delete process.env.ACCESS_PILOT_USER_IDS;
+});
 
 describe('mobile authenticated profile API', () => {
   test('returns app-shaped profile with mode, country, language, and verification status', async () => {
@@ -147,5 +151,32 @@ describe('mobile authenticated profile API', () => {
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('validation_failed');
     expect(res.body.fields.preferredLanguage).toMatch(/Supported languages/);
+  });
+
+  test('returns the capability projection and retires mobile mode switching when enabled', async () => {
+    process.env.ACCESS_PROJECTION_ENABLED = 'true';
+    mockQuery
+      // authenticate
+      .mockResolvedValueOnce({ rows: [userRow({ default_mode: 'helper' })] })
+      // access projection facts, open requests, and version
+      .mockResolvedValueOnce({ rows: [{ id: USER_ID, role: 'customer', is_active: true, deleted_at: null, is_suspended: false, suspended_until: null, is_banned: false }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'grant-1', capability: 'helper.offer_services', subject_type: 'self', status: 'active', expires_at: null, provenance: 'application' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ n: 0 }] })
+      .mockResolvedValueOnce({ rows: [{ version: 7 }] });
+
+    const res = await request(buildApp())
+      .get('/api/mobile/profile')
+      .set('Authorization', authHeader());
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.flags.accessProjection).toBe(true);
+    expect(res.body.data.access.version).toBe(7);
+    expect(res.body.data.access.personal).toEqual(expect.arrayContaining(['customer', 'helper.offer_services']));
+    expect(res.body.data.profile.mode).toMatchObject({
+      accessControlled: true,
+      selfSelectableModes: ['customer'],
+      grantedModes: [],
+    });
   });
 });

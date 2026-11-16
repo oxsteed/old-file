@@ -115,10 +115,29 @@ async function buildCartFromItems({ helperId, name, jobId = null, description = 
   try {
     await client.query('BEGIN');
 
+    // A job-linked materials cart is visible to the job parties only. The
+    // helper/customer/broker identity is checked while the cart transaction is
+    // open so a guessed job ID cannot be attached to a new private basket.
+    if (jobId) {
+      const { rows: jobRows } = await client.query(
+        `SELECT id
+           FROM jobs
+          WHERE id = $1
+            AND deleted_at IS NULL
+            AND (client_id = $2 OR assigned_helper_id = $2 OR broker_id = $2)`,
+        [jobId, helperId],
+      );
+      if (!jobRows.length) {
+        throw new AppError('Job not found or you do not participate in it', 404, 'job_not_found');
+      }
+    }
+
     const { rows: products } = await client.query(
       `SELECT id, name, price_cents, currency, product_image_url
          FROM marketplace_products
-        WHERE id = ANY($1)`,
+        WHERE id = ANY($1)
+          AND is_active = TRUE
+          AND is_available = TRUE`,
       [productIds]
     );
     const byId = new Map(products.map((p) => [p.id, p]));

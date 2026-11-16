@@ -96,7 +96,8 @@ exports.updateRecurring = async (req, res, next) => {
 exports.deleteRecurring = async (req, res, next) => {
   const { businessId, id: billingId } = req.params;
   try {
-    await pool.query('DELETE FROM business_recurring_billing WHERE id=$1 AND business_id=$2', [billingId, businessId]);
+    const { rowCount } = await pool.query('DELETE FROM business_recurring_billing WHERE id=$1 AND business_id=$2', [billingId, businessId]);
+    if (!rowCount) return res.status(404).json({ error: 'Not found' });
     res.json({ success: true });
   } catch (err) { next(err); }
 };

@@ -3875,5 +3875,202 @@
     "signIn": "साइन इन करें",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "आवेदन",
+    "pageSubtitle": "देखें कि आपका खाता क्या कर सकता है और और अधिक के लिए आवेदन करें।",
+    "backToSettings": "सेटिंग्स पर वापस जाएँ",
+    "loading": "लोड हो रहा है…",
+    "unavailable": "आपके खाते पर अभी आवेदन उपलब्ध नहीं हैं।",
+    "loadFailed": "हम आपके आवेदन लोड नहीं कर सके।",
+    "heldTitle": "आप अभी क्या कर सकते हैं",
+    "organizations": "जिन संगठनों से आप जुड़े हैं: {{count}}",
+    "requestsTitle": "आपके आवेदन",
+    "noRequests": "आपके पास अभी कोई आवेदन नहीं है।",
+    "applyTitle": "और अधिक के लिए आवेदन करें",
+    "editTitle": "आवेदन: {{capability}}",
+    "reviewerAsked": "समीक्षक ने पूछा:",
+    "choose": "चुनें…",
+    "listHint": "आइटम को अल्पविराम से अलग करें।",
+    "withdrawTitle": "आवेदन वापस लें?",
+    "withdrawConfirm": "आपका {{capability}} आवेदन बंद कर दिया जाएगा। आप बाद में फिर से आवेदन कर सकते हैं।",
+    "capabilities": {
+      "customer": "मदद लें और ऑर्डर करें",
+      "helper": {
+        "offer_services": "सेवाएँ दें"
+      },
+      "business": {
+        "own": "व्यवसाय चलाएँ"
+      },
+      "restaurant": {
+        "own": "रेस्तरां चलाएँ"
+      },
+      "consultant": {
+        "accept_paying_clients": "भुगतान करने वाले ग्राहकों को सलाह दें"
+      },
+      "tool_owner": {
+        "list_equipment": "उपकरण किराए पर दें"
+      },
+      "logistics": {
+        "ship": "लॉजिस्टिक्स से भेजें"
+      },
+      "investor": {
+        "reporting": "निवेशक रिपोर्ट"
+      },
+      "franchise": {
+        "operate": "फ्रैंचाइज़ी चलाएँ"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "कामों पर बोली लगाएँ और अपने काम का भुगतान पाएँ।"
+      },
+      "business": {
+        "own": "अपने व्यवसाय का पेज और टीम सेट करें।"
+      },
+      "restaurant": {
+        "own": "अपने रेस्तरां के लिए खाने के ऑर्डर लें।"
+      },
+      "consultant": {
+        "accept_paying_clients": "सशुल्क परामर्श कार्य स्वीकार करें।"
+      },
+      "tool_owner": {
+        "list_equipment": "अपने औज़ार और उपकरण किराए पर दें।"
+      },
+      "logistics": {
+        "ship": "शिपमेंट बुक और प्रबंधित करें।"
+      },
+      "investor": {
+        "reporting": "निवेशक रिपोर्ट देखें।"
+      }
+    },
+    "status": {
+      "draft": "ड्राफ़्ट",
+      "submitted": "जमा किया गया",
+      "in_review": "समीक्षा में",
+      "needs_information": "जानकारी चाहिए",
+      "approved": "स्वीकृत",
+      "declined": "अस्वीकृत",
+      "withdrawn": "वापस लिया गया"
+    },
+    "reasons": {
+      "review_complete": "समीक्षा पूरी हुई।",
+      "service_area_required": "वह क्षेत्र जोड़ें जहाँ आप काम करते हैं।",
+      "service_categories_required": "आप जो सेवाएँ देते हैं उन्हें जोड़ें।",
+      "identity_verification_required": "जारी रखने के लिए अपनी पहचान सत्यापित करें।",
+      "business_details_required": "व्यवसाय के बारे में और विवरण जोड़ें।",
+      "ownership_not_verified": "हम पुष्टि नहीं कर सके कि यह व्यवसाय आपका है।",
+      "duplicate_request": "इसके लिए आपका आवेदन पहले से है।",
+      "not_eligible_in_market": "यह अभी आपके क्षेत्र में उपलब्ध नहीं है।",
+      "policy_not_met": "यह आवेदन हमारी आवश्यकताओं को पूरा नहीं करता।",
+      "other_contact_support": "विवरण के लिए कृपया सहायता टीम से संपर्क करें।"
+    },
+    "fields": {
+      "serviceCategories": "आपकी सेवाएँ",
+      "serviceArea": "सेवा क्षेत्र",
+      "about": "परिचय",
+      "businessName": "व्यवसाय का नाम",
+      "businessType": "व्यवसाय का प्रकार",
+      "restaurantName": "रेस्तरां का नाम",
+      "cuisine": "व्यंजन",
+      "areasOfExpertise": "विशेषज्ञता के क्षेत्र",
+      "bio": "पेशेवर परिचय",
+      "sampleWorkUrl": "काम के नमूने का लिंक",
+      "yearsExperience": "अनुभव के वर्ष",
+      "area": {
+        "country": "देश कोड (2 अक्षर)",
+        "region": "राज्य या क्षेत्र",
+        "city": "शहर",
+        "postalCode": "पिन कोड"
+      }
+    },
+    "options": {
+      "llc": "एलएलसी",
+      "sole_prop": "एकल स्वामित्व",
+      "corp": "निगम",
+      "partnership": "साझेदारी",
+      "other": "अन्य"
+    },
+    "fieldErrors": {
+      "invalid": "यह उत्तर जाँचें।",
+      "required": "यह आवश्यक है।",
+      "too_many": "बहुत अधिक आइटम।",
+      "unknown_field": "यह फ़ील्ड फ़ॉर्म का हिस्सा नहीं है।"
+    },
+    "actions": {
+      "save": "ड्राफ़्ट सहेजें",
+      "submit": "आवेदन जमा करें",
+      "resubmit": "अपडेट किए गए उत्तर भेजें",
+      "close": "बंद करें",
+      "continue": "जारी रखें",
+      "withdraw": "वापस लें",
+      "apply": "आवेदन करें",
+      "retry": "फिर कोशिश करें",
+      "cancel": "रद्द करें",
+      "confirmWithdraw": "आवेदन वापस लें"
+    },
+    "toast": {
+      "save": "ड्राफ़्ट सहेजा गया",
+      "submit": "आवेदन जमा हुआ",
+      "resubmit": "उत्तर भेजे गए",
+      "withdraw": "आवेदन वापस लिया गया"
+    },
+    "errors": {
+      "versionConflict": "यह आवेदन किसी दूसरे टैब में बदल गया। हमने इसे फिर से लोड किया।",
+      "validation": "कुछ उत्तरों पर ध्यान देने की ज़रूरत है।",
+      "generic": "कुछ गलत हो गया। कृपया फिर से कोशिश करें।",
+      "alreadyOpen": "इसके लिए आपका एक आवेदन पहले से खुला है।",
+      "alreadyGranted": "आपके पास यह पहुँच पहले से है।"
+    },
+    "openApplications": "आवेदन खोलें",
+    "admin": {
+      "nav": "पहुँच आवेदन",
+      "title": "पहुँच आवेदन",
+      "subtitle": "हेल्पर, व्यवसाय और अन्य पहुँच के आवेदनों की समीक्षा करें।",
+      "status": "स्थिति",
+      "capability": "पहुँच का प्रकार",
+      "all": "सभी",
+      "empty": "इन फ़िल्टर से कोई आवेदन मेल नहीं खाता।",
+      "loadMore": "और लोड करें",
+      "select": "समीक्षा के लिए एक आवेदन चुनें।",
+      "applicant": "आवेदक",
+      "emailVerified": "ईमेल सत्यापित",
+      "identityVerified": "पहचान सत्यापित",
+      "yes": "हाँ",
+      "no": "नहीं",
+      "answers": "उत्तर",
+      "history": "इतिहास",
+      "currentAccess": "मौजूदा पहुँच",
+      "policyChanged": "जमा करने के बाद नीति बदल गई। स्वीकृति मौजूदा नीति के अनुसार जाँच करती है।",
+      "reasonCode": "आवेदक को दिखाया जाने वाला कारण",
+      "note": "आंतरिक नोट (आवेदक को नहीं दिखता)",
+      "informationRequest": "आवेदक को क्या जोड़ना चाहिए?",
+      "actions": {
+        "claim": "समीक्षा शुरू करें",
+        "request_information": "जानकारी माँगें",
+        "approve": "स्वीकृत करें",
+        "decline": "अस्वीकार करें"
+      },
+      "decided": "निर्णय सहेजा गया",
+      "errors": {
+        "selfReview": "आप अपने ही आवेदन की समीक्षा नहीं कर सकते।",
+        "notPermitted": "आपको इस आवेदन पर निर्णय लेने की अनुमति नहीं है।"
+      }
+    },
+    "accessRequired": "इसके लिए पहले स्वीकृत पहुँच चाहिए।",
+    "home": {
+      "accessChanged": "उस डैशबोर्ड तक आपकी पहुँच बदल गई है, इसलिए आपको आपका निजी होम दिख रहा है।"
+    },
+    "accessUpdated": "आपकी पहुँच अपडेट हो गई है।",
+    "orgRoles": {
+      "owner": "स्वामी",
+      "manager": "प्रबंधक",
+      "representative": "प्रतिनिधि",
+      "employee": "कर्मचारी",
+      "support_agent": "सहायता एजेंट"
+    },
+    "menu": {
+      "storeScoped": "साझा मेन्यू वे लोग संभालते हैं जिनके पास हर स्टोर की पहुँच है। अपने स्टोर में उपलब्धता या कीमतें बदलने के लिए अपने स्टोर का मेन्यू इस्तेमाल करें।"
+    }
   }
 }

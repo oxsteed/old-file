@@ -36,6 +36,7 @@ export default function BusinessProcurementPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
+    business_id: '',
     title: '',
     category: '',
     cadence: 'monthly',
@@ -64,10 +65,14 @@ export default function BusinessProcurementPage() {
         setPrograms(programRes.data || []);
         setLanes(laneRes.data || []);
         const businesses = Array.isArray(businessAccessRes?.businesses) ? businessAccessRes.businesses : [];
+        const eligibleBusinesses = businesses.filter(isBusinessProcurementEligibleMembership);
         setBusinessAccess({
           businesses,
-          eligibleBusinesses: businesses.filter(isBusinessProcurementEligibleMembership),
+          eligibleBusinesses,
         });
+        setForm((current) => current.business_id || !eligibleBusinesses.length
+          ? current
+          : { ...current, business_id: String(eligibleBusinesses[0].business_id) });
       })
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
@@ -82,8 +87,11 @@ export default function BusinessProcurementPage() {
   );
 
   const procurementEligible = useMemo(
-    () => requests.filter((row) => (row.business_id && eligibleBusinessIds.has(row.business_id)) || row.converted_to === 'procurement'),
-    [requests, eligibleBusinessIds]
+    () => requests.filter((row) => {
+      const eligible = (row.business_id && eligibleBusinessIds.has(row.business_id)) || row.converted_to === 'procurement';
+      return eligible && (!form.business_id || String(row.business_id) === String(form.business_id));
+    }),
+    [requests, eligibleBusinessIds, form.business_id]
   );
   const activePrograms = programs.filter((program) => program.status === 'active').length;
   const upcomingRuns = programs.filter((program) => {
@@ -150,14 +158,15 @@ export default function BusinessProcurementPage() {
     .slice(0, 5);
 
   const createProgramFromForm = async () => {
-    if (!form.title) {
-      toast.error(tx('logistics.procurement.form.titleRequired', 'Program title is required'));
+    if (!form.title || !form.business_id) {
+      toast.error(tx('logistics.procurement.form.businessRequired', 'Choose a business and add a program title'));
       return;
     }
     setSaving(true);
     try {
       await createRecurringProgram({
         ...form,
+        business_id: Number(form.business_id),
         lane_id: form.lane_id || null,
         target_qty: form.target_qty || null,
         budget_max_usd: form.budget_max_usd || null,
@@ -167,6 +176,7 @@ export default function BusinessProcurementPage() {
       toast.success(tx('logistics.procurement.form.created', 'Recurring procurement program created'));
       setShowForm(false);
       setForm({
+        business_id: businessAccess.eligibleBusinesses[0]?.business_id ? String(businessAccess.eligibleBusinesses[0].business_id) : '',
         title: '', category: '', cadence: 'monthly', lane_id: '', target_qty: '', target_unit: 'unit',
         destination_country: '', destination_city: '', budget_max_usd: '', next_run_date: '', notes: '', sourcing_request_id: '',
       });
@@ -365,6 +375,7 @@ export default function BusinessProcurementPage() {
                 <div className="lx-card lx-login-accent lx-mb-6">
                   <h2 className="lx-section-title lx-mb-4">{tx('logistics.procurement.form.title', 'Recurring procurement planner')}</h2>
                   <div className="lx-form-grid-2">
+                    <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-business">{tx('logistics.procurement.form.business', 'Business context')}</label><select id="lx-program-business" className="lx-select" value={form.business_id} onChange={(e) => setForm((f) => ({ ...f, business_id: e.target.value, sourcing_request_id: '' }))}><option value="">{tx('logistics.procurement.form.chooseBusiness', 'Choose a business')}</option>{businessAccess.eligibleBusinesses.map((business) => <option key={business.business_id} value={business.business_id}>{business.business_name}</option>)}</select></div>
                     <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-title">{tx('logistics.procurement.form.programTitle', 'Program title')}</label><input id="lx-program-title" className="lx-input" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></div>
                     <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-category">{tx('logistics.procurement.form.category', 'Category')}</label><input id="lx-program-category" className="lx-input" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>
                     <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-cadence">{tx('logistics.procurement.form.cadence', 'Cadence')}</label><select id="lx-program-cadence" className="lx-select" value={form.cadence} onChange={(e) => setForm((f) => ({ ...f, cadence: e.target.value }))}>{CADENCE_OPTIONS.map((option) => <option key={option} value={option}>{tx(`logistics.procurement.cadence.${option}`, option)}</option>)}</select></div>

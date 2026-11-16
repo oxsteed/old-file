@@ -20,21 +20,20 @@ async function flushPendingNotification(pending, context) {
   }
 }
 
-// ── Helper: Check if user can access business leads (owner, manager, or representative) ──
-async function canAccessBusinessLeads(userId, businessId) {
-  const { rows: [access] } = await pool.query(
-    `SELECT b.id, b.user_id, b.business_name,
-            CASE WHEN b.user_id = $1 THEN 'owner'
-                 WHEN EXISTS(
-                   SELECT 1 FROM business_members
-                   WHERE business_id = b.id AND member_id = $1 AND status = 'active'
-                 ) THEN 'member'
-                 ELSE NULL END AS role
-     FROM businesses b
-     WHERE b.id = $2`,
-    [userId, businessId]
-  );
-  return access && (access.role || access.user_id === userId) ? access : null;
+// ── Helper: can this user read a business's leads? ──
+// WP-052: the owner always can; a member needs the effective `leads.view`
+// permission (role defaults plus per-membership overrides), not just an
+// active membership.
+async function canAccessBusinessLeads(userId, businessId, code = 'leads.view') {
+  const { resolveBusinessAccess } = require('../services/scopeModel');
+  const row = await resolveBusinessAccess(userId, businessId);
+  if (!row || row.deleted_at || row.is_active === false || !row.effective_role) return null;
+  if (row.effective_role === 'owner') return row;
+  const { getEffectivePermissions } = require('../services/permissionsService');
+  const { permissions } = await getEffectivePermissions({
+    businessId: row.id, userId, role: row.effective_role, membershipId: row.membership_id,
+  });
+  return permissions && permissions.has(code) ? row : null;
 }
 
 // ── Create a lead (customer requests a quote) ──────────────────────────────
@@ -157,7 +156,8 @@ exports.getBusinessLeads = async (req, res) => {
     const { businessId } = req.params;
     const { status, page = 1, limit = 20 } = req.query;
 
-    const access = businessScopeSatisfies(req, businessId, 'any') || await canAccessBusinessLeads(req.user.id, businessId);
+    const access = (businessScopeSatisfies(req, businessId, 'any') && req.permissions instanceof Set && req.permissions.has('leads.view'))
+      || await canAccessBusinessLeads(req.user.id, businessId);
     if (!access) return sendError(res, 403, 'Access denied');
 
     // Validate pagination
@@ -286,6 +286,10 @@ exports.getLead = async (req, res) => {
     if (!result.rows[0]) return sendError(res, 404, 'Lead not found');
 
     const lead = result.rows[0];
+    // WP-052: a member (not the customer, not the owner) needs leads.view.
+    if (String(lead.customer_id) !== String(userId) && !(await canAccessBusinessLeads(userId, lead.business_id))) {
+      return sendError(res, 404, 'Lead not found');
+    }
 
     // Fetch associated quotes (limit to last 100 to prevent abuse)
     const quotesRes = await pool.query(

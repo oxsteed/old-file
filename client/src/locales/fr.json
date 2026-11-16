@@ -19062,6 +19062,7 @@
       "retry": "Réessayer",
       "notFound": "Cet élément est introuvable.",
       "campaignPreviewTitle": "Aperçu de la campagne",
+      "share": "Partager",
       "requestPreviewTitle": "Aperçu de la demande",
       "orderPreviewTitle": "Aperçu de la commande",
       "shipmentPreviewTitle": "Aperçu de l’expédition",
@@ -19677,6 +19678,9 @@
         "title": "Corridors commerciaux éligibles"
       },
       "form": {
+        "business": "Contexte de l'entreprise",
+        "chooseBusiness": "Choisissez une entreprise",
+        "businessRequired": "Choisissez une entreprise et ajoutez un titre au programme",
         "anyLane": "Tout corridor approuvé",
         "budgetMax": "Budget max (USD)",
         "cadence": "Fréquence",

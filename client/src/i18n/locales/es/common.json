@@ -6506,5 +6506,212 @@
     "signIn": "Iniciar sesión",
     "noTerms": "Aún no se han publicado términos para esta moneda.",
     "retry": "Reintentar"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Solicitudes",
+    "pageSubtitle": "Consulta lo que puede hacer tu cuenta y solicita más.",
+    "backToSettings": "Volver a la configuración",
+    "loading": "Cargando…",
+    "unavailable": "Las solicitudes aún no están disponibles en tu cuenta.",
+    "loadFailed": "No pudimos cargar tus solicitudes.",
+    "heldTitle": "Lo que puedes hacer ahora",
+    "organizations": "Organizaciones a las que perteneces: {{count}}",
+    "requestsTitle": "Tus solicitudes",
+    "noRequests": "Aún no tienes solicitudes.",
+    "applyTitle": "Solicitar más",
+    "editTitle": "Solicitud: {{capability}}",
+    "reviewerAsked": "El revisor preguntó:",
+    "choose": "Elige…",
+    "listHint": "Separa los elementos con comas.",
+    "withdrawTitle": "¿Retirar la solicitud?",
+    "withdrawConfirm": "Tu solicitud de {{capability}} se cerrará. Puedes volver a solicitar más adelante.",
+    "capabilities": {
+      "customer": "Contratar ayuda y pedir",
+      "helper": {
+        "offer_services": "Ofrecer servicios"
+      },
+      "business": {
+        "own": "Administrar un negocio"
+      },
+      "restaurant": {
+        "own": "Administrar un restaurante"
+      },
+      "consultant": {
+        "accept_paying_clients": "Asesorar a clientes de pago"
+      },
+      "tool_owner": {
+        "list_equipment": "Alquilar equipos"
+      },
+      "logistics": {
+        "ship": "Enviar con logística"
+      },
+      "investor": {
+        "reporting": "Informes para inversionistas"
+      },
+      "franchise": {
+        "operate": "Operar una franquicia"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "Haz ofertas en trabajos y cobra por tu trabajo."
+      },
+      "business": {
+        "own": "Crea la página y el equipo de tu negocio."
+      },
+      "restaurant": {
+        "own": "Recibe pedidos de comida para tu restaurante."
+      },
+      "consultant": {
+        "accept_paying_clients": "Acepta encargos de consultoría pagados."
+      },
+      "tool_owner": {
+        "list_equipment": "Alquila tus herramientas y equipos."
+      },
+      "logistics": {
+        "ship": "Reserva y gestiona envíos."
+      },
+      "investor": {
+        "reporting": "Consulta los informes para inversionistas."
+      }
+    },
+    "status": {
+      "draft": "Borrador",
+      "submitted": "Enviada",
+      "in_review": "En revisión",
+      "needs_information": "Requiere información",
+      "approved": "Aprobada",
+      "declined": "Rechazada",
+      "withdrawn": "Retirada"
+    },
+    "reasons": {
+      "review_complete": "Revisión completada.",
+      "service_area_required": "Agrega la zona donde trabajas.",
+      "service_categories_required": "Agrega los servicios que ofreces.",
+      "identity_verification_required": "Verifica tu identidad para continuar.",
+      "business_details_required": "Agrega más detalles sobre el negocio.",
+      "ownership_not_verified": "No pudimos confirmar que eres dueño de este negocio.",
+      "duplicate_request": "Ya tienes una solicitud para esto.",
+      "not_eligible_in_market": "Esto aún no está disponible en tu zona.",
+      "policy_not_met": "Esta solicitud no cumple nuestros requisitos.",
+      "other_contact_support": "Comunícate con soporte para más detalles."
+    },
+    "fields": {
+      "serviceCategories": "Servicios que ofreces",
+      "serviceArea": "Zona de servicio",
+      "about": "Acerca de",
+      "audience": "Audiencia de informes",
+      "requestedReports": "Informes que necesitas",
+      "businessName": "Nombre del negocio",
+      "businessType": "Tipo de negocio",
+      "restaurantName": "Nombre del restaurante",
+      "cuisine": "Cocina",
+      "areasOfExpertise": "Áreas de especialidad",
+      "bio": "Biografía profesional",
+      "sampleWorkUrl": "Enlace a un trabajo de muestra",
+      "yearsExperience": "Años de experiencia",
+      "area": {
+        "country": "Código de país (2 letras)",
+        "region": "Estado o región",
+        "city": "Ciudad",
+        "postalCode": "Código postal"
+      }
+    },
+    "options": {
+      "llc": "LLC",
+      "sole_prop": "Empresa individual",
+      "corp": "Corporación",
+      "partnership": "Sociedad",
+      "other": "Otro"
+    },
+    "fieldErrors": {
+      "invalid": "Revisa esta respuesta.",
+      "required": "Este campo es obligatorio.",
+      "too_many": "Demasiados elementos.",
+      "unknown_field": "Este campo no forma parte del formulario."
+    },
+    "actions": {
+      "save": "Guardar borrador",
+      "submit": "Enviar solicitud",
+      "resubmit": "Enviar respuestas actualizadas",
+      "close": "Cerrar",
+      "continue": "Continuar",
+      "withdraw": "Retirar",
+      "apply": "Solicitar",
+      "retry": "Intentar de nuevo",
+      "cancel": "Cancelar",
+      "confirmWithdraw": "Retirar solicitud"
+    },
+    "toast": {
+      "save": "Borrador guardado",
+      "submit": "Solicitud enviada",
+      "resubmit": "Respuestas enviadas",
+      "withdraw": "Solicitud retirada"
+    },
+    "errors": {
+      "versionConflict": "Esta solicitud cambió en otra pestaña. La volvimos a cargar.",
+      "validation": "Algunas respuestas requieren atención.",
+      "generic": "Algo salió mal. Inténtalo de nuevo.",
+      "alreadyOpen": "Ya tienes una solicitud abierta para esto.",
+      "alreadyGranted": "Ya tienes este acceso."
+    },
+    "openApplications": "Abrir solicitudes",
+    "admin": {
+      "nav": "Solicitudes de acceso",
+      "title": "Solicitudes de acceso",
+      "subtitle": "Revisa solicitudes de acceso como ayudante, negocio y más.",
+      "status": "Estado",
+      "capability": "Tipo de acceso",
+      "all": "Todos",
+      "empty": "Ninguna solicitud coincide con estos filtros.",
+      "loadMore": "Cargar más",
+      "select": "Selecciona una solicitud para revisarla.",
+      "applicant": "Solicitante",
+      "emailVerified": "Correo verificado",
+      "identityVerified": "Identidad verificada",
+      "yes": "Sí",
+      "no": "No",
+      "answers": "Respuestas",
+      "history": "Historial",
+      "currentAccess": "Acceso actual",
+      "policyChanged": "La política cambió después del envío. La aprobación verifica la política actual.",
+      "reasonCode": "Motivo que verá el solicitante",
+      "note": "Nota interna (el solicitante no la ve)",
+      "informationRequest": "¿Qué debe agregar el solicitante?",
+      "investorConfirm": "He revisado la audiencia y los informes solicitados; la aprobación solo crea este acceso de informes con alcance limitado.",
+      "actions": {
+        "claim": "Iniciar revisión",
+        "request_information": "Pedir información",
+        "approve": "Aprobar",
+        "decline": "Rechazar"
+      },
+      "decided": "Decisión guardada",
+      "errors": {
+        "selfReview": "No puedes revisar tu propia solicitud.",
+        "notPermitted": "No tienes permiso para decidir esta solicitud."
+      }
+    },
+    "accessRequired": "Primero necesitas un acceso aprobado.",
+    "home": {
+      "accessChanged": "Tu acceso a ese panel cambió, así que estás viendo tu inicio personal."
+    },
+    "accessUpdated": "Tu acceso se actualizó.",
+    "orgRoles": {
+      "owner": "Propietario",
+      "manager": "Gerente",
+      "representative": "Representante",
+      "employee": "Empleado",
+      "support_agent": "Agente de soporte"
+    },
+    "menu": {
+      "storeScoped": "El menú compartido lo gestionan quienes tienen acceso a todas las tiendas. Usa el menú de tu tienda para cambiar allí la disponibilidad o los precios."
+    }
+  },
+  "businessLaunchAttachments": {
+    "download": "Descargar",
+    "remove": "Quitar",
+    "shareWithConsultant": "Compartir con el consultor asignado",
+    "shared": "Compartido",
+    "onlyMe": "Solo yo"
   }
 }

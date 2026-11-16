@@ -16,6 +16,8 @@ const logger = require('../utils/logger');
 const laneService = require('../services/logisticsLaneService');
 const accessService = require('../services/logisticsAccessService');
 const stateMachine = require('../services/logisticsStateMachine');
+const progressiveAccess = require('../services/access/accessService');
+const { projectionEnabled } = require('../services/access/flags');
 
 const COUNTRY_RE = /^[A-Z]{2}$/;
 
@@ -67,9 +69,28 @@ const LOGISTICS_ROLES = new Set([
  */
 async function resolveLogisticsRole(user) {
   if (!user) return null;
-  if (user.logistics_role && LOGISTICS_ROLES.has(user.logistics_role)) return user.logistics_role;
+  const storedRole = user.logistics_role && LOGISTICS_ROLES.has(user.logistics_role)
+    ? user.logistics_role
+    : null;
   if (user.role === 'super_admin') return 'super_admin';
   if (user.role === 'admin')       return 'admin';
+  // A progressive logistics approval grants organizer authority without
+  // rewriting the user's legacy role or default mode. Keep explicit stored
+  // business/distributor/operations roles authoritative; only an ordinary
+  // buyer can be promoted by the self-scoped grant.
+  if (!storedRole || storedRole === 'individual_buyer') {
+    try {
+      if (projectionEnabled(user.id)) {
+        const result = await progressiveAccess.can(user.id, 'logistics.ship', { type: 'self' });
+        if (result?.allowed) return 'organizer';
+      }
+    } catch (err) {
+      // Older deployments may not have progressive access tables yet. Keep
+      // the legacy resolver as the safe fallback rather than failing buyers.
+      logger.warn('progressive logistics role lookup unavailable', { err: err.message });
+    }
+  }
+  if (storedRole) return storedRole;
   try {
     const r = await pool.query(
       `SELECT id FROM businesses WHERE user_id = $1 AND is_active = TRUE LIMIT 1`,
@@ -231,6 +252,36 @@ function requireLogisticsCapability(...paths) {
 }
 
 /**
+ * Delivery status writes are allowed to operations staff or the currently
+ * assigned distributor. The assignment is read from the canonical delivery
+ * row, so revoking/changing it takes effect before the next update request.
+ */
+function requireDeliveryActor() {
+  return async (req, res, next) => {
+    try {
+      if (!req.user?.id) return res.status(401).json({ error: 'unauthenticated' });
+      const role = req.logisticsRole || await resolveLogisticsRole(req.user);
+      req.logisticsRole = role;
+      if (['admin', 'super_admin', 'warehouse_operator', 'logistics_coordinator'].includes(role)) return next();
+      if (!['reseller', 'franchise_buyer'].includes(role)) {
+        return res.status(403).json({ error: 'delivery_assignment_required', code: 'delivery_assignment_required' });
+      }
+      const { rows } = await pool.query(
+        'SELECT assigned_to FROM delivery_orders WHERE id = $1',
+        [req.params.id]
+      );
+      if (!rows[0] || String(rows[0].assigned_to || '') !== String(req.user.id)) {
+        return res.status(403).json({ error: 'delivery_assignment_required', code: 'delivery_assignment_required' });
+      }
+      return next();
+    } catch (err) {
+      logger.error('requireDeliveryActor failed', { err: err.message });
+      return res.status(503).json({ error: 'Logistics access checks are temporarily unavailable.', code: 'logistics_access_unavailable', retryable: true });
+    }
+  };
+}
+
+/**
  * Build the role context object consumed by
  * logisticsStateMachine.getAvailableActions for a single entity.
  *
@@ -265,6 +316,7 @@ module.exports = {
   resolveLogisticsRole,
   requireLogisticsRole,
   requireLogisticsCapability,
+  requireDeliveryActor,
   buildActionContext,
   requireLaneAccess,
   enforceCountryRestriction,

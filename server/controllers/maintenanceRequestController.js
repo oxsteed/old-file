@@ -135,6 +135,19 @@ async function loadRequestForUser(requestId, userId) {
   return rows[0] || null;
 }
 
+// WP-057: a requester (tenant) follows their own request but never sees the
+// business's internal notes — on the request or in its event trail. Events
+// carry `metadata.tenant_visible` when their note is the tenant-facing note;
+// older events without the flag keep their note hidden from the tenant.
+function forTenant(row) {
+  if (!row) return row;
+  const { owner_notes: _ownerNotes, ...rest } = row;
+  return rest;
+}
+function tenantEvents(events) {
+  return events.map((e) => (e.metadata && e.metadata.tenant_visible === true ? e : { ...e, note: null }));
+}
+
 async function insertEvent(client, requestId, actorId, type, fromStatus, toStatus, note, metadata = {}) {
   await client.query(
     `INSERT INTO property_maintenance_request_events
@@ -338,6 +351,9 @@ exports.getRequest = async (req, res, next) => {
   try {
     const request = await loadRequestForUser(req.params.id, req.user.id);
     if (!request) throw new AppError('Maintenance request not found', 404, 'not_found');
+    const isTeam = String(request.business_owner_id) === String(req.user.id)
+      || Boolean(await canAccessBusinessTeam(req.user.id, request.business_id));
+    const tenantOnly = !isTeam && String(request.assigned_helper_id || '') !== String(req.user.id);
     const { rows: events } = await pool.query(
       `SELECT e.*, u.first_name, u.last_name
        FROM property_maintenance_request_events e
@@ -346,6 +362,9 @@ exports.getRequest = async (req, res, next) => {
        ORDER BY e.created_at ASC`,
       [request.id]
     );
+    if (tenantOnly) {
+      return res.json({ request: forTenant(await withHydratedPhotos(request)), events: tenantEvents(events) });
+    }
     return res.json({ request: await withHydratedPhotos(request), events });
   } catch (err) {
     next(err);
@@ -368,6 +387,15 @@ exports.updateRequest = async (req, res, next) => {
     const access = await canAccessBusinessTeam(req.user.id, existing.business_id);
     if (!access && existing.assigned_helper_id !== req.user.id) {
       throw new AppError('Not authorized', 403, 'forbidden');
+    }
+    // WP-057: an assigned helper who is not on the business team may progress
+    // the work but cannot reassign it or write the business's internal notes.
+    if (!access) {
+      const wantsAssignee = req.body.assigned_helper_id ?? req.body.assignedHelperId;
+      if ((wantsAssignee !== undefined && String(wantsAssignee) !== String(existing.assigned_helper_id || ''))
+          || req.body.owner_notes !== undefined) {
+        throw new AppError('Only the business team can reassign or add internal notes', 403, 'assignee_scope');
+      }
     }
 
     const assignedHelperId = trimString(req.body.assigned_helper_id || req.body.assignedHelperId, 80) || existing.assigned_helper_id;
@@ -393,7 +421,7 @@ exports.updateRequest = async (req, res, next) => {
 
     const { rows: [request] } = await client.query(
       `UPDATE property_maintenance_requests
-       SET status = $1,
+       SET status = $1::varchar,
            assigned_helper_id = $2,
            scheduled_start_at = $3,
            scheduled_end_at = $4,
@@ -408,7 +436,7 @@ exports.updateRequest = async (req, res, next) => {
            resolution_summary = $13,
            template_intake = COALESCE($14::jsonb, template_intake),
            updated_at = NOW(),
-           status_updated_at = CASE WHEN status <> $1 THEN NOW() ELSE status_updated_at END
+           status_updated_at = CASE WHEN status <> $1::varchar THEN NOW() ELSE status_updated_at END
        WHERE id = $15
        RETURNING *`,
       [
@@ -436,7 +464,8 @@ exports.updateRequest = async (req, res, next) => {
       existing.status === nextStatus ? 'updated' : 'status_changed',
       existing.status,
       nextStatus,
-      tenantVisibleNotes || ownerNotes || null
+      tenantVisibleNotes || ownerNotes || null,
+      { tenant_visible: Boolean(tenantVisibleNotes) }
     );
     await client.query('COMMIT');
     // A newly assigned helper must be able to discover the assignment:
@@ -639,7 +668,8 @@ exports.listMyRequests = async (req, res, next) => {
        LIMIT 100`,
       [req.user.id]
     );
-    return res.json({ requests: await withHydratedPhotosList(rows) });
+    // WP-057: the requester's history never carries the business's internal notes.
+    return res.json({ requests: (await withHydratedPhotosList(rows)).map(forTenant) });
   } catch (err) {
     next(err);
   }

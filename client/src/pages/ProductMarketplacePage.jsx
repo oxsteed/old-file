@@ -422,7 +422,8 @@ export default function ProductMarketplacePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, isHelper } = useAuth();
+  const { user, hasHelperAccess } = useAuth();
+  const isHelper = hasHelperAccess;
 
   // State from URL
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');

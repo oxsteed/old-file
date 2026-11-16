@@ -80,7 +80,7 @@ async function loadConversationMessages(ticketId) {
   return rows;
 }
 
-async function findOrCreateActiveConversation({ customerId, businessId, category, priority }) {
+async function findOrCreateActiveConversation({ customerId, businessId, category, priority, accessRequestId = null }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -89,9 +89,23 @@ async function findOrCreateActiveConversation({ customerId, businessId, category
       [customerId, businessId]
     );
 
+    let ownedAccessRequestId = null;
+    if (/^\d{1,18}$/.test(String(accessRequestId || ''))) {
+      const { rows: accessRows } = await client.query(
+        `SELECT id
+           FROM access_requests
+          WHERE id = $1
+            AND applicant_id = $2
+            AND status IN ('draft', 'submitted', 'in_review', 'needs_information')
+          LIMIT 1`,
+        [String(accessRequestId), customerId],
+      );
+      ownedAccessRequestId = accessRows[0]?.id || null;
+    }
+
     const existingResult = await client.query(
       `SELECT
-         sc.id, sc.status, sc.agent_id,
+         sc.id, sc.status, sc.agent_id, sc.access_request_id,
          COALESCE(
            NULLIF(BTRIM(CONCAT_WS(' ', au.first_name, au.last_name)), ''),
            au.email
@@ -114,9 +128,10 @@ async function findOrCreateActiveConversation({ customerId, businessId, category
     if (!conversation) {
       const { rows } = await client.query(
         `INSERT INTO support_conversations (
-           customer_id, business_id, subject, description, category, priority, status, created_at, updated_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, 'open', NOW(), NOW())
-         RETURNING id, status, agent_id`,
+           customer_id, business_id, subject, description, category, priority, status,
+           access_request_id, created_at, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, 'open', $7, NOW(), NOW())
+         RETURNING id, status, agent_id, access_request_id`,
         [
           customerId,
           businessId,
@@ -124,9 +139,19 @@ async function findOrCreateActiveConversation({ customerId, businessId, category
           'Customer opened live support.',
           category,
           priority,
+          ownedAccessRequestId,
         ]
       );
       conversation = rows[0];
+    } else if (!conversation.access_request_id && ownedAccessRequestId) {
+      const { rows } = await client.query(
+        `UPDATE support_conversations
+            SET access_request_id = $2, updated_at = NOW()
+          WHERE id = $1
+          RETURNING access_request_id`,
+        [conversation.id, ownedAccessRequestId],
+      );
+      conversation.access_request_id = rows[0]?.access_request_id || null;
     }
 
     await client.query('COMMIT');
@@ -281,6 +306,7 @@ exports.connectConversation = async (req, res) => {
       businessId,
       category,
       priority,
+      accessRequestId: req.body?.accessRequestId || req.body?.access_request_id,
     });
     if (existing?.agent_id) {
       return res.json({
@@ -334,6 +360,7 @@ exports.connectConversation = async (req, res) => {
 exports.createConversation = async (req, res) => {
   try {
     const { visitorEmail, visitorName, message, category, priority } = req.body || {};
+    const accessRequestId = req.body?.accessRequestId || req.body?.access_request_id || null;
     const customerId = req.user.id;
     const businessId = req.params.businessId;
     const normalizedMessage = typeof message === 'string' ? message.trim() : '';
@@ -369,15 +396,15 @@ exports.createConversation = async (req, res) => {
     // customer and admin surfaces read these same tables.
     const conversationQuery = clientRequestId ? `
       INSERT INTO support_conversations (
-        customer_id, business_id, subject, description, category, priority, status, created_at, client_request_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, 'open', NOW(), $7)
+        customer_id, business_id, subject, description, category, priority, status, access_request_id, created_at, client_request_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'open', $7, NOW(), $8)
       ON CONFLICT (client_request_id)
       WHERE client_request_id IS NOT NULL DO NOTHING
       RETURNING id, created_at, status, agent_id
     ` : `
       INSERT INTO support_conversations (
-        customer_id, business_id, subject, description, category, priority, status, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, 'open', NOW())
+        customer_id, business_id, subject, description, category, priority, status, access_request_id, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'open', $7, NOW())
       RETURNING id, created_at
     `;
 
@@ -390,6 +417,20 @@ exports.createConversation = async (req, res) => {
     `;
 
     const createdConversation = await withTransaction(pool, async (client) => {
+      let ownedAccessRequestId = null;
+      if (/^\d{1,18}$/.test(String(accessRequestId || ''))) {
+        const { rows: accessRows } = await client.query(
+          `SELECT id
+             FROM access_requests
+            WHERE id = $1
+              AND applicant_id = $2
+              AND status IN ('draft', 'submitted', 'in_review', 'needs_information')
+            LIMIT 1`,
+          [String(accessRequestId), customerId],
+        );
+        ownedAccessRequestId = accessRows[0]?.id || null;
+      }
+
       const conversationResult = await client.query(conversationQuery, [
         customerId,
         businessId,
@@ -397,6 +438,7 @@ exports.createConversation = async (req, res) => {
         normalizedMessage,
         normalizedCategory,
         normalizedPriority,
+        ownedAccessRequestId,
         ...(clientRequestId ? [clientRequestId] : []),
       ]);
 

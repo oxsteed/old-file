@@ -23,6 +23,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/direct-service-areas',
   '/admin/direct-catalog',
   '/admin/media-flags',
+  '/admin/access-requests',
   '/admin/food-orders',
   '/admin/food-orders/:id',
   '/admin/messages',

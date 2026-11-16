@@ -48,7 +48,10 @@ function buildApp(asUserId) {
   const app = express();
   app.use(express.json());
   if (asUserId) {
-    app.use((req, _res, next) => { req.user = { id: asUserId }; next(); });
+    app.use((req, _res, next) => {
+      req.user = typeof asUserId === 'object' ? asUserId : { id: asUserId };
+      next();
+    });
   }
   // Minimal stand-in for requireAuth: 401 when no user was injected.
   const fakeAuth = (req, res, next) => {
@@ -66,6 +69,7 @@ function buildApp(asUserId) {
 }
 
 const buyerApp = () => buildApp(BUYER);
+const pendingOrganizerBuyerApp = () => buildApp({ id: BUYER, role: 'customer', default_mode: 'customer', organizer_access: 'pending' });
 const otherApp = () => buildApp(OTHER);
 const guestApp = () => buildApp(null);
 
@@ -103,6 +107,24 @@ afterEach(() => {
 });
 
 describe('POST /checkout/attempt — happy path', () => {
+  test('customer checkout stays available while organizer access is pending', async () => {
+    const { po, quote } = seedPoFlow();
+    const res = await request(pendingOrganizerBuyerApp())
+      .post('/checkout/attempt')
+      .send({
+        idempotency_key: newKey(),
+        subject_type: 'purchase_order',
+        purchase_order_id: po.id,
+        installment: 'deposit',
+        method: 'stripe',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.attempt.buyer_user_id).toBe(BUYER);
+    expect(quote).toBeDefined();
+  });
+
   test('creates a stripe attempt with the server-computed amount and returns the client secret', async () => {
     const { po, quote } = seedPoFlow();
     const res = await request(buyerApp())

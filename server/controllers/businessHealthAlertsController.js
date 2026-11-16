@@ -30,6 +30,14 @@ function localizeAlert(alert, lang) {
   return { ...alert, title: title || alert.title, message: body || alert.message };
 }
 
+// WP-059: alerts derived from finance data are only for members who can see it.
+const FINANCIAL_ALERTS = new Set(['overdue_invoices']);
+function canSeeAlert(req, alertType) {
+  if (!FINANCIAL_ALERTS.has(alertType)) return true;
+  const perms = req.permissions instanceof Set ? req.permissions : new Set();
+  return perms.has('invoices.view') || perms.has('analytics.view_financial');
+}
+
 exports.listAlerts = async (req, res, next) => {
   const { businessId } = req.params;
   const { dismissed } = req.query;
@@ -41,13 +49,16 @@ exports.listAlerts = async (req, res, next) => {
       [businessId]
     );
     const lang = await getUserLang(req.user?.id);
-    res.json(rows.rows.map((a) => localizeAlert(a, lang)));
+    res.json(rows.rows.filter((a) => canSeeAlert(req, a.alert_type)).map((a) => localizeAlert(a, lang)));
   } catch (err) { next(err); }
 };
 
 exports.dismissAlert = async (req, res, next) => {
   const { businessId, alertId } = req.params;
   try {
+    const { rows: [alert] } = await pool.query(
+      'SELECT alert_type FROM business_health_alerts WHERE id=$1 AND business_id=$2', [alertId, businessId]);
+    if (!alert || !canSeeAlert(req, alert.alert_type)) return res.status(404).json({ error: 'Not found' });
     await pool.query(
       'UPDATE business_health_alerts SET is_dismissed=TRUE, dismissed_at=NOW() WHERE id=$1 AND business_id=$2',
       [alertId, businessId]
@@ -90,13 +101,33 @@ exports.generateAlerts = async (req, res, next) => {
     }
 
     // Upsert all alerts (canonical English stored; translations applied at read time)
-    for (const a of alerts) {
-      await pool.query(
-        `INSERT INTO business_health_alerts (business_id, alert_type, severity, title, message)
-         VALUES ($1,$2,$3,$4,$5)
-         ON CONFLICT (business_id, alert_type) DO UPDATE SET severity=$3, title=$4, message=$5, is_dismissed=FALSE, updated_at=NOW()`,
-        [businessId, a.alert_type, a.severity, a.title, a.message]
-      );
+    // The table (migration 242) has neither a (business_id, alert_type) unique
+    // key nor updated_at, so the former ON CONFLICT upsert failed every time.
+    // Update-then-insert under a per-business lock gives the same result.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query("SELECT pg_advisory_xact_lock(hashtext('business_health_alerts:' || $1::text))", [String(businessId)]);
+      for (const a of alerts) {
+        const { rowCount } = await client.query(
+          `UPDATE business_health_alerts SET severity=$3, title=$4, message=$5, is_dismissed=FALSE, dismissed_at=NULL
+            WHERE business_id=$1 AND alert_type=$2`,
+          [businessId, a.alert_type, a.severity, a.title, a.message]
+        );
+        if (!rowCount) {
+          await client.query(
+            `INSERT INTO business_health_alerts (business_id, alert_type, severity, title, message)
+             VALUES ($1,$2,$3,$4,$5)`,
+            [businessId, a.alert_type, a.severity, a.title, a.message]
+          );
+        }
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
     }
 
     const updated = await pool.query(
@@ -104,6 +135,6 @@ exports.generateAlerts = async (req, res, next) => {
       [businessId]
     );
     const lang = await getUserLang(req.user?.id);
-    res.json(updated.rows.map((a) => localizeAlert(a, lang)));
+    res.json(updated.rows.filter((a) => canSeeAlert(req, a.alert_type)).map((a) => localizeAlert(a, lang)));
   } catch (err) { next(err); }
 };

@@ -39,7 +39,7 @@ exports.createBid = async (req, res, next) => {
     // Review P2-7-F01: bids are helper work. The route also mounts
     // requireHelperWorkEligible (DB-fact onboarding check); this role check
     // is defense in depth so the controller never assumes the caller.
-    if (!['helper', 'helper_pro', 'broker'].includes(req.user?.role)) {
+    if (!require('../middleware/requireAccess').isHelperActor(req)) {
       throw new AppError('Only helpers can place bids', 403, 'helper_required');
     }
 

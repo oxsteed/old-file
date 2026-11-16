@@ -196,6 +196,7 @@ const businessTeamRoutes   = require('./routes/businessTeam');
 const careerRoutes         = require('./routes/careers');
 const vortexAccessRoutes   = require('./routes/vortex');
 const meWorkspaceRoutes    = require('./routes/meWorkspace');
+const progressiveAccessRoutes = require('./routes/progressiveAccess');
 const runnerWorkspaceRoutes = require('./routes/runner');
 // OxSteed corporate hierarchy (migration 246)
 const corporateRolesRoutes = require('./routes/corporateRoles');
@@ -611,6 +612,9 @@ app.use('/api/businesses', businessTeamRoutes);
   app.use('/api/careers',    careerRoutes);
   app.use('/api/vortex',     vortexAccessRoutes);
 app.use('/api/me',         meWorkspaceRoutes);
+// Progressive account access (docs/progressive-access): applicant + reviewer APIs, flag-gated.
+app.use('/api/me',         progressiveAccessRoutes.meRouter);
+app.use('/api/admin/access-requests', progressiveAccessRoutes.adminRouter);
 app.use('/api/admin/corporate', corporateRolesRoutes);
 app.use('/api/internal/workspaces', internalWorkspaceRoutes);
 // OxSteed Logistics branch

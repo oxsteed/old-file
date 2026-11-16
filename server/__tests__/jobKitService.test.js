@@ -190,4 +190,21 @@ describe('buildCartFromItems (future AI-layer primitive)', () => {
       })
     ).rejects.toMatchObject({ status: 400 });
   });
+
+  test('job-linked carts require the caller to be a job party', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // BEGIN
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // job ownership
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+
+    await expect(
+      buildCartFromItems({
+        helperId: 'helper-2',
+        jobId: 'job-foreign',
+        name: 'Foreign job materials',
+        items: [{ productId: 'prod-a', quantity: 1 }],
+      })
+    ).rejects.toMatchObject({ status: 404, code: 'job_not_found' });
+
+    expect(mockQuery.mock.calls.some(([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO shopping_carts'))).toBe(false);
+  });
 });

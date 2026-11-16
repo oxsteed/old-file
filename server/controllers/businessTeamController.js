@@ -227,7 +227,7 @@ exports.setMembershipOverrides = async (req, res, next) => {
       await client.query('BEGIN');
 
       const exists = await client.query(
-        'SELECT id, member_id, role FROM business_members WHERE id = $1 AND business_id = $2',
+        'SELECT id, member_id, role FROM business_members WHERE id = $1 AND business_id = $2 FOR UPDATE',
         [mid, req.business.id]
       );
       if (exists.rowCount === 0) {
@@ -250,20 +250,28 @@ exports.setMembershipOverrides = async (req, res, next) => {
         return sendError(res, 403, 'You can only edit permissions for members below your own role.', 'target_rank_too_high', { target_role: target.role });
       }
 
-      // Filter: managers cannot grant ALLOW for a permission they themselves lack.
-      if (!isOwner && req.permissions) {
-        for (const o of overrides) {
-          if (o.effect === 'allow' && !req.permissions.has(o.permission_code)) {
-            await client.query('ROLLBACK');
-            return sendError(res, 403, `You cannot grant a permission you do not hold: ${o.permission_code}`, 'cannot_grant_above_level', { permission: o.permission_code });
-          }
+      // WP-048: recheck the grantor's standing inside the transaction. A
+      // manager demoted or removed after the request was authorized (or
+      // concurrently) can no longer write overrides.
+      if (!isOwner) {
+        const standing = await client.query(
+          `SELECT role FROM business_members
+            WHERE business_id = $1 AND member_id = $2 AND status = 'active'
+            FOR SHARE`,
+          [req.business.id, req.user.id]
+        );
+        const role = standing.rows[0] && standing.rows[0].role;
+        if (!role || permissionsService.roleRank(role) < permissionsService.roleRank('manager')
+            || permissionsService.roleRank(target.role) >= permissionsService.roleRank(role)) {
+          await client.query('ROLLBACK');
+          return sendError(res, 403, 'Your role in this business changed. Reload and try again.', 'grantor_standing_changed');
         }
       }
 
       // S-22: capture the before state so the audit row shows what the
       // override set replaced, not only what it became.
       const before = await client.query(
-        `SELECT p.code AS permission_code, mpo.effect, mpo.reason, mpo.expires_at
+        `SELECT p.code AS permission_code, mpo.effect, mpo.reason, mpo.expires_at, mpo.granted_by_user_id
            FROM membership_permission_overrides mpo
            JOIN team_permissions p ON p.id = mpo.permission_id
           WHERE mpo.membership_id = $1
@@ -271,9 +279,48 @@ exports.setMembershipOverrides = async (req, res, next) => {
         [mid]
       );
 
-      await client.query('DELETE FROM membership_permission_overrides WHERE membership_id = $1', [mid]);
-
+      // WP-048: delegated administration is scope-bound. A non-owner only
+      // administers permissions they hold themselves, and never an override
+      // the owner placed. Those overrides are preserved untouched; sending
+      // them back unchanged (the UI re-sends the full list) is a no-op, and
+      // any attempt to change or drop-and-replace them is refused.
+      const ownerId = req.business.owner_id;
+      const isProtected = (row) => !isOwner && (
+        !(req.permissions && req.permissions.has(row.permission_code))
+        || (ownerId && row.granted_by_user_id && String(row.granted_by_user_id) === String(ownerId))
+      );
+      const protectedRows = before.rows.filter(isProtected);
+      const protectedByCode = new Map(protectedRows.map((r) => [r.permission_code, r]));
+      const writable = [];
       for (const o of overrides) {
+        const kept = protectedByCode.get(o.permission_code);
+        if (kept) {
+          if (kept.effect !== o.effect) {
+            await client.query('ROLLBACK');
+            return sendError(res, 403, `This permission override can only be changed by the owner: ${o.permission_code}`, 'override_protected', { permission: o.permission_code });
+          }
+          continue; // unchanged protected override: keep the stored row
+        }
+        if (!isOwner && !(req.permissions && req.permissions.has(o.permission_code))) {
+          await client.query('ROLLBACK');
+          return sendError(res, 403, `You cannot grant a permission you do not hold: ${o.permission_code}`, 'cannot_grant_above_level', { permission: o.permission_code });
+        }
+        writable.push(o);
+      }
+
+      if (protectedRows.length) {
+        await client.query(
+          `DELETE FROM membership_permission_overrides mpo
+            USING team_permissions p
+            WHERE p.id = mpo.permission_id AND mpo.membership_id = $1
+              AND NOT (p.code = ANY($2::text[]))`,
+          [mid, protectedRows.map((r) => r.permission_code)]
+        );
+      } else {
+        await client.query('DELETE FROM membership_permission_overrides WHERE membership_id = $1', [mid]);
+      }
+
+      for (const o of writable) {
         const inserted = await client.query(
           `INSERT INTO membership_permission_overrides
              (membership_id, permission_id, effect, reason, granted_by_user_id, expires_at)

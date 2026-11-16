@@ -255,6 +255,8 @@ class BackgroundWorkers {
       startSettingsChangeApplierJob();
       startProfileVisibilityScheduler();
       startProfileVisibilityNotificationRetryJob();
+      // Progressive access: deliver committed application/grant notices.
+      require('../services/access/outboxWorker').startAccessOutboxJob();
       startReferralRewardRetryJob();
       // Growth Center link analytics retention (daily, 03:17 UTC).
       this.scheduleFencedCron('0 17 3 * * *', 'promotion-link-prune', () =>

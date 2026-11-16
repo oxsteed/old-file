@@ -19,12 +19,11 @@ import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import { isValidPostal } from '../lib/countries';
-import { MODE_CATALOG, routeForMode } from '../utils/modeRouter';
 import {
-  LAUNCH_SELF_SELECTABLE_MODES,
   LAUNCH_SETTINGS_TABS,
   LAUNCH_VISIBILITY,
 } from '../utils/launchScope';
+import useAccessProjection from '../hooks/useAccessProjection';
 import '../styles/SettingsPage.css';
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
@@ -98,12 +97,16 @@ const IconBox = () => (
 
 export default function SettingsPage() {
   const { t } = useTranslation();
-  const { user, logout, switchRole, refreshUser, setUser } = useAuth();
+  const { user, logout, refreshUser, setUser, hasHelperAccess } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   // Declared before TABS (TDZ-safe): the tax tab is helper-only.
-  const isHelper = HELPER_ROLES.includes(user?.role);
+  const isHelper = hasHelperAccess || HELPER_ROLES.includes(user?.role);
+
+  // Progressive access: the Applications entry appears only when the server
+  // enables applications for this account (flag or pilot allowlist).
+  const accessRequestsOn = Boolean(useAccessProjection(user)?.flags?.accessRequests);
 
   const TABS = useMemo(() => [
     { key: 'profile',       label: t('settings.tabProfile'),       icon: <IconUser /> },
@@ -127,54 +130,6 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState(
     requestedTab && TABS.some((tab) => tab.key === requestedTab) ? requestedTab : 'profile'
   );
-  const [switchingMode, setSwitchingMode] = useState(null); // mode being switched into, or null
-  const [grantedModes, setGrantedModes] = useState([]); // [{ mode, business_name, role }]
-  const currentMode = user?.default_mode || (isHelper ? 'helper' : 'customer');
-
-  const handleSwitchMode = async (targetMode) => {
-    if (!targetMode || targetMode === currentMode) return;
-    setSwitchingMode(targetMode);
-    try {
-      await switchRole(targetMode);
-      toast.success(t('settings.account.switchSuccess', {
-        mode: t(MODE_CATALOG[targetMode]?.labelKey || `modes.${targetMode}.label`, { defaultValue: targetMode }),
-        defaultValue: 'Account type switched.',
-      }));
-      // Hard reload so every part of the app (nav, sidebars, role gates) re-reads from the fresh user state.
-      navigate(routeForMode(targetMode), { replace: true });
-      window.location.reload();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || err?.response?.data?.error || t('settings.roleSwitchFailed'));
-      setSwitchingMode(null);
-    }
-  };
-
-  // Discover any "granted" modes the user holds (business_manager / employee
-  // / representative / support_agent). We display these as read-only entries
-  // — they're switched into via the Mode Switcher, not via Settings.
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    api.get('/me/businesses')
-      .then(res => {
-        if (cancelled) return;
-        const items = Array.isArray(res?.data?.items) ? res.data.items : [];
-        const grants = [];
-        for (const m of items.filter(x => x.status === 'active' && !x.is_owner)) {
-          const map = {
-            manager: 'business_manager',
-            representative: 'business_representative',
-            employee: 'business_employee',
-            support_agent: 'business_support_agent',
-          };
-          const mode = map[m.role];
-          if (mode) grants.push({ mode, business_name: m.business_name, role: m.role });
-        }
-        setGrantedModes(grants);
-      })
-      .catch(() => { /* endpoint optional; fail silent */ });
-    return () => { cancelled = true; };
-  }, [user]);
 
   const [profile, setProfile] = useState({ first_name: '', last_name: '', phone: '', bio: '', zipcode: '', profile_photo_url: '', address_line1: '', address_line2: '', city: '', state: '', country: 'US' });
   const [profileSnapshot, setProfileSnapshot] = useState(null);
@@ -884,6 +839,14 @@ export default function SettingsPage() {
         <Link to="/settings/passkeys" className="sp-btn sp-btn-ghost">{t('settings.security.managePasskeys')}</Link>
       </div>
 
+      {accessRequestsOn && (
+        <div className="sp-card">
+          <h2 className="sp-card-title">{t('progressiveAccess.pageTitle', { ns: 'common' })}</h2>
+          <p className="sp-card-subtitle">{t('progressiveAccess.pageSubtitle', { ns: 'common' })}</p>
+          <Link to="/settings/applications" className="sp-btn sp-btn-ghost">{t('progressiveAccess.openApplications', { ns: 'common' })}</Link>
+        </div>
+      )}
+
       <div className="sp-card">
         <h2 className="sp-card-title">{t('settings.security.sessions')}</h2>
         <p className="sp-card-subtitle">{t('settings.security.sessionsDesc')}</p>
@@ -1272,90 +1235,16 @@ export default function SettingsPage() {
     <div className="sp-card">
       <h2 className="sp-card-title">{t('settings.account.title')}</h2>
       <p className="sp-card-subtitle">
-        {t('settings.account.unifiedDesc', { defaultValue: 'Your account type drives the dashboard, the navbar, and which features are visible. Switch any time, the change is instant and your data is preserved.' })}
+        {t('progressiveAccess.pageSubtitle', { defaultValue: 'Your customer account stays active while approved capabilities are added to the same experience.' })}
       </p>
-
-      <ul className="flex flex-col gap-2 mb-2">
-        {LAUNCH_SELF_SELECTABLE_MODES.map((m) => {
-          const meta = MODE_CATALOG[m] || {};
-          const isCurrent = m === currentMode;
-          const isSwitching = switchingMode === m;
-          return (
-            <li
-              key={m}
-              className="flex items-start gap-3 p-3 rounded-lg border"
-              style={{
-                borderColor: isCurrent ? 'rgba(249,115,22,0.4)' : 'var(--color-border, #1f2937)',
-                background: isCurrent ? 'rgba(249,115,22,0.08)' : 'transparent',
-              }}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold" style={{ color: 'var(--app-text,#f1f5f9)' }}>
-                    {t(meta.labelKey || `modes.${m}.label`, { defaultValue: m })}
-                  </span>
-                  {isCurrent && (
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
-                      style={{ background: '#F97316', color: '#fff' }}
-                    >
-                      {t('settings.account.currentRole', { defaultValue: 'Current' })}
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs mt-0.5" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-                  {t(meta.hintKey || `modes.${m}.hint`, { defaultValue: '' })}
-                </div>
-              </div>
-              {!isCurrent && (
-                <button
-                  type="button"
-                  onClick={() => handleSwitchMode(m)}
-                  disabled={!!switchingMode}
-                  className="sp-btn sp-btn-ghost text-xs whitespace-nowrap disabled:opacity-50"
-                  style={{ padding: '0.4rem 0.75rem' }} data-track="ui.9d994c4cb4.29"
-                >
-                  {isSwitching ? t('common.switching', { defaultValue: 'Switching...' }) : t('settings.account.switchTo', { defaultValue: 'Switch' })}
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-
-      {grantedModes.length > 0 && (
-        <div className="mt-5">
-          <div className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-            {t('settings.account.grantedTitle', { defaultValue: 'Workspaces you belong to' })}
-          </div>
-          <p className="text-xs mb-3" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-            {t('settings.account.grantedHint', { defaultValue: 'You\'ve been granted these roles by other workspace owners. Enter them from the Mode Switcher in the navbar.' })}
-          </p>
-          <ul className="flex flex-col gap-2">
-            {grantedModes.map((g, i) => {
-              const meta = MODE_CATALOG[g.mode] || {};
-              return (
-                <li
-                  key={`${g.mode}-${i}`}
-                  className="flex items-start gap-3 p-3 rounded-lg border"
-                  style={{ borderColor: 'var(--color-border, #1f2937)', background: 'transparent' }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold" style={{ color: 'var(--app-text,#f1f5f9)' }}>
-                      {t(meta.labelKey || `modes.${g.mode}.label`, { defaultValue: g.mode })}
-                      <span className="ml-2 text-xs font-normal" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-                        · {g.business_name}
-                      </span>
-                    </div>
-                    <div className="text-xs mt-0.5" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-                      {t(meta.hintKey || `modes.${g.mode}.hint`, { defaultValue: '' })}
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+      <div className="sp-info-banner mb-4">
+        <span aria-hidden="true">✓</span>
+        <span>{t('progressiveAccess.heldTitle', { defaultValue: 'Approved access is added to your account without changing your customer foundation.' })}</span>
+      </div>
+      {accessRequestsOn && (
+        <Link to="/settings/applications" className="sp-btn sp-btn-primary">
+          {t('progressiveAccess.pageTitle', { defaultValue: 'Manage applications' })}
+        </Link>
       )}
     </div>
   );

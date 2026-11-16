@@ -180,6 +180,31 @@ describe('POST /api/auth/register/start', () => {
     expect(res.body).toEqual(expect.objectContaining({ code: 'invalid_referral_code' }));
   });
 
+  test('rejects malformed attribution parameters before persistence', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .post('/api/auth/register/start')
+      .send({
+        email: 'ref-malformed@example.com',
+        password: 'Str0ng!Pass',
+        firstName: 'Ref',
+        lastName: 'Malformed',
+        phone: '+15551112222',
+        addressLine1: '123 Main St',
+        city: 'Springfield',
+        state: 'OH',
+        country: 'US',
+        zip: '12345',
+        ageConfirmed: true,
+        ref: 'good-code&approval=approved',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(expect.objectContaining({ code: 'validation_failed' }));
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   test('accepts a known referral code and stores it', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'referrer-1' }] }) // referral code lookup

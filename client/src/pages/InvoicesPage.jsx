@@ -86,7 +86,7 @@ function invoiceBalanceCents(invoice) {
 
 export default function InvoicesPage() {
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
+  const { user, hasHelperAccess } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -161,7 +161,7 @@ export default function InvoicesPage() {
     return { total, paid, outstanding, overdueCount };
   }, [invoices]);
 
-  const isHelper = ['helper', 'helper_pro', 'broker', 'business'].includes(user?.role);
+  const isHelper = hasHelperAccess || user?.role === 'business';
   const language = i18n.resolvedLanguage || i18n.language;
   const notSetText = t('invoices.notSet', { defaultValue: 'Not set' });
   const notListedText = t('invoices.notListed', { defaultValue: 'Not listed' });

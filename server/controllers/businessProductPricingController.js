@@ -22,6 +22,7 @@ const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const pricingEngine = require('../services/pricingEngine');
 const { resolvePublicBusinessOwner } = require('../services/businessPublicOwner');
+const { logBusinessAction } = require('../services/businessAuditLog');
 
 // ── List pricing rules ────────────────────────────────────────────────────────
 async function listPricingRules(req, res, next) {
@@ -134,6 +135,14 @@ async function createPricingRule(req, res, next) {
     if (!['product', 'category', 'all'].includes(appliesToType))
       throw new AppError('Invalid applies_to type', 400, 'validation_failed');
 
+    // WP-053: a product rule may only target this business's own product.
+    if (appliesToType === 'product') {
+      const owned = await pool.query(
+        `SELECT 1 FROM business_products WHERE id::text = $1::text AND business_id = $2 AND deleted_at IS NULL`,
+        [String(appliesTo || ''), businessId]);
+      if (!owned.rows.length) throw new AppError('Product not found', 404, 'not_found');
+    }
+
     const result = await pool.query(
       `INSERT INTO product_pricing_rules
          (business_id, rule_name, rule_type, description, priority,
@@ -150,6 +159,10 @@ async function createPricingRule(req, res, next) {
     );
 
     logger.info('Product pricing rule created', { ruleId: result.rows[0].id, businessId });
+    await logBusinessAction(req, {
+      action: 'business.product_pricing_rule.created', target_type: 'product_pricing_rule',
+      target_id: result.rows[0].id, after_state: result.rows[0],
+    });
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
     logger.error('businessProductPricingController.createPricingRule', { error });
@@ -182,6 +195,10 @@ async function updatePricingRule(req, res, next) {
       params
     );
     if (!result.rows.length) throw new AppError('Rule not found', 404, 'not_found');
+    await logBusinessAction(req, {
+      action: 'business.product_pricing_rule.updated', target_type: 'product_pricing_rule',
+      target_id: result.rows[0].id, after_state: result.rows[0],
+    });
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -195,10 +212,16 @@ async function deletePricingRule(req, res, next) {
   try {
     const { businessId, ruleId } = req.params;
 
-    await pool.query(
-      'DELETE FROM product_pricing_rules WHERE id = $1 AND business_id = $2',
+    const { rows: deleted } = await pool.query(
+      'DELETE FROM product_pricing_rules WHERE id = $1 AND business_id = $2 RETURNING *',
       [ruleId, businessId]
     );
+    // WP-053: a foreign or unknown rule id is a plain 404, not a silent success.
+    if (!deleted.length) throw new AppError('Rule not found', 404, 'not_found');
+    await logBusinessAction(req, {
+      action: 'business.product_pricing_rule.deleted', target_type: 'product_pricing_rule',
+      target_id: deleted[0].id, before_state: deleted[0],
+    });
 
     res.json({ success: true, message: 'Rule deleted' });
   } catch (error) {
@@ -291,6 +314,10 @@ async function setBulkPricingTiers(req, res, next) {
       }
     });
 
+    await logBusinessAction(req, {
+      action: 'business.product_bulk_tiers.set', target_type: 'business_product',
+      target_id: productId, after_state: { tiers },
+    });
     res.json({ success: true, message: `Set ${tiers.length} tier(s)` });
   } catch (error) {
     logger.error('businessProductPricingController.setBulkPricingTiers', { error });

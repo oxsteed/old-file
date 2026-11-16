@@ -7,6 +7,8 @@
 // flags where role wasn't fine-grained enough — primarily for navbar links,
 // settings sidebar items, and dashboard widget selection.
 
+import { projectionActive } from './accessProjection.js';
+
 // Modes that imply users.role='helper' on the server. Mirrors MODE_ROLE_MAP
 // in server/utils/modeRole.js.
 const HELPER_CLASS_MODES = new Set([
@@ -95,16 +97,29 @@ export function canManageBusinesses(user) {
 // limited to helper-class accounts.
 export function hasProAccess(user) {
   if (!user) return false;
-  if (['helper_pro', 'broker'].includes(user.role)) return true;
-  const tier = String(user.effective_tier || user.membership_tier || '').toLowerCase();
-  if (['pro', 'tier2'].includes(tier)) return true;
-  return Boolean(user.trial_ends_at && new Date(user.trial_ends_at).getTime() > Date.now());
+  const status = String(user.subscription_status || '').toLowerCase();
+  const subscriptionCurrent = !status || ['active', 'trialing'].includes(status);
+  if (['helper_pro', 'broker'].includes(user.role) && subscriptionCurrent) return true;
+  const legacyTier = String(user.membership_tier || '').toLowerCase();
+  if (['pro', 'tier2'].includes(legacyTier)) return true;
+  if (user.trial_ends_at && new Date(user.trial_ends_at).getTime() > Date.now()) return true;
+  if (status && !['active', 'trialing'].includes(status)) return false;
+  const tier = String(user.effective_tier || user.tier || '').toLowerCase();
+  if (['pro', 'tier2', 'premium', 'elite'].includes(tier)) return true;
+  return false;
 }
 
 // Business Hub gate — helper-class modes (helper, business_owner, team roles)
 // aligned with SmartDashboard families that operate workspaces.
-export function canAccessBusinessHub(user) {
+export function canAccessBusinessHub(user, projection) {
   if (!user) return false;
+  if (projectionActive(projection)) {
+    const { access, flags } = projection;
+    if (access.organizations?.length > 0) return true;
+    // Active customers can prepare private drafts. The API enforces owner
+    // approval when they publish.
+    if (flags.accessRequests && access.personal?.includes('customer')) return true;
+  }
   if (isHelperClassMode(user)) return true;
   return ['admin', 'super_admin'].includes(user.role) || getMode(user) === 'admin';
 }

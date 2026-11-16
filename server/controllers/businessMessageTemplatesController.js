@@ -46,7 +46,9 @@ exports.updateTemplate = async (req, res, next) => {
 exports.deleteTemplate = async (req, res, next) => {
   const { businessId, templateId } = req.params;
   try {
-    await pool.query('DELETE FROM business_message_templates WHERE id=$1 AND business_id=$2', [templateId, businessId]);
+    // WP-050: a foreign or unknown template id is a plain 404.
+    const { rowCount } = await pool.query('DELETE FROM business_message_templates WHERE id=$1 AND business_id=$2', [templateId, businessId]);
+    if (!rowCount) return res.status(404).json({ error: 'Not found' });
     res.json({ success: true });
   } catch (err) { next(err); }
 };
@@ -54,10 +56,11 @@ exports.deleteTemplate = async (req, res, next) => {
 exports.incrementUsage = async (req, res, next) => {
   const { businessId, templateId } = req.params;
   try {
-    await pool.query(
+    const { rowCount } = await pool.query(
       'UPDATE business_message_templates SET use_count = use_count + 1 WHERE id=$1 AND business_id=$2',
       [templateId, businessId]
     );
+    if (!rowCount) return res.status(404).json({ error: 'Not found' });
     res.json({ success: true });
   } catch (err) { next(err); }
 };

@@ -59,6 +59,11 @@ function makeDb(seed = {}) {
       if (s.includes(frag)) throw new Error('timeout');
     }
 
+    // WP-050: owner effective permissions (permissionsService owner path).
+    if (s.includes('SELECT code FROM team_permissions')) {
+      return { rows: ['business.view', 'messages.view_all', 'messages.view_assigned', 'messages.reply'].map((code) => ({ code })) };
+    }
+
     if (s.includes('to_regclass')) {
       const m = s.match(/public\."([^"]+)"/);
       const t = m && m[1];

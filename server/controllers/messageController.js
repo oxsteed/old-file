@@ -472,7 +472,7 @@ const getOrCreateConversation = async (req, res) => {
     // conversation to a foreign business and inherit its ACL.
     if (bizId) {
       const { rows: [membership] } = await pool.query(
-        `SELECT 1 FROM business_members WHERE business_id = $1 AND user_id = $2 LIMIT 1`,
+        `SELECT 1 FROM business_members WHERE business_id = $1 AND member_id = $2 LIMIT 1`,
         [bizId, helperId]
       ).catch(() => ({ rows: [] }));
       if (!membership) {

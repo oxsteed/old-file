@@ -84,6 +84,56 @@ function requireInternalLogisticsWorkspace(workspace) {
   };
 }
 
+/**
+ * Read-only internal surfaces can be shared by more than one department
+ * without widening any mutation authority. The authenticated session still
+ * has to name the requested internal route and the corresponding approval
+ * flag must remain active.
+ */
+function requireAnyInternalLogisticsWorkspace(...workspaces) {
+  const allowedWorkspaces = new Set(workspaces);
+  return async (req, res, next) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: 'Unauthorized.' });
+      }
+
+      if (isAdminRole(req.user.role)) {
+        req.internalWorkspace = req.user.internal_access_route || 'admin_control';
+        return next();
+      }
+
+      const workspace = req.user.internal_access_route;
+      if (!allowedWorkspaces.has(workspace)) {
+        return res.status(403).json({ error: 'Internal workspace access required.' });
+      }
+
+      const allowedRoles = allowedRolesForWorkspace(workspace);
+      if (!allowedRoles.has(req.user.logistics_role)) {
+        return res.status(403).json({ error: 'Internal workspace access required.' });
+      }
+
+      const access = await loadInternalAccessState(req.user.id);
+      const enabledFlag = enabledFlagForWorkspace(workspace);
+      if (!access || !access.is_active || !access[enabledFlag]) {
+        return res.status(403).json({ error: 'Internal workspace approval is no longer valid.' });
+      }
+
+      req.internalWorkspace = workspace;
+      req.internalAccessRecord = access;
+      return next();
+    } catch (error) {
+      logger.error('requireAnyInternalLogisticsWorkspace failed', {
+        workspaces,
+        userId: req.user?.id,
+        error: error.message,
+      });
+      return res.status(500).json({ error: 'Failed to validate internal workspace access.' });
+    }
+  };
+}
+
 module.exports = {
   requireInternalLogisticsWorkspace,
+  requireAnyInternalLogisticsWorkspace,
 };

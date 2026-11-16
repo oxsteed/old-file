@@ -18,6 +18,8 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import { ALL_COUNTRIES } from '../lib/countries';
+import { useAuth } from '../hooks/useAuth';
+import useAccessProjection from '../hooks/useAccessProjection';
 
 const STATUS_PROGRESS = {
   inquiry: 12,
@@ -114,6 +116,8 @@ function MiniMetric({ icon: Icon, label, value, accent = '#93c5fd' }) {
 }
 
 export default function FranchiseApplicantDashboard() {
+  const { user } = useAuth();
+  const accessProjection = useAccessProjection(user);
   const { t } = useTranslation();
   const copy = (key, options) => t(`dashboards.franchise.${key}`, options);
   const [applications, setApplications] = useState([]);
@@ -144,6 +148,14 @@ export default function FranchiseApplicantDashboard() {
 
   const primary = sortedApplications[0] || null;
   const labels = STATUS_LABELS(t);
+  const projectedAccess = accessProjection?.access || accessProjection;
+  const projectionControlsTerritory = Boolean(accessProjection?.flags?.accessProjection);
+  const hasFranchiseAccess = projectedAccess?.personal?.includes('franchise.operate');
+  const showTerritoryOps = !projectionControlsTerritory || hasFranchiseAccess;
+  const franchiseQuickLinks = useMemo(
+    () => DASHBOARD_QUICK_LINKS.franchise.filter((item) => item.to !== '/franchise/territory' || showTerritoryOps),
+    [showTerritoryOps]
+  );
 
   if (!loaded) {
     return (
@@ -212,7 +224,7 @@ export default function FranchiseApplicantDashboard() {
                 {t('dashboards.franchise.subtitle', { defaultValue: 'Track application review, diligence, agreement progress, and launch readiness without mixing in business-launch consulting requests.' })}
               </p>
               <div className="flex flex-wrap gap-3 mt-6">
-                {(primary.status === 'launched' || primary.status === 'approved') && (
+                {(primary.status === 'launched' || primary.status === 'approved') && showTerritoryOps && (
                   <Link to="/franchise/territory" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition">
                     {copy('territoryOps')} <ArrowRight size={15} />
                   </Link>
@@ -325,7 +337,7 @@ export default function FranchiseApplicantDashboard() {
       </main>
 
       <div className="mx-auto w-full max-w-6xl px-4 pb-6 sm:px-6 lg:px-8">
-        <DashboardQuickLinks items={DASHBOARD_QUICK_LINKS.franchise} />
+        <DashboardQuickLinks items={franchiseQuickLinks} />
       </div>
       <Footer />
     </div>

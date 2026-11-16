@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authenticateIfPresent } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
+const attachmentController = require('../controllers/businessLaunchAttachmentController');
 const {
   submitBusinessLaunchRequest,
   getBusinessLaunchRequests,
@@ -27,6 +30,7 @@ const {
 router.post(
   '/submit',
   generalLimiter,
+  authenticateIfPresent,
   submitBusinessLaunchRequest
 );
 
@@ -92,6 +96,11 @@ router.post(
   requireAdmin, requirePermission('manage_operations'),
   assignConsultant
 );
+
+router.post('/requests/:id/attachments', authenticate, generalLimiter, upload.single('file'), validateFileUpload, attachmentController.uploadAttachment);
+router.get('/requests/:id/attachments', authenticate, attachmentController.listAttachments);
+router.get('/attachments/:attachmentId/download', authenticate, attachmentController.downloadAttachment);
+router.delete('/attachments/:attachmentId', authenticate, attachmentController.deleteAttachment);
 
 // Notes endpoints (admin only)
 router.post(

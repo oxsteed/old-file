@@ -150,6 +150,11 @@ async function assertMerchantFinanceStanding(userId, { product, restaurantId, bu
   const isOwner = row && (String(row.business_owner_id) === String(userId) || String(restaurantOwnerId) === String(userId));
   const role = isOwner ? 'owner' : row?.effective_role;
   if (!row || (role !== 'owner' && role !== 'manager')) notFound();
+  // WP-073: a manager also needs finance read (payouts.view) and, for a
+  // restaurant statement, no store boundary. Owners are unaffected.
+  if (role !== 'owner' && !(await require('../services/access/financeStanding').memberHasFinanceRead(pool, {
+    businessId: businessIdEff, userId, restaurantId: product === 'restaurant_settlement' ? restaurantId : null,
+  }))) notFound();
   return { businessId: businessIdEff, role };
 }
 

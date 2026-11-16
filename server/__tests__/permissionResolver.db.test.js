@@ -357,7 +357,9 @@ ddescribe('permission resolver + overrides (S-08/S-21/S-22)', () => {
       await insertOverride(memberships.employee, 'kitchen.view', 'deny');
       const req = overridesReq({
         caller: users.manager, callerRole: 'manager',
-        callerPermissions: new Set(['team.assign_permissions', 'crew.manage']),
+        // WP-048: delegated edits are scope-bound, so the caller must hold
+        // kitchen.view to drop the existing kitchen.view override.
+        callerPermissions: new Set(['team.assign_permissions', 'crew.manage', 'kitchen.view']),
         businessId, membershipId: memberships.employee,
         overrides: [{ permission_code: 'crew.manage', effect: 'allow', reason: 'shift lead' }],
       });

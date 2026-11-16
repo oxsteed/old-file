@@ -422,11 +422,13 @@ async function createWebhook(req, res, next) {
 async function deleteWebhook(req, res, next) {
   const { businessId, webhookId } = req.params;
   try {
-    await pool.query(
+    const { rowCount } = await pool.query(
       `UPDATE business_webhooks SET is_active = FALSE
        WHERE id = $1 AND business_id::text = $2::text`,
       [webhookId, businessId]
     );
+    // WP-056: another business's (or an unknown) webhook id is a plain 404.
+    if (!rowCount) return res.status(404).json({ error: 'Not found' });
     res.json({ success: true });
   } catch (err) {
     if (err.code === '42P01') return res.json({ success: true });

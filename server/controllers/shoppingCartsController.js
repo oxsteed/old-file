@@ -254,7 +254,7 @@ const addItem = async (req, res, next) => {
 
     // Get product price
     const productCheck = await pool.query(
-      'SELECT id, price_cents FROM marketplace_products WHERE id = $1 AND is_available = TRUE',
+      'SELECT id, price_cents FROM marketplace_products WHERE id = $1 AND is_active = TRUE AND is_available = TRUE',
       [productId]
     );
 

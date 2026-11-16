@@ -6506,5 +6506,212 @@
     "signIn": "Se connecter",
     "noTerms": "Aucune condition n’a encore été publiée pour cette devise.",
     "retry": "Réessayer"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Demandes",
+    "pageSubtitle": "Voyez ce que votre compte peut faire et demandez davantage.",
+    "backToSettings": "Retour aux paramètres",
+    "loading": "Chargement…",
+    "unavailable": "Les demandes ne sont pas encore disponibles sur votre compte.",
+    "loadFailed": "Impossible de charger vos demandes.",
+    "heldTitle": "Ce que vous pouvez faire maintenant",
+    "organizations": "Organisations dont vous faites partie : {{count}}",
+    "requestsTitle": "Vos demandes",
+    "noRequests": "Vous n'avez encore aucune demande.",
+    "applyTitle": "Demander davantage",
+    "editTitle": "Demande : {{capability}}",
+    "reviewerAsked": "L'examinateur a demandé :",
+    "choose": "Choisir…",
+    "listHint": "Séparez les éléments par des virgules.",
+    "withdrawTitle": "Retirer la demande ?",
+    "withdrawConfirm": "Votre demande « {{capability}} » sera fermée. Vous pourrez la refaire plus tard.",
+    "capabilities": {
+      "customer": "Engager de l'aide et commander",
+      "helper": {
+        "offer_services": "Proposer des services"
+      },
+      "business": {
+        "own": "Gérer une entreprise"
+      },
+      "restaurant": {
+        "own": "Gérer un restaurant"
+      },
+      "consultant": {
+        "accept_paying_clients": "Conseiller des clients payants"
+      },
+      "tool_owner": {
+        "list_equipment": "Louer du matériel"
+      },
+      "logistics": {
+        "ship": "Expédier avec la logistique"
+      },
+      "investor": {
+        "reporting": "Rapports investisseurs"
+      },
+      "franchise": {
+        "operate": "Exploiter une franchise"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "Faites des offres sur des missions et soyez payé."
+      },
+      "business": {
+        "own": "Créez la page et l’équipe de votre entreprise."
+      },
+      "restaurant": {
+        "own": "Recevez des commandes pour votre restaurant."
+      },
+      "consultant": {
+        "accept_paying_clients": "Acceptez des missions de conseil rémunérées."
+      },
+      "tool_owner": {
+        "list_equipment": "Louez vos outils et votre matériel."
+      },
+      "logistics": {
+        "ship": "Réservez et gérez des expéditions."
+      },
+      "investor": {
+        "reporting": "Consultez les rapports investisseurs."
+      }
+    },
+    "status": {
+      "draft": "Brouillon",
+      "submitted": "Envoyée",
+      "in_review": "En cours d’examen",
+      "needs_information": "Informations requises",
+      "approved": "Approuvée",
+      "declined": "Refusée",
+      "withdrawn": "Retirée"
+    },
+    "reasons": {
+      "review_complete": "Examen terminé.",
+      "service_area_required": "Ajoutez la zone où vous travaillez.",
+      "service_categories_required": "Ajoutez les services que vous proposez.",
+      "identity_verification_required": "Vérifiez votre identité pour continuer.",
+      "business_details_required": "Ajoutez plus de détails sur l'entreprise.",
+      "ownership_not_verified": "Nous n'avons pas pu confirmer que vous possédez cette entreprise.",
+      "duplicate_request": "Vous avez déjà une demande pour cela.",
+      "not_eligible_in_market": "Ce service n'est pas encore disponible dans votre région.",
+      "policy_not_met": "Cette demande ne répond pas à nos exigences.",
+      "other_contact_support": "Contactez le support pour plus de détails."
+    },
+    "fields": {
+      "serviceCategories": "Services proposés",
+      "serviceArea": "Zone de service",
+      "about": "À propos",
+      "audience": "Audience des rapports",
+      "requestedReports": "Rapports nécessaires",
+      "businessName": "Nom de l'entreprise",
+      "businessType": "Type d'entreprise",
+      "restaurantName": "Nom du restaurant",
+      "cuisine": "Cuisine",
+      "areasOfExpertise": "Domaines d'expertise",
+      "bio": "Biographie professionnelle",
+      "sampleWorkUrl": "Lien vers un exemple de travail",
+      "yearsExperience": "Années d'expérience",
+      "area": {
+        "country": "Code pays (2 lettres)",
+        "region": "État ou région",
+        "city": "Ville",
+        "postalCode": "Code postal"
+      }
+    },
+    "options": {
+      "llc": "SARL",
+      "sole_prop": "Entreprise individuelle",
+      "corp": "Société anonyme",
+      "partnership": "Société de personnes",
+      "other": "Autre"
+    },
+    "fieldErrors": {
+      "invalid": "Vérifiez cette réponse.",
+      "required": "Ce champ est obligatoire.",
+      "too_many": "Trop d'éléments.",
+      "unknown_field": "Ce champ ne fait pas partie du formulaire."
+    },
+    "actions": {
+      "save": "Enregistrer le brouillon",
+      "submit": "Envoyer la demande",
+      "resubmit": "Envoyer les réponses mises à jour",
+      "close": "Fermer",
+      "continue": "Continuer",
+      "withdraw": "Retirer",
+      "apply": "Demander",
+      "retry": "Réessayer",
+      "cancel": "Annuler",
+      "confirmWithdraw": "Retirer la demande"
+    },
+    "toast": {
+      "save": "Brouillon enregistré",
+      "submit": "Demande envoyée",
+      "resubmit": "Réponses envoyées",
+      "withdraw": "Demande retirée"
+    },
+    "errors": {
+      "versionConflict": "Cette demande a changé dans un autre onglet. Nous l’avons rechargée.",
+      "validation": "Certaines réponses demandent votre attention.",
+      "generic": "Une erreur s'est produite. Veuillez réessayer.",
+      "alreadyOpen": "Vous avez déjà une demande ouverte pour cela.",
+      "alreadyGranted": "Vous avez déjà cet accès."
+    },
+    "openApplications": "Ouvrir les demandes",
+    "admin": {
+      "nav": "Demandes d'accès",
+      "title": "Demandes d'accès",
+      "subtitle": "Examinez les demandes d'accès prestataire, entreprise et autres.",
+      "status": "Statut",
+      "capability": "Type d'accès",
+      "all": "Tous",
+      "empty": "Aucune demande ne correspond à ces filtres.",
+      "loadMore": "Charger plus",
+      "select": "Sélectionnez une demande pour l’examiner.",
+      "applicant": "Demandeur",
+      "emailVerified": "E-mail vérifié",
+      "identityVerified": "Identité vérifiée",
+      "yes": "Oui",
+      "no": "Non",
+      "answers": "Réponses",
+      "history": "Historique",
+      "currentAccess": "Accès actuel",
+      "policyChanged": "La politique a changé après l'envoi. L'approbation vérifie la politique actuelle.",
+      "reasonCode": "Motif affiché au demandeur",
+      "note": "Note interne (non visible par le demandeur)",
+      "informationRequest": "Que doit ajouter le demandeur ?",
+      "investorConfirm": "J’ai vérifié l’audience et les rapports demandés ; l’approbation crée uniquement cet accès aux rapports limité.",
+      "actions": {
+        "claim": "Commencer l'examen",
+        "request_information": "Demander des informations",
+        "approve": "Approuver",
+        "decline": "Refuser"
+      },
+      "decided": "Décision enregistrée",
+      "errors": {
+        "selfReview": "Vous ne pouvez pas examiner votre propre demande.",
+        "notPermitted": "Vous n'avez pas l'autorisation de statuer sur cette demande."
+      }
+    },
+    "accessRequired": "Cela nécessite d'abord un accès approuvé.",
+    "home": {
+      "accessChanged": "Votre accès à ce tableau de bord a changé : vous voyez donc votre accueil personnel."
+    },
+    "accessUpdated": "Votre accès a été mis à jour.",
+    "orgRoles": {
+      "owner": "Propriétaire",
+      "manager": "Responsable",
+      "representative": "Représentant",
+      "employee": "Employé",
+      "support_agent": "Agent d'assistance"
+    },
+    "menu": {
+      "storeScoped": "Le menu partagé est géré par les personnes ayant accès à tous les établissements. Utilisez le menu de votre établissement pour y modifier la disponibilité ou les prix."
+    }
+  },
+  "businessLaunchAttachments": {
+    "download": "Télécharger",
+    "remove": "Supprimer",
+    "shareWithConsultant": "Partager avec le consultant assigné",
+    "shared": "Partagé",
+    "onlyMe": "Moi uniquement"
   }
 }

@@ -167,6 +167,14 @@ async function checkRestrictions(req, res) {
   try {
     const { userId } = req.params;
 
+    // Restriction details are enforcement state, not a public reputation
+    // signal. A caller may inspect their own state; platform admins may
+    // inspect another account through the audited admin surface.
+    if (String(req.user?.id) !== String(userId)
+      && !['admin', 'super_admin'].includes(req.user?.role)) {
+      throw new AppError('Unauthorized', 403, 'FORBIDDEN');
+    }
+
     const result = await pool.query(
       `SELECT
         action_type,
@@ -195,6 +203,9 @@ async function checkRestrictions(req, res) {
     });
   } catch (err) {
     logger.error('Error checking restrictions', { error: err.message, userId: req.params.userId });
+    if (err instanceof AppError) {
+      return res.status(err.statusCode).json({ success: false, error: err.message, code: err.code });
+    }
     res.status(500).json({ success: false, error: 'Failed to check restrictions' });
   }
 }
@@ -211,6 +222,14 @@ async function getFeeHistory(req, res) {
   try {
     const { userId } = req.params;
     const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+
+    // Fee history includes private financial and job-context details. The
+    // route is authenticated, but authentication alone must not grant a
+    // cross-account read; only the subject or a platform admin may view it.
+    if (String(req.user?.id) !== String(userId)
+      && !['admin', 'super_admin'].includes(req.user?.role)) {
+      throw new AppError('Unauthorized', 403, 'FORBIDDEN');
+    }
 
     // Verify user exists
     const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
@@ -284,6 +303,9 @@ async function getFeeHistory(req, res) {
     });
   } catch (err) {
     logger.error('Error fetching fee history', { error: err.message, userId: req.params.userId });
+    if (err instanceof AppError) {
+      return res.status(err.statusCode).json({ success: false, error: err.message, code: err.code });
+    }
     res.status(500).json({ success: false, error: 'Failed to fetch fee history' });
   }
 }

@@ -51,7 +51,7 @@ test('lists store assignments and active restaurant members in one tenant-scoped
 
 test('replaces a member scope only with stores from the same restaurant', async () => {
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: 55, member_id: 'member-1', role: 'manager', status: 'active' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 55, member_id: 'member-1', role: 'employee', status: 'active' }] })
     .mockResolvedValueOnce({ rows: [{ id: 7 }, { id: 8 }] })
     .mockResolvedValueOnce({ rows: [{ assignments: [{ location_id: 7, role_override: null }] }] })
     .mockResolvedValueOnce({ rows: [] })
@@ -79,11 +79,13 @@ test('rejects empty assignment lists instead of accidentally broadening access',
 });
 
 test('clearing a scope is explicit and returns the resulting all-store mode', async () => {
-  mockQuery.mockResolvedValueOnce({ rows: [{ id: 101 }] });
+  mockQuery
+    .mockResolvedValueOnce({ rows: [{ id: 55, member_id: 'member-1', role: 'employee' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 101 }] });
   const response = await request(app()).delete('/3/location-access/55');
   expect(response.status).toBe(200);
   expect(response.body).toEqual({ cleared: 1, scope: 'all' });
-  expect(mockQuery.mock.calls[0][0]).toContain("SET status = 'revoked'");
+  expect(mockQuery.mock.calls[1][0]).toContain("SET status = 'revoked'");
 });
 
 test('assigned members cannot read a sibling store through a location-scoped surface', async () => {

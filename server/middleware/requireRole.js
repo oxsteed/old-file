@@ -17,7 +17,12 @@ module.exports = (...allowedRoles) => (req, res, next) => {
   const userRole = req.user.role;
 
   // Direct role match
-  const hasRole = allowedRoles.some(r => r === userRole);
+  const hasRole = allowedRoles.some(r => r === userRole)
+    // Progressive helper grants intentionally leave the legacy users.role
+    // column at customer. A preceding requireHelperCapability middleware
+    // records the live decision for legacy helper-only handlers.
+    || (req.accessCapabilities?.['helper.offer_services'] === true
+      && allowedRoles.some(r => ['helper', 'helper_pro', 'broker'].includes(r)));
 
   if (!hasRole) {
     return res.status(403).json({
