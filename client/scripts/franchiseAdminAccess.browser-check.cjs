@@ -4,7 +4,7 @@ const path = require('node:path');
 const { build } = require('esbuild');
 const { chromium } = require('playwright-core');
 
-test('franchise admin controls preserve grants across activation, reassignment, and revoke', { timeout: 30_000 }, async () => {
+test('franchise admin controls preserve grants across activation, reassignment, and revoke', { timeout: 60_000 }, async () => {
   const root = path.resolve(__dirname, '..');
   const bundle = await build({
     stdin: { resolveDir: root, loader: 'jsx', contents: `
@@ -55,7 +55,7 @@ test('franchise admin controls preserve grants across activation, reassignment, 
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const page = await browser.newPage();
-    page.setDefaultTimeout(5_000);
+    page.setDefaultTimeout(15_000);
     await page.route('http://franchise-admin.test/**', async (route) => {
       const request = route.request();
       const { pathname } = new URL(request.url());
@@ -104,18 +104,31 @@ test('franchise admin controls preserve grants across activation, reassignment, 
     assert.equal(state.activationCalls.length, 1);
     assert.equal(state.grantOwner, 'owner-a');
 
+    const saveReviewButton = page.getByRole('button', { name: /save hq review/i });
+    const readyToSave = saveReviewButton.and(page.locator(':enabled'));
+    const saveReview = async () => {
+      const [response] = await Promise.all([
+        page.waitForResponse((result) => result.request().method() === 'PATCH'
+          && new URL(result.url()).pathname === '/api/franchise/applications/franchise-application-1'),
+        saveReviewButton.click(),
+      ]);
+      assert.equal(response.status(), 200);
+      await readyToSave.waitFor();
+    };
+
+    await readyToSave.waitFor();
     const ownerInput = page.locator('input[placeholder*="Owner"]');
     await ownerInput.fill('owner-b');
-    await page.getByRole('button', { name: /save hq review/i }).click();
-    await page.waitForFunction(() => document.querySelector('input[placeholder*="Owner"]')?.value === 'owner-b');
+    await saveReview();
+    assert.equal(await ownerInput.inputValue(), 'owner-b');
     assert.equal(state.patchCalls.at(-1).owner_user_id, 'owner-b');
     assert.equal(state.grantOwner, 'owner-b');
     assert.ok(state.revokedOwners.includes('owner-a'));
 
     const reviewStatus = page.locator('select').nth(2);
     await reviewStatus.selectOption('rejected');
-    await page.getByRole('button', { name: /save hq review/i }).click();
-    await page.waitForFunction(() => document.body.innerText.includes('Rejected'));
+    await saveReview();
+    await page.locator('span').filter({ hasText: /^Rejected$/ }).first().waitFor();
     assert.equal(state.patchCalls.at(-1).status, 'rejected');
     assert.equal(state.grantOwner, null);
     assert.ok(state.revokedOwners.includes('owner-b'));

@@ -192,6 +192,11 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
   and the signup-to-first-action flows for Helper, service business, and
   restaurant. `npm run build:ci`, growth instrumentation check, and the Arabic
   Applications Chrome check also passed. The browser check used a fixture API.
+- GitHub run `43972658803` passed the client build, growth instrumentation,
+  and server regression and integration tests on `97861d290`. Its Franchise
+  HQ browser test read fixture state before the save completed. WP-078 now
+  waits for the PATCH response and the refreshed review form. The Franchise
+  HQ, application, territory and Applications browser checks passed locally.
 
 Check the updated PR CI. Continue AC-025 with real browser tabs and an active
 food order. For AC-029, verify the public listing, reviewer record, and matching

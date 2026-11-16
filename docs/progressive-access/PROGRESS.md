@@ -13,6 +13,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | Baseline inventory of mode/role authority (docs/progressive-access/BASELINE.md) | implemented | (this checkpoint) | authority map and migration hazards |
 | Legacy backfill (services/access/backfill.js, scripts/access-backfill.js) | implemented | 4eb2e22eb | progressiveAccess.db.test.js backfill case |
 | Access outbox delivery job | implemented | 7d936e6fb | progressiveAccess.db.test.js outbox case |
+| PR #794 verification | in progress | 97861d290, latest WP-078 checkpoint | GitHub run `43972658803` passed server regression and integration, client build, and growth instrumentation. The Franchise HQ test now waits for save completion. Four focused Chrome checks passed locally. Updated CI is required. |
 
 ## Work packages
 
