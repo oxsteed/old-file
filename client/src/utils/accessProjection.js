@@ -14,6 +14,7 @@ export const MODE_CAPABILITY = Object.freeze({
   restaurant_owner: ['restaurant.own', 'business.own'],
   consultant: ['consultant.accept_paying_clients'],
   tool_owner: ['tool_owner.list_equipment'],
+  logistics: ['logistics.ship'],
 });
 
 const STAFF_ROLES = new Set(['admin', 'super_admin', 'employee', 'support_agent']);
@@ -60,6 +61,9 @@ export function capabilityShortcuts(mode, projection) {
   if (!['business_owner', 'business_manager', 'business_representative', 'business_employee'].includes(mode)
       && (projection.access.organizations || []).length > 0) {
     out.push({ id: 'workspace', to: '/business-hub', labelKey: 'nav.businessWorkspace', primary: false });
+  }
+  if (mode !== 'logistics' && hasCapability(projection.access, 'logistics.ship')) {
+    out.push({ id: 'logisticsBuyer', to: '/logistics/buyer', labelKey: 'logistics.nav.buyer', primary: false });
   }
   return out;
 }

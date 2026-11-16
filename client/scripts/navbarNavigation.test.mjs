@@ -111,6 +111,21 @@ test('approved consultants can open referrals from their customer navigation', (
   assert.ok(!revoked.account.some((item) => item.id === 'consultantReferrals'));
 });
 
+test('projection backs the logistics mode and adds buyer access without replacing customer Home', () => {
+  const on = (personal) => ({ flags: { accessProjection: true }, access: { personal, organizations: [] } });
+  const approved = navbarNavigation({ role: 'customer', default_mode: 'customer' }, { projection: on(['customer', 'logistics.ship']) });
+  assert.equal(approved.mode, 'customer');
+  assert.ok(approved.account.some((item) => item.to === '/logistics/buyer'));
+
+  const logistics = navbarNavigation({ role: 'customer', default_mode: 'logistics' }, { dashboardPath: '/logistics/buyer', projection: on(['customer', 'logistics.ship']) });
+  assert.equal(logistics.mode, 'logistics');
+  assert.ok(logistics.primary.some((item) => item.to === '/logistics/buyer'));
+
+  const revoked = navbarNavigation({ role: 'customer', default_mode: 'logistics' }, { projection: on(['customer']) });
+  assert.equal(revoked.mode, 'customer');
+  assert.ok(!revoked.account.some((item) => item.to === '/logistics/buyer'));
+});
+
 // WP-047: the organization switcher shows a translated permission status.
 test('business switcher renders translated organization roles in every locale', async () => {
   const src = await readFile(new URL('../src/components/BusinessSwitcher.jsx', import.meta.url), 'utf8');
