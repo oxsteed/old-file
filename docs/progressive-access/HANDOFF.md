@@ -325,8 +325,13 @@ Note: the Employee role has `inventory.update` by default; the test promotes a
 Representative. Permission cache is 30 s per instance (`invalidateCache` on change).
 Evidence: `progressiveAccessRestaurantStock.db.test.js`.
 
+WP-069 done (evidence only): crew shifts check `assertManage` + store scope (composite FK
+blocks foreign stores); payroll export needs `payroll.view` (Owner-only by default) and
+`assertLocationAccess`. Role changes need `role_updated_by = owner` (DB trigger).
+Evidence: `progressiveAccessRestaurantCrew.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-069 (SPEC.md, search `<a id="wp-069">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-070 (SPEC.md, search `<a id="wp-070">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
