@@ -164,6 +164,10 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
     the drawer's cashier lost access, a manager must requeue or void the sale. The cash
     was collected, so this only delays posting. Native builds/hardware still need a
     human test-mode check.
+23. **Statements: managers need `payouts.view`, store managers see no restaurant-wide
+    settlement.** Managers have `payouts.view` by default, so nothing changes until an
+    owner denies it ("staffing only"). A manager limited to some stores no longer sees the
+    whole restaurant's settlement statement.
 
 ## Next step
 
@@ -353,8 +357,15 @@ offline tickets allow only pay-at-counter, so no offline card capture exists to 
 RestaurantTerminalOffline builds and hardware with test-mode providers — not done here.
 Evidence: `progressiveAccessRestaurantHub.db.test.js`.
 
+WP-073 done: new `services/access/financeStanding.memberHasFinanceRead` (manager role +
+effective `payouts.view` + no store boundary for a restaurant statement). Used by
+`settlementStatementArchive` and `statementInvestigation` (`assertMerchantFinanceStanding`)
+and `statementCenterService.buildRestaurantSettlement` (decision 23). Downloads re-check on
+every request, so old links die with the standing. Ledgers/currency untouched.
+Evidence: `progressiveAccessRestaurantStatements.db.test.js` (fails without the fix).
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-073 (SPEC.md, search `<a id="wp-073">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-074 (SPEC.md, search `<a id="wp-074">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
