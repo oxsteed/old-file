@@ -694,6 +694,13 @@ contracts. The remaining evidence is a native authenticator/browser acceptance
 run plus exact-head CI; do not treat static passkey contracts as proof of a
 hardware-backed WebAuthn ceremony.
 
+The capability-aware helper client surface checkpoint is also pushed in the
+current worktree: messaging, calendar, invoices, marketplace recommendations,
+and Settings now consume `hasHelperAccess` instead of requiring a legacy helper
+role. The client contract suite passes 11 tests, frontend-reference verification
+finds 0 issues, and typecheck passes. The next exact code action remains the
+native authenticator acceptance for WP-018 after exact-head CI is observed.
+
 WP-089 is currently an evidence checkpoint rather than a source change. The
 platform governance routes (`server/routes/governance.js`) require both live
 admin authentication and `requireSuperAdmin`; regular admin permission grants

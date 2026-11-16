@@ -97,12 +97,12 @@ const IconBox = () => (
 
 export default function SettingsPage() {
   const { t } = useTranslation();
-  const { user, logout, refreshUser, setUser } = useAuth();
+  const { user, logout, refreshUser, setUser, hasHelperAccess } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   // Declared before TABS (TDZ-safe): the tax tab is helper-only.
-  const isHelper = HELPER_ROLES.includes(user?.role);
+  const isHelper = hasHelperAccess || HELPER_ROLES.includes(user?.role);
 
   // Progressive access: the Applications entry appears only when the server
   // enables applications for this account (flag or pilot allowlist).

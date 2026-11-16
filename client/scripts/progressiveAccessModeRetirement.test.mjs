@@ -28,4 +28,13 @@ test('approved customer-role helpers receive capability-aware client actions', a
   assert.match(context, /helper\.offer_services/);
   assert.match(context, /hasHelperAccess/);
   assert.match(model, /hasHelperAccess/);
+  for (const file of [
+    'components/messaging/MessagingWorkspace.jsx',
+    'pages/CalendarPage.jsx',
+    'pages/InvoicesPage.jsx',
+    'pages/ProductMarketplacePage.jsx',
+    'pages/SettingsPage.jsx',
+  ]) {
+    assert.match(await source(file), /hasHelperAccess/, file);
+  }
 });

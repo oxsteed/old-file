@@ -124,7 +124,8 @@ function SummaryCard({ icon: Icon, label, value, hint }) {
 export default function CalendarPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage || i18n.language;
-  const { user, isHelper } = useAuth();
+  const { user, hasHelperAccess } = useAuth();
+  const isHelper = hasHelperAccess;
   const [viewMode, setViewMode] = useState('month');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [blockModalRequest, setBlockModalRequest] = useState(false);
