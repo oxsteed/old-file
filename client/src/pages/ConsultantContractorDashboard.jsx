@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ArrowUpRight,
   Briefcase,
@@ -33,6 +34,7 @@ const STATUS_OPTIONS = [
   ['completed', 'consultantContractorDashboard.referralStatus.completed', 'Completed'],
   ['paused', 'consultantContractorDashboard.referralStatus.paused', 'Paused'],
 ];
+const PAYING_STATUSES = new Set(['engaged', 'won']);
 
 function centsToCurrency(cents) {
   return formatCents(cents || 0, { maximumFractionDigits: 0 });
@@ -99,7 +101,7 @@ function centsToFriendly(cents) {
   }).format(n);
 }
 
-function ReferralCard({ referral, onSave, savingId, tx }) {
+function ReferralCard({ referral, onSave, savingId, payingAllowed, tx }) {
   const [draft, setDraft] = useState({
     consultant_assignment_status: referral.consultant_assignment_status || 'assigned',
     consultant_status_notes: referral.consultant_status_notes || '',
@@ -113,6 +115,8 @@ function ReferralCard({ referral, onSave, savingId, tx }) {
       consultant_follow_up_at: referral.consultant_follow_up_at ? referral.consultant_follow_up_at.slice(0, 16) : '',
     });
   }, [referral]);
+
+  const blockPayingStatus = (status) => !payingAllowed && PAYING_STATUSES.has(status);
 
   return (
     <article className="rounded-[28px] border border-gray-800 bg-[#111318] p-5">
@@ -166,8 +170,10 @@ function ReferralCard({ referral, onSave, savingId, tx }) {
             className="w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500"
           >
             {STATUS_OPTIONS.map(([optionValue, optionLabelKey, optionLabelFallback]) => (
-            <option key={optionValue} value={optionValue}>{tx(optionLabelKey, optionLabelFallback)}</option>
-          ))}
+              <option key={optionValue} value={optionValue} disabled={blockPayingStatus(optionValue)}>
+                {tx(optionLabelKey, optionLabelFallback)}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -186,7 +192,7 @@ function ReferralCard({ referral, onSave, savingId, tx }) {
         <div className="flex items-end">
           <button
             onClick={() => onSave(referral.id, draft)}
-            disabled={savingId === referral.id}
+            disabled={savingId === referral.id || blockPayingStatus(draft.consultant_assignment_status)}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.1"
           >
             {savingId === referral.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -303,7 +309,15 @@ export default function ConsultantContractorDashboard() {
       });
       await loadDashboard();
     } catch (err) {
-      setError(err.response?.data?.error || tx('consultantContractorDashboard.errors.saveReferral', 'Failed to update referral.'));
+      if (err.response?.data?.code === 'access_required') {
+        const canApply = err.response.data.canApply === true;
+        setDashboard((current) => ({
+          ...current,
+          payingReferralAccess: { allowed: false, canApply },
+        }));
+      } else {
+        setError(err.response?.data?.error || tx('consultantContractorDashboard.errors.saveReferral', 'Failed to update referral.'));
+      }
     } finally {
       setSavingReferralId(null);
     }
@@ -311,6 +325,7 @@ export default function ConsultantContractorDashboard() {
 
   const summary = dashboard?.summary || {};
   const referrals = dashboard?.referrals || [];
+  const payingReferralAccess = dashboard?.payingReferralAccess;
   const profile = dashboard?.profile || {};
   const hasCoverage = (profile.coverage_countries || []).length > 0;
 
@@ -332,11 +347,11 @@ export default function ConsultantContractorDashboard() {
 
       <div className="min-h-screen bg-[#06080d] text-gray-100">
         <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          {/* Renders only when consultant mode is gated and the user is
-              not yet approved. Self-hides on approval. */}
-          <div className="mb-4">
-            <PlatformApprovalBanner mode="consultant" />
-          </div>
+          {dashboard && !payingReferralAccess && (
+            <div className="mb-4">
+              <PlatformApprovalBanner mode="consultant" />
+            </div>
+          )}
           <section className="overflow-hidden rounded-[34px] border border-gray-800 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.22),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(56,189,248,0.14),_transparent_24%),#0d1016] p-6 lg:p-8">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
               <div className="max-w-3xl">
@@ -496,6 +511,16 @@ export default function ConsultantContractorDashboard() {
                 </div>
               </div>
 
+              {payingReferralAccess?.allowed === false && (
+                <p role="status" className="mb-4 text-sm text-orange-200">
+                  {t(payingReferralAccess.unavailable ? 'progressiveAccess.unavailable' : 'progressiveAccess.accessRequired', { ns: 'common' })}
+                  {payingReferralAccess.canApply && (
+                    <> <Link to="/settings/applications" className="underline" data-track="ui.access.consultant.apply">
+                      {t('progressiveAccess.openApplications', { ns: 'common' })}
+                    </Link></>
+                  )}
+                </p>
+              )}
               {loading ? (
                 <div className="rounded-2xl border border-dashed border-gray-700 bg-[#111318] px-4 py-10 text-center text-sm text-gray-400">
                   {tx('consultantContractorDashboard.pipeline.loading', 'Loading referrals…')}
@@ -508,6 +533,7 @@ export default function ConsultantContractorDashboard() {
                       referral={referral}
                       onSave={saveReferral}
                       savingId={savingReferralId}
+                      payingAllowed={payingReferralAccess?.allowed !== false}
                       tx={tx}
                     />
                   ))}

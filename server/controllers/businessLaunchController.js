@@ -987,7 +987,12 @@ async function getUserBusinessLaunchRequests(req, res) {
   try {
     // Get requests for logged-in user (by user_id or email)
     const result = await db.query(
-      `SELECT * FROM consulting_requests
+      `SELECT id, user_id, email, first_name, last_name, phone, referral_source,
+              skill_description, target_market, has_revenue, business_name_decided,
+              business_name, operating_country, operating_state, setup_items_selected,
+              select_all_chosen, current_phase, additional_notes, urgency,
+              package_selected, package_price, status, created_at, updated_at
+       FROM consulting_requests
        WHERE (user_id = $1 OR email = $2)
        ORDER BY created_at DESC`,
       [userId || null, email]

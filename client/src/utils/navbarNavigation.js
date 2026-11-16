@@ -1,7 +1,7 @@
 import { canAccessBusinessHub, canPostJobs } from './modeAccess.js';
 import { businessHubLandingPath } from './businessProfileForm.js';
 import { LAUNCH_VISIBILITY } from './launchScope.js';
-import { resolveHomeMode, capabilityShortcuts } from './accessProjection.js';
+import { resolveHomeMode, capabilityShortcuts, projectionActive, hasCapability } from './accessProjection.js';
 
 const BUSINESS_MODES = new Set(['business_owner', 'business_manager', 'business_representative', 'business_employee']);
 
@@ -59,6 +59,10 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
   if (helper && canAccessBusinessHub(effectiveUser)) account.push(link('workspace', workspacePath, 'nav.businessWorkspace'));
   for (const item of capabilityShortcuts(mode, projection)) {
     if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
+  }
+  if (LAUNCH_VISIBILITY.consulting && mode !== 'consultant' && projectionActive(projection)
+      && hasCapability(projection.access, 'consultant.accept_paying_clients')) {
+    account.push(link('consultantReferrals', '/consulting/contractor-dashboard', 'consultantContractorDashboard.page.title'));
   }
   account.push(link('settings', '/settings', 'nav.settings'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
   if (showSupportWorkspace && !primary.some(item => item.to === '/support/agent')) {

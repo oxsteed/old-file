@@ -13,6 +13,7 @@
  *   ACCESS_BUSINESS_ENFORCEMENT    off | shadow | enforce (publishing a new
  *                                  business/restaurant needs an approved
  *                                  business.own / restaurant.own application)
+ *   ACCESS_CONSULTANT_ENFORCEMENT  off | shadow | enforce (paying clients)
  *   ACCESS_PILOT_USER_IDS          comma-separated user UUIDs that get
  *                                  REQUESTS/PROJECTION while flags are off
  */
@@ -40,6 +41,11 @@ function businessEnforcement() {
   return ['off', 'shadow', 'enforce'].includes(v) ? v : 'off';
 }
 
+function consultantEnforcement() {
+  const v = String(process.env.ACCESS_CONSULTANT_ENFORCEMENT || 'off').trim().toLowerCase();
+  return ['off', 'shadow', 'enforce'].includes(v) ? v : 'off';
+}
+
 /** Client-visible boot flags (never a permission boundary). */
 function clientFlags(userId) {
   return {
@@ -50,4 +56,4 @@ function clientFlags(userId) {
   };
 }
 
-module.exports = { requestsEnabled, projectionEnabled, customerFirstSignup, legacySwitchRetired, helperEnforcement, businessEnforcement, clientFlags, isPilot };
+module.exports = { requestsEnabled, projectionEnabled, customerFirstSignup, legacySwitchRetired, helperEnforcement, businessEnforcement, consultantEnforcement, clientFlags, isPilot };

@@ -100,6 +100,17 @@ test('projection: approvals add shortcuts without replacing the view; removed ac
   assert.deepEqual(navbarNavigation({ role: 'helper', default_mode: 'helper' }, { projection: { flags: {}, access: { personal: ['customer'] } } }), legacy);
 });
 
+test('approved consultants can open referrals from their customer navigation', () => {
+  const user = { role: 'customer', default_mode: 'customer' };
+  const projection = { flags: { accessProjection: true }, access: { personal: ['customer', 'consultant.accept_paying_clients'] } };
+  const approved = navbarNavigation(user, { projection });
+  assert.equal(approved.mode, 'customer');
+  assert.ok(approved.primary.some((item) => item.id === 'postJob'));
+  assert.ok(approved.account.some((item) => item.to === '/consulting/contractor-dashboard'));
+  const revoked = navbarNavigation(user, { projection: { ...projection, access: { personal: ['customer'] } } });
+  assert.ok(!revoked.account.some((item) => item.id === 'consultantReferrals'));
+});
+
 // WP-047: the organization switcher shows a translated permission status.
 test('business switcher renders translated organization roles in every locale', async () => {
   const src = await readFile(new URL('../src/components/BusinessSwitcher.jsx', import.meta.url), 'utf8');
