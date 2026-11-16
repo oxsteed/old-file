@@ -98,7 +98,8 @@ Spec "Commit-sized delivery sequence" + "Phase 0–5":
   `ACCESS_REQUESTS_ENABLED`, `ACCESS_PROJECTION_ENABLED`,
   `ACCESS_CUSTOMER_FIRST_SIGNUP`, `ACCESS_HELPER_ENFORCEMENT` (`off|shadow|enforce`),
   `ACCESS_LEGACY_SWITCH_RETIRED`, `ACCESS_BUSINESS_ENFORCEMENT` (`off|shadow|enforce`, WP-046),
-  `ACCESS_CONSULTANT_ENFORCEMENT` (`off|shadow|enforce`, WP-074).
+  `ACCESS_CONSULTANT_ENFORCEMENT` (`off|shadow|enforce`, WP-074),
+  `ACCESS_INVESTOR_ENFORCEMENT` (`off|shadow|enforce`, WP-077).
 
 ## Decisions for Emile (safe default implemented, behind config)
 
@@ -438,11 +439,14 @@ files, supports explicit upload visibility, and keeps the ownership application
 identifier out of the consultant response. The browser fixture covers shared
 versus applicant-only controls. Live acceptance and exact-head CI remain open.
 
-**Exact next action (resume here):** Begin WP-077 (`<a id="wp-077">` in
-SPEC.md). First mount an investor reporting test against the real route and
-confirm whether the variadic `requireRole` contract causes a denial or bypass.
-Fix that contract only where the mounted route demonstrates the defect, then
-add the narrowest investor audience/approval test and checkpoint both docs.
+WP-077 is now in progress at `e48738e84`. The mounted KPI route test proves the
+old array-to-variadic denial, the corrected legacy role path, and the new
+customer-class `investor.reporting` grant path under `ACCESS_INVESTOR_ENFORCEMENT=enforce`.
+**Exact next action (resume here):** Trace the KPI, revenue-chart, franchise,
+supply-demand, evidence, and export data sources and add a scoped investor
+audience record or
+grant contract. Then prove expiry/revoke and ensure no investor response can
+cross tenant or audience scope.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
