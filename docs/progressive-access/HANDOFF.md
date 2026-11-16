@@ -662,20 +662,21 @@ when enforcement is on. The helper enforcement contract passes 23 tests, profile
 buffer/gallery regressions pass 5 tests, and the populated personal/business
 invoice boundary plus payout/auth contracts pass.
 
-The latest helper-compatibility checkpoint is pushed at `3307f4348` (with the
+The latest server helper-compatibility checkpoint is `3307f4348` (with the
 preceding profile/onboarding/listing/invoice checkpoints immediately before it).
 The worktree is clean apart from the unrelated untracked
 `docs/oxsteed-progressive-access-developer-handoff.md`. The four populated
 WP-008 business suites pass together (41 tests), and PR Analyze is pending for
 the exact pushed head.
 
-The client capability checkpoint is now ready: `AuthContext` now
+The client capability checkpoint is now pushed at `3c954caed`: `AuthContext` now
 reads the shared access projection and exposes `hasHelperAccess`, so an approved
 customer-role helper can receive helper onboarding/bidding state without
 changing `default_mode`; `jobDetailModel` consumes that capability-aware signal.
 The focused job-detail and client projection contracts pass, and frontend
-reference verification plus typecheck pass locally. Push this client change
-with the docs before moving to the next package.
+reference verification plus typecheck pass locally. The exact next action is to
+record the CI result for `3c954caed`, then continue the remaining planned access
+packages without removing the compatibility endpoint.
 
 WP-089 is currently an evidence checkpoint rather than a source change. The
 platform governance routes (`server/routes/governance.js`) require both live
