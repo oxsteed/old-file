@@ -653,12 +653,13 @@ Small open items: helper onboarding middleware and remaining helper-only routes
 still using `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'"
 server/routes server/controllers`) should move to the same live capability marker.
 
-WP-026 now also places `requireHelperCapability` before the helper profile's
-legacy role middleware, and `requireRole` accepts that marker only for helper
-role groups. This keeps the off/shadow behavior unchanged while allowing an
-approved customer-role helper to edit the helper profile when enforcement is on.
-The helper enforcement contract passes 22 tests and the profile buffer/gallery
-regressions pass 5 tests.
+WP-026 now also places `requireHelperCapability` before helper profile,
+onboarding, listing, availability, and personal-invoice surfaces. `requireRole`
+and onboarding eligibility accept that marker only for helper role groups. This
+keeps the off/shadow behavior unchanged while allowing an approved customer-role
+helper to use those surfaces when enforcement is on. The helper enforcement
+contract passes 22 tests, profile buffer/gallery regressions pass 5 tests, and
+the populated personal/business invoice boundary passes.
 
 WP-089 is currently an evidence checkpoint rather than a source change. The
 platform governance routes (`server/routes/governance.js`) require both live

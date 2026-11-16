@@ -104,7 +104,8 @@ function requireListingEligible(req, res, next) {
   if (!req.body || req.body.is_listed !== true) return next();
   const { loadHelperOnboarding } = require('../services/helperOnboarding');
   return loadHelperOnboarding(req.user.id).then((onboarding) => {
-    if (!onboarding || !['helper', 'helper_pro', 'broker'].includes(onboarding.user.role)) {
+    const capabilityApproved = req.accessCapabilities?.['helper.offer_services'] === true;
+    if (!onboarding || (!['helper', 'helper_pro', 'broker'].includes(onboarding.user.role) && !capabilityApproved)) {
       return res.status(403).json({ error: 'Helper account required', code: 'helper_required' });
     }
     if (!onboarding.user.onboarding_completed || !onboarding.canAppearInSearch) {
