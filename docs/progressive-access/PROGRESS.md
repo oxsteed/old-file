@@ -43,7 +43,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-023 | Preferences, status and localization | P4 | planned | | |
 | WP-024 | Public discovery and location | P4 | planned | | |
 | WP-025 | Customer job post and job lifecycle | P2 | planned | | |
-| WP-026 | Helper bidding and acceptance | P2 | planned | | |
+| WP-026 | Helper bidding and acceptance | P2 | in progress | pending | middleware/requireAccess.js off/shadow/enforce on bid create/update/reconfirm; progressiveAccessHelperEnforcement.test.js; jobs assign + client pending |
 | WP-027 | Bookings and calendar | P2 | planned | | |
 | WP-028 | Quotes and quote requests | P2 | planned | | |
 | WP-029 | Work agreements and disputes | P2 | planned | | |

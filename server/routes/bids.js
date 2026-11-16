@@ -8,6 +8,7 @@ const checkRestrictions = require('../middleware/checkRestrictions');
 const { errorHandler } = require('../middleware/errorHandler');
 const { createBid, getBid, getJobBids, getMyBids, updateBid, reconfirmBid, withdrawBid, getRecentBids } = require('../controllers/bidController');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 
 // Public route - no auth required (for homepage)
 router.get('/recent', generalLimiter, getRecentBids);
@@ -16,9 +17,9 @@ router.get('/recent', generalLimiter, getRecentBids);
 router.get('/me', authenticate, getMyBids);
 router.get('/job/:jobId', authenticate, getJobBids);
 router.get('/:id', authenticate, getBid);
-router.put('/:id', authenticate, updateBid);
+router.put('/:id', authenticate, requireHelperCapability, updateBid);
 router.post('/:id/withdraw', authenticate, withdrawBid);
-router.post('/:id/reconfirm', authenticate, rejectImpersonated, checkRestrictions('bidding'), reconfirmBid);
+router.post('/:id/reconfirm', authenticate, rejectImpersonated, requireHelperCapability, checkRestrictions('bidding'), reconfirmBid);
 
 // Launch bidding is available to fully onboarded helpers without a paid tier.
 // checkRestrictions('bidding') blocks helpers with active bidding restrictions
@@ -26,7 +27,7 @@ router.post('/:id/reconfirm', authenticate, rejectImpersonated, checkRestriction
 // Review P2-7-F01: requireHelperWorkEligible re-derives onboarding from DB
 // facts (verified identity), so a customer who self-selected helper mode
 // cannot bid until helper onboarding is actually complete.
-router.post('/', authenticate, requireEmailVerified, requireTermsAcceptance, requireOnboardingStep('active'), requireHelperWorkEligible, checkRestrictions('bidding'), createBid);
+router.post('/', authenticate, requireEmailVerified, requireTermsAcceptance, requireOnboardingStep('active'), requireHelperCapability, requireHelperWorkEligible, checkRestrictions('bidding'), createBid);
 
 // Route-local JSON error handler for consistent API responses when this router
 // is mounted without the global server error handler (tests, serverless, etc.).

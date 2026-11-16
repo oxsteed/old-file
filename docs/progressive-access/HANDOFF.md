@@ -140,8 +140,14 @@ Next (in order):
    are ignored (`mode_change_ignored`), switch-role returns 403 `access_required`, and login
    ignores the mode. Test `__tests__/progressiveAccessModeGate.db.test.js`. Still to do:
    a login-path test (WP-004) and AC-005 (OTP resend keeps intent).
-2. Helper enforcement (WP-026) `ACCESS_HELPER_ENFORCEMENT=shadow|enforce` on bid/quote writes
-   using `accessService.can(userId,'helper.offer_services')`.
+2. (server part done) Helper enforcement WP-026: `middleware/requireAccess.js`
+   (`requireHelperCapability`, `isHelperActor`) on `POST /api/bids`, `PUT /api/bids/:id`,
+   `POST /api/bids/:id/reconfirm`; `requireHelperWorkEligible` and `bidController.createBid`
+   use `isHelperActor` (enforced grant satisfies the legacy role test — needed because the
+   Credit trigger `oxsteed_credit_user_role_guard` keeps Credit users at role `customer`).
+   Rollout: run backfill `--apply` first, then `shadow`, watch `access.shadow_mismatch`
+   logs, then `enforce`. Remaining: `POST /api/jobs/assign` target-helper check, helper
+   onboarding steps (`requireHelperStep`) and other helper-only routes (`rg "role !== 'helper'"`).
 3. Client: `client/src/api/access.js`, `useAccess` hook, signup intent selector on JoinPage
    (send `signupIntent`, honour `access.nextStep`), `/settings/applications` page,
    admin review page in `client/src/admin/adminRouteManifest.js`, i18n in all 20 locale files.

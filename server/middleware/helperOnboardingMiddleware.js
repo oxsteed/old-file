@@ -128,7 +128,9 @@ function requireHelperWorkEligible(req, res, next) {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required', code: 'auth_required' });
   }
-  if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)) {
+  // Progressive access (WP-026): an enforced helper capability satisfies the
+  // legacy role check; with enforcement off this is the old role test.
+  if (!require('./requireAccess').isHelperActor(req)) {
     return res.status(403).json({ error: 'Helper account required', code: 'helper_required' });
   }
   const { loadHelperOnboarding } = require('../services/helperOnboarding');
