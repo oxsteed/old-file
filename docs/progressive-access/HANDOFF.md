@@ -142,6 +142,12 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
 14. **Managers can't lift or change an override the owner placed**, and can't touch overrides
     for permissions they don't hold themselves (those survive a manager's edit). Only the
     owner (or another owner) changes them.
+15. **Scheduled broadcasts whose scheduler lost authority go back to draft** at send time
+    (scheduler = `queued_by`, else `created_by`; must still be owner or active manager). The
+    alternative — sending anyway because a manager approved it earlier — was rejected as
+    unsafe. Legacy scheduled rows with neither column set also return to draft.
+16. **Lead access now requires the `leads.*` permissions** (employees and support agents lose
+    the lead list they could previously read); quoting needs `quotes.create`.
 
 ## Next step
 
@@ -191,8 +197,17 @@ WP-051 done (evidence only): Customer 360 was already permission- and assignment
 business-keyed; `progressiveAccessCustomer360.db.test.js` proves one account as customer and
 employee cannot see another business's record, unassigned customers, or wallet data.
 
+WP-052 done: `/leads` and `/lead-pipeline` routes now need `leads.view|create|edit` /
+`quotes.create` (were any-member); legacy `/api/leads/business/:id` and `/api/leads/:id` need
+`leads.view` for non-owner members; pipeline quote/delete on another business's lead → 404;
+`broadcastDeliveryService.promoteScheduled` re-checks scheduler authority (decision 15).
+Evidence: `progressiveAccessLeads.db.test.js`. **Pre-existing bug noted, not fixed:**
+`businessLeadPipelineController` create/update/quote insert columns (`name`, `email`,
+`amount_cents`, `valid_until` …) that the `business_leads`/`lead_quotes` schema
+(`076b_business_leads_phase5.sql`) does not have — those endpoints 500 against a real DB.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-052 (business leads, campaigns and follow-ups; SPEC.md line ~3242). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-053 (catalog, pricing rules and marketplace publishing; SPEC.md line ~3271). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
