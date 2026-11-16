@@ -1300,6 +1300,21 @@ booking, payment, and history routes; preserve helper-party capability gates,
 canonical ownership, idempotency, and safe post-auth return state, then add the
 smallest missing contract and focused tests.
 
+WP-032 is implemented on the branch. Direct quote creation remains guest-capable
+and customer-owned; authenticated reads and mutations check the request owner,
+while staff paths retain their existing grant and step-up gates. Instant
+booking is authenticated and sends anonymous users to sign in with the exact
+path and query in `location.state.from`; `Login` restores that path after
+session establishment. Quote drafts are stored in `sessionStorage` under an
+account-and-service scope, and Direct message retries retain client idempotency
+keys. Focused server tests passed 36/36 and the client contract plus frontend
+reference check passed. No browser or payment-provider acceptance is claimed.
+**Exact next action (resume here):** begin WP-033 Direct authorized operations.
+Audit the internal Direct queue, catalog, schedule, job, receipt, team, report,
+and payment-retry routes for operator grants plus canonical entity context;
+confirm a customer (even with an approved business capability) cannot enter
+the operations queue, then add the smallest missing contract and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
