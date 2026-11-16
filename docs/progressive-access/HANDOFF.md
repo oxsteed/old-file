@@ -151,6 +151,8 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
 17. **Waitlist and client-package lists are no longer any-member**: employees/support agents
     lose the business-wide waitlist (needs customers.view_all or calendar.view_all) and see
     only the client packages of customers they serve.
+18. **Opening a draft restaurant storefront needs the owner's approval**, even when a manager
+    presses the button (the approval belongs to the canonical owner, not the operator).
 
 ## Next step
 
@@ -260,8 +262,15 @@ with `invoices.view` or `analytics.view_financial`; dismissing another business'
 `ON CONFLICT (business_id, alert_type)` and `updated_at`, neither of which exist (migration
 242); now update-then-insert under an advisory lock. Evidence: `progressiveAccessHealth.db.test.js`.
 
+WP-060 done: `PATCH /api/restaurants/:id/publishing` with `status: active` on a draft store
+now runs `businessGate.checkPublish` for the canonical owner (`owner_user_id`) and the
+store's business (403 `access_required` + `next` under enforce; no query when off). Paused →
+active is untouched. A manager cannot publish when the owner lacks approval (decision 18).
+Two-applications conflict is already prevented by WP-046 (`resolveSubject` requires the
+applicant to own the business). Evidence: `progressiveAccessRestaurant.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-060 (restaurant application and activation; SPEC.md, search `<a id="wp-060">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-061 (restaurant membership and assigned store scope; SPEC.md, search `<a id="wp-061">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
