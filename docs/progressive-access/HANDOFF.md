@@ -670,7 +670,20 @@ environment-gated and was skipped without `STATEMENT_JOB_TEST_DATABASE_URL`.
 **Exact next action (resume here):** run populated regional staff/grant fixtures
 where a reviewer loses one region while an approval drawer is open, then repeat
 the support/refund acceptance from WP-088 with a view-only support actor, a
-privileged actor, and a wrong-business/context retry before moving to WP-090.
+privileged actor, and a wrong-business/context retry; WP-090's identity
+boundary checkpoint follows below.
+
+WP-090 now has a focused identity-boundary checkpoint at `e7e920d0d`. The
+internal workspace controller and `canUseInternalAccessRoute` check the live
+employee department assignment before loading catalog, permissions, or roster
+data; consumer role and location preference do not grant entry. The regression
+suite `server/__tests__/internalWorkspaceAccess.test.js` covers a same-location
+customer denial, an active employee entering the matching department, and
+assignment removal denying access before downstream reads (3 tests).
+**Exact next action (resume here):** run populated staff-login fixtures with a
+consumer and an employee sharing location data, revoke the employee's active
+assignment, verify the internal route is denied while customer features remain
+available, then continue to WP-091 analytics and telemetry audiences.
 
 History of what is done (newest last):
 
