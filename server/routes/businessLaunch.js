@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authenticateIfPresent } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const {
@@ -27,6 +27,7 @@ const {
 router.post(
   '/submit',
   generalLimiter,
+  authenticateIfPresent,
   submitBusinessLaunchRequest
 );
 

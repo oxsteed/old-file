@@ -18,11 +18,28 @@ if (dbUrl) {
   process.env.DATABASE_URL = dbUrl;
 }
 
-jest.mock('../middleware/auth', () => ({
-  authenticate: (req, res, next) => {
+const mockRoles = new Map();
+jest.mock('../middleware/auth', () => {
+  const authenticate = (req, res, next) => {
     const id = req.get('x-test-user');
     if (!id) return res.sendStatus(401);
-    req.user = { id, role: 'customer' };
+    req.user = {
+      id,
+      role: mockRoles.get(id) || 'customer',
+      email: req.get('x-test-email') || `pa-consultant-${id}@example.invalid`,
+      email_verified: !req.get('x-test-unverified'),
+    };
+    return next();
+  };
+  return { authenticate, authenticateIfPresent: (req, res, next) => (
+    req.get('x-test-user') ? authenticate(req, res, next) : next()
+  ) };
+});
+jest.mock('../middleware/adminAuth', () => ({
+  ...jest.requireActual('../middleware/adminAuth'),
+  requireAdmin: (req, res, next) => {
+    if (req.user?.role !== 'super_admin') return res.sendStatus(403);
+    req.isSuper = true;
     return next();
   },
 }));
@@ -37,7 +54,7 @@ jest.mock('../services/notificationService', () => ({
 const describeDb = dbUrl ? describe : describe.skip;
 const capability = 'consultant.accept_paying_clients';
 
-describeDb('assigned consultant referrals (WP-074)', () => {
+describeDb('progressive consultant and business launch access', () => {
   let db;
   let app;
   const savedFlags = { ...process.env };
@@ -50,6 +67,7 @@ describeDb('assigned consultant referrals (WP-074)', () => {
     app.use('/api/consulting/business-launch', require('../routes/businessLaunch'));
     app.use('/api/scheduling', require('../routes/consultantScheduling'));
     app.use('/api/consulting', require('../routes/consultingPayment'));
+    app.use('/api/consulting', require('../routes/consultingActionItems'));
   });
 
   afterEach(() => {
@@ -68,6 +86,7 @@ describeDb('assigned consultant referrals (WP-074)', () => {
        VALUES ($1, $2, 'x', 'Consultant', 'Fixture', $3, $4, TRUE, TRUE)`,
       [id, `pa-consultant-${id}@example.invalid`, role, role === 'super_admin' ? 'admin' : 'customer'],
     );
+    mockRoles.set(id, role);
     return id;
   }
 
@@ -179,6 +198,93 @@ describeDb('assigned consultant referrals (WP-074)', () => {
     } finally {
       warning.mockRestore();
     }
+  });
+
+  test('WP-076: a customer can start Business Launch, recover guest intake and work with an eligible advisor while Owner access is pending', async () => {
+    process.env.ACCESS_CONSULTANT_ENFORCEMENT = 'enforce';
+    process.env.ACCESS_REQUESTS_ENABLED = 'true';
+    const advisor = await addUser();
+    const nextAdvisor = await addUser();
+    const reviewer = await addUser('super_admin');
+    const customer = await addUser();
+    const otherCustomer = await addUser();
+    const email = `pa-consultant-${customer}@example.invalid`;
+    const access = require('../services/access/accessService');
+    const ownerCapability = 'business.own';
+    const { body: { request: ownerRequest } } = await access.createRequest(customer, {
+      capability: ownerCapability,
+      subject: { type: 'business_proposal' },
+      submit: true,
+      answers: {
+        businessName: 'Corner Bakery', businessType: 'sole_prop', serviceArea: { country: 'US', region: 'OH', city: 'Columbus' },
+      },
+    });
+    expect(ownerRequest.status).toBe('submitted');
+
+    const launch = '/api/consulting/business-launch';
+    const intake = {
+      email, first_name: 'Prospect', last_name: 'Fixture', phone: '5550000000',
+      skill_description: 'Baking', target_market: 'Local', operating_country: 'US', operating_state: 'OH',
+      package_selected: 'launch', package_price: 750,
+    };
+    const submit = request(app).post(`${launch}/submit`).set('x-test-user', customer);
+    const { body: { requestId } } = await submit.send(intake).expect(201);
+    const { body: { requestId: foreignId } } = await request(app).post(`${launch}/submit`)
+      .set('x-test-user', otherCustomer).send(intake).expect(201);
+    const { body: { requestId: guestId } } = await request(app).post(`${launch}/submit`)
+      .send({ ...intake, email: email.toUpperCase() }).expect(201);
+
+    const history = (user) => request(app).get(`${launch}/my-requests`).set('x-test-user', user);
+    const ids = ({ body }) => body.map(({ id }) => id);
+    const owned = await history(customer).expect(200);
+    expect(ids(owned)).toEqual(expect.arrayContaining([requestId, guestId]));
+    expect(ids(owned)).toHaveLength(2);
+    expect(owned.body.find(({ id }) => id === requestId)).toMatchObject({ user_id: customer, setup_items_selected: [] });
+    expect(ids(await history(customer).set('x-test-unverified', '1').expect(200))).toEqual([requestId]);
+    expect(ids(await history(otherCustomer).set('x-test-email', email).expect(200))).not.toContain(requestId);
+    const search = () => request(app).get(`${launch}/search`).query({ email }).set('x-test-user', customer);
+    expect(ids(await search().expect(200))).not.toContain(foreignId);
+    await search().set('x-test-unverified', '1').expect(403);
+
+    const shortlist = () => request(app).get(`${launch}/consultants`).set('x-test-user', reviewer)
+      .query({ country: 'US', region: 'OH' });
+    const assign = (consultant, noteText) => request(app).post(`${launch}/requests/${requestId}/assign-consultant`)
+      .set('x-test-user', reviewer).send({ consultant_user_id: consultant, note_text: noteText });
+
+    for (const candidate of [advisor, nextAdvisor]) {
+      await request(app).put('/api/consulting/contractor/profile').set('x-test-user', candidate).send({
+        coverage_countries: ['US'], coverage_regions: ['OH'],
+      }).expect(200);
+    }
+    expect((await shortlist().expect(200)).body.consultants.map(({ user_id }) => user_id)).not.toContain(advisor);
+    const denied = await assign(advisor).expect(409);
+    expect(denied.body.code).toBe('consultant_access_inactive');
+    await approve(advisor, reviewer);
+    expect((await shortlist().expect(200)).body.consultants.map(({ user_id }) => user_id)).toContain(advisor);
+    await assign(advisor, 'Private match notes').expect(200);
+    expect((await dashboard(advisor).expect(200)).body.referrals.map(({ id }) => id)).toEqual([requestId]);
+    await change(advisor, requestId, 'intro_sent').expect(200);
+    await approve(nextAdvisor, reviewer);
+    const reassigned = await assign(nextAdvisor).expect(200);
+    expect(reassigned.body.request).toMatchObject({ consultant_status_notes: null, consultant_intro_sent_at: null });
+    expect((await dashboard(advisor).expect(200)).body).toMatchObject({ referrals: [], activity: [] });
+    expect((await dashboard(nextAdvisor).expect(200)).body.referrals.map(({ id }) => id)).toEqual([requestId]);
+
+    const { rows: [session] } = await db.query(
+      `INSERT INTO consulting_sessions (user_id, email, first_name, last_name, consultant_assigned_id)
+       VALUES ($1, $2, 'Prospect', 'Fixture', $3) RETURNING id`, [customer, email, nextAdvisor],
+    );
+    await db.query(
+      `INSERT INTO consulting_action_items (session_id, title, client_visible)
+       VALUES ($1, 'Send draft', TRUE), ($1, 'Internal review', FALSE)`, [session.id],
+    );
+    const items = (actor) => request(app).get(`/api/consulting/sessions/${session.id}/action-items`).set('x-test-user', actor);
+    expect((await items(customer).expect(200)).body.map(({ title }) => title)).toEqual(['Send draft']);
+    await items(otherCustomer).expect(403);
+
+    expect((await db.query('SELECT status FROM access_requests WHERE id = $1', [ownerRequest.id])).rows[0].status).toBe('submitted');
+    const ownerGrants = await db.query('SELECT id FROM access_grants WHERE user_id = $1 AND capability = $2', [customer, ownerCapability]);
+    expect(ownerGrants.rows).toHaveLength(0);
   });
 
   test('WP-075: the assigned consultant grant controls slots, checkout and booking without changing existing appointments', async () => {

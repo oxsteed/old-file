@@ -16,6 +16,7 @@ const mockHasGlobalGrant = jest.fn();
 const mockSendNotification = jest.fn().mockResolvedValue({});
 
 jest.mock('../middleware/auth', () => ({
+  authenticateIfPresent: (req, res, next) => next(),
   authenticate: (req, res, next) => {
     req.user = { id: req.headers['x-test-user'] || 'user-1', role: req.headers['x-test-role'] || 'customer' };
     next();
