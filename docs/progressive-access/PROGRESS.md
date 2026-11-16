@@ -23,7 +23,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-003 | OTP finalization and bootstrap | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |
 | WP-004 | Login and legacy mode inputs | P2 | in progress | bb9a413fa | login mode gate (modeGate.js); dedicated login test pending |
 | WP-005 | Signed-in profile edit and account type removal | P2 | implemented | bb9a413fa | progressiveAccessModeGate.db.test.js (profile, mobile, switch) |
-| WP-006 | Dedicated helper registration | P2 | implemented (server, flag-gated) | pending | progressiveAccessHelperEnforcement.test.js (dedicated registration closed → general signup) |
+| WP-006 | Dedicated helper registration | P2 | implemented (server, flag-gated) | dd02c9826 | progressiveAccessHelperEnforcement.test.js (dedicated registration closed → general signup) |
 | WP-007 | Verification and provider callbacks | P2 | planned | | |
 | WP-008 | Business team access requests | P2 | planned | | |
 | WP-009 | Invitations and Vortex codes | P2 | planned | | |
