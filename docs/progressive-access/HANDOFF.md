@@ -854,6 +854,27 @@ cancellations and restrictions. Audit late revocation, hold/restriction
 predicates, and cancellation/refund ownership across customer and approved
 provider experiences before recording the next checkpoint.
 
+WP-101 is currently an evidence checkpoint. Reputation and cancellation
+statistics continue to derive from canonical jobs, appraisals, and participant
+ids rather than from the selected account mode. Existing restriction middleware
+rechecks account suspension and active `user_restrictions` at the owning
+job-posting, bidding, checkout, and payment-confirmation actions, so approving
+or revoking a helper capability cannot clear a prior hold. The reputation
+controller now also protects private enforcement-state and cancellation-fee
+history reads: only the subject or a platform admin may inspect them; public
+reliability summaries remain the separate redacted signal.
+
+`reputationPrivacy.test.js`, `businessPublicSignals.test.js`,
+`offPlatformPayments.test.js`, `paymentPolicyHistory.test.js`,
+`adminBundleD.test.js`, `paymentRoleMoneyMovement.test.js`, and
+`sundayDataIntegrity.test.js` pass (81 tests). Source change is pushed in
+`5a21a32e6`. The populated scenario that approves a restricted helper, then
+revokes the grant while an existing job remains open, plus exact-head CI,
+remains open.
+**Exact next action (resume here):** move to WP-102, Legal records and policy
+acknowledgements. Audit stale/missing acceptance during approval, preserve
+customer access, and verify versioned terms evidence and idempotent retries.
+
 History of what is done (newest last):
 
 
