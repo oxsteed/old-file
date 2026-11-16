@@ -1231,6 +1231,18 @@ Audit agreement creation/revision/signature, dispute opening and resolution,
 helper/customer ownership, payment/booking links, and any provider-only writes
 for capability-aware authorization before adding the next focused checkpoint.
 
+WP-029 is now in progress with its first helper-party boundary. Chat agreement
+share/revise, work-agreement mutations, and user dispute evidence/message/open
+paths resolve the linked helper party before applying `requireHelperCapability`.
+Customer-party actions and reads, business conversation agreements, and admin
+dispute review remain on their existing ownership, membership, MFA, and
+permission gates. No role is changed, and no populated live agreement/dispute
+acceptance has been claimed.
+**Exact next action (resume here):** run the focused work-agreement, chat-
+agreement, warranty-claim, and dispute suites together; repair any stale route
+contracts, then add a customer-role approved-helper regression for agreement
+signing or dispute evidence before closing WP-029.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

@@ -63,6 +63,30 @@ const requireChatHelperProviderCapability = async (req, res, next) => {
   }
 };
 
+const requireChatHelperAgreementCapability = async (req, res, next) => {
+  try {
+    const agreementId = req.params?.id;
+    const conversationId = req.body?.conversationId || req.body?.conversation_id;
+    const guestSessionId = req.body?.guestSessionId || req.body?.guest_session_id;
+    const query = agreementId
+      ? ['SELECT helper_id, business_id FROM chat_agreements WHERE id = $1', agreementId]
+      : conversationId
+        ? ['SELECT helper_id, business_id FROM conversations WHERE id = $1', conversationId]
+        : guestSessionId
+          ? ['SELECT helper_id, business_id FROM guest_profile_chat_inbound WHERE id = $1', guestSessionId]
+          : [null, null];
+    if (!query[1]) return next();
+    const { rows } = await pool.query(query[0], [query[1]]);
+    const target = rows[0];
+    if (target && !target.business_id && String(target.helper_id) === String(req.user?.id)) {
+      return requireHelperCapability(req, res, next);
+    }
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+};
+
 // Quote sharing/revision supports both business and helper quotes. Only the
 // helper provider mutations need progressive helper access; business quotes
 // continue through their existing membership/ownership checks.
@@ -194,11 +218,11 @@ router.get('/pop/:id', chatLimiter, optionalAuth, chatPop.getPop);
 router.get('/pop/:id/download', chatLimiter, optionalAuth, chatPop.downloadPop);
 router.post('/pop/:id/confirm', chatLimiter, authenticate, chatPop.confirmPop);
 
-router.post('/agreements/share', chatLimiter, authenticate, upload.single('file'), validateFileUpload, chatAgreements.shareAgreement);
+router.post('/agreements/share', chatLimiter, authenticate, requireChatHelperAgreementCapability, upload.single('file'), validateFileUpload, chatAgreements.shareAgreement);
 router.get('/agreements/:id', chatLimiter, optionalAuth, chatAgreements.getAgreement);
 router.get('/agreements/:id/download', chatLimiter, optionalAuth, chatAgreements.downloadAgreement);
 router.post('/agreements/:id/respond', chatLimiter, optionalAuth, chatAgreements.respondAgreement);
-router.post('/agreements/:id/revise', chatLimiter, authenticate, upload.single('file'), validateFileUpload, chatAgreements.reviseAgreement);
+router.post('/agreements/:id/revise', chatLimiter, authenticate, requireChatHelperAgreementCapability, upload.single('file'), validateFileUpload, chatAgreements.reviseAgreement);
 
 
 

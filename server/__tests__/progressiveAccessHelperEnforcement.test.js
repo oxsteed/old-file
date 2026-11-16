@@ -181,6 +181,18 @@ describe('helper capability gate', () => {
     expect(chatController).toMatch(/req\.accessCapabilities\?\.\['helper\.offer_services'\]/);
   });
 
+  test('agreements and disputes gate helper-party mutations without gating customers', () => {
+    const chat = fs.readFileSync(path.join(__dirname, '../routes/chat.js'), 'utf8');
+    const agreements = fs.readFileSync(path.join(__dirname, '../routes/workAgreements.js'), 'utf8');
+    const disputes = fs.readFileSync(path.join(__dirname, '../routes/disputes.js'), 'utf8');
+    expect(chat).toMatch(/agreements\/share.*requireChatHelperAgreementCapability/);
+    expect(chat).toMatch(/agreements\/:id\/revise.*requireChatHelperAgreementCapability/);
+    expect(agreements).toMatch(/requireAgreementHelperCapability/);
+    expect(agreements).toMatch(/router\.post\('\/:id\/sign', authenticate, requireAgreementHelperCapability/);
+    expect(disputes).toMatch(/requireDisputeHelperCapability/);
+    expect(disputes).toMatch(/router\.post\('\/:disputeId\/evidence',[\s\S]*requireDisputeHelperCapability/);
+  });
+
   describe('hiring a helper (jobs.assign)', () => {
     const { assertHelperCanBeHired } = require('../controllers/jobController');
 
