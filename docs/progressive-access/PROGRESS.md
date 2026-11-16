@@ -28,10 +28,10 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-008 | Business team access requests | P2 | planned | | |
 | WP-009 | Invitations and Vortex codes | P2 | planned | | |
 | WP-010 | Access policy and form discovery | P1 | implemented (server) | 3e19ebd25, fc9a8422d, 87a95318e | progressiveAccessDecisions.test.js; progressiveAccess.db.test.js |
-| WP-011 | Applicant status and resubmission | P1 | implemented (server + client page) | 87a95318e, pending | progressiveAccess.db.test.js; client verify-i18n + esbuild |
+| WP-011 | Applicant status and resubmission | P1 | implemented (server + client page) | 87a95318e, d47c5ff86 | progressiveAccess.db.test.js; client verify-i18n + esbuild |
 | WP-012 | Platform review and audit | P1 | implemented (server API) | 87a95318e | progressiveAccess.db.test.js (11, real PG) |
 | WP-013 | Role switch retirement | P5 | in progress | bb9a413fa | switch-role authority gate behind ACCESS_LEGACY_SWITCH_RETIRED; UI retirement pending |
-| WP-014 | Current-user projection and resume | P1 | implemented (server + Settings entry) | 87a95318e, pending | progressiveAccess.db.test.js; signupResume in GET /api/me/access |
+| WP-014 | Current-user projection and resume | P1 | implemented (server + Settings entry) | 87a95318e, d47c5ff86 | progressiveAccess.db.test.js; signupResume in GET /api/me/access |
 | WP-015 | Home and dashboard routing | P2 | planned | | |
 | WP-016 | Navigation, notices and settings | P2 | planned | | |
 | WP-017 | JWT, CSRF and cross-tab session safety | P2 | planned | | |
