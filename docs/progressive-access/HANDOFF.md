@@ -146,11 +146,11 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
     (scheduler = `queued_by`, else `created_by`; must still be owner or active manager). The
     alternative — sending anyway because a manager approved it earlier — was rejected as
     unsafe. Legacy scheduled rows with neither column set also return to draft.
+16. **Lead access now requires the `leads.*` permissions** (employees and support agents lose
+    the lead list they could previously read); quoting needs `quotes.create`.
 17. **Waitlist and client-package lists are no longer any-member**: employees/support agents
     lose the business-wide waitlist (needs customers.view_all or calendar.view_all) and see
     only the client packages of customers they serve.
-16. **Lead access now requires the `leads.*` permissions** (employees and support agents lose
-    the lead list they could previously read); quoting needs `quotes.create`.
 
 ## Next step
 
