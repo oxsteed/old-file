@@ -596,6 +596,21 @@ configured; populated retry/denial acceptance and exact-head CI remain open.
 **Exact next action (resume here):** run the isolated payment-layers PostgreSQL
 suite with a disposable database, add approved-versus-pending actor retry and
 foreign-job denial evidence, then inspect WP-085 helper earnings/payout scope.
+
+WP-085 is checkpointed at `7c9f70fe2` (helper payout destination access).
+Payout-method create, update, and delete now pass through
+`requireHelperCapability` before the existing TOTP and completed-onboarding
+guards. Under helper-enforcement `enforce`, a customer-class account therefore
+needs an effective `helper.offer_services` grant before changing a payout
+destination; the existing controller still scopes every method query to the
+authenticated user and keeps fresh TOTP required. `payoutAccessBoundary.test.js`,
+`progressiveAccessHelperEnforcement.test.js`, and the existing payout
+controller/security suites pass together (26 tests). Populated revoked-helper
+payout acceptance and exact-head CI remain open.
+**Exact next action (resume here):** run the isolated payout-method and helper
+earnings checks with a disposable PostgreSQL database, verify historical
+earnings remain readable after helper-work revocation while new payout changes
+are denied, then inspect WP-086 Credit wallet isolation.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
