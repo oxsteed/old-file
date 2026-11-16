@@ -13,6 +13,7 @@ import { accessAPI } from '../../api/access';
 import { currentAuthEpoch, isCurrentAuthEpoch } from '../../api/authSessionEpoch';
 import { useAuth } from '../../context/AuthContext';
 import { notifyAccessChanged, ACCESS_CHANGED_EVENT } from '../../hooks/useAccessProjection';
+import { LAUNCH_VISIBILITY } from '../../utils/launchScope';
 
 const NS = 'common';
 const OPEN = ['draft', 'submitted', 'in_review', 'needs_information'];
@@ -304,7 +305,8 @@ function AccountApplications({ accountId, epoch }) {
   const startApplication = async (capability) => {
     setBusy(true);
     try {
-      const result = await accessAPI.createRequest({ capability, subject: { type: 'self' }, answers: {} });
+      const type = policyFor(capability)?.subjectTypes.includes('business_proposal') ? 'business_proposal' : 'self';
+      const result = await accessAPI.createRequest({ capability, subject: { type }, source: 'settings', answers: {} });
       await load();
       openRequest(result.request.id);
     } catch (err) {
@@ -407,7 +409,23 @@ function AccountApplications({ accountId, epoch }) {
                             </div>
                             <StatusBadge t={t} status={r.status} />
                           </div>
+                          {r.businessLaunch && (
+                            <p className="mt-2 text-xs text-muted">
+                              {t('businessLaunchStatus.businessLaunchRequest')} · {t(`businessLaunchStatus.status_${r.businessLaunch.status}`)}
+                            </p>
+                          )}
                           <div className="mt-2 flex flex-wrap gap-3">
+                            {LAUNCH_VISIBILITY.consulting && r.subjectDisplay?.kind === 'new_business'
+                              && OPEN.includes(r.status) && !r.businessLaunch && (
+                                <Link
+                                  to="/consulting-intake"
+                                  state={{ accessRequestId: r.id, accessAccountId: String(accountId) }}
+                                  className="text-sm font-medium text-primary hover:underline"
+                                  data-track="ui.access.applications.business-launch"
+                                >
+                                  {t('network.businessLaunch.title')}
+                                </Link>
+                            )}
                             {EDITABLE.includes(r.status) && (
                               <button type="button" onClick={() => openRequest(r.id)} className="text-sm font-medium text-primary hover:underline" data-track="ui.access.applications.continue">
                                 {t('progressiveAccess.actions.continue', { ns: NS })}

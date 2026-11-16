@@ -38,6 +38,7 @@ async function submitBusinessLaunchRequest(req, res) {
     urgency,
     package_selected,
     package_price,
+    access_request_id,
   } = req.body;
 
   // Validation
@@ -49,12 +50,29 @@ async function submitBusinessLaunchRequest(req, res) {
     return res.status(400).json({ error: 'Missing required fields (country and state/city required)' });
   }
   const setupItems = Array.isArray(setup_items_selected) ? setup_items_selected : [];
+  const applicationId = access_request_id == null ? null : String(access_request_id);
+  if (applicationId !== null && (!req.user?.id || !/^[1-9]\d{0,17}$/.test(applicationId))) {
+    return res.status(404).json({ error: 'Application not found.', code: 'access_request_not_found' });
+  }
 
   try {
     const client = await db.connect();
 
     try {
       await client.query('BEGIN');
+
+      if (applicationId !== null) {
+        const application = await client.query(
+          `SELECT id FROM access_requests
+           WHERE id = $1 AND applicant_id = $2 AND capability IN ('business.own', 'restaurant.own')
+             AND status IN ('draft', 'submitted', 'in_review', 'needs_information')
+           FOR SHARE`, [applicationId, req.user.id],
+        );
+        if (!application.rowCount) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Application not found.', code: 'access_request_not_found' });
+        }
+      }
 
       // Insert the consulting request
       const result = await client.query(
@@ -63,10 +81,10 @@ async function submitBusinessLaunchRequest(req, res) {
           skill_description, target_market, has_revenue, business_name_decided,
           business_name, operating_country, operating_state, setup_items_selected, select_all_chosen,
           current_phase, additional_notes, urgency, package_selected, package_price,
-          status
+          status, access_request_id
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'pending'
+          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'pending', $21
         ) RETURNING id, created_at`,
         [
           req.user?.id || null,
@@ -89,6 +107,7 @@ async function submitBusinessLaunchRequest(req, res) {
           urgency,
           package_selected,
           package_price,
+          applicationId,
         ]
       );
 
@@ -1018,7 +1037,7 @@ async function getUserBusinessLaunchRequests(req, res) {
               skill_description, target_market, has_revenue, business_name_decided,
               business_name, operating_country, operating_state, setup_items_selected,
               select_all_chosen, current_phase, additional_notes, urgency,
-              package_selected, package_price, status, created_at, updated_at
+              package_selected, package_price, status, access_request_id, created_at, updated_at
        FROM consulting_requests
        WHERE user_id = $1 OR (user_id IS NULL AND LOWER(email) = LOWER($2))
        ORDER BY created_at DESC`,

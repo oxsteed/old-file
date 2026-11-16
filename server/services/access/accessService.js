@@ -174,6 +174,7 @@ function toApplicantView(row) {
 function toApplicantSummary(row) {
   const v = toApplicantView(row);
   delete v.answers;
+  if (row.business_launch_status) v.businessLaunch = { status: row.business_launch_status };
   return v;
 }
 
@@ -385,10 +386,18 @@ async function listMine(applicantId, { limit = 20, before = null } = {}) {
   if (before != null) {
     if (!/^\d{1,18}$/.test(String(before))) throw err(400, 'validation_failed', 'Invalid cursor.', { fields: { before: 'invalid' } });
     params.push(String(before));
-    cursor = 'AND id < $3';
+    cursor = 'AND ar.id < $3';
   }
   const { rows } = await pool.query(
-    `SELECT * FROM access_requests WHERE applicant_id = $1 ${cursor} ORDER BY id DESC LIMIT $2`,
+    `SELECT ar.*, launch.status AS business_launch_status
+     FROM access_requests ar
+     LEFT JOIN LATERAL (
+       SELECT cr.status FROM consulting_requests cr
+       WHERE cr.access_request_id = ar.id AND cr.user_id = ar.applicant_id AND cr.status <> 'archived'
+       ORDER BY cr.created_at DESC, cr.id DESC LIMIT 1
+     ) launch ON TRUE
+     WHERE ar.applicant_id = $1 ${cursor}
+     ORDER BY ar.id DESC LIMIT $2`,
     params,
   );
   const page = rows.slice(0, lim);

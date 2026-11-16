@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
+import { currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
 import {
   ALL_COUNTRIES,
   COUNTRIES_WITH_REGIONS,
@@ -181,6 +182,7 @@ const SKILL_OPTIONS = [
 
 export default function ConsultingIntakePage() {
   const navigate = useNavigate();
+  const { state } = useLocation();
   const { user } = useAuth();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
@@ -369,12 +371,18 @@ export default function ConsultingIntakePage() {
 
   const handleSubmit = async () => {
     if (!validateStep()) return;
+    const accessRequestId = state?.accessRequestId;
+    if (accessRequestId && String(user?.id) !== state.accessAccountId) {
+      toast.error(t('consulting.intake.formErrors.failedSubmit'));
+      return;
+    }
 
+    const epoch = currentAuthEpoch();
     setLoading(true);
     try {
       const packagePrice = packages[form.package_selected].price;
 
-      const response = await api.post('/consulting/business-launch/submit', {
+      await api.post('/consulting/business-launch/submit', {
         email: form.email,
         first_name: form.first_name,
         last_name: form.last_name,
@@ -394,12 +402,15 @@ export default function ConsultingIntakePage() {
         urgency: form.urgency,
         package_selected: form.package_selected,
         package_price: packagePrice,
+        ...(accessRequestId && { access_request_id: accessRequestId }),
       });
 
+      if (!isCurrentAuthEpoch(epoch)) return;
       toast.success(t('consulting.intake.formSuccess'));
-      setTimeout(() => navigate('/'), 2000);
+      if (accessRequestId) navigate('/settings/applications', { replace: true });
+      else setTimeout(() => { if (isCurrentAuthEpoch(epoch)) navigate('/'); }, 2000);
     } catch (err) {
-      toast.error(err.response?.data?.error || t('consulting.intake.formErrors.failedSubmit'));
+      if (isCurrentAuthEpoch(epoch)) toast.error(t('consulting.intake.formErrors.failedSubmit'));
     } finally {
       setLoading(false);
     }

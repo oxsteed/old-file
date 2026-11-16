@@ -228,7 +228,10 @@ describeDb('progressive consultant and business launch access', () => {
       package_selected: 'launch', package_price: 750,
     };
     const submit = request(app).post(`${launch}/submit`).set('x-test-user', customer);
-    const { body: { requestId } } = await submit.send(intake).expect(201);
+    const { body: { requestId } } = await submit.send({ ...intake, access_request_id: ownerRequest.id }).expect(201);
+    await request(app).post(`${launch}/submit`).set('x-test-user', otherCustomer)
+      .send({ ...intake, access_request_id: ownerRequest.id }).expect(404);
+    await request(app).post(`${launch}/submit`).send({ ...intake, access_request_id: ownerRequest.id }).expect(404);
     const { body: { requestId: foreignId } } = await request(app).post(`${launch}/submit`)
       .set('x-test-user', otherCustomer).send(intake).expect(201);
     const { body: { requestId: guestId } } = await request(app).post(`${launch}/submit`)
@@ -239,7 +242,13 @@ describeDb('progressive consultant and business launch access', () => {
     const owned = await history(customer).expect(200);
     expect(ids(owned)).toEqual(expect.arrayContaining([requestId, guestId]));
     expect(ids(owned)).toHaveLength(2);
-    expect(owned.body.find(({ id }) => id === requestId)).toMatchObject({ user_id: customer, setup_items_selected: [] });
+    expect(owned.body.find(({ id }) => id === requestId)).toMatchObject({
+      user_id: customer, setup_items_selected: [], access_request_id: ownerRequest.id,
+    });
+    expect((await access.listMine(customer)).requests[0]).toMatchObject({
+      id: ownerRequest.id, status: 'submitted', businessLaunch: { status: 'pending' },
+    });
+    expect((await access.listMine(otherCustomer)).requests).toEqual([]);
     expect(ids(await history(customer).set('x-test-unverified', '1').expect(200))).toEqual([requestId]);
     expect(ids(await history(otherCustomer).set('x-test-email', email).expect(200))).not.toContain(requestId);
     const search = () => request(app).get(`${launch}/search`).query({ email }).set('x-test-user', customer);
@@ -269,6 +278,7 @@ describeDb('progressive consultant and business launch access', () => {
     expect(reassigned.body.request).toMatchObject({ consultant_status_notes: null, consultant_intro_sent_at: null });
     expect((await dashboard(advisor).expect(200)).body).toMatchObject({ referrals: [], activity: [] });
     expect((await dashboard(nextAdvisor).expect(200)).body.referrals.map(({ id }) => id)).toEqual([requestId]);
+    expect((await dashboard(nextAdvisor).expect(200)).body.referrals[0]).not.toHaveProperty('access_request_id');
 
     const { rows: [session] } = await db.query(
       `INSERT INTO consulting_sessions (user_id, email, first_name, last_name, consultant_assigned_id)
