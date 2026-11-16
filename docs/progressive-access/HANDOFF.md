@@ -439,7 +439,7 @@ files, supports explicit upload visibility, and keeps the ownership application
 identifier out of the consultant response. The browser fixture covers shared
 versus applicant-only controls. Live acceptance and exact-head CI remain open.
 
-WP-077 is in progress at `e48738e84`, `0b45ff681`, `ad95b1a09`, `d2346b1e4`, `04e097b34`, and `1a9775db2`. The mounted KPI route
+WP-077 is in progress at `e48738e84`, `0b45ff681`, `ad95b1a09`, `d2346b1e4`, `04e097b34`, `1a9775db2`, and `eb280311e`. The mounted KPI route
 test proves the old array-to-variadic denial and the corrected legacy role
 path. Migration `20261116170000_investor_reporting_audiences.sql` now creates a
 named dataset audience when an investor request is approved; enforce mode
@@ -455,8 +455,15 @@ so export remains an explicit later package rather than an invented client path.
 approved investor whose grant is revoked or expires while the dashboard is
 open. Confirm the customer workspace remains available, investor-only data is
 cleared, and no stale investor request crosses the account/session boundary.
-The applicant audience form, reviewer confirmation, narrowed dashboard fixture,
-and dataset-aware loading are complete.
+That regression is now `investorDashboard.revocation.browser-check.cjs`: it
+holds KPI/chart responses, revokes the projection, confirms the customer home,
+and then releases the stale responses without rendering their values. The
+applicant audience form, reviewer confirmation, narrowed dashboard fixture,
+projection mapping, and dataset-aware loading are complete.
+**Next package:** begin WP-078 (franchise application, review, and territory).
+First mount the declared franchise routes and document whether the existing
+application/territory records can be connected to progressive grants without
+granting an unscoped territory or changing `users.role`.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
