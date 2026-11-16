@@ -794,6 +794,22 @@ startup bootstrap. Audit feature-flag boot behavior and startup readiness for
 the progressive-access projection/request switches, then run the relevant
 startup/health suites before recording the next checkpoint.
 
+WP-098 is currently an evidence checkpoint. The client requests the server-owned
+launch snapshot before first render, waits at most three seconds, and falls back
+to build-time defaults if configuration is unavailable; API launch gates remain
+server-authoritative and fail closed. The client/server launch catalogs stay in
+lockstep, the boot request is no-store, and old asset recovery remains covered
+by the existing service-worker and `build:ci` checks. The iOS and Android
+compatibility endpoints return safe defaults when unset and independent
+server-owned minimum/latest/update/force-after overrides when configured.
+`appVersion.test.js`, `launchGate.test.js`, and `serverBootSmoke.test.js` pass
+(26 tests), and `launchScopeVisibility.test.mjs` plus
+`vortexEnvDefaults.test.mjs` pass (11 client tests).
+**Exact next action (resume here):** move to WP-099, Email, SMS and provider
+retry handling. Audit notification preferences, transition-derived recipients,
+outbox retries, and webhook authenticity; run the relevant delivery/retry
+suites and record any provider-availability limits before the next checkpoint.
+
 History of what is done (newest last):
 
 
