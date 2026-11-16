@@ -951,9 +951,18 @@ exports.updateMobileProfile = async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
     let modeSwitched = false;
+    let modeChangeIgnored = null;
     if (defaultMode !== undefined && defaultMode !== req.user.default_mode) {
-      await modeRoleUtil.applyModeSwitch(client, req.user.id, defaultMode);
-      modeSwitched = true;
+      // WP-005: mobile profile writes never raise authority under progressive access.
+      const gate = await require('../services/access/modeGate').checkModeChange(
+        { userId: req.user.id, currentRole: req.user.role, targetMode: defaultMode }, client,
+      );
+      if (gate.allowed) {
+        await modeRoleUtil.applyModeSwitch(client, req.user.id, defaultMode);
+        modeSwitched = true;
+      } else {
+        modeChangeIgnored = { code: gate.code, capability: gate.capability };
+      }
     }
 
     const { rows: [updated] } = await client.query(
@@ -989,6 +998,7 @@ exports.updateMobileProfile = async (req, res, next) => {
       data: {
         profile: formatMobileProfile(updated),
         modeSwitched,
+        ...(modeChangeIgnored ? { modeChangeIgnored } : {}),
       },
     });
   } catch (err) {

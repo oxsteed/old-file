@@ -134,9 +134,12 @@ Test: `__tests__/progressiveAccessSignup.db.test.js`.
 verify 500'd on old-files-claude; now passed as `$23`.
 
 Next (in order):
-1. WP-005: profile / account-type writes (`updateProfile`, `PUT /profile`, `PATCH /me`)
-   must not raise authority when `ACCESS_CUSTOMER_FIRST_SIGNUP` is on; WP-004 login ignores
-   legacy mode inputs. AC-005 (OTP resend with intent) test.
+1. (done) WP-005 + WP-004/WP-013 server gate: `services/access/modeGate.js` — with
+   `ACCESS_CUSTOMER_FIRST_SIGNUP` or `ACCESS_LEGACY_SWITCH_RETIRED` on, profile/mobile
+   mode writes that would lift `customer` to a helper-class role without a held capability
+   are ignored (`mode_change_ignored`), switch-role returns 403 `access_required`, and login
+   ignores the mode. Test `__tests__/progressiveAccessModeGate.db.test.js`. Still to do:
+   a login-path test (WP-004) and AC-005 (OTP resend keeps intent).
 2. Helper enforcement (WP-026) `ACCESS_HELPER_ENFORCEMENT=shadow|enforce` on bid/quote writes
    using `accessService.can(userId,'helper.offer_services')`.
 3. Client: `client/src/api/access.js`, `useAccess` hook, signup intent selector on JoinPage

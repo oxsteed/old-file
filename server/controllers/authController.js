@@ -34,6 +34,7 @@ const { consumeTotpCounter } = require('../services/totpReplayGuard'); // Domain
 const modeRoleUtil = require('../utils/modeRole');
 const accessFlags = require('../services/access/flags');
 const signupIntent = require('../services/access/signupIntent');
+const accessModeGate = require('../services/access/modeGate');
 const { readDeviceFingerprint } = require('../utils/deviceFingerprint'); // Review P2-6-F12
 const { normalizeStoredPublicUrl } = require('../utils/storage');
 const { liftExpiredSuspension } = require('../utils/suspension');
@@ -459,7 +460,17 @@ async function login(req, res, next) {
         message: 'Please provide your 2FA code to complete login.'
       });
     }
-    if (!isAdminUser && requestedOperatingMode && requestedOperatingMode !== user.default_mode) {
+    // WP-004: under progressive access a sign-in mode choice may only pick a
+    // view the account already holds; it is ignored (not an error) otherwise.
+    let loginModeAllowed = true;
+    if (!isAdminUser && requestedOperatingMode && requestedOperatingMode !== user.default_mode
+        && accessModeGate.gateActive()) {
+      const gate = await accessModeGate.checkModeChange({
+        userId: user.id, currentRole: user.role, targetMode: requestedOperatingMode,
+      });
+      loginModeAllowed = gate.allowed;
+    }
+    if (!isAdminUser && loginModeAllowed && requestedOperatingMode && requestedOperatingMode !== user.default_mode) {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
@@ -2131,6 +2142,7 @@ async function updateProfile(req, res) {
     // invalidation all happen atomically — same code path as /switch-role.
     let updatedUser = null;
     let didModeSwitch = false;
+    let modeChangeIgnored = null;
     let modeTokens = null;
     await client.query('BEGIN');
     if (requestedMode && requestedMode !== currentMode) {
@@ -2164,12 +2176,22 @@ async function updateProfile(req, res) {
         }
       }
 
-      updatedUser = await modeRoleUtil.applyModeSwitch(client, req.user.id, requestedMode);
-      if (!updatedUser) {
-        await client.query('ROLLBACK');
-        return res.status(409).json({ error: 'state_conflict' });
+      // WP-005: under progressive access a profile write never raises
+      // authority. A mode that would need an unheld capability is ignored
+      // (the rest of the profile still saves) and reported back.
+      const gate = await accessModeGate.checkModeChange(
+        { userId: req.user.id, currentRole, targetMode: requestedMode }, client,
+      );
+      if (!gate.allowed) {
+        modeChangeIgnored = { code: gate.code, capability: gate.capability };
+      } else {
+        updatedUser = await modeRoleUtil.applyModeSwitch(client, req.user.id, requestedMode);
+        if (!updatedUser) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'state_conflict' });
+        }
+        didModeSwitch = true;
       }
-      didModeSwitch = true;
     }
 
     // P2-8-F11: changing the phone number must reset phone_verified. A
@@ -2260,6 +2282,7 @@ async function updateProfile(req, res) {
       success: true,
       user: formatAuthUser(finalRow),
       mode_switched: didModeSwitch,
+      ...(modeChangeIgnored ? { mode_change_ignored: modeChangeIgnored } : {}),
       ...(modeTokens || {}),
     });
   } catch (err) {
@@ -2681,6 +2704,20 @@ async function switchRole(req, res) {
         return res.status(403).json({
           error: 'mode_not_granted',
           message: `You don't have an active "${memberRole}" membership on any workspace.`,
+        });
+      }
+    }
+
+    {
+      // WP-013 / WP-005: switching may change the view but never raises
+      // authority while progressive access is on.
+      const gate = await accessModeGate.checkModeChange({ userId, currentRole, targetMode: newMode }, client);
+      if (!gate.allowed) {
+        return res.status(403).json({
+          error: 'access_required',
+          code: 'access_required',
+          capability: gate.capability,
+          message: 'Apply for this access from Settings → Applications.',
         });
       }
     }
