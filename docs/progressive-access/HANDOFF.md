@@ -126,6 +126,18 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
 
 ## Next step
 
+**Exact next action (resume here):** WP-007 "Verification and provider callbacks" — make
+identity/background-check provider callbacks (Didit, helper onboarding) record evidence
+on the open `helper.offer_services` request (bump `evidence_revision`) instead of changing
+`users.role`; then WP-015/WP-016 (Home + nav read `GET /api/me/access` `personal[]` instead
+of `default_mode`), then WP-020 remaining (outbox → in-app badge), then Phase 3 starting
+at WP-046. Small open items: a login-path test for WP-004; helper-only routes still using
+`req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
+server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
+
+History of what is done (newest last):
+
+
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
 `controllers/progressiveAccessController.js`, `routes/progressiveAccess.js` (mounted in
