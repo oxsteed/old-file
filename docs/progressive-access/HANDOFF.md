@@ -999,6 +999,23 @@ Trace the retained switch endpoint and all ModeSwitcher callers, confirm no
 legacy self-selection can acquire authority, and replace or hide navigation
 that still presents mode switching while preserving customer workflows.
 
+WP-013 is now an implementation checkpoint. The retained switch endpoint remains
+server-compatible for legacy accounts, but with `ACCESS_LEGACY_SWITCH_RETIRED`
+enabled its mode-lifting authority is still rejected unless the account holds the
+corresponding capability. The progressive client branch now replaces the navbar
+ModeSwitcher with a link to Applications and removes the Settings account-mode
+self-switch controls and granted-mode instructions; customer navigation and the
+customer foundation remain in place. The server mode-gate suite passes (5 tests)
+and the client retirement contract passes (2 tests), with frontend-reference and
+locale verification plus the local typecheck/build recorded for this checkpoint.
+The legacy endpoint is intentionally retained for compatibility and must not be
+removed until all consumers and rollout flags are retired.
+**Exact next action (resume here):** complete the Phase 0 baseline inventory in
+`docs/progressive-access/BASELINE.md`, then add the dedicated WP-004 login-path
+test that proves login ignores legacy mode inputs while the progressive flag is
+on. Keep the remaining WP-008 populated two-business approval/revoked-approver
+acceptance and exact-head CI evidence open until separately verified.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
