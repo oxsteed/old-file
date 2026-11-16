@@ -211,8 +211,16 @@ rule being creatable against another business's product id, rule delete answerin
 foreign id (now 404), and added audit entries for product pricing rule create/update/delete
 and bulk tier changes. Evidence: `progressiveAccessCatalog.db.test.js`.
 
+WP-054 done: business invoices were already finance-role gated with the owner as issuer and
+helper invoices confined to `business_id IS NULL`; recurring generation is idempotent per
+period. Fixed `businessFinance` quote and expense routes (`:quoteId`/`:expenseId`) whose
+controllers read `req.params.id` — get/update/send/delete silently did nothing — and made
+quote/expense/recurring deletes 404 for unknown ids. Recurring billing has no unattended
+scheduler (generation is a manual manager action), so revocation stops it. Evidence:
+`progressiveAccessInvoices.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-054 (SPEC.md line ~3299). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-055 (business packages, services and waitlists; SPEC.md line ~3327). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 

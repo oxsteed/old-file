@@ -71,7 +71,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-051 | Business client records and customer insight | P3 | implemented | 21792ad15 | __tests__/progressiveAccessCustomer360.db.test.js |
 | WP-052 | Business leads, campaigns and follow-ups | P3 | implemented | 1de6f2ee1 | __tests__/progressiveAccessLeads.db.test.js, businessLeadPipeline.test.js |
 | WP-053 | Catalog, pricing rules and marketplace publishing | P3 | implemented | b4df83b25 | __tests__/progressiveAccessCatalog.db.test.js |
-| WP-054 | Invoices, quotes and recurring billing | P3 | planned | | |
+| WP-054 | Invoices, quotes and recurring billing | P3 | implemented | 483d26942 | __tests__/progressiveAccessInvoices.db.test.js |
 | WP-055 | Business packages, services and waitlists | P3 | planned | | |
 | WP-056 | Integrations and brand linkage | P3 | planned | | |
 | WP-057 | Property and maintenance workflows | P3 | planned | | |
