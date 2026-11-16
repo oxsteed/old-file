@@ -1334,6 +1334,20 @@ threads for identity-bound membership, attachment/download scope, unread badges,
 realtime cleanup, and revocation behavior; then add the smallest missing
 capability-aware contract and focused tests.
 
+WP-034 is implemented on the branch. The audit found one real cross-mode defect:
+customer-to-business conversation creation checked `business_members.user_id`,
+which is not the canonical membership column, so a delegated representative could
+not open a thread even though every read/list route used `member_id`. The query now
+uses `member_id`; focused server tests passed 19/19 and client message contracts
+passed 43/43, with the frontend reference check clean. Existing route/controller
+checks continue to bind lists, thread reads, sends, signed attachment URLs, unread
+state and socket rooms to the current participant or active business membership;
+no populated browser or live-revocation acceptance is claimed.
+**Exact next action (resume here):** begin WP-035 Support from the customer
+surface. Audit the customer-facing support entry, escalation handoff, ticket
+identity, attachment scope, unread/realtime updates, and post-revocation behavior;
+then add the smallest missing capability-aware contract and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
