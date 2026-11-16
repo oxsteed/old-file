@@ -95,10 +95,16 @@ export function canManageBusinesses(user) {
 // limited to helper-class accounts.
 export function hasProAccess(user) {
   if (!user) return false;
-  if (['helper_pro', 'broker'].includes(user.role)) return true;
-  const tier = String(user.effective_tier || user.membership_tier || '').toLowerCase();
-  if (['pro', 'tier2'].includes(tier)) return true;
-  return Boolean(user.trial_ends_at && new Date(user.trial_ends_at).getTime() > Date.now());
+  const status = String(user.subscription_status || '').toLowerCase();
+  const subscriptionCurrent = !status || ['active', 'trialing'].includes(status);
+  if (['helper_pro', 'broker'].includes(user.role) && subscriptionCurrent) return true;
+  const legacyTier = String(user.membership_tier || '').toLowerCase();
+  if (['pro', 'tier2'].includes(legacyTier)) return true;
+  if (user.trial_ends_at && new Date(user.trial_ends_at).getTime() > Date.now()) return true;
+  if (status && !['active', 'trialing'].includes(status)) return false;
+  const tier = String(user.effective_tier || user.tier || '').toLowerCase();
+  if (['pro', 'tier2', 'premium', 'elite'].includes(tier)) return true;
+  return false;
 }
 
 // Business Hub gate — helper-class modes (helper, business_owner, team roles)

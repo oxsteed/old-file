@@ -87,6 +87,21 @@ describe('helper capability gate', () => {
     expect(r2.nextCalled).toBe(true);
   });
 
+  test('enforce: approved helper capability remains usable when subscription access is expired', async () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+    access.can.mockResolvedValue({ allowed: true, reason: 'grant' });
+    const req = {
+      user: {
+        ...user('customer'),
+        tier: 'pro',
+        subscription_status: 'cancelled',
+      },
+    };
+    const { nextCalled } = await run(requireHelperCapability, req);
+    expect(nextCalled).toBe(true);
+    expect(req.accessCapabilities).toEqual({ 'helper.offer_services': true });
+  });
+
   test('admins bypass unchanged', async () => {
     process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
     const { nextCalled } = await run(requireHelperCapability, { user: user('admin') });

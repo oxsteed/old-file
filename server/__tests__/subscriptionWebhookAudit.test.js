@@ -88,6 +88,9 @@ describe('webhook subscription audit', () => {
     const auditCall = logAdminAction.mock.calls.find(([args]) => args.action === 'subscription.renewed');
     expect(auditCall[0].client).toBeTruthy();
     expect(auditCall[0].client).not.toBe(require('../db'));
+    // Billing renewal must not mint or duplicate a progressive-access grant;
+    // helper/business authority remains owned by the access review lifecycle.
+    expect(mockQuery.mock.calls.some(([sql]) => /access_grants/i.test(String(sql)))).toBe(false);
   });
 
   test('customer.subscription.deleted writes a fail-closed audit row', async () => {

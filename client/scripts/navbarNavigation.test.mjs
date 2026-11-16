@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { navbarMode, navbarNavigation, navbarLinkActive, navbarWorkspacePath } from '../src/utils/navbarNavigation.js';
+import { hasProAccess } from '../src/utils/modeAccess.js';
 
 const shapes = {
   customer: [['findHelp', '/helpers'], ['myJobs', '/my-jobs'], ['orderFood', '/restaurants'], ['messages', '/messages'], ['postJob', '/post-job']],
@@ -25,6 +26,12 @@ test('legacy helper variants and explicit mode use the same navigation', () => {
   }
   assert.equal(navbarMode({ role: 'helper', default_mode: 'customer' }), 'customer');
   assert.equal(navbarMode({ role: 'customer' }), 'customer');
+});
+
+test('client Pro visibility follows billing state independently of helper capability', () => {
+  assert.equal(hasProAccess({ role: 'customer', tier: 'pro', subscription_status: 'active' }), true);
+  assert.equal(hasProAccess({ role: 'customer', tier: 'pro', subscription_status: 'cancelled' }), false);
+  assert.equal(hasProAccess({ role: 'customer', tier: 'free', subscription_status: 'none', trial_ends_at: new Date(Date.now() + 3600000).toISOString() }), true);
 });
 test('granted business roles use workspace navigation; support and admin retain their dashboards', () => {
   for (const mode of ['business_manager', 'business_representative', 'business_employee']) {

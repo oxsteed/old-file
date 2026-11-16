@@ -12,9 +12,14 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // Cache for 5 minutes
 
 function getEffectiveTier(user) {
   if (!user) return 'free';
-  if (user.membership_tier === 'pro') return 'pro';
   if (isTrialActive(user)) return 'pro';
-  return user.membership_tier || 'free';
+  if (legacyPaidTier(user)) return 'pro';
+  if (currentPaidProductTier(user)) return 'pro';
+  if (PAID_PRODUCT_TIERS.has(String(user.tier || '').toLowerCase())) {
+    // A product tier without a current subscription is not an entitlement.
+    return 'free';
+  }
+  return user.membership_tier || user.tier || 'free';
 }
 
 /**
@@ -25,9 +30,30 @@ function getEffectiveTier(user) {
  */
 function hasProAccess(user) {
   if (!user) return false;
-  if (['helper_pro', 'broker'].includes(user.role)) return true;
-  if (['pro', 'tier2'].includes(String(user.membership_tier || '').toLowerCase())) return true;
-  return isTrialActive(user);
+  return isTrialActive(user)
+    || legacyPaidTier(user)
+    || currentPaidProductTier(user)
+    || (['helper_pro', 'broker'].includes(user.role) && subscriptionIsCurrent(user));
+}
+
+const CURRENT_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing']);
+const PAID_PRODUCT_TIERS = new Set(['pro', 'tier2', 'premium', 'elite']);
+
+function subscriptionIsCurrent(user) {
+  // Older callers do not always include subscription_status. Preserve their
+  // legacy behavior while treating an explicitly non-current status as a
+  // billing denial for product entitlements.
+  if (user?.subscription_status == null || user.subscription_status === '') return true;
+  return CURRENT_SUBSCRIPTION_STATUSES.has(String(user.subscription_status).toLowerCase());
+}
+
+function legacyPaidTier(user) {
+  return PAID_PRODUCT_TIERS.has(String(user?.membership_tier || '').toLowerCase());
+}
+
+function currentPaidProductTier(user) {
+  return subscriptionIsCurrent(user)
+    && PAID_PRODUCT_TIERS.has(String(user?.tier || '').toLowerCase());
 }
 
 function isTrialActive(user) {
@@ -91,6 +117,7 @@ async function trialDefaults() {
 module.exports = {
   getEffectiveTier,
   hasProAccess,
+  subscriptionIsCurrent,
   isTrialActive,
   trialDaysLeft,
   trialDefaults,
