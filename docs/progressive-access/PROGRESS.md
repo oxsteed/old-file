@@ -36,7 +36,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-016 | Navigation, notices and settings | P2 | implemented | f3e3f2985 | navbarNavigation.test.mjs (WP-016) |
 | WP-017 | JWT, CSRF and cross-tab session safety | P2 | implemented | ff4ff03ba | Session-epoch/refresh-lock implementation; `authRefreshCoordinator.test.mjs` + `authRefreshPolicy.test.mjs` (10), `csrf.test.js` + `csrfSessionScope.test.js` (22), and synthetic `loginSession.browser-check.cjs` (17) pass. Exact-head CI remains open. |
 | WP-018 | Two-factor authentication and passkeys | P2 | in progress | (this checkpoint) | Passkey/two-factor server suites pass (16); client passkeys/sessions contracts pass (7) with all supported locale strings and inline unsupported-browser guidance. Native authenticator/browser acceptance and exact-head CI remain open. |
-| WP-019 | Sessions on native API and PWA | P2 | planned | | |
+| WP-019 | Sessions on native API and PWA | P2 | implemented (mobile projection) | (this checkpoint) | `server/__tests__/mobileProfile.test.js` (4); existing `routeReliability.test.mjs` confirms authenticated API responses remain network-only and are never replayed from the service worker |
 | WP-020 | Notification and application messages | P2 | implemented | cba40e04e | progressiveAccess.db.test.js (outbox, real in-app), progressiveAccessOutboxCopy.test.js |
 | WP-021 | Account deletion, export and privacy | P4 | planned | | |
 | WP-022 | Profile and public directory | P4 | planned | | |

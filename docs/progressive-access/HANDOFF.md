@@ -1066,6 +1066,23 @@ revokes that manager and proves a replacement pending request remains pending.
 Keep the legacy compatibility endpoint and rollout flags intact while CI and the
 remaining helper-only route audit are completed.
 
+WP-019 now has a bounded native/PWA implementation checkpoint. When
+`ACCESS_PROJECTION_ENABLED` is enabled (including the pilot allowlist),
+`GET /api/mobile/profile` returns the same server-owned capability projection and
+client flags as the browser bootstrap, marks the mobile mode contract as
+`accessControlled`, and exposes only the customer mode as self-selectable. The
+legacy mobile response is unchanged while the rollout is off. The focused mobile
+profile suite passes all four tests; the existing service-worker reliability
+contract continues to prove authenticated API reads are network-only and cannot
+replay another account's cached response. The PATCH response applies the same
+mode metadata after profile edits. No native app binary or live installed-PWA
+acceptance was claimed.
+**Exact next action (resume here):** audit the native/PWA client consumer of
+`/api/mobile/profile` and add a compatibility contract that reads `data.access`
+when present without requiring it for old clients; then run the mobile profile,
+service-worker reliability, frontend-reference, and exact-head CI checks before
+moving to WP-018's remaining native WebAuthn acceptance.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

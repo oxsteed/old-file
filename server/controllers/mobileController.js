@@ -19,6 +19,8 @@ const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const countriesUtil = require('../utils/countries');
 const modeRoleUtil = require('../utils/modeRole');
 const logger = require('../utils/logger');
+const accessService = require('../services/access/accessService');
+const accessFlags = require('../services/access/flags');
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -159,7 +161,7 @@ function diditIdentityRequired(user) {
   return Boolean(user.didit_enforcement_required) && status !== 'verified';
 }
 
-function formatMobileProfile(user) {
+function formatMobileProfile(user, { progressiveAccess = false } = {}) {
   const countryCode = countriesUtil.normalizeCountry(user.country || user.address_country, 'US');
   return {
     id: user.id,
@@ -172,8 +174,9 @@ function formatMobileProfile(user) {
     mode: {
       defaultMode: user.default_mode || 'customer',
       role: user.role,
-      selfSelectableModes: modeRoleUtil.SELF_SELECTABLE_MODES,
-      grantedModes: modeRoleUtil.GRANTED_MODES,
+      selfSelectableModes: progressiveAccess ? ['customer'] : modeRoleUtil.SELF_SELECTABLE_MODES,
+      grantedModes: progressiveAccess ? [] : modeRoleUtil.GRANTED_MODES,
+      ...(progressiveAccess ? { accessControlled: true } : {}),
     },
     preferences: {
       language: user.preferred_language || 'en',
@@ -896,12 +899,15 @@ exports.getPublicNearby = async (req, res, next) => {
 
 exports.getMobileProfile = async (req, res, next) => {
   try {
+    const progressiveAccess = accessFlags.projectionEnabled(req.user && req.user.id);
+    const access = progressiveAccess ? await accessService.getProjection(req.user.id) : null;
     res.json({
       success: true,
       data: {
-        profile: formatMobileProfile(req.user),
+        profile: formatMobileProfile(req.user, { progressiveAccess }),
         languages: SUPPORTED_LANGUAGES,
         countries: SUPPORTED_COUNTRIES,
+        ...(progressiveAccess ? { access, flags: accessFlags.clientFlags(req.user.id) } : {}),
       },
     });
   } catch (err) {
@@ -996,7 +1002,9 @@ exports.updateMobileProfile = async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        profile: formatMobileProfile(updated),
+        profile: formatMobileProfile(updated, {
+          progressiveAccess: accessFlags.projectionEnabled(req.user && req.user.id),
+        }),
         modeSwitched,
         ...(modeChangeIgnored ? { modeChangeIgnored } : {}),
       },
