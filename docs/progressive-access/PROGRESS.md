@@ -37,7 +37,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-017 | JWT, CSRF and cross-tab session safety | P2 | planned | | |
 | WP-018 | Two-factor authentication and passkeys | P2 | planned | | |
 | WP-019 | Sessions on native API and PWA | P2 | planned | | |
-| WP-020 | Notification and application messages | P2 | in progress (access notices done) | 7d936e6fb | progressiveAccess.db.test.js (outbox case) |
+| WP-020 | Notification and application messages | P2 | implemented | cba40e04e | progressiveAccess.db.test.js (outbox, real in-app), progressiveAccessOutboxCopy.test.js |
 | WP-021 | Account deletion, export and privacy | P4 | planned | | |
 | WP-022 | Profile and public directory | P4 | planned | | |
 | WP-023 | Preferences, status and localization | P4 | planned | | |
@@ -149,9 +149,9 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-021 | Capability refresh during unsaved editing | planned | |
 | AC-022 | Arabic approval status keyboard flow | planned | |
 | AC-023 | Feature flag unavailable at boot | planned | |
-| AC-024 | Mobile notification deep-link identity | planned | |
+| AC-024 | Mobile notification deep-link identity | server evidence (partial) | progressiveAccess.db.test.js WP-020 real in-app case: link owner 200 / other user 404 / signed-out 401; native deep-link parsing pending |
 | AC-025 | Provider and customer work side by side | planned | |
-| AC-026 | Verified identity with approval still pending | planned | |
+| AC-026 | Verified identity with approval still pending | server evidence (partial) | progressiveAccess.db.test.js WP-007 case: verified identity, no grant until a fresh decision; bid deny under enforce in progressiveAccessHelperEnforcement.test.js |
 | AC-027 | Approved helper suspended or unlisted | server evidence (partial) | progressiveAccessHelperEnforcement.test.js: suspended/revoked grant blocks bids and hiring under enforce |
 | AC-028 | Existing contract after new-work revoke | planned | |
 | AC-029 | Apply to create a new business | planned | |

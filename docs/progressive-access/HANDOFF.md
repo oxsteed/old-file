@@ -140,7 +140,10 @@ shortcuts, Settings › Applications re-reads on focus and announces changes pol
 **Deploy order:** turn `ACCESS_PROJECTION_ENABLED` on only after the backfill `--apply`
 (otherwise legacy helpers without a grant are shown the personal Home).
 
-**Exact next action (resume here):** WP-020 remaining (outbox → in-app badge), then Phase 3 starting
+WP-020 done: notification copy in all 20 locales (`services/access/outboxCopy.js`), real
+`sendNotification` dedupe across a worker timeout, owner-only link (DB test).
+
+**Exact next action (resume here):** Phase 3 starting
 at WP-046. Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
