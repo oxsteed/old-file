@@ -1348,6 +1348,22 @@ surface. Audit the customer-facing support entry, escalation handoff, ticket
 identity, attachment scope, unread/realtime updates, and post-revocation behavior;
 then add the smallest missing capability-aware contract and focused tests.
 
+WP-035 is implemented on the branch. Pending access applications now expose a
+customer-only “contact human support” handoff carrying a bounded numeric request
+reference. The support routing controller validates that reference against the
+authenticated applicant and stores it on the canonical conversation; a foreign
+reference is ignored without revealing applicant details. Authorized conversation
+detail resolves only a minimal application summary after customer/agent/business
+conversation authorization, while guest support remains on its existing token
+path. The additive migration, focused server tests (118/118), client contracts
+(22/22), frontend reference check, migration-history gate and `build:ci` all pass;
+no populated browser/live-agent acceptance is claimed.
+**Exact next action (resume here):** begin WP-036 Business support agent queue.
+Audit queue visibility, assignment/claim scope, business representative grants,
+customer identity projection, attachment/download access, unread/realtime events,
+and revocation behavior; then add the smallest missing capability-aware contract
+and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

@@ -449,6 +449,15 @@ function AccountApplications({ accountId, epoch }) {
                                 {t('progressiveAccess.actions.continue', { ns: NS })}
                               </button>
                             )}
+                            {OPEN.includes(r.status) && (
+                              <Link
+                                to={`/support/escalation?from=access-request&accessRequestId=${encodeURIComponent(String(r.id))}`}
+                                className="text-sm font-medium text-primary hover:underline"
+                                data-track="ui.access.applications.support"
+                              >
+                                {t('supportWidget.contactHuman', { defaultValue: 'Contact human support' })}
+                              </Link>
+                            )}
                             {r.availableActions?.includes('withdraw') && (
                               <button type="button" onClick={() => setWithdrawTarget(r)} className="text-sm hover:underline" style={{ color: 'var(--color-error)' }} data-track="ui.access.applications.withdraw">
                                 {t('progressiveAccess.actions.withdraw', { ns: NS })}

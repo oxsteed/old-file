@@ -403,6 +403,28 @@ async function getConversation(req, res) {
       return sendError(res, 403, 'Access denied');
     }
 
+    // Progressive-access handoffs carry only a reference. Resolve it after
+    // conversation authorization and bind it to the conversation's customer;
+    // a guessed foreign request id therefore yields no application details.
+    if (conversation.access_request_id) {
+      const { rows: accessRows } = await query(
+        `SELECT id, capability, status, subject_type, updated_at
+           FROM access_requests
+          WHERE id = $1 AND applicant_id = $2
+          LIMIT 1`,
+        [conversation.access_request_id, conversation.customer_id],
+      );
+      conversation.access_request = accessRows[0]
+        ? {
+          id: String(accessRows[0].id),
+          capability: accessRows[0].capability,
+          status: accessRows[0].status,
+          subject_type: accessRows[0].subject_type,
+          updated_at: accessRows[0].updated_at,
+        }
+        : null;
+    }
+
     // Get messages
     const messages = await query(
       `SELECT

@@ -677,7 +677,9 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
         const onlineCount = statusResponse.data.liveAvailableAgents ?? statusResponse.data.agents ?? 0;
         setAgentsOnline(onlineCount);
         setConnectionState('connecting');
-        const response = await api.post('/support-routing/connect');
+        const response = await api.post('/support-routing/connect', {
+          accessRequestId: handoff?.accessRequestId || undefined,
+        });
         if (!active) return;
 
         const nextTicketId = response.data.ticketId;
@@ -732,7 +734,9 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
         setAgentsOnline(available);
         if (available < 1) return;
         connecting = true;
-        const response = await api.post('/support-routing/connect');
+        const response = await api.post('/support-routing/connect', {
+          accessRequestId: handoff?.accessRequestId || undefined,
+        });
         if (!active) return;
         if (response.data.routedTo !== 'agent') {
           setAgentsOnline(0);
@@ -981,6 +985,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
           category: 'support_request',
           priority: 'normal',
           clientRequestId,
+          accessRequestId: handoff?.accessRequestId || undefined,
         });
 
       localStorage.setItem('oxs:visitorName', visitorName);

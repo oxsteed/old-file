@@ -12,6 +12,7 @@ const MAX_SUMMARY_CHARS = 1200;
  * @param {string} [opts.businessId]
  * @param {string} [opts.helperName]
  * @param {string} [opts.returnTo] absolute path+search, e.g. /helpers/uuid
+ * @param {string|number} [opts.accessRequestId] customer-owned progressive access request reference
  * @param {Array<{ itemType?: string, authorType?: string, content?: string }>} [opts.timeline]
  * @returns {{ pathname: string, search: string, state: object }}
  */
@@ -20,6 +21,7 @@ export function buildSupportEscalationHandoff({
   businessId,
   helperName,
   returnTo,
+  accessRequestId,
   timeline = [],
 } = {}) {
   const params = new URLSearchParams();
@@ -29,6 +31,9 @@ export function buildSupportEscalationHandoff({
   if (helperName) params.set('helperName', String(helperName).slice(0, 120));
   if (returnTo && typeof returnTo === 'string' && returnTo.startsWith('/')) {
     params.set('returnTo', returnTo.slice(0, 500));
+  }
+  if (/^\d{1,18}$/.test(String(accessRequestId || ''))) {
+    params.set('accessRequestId', String(accessRequestId));
   }
 
   const summary = summarizeTimeline(timeline);
@@ -55,6 +60,7 @@ export function buildSupportEscalationHandoff({
       businessId: businessId || null,
       helperName: helperName || null,
       returnTo: returnTo && returnTo.startsWith('/') ? returnTo : null,
+      accessRequestId: /^\d{1,18}$/.test(String(accessRequestId || '')) ? String(accessRequestId) : null,
       prefillMessage: prefillMessage || null,
       messageSummary: summary || null,
     },
@@ -95,6 +101,8 @@ export function readSupportEscalationHandoff(location = {}) {
   const helperId = state.helperId || params.get('helperId') || null;
   const businessId = state.businessId || params.get('businessId') || null;
   const helperName = state.helperName || params.get('helperName') || null;
+  const rawAccessRequestId = state.accessRequestId || params.get('accessRequestId') || null;
+  const accessRequestId = /^\d{1,18}$/.test(String(rawAccessRequestId || '')) ? String(rawAccessRequestId) : null;
   let returnTo = state.returnTo || params.get('returnTo') || null;
   if (returnTo && !String(returnTo).startsWith('/')) returnTo = null;
 
@@ -107,6 +115,7 @@ export function readSupportEscalationHandoff(location = {}) {
     helperId,
     businessId,
     helperName,
+    accessRequestId,
     returnTo,
     prefillMessage,
     messageSummary,
