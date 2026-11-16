@@ -208,8 +208,9 @@ export default function InvestorDashboardPage() {
   const [error, setError] = useState(null);
 
   const legacyInvestor = ['investor', 'admin', 'super_admin'].includes(user?.role ?? user?.default_mode);
-  const hasInvestorAccess = legacyInvestor || accessProjection?.personal?.includes('investor.reporting');
-  const audienceDatasets = accessProjection?.investorAudience?.datasets || null;
+  const projectedAccess = accessProjection?.access || accessProjection;
+  const hasInvestorAccess = legacyInvestor || projectedAccess?.personal?.includes('investor.reporting');
+  const audienceDatasets = projectedAccess?.investorAudience?.datasets || null;
   const audienceDatasetKey = audienceDatasets ? audienceDatasets.join('|') : null;
   const datasetAllowed = useCallback((dataset) => (
     audienceDatasetKey == null
