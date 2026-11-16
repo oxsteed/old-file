@@ -64,6 +64,11 @@ Spec "Commit-sized delivery sequence" + "Phase 0–5":
 
 ## Conventions chosen (matched to repo)
 
+- **Before pushing client changes** run `npm run verify:frontend-references` and `npm run build:ci`
+  in `client/` (CI's client job runs both; an undefined `accessT` once failed only there).
+- **DB suites** share one database: run them `--runInBand` like CI (the backfill case counts all
+  users, so parallel files can skew it locally).
+
 - **Migrations**: `server/migrations/YYYYMMDDHHMMSS_name.sql` (UTC), additive,
   idempotent (`IF NOT EXISTS`), `pg_constraint` guards scoped by `conrelid`.
 - **Tables**: `access_signup_intents`, `access_requests`, `access_request_decisions`
@@ -134,6 +139,9 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
     business only if the applicant is already its canonical owner; someone else's id answers
     404 like an unknown id. Ownership transfer/claims of existing businesses stay a
     support/admin process.
+14. **Managers can't lift or change an override the owner placed**, and can't touch overrides
+    for permissions they don't hold themselves (those survive a manager's edit). Only the
+    owner (or another owner) changes them.
 
 ## Next step
 
@@ -163,8 +171,13 @@ request from the URL entity and `user_workspace_contexts` is display-only; prove
 `progressiveAccessWorkspace.db.test.js`. Switcher role label now translated
 (`progressiveAccess.orgRoles.*`).
 
+WP-048 done: `setMembershipOverrides` locks the target membership, rechecks the grantor's
+active role inside the transaction (`grantor_standing_changed`), and keeps owner-placed or
+out-of-scope overrides when a non-owner edits (`override_protected`). DB evidence in
+`progressiveAccessOverrides.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-048 (permission overrides and delegated administration). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-049 (staff scheduling and dispatch). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
