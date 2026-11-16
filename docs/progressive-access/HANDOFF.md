@@ -946,6 +946,23 @@ codes. Run the populated invite/code acceptance for double redemption, invalid
 account, expiry/revocation races, retained prior memberships, and foreign-team
 privacy.
 
+WP-009 is now an implementation checkpoint. The existing Vortex token and
+access-code controllers lock the invitation/code row before validation and
+membership creation, consume one-use state atomically, preserve prior
+memberships, and scope invitation acceptance to the authenticated account or
+normalized invite email. The entry routes now also require the existing
+`requireEmailVerified` guard before invitation listing/acceptance/decline,
+Vortex preview, or either redemption path, so an authenticated but unverified
+account cannot enumerate or consume a business relationship. The new route
+contract and acceptance-boundary suites pass (11 tests), and the populated
+workspace/membership/Vortex regression set passes (40 tests; 26 environment-
+gated skips). A full populated concurrent double-redemption rehearsal remains
+an evidence follow-up rather than a reason to weaken the atomic SQL boundary.
+**Exact next action (resume here):** move to WP-010, Access policy and form
+discovery. Audit the public-versus-reviewer policy revision contract, run its
+focused tests, and update this ledger plus the next action in the same pushed
+checkpoint.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

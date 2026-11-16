@@ -16,6 +16,7 @@
 const express = require('express');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
+const requireEmailVerified = require('../middleware/requireEmailVerified');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { vortexRedeemLimiter } = require('../middleware/rateLimiter');
@@ -29,7 +30,7 @@ const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', t
 const team   = require('../controllers/businessTeamController');
 
 // ── Code preview / redeem ────────────────────────────────────────────────────
-router.post('/preview', authenticate, rejectImpersonated, requireVortexEnabled, vortexRedeemLimiter, access.previewCode);
-router.post('/redeem',  authenticate, rejectImpersonated, requireVortexEnabled, vortexRedeemLimiter, access.redeemCode);
+router.post('/preview', authenticate, requireEmailVerified, rejectImpersonated, requireVortexEnabled, vortexRedeemLimiter, access.previewCode);
+router.post('/redeem',  authenticate, requireEmailVerified, rejectImpersonated, requireVortexEnabled, vortexRedeemLimiter, access.redeemCode);
 
 module.exports = router;
