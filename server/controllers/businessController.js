@@ -419,7 +419,7 @@ async function updateBusiness(req, res, next) {
     // that, otherwise fall back to whatever the row already has.
     const { rows: [existingBusiness] } = await pool.query(
       `SELECT address_country, business_kind, industry_category, business_mode,
-              business_type, setup_status, published_at, logo_url, cover_photo_url
+              business_type, setup_status, published_at, is_listed, logo_url, cover_photo_url
          FROM businesses WHERE id = $1`,
       [id]
     );
@@ -474,10 +474,11 @@ async function updateBusiness(req, res, next) {
     const sensitiveActive = isOwner && is_active != null ? is_active : null;
     const listingVisibility = isOwner && typeof is_listed === 'boolean' ? is_listed : null;
     const requestsPublication = sensitiveActive === true || listingVisibility === true;
+    const enforcementOn = require('../services/access/flags').businessEnforcement() === 'enforce';
     if (
       requestsPublication
-      && existingBusiness?.setup_status !== 'active'
       && !existingBusiness?.published_at
+      && (existingBusiness?.setup_status !== 'active' || (enforcementOn && !existingBusiness?.is_listed))
     ) {
       throw new AppError(
         'Complete business setup before publishing this business.',

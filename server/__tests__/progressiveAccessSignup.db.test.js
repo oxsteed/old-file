@@ -85,6 +85,7 @@ ddescribe('customer-first signup (real database)', () => {
     app.use('/api/bids', require('../routes/bids'));
     app.use('/api/jobs', require('../routes/jobs'));
     app.use('/api/businesses', require('../routes/businesses'));
+    app.use('/api/food', require('../routes/food'));
     app.use(require('../middleware/errorHandler').errorHandler);
     return app;
   }
@@ -240,15 +241,28 @@ ddescribe('customer-first signup (real database)', () => {
       const businessId = draft.body.business.id;
       const { rows: [restaurant] } = await pool.query('SELECT id, status FROM food_restaurants WHERE business_id = $1', [businessId]);
       expect(restaurant.status).toBe('draft');
+      const createActive = await bearer(request(app).post('/api/food/restaurants'), owner.accessToken)
+        .send({ displayName: 'Unapproved fixture restaurant', status: 'active' });
+      expect(createActive.body.code).toBe('access_required');
       const publish = () => bearer(request(app).post(`/api/businesses/${businessId}/onboarding/complete`), owner.accessToken);
+      const legacyStatus = (status) => bearer(request(app).patch(`/api/food/restaurants/${restaurant.id}`), owner.accessToken)
+        .send({ status });
       expect((await publish()).body.code).toBe('access_required');
+      expect((await legacyStatus('active')).body.code).toBe('access_required');
+      expect((await legacyStatus('paused')).status).toBe(200);
+      expect((await legacyStatus('active')).body.code).toBe('access_required');
+      const listBusiness = await bearer(request(app).patch(`/api/businesses/${businessId}`), owner.accessToken)
+        .send({ is_active: true, is_listed: true });
+      expect(listBusiness.body.code).toBe('business_setup_incomplete');
       const submit = await bearer(request(app).post(`/api/me/access-requests/${id}/submit`), owner.accessToken)
         .send({ expectedVersion: 1, answers: { restaurantName: name, serviceArea: { country: 'US', city: 'Columbus' } } });
       expect(submit.status).toBe(200);
       const { grantId } = await approve(app, id, submit.body.request.version);
       expect((await publish()).body.code).toBe('business_setup_incomplete');
       await pool.query('INSERT INTO food_menu_items (restaurant_id, name, price_cents) VALUES ($1, $2, 1200)', [restaurant.id, 'Soup']);
+      expect((await legacyStatus('active')).body.code).toBe('access_required');
       expect((await publish()).status).toBe(200);
+      expect((await legacyStatus('active')).status).toBe(200);
       expect((await pool.query('SELECT status FROM food_restaurants WHERE id = $1', [restaurant.id])).rows[0].status).toBe('active');
       expect((await pool.query('SELECT subject_type, subject_id FROM access_grants WHERE id = $1', [grantId])).rows[0])
         .toEqual({ subject_type: 'business', subject_id: String(businessId) });

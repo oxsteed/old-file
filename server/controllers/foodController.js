@@ -2812,6 +2812,14 @@ exports.createRestaurant = async (req, res, next) => {
         businessCreatedHere = true;
       }
 
+      const status = req.body.status === 'active' ? 'active' : 'draft';
+      if (status === 'active') {
+        const gate = await require('../services/access/businessGate').checkPublish(client, {
+          userId: req.user.id, businessId, kind: 'restaurant',
+        });
+        if (!gate.allowed) throw new AppError('This needs approved access first.', 403, gate.code);
+      }
+
       // F-12: no modes sent means the database default set, never an empty
       // array (an empty array made the POS reject every order while online
       // ordering silently fell back to pickup only).
@@ -2853,7 +2861,7 @@ exports.createRestaurant = async (req, res, next) => {
           req.body.acceptsOnlineOrders !== false,
           req.body.acceptsInStoreOrders !== false,
           req.body.kitchenDisplayEnabled !== false,
-          req.body.status === 'active' ? 'active' : 'draft',
+          status,
           parsePositiveInt(req.body.prepTimeMin || req.body.prep_time_min, 15),
           parsePositiveInt(req.body.estimatedDeliveryMinutes || req.body.estimated_delivery_minutes, parsePositiveInt(req.body.prepTimeMin || req.body.prep_time_min, 15)),
           normalizePriceLevel(req.body.priceLevel || req.body.price_level),
@@ -6400,6 +6408,20 @@ exports.updateRestaurant = async (req, res, next) => {
 
     params.push(restaurantId);
     const restaurant = await withTransaction(pool, async (client) => {
+      if (status === 'active' && require('../services/access/flags').businessEnforcement() !== 'off') {
+        const { rows: [business] } = await client.query(
+          'SELECT user_id, published_at FROM businesses WHERE id = $1 AND deleted_at IS NULL FOR UPDATE',
+          [restaurantAccess.business_id],
+        );
+        if (!business?.published_at) {
+          const gate = await require('../services/access/businessGate').checkPublish(client, {
+            userId: business?.user_id || restaurantAccess.owner_user_id,
+            businessId: restaurantAccess.business_id,
+            kind: 'restaurant',
+          });
+          if (!gate.allowed) throw new AppError('This needs approved access first.', 403, gate.code);
+        }
+      }
       let updated;
       try {
         ({ rows: [updated] } = await client.query(
