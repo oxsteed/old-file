@@ -1243,6 +1243,20 @@ agreement, warranty-claim, and dispute suites together; repair any stale route
 contracts, then add a customer-role approved-helper regression for agreement
 signing or dispute evidence before closing WP-029.
 
+WP-029 is implemented on the branch. The helper-party wrappers are based on the
+agreement/job/dispute owner IDs rather than the legacy account role, so an
+approved customer-role helper reaches the same agreement signing, evidence,
+warranty, dispute opening, evidence, and message paths after the enforced
+capability middleware sets the marker. Customer-party paths and admin dispute
+review remain unchanged. The combined focused run passed 110 tests, with 21
+documented environment-gated skips; no populated live agreement/dispute
+acceptance has been claimed.
+**Exact next action (resume here):** begin WP-030 Ratings and review
+management. Audit who may submit, edit, hide, report, moderate, and publish
+ratings across jobs, helper products, businesses, and bookings; preserve
+customer/provider ownership and add capability-aware provider mutations where
+the server still trusts a legacy role.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
