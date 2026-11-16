@@ -611,6 +611,18 @@ payout acceptance and exact-head CI remain open.
 earnings checks with a disposable PostgreSQL database, verify historical
 earnings remain readable after helper-work revocation while new payout changes
 are denied, then inspect WP-086 Credit wallet isolation.
+
+WP-086 is currently an evidence checkpoint rather than a source change. The
+existing Credit conversion implementation already requires the actor to equal
+the customer owner, locks and replays by idempotency key, checks quote customer,
+status, expiry, amount and currency, re-runs sanctions at the money boundary,
+and posts debit/fee/credit journal legs against that customer's source and
+target wallets. `oxsteedCreditCurrencyConversion.test.js`,
+`oxsteedCreditPhase6.test.js`, and
+`oxsteedCreditControllerAmountAliases.test.js` pass locally (38 tests).
+**Exact next action (resume here):** run the disposable Credit isolation suite
+covering customer, merchant, restaurant and kiosk scopes; record any remaining
+cross-wallet denial gap before beginning WP-087 statements and exports.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
