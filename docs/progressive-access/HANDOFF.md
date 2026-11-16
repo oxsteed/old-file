@@ -176,8 +176,12 @@ active role inside the transaction (`grantor_standing_changed`), and keeps owner
 out-of-scope overrides when a non-owner edits (`override_protected`). DB evidence in
 `progressiveAccessOverrides.db.test.js`.
 
+WP-049 done: scheduling was already tenant- and store-scoped (`restaurantWorkforceScope`);
+fixed `deleteShift` answering 200 for a foreign/unknown shift id (now 404; an already-cancelled
+own shift stays an idempotent 200). Evidence in `progressiveAccessSchedule.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-049 (staff scheduling and dispatch). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-050 (business communications and representative scope). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
