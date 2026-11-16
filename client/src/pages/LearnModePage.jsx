@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCsrfToken } from '../api/csrfToken';
 import useRecommendations from '../hooks/useRecommendations';
+import useAccessProjection from '../hooks/useAccessProjection';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toEmbedUrl } from '../utils/videoEmbed';
 import {
@@ -3880,6 +3881,7 @@ const EMPTY_SUBMISSION = {
 export default function LearnModePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const accessProjection = useAccessProjection(user);
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery]                 = useState(searchParams.get('q') || '');
   const [suggestOpen, setSuggestOpen]   = useState(false);
@@ -3940,6 +3942,23 @@ export default function LearnModePage() {
   const viewedRef  = useRef(new Set()); // guides already view-tracked this session
 
   const persona    = useMemo(() => getPersona(user), [user]);
+  const progressiveLearnAuthor = Boolean(
+    accessProjection?.flags?.accessProjection
+    && (
+      accessProjection.access?.personal?.includes('helper.offer_services')
+      || accessProjection.access?.personal?.includes('consultant.accept_paying_clients')
+    )
+  );
+  const canSubmitGuide = Boolean(
+    user && (
+      progressiveLearnAuthor
+      || user.is_helper
+      || user.role === 'helper'
+      || user.role === 'helper_pro'
+      || user.role === 'broker'
+      || user.role === 'consultant'
+    )
+  );
   const hero       = HERO[persona] || HERO.guest;
   const categoryMap = useMemo(() => Object.fromEntries(CATEGORIES.map((c) => [c.id, c])), []);
 
@@ -4541,7 +4560,7 @@ export default function LearnModePage() {
                 )
               )}
               {/* UGC submit button, helpers and consultants only (Priority 11) */}
-              {user && (user.is_helper || user.role === 'consultant') && (
+              {canSubmitGuide && (
                 <button
                   type="button"
                   className="lrn-hero-submit-btn"

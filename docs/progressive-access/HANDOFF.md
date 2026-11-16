@@ -1500,6 +1500,27 @@ resource ownership, authoring/publishing eligibility, link visibility, and
 revocation or deletion behavior across Learn and personal resource surfaces;
 then add the smallest missing capability-aware contract and focused tests.
 
+WP-044 is implemented on the branch. Learn catalog reads, anonymous view
+tracking, completions, badges, and applicant submission history retain their
+customer-first or caller-owned boundaries. Guide authoring now passes through a
+rollout-aware helper-or-consultant capability gate: legacy helper/consultant
+compatibility remains available while enforcement is off or shadow, while an
+enforced customer-class account must hold `helper.offer_services` or
+`consultant.accept_paying_clients`; the API returns `access_required` when
+neither path is available. The Learn page derives the authoring affordance from
+the access projection as well as legacy compatibility fields. Media bookmarks
+remain viewer-owned and public/safe-only, and author deletion remains owner
+bound with delivery revocation and cleanup scheduling. Focused server tests
+passed 41/41 across Learn, marketplace links, catalog, recommendations, and
+the new progressive contract; `node --check`, frontend reference verification,
+and `build:ci` passed with 1,204 emitted assets. No populated browser, live
+moderation, or storage-provider acceptance is claimed.
+**Exact next action (resume here):** begin WP-045 Personal finances and
+planned needs. Audit personal wallet/statement visibility, planned-need
+ownership and transitions, customer-versus-helper actions, recommendation
+links, exports, and behavior after access revocation or account deletion; then
+add the smallest missing capability-aware contract and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

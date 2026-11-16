@@ -91,6 +91,74 @@ function requireCapability(capability, { modeFn, audienceLoader = null, legacyAl
   };
 }
 
+/**
+ * Gate a route that is available to one of several promoted capabilities.
+ * Each entry owns its rollout mode and legacy compatibility predicate. An
+ * entry in `off` or `shadow` mode keeps the legacy path available; an entry in
+ * `enforce` mode requires a current grant unless another entry still has an
+ * explicitly compatible legacy path. This lets a single customer-first
+ * surface (for example Learn authoring) serve helpers or consultants without
+ * treating either role as a permanent account type.
+ */
+function requireAnyCapability(entries = []) {
+  return async function anyCapabilityGate(req, res, next) {
+    if (!req.user || ['admin', 'super_admin'].includes(req.user.role)) return next();
+    const configured = entries.map((entry) => ({ ...entry, mode: entry.modeFn() }));
+    const active = configured.filter((entry) => entry.mode !== 'off');
+    if (!active.length) return next();
+
+    const access = require('../services/access/accessService');
+    const decisions = [];
+    for (const entry of active) {
+      try {
+        decisions.push({ entry, decision: await access.can(req.user.id, entry.capability) });
+      } catch (err) {
+        if (entry.mode === 'shadow') {
+          logger.warn('access.shadow_error', { capability: entry.capability, err: err.message });
+          decisions.push({ entry, decision: { allowed: false, reason: 'lookup_failed' } });
+          continue;
+        }
+        return next(err);
+      }
+    }
+
+    for (const { entry, decision } of decisions) {
+      if (entry.mode === 'shadow') {
+        const legacy = entry.legacyAllowedFn ? entry.legacyAllowedFn(req) : false;
+        if (legacy !== decision.allowed) {
+          logger.warn('access.shadow_mismatch', {
+            capability: entry.capability,
+            legacyAllowed: legacy,
+            capabilityAllowed: decision.allowed,
+            reason: decision.reason,
+            route: req.baseUrl + (req.route ? req.route.path : ''),
+          });
+        }
+      }
+    }
+
+    const granted = decisions.some(({ entry, decision }) => entry.mode === 'enforce' && decision.allowed);
+    const legacyCompatible = decisions.some(({ entry }) =>
+      entry.mode !== 'enforce' && entry.legacyAllowedFn && entry.legacyAllowedFn(req)
+    );
+    if (granted || legacyCompatible || !decisions.some(({ entry }) => entry.mode === 'enforce')) {
+      const approved = decisions.find(({ entry, decision }) => entry.mode === 'enforce' && decision.allowed);
+      if (approved) {
+        req.accessCapabilities = { ...(req.accessCapabilities || {}), [approved.entry.capability]: true };
+      }
+      return next();
+    }
+
+    return res.status(403).json({
+      error: 'This needs approved access. Apply from Settings → Applications.',
+      code: 'access_required',
+      capability: entries.map((entry) => entry.capability),
+      reason: decisions.some(({ decision }) => decision.reason === 'account_inactive')
+        ? 'account_inactive' : 'not_granted',
+    });
+  };
+}
+
 const requireHelperCapability = requireCapability('helper.offer_services', { modeFn: flags.helperEnforcement });
 const requireInvestorCapability = requireCapability('investor.reporting', {
   modeFn: flags.investorEnforcement,
@@ -140,4 +208,4 @@ const toolOwnerCapabilityGate = async function toolOwnerCapabilityGate(req, res,
   }
 };
 
-module.exports = { requireCapability, requireHelperCapability, requireInvestorCapability, requireFranchiseCapability, toolOwnerCapabilityGate, isHelperActor, hasCapability };
+module.exports = { requireCapability, requireAnyCapability, requireHelperCapability, requireInvestorCapability, requireFranchiseCapability, toolOwnerCapabilityGate, isHelperActor, hasCapability };
