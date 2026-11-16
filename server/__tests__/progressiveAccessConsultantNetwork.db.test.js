@@ -4,6 +4,9 @@ jest.unmock('pg');
 jest.unmock('../utils/transaction');
 
 const { randomUUID } = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const sharp = require('sharp');
 const express = require('express');
 const request = require('supertest');
 
@@ -53,13 +56,16 @@ jest.mock('../services/notificationService', () => ({
 
 const describeDb = dbUrl ? describe : describe.skip;
 const capability = 'consultant.accept_paying_clients';
+let fixtureUpload;
 
 describeDb('progressive consultant and business launch access', () => {
   let db;
   let app;
   const savedFlags = { ...process.env };
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    process.env.SIGNED_URL_SECRET = 'progressive-access-fixture-signed-url-secret';
+    fixtureUpload = await sharp(fs.readFileSync(path.join(__dirname, '../../client/public/icons/icon-192.png'))).jpeg().toBuffer();
     db = require('../db');
     app = express();
     app.use(express.json());
@@ -279,6 +285,25 @@ describeDb('progressive consultant and business launch access', () => {
     expect((await dashboard(advisor).expect(200)).body).toMatchObject({ referrals: [], activity: [] });
     expect((await dashboard(nextAdvisor).expect(200)).body.referrals.map(({ id }) => id)).toEqual([requestId]);
     expect((await dashboard(nextAdvisor).expect(200)).body.referrals[0]).not.toHaveProperty('access_request_id');
+
+    const upload = (actor, visibility, name = 'plan.pdf') => request(app)
+      .post(`${launch}/requests/${requestId}/attachments`)
+      .set('x-test-user', actor)
+      .field('visibility', visibility)
+      .attach('file', fixtureUpload, { filename: name.replace(/\.pdf$/, '.jpg'), contentType: 'image/jpeg' });
+    const shared = (await upload(customer, 'shared', 'shared-plan.pdf').expect(201)).body.attachment;
+    const applicantOnly = (await upload(customer, 'applicant_only', 'private-plan.pdf').expect(201)).body.attachment;
+    const consultantOnly = (await upload(nextAdvisor, 'consultant_only', 'advisor-notes.pdf').expect(201)).body.attachment;
+    expect((await request(app).get(`${launch}/requests/${requestId}/attachments`).set('x-test-user', customer).expect(200)).body.attachments.map(({ id }) => id))
+      .toEqual(expect.arrayContaining([shared.id, applicantOnly.id]));
+    expect((await request(app).get(`${launch}/requests/${requestId}/attachments`).set('x-test-user', nextAdvisor).expect(200)).body.attachments.map(({ id }) => id))
+      .toEqual(expect.arrayContaining([shared.id, consultantOnly.id]));
+    await request(app).get(`${launch}/requests/${requestId}/attachments`).set('x-test-user', advisor).expect(404);
+    const download = await request(app).get(`${launch}/attachments/${shared.id}/download`).set('x-test-user', customer);
+    expect(download.status).toBe(200);
+    await request(app).get(`${launch}/attachments/${applicantOnly.id}/download`).set('x-test-user', nextAdvisor).expect(404);
+    await request(app).delete(`${launch}/attachments/${shared.id}`).set('x-test-user', nextAdvisor).expect(403);
+    await request(app).delete(`${launch}/attachments/${applicantOnly.id}`).set('x-test-user', customer).expect(200);
 
     const { rows: [session] } = await db.query(
       `INSERT INTO consulting_sessions (user_id, email, first_name, last_name, consultant_assigned_id)
