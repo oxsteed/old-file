@@ -724,6 +724,19 @@ connector grant and replay the signed callback against a different company;
 verify both are denied without changing the authorized path before moving to
 WP-094.
 
+WP-094 is currently an evidence checkpoint. The moderation and safety surfaces
+keep domain holds independent from progressive access: approving a capability
+does not clear a media safety state, tool `moderation_hold`, profile-visibility
+override, user restriction, or SOS incident. Reinstatement remains an explicit
+domain action with its own audit trail. The focused media safety, moderation
+hold, profile visibility, and SOS suites pass together (37 tests); 10 populated
+media DB tests are environment-gated and skipped locally.
+**Exact next action (resume here):** run a populated suspended-provider fixture
+where access approval occurs before reinstatement, verify new offer/publish
+attempts remain blocked, then perform the authorized reinstatement and check
+that only the intended scope changes and the evidence remains traceable before
+moving to WP-095.
+
 History of what is done (newest last):
 
 
