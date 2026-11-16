@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { assertBusinessRefs } = require('../utils/sameBusinessRefs');
 const { AppError } = require('../middleware/errorHandler');
 const { toPrivatePhotoRef, withHydratedPhotos, withHydratedPhotosList } = require('../utils/intakeMedia');
 const { uploadFilesOrThrow } = require('../utils/uploadBatch');
@@ -292,6 +293,7 @@ exports.createIntakeRequest = async (req, res, next) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      await assertBusinessRefs(business.id, [{ table: 'business_quotes', id: req.body.linked_quote_id, field: 'linked_quote_id' }]);
       const { rows } = await client.query(
         `INSERT INTO creative_intake_requests (
            business_id, requester_id, linked_quote_id, status, workflow_stage, template_slug,
@@ -348,6 +350,7 @@ exports.createIntakeRequest = async (req, res, next) => {
 exports.updateIntakeRequest = async (req, res, next) => {
   try {
     const status = VALID_STATUS.has(req.body.status) ? req.body.status : null;
+    await assertBusinessRefs(req.business.id, [{ table: 'business_quotes', id: req.body.linked_quote_id, field: 'linked_quote_id' }]);
     const { rows } = await pool.query(
       `UPDATE creative_intake_requests
        SET linked_quote_id = COALESCE($3, linked_quote_id),
@@ -462,6 +465,7 @@ exports.deletePackage = async (req, res, next) => {
 
 exports.createApprovalRecord = async (req, res, next) => {
   try {
+    await assertBusinessRefs(req.business.id, [{ table: 'creative_intake_requests', id: req.body.intake_request_id, field: 'intake_request_id' }]);
     const { rows } = await pool.query(
       `INSERT INTO creative_approval_records (
          business_id, intake_request_id, record_type, title, status, due_at, asset_url, notes
@@ -487,6 +491,7 @@ exports.createApprovalRecord = async (req, res, next) => {
 
 exports.updateApprovalRecord = async (req, res, next) => {
   try {
+    await assertBusinessRefs(req.business.id, [{ table: 'creative_intake_requests', id: req.body.intake_request_id, field: 'intake_request_id' }]);
     const { rows } = await pool.query(
       `UPDATE creative_approval_records
        SET intake_request_id = COALESCE($3, intake_request_id),

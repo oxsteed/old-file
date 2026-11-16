@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { assertBusinessRefs } = require('../utils/sameBusinessRefs');
 const { AppError } = require('../middleware/errorHandler');
 const { toPrivatePhotoRef, withHydratedPhotos, withHydratedPhotosList } = require('../utils/intakeMedia');
 const { uploadFilesOrThrow } = require('../utils/uploadBatch');
@@ -323,6 +324,7 @@ exports.createIntakeRequest = async (req, res, next) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      await assertBusinessRefs(business.id, [{ table: 'business_appointments', id: req.body.linked_appointment_id, field: 'linked_appointment_id' }, { team: true, id: req.body.assigned_staff_id, field: 'assigned_staff_id' }]);
       const { rows } = await client.query(
         `INSERT INTO beauty_intake_requests (
            business_id, requester_id, linked_appointment_id, assigned_staff_id, status, workflow_stage,
@@ -397,6 +399,7 @@ exports.updateIntakeRequest = async (req, res, next) => {
     await client.query('BEGIN');
     const status = VALID_STATUS.has(req.body.status) ? req.body.status : null;
     const workflowStage = deriveStage(status || 'new', req.body.workflow_stage);
+    await assertBusinessRefs(req.business.id, [{ table: 'business_appointments', id: req.body.linked_appointment_id, field: 'linked_appointment_id' }, { team: true, id: req.body.assigned_staff_id, field: 'assigned_staff_id' }]);
     const { rows } = await client.query(
       `UPDATE beauty_intake_requests
        SET linked_appointment_id = COALESCE($3, linked_appointment_id),

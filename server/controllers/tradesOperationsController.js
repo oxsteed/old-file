@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { assertBusinessRefs } = require('../utils/sameBusinessRefs');
 const { AppError } = require('../middleware/errorHandler');
 const { toPrivatePhotoRef, withHydratedPhotos, withHydratedPhotosList } = require('../utils/intakeMedia');
 const { uploadFilesOrThrow } = require('../utils/uploadBatch');
@@ -315,6 +316,7 @@ exports.createDiagnosticRequest = async (req, res, next) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      await assertBusinessRefs(business.id, [{ table: 'business_quotes', id: req.body.linked_quote_id, field: 'linked_quote_id' }]);
       const { rows } = await client.query(
         `INSERT INTO trades_diagnostic_requests (
            business_id, requester_id, assigned_helper_id, linked_quote_id, status, workflow_stage,
@@ -390,6 +392,7 @@ exports.updateDiagnosticRequest = async (req, res, next) => {
     const workflowStage = deriveStage(nextStatus, req.body.workflow_stage || existing.workflow_stage);
     const scheduledStart = req.body.scheduled_start_at || req.body.scheduledStartAt || existing.scheduled_start_at;
     const mergedIntake = req.body.template_intake ? { ...(existing.template_intake || {}), ...req.body.template_intake } : existing.template_intake;
+    await assertBusinessRefs(req.business.id, [{ table: 'business_quotes', id: req.body.linked_quote_id, field: 'linked_quote_id' }]);
     const { rows } = await pool.query(
       `UPDATE trades_diagnostic_requests
        SET assigned_helper_id = COALESCE($1, assigned_helper_id),
@@ -436,6 +439,7 @@ exports.createRecommendation = async (req, res, next) => {
   try {
     const title = trimString(req.body.title, 180);
     if (!title) throw new AppError('Recommendation title is required', 400, 'validation_failed');
+    await assertBusinessRefs(req.business.id, [{ table: 'trades_diagnostic_requests', id: req.body.diagnostic_request_id, field: 'diagnostic_request_id' }, { table: 'business_quotes', id: req.body.quote_id, field: 'quote_id' }]);
     const { rows } = await pool.query(
       `INSERT INTO trades_service_recommendations (
          business_id, diagnostic_request_id, quote_id, title, recommendation_type,
@@ -463,6 +467,7 @@ exports.createRecommendation = async (req, res, next) => {
 
 exports.updateRecommendation = async (req, res, next) => {
   try {
+    await assertBusinessRefs(req.business.id, [{ table: 'trades_diagnostic_requests', id: req.body.diagnostic_request_id, field: 'diagnostic_request_id' }, { table: 'business_quotes', id: req.body.quote_id, field: 'quote_id' }]);
     const { rows } = await pool.query(
       `UPDATE trades_service_recommendations
        SET diagnostic_request_id = COALESCE($1, diagnostic_request_id),

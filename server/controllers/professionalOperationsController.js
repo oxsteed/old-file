@@ -1,4 +1,5 @@
 const pool = require('../db');
+const { assertBusinessRefs } = require('../utils/sameBusinessRefs');
 const { AppError } = require('../middleware/errorHandler');
 const { notifyIntakeReceived } = require('../utils/intakeNotifications');
 
@@ -264,6 +265,7 @@ exports.createEngagementRequest = async (req, res, next) => {
 
     const templateSlug = trimString(req.body.template_slug, 60) || business.active_template || 'consulting_coaching';
     const status = VALID_STATUS.has(req.body.status) ? req.body.status : 'new';
+    await assertBusinessRefs(business.id, [{ table: 'business_quotes', id: req.body.linked_quote_id, field: 'linked_quote_id' }]);
     const { rows } = await pool.query(
       `INSERT INTO professional_engagement_requests (
          business_id, requester_id, linked_quote_id, status, workflow_stage, template_slug,
@@ -308,6 +310,7 @@ exports.createEngagementRequest = async (req, res, next) => {
 exports.updateEngagementRequest = async (req, res, next) => {
   try {
     const status = VALID_STATUS.has(req.body.status) ? req.body.status : null;
+    await assertBusinessRefs(req.business.id, [{ table: 'business_quotes', id: req.body.linked_quote_id, field: 'linked_quote_id' }]);
     const { rows } = await pool.query(
       `UPDATE professional_engagement_requests
        SET linked_quote_id = COALESCE($3, linked_quote_id),
@@ -422,6 +425,7 @@ exports.deletePackage = async (req, res, next) => {
 
 exports.createComplianceRecord = async (req, res, next) => {
   try {
+    await assertBusinessRefs(req.business.id, [{ table: 'professional_engagement_requests', id: req.body.engagement_request_id, field: 'engagement_request_id' }]);
     const { rows } = await pool.query(
       `INSERT INTO professional_compliance_records (
          business_id, engagement_request_id, record_type, title, status, due_at, document_url, notes
@@ -447,6 +451,7 @@ exports.createComplianceRecord = async (req, res, next) => {
 
 exports.updateComplianceRecord = async (req, res, next) => {
   try {
+    await assertBusinessRefs(req.business.id, [{ table: 'professional_engagement_requests', id: req.body.engagement_request_id, field: 'engagement_request_id' }]);
     const { rows } = await pool.query(
       `UPDATE professional_compliance_records
        SET engagement_request_id = COALESCE($3, engagement_request_id),
