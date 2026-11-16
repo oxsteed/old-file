@@ -47,7 +47,7 @@ async function getCheckoutSession(req, res) {
     if (!cart.rows.length) return sendError(res, 404, 'Cart not found');
 
     const items = await pool.query(
-      `SELECT sci.*, mp.name, mp.price_cents
+      `SELECT sci.*, mp.name, mp.price_cents, mp.is_active, mp.is_available
        FROM shopping_cart_items sci
        JOIN marketplace_products mp ON sci.product_id = mp.id
        WHERE sci.cart_id = $1`,
@@ -55,6 +55,11 @@ async function getCheckoutSession(req, res) {
     );
 
     if (!items.rows.length) return sendError(res, 400, 'Cart is empty');
+
+    const unavailable = items.rows.filter(item => item.is_active !== true || item.is_available !== true);
+    if (unavailable.length) {
+      return sendError(res, 409, `${unavailable.length} item(s) are no longer available`, 'cart_item_unavailable');
+    }
 
     // Validate stock and calculate totals
     let subtotal = 0;
@@ -96,7 +101,12 @@ async function createPaymentIntent(req, res) {
   let paymentIntent = null;
   try {
     validateStripe();
-    const { cartId, email, shippingAddress, discountCode } = req.body;
+    const { cartId: bodyCartId, email, shippingAddress, discountCode } = req.body;
+    const routeCartId = req.params?.cartId || null;
+    if (routeCartId && bodyCartId && String(routeCartId) !== String(bodyCartId)) {
+      return sendValidationError(res, { cartId: 'Cart ID does not match the checkout route' });
+    }
+    const cartId = routeCartId || bodyCartId;
     const userId = req.user?.id;
 
     if (!userId) return sendError(res, 401, 'Unauthorized');
@@ -112,7 +122,8 @@ async function createPaymentIntent(req, res) {
 
     const items = await pool.query(
       `SELECT sci.*, mp.id as product_id, mp.price_cents, mp.affiliate_url,
-              mp.quantity_available, mp.business_product_id, mp.source_business_id
+              mp.quantity_available, mp.business_product_id, mp.source_business_id,
+              mp.is_active, mp.is_available
        FROM shopping_cart_items sci
        JOIN marketplace_products mp ON sci.product_id = mp.id
        WHERE sci.cart_id = $1`,
@@ -120,6 +131,11 @@ async function createPaymentIntent(req, res) {
     );
 
     if (!items.rows.length) return sendError(res, 400, 'Cart is empty');
+
+    const unavailable = items.rows.filter(item => item.is_active !== true || item.is_available !== true);
+    if (unavailable.length) {
+      return sendError(res, 409, `${unavailable.length} item(s) are no longer available`, 'cart_item_unavailable');
+    }
 
     // Validate all items are in stock
     const outOfStock = items.rows.filter(item => !item.quantity_available || item.quantity > item.quantity_available);
@@ -346,9 +362,12 @@ async function confirmPayment(req, res) {
     }
 
     // Verify order belongs to user
+    const routeCartId = req.params?.cartId || null;
     const order = await pool.query(
-      'SELECT * FROM marketplace_orders WHERE id = $1 AND customer_id = $2',
-      [orderId, userId]
+      `SELECT * FROM marketplace_orders
+        WHERE id = $1 AND customer_id = $2
+          AND ($3::text IS NULL OR cart_id::text = $3::text)`,
+      [orderId, userId, routeCartId]
     );
 
     if (!order.rows.length) return sendError(res, 404, 'Order not found');

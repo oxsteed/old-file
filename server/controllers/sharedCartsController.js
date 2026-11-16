@@ -328,14 +328,22 @@ const viewSharedCart = async (req, res) => {
 
     const sharedCart = shareResult.rows[0];
 
+    // A named share is a collaborator-bound capability, not a public link.
+    // Keep open links usable, but do not disclose a named cart to an
+    // unrelated signed-in user or an anonymous link holder.
+    if (!mayActOnSharedCart(sharedCart, req.user?.id)) {
+      return sendError(res, 403, 'This cart was shared with a specific customer', 'shared_cart_customer_mismatch');
+    }
+
     // Get cart items
     const itemsQuery = `
       SELECT
         sci.id, sci.product_id, sci.quantity, sci.unit_price_cents, sci.notes,
-        mp.name as product_name, mp.category, mp.product_image_url, mp.affiliate_url
+        mp.name as product_name, mp.category, mp.product_image_url, mp.affiliate_url,
+        mp.is_active, mp.is_available
       FROM shopping_cart_items sci
       JOIN marketplace_products mp ON sci.product_id = mp.id
-      WHERE sci.cart_id = $1
+      WHERE sci.cart_id = $1 AND mp.is_active = TRUE AND mp.is_available = TRUE
       ORDER BY sci.sort_order ASC
     `;
 
@@ -518,7 +526,7 @@ const addItemToSharedCart = async (req, res) => {
 
     // Get product price
     const productCheck = await pool.query(
-      'SELECT id, price_cents FROM marketplace_products WHERE id = $1 AND is_available = TRUE',
+      'SELECT id, price_cents FROM marketplace_products WHERE id = $1 AND is_active = TRUE AND is_available = TRUE',
       [productId]
     );
 
@@ -649,39 +657,68 @@ const approveCart = async (req, res) => {
       return sendError(res, 403, 'This cart was shared with a specific customer', 'shared_cart_customer_mismatch');
     }
 
-    // Create approval record
-    const query = `
-      INSERT INTO cart_approvals (cart_id, shared_cart_id, customer_id, status, customer_notes, approved_at)
-      VALUES ($1, $2, $3, 'approved', $4, CURRENT_TIMESTAMP)
-      RETURNING id, status, approved_at
-    `;
+    // Serialize approval retries for this share/customer pair. The existing
+    // approval is returned on replay, so two tabs or a mobile retry cannot
+    // create duplicate approval records or duplicate approval events.
+    const result = await withTransaction(pool, async (client) => {
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtext($1))',
+        [`marketplace-cart-approval:${sharedCart.id}:${customerId}`],
+      );
 
-    const result = await pool.query(query, [
-      sharedCart.cart_id,
-      sharedCart.id,
-      customerId,
-      notes?.trim() || null,
-    ]);
+      const existing = await client.query(
+        `SELECT id, status, approved_at
+           FROM cart_approvals
+          WHERE shared_cart_id = $1 AND customer_id = $2
+          ORDER BY created_at DESC
+          LIMIT 1
+          FOR UPDATE`,
+        [sharedCart.id, customerId],
+      );
 
-    // Update shared cart status
-    await pool.query(
-      `UPDATE shared_carts SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [sharedCart.id]
-    );
+      if (existing.rows.length && existing.rows[0].status === 'approved') {
+        return { row: existing.rows[0], replayed: true };
+      }
 
-    // Log approval event
-    await pool.query(
-      `INSERT INTO shared_cart_views (shared_cart_id, viewed_by_id, action)
-       VALUES ($1, $2, 'approve')`,
-      [sharedCart.id, customerId]
-    );
+      let approval;
+      if (existing.rows.length) {
+        approval = await client.query(
+          `UPDATE cart_approvals
+              SET status = 'approved', customer_notes = $1,
+                  approved_at = COALESCE(approved_at, CURRENT_TIMESTAMP),
+                  updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+          RETURNING id, status, approved_at`,
+          [notes?.trim() || null, existing.rows[0].id],
+        );
+      } else {
+        approval = await client.query(
+          `INSERT INTO cart_approvals (cart_id, shared_cart_id, customer_id, status, customer_notes, approved_at)
+           VALUES ($1, $2, $3, 'approved', $4, CURRENT_TIMESTAMP)
+           RETURNING id, status, approved_at`,
+          [sharedCart.cart_id, sharedCart.id, customerId, notes?.trim() || null],
+        );
+      }
+
+      await client.query(
+        'UPDATE shared_carts SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [sharedCart.id],
+      );
+      await client.query(
+        `INSERT INTO shared_cart_views (shared_cart_id, viewed_by_id, action)
+         VALUES ($1, $2, 'approve')`,
+        [sharedCart.id, customerId],
+      );
+      return { row: approval.rows[0], replayed: false };
+    }, 'marketplace_cart_approval');
 
     logger.info('Cart approved', { shareToken: shareToken.substring(0, 8) + '...' });
 
     sendSuccess(res, {
-      approvalId: result.rows[0].id,
-      status: result.rows[0].status,
-      approvedAt: result.rows[0].approved_at,
+      approvalId: result.row.id,
+      status: result.row.status,
+      approvedAt: result.row.approved_at,
+      replayed: result.replayed,
     });
   } catch (err) {
     logger.error('Error approving cart', err);

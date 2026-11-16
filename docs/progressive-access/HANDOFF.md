@@ -1430,6 +1430,24 @@ approval changes during checkout, stale-price and stock revalidation, share-toke
 rotation, idempotency, and duplicate-order prevention; then add the smallest
 missing capability-aware contract and focused tests.
 
+WP-040 is implemented on the branch. Cart ownership remains bound to the
+authenticated cart owner across personal, job-linked, template, and shared
+flows. Checkout/session now re-check product publication and availability before
+pricing or creating a payment intent; cart and shared-cart item additions only
+capture currently published products. Named shared carts now reject unrelated
+viewers before returning metadata/items, while open links keep their existing
+behavior. Approval writes run under a per-share/customer transaction advisory
+lock and replay the existing approved row, preventing duplicate approvals and
+approval events across tabs/retries. Focused tests passed 28/28 across the new
+progressive contract, checkout lifecycle, order detail, shared-cart conversation,
+and bearer-ownership suites; edited server files pass `node --check`. No
+populated browser, Stripe, or live approval/revocation acceptance is claimed.
+**Exact next action (resume here):** begin WP-041 Jobs materials and ordering.
+Audit job-kit ownership and collaborator scope, material request creation,
+catalog-to-job linkage, quote/checkout transitions, cancellation/refund
+idempotency, and access changes while an order is open; then add the smallest
+missing capability-aware contract and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
