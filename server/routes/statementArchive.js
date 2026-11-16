@@ -35,6 +35,7 @@ const { creditExportLimiter } = require('../middleware/rateLimiter');
 const { getDownloadStream, createSignedUrl } = require('../services/statementArtifactService');
 const { assertScopeStanding } = require('./settlementStatementArchive');
 const { hashDocument } = require('../services/creditStatementService');
+const { memberHasFinanceRead } = require('../services/access/financeStanding');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SETTLEMENT_PRODUCTS = new Set(['restaurant_settlement', 'helper_earnings', 'business']);
@@ -90,6 +91,10 @@ async function requireOwnedDocument(documentId, userId) {
 async function assertRestaurantAccountStanding(userId, walletAccountId) {
   const { rows } = await pool.query(
     `SELECT a.customer_id AS wallet_customer_id,
+            fr.id AS restaurant_id,
+            fr.business_id,
+            fr.owner_user_id AS restaurant_owner_id,
+            b.user_id AS business_owner_id,
             CASE
               WHEN b.user_id = $1 OR fr.owner_user_id = $1 THEN 'owner'
               ELSE (
@@ -108,7 +113,18 @@ async function assertRestaurantAccountStanding(userId, walletAccountId) {
     [userId, walletAccountId]);
   const row = rows[0];
   const isWalletCustomer = row && String(row.wallet_customer_id) === String(userId);
-  if (!row || (!isWalletCustomer && !row.effective_role)) {
+  const isOwner = row && (
+    String(row.business_owner_id) === String(userId)
+    || String(row.restaurant_owner_id) === String(userId)
+  );
+  const hasFinanceRead = row && !isWalletCustomer && !isOwner
+    ? await memberHasFinanceRead(pool, {
+      businessId: row.business_id,
+      userId,
+      restaurantId: row.restaurant_id,
+    })
+    : false;
+  if (!row || (!isWalletCustomer && !isOwner && !hasFinanceRead)) {
     throw new AppError('Statement document not found', 404, 'statement_document_not_found');
   }
   return row;
