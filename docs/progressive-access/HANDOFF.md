@@ -737,6 +737,19 @@ attempts remain blocked, then perform the authorized reinstatement and check
 that only the intended scope changes and the evidence remains traceable before
 moving to WP-095.
 
+WP-095 is currently an evidence checkpoint. The generic upload surface always
+stores private objects under user-scoped keys and mints short-lived signed URLs;
+it refuses caller-requested public visibility and deletes an object if signing
+or persistence fails. Existing shipment-document and consultant launch
+attachment paths re-check current actor/request scope and reject cross-request
+or cross-conversation keys. The focused upload, shipment, and consulting
+attachment suites pass together (40 tests); the populated consultant DB suite
+is environment-gated and skipped locally.
+**Exact next action (resume here):** run a populated private-request fixture
+through unauthenticated access, a different reviewer, revoked reviewer, signed
+URL replay, and unsafe-file cases, then confirm public Media and food assets
+remain unaffected before moving to WP-096.
+
 History of what is done (newest last):
 
 
