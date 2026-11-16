@@ -32,8 +32,8 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-012 | Platform review and audit | P1 | implemented (server API + admin queue page) | 87a95318e, c141d6f82 | progressiveAccess.db.test.js; adminRouteContracts + adminLocaleNamespaces; verify-i18n |
 | WP-013 | Role switch retirement | P5 | in progress | bb9a413fa | switch-role authority gate behind ACCESS_LEGACY_SWITCH_RETIRED; UI retirement pending |
 | WP-014 | Current-user projection and resume | P1 | implemented (server + Settings entry) | 87a95318e, d47c5ff86 | progressiveAccess.db.test.js; signupResume in GET /api/me/access |
-| WP-015 | Home and dashboard routing | P2 | planned | | |
-| WP-016 | Navigation, notices and settings | P2 | planned | | |
+| WP-015 | Home and dashboard routing | P2 | implemented | f3e3f2985 | homeModeRouting.test.mjs (WP-015) |
+| WP-016 | Navigation, notices and settings | P2 | implemented | f3e3f2985 | navbarNavigation.test.mjs (WP-016) |
 | WP-017 | JWT, CSRF and cross-tab session safety | P2 | planned | | |
 | WP-018 | Two-factor authentication and passkeys | P2 | planned | | |
 | WP-019 | Sessions on native API and PWA | P2 | planned | | |

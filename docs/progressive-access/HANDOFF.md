@@ -133,8 +133,14 @@ returns `readiness` (identity facts). Background-check callbacks: none exist in 
 base yet — wire `recordIdentityEvidence` (or a sibling) when one is added.
 
 
-**Exact next action (resume here):** WP-015/WP-016 (Home + nav read `GET /api/me/access` `personal[]` instead
-of `default_mode`), then WP-020 remaining (outbox → in-app badge), then Phase 3 starting
+WP-015/016 done: `client/src/utils/accessProjection.js` + `hooks/useAccessProjection.js`;
+`ModeHomeRoute` and `Navbar`/`navbarNavigation` honour `default_mode` only while the
+projection backs it (else personal Home + `role="status"` notice), approvals add account-menu
+shortcuts, Settings › Applications re-reads on focus and announces changes politely.
+**Deploy order:** turn `ACCESS_PROJECTION_ENABLED` on only after the backfill `--apply`
+(otherwise legacy helpers without a grant are shown the personal Home).
+
+**Exact next action (resume here):** WP-020 remaining (outbox → in-app badge), then Phase 3 starting
 at WP-046. Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
