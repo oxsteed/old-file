@@ -2126,6 +2126,9 @@ async function anchorDiditVerified(userId, sessionId, identityHash) {
 // filter reads (helpersController). Best-effort: a missing helper_profiles
 // row is a no-op, never a webhook failure.
 async function syncHelperIdentityBadge(userId) {
+  // WP-007: open access applications of this same account must be re-read
+  // against the new identity evidence (best-effort, never fails the webhook).
+  await require('../services/access/evidence').recordIdentityEvidence(userId, { provider: 'didit', outcome: 'verified' });
   try {
     await db.query(
       `UPDATE helper_profiles SET is_identity_verified = TRUE, updated_at = NOW() WHERE user_id = $1`,
@@ -2293,6 +2296,7 @@ exports.diditWebhook = async (req, res, next) => {
               `UPDATE users SET didit_status = 'duplicate' WHERE id = $1`,
               [userId]
             );
+            await require('../services/access/evidence').recordIdentityEvidence(userId, { provider: 'didit', outcome: 'duplicate' });
             logger.warn('[Didit] Duplicate identity detected', { userId, existingUserId: existing[0].id });
             // P1-332: record the duplicate_of link on the entity graph.
             await diditEntityLink.linkDuplicateIdentity({
@@ -2323,6 +2327,7 @@ exports.diditWebhook = async (req, res, next) => {
                   [userId]
                 );
                 logger.warn('[Didit] Duplicate identity detected (concurrent approval)', { userId });
+                await require('../services/access/evidence').recordIdentityEvidence(userId, { provider: 'didit', outcome: 'duplicate' });
                 const { rows: canon } = await db.query(
                   `SELECT id FROM users WHERE didit_identity_hash = $1 AND id != $2 LIMIT 1`,
                   [identityHash, userId]

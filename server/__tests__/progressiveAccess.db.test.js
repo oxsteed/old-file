@@ -386,6 +386,40 @@ ddescribe('progressive access (real database, mounted routes)', () => {
     expect((await pool.query('SELECT role::text, default_mode FROM users WHERE id = $1', [helper])).rows[0]).toEqual({ role: 'helper', default_mode: 'helper' });
   });
 
+  test('verification callbacks bump evidence on the same account only; a stale decision fails; no grant (WP-007)', async () => {
+    const evidence = require('../services/access/evidence');
+    const a = await newUser('verify-a');
+    const b = await newUser('verify-b');
+    const answers = { serviceCategories: ['tiling'], serviceArea: { country: 'US', city: 'Akron' } };
+    const ra = (await as(a).post('/api/me/access-requests', { capability: 'helper.offer_services', answers, submit: true }, 'wp007-a-0001')).body.request;
+    const rb = (await as(b).post('/api/me/access-requests', { capability: 'helper.offer_services', answers, submit: true }, 'wp007-b-0001')).body.request;
+    const view = (await as(reviewer).get(`/api/admin/access-requests/${ra.id}`)).body;
+    expect(view.readiness).toMatchObject({ identity_verified: false });
+
+    // Provider callback for A (delivered twice: duplicate) touches only A.
+    await pool.query('UPDATE users SET identity_verified = TRUE WHERE id = $1', [a]);
+    expect((await evidence.recordIdentityEvidence(a, { provider: 'test' })).updated).toBe(1);
+    await evidence.recordIdentityEvidence(a, { provider: 'test' });
+    const revA = (await pool.query('SELECT evidence_revision FROM access_requests WHERE id = $1', [ra.id])).rows[0].evidence_revision;
+    const revB = (await pool.query('SELECT evidence_revision FROM access_requests WHERE id = $1', [rb.id])).rows[0].evidence_revision;
+    expect(revA).toBe(view.request.evidenceRevision + 2);
+    expect(revB).toBe(rb.evidenceRevision);
+    expect(await count('SELECT COUNT(*)::int AS n FROM access_grants WHERE user_id = ANY($1::uuid[])', [[a, b]])).toBe(0);
+
+    // A decision prepared against the stale evidence is refused.
+    const stale = await as(reviewer).post(`/api/admin/access-requests/${ra.id}/decision`,
+      { decision: 'approve', expectedVersion: view.request.version, evidenceRevision: view.request.evidenceRevision });
+    expect(stale.status).toBe(409);
+    expect(stale.body.code).toBe('request_version_conflict');
+    const fresh = (await as(reviewer).get(`/api/admin/access-requests/${ra.id}`)).body;
+    expect(fresh.readiness).toMatchObject({ identity_verified: true, identityStatus: 'verified' });
+    const ok = await as(reviewer).post(`/api/admin/access-requests/${ra.id}/decision`,
+      { decision: 'approve', expectedVersion: fresh.request.version, evidenceRevision: fresh.request.evidenceRevision });
+    expect(ok.status).toBe(200);
+    expect(await count('SELECT COUNT(*)::int AS n FROM access_grants WHERE user_id = $1', [a])).toBe(1);
+    expect(await count('SELECT COUNT(*)::int AS n FROM access_grants WHERE user_id = $1', [b])).toBe(0);
+  });
+
   test('flags off: APIs answer feature_disabled', async () => {
     const u = await newUser('flagoff');
     process.env.ACCESS_REQUESTS_ENABLED = 'false';

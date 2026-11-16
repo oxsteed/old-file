@@ -130,6 +130,9 @@ async function getForReview(user, id) {
     currentAccess: resolver.project(facts).personal,
     policy: registry.publicPolicy(row.capability),
     currentPolicyVersion: (registry.getCapability(row.capability) || {}).version || null,
+    // WP-007: explicit approval conditions — the policy's activation
+    // requirements next to the applicant's current verification facts.
+    readiness: await require('./evidence').readinessFor(row.applicant_id),
   };
 }
 
