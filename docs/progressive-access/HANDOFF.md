@@ -379,12 +379,26 @@ status update 500 from conflicting SQL parameter types. Three focused server
 suites passed (43 tests), the frontend reference check and navbar tests passed,
 and `npm run build:ci` passed. AC-050 has partial evidence.
 
-**Exact next action (resume here):** Phase 4, WP-075 (SPEC.md, search
-`<a id="wp-075">`). In `consultantSchedulingController.js`, trace public availability,
-pre-payment session creation, and final slot confirmation. Reuse
-`services/access/consultantGate.js` for the assigned consultant while preserving
-customer checkout, already confirmed sessions, and safe flag-off behavior.
-Record evidence for pending, approved, expired, and wrong-assignee cases.
+WP-075 implemented in `8fbe8b4e7`. Enforce mode resolves the assigned consultant's
+grant for public slots, new scheduled sessions and payment intents, and final
+confirmation. Existing sessions can be read after expiry. Checkout ownership,
+completed payment checks and admin booking authority are retained. The pending
+session insert is replay-safe, and concurrent confirmations for the same
+consultant and local date serialize before checking for overlap. Migration
+`20261116160500_fix_consulting_availability_slots.sql` replaces the pre-existing
+unsupported `generate_series(time, time, interval)` call with local timestamp
+arithmetic. It applies on the disposable PostgreSQL database, migration history
+validation passed, and six targeted server suites passed (54 tests, no skips).
+Real provider payment and browser acceptance remain open.
+
+**Exact next action (resume here):** Phase 4, WP-076 (SPEC.md, search
+`<a id="wp-076">`). Trace the business-launch intake and status audiences,
+adviser assignment and consulting action items. Keep an Owner application
+pending while an independent advisory request is created and assigned. Verify
+the request stays with its actual requester and the intended adviser, with
+case progress and private notes scoped correctly. Check legacy guest-to-account
+lookup and demonstrate that advisory activity never creates ownership or an
+access grant.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
