@@ -6678,6 +6678,7 @@
       "reasonCode": "Reason shown to the applicant",
       "note": "Internal note (not shown to the applicant)",
       "informationRequest": "What should the applicant add?",
+      "investorConfirm": "I reviewed the requested audience and datasets; approval creates only this scoped reporting access.",
       "actions": {
         "claim": "Start review",
         "request_information": "Ask for information",

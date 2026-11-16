@@ -6678,6 +6678,7 @@
       "reasonCode": "Motivo que verá el solicitante",
       "note": "Nota interna (el solicitante no la ve)",
       "informationRequest": "¿Qué debe agregar el solicitante?",
+      "investorConfirm": "He revisado la audiencia y los informes solicitados; la aprobación solo crea este acceso de informes con alcance limitado.",
       "actions": {
         "claim": "Iniciar revisión",
         "request_information": "Pedir información",

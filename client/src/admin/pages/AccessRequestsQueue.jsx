@@ -25,6 +25,7 @@ function DecisionPanel({ t, data, onDecided }) {
   const [reasonCode, setReasonCode] = useState('review_complete');
   const [note, setNote] = useState('');
   const [infoRequest, setInfoRequest] = useState('');
+  const [audienceConfirmed, setAudienceConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const keys = useRef({});
   const keyFor = (action) => {
@@ -62,6 +63,7 @@ function DecisionPanel({ t, data, onDecided }) {
   };
 
   const actions = req.reviewerActions || [];
+  const needsInvestorConfirmation = req.capability === 'investor.reporting' && actions.includes('approve');
   const policyStale = data.currentPolicyVersion && req.policyVersion !== data.currentPolicyVersion;
   const cls = 'mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100';
 
@@ -132,6 +134,12 @@ function DecisionPanel({ t, data, onDecided }) {
               <textarea className={cls} rows={2} maxLength={1000} value={infoRequest} onChange={(e) => setInfoRequest(e.target.value)} />
             </label>
           )}
+          {needsInvestorConfirmation && (
+            <label className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+              <input type="checkbox" checked={audienceConfirmed} onChange={(e) => setAudienceConfirmed(e.target.checked)} className="mt-0.5" />
+              <span>{t('progressiveAccess.admin.investorConfirm', { ns: NS })}</span>
+            </label>
+          )}
           <label className="block text-sm text-gray-700 dark:text-gray-200">
             {t('progressiveAccess.admin.note', { ns: NS })}
             <textarea className={cls} rows={2} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -141,7 +149,7 @@ function DecisionPanel({ t, data, onDecided }) {
               <button
                 key={a}
                 type="button"
-                disabled={busy || (a === 'request_information' && !infoRequest.trim())}
+                disabled={busy || (a === 'request_information' && !infoRequest.trim()) || (a === 'approve' && needsInvestorConfirmation && !audienceConfirmed)}
                 onClick={() => decide(a)}
                 className={`rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50 ${a === 'approve' ? 'bg-emerald-600 text-white' : a === 'decline' ? 'bg-red-600 text-white' : 'border border-gray-300 text-gray-900 dark:border-gray-600 dark:text-gray-100'}`}
                 data-track={`ui.admin.access_requests.${a}`}
