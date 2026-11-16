@@ -3,7 +3,7 @@
 // Handles: avatar, name, business name, email + inline OTP, phone, structured US address, password, terms.
 // Orchestrates backend calls: register/start → accept-terms → verify-otp
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Briefcase, ChevronRight, AlertCircle } from 'lucide-react';
@@ -12,6 +12,8 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { persistSessionPayload } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext';
+import TurnstileWidget from '../TurnstileWidget';
+import useCaptcha, { isCaptchaError } from '../../hooks/useCaptcha';
 import AvatarUpload from './AvatarUpload';
 import OTPInput from './OTPInput';
 import PasswordField, { scorePassword } from './PasswordField';
@@ -101,10 +103,27 @@ export default function AccountForm({ role, onSuccess }: Props) {
   }, []);
 
   // ── Check email availability on blur ───────────────────
+  // /auth/check-email is behind verifyCaptcha. When the server enables the
+  // check, the widget shows under the email field; the lookup waits for a
+  // token (single-use, consumed after each lookup). The lookup is advisory:
+  // registration itself still rejects a taken email.
+  const captcha = useCaptcha();
+  const [captchaHint, setCaptchaHint] = useState('');
+  const pendingEmailCheck = useRef(false);
   const checkEmail = useCallback(async () => {
     if (!form.email || !EMAIL_RE.test(form.email)) return;
+    setCaptchaHint('');
+    if (captcha.enabled) {
+      if (captcha.unavailable) { setCaptchaHint(t('register.captcha.unavailable')); return; }
+      if (!captcha.token) {
+        pendingEmailCheck.current = true;
+        setCaptchaHint(t('register.captcha.required'));
+        return;
+      }
+    }
+    pendingEmailCheck.current = false;
     try {
-      const { data } = await api.post('/auth/check-email', { email: form.email.trim().toLowerCase() });
+      const { data } = await api.post('/auth/check-email', { email: form.email.trim().toLowerCase(), ...captcha.payload });
       setEmailAvailable(data.available);
       if (!data.available) {
         setErrors((prev) => ({ ...prev, email: t('register.emailTaken') }));
@@ -113,11 +132,24 @@ export default function AccountForm({ role, onSuccess }: Props) {
       if (err?.response?.status === 409) {
         setEmailAvailable(false);
         setErrors((prev) => ({ ...prev, email: t('register.emailTaken') }));
+      } else if (isCaptchaError(err)) {
+        setEmailAvailable(null);
+        setCaptchaHint(t(captcha.enabled ? 'register.captcha.failed' : 'register.captcha.required'));
+        pendingEmailCheck.current = true;
+        // The server now requires a check this page did not know about.
+        if (!captcha.enabled) captcha.reload();
       } else {
         setEmailAvailable(null);
       }
+    } finally {
+      if (captcha.enabled) captcha.consume();
     }
-  }, [form.email, t]);
+  }, [form.email, t, captcha]);
+
+  // A lookup that was waiting for the bot check runs once a token arrives.
+  useEffect(() => {
+    if (captcha.token && pendingEmailCheck.current) void checkEmail();
+  }, [captcha.token, checkEmail]);
 
   // ── Send OTP with real form values ─────────────────────
   const sendOtp = useCallback(async (formData: FormState): Promise<string | null> => {
@@ -375,6 +407,13 @@ export default function AccountForm({ role, onSuccess }: Props) {
               <p className="text-[11px] text-green-500 mt-0.5">{t('register.emailAvailable')}</p>
             )}
             <FieldError id="err-email" msg={errors.email} />
+            {captcha.siteKey && (
+              <div className="mt-1 flex flex-col gap-1">
+                <span className="text-[11px] text-gray-400">{t('register.captcha.label')}</span>
+                <TurnstileWidget {...captcha.widgetProps} />
+              </div>
+            )}
+            {captchaHint && <p className="text-[11px] text-amber-400 mt-0.5" role="status">{captchaHint}</p>}
           </div>
 
           {/* ── Email verification ────────────────────── */}

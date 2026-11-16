@@ -1216,6 +1216,12 @@
     "errorMismatch": "비밀번호가 일치하지 않습니다."
   },
   "register": {
+    "captcha": {
+      "label": "간단한 보안 확인",
+      "required": "이 이메일을 확인하려면 아래 보안 확인을 완료하세요.",
+      "failed": "보안 확인이 완료되지 않았습니다. 다시 진행해 주세요.",
+      "unavailable": "보안 확인을 불러올 수 없습니다. 페이지를 새로고침한 후 다시 시도하세요."
+    },
     "createAccount": "계정 만들기",
     "tagline": "OxSteed에 가입하세요 - 지역 서비스 마켓플레이스.",
     "firstName": "이름",
@@ -24042,6 +24048,12 @@
     "bookableHelper": "이 서비스의 풀에 있는 사람이 무료인 경우 고객은 다이렉트에서 캘린더 슬롯을 선택할 수 있습니다."
   },
   "careers": {
+    "captcha": {
+      "label": "간단한 보안 확인",
+      "required": "지원서를 보내려면 아래 보안 확인을 완료하세요.",
+      "failed": "보안 확인이 완료되지 않았습니다. 다시 진행해 주세요.",
+      "unavailable": "보안 확인을 불러올 수 없습니다. 페이지를 새로고침한 후 다시 시도하세요."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

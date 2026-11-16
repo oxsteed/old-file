@@ -1216,6 +1216,12 @@
     "errorMismatch": "Şifreler eşleşmiyor"
   },
   "register": {
+    "captcha": {
+      "label": "Hızlı güvenlik kontrolü",
+      "required": "Bu e-postayı kontrol edebilmemiz için aşağıdaki güvenlik kontrolünü tamamlayın.",
+      "failed": "Güvenlik kontrolü tamamlanamadı. Lütfen tekrar deneyin.",
+      "unavailable": "Güvenlik kontrolü yüklenemedi. Sayfayı yenileyip tekrar deneyin."
+    },
     "createAccount": "Hesabınızı oluşturun",
     "tagline": "OxSteed yerel hizmetler pazaryerine katılın.",
     "firstName": "Ad",
@@ -24042,6 +24048,12 @@
     "bookableHelper": "Bu hizmetin havuzundaki biri müsait olduğunda müşteriler Direct'te takvim aralığı seçebilir."
   },
   "careers": {
+    "captcha": {
+      "label": "Hızlı güvenlik kontrolü",
+      "required": "Başvurunuzu göndermek için aşağıdaki güvenlik kontrolünü tamamlayın.",
+      "failed": "Güvenlik kontrolü tamamlanamadı. Lütfen tekrar deneyin.",
+      "unavailable": "Güvenlik kontrolü yüklenemedi. Sayfayı yenileyip tekrar deneyin."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

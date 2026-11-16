@@ -2990,6 +2990,12 @@
     "errorMismatch": "Las contraseñas no coinciden"
   },
   "register": {
+    "captcha": {
+      "label": "Verificación de seguridad rápida",
+      "required": "Completa la verificación de seguridad de abajo para comprobar este correo.",
+      "failed": "La verificación de seguridad no se completó. Vuelve a hacerla.",
+      "unavailable": "No se pudo cargar la verificación de seguridad. Actualiza la página e inténtalo de nuevo."
+    },
     "createAccount": "Crea tu cuenta",
     "tagline": "Únete a OxSteed - tu mercado de servicios locales.",
     "firstName": "Nombre",
@@ -28413,6 +28419,12 @@
     "bookableHelper": "Los clientes pueden elegir un horario en Direct cuando alguien del grupo de este servicio esté libre."
   },
   "careers": {
+    "captcha": {
+      "label": "Verificación de seguridad rápida",
+      "required": "Completa la verificación de seguridad de abajo para enviar tu solicitud.",
+      "failed": "La verificación de seguridad no se completó. Vuelve a hacerla.",
+      "unavailable": "No se pudo cargar la verificación de seguridad. Actualiza la página e inténtalo de nuevo."
+    },
     "metaTitle": "Empleos en OxSteed",
     "metaDesc": "Encuentra trabajo por turnos, de medio tiempo o de tiempo completo con OxSteed y negocios verificados. Cada puesto muestra el salario.",
     "kicker": "Empleos",

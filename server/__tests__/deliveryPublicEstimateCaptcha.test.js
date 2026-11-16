@@ -66,3 +66,38 @@ test('with CAPTCHA_ENABLED the public estimate needs a token and accepts a verif
   expect(ok.body.estimate.pricing.cents.customerTotal).toBe(1799);
   expect(global.fetch).toHaveBeenCalledWith('https://challenges.cloudflare.com/turnstile/v0/siteverify', expect.objectContaining({ method: 'POST' }));
 });
+
+describe('shared captcha config for every verifyCaptcha form', () => {
+  function buildAuthApp(env) {
+    const saved = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
+    Object.assign(process.env, env);
+    let app;
+    jest.isolateModules(() => {
+      const routes = require('../routes/auth');
+      app = express();
+      app.use(express.json());
+      app.use('/auth', routes);
+    });
+    for (const key of ENV_KEYS) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+    return app;
+  }
+
+  test('GET /auth/captcha-config is public, matches the enforcement switch, and hides the secret', async () => {
+    const off = await request(buildAuthApp({ CAPTCHA_SECRET: 'top-secret', CAPTCHA_SITE_KEY: 'site-key' })).get('/auth/captcha-config');
+    expect(off.status).toBe(200);
+    expect(off.body.captcha).toEqual({ enabled: false, provider: 'turnstile', siteKey: null });
+    const on = await request(buildAuthApp({ CAPTCHA_ENABLED: 'true', CAPTCHA_SECRET: 'top-secret', CAPTCHA_SITE_KEY: 'site-key' })).get('/auth/captcha-config');
+    expect(on.body.captcha).toEqual({ enabled: true, provider: 'turnstile', siteKey: 'site-key' });
+    expect(JSON.stringify(on.body)).not.toMatch(/top-secret/);
+  });
+
+  test('with CAPTCHA_ENABLED, /auth/check-email needs a token', async () => {
+    const app = buildAuthApp({ CAPTCHA_ENABLED: 'true', CAPTCHA_SECRET: 'top-secret', CAPTCHA_SITE_KEY: 'site-key' });
+    const res = await request(app).post('/auth/check-email').set('X-Forwarded-For', '198.51.100.7').send({ email: 'a@example.com' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('captcha_required');
+  });
+});

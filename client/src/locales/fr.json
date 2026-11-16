@@ -2990,6 +2990,12 @@
     "errorMismatch": "Les mots de passe ne correspondent pas"
   },
   "register": {
+    "captcha": {
+      "label": "Vérification de sécurité rapide",
+      "required": "Effectuez la vérification de sécurité ci-dessous pour que nous puissions vérifier cet e-mail.",
+      "failed": "La vérification de sécurité n’a pas abouti. Veuillez la refaire.",
+      "unavailable": "La vérification de sécurité n’a pas pu se charger. Actualisez la page et réessayez."
+    },
     "createAccount": "Créez votre compte",
     "tagline": "Rejoignez OxSteed - votre marché de services locaux.",
     "firstName": "Prénom",
@@ -28413,6 +28419,12 @@
     "bookableHelper": "Les clients peuvent choisir un créneau sur Direct quand quelqu'un du pool de ce service est libre."
   },
   "careers": {
+    "captcha": {
+      "label": "Vérification de sécurité rapide",
+      "required": "Effectuez la vérification de sécurité ci-dessous pour envoyer votre candidature.",
+      "failed": "La vérification de sécurité n’a pas abouti. Veuillez la refaire.",
+      "unavailable": "La vérification de sécurité n’a pas pu se charger. Actualisez la page et réessayez."
+    },
     "metaTitle": "Carrières chez OxSteed",
     "metaDesc": "Trouvez un emploi en shifts, à temps partiel ou à temps plein chez OxSteed et des entreprises vérifiées. Chaque offre affiche la rémunération.",
     "kicker": "Carrières",

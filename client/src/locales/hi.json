@@ -1216,6 +1216,12 @@
     "errorMismatch": "पासवर्ड मेल नहीं खाते"
   },
   "register": {
+    "captcha": {
+      "label": "त्वरित सुरक्षा जाँच",
+      "required": "इस ईमेल की जाँच के लिए नीचे दी गई सुरक्षा जाँच पूरी करें।",
+      "failed": "सुरक्षा जाँच पूरी नहीं हुई। कृपया फिर से पूरा करें।",
+      "unavailable": "सुरक्षा जाँच लोड नहीं हो सकी। पेज रीफ़्रेश करके फिर कोशिश करें।"
+    },
     "createAccount": "अपना खाता बनाएं",
     "tagline": "OxSteed से जुड़ें - आपका स्थानीय सेवा मार्केटप्लेस।",
     "firstName": "पहला नाम",
@@ -24042,6 +24048,12 @@
     "bookableHelper": "इस सेवा के पूल में कोई उपलब्ध होने पर ग्राहक Direct पर कैलेंडर स्लॉट चुन सकते हैं।"
   },
   "careers": {
+    "captcha": {
+      "label": "त्वरित सुरक्षा जाँच",
+      "required": "अपना आवेदन भेजने के लिए नीचे दी गई सुरक्षा जाँच पूरी करें।",
+      "failed": "सुरक्षा जाँच पूरी नहीं हुई। कृपया फिर से पूरा करें।",
+      "unavailable": "सुरक्षा जाँच लोड नहीं हो सकी। पेज रीफ़्रेश करके फिर कोशिश करें।"
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

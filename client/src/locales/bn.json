@@ -1216,6 +1216,12 @@
     "errorMismatch": "পাসওয়ার্ড মেলে না"
   },
   "register": {
+    "captcha": {
+      "label": "দ্রুত নিরাপত্তা যাচাই",
+      "required": "এই ইমেইল যাচাই করতে নিচের নিরাপত্তা যাচাই সম্পন্ন করুন।",
+      "failed": "নিরাপত্তা যাচাই সম্পন্ন হয়নি। আবার চেষ্টা করুন।",
+      "unavailable": "নিরাপত্তা যাচাই লোড হয়নি। পেজ রিফ্রেশ করে আবার চেষ্টা করুন।"
+    },
     "createAccount": "আপনার অ্যাকাউন্ট তৈরি করুন",
     "tagline": "OxSteed-এ যোগ দিন - আপনার স্থানীয় সেবা মার্কেটপ্লেস।",
     "firstName": "প্রথম নাম",
@@ -24042,6 +24048,12 @@
     "bookableHelper": "গ্রাহকরা ডাইরেক্টে একটি ক্যালেন্ডার স্লট বেছে নিতে পারেন যখন এই পরিষেবার পুলে কেউ বিনামূল্যে থাকে।"
   },
   "careers": {
+    "captcha": {
+      "label": "দ্রুত নিরাপত্তা যাচাই",
+      "required": "আবেদন পাঠাতে নিচের নিরাপত্তা যাচাই সম্পন্ন করুন।",
+      "failed": "নিরাপত্তা যাচাই সম্পন্ন হয়নি। আবার চেষ্টা করুন।",
+      "unavailable": "নিরাপত্তা যাচাই লোড হয়নি। পেজ রিফ্রেশ করে আবার চেষ্টা করুন।"
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

@@ -1216,6 +1216,12 @@
     "errorMismatch": "密码不匹配"
   },
   "register": {
+    "captcha": {
+      "label": "快速安全验证",
+      "required": "请完成下方的安全验证，以便我们检查此邮箱。",
+      "failed": "安全验证未通过，请重新完成。",
+      "unavailable": "安全验证无法加载。请刷新页面后重试。"
+    },
     "createAccount": "创建你的账户",
     "tagline": "加入 OxSteed - 你的本地服务市场。",
     "firstName": "名",
@@ -24042,6 +24048,12 @@
     "bookableHelper": "当此服务池中的某个人空闲时，客户可以在Direct上选择一个日历插槽。"
   },
   "careers": {
+    "captcha": {
+      "label": "快速安全验证",
+      "required": "请完成下方的安全验证以提交申请。",
+      "failed": "安全验证未通过，请重新完成。",
+      "unavailable": "安全验证无法加载。请刷新页面后重试。"
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

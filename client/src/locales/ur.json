@@ -1216,6 +1216,12 @@
     "errorMismatch": "پاس ورڈز مماثل نہیں ہیں"
   },
   "register": {
+    "captcha": {
+      "label": "فوری حفاظتی جانچ",
+      "required": "اس ای میل کی جانچ کے لیے نیچے دی گئی حفاظتی جانچ مکمل کریں۔",
+      "failed": "حفاظتی جانچ مکمل نہیں ہوئی۔ براہ کرم دوبارہ مکمل کریں۔",
+      "unavailable": "حفاظتی جانچ لوڈ نہیں ہو سکی۔ صفحہ ریفریش کر کے دوبارہ کوشش کریں۔"
+    },
     "createAccount": "اپنا اکاؤنٹ بنائیں",
     "tagline": "OxSteed میں شامل ہوں - اپنی مقامی خدمات کا بازار۔",
     "firstName": "پہلا نام",
@@ -24041,6 +24047,12 @@
     "bookableHelper": "گاہک Direct پر کیلنڈر سلاٹ منتخب کر سکتے ہیں جب اس سروس کے پول میں کوئی فارغ ہو۔"
   },
   "careers": {
+    "captcha": {
+      "label": "فوری حفاظتی جانچ",
+      "required": "اپنی درخواست بھیجنے کے لیے نیچے دی گئی حفاظتی جانچ مکمل کریں۔",
+      "failed": "حفاظتی جانچ مکمل نہیں ہوئی۔ براہ کرم دوبارہ مکمل کریں۔",
+      "unavailable": "حفاظتی جانچ لوڈ نہیں ہو سکی۔ صفحہ ریفریش کر کے دوبارہ کوشش کریں۔"
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

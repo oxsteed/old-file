@@ -3268,6 +3268,12 @@
     "errorMismatch": "Modpas yo pa matche"
   },
   "register": {
+    "captcha": {
+      "label": "Ti verifikasyon sekirite",
+      "required": "Fè verifikasyon sekirite ki anba a pou nou ka verifye imèl sa a.",
+      "failed": "Verifikasyon sekirite a pa pase. Tanpri fè l ankò.",
+      "unavailable": "Verifikasyon sekirite a pa t ka chaje. Rafrechi paj la epi eseye ankò."
+    },
     "createAccount": "Kreye kont ou",
     "tagline": "Antre nan OxSteed - mache sèvis lokal ou.",
     "firstName": "Prenon",
@@ -28413,6 +28419,12 @@
     "bookableHelper": "Kliyan yo ka chwazi yon orè sou Direct lè yon moun nan gwoup sèvis sa a lib."
   },
   "careers": {
+    "captcha": {
+      "label": "Ti verifikasyon sekirite",
+      "required": "Fè verifikasyon sekirite ki anba a pou w voye aplikasyon ou.",
+      "failed": "Verifikasyon sekirite a pa pase. Tanpri fè l ankò.",
+      "unavailable": "Verifikasyon sekirite a pa t ka chaje. Rafrechi paj la epi eseye ankò."
+    },
     "metaTitle": "Travay nan OxSteed",
     "metaDesc": "Jwenn travay pa ekip, a tan pasyèl oswa a tan plen avèk OxSteed ak biznis ki verifye. Chak pòs montre salè a.",
     "kicker": "Travay",

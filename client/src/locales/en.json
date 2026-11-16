@@ -2990,6 +2990,12 @@
     "errorMismatch": "Passwords do not match"
   },
   "register": {
+    "captcha": {
+      "label": "Quick security check",
+      "required": "Complete the security check below so we can check this email.",
+      "failed": "The security check didn't go through. Please complete it again.",
+      "unavailable": "The security check couldn't load. Refresh the page and try again."
+    },
     "createAccount": "Create your account",
     "tagline": "Join OxSteed - your local services marketplace.",
     "firstName": "First name",
@@ -28413,6 +28419,12 @@
     "bookableHelper": "Customers can pick a calendar slot on Direct when someone in this service’s pool is free."
   },
   "careers": {
+    "captcha": {
+      "label": "Quick security check",
+      "required": "Complete the security check below to send your application.",
+      "failed": "The security check didn't go through. Please complete it again.",
+      "unavailable": "The security check couldn't load. Refresh the page and try again."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

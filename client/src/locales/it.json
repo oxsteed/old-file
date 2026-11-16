@@ -1216,6 +1216,12 @@
     "errorMismatch": "Le password non corrispondono"
   },
   "register": {
+    "captcha": {
+      "label": "Controllo di sicurezza rapido",
+      "required": "Completa il controllo di sicurezza qui sotto per verificare questa email.",
+      "failed": "Il controllo di sicurezza non è andato a buon fine. Ripetilo.",
+      "unavailable": "Impossibile caricare il controllo di sicurezza. Aggiorna la pagina e riprova."
+    },
     "createAccount": "Crea il tuo account",
     "tagline": "Unisciti a OxSteed: il tuo marketplace di servizi locali.",
     "firstName": "Nome",
@@ -24042,6 +24048,12 @@
     "bookableHelper": "I clienti possono scegliere uno slot del calendario su Direct quando qualcuno nel pool di questo servizio è gratuito."
   },
   "careers": {
+    "captcha": {
+      "label": "Controllo di sicurezza rapido",
+      "required": "Completa il controllo di sicurezza qui sotto per inviare la candidatura.",
+      "failed": "Il controllo di sicurezza non è andato a buon fine. Ripetilo.",
+      "unavailable": "Impossibile caricare il controllo di sicurezza. Aggiorna la pagina e riprova."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

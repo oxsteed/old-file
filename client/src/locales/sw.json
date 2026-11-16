@@ -1105,6 +1105,12 @@
     "errorMismatch": "Manenosiri hayalingani"
   },
   "register": {
+    "captcha": {
+      "label": "Ukaguzi wa haraka wa usalama",
+      "required": "Kamilisha ukaguzi wa usalama ulio hapa chini ili tuweze kukagua barua pepe hii.",
+      "failed": "Ukaguzi wa usalama haukufaulu. Tafadhali ukamilishe tena.",
+      "unavailable": "Ukaguzi wa usalama haukuweza kupakia. Onyesha upya ukurasa na ujaribu tena."
+    },
     "createAccount": "Unda akaunti yako",
     "tagline": "Jiunge na OxSteed - soko lako la huduma za karibu.",
     "firstName": "Jina la kwanza",
@@ -23903,6 +23909,12 @@
     "bookableHelper": "Wateja wanaweza kuchagua nafasi ya kalenda kwenye Direct wakati mtu katika bwawa la huduma hii ni bure."
   },
   "careers": {
+    "captcha": {
+      "label": "Ukaguzi wa haraka wa usalama",
+      "required": "Kamilisha ukaguzi wa usalama ulio hapa chini ili kutuma ombi lako.",
+      "failed": "Ukaguzi wa usalama haukufaulu. Tafadhali ukamilishe tena.",
+      "unavailable": "Ukaguzi wa usalama haukuweza kupakia. Onyesha upya ukurasa na ujaribu tena."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

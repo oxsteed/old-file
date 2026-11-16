@@ -1216,6 +1216,12 @@
     "errorMismatch": "Kata sandi tidak cocok"
   },
   "register": {
+    "captcha": {
+      "label": "Pemeriksaan keamanan singkat",
+      "required": "Selesaikan pemeriksaan keamanan di bawah agar kami dapat memeriksa email ini.",
+      "failed": "Pemeriksaan keamanan gagal. Silakan ulangi.",
+      "unavailable": "Pemeriksaan keamanan tidak dapat dimuat. Muat ulang halaman dan coba lagi."
+    },
     "createAccount": "Buat akun Anda",
     "tagline": "Gabung dengan OxSteed - marketplace layanan lokal Anda.",
     "firstName": "Nama depan",
@@ -24042,6 +24048,12 @@
     "bookableHelper": "Pelanggan dapat memilih slot kalender di Direct saat seseorang di pool layanan ini bebas."
   },
   "careers": {
+    "captcha": {
+      "label": "Pemeriksaan keamanan singkat",
+      "required": "Selesaikan pemeriksaan keamanan di bawah untuk mengirim lamaran Anda.",
+      "failed": "Pemeriksaan keamanan gagal. Silakan ulangi.",
+      "unavailable": "Pemeriksaan keamanan tidak dapat dimuat. Muat ulang halaman dan coba lagi."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

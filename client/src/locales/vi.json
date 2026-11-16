@@ -1216,6 +1216,12 @@
     "errorMismatch": "Mật khẩu không khớp"
   },
   "register": {
+    "captcha": {
+      "label": "Kiểm tra bảo mật nhanh",
+      "required": "Hoàn tất kiểm tra bảo mật bên dưới để chúng tôi kiểm tra email này.",
+      "failed": "Kiểm tra bảo mật chưa thành công. Vui lòng thực hiện lại.",
+      "unavailable": "Không tải được kiểm tra bảo mật. Hãy tải lại trang và thử lại."
+    },
     "createAccount": "Tạo tài khoản của bạn",
     "tagline": "Tham gia OxSteed - chợ dịch vụ địa phương của bạn.",
     "firstName": "Tên",
@@ -24042,6 +24048,12 @@
     "bookableHelper": "Khách có thể chọn khung giờ trên Direct khi có người trong nhóm của dịch vụ này rảnh."
   },
   "careers": {
+    "captcha": {
+      "label": "Kiểm tra bảo mật nhanh",
+      "required": "Hoàn tất kiểm tra bảo mật bên dưới để gửi đơn ứng tuyển.",
+      "failed": "Kiểm tra bảo mật chưa thành công. Vui lòng thực hiện lại.",
+      "unavailable": "Không tải được kiểm tra bảo mật. Hãy tải lại trang và thử lại."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

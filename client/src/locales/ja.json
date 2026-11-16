@@ -1216,6 +1216,12 @@
     "errorMismatch": "パスワードが一致しません"
   },
   "register": {
+    "captcha": {
+      "label": "簡単なセキュリティ確認",
+      "required": "このメールアドレスを確認するには、下のセキュリティ確認を完了してください。",
+      "failed": "セキュリティ確認が完了しませんでした。もう一度お試しください。",
+      "unavailable": "セキュリティ確認を読み込めませんでした。ページを再読み込みしてもう一度お試しください。"
+    },
     "createAccount": "アカウントを作成する",
     "tagline": "OxSteedに参加しましょう。地域サービスのマーケットプレイスです。",
     "firstName": "名",
@@ -24041,6 +24047,12 @@
     "bookableHelper": "このサービスのプールに空きがある場合、お客様はDirectでカレンダーの空き枠を選べます。"
   },
   "careers": {
+    "captcha": {
+      "label": "簡単なセキュリティ確認",
+      "required": "応募を送信するには、下のセキュリティ確認を完了してください。",
+      "failed": "セキュリティ確認が完了しませんでした。もう一度お試しください。",
+      "unavailable": "セキュリティ確認を読み込めませんでした。ページを再読み込みしてもう一度お試しください。"
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",
