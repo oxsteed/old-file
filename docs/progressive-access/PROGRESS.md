@@ -9,7 +9,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | Item | Status | Commit | Tests |
 | --- | --- | --- | --- |
 | Handoff + ledger docs | implemented | (this commit) | n/a |
-| Decisions-already-made product tests (D1–D7) | planned | | server/__tests__/progressiveAccessDecisions.test.js |
+| Decisions-already-made product tests (D1–D7) | implemented | 3e19ebd25 | server/__tests__/progressiveAccessDecisions.test.js (35) |
 | Baseline inventory of mode/role authority (docs/progressive-access/BASELINE.md) | planned | | |
 
 ## Work packages
@@ -25,7 +25,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-007 | Verification and provider callbacks | P2 | planned | | |
 | WP-008 | Business team access requests | P2 | planned | | |
 | WP-009 | Invitations and Vortex codes | P2 | planned | | |
-| WP-010 | Access policy and form discovery | P1 | planned | | |
+| WP-010 | Access policy and form discovery | P1 | in progress | 3e19ebd25 | progressiveAccessDecisions.test.js |
 | WP-011 | Applicant status and resubmission | P1 | planned | | |
 | WP-012 | Platform review and audit | P1 | planned | | |
 | WP-013 | Role switch retirement | P5 | planned | | |

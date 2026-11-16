@@ -95,10 +95,26 @@ Spec "Commit-sized delivery sequence" + "Phase 0–5":
 
 Kept in sync with the PR description. See PROGRESS.md for the full list.
 
-1. Existing helpers (role `helper` today) are backfilled as approved `helper.offer_services`
-   grants with provenance `legacy_backfill` — no re-review. Default: grandfather.
+1. **Grandfather existing helpers.** Users with role `helper` today, or with a
+   `helper_profiles` row (they could switch back instantly), are backfilled as active
+   `helper.offer_services` grants with provenance `legacy_backfill` — no re-review.
+2. **Owner modes without a business** get a *draft* application, not access.
+3. **Investor mode without an audience record** and **staff modes without a membership**
+   go to an exception list for review; they keep customer access only.
+4. **Unapproved consultant mode** gets a draft consultant application (accepting paying
+   clients was already approval-gated).
+5. **Tool owner / logistics modes** are grandfathered as grants (they were self-service).
+6. **Franchise** grants come only from a current territory assignment; no self-service.
+7. **Investor and franchise reviews** need their own admin permissions
+   (`access_requests.review_investor`, `access_requests.review_franchise`); the general
+   `access_requests.review` covers helper/business/restaurant/consultant/tools/logistics.
 
 ## Next step
 
-Phase 0: write `server/__tests__/progressiveAccessDecisions.test.js` (D1–D7 product
-tests against the policy registry/resolver contract), then WP slice 1 (migration).
+Done: registry/lifecycle/resolver/legacyMapping in `server/services/access/` + D1–D7 tests.
+Next: slice 1 — migration `server/migrations/<UTC ts>_progressive_access.sql` creating the
+access tables (see Conventions), then `server/services/access/accessService.js`
+(loadFacts, getProjection, request CRUD with locked transitions + idempotency) with a
+DB test `server/__tests__/progressiveAccessService.db.test.js` gated by
+`ACCESS_TEST_DATABASE_URL`, and add that env var to the CI step
+"Server regression and security tests".
