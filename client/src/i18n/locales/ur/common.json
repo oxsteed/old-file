@@ -3875,5 +3875,153 @@
     "signIn": "سائن ان کریں",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "درخواستیں",
+    "pageSubtitle": "دیکھیں کہ آپ کا اکاؤنٹ کیا کر سکتا ہے اور مزید کے لیے درخواست دیں۔",
+    "backToSettings": "ترتیبات پر واپس جائیں",
+    "loading": "لوڈ ہو رہا ہے…",
+    "unavailable": "آپ کے اکاؤنٹ پر ابھی درخواستیں دستیاب نہیں ہیں۔",
+    "loadFailed": "ہم آپ کی درخواستیں لوڈ نہیں کر سکے۔",
+    "heldTitle": "آپ ابھی کیا کر سکتے ہیں",
+    "organizations": "وہ تنظیمیں جن کے آپ رکن ہیں: {{count}}",
+    "requestsTitle": "آپ کی درخواستیں",
+    "noRequests": "آپ کی ابھی کوئی درخواست نہیں ہے۔",
+    "applyTitle": "مزید کے لیے درخواست دیں",
+    "editTitle": "درخواست: {{capability}}",
+    "reviewerAsked": "جائزہ کار نے پوچھا:",
+    "choose": "منتخب کریں…",
+    "listHint": "اشیاء کو کوما سے الگ کریں۔",
+    "withdrawTitle": "درخواست واپس لیں؟",
+    "withdrawConfirm": "آپ کی {{capability}} درخواست بند کر دی جائے گی۔ آپ بعد میں دوبارہ درخواست دے سکتے ہیں۔",
+    "capabilities": {
+      "customer": "مدد حاصل کریں اور آرڈر کریں",
+      "helper": {
+        "offer_services": "خدمات پیش کریں"
+      },
+      "business": {
+        "own": "کاروبار چلائیں"
+      },
+      "restaurant": {
+        "own": "ریستوران چلائیں"
+      },
+      "consultant": {
+        "accept_paying_clients": "ادائیگی کرنے والے کلائنٹس کو مشورہ دیں"
+      },
+      "tool_owner": {
+        "list_equipment": "سامان کرائے پر دیں"
+      },
+      "logistics": {
+        "ship": "لاجسٹکس کے ذریعے بھیجیں"
+      },
+      "investor": {
+        "reporting": "سرمایہ کار رپورٹس"
+      },
+      "franchise": {
+        "operate": "فرنچائز چلائیں"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "کاموں پر بولی لگائیں اور اپنے کام کا معاوضہ پائیں۔"
+      },
+      "business": {
+        "own": "اپنے کاروبار کا صفحہ اور ٹیم ترتیب دیں۔"
+      },
+      "restaurant": {
+        "own": "اپنے ریستوران کے لیے کھانے کے آرڈر لیں۔"
+      },
+      "consultant": {
+        "accept_paying_clients": "معاوضے والے مشاورتی کام قبول کریں۔"
+      },
+      "tool_owner": {
+        "list_equipment": "اپنے اوزار اور سامان کرائے پر دیں۔"
+      },
+      "logistics": {
+        "ship": "شپمنٹ بک کریں اور ان کا انتظام کریں۔"
+      },
+      "investor": {
+        "reporting": "سرمایہ کار رپورٹس دیکھیں۔"
+      }
+    },
+    "status": {
+      "draft": "مسودہ",
+      "submitted": "جمع کرائی گئی",
+      "in_review": "زیرِ جائزہ",
+      "needs_information": "معلومات درکار",
+      "approved": "منظور شدہ",
+      "declined": "مسترد",
+      "withdrawn": "واپس لی گئی"
+    },
+    "reasons": {
+      "review_complete": "جائزہ مکمل ہو گیا۔",
+      "service_area_required": "وہ علاقہ شامل کریں جہاں آپ کام کرتے ہیں۔",
+      "service_categories_required": "اپنی پیش کردہ خدمات شامل کریں۔",
+      "identity_verification_required": "جاری رکھنے کے لیے اپنی شناخت کی تصدیق کریں۔",
+      "business_details_required": "کاروبار کے بارے میں مزید تفصیلات شامل کریں۔",
+      "ownership_not_verified": "ہم تصدیق نہیں کر سکے کہ یہ کاروبار آپ کا ہے۔",
+      "duplicate_request": "اس کے لیے آپ کی درخواست پہلے سے موجود ہے۔",
+      "not_eligible_in_market": "یہ ابھی آپ کے علاقے میں دستیاب نہیں ہے۔",
+      "policy_not_met": "یہ درخواست ہماری شرائط پر پوری نہیں اترتی۔",
+      "other_contact_support": "تفصیلات کے لیے براہِ کرم سپورٹ سے رابطہ کریں۔"
+    },
+    "fields": {
+      "serviceCategories": "آپ کی خدمات",
+      "serviceArea": "خدمت کا علاقہ",
+      "about": "تعارف",
+      "businessName": "کاروبار کا نام",
+      "businessType": "کاروبار کی قسم",
+      "restaurantName": "ریستوران کا نام",
+      "cuisine": "کھانوں کی قسم",
+      "areasOfExpertise": "مہارت کے شعبے",
+      "bio": "پیشہ ورانہ تعارف",
+      "sampleWorkUrl": "نمونۂ کام کا لنک",
+      "yearsExperience": "تجربے کے سال",
+      "area": {
+        "country": "ملک کا کوڈ (2 حروف)",
+        "region": "ریاست یا علاقہ",
+        "city": "شہر",
+        "postalCode": "پوسٹل کوڈ"
+      }
+    },
+    "options": {
+      "llc": "ایل ایل سی",
+      "sole_prop": "واحد ملکیت",
+      "corp": "کارپوریشن",
+      "partnership": "شراکت داری",
+      "other": "دیگر"
+    },
+    "fieldErrors": {
+      "invalid": "یہ جواب چیک کریں۔",
+      "required": "یہ لازمی ہے۔",
+      "too_many": "بہت زیادہ اشیاء۔",
+      "unknown_field": "یہ خانہ فارم کا حصہ نہیں ہے۔"
+    },
+    "actions": {
+      "save": "مسودہ محفوظ کریں",
+      "submit": "درخواست جمع کرائیں",
+      "resubmit": "تازہ جوابات بھیجیں",
+      "close": "بند کریں",
+      "continue": "جاری رکھیں",
+      "withdraw": "واپس لیں",
+      "apply": "درخواست دیں",
+      "retry": "دوبارہ کوشش کریں",
+      "cancel": "منسوخ کریں",
+      "confirmWithdraw": "درخواست واپس لیں"
+    },
+    "toast": {
+      "save": "مسودہ محفوظ ہو گیا",
+      "submit": "درخواست جمع ہو گئی",
+      "resubmit": "جوابات بھیج دیے گئے",
+      "withdraw": "درخواست واپس لے لی گئی"
+    },
+    "errors": {
+      "versionConflict": "یہ درخواست کسی دوسرے ٹیب میں بدل گئی۔ ہم نے اسے دوبارہ لوڈ کیا۔",
+      "validation": "کچھ جوابات پر توجہ درکار ہے۔",
+      "generic": "کچھ غلط ہو گیا۔ براہِ کرم دوبارہ کوشش کریں۔",
+      "alreadyOpen": "اس کے لیے آپ کی ایک درخواست پہلے سے کھلی ہے۔",
+      "alreadyGranted": "آپ کے پاس یہ رسائی پہلے سے موجود ہے۔"
+    },
+    "openApplications": "درخواستیں کھولیں"
   }
 }

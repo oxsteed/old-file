@@ -3875,5 +3875,153 @@
     "signIn": "登录",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "申请",
+    "pageSubtitle": "查看您的账户能做什么，并申请更多权限。",
+    "backToSettings": "返回设置",
+    "loading": "加载中…",
+    "unavailable": "您的账户暂时无法使用申请功能。",
+    "loadFailed": "无法加载您的申请。",
+    "heldTitle": "您现在可以做什么",
+    "organizations": "您所属的组织：{{count}}",
+    "requestsTitle": "您的申请",
+    "noRequests": "您还没有任何申请。",
+    "applyTitle": "申请更多",
+    "editTitle": "申请：{{capability}}",
+    "reviewerAsked": "审核人询问：",
+    "choose": "请选择…",
+    "listHint": "用逗号分隔各项。",
+    "withdrawTitle": "撤回申请？",
+    "withdrawConfirm": "您的「{{capability}}」申请将被关闭。您以后可以再次申请。",
+    "capabilities": {
+      "customer": "雇用帮手和下单",
+      "helper": {
+        "offer_services": "提供服务"
+      },
+      "business": {
+        "own": "经营企业"
+      },
+      "restaurant": {
+        "own": "经营餐厅"
+      },
+      "consultant": {
+        "accept_paying_clients": "为付费客户提供咨询"
+      },
+      "tool_owner": {
+        "list_equipment": "出租设备"
+      },
+      "logistics": {
+        "ship": "使用物流发货"
+      },
+      "investor": {
+        "reporting": "投资者报告"
+      },
+      "franchise": {
+        "operate": "经营特许加盟店"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "对工作出价，并为您的工作获得报酬。"
+      },
+      "business": {
+        "own": "设置您企业的页面和团队。"
+      },
+      "restaurant": {
+        "own": "为您的餐厅接收外卖订单。"
+      },
+      "consultant": {
+        "accept_paying_clients": "接受付费咨询项目。"
+      },
+      "tool_owner": {
+        "list_equipment": "出租您的工具和设备。"
+      },
+      "logistics": {
+        "ship": "预订并管理货运。"
+      },
+      "investor": {
+        "reporting": "查看投资者报告。"
+      }
+    },
+    "status": {
+      "draft": "草稿",
+      "submitted": "已提交",
+      "in_review": "审核中",
+      "needs_information": "需要补充信息",
+      "approved": "已批准",
+      "declined": "已拒绝",
+      "withdrawn": "已撤回"
+    },
+    "reasons": {
+      "review_complete": "审核完成。",
+      "service_area_required": "请添加您的工作区域。",
+      "service_categories_required": "请添加您提供的服务。",
+      "identity_verification_required": "请验证您的身份以继续。",
+      "business_details_required": "请补充更多企业信息。",
+      "ownership_not_verified": "我们无法确认您是该企业的所有者。",
+      "duplicate_request": "您已有此项的申请。",
+      "not_eligible_in_market": "您所在地区暂不支持此项。",
+      "policy_not_met": "此申请不符合我们的要求。",
+      "other_contact_support": "请联系客服了解详情。"
+    },
+    "fields": {
+      "serviceCategories": "您提供的服务",
+      "serviceArea": "服务区域",
+      "about": "简介",
+      "businessName": "企业名称",
+      "businessType": "企业类型",
+      "restaurantName": "餐厅名称",
+      "cuisine": "菜系",
+      "areasOfExpertise": "专业领域",
+      "bio": "职业简介",
+      "sampleWorkUrl": "作品示例链接",
+      "yearsExperience": "从业年限",
+      "area": {
+        "country": "国家代码（2 个字母）",
+        "region": "州或地区",
+        "city": "城市",
+        "postalCode": "邮政编码"
+      }
+    },
+    "options": {
+      "llc": "有限责任公司",
+      "sole_prop": "个体经营",
+      "corp": "股份有限公司",
+      "partnership": "合伙企业",
+      "other": "其他"
+    },
+    "fieldErrors": {
+      "invalid": "请检查此答案。",
+      "required": "此项为必填。",
+      "too_many": "条目过多。",
+      "unknown_field": "此字段不属于该表单。"
+    },
+    "actions": {
+      "save": "保存草稿",
+      "submit": "提交申请",
+      "resubmit": "发送更新后的答案",
+      "close": "关闭",
+      "continue": "继续",
+      "withdraw": "撤回",
+      "apply": "申请",
+      "retry": "重试",
+      "cancel": "取消",
+      "confirmWithdraw": "撤回申请"
+    },
+    "toast": {
+      "save": "草稿已保存",
+      "submit": "申请已提交",
+      "resubmit": "答案已发送",
+      "withdraw": "申请已撤回"
+    },
+    "errors": {
+      "versionConflict": "此申请已在另一个标签页中更改，我们已重新加载。",
+      "validation": "部分答案需要您注意。",
+      "generic": "出了点问题，请重试。",
+      "alreadyOpen": "您已有一个进行中的此项申请。",
+      "alreadyGranted": "您已拥有此权限。"
+    },
+    "openApplications": "打开申请"
   }
 }

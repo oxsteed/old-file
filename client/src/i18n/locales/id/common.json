@@ -3875,5 +3875,153 @@
     "signIn": "Masuk",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Pengajuan",
+    "pageSubtitle": "Lihat apa yang bisa dilakukan akun Anda dan ajukan lebih banyak.",
+    "backToSettings": "Kembali ke pengaturan",
+    "loading": "Memuat…",
+    "unavailable": "Pengajuan belum tersedia di akun Anda.",
+    "loadFailed": "Kami tidak dapat memuat pengajuan Anda.",
+    "heldTitle": "Yang bisa Anda lakukan sekarang",
+    "organizations": "Organisasi yang Anda ikuti: {{count}}",
+    "requestsTitle": "Pengajuan Anda",
+    "noRequests": "Anda belum memiliki pengajuan.",
+    "applyTitle": "Ajukan lebih banyak",
+    "editTitle": "Pengajuan: {{capability}}",
+    "reviewerAsked": "Peninjau bertanya:",
+    "choose": "Pilih…",
+    "listHint": "Pisahkan item dengan koma.",
+    "withdrawTitle": "Tarik pengajuan?",
+    "withdrawConfirm": "Pengajuan {{capability}} Anda akan ditutup. Anda dapat mengajukan lagi nanti.",
+    "capabilities": {
+      "customer": "Menyewa bantuan dan memesan",
+      "helper": {
+        "offer_services": "Menawarkan jasa"
+      },
+      "business": {
+        "own": "Menjalankan bisnis"
+      },
+      "restaurant": {
+        "own": "Menjalankan restoran"
+      },
+      "consultant": {
+        "accept_paying_clients": "Berkonsultasi untuk klien berbayar"
+      },
+      "tool_owner": {
+        "list_equipment": "Menyewakan peralatan"
+      },
+      "logistics": {
+        "ship": "Mengirim dengan logistik"
+      },
+      "investor": {
+        "reporting": "Laporan investor"
+      },
+      "franchise": {
+        "operate": "Mengoperasikan waralaba"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "Ajukan penawaran untuk pekerjaan dan dapatkan bayaran."
+      },
+      "business": {
+        "own": "Siapkan halaman dan tim bisnis Anda."
+      },
+      "restaurant": {
+        "own": "Terima pesanan makanan untuk restoran Anda."
+      },
+      "consultant": {
+        "accept_paying_clients": "Terima pekerjaan konsultasi berbayar."
+      },
+      "tool_owner": {
+        "list_equipment": "Sewakan alat dan peralatan Anda."
+      },
+      "logistics": {
+        "ship": "Pesan dan kelola pengiriman."
+      },
+      "investor": {
+        "reporting": "Lihat laporan investor."
+      }
+    },
+    "status": {
+      "draft": "Draf",
+      "submitted": "Dikirim",
+      "in_review": "Sedang ditinjau",
+      "needs_information": "Perlu informasi",
+      "approved": "Disetujui",
+      "declined": "Ditolak",
+      "withdrawn": "Ditarik"
+    },
+    "reasons": {
+      "review_complete": "Peninjauan selesai.",
+      "service_area_required": "Tambahkan area tempat Anda bekerja.",
+      "service_categories_required": "Tambahkan jasa yang Anda tawarkan.",
+      "identity_verification_required": "Verifikasi identitas Anda untuk melanjutkan.",
+      "business_details_required": "Tambahkan detail lain tentang bisnis ini.",
+      "ownership_not_verified": "Kami tidak dapat memastikan bahwa Anda pemilik bisnis ini.",
+      "duplicate_request": "Anda sudah memiliki pengajuan untuk ini.",
+      "not_eligible_in_market": "Ini belum tersedia di wilayah Anda.",
+      "policy_not_met": "Pengajuan ini tidak memenuhi persyaratan kami.",
+      "other_contact_support": "Silakan hubungi dukungan untuk detailnya."
+    },
+    "fields": {
+      "serviceCategories": "Jasa yang Anda tawarkan",
+      "serviceArea": "Area layanan",
+      "about": "Tentang",
+      "businessName": "Nama bisnis",
+      "businessType": "Jenis bisnis",
+      "restaurantName": "Nama restoran",
+      "cuisine": "Masakan",
+      "areasOfExpertise": "Bidang keahlian",
+      "bio": "Biografi profesional",
+      "sampleWorkUrl": "Tautan ke contoh pekerjaan",
+      "yearsExperience": "Tahun pengalaman",
+      "area": {
+        "country": "Kode negara (2 huruf)",
+        "region": "Provinsi atau wilayah",
+        "city": "Kota",
+        "postalCode": "Kode pos"
+      }
+    },
+    "options": {
+      "llc": "PT perorangan",
+      "sole_prop": "Usaha perseorangan",
+      "corp": "Perseroan terbatas",
+      "partnership": "Persekutuan",
+      "other": "Lainnya"
+    },
+    "fieldErrors": {
+      "invalid": "Periksa jawaban ini.",
+      "required": "Kolom ini wajib diisi.",
+      "too_many": "Terlalu banyak item.",
+      "unknown_field": "Kolom ini bukan bagian dari formulir."
+    },
+    "actions": {
+      "save": "Simpan draf",
+      "submit": "Kirim pengajuan",
+      "resubmit": "Kirim jawaban terbaru",
+      "close": "Tutup",
+      "continue": "Lanjutkan",
+      "withdraw": "Tarik",
+      "apply": "Ajukan",
+      "retry": "Coba lagi",
+      "cancel": "Batal",
+      "confirmWithdraw": "Tarik pengajuan"
+    },
+    "toast": {
+      "save": "Draf disimpan",
+      "submit": "Pengajuan dikirim",
+      "resubmit": "Jawaban dikirim",
+      "withdraw": "Pengajuan ditarik"
+    },
+    "errors": {
+      "versionConflict": "Pengajuan ini berubah di tab lain. Kami telah memuatnya ulang.",
+      "validation": "Beberapa jawaban perlu diperhatikan.",
+      "generic": "Terjadi kesalahan. Silakan coba lagi.",
+      "alreadyOpen": "Anda sudah memiliki pengajuan terbuka untuk ini.",
+      "alreadyGranted": "Anda sudah memiliki akses ini."
+    },
+    "openApplications": "Buka pengajuan"
   }
 }

@@ -3875,5 +3875,153 @@
     "signIn": "Oturum aç",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Başvurular",
+    "pageSubtitle": "Hesabınızın neler yapabildiğini görün ve daha fazlası için başvurun.",
+    "backToSettings": "Ayarlara dön",
+    "loading": "Yükleniyor…",
+    "unavailable": "Başvurular hesabınızda henüz kullanılamıyor.",
+    "loadFailed": "Başvurularınız yüklenemedi.",
+    "heldTitle": "Şu anda yapabilecekleriniz",
+    "organizations": "Üyesi olduğunuz kuruluşlar: {{count}}",
+    "requestsTitle": "Başvurularınız",
+    "noRequests": "Henüz başvurunuz yok.",
+    "applyTitle": "Daha fazlası için başvurun",
+    "editTitle": "Başvuru: {{capability}}",
+    "reviewerAsked": "İnceleyen kişi sordu:",
+    "choose": "Seçin…",
+    "listHint": "Öğeleri virgülle ayırın.",
+    "withdrawTitle": "Başvuru geri çekilsin mi?",
+    "withdrawConfirm": "{{capability}} başvurunuz kapatılacak. Daha sonra yeniden başvurabilirsiniz.",
+    "capabilities": {
+      "customer": "Yardım tutun ve sipariş verin",
+      "helper": {
+        "offer_services": "Hizmet sunun"
+      },
+      "business": {
+        "own": "İşletme yönetin"
+      },
+      "restaurant": {
+        "own": "Restoran yönetin"
+      },
+      "consultant": {
+        "accept_paying_clients": "Ücretli müşterilere danışmanlık verin"
+      },
+      "tool_owner": {
+        "list_equipment": "Ekipman kiralayın"
+      },
+      "logistics": {
+        "ship": "Lojistikle gönderin"
+      },
+      "investor": {
+        "reporting": "Yatırımcı raporları"
+      },
+      "franchise": {
+        "operate": "Franchise işletin"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "İşlere teklif verin ve emeğinizin karşılığını alın."
+      },
+      "business": {
+        "own": "İşletmenizin sayfasını ve ekibini kurun."
+      },
+      "restaurant": {
+        "own": "Restoranınız için yemek siparişleri alın."
+      },
+      "consultant": {
+        "accept_paying_clients": "Ücretli danışmanlık işlerini kabul edin."
+      },
+      "tool_owner": {
+        "list_equipment": "Aletlerinizi ve ekipmanınızı kiraya verin."
+      },
+      "logistics": {
+        "ship": "Gönderileri ayırtın ve yönetin."
+      },
+      "investor": {
+        "reporting": "Yatırımcı raporlarını görüntüleyin."
+      }
+    },
+    "status": {
+      "draft": "Taslak",
+      "submitted": "Gönderildi",
+      "in_review": "İncelemede",
+      "needs_information": "Bilgi gerekiyor",
+      "approved": "Onaylandı",
+      "declined": "Reddedildi",
+      "withdrawn": "Geri çekildi"
+    },
+    "reasons": {
+      "review_complete": "İnceleme tamamlandı.",
+      "service_area_required": "Çalıştığınız bölgeyi ekleyin.",
+      "service_categories_required": "Sunduğunuz hizmetleri ekleyin.",
+      "identity_verification_required": "Devam etmek için kimliğinizi doğrulayın.",
+      "business_details_required": "İşletme hakkında daha fazla ayrıntı ekleyin.",
+      "ownership_not_verified": "Bu işletmenin sahibi olduğunuzu doğrulayamadık.",
+      "duplicate_request": "Bunun için zaten bir başvurunuz var.",
+      "not_eligible_in_market": "Bu, bölgenizde henüz kullanılamıyor.",
+      "policy_not_met": "Bu başvuru gereksinimlerimizi karşılamıyor.",
+      "other_contact_support": "Ayrıntılar için lütfen destekle iletişime geçin."
+    },
+    "fields": {
+      "serviceCategories": "Sunduğunuz hizmetler",
+      "serviceArea": "Hizmet bölgesi",
+      "about": "Hakkında",
+      "businessName": "İşletme adı",
+      "businessType": "İşletme türü",
+      "restaurantName": "Restoran adı",
+      "cuisine": "Mutfak",
+      "areasOfExpertise": "Uzmanlık alanları",
+      "bio": "Mesleki özgeçmiş",
+      "sampleWorkUrl": "Örnek çalışma bağlantısı",
+      "yearsExperience": "Deneyim yılı",
+      "area": {
+        "country": "Ülke kodu (2 harf)",
+        "region": "Eyalet veya bölge",
+        "city": "Şehir",
+        "postalCode": "Posta kodu"
+      }
+    },
+    "options": {
+      "llc": "Limited şirket",
+      "sole_prop": "Şahıs şirketi",
+      "corp": "Anonim şirket",
+      "partnership": "Ortaklık",
+      "other": "Diğer"
+    },
+    "fieldErrors": {
+      "invalid": "Bu yanıtı kontrol edin.",
+      "required": "Bu alan zorunludur.",
+      "too_many": "Çok fazla öğe.",
+      "unknown_field": "Bu alan formun bir parçası değil."
+    },
+    "actions": {
+      "save": "Taslağı kaydet",
+      "submit": "Başvuruyu gönder",
+      "resubmit": "Güncel yanıtları gönder",
+      "close": "Kapat",
+      "continue": "Devam et",
+      "withdraw": "Geri çek",
+      "apply": "Başvur",
+      "retry": "Tekrar dene",
+      "cancel": "İptal",
+      "confirmWithdraw": "Başvuruyu geri çek"
+    },
+    "toast": {
+      "save": "Taslak kaydedildi",
+      "submit": "Başvuru gönderildi",
+      "resubmit": "Yanıtlar gönderildi",
+      "withdraw": "Başvuru geri çekildi"
+    },
+    "errors": {
+      "versionConflict": "Bu başvuru başka bir sekmede değişti. Yeniden yükledik.",
+      "validation": "Bazı yanıtların gözden geçirilmesi gerekiyor.",
+      "generic": "Bir sorun oluştu. Lütfen tekrar deneyin.",
+      "alreadyOpen": "Bunun için zaten açık bir başvurunuz var.",
+      "alreadyGranted": "Bu erişime zaten sahipsiniz."
+    },
+    "openApplications": "Başvuruları aç"
   }
 }

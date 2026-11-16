@@ -3875,5 +3875,153 @@
     "signIn": "Войти",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Заявки",
+    "pageSubtitle": "Узнайте, что может ваш аккаунт, и подайте заявку на большее.",
+    "backToSettings": "Назад к настройкам",
+    "loading": "Загрузка…",
+    "unavailable": "Заявки пока недоступны для вашего аккаунта.",
+    "loadFailed": "Не удалось загрузить ваши заявки.",
+    "heldTitle": "Что вы можете делать сейчас",
+    "organizations": "Организации, в которых вы состоите: {{count}}",
+    "requestsTitle": "Ваши заявки",
+    "noRequests": "У вас пока нет заявок.",
+    "applyTitle": "Подать заявку на большее",
+    "editTitle": "Заявка: {{capability}}",
+    "reviewerAsked": "Проверяющий спросил:",
+    "choose": "Выберите…",
+    "listHint": "Разделяйте пункты запятыми.",
+    "withdrawTitle": "Отозвать заявку?",
+    "withdrawConfirm": "Ваша заявка «{{capability}}» будет закрыта. Позже вы сможете подать её снова.",
+    "capabilities": {
+      "customer": "Нанимать помощь и заказывать",
+      "helper": {
+        "offer_services": "Предлагать услуги"
+      },
+      "business": {
+        "own": "Вести бизнес"
+      },
+      "restaurant": {
+        "own": "Управлять рестораном"
+      },
+      "consultant": {
+        "accept_paying_clients": "Консультировать платных клиентов"
+      },
+      "tool_owner": {
+        "list_equipment": "Сдавать оборудование в аренду"
+      },
+      "logistics": {
+        "ship": "Отправлять через логистику"
+      },
+      "investor": {
+        "reporting": "Отчёты для инвесторов"
+      },
+      "franchise": {
+        "operate": "Управлять франшизой"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "Откликайтесь на заказы и получайте оплату за работу."
+      },
+      "business": {
+        "own": "Создайте страницу и команду своего бизнеса."
+      },
+      "restaurant": {
+        "own": "Принимайте заказы еды для своего ресторана."
+      },
+      "consultant": {
+        "accept_paying_clients": "Принимайте платные консультационные проекты."
+      },
+      "tool_owner": {
+        "list_equipment": "Сдавайте в аренду свои инструменты и оборудование."
+      },
+      "logistics": {
+        "ship": "Бронируйте отправления и управляйте ими."
+      },
+      "investor": {
+        "reporting": "Просматривайте отчёты для инвесторов."
+      }
+    },
+    "status": {
+      "draft": "Черновик",
+      "submitted": "Отправлена",
+      "in_review": "На проверке",
+      "needs_information": "Нужна информация",
+      "approved": "Одобрена",
+      "declined": "Отклонена",
+      "withdrawn": "Отозвана"
+    },
+    "reasons": {
+      "review_complete": "Проверка завершена.",
+      "service_area_required": "Укажите район, где вы работаете.",
+      "service_categories_required": "Укажите услуги, которые вы предлагаете.",
+      "identity_verification_required": "Подтвердите личность, чтобы продолжить.",
+      "business_details_required": "Добавьте больше сведений о бизнесе.",
+      "ownership_not_verified": "Нам не удалось подтвердить, что этот бизнес принадлежит вам.",
+      "duplicate_request": "У вас уже есть заявка на это.",
+      "not_eligible_in_market": "Это пока недоступно в вашем регионе.",
+      "policy_not_met": "Эта заявка не соответствует нашим требованиям.",
+      "other_contact_support": "Свяжитесь со службой поддержки для подробностей."
+    },
+    "fields": {
+      "serviceCategories": "Предлагаемые услуги",
+      "serviceArea": "Зона обслуживания",
+      "about": "О себе",
+      "businessName": "Название бизнеса",
+      "businessType": "Тип бизнеса",
+      "restaurantName": "Название ресторана",
+      "cuisine": "Кухня",
+      "areasOfExpertise": "Области экспертизы",
+      "bio": "Профессиональная биография",
+      "sampleWorkUrl": "Ссылка на пример работы",
+      "yearsExperience": "Опыт (лет)",
+      "area": {
+        "country": "Код страны (2 буквы)",
+        "region": "Штат или регион",
+        "city": "Город",
+        "postalCode": "Почтовый индекс"
+      }
+    },
+    "options": {
+      "llc": "ООО",
+      "sole_prop": "Индивидуальный предприниматель",
+      "corp": "Акционерное общество",
+      "partnership": "Товарищество",
+      "other": "Другое"
+    },
+    "fieldErrors": {
+      "invalid": "Проверьте этот ответ.",
+      "required": "Это поле обязательно.",
+      "too_many": "Слишком много пунктов.",
+      "unknown_field": "Это поле не входит в форму."
+    },
+    "actions": {
+      "save": "Сохранить черновик",
+      "submit": "Отправить заявку",
+      "resubmit": "Отправить обновлённые ответы",
+      "close": "Закрыть",
+      "continue": "Продолжить",
+      "withdraw": "Отозвать",
+      "apply": "Подать заявку",
+      "retry": "Повторить",
+      "cancel": "Отмена",
+      "confirmWithdraw": "Отозвать заявку"
+    },
+    "toast": {
+      "save": "Черновик сохранён",
+      "submit": "Заявка отправлена",
+      "resubmit": "Ответы отправлены",
+      "withdraw": "Заявка отозвана"
+    },
+    "errors": {
+      "versionConflict": "Эта заявка изменилась в другой вкладке. Мы загрузили её заново.",
+      "validation": "Некоторые ответы требуют внимания.",
+      "generic": "Что-то пошло не так. Попробуйте ещё раз.",
+      "alreadyOpen": "У вас уже есть открытая заявка на это.",
+      "alreadyGranted": "У вас уже есть этот доступ."
+    },
+    "openApplications": "Открыть заявки"
   }
 }

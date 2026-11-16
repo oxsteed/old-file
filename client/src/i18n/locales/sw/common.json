@@ -3873,5 +3873,153 @@
     "signIn": "Ingia",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Maombi",
+    "pageSubtitle": "Ona akaunti yako inaweza kufanya nini na uombe zaidi.",
+    "backToSettings": "Rudi kwenye mipangilio",
+    "loading": "Inapakia…",
+    "unavailable": "Maombi bado hayapatikani kwenye akaunti yako.",
+    "loadFailed": "Hatukuweza kupakia maombi yako.",
+    "heldTitle": "Unachoweza kufanya sasa",
+    "organizations": "Mashirika uliyomo: {{count}}",
+    "requestsTitle": "Maombi yako",
+    "noRequests": "Bado huna maombi yoyote.",
+    "applyTitle": "Omba zaidi",
+    "editTitle": "Ombi: {{capability}}",
+    "reviewerAsked": "Mkaguzi aliuliza:",
+    "choose": "Chagua…",
+    "listHint": "Tenganisha vipengee kwa koma.",
+    "withdrawTitle": "Ondoa ombi?",
+    "withdrawConfirm": "Ombi lako la {{capability}} litafungwa. Unaweza kuomba tena baadaye.",
+    "capabilities": {
+      "customer": "Kuajiri msaada na kuagiza",
+      "helper": {
+        "offer_services": "Kutoa huduma"
+      },
+      "business": {
+        "own": "Kuendesha biashara"
+      },
+      "restaurant": {
+        "own": "Kuendesha mgahawa"
+      },
+      "consultant": {
+        "accept_paying_clients": "Kushauri wateja wanaolipa"
+      },
+      "tool_owner": {
+        "list_equipment": "Kukodisha vifaa"
+      },
+      "logistics": {
+        "ship": "Kusafirisha kwa usafirishaji"
+      },
+      "investor": {
+        "reporting": "Ripoti za wawekezaji"
+      },
+      "franchise": {
+        "operate": "Kuendesha franchise"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "Toa zabuni kwenye kazi na ulipwe kwa kazi yako."
+      },
+      "business": {
+        "own": "Andaa ukurasa na timu ya biashara yako."
+      },
+      "restaurant": {
+        "own": "Pokea maagizo ya chakula kwa mgahawa wako."
+      },
+      "consultant": {
+        "accept_paying_clients": "Kubali kazi za ushauri zinazolipwa."
+      },
+      "tool_owner": {
+        "list_equipment": "Kodisha zana na vifaa vyako."
+      },
+      "logistics": {
+        "ship": "Panga na usimamie usafirishaji."
+      },
+      "investor": {
+        "reporting": "Tazama ripoti za wawekezaji."
+      }
+    },
+    "status": {
+      "draft": "Rasimu",
+      "submitted": "Imetumwa",
+      "in_review": "Inakaguliwa",
+      "needs_information": "Inahitaji maelezo",
+      "approved": "Imeidhinishwa",
+      "declined": "Imekataliwa",
+      "withdrawn": "Imeondolewa"
+    },
+    "reasons": {
+      "review_complete": "Ukaguzi umekamilika.",
+      "service_area_required": "Ongeza eneo unalofanyia kazi.",
+      "service_categories_required": "Ongeza huduma unazotoa.",
+      "identity_verification_required": "Thibitisha utambulisho wako ili kuendelea.",
+      "business_details_required": "Ongeza maelezo zaidi kuhusu biashara.",
+      "ownership_not_verified": "Hatukuweza kuthibitisha kuwa unamiliki biashara hii.",
+      "duplicate_request": "Tayari una ombi kwa hili.",
+      "not_eligible_in_market": "Hii bado haipatikani katika eneo lako.",
+      "policy_not_met": "Ombi hili halikidhi mahitaji yetu.",
+      "other_contact_support": "Tafadhali wasiliana na usaidizi kwa maelezo."
+    },
+    "fields": {
+      "serviceCategories": "Huduma unazotoa",
+      "serviceArea": "Eneo la huduma",
+      "about": "Kuhusu",
+      "businessName": "Jina la biashara",
+      "businessType": "Aina ya biashara",
+      "restaurantName": "Jina la mgahawa",
+      "cuisine": "Vyakula",
+      "areasOfExpertise": "Maeneo ya utaalamu",
+      "bio": "Wasifu wa kitaaluma",
+      "sampleWorkUrl": "Kiungo cha mfano wa kazi",
+      "yearsExperience": "Miaka ya uzoefu",
+      "area": {
+        "country": "Msimbo wa nchi (herufi 2)",
+        "region": "Jimbo au mkoa",
+        "city": "Jiji",
+        "postalCode": "Msimbo wa posta"
+      }
+    },
+    "options": {
+      "llc": "Kampuni ya dhima ndogo",
+      "sole_prop": "Biashara ya mtu binafsi",
+      "corp": "Shirika",
+      "partnership": "Ubia",
+      "other": "Nyingine"
+    },
+    "fieldErrors": {
+      "invalid": "Kagua jibu hili.",
+      "required": "Sehemu hii inahitajika.",
+      "too_many": "Vipengee vingi mno.",
+      "unknown_field": "Sehemu hii si sehemu ya fomu."
+    },
+    "actions": {
+      "save": "Hifadhi rasimu",
+      "submit": "Tuma ombi",
+      "resubmit": "Tuma majibu yaliyosasishwa",
+      "close": "Funga",
+      "continue": "Endelea",
+      "withdraw": "Ondoa",
+      "apply": "Omba",
+      "retry": "Jaribu tena",
+      "cancel": "Ghairi",
+      "confirmWithdraw": "Ondoa ombi"
+    },
+    "toast": {
+      "save": "Rasimu imehifadhiwa",
+      "submit": "Ombi limetumwa",
+      "resubmit": "Majibu yametumwa",
+      "withdraw": "Ombi limeondolewa"
+    },
+    "errors": {
+      "versionConflict": "Ombi hili limebadilika kwenye kichupo kingine. Tumelipakia upya.",
+      "validation": "Baadhi ya majibu yanahitaji kuangaliwa.",
+      "generic": "Hitilafu imetokea. Tafadhali jaribu tena.",
+      "alreadyOpen": "Tayari una ombi lililo wazi kwa hili.",
+      "alreadyGranted": "Tayari una ufikiaji huu."
+    },
+    "openApplications": "Fungua maombi"
   }
 }

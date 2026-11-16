@@ -81,6 +81,7 @@ const ResetPasswordPage = lazyWithRetry(() => import('./pages/ResetPassword'));
 const TwoFactorSetup = lazyWithRetry(() => import('./pages/Settings/TwoFactorSetup'));
 const PasskeysSetup = lazyWithRetry(() => import('./pages/Settings/PasskeysSetup'));
 const SessionsSetup = lazyWithRetry(() => import('./pages/Settings/SessionsSetup'));
+const ApplicationsPage = lazyWithRetry(() => import('./pages/Settings/ApplicationsPage'));
 const YourData = lazyWithRetry(() => import('./pages/Settings/YourData'));
 const NotificationSettings = lazyWithRetry(() => import('./pages/Settings/Notifications'));
 const CountrySettings = lazyWithRetry(() => import('./pages/Settings/Country'));
@@ -693,6 +694,7 @@ export default function App() {
                     <Route path="/settings/2fa"   element={<Guarded><ProtectedRoute><TwoFactorSetup /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/passkeys" element={<Guarded><ProtectedRoute><PasskeysSetup /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/sessions" element={<Guarded><ProtectedRoute><SessionsSetup /></ProtectedRoute></Guarded>} />
+                    <Route path="/settings/applications" element={<Guarded><ProtectedRoute><ApplicationsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/your-data" element={<Guarded><ProtectedRoute><YourData /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
                     {/* Weekly self-audit 2026-11-04 item 11: every sibling settings route wraps in ProtectedRoute; this one did not. */}

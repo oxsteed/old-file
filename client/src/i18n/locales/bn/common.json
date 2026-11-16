@@ -3875,5 +3875,153 @@
     "signIn": "সাইন ইন",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "আবেদন",
+    "pageSubtitle": "আপনার অ্যাকাউন্ট কী করতে পারে দেখুন এবং আরও কিছুর জন্য আবেদন করুন।",
+    "backToSettings": "সেটিংসে ফিরে যান",
+    "loading": "লোড হচ্ছে…",
+    "unavailable": "আপনার অ্যাকাউন্টে এখনও আবেদন করা যাচ্ছে না।",
+    "loadFailed": "আমরা আপনার আবেদনগুলো লোড করতে পারিনি।",
+    "heldTitle": "আপনি এখন যা করতে পারেন",
+    "organizations": "আপনি যে প্রতিষ্ঠানগুলোর সদস্য: {{count}}",
+    "requestsTitle": "আপনার আবেদন",
+    "noRequests": "আপনার এখনও কোনো আবেদন নেই।",
+    "applyTitle": "আরও কিছুর জন্য আবেদন করুন",
+    "editTitle": "আবেদন: {{capability}}",
+    "reviewerAsked": "পর্যালোচক জানতে চেয়েছেন:",
+    "choose": "বেছে নিন…",
+    "listHint": "আইটেমগুলো কমা দিয়ে আলাদা করুন।",
+    "withdrawTitle": "আবেদন প্রত্যাহার করবেন?",
+    "withdrawConfirm": "আপনার {{capability}} আবেদন বন্ধ করা হবে। পরে আবার আবেদন করতে পারবেন।",
+    "capabilities": {
+      "customer": "সাহায্য নিন ও অর্ডার করুন",
+      "helper": {
+        "offer_services": "সেবা দিন"
+      },
+      "business": {
+        "own": "ব্যবসা চালান"
+      },
+      "restaurant": {
+        "own": "রেস্তোরাঁ চালান"
+      },
+      "consultant": {
+        "accept_paying_clients": "অর্থপ্রদানকারী ক্লায়েন্টদের পরামর্শ দিন"
+      },
+      "tool_owner": {
+        "list_equipment": "সরঞ্জাম ভাড়া দিন"
+      },
+      "logistics": {
+        "ship": "লজিস্টিকসে পাঠান"
+      },
+      "investor": {
+        "reporting": "বিনিয়োগকারী প্রতিবেদন"
+      },
+      "franchise": {
+        "operate": "ফ্র্যাঞ্চাইজি পরিচালনা করুন"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "কাজে দর দিন এবং আপনার কাজের পারিশ্রমিক পান।"
+      },
+      "business": {
+        "own": "আপনার ব্যবসার পেজ ও দল তৈরি করুন।"
+      },
+      "restaurant": {
+        "own": "আপনার রেস্তোরাঁর জন্য খাবারের অর্ডার নিন।"
+      },
+      "consultant": {
+        "accept_paying_clients": "পেইড পরামর্শের কাজ গ্রহণ করুন।"
+      },
+      "tool_owner": {
+        "list_equipment": "আপনার যন্ত্রপাতি ও সরঞ্জাম ভাড়া দিন।"
+      },
+      "logistics": {
+        "ship": "চালান বুক ও পরিচালনা করুন।"
+      },
+      "investor": {
+        "reporting": "বিনিয়োগকারী প্রতিবেদন দেখুন।"
+      }
+    },
+    "status": {
+      "draft": "খসড়া",
+      "submitted": "জমা দেওয়া হয়েছে",
+      "in_review": "পর্যালোচনায়",
+      "needs_information": "তথ্য প্রয়োজন",
+      "approved": "অনুমোদিত",
+      "declined": "প্রত্যাখ্যাত",
+      "withdrawn": "প্রত্যাহার করা হয়েছে"
+    },
+    "reasons": {
+      "review_complete": "পর্যালোচনা সম্পন্ন।",
+      "service_area_required": "আপনি যেখানে কাজ করেন সেই এলাকা যোগ করুন।",
+      "service_categories_required": "আপনি যে সেবাগুলো দেন তা যোগ করুন।",
+      "identity_verification_required": "চালিয়ে যেতে আপনার পরিচয় যাচাই করুন।",
+      "business_details_required": "ব্যবসা সম্পর্কে আরও বিবরণ যোগ করুন।",
+      "ownership_not_verified": "এই ব্যবসার মালিক যে আপনি, আমরা তা নিশ্চিত করতে পারিনি।",
+      "duplicate_request": "এর জন্য আপনার আগে থেকেই একটি আবেদন আছে।",
+      "not_eligible_in_market": "এটি এখনও আপনার এলাকায় পাওয়া যায় না।",
+      "policy_not_met": "এই আবেদন আমাদের শর্ত পূরণ করে না।",
+      "other_contact_support": "বিস্তারিত জানতে সহায়তা দলের সঙ্গে যোগাযোগ করুন।"
+    },
+    "fields": {
+      "serviceCategories": "আপনার সেবাসমূহ",
+      "serviceArea": "সেবার এলাকা",
+      "about": "পরিচিতি",
+      "businessName": "ব্যবসার নাম",
+      "businessType": "ব্যবসার ধরন",
+      "restaurantName": "রেস্তোরাঁর নাম",
+      "cuisine": "রান্নার ধরন",
+      "areasOfExpertise": "দক্ষতার ক্ষেত্র",
+      "bio": "পেশাগত পরিচিতি",
+      "sampleWorkUrl": "কাজের নমুনার লিংক",
+      "yearsExperience": "অভিজ্ঞতার বছর",
+      "area": {
+        "country": "দেশের কোড (২ অক্ষর)",
+        "region": "রাজ্য বা অঞ্চল",
+        "city": "শহর",
+        "postalCode": "পোস্টাল কোড"
+      }
+    },
+    "options": {
+      "llc": "এলএলসি",
+      "sole_prop": "একক মালিকানা",
+      "corp": "কর্পোরেশন",
+      "partnership": "অংশীদারি",
+      "other": "অন্যান্য"
+    },
+    "fieldErrors": {
+      "invalid": "এই উত্তরটি যাচাই করুন।",
+      "required": "এটি আবশ্যক।",
+      "too_many": "অনেক বেশি আইটেম।",
+      "unknown_field": "এই ঘরটি ফর্মের অংশ নয়।"
+    },
+    "actions": {
+      "save": "খসড়া সংরক্ষণ করুন",
+      "submit": "আবেদন জমা দিন",
+      "resubmit": "হালনাগাদ উত্তর পাঠান",
+      "close": "বন্ধ করুন",
+      "continue": "চালিয়ে যান",
+      "withdraw": "প্রত্যাহার করুন",
+      "apply": "আবেদন করুন",
+      "retry": "আবার চেষ্টা করুন",
+      "cancel": "বাতিল",
+      "confirmWithdraw": "আবেদন প্রত্যাহার করুন"
+    },
+    "toast": {
+      "save": "খসড়া সংরক্ষিত হয়েছে",
+      "submit": "আবেদন জমা হয়েছে",
+      "resubmit": "উত্তর পাঠানো হয়েছে",
+      "withdraw": "আবেদন প্রত্যাহার করা হয়েছে"
+    },
+    "errors": {
+      "versionConflict": "এই আবেদনটি অন্য একটি ট্যাবে বদলেছে। আমরা এটি আবার লোড করেছি।",
+      "validation": "কিছু উত্তরে মনোযোগ দেওয়া দরকার।",
+      "generic": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "alreadyOpen": "এর জন্য আপনার একটি খোলা আবেদন আগে থেকেই আছে।",
+      "alreadyGranted": "আপনার এই অ্যাক্সেস আগে থেকেই আছে।"
+    },
+    "openApplications": "আবেদন খুলুন"
   }
 }

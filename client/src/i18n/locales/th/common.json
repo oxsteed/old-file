@@ -3875,5 +3875,153 @@
     "signIn": "ลงชื่อเข้าใช้",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "ใบสมัคร",
+    "pageSubtitle": "ดูว่าบัญชีของคุณทำอะไรได้บ้าง และสมัครเพิ่มเติม",
+    "backToSettings": "กลับไปที่การตั้งค่า",
+    "loading": "กำลังโหลด…",
+    "unavailable": "บัญชีของคุณยังใช้งานการสมัครไม่ได้",
+    "loadFailed": "เราไม่สามารถโหลดใบสมัครของคุณได้",
+    "heldTitle": "สิ่งที่คุณทำได้ตอนนี้",
+    "organizations": "องค์กรที่คุณเป็นสมาชิก: {{count}}",
+    "requestsTitle": "ใบสมัครของคุณ",
+    "noRequests": "คุณยังไม่มีใบสมัคร",
+    "applyTitle": "สมัครเพิ่มเติม",
+    "editTitle": "ใบสมัคร: {{capability}}",
+    "reviewerAsked": "ผู้ตรวจสอบถามว่า:",
+    "choose": "เลือก…",
+    "listHint": "คั่นแต่ละรายการด้วยเครื่องหมายจุลภาค",
+    "withdrawTitle": "ถอนใบสมัครหรือไม่",
+    "withdrawConfirm": "ใบสมัคร {{capability}} ของคุณจะถูกปิด คุณสามารถสมัครใหม่ได้ภายหลัง",
+    "capabilities": {
+      "customer": "จ้างผู้ช่วยและสั่งซื้อ",
+      "helper": {
+        "offer_services": "ให้บริการ"
+      },
+      "business": {
+        "own": "ดำเนินธุรกิจ"
+      },
+      "restaurant": {
+        "own": "ดำเนินร้านอาหาร"
+      },
+      "consultant": {
+        "accept_paying_clients": "ให้คำปรึกษาแก่ลูกค้าที่ชำระเงิน"
+      },
+      "tool_owner": {
+        "list_equipment": "ให้เช่าอุปกรณ์"
+      },
+      "logistics": {
+        "ship": "จัดส่งด้วยโลจิสติกส์"
+      },
+      "investor": {
+        "reporting": "รายงานสำหรับนักลงทุน"
+      },
+      "franchise": {
+        "operate": "ดำเนินแฟรนไชส์"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "เสนอราคางานและรับค่าตอบแทนจากงานของคุณ"
+      },
+      "business": {
+        "own": "ตั้งค่าหน้าเพจและทีมของธุรกิจคุณ"
+      },
+      "restaurant": {
+        "own": "รับออร์เดอร์อาหารสำหรับร้านอาหารของคุณ"
+      },
+      "consultant": {
+        "accept_paying_clients": "รับงานที่ปรึกษาแบบมีค่าตอบแทน"
+      },
+      "tool_owner": {
+        "list_equipment": "ให้เช่าเครื่องมือและอุปกรณ์ของคุณ"
+      },
+      "logistics": {
+        "ship": "จองและจัดการการจัดส่ง"
+      },
+      "investor": {
+        "reporting": "ดูรายงานสำหรับนักลงทุน"
+      }
+    },
+    "status": {
+      "draft": "ฉบับร่าง",
+      "submitted": "ส่งแล้ว",
+      "in_review": "กำลังตรวจสอบ",
+      "needs_information": "ต้องการข้อมูลเพิ่ม",
+      "approved": "อนุมัติแล้ว",
+      "declined": "ถูกปฏิเสธ",
+      "withdrawn": "ถอนแล้ว"
+    },
+    "reasons": {
+      "review_complete": "ตรวจสอบเสร็จแล้ว",
+      "service_area_required": "เพิ่มพื้นที่ที่คุณทำงาน",
+      "service_categories_required": "เพิ่มบริการที่คุณให้",
+      "identity_verification_required": "ยืนยันตัวตนของคุณเพื่อดำเนินการต่อ",
+      "business_details_required": "เพิ่มรายละเอียดเกี่ยวกับธุรกิจ",
+      "ownership_not_verified": "เราไม่สามารถยืนยันได้ว่าคุณเป็นเจ้าของธุรกิจนี้",
+      "duplicate_request": "คุณมีใบสมัครสำหรับรายการนี้อยู่แล้ว",
+      "not_eligible_in_market": "ยังไม่มีให้บริการในพื้นที่ของคุณ",
+      "policy_not_met": "ใบสมัครนี้ไม่เป็นไปตามข้อกำหนดของเรา",
+      "other_contact_support": "โปรดติดต่อฝ่ายสนับสนุนเพื่อดูรายละเอียด"
+    },
+    "fields": {
+      "serviceCategories": "บริการที่คุณให้",
+      "serviceArea": "พื้นที่ให้บริการ",
+      "about": "เกี่ยวกับ",
+      "businessName": "ชื่อธุรกิจ",
+      "businessType": "ประเภทธุรกิจ",
+      "restaurantName": "ชื่อร้านอาหาร",
+      "cuisine": "ประเภทอาหาร",
+      "areasOfExpertise": "ความเชี่ยวชาญ",
+      "bio": "ประวัติการทำงาน",
+      "sampleWorkUrl": "ลิงก์ไปยังตัวอย่างผลงาน",
+      "yearsExperience": "ประสบการณ์ (ปี)",
+      "area": {
+        "country": "รหัสประเทศ (2 ตัวอักษร)",
+        "region": "รัฐหรือภูมิภาค",
+        "city": "เมือง",
+        "postalCode": "รหัสไปรษณีย์"
+      }
+    },
+    "options": {
+      "llc": "บริษัทจำกัด",
+      "sole_prop": "กิจการเจ้าของคนเดียว",
+      "corp": "บริษัทมหาชน",
+      "partnership": "ห้างหุ้นส่วน",
+      "other": "อื่น ๆ"
+    },
+    "fieldErrors": {
+      "invalid": "ตรวจสอบคำตอบนี้",
+      "required": "ช่องนี้จำเป็นต้องกรอก",
+      "too_many": "มีรายการมากเกินไป",
+      "unknown_field": "ช่องนี้ไม่ได้อยู่ในแบบฟอร์ม"
+    },
+    "actions": {
+      "save": "บันทึกฉบับร่าง",
+      "submit": "ส่งใบสมัคร",
+      "resubmit": "ส่งคำตอบที่อัปเดต",
+      "close": "ปิด",
+      "continue": "ดำเนินการต่อ",
+      "withdraw": "ถอน",
+      "apply": "สมัคร",
+      "retry": "ลองอีกครั้ง",
+      "cancel": "ยกเลิก",
+      "confirmWithdraw": "ถอนใบสมัคร"
+    },
+    "toast": {
+      "save": "บันทึกฉบับร่างแล้ว",
+      "submit": "ส่งใบสมัครแล้ว",
+      "resubmit": "ส่งคำตอบแล้ว",
+      "withdraw": "ถอนใบสมัครแล้ว"
+    },
+    "errors": {
+      "versionConflict": "ใบสมัครนี้มีการเปลี่ยนแปลงในแท็บอื่น เราโหลดใหม่แล้ว",
+      "validation": "คำตอบบางข้อต้องได้รับการแก้ไข",
+      "generic": "เกิดข้อผิดพลาด โปรดลองอีกครั้ง",
+      "alreadyOpen": "คุณมีใบสมัครที่เปิดอยู่สำหรับรายการนี้แล้ว",
+      "alreadyGranted": "คุณมีสิทธิ์เข้าถึงนี้อยู่แล้ว"
+    },
+    "openApplications": "เปิดใบสมัคร"
   }
 }

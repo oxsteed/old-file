@@ -6506,5 +6506,153 @@
     "signIn": "Se connecter",
     "noTerms": "Aucune condition n’a encore été publiée pour cette devise.",
     "retry": "Réessayer"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Demandes",
+    "pageSubtitle": "Voyez ce que votre compte peut faire et demandez davantage.",
+    "backToSettings": "Retour aux paramètres",
+    "loading": "Chargement…",
+    "unavailable": "Les demandes ne sont pas encore disponibles sur votre compte.",
+    "loadFailed": "Impossible de charger vos demandes.",
+    "heldTitle": "Ce que vous pouvez faire maintenant",
+    "organizations": "Organisations dont vous faites partie : {{count}}",
+    "requestsTitle": "Vos demandes",
+    "noRequests": "Vous n'avez encore aucune demande.",
+    "applyTitle": "Demander davantage",
+    "editTitle": "Demande : {{capability}}",
+    "reviewerAsked": "L'examinateur a demandé :",
+    "choose": "Choisir…",
+    "listHint": "Séparez les éléments par des virgules.",
+    "withdrawTitle": "Retirer la demande ?",
+    "withdrawConfirm": "Votre demande « {{capability}} » sera fermée. Vous pourrez la refaire plus tard.",
+    "capabilities": {
+      "customer": "Engager de l'aide et commander",
+      "helper": {
+        "offer_services": "Proposer des services"
+      },
+      "business": {
+        "own": "Gérer une entreprise"
+      },
+      "restaurant": {
+        "own": "Gérer un restaurant"
+      },
+      "consultant": {
+        "accept_paying_clients": "Conseiller des clients payants"
+      },
+      "tool_owner": {
+        "list_equipment": "Louer du matériel"
+      },
+      "logistics": {
+        "ship": "Expédier avec la logistique"
+      },
+      "investor": {
+        "reporting": "Rapports investisseurs"
+      },
+      "franchise": {
+        "operate": "Exploiter une franchise"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "Faites des offres sur des missions et soyez payé."
+      },
+      "business": {
+        "own": "Créez la page et l’équipe de votre entreprise."
+      },
+      "restaurant": {
+        "own": "Recevez des commandes pour votre restaurant."
+      },
+      "consultant": {
+        "accept_paying_clients": "Acceptez des missions de conseil rémunérées."
+      },
+      "tool_owner": {
+        "list_equipment": "Louez vos outils et votre matériel."
+      },
+      "logistics": {
+        "ship": "Réservez et gérez des expéditions."
+      },
+      "investor": {
+        "reporting": "Consultez les rapports investisseurs."
+      }
+    },
+    "status": {
+      "draft": "Brouillon",
+      "submitted": "Envoyée",
+      "in_review": "En cours d’examen",
+      "needs_information": "Informations requises",
+      "approved": "Approuvée",
+      "declined": "Refusée",
+      "withdrawn": "Retirée"
+    },
+    "reasons": {
+      "review_complete": "Examen terminé.",
+      "service_area_required": "Ajoutez la zone où vous travaillez.",
+      "service_categories_required": "Ajoutez les services que vous proposez.",
+      "identity_verification_required": "Vérifiez votre identité pour continuer.",
+      "business_details_required": "Ajoutez plus de détails sur l'entreprise.",
+      "ownership_not_verified": "Nous n'avons pas pu confirmer que vous possédez cette entreprise.",
+      "duplicate_request": "Vous avez déjà une demande pour cela.",
+      "not_eligible_in_market": "Ce service n'est pas encore disponible dans votre région.",
+      "policy_not_met": "Cette demande ne répond pas à nos exigences.",
+      "other_contact_support": "Contactez le support pour plus de détails."
+    },
+    "fields": {
+      "serviceCategories": "Services proposés",
+      "serviceArea": "Zone de service",
+      "about": "À propos",
+      "businessName": "Nom de l'entreprise",
+      "businessType": "Type d'entreprise",
+      "restaurantName": "Nom du restaurant",
+      "cuisine": "Cuisine",
+      "areasOfExpertise": "Domaines d'expertise",
+      "bio": "Biographie professionnelle",
+      "sampleWorkUrl": "Lien vers un exemple de travail",
+      "yearsExperience": "Années d'expérience",
+      "area": {
+        "country": "Code pays (2 lettres)",
+        "region": "État ou région",
+        "city": "Ville",
+        "postalCode": "Code postal"
+      }
+    },
+    "options": {
+      "llc": "SARL",
+      "sole_prop": "Entreprise individuelle",
+      "corp": "Société anonyme",
+      "partnership": "Société de personnes",
+      "other": "Autre"
+    },
+    "fieldErrors": {
+      "invalid": "Vérifiez cette réponse.",
+      "required": "Ce champ est obligatoire.",
+      "too_many": "Trop d'éléments.",
+      "unknown_field": "Ce champ ne fait pas partie du formulaire."
+    },
+    "actions": {
+      "save": "Enregistrer le brouillon",
+      "submit": "Envoyer la demande",
+      "resubmit": "Envoyer les réponses mises à jour",
+      "close": "Fermer",
+      "continue": "Continuer",
+      "withdraw": "Retirer",
+      "apply": "Demander",
+      "retry": "Réessayer",
+      "cancel": "Annuler",
+      "confirmWithdraw": "Retirer la demande"
+    },
+    "toast": {
+      "save": "Brouillon enregistré",
+      "submit": "Demande envoyée",
+      "resubmit": "Réponses envoyées",
+      "withdraw": "Demande retirée"
+    },
+    "errors": {
+      "versionConflict": "Cette demande a changé dans un autre onglet. Nous l’avons rechargée.",
+      "validation": "Certaines réponses demandent votre attention.",
+      "generic": "Une erreur s'est produite. Veuillez réessayer.",
+      "alreadyOpen": "Vous avez déjà une demande ouverte pour cela.",
+      "alreadyGranted": "Vous avez déjà cet accès."
+    },
+    "openApplications": "Ouvrir les demandes"
   }
 }

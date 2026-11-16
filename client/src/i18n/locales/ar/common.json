@@ -6506,5 +6506,153 @@
     "signIn": "تسجيل الدخول",
     "noTerms": "لم يتم نشر أي شروط لهذه العملة بعد.",
     "retry": "إعادة المحاولة"
+  },
+  "progressiveAccess": {
+    "pageTitle": "الطلبات",
+    "pageSubtitle": "اطّلع على ما يمكن لحسابك فعله وقدّم طلبًا للمزيد.",
+    "backToSettings": "العودة إلى الإعدادات",
+    "loading": "جارٍ التحميل…",
+    "unavailable": "الطلبات غير متاحة لحسابك بعد.",
+    "loadFailed": "تعذّر تحميل طلباتك.",
+    "heldTitle": "ما يمكنك فعله الآن",
+    "organizations": "المؤسسات التي تنتمي إليها: {{count}}",
+    "requestsTitle": "طلباتك",
+    "noRequests": "ليس لديك أي طلبات بعد.",
+    "applyTitle": "قدّم طلبًا للمزيد",
+    "editTitle": "الطلب: {{capability}}",
+    "reviewerAsked": "سأل المراجع:",
+    "choose": "اختر…",
+    "listHint": "افصل العناصر بفواصل.",
+    "withdrawTitle": "سحب الطلب؟",
+    "withdrawConfirm": "سيتم إغلاق طلبك الخاص بـ {{capability}}. يمكنك التقديم مرة أخرى لاحقًا.",
+    "capabilities": {
+      "customer": "استئجار المساعدة والطلب",
+      "helper": {
+        "offer_services": "تقديم الخدمات"
+      },
+      "business": {
+        "own": "إدارة نشاط تجاري"
+      },
+      "restaurant": {
+        "own": "إدارة مطعم"
+      },
+      "consultant": {
+        "accept_paying_clients": "تقديم الاستشارات لعملاء بأجر"
+      },
+      "tool_owner": {
+        "list_equipment": "تأجير المعدات"
+      },
+      "logistics": {
+        "ship": "الشحن عبر الخدمات اللوجستية"
+      },
+      "investor": {
+        "reporting": "تقارير المستثمرين"
+      },
+      "franchise": {
+        "operate": "تشغيل امتياز تجاري"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "قدّم عروضًا على الأعمال واحصل على أجر مقابل عملك."
+      },
+      "business": {
+        "own": "أنشئ صفحة نشاطك التجاري وفريقه."
+      },
+      "restaurant": {
+        "own": "استقبل طلبات الطعام لمطعمك."
+      },
+      "consultant": {
+        "accept_paying_clients": "اقبل مهام استشارية مدفوعة."
+      },
+      "tool_owner": {
+        "list_equipment": "أجّر أدواتك ومعداتك."
+      },
+      "logistics": {
+        "ship": "احجز الشحنات وأدِرها."
+      },
+      "investor": {
+        "reporting": "اطّلع على تقارير المستثمرين."
+      }
+    },
+    "status": {
+      "draft": "مسودة",
+      "submitted": "مُرسَل",
+      "in_review": "قيد المراجعة",
+      "needs_information": "يحتاج إلى معلومات",
+      "approved": "مقبول",
+      "declined": "مرفوض",
+      "withdrawn": "مسحوب"
+    },
+    "reasons": {
+      "review_complete": "اكتملت المراجعة.",
+      "service_area_required": "أضف المنطقة التي تعمل فيها.",
+      "service_categories_required": "أضف الخدمات التي تقدمها.",
+      "identity_verification_required": "تحقّق من هويتك للمتابعة.",
+      "business_details_required": "أضف المزيد من التفاصيل عن النشاط التجاري.",
+      "ownership_not_verified": "لم نتمكن من التأكد من ملكيتك لهذا النشاط التجاري.",
+      "duplicate_request": "لديك طلب لهذا بالفعل.",
+      "not_eligible_in_market": "هذا غير متاح في منطقتك بعد.",
+      "policy_not_met": "هذا الطلب لا يستوفي متطلباتنا.",
+      "other_contact_support": "يرجى التواصل مع الدعم لمزيد من التفاصيل."
+    },
+    "fields": {
+      "serviceCategories": "الخدمات التي تقدمها",
+      "serviceArea": "منطقة الخدمة",
+      "about": "نبذة",
+      "businessName": "اسم النشاط التجاري",
+      "businessType": "نوع النشاط التجاري",
+      "restaurantName": "اسم المطعم",
+      "cuisine": "المطبخ",
+      "areasOfExpertise": "مجالات الخبرة",
+      "bio": "نبذة مهنية",
+      "sampleWorkUrl": "رابط لنموذج من أعمالك",
+      "yearsExperience": "سنوات الخبرة",
+      "area": {
+        "country": "رمز الدولة (حرفان)",
+        "region": "الولاية أو المنطقة",
+        "city": "المدينة",
+        "postalCode": "الرمز البريدي"
+      }
+    },
+    "options": {
+      "llc": "شركة ذات مسؤولية محدودة",
+      "sole_prop": "مؤسسة فردية",
+      "corp": "شركة مساهمة",
+      "partnership": "شراكة",
+      "other": "أخرى"
+    },
+    "fieldErrors": {
+      "invalid": "تحقّق من هذه الإجابة.",
+      "required": "هذا الحقل مطلوب.",
+      "too_many": "عناصر كثيرة جدًا.",
+      "unknown_field": "هذا الحقل ليس جزءًا من النموذج."
+    },
+    "actions": {
+      "save": "حفظ المسودة",
+      "submit": "إرسال الطلب",
+      "resubmit": "إرسال الإجابات المحدّثة",
+      "close": "إغلاق",
+      "continue": "متابعة",
+      "withdraw": "سحب",
+      "apply": "تقديم طلب",
+      "retry": "حاول مرة أخرى",
+      "cancel": "إلغاء",
+      "confirmWithdraw": "سحب الطلب"
+    },
+    "toast": {
+      "save": "تم حفظ المسودة",
+      "submit": "تم إرسال الطلب",
+      "resubmit": "تم إرسال الإجابات",
+      "withdraw": "تم سحب الطلب"
+    },
+    "errors": {
+      "versionConflict": "تغيّر هذا الطلب في علامة تبويب أخرى. أعدنا تحميله.",
+      "validation": "بعض الإجابات تحتاج إلى مراجعة.",
+      "generic": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+      "alreadyOpen": "لديك بالفعل طلب مفتوح لهذا.",
+      "alreadyGranted": "لديك هذا الوصول بالفعل."
+    },
+    "openApplications": "فتح الطلبات"
   }
 }

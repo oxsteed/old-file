@@ -3875,5 +3875,153 @@
     "signIn": "Iniciar sessão",
     "noTerms": "No terms have been published for this currency yet.",
     "retry": "Retry"
+  },
+  "progressiveAccess": {
+    "pageTitle": "Solicitações",
+    "pageSubtitle": "Veja o que sua conta pode fazer e solicite mais.",
+    "backToSettings": "Voltar às configurações",
+    "loading": "Carregando…",
+    "unavailable": "As solicitações ainda não estão disponíveis na sua conta.",
+    "loadFailed": "Não foi possível carregar suas solicitações.",
+    "heldTitle": "O que você pode fazer agora",
+    "organizations": "Organizações das quais você faz parte: {{count}}",
+    "requestsTitle": "Suas solicitações",
+    "noRequests": "Você ainda não tem solicitações.",
+    "applyTitle": "Solicitar mais",
+    "editTitle": "Solicitação: {{capability}}",
+    "reviewerAsked": "O revisor perguntou:",
+    "choose": "Escolha…",
+    "listHint": "Separe os itens com vírgulas.",
+    "withdrawTitle": "Retirar a solicitação?",
+    "withdrawConfirm": "Sua solicitação de {{capability}} será encerrada. Você pode solicitar novamente depois.",
+    "capabilities": {
+      "customer": "Contratar ajuda e fazer pedidos",
+      "helper": {
+        "offer_services": "Oferecer serviços"
+      },
+      "business": {
+        "own": "Administrar uma empresa"
+      },
+      "restaurant": {
+        "own": "Administrar um restaurante"
+      },
+      "consultant": {
+        "accept_paying_clients": "Prestar consultoria a clientes pagantes"
+      },
+      "tool_owner": {
+        "list_equipment": "Alugar equipamentos"
+      },
+      "logistics": {
+        "ship": "Enviar com logística"
+      },
+      "investor": {
+        "reporting": "Relatórios para investidores"
+      },
+      "franchise": {
+        "operate": "Operar uma franquia"
+      }
+    },
+    "capabilityHelp": {
+      "helper": {
+        "offer_services": "Faça propostas em trabalhos e receba pelo seu trabalho."
+      },
+      "business": {
+        "own": "Crie a página e a equipe da sua empresa."
+      },
+      "restaurant": {
+        "own": "Receba pedidos de comida para o seu restaurante."
+      },
+      "consultant": {
+        "accept_paying_clients": "Aceite trabalhos de consultoria pagos."
+      },
+      "tool_owner": {
+        "list_equipment": "Alugue suas ferramentas e equipamentos."
+      },
+      "logistics": {
+        "ship": "Reserve e gerencie envios."
+      },
+      "investor": {
+        "reporting": "Veja os relatórios para investidores."
+      }
+    },
+    "status": {
+      "draft": "Rascunho",
+      "submitted": "Enviada",
+      "in_review": "Em análise",
+      "needs_information": "Precisa de informações",
+      "approved": "Aprovada",
+      "declined": "Recusada",
+      "withdrawn": "Retirada"
+    },
+    "reasons": {
+      "review_complete": "Análise concluída.",
+      "service_area_required": "Adicione a região onde você trabalha.",
+      "service_categories_required": "Adicione os serviços que você oferece.",
+      "identity_verification_required": "Verifique sua identidade para continuar.",
+      "business_details_required": "Adicione mais detalhes sobre a empresa.",
+      "ownership_not_verified": "Não conseguimos confirmar que você é dono desta empresa.",
+      "duplicate_request": "Você já tem uma solicitação para isso.",
+      "not_eligible_in_market": "Isso ainda não está disponível na sua região.",
+      "policy_not_met": "Esta solicitação não atende aos nossos requisitos.",
+      "other_contact_support": "Entre em contato com o suporte para mais detalhes."
+    },
+    "fields": {
+      "serviceCategories": "Serviços que você oferece",
+      "serviceArea": "Área de atendimento",
+      "about": "Sobre",
+      "businessName": "Nome da empresa",
+      "businessType": "Tipo de empresa",
+      "restaurantName": "Nome do restaurante",
+      "cuisine": "Culinária",
+      "areasOfExpertise": "Áreas de especialização",
+      "bio": "Biografia profissional",
+      "sampleWorkUrl": "Link para um exemplo de trabalho",
+      "yearsExperience": "Anos de experiência",
+      "area": {
+        "country": "Código do país (2 letras)",
+        "region": "Estado ou região",
+        "city": "Cidade",
+        "postalCode": "CEP"
+      }
+    },
+    "options": {
+      "llc": "LTDA",
+      "sole_prop": "Empresário individual",
+      "corp": "Sociedade anônima",
+      "partnership": "Sociedade",
+      "other": "Outro"
+    },
+    "fieldErrors": {
+      "invalid": "Verifique esta resposta.",
+      "required": "Este campo é obrigatório.",
+      "too_many": "Itens demais.",
+      "unknown_field": "Este campo não faz parte do formulário."
+    },
+    "actions": {
+      "save": "Salvar rascunho",
+      "submit": "Enviar solicitação",
+      "resubmit": "Enviar respostas atualizadas",
+      "close": "Fechar",
+      "continue": "Continuar",
+      "withdraw": "Retirar",
+      "apply": "Solicitar",
+      "retry": "Tentar novamente",
+      "cancel": "Cancelar",
+      "confirmWithdraw": "Retirar solicitação"
+    },
+    "toast": {
+      "save": "Rascunho salvo",
+      "submit": "Solicitação enviada",
+      "resubmit": "Respostas enviadas",
+      "withdraw": "Solicitação retirada"
+    },
+    "errors": {
+      "versionConflict": "Esta solicitação mudou em outra aba. Nós a recarregamos.",
+      "validation": "Algumas respostas precisam de atenção.",
+      "generic": "Algo deu errado. Tente novamente.",
+      "alreadyOpen": "Você já tem uma solicitação aberta para isso.",
+      "alreadyGranted": "Você já tem este acesso."
+    },
+    "openApplications": "Abrir solicitações"
   }
 }
