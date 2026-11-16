@@ -653,6 +653,25 @@ Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
+WP-089 is currently an evidence checkpoint rather than a source change. The
+platform governance routes (`server/routes/governance.js`) require both live
+admin authentication and `requireSuperAdmin`; regular admin permission grants
+and delegations re-check active user state, token/session revocation, expiry,
+revocation, grantor authority, and the global-versus-regional boundary on every
+request. `loadAssignedRegions` and `requireRegionAccessForUser` fail closed when
+the current regional grant is missing or the authorization lookup is unavailable,
+so a stale regional drawer cannot silently become unrestricted. The platform
+support conversation queue checks the same live global `manage_support` standing
+and a business-manager role falls through to the customer/business surface rather
+than receiving platform-wide data. `workforce.test.js` plus
+`analyticsGovernance.test.js` pass together (57 tests), and
+`statementAdmin.test.js` passes (17 tests); the populated statement DB suite is
+environment-gated and was skipped without `STATEMENT_JOB_TEST_DATABASE_URL`.
+**Exact next action (resume here):** run populated regional staff/grant fixtures
+where a reviewer loses one region while an approval drawer is open, then repeat
+the support/refund acceptance from WP-088 with a view-only support actor, a
+privileged actor, and a wrong-business/context retry before moving to WP-090.
+
 History of what is done (newest last):
 
 
