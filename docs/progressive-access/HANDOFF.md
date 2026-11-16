@@ -420,18 +420,25 @@ suites passed (52 tests). Chrome exercised the real Applications and intake UI
 through the whole form with fixture responses. `npm run build:ci` passed. The UI
 reuses existing strings verified present in all 20 locale catalogs.
 
-**Exact next action (resume here):** Finish WP-076's private advisory attachments.
-Inspect `server/routes/upload.js` and `server/utils/storage.js` for private-object
-and deletion primitives, and `consulting_deliverables` in migration 103 for the
-existing session delivery model. There is no attachment route for the
-`consulting_requests` case. Add case-scoped attachment storage and participant
-reads, with the request owner, currently assigned adviser and authorized
-operations reviewer as the relevant audiences. Keep draft approval evidence and
-advisory files separate. Verify upload and download authorization before and
-after reassignment, customer visibility, and denial by a copied case or file ID.
-Wire the files into the existing Business Launch views. Then move to WP-077
-(` <a id="wp-077">` in SPEC.md) and test the investor role guard on the mounted
-router before changing it.
+WP-076 attachment checkpoint `3b7991c1a`. Private case objects now use
+`business-launch/private/<request-id>/...` and only the applicant, current
+assigned adviser, or an operations reviewer can list or download an attachment.
+Visibility is explicit, and the uploader can remove their own file. The object
+key is never returned to the browser. PostgreSQL coverage includes a signed
+download, shared/applicant-only/adviser-only cases, copied-case denial, and a
+former adviser's denial after reassignment. The migration and route use the
+existing upload validation, malware scan, private storage, signed URL, and
+deletion-queue primitives. Attachment UI and live acceptance remain open.
+
+**Exact next action (resume here):** Wire the attachment list and upload affordance
+into `client/src/pages/BusinessLaunchStatusPage.jsx` for the authenticated
+applicant. Keep the file IDs and download calls inside the selected request
+boundary, show only server-provided metadata, and refresh after upload/delete.
+Add a browser fixture for shared versus applicant-only files. Then add the
+assigned consultant view if the existing dashboard has a referral detail surface.
+After that, begin WP-077 (`<a id="wp-077">` in SPEC.md) by mounting an investor
+reporting test and fixing the variadic `requireRole` contract only where the
+mounted route demonstrates a real denial or bypass.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
