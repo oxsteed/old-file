@@ -401,14 +401,21 @@ with zero Owner grants, and participant-scoped consulting action items. Explicit
 advisory case-to-application links, attachment visibility, and the browser
 journey remain open for WP-076.
 
-**Exact next action (resume here):** Harden `client/src/hooks/useAccessProjection.js`
-against a verified account change while `/api/me/access` is in flight. The singleton
-promise publishes to every hook subscriber and React state can render the old
-projection during an identity change. Key snapshots and in-flight responses by
-account and the existing `client/src/api/authSessionEpoch.js` boundary. Verify
-delayed old-account results cannot populate the new account's navigation, then
-resume WP-076 at the case-to-application link and attachment audience, or use the
-updated ledger if that work has already been saved.
+WP-014 session isolation in `47fcd2ff2`. The Home, navbar and Settings projection
+now shares work only within the same verified account and auth epoch. The API
+returns the responding account ID, so a changed cookie in another tab cannot
+publish access under the earlier account before the session event arrives.
+Applications resets its local view on the same boundary. Verified two mounted
+hook consumers in Chrome with delayed old-session responses, same-account
+relogin, mismatched cookie identity, and a successful refresh. The existing
+navbar browser test, two PostgreSQL suites (23 tests), frontend references
+(1,241 files), and `npm run build:ci` (1,202 verified assets) passed.
+
+**Exact next action (resume here):** Finish WP-076 from the Business Launch intake
+until it can reference the signed-in applicant's own active Owner application.
+Keep application data private to the applicant and its reviewer. Add the link to
+the existing customer journey, cover the advisory attachment audience and test in
+the browser. Then move to WP-077 (`<a id="wp-077">` in the SPEC.md).
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.

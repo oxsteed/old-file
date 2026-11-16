@@ -31,7 +31,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-011 | Applicant status and resubmission | P1 | implemented (server + client page) | 87a95318e, d47c5ff86 | progressiveAccess.db.test.js; client verify-i18n + esbuild |
 | WP-012 | Platform review and audit | P1 | implemented (server API + admin queue page) | 87a95318e, c141d6f82 | progressiveAccess.db.test.js; adminRouteContracts + adminLocaleNamespaces; verify-i18n |
 | WP-013 | Role switch retirement | P5 | in progress | bb9a413fa | switch-role authority gate behind ACCESS_LEGACY_SWITCH_RETIRED; UI retirement pending |
-| WP-014 | Current-user projection and resume | P1 | implemented (server + Settings entry) | 87a95318e, d47c5ff86 | progressiveAccess.db.test.js; signupResume in GET /api/me/access |
+| WP-014 | Current-user projection and resume | P1 | implemented (server + Settings entry) | 87a95318e, d47c5ff86, 47fcd2ff2 | progressiveAccess.db.test.js; signupResume and account ID in GET /api/me/access; accessProjection.browser-check.cjs for late responses after an identity change. |
 | WP-015 | Home and dashboard routing | P2 | implemented | f3e3f2985 | homeModeRouting.test.mjs (WP-015) |
 | WP-016 | Navigation, notices and settings | P2 | implemented | f3e3f2985 | navbarNavigation.test.mjs (WP-016) |
 | WP-017 | JWT, CSRF and cross-tab session safety | P2 | planned | | |
@@ -144,7 +144,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-016 | Policy changes during review | planned | |
 | AC-017 | Admin rejects without harming customer access | planned | |
 | AC-018 | Revoke and reinstate distinct rights | server evidence (UI pending) | progressiveAccess.db.test.js |
-| AC-019 | Fixture identity changes across tabs | planned | |
+| AC-019 | Fixture identity changes across tabs | browser evidence (partial) | accessProjection.browser-check.cjs rejects late responses across account/session changes and responses for a different cookie account. Full cross-tab login and navigation acceptance pending. |
 | AC-020 | No role mutation on ordinary page navigation | server evidence (partial) | progressiveAccessModeGate.db.test.js: mode writes never raise role |
 | AC-021 | Capability refresh during unsaved editing | planned | |
 | AC-022 | Arabic approval status keyboard flow | planned | |
