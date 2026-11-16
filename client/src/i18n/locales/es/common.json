@@ -6699,6 +6699,9 @@
       "representative": "Representante",
       "employee": "Empleado",
       "support_agent": "Agente de soporte"
+    },
+    "menu": {
+      "storeScoped": "El menú compartido lo gestionan quienes tienen acceso a todas las tiendas. Usa el menú de tu tienda para cambiar allí la disponibilidad o los precios."
     }
   }
 }

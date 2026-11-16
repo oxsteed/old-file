@@ -1966,6 +1966,18 @@ async function assertRestaurantPermission(restaurant, requested, message = 'You 
   }
 }
 
+// WP-062: the brand menu (categories, items, modifiers) is shared by every
+// store, so changing it needs all-store scope. Store-scoped staff change their
+// own store through the per-store menu (/locations/:locationId/menu-items).
+async function assertBrandMenuManage(restaurant, userId) {
+  await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+  if (restaurant.effective_role === 'owner') return;
+  const scope = await getLocationScope(restaurant, userId);
+  if (scope.mode === 'assigned') {
+    throw new AppError('All-store access is required to change the shared menu', 403, 'location_scope_forbidden');
+  }
+}
+
 async function hasRestaurantPermission(restaurant, requested) {
   if (restaurant.effective_role === 'owner') return true;
   const permissions = await getRestaurantPermissions(restaurant);
@@ -2718,7 +2730,10 @@ exports.getManagedRestaurantMenu = async (req, res, next) => {
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, ['menu.view', 'menu.manage', 'restaurant.manage']);
     const menuData = await loadRestaurantMenu(restaurantId, { managed: true });
-    res.json(menuData);
+    // WP-062: tell the editor whether this viewer may change the shared menu.
+    let canEditBrandMenu = true;
+    try { await assertBrandMenuManage(restaurant, req.user.id); } catch { canEditBrandMenu = false; }
+    res.json({ ...menuData, canEditBrandMenu });
   } catch (err) {
     next(err);
   }
@@ -2872,7 +2887,7 @@ exports.createMenuCategory = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    await assertBrandMenuManage(restaurant, req.user.id);
     const name = normalizeString(req.body.name, 120);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
 
@@ -2904,7 +2919,7 @@ exports.createMenuItem = async (req, res, next) => {
   try {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    await assertBrandMenuManage(restaurant, req.user.id);
     const name = normalizeString(req.body.name, 160);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
 
@@ -6496,7 +6511,7 @@ exports.updateMenuCategory = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const categoryId = parsePositiveInt(req.params.categoryId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    await assertBrandMenuManage(restaurant, req.user.id);
     const { rows: [existingCategory] } = await pool.query(
       'SELECT * FROM food_menu_categories WHERE id = $1 AND restaurant_id = $2',
       [categoryId, restaurantId]
@@ -6538,7 +6553,7 @@ exports.deleteMenuCategory = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const categoryId = parsePositiveInt(req.params.categoryId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    await assertBrandMenuManage(restaurant, req.user.id);
     const { rows: [existingCategory] } = await pool.query(
       'SELECT * FROM food_menu_categories WHERE id = $1 AND restaurant_id = $2',
       [categoryId, restaurantId]
@@ -6565,7 +6580,7 @@ exports.updateMenuItem = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    await assertBrandMenuManage(restaurant, req.user.id);
 
     const sets = [];
     const params = [];
@@ -6687,7 +6702,7 @@ exports.deleteMenuItem = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    await assertBrandMenuManage(restaurant, req.user.id);
     const { rows: [existingItem] } = await pool.query(
       'SELECT * FROM food_menu_items WHERE id = $1 AND restaurant_id = $2',
       [itemId, restaurantId]
@@ -6723,7 +6738,7 @@ exports.createModifierGroup = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    await assertBrandMenuManage(restaurant, req.user.id);
     const name = normalizeString(req.body.name, 120);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const options = Array.isArray(req.body.options) ? req.body.options.slice(0, 30) : [];
@@ -6794,7 +6809,7 @@ exports.updateModifierGroup = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const groupId = parsePositiveInt(req.params.groupId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    await assertBrandMenuManage(restaurant, req.user.id);
     const name = normalizeString(req.body.name, 120);
     if (!name) throw new AppError('Validation failed', 400, 'validation_failed', { name: 'Name is required' });
     const options = Array.isArray(req.body.options) ? req.body.options.slice(0, 30) : [];
@@ -6888,7 +6903,7 @@ exports.duplicateMenuItem = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const itemId = parsePositiveInt(req.params.itemId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    await assertBrandMenuManage(restaurant, req.user.id);
 
     const item = await withTransaction(pool, async (client) => {
       const { rows: [source] } = await client.query(
@@ -6963,7 +6978,7 @@ exports.deleteModifierGroup = async (req, res, next) => {
     const restaurantId = parsePositiveInt(req.params.restaurantId);
     const groupId = parsePositiveInt(req.params.groupId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['menu.manage', 'restaurant.manage']);
+    await assertBrandMenuManage(restaurant, req.user.id);
     const { rows: [priorGroup] } = await pool.query(
       'SELECT * FROM food_modifier_groups WHERE id = $1 AND restaurant_id = $2',
       [groupId, restaurantId]

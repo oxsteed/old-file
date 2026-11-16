@@ -4068,6 +4068,9 @@
       "representative": "Đại diện",
       "employee": "Nhân viên",
       "support_agent": "Nhân viên hỗ trợ"
+    },
+    "menu": {
+      "storeScoped": "Thực đơn chung do những người có quyền truy cập mọi cửa hàng quản lý. Hãy dùng thực đơn của cửa hàng bạn để thay đổi tình trạng món hoặc giá tại đó."
     }
   }
 }

@@ -6699,6 +6699,9 @@
       "representative": "Reprezantan",
       "employee": "Anplwaye",
       "support_agent": "Ajan sipò"
+    },
+    "menu": {
+      "storeScoped": "Se moun ki gen aksè nan tout magazen yo ki jere meni pataje a. Sèvi ak meni magazen pa w la pou chanje disponiblite oswa pri la."
     }
   }
 }

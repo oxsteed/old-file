@@ -4068,6 +4068,9 @@
       "representative": "Representante",
       "employee": "Funcionário",
       "support_agent": "Agente de suporte"
+    },
+    "menu": {
+      "storeScoped": "O cardápio compartilhado é gerenciado por quem tem acesso a todas as lojas. Use o cardápio da sua loja para alterar a disponibilidade ou os preços nela."
     }
   }
 }

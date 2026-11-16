@@ -6699,6 +6699,9 @@
       "representative": "Représentant",
       "employee": "Employé",
       "support_agent": "Agent d'assistance"
+    },
+    "menu": {
+      "storeScoped": "Le menu partagé est géré par les personnes ayant accès à tous les établissements. Utilisez le menu de votre établissement pour y modifier la disponibilité ou les prix."
     }
   }
 }

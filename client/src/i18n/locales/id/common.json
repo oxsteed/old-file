@@ -4068,6 +4068,9 @@
       "representative": "Perwakilan",
       "employee": "Karyawan",
       "support_agent": "Agen dukungan"
+    },
+    "menu": {
+      "storeScoped": "Menu bersama dikelola oleh orang yang memiliki akses ke semua toko. Gunakan menu toko Anda untuk mengubah ketersediaan atau harga di sana."
     }
   }
 }

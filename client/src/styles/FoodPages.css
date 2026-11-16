@@ -3415,3 +3415,12 @@ input[type="color"].fd-settings-color {
 .fd-scroll-x { overflow-x: auto; }
 .fd-list-disc { margin: 0.5rem 0 0 1rem; padding: 0; list-style: disc; }
 .fd-list-disc-sm { margin: 0.25rem 0 0 1rem; padding: 0; list-style: disc; }
+
+/* WP-062: store-scoped staff see the shared menu read-only. */
+.fd-menu-manager-readonly {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-inline-start: 4px solid var(--fd-accent, #2563eb);
+  background: var(--fd-surface-muted, #f1f5f9);
+  border-radius: 6px;
+}

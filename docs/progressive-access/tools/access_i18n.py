@@ -579,6 +579,32 @@ for _l, _v in {
 }.items():
     T[_l].extend(_v)
 
+# WP-062: store-scoped staff see the shared menu read-only.
+KEYS.append('menu.storeScoped')
+for _l, _v in {
+ 'en': "The shared menu is managed by people with access to every store. Use your store's menu to change availability or prices there.",
+ 'es': 'El menú compartido lo gestionan quienes tienen acceso a todas las tiendas. Usa el menú de tu tienda para cambiar allí la disponibilidad o los precios.',
+ 'fr': "Le menu partagé est géré par les personnes ayant accès à tous les établissements. Utilisez le menu de votre établissement pour y modifier la disponibilité ou les prix.",
+ 'ht': 'Se moun ki gen aksè nan tout magazen yo ki jere meni pataje a. Sèvi ak meni magazen pa w la pou chanje disponiblite oswa pri la.',
+ 'ar': 'يدير القائمة المشتركة من لديهم وصول إلى كل الفروع. استخدم قائمة فرعك لتغيير التوفر أو الأسعار فيه.',
+ 'pt': 'O cardápio compartilhado é gerenciado por quem tem acesso a todas as lojas. Use o cardápio da sua loja para alterar a disponibilidade ou os preços nela.',
+ 'it': 'Il menu condiviso è gestito da chi ha accesso a tutti i punti vendita. Usa il menu del tuo punto vendita per cambiarne disponibilità o prezzi.',
+ 'de': 'Die gemeinsame Speisekarte verwalten Personen mit Zugriff auf alle Filialen. Nutze die Speisekarte deiner Filiale, um dort Verfügbarkeit oder Preise zu ändern.',
+ 'id': 'Menu bersama dikelola oleh orang yang memiliki akses ke semua toko. Gunakan menu toko Anda untuk mengubah ketersediaan atau harga di sana.',
+ 'tr': 'Ortak menüyü tüm şubelere erişimi olan kişiler yönetir. Şubenizdeki stok durumunu veya fiyatları değiştirmek için şubenizin menüsünü kullanın.',
+ 'sw': 'Menyu ya pamoja inasimamiwa na watu wenye ufikiaji wa maduka yote. Tumia menyu ya duka lako kubadilisha upatikanaji au bei hapo.',
+ 'vi': 'Thực đơn chung do những người có quyền truy cập mọi cửa hàng quản lý. Hãy dùng thực đơn của cửa hàng bạn để thay đổi tình trạng món hoặc giá tại đó.',
+ 'ru': 'Общим меню управляют сотрудники с доступом ко всем точкам. Чтобы изменить наличие или цены в своей точке, используйте меню этой точки.',
+ 'zh': '共享菜单由可访问所有门店的人员管理。请使用你所在门店的菜单来更改该门店的供应状态或价格。',
+ 'ja': '共通メニューはすべての店舗にアクセスできる人が管理します。自店舗の提供状況や価格を変えるには、店舗メニューを使ってください。',
+ 'ko': '공유 메뉴는 모든 매장에 접근할 수 있는 사람이 관리합니다. 내 매장의 판매 여부나 가격을 바꾸려면 매장 메뉴를 사용하세요.',
+ 'hi': 'साझा मेन्यू वे लोग संभालते हैं जिनके पास हर स्टोर की पहुँच है। अपने स्टोर में उपलब्धता या कीमतें बदलने के लिए अपने स्टोर का मेन्यू इस्तेमाल करें।',
+ 'ur': 'مشترکہ مینو وہ لوگ سنبھالتے ہیں جنہیں ہر اسٹور تک رسائی ہے۔ اپنے اسٹور میں دستیابی یا قیمتیں بدلنے کے لیے اپنے اسٹور کا مینو استعمال کریں۔',
+ 'bn': 'শেয়ার করা মেনু পরিচালনা করেন যাঁদের সব স্টোরে অ্যাক্সেস আছে। আপনার স্টোরে প্রাপ্যতা বা দাম বদলাতে আপনার স্টোরের মেনু ব্যবহার করুন।',
+ 'th': 'เมนูที่ใช้ร่วมกันดูแลโดยผู้ที่เข้าถึงได้ทุกสาขา ใช้เมนูของสาขาคุณเพื่อเปลี่ยนสถานะสินค้าหรือราคาที่สาขานั้น',
+}.items():
+    T[_l].append(_v)
+
 def nest(keys, values):
     out = {}
     for k, v in zip(keys, values):

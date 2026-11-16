@@ -4066,6 +4066,9 @@
       "representative": "Mwakilishi",
       "employee": "Mfanyakazi",
       "support_agent": "Wakala wa usaidizi"
+    },
+    "menu": {
+      "storeScoped": "Menyu ya pamoja inasimamiwa na watu wenye ufikiaji wa maduka yote. Tumia menyu ya duka lako kubadilisha upatikanaji au bei hapo."
     }
   }
 }

@@ -4068,6 +4068,9 @@
       "representative": "代表",
       "employee": "员工",
       "support_agent": "支持专员"
+    },
+    "menu": {
+      "storeScoped": "共享菜单由可访问所有门店的人员管理。请使用你所在门店的菜单来更改该门店的供应状态或价格。"
     }
   }
 }

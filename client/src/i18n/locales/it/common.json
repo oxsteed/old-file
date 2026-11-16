@@ -4068,6 +4068,9 @@
       "representative": "Rappresentante",
       "employee": "Dipendente",
       "support_agent": "Addetto all'assistenza"
+    },
+    "menu": {
+      "storeScoped": "Il menu condiviso è gestito da chi ha accesso a tutti i punti vendita. Usa il menu del tuo punto vendita per cambiarne disponibilità o prezzi."
     }
   }
 }

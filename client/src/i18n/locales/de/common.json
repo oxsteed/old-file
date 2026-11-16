@@ -4068,6 +4068,9 @@
       "representative": "Vertreter",
       "employee": "Mitarbeiter",
       "support_agent": "Support-Mitarbeiter"
+    },
+    "menu": {
+      "storeScoped": "Die gemeinsame Speisekarte verwalten Personen mit Zugriff auf alle Filialen. Nutze die Speisekarte deiner Filiale, um dort Verfügbarkeit oder Preise zu ändern."
     }
   }
 }

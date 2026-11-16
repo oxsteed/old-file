@@ -4068,6 +4068,9 @@
       "representative": "Temsilci",
       "employee": "Çalışan",
       "support_agent": "Destek temsilcisi"
+    },
+    "menu": {
+      "storeScoped": "Ortak menüyü tüm şubelere erişimi olan kişiler yönetir. Şubenizdeki stok durumunu veya fiyatları değiştirmek için şubenizin menüsünü kullanın."
     }
   }
 }

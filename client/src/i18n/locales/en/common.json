@@ -6699,6 +6699,9 @@
       "representative": "Representative",
       "employee": "Employee",
       "support_agent": "Support agent"
+    },
+    "menu": {
+      "storeScoped": "The shared menu is managed by people with access to every store. Use your store's menu to change availability or prices there."
     }
   }
 }
