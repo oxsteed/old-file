@@ -4056,6 +4056,7 @@
         "selfReview": "Du kannst deinen eigenen Antrag nicht prüfen.",
         "notPermitted": "Du bist nicht berechtigt, über diesen Antrag zu entscheiden."
       }
-    }
+    },
+    "accessRequired": "Dafür brauchst du zuerst einen genehmigten Zugang."
   }
 }

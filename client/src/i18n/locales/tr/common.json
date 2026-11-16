@@ -4056,6 +4056,7 @@
         "selfReview": "Kendi başvurunuzu inceleyemezsiniz.",
         "notPermitted": "Bu başvuru hakkında karar verme izniniz yok."
       }
-    }
+    },
+    "accessRequired": "Bunun için önce onaylı erişim gerekir."
   }
 }

@@ -4056,6 +4056,7 @@
         "selfReview": "Anda tidak dapat meninjau pengajuan Anda sendiri.",
         "notPermitted": "Anda tidak memiliki izin untuk memutuskan pengajuan ini."
       }
-    }
+    },
+    "accessRequired": "Ini memerlukan akses yang disetujui terlebih dahulu."
   }
 }

@@ -523,6 +523,10 @@ for _l, _v in ADMIN.items():
     assert len(_v) == len(ADMIN_KEYS), _l
     T[_l].extend(_v)
 
+KEYS.append('accessRequired')
+for _l, _v in {'en': 'This needs approved access first.', 'es': 'Primero necesitas un acceso aprobado.', 'fr': "Cela nécessite d'abord un accès approuvé.", 'ht': 'Sa a mande yon aksè apwouve anvan.', 'ar': 'يتطلب هذا الحصول على وصول معتمد أولًا.', 'pt': 'Isso exige um acesso aprovado primeiro.', 'it': 'Prima serve un accesso approvato.', 'de': 'Dafür brauchst du zuerst einen genehmigten Zugang.', 'id': 'Ini memerlukan akses yang disetujui terlebih dahulu.', 'tr': 'Bunun için önce onaylı erişim gerekir.', 'sw': 'Hili linahitaji ufikiaji ulioidhinishwa kwanza.', 'vi': 'Việc này cần quyền truy cập đã được duyệt trước.', 'ru': 'Для этого сначала нужен одобренный доступ.', 'zh': '此操作需要先获得批准的权限。', 'ja': '先にアクセスの承認が必要です。', 'ko': '먼저 승인된 권한이 필요합니다.', 'hi': 'इसके लिए पहले स्वीकृत पहुँच चाहिए।', 'ur': 'اس کے لیے پہلے منظور شدہ رسائی درکار ہے۔', 'bn': 'এর জন্য আগে অনুমোদিত অ্যাক্সেস প্রয়োজন।', 'th': 'ต้องได้รับอนุมัติสิทธิ์เข้าถึงก่อน'}.items():
+    T[_l].append(_v)
+
 def nest(keys, values):
     out = {}
     for k, v in zip(keys, values):

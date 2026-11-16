@@ -164,5 +164,5 @@ Next (in order):
    (edit KEYS/T there, re-run; `npm run verify:i18n` must pass — it rejects English copy in
    other locales). Done since: admin queue `client/src/admin/pages/AccessRequestsQueue.jsx` at
    `/admin/access-requests` (manifest grant `review_access_requests`, nav entry, server SPA
-   allowlist), JoinPage follows `access.nextStep`. Still to do: an `access_required` (403) handler that links to `/settings/applications`.
+   allowlist), JoinPage follows `access.nextStep`. Done: JobDetailPage shows an Applications link on `access_required` (the shared axios must NOT get a response interceptor — see `api/axios.js` note). Client build (`npx vite build`) passes.
 4. Phase 3 (WP-046..073) business/restaurant, Phase 4 (WP-074..103), Phase 5 (WP-013).

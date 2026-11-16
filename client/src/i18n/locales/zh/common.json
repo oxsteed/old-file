@@ -4056,6 +4056,7 @@
         "selfReview": "您不能审核自己的申请。",
         "notPermitted": "您无权对此申请作出决定。"
       }
-    }
+    },
+    "accessRequired": "此操作需要先获得批准的权限。"
   }
 }

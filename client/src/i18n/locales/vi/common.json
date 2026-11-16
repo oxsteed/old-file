@@ -4056,6 +4056,7 @@
         "selfReview": "Bạn không thể tự xét duyệt đơn của mình.",
         "notPermitted": "Bạn không có quyền quyết định đơn này."
       }
-    }
+    },
+    "accessRequired": "Việc này cần quyền truy cập đã được duyệt trước."
   }
 }

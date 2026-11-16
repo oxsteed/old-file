@@ -6687,6 +6687,7 @@
         "selfReview": "No puedes revisar tu propia solicitud.",
         "notPermitted": "No tienes permiso para decidir esta solicitud."
       }
-    }
+    },
+    "accessRequired": "Primero necesitas un acceso aprobado."
   }
 }

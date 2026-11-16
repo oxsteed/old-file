@@ -4056,6 +4056,7 @@
         "selfReview": "Non puoi esaminare la tua richiesta.",
         "notPermitted": "Non hai l’autorizzazione per decidere questa richiesta."
       }
-    }
+    },
+    "accessRequired": "Prima serve un accesso approvato."
   }
 }

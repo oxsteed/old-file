@@ -105,6 +105,7 @@ export default function JobDetailPage() {
 
 function JobDetailContent() {
   const { t } = useTranslation();
+  const { t: accessT } = useTranslation('common');
 
   const URGENCY_MAP = {
     asap:       { label: t('jobDetail.urgencyASAP'), color: 'var(--color-error)', bg: 'var(--color-error-bg)' },
@@ -245,6 +246,9 @@ function JobDetailContent() {
       if (err.response?.data?.code === 'job_changed') {
         setBidError(t('jobEdit.bidJobChanged'));
         fetchJob(id);
+      } else if (err.response?.data?.code === 'access_required') {
+        // Progressive access (WP-026): bidding needs an approved helper application.
+        setBidError('access_required');
       } else {
         setBidError(err.response?.data?.error || t('jobDetail.bidFailed'));
       }
@@ -643,7 +647,12 @@ function JobDetailContent() {
           {requirementsCard}
           {view.canSubmitBid && <section className="jdp-card jdp-bid-form-card" aria-labelledby={`${fieldId}-bid-form`}>
             <h2 id={`${fieldId}-bid-form`} className="jdp-section-title" tabIndex={-1}>{t('jobDetail.submitYourBid')}</h2>
-            {bidError && <p className="jdp-bid-error" role="alert">{bidError}</p>}
+            {bidError === 'access_required' ? (
+              <p className="jdp-bid-error" role="alert">
+                {accessT('progressiveAccess.accessRequired')}{' '}
+                <Link to="/settings/applications" data-track="ui.access.bid.apply">{accessT('progressiveAccess.openApplications')}</Link>
+              </p>
+            ) : bidError && <p className="jdp-bid-error" role="alert">{bidError}</p>}
               <form onSubmit={handleBidSubmit} className="jdp-bid-form" data-track="ui.573dfef74b.12">
                 <div className="jdp-bid-form-row">
                   <div className="jdp-field">
