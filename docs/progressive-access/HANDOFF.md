@@ -112,6 +112,12 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
    (`review_investor_access`, `review_franchise_access`); the general
    `review_access_requests` covers helper/business/restaurant/consultant/tools/logistics.
 
+8. **Access reviews need one admin**, not two; the two-admin rule stays for credit actions.
+9. **Credit customers approved as helpers** keep `users.role = customer` (trigger
+   `oxsteed_credit_user_role_guard`); under `enforce` the grant alone lets them bid.
+10. **Profile/mobile saves with an unapproved mode** save everything else and ignore the mode
+    (`mode_change_ignored`); switch-role returns 403 `access_required`.
+
 ## Next step
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,

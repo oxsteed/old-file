@@ -191,6 +191,14 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
       persistSessionPayload(data); completed.current = true;
       try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* storage unavailable */ }
       setUser(data.user);
+      // Progressive access (WP-001..003): with customer-first signup the server
+      // returns access.nextStep; an owner/helper intent continues as an
+      // application on the customer account instead of a role switch.
+      const nextStep = data.access?.nextStep;
+      if (nextStep?.type === 'application') {
+        navigate(nextStep.requestId ? `/settings/applications?request=${encodeURIComponent(nextStep.requestId)}` : '/settings/applications', { replace: true });
+        return;
+      }
       navigate(postSignupRouteForMode(data.user.default_mode || form.defaultMode), { replace: true });
     } catch (error) { setOtpError(recoveryMessage(error)); setOtpDigits(Array(6).fill('')); }
     finally { operation.current = false; setBusy(''); }
