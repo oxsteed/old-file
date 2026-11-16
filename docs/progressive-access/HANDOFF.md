@@ -1010,10 +1010,13 @@ and the client retirement contract passes (2 tests), with frontend-reference and
 locale verification plus the local typecheck/build recorded for this checkpoint.
 The legacy endpoint is intentionally retained for compatibility and must not be
 removed until all consumers and rollout flags are retired.
-**Exact next action (resume here):** move to the remaining WP-008 evidence gap:
-populate the two-business pending-approval and revoked-approver acceptance
-scenario, then run exact-head CI for the pushed checkpoint. Keep the legacy
-compatibility endpoint and rollout flags intact while that evidence is gathered.
+**Exact next action (resume here):** run the four populated WP-008 business
+workspace/membership suites together and record the exact-head CI result for the
+pushed checkpoint. The new acceptance creates two businesses, approves a pending
+member only in the manager's live business, rejects the other business, then
+revokes that manager and proves a replacement pending request remains pending.
+Keep the legacy compatibility endpoint and rollout flags intact while CI and the
+remaining helper-only route audit are completed.
 
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,

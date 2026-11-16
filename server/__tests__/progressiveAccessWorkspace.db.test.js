@@ -37,6 +37,7 @@ if (CAN_RUN_DB) {
 }
 process.env.ACCESS_REQUESTS_ENABLED = 'true';
 process.env.ACCESS_PROJECTION_ENABLED = 'true';
+process.env.VORTEX_ENABLED = 'true';
 
 const mockUsers = new Map();
 function mockFakeAuth(req, res, next) {
@@ -109,6 +110,7 @@ ddescribe('workspace context and multiple organizations (WP-047, real database)'
     app = express();
     app.use(express.json());
     app.use('/api/me', require('../routes/meWorkspace'));
+    app.use('/api/businesses', require('../routes/businessTeam'));
     // A representative manager-level write: the entity comes from the URL only.
     app.post('/api/businesses/:id/manager-write', authenticate, requireBusinessAccess({ paramName: 'id', minRole: 'manager' }),
       (req, res) => { writes.push({ user: req.user.id, business: req.business.id, role: req.businessRole }); res.json({ business: req.business.id, role: req.businessRole }); });
@@ -164,5 +166,52 @@ ddescribe('workspace context and multiple organizations (WP-047, real database)'
     }
     const { rows } = await pool.query('SELECT business_id FROM user_workspace_contexts WHERE user_id = $1', [u]);
     expect(rows.map((x) => x.business_id)).toEqual([mine]);
+  });
+
+  test('approval is scoped to the live business and a revoked approver cannot approve either business', async () => {
+    const owner = await newUser('approval-owner');
+    const approver = await newUser('approval-manager');
+    const applicant = await newUser('approval-applicant');
+    const replacementApplicant = await newUser('approval-replacement');
+    const alpha = await newBusiness(owner, 'Approval Alpha');
+    const beta = await newBusiness(owner, 'Approval Beta');
+    await member(alpha, owner, approver, 'manager');
+    await member(beta, owner, approver, 'employee');
+    const alphaPending = await member(alpha, owner, applicant, 'representative', 'pending');
+    const betaPending = await member(beta, owner, applicant, 'representative', 'pending');
+
+    // The manager can approve the pending request in the business where their
+    // live standing is manager, but not in the other business.
+    let r = await request(app)
+      .post(`/api/businesses/${alpha}/memberships/${alphaPending}/approve`)
+      .set('x-test-user', approver)
+      .send({});
+    expect(r.status).toBe(200);
+    expect(r.body.data).toMatchObject({ id: alphaPending, member_id: applicant, role: 'representative' });
+    r = await request(app)
+      .post(`/api/businesses/${beta}/memberships/${betaPending}/approve`)
+      .set('x-test-user', approver)
+      .send({});
+    expect(r.status).toBe(403);
+
+    // Revocation is live: the same session cannot approve a newly pending
+    // request after the manager membership is revoked in Alpha.
+    await pool.query("UPDATE business_members SET status = 'revoked' WHERE business_id = $1 AND member_id = $2", [alpha, approver]);
+    const replacement = await member(alpha, owner, replacementApplicant, 'representative', 'pending');
+    r = await request(app)
+      .post(`/api/businesses/${alpha}/memberships/${replacement}/approve`)
+      .set('x-test-user', approver)
+      .send({});
+    expect(r.status).toBe(404);
+    expect(r.body.code).toBe('business_not_found');
+    const statuses = (await pool.query(
+      'SELECT business_id, status FROM business_members WHERE id IN ($1, $2, $3) ORDER BY id',
+      [alphaPending, betaPending, replacement],
+    )).rows;
+    expect(statuses).toEqual([
+      { business_id: alpha, status: 'active' },
+      { business_id: beta, status: 'pending' },
+      { business_id: alpha, status: 'pending' },
+    ]);
   });
 });
