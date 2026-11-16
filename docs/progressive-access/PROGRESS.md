@@ -38,7 +38,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-018 | Two-factor authentication and passkeys | P2 | implemented (exact-head CI open) | (this checkpoint) | Passkey/two-factor server suites pass (16); client passkeys/sessions contracts pass (7) with all supported locale strings and inline unsupported-browser guidance; `passkeyVirtualAuthenticator.browser-check.cjs` completes a Chrome CTAP2 registration and assertion ceremony. Exact-head CI remains open. |
 | WP-019 | Sessions on native API and PWA | P2 | implemented (mobile projection) | 99f9466fd | `server/__tests__/mobileProfile.test.js` (4); existing `routeReliability.test.mjs` confirms authenticated API responses remain network-only and are never replayed from the service worker. Repository audit found no native profile consumer beyond the API contract. |
 | WP-020 | Notification and application messages | P2 | implemented | cba40e04e | progressiveAccess.db.test.js (outbox, real in-app), progressiveAccessOutboxCopy.test.js |
-| WP-021 | Account deletion, export and privacy | P4 | planned | | |
+| WP-021 | Account deletion, export and privacy | P4 | implemented (access boundary) | (this checkpoint) | `progressiveAccessPrivacy.test.js` (2), `progressiveAccessPrivacy.db.test.js` (1), privacy export/reauth suites (15); exports applicant-safe requests/grants/decisions, revokes active grants on deletion, retains immutable decisions, and cancels pending access outbox delivery |
 | WP-022 | Profile and public directory | P4 | planned | | |
 | WP-023 | Preferences, status and localization | P4 | planned | | |
 | WP-024 | Public discovery and location | P4 | planned | | |

@@ -1101,6 +1101,22 @@ two-factor suites, and `passkeyVirtualAuthenticator.browser-check.cjs`), record
 the exact-head CI state, then continue with WP-021 Account deletion, export and
 privacy while keeping the native-device limitation explicit.
 
+WP-021 now has an access-specific privacy checkpoint. The verified self-serve
+export includes applicant-owned progressive-access requests, grants, and
+decision history while excluding reviewer IDs and internal notes. Account
+deletion explicitly revokes every active access grant with an
+`account_deleted` reason, advances the projection version, and marks pending
+access outbox notifications failed; immutable request decisions remain retained
+for audit. The focused unit tests pass (2), the populated disposable PostgreSQL
+acceptance passes (1), and the existing privacy export/reauth suites pass (15).
+The broader product retention matrix and live legal-operations acceptance remain
+outside this checkpoint.
+**Exact next action (resume here):** audit WP-022 Profile and public directory
+for helper-application versus published-provider separation, current standing
+on search/profile/slug/QR/embeds, and cross-account visibility. Start with the
+helper listing/profile route tests and add only the smallest capability-aware
+boundary, then run its focused tests plus the exact-head CI check.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

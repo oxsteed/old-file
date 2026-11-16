@@ -15,6 +15,14 @@ jest.mock('../services/customer360Privacy', () => ({
   erase: jest.fn().mockResolvedValue({}),
   categories: jest.fn().mockResolvedValue([]),
 }));
+jest.mock('../services/access/privacy', () => ({
+  exportData: jest.fn().mockResolvedValue({
+    progressive_access_requests: [],
+    progressive_access_grants: [],
+    progressive_access_decisions: [],
+  }),
+  revokeForDeletion: jest.fn().mockResolvedValue({ revokedGrants: 0 }),
+}));
 
 // L3: export verification HMAC fails closed without a dedicated secret.
 process.env.EXPORT_VERIFICATION_SECRET = 'test-export-verification-secret';
