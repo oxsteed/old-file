@@ -10,7 +10,7 @@ jest.mock('../services/access/accessService', () => ({ can: jest.fn() }));
 const access = require('../services/access/accessService');
 const logger = require('../utils/logger');
 const { requireHelperCapability, isHelperActor } = require('../middleware/requireAccess');
-const { requireHelperWorkEligible, requireHelperStep } = require('../middleware/helperOnboardingMiddleware');
+const { requireHelperWorkEligible, requireHelperStep, requireTaxIdentity } = require('../middleware/helperOnboardingMiddleware');
 const requireRole = require('../middleware/requireRole');
 
 function run(mw, req) {
@@ -111,6 +111,16 @@ describe('helper capability gate', () => {
     const result = await run(requireHelperStep('profile'), req);
     expect(result.nextCalled).toBe(true);
     expect(result.res.statusCode).toBe(200);
+  });
+
+  test('tax identity keeps the capability marker as the helper authority', async () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+    const approved = { user: { ...user('customer'), w9_completed: true, didit_status: 'verified', didit_verified_at: new Date().toISOString() }, accessCapabilities: { 'helper.offer_services': true } };
+    const result = await run(requireTaxIdentity, approved);
+    expect(result.nextCalled).toBe(true);
+    const blocked = await run(requireTaxIdentity, { user: user('customer') });
+    expect(blocked.res.statusCode).toBe(403);
+    expect(blocked.res.body.code).toBe('helper_required');
   });
 
   test('enforce: approved helper capability remains usable when subscription access is expired', async () => {

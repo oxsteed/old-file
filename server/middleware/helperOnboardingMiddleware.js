@@ -57,6 +57,10 @@ function requireOnboardingStep(minimumStep) {
 function requireTaxIdentity(req, res, next) {
   const { isDiditVerificationFresh } = require('../utils/diditGate');
   const user = req.user || {};
+  const capabilityApproved = req.accessCapabilities?.['helper.offer_services'] === true;
+  if (!capabilityApproved && user.role !== 'helper') {
+    return res.status(403).json({ error: 'Helper access required.', code: 'helper_required' });
+  }
   if (!user.w9_completed) {
     return res.status(403).json({
       error: 'Complete your W-9 tax form before receiving payouts.',

@@ -22,6 +22,7 @@ const checkRestrictions = require('../middleware/checkRestrictions');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
 const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const { requireOnboardingStep, requireTaxIdentity } = require('../middleware/helperOnboardingMiddleware');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 
 const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMENTS_ENABLED');
@@ -30,16 +31,16 @@ const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMEN
 // Review P2-2-F01: creating a payout rail requires finished helper
 // onboarding; tax identity (W-9 + fresh Didit) is enforced at payout time,
 // not account creation, so helpers are never deadlocked out of onboarding.
-router.post('/connect', authenticate, requirePaymentsEnabled, requireOnboardingStep('active'), connectAccountLimiter, createConnectAccount);
+router.post('/connect', authenticate, requirePaymentsEnabled, requireHelperCapability, requireOnboardingStep('active'), connectAccountLimiter, createConnectAccount);
 router.get('/connect/status', authenticate, requirePaymentsEnabled, getConnectStatus);
-router.post('/connect/disconnect', authenticate, requirePaymentsEnabled, connectAccountLimiter, disconnectConnectAccount);
+router.post('/connect/disconnect', authenticate, requirePaymentsEnabled, requireHelperCapability, connectAccountLimiter, disconnectConnectAccount);
 router.get('/payout/balance', authenticate, requirePaymentsEnabled, getPayoutBalance);
 // Review P2-2-F01 / P2-2-F11: instant payouts move money, so they require
 // finished onboarding AND tax identity (W-9 on file, fresh Didit).
 // Audit fix (finding 27): email-OTP step-up challenge issuance for
 // instant payouts. Consumed by the POST /payout/instant handler below.
-router.post('/payout/instant/stepup-challenges', authenticate, requirePaymentsEnabled, requireOnboardingStep('active'), requireTaxIdentity, paymentsLimiter, rejectImpersonated, issueInstantPayoutStepupChallenge);
-router.post('/payout/instant', authenticate, requirePaymentsEnabled, requireOnboardingStep('active'), requireTaxIdentity, paymentsLimiter, requestInstantPayout);
+router.post('/payout/instant/stepup-challenges', authenticate, requirePaymentsEnabled, requireHelperCapability, requireOnboardingStep('active'), requireTaxIdentity, paymentsLimiter, rejectImpersonated, issueInstantPayoutStepupChallenge);
+router.post('/payout/instant', authenticate, requirePaymentsEnabled, requireHelperCapability, requireOnboardingStep('active'), requireTaxIdentity, paymentsLimiter, requestInstantPayout);
 router.get('/investor-summary', authenticate, requireAdmin, getInvestorSummary);
 
 // Payments
