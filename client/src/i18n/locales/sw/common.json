@@ -4059,6 +4059,13 @@
     "home": {
       "accessChanged": "Ufikiaji wako wa dashibodi hiyo umebadilika, kwa hiyo unaona Ukurasa wako wa Nyumbani binafsi."
     },
-    "accessUpdated": "Ufikiaji wako umesasishwa."
+    "accessUpdated": "Ufikiaji wako umesasishwa.",
+    "orgRoles": {
+      "owner": "Mmiliki",
+      "manager": "Meneja",
+      "representative": "Mwakilishi",
+      "employee": "Mfanyakazi",
+      "support_agent": "Wakala wa usaidizi"
+    }
   }
 }

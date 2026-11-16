@@ -4061,6 +4061,13 @@
     "home": {
       "accessChanged": "你对该控制面板的访问权限已更改，因此现在显示的是你的个人主页。"
     },
-    "accessUpdated": "你的访问权限已更新。"
+    "accessUpdated": "你的访问权限已更新。",
+    "orgRoles": {
+      "owner": "所有者",
+      "manager": "经理",
+      "representative": "代表",
+      "employee": "员工",
+      "support_agent": "支持专员"
+    }
   }
 }

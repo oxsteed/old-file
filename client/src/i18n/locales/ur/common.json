@@ -4061,6 +4061,13 @@
     "home": {
       "accessChanged": "اس ڈیش بورڈ تک آپ کی رسائی بدل گئی ہے، اس لیے آپ کو اپنا ذاتی ہوم دکھایا جا رہا ہے۔"
     },
-    "accessUpdated": "آپ کی رسائی اپ ڈیٹ ہو گئی ہے۔"
+    "accessUpdated": "آپ کی رسائی اپ ڈیٹ ہو گئی ہے۔",
+    "orgRoles": {
+      "owner": "مالک",
+      "manager": "منیجر",
+      "representative": "نمائندہ",
+      "employee": "ملازم",
+      "support_agent": "سپورٹ ایجنٹ"
+    }
   }
 }

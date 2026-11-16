@@ -6692,6 +6692,13 @@
     "home": {
       "accessChanged": "Votre accès à ce tableau de bord a changé : vous voyez donc votre accueil personnel."
     },
-    "accessUpdated": "Votre accès a été mis à jour."
+    "accessUpdated": "Votre accès a été mis à jour.",
+    "orgRoles": {
+      "owner": "Propriétaire",
+      "manager": "Responsable",
+      "representative": "Représentant",
+      "employee": "Employé",
+      "support_agent": "Agent d'assistance"
+    }
   }
 }

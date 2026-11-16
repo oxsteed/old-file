@@ -99,3 +99,18 @@ test('projection: approvals add shortcuts without replacing the view; removed ac
   const legacy = navbarNavigation({ role: 'helper', default_mode: 'helper' });
   assert.deepEqual(navbarNavigation({ role: 'helper', default_mode: 'helper' }, { projection: { flags: {}, access: { personal: ['customer'] } } }), legacy);
 });
+
+// WP-047: the organization switcher shows a translated permission status.
+test('business switcher renders translated organization roles in every locale', async () => {
+  const src = await readFile(new URL('../src/components/BusinessSwitcher.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /\{b\._role \|\| 'owner'\}/);
+  assert.match(src, /orgRoleLabel\(b\._role \|\| 'owner'\)/);
+  const { readdir } = await import('node:fs/promises');
+  const locales = (await readdir(new URL('../src/i18n/locales/', import.meta.url))).filter((l) => /^[a-z]{2}$/.test(l));
+  assert.equal(locales.length, 20);
+  for (const l of locales) {
+    const roles = JSON.parse(await readFile(new URL(`../src/i18n/locales/${l}/common.json`, import.meta.url), 'utf8')).progressiveAccess.orgRoles;
+    assert.deepEqual(Object.keys(roles).sort(), ['employee', 'manager', 'owner', 'representative', 'support_agent'], l);
+    assert.ok(Object.values(roles).every((v) => typeof v === 'string' && v.trim()), l);
+  }
+});

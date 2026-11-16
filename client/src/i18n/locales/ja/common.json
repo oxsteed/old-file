@@ -4061,6 +4061,13 @@
     "home": {
       "accessChanged": "そのダッシュボードへのアクセス権が変更されたため、個人用ホームを表示しています。"
     },
-    "accessUpdated": "アクセス権が更新されました。"
+    "accessUpdated": "アクセス権が更新されました。",
+    "orgRoles": {
+      "owner": "オーナー",
+      "manager": "マネージャー",
+      "representative": "担当者",
+      "employee": "従業員",
+      "support_agent": "サポート担当"
+    }
   }
 }

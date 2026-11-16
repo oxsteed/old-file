@@ -553,6 +553,32 @@ for _l, _v in {
 }.items():
     T[_l].extend(_v)
 
+# WP-047: permission status shown in the organization switcher.
+KEYS.extend(['orgRoles.owner', 'orgRoles.manager', 'orgRoles.representative', 'orgRoles.employee', 'orgRoles.support_agent'])
+for _l, _v in {
+ 'en': ['Owner', 'Manager', 'Representative', 'Employee', 'Support agent'],
+ 'es': ['Propietario', 'Gerente', 'Representante', 'Empleado', 'Agente de soporte'],
+ 'fr': ['Propriétaire', 'Responsable', 'Représentant', 'Employé', "Agent d'assistance"],
+ 'ht': ['Pwopriyetè', 'Manadjè', 'Reprezantan', 'Anplwaye', 'Ajan sipò'],
+ 'ar': ['المالك', 'المدير', 'الممثل', 'الموظف', 'وكيل الدعم'],
+ 'pt': ['Proprietário', 'Gerente', 'Representante', 'Funcionário', 'Agente de suporte'],
+ 'it': ['Titolare', 'Responsabile', 'Rappresentante', 'Dipendente', "Addetto all'assistenza"],
+ 'de': ['Inhaber', 'Manager', 'Vertreter', 'Mitarbeiter', 'Support-Mitarbeiter'],
+ 'id': ['Pemilik', 'Manajer', 'Perwakilan', 'Karyawan', 'Agen dukungan'],
+ 'tr': ['Sahip', 'Yönetici', 'Temsilci', 'Çalışan', 'Destek temsilcisi'],
+ 'sw': ['Mmiliki', 'Meneja', 'Mwakilishi', 'Mfanyakazi', 'Wakala wa usaidizi'],
+ 'vi': ['Chủ sở hữu', 'Quản lý', 'Đại diện', 'Nhân viên', 'Nhân viên hỗ trợ'],
+ 'ru': ['Владелец', 'Менеджер', 'Представитель', 'Сотрудник', 'Агент поддержки'],
+ 'zh': ['所有者', '经理', '代表', '员工', '支持专员'],
+ 'ja': ['オーナー', 'マネージャー', '担当者', '従業員', 'サポート担当'],
+ 'ko': ['소유자', '관리자', '담당자', '직원', '지원 상담원'],
+ 'hi': ['स्वामी', 'प्रबंधक', 'प्रतिनिधि', 'कर्मचारी', 'सहायता एजेंट'],
+ 'ur': ['مالک', 'منیجر', 'نمائندہ', 'ملازم', 'سپورٹ ایجنٹ'],
+ 'bn': ['মালিক', 'ম্যানেজার', 'প্রতিনিধি', 'কর্মী', 'সহায়তা এজেন্ট'],
+ 'th': ['เจ้าของ', 'ผู้จัดการ', 'ตัวแทน', 'พนักงาน', 'เจ้าหน้าที่ฝ่ายสนับสนุน'],
+}.items():
+    T[_l].extend(_v)
+
 def nest(keys, values):
     out = {}
     for k, v in zip(keys, values):

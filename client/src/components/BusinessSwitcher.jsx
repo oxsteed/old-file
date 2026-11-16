@@ -25,6 +25,18 @@ const LS_KEY = BUSINESS_HUB_LAST_ID_LS_KEY;
  */
 export default function BusinessSwitcher({ compact = false }) {
   const { t } = useTranslation();
+  // WP-047: permission status per organization, translated (never a raw role code).
+  const { t: accessT } = useTranslation('common');
+  const orgRoleLabel = (role) => {
+    switch (role) {
+      case 'owner': return accessT('progressiveAccess.orgRoles.owner');
+      case 'manager': return accessT('progressiveAccess.orgRoles.manager');
+      case 'representative': return accessT('progressiveAccess.orgRoles.representative');
+      case 'employee': return accessT('progressiveAccess.orgRoles.employee');
+      case 'support_agent': return accessT('progressiveAccess.orgRoles.support_agent');
+      default: return '';
+    }
+  };
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -174,7 +186,7 @@ export default function BusinessSwitcher({ compact = false }) {
                 <BizAvatar name={b.business_name} />
                 <span className="ox-biz-switcher__item-text">
                   <span className="ox-biz-switcher__item-name">{b.business_name}</span>
-                  <span className="ox-biz-switcher__item-role">{b._role || 'owner'}</span>
+                  <span className="ox-biz-switcher__item-role">{orgRoleLabel(b._role || 'owner')}</span>
                 </span>
                 {isActive && (
                   <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">

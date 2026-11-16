@@ -6692,6 +6692,13 @@
     "home": {
       "accessChanged": "تغيّر وصولك إلى لوحة التحكم تلك، لذا تُعرض لك صفحتك الرئيسية الشخصية."
     },
-    "accessUpdated": "تم تحديث وصولك."
+    "accessUpdated": "تم تحديث وصولك.",
+    "orgRoles": {
+      "owner": "المالك",
+      "manager": "المدير",
+      "representative": "الممثل",
+      "employee": "الموظف",
+      "support_agent": "وكيل الدعم"
+    }
   }
 }

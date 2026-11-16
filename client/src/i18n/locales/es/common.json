@@ -6692,6 +6692,13 @@
     "home": {
       "accessChanged": "Tu acceso a ese panel cambió, así que estás viendo tu inicio personal."
     },
-    "accessUpdated": "Tu acceso se actualizó."
+    "accessUpdated": "Tu acceso se actualizó.",
+    "orgRoles": {
+      "owner": "Propietario",
+      "manager": "Gerente",
+      "representative": "Representante",
+      "employee": "Empleado",
+      "support_agent": "Agente de soporte"
+    }
   }
 }

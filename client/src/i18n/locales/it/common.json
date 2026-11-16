@@ -4061,6 +4061,13 @@
     "home": {
       "accessChanged": "Il tuo accesso a quella dashboard è cambiato, quindi vedi la tua home personale."
     },
-    "accessUpdated": "Il tuo accesso è stato aggiornato."
+    "accessUpdated": "Il tuo accesso è stato aggiornato.",
+    "orgRoles": {
+      "owner": "Titolare",
+      "manager": "Responsabile",
+      "representative": "Rappresentante",
+      "employee": "Dipendente",
+      "support_agent": "Addetto all'assistenza"
+    }
   }
 }

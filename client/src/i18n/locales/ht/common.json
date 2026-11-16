@@ -6692,6 +6692,13 @@
     "home": {
       "accessChanged": "Aksè ou sou tablo bò sa a chanje, kidonk w ap wè paj akèy pèsonèl ou."
     },
-    "accessUpdated": "Aksè ou mete ajou."
+    "accessUpdated": "Aksè ou mete ajou.",
+    "orgRoles": {
+      "owner": "Pwopriyetè",
+      "manager": "Manadjè",
+      "representative": "Reprezantan",
+      "employee": "Anplwaye",
+      "support_agent": "Ajan sipò"
+    }
   }
 }

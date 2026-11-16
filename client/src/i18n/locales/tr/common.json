@@ -4061,6 +4061,13 @@
     "home": {
       "accessChanged": "O panele erişiminiz değişti, bu yüzden kişisel ana sayfanızı görüyorsunuz."
     },
-    "accessUpdated": "Erişiminiz güncellendi."
+    "accessUpdated": "Erişiminiz güncellendi.",
+    "orgRoles": {
+      "owner": "Sahip",
+      "manager": "Yönetici",
+      "representative": "Temsilci",
+      "employee": "Çalışan",
+      "support_agent": "Destek temsilcisi"
+    }
   }
 }

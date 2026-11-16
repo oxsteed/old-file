@@ -4061,6 +4061,13 @@
     "home": {
       "accessChanged": "Dein Zugriff auf dieses Dashboard hat sich geändert, daher siehst du deine persönliche Startseite."
     },
-    "accessUpdated": "Dein Zugriff wurde aktualisiert."
+    "accessUpdated": "Dein Zugriff wurde aktualisiert.",
+    "orgRoles": {
+      "owner": "Inhaber",
+      "manager": "Manager",
+      "representative": "Vertreter",
+      "employee": "Mitarbeiter",
+      "support_agent": "Support-Mitarbeiter"
+    }
   }
 }

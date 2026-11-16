@@ -6692,6 +6692,13 @@
     "home": {
       "accessChanged": "Your access to that dashboard changed, so you're seeing your personal Home."
     },
-    "accessUpdated": "Your access was updated."
+    "accessUpdated": "Your access was updated.",
+    "orgRoles": {
+      "owner": "Owner",
+      "manager": "Manager",
+      "representative": "Representative",
+      "employee": "Employee",
+      "support_agent": "Support agent"
+    }
   }
 }

@@ -4061,6 +4061,13 @@
     "home": {
       "accessChanged": "해당 대시보드에 대한 접근 권한이 변경되어 개인 홈을 표시하고 있습니다."
     },
-    "accessUpdated": "접근 권한이 업데이트되었습니다."
+    "accessUpdated": "접근 권한이 업데이트되었습니다.",
+    "orgRoles": {
+      "owner": "소유자",
+      "manager": "관리자",
+      "representative": "담당자",
+      "employee": "직원",
+      "support_agent": "지원 상담원"
+    }
   }
 }

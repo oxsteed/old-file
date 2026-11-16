@@ -4061,6 +4061,13 @@
     "home": {
       "accessChanged": "Quyền truy cập bảng điều khiển đó của bạn đã thay đổi, nên bạn đang xem Trang chủ cá nhân."
     },
-    "accessUpdated": "Quyền truy cập của bạn đã được cập nhật."
+    "accessUpdated": "Quyền truy cập của bạn đã được cập nhật.",
+    "orgRoles": {
+      "owner": "Chủ sở hữu",
+      "manager": "Quản lý",
+      "representative": "Đại diện",
+      "employee": "Nhân viên",
+      "support_agent": "Nhân viên hỗ trợ"
+    }
   }
 }

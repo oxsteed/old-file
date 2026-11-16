@@ -4061,6 +4061,13 @@
     "home": {
       "accessChanged": "Akses Anda ke dasbor itu berubah, jadi Anda melihat Beranda pribadi Anda."
     },
-    "accessUpdated": "Akses Anda telah diperbarui."
+    "accessUpdated": "Akses Anda telah diperbarui.",
+    "orgRoles": {
+      "owner": "Pemilik",
+      "manager": "Manajer",
+      "representative": "Perwakilan",
+      "employee": "Karyawan",
+      "support_agent": "Agen dukungan"
+    }
   }
 }
