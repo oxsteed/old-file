@@ -361,11 +361,31 @@ async function finalizeBroadcasts(db) {
   return rows.map(r => r.id);
 }
 
-async function promoteScheduled(pool) {
+// WP-052: outreach authority is re-verified at execution, not only when the
+// broadcast was scheduled. The person who scheduled it (queued_by, else
+// created_by) must still be the owner or an active manager of an active
+// business; otherwise the broadcast goes back to draft instead of sending.
+const OUTREACH_ROLES = new Set(['owner', 'manager']);
+async function schedulerStillAuthorized(row, deps = {}) {
+  const schedulerId = row.queued_by || row.created_by;
+  if (!schedulerId) return false;
+  const resolve = deps.resolveBusinessAccess || require('./scopeModel').resolveBusinessAccess;
+  const access = await resolve(schedulerId, row.business_id);
+  return Boolean(access && !access.deleted_at && access.is_active !== false && OUTREACH_ROLES.has(access.effective_role));
+}
+
+async function promoteScheduled(pool, deps = {}) {
   const { rows } = await pool.query(
-    `SELECT id, business_id FROM business_broadcasts WHERE status = 'scheduled' AND scheduled_at <= NOW() ORDER BY scheduled_at LIMIT 20`);
+    `SELECT id, business_id, queued_by, created_by FROM business_broadcasts WHERE status = 'scheduled' AND scheduled_at <= NOW() ORDER BY scheduled_at LIMIT 20`);
   const promoted = [];
   for (const row of rows) {
+    if (!(await schedulerStillAuthorized(row, deps))) {
+      await pool.query(
+        `UPDATE business_broadcasts SET status = 'draft', updated_at = NOW() WHERE id = $1 AND business_id = $2 AND status = 'scheduled'`,
+        [row.id, row.business_id]);
+      logger.warn('[broadcast] scheduled broadcast returned to draft: scheduler no longer authorised', { broadcastId: row.id, businessId: row.business_id });
+      continue;
+    }
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -548,6 +568,6 @@ function unsubscribePage({ state, language, business, actionUrl }) {
 
 module.exports = {
   CHANNEL_SETS, CHANNELS, MAX_ATTEMPTS, COPY, resolveChannels, extractLinks, queueBroadcast, claimDeliveries,
-  deliverOne, finalizeBroadcasts, promoteScheduled, recordOpen, recordClick, unsubscribe, recipientByToken,
+  deliverOne, finalizeBroadcasts, promoteScheduled, schedulerStillAuthorized, recordOpen, recordClick, unsubscribe, recipientByToken,
   getBroadcastStats, getBroadcastReport, renderEmail, unsubscribePage, trackingUrl,
 };

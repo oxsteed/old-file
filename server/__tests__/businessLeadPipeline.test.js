@@ -42,7 +42,7 @@ describe('business lead pipeline route params', () => {
   });
 
   test('DELETE /businesses/:businessId/leads/:leadId deletes with leadId', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
     const res = await request(buildApp()).delete('/api/businesses/biz-1/leads/lead-9');
 
