@@ -152,7 +152,7 @@ Next (in order):
    use `isHelperActor` (enforced grant satisfies the legacy role test — needed because the
    Credit trigger `oxsteed_credit_user_role_guard` keeps Credit users at role `customer`).
    Rollout: run backfill `--apply` first, then `shadow`, watch `access.shadow_mismatch`
-   logs, then `enforce`. Remaining: `POST /api/jobs/assign` target-helper check, helper
+   logs, then `enforce`. `jobController.assignHelper` also refuses to hire a helper whose grant is not effective (409 `helper_access_inactive`). Remaining: helper
    onboarding steps (`requireHelperStep`) and other helper-only routes (`rg "role !== 'helper'"`).
 3. Client (partly done): `client/src/api/access.js` (all applicant + reviewer calls, auto
    Idempotency-Key), `client/src/pages/Settings/ApplicationsPage.jsx` at

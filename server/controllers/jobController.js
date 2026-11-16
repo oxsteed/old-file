@@ -796,6 +796,19 @@ exports.getJobRevisions = async (req, res, next) => {
 
 
 // Assign a helper to a job by accepting a specific bid
+async function assertHelperCanBeHired(client, helperId) {
+  const accessFlags = require('../services/access/flags');
+  const mode = accessFlags.helperEnforcement();
+  if (mode === 'off') return;
+  const decision = await require('../services/access/accessService').can(helperId, 'helper.offer_services', undefined, client);
+  if (decision.allowed) return;
+  if (mode === 'shadow') {
+    logger.warn('access.shadow_mismatch', { capability: 'helper.offer_services', route: 'jobs.assign', capabilityAllowed: false, reason: decision.reason });
+    return;
+  }
+  throw new AppError('This helper cannot take new work right now. Choose another bid.', 409, 'helper_access_inactive');
+}
+
 exports.assignHelper = async (req, res, next) => {
   try {
     // bid_id is always required.
@@ -907,6 +920,10 @@ exports.assignHelper = async (req, res, next) => {
       if (bid.status === 'pending' && bid.expires_at && new Date(bid.expires_at).getTime() < Date.now()) {
         throw new AppError('This bid has expired.', 409, 'bid_expired');
       }
+
+      // Progressive access (WP-026): a helper whose access was suspended or
+      // revoked after bidding cannot be hired. Re-read inside the lock.
+      await assertHelperCanBeHired(client, bid.helper_id);
 
       // 2. Accept the bid atomically - only succeeds if it is still pending
       const acceptResult = await client.query(
@@ -1860,3 +1877,6 @@ exports.cancelJob = async (req, res, next) => {
     next(new AppError('Failed to cancel job', 500));
   }
 };
+
+// Exposed for tests (progressive access WP-026).
+exports.assertHelperCanBeHired = assertHelperCanBeHired;

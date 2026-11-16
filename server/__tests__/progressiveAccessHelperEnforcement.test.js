@@ -100,4 +100,31 @@ describe('helper capability gate', () => {
     expect(nextCalled).toBe(true);
     expect(access.can).not.toHaveBeenCalled();
   });
+
+  describe('hiring a helper (jobs.assign)', () => {
+    const { assertHelperCanBeHired } = require('../controllers/jobController');
+
+    test('off: no resolver call', async () => {
+      await expect(assertHelperCanBeHired({}, 'h-1')).resolves.toBeUndefined();
+      expect(access.can).not.toHaveBeenCalled();
+    });
+
+    test('shadow: a revoked helper is logged, not blocked', async () => {
+      process.env.ACCESS_HELPER_ENFORCEMENT = 'shadow';
+      access.can.mockResolvedValue({ allowed: false, reason: 'grant_revoked' });
+      await expect(assertHelperCanBeHired({}, 'h-1')).resolves.toBeUndefined();
+    });
+
+    test('enforce: a revoked or suspended helper cannot be hired', async () => {
+      process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+      access.can.mockResolvedValue({ allowed: false, reason: 'grant_suspended' });
+      await expect(assertHelperCanBeHired({}, 'h-1')).rejects.toMatchObject({ statusCode: 409, code: 'helper_access_inactive' });
+    });
+
+    test('enforce: an approved helper can be hired', async () => {
+      process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+      access.can.mockResolvedValue({ allowed: true, reason: 'grant' });
+      await expect(assertHelperCanBeHired({}, 'h-1')).resolves.toBeUndefined();
+    });
+  });
 });
