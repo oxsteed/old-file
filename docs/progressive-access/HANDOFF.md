@@ -508,17 +508,14 @@ checkout attempt, while the existing buyer warehouse/payment/refund suites pass
 65/65 with own-record scoping and foreign-record denial. The responsive browser
 fixture (`logisticsCompletion.browser-check.cjs`) also switches to that pending
 customer before checkout and passes account-isolation and stale-context checks.
-**Exact next action (resume here):** start WP-080 (logistics pooled campaigns).
-Trace organizer approval and campaign ownership through public campaign reads,
-draft edits, submission/review, placement approval, joining, rollover, and share
-destinations. Keep pending organizers able to participate only where buyer
-policy permits; do not let a pending or foreign organizer manage another
-organizer's campaign. Exact-head CI and populated live logistics acceptance
-remain open across both packages.
+**Exact next action (resume here):** continue WP-080 (logistics pooled
+campaigns). WP-079's focused buyer/checkout work is complete locally; its
+populated live acceptance and exact-head CI remain open.
 
 WP-080 is in progress at `e5c66e332` (server role derivation), `b3e5cfcf3`
 (customer-view organizer shortcut), `46e21611c` (pooled campaign lifecycle
-acceptance), and `20983e644` (review publication and placement visibility).
+acceptance), `20983e644` (review publication and placement visibility), and
+`77e317c06` (safe rollover and sharing).
 When `ACCESS_PROJECTION_ENABLED` is active,
 `resolveLogisticsRole` checks the progressive self grant before falling back to
 the legacy buyer/business role; this keeps organizer submission and ownership
@@ -531,16 +528,17 @@ editing. `client/scripts/logisticsProgressiveOrganizer.browser-check.cjs`
 renders the production navigation projection and `NewCampaignPage`, follows the
 Organizer shortcut, and verifies the campaign form returns to the Organizer
 workspace; revoking the projection removes the shortcut.
-Focused server suites (106 tests), the browser fixture, frontend reference scan,
-inline-style guard, and `npm run build:ci` pass locally; build emitted 1,203
-assets.
-**Exact next action (resume here):** decide and implement the missing rollover
-and share-destination behavior for pooled campaigns (there is currently no
-campaign rollover endpoint or logistics-specific share action), keeping public
-links read-only for pending customers. Add focused/browser evidence for those
-destinations, then run exact-head PR CI and record the populated live campaign
-limitation or evidence before moving to WP-081 (Business procurement and
-restocking).
+The organizer-only `POST /api/logistics/campaigns/:id/rollover` route requires
+an expired below-MOQ campaign and creates a clean draft without carrying
+participants, funding, supplier quote, or approval state. `CampaignPreview`
+shares the canonical read-only public campaign URL through Web Share or the
+clipboard, with localized copy in en/es/fr/ht/ar. Focused server suites (109
+tests), the browser fixture, frontend reference scan, inline-style guard, and
+`npm run build:ci` pass locally; build emitted 1,203 assets.
+**Exact next action (resume here):** run exact-head PR CI and attempt populated
+live campaign acceptance (or record the unavailable-data limitation), then move
+to WP-081 (Business procurement and restocking). Do not claim live acceptance or
+remote CI until observed.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
