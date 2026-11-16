@@ -17,6 +17,8 @@ import { missingScreenerAnswers, screenerPayload } from '../features/careers/mar
 import {
   applicationPayload, fieldErrorsFrom, formatDate, formatPayRange, localizedOpening,
 } from '../features/careers/careersModel';
+import TurnstileWidget from '../components/TurnstileWidget';
+import useCaptcha, { isCaptchaError } from '../hooks/useCaptcha';
 import '../styles/CareerSystem.css';
 
 const EMPTY_APPLY = {
@@ -54,6 +56,10 @@ function ApplyPanel({ opening, user }) {
   const [sending, setSending] = useState(false);
   const [screenAnswers, setScreenAnswers] = useState({});
   const [saveDefaults, setSaveDefaults] = useState(true);
+  // Guest apply is behind verifyCaptcha: the widget shows only when the
+  // server enables the check; each token is single-use.
+  const captcha = useCaptcha();
+  const [captchaMessage, setCaptchaMessage] = useState('');
   const questions = opening.screener_questions || [];
   // Pre-fill preset questions from the worker's saved answers.
   useEffect(() => {
@@ -104,6 +110,11 @@ function ApplyPanel({ opening, user }) {
     }
     for (const qid of missingScreenerAnswers(questions, screenAnswers)) local[`screener_answers.${qid}`] = t('careers.apply.answerRequired');
     if (Object.keys(local).length) { setErrors(local); return; }
+    setCaptchaMessage('');
+    if (!user && captcha.enabled) {
+      if (captcha.unavailable) { setCaptchaMessage(t('careers.captcha.unavailable')); return; }
+      if (!captcha.token) { setCaptchaMessage(t('careers.captcha.required')); return; }
+    }
     setSending(true);
     try {
       const body = applicationPayload(form, opening);
@@ -117,10 +128,20 @@ function ApplyPanel({ opening, user }) {
       } else {
         delete body.eeo;
         delete body.share_fact_types;
-        await startGuestApplication(opening.id, { ...body, ...guest, locale: document.documentElement.lang || 'en' });
+        try {
+          await startGuestApplication(opening.id, { ...body, ...guest, locale: document.documentElement.lang || 'en', ...captcha.payload });
+        } finally {
+          if (captcha.enabled) captcha.consume();
+        }
         setResult('guest');
       }
     } catch (err) {
+      if (isCaptchaError(err)) {
+        setCaptchaMessage(t(captcha.enabled ? 'careers.captcha.failed' : 'careers.captcha.required'));
+        // The server now requires a check this page did not know about.
+        if (!captcha.enabled) captcha.reload();
+        return;
+      }
       setErrors(fieldErrorsFrom(err));
       setFailure(err);
     } finally {
@@ -197,6 +218,13 @@ function ApplyPanel({ opening, user }) {
       {user && opening.country_code === 'US' ? <EeoForm value={form.eeo} onChange={set('eeo')} /> : null}
       {opening.ai_ranking_enabled ? <Notice>{t('careers.apply.aiNotice')}</Notice> : null}
       <p className="ox-careers-subtle">{t('careers.apply.privacy')}</p>
+      {!user && captcha.siteKey ? (
+        <div className="ox-careers-section">
+          <p className="ox-careers-subtle">{t('careers.captcha.label')}</p>
+          <TurnstileWidget {...captcha.widgetProps} />
+        </div>
+      ) : null}
+      {captchaMessage ? <p className="ox-careers-error" role="alert">{captchaMessage}</p> : null}
       <ErrorNotice error={failure} fallbackKey="careers.apply.error" />
       <div className="ox-careers-actions">
         <button type="submit" className="ox-careers-btn primary" disabled={sending} data-track="ui.b1e094aef2.2">{sending ? t('careers.apply.sending') : t('careers.apply.submit')}</button>

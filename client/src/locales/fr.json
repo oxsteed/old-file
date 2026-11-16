@@ -2990,6 +2990,12 @@
     "errorMismatch": "Les mots de passe ne correspondent pas"
   },
   "register": {
+    "captcha": {
+      "label": "Vérification de sécurité rapide",
+      "required": "Effectuez la vérification de sécurité ci-dessous pour que nous puissions vérifier cet e-mail.",
+      "failed": "La vérification de sécurité n’a pas abouti. Veuillez la refaire.",
+      "unavailable": "La vérification de sécurité n’a pas pu se charger. Actualisez la page et réessayez."
+    },
     "createAccount": "Créez votre compte",
     "tagline": "Rejoignez OxSteed - votre marché de services locaux.",
     "firstName": "Prénom",
@@ -20660,6 +20666,12 @@
     "responseTime": "Indiquez la page, la tâche, l’appareil, le navigateur et, le cas échéant, la technologie d’assistance. Précisez le format ou l’aide souhaitée. Nous examinons les signalements et priorisons les obstacles d’accès."
   },
   "delivery": {
+    "captcha": {
+      "label": "Vérification de sécurité rapide",
+      "required": "Effectuez la vérification de sécurité pour obtenir une estimation.",
+      "failed": "La vérification de sécurité n’a pas abouti. Veuillez la refaire.",
+      "unavailable": "La vérification de sécurité n’a pas pu se charger. Actualisez la page et réessayez."
+    },
     "driverPayoutHistory": {
       "title": "Mon historique de paiements",
       "subtitle": "Paiements accumulés pour les livraisons que vous avez effectuées. Les opérations approuvent les paiements et enregistrent la référence de paiement; les paiements payés et annulés ne peuvent pas changer.",
@@ -20695,7 +20707,13 @@
       "continue": "Continuer la réservation",
       "distance": "Distance",
       "routeTime": "Durée du trajet",
-      "sizePrices": "Prix par taille"
+      "sizePrices": "Prix par taille",
+      "priceRangeLabel": "Prix estimé",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Du service standard à l’express",
+      "standardTotal": "Standard",
+      "signInToBook": "Connectez-vous pour réserver",
+      "signInNote": "Connectez-vous ou créez un compte pour réserver. Votre estimation reste remplie."
     },
     "tabs": {
       "driving": "Conduite"
@@ -20711,7 +20729,9 @@
       "title": "Aperçu de l'itinéraire",
       "label": "Itinéraire schématique du retrait à la remise",
       "driver": "Chauffeur",
-      "schematic": "Schéma, sans échelle"
+      "schematic": "Schéma, sans échelle",
+      "sample": "Itinéraire d’exemple. Obtenez une estimation pour voir le vôtre.",
+      "sampleLabel": "Aperçu d’un itinéraire d’exemple, du ramassage à la livraison"
     },
     "pricingNote": "Le prix tient compte d’un minimum, de la distance incluse, de la taille du colis, de la vitesse et de frais de plateforme clairs.",
     "pricing": {
@@ -28399,6 +28419,12 @@
     "bookableHelper": "Les clients peuvent choisir un créneau sur Direct quand quelqu'un du pool de ce service est libre."
   },
   "careers": {
+    "captcha": {
+      "label": "Vérification de sécurité rapide",
+      "required": "Effectuez la vérification de sécurité ci-dessous pour envoyer votre candidature.",
+      "failed": "La vérification de sécurité n’a pas abouti. Veuillez la refaire.",
+      "unavailable": "La vérification de sécurité n’a pas pu se charger. Actualisez la page et réessayez."
+    },
     "metaTitle": "Carrières chez OxSteed",
     "metaDesc": "Trouvez un emploi en shifts, à temps partiel ou à temps plein chez OxSteed et des entreprises vérifiées. Chaque offre affiche la rémunération.",
     "kicker": "Carrières",

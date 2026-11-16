@@ -2990,6 +2990,12 @@
     "errorMismatch": "Passwords do not match"
   },
   "register": {
+    "captcha": {
+      "label": "Quick security check",
+      "required": "Complete the security check below so we can check this email.",
+      "failed": "The security check didn't go through. Please complete it again.",
+      "unavailable": "The security check couldn't load. Refresh the page and try again."
+    },
     "createAccount": "Create your account",
     "tagline": "Join OxSteed - your local services marketplace.",
     "firstName": "First name",
@@ -20660,6 +20666,12 @@
     "responseTime": "Please include the page, task, device, browser, and assistive technology if relevant. Tell us the alternative format or assistance you need. We review reports and prioritize barriers affecting access."
   },
   "delivery": {
+    "captcha": {
+      "label": "Quick security check",
+      "required": "Complete the security check to get an estimate.",
+      "failed": "The security check didn't go through. Please complete it again.",
+      "unavailable": "The security check couldn't load. Refresh the page and try again."
+    },
     "driverPayoutHistory": {
       "title": "My payout history",
       "subtitle": "Payouts accrued from deliveries you completed. Operations approves payouts and records the payment reference; paid and voided payouts cannot change.",
@@ -20695,7 +20707,13 @@
       "continue": "Continue to book",
       "distance": "Distance",
       "routeTime": "Route time",
-      "sizePrices": "Price by size"
+      "sizePrices": "Price by size",
+      "priceRangeLabel": "Estimated price",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Standard to rush service",
+      "standardTotal": "Standard",
+      "signInToBook": "Sign in to book",
+      "signInNote": "Sign in or create an account to book. Your estimate stays filled in."
     },
     "tabs": {
       "driving": "Driving"
@@ -20711,7 +20729,9 @@
       "title": "Route preview",
       "label": "Schematic route from pickup to drop-off",
       "driver": "Driver",
-      "schematic": "Schematic, not to scale"
+      "schematic": "Schematic, not to scale",
+      "sample": "Sample route. Get an estimate to see yours.",
+      "sampleLabel": "Sample route preview from pickup to drop-off"
     },
     "pricingNote": "Pricing uses a minimum fare, included distance, package size, service speed, and a clear platform fee.",
     "pricing": {
@@ -28399,6 +28419,12 @@
     "bookableHelper": "Customers can pick a calendar slot on Direct when someone in this service’s pool is free."
   },
   "careers": {
+    "captcha": {
+      "label": "Quick security check",
+      "required": "Complete the security check below to send your application.",
+      "failed": "The security check didn't go through. Please complete it again.",
+      "unavailable": "The security check couldn't load. Refresh the page and try again."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

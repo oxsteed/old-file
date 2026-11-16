@@ -3268,6 +3268,12 @@
     "errorMismatch": "Modpas yo pa matche"
   },
   "register": {
+    "captcha": {
+      "label": "Ti verifikasyon sekirite",
+      "required": "Fè verifikasyon sekirite ki anba a pou nou ka verifye imèl sa a.",
+      "failed": "Verifikasyon sekirite a pa pase. Tanpri fè l ankò.",
+      "unavailable": "Verifikasyon sekirite a pa t ka chaje. Rafrechi paj la epi eseye ankò."
+    },
     "createAccount": "Kreye kont ou",
     "tagline": "Antre nan OxSteed - mache sèvis lokal ou.",
     "firstName": "Prenon",
@@ -20660,6 +20666,12 @@
     "responseTime": "Bay paj, travay, aparèy, navigatè ak teknoloji asistans si sa konsène. Di nou ki lòt fòma oswa èd ou bezwen. Nou egzamine rapò epi bay baryè aksè priyorite."
   },
   "delivery": {
+    "captcha": {
+      "label": "Ti verifikasyon sekirite",
+      "required": "Fè verifikasyon sekirite a pou w jwenn yon estimasyon.",
+      "failed": "Verifikasyon sekirite a pa pase. Tanpri fè l ankò.",
+      "unavailable": "Verifikasyon sekirite a pa t ka chaje. Rafrechi paj la epi eseye ankò."
+    },
     "driverPayoutHistory": {
       "title": "Istwa peman mwen",
       "subtitle": "Peman ki akimile pou livrezon ou te konplete yo. Operasyon apwouve peman yo epi anrejistre referans peman an; peman ki peye ak ki anile pa ka chanje.",
@@ -20695,7 +20707,13 @@
       "continue": "Kontinye pou rezève",
       "distance": "Distans",
       "routeTime": "Tan wout la",
-      "sizePrices": "Pri pa gwosè"
+      "sizePrices": "Pri pa gwosè",
+      "priceRangeLabel": "Pri estime",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Soti nan sèvis estanda rive nan sèvis ijan",
+      "standardTotal": "Estanda",
+      "signInToBook": "Konekte pou rezève",
+      "signInNote": "Konekte oswa kreye yon kont pou rezève. Estimasyon ou an ap rete ranpli."
     },
     "tabs": {
       "driving": "Kondwi"
@@ -20711,7 +20729,9 @@
       "title": "Apèsi wout la",
       "label": "Wout eskemantik depi lè yo pran l rive lè yo remèt li",
       "driver": "Chofè",
-      "schematic": "Eskema, san echèl"
+      "schematic": "Eskema, san echèl",
+      "sample": "Wout egzanp. Mande yon estimasyon pou wè pa ou a.",
+      "sampleLabel": "Apèsi yon wout egzanp soti nan ranmasaj rive nan livrezon"
     },
     "pricingNote": "Pri a sèvi ak yon minimòm, distans ki ladan l, gwosè pakè a, vitès sèvis la ak yon frè platfòm ki klè.",
     "pricing": {
@@ -28399,6 +28419,12 @@
     "bookableHelper": "Kliyan yo ka chwazi yon orè sou Direct lè yon moun nan gwoup sèvis sa a lib."
   },
   "careers": {
+    "captcha": {
+      "label": "Ti verifikasyon sekirite",
+      "required": "Fè verifikasyon sekirite ki anba a pou w voye aplikasyon ou.",
+      "failed": "Verifikasyon sekirite a pa pase. Tanpri fè l ankò.",
+      "unavailable": "Verifikasyon sekirite a pa t ka chaje. Rafrechi paj la epi eseye ankò."
+    },
     "metaTitle": "Travay nan OxSteed",
     "metaDesc": "Jwenn travay pa ekip, a tan pasyèl oswa a tan plen avèk OxSteed ak biznis ki verifye. Chak pòs montre salè a.",
     "kicker": "Travay",

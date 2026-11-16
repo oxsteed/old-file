@@ -1216,6 +1216,12 @@
     "errorMismatch": "Kata sandi tidak cocok"
   },
   "register": {
+    "captcha": {
+      "label": "Pemeriksaan keamanan singkat",
+      "required": "Selesaikan pemeriksaan keamanan di bawah agar kami dapat memeriksa email ini.",
+      "failed": "Pemeriksaan keamanan gagal. Silakan ulangi.",
+      "unavailable": "Pemeriksaan keamanan tidak dapat dimuat. Muat ulang halaman dan coba lagi."
+    },
     "createAccount": "Buat akun Anda",
     "tagline": "Gabung dengan OxSteed - marketplace layanan lokal Anda.",
     "firstName": "Nama depan",
@@ -18170,6 +18176,24 @@
     "responseTime": "Kami bertujuan merespons umpan balik aksesibilitas dalam 2 hari kerja."
   },
   "delivery": {
+    "captcha": {
+      "label": "Pemeriksaan keamanan singkat",
+      "required": "Selesaikan pemeriksaan keamanan untuk mendapatkan perkiraan.",
+      "failed": "Pemeriksaan keamanan gagal. Silakan ulangi.",
+      "unavailable": "Pemeriksaan keamanan tidak dapat dimuat. Muat ulang halaman dan coba lagi."
+    },
+    "estimate": {
+      "priceRangeLabel": "Perkiraan harga",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Dari layanan standar hingga kilat",
+      "standardTotal": "Standar",
+      "signInToBook": "Masuk untuk memesan",
+      "signInNote": "Masuk atau buat akun untuk memesan. Perkiraan Anda tetap terisi."
+    },
+    "routePreview": {
+      "sample": "Rute contoh. Dapatkan perkiraan untuk melihat rute Anda.",
+      "sampleLabel": "Pratinjau rute contoh dari penjemputan ke pengantaran"
+    },
     "metaTitle": "Pengiriman OxSteed - Dari Titik ke Titik",
     "metaDescription": "Pesan pengiriman titik-ke-titik yang sederhana atau ambil pekerjaan pengiriman terdekat dengan OxSteed.",
     "eyebrow": "Pengiriman lokal yang sederhana",
@@ -24024,6 +24048,12 @@
     "bookableHelper": "Pelanggan dapat memilih slot kalender di Direct saat seseorang di pool layanan ini bebas."
   },
   "careers": {
+    "captcha": {
+      "label": "Pemeriksaan keamanan singkat",
+      "required": "Selesaikan pemeriksaan keamanan di bawah untuk mengirim lamaran Anda.",
+      "failed": "Pemeriksaan keamanan gagal. Silakan ulangi.",
+      "unavailable": "Pemeriksaan keamanan tidak dapat dimuat. Muat ulang halaman dan coba lagi."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

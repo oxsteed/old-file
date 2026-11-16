@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
@@ -7,16 +7,19 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
+  LifeBuoy,
   MapPin,
   Package,
   Route,
   ShieldCheck,
-  Truck,
+  Upload,
   Users,
   Wallet,
 } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import { EstimateCard, storeEstimatePrefill } from '../components/delivery/DeliveryEstimate';
+import { estimateDeliveryPublic, getDeliveryPublicCaptchaConfig } from '../api/delivery';
 import './DeliveryLandingPage.css';
 
 function Step({ index, title, description }) {
@@ -55,7 +58,16 @@ function FaqItem({ question, answer, open, onToggle }) {
 }
 
 export default function DeliveryLandingPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  // The server says whether the public estimate needs a bot check; the
+  // widget renders only then. Refetched if the server asks for a check this
+  // page did not know about (config changed after load).
+  const [captcha, setCaptcha] = useState(null);
+  const loadCaptcha = useCallback(() => {
+    getDeliveryPublicCaptchaConfig().then(setCaptcha).catch(() => setCaptcha(null));
+  }, []);
+  useEffect(() => { loadCaptcha(); }, [loadCaptcha]);
   const [openFaq, setOpenFaq] = useState(null);
 
   const steps = [
@@ -79,28 +91,55 @@ export default function DeliveryLandingPage() {
         url="/delivery"
       />
       <main className="delivery-landing">
-        {/* Hero */}
-        <section className="delivery-landing-hero">
-          <p className="delivery-landing-eyebrow">
-            <Truck size={16} aria-hidden="true" />
-            {t('deliveryLanding.heroEyebrow')}
-          </p>
-          <h1>{t('deliveryLanding.heroTitle')}</h1>
-          <p className="delivery-landing-hero__subtitle">{t('deliveryLanding.heroSubtitle')}</p>
-          <div className="delivery-landing-hero__ctas">
-            <Link to="/login?next=/delivery" className="delivery-landing-cta delivery-landing-cta--primary">
-              {t('deliveryLanding.ctaRequest')}
-              <ArrowRight size={18} aria-hidden="true" />
-            </Link>
-            <Link to="/join" className="delivery-landing-cta delivery-landing-cta--secondary">
-              {t('deliveryLanding.ctaDrive')}
-            </Link>
-          </div>
-          <p className="delivery-landing-hero__coverage">
-            <MapPin size={14} aria-hidden="true" />
-            {t('deliveryLanding.coverageNote')}
-          </p>
-        </section>
+        {/* Hero with the instant estimate (same card as the signed-in page,
+            priced through the public estimate endpoint). */}
+        <div className="delivery-page delivery-page--public" dir={i18n.dir()}>
+          <header className="delivery-hero delivery-hero--redesign">
+            <div className="delivery-hero__copy">
+              <span className="delivery-eyebrow">{t('delivery.eyebrow')}</span>
+              <h1>{t('delivery.title')}</h1>
+              <p>{t('delivery.hero.subtitle')}</p>
+              <ol className="delivery-steps" aria-label={t('delivery.hero.stepsLabel')}>
+                <li>
+                  <span className="delivery-steps__number">1</span>
+                  <span>{t('delivery.hero.step1')}</span>
+                  <Upload size={18} aria-hidden="true" />
+                </li>
+                <li>
+                  <span className="delivery-steps__number">2</span>
+                  <span>{t('delivery.hero.step2')}</span>
+                  <LifeBuoy size={18} aria-hidden="true" />
+                </li>
+                <li>
+                  <span className="delivery-steps__number">3</span>
+                  <span>{t('delivery.hero.step3')}</span>
+                  <Route size={18} aria-hidden="true" />
+                </li>
+              </ol>
+              <p className="delivery-landing-hero__coverage">
+                <MapPin size={14} aria-hidden="true" />
+                {t('deliveryLanding.coverageNote')}
+              </p>
+              <div className="delivery-landing-hero__ctas">
+                <Link to="/join" className="delivery-landing-cta delivery-landing-cta--secondary">
+                  {t('deliveryLanding.ctaDrive')}
+                </Link>
+              </div>
+            </div>
+            <EstimateCard
+              t={t}
+              requestEstimate={estimateDeliveryPublic}
+              captcha={captcha}
+              onCaptchaRequired={loadCaptcha}
+              continueLabel={t('delivery.estimate.signInToBook')}
+              continueNote={t('delivery.estimate.signInNote')}
+              onContinue={(prefill) => {
+                storeEstimatePrefill(prefill);
+                navigate(`/login?next=${encodeURIComponent('/delivery')}`);
+              }}
+            />
+          </header>
+        </div>
 
         {/* How it works */}
         <section className="delivery-landing-section" aria-labelledby="delivery-how">

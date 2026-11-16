@@ -8,6 +8,8 @@ const SCRIPT_SOURCES = [
   'https://www.google-analytics.com',
   // Cloudflare Web Analytics beacon when proxied via CF
   'https://static.cloudflareinsights.com',
+  // Cloudflare Turnstile widget (verifyCaptcha), e.g. the public delivery estimate
+  'https://challenges.cloudflare.com',
 ];
 const AWS_LOCATION_REGION = process.env.AWS_REGION || 'us-east-1';
 
@@ -95,7 +97,7 @@ const securityHeaders = helmet({
         process.env.CLIENT_URL || 'https://oxsteed.com',
         'https://o4511157112471552.ingest.us.sentry.io',
       ],
-      frameSrc: ['https://js.stripe.com', 'https://hooks.stripe.com', 'https://verify.didit.me'],
+      frameSrc: ['https://js.stripe.com', 'https://hooks.stripe.com', 'https://verify.didit.me', 'https://challenges.cloudflare.com'],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],

@@ -1216,6 +1216,12 @@
     "errorMismatch": "Mật khẩu không khớp"
   },
   "register": {
+    "captcha": {
+      "label": "Kiểm tra bảo mật nhanh",
+      "required": "Hoàn tất kiểm tra bảo mật bên dưới để chúng tôi kiểm tra email này.",
+      "failed": "Kiểm tra bảo mật chưa thành công. Vui lòng thực hiện lại.",
+      "unavailable": "Không tải được kiểm tra bảo mật. Hãy tải lại trang và thử lại."
+    },
     "createAccount": "Tạo tài khoản của bạn",
     "tagline": "Tham gia OxSteed - chợ dịch vụ địa phương của bạn.",
     "firstName": "Tên",
@@ -18170,6 +18176,24 @@
     "responseTime": "Chúng tôi hướng tới phản hồi về khả năng tiếp cận trong vòng 2 ngày làm việc."
   },
   "delivery": {
+    "captcha": {
+      "label": "Kiểm tra bảo mật nhanh",
+      "required": "Hoàn tất kiểm tra bảo mật để nhận ước tính.",
+      "failed": "Kiểm tra bảo mật chưa thành công. Vui lòng thực hiện lại.",
+      "unavailable": "Không tải được kiểm tra bảo mật. Hãy tải lại trang và thử lại."
+    },
+    "estimate": {
+      "priceRangeLabel": "Giá ước tính",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Từ dịch vụ tiêu chuẩn đến hỏa tốc",
+      "standardTotal": "Tiêu chuẩn",
+      "signInToBook": "Đăng nhập để đặt",
+      "signInNote": "Đăng nhập hoặc tạo tài khoản để đặt. Ước tính của bạn vẫn được giữ."
+    },
+    "routePreview": {
+      "sample": "Tuyến đường mẫu. Nhận ước tính để xem tuyến của bạn.",
+      "sampleLabel": "Xem trước tuyến đường mẫu từ điểm lấy đến điểm giao"
+    },
     "metaTitle": "OxSteed Delivery - Giao hàng điểm đến điểm",
     "metaDescription": "Đặt dịch vụ giao hàng đơn giản từ điểm này đến điểm khác hoặc nhận việc giao hàng gần bạn cùng OxSteed.",
     "eyebrow": "Giao hàng địa phương đơn giản",
@@ -24024,6 +24048,12 @@
     "bookableHelper": "Khách có thể chọn khung giờ trên Direct khi có người trong nhóm của dịch vụ này rảnh."
   },
   "careers": {
+    "captcha": {
+      "label": "Kiểm tra bảo mật nhanh",
+      "required": "Hoàn tất kiểm tra bảo mật bên dưới để gửi đơn ứng tuyển.",
+      "failed": "Kiểm tra bảo mật chưa thành công. Vui lòng thực hiện lại.",
+      "unavailable": "Không tải được kiểm tra bảo mật. Hãy tải lại trang và thử lại."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

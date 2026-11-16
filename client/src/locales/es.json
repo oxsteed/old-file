@@ -2990,6 +2990,12 @@
     "errorMismatch": "Las contraseñas no coinciden"
   },
   "register": {
+    "captcha": {
+      "label": "Verificación de seguridad rápida",
+      "required": "Completa la verificación de seguridad de abajo para comprobar este correo.",
+      "failed": "La verificación de seguridad no se completó. Vuelve a hacerla.",
+      "unavailable": "No se pudo cargar la verificación de seguridad. Actualiza la página e inténtalo de nuevo."
+    },
     "createAccount": "Crea tu cuenta",
     "tagline": "Únete a OxSteed - tu mercado de servicios locales.",
     "firstName": "Nombre",
@@ -20660,6 +20666,12 @@
     "responseTime": "Incluya página, tarea, dispositivo, navegador y tecnología de asistencia si corresponde. Indique el formato alternativo o ayuda que necesita. Revisamos informes y priorizamos barreras de acceso."
   },
   "delivery": {
+    "captcha": {
+      "label": "Verificación de seguridad rápida",
+      "required": "Completa la verificación de seguridad para obtener una estimación.",
+      "failed": "La verificación de seguridad no se completó. Vuelve a hacerla.",
+      "unavailable": "No se pudo cargar la verificación de seguridad. Actualiza la página e inténtalo de nuevo."
+    },
     "driverPayoutHistory": {
       "title": "Mi historial de pagos",
       "subtitle": "Pagos acumulados por las entregas que completaste. Operaciones aprueba los pagos y registra la referencia de pago; los pagos pagados y anulados no pueden cambiar.",
@@ -20695,7 +20707,13 @@
       "continue": "Continuar con la reserva",
       "distance": "Distancia",
       "routeTime": "Tiempo de ruta",
-      "sizePrices": "Precio por tamaño"
+      "sizePrices": "Precio por tamaño",
+      "priceRangeLabel": "Precio estimado",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "De servicio estándar a urgente",
+      "standardTotal": "Estándar",
+      "signInToBook": "Inicia sesión para reservar",
+      "signInNote": "Inicia sesión o crea una cuenta para reservar. Tu estimación se mantiene completada."
     },
     "tabs": {
       "driving": "Conduciendo"
@@ -20711,7 +20729,9 @@
       "title": "Vista previa de la ruta",
       "label": "Ruta esquemática desde la recogida hasta la entrega",
       "driver": "Conductor",
-      "schematic": "Esquema, no a escala"
+      "schematic": "Esquema, no a escala",
+      "sample": "Ruta de ejemplo. Obtén una estimación para ver la tuya.",
+      "sampleLabel": "Vista previa de ruta de ejemplo de la recogida a la entrega"
     },
     "pricingNote": "El precio usa una tarifa mínima, distancia incluida, tamaño del paquete, rapidez del servicio y una tarifa de plataforma clara.",
     "pricing": {
@@ -28399,6 +28419,12 @@
     "bookableHelper": "Los clientes pueden elegir un horario en Direct cuando alguien del grupo de este servicio esté libre."
   },
   "careers": {
+    "captcha": {
+      "label": "Verificación de seguridad rápida",
+      "required": "Completa la verificación de seguridad de abajo para enviar tu solicitud.",
+      "failed": "La verificación de seguridad no se completó. Vuelve a hacerla.",
+      "unavailable": "No se pudo cargar la verificación de seguridad. Actualiza la página e inténtalo de nuevo."
+    },
     "metaTitle": "Empleos en OxSteed",
     "metaDesc": "Encuentra trabajo por turnos, de medio tiempo o de tiempo completo con OxSteed y negocios verificados. Cada puesto muestra el salario.",
     "kicker": "Empleos",

@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { authLimiter, loginLimiter, authSessionLimiter, authLookupLimiter, strictLimiter, passwordResetLimiter, passwordResetVerifyLimiter } = require('../middleware/rateLimiter');
-const { verifyCaptcha } = require('../middleware/verifyCaptcha'); // audit L1 hook point (off by default)
+const { verifyCaptcha, captchaClientConfig } = require('../middleware/verifyCaptcha'); // audit L1 hook point (off by default)
 const {
   login,
   loginWith2FA,
@@ -62,6 +62,13 @@ router.post('/refresh', authSessionLimiter, refreshToken);
 router.post('/logout', authSessionLimiter, logout);
 
 // Customer registration flow (3-step)
+// Public bot-check widget config for every client form whose route uses
+// verifyCaptcha (check-email, careers guest-apply, public delivery estimate).
+// Never includes the secret.
+router.get('/captcha-config', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ success: true, captcha: captchaClientConfig() });
+});
 router.post('/check-email', authLookupLimiter, verifyCaptcha, checkEmail);
 router.post('/check-zip', authLookupLimiter, checkZip);
 router.post('/waitlist', authLimiter, addToWaitlist);

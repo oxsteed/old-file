@@ -28,6 +28,11 @@ export const quoteDelivery = (payload) => mutate('post', '/delivery/quote', payl
 // two stops and the size only. No quote row is created and it cannot be
 // booked; booking still goes through quoteDelivery with the full intake form.
 export const estimateDelivery = (payload) => api.post('/delivery/estimate', payload).then((response) => response.data);
+// Public instant estimate for the signed-out /delivery page: same pricing,
+// strict per-IP limit on the server, nothing stored.
+// Public bot-check config (verifyCaptcha): { enabled, provider, siteKey }.
+export const getDeliveryPublicCaptchaConfig = () => api.get('/delivery/public/captcha-config').then((response) => response.data?.captcha || null);
+export const estimateDeliveryPublic = (payload) => api.post('/delivery/public/estimate', payload).then((response) => response.data);
 export const createDelivery = (payload) => mutate('post', '/delivery/jobs', payload);
 export const listDeliveryJobs = () => api.get('/delivery/jobs').then((response) => response.data);
 export const claimDeliveryJob = (id) => mutate('post', `/delivery/jobs/${id}/claim`);

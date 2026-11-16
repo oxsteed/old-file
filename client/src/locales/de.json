@@ -1216,6 +1216,12 @@
     "errorMismatch": "Passwörter stimmen nicht überein"
   },
   "register": {
+    "captcha": {
+      "label": "Kurze Sicherheitsprüfung",
+      "required": "Schließe die Sicherheitsprüfung unten ab, damit wir diese E-Mail prüfen können.",
+      "failed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte wiederhole sie.",
+      "unavailable": "Die Sicherheitsprüfung konnte nicht geladen werden. Lade die Seite neu und versuche es erneut."
+    },
     "createAccount": "Ihr Konto erstellen",
     "tagline": "Treten Sie OxSteed bei – Ihrem Marktplatz für lokale Dienste.",
     "firstName": "Vorname",
@@ -18170,6 +18176,24 @@
     "responseTime": "Wir bemühen uns, innerhalb von 2 Werktagen auf Feedback zur Barrierefreiheit zu antworten."
   },
   "delivery": {
+    "captcha": {
+      "label": "Kurze Sicherheitsprüfung",
+      "required": "Schließe die Sicherheitsprüfung ab, um eine Schätzung zu erhalten.",
+      "failed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte wiederhole sie.",
+      "unavailable": "Die Sicherheitsprüfung konnte nicht geladen werden. Lade die Seite neu und versuche es erneut."
+    },
+    "estimate": {
+      "priceRangeLabel": "Geschätzter Preis",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Von Standard- bis Eilservice",
+      "standardTotal": "Standard",
+      "signInToBook": "Zum Buchen anmelden",
+      "signInNote": "Melde dich an oder erstelle ein Konto, um zu buchen. Deine Schätzung bleibt ausgefüllt."
+    },
+    "routePreview": {
+      "sample": "Beispielroute. Hol dir eine Schätzung, um deine zu sehen.",
+      "sampleLabel": "Vorschau einer Beispielroute von Abholung bis Zustellung"
+    },
     "metaTitle": "OxSteed Lieferung: Punkt-zu-Punkt",
     "metaDescription": "Buchen Sie eine einfache Punkt-zu-Punkt-Lieferung oder übernehmen Sie Lieferaufträge in Ihrer Nähe mit OxSteed.",
     "eyebrow": "Einfache Lieferung vor Ort",
@@ -24023,6 +24047,12 @@
     "bookableHelper": "Kunden können auf Direct ein Kalenderzeitfenster wählen, wenn jemand aus dem Pool dieses Dienstes verfügbar ist."
   },
   "careers": {
+    "captcha": {
+      "label": "Kurze Sicherheitsprüfung",
+      "required": "Schließe die Sicherheitsprüfung unten ab, um deine Bewerbung zu senden.",
+      "failed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte wiederhole sie.",
+      "unavailable": "Die Sicherheitsprüfung konnte nicht geladen werden. Lade die Seite neu und versuche es erneut."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

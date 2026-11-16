@@ -1216,6 +1216,12 @@
     "errorMismatch": "비밀번호가 일치하지 않습니다."
   },
   "register": {
+    "captcha": {
+      "label": "간단한 보안 확인",
+      "required": "이 이메일을 확인하려면 아래 보안 확인을 완료하세요.",
+      "failed": "보안 확인이 완료되지 않았습니다. 다시 진행해 주세요.",
+      "unavailable": "보안 확인을 불러올 수 없습니다. 페이지를 새로고침한 후 다시 시도하세요."
+    },
     "createAccount": "계정 만들기",
     "tagline": "OxSteed에 가입하세요 - 지역 서비스 마켓플레이스.",
     "firstName": "이름",
@@ -18170,6 +18176,24 @@
     "responseTime": "접근성 피드백에 2영업일 이내에 답변하는 것을 목표로 합니다."
   },
   "delivery": {
+    "captcha": {
+      "label": "간단한 보안 확인",
+      "required": "견적을 받으려면 보안 확인을 완료하세요.",
+      "failed": "보안 확인이 완료되지 않았습니다. 다시 진행해 주세요.",
+      "unavailable": "보안 확인을 불러올 수 없습니다. 페이지를 새로고침한 후 다시 시도하세요."
+    },
+    "estimate": {
+      "priceRangeLabel": "예상 가격",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "일반부터 긴급 서비스까지",
+      "standardTotal": "일반",
+      "signInToBook": "로그인하여 예약",
+      "signInNote": "예약하려면 로그인하거나 계정을 만드세요. 견적은 그대로 유지됩니다."
+    },
+    "routePreview": {
+      "sample": "예시 경로입니다. 견적을 받아 내 경로를 확인하세요.",
+      "sampleLabel": "픽업부터 배송까지의 예시 경로 미리보기"
+    },
     "metaTitle": "OxSteed Delivery - 지점 간 배송",
     "metaDescription": "OxSteed에서 간단한 지점 간 배송을 예약하거나 근처의 배송 일을 수락하세요.",
     "eyebrow": "간편한 지역 배송",
@@ -24024,6 +24048,12 @@
     "bookableHelper": "이 서비스의 풀에 있는 사람이 무료인 경우 고객은 다이렉트에서 캘린더 슬롯을 선택할 수 있습니다."
   },
   "careers": {
+    "captcha": {
+      "label": "간단한 보안 확인",
+      "required": "지원서를 보내려면 아래 보안 확인을 완료하세요.",
+      "failed": "보안 확인이 완료되지 않았습니다. 다시 진행해 주세요.",
+      "unavailable": "보안 확인을 불러올 수 없습니다. 페이지를 새로고침한 후 다시 시도하세요."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

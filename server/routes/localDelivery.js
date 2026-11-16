@@ -11,7 +11,8 @@ const trackingOpsController = require('../controllers/deliveryTrackingOpsControl
 const trackingLinkController = require('../controllers/deliveryTrackingLinkController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
-const { authenticatedLimiter, generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
+const { authenticatedLimiter, generalLimiter, strictLimiter, deliveryPublicEstimateLimiter } = require('../middleware/rateLimiter');
+const { verifyCaptcha, captchaClientConfig } = require('../middleware/verifyCaptcha');
 const checkRestrictions = require('../middleware/checkRestrictions');
 
 const router = express.Router();
@@ -19,6 +20,13 @@ router.use(authenticatedLimiter);
 
 router.post('/quote', requireAuth, controller.quote);
 router.post('/estimate', requireAuth, controller.estimate);
+// Signed-out instant estimate: strict per-IP limit, bot-check hook (off until
+// CAPTCHA_ENABLED), no auth, nothing stored.
+router.get('/public/captcha-config', generalLimiter, (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ success: true, captcha: captchaClientConfig() });
+});
+router.post('/public/estimate', deliveryPublicEstimateLimiter, verifyCaptcha, controller.publicEstimate);
 router.post('/jobs', requireAuth, controller.create);
 router.get('/jobs', requireAuth, controller.list);
 router.get('/jobs/:id', requireAuth, controller.get);

@@ -1105,6 +1105,12 @@
     "errorMismatch": "Manenosiri hayalingani"
   },
   "register": {
+    "captcha": {
+      "label": "Ukaguzi wa haraka wa usalama",
+      "required": "Kamilisha ukaguzi wa usalama ulio hapa chini ili tuweze kukagua barua pepe hii.",
+      "failed": "Ukaguzi wa usalama haukufaulu. Tafadhali ukamilishe tena.",
+      "unavailable": "Ukaguzi wa usalama haukuweza kupakia. Onyesha upya ukurasa na ujaribu tena."
+    },
     "createAccount": "Unda akaunti yako",
     "tagline": "Jiunge na OxSteed - soko lako la huduma za karibu.",
     "firstName": "Jina la kwanza",
@@ -18032,6 +18038,24 @@
     "responseTime": "Tunalenga kujibu maoni ya ufikiaji ndani ya siku 2 za kazi."
   },
   "delivery": {
+    "captcha": {
+      "label": "Ukaguzi wa haraka wa usalama",
+      "required": "Kamilisha ukaguzi wa usalama ili upate makadirio.",
+      "failed": "Ukaguzi wa usalama haukufaulu. Tafadhali ukamilishe tena.",
+      "unavailable": "Ukaguzi wa usalama haukuweza kupakia. Onyesha upya ukurasa na ujaribu tena."
+    },
+    "estimate": {
+      "priceRangeLabel": "Bei inayokadiriwa",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "Kutoka huduma ya kawaida hadi ya haraka",
+      "standardTotal": "Kawaida",
+      "signInToBook": "Ingia ili uweke nafasi",
+      "signInNote": "Ingia au fungua akaunti ili uweke nafasi. Makadirio yako yatabaki yamejazwa."
+    },
+    "routePreview": {
+      "sample": "Njia ya mfano. Pata makadirio ili uone yako.",
+      "sampleLabel": "Onyesho la njia ya mfano kutoka kuchukua hadi kufikisha"
+    },
     "metaTitle": "OxSteed Delivery - Moja kwa moja",
     "metaDescription": "Weka oda ya usafirishaji rahisi wa moja kwa moja au twaa kazi za usafirishaji zilizo karibu nawe kupitia OxSteed.",
     "eyebrow": "Usafirishaji rahisi wa ndani",
@@ -23885,6 +23909,12 @@
     "bookableHelper": "Wateja wanaweza kuchagua nafasi ya kalenda kwenye Direct wakati mtu katika bwawa la huduma hii ni bure."
   },
   "careers": {
+    "captcha": {
+      "label": "Ukaguzi wa haraka wa usalama",
+      "required": "Kamilisha ukaguzi wa usalama ulio hapa chini ili kutuma ombi lako.",
+      "failed": "Ukaguzi wa usalama haukufaulu. Tafadhali ukamilishe tena.",
+      "unavailable": "Ukaguzi wa usalama haukuweza kupakia. Onyesha upya ukurasa na ujaribu tena."
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",

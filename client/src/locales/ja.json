@@ -1216,6 +1216,12 @@
     "errorMismatch": "パスワードが一致しません"
   },
   "register": {
+    "captcha": {
+      "label": "簡単なセキュリティ確認",
+      "required": "このメールアドレスを確認するには、下のセキュリティ確認を完了してください。",
+      "failed": "セキュリティ確認が完了しませんでした。もう一度お試しください。",
+      "unavailable": "セキュリティ確認を読み込めませんでした。ページを再読み込みしてもう一度お試しください。"
+    },
     "createAccount": "アカウントを作成する",
     "tagline": "OxSteedに参加しましょう。地域サービスのマーケットプレイスです。",
     "firstName": "名",
@@ -18170,6 +18176,24 @@
     "responseTime": "アクセシビリティに関するお問い合わせには、2営業日以内のご返信を目指しています。"
   },
   "delivery": {
+    "captcha": {
+      "label": "簡単なセキュリティ確認",
+      "required": "見積もりを取得するにはセキュリティ確認を完了してください。",
+      "failed": "セキュリティ確認が完了しませんでした。もう一度お試しください。",
+      "unavailable": "セキュリティ確認を読み込めませんでした。ページを再読み込みしてもう一度お試しください。"
+    },
+    "estimate": {
+      "priceRangeLabel": "見積価格",
+      "priceRange": "{{min}} – {{max}}",
+      "rangeNote": "通常から特急サービスまで",
+      "standardTotal": "通常",
+      "signInToBook": "ログインして予約",
+      "signInNote": "予約するにはログインまたはアカウントを作成してください。見積もりは入力されたままです。"
+    },
+    "routePreview": {
+      "sample": "サンプルルートです。見積もりを取得するとあなたのルートが表示されます。",
+      "sampleLabel": "集荷から配達までのサンプルルートのプレビュー"
+    },
     "metaTitle": "OxSteed 配達 - ポイントツーポイント",
     "metaDescription": "OxSteedで、シンプルなポイントツーポイント配達を予約したり、近くの配達の仕事を引き受けたりできます。",
     "eyebrow": "シンプルな地域配達",
@@ -24023,6 +24047,12 @@
     "bookableHelper": "このサービスのプールに空きがある場合、お客様はDirectでカレンダーの空き枠を選べます。"
   },
   "careers": {
+    "captcha": {
+      "label": "簡単なセキュリティ確認",
+      "required": "応募を送信するには、下のセキュリティ確認を完了してください。",
+      "failed": "セキュリティ確認が完了しませんでした。もう一度お試しください。",
+      "unavailable": "セキュリティ確認を読み込めませんでした。ページを再読み込みしてもう一度お試しください。"
+    },
     "metaTitle": "Careers at OxSteed",
     "metaDesc": "Find shift, part-time and full-time work with OxSteed and verified businesses. Pay is shown on every role.",
     "kicker": "Careers",
