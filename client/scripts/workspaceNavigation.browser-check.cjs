@@ -12,7 +12,9 @@ test('workspace navigation defers inactive editors and remains usable during del
   try {
     for (const [language, width] of [['en', 1440], ['ar', 390]]) {
       const catalog = catalogs[language];
-      fixture.state.user = { ...fixture.state.user, role: 'helper', default_mode: 'business_owner', preferred_language: language };
+      const progressive = language === 'en';
+      fixture.state.user = { ...fixture.state.user, role: progressive ? 'customer' : 'helper',
+        default_mode: progressive ? 'customer' : 'business_owner', preferred_language: language };
       const business = { id: 4, business_name: 'Fixture Service Team', business_kind: 'service', status: 'active', setup_status: 'active', role: 'owner', is_owner: true, currency: 'USD', address_country: 'US' };
       fixture.state.readResponses = {
         '/api/businesses': { businesses: [business] }, '/api/businesses/managed': { businesses: [] },
@@ -22,6 +24,18 @@ test('workspace navigation defers inactive editors and remains usable during del
         '/api/businesses/4/services': { services: [] },
         '/api/businesses/categories': { categories: [], operatingModels: [] },
       };
+      if (progressive) {
+        fixture.state.readResponses['/api/me/access'] = {
+          accountId: String(fixture.state.user.id),
+          access: { personal: ['customer'], organizations: [] },
+          flags: { accessRequests: true, accessProjection: true },
+        };
+        fixture.state.readResponses['/api/me/access-requests'] = { requests: [{
+          id: 'owner-approval', capability: 'business.own', status: 'approved',
+          subjectDisplay: { kind: 'new_business', name: business.business_name }, availableActions: [],
+        }] };
+        fixture.state.readResponses['/api/me/access-policies'] = { policies: [] };
+      }
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       await context.addInitScript(({ language }) => { localStorage.setItem('oxs:language', language); localStorage.setItem('theme', language === 'ar' ? 'dark' : 'light'); }, { language });
       const page = await context.newPage();
@@ -38,7 +52,11 @@ test('workspace navigation defers inactive editors and remains usable during del
       const tabs = page.locator('.bh-tabs');
       try {
         let start = Date.now();
-        await page.goto(fixture.origin + '/business/4/workspace');
+        await page.goto(fixture.origin + (progressive ? '/settings/applications' : '/business/4/workspace'));
+        if (progressive) {
+          await page.locator('[data-track="ui.access.applications.business-workspace"]').click();
+          await page.waitForURL('**/business-hub');
+        }
         await tabs.locator('.active').waitFor();
         await page.locator('.bh-switcher').waitFor();
         timings.push({ language, transition: 'cold-workspace', ms: Date.now() - start });

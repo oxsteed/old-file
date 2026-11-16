@@ -100,6 +100,7 @@ import { formatDate, formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import { isBusinessHubTabLaunched, LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { canAccessBusinessHub } from '../utils/modeAccess';
+import useAccessProjection from '../hooks/useAccessProjection';
 import TabErrorBoundary from '../components/TabErrorBoundary';
 const HiringPipelineBoard = lazyDefault(() => import('../components/careers/HiringPipelineBoard'));
 import {
@@ -170,9 +171,9 @@ export default function BusinessHubPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const { businessId: workspaceBusinessId } = useParams();
+  const projection = useAccessProjection(user);
 
-  // guard — capability/mode check (helper-class + business_owner/team), not role list
-  if (!user || !canAccessBusinessHub(user)) {
+  if (!canAccessBusinessHub(user, projection)) {
     return (
       <PageShell>
         <PageMeta title={t('businessHub.metaTitle')} description={t('businessHub.metaDesc')} />

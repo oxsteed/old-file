@@ -197,12 +197,22 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
   HQ browser test read fixture state before the save completed. WP-078 now
   waits for the PATCH response and the refreshed review form. The Franchise
   HQ, application, territory and Applications browser checks passed locally.
+- The Workspace route now opens for Customers who can prepare drafts under
+  progressive access, and for users with projected business memberships.
+  `workspaceNavigation.browser-check.cjs` follows the approved application
+  link into the built Workspace while the account remains a Customer.
+  The built client passed all three Workspace navigation tests. The real DB
+  suite also shows that legacy Food endpoints cannot create or publish an
+  active restaurant before owner approval is bound (`901a6b1b8`), including
+  attempts to pause first or set listing visibility directly. All 28 focused
+  server tests passed after those changes.
 
 Check the updated PR CI. Continue AC-025 with real browser tabs and an active
-food order. For AC-029, verify the public listing, reviewer record, and matching
-or correcting proposal details in a connected browser. Email delivery and
-external identity verification need live acceptance. WP-045 remains the next
-planned work package.
+food order. For AC-029, a disposable DB smoke verified the public API returned
+200 for the published business and 404 for both remaining drafts. Verify the
+review, listing, and proposal-detail correction in a connected browser. Email
+delivery and external identity verification need live acceptance. WP-045
+remains the next planned work package.
 
 WP-007 done: `services/access/evidence.js` — Didit verified/duplicate and Stripe Identity
 verified callbacks bump `evidence_revision` on the same user's open applications (stale

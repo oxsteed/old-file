@@ -78,7 +78,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-057 | Property and maintenance workflows | P3 | implemented | b9b0f50ba | __tests__/progressiveAccessMaintenance.db.test.js |
 | WP-058 | Trades, creative, professional and appointment templates | P3 | implemented | e560de691 | __tests__/progressiveAccessTemplates.db.test.js |
 | WP-059 | Continuity and operating health | P3 | implemented | a32d433bd | __tests__/progressiveAccessHealth.db.test.js |
-| WP-060 | Restaurant application and activation | P3 | implemented | 5e4727225, e5edccf47 | `progressiveAccessSignup.db.test.js` tests signup through Business Workspace publication; `progressiveAccessRestaurant.db.test.js` covers direct restaurant publishing, canonical owner approval, and legacy behavior |
+| WP-060 | Restaurant application and activation | P3 | implemented | 5e4727225, e5edccf47, 901a6b1b8 | `progressiveAccessSignup.db.test.js` tests signup through Business Workspace publication and rejects pre-approval attempts via legacy routes; `progressiveAccessRestaurant.db.test.js` covers direct restaurant publishing, canonical owner approval, and legacy behavior |
 | WP-061 | Restaurant membership and assigned store scope | P3 | implemented | 31d63875f | __tests__/progressiveAccessRestaurantStores.db.test.js, restaurantLocationAccess.test.js |
 | WP-062 | Dining and public menu | P3 | implemented | f8c1857ea | __tests__/progressiveAccessRestaurantMenu.db.test.js |
 | WP-063 | Restaurant order management and service cycle | P3 | implemented | 2c87ceef8 | __tests__/progressiveAccessRestaurantOrders.db.test.js, foodController.test.js |
@@ -155,7 +155,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-026 | Verified identity with approval still pending | server evidence (partial) | progressiveAccess.db.test.js WP-007 case: verified identity, no grant until a fresh decision; bid deny under enforce in progressiveAccessHelperEnforcement.test.js |
 | AC-027 | Approved helper suspended or unlisted | server evidence (partial) | progressiveAccessHelperEnforcement.test.js: suspended/revoked grant blocks bids and hiring under enforce |
 | AC-028 | Existing contract after new-work revoke | planned | |
-| AC-029 | Apply to create a new business | browser and server evidence (partial) | Chrome starts the Owner proposal draft and shows a Business Workspace link after approval using a fixture API. Real PostgreSQL verifies review and publication of one matching owned business and denies competing and wrong-market drafts. Public listing and review in a connected browser remain open. |
+| AC-029 | Apply to create a new business | browser and server evidence (partial) | Chrome starts the Owner proposal draft and follows the approved link into the built Business Workspace as a Customer using a fixture API. Real PostgreSQL verifies review and publication of one matching owned business and denies competing and wrong-market drafts. A public API smoke confirms the published listing is visible and the other drafts are private. Review and publication in one connected browser remain open. |
 | AC-030 | Competing claims for an existing business | planned | |
 | AC-031 | Membership approval by actual employer | planned | |
 | AC-032 | Invite link across logged-out state | planned | |
