@@ -9,8 +9,11 @@ const { requireAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const ctrl = require('../controllers/businessProductsController');
 const sync = require('../services/businessProductMarketplaceSync');
+const db = require('../db');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const { logBusinessAction } = require('../services/businessAuditLog');
+const { businessEnforcement } = require('../services/access/flags');
+const { checkPublish } = require('../services/access/businessGate');
 
 // List / create products
 router.get ('/:businessId/products',                          requireAuth, requireBusinessAccess({ minRole: 'any' }),     ctrl.listProducts);
@@ -36,6 +39,16 @@ router.post('/:businessId/products/:productId/publish',
   requireAuth, requireBusinessAccess({ minRole: 'manager' }),
   async (req, res, next) => {
     try {
+      if (businessEnforcement() !== 'off') {
+        const gate = await checkPublish(db, {
+          userId: req.user.id,
+          businessId: req.params.businessId,
+          kind: 'service',
+        });
+        if (!gate.allowed) {
+          return sendError(res, 403, 'This needs approved access first.', 'access_required');
+        }
+      }
       const result = await sync.publishBusinessProduct(req.params.productId);
       await logBusinessAction(req, {
         action: 'business.product.published',

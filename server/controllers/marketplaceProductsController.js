@@ -164,6 +164,8 @@ const getProductDetail = async (req, res) => {
       LEFT JOIN marketplace_product_skills mps ON mp.id = mps.product_id
       LEFT JOIN skills_lookup sl ON mps.skill_id = sl.id
       WHERE mp.id = $1
+        AND mp.is_active = TRUE
+        AND mp.is_available = TRUE
       GROUP BY mp.id
     `;
 
@@ -340,6 +342,7 @@ const searchProducts = async (req, res) => {
       LEFT JOIN marketplace_product_skills mps ON mp.id = mps.product_id
       LEFT JOIN skills_lookup sl ON mps.skill_id = sl.id
       WHERE mp.is_active = TRUE
+        AND mp.is_available = TRUE
         AND to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, ''))
             @@ plainto_tsquery('english', $1)
     `;
@@ -376,6 +379,7 @@ const searchProducts = async (req, res) => {
       FROM marketplace_products mp
       LEFT JOIN marketplace_product_skills mps ON mp.id = mps.product_id
       WHERE mp.is_active = TRUE
+        AND mp.is_available = TRUE
         AND to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, ''))
             @@ plainto_tsquery('english', $1)
     `;

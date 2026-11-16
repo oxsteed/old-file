@@ -1415,6 +1415,21 @@ approval-aware publication, checkout independence, and cross-business catalog
 isolation; then add the smallest missing capability-aware contract and focused
 tests.
 
+WP-039 is implemented on the branch. Business product create/update/variant
+operations remain scoped by the requested business and manager membership, while
+the marketplace publish action now checks the existing `business.own` approval
+policy whenever `ACCESS_BUSINESS_ENFORCEMENT` is enabled. Helper product writes
+retain the helper capability gate. Public marketplace detail and full-text
+search now apply the same active-and-available visibility filter as browse and
+related-product reads, so an unpublished mirror is not exposed by a deep link.
+Focused tests passed 13/13 and edited server files pass `node --check`. No
+populated browser or checkout acceptance is claimed.
+**Exact next action (resume here):** begin WP-040 Carts, saved baskets, and
+checkout. Audit personal/shared/job-kit cart identity, collaborator visibility,
+approval changes during checkout, stale-price and stock revalidation, share-token
+rotation, idempotency, and duplicate-order prevention; then add the smallest
+missing capability-aware contract and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
