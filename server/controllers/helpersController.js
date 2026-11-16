@@ -14,6 +14,7 @@ const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const availabilityService = require('../services/helperAvailabilityService');
 const { isIdentityVerified } = require('../services/helperOnboarding');
 const { evaluateOperatingHours } = require('../utils/foodOperatingHours');
+const accessFlags = require('../services/access/flags');
 
 // Saved-search fan-out for newly listed helpers (routes/savedSearches also
 // exposes the jobs/tools matchers). Defensive require: alerts must never
@@ -104,6 +105,37 @@ function sanitizeServicePriceUnit(u) {
   const v = String(u || 'flat').toLowerCase();
   if (v === 'flat' || v === 'hour' || v === 'starting_at' || v === 'quote') return v;
   return 'flat';
+}
+
+// Progressive access keeps the legacy role as a compatibility hint. Once the
+// projection rollout is enabled, a customer-role account with an effective
+// helper.offer_services grant is equally eligible for public helper discovery.
+function publicHelperRolePredicate(alias = 'u') {
+  const legacy = `${alias}.role = ANY($1::user_role[])`;
+  if (!accessFlags.projectionEnabled()) return legacy;
+  return `(${legacy}
+    OR EXISTS (
+      SELECT 1 FROM access_grants ag
+       WHERE ag.user_id = ${alias}.id
+         AND ag.capability = 'helper.offer_services'
+         AND ag.subject_type = 'self'
+         AND ag.status = 'active'
+         AND (ag.expires_at IS NULL OR ag.expires_at > NOW())
+    ))`;
+}
+
+function publicHelperStandingPredicate(alias = 'u') {
+  const legacy = `${alias}.role IN ('helper', 'helper_pro', 'broker')`;
+  if (!accessFlags.projectionEnabled()) return legacy;
+  return `(${legacy}
+    OR EXISTS (
+      SELECT 1 FROM access_grants ag
+       WHERE ag.user_id = ${alias}.id
+         AND ag.capability = 'helper.offer_services'
+         AND ag.subject_type = 'self'
+         AND ag.status = 'active'
+         AND (ag.expires_at IS NULL OR ag.expires_at > NOW())
+    ))`;
 }
 
 // ── GET /api/helpers ──────────────────────────────────────────────────────────
@@ -230,7 +262,7 @@ async function listHelpers(req, res, next) {
       'u.is_active = TRUE',
       // Review P1-203: the profile endpoint serves helper/helper_pro/broker,
       // so the directory lists all three.
-      'u.role = ANY($1::user_role[])',
+      publicHelperRolePredicate('u'),
       'u.email_verified = TRUE',
       'u.onboarding_completed = TRUE',
       // Review P2-2-F12: fail closed. The directory LEFT JOINs helper_profiles,
@@ -783,7 +815,7 @@ async function respondHelperProfile(req, res, next, adminPreview) {
          LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
          WHERE u.id = $1
            AND u.deleted_at IS NULL
-           AND u.role IN ('helper', 'helper_pro', 'broker')
+           AND ${publicHelperStandingPredicate('u')}
            ${adminPreview ? '' : `AND u.is_active = TRUE
            AND u.email_verified = TRUE
            AND u.onboarding_completed = TRUE
@@ -1102,6 +1134,7 @@ async function getHelperStatus(req, res, next) {
          AND u.is_active = TRUE
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
+         AND ${publicHelperStandingPredicate('u')}
          AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
@@ -1137,6 +1170,7 @@ async function getHelperAvailability(req, res, next) {
          AND u.is_active = TRUE
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
+         AND ${publicHelperStandingPredicate('u')}
          AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
@@ -1211,6 +1245,7 @@ async function getHelperAvailabilitySummary(req, res, next) {
           AND u.is_active = TRUE
           AND u.email_verified = TRUE
           AND u.onboarding_completed = TRUE
+          AND ${publicHelperStandingPredicate('u')}
           AND hp.is_listed IS TRUE
           AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
@@ -1250,6 +1285,7 @@ async function getHelperPricing(req, res, next) {
          AND u.is_active = TRUE
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
+         AND ${publicHelperStandingPredicate('u')}
          AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
@@ -1301,6 +1337,7 @@ async function getHelperSlots(req, res, next) {
          AND u.is_active = TRUE
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
+         AND ${publicHelperStandingPredicate('u')}
          AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
@@ -1589,5 +1626,5 @@ async function removeCredential(req, res, next) {
 
 module.exports = { listHelpers, getHelperProfile, getAdminProfilePreview, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability,
   getHelperAvailabilitySummary, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability, removeCredential,
-  fetchOpenRestaurantsNear,
+  fetchOpenRestaurantsNear, publicHelperRolePredicate, publicHelperStandingPredicate,
 };

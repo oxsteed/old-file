@@ -39,7 +39,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-019 | Sessions on native API and PWA | P2 | implemented (mobile projection) | 99f9466fd | `server/__tests__/mobileProfile.test.js` (4); existing `routeReliability.test.mjs` confirms authenticated API responses remain network-only and are never replayed from the service worker. Repository audit found no native profile consumer beyond the API contract. |
 | WP-020 | Notification and application messages | P2 | implemented | cba40e04e | progressiveAccess.db.test.js (outbox, real in-app), progressiveAccessOutboxCopy.test.js |
 | WP-021 | Account deletion, export and privacy | P4 | implemented (access boundary) | (this checkpoint) | `progressiveAccessPrivacy.test.js` (2), `progressiveAccessPrivacy.db.test.js` (1), privacy export/reauth suites (15); exports applicant-safe requests/grants/decisions, revokes active grants on deletion, retains immutable decisions, and cancels pending access outbox delivery |
-| WP-022 | Profile and public directory | P4 | planned | | |
+| WP-022 | Profile and public directory | P4 | implemented (helper public surfaces) | (this checkpoint) | `progressiveAccessProfileVisibility.test.js` (3), `mobilePublicBrowse.test.js` (2), `publicProfileVisibilityFailures.test.js` (1); public helper list/profile/status/availability/pricing/slots accept effective `helper.offer_services` grants under projection while preserving legacy role behavior when off |
 | WP-023 | Preferences, status and localization | P4 | planned | | |
 | WP-024 | Public discovery and location | P4 | planned | | |
 | WP-025 | Customer job post and job lifecycle | P2 | planned | | |

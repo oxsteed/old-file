@@ -1117,6 +1117,21 @@ on search/profile/slug/QR/embeds, and cross-account visibility. Start with the
 helper listing/profile route tests and add only the smallest capability-aware
 boundary, then run its focused tests plus the exact-head CI check.
 
+WP-022 now has a helper-public-visibility checkpoint. Directory listing and
+profile reads, plus status, availability, pricing, and slot lookups, accept a
+customer-role account with an effective `helper.offer_services` grant when the
+projection flag is enabled. Legacy helper/helper_pro/broker role behavior and
+the existing listed, onboarding, account-standing, and admin-hidden predicates
+remain unchanged when the flag is off. The focused contract suite passes (3),
+the mobile browse regression passes (2), and the public-profile failure suite
+passes (1). Business/restaurant public-directory separation and live populated
+visibility acceptance remain open.
+**Exact next action (resume here):** audit WP-023 Preferences, status and
+localization for capability-aware settings labels, Arabic keyboard/focus flow,
+long business-name rendering, and independent approved-choice persistence.
+Start with the existing Settings and locale contract suites; keep all new copy
+in the generated 20-locale catalogs and record any browser acceptance limits.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
