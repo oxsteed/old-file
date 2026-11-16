@@ -1270,6 +1270,19 @@ review and moderation suites together, then audit helper review edit/delete,
 business response, booking completion eligibility, and report/hide paths before
 closing WP-030.
 
+WP-030 is implemented on the branch. Marketplace product reviews now use the
+progressive helper capability on the server and `hasHelperAccess` in the client;
+job review submission/eligibility remains party-owned, business review
+submission remains customer-owned, food review submission remains order-owned,
+and hide/report/respond operations retain their existing admin/business or
+owner scopes. The focused server and client contracts pass, with no live review
+or moderation acceptance claimed.
+**Exact next action (resume here):** begin WP-031 Careers applications and
+employer recruiting. Audit applicant creation, employer-only posting/review,
+candidate messaging, interview scheduling, and offer/withdrawal mutations for
+business membership versus helper/customer access, then add the smallest
+capability-aware boundary and focused contracts.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
