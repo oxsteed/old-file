@@ -320,8 +320,13 @@ Not covered yet: personal details on public queue boards (queue_board feed). Che
 under WP-068/069 if they touch queue screens.
 Evidence: `progressiveAccessRestaurantDisplays.db.test.js`.
 
+WP-068 done (evidence only; inventory already checks `assertExistingItemLocationAccess`).
+Note: the Employee role has `inventory.update` by default; the test promotes a
+Representative. Permission cache is 30 s per instance (`invalidateCache` on change).
+Evidence: `progressiveAccessRestaurantStock.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-068 (SPEC.md, search `<a id="wp-068">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-069 (SPEC.md, search `<a id="wp-069">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
