@@ -928,6 +928,24 @@ this branch.
 
 History of what is done (newest last):
 
+WP-008 is now an evidence checkpoint. Business team approval continues to use
+the canonical `business_members` row in the selected business context. The
+route requires live business standing plus team-invite/role permission, the
+controller updates only a pending row scoped to that business, and removal of
+an active member is a separate action. Manager-issued manager-role access codes
+are capped to representative, active code secrets are masked after creation,
+and a stale workspace selection cannot lend authority to another business.
+`businessHubBrokenG.test.js`, `vortexMembershipSecurity.test.js`,
+`progressiveAccessWorkspace.db.test.js`, and
+`progressiveAccessOverrides.db.test.js` pass together (40 tests; 15
+environment-gated skips). The populated two-business pending-approval case,
+approval after revoking the approver’s live membership, and exact-head CI remain
+open.
+**Exact next action (resume here):** move to WP-009, Invitations and Vortex
+codes. Run the populated invite/code acceptance for double redemption, invalid
+account, expiry/revocation races, retained prior memberships, and foreign-team
+privacy.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

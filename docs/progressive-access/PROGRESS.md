@@ -25,7 +25,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-005 | Signed-in profile edit and account type removal | P2 | implemented | bb9a413fa | progressiveAccessModeGate.db.test.js (profile, mobile, switch) |
 | WP-006 | Dedicated helper registration | P2 | implemented (server, flag-gated) | dd02c9826 | progressiveAccessHelperEnforcement.test.js (dedicated registration closed → general signup) |
 | WP-007 | Verification and provider callbacks | P2 | implemented | da21ff6fe | progressiveAccess.db.test.js (WP-007) |
-| WP-008 | Business team access requests | P2 | planned | | |
+| WP-008 | Business team access requests | P2 | in progress | existing business scope/membership controls | Business membership remains the approval source and every team route resolves the selected business and live role/permission set; pending approval is scoped to `business_id`, active-member removal is separate, and owner/manager privilege caps prevent manager self-replication. `businessHubBrokenG.test.js`, `vortexMembershipSecurity.test.js`, `progressiveAccessWorkspace.db.test.js`, and `progressiveAccessOverrides.db.test.js` pass together (40 tests; 15 environment-gated skips). Populated two-business pending-approval/revoked-approver acceptance and exact-head CI remain open. |
 | WP-009 | Invitations and Vortex codes | P2 | planned | | |
 | WP-010 | Access policy and form discovery | P1 | implemented (server) | 3e19ebd25, fc9a8422d, 87a95318e | progressiveAccessDecisions.test.js; progressiveAccess.db.test.js |
 | WP-011 | Applicant status and resubmission | P1 | implemented (server + client page) | 87a95318e, d47c5ff86 | progressiveAccess.db.test.js; client verify-i18n + esbuild |
