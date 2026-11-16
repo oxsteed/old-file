@@ -160,6 +160,10 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
 21. **Menu photos vs prices share one permission (`menu.manage`).** The spec asks to tell
     them apart; adding a `menu.media` permission needs a catalog migration and role
     defaults. Left as-is (safest: no one gains access). Say if you want the split.
+22. **Offline sales from a removed cashier are held, not posted.** When a hub replays after
+    the drawer's cashier lost access, a manager must requeue or void the sale. The cash
+    was collected, so this only delays posting. Native builds/hardware still need a
+    human test-mode check.
 
 ## Next step
 
@@ -341,8 +345,16 @@ store-scoped assignee to work at the task's store (create and reassign). SOPs/ch
 are brand-level (`assertManage` + `requireBrand`), so store managers do not author them.
 Evidence: `progressiveAccessRestaurantOps.db.test.js`.
 
+WP-072 done: `storeHubService.replayOneSale` now checks `cashierStillAtStore` (owner, or
+active member with no store boundary or this store) and otherwise holds the sale with a
+review message (decision 22). Resolve stays behind `pos.manage` + store scope. Screen
+offline tickets allow only pay-at-counter, so no offline card capture exists to double.
+**Needs a human:** the spec asks the native integration owner to verify real
+RestaurantTerminalOffline builds and hardware with test-mode providers — not done here.
+Evidence: `progressiveAccessRestaurantHub.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-072 (SPEC.md, search `<a id="wp-072">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-073 (SPEC.md, search `<a id="wp-073">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
