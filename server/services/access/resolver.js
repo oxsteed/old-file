@@ -15,6 +15,7 @@ function accountActive(user, now = Date.now()) {
   if (!user) return false;
   if (user.deleted_at) return false;
   if (user.is_active === false) return false;
+  if (user.is_banned === true) return false;
   if (user.is_suspended === true) {
     // Mirrors middleware/auth.js: a suspension with a past end date is over.
     const until = user.suspended_until ? new Date(user.suspended_until).getTime() : null;
