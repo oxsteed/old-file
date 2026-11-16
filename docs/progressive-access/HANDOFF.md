@@ -157,6 +157,9 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
     out a store role at their own rank; only the owner (or a higher role) can.
 20. **Store-scoped staff cannot change the shared (brand) menu**; they 86 items or set
     store prices through their store's menu. Shared-menu edits need all-store scope.
+21. **Menu photos vs prices share one permission (`menu.manage`).** The spec asks to tell
+    them apart; adding a `menu.media` permission needs a catalog migration and role
+    defaults. Left as-is (safest: no one gains access). Say if you want the split.
 
 ## Next step
 
@@ -292,8 +295,13 @@ and fails without the fix. Screen orders are device-location bound; customer can
 the customer or the tracking token (both traced, unchanged).
 Evidence: `progressiveAccessRestaurantOrders.db.test.js`.
 
+WP-064 done (evidence; the code change was WP-062's `assertBrandMenuManage`): brand
+publish already requires `menu.manage` on source+targets and all-store scope; store menu
+pricing needs `menu.manage`, 86 needs `pos.use|kitchen.update`. There is no separate
+media permission today — decision 21. Evidence: `progressiveAccessRestaurantCatalog.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-064 (SPEC.md, search `<a id="wp-064">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-065 (SPEC.md, search `<a id="wp-065">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
