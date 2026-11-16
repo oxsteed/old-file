@@ -583,6 +583,19 @@ supplier mutation, and compliance approval audit identity; then attempt
 populated live approval acceptance. If the live environment is unavailable,
 record that limitation and keep the exact-head CI link open before moving to
 WP-084.
+
+WP-084 is checkpointed at `5850cee40` (payment role and money-movement boundary).
+The declared offline-payment confirmation route now re-checks the caller's
+checkout restrictions at confirmation time, in addition to authentication and
+impersonation rejection. The offline rail still enforces that the caller is the
+job customer or assigned helper, that the job uses the offline rail, and that
+the confirmation write is idempotent per job. `paymentRoleMoneyMovement.test.js`
+passes the route contract. The real-PostgreSQL `paymentLayers.db.test.js` was
+discovered but skipped locally because `JOB_EDIT_TEST_DATABASE_URL` is not
+configured; populated retry/denial acceptance and exact-head CI remain open.
+**Exact next action (resume here):** run the isolated payment-layers PostgreSQL
+suite with a disposable database, add approved-versus-pending actor retry and
+foreign-job denial evidence, then inspect WP-085 helper earnings/payout scope.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
