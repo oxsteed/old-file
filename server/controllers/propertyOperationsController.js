@@ -497,6 +497,15 @@ exports.deletePackage = async (req, res, next) => {
   }
 };
 
+// WP-057: a unit id supplied in the body must belong to the caller's business,
+// so a manager at site A cannot attach a record to site B by combining ids.
+async function assertOwnUnit(unitId, businessId) {
+  if (unitId === undefined || unitId === null || unitId === '') return;
+  const { rows } = await pool.query(
+    'SELECT 1 FROM property_portfolio_units WHERE id::text = $1::text AND business_id = $2', [String(unitId), businessId]);
+  if (!rows.length) throw new AppError('Unit not found', 404, 'not_found');
+}
+
 exports.createComplianceRecord = async (req, res, next) => {
   try {
     const title = trimString(req.body.title, 180);
@@ -508,6 +517,7 @@ exports.createComplianceRecord = async (req, res, next) => {
     const completedAt = req.body.completed_at ? new Date(req.body.completed_at) : null;
     const dueDate = req.body.due_date || null;
     const status = normalizeComplianceStatus(trimString(req.body.status, 32), dueDate, completedAt);
+    await assertOwnUnit(req.body.unit_id, req.business.id);
 
     const { rows } = await pool.query(
       `INSERT INTO property_compliance_records (
@@ -542,6 +552,7 @@ exports.updateComplianceRecord = async (req, res, next) => {
     const status = req.body.status || dueDate || completedAt
       ? normalizeComplianceStatus(trimString(req.body.status, 32), dueDate, completedAt)
       : null;
+    await assertOwnUnit(req.body.unit_id, req.business.id);
 
     const { rows } = await pool.query(
       `UPDATE property_compliance_records
