@@ -120,18 +120,18 @@ migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewS
 `server/index.js`), DB suite `__tests__/progressiveAccess.db.test.js` (CI env
 `ACCESS_TEST_DATABASE_URL` added to "Server regression and security tests").
 
-Also done: outbox job (, started from
-), backfill (,
-).
+Also done: outbox job (`services/access/outboxWorker.js`, started from
+`bootstrap/backgroundWorkers.js`), backfill (`services/access/backfill.js`,
+`scripts/access-backfill.js --dry-run|--apply [--resume <runId>]`).
 
 Next (in order):
-1. Customer-first signup (WP-001..WP-003) behind :
-    stores  in
-   ;  creates role ,
-    , writes , and best-effort creates a draft
-    (failure must not fail signup). Response adds  +
-   . Flag off = legacy behavior unchanged.
-2. WP-005:  / account-type writes must not raise authority when the flag is on.
-3. Helper enforcement (WP-026)  on bid/quote writes.
-4. Client: ,  hook,  page,
-   admin review page in , i18n in all 20 locale files.
+1. Customer-first signup (WP-001..WP-003) behind `ACCESS_CUSTOMER_FIRST_SIGNUP`:
+   `authController.startRegistration` stores `normalizeSignupIntent(defaultMode|intent)` in
+   `pending_registrations.signup_intent`; `verifyRegistrationOTP` creates role `customer`,
+   `default_mode` `customer`, writes `access_signup_intents`, and best-effort creates a draft
+   `access_requests` row (failure must not fail signup). Response adds `access.signupIntent`
+   and `access.nextStep`. Flag off = legacy behavior unchanged.
+2. WP-005: profile / account-type writes must not raise authority when the flag is on.
+3. Helper enforcement (WP-026) `ACCESS_HELPER_ENFORCEMENT=shadow|enforce` on bid/quote writes.
+4. Client: `client/src/api/access.js`, `useAccess` hook, `/settings/applications` page,
+   admin review page in `client/src/admin/adminRouteManifest.js`, i18n in all 20 locale files.
