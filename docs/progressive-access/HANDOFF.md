@@ -1482,6 +1482,24 @@ selected publisher scope, share/repost privacy, payment/tip boundaries, and
 revocation during an active creator engagement; then add the smallest missing
 capability-aware contract and focused tests.
 
+WP-043 is implemented on the branch. The creator marketplace audit confirms
+that gig creation/application and sponsorship offers require a current verified
+selected actor; application, award, acceptance, deliverable, cancellation, and
+work-review routes bind the acting party and the selected post; tips, boosts,
+sponsorships, and gig awards use idempotency keys plus durable Credit
+reservation/transaction matching. Settlement re-checks creator verification and
+public safety, while delivered-work cancellation routes to an administrator
+work review instead of releasing funds directly. Focused tests passed 59/59
+across the progressive contract, creator marketplace lifecycle, work-review,
+and notification suites. No source change was needed beyond the contract
+coverage because these boundaries were already present; no populated browser,
+live sharing, or Credit-provider acceptance is claimed.
+**Exact next action (resume here):** begin WP-044 Learn, personal interests,
+and resources. Audit customer-first access, private drafts and bookmarks,
+resource ownership, authoring/publishing eligibility, link visibility, and
+revocation or deletion behavior across Learn and personal resource surfaces;
+then add the smallest missing capability-aware contract and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
