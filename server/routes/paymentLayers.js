@@ -23,7 +23,11 @@ router.post('/jobs/:id/rail-switch', authenticate, rejectImpersonated, paymentsL
 router.post('/jobs/:id/rail-switch/:requestId/respond', authenticate, rejectImpersonated, paymentsLimiter, ctrl.respondRailSwitch);
 
 router.get('/jobs/:id/offline-payment', authenticate, ctrl.getOfflinePayment);
-router.post('/jobs/:id/offline-payment/confirm', authenticate, rejectImpersonated, ctrl.confirmOfflinePayment);
+// Offline confirmation is still a money-state mutation even though OxSteed
+// does not custody the funds. Re-check checkout restrictions at confirmation
+// time so a later suspension/restriction cannot be bypassed after the job was
+// switched to the offline rail.
+router.post('/jobs/:id/offline-payment/confirm', authenticate, rejectImpersonated, checkRestrictions('checkout'), ctrl.confirmOfflinePayment);
 
 router.get('/jobs/:id/tips', authenticate, ctrl.listTips);
 router.post('/jobs/:id/tips/quote', authenticate, ctrl.quoteTip);
