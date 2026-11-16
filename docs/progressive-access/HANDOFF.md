@@ -1158,10 +1158,19 @@ while guest/applicant/public discovery remains requester-independent. The Discov
 page rejects late search/popular responses after a query or location change and
 preserves explicit latitude/longitude, city/state, radius, and type when a recent
 search or saved alert is reopened. Focused server tests (9), client contract tests
-(2), and frontend reference verification pass. A full `build:ci` is running from
-this checkpoint; no live populated discovery acceptance has been claimed.
-**Exact next action (resume here):** record the final `build:ci` result if it
-finishes, then audit WP-025 customer job-post and lifecycle entry points for
+(2), frontend reference verification, and the full client `build:ci` chain pass;
+the build emitted and verified 1,204 assets. No live populated discovery
+acceptance has been claimed.
+
+WP-025 now has a customer-first job-post checkpoint. The existing create-job
+route intentionally accepts an authenticated customer account without requiring
+a helper role or grant, while bid submission remains separately capability-gated
+by WP-026. `job.test.js` adds the explicit regression and the existing lifecycle
+and UI suites cover the customer-owned and assigned-helper state transitions.
+**Exact next action (resume here):** audit WP-026 helper bidding and acceptance
+for any remaining legacy role-only routes (especially onboarding, quotes,
+reconfirm and payout entry points), then add capability-aware gates only where
+the server still trusts `users.role`.
 customer-first access, applicant parity, and late capability changes. Start with
 the public job detail/bid CTA, post-job routes, and the existing helper-enforcement
 contracts; keep customer access implicit and require helper capability only for

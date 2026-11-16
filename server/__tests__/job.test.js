@@ -209,6 +209,18 @@ describe('POST /api/jobs', () => {
     expect(calls.some((c) => /INSERT INTO job_event_outbox/.test(c.sql) && c.params[1] === 'job.published')).toBe(true);
   });
 
+  test('customer-first accounts can post without a helper role or grant', async () => {
+    const newJob = { id: 43, title: validBody.title, status: 'published', client_id: 1 };
+    mockCreate(newJob);
+    const res = await auth(
+      request(buildApp()).post('/api/jobs').send(validBody)
+    );
+    expect(res.status).toBe(201);
+    expect(res.body.client_id).toBe(1);
+    const insert = insertParams(mockQuery.mock.calls.map(([sql, params]) => ({ sql, params })));
+    expect(insert[0]).toBe(1);
+  });
+
   test('never returns exact coordinates', async () => {
     const newJob = { id: 46, title: validBody.title, status: 'published', client_id: 1, location_lat: 30.1, location_lng: -97.7, location_point: 'POINT', location_approx_lat: 30.12 };
     mockCreate(newJob);
