@@ -1772,7 +1772,7 @@ async function verifyRegistrationOTP(req, res) {
     // event in jobController.afterJobCompleted, which is idempotent per
     // referred user.
     if (referrerId) {
-      pool.query(
+      await pool.query(
         `UPDATE users SET referrals_count = referrals_count + 1 WHERE id = $1`, [referrerId]
       ).catch(err => logger.error('Failed to increment referrals_count', { err }));
     }

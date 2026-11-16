@@ -157,4 +157,49 @@ ddescribe('customer-first signup (real database)', () => {
     const { rows } = await pool.query('SELECT role::text FROM users WHERE id = $1', [ok.body.user.id]);
     expect(rows[0].role).toBe('customer');
   });
+
+  test('helper referral attribution survives customer-first signup and resumes once without granting access (WP-097, AC-067)', async () => {
+    const referrer = await signup({ signupIntent: 'find_help' });
+    const referrerResult = await verify(referrer.token);
+    expect(referrerResult.statusCode).toBe(201);
+    const { rows: [referrerRow] } = await pool.query(
+      'SELECT id, referral_code FROM users WHERE email = $1', [referrer.email]
+    );
+
+    const referred = await signup({
+      defaultMode: 'helper',
+      ref: referrerRow.referral_code,
+      approval: 'approved',
+      returnTo: '/settings/applications?request=helper',
+    });
+    const referredResult = await verify(referred.token);
+    expect(referredResult.statusCode).toBe(201);
+    const referredId = referredResult.body.user.id;
+
+    const { rows: [attribution] } = await pool.query(
+      `SELECT referred_by, referrals_count FROM users
+       WHERE id = $1`, [referredId]
+    );
+    expect(String(attribution.referred_by)).toBe(String(referrerRow.id));
+    const { rows: [referrerAfter] } = await pool.query(
+      'SELECT referrals_count FROM users WHERE id = $1', [referrerRow.id]
+    );
+    expect(Number(referrerAfter.referrals_count)).toBe(1);
+
+    const resume = await require('../services/access/signupIntent').pendingIntent(referredId);
+    expect(resume).toMatchObject({ intent: 'offer_services', capability: 'helper.offer_services' });
+    const { rows: requests } = await pool.query(
+      `SELECT status, source, capability FROM access_requests
+       WHERE applicant_id = $1 ORDER BY created_at`, [referredId]
+    );
+    expect(requests).toEqual([{ status: 'draft', source: 'signup', capability: 'helper.offer_services' }]);
+    expect((await pool.query('SELECT COUNT(*)::int AS n FROM access_grants WHERE user_id = $1', [referredId])).rows[0].n).toBe(0);
+    expect((await pool.query('SELECT COUNT(*)::int AS n FROM affiliate_programs WHERE helper_id = $1', [referredId])).rows[0].n).toBe(0);
+
+    // A second-device/application restart reads the same resumable intent and
+    // request; it must not mint a second request or a grant.
+    const resumedAgain = await require('../services/access/signupIntent').pendingIntent(referredId);
+    expect(resumedAgain).toEqual(resume);
+    expect((await pool.query('SELECT COUNT(*)::int AS n FROM access_requests WHERE applicant_id = $1', [referredId])).rows[0].n).toBe(1);
+  });
 });
