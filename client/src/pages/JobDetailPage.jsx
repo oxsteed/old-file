@@ -130,7 +130,7 @@ function JobDetailContent() {
   };
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, canApplyToJobs, needsOnboarding } = useAuth();
+  const { user, canApplyToJobs, needsOnboarding, hasHelperAccess } = useAuth();
   const { fetchJob, job, loading, error, createBid, getJobBids, assignHelper, startJob, completeJob, cancelJob, reconfirmBid, getJobRevisions } = useJobs();
   const [reconfirmLoading, setReconfirmLoading] = useState(false);
 
@@ -225,7 +225,7 @@ function JobDetailContent() {
 
   async function handleBidSubmit(e) {
     e.preventDefault();
-    if (!jobDetailView({ job, user, bids, bidsStatus, canApplyToJobs }).canSubmitBid) return;
+    if (!jobDetailView({ job, user, bids, bidsStatus, canApplyToJobs, hasHelperAccess }).canSubmitBid) return;
     setBidLoading(true);
     setBidError(null);
     try {
@@ -438,7 +438,7 @@ function JobDetailContent() {
     </main><Footer /></>
   );
 
-  const view = jobDetailView({ job, user, bids, bidsStatus, canApplyToJobs, needsOnboarding, reviewEligible });
+  const view = jobDetailView({ job, user, bids, bidsStatus, canApplyToJobs, needsOnboarding, reviewEligible, hasHelperAccess });
   const { isOwner, isHelper, isAssignedHelper, visibleBids, totalBids, action } = view;
   const partialBids = isOwner && bidsStatus === 'success' && totalBids > visibleBids.length;
   const acceptedBid = visibleBids.find(bid => bid.status === 'accepted');

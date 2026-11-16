@@ -22,6 +22,7 @@ test('helper eligibility, onboarding and existing bid checks gate bidding',()=>{
   assert.equal(view(helper,{}, {canApplyToJobs:false}).canSubmitBid,false);
   for(const role of ['helper','helper_pro','broker'])assert.equal(view({...helper,role}).canSubmitBid,true);
   for(const role of ['customer','admin','business_owner'])assert.equal(view({...helper,role}).canSubmitBid,false);
+  assert.equal(view({id:3,role:'customer'}, {}, { hasHelperAccess:true }).canSubmitBid,true);
   for(const status of ['pending','accepted','rejected','withdrawn']){const state=view(helper,{}, {bids:[{helper_id:'2',status}]});assert.equal(state.action,'manageBid');assert.equal(state.canSubmitBid,false);}
 });
 test('assigned helpers get start, messages and review; unrelated viewers do not',()=>{

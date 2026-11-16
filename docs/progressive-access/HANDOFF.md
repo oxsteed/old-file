@@ -669,6 +669,14 @@ The worktree is clean apart from the unrelated untracked
 WP-008 business suites pass together (41 tests), and PR Analyze is pending for
 the exact pushed head.
 
+The client capability checkpoint is now ready: `AuthContext` now
+reads the shared access projection and exposes `hasHelperAccess`, so an approved
+customer-role helper can receive helper onboarding/bidding state without
+changing `default_mode`; `jobDetailModel` consumes that capability-aware signal.
+The focused job-detail and client projection contracts pass, and frontend
+reference verification plus typecheck pass locally. Push this client change
+with the docs before moving to the next package.
+
 WP-089 is currently an evidence checkpoint rather than a source change. The
 platform governance routes (`server/routes/governance.js`) require both live
 admin authentication and `requireSuperAdmin`; regular admin permission grants

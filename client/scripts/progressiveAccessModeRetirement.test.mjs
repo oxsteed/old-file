@@ -20,3 +20,12 @@ test('settings account no longer offers self-selected mode switching', async () 
   assert.match(code, /progressiveAccess\.heldTitle/);
   assert.match(code, /to="\/settings\/applications"/);
 });
+
+test('approved customer-role helpers receive capability-aware client actions', async () => {
+  const context = await source('context/AuthContext.jsx');
+  const model = await source('utils/jobDetailModel.js');
+  assert.match(context, /useAccessProjection/);
+  assert.match(context, /helper\.offer_services/);
+  assert.match(context, /hasHelperAccess/);
+  assert.match(model, /hasHelperAccess/);
+});
