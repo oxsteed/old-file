@@ -187,8 +187,12 @@ names for) every business conversation regardless of message permissions or assi
 filters to assigned conversations without `messages.view_all`. Template delete/use with a
 foreign/unknown id now 404. Evidence in `progressiveAccessMessages.db.test.js`.
 
+WP-051 done (evidence only): Customer 360 was already permission- and assignment-scoped and
+business-keyed; `progressiveAccessCustomer360.db.test.js` proves one account as customer and
+employee cannot see another business's record, unassigned customers, or wallet data.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-051 (see SPEC.md line ~3216). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-052 (business leads, campaigns and follow-ups; SPEC.md line ~3242). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 

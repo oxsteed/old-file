@@ -68,7 +68,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-048 | Permission overrides and delegated administration | P3 | implemented | a6378a15a | progressiveAccessOverrides.db.test.js (4), permissionResolver.db.test.js |
 | WP-049 | Staff scheduling and dispatch | P3 | implemented | cbd90883c | progressiveAccessSchedule.db.test.js |
 | WP-050 | Business communications and representative scope | P3 | implemented | 8a225c5bc | __tests__/progressiveAccessMessages.db.test.js, attentionInbox.test.js |
-| WP-051 | Business client records and customer insight | P3 | planned | | |
+| WP-051 | Business client records and customer insight | P3 | implemented | 21792ad15 | __tests__/progressiveAccessCustomer360.db.test.js |
 | WP-052 | Business leads, campaigns and follow-ups | P3 | planned | | |
 | WP-053 | Catalog, pricing rules and marketplace publishing | P3 | planned | | |
 | WP-054 | Invoices, quotes and recurring billing | P3 | planned | | |
