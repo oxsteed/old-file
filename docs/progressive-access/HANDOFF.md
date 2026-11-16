@@ -305,8 +305,14 @@ via `assertLocationAccess` and binds tables to that location; host actions need
 `restaurant.manage|pos.use|orders.manage`, so team/calendar overrides do not imply hosting.
 Evidence: `progressiveAccessRestaurantHost.db.test.js`.
 
+WP-066 done: `restaurantInventoryOperationsController` — `requireAllStoreInventory` on
+`createArea`/`createSupplier` (both upsert restaurant-wide rows), `assertTeamUser` for
+`responsibleUserId`. Supplier catalog already checks the item's store. Cashier/drawer/
+device/receipt isolation is the existing CI suite `restaurantStoreIsolation.db.test.js`.
+Evidence: `progressiveAccessRestaurantInventory.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-066 (SPEC.md, search `<a id="wp-066">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-067 (SPEC.md, search `<a id="wp-067">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
