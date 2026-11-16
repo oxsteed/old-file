@@ -126,10 +126,14 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
 
 ## Next step
 
-**Exact next action (resume here):** WP-007 "Verification and provider callbacks" — make
-identity/background-check provider callbacks (Didit, helper onboarding) record evidence
-on the open `helper.offer_services` request (bump `evidence_revision`) instead of changing
-`users.role`; then WP-015/WP-016 (Home + nav read `GET /api/me/access` `personal[]` instead
+WP-007 done: `services/access/evidence.js` — Didit verified/duplicate and Stripe Identity
+verified callbacks bump `evidence_revision` on the same user's open applications (stale
+reviewer decisions then 409 `request_version_conflict`); `GET /api/admin/access-requests/:id`
+returns `readiness` (identity facts). Background-check callbacks: none exist in the code
+base yet — wire `recordIdentityEvidence` (or a sibling) when one is added.
+
+
+**Exact next action (resume here):** WP-015/WP-016 (Home + nav read `GET /api/me/access` `personal[]` instead
 of `default_mode`), then WP-020 remaining (outbox → in-app badge), then Phase 3 starting
 at WP-046. Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
