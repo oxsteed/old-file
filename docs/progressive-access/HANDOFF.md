@@ -766,6 +766,30 @@ the renewal is idempotent, the existing grant remains the only grant, core
 helper affordances still work while billing is expired, and Pro/trial-only
 actions follow the current billing/trial policy before moving to WP-097.
 
+WP-097 is currently an evidence checkpoint. Affiliate programs, schedules,
+stats, commissions, analytics, and payout calculation now require the canonical
+`helper.offer_services` capability under the existing progressive-access
+switch. Admin payout review remains a separate financial control: the maker
+needs `manage_financials`, impersonated sessions are rejected, a fresh
+amount-bound step-up is required, and the existing dual-approval/idempotency
+flow remains authoritative. Referral attribution is bounded to the recognized
+identifier format at both the Join page and server endpoints; unknown query
+parameters, including forged approval-style values, are not carried into
+signup or access state. Existing signed offer links and HMAC partner postbacks
+remain consent-gated, partner/currency/click scoped, and receipt-idempotent;
+they never create a progressive access grant. Focused auth and affiliate route
+suites pass (42 tests), and referral/partner/affiliate payout suites pass (79
+tests).
+**Exact next action (resume here):** run a populated referral scenario in which
+an existing referrer shares a link that preselects Helper intent, the new user
+finishes customer-first signup, and the same user resumes the draft application
+from another device. Verify the referred user is attributed once, the
+referrer's count does not double, no affiliate program or `access_grants` row
+is created automatically, and affiliate surfaces stay blocked until the helper
+capability is approved. Repeat with a forged approval-style query parameter and
+confirm it is ignored/rejected. Then record the disposable-DB result and move
+to WP-098.
+
 History of what is done (newest last):
 
 
