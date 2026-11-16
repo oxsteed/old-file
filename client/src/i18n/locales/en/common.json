@@ -6600,6 +6600,8 @@
       "serviceCategories": "Services you offer",
       "serviceArea": "Service area",
       "about": "About",
+      "audience": "Reporting audience",
+      "requestedReports": "Reports you need",
       "businessName": "Business name",
       "businessType": "Business type",
       "restaurantName": "Restaurant name",
