@@ -180,8 +180,15 @@ WP-049 done: scheduling was already tenant- and store-scoped (`restaurantWorkfor
 fixed `deleteShift` answering 200 for a foreign/unknown shift id (now 404; an already-cancelled
 own shift stays an idempotent 200). Evidence in `progressiveAccessSchedule.db.test.js`.
 
+WP-050 done: business message queue/read/reply/templates were already assignment-scoped
+(`requireBusinessMessageAccess`); fixed the attention inbox, which counted (and showed customer
+names for) every business conversation regardless of message permissions or assignment —
+`services/attention` now resolves effective permissions (fail-closed) and the messages adapter
+filters to assigned conversations without `messages.view_all`. Template delete/use with a
+foreign/unknown id now 404. Evidence in `progressiveAccessMessages.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-050 (business communications and representative scope). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-051 (see SPEC.md line ~3216). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
