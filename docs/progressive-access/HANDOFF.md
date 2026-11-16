@@ -987,6 +987,18 @@ for two-reviewer version conflicts, live scoped reviewer authority on reads
 and writes, private evidence/notes, idempotent decisions, and foreign-subject
 resource hiding.
 
+WP-012 is confirmed as an implementation checkpoint. `reviewService` reloads
+the reviewer's live authority inside the locked request transaction, binds
+queue/detail/decision access to capability permissions, returns a version
+conflict for a stale competing decision, keeps internal notes out of applicant
+responses, and resource-hides unauthorized or foreign cases. The populated
+progressive-access suite covers these cases and the append-only decision/outbox
+records (26 tests).
+**Exact next action (resume here):** audit WP-013, Role switch retirement.
+Trace the retained switch endpoint and all ModeSwitcher callers, confirm no
+legacy self-selection can acquire authority, and replace or hide navigation
+that still presents mode switching while preserving customer workflows.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
