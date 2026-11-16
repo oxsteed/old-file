@@ -71,7 +71,10 @@ async function resolveSubject(client, applicantId, cap, rawSubject) {
     if (!/^\d{1,12}$/.test(id)) throw err(400, 'invalid_subject', 'This application does not accept that subject.');
     // A claim binds to a validated business row. Resource hiding: a missing
     // or deleted business is indistinguishable from an unknown id.
-    const { rows } = await client.query('SELECT id FROM businesses WHERE id = $1 AND deleted_at IS NULL', [id]);
+    // WP-046: only the canonical owner may name an existing business; a
+    // copied id of someone else's business is indistinguishable from an
+    // unknown one (no claim by identifier or exact name).
+    const { rows } = await client.query('SELECT id FROM businesses WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL', [id, applicantId]);
     if (!rows.length) throw err(404, 'subject_not_found', 'Not found.');
     return { type, id, key: subjectKey(type, id) };
   }

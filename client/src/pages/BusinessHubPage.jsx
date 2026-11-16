@@ -143,6 +143,7 @@ const DEFAULT_GOAL_FORM  = { title: '', goal_type: 'revenue', period: 'monthly',
 
 function WorkspaceDialogLoading({ onClose }) {
   const { t } = useTranslation();
+  const { t: accessT } = useTranslation('common');
   const cancel = useRef(null);
   useEffect(() => {
     const previous = document.activeElement;
@@ -1483,6 +1484,12 @@ function BusinessHubInner() {
       toast.success(t('businessCreation.published', 'Your business is now live.'));
       await loadBusinesses();
     } catch (error) {
+      if (error?.response?.data?.code === 'access_required') {
+        // WP-046: publishing needs an approved application; keep the draft.
+        toast.error(accessT('progressiveAccess.accessRequired'));
+        navigate('/settings/applications');
+        return;
+      }
       const missing = error?.response?.data?.fields?.missing;
       const message = Array.isArray(missing) && missing.length
         ? t('businessCreation.missingSetup', 'Complete the missing setup: {{items}}', { items: missing.join(', ') })

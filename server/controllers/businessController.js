@@ -234,6 +234,9 @@ async function addBusiness(req, res, next) {
     }
 
     const { biz, reused } = await withTransaction(pool, async (client) => {
+      // WP-046: serialize creation per owner so duplicate wizard submits
+      // (with or without a key) can never create two primary businesses.
+      await client.query("SELECT pg_advisory_xact_lock(hashtext('business_owner_primary:' || $1::text))", [String(req.user.id)]);
       if (idempotencyKey) {
         const { rows: [existingByKey] } = await client.query(
           `SELECT * FROM businesses
@@ -769,6 +772,22 @@ async function completeBusinessOnboarding(req, res, next) {
     if (req.user.id !== access.owner_id) {
       throw new AppError('Only the business owner can publish this business', 403, 'forbidden');
     }
+    // WP-046: activation is the reviewed step (ACCESS_BUSINESS_ENFORCEMENT).
+    // Off (default): no extra query, legacy behaviour.
+    let publishGate = { allowed: true };
+    if (require('../services/access/flags').businessEnforcement() !== 'off') {
+      const { rows: [kindRow] } = await pool.query('SELECT business_kind FROM businesses WHERE id = $1', [access.id]);
+      publishGate = await require('../services/access/businessGate')
+        .checkPublish(pool, { userId: req.user.id, businessId: access.id, kind: kindRow && kindRow.business_kind });
+    }
+    if (!publishGate.allowed) {
+      return res.status(403).json({
+        error: 'This needs approved access first.',
+        code: 'access_required',
+        capability: publishGate.capability,
+        next: `/settings/applications?apply=${encodeURIComponent(publishGate.capability)}`,
+      });
+    }
     const readiness = await loadBusinessSetupReadiness(pool, access.id);
     if (!readiness?.readyToPublish) {
       throw new AppError('Complete the required setup before publishing', 409, 'business_setup_incomplete', {
@@ -1048,11 +1067,19 @@ async function setPrimary(req, res, next) {
     const { id } = req.params;
     const userId = req.user.id;
 
-    await pool.query('UPDATE businesses SET is_primary = FALSE WHERE user_id = $1', [userId]);
-    const { rows: [biz] } = await pool.query(
-      'UPDATE businesses SET is_primary = TRUE WHERE id = $1 AND user_id = $2 RETURNING *',
-      [id, userId]
-    );
+    // WP-046: one transaction under the same per-owner lock as creation, and
+    // the target is checked first, so a foreign/unknown id never clears the
+    // caller's current primary.
+    const biz = await withTransaction(pool, async (client) => {
+      await client.query("SELECT pg_advisory_xact_lock(hashtext('business_owner_primary:' || $1::text))", [String(userId)]);
+      const { rows: [target] } = await client.query(
+        'SELECT id FROM businesses WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL FOR UPDATE', [id, userId]);
+      if (!target) return null;
+      await client.query('UPDATE businesses SET is_primary = FALSE WHERE user_id = $1 AND id <> $2 AND is_primary = TRUE', [userId, id]);
+      const { rows: [updated] } = await client.query(
+        'UPDATE businesses SET is_primary = TRUE WHERE id = $1 AND user_id = $2 RETURNING *', [id, userId]);
+      return updated;
+    }, 'business_set_primary');
 
     if (!biz) throw new AppError('Business not found', 404, 'not_found');
     return res.json({ business: biz });
