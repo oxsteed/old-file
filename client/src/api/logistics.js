@@ -56,6 +56,9 @@ export const createCampaign = (data) =>
 export const updateCampaign = (id, data) =>
   axios.patch(`/logistics/campaigns/${id}`, data).then(r => r.data);
 
+export const rolloverCampaign = (id, data = {}) =>
+  axios.post(`/logistics/campaigns/${id}/rollover`, data).then(r => r.data);
+
 export const joinCampaign = (id, data) =>
   axios.post(`/logistics/campaigns/${id}/join`, data).then(r => r.data);
 

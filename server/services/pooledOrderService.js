@@ -352,6 +352,77 @@ async function createPooledOrder(data, organizerUserId, { userCountry = null, us
   return order;
 }
 
+/**
+ * Start a fresh draft for a campaign whose pledge window closed below MOQ.
+ * Rollover is explicit and organizer-owned: participants, deposits, quotes,
+ * and approval history never carry into the new round.
+ */
+async function rolloverCampaign(id, userId, { userCountry = null, userRole = null, data = {} } = {}) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query('SELECT * FROM pooled_orders WHERE id = $1 FOR UPDATE', [id]);
+    const order = result.rows[0];
+    if (!order) throw svcError('Pooled order not found', 404, 'pooled_order_not_found');
+    if (String(order.organizer_user_id) !== String(userId)) {
+      throw svcError('Only the campaign organizer can roll it over', 403, 'not_owner');
+    }
+    if (userRole !== 'organizer') {
+      throw svcError('Approved organizer access is required to roll over a campaign', 403, 'organizer_access_required');
+    }
+    const expired = order.close_date && new Date(order.close_date).getTime() <= Date.now();
+    const unmet = Number(order.current_committed_qty || 0) < Number(order.target_moq || 0);
+    if (!expired || !unmet || !['open', 'pledging', 'cancelled'].includes(order.status)) {
+      throw svcError('Only an expired campaign below its minimum can be rolled over', 409, 'campaign_not_rolloverable');
+    }
+
+    await assertCanCreateCampaign({
+      userId,
+      userCountry,
+      userRole,
+      laneId: order.lane_id,
+      organizerBusinessId: order.organizer_business_id,
+    });
+
+    const title = typeof data.title === 'string' && data.title.trim()
+      ? data.title.trim()
+      : `${order.title} (next round)`;
+    const inserted = await client.query(
+      `INSERT INTO pooled_orders
+         (reference, title, description, lane_id, supplier_product_id,
+          organizer_user_id, organizer_business_id, target_moq,
+          unit_product_cost_usd, unit_freight_est_usd, close_date, lock_date,
+          expected_ship_date, expected_arrival_date, cancellation_policy,
+          deposit_pct, max_participants, destination_warehouse_id, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+       RETURNING *`,
+      [
+        await generatePooledRef(), title, order.description, order.lane_id,
+        order.supplier_product_id, order.organizer_user_id, order.organizer_business_id,
+        order.target_moq, order.unit_product_cost_usd, order.unit_freight_est_usd,
+        data.close_date || null, data.lock_date || null,
+        data.expected_ship_date || order.expected_ship_date || null,
+        data.expected_arrival_date || order.expected_arrival_date || null,
+        order.cancellation_policy, order.deposit_pct || 0.30,
+        order.max_participants, order.destination_warehouse_id,
+        data.notes !== undefined ? data.notes : order.notes,
+      ]
+    );
+    await client.query('COMMIT');
+    const next = inserted.rows[0];
+    logLogisticsAction('pooled_order', next.id, 'rolled_over', {
+      actorUserId: userId,
+      notes: `Created from expired campaign ${order.id}; participant and funding state reset.`,
+    });
+    return next;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 // Draft fields the organizer may edit. Ownership and identity fields
 // (organizer_user_id, supplier product/quote, business, warehouse, notes)
 // are intentionally not editable through this endpoint.
@@ -958,7 +1029,7 @@ async function describeActions(order, {
 }
 
 module.exports = {
-  listPooledOrders, listOrganizerCampaigns, getPooledOrder, createPooledOrder,
+  listPooledOrders, listOrganizerCampaigns, getPooledOrder, createPooledOrder, rolloverCampaign,
   updateCampaignDraft,
   joinPooledOrder, updatePooledOrderStatus,
   submitCampaignForReview, reviewCampaign, withdrawCampaign, getApprovalHistory, describeActions,

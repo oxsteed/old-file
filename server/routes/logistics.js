@@ -86,6 +86,7 @@ router.get('/organizer/campaigns',     requireAuth, pooledCtrl.listOrganizerCamp
 // convention in this router). Ownership and approval-state guards live in
 // the service; editing never changes the approval state.
 router.patch('/campaigns/:id',        requireAuth, pooledCtrl.updatePooledOrder);
+router.post('/campaigns/:id/rollover', requireAuth, pooledCtrl.rolloverCampaign);
 // Draft submission and Operations review (approval state stays separate
 // from the fulfillment status; every decision is recorded with history).
 router.post('/campaigns/:id/submit',   requireAuth, pooledCtrl.submitForReview);

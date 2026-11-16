@@ -38,6 +38,16 @@ export default function CampaignPreview({ id, open, onClose }) {
     ? Math.min(100, Math.round(((campaign.current_committed_qty || 0) / Math.max(1, campaign.target_moq || 1)) * 100))
     : 0;
 
+  const shareCampaign = async () => {
+    if (!campaign?.id || typeof window === 'undefined') return;
+    const url = new URL(`/logistics/campaigns/${campaign.id}`, window.location.origin).toString();
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      await navigator.share({ title: campaign.title, url });
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+    }
+  };
+
   return (
     <LogisticsModal
       open={open}
@@ -52,6 +62,9 @@ export default function CampaignPreview({ id, open, onClose }) {
       )}
       {!loading && !error && campaign && (
         <div className="lxm-summary">
+          <button type="button" className="lx-btn-ghost" onClick={() => shareCampaign().catch(() => {})}>
+            {tx('logistics.modal.share', 'Share')}
+          </button>
           <div className="lxm-summary-row">
             <span className="lxm-summary-label">{tx('logistics.modal.campaign.lane', 'Lane')}</span>
             <span className="lxm-summary-value">

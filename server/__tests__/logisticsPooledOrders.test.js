@@ -10,6 +10,7 @@ jest.mock('../services/pooledOrderService', () => ({
   getPooledOrder: jest.fn(),
   createPooledOrder: jest.fn(),
   updateCampaignDraft: jest.fn(),
+  rolloverCampaign: jest.fn(),
   joinPooledOrder: jest.fn(),
   updatePooledOrderStatus: jest.fn(),
   submitCampaignForReview: jest.fn(),
@@ -54,6 +55,7 @@ function buildApp(asUser) {
   app.post('/campaigns/:id/submit', pooledCtrl.submitForReview);
   app.post('/campaigns/:id/review', pooledCtrl.reviewCampaign);
   app.patch('/campaigns/:id', pooledCtrl.updatePooledOrder);
+  app.post('/campaigns/:id/rollover', pooledCtrl.rolloverCampaign);
   app.get('/campaigns/:id/approval-history', pooledCtrl.getApprovalHistory);
   app.post('/campaigns/:id/placement-approval', pooledCtrl.recordPlacementApproval);
   // eslint-disable-next-line no-unused-vars
@@ -420,6 +422,23 @@ describe('progressive logistics campaign lifecycle', () => {
       status: 'placed',
       approval_state: 'approved',
       placement_approval: { decision: 'placement_approved', to_state: 'placed' },
+    });
+  });
+
+  test('approved organizer can explicitly roll over an expired below-MOQ campaign', async () => {
+    const user = { id: 'approved-customer', role: 'customer', default_mode: 'customer' };
+    resolveLogisticsRole.mockResolvedValue('organizer');
+    countryOnFile.mockResolvedValue('US');
+    pooledOrderService.rolloverCampaign.mockResolvedValue({
+      id: 18, organizer_user_id: user.id, title: 'Published pool (next round)', status: 'draft', approval_state: 'draft', current_committed_qty: 0,
+    });
+    const res = await request(buildApp(user)).post('/campaigns/17/rollover').send({
+      title: 'Published pool (next round)', close_date: '2026-12-31T00:00:00Z',
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.data).toMatchObject({ status: 'draft', approval_state: 'draft', current_committed_qty: 0 });
+    expect(pooledOrderService.rolloverCampaign).toHaveBeenCalledWith('17', user.id, {
+      userCountry: 'US', userRole: 'organizer', data: expect.objectContaining({ title: 'Published pool (next round)' }),
     });
   });
 });
