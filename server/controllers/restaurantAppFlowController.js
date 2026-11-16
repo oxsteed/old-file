@@ -7523,6 +7523,10 @@ exports.ackKitchenTicket = async (req, res, next) => {
       );
       if (!displayRestaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
       restaurant = { ...displayRestaurant, effective_role: 'display_device' };
+      // WP-067: a display paired to one store acknowledges that store's tickets only.
+      if (req.displayDevice.locationId != null) {
+        locationScope = { mode: 'assigned', location_ids: [Number(req.displayDevice.locationId)] };
+      }
     } else {
       restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
       await assertRestaurantPermission(restaurant, req.user.id, ['kitchen.update', 'kitchen.manage', 'orders.manage']);
@@ -7559,23 +7563,25 @@ exports.ackKitchenTicket = async (req, res, next) => {
       }
       const { rows: [order] } = await client.query(
         `UPDATE food_orders
+            -- WP-067: explicit casts — $1 was inferred as both varchar and text
+            -- (500 on every ack), and accepted_at compared the promised time ($2).
             SET status = CASE
-                  WHEN status = 'received' THEN $1
-                  WHEN status = 'accepted' AND $1 = 'preparing' THEN 'preparing'
+                  WHEN status = 'received' THEN $1::varchar
+                  WHEN status = 'accepted' AND $1::text = 'preparing' THEN 'preparing'
                   ELSE status
                 END,
                 accepted_at = CASE
-                  WHEN $2 IN ('acknowledged','preparing','quality_check','ready')
+                  WHEN $1::text IN ('accepted','preparing')
                     THEN COALESCE(accepted_at, NOW())
                   ELSE accepted_at
                 END,
                 kitchen_stage = CASE
-                  WHEN $1 = 'preparing' THEN 'preparing'
+                  WHEN $1::text = 'preparing' THEN 'preparing'
                   ELSE 'acknowledged'
                 END,
                 kitchen_acknowledged_at = COALESCE(kitchen_acknowledged_at, NOW()),
                 preparation_started_at = CASE
-                  WHEN $1 = 'preparing' THEN COALESCE(preparation_started_at, NOW())
+                  WHEN $1::text = 'preparing' THEN COALESCE(preparation_started_at, NOW())
                   ELSE preparation_started_at
                 END,
                 promised_at = COALESCE($2::timestamptz, promised_at, NOW() + ($3::int * INTERVAL '1 minute')),
@@ -7938,8 +7944,11 @@ exports.getKitchenFeed = async (req, res, next) => {
       itemFilter = `AND (foi.station_label = $${params.length} OR foi.station_label IS NULL)`;
       itemHaving = 'HAVING COUNT(foi.id) > 0';
     }
+    // WP-067: a display paired to one store sees that store's feed only.
     const feedLocationIds = device?.location_id
       ? [Number(device.location_id)]
+      : req.displayDevice?.locationId != null
+        ? [Number(req.displayDevice.locationId)]
       : locationScope?.mode === 'assigned'
         ? locationScope.location_ids
         : null;
