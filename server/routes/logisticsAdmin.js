@@ -21,7 +21,10 @@ const whCtrl     = require('../controllers/logisticsWarehouseController');
 const sourcingCtrl = require('../controllers/logisticsSourcingController');
 const upload = require('../middleware/logisticsUpload');
 const validateFileUpload = require('../middleware/validateFileUpload');
-const { requireInternalLogisticsWorkspace } = require('../middleware/requireInternalLogisticsWorkspace');
+const {
+  requireInternalLogisticsWorkspace,
+  requireAnyInternalLogisticsWorkspace,
+} = require('../middleware/requireInternalLogisticsWorkspace');
 const { requireRole } = require('../middleware/auth');
 // Audit fix (finding 31): the refund step-up verify endpoint must not
 // run under an impersonated session, matching the credit step-up
@@ -38,6 +41,7 @@ const { requireAdminTotp } = require('../middleware/adminAuth');
 
 const requireOperationsWorkspace = requireInternalLogisticsWorkspace('operations');
 const requireComplianceWorkspace = requireInternalLogisticsWorkspace('compliance');
+const requireOperationsOrComplianceRead = requireAnyInternalLogisticsWorkspace('operations', 'compliance');
 const requireAdminRole = requireRole('admin', 'super_admin');
 const { hasGlobalGrant } = require('../middleware/adminAuth');
 
@@ -99,13 +103,13 @@ router.post('/trade-rules',      requireAdminRole, requireLogisticsProcurement, 
 
 // ─── Country Access Rules ─────────────────────────────────────
 
-router.get('/restrictions',          requireComplianceWorkspace, adminCtrl.listCountryAccessRules);
+router.get('/restrictions',          requireOperationsOrComplianceRead, adminCtrl.listCountryAccessRules);
 router.put('/restrictions',          requireComplianceWorkspace, adminCtrl.upsertCountryAccessRule);
 
 // ─── Suppliers ────────────────────────────────────────────────
 
-router.get('/suppliers',             requireAdminRole, adminCtrl.listSuppliers);
-router.get('/suppliers/:id',         requireAdminRole, adminCtrl.getSupplier);
+router.get('/suppliers',             requireOperationsOrComplianceRead, adminCtrl.listSuppliers);
+router.get('/suppliers/:id',         requireOperationsOrComplianceRead, adminCtrl.getSupplier);
 router.post('/suppliers',            requireAdminRole, requireLogisticsProcurement, adminCtrl.createSupplier);
 router.put('/suppliers/:id',         requireAdminRole, requireLogisticsProcurement, adminCtrl.updateSupplier);
 router.post('/suppliers/:id/approve',requireAdminRole, requireLogisticsProcurement, adminCtrl.approveSupplier);

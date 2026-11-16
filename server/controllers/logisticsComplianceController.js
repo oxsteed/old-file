@@ -139,6 +139,17 @@ exports.approveRestrictedPO = async (req, res, next) => {
     }
     const id = parseInt(req.params.id, 10);
     const newStatus = decision === 'approve' ? 'approved' : 'cancelled';
+    const before = await pool.query(
+      `SELECT po.*, l.risk_tier
+         FROM purchase_orders po
+         LEFT JOIN logistics_lanes l ON l.id = po.lane_id
+        WHERE po.id = $1`,
+      [id]
+    );
+    if (!before.rows.length) return next(new AppError('PO not found', 404, 'not_found'));
+    if (!['restricted', 'prohibited'].includes(before.rows[0].risk_tier)) {
+      return next(new AppError('Only restricted purchase orders require compliance approval', 409, 'compliance_approval_not_required'));
+    }
     const r = await pool.query(
       `UPDATE purchase_orders
        SET status = $1, approved_by = $2, approved_at = NOW(), internal_notes = COALESCE(internal_notes,'') || $3
@@ -146,8 +157,12 @@ exports.approveRestrictedPO = async (req, res, next) => {
       [newStatus, req.user.id, `\n[COMPLIANCE ${decision}] ${notes || ''}`, id]
     );
     if (!r.rows.length) return next(new AppError('PO not found', 404, 'not_found'));
-    logLogisticsAction('purchase_order', id, `compliance_${decision}`, {
-      actorUserId: req.user.id, notes,
+    await logLogisticsAction('purchase_order', id, `compliance_${decision}`, {
+      actorUserId: req.user.id,
+      beforeState: before.rows[0],
+      afterState: r.rows[0],
+      notes: notes || `Compliance ${decision} by ${req.user.id}`,
+      ipAddress: req.ip,
     });
     res.json({ success: true, data: r.rows[0] });
   } catch (err) { next(err); }
