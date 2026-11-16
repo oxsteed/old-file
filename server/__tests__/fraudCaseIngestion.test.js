@@ -245,11 +245,12 @@ describe('fraud-type user reports', () => {
 
   test('fraud report creates a critical abuse_report case', async () => {
     mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, customer_id: 'reporter-1', owner_id: 'user-bad' }] })
       .mockResolvedValueOnce({ rows: [] }) // duplicate-report check
       .mockResolvedValueOnce({ rows: [{ id: 42, report_type: 'fraud', status: 'open', severity: 'critical', created_at: '2026-09-29' }] });
     const { req, res, next } = mockReqRes({
       reportedUserId: 'user-bad',
-      bookingId: 'booking-1',
+      bookingId: 1,
       reportType: 'fraud',
       description: 'This user committed clear payment fraud on my booking.',
     });
@@ -271,11 +272,12 @@ describe('fraud-type user reports', () => {
 
   test('non-fraud reports do not create cases', async () => {
     mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 2, customer_id: 'reporter-1', owner_id: 'user-2' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 43, report_type: 'other', status: 'open', severity: 'low', created_at: '2026-09-29' }] });
     const { req, res, next } = mockReqRes({
       reportedUserId: 'user-2',
-      bookingId: 'booking-2',
+      bookingId: 2,
       reportType: 'other',
       description: 'Just a general issue with communication here.',
     });
