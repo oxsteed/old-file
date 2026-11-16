@@ -330,8 +330,14 @@ blocks foreign stores); payroll export needs `payroll.view` (Owner-only by defau
 `assertLocationAccess`. Role changes need `role_updated_by = owner` (DB trigger).
 Evidence: `progressiveAccessRestaurantCrew.db.test.js`.
 
+WP-070 done: `runnerWorkspaceController.getUnifiedInbox` offered open tasks (customer name,
+order metadata) in every workspace the user belonged to; offers now need
+`runner.update|runner.manage|orders.manage` there (fail closed). Assigned tasks stay
+visible; handoff already lets the assigned runner finish. Claims were already scoped.
+Evidence: `progressiveAccessRestaurantRunner.db.test.js` (fails without the fix).
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-070 (SPEC.md, search `<a id="wp-070">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-071 (SPEC.md, search `<a id="wp-071">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
