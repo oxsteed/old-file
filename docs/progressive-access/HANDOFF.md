@@ -439,19 +439,18 @@ files, supports explicit upload visibility, and keeps the ownership application
 identifier out of the consultant response. The browser fixture covers shared
 versus applicant-only controls. Live acceptance and exact-head CI remain open.
 
-WP-077 is in progress at `e48738e84`, `0b45ff681`, `ad95b1a09`, and `d2346b1e4`. The mounted KPI route
+WP-077 is in progress at `e48738e84`, `0b45ff681`, `ad95b1a09`, `d2346b1e4`, and `04e097b34`. The mounted KPI route
 test proves the old array-to-variadic denial and the corrected legacy role
 path. Migration `20261116170000_investor_reporting_audiences.sql` now creates a
 named dataset audience when an investor request is approved; enforce mode
 requires that live audience, rejects expiry/revoke, and rejects a route whose
 dataset is not in the audience. The focused DB case and seven-case mounted
 route suite pass locally.
-**Exact next action (resume here):** add a dashboard browser fixture that shows
-an approved customer-class investor can use only the granted datasets. Cover
-revoke in the UI projection and trace any evidence/export entry points without
-exposing unrelated tenant data. The applicant audience form and Chrome fixture
-are complete, and reviewer approval now requires an explicit scope
-confirmation.
+**Exact next action (resume here):** trace the evidence and export entry points
+from the dashboard and add dataset-aware UI behavior for a narrowed audience.
+Then cover revoke in the UI projection without exposing unrelated tenant data.
+The applicant audience form, reviewer confirmation, and customer-class
+dashboard Chrome fixture are complete.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
