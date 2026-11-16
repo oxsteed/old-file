@@ -274,12 +274,33 @@ async function queueOfflineSales(client, { restaurantId, hubId, sales }) {
   return { hubId: Number(hubId), queued };
 }
 
+async function cashierStillAtStore(client, restaurantId, userId, locationId) {
+  const { rows } = await client.query(
+    `SELECT 1
+       FROM food_restaurants fr
+       JOIN businesses b ON b.id = fr.business_id
+      WHERE fr.id = $1
+        AND (b.user_id::text = $2::text OR fr.owner_user_id::text = $2::text OR EXISTS (
+          SELECT 1 FROM business_members bm
+           WHERE bm.business_id = b.id AND bm.member_id::text = $2::text AND bm.status = 'active'
+             AND (NOT EXISTS (
+                    SELECT 1 FROM restaurant_location_memberships lm
+                     WHERE lm.membership_id = bm.id AND lm.restaurant_id = fr.id AND lm.status = 'active')
+                  OR EXISTS (
+                    SELECT 1 FROM restaurant_location_memberships lm
+                     WHERE lm.membership_id = bm.id AND lm.restaurant_id = fr.id AND lm.status = 'active'
+                       AND lm.location_id = $3))))`,
+    [restaurantId, String(userId), locationId]
+  );
+  return rows.length > 0;
+}
+
 async function replayOneSale(client, { sale, restaurant, timezone, actorUserId }) {
   // Re-check the shift inside the replay: it must still be open at the same
   // store. A closed shift means the money was already counted; the sale is
   // held for manager review instead of being posted anywhere else.
   const { rows: [shift] } = await client.query(
-    `SELECT id, status, location_id FROM restaurant_pos_shifts
+    `SELECT id, status, location_id, staff_user_id FROM restaurant_pos_shifts
       WHERE id = $1 AND restaurant_id = $2 FOR UPDATE`,
     [sale.shift_id, sale.restaurant_id]
   );
@@ -288,6 +309,20 @@ async function replayOneSale(client, { sale, restaurant, timezone, actorUserId }
       `UPDATE store_hub_offline_sales
           SET status = 'held',
               replay_error = 'Drawer shift is closed or moved; manager review required before posting.',
+              updated_at = NOW()
+        WHERE id = $1`,
+      [sale.id]
+    );
+    return { saleId: Number(sale.id), status: 'held' };
+  }
+  // WP-072: the drawer's cashier must still work at this store when the queue
+  // replays (membership can be revoked while the hub was offline). Otherwise
+  // the sale is held for manager review — never posted, never failed.
+  if (shift.staff_user_id && !(await cashierStillAtStore(client, sale.restaurant_id, shift.staff_user_id, sale.location_id))) {
+    await client.query(
+      `UPDATE store_hub_offline_sales
+          SET status = 'held',
+              replay_error = 'Cashier no longer has access to this store; manager review required before posting.',
               updated_at = NOW()
         WHERE id = $1`,
       [sale.id]
