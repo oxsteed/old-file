@@ -43,7 +43,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-023 | Preferences, status and localization | P4 | planned | | |
 | WP-024 | Public discovery and location | P4 | planned | | |
 | WP-025 | Customer job post and job lifecycle | P2 | planned | | |
-| WP-026 | Helper bidding and acceptance | P2 | implemented (server gate: bids + hire + helper profile/onboarding/listing/invoice/payout compatibility) | bf1d63418, d199d6c05, 5ce4bb0ec, (this checkpoint) | `progressiveAccessHelperEnforcement.test.js` (23); helper profile buffer/gallery suites (5); `progressiveAccessInvoices.db.test.js` (1); payout boundary/auth contracts; JobDetailPage access_required link |
+| WP-026 | Helper bidding and acceptance | P2 | implemented (server gate: bids + hire + helper profile/onboarding/listing/invoice/payout compatibility) | bf1d63418, d199d6c05, 5ce4bb0ec, c88bb723e, b3198884c, 630447775, 3307f4348 | `progressiveAccessHelperEnforcement.test.js` (23); helper profile buffer/gallery suites (5); `progressiveAccessInvoices.db.test.js` (1); payout boundary/auth contracts; JobDetailPage access_required link |
 | WP-027 | Bookings and calendar | P2 | planned | | |
 | WP-028 | Quotes and quote requests | P2 | planned | | |
 | WP-029 | Work agreements and disputes | P2 | planned | | |

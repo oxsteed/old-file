@@ -662,6 +662,13 @@ when enforcement is on. The helper enforcement contract passes 23 tests, profile
 buffer/gallery regressions pass 5 tests, and the populated personal/business
 invoice boundary plus payout/auth contracts pass.
 
+The latest helper-compatibility checkpoint is pushed at `3307f4348` (with the
+preceding profile/onboarding/listing/invoice checkpoints immediately before it).
+The worktree is clean apart from the unrelated untracked
+`docs/oxsteed-progressive-access-developer-handoff.md`. The four populated
+WP-008 business suites pass together (41 tests), and PR Analyze is pending for
+the exact pushed head.
+
 WP-089 is currently an evidence checkpoint rather than a source change. The
 platform governance routes (`server/routes/governance.js`) require both live
 admin authentication and `requireSuperAdmin`; regular admin permission grants
