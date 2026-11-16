@@ -649,9 +649,16 @@ locally (75 tests).
 **Exact next action (resume here):** run the populated support/refund acceptance
 with a view-only support actor, a legitimately privileged actor, and a wrong
 business/context retry; then inspect WP-089 platform staff grants and governance.
-Small open items: helper-only routes still using
-`req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
-server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
+Small open items: helper onboarding middleware and remaining helper-only routes
+still using `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'"
+server/routes server/controllers`) should move to the same live capability marker.
+
+WP-026 now also places `requireHelperCapability` before the helper profile's
+legacy role middleware, and `requireRole` accepts that marker only for helper
+role groups. This keeps the off/shadow behavior unchanged while allowing an
+approved customer-role helper to edit the helper profile when enforcement is on.
+The helper enforcement contract passes 21 tests and the profile buffer/gallery
+regressions pass 5 tests.
 
 WP-089 is currently an evidence checkpoint rather than a source change. The
 platform governance routes (`server/routes/governance.js`) require both live

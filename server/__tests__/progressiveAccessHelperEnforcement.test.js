@@ -11,6 +11,7 @@ const access = require('../services/access/accessService');
 const logger = require('../utils/logger');
 const { requireHelperCapability, isHelperActor } = require('../middleware/requireAccess');
 const { requireHelperWorkEligible } = require('../middleware/helperOnboardingMiddleware');
+const requireRole = require('../middleware/requireRole');
 
 function run(mw, req) {
   return new Promise((resolve) => {
@@ -85,6 +86,16 @@ describe('helper capability gate', () => {
     jest.spyOn(require('../services/helperOnboarding'), 'loadHelperOnboarding').mockResolvedValue({ complete: true });
     const r2 = await run(requireHelperWorkEligible, req);
     expect(r2.nextCalled).toBe(true);
+  });
+
+  test('legacy helper-only role gates accept the live capability marker only', async () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+    const allowed = { user: user('customer'), accessCapabilities: { 'helper.offer_services': true } };
+    const blocked = { user: user('customer') };
+    const pass = await run(requireRole('helper', 'helper_pro', 'broker'), allowed);
+    const deny = await run(requireRole('helper', 'helper_pro', 'broker'), blocked);
+    expect(pass.nextCalled).toBe(true);
+    expect(deny.res.statusCode).toBe(403);
   });
 
   test('enforce: approved helper capability remains usable when subscription access is expired', async () => {
