@@ -1448,6 +1448,23 @@ catalog-to-job linkage, quote/checkout transitions, cancellation/refund
 idempotency, and access changes while an order is open; then add the smallest
 missing capability-aware contract and focused tests.
 
+WP-041 is implemented on the branch. Job-linked kit carts now verify the
+authenticated caller is the job customer, assigned helper, or broker before a
+cart row is created; a guessed or foreign job ID fails closed and rolls back the
+transaction. The shared cart builder now resolves product IDs only from active,
+available marketplace rows and continues to derive every unit price from that
+database snapshot, so a caller cannot inject a stale or invented price. The
+existing authenticated job-kit route remains customer/helper compatible and
+does not grant extra capabilities. Focused tests passed 11/11 across the new
+progressive contract and job-kit service suites; the edited service passes
+`node --check`. No populated browser, live ordering, or payment-provider
+acceptance is claimed.
+**Exact next action (resume here):** begin WP-042 Media publisher and
+verification. Audit selected-author eligibility, draft/upload ownership,
+moderation and verification state, public/private media visibility, share links,
+and behavior after author access is revoked; then add the smallest missing
+capability-aware contract and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
