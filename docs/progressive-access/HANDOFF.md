@@ -206,8 +206,13 @@ Evidence: `progressiveAccessLeads.db.test.js`. **Pre-existing bug noted, not fix
 `amount_cents`, `valid_until` …) that the `business_leads`/`lead_quotes` schema
 (`076b_business_leads_phase5.sql`) does not have — those endpoints 500 against a real DB.
 
+WP-053 done: product/rule/tier writes were already business-keyed; fixed a product pricing
+rule being creatable against another business's product id, rule delete answering 200 for a
+foreign id (now 404), and added audit entries for product pricing rule create/update/delete
+and bulk tier changes. Evidence: `progressiveAccessCatalog.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-053 (catalog, pricing rules and marketplace publishing; SPEC.md line ~3271). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-054 (SPEC.md line ~3299). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
