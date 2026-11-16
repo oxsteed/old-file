@@ -244,8 +244,17 @@ reject a `unit_id` from another business (404). **Real bug fixed:** every
 `PATCH /api/maintenance-requests/:id` returned 500 on PostgreSQL ("inconsistent types deduced
 for parameter $1") — status param now cast. Evidence: `progressiveAccessMaintenance.db.test.js`.
 
+WP-058 done: new `server/utils/sameBusinessRefs.js` (`assertBusinessRefs`) — trades,
+creative, professional and beauty controllers now 404 when a body references a quote,
+diagnostic/intake/engagement request or appointment of another business, or assigns a
+non-team user as beauty staff (FKs only proved the row existed somewhere). Public intake
+(`middleware/publicIntake.js`) also strips `linked_quote_id`, `linked_appointment_id`,
+`assigned_staff_id`, `assigned_helper_id`, `quote_id`. Not changed: trades
+`assigned_helper_id` on member writes may still name an outside helper (contractors).
+Evidence: `progressiveAccessTemplates.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-058 (SPEC.md, search `<a id="wp-058">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-059 (continuity and operating health; SPEC.md, search `<a id="wp-059">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
