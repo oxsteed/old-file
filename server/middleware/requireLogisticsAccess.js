@@ -16,6 +16,8 @@ const logger = require('../utils/logger');
 const laneService = require('../services/logisticsLaneService');
 const accessService = require('../services/logisticsAccessService');
 const stateMachine = require('../services/logisticsStateMachine');
+const progressiveAccess = require('../services/access/accessService');
+const { projectionEnabled } = require('../services/access/flags');
 
 const COUNTRY_RE = /^[A-Z]{2}$/;
 
@@ -67,9 +69,28 @@ const LOGISTICS_ROLES = new Set([
  */
 async function resolveLogisticsRole(user) {
   if (!user) return null;
-  if (user.logistics_role && LOGISTICS_ROLES.has(user.logistics_role)) return user.logistics_role;
+  const storedRole = user.logistics_role && LOGISTICS_ROLES.has(user.logistics_role)
+    ? user.logistics_role
+    : null;
   if (user.role === 'super_admin') return 'super_admin';
   if (user.role === 'admin')       return 'admin';
+  // A progressive logistics approval grants organizer authority without
+  // rewriting the user's legacy role or default mode. Keep explicit stored
+  // business/distributor/operations roles authoritative; only an ordinary
+  // buyer can be promoted by the self-scoped grant.
+  if (!storedRole || storedRole === 'individual_buyer') {
+    try {
+      if (projectionEnabled(user.id)) {
+        const result = await progressiveAccess.can(user.id, 'logistics.ship', { type: 'self' });
+        if (result?.allowed) return 'organizer';
+      }
+    } catch (err) {
+      // Older deployments may not have progressive access tables yet. Keep
+      // the legacy resolver as the safe fallback rather than failing buyers.
+      logger.warn('progressive logistics role lookup unavailable', { err: err.message });
+    }
+  }
+  if (storedRole) return storedRole;
   try {
     const r = await pool.query(
       `SELECT id FROM businesses WHERE user_id = $1 AND is_active = TRUE LIMIT 1`,
