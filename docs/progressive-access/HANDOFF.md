@@ -236,8 +236,16 @@ tokens) were any-member → need `settings.integrations`; webhook delete for a f
 Evidence: `progressiveAccessIntegrations.db.test.js`. Brand attach/detach (restaurantBrands)
 left as is (resource-scoped, covered by brand tests).
 
+WP-057 done: requester (tenant) view of a maintenance request and `/my` no longer include
+`owner_notes`, and event notes are shown to the tenant only when flagged `tenant_visible`
+(older events stay hidden); an assigned helper who is not on the team can progress the work
+but gets 403 `assignee_scope` for reassigning or writing internal notes; compliance records
+reject a `unit_id` from another business (404). **Real bug fixed:** every
+`PATCH /api/maintenance-requests/:id` returned 500 on PostgreSQL ("inconsistent types deduced
+for parameter $1") — status param now cast. Evidence: `progressiveAccessMaintenance.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-057 (property and maintenance workflows; SPEC.md line ~3383). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-058 (SPEC.md, search `<a id="wp-058">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
