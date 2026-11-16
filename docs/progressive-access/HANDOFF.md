@@ -158,8 +158,13 @@ WP-046 done: per-owner advisory lock in `addBusiness`/`setPrimary` (fixes a pre-
 500 on concurrent creates hitting `idx_businesses_one_primary`), claim restriction in
 `accessService.resolveSubject`, `services/access/businessGate.js` publish gate.
 
+WP-047 done: no server change needed — `requireBusinessAccess` resolves membership per
+request from the URL entity and `user_workspace_contexts` is display-only; proven by
+`progressiveAccessWorkspace.db.test.js`. Switcher role label now translated
+(`progressiveAccess.orgRoles.*`).
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-047 (workspace context and multiple organizations). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-048 (permission overrides and delegated administration). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 

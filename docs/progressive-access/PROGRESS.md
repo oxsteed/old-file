@@ -64,7 +64,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-044 | Learn, personal interests, and resources | P4 | planned | | |
 | WP-045 | Personal finances and planned needs | P4 | planned | | |
 | WP-046 | Business setup and existing ownership | P3 | implemented | e97008ac9 | progressiveAccessBusiness.db.test.js (4), businessCategories.test.js |
-| WP-047 | Workspace context and multiple organizations | P3 | planned | | |
+| WP-047 | Workspace context and multiple organizations | P3 | implemented | f2809f22b | progressiveAccessWorkspace.db.test.js (2), navbarNavigation.test.mjs (switcher roles) |
 | WP-048 | Permission overrides and delegated administration | P3 | planned | | |
 | WP-049 | Staff scheduling and dispatch | P3 | planned | | |
 | WP-050 | Business communications and representative scope | P3 | planned | | |
