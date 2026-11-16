@@ -253,8 +253,15 @@ non-team user as beauty staff (FKs only proved the row existed somewhere). Publi
 `assigned_helper_id` on member writes may still name an outside helper (contractors).
 Evidence: `progressiveAccessTemplates.db.test.js`.
 
+WP-059 done: `/health-alerts` list/generate/dismiss need `analytics.view_summary` (were
+any-member; matches the hub tab gate); the `overdue_invoices` alert is shown/dismissable only
+with `invoices.view` or `analytics.view_financial`; dismissing another business's alert → 404.
+**Real bug fixed:** `generateAlerts` always returned 500 — its upsert used
+`ON CONFLICT (business_id, alert_type)` and `updated_at`, neither of which exist (migration
+242); now update-then-insert under an advisory lock. Evidence: `progressiveAccessHealth.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-059 (continuity and operating health; SPEC.md, search `<a id="wp-059">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-060 (restaurant application and activation; SPEC.md, search `<a id="wp-060">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
