@@ -782,15 +782,17 @@ suites pass (42 tests), and referral/partner/affiliate payout suites pass (79
 tests). Frontend reference verification found 0 issues, signup/navigation tests
 pass (19 tests), and `build:ci` typecheck/build plus `verify:dist-assets` pass
 with 1,203 emitted assets.
-**Exact next action (resume here):** run a populated referral scenario in which
-an existing referrer shares a link that preselects Helper intent, the new user
-finishes customer-first signup, and the same user resumes the draft application
-from another device. Verify the referred user is attributed once, the
-referrer's count does not double, no affiliate program or `access_grants` row
-is created automatically, and affiliate surfaces stay blocked until the helper
-capability is approved. Repeat with a forged approval-style query parameter and
-confirm it is ignored/rejected. Then record the disposable-DB result and move
-to WP-098.
+The populated disposable PostgreSQL referral scenario now passes in
+`progressiveAccessSignup.db.test.js` (9 tests): an existing referrer can share a
+Helper-intent link, customer-first signup records the referral once, the draft
+application resumes from the same account identity, forged approval-style input
+does not change authority, and no affiliate program or `access_grants` row is
+created automatically. The referral count update is awaited before signup
+responds, but remains non-fatal if its metrics write fails.
+**Exact next action (resume here):** move to WP-098, Release visibility and
+startup bootstrap. Audit feature-flag boot behavior and startup readiness for
+the progressive-access projection/request switches, then run the relevant
+startup/health suites before recording the next checkpoint.
 
 History of what is done (newest last):
 
