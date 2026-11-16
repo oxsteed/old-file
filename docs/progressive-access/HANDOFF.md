@@ -153,6 +153,8 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
     only the client packages of customers they serve.
 18. **Opening a draft restaurant storefront needs the owner's approval**, even when a manager
     presses the button (the approval belongs to the canonical owner, not the operator).
+19. **Managers cannot change their own or a peer manager's store boundary**, nor hand
+    out a store role at their own rank; only the owner (or a higher role) can.
 
 ## Next step
 
@@ -269,8 +271,14 @@ active is untouched. A manager cannot publish when the owner lacks approval (dec
 Two-applications conflict is already prevented by WP-046 (`resolveSubject` requires the
 applicant to own the business). Evidence: `progressiveAccessRestaurant.db.test.js`.
 
+WP-061 done: store-scoped staff were already confined (F-02: `requireBrand` keeps
+store-scoped managers off `location-access`; store menu checks `getLocationRole`). Added
+`assertWithinCallerScope` in `restaurantLocationAccessController` (replace/clear): no
+self-edit, no editing a peer/higher membership, no store role at/above own rank, no
+location outside own stores (decision 19). Evidence: `progressiveAccessRestaurantStores.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-061 (restaurant membership and assigned store scope; SPEC.md, search `<a id="wp-061">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-062 (SPEC.md, search `<a id="wp-062">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
