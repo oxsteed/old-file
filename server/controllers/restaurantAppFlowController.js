@@ -2100,6 +2100,26 @@ exports.updatePublishing = async (req, res, next) => {
     if (status && !allowedStatus.has(status)) {
       throw new AppError('Validation failed', 400, 'validation_failed', { status: 'Status must be draft, active, or paused' });
     }
+    // WP-060: opening a never-published (draft) storefront is the reviewed
+    // step — the canonical owner needs approved restaurant.own/business.own for
+    // themself or this business (ACCESS_BUSINESS_ENFORCEMENT). Re-activating a
+    // paused store and every other edit stay on the restaurant's own state machine.
+    if (status === 'active' && (!restaurant.status || restaurant.status === 'draft')
+        && require('../services/access/flags').businessEnforcement() !== 'off') {
+      const gate = await require('../services/access/businessGate').checkPublish(pool, {
+        userId: restaurant.owner_user_id || restaurant.business_owner_id,
+        businessId: restaurant.business_id,
+        kind: 'restaurant',
+      });
+      if (!gate.allowed) {
+        return res.status(403).json({
+          error: 'This needs approved access first.',
+          code: 'access_required',
+          capability: gate.capability,
+          next: `/settings/applications?apply=${encodeURIComponent(gate.capability)}`,
+        });
+      }
+    }
 
     const rawFulfillmentModes = req.body.fulfillmentModes ?? req.body.fulfillment_modes;
     let fulfillmentModes = null;
