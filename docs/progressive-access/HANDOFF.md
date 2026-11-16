@@ -473,13 +473,15 @@ business, and the territory routes are gated by `franchise.operate` under
 `ACCESS_FRANCHISE_ENFORCEMENT` while the applicant status routes stay readable.
 The mounted route suite (`server/__tests__/franchiseRouteAccess.test.js`)
 passes for off/enforce/denied cases.
-**Exact next action (resume here):** connect the client territory entry to the
-real `{ access, flags }` projection. A customer-class user should see the
-application/status workspace while pending, but the territory command center
-must not fetch or retain territory data without `franchise.operate`; after
-activation, a projection refresh should expose the link and load the scoped
-stats/helpers. Add a browser fixture for grant/revoke refresh and keep the
-server-side foreign-user denial as the authority.
+**Exact next action (resume here):** connect the franchise status/application
+surface to the same projection so pending customer-class applicants are not
+presented with a territory operating link, while an activated owner sees it
+without a mode switch. Then add the admin/browser acceptance for activation,
+reassignment, and a revoked territory link. The territory page itself is now
+at `0dd3848bf`: it reads `{ access, flags }`, makes zero API calls while the
+progressive grant is absent, loads stats/helpers after grant refresh, and
+clears the rendered territory after revoke (`franchiseTerritoryAccess.browser-
+check.cjs`).
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
