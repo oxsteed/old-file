@@ -58,7 +58,7 @@ router.post('/tier',        authenticate, (_req, res) => res.status(410).json({
   code: 'endpoint_retired',
 }));
 router.post('/w9',          authenticate, saveW9);
-router.post('/accept-terms', authenticate, acceptTerms);
+router.post('/accept-terms', authenticate, requireHelperCapability, acceptTerms);
 // Review P2-477: records the signup checkbox against the pending registration
 // (version, time, hashed IP, user agent) before the account exists.
 router.post('/registration-terms', authLimiter, dedicatedRegistrationClosed, acceptPendingTerms);
@@ -100,6 +100,7 @@ router.put('/onboarding/background-check',
 );
 router.get('/onboarding/status',
   authenticate,
+  requireHelperCapability,
   getOnboardingStatus
 );
 
