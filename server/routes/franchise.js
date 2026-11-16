@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
+const { requireFranchiseCapability } = require('../middleware/requireAccess');
 
 // Audit fix: Franchise is launch-hidden. Gate the API to match the UI.
 // Default on since the all-launch flip (2026-11-04); explicit
@@ -31,8 +32,8 @@ const {
 
 router.post('/applications', generalLimiter, requireFranchiseEnabled, createFranchiseApplication);
 router.get('/my-applications',     authenticate, requireFranchiseEnabled, listMyFranchiseApplications);
-router.get('/territory-stats',     authenticate, requireFranchiseEnabled, getTerritoryStats);
-router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, getTerritoryHelpers);
+router.get('/territory-stats',     authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryStats);
+router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryHelpers);
 
 router.get('/applications', authenticate, requireAdmin, requirePermission('manage_operations'), listFranchiseApplications);
 router.get('/applications/:id', authenticate, requireAdmin, requirePermission('manage_operations'), getFranchiseApplication);

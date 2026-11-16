@@ -36,7 +36,7 @@ function isHelperActor(req) {
   return LEGACY_HELPER_ROLES.includes(req.user.role);
 }
 
-function requireCapability(capability, { modeFn, audienceLoader = null } = {}) {
+function requireCapability(capability, { modeFn, audienceLoader = null, legacyAllowedFn = null } = {}) {
   return async function accessCapabilityGate(req, res, next) {
     const mode = modeFn();
     if (mode === 'off' || !req.user) return next();
@@ -53,7 +53,7 @@ function requireCapability(capability, { modeFn, audienceLoader = null } = {}) {
       return next(err);
     }
     if (mode === 'shadow') {
-      const legacy = LEGACY_HELPER_ROLES.includes(req.user.role);
+      const legacy = legacyAllowedFn ? legacyAllowedFn(req) : LEGACY_HELPER_ROLES.includes(req.user.role);
       if (legacy !== decision.allowed) {
         logger.warn('access.shadow_mismatch', {
           capability, legacyAllowed: legacy, capabilityAllowed: decision.allowed,
@@ -95,6 +95,11 @@ const requireHelperCapability = requireCapability('helper.offer_services', { mod
 const requireInvestorCapability = requireCapability('investor.reporting', {
   modeFn: flags.investorEnforcement,
   audienceLoader: async (userId) => require('../services/access/accessService').getInvestorAudience(userId),
+  legacyAllowedFn: (req) => ['investor', 'admin', 'super_admin'].includes(req.user?.role),
+});
+const requireFranchiseCapability = requireCapability('franchise.operate', {
+  modeFn: flags.franchiseEnforcement,
+  legacyAllowedFn: (req) => req.user?.default_mode === 'franchise_applicant',
 });
 
-module.exports = { requireCapability, requireHelperCapability, requireInvestorCapability, isHelperActor, hasCapability };
+module.exports = { requireCapability, requireHelperCapability, requireInvestorCapability, requireFranchiseCapability, isHelperActor, hasCapability };

@@ -15,6 +15,7 @@
  *                                  business.own / restaurant.own application)
  *   ACCESS_CONSULTANT_ENFORCEMENT  off | shadow | enforce (paying clients)
  *   ACCESS_INVESTOR_ENFORCEMENT    off | shadow | enforce (investor reporting)
+ *   ACCESS_FRANCHISE_ENFORCEMENT   off | shadow | enforce (territory operations)
  *   ACCESS_PILOT_USER_IDS          comma-separated user UUIDs that get
  *                                  REQUESTS/PROJECTION while flags are off
  */
@@ -52,6 +53,11 @@ function investorEnforcement() {
   return ['off', 'shadow', 'enforce'].includes(v) ? v : 'off';
 }
 
+function franchiseEnforcement() {
+  const v = String(process.env.ACCESS_FRANCHISE_ENFORCEMENT || 'off').trim().toLowerCase();
+  return ['off', 'shadow', 'enforce'].includes(v) ? v : 'off';
+}
+
 /** Client-visible boot flags (never a permission boundary). */
 function clientFlags(userId) {
   return {
@@ -62,4 +68,4 @@ function clientFlags(userId) {
   };
 }
 
-module.exports = { requestsEnabled, projectionEnabled, customerFirstSignup, legacySwitchRetired, helperEnforcement, businessEnforcement, consultantEnforcement, investorEnforcement, clientFlags, isPilot };
+module.exports = { requestsEnabled, projectionEnabled, customerFirstSignup, legacySwitchRetired, helperEnforcement, businessEnforcement, consultantEnforcement, investorEnforcement, franchiseEnforcement, clientFlags, isPilot };
