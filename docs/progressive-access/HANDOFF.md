@@ -687,6 +687,13 @@ refresh fencing, logout propagation, stale-account protection, legacy-token
 migration, and passkey hydration. Exact-head CI is the remaining verification
 gap for this checkpoint.
 
+WP-018 has been audited as the next in-progress package. Passkey registration,
+TOTP enrollment, session-management routes, localized settings surfaces, and
+unsupported-browser guidance are covered by 16 server tests and 7 client
+contracts. The remaining evidence is a native authenticator/browser acceptance
+run plus exact-head CI; do not treat static passkey contracts as proof of a
+hardware-backed WebAuthn ceremony.
+
 WP-089 is currently an evidence checkpoint rather than a source change. The
 platform governance routes (`server/routes/governance.js`) require both live
 admin authentication and `requireSuperAdmin`; regular admin permission grants
