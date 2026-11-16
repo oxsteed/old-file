@@ -1077,11 +1077,15 @@ contract continues to prove authenticated API reads are network-only and cannot
 replay another account's cached response. The PATCH response applies the same
 mode metadata after profile edits. No native app binary or live installed-PWA
 acceptance was claimed.
-**Exact next action (resume here):** audit the native/PWA client consumer of
-`/api/mobile/profile` and add a compatibility contract that reads `data.access`
-when present without requiring it for old clients; then run the mobile profile,
-service-worker reliability, frontend-reference, and exact-head CI checks before
-moving to WP-018's remaining native WebAuthn acceptance.
+The repository audit found no native profile consumer beyond this API contract;
+the enabled/disabled mobile profile tests therefore serve as the compatibility
+boundary for old clients and projected clients. The service worker's existing
+network-only API policy remains unchanged. No native app binary or live
+installed-PWA acceptance was claimed.
+**Exact next action (resume here):** move to WP-018's remaining native WebAuthn
+acceptance. If a native client is added later, make it consume `data.access`
+optionally (never require the field from an old server) and add its contract to
+this package before enabling the rollout for that client.
 
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
