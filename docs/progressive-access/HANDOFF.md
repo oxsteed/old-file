@@ -554,6 +554,18 @@ client build gate (1,203 assets) pass locally.
 **Exact next action (resume here):** inspect WP-082's distributor assignment,
 shipment, warehouse, and revocation boundaries; add server-authoritative
 assignment checks and browser evidence before moving to WP-083.
+
+WP-082 is checkpointed at `5f666d8cc` (assigned distributor delivery access).
+`requireDeliveryActor()` now permits operations staff or a reseller/franchise
+buyer whose `delivery_orders.assigned_to` still matches the authenticated user;
+changed or revoked assignments fail closed before a status update. Delivery
+reads include assigned distributor records without widening ordinary buyer
+visibility, and the existing delivery state machine remains the only mutation
+path. `logisticsDistributorAssignment.test.js`, warehouse transition tests, and
+buyer warehouse-read tests pass together (149 tests).
+**Exact next action (resume here):** add browser evidence for the distributor
+workspace's assigned-delivery read/update/revocation flow, then inspect WP-083
+internal operations and compliance separation.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
