@@ -695,7 +695,20 @@ helper-enforcement suites pass together (21 tests).
 **Exact next action (resume here):** run populated analytics fixtures comparing
 ordinary customer, business manager, investor, and staff requests across the
 aggregate/detail/export/cache paths, then verify consent and row filters agree
-before continuing to WP-092.
+before continuing to the WP-092 checkpoint below.
+
+WP-092 is currently an evidence checkpoint. Progressive access decisions emit
+their own durable `access_outbox` events and projection bumps; they do not call
+campaign delivery. Growth activity ingestion independently requires the
+consent/jurisdiction gate (including GPC opt-out handling), and scheduled offer
+delivery re-resolves the current regional authorization before queueing. The
+focused growth/telemetry/outbox suites pass (40 tests); the populated promotion
+analytics database suite is environment-gated and skipped without its disposable
+DB URL.
+**Exact next action (resume here):** run the populated old-fixture mode-toggle
+and capability-approval scenario, count only the intended access transition and
+retry events, and verify no campaign is sent without current consent and segment
+eligibility before moving to WP-093.
 
 History of what is done (newest last):
 
