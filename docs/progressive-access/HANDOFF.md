@@ -678,12 +678,14 @@ reference verification plus typecheck pass locally. The exact next action is to
 record the CI result for `3c954caed`, then continue the remaining planned access
 packages without removing the compatibility endpoint.
 
-WP-017 has now been audited as an in-progress checkpoint. The existing
+WP-017 is now an implementation checkpoint. The existing
 session-epoch fence, cross-tab refresh lock, transient-refresh policy, cookie
 CSRF boundary, and session-scope checks pass locally (32 unit/server tests).
 The authenticated browser matrix in `client/scripts/loginSession.browser-check.cjs`
-still needs to run in a configured browser environment; do not call WP-017
-complete from the unit evidence alone.
+passed all 17 synthetic browser scenarios, including cross-tab account changes,
+refresh fencing, logout propagation, stale-account protection, legacy-token
+migration, and passkey hydration. Exact-head CI is the remaining verification
+gap for this checkpoint.
 
 WP-089 is currently an evidence checkpoint rather than a source change. The
 platform governance routes (`server/routes/governance.js`) require both live
