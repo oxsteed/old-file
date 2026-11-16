@@ -710,6 +710,20 @@ and capability-approval scenario, count only the intended access transition and
 retry events, and verify no campaign is sent without current consent and segment
 eligibility before moving to WP-093.
 
+WP-093 is currently an evidence checkpoint. `connectorAuth` resolves the API-key
+holder from the live users table, requires an active admin role and enrolled 2FA,
+and each sensitive route rechecks the shared active grant/delegation lookup.
+Regional grants cannot authorize global connector actions. Signed partner
+postbacks independently bind to an active partner and matching click/company
+context, reject stale or mismatched signatures, deduplicate event identity, and
+enforce allowed status and amount transitions. The connector, hardening, and
+partner-growth suites pass together (78 tests).
+**Exact next action (resume here):** run a populated connector/partner fixture
+with a human capability token against a machine-only route, then revoke the
+connector grant and replay the signed callback against a different company;
+verify both are denied without changing the authorized path before moving to
+WP-094.
+
 History of what is done (newest last):
 
 
