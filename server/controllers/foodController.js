@@ -5271,7 +5271,7 @@ exports.updateOrderStatus = async (req, res, next) => {
       unpaidCompletionOverride = await hasRestaurantPermission(restaurant, ['orders.manage']);
     }
 
-    const storeScope = req.screenDevice ? {mode:'assigned',location_ids:[Number(req.screenDevice.location_id)]}
+    let storeScope = req.screenDevice ? {mode:'assigned',location_ids:[Number(req.screenDevice.location_id)]}
       : req.displayDevice ? {mode:'assigned',location_ids:[Number(req.displayDevice.locationId ?? req.displayDevice.location_id)]}
       : await getLocationScope(restaurant,req.user.id);
     const transitionResult = await withTransaction(pool, async (client) => {
@@ -5281,6 +5281,19 @@ exports.updateOrderStatus = async (req, res, next) => {
           `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
           [`food-status:${restaurantId}:${idempotencyKey}`]
         );
+      }
+      // WP-063: a staff actor's membership is re-read inside the transaction
+      // (FOR SHARE, so a concurrent removal waits for or follows this commit),
+      // and the store scope is recomputed from it — a retry after removal or a
+      // store reassignment cannot ride on the access resolved before the lock.
+      if (!req.screenDevice && !req.displayDevice && restaurant.effective_membership_id
+          && restaurant.effective_role !== 'owner') {
+        const { rows: [stillMember] } = await client.query(
+          `SELECT id FROM business_members WHERE id = $1 AND business_id = $2 AND status = 'active' FOR SHARE`,
+          [restaurant.effective_membership_id, restaurant.business_id]
+        );
+        if (!stillMember) throw new AppError('You no longer have access to this restaurant', 403, 'forbidden');
+        storeScope = await getLocationScope(restaurant, req.user.id, client);
       }
       if (storeScope.mode === 'assigned') {
         const { rows: [target] } = await client.query(

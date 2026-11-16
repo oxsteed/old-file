@@ -933,6 +933,8 @@ describe('food controller', () => {
       .mockResolvedValueOnce({ rows: [{ code: 'orders.manage', allow: true }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] }) // no active store assignments: legacy all-store member
+      .mockResolvedValueOnce({ rows: [{ id: 944 }] }) // WP-063: membership re-read in the transaction
+      .mockResolvedValueOnce({ rows: [] }) // WP-063: store scope recomputed in the transaction
       .mockResolvedValueOnce({
         rows: [{
           id: 144,
