@@ -685,6 +685,18 @@ consumer and an employee sharing location data, revoke the employee's active
 assignment, verify the internal route is denied while customer features remain
 available, then continue to WP-091 analytics and telemetry audiences.
 
+WP-091 has a source checkpoint at `8877b58ee`. The helper-owned promotion
+analytics routes now use `requireHelperCapability`, matching the existing
+progressive helper gate used by bids and payout destinations. Under enforcement,
+a customer-class account without `helper.offer_services` receives
+`access_required`, an approved customer-class helper can read performance, and a
+legacy helper with a revoked grant cannot record shares. The focused route and
+helper-enforcement suites pass together (21 tests).
+**Exact next action (resume here):** run populated analytics fixtures comparing
+ordinary customer, business manager, investor, and staff requests across the
+aggregate/detail/export/cache paths, then verify consent and row filters agree
+before continuing to WP-092.
+
 History of what is done (newest last):
 
 
