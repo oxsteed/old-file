@@ -439,18 +439,24 @@ files, supports explicit upload visibility, and keeps the ownership application
 identifier out of the consultant response. The browser fixture covers shared
 versus applicant-only controls. Live acceptance and exact-head CI remain open.
 
-WP-077 is in progress at `e48738e84`, `0b45ff681`, `ad95b1a09`, `d2346b1e4`, and `04e097b34`. The mounted KPI route
+WP-077 is in progress at `e48738e84`, `0b45ff681`, `ad95b1a09`, `d2346b1e4`, `04e097b34`, and `1a9775db2`. The mounted KPI route
 test proves the old array-to-variadic denial and the corrected legacy role
 path. Migration `20261116170000_investor_reporting_audiences.sql` now creates a
 named dataset audience when an investor request is approved; enforce mode
 requires that live audience, rejects expiry/revoke, and rejects a route whose
 dataset is not in the audience. The focused DB case and seven-case mounted
-route suite pass locally.
-**Exact next action (resume here):** trace the evidence and export entry points
-from the dashboard and add dataset-aware UI behavior for a narrowed audience.
-Then cover revoke in the UI projection without exposing unrelated tenant data.
-The applicant audience form, reviewer confirmation, and customer-class
-dashboard Chrome fixture are complete.
+route suite pass locally. The dashboard projection now carries the current
+audience and the browser fixture proves an `overview + revenue` audience calls
+only KPI and revenue routes; franchise, supply-demand, and evidence panels are
+not fetched/rendered without their datasets. The evidence entry point is
+`/investor/evidence/:metric`; no separate investor export route is registered,
+so export remains an explicit later package rather than an invented client path.
+**Exact next action (resume here):** add a projection/browser regression for an
+approved investor whose grant is revoked or expires while the dashboard is
+open. Confirm the customer workspace remains available, investor-only data is
+cleared, and no stale investor request crosses the account/session boundary.
+The applicant audience form, reviewer confirmation, narrowed dashboard fixture,
+and dataset-aware loading are complete.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
