@@ -875,6 +875,27 @@ remains open.
 acknowledgements. Audit stale/missing acceptance during approval, preserve
 customer access, and verify versioned terms evidence and idempotent retries.
 
+WP-102 is currently an evidence checkpoint. `POST /api/legal/:documentType/accept`
+retains the accepted document version, actor identity, signed name, timestamp,
+request metadata, and an audit entry. Re-acceptance is safe for active rows,
+repairs a missing mapped `user_consents` row, and reactivates a revoked row
+without duplicating the unique acceptance tuple. Revocation clears only the
+matching TermsGate consent for `terms_of_service` or `privacy_policy`; other
+legal records remain record-only. The terms middleware reports each missing or
+outdated prerequisite with its required/accepted versions and does not disable
+the customer account, so a stale acceptance blocks only gated actions while the
+customer experience remains available.
+
+`legalRevocationConsentClearing.test.js`, `legalReacceptConsentSync.test.js`,
+`legalAcceptancesParams.test.js`, `jobEditRace.db.test.js`, `bid.test.js`,
+`helperOnboardingRedesign.test.js`, and `authImpersonationGuards.test.js` pass
+(84 tests; 13 environment-gated skips). No source change was needed in this
+checkpoint. A populated approval with missing/stale policy acceptance and
+exact-head CI remain open.
+**Exact next action (resume here):** move to WP-103, Maintenance operations and
+rollback ownership. Audit readiness, migration compatibility, worker/outbox
+observability, and rollback behavior across grant approvals and revocations.
+
 History of what is done (newest last):
 
 
