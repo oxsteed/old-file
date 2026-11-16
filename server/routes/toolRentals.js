@@ -10,6 +10,7 @@ const express = require('express');
 const crypto = require('crypto');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { toolOwnerCapabilityGate } = require('../middleware/requireAccess');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
@@ -449,13 +450,14 @@ router.post('/payment-method', authenticate, paymentMethodController.setPaymentM
 router.delete('/payment-method', authenticate, paymentMethodController.deletePaymentMethod);
 
 // POST /api/tool-rentals
-router.post('/', authenticate, upload.single('image'), validateFileUpload, async (req, res) => {
+router.post('/', authenticate, toolOwnerCapabilityGate, upload.single('image'), validateFileUpload, async (req, res) => {
   let uploadedKey = null;
   try {
     const { payload, errors } = normalizeToolPayload(req.body);
     if (Object.keys(errors).length) {
       return res.status(400).json({ error: 'Validation failed', code: 'validation_failed', fields: errors });
     }
+    if (req.toolOwnerAccessPending) payload.is_available = false;
     const { hasImageGallery } = await getToolFields();
     const imageResult = hasImageGallery ? await resolveToolImageUrl(req) : { url: null, key: null };
     const imageUrl = imageResult.url;
@@ -515,7 +517,11 @@ router.post('/', authenticate, upload.single('image'), validateFileUpload, async
     );
 
     uploadedKey = null;
-    res.status(201).json({ tool: result.rows[0] });
+    res.status(201).json({
+      tool: result.rows[0],
+      publication_blocked: Boolean(req.toolOwnerAccessPending),
+      ...(req.toolOwnerAccessPending ? { code: 'access_required', capability: 'tool_owner.list_equipment' } : {}),
+    });
 
     // ── Fan out alerts to users with matching saved searches ────────────────
     // Fire-and-forget: alerts must never fail tool creation.
@@ -537,7 +543,7 @@ router.post('/', authenticate, upload.single('image'), validateFileUpload, async
 });
 
 // PUT /api/tool-rentals/:id
-router.put('/:id', authenticate, upload.single('image'), validateFileUpload, async (req, res) => {
+router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image'), validateFileUpload, async (req, res) => {
   let uploadedKey = null;
   try {
     const { id } = req.params;
@@ -561,6 +567,7 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
       // flag: owner edits can neither clear the hold nor re-enable listing.
       payload.is_available = false;
     }
+    if (req.toolOwnerAccessPending) payload.is_available = false;
     const { hasImageGallery } = await getToolFields();
     const imageResult = hasImageGallery ? await resolveToolImageUrl(req) : { url: null, key: null };
     const imageUrl = imageResult.url;
@@ -637,7 +644,11 @@ router.put('/:id', authenticate, upload.single('image'), validateFileUpload, asy
     );
 
     uploadedKey = null;
-    res.json({ tool: result.rows[0] });
+    res.json({
+      tool: result.rows[0],
+      publication_blocked: Boolean(req.toolOwnerAccessPending),
+      ...(req.toolOwnerAccessPending ? { code: 'access_required', capability: 'tool_owner.list_equipment' } : {}),
+    });
   } catch (err) {
     if (uploadedKey) {
       await deleteFile(uploadedKey).catch((cleanupError) => {

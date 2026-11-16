@@ -58,6 +58,11 @@ function franchiseEnforcement() {
   return ['off', 'shadow', 'enforce'].includes(v) ? v : 'off';
 }
 
+function toolOwnerEnforcement() {
+  const v = String(process.env.ACCESS_TOOL_OWNER_ENFORCEMENT || 'off').trim().toLowerCase();
+  return ['off', 'shadow', 'enforce'].includes(v) ? v : 'off';
+}
+
 /** Client-visible boot flags (never a permission boundary). */
 function clientFlags(userId) {
   return {
@@ -68,4 +73,4 @@ function clientFlags(userId) {
   };
 }
 
-module.exports = { requestsEnabled, projectionEnabled, customerFirstSignup, legacySwitchRetired, helperEnforcement, businessEnforcement, consultantEnforcement, investorEnforcement, franchiseEnforcement, clientFlags, isPilot };
+module.exports = { requestsEnabled, projectionEnabled, customerFirstSignup, legacySwitchRetired, helperEnforcement, businessEnforcement, consultantEnforcement, investorEnforcement, franchiseEnforcement, toolOwnerEnforcement, clientFlags, isPilot };

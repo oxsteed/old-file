@@ -1382,6 +1382,23 @@ setup. Audit rent search, booking, listing publication, owner/inventory scope,
 pending applicant drafts, listing policy checks, and post-revocation behavior;
 then add the smallest missing capability-aware contract and focused tests.
 
+WP-037 is implemented on the branch. Tool-rental listing creation and updates
+now pass through `tool_owner.list_equipment` under the new
+`ACCESS_TOOL_OWNER_ENFORCEMENT` off/shadow/enforce flag. In enforce mode a
+pending customer can resume and save an owner-scoped private draft, but the
+server forces `is_available = false` and returns an explicit publication-blocked
+state; an effective approved grant (or existing admin path) may publish. Public
+rent search, booking, payment methods, and booking lifecycle routes remain
+customer-accessible and are not coupled to listing approval. Focused rental
+tests passed 13/13 and the new progressive contract suite passed 3/3; edited
+server files pass `node --check`. No populated browser or live approval/revoke
+acceptance is claimed.
+**Exact next action (resume here):** begin WP-038 Rental handoff, deposits and
+disputes. Audit booking ownership, approval, pickup/return handoff, deposit
+authorization, dispute evidence, replay/idempotency, and post-listing-revoke
+behavior; then add the smallest missing capability-aware contract and focused
+tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

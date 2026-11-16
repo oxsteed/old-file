@@ -102,4 +102,42 @@ const requireFranchiseCapability = requireCapability('franchise.operate', {
   legacyAllowedFn: (req) => req.user?.default_mode === 'franchise_applicant',
 });
 
-module.exports = { requireCapability, requireHelperCapability, requireInvestorCapability, requireFranchiseCapability, isHelperActor, hasCapability };
+/**
+ * Tool-owner writes retain a customer-first draft path. In enforce mode an
+ * applicant without an effective grant may create or edit a private draft,
+ * but the route marks the request so publication is forced off. Approved
+ * actors publish normally; shadow mode only records the policy disagreement.
+ */
+const toolOwnerCapabilityGate = async function toolOwnerCapabilityGate(req, res, next) {
+  const mode = flags.toolOwnerEnforcement();
+  if (mode === 'off' || !req.user || ['admin', 'super_admin'].includes(req.user.role)) {
+    req.toolOwnerAccessApproved = true;
+    return next();
+  }
+  try {
+    const decision = await require('../services/access/accessService').can(req.user.id, 'tool_owner.list_equipment');
+    if (mode === 'shadow') {
+      if (!decision.allowed) logger.warn('access.shadow_mismatch', {
+        capability: 'tool_owner.list_equipment',
+        legacyAllowed: true,
+        capabilityAllowed: false,
+        reason: decision.reason,
+        route: req.baseUrl + (req.route ? req.route.path : ''),
+      });
+      req.toolOwnerAccessApproved = decision.allowed;
+      return next();
+    }
+    req.toolOwnerAccessApproved = decision.allowed;
+    req.toolOwnerAccessPending = !decision.allowed;
+    return next();
+  } catch (err) {
+    if (mode === 'shadow') {
+      logger.warn('access.shadow_error', { capability: 'tool_owner.list_equipment', err: err.message });
+      req.toolOwnerAccessPending = false;
+      return next();
+    }
+    return next(err);
+  }
+};
+
+module.exports = { requireCapability, requireHelperCapability, requireInvestorCapability, requireFranchiseCapability, toolOwnerCapabilityGate, isHelperActor, hasCapability };
