@@ -143,7 +143,6 @@ const DEFAULT_GOAL_FORM  = { title: '', goal_type: 'revenue', period: 'monthly',
 
 function WorkspaceDialogLoading({ onClose }) {
   const { t } = useTranslation();
-  const { t: accessT } = useTranslation('common');
   const cancel = useRef(null);
   useEffect(() => {
     const previous = document.activeElement;
@@ -192,6 +191,7 @@ export default function BusinessHubPage() {
 
 function BusinessHubInner() {
   const { t } = useTranslation();
+  const { t: accessT } = useTranslation('common');
   const { user } = useAuth();
   const currency = user?.preferred_currency
     || (user?.country ? getDefaultCurrency(user.country) : null)
