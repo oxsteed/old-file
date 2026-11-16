@@ -1,6 +1,6 @@
 # Progressive account access — handoff
 
-Branch `feat/progressive-account-access` (PR title "Progressive account access",
+Branch `feat/progressive-account-access`, PR https://github.com/oxsteed/old-file/pull/794 (title "Progressive account access",
 base `old-files-claude`). Spec: [SPEC.md](SPEC.md). Ledger: [PROGRESS.md](PROGRESS.md).
 Anyone (human or agent) can resume from this file alone.
 
@@ -27,7 +27,10 @@ cd server && npx jest --runInBand __tests__/progressiveAccess
 
 # PostgreSQL integration tests need PostgreSQL 16+ WITH PostGIS (migration 001).
 # CI already provides it (service "postgis" image, db credit_statement_test).
-# Locally: any Postgres+PostGIS, then:
+# Locally (what this box uses): micromamba env with conda-forge postgresql=17 + postgis at
+# /workspace/pgbin/env; data dir /workspace/pgdata. Start:
+#   /workspace/pgbin/env/bin/pg_ctl -D /workspace/pgdata -o "-k /workspace/pgsock -p 5432 -c listen_addresses=127.0.0.1" -l /workspace/pgdata.log start
+# Any Postgres+PostGIS works, then:
 createdb -h 127.0.0.1 -U oxsteed credit_statement_test
 DATABASE_URL=postgresql://oxsteed@127.0.0.1:5432/credit_statement_test?sslmode=disable NODE_ENV=test npm run migrate
 ACCESS_TEST_DATABASE_URL=postgresql://oxsteed@127.0.0.1:5432/credit_statement_test?sslmode=disable \
@@ -79,7 +82,7 @@ Spec "Commit-sized delivery sequence" + "Phase 0–5":
 - **API**: applicant `GET /api/me/access`, `GET|POST /api/me/access-requests`,
   `GET|PATCH /api/me/access-requests/:id`, `POST .../:id/submit|withdraw`,
   `GET /api/me/access-policies/:capability`. Reviewer under `/api/admin/access-requests`
-  (`requireAdmin` + permission `access_requests.review`, super-admin bypass).
+  (`requireAdmin` + permission `review_access_requests`, super-admin bypass; investor `review_investor_access`, franchise `review_franchise_access` — added to `PERMISSION_SCOPES` in adminPermissionController).
   Idempotency via `Idempotency-Key` header (repo idiom).
 - **Error codes** (shape `{ error, code }` from `utils/apiError.js`):
   `access_required` (403), `request_already_open` (409), `request_version_conflict` (409),
@@ -106,14 +109,14 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
 5. **Tool owner / logistics modes** are grandfathered as grants (they were self-service).
 6. **Franchise** grants come only from a current territory assignment; no self-service.
 7. **Investor and franchise reviews** need their own admin permissions
-   (`access_requests.review_investor`, `access_requests.review_franchise`); the general
-   `access_requests.review` covers helper/business/restaurant/consultant/tools/logistics.
+   (`review_investor_access`, `review_franchise_access`); the general
+   `review_access_requests` covers helper/business/restaurant/consultant/tools/logistics.
 
 ## Next step
 
 Done: registry/lifecycle/resolver/legacyMapping in `server/services/access/` + D1–D7 tests.
-Next: slice 1 — migration `server/migrations/<UTC ts>_progressive_access.sql` creating the
-access tables (see Conventions), then `server/services/access/accessService.js`
+Done: migration `server/migrations/20261116131500_progressive_access.sql` (applied + replayed locally).
+Next: `server/services/access/accessService.js`
 (loadFacts, getProjection, request CRUD with locked transitions + idempotency) with a
 DB test `server/__tests__/progressiveAccessService.db.test.js` gated by
 `ACCESS_TEST_DATABASE_URL`, and add that env var to the CI step
