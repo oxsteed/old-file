@@ -974,6 +974,19 @@ validation. `modePlatformApprovalPublicSchema.test.js` and
 resubmission, including needs-information history, stale client revision
 handling, prefill/scope retention, and opaque cross-account case privacy.
 
+WP-011 is confirmed as an implementation checkpoint. Applicant request reads
+are scoped by `applicant_id`; opaque identifiers from another account return
+the same not-found result. Reviewer `request_information` transitions persist
+the public reason and information request, resubmission validates the current
+policy and clears that request only on a successful submit, and every change
+is retained in immutable `access_request_decisions` history with an explicit
+request version. The populated progressive-access lifecycle, signup, and
+health suites pass (26 tests).
+**Exact next action (resume here):** audit WP-012, Platform review and audit,
+for two-reviewer version conflicts, live scoped reviewer authority on reads
+and writes, private evidence/notes, idempotent decisions, and foreign-subject
+resource hiding.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
