@@ -4057,6 +4057,10 @@
         "notPermitted": "Non hai l’autorizzazione per decidere questa richiesta."
       }
     },
-    "accessRequired": "Prima serve un accesso approvato."
+    "accessRequired": "Prima serve un accesso approvato.",
+    "home": {
+      "accessChanged": "Il tuo accesso a quella dashboard è cambiato, quindi vedi la tua home personale."
+    },
+    "accessUpdated": "Il tuo accesso è stato aggiornato."
   }
 }

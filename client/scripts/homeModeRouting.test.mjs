@@ -9,6 +9,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { normalizeLaunchDashboardMode } from '../src/utils/launchScope.js';
 import { dashboardKeyForMode } from '../src/utils/modeAccess.js';
 import { navbarMode } from '../src/utils/navbarNavigation.js';
+import * as accessProjection from '../src/utils/accessProjection.js';
 
 const require = createRequire(import.meta.url);
 function component(file, imports) {
@@ -22,10 +23,14 @@ function component(file, imports) {
 
 test('home selects the active mode without rendering the wrong landing page or bypassing verification', () => {
   let auth = { user: null, loading: true };
+  let projection = null;
   const imports = {
     '../context/AuthContext': { useAuth: () => auth },
     '../utils/launchScope': { normalizeLaunchDashboardMode },
     '../utils/modeAccess': { dashboardKeyForMode },
+    '../utils/accessProjection': accessProjection,
+    '../hooks/useAccessProjection': { __esModule: true, default: () => projection },
+    'react-i18next': { useTranslation: () => ({ t: key => key }) },
     './RouteErrorBoundary': { __esModule: true, default: ({ children }) => children },
     'react-router-dom': { useLocation: () => ({ pathname: '/' }),
       Navigate: ({ to }) => React.createElement('i', { 'data-redirect': to }) },
@@ -55,6 +60,30 @@ test('home selects the active mode without rendering the wrong landing page or b
   auth.user = { ...base, default_mode: 'business_owner', didit_status: 'pending' };
   assert.match(render(), /data-redirect="\/verify-identity"/);
   assert.deepEqual(rendered, []);
+
+  // WP-015: with the projection on, the preference is honoured only while
+  // access backs it; removed access falls back to personal Home with a notice.
+  const on = (personal, organizations = []) => ({ flags: { accessProjection: true }, access: { personal, organizations } });
+  auth.user = { ...base, default_mode: 'helper' };
+  projection = on(['customer', 'helper.offer_services']);
+  render(); assert.deepEqual(rendered, ['work'], 'approved helper keeps the dashboard');
+  projection = on(['customer']);
+  let html = render(); assert.deepEqual(rendered, ['discovery'], 'revoked helper sees personal Home');
+  assert.match(html, /role="status"[^>]*>progressiveAccess\.home\.accessChanged/);
+  auth.user = { ...base, default_mode: 'business_owner' };
+  projection = on(['customer'], [{ type: 'business', id: '7', role: 'owner' }]);
+  render(); assert.deepEqual(rendered, ['work'], 'canonical owner keeps the business dashboard');
+  auth.user = { ...base, default_mode: 'customer' };
+  projection = on(['customer', 'helper.offer_services']);
+  html = render(); assert.deepEqual(rendered, ['discovery'], 'an approval never replaces the dashboard choice');
+  assert.doesNotMatch(html, /role="status"/);
+  auth.user = { ...base, default_mode: 'helper' };
+  projection = { flags: { accessProjection: false }, access: { personal: ['customer'] } };
+  render(); assert.deepEqual(rendered, ['work'], 'flag off: legacy behaviour');
+  auth.user = { ...base, role: 'admin', default_mode: 'admin' };
+  projection = on(['customer']);
+  render(); assert.deepEqual(rendered, ['work'], 'staff roles are not projected');
+  projection = null;
 });
 
 test('customer discovery exposes bookings while helper actions follow the active mode', () => {

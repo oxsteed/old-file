@@ -4057,6 +4057,10 @@
         "notPermitted": "Bu başvuru hakkında karar verme izniniz yok."
       }
     },
-    "accessRequired": "Bunun için önce onaylı erişim gerekir."
+    "accessRequired": "Bunun için önce onaylı erişim gerekir.",
+    "home": {
+      "accessChanged": "O panele erişiminiz değişti, bu yüzden kişisel ana sayfanızı görüyorsunuz."
+    },
+    "accessUpdated": "Erişiminiz güncellendi."
   }
 }

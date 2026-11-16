@@ -6688,6 +6688,10 @@
         "notPermitted": "You do not have permission to decide this application."
       }
     },
-    "accessRequired": "This needs approved access first."
+    "accessRequired": "This needs approved access first.",
+    "home": {
+      "accessChanged": "Your access to that dashboard changed, so you're seeing your personal Home."
+    },
+    "accessUpdated": "Your access was updated."
   }
 }

@@ -527,6 +527,32 @@ KEYS.append('accessRequired')
 for _l, _v in {'en': 'This needs approved access first.', 'es': 'Primero necesitas un acceso aprobado.', 'fr': "Cela nécessite d'abord un accès approuvé.", 'ht': 'Sa a mande yon aksè apwouve anvan.', 'ar': 'يتطلب هذا الحصول على وصول معتمد أولًا.', 'pt': 'Isso exige um acesso aprovado primeiro.', 'it': 'Prima serve un accesso approvato.', 'de': 'Dafür brauchst du zuerst einen genehmigten Zugang.', 'id': 'Ini memerlukan akses yang disetujui terlebih dahulu.', 'tr': 'Bunun için önce onaylı erişim gerekir.', 'sw': 'Hili linahitaji ufikiaji ulioidhinishwa kwanza.', 'vi': 'Việc này cần quyền truy cập đã được duyệt trước.', 'ru': 'Для этого сначала нужен одобренный доступ.', 'zh': '此操作需要先获得批准的权限。', 'ja': '先にアクセスの承認が必要です。', 'ko': '먼저 승인된 권한이 필요합니다.', 'hi': 'इसके लिए पहले स्वीकृत पहुँच चाहिए।', 'ur': 'اس کے لیے پہلے منظور شدہ رسائی درکار ہے۔', 'bn': 'এর জন্য আগে অনুমোদিত অ্যাক্সেস প্রয়োজন।', 'th': 'ต้องได้รับอนุมัติสิทธิ์เข้าถึงก่อน'}.items():
     T[_l].append(_v)
 
+# WP-015 / WP-016: Home fallback notice and Settings live announcement.
+KEYS.extend(['home.accessChanged', 'accessUpdated'])
+for _l, _v in {
+ 'en': ["Your access to that dashboard changed, so you're seeing your personal Home.", 'Your access was updated.'],
+ 'es': ['Tu acceso a ese panel cambió, así que estás viendo tu inicio personal.', 'Tu acceso se actualizó.'],
+ 'fr': ["Votre accès à ce tableau de bord a changé : vous voyez donc votre accueil personnel.", 'Votre accès a été mis à jour.'],
+ 'ht': ['Aksè ou sou tablo bò sa a chanje, kidonk w ap wè paj akèy pèsonèl ou.', 'Aksè ou mete ajou.'],
+ 'ar': ['تغيّر وصولك إلى لوحة التحكم تلك، لذا تُعرض لك صفحتك الرئيسية الشخصية.', 'تم تحديث وصولك.'],
+ 'pt': ['Seu acesso a esse painel mudou, por isso você está vendo seu início pessoal.', 'Seu acesso foi atualizado.'],
+ 'it': ["Il tuo accesso a quella dashboard è cambiato, quindi vedi la tua home personale.", 'Il tuo accesso è stato aggiornato.'],
+ 'de': ['Dein Zugriff auf dieses Dashboard hat sich geändert, daher siehst du deine persönliche Startseite.', 'Dein Zugriff wurde aktualisiert.'],
+ 'id': ['Akses Anda ke dasbor itu berubah, jadi Anda melihat Beranda pribadi Anda.', 'Akses Anda telah diperbarui.'],
+ 'tr': ['O panele erişiminiz değişti, bu yüzden kişisel ana sayfanızı görüyorsunuz.', 'Erişiminiz güncellendi.'],
+ 'sw': ['Ufikiaji wako wa dashibodi hiyo umebadilika, kwa hiyo unaona Ukurasa wako wa Nyumbani binafsi.', 'Ufikiaji wako umesasishwa.'],
+ 'vi': ['Quyền truy cập bảng điều khiển đó của bạn đã thay đổi, nên bạn đang xem Trang chủ cá nhân.', 'Quyền truy cập của bạn đã được cập nhật.'],
+ 'ru': ['Ваш доступ к этой панели изменился, поэтому показана ваша личная главная страница.', 'Ваш доступ обновлён.'],
+ 'zh': ['你对该控制面板的访问权限已更改，因此现在显示的是你的个人主页。', '你的访问权限已更新。'],
+ 'ja': ['そのダッシュボードへのアクセス権が変更されたため、個人用ホームを表示しています。', 'アクセス権が更新されました。'],
+ 'ko': ['해당 대시보드에 대한 접근 권한이 변경되어 개인 홈을 표시하고 있습니다.', '접근 권한이 업데이트되었습니다.'],
+ 'hi': ['उस डैशबोर्ड तक आपकी पहुँच बदल गई है, इसलिए आपको आपका निजी होम दिख रहा है।', 'आपकी पहुँच अपडेट हो गई है।'],
+ 'ur': ['اس ڈیش بورڈ تک آپ کی رسائی بدل گئی ہے، اس لیے آپ کو اپنا ذاتی ہوم دکھایا جا رہا ہے۔', 'آپ کی رسائی اپ ڈیٹ ہو گئی ہے۔'],
+ 'bn': ['ওই ড্যাশবোর্ডে আপনার অ্যাক্সেস বদলেছে, তাই আপনি আপনার ব্যক্তিগত হোম দেখছেন।', 'আপনার অ্যাক্সেস আপডেট হয়েছে।'],
+ 'th': ['สิทธิ์เข้าถึงแดชบอร์ดนั้นของคุณเปลี่ยนไป จึงแสดงหน้าหลักส่วนตัวของคุณแทน', 'อัปเดตสิทธิ์เข้าถึงของคุณแล้ว'],
+}.items():
+    T[_l].extend(_v)
+
 def nest(keys, values):
     out = {}
     for k, v in zip(keys, values):

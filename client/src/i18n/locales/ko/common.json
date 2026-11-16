@@ -4057,6 +4057,10 @@
         "notPermitted": "이 신청을 결정할 권한이 없습니다."
       }
     },
-    "accessRequired": "먼저 승인된 권한이 필요합니다."
+    "accessRequired": "먼저 승인된 권한이 필요합니다.",
+    "home": {
+      "accessChanged": "해당 대시보드에 대한 접근 권한이 변경되어 개인 홈을 표시하고 있습니다."
+    },
+    "accessUpdated": "접근 권한이 업데이트되었습니다."
   }
 }

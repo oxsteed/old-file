@@ -4055,6 +4055,10 @@
         "notPermitted": "Huna ruhusa ya kuamua ombi hili."
       }
     },
-    "accessRequired": "Hili linahitaji ufikiaji ulioidhinishwa kwanza."
+    "accessRequired": "Hili linahitaji ufikiaji ulioidhinishwa kwanza.",
+    "home": {
+      "accessChanged": "Ufikiaji wako wa dashibodi hiyo umebadilika, kwa hiyo unaona Ukurasa wako wa Nyumbani binafsi."
+    },
+    "accessUpdated": "Ufikiaji wako umesasishwa."
   }
 }

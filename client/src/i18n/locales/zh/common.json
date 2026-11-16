@@ -4057,6 +4057,10 @@
         "notPermitted": "您无权对此申请作出决定。"
       }
     },
-    "accessRequired": "此操作需要先获得批准的权限。"
+    "accessRequired": "此操作需要先获得批准的权限。",
+    "home": {
+      "accessChanged": "你对该控制面板的访问权限已更改，因此现在显示的是你的个人主页。"
+    },
+    "accessUpdated": "你的访问权限已更新。"
   }
 }

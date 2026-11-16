@@ -6688,6 +6688,10 @@
         "notPermitted": "Ou pa gen pèmisyon pou deside aplikasyon sa a."
       }
     },
-    "accessRequired": "Sa a mande yon aksè apwouve anvan."
+    "accessRequired": "Sa a mande yon aksè apwouve anvan.",
+    "home": {
+      "accessChanged": "Aksè ou sou tablo bò sa a chanje, kidonk w ap wè paj akèy pèsonèl ou."
+    },
+    "accessUpdated": "Aksè ou mete ajou."
   }
 }

@@ -1,17 +1,36 @@
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { normalizeLaunchDashboardMode } from '../utils/launchScope';
 import { dashboardKeyForMode } from '../utils/modeAccess';
+import { resolveHomeMode } from '../utils/accessProjection';
+import useAccessProjection from '../hooks/useAccessProjection';
 import ProtectedRoute from './ProtectedRoute';
 import RouteErrorBoundary from './RouteErrorBoundary';
 
 // Choose before importing either page: providers should not download or run
 // customer discovery/location effects on the way to their working homepage.
+// WP-015: with the access projection on, the saved dashboard preference is
+// honoured only while access still backs it; otherwise the personal Home
+// renders with a polite notice (no focus move, no redirect loop).
 export default function ModeHomeRoute({ DiscoveryPage, DashboardPage, LoadingState }) {
   const { user, loading } = useAuth();
+  const projection = useAccessProjection(user);
+  const { t: accessT } = useTranslation('common');
   if (loading) return <LoadingState />;
-  const mode = user && normalizeLaunchDashboardMode(user.default_mode || user.role, user.role);
+  const preferred = user && normalizeLaunchDashboardMode(user.default_mode || user.role, user.role);
+  const { mode, fallback } = resolveHomeMode(user, preferred, projection);
   if (user && dashboardKeyForMode(mode) !== 'customer') {
     return <ProtectedRoute><RouteErrorBoundary><DashboardPage /></RouteErrorBoundary></ProtectedRoute>;
+  }
+  if (fallback) {
+    return (
+      <>
+        <p role="status" className="mx-auto max-w-5xl px-4 pt-3 text-sm text-gray-700 dark:text-gray-300">
+          {accessT('progressiveAccess.home.accessChanged')}
+        </p>
+        <DiscoveryPage />
+      </>
+    );
   }
   return <DiscoveryPage />;
 }

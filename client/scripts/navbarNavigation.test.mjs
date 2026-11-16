@@ -74,3 +74,28 @@ test('new labels have matching legacy and namespaced translations in every langu
     }
   }
 });
+
+// WP-016: capability-aware shared navigation from the access projection.
+test('projection: approvals add shortcuts without replacing the view; removed access falls back to customer', () => {
+  const on = (personal, organizations = []) => ({ flags: { accessProjection: true }, access: { personal, organizations } });
+  // Customer view + approved helper: provider entry points in the account menu.
+  let nav = navbarNavigation({ role: 'customer', default_mode: 'customer' }, { projection: on(['customer', 'helper.offer_services']) });
+  assert.equal(nav.mode, 'customer');
+  assert.ok(nav.account.some((i) => i.to === '/helper-dashboard'));
+  assert.ok(nav.primary.some((i) => i.id === 'postJob'));
+  // Helper view whose access was revoked: customer navigation, no provider links.
+  nav = navbarNavigation({ role: 'helper', default_mode: 'helper' }, { projection: on(['customer']) });
+  assert.equal(nav.mode, 'customer');
+  assert.ok(!nav.primary.some((i) => i.to === '/jobs'));
+  assert.ok(!nav.account.some((i) => i.to === '/helper-dashboard'));
+  // Organization membership: workspace shortcut from the customer view.
+  nav = navbarNavigation({ role: 'customer', default_mode: 'customer' }, { projection: on(['customer'], [{ type: 'business', id: '1', role: 'employee' }]) });
+  assert.ok(nav.account.some((i) => i.to === '/business-hub'));
+  // No duplicates when the view already exposes the destination.
+  nav = navbarNavigation({ role: 'helper', default_mode: 'helper' }, { projection: on(['customer', 'helper.offer_services']) });
+  assert.equal(nav.mode, 'helper');
+  assert.equal([...nav.primary, ...nav.account].filter((i) => i.to === '/helper-dashboard').length, 1);
+  // Flag off or no projection: byte-for-byte legacy.
+  const legacy = navbarNavigation({ role: 'helper', default_mode: 'helper' });
+  assert.deepEqual(navbarNavigation({ role: 'helper', default_mode: 'helper' }, { projection: { flags: {}, access: { personal: ['customer'] } } }), legacy);
+});

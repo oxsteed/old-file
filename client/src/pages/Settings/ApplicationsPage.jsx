@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { accessAPI } from '../../api/access';
+import { notifyAccessChanged, ACCESS_CHANGED_EVENT } from '../../hooks/useAccessProjection';
 
 const NS = 'common';
 const OPEN = ['draft', 'submitted', 'in_review', 'needs_information'];
@@ -228,11 +229,22 @@ export default function ApplicationsPage() {
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // WP-016: an approval or revocation while this page is open is picked up
+  // on focus / access-changed, re-rendered in place (silent reload: no
+  // loading swap, so focus never jumps) and announced politely.
+  const versionRef = useRef(null);
+  const [announce, setAnnounce] = useState('');
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setLoadError(false);
     try {
       const [a, r, p] = await Promise.all([accessAPI.getAccess(), accessAPI.listRequests({ limit: 50 }), accessAPI.listPolicies()]);
+      const version = a.access ? JSON.stringify([a.access.personal || [], (a.access.organizations || []).map((o) => [o.id, o.role])]) : null;
+      if (versionRef.current !== null && version !== versionRef.current) {
+        setAnnounce(t('progressiveAccess.accessUpdated', { ns: NS }));
+        notifyAccessChanged();
+      }
+      versionRef.current = version;
       setAccess(a.access);
       setRequests(r.requests || []);
       setPolicies(p.policies || []);
@@ -243,9 +255,18 @@ export default function ApplicationsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const refresh = () => { load(true); };
+    window.addEventListener('focus', refresh);
+    window.addEventListener(ACCESS_CHANGED_EVENT, refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener(ACCESS_CHANGED_EVENT, refresh);
+    };
+  }, [load]);
 
   useEffect(() => {
     if (!openId) { setDetail(null); return; }
@@ -309,12 +330,13 @@ export default function ApplicationsPage() {
     }
   };
 
-  const onChanged = async () => { await load(); if (openId) setDetail(await accessAPI.getRequest(openId).catch(() => null)); };
+  const onChanged = async () => { await load(); notifyAccessChanged(); if (openId) setDetail(await accessAPI.getRequest(openId).catch(() => null)); };
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-bg)] text-content">
       <Navbar />
       <main className="flex-1 px-4 py-10">
+        <p className="sr-only" role="status" aria-live="polite">{announce}</p>
         <div className="mx-auto max-w-2xl">
           <Link to="/settings" className="mb-8 inline-flex items-center gap-2 text-sm text-muted transition hover:text-content" data-track="ui.access.applications.back">
             <ArrowLeft size={16} className="rtl:rotate-180" aria-hidden="true" /> {t('progressiveAccess.backToSettings', { ns: NS })}

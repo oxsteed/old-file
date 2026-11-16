@@ -6688,6 +6688,10 @@
         "notPermitted": "No tienes permiso para decidir esta solicitud."
       }
     },
-    "accessRequired": "Primero necesitas un acceso aprobado."
+    "accessRequired": "Primero necesitas un acceso aprobado.",
+    "home": {
+      "accessChanged": "Tu acceso a ese panel cambió, así que estás viendo tu inicio personal."
+    },
+    "accessUpdated": "Tu acceso se actualizó."
   }
 }

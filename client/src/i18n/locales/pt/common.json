@@ -4057,6 +4057,10 @@
         "notPermitted": "Você não tem permissão para decidir esta solicitação."
       }
     },
-    "accessRequired": "Isso exige um acesso aprovado primeiro."
+    "accessRequired": "Isso exige um acesso aprovado primeiro.",
+    "home": {
+      "accessChanged": "Seu acesso a esse painel mudou, por isso você está vendo seu início pessoal."
+    },
+    "accessUpdated": "Seu acesso foi atualizado."
   }
 }

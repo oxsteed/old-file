@@ -4057,6 +4057,10 @@
         "notPermitted": "Anda tidak memiliki izin untuk memutuskan pengajuan ini."
       }
     },
-    "accessRequired": "Ini memerlukan akses yang disetujui terlebih dahulu."
+    "accessRequired": "Ini memerlukan akses yang disetujui terlebih dahulu.",
+    "home": {
+      "accessChanged": "Akses Anda ke dasbor itu berubah, jadi Anda melihat Beranda pribadi Anda."
+    },
+    "accessUpdated": "Akses Anda telah diperbarui."
   }
 }

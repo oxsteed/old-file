@@ -4057,6 +4057,10 @@
         "notPermitted": "Du bist nicht berechtigt, über diesen Antrag zu entscheiden."
       }
     },
-    "accessRequired": "Dafür brauchst du zuerst einen genehmigten Zugang."
+    "accessRequired": "Dafür brauchst du zuerst einen genehmigten Zugang.",
+    "home": {
+      "accessChanged": "Dein Zugriff auf dieses Dashboard hat sich geändert, daher siehst du deine persönliche Startseite."
+    },
+    "accessUpdated": "Dein Zugriff wurde aktualisiert."
   }
 }
