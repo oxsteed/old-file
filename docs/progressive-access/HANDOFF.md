@@ -120,16 +120,18 @@ migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewS
 `server/index.js`), DB suite `__tests__/progressiveAccess.db.test.js` (CI env
 `ACCESS_TEST_DATABASE_URL` added to "Server regression and security tests").
 
+Also done: outbox job (, started from
+), backfill (,
+).
+
 Next (in order):
-1. **Outbox delivery worker** `server/services/access/outboxWorker.js` + job wiring in
-   `server/bootstrap/auxiliaryWorkers.js`: claim `access_outbox` pending rows
-   (`FOR UPDATE SKIP LOCKED`), send via `notificationService.sendNotification` with
-   `idempotencyKey = 'access-outbox:' + dedupe_key`, localized copy (en/es/fr/ht/ar), retry
-   with backoff, mark sent/failed. (WP-020)
-2. **Backfill** `server/scripts/access-backfill.js` using `legacyMapping.mapLegacyUser`:
-   `--dry-run` counts only, `--apply` batches by `users.id` with checkpoint in
-   `access_backfill_runs`, `INSERT ... ON CONFLICT DO NOTHING` (never reactivates revoked),
-   drafts via `access_requests` source `legacy_backfill`, exceptions table. (AC-076/077)
-3. Customer-first signup (WP-001..WP-003) behind `ACCESS_CUSTOMER_FIRST_SIGNUP`.
-4. Client: `client/src/api/access.js`, `useAccess` hook, My applications page, reviewer queue
-   in admin manifest, i18n in all 20 locale files.
+1. Customer-first signup (WP-001..WP-003) behind :
+    stores  in
+   ;  creates role ,
+    , writes , and best-effort creates a draft
+    (failure must not fail signup). Response adds  +
+   . Flag off = legacy behavior unchanged.
+2. WP-005:  / account-type writes must not raise authority when the flag is on.
+3. Helper enforcement (WP-026)  on bid/quote writes.
+4. Client: ,  hook,  page,
+   admin review page in , i18n in all 20 locale files.

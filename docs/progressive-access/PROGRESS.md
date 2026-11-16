@@ -11,6 +11,8 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | Handoff + ledger docs | implemented | (this commit) | n/a |
 | Decisions-already-made product tests (D1–D7) | implemented | 3e19ebd25 | server/__tests__/progressiveAccessDecisions.test.js (35) |
 | Baseline inventory of mode/role authority (docs/progressive-access/BASELINE.md) | planned | | |
+| Legacy backfill (services/access/backfill.js, scripts/access-backfill.js) | implemented | 4eb2e22eb | progressiveAccess.db.test.js backfill case |
+| Access outbox delivery job | implemented | 7d936e6fb | progressiveAccess.db.test.js outbox case |
 
 ## Work packages
 
@@ -35,7 +37,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-017 | JWT, CSRF and cross-tab session safety | P2 | planned | | |
 | WP-018 | Two-factor authentication and passkeys | P2 | planned | | |
 | WP-019 | Sessions on native API and PWA | P2 | planned | | |
-| WP-020 | Notification and application messages | P2 | planned | | |
+| WP-020 | Notification and application messages | P2 | in progress (access notices done) | 7d936e6fb | progressiveAccess.db.test.js (outbox case) |
 | WP-021 | Account deletion, export and privacy | P4 | planned | | |
 | WP-022 | Profile and public directory | P4 | planned | | |
 | WP-023 | Preferences, status and localization | P4 | planned | | |
@@ -198,9 +200,9 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-072 | Entity publisher ownership transfer | planned | |
 | AC-073 | Account closure and unusable pending attachments | planned | |
 | AC-074 | Mixed application versions during migration | planned | |
-| AC-075 | Database upgrade and repeat | partial | migration applied + replayed via psql on local PG17/PostGIS; CI migrates clean DB |
-| AC-076 | Backfill twice with preexisting approval | planned | |
-| AC-077 | Interrupted backfill during revoke | planned | |
+| AC-075 | Database upgrade and repeat | server evidence | progressiveAccess.db.test.js backfill case (4eb2e22eb) |
+| AC-076 | Backfill twice with preexisting approval | server evidence | progressiveAccess.db.test.js backfill case (4eb2e22eb) |
+| AC-077 | Interrupted backfill during revoke | server evidence | progressiveAccess.db.test.js backfill case (4eb2e22eb) |
 | AC-078 | Mode-role shadow divergence triage | planned | |
 | AC-079 | Feature rollback after approvals | planned | |
 | AC-080 | Short outage during access projection | planned | |
