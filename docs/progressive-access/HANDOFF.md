@@ -896,6 +896,31 @@ exact-head CI remain open.
 rollback ownership. Audit readiness, migration compatibility, worker/outbox
 observability, and rollback behavior across grant approvals and revocations.
 
+WP-103 is currently an evidence checkpoint. Monitoring incident state changes
+are behind the admin `manage_operations` gate and write audit entries. The
+release/readiness control plane identifies the candidate release, migration,
+worker, queue, backup, and audit-chain signals and fails closed when a required
+signal is unavailable. Migration history remains append-only and timestamp
+ordered, with the scoped-constraint guard check applied to new files. Access
+outbox delivery and scheduled-worker lease fencing prevent duplicate delivery
+or stale-replica writes, while deployment identity and rollback scripts require
+the exact verified candidate before provisioning.
+
+`monitoringRoutes.test.js`, `readinessPayload.test.js`, `applicationRuntime.test.js`,
+`progressiveAccessOutboxCopy.test.js`, `progressiveAccess.db.test.js`,
+`progressiveAccessHealth.db.test.js`, `scheduledWorkerScheduleFence.test.js`,
+`migrationOrder.test.js`, `migrationRecovery.test.js`,
+`deploymentReleaseWiring.test.js`, and `release.test.js` pass (90 tests; 17
+environment-gated skips). The migration/deployment script run of
+`migration-rehearsal.test.cjs`, `check-migration-history.test.cjs`,
+`deploy-coolify.test.cjs`, `release-check.test.cjs`, and
+`build-release-metadata.test.cjs` passes all 43 tests. No source change was
+needed in this checkpoint.
+**Exact next action (resume here):** run the populated old/new-version
+migration rehearsal with one cohort granted and another revoked, verify both
+decisions persist while unrelated services stay ready, then collect exact-head
+CI and deployment evidence before closing the progressive-access goal.
+
 History of what is done (newest last):
 
 
