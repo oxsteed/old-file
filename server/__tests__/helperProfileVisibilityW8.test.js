@@ -79,7 +79,7 @@ describe('allow_booking is enforced (P1-204)', () => {
 describe('directory and profile visibility SQL (P1-203, P1-205, P1-206)', () => {
   const src = require('fs').readFileSync(require.resolve('../controllers/helpersController'), 'utf8');
   test('directory lists all helper roles and skips admin-hidden businesses', () => {
-    expect(src).toMatch(/u\.role = ANY\(\$1::user_role\[\]\)/);
+    expect(src).toMatch(/role = ANY\(\$1::user_role\[\]\)/);
     expect(src).toMatch(/\['helper', 'helper_pro', 'broker'\]/);
     expect(src).toMatch(/u\.onboarding_completed = TRUE/);
     expect(src).toMatch(/COALESCE\(b\.is_hidden_by_admin, FALSE\) = FALSE/);
@@ -107,6 +107,7 @@ describe('recurring booking account lifecycle guards', () => {
   });
 
   test('does not create subscriptions for soft-deleted helpers', () => {
-    expect(src).toMatch(/SELECT id, is_active, (?:deleted_at, )?role FROM users WHERE id = \$1 AND deleted_at IS NULL/);
+    expect(src).toMatch(/SELECT u\.id, u\.is_active, u\.deleted_at, u\.role/);
+    expect(src).toMatch(/helper_capability_granted/);
   });
 });

@@ -1187,6 +1187,24 @@ and cancellation for customer-first versus provider mutations; preserve the same
 off/shadow/enforce rollout behavior and add focused server/client contracts
 before pushing the next small checkpoint.
 
+WP-027 is now in progress with its first provider-boundary checkpoint. Customer
+booking creation remains available from the customer surface; direct and
+recurring helper eligibility now use the same projection-aware public standing
+predicate, so an approved customer-role helper can be booked when projection is
+enabled while projection-off behavior stays legacy-compatible. Helper-scoped
+accept/decline/counter-propose/helper-cancel mutations now run through a
+business-aware capability wrapper; business-scoped bookings continue through
+their existing membership authorization, and incoming reads remain
+ownership-scoped. Customer cancel/respond/convert paths remain customer-owned
+and are not helper-gated. The route/controller contract suite
+passes together with the existing booking bridge tests; no populated live
+calendar acceptance has been claimed.
+**Exact next action (resume here):** run the focused booking/controller suites,
+then audit calendar visibility and reschedule paths (including chat booking
+requests and mobile wrappers) for provider actions that bypass the route gate.
+Add only the missing capability boundary and a customer-first regression before
+continuing WP-027.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

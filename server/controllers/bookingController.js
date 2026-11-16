@@ -11,6 +11,7 @@ const { broadcastToUser } = require('../services/socketService');
 const bookingLifecycle = require('../services/bookingRequestLifecycle');
 const { withTransaction } = require('../utils/transaction');
 const { emitDomainEvent, serviceEventProps } = require('../growth/emit');
+const { publicHelperStandingPredicate } = require('./helpersController');
 
 const DEFAULT_CONFIRMATION_HOURS = 24;
 const MIN_CONFIRMATION_HOURS = 1;
@@ -210,6 +211,7 @@ exports.createBookingRequest = async (req, res) => {
 
     const helperResult = await pool.query(
       `SELECT u.id, u.role, u.is_active, u.deleted_at,
+              (${publicHelperStandingPredicate('u')}) AS helper_capability_granted,
               COALESCE(hp.is_hidden_by_admin, FALSE) AS is_hidden_by_admin,
               COALESCE(hp.allow_booking, TRUE) AS allow_booking
          FROM users u
@@ -223,7 +225,7 @@ exports.createBookingRequest = async (req, res) => {
     if (!helperResult.rows[0].is_active || helperResult.rows[0].is_hidden_by_admin) {
       return sendError(res, 400, 'Helper is not accepting bookings', 'HELPER_INACTIVE');
     }
-    if (!business && !HELPER_ROLES.includes(helperResult.rows[0].role)) {
+    if (!business && !HELPER_ROLES.includes(helperResult.rows[0].role) && !helperResult.rows[0].helper_capability_granted) {
       return sendError(res, 400, 'User is not accepting bookings', 'INVALID_HELPER');
     }
     // Review P1-204: the helper's "allow booking" privacy switch is enforced
@@ -1072,14 +1074,17 @@ exports.createRecurringBooking = async (req, res) => {
     if (Object.keys(errors).length) return sendValidationError(res, errors);
 
     const helperResult = await pool.query(
-      `SELECT id, is_active, deleted_at, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
+      `SELECT u.id, u.is_active, u.deleted_at, u.role,
+              (${publicHelperStandingPredicate('u')}) AS helper_capability_granted
+         FROM users u
+        WHERE u.id = $1 AND u.deleted_at IS NULL`,
       [helper_id]
     );
     const helper = helperResult.rows[0];
     if (!helper || !helper.is_active || helper.deleted_at) {
       return sendError(res, 404, 'Helper not found', 'HELPER_NOT_FOUND');
     }
-    if (!['helper', 'helper_pro', 'broker'].includes(helper.role)) {
+    if (!['helper', 'helper_pro', 'broker'].includes(helper.role) && !helper.helper_capability_granted) {
       return sendError(res, 400, 'User is not accepting recurring services', 'INVALID_HELPER');
     }
 
