@@ -1132,6 +1132,22 @@ long business-name rendering, and independent approved-choice persistence.
 Start with the existing Settings and locale contract suites; keep all new copy
 in the generated 20-locale catalogs and record any browser acceptance limits.
 
+WP-023 now has a settings/localization checkpoint. The Applications page renders
+long business subjects with bounded truncation and a title, returns focus to the
+Continue control after the inline editor closes, and retains its polite live
+status region. The browser fixture passes in Arabic RTL at a 320px viewport;
+locale verification passes across the required catalogs. The helper onboarding
+contract was updated to assert `hasHelperAccess`, so approved customer-role
+helpers remain covered by the same derived onboarding rules. Focused client
+checks pass (10 combined subtests); the broad `build:ci` was stopped after its
+long prerequisite chain surfaced and was repaired for that stale assertion, so
+run it again when a full local build result is needed.
+**Exact next action (resume here):** audit WP-024 Public discovery and location
+for guest/applicant/approved-helper parity, private projection cache safety,
+explicit location retention, and stale-response handling. Start with the
+discover, recommendations, and `ModeHomeRoute` contracts; add a capability-aware
+boundary only where the server currently relies on legacy mode.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

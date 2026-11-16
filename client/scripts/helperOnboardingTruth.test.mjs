@@ -82,9 +82,9 @@ test('checklist hides only on the derived active step, never the raw flag', () =
 test('AuthContext wires helper flags from the derivation', () => {
   const ctx = read(path.join(root, 'src', 'context', 'AuthContext.jsx'));
   assert.ok(ctx.includes("import { isHelperOnboardingComplete } from '../utils/helperOnboarding'"));
-  assert.ok(ctx.includes('helperOnboardingComplete = isHelper ? isHelperOnboardingComplete(user) : onboardingComplete'));
-  assert.ok(ctx.includes('needsOnboarding = isHelper && !helperOnboardingComplete'));
-  assert.ok(ctx.includes('canApplyToJobs = canBid') && ctx.includes('canBid = isHelper && helperOnboardingComplete'));
+  assert.ok(ctx.includes('helperOnboardingComplete = hasHelperAccess ? isHelperOnboardingComplete(user) : onboardingComplete'));
+  assert.ok(ctx.includes('needsOnboarding = hasHelperAccess && !helperOnboardingComplete'));
+  assert.ok(ctx.includes('canApplyToJobs = canBid') && ctx.includes('canBid = hasHelperAccess && helperOnboardingComplete'));
 });
 
 test('unverified helper gets the onboarding action, not the bid action', () => {

@@ -237,6 +237,7 @@ function AccountApplications({ accountId, epoch }) {
   const [detail, setDetail] = useState(null);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [busy, setBusy] = useState(false);
+  const returnFocusRef = useRef(null);
 
   // WP-016: an approval or revocation while this page is open is picked up
   // on focus / access-changed, re-rendered in place (silent reload: no
@@ -295,6 +296,13 @@ function AccountApplications({ accountId, epoch }) {
     const next = new URLSearchParams(params);
     if (id) next.set('request', id); else next.delete('request');
     setParams(next, { replace: true });
+  };
+
+  const closeEditor = () => {
+    openRequest(null);
+    // Keep keyboard users at the action that opened the inline editor instead
+    // of sending focus to the page root after the editor unmounts.
+    window.requestAnimationFrame(() => returnFocusRef.current?.focus?.());
   };
 
   const held = new Set(access?.personal || []);
@@ -406,6 +414,11 @@ function AccountApplications({ accountId, epoch }) {
                               {r.publicReasonCode && ['declined', 'needs_information'].includes(r.status) && (
                                 <p className="text-xs text-muted">{t(`progressiveAccess.reasons.${r.publicReasonCode}`, { ns: NS, defaultValue: '' })}</p>
                               )}
+                              {r.subjectDisplay?.name && (
+                                <p className="max-w-full truncate text-xs text-muted" title={r.subjectDisplay.name}>
+                                  {r.subjectDisplay.name}
+                                </p>
+                              )}
                             </div>
                             <StatusBadge t={t} status={r.status} />
                           </div>
@@ -427,7 +440,12 @@ function AccountApplications({ accountId, epoch }) {
                                 </Link>
                             )}
                             {EDITABLE.includes(r.status) && (
-                              <button type="button" onClick={() => openRequest(r.id)} className="text-sm font-medium text-primary hover:underline" data-track="ui.access.applications.continue">
+                              <button
+                                type="button"
+                                onClick={(event) => { returnFocusRef.current = event.currentTarget; openRequest(r.id); }}
+                                className="text-sm font-medium text-primary hover:underline"
+                                data-track="ui.access.applications.continue"
+                              >
                                 {t('progressiveAccess.actions.continue', { ns: NS })}
                               </button>
                             )}
@@ -444,7 +462,7 @@ function AccountApplications({ accountId, epoch }) {
                               request={detail.request}
                               policy={policyFor(detail.request.capability)}
                               onChanged={onChanged}
-                              onClose={() => openRequest(null)}
+                              onClose={closeEditor}
                             />
                           )}
                         </li>
