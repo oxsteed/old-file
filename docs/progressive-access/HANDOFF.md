@@ -495,19 +495,26 @@ territory API calls, and revoke/reassignment behavior without changing
 `users.role`. If live credentials or populated records are unavailable, record
 that limitation and keep the exact-head CI link open before moving to WP-079.
 
-WP-079 now has its first checkpoint at `61042175e`. The client projection maps
+WP-079 now has checkpoints at `61042175e` and `c3d7c081e`. The client projection maps
 `logistics` to `logistics.ship`, so an unapproved or revoked logistics preference
 falls back to Customer Home. An approved logistics grant adds a `/logistics/buyer`
 account shortcut without replacing Customer Home, and an actively selected
 logistics preference still lands in the Buyer workspace. Buyer checkout and
 read/history routes remain customer-permitted; this package must not turn a
 pending organizer application into a checkout denial.
-**Exact next action (resume here):** add a focused buyer/checkout acceptance
-against the real logistics HTTP routes: a customer with pending organizer access
-must be able to browse/checkout and see only their own orders, shipments,
-allocations, claims, and refunds; a foreign order or business-scoped record must
-remain denied. Then add the corresponding browser fixture for the Buyer
-workspace and checkout return path before moving to WP-080.
+The focused server acceptance now passes: `logisticsPaymentAttempts.test.js`
+explicitly checks a customer with `organizer_access: pending` can create a
+checkout attempt, while the existing buyer warehouse/payment/refund suites pass
+65/65 with own-record scoping and foreign-record denial. The responsive browser
+fixture (`logisticsCompletion.browser-check.cjs`) also switches to that pending
+customer before checkout and passes account-isolation and stale-context checks.
+**Exact next action (resume here):** start WP-080 (logistics pooled campaigns).
+Trace organizer approval and campaign ownership through public campaign reads,
+draft edits, submission/review, placement approval, joining, rollover, and share
+destinations. Keep pending organizers able to participate only where buyer
+policy permits; do not let a pending or foreign organizer manage another
+organizer's campaign. Exact-head CI and populated live logistics acceptance
+remain open across both packages.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
