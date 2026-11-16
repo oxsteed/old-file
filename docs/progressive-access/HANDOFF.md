@@ -517,28 +517,30 @@ organizer's campaign. Exact-head CI and populated live logistics acceptance
 remain open across both packages.
 
 WP-080 is in progress at `e5c66e332` (server role derivation), `b3e5cfcf3`
-(customer-view organizer shortcut), and `46e21611c` (pooled campaign lifecycle
-acceptance). When `ACCESS_PROJECTION_ENABLED` is active,
+(customer-view organizer shortcut), `46e21611c` (pooled campaign lifecycle
+acceptance), and `20983e644` (review publication and placement visibility).
+When `ACCESS_PROJECTION_ENABLED` is active,
 `resolveLogisticsRole` checks the progressive self grant before falling back to
 the legacy buyer/business role; this keeps organizer submission and ownership
 checks server-authoritative while avoiding a mode or role write.
 `server/__tests__/logisticsPooledOrders.test.js` now exercises an approved-grant
-customer through campaign create, own-draft edit, submission, and review-state
-read, while a pending customer can join a public campaign but is denied foreign
-draft submission and editing. `client/scripts/logisticsProgressiveOrganizer.browser-check.cjs`
+customer through campaign create, own-draft edit, submission, review-state read,
+Operations publication, and placement approval visibility, while a pending
+customer can publicly browse/join but is denied foreign draft submission and
+editing. `client/scripts/logisticsProgressiveOrganizer.browser-check.cjs`
 renders the production navigation projection and `NewCampaignPage`, follows the
 Organizer shortcut, and verifies the campaign form returns to the Organizer
 workspace; revoking the projection removes the shortcut.
-Focused server suites (83 tests), the browser fixture, frontend reference scan,
+Focused server suites (106 tests), the browser fixture, frontend reference scan,
 inline-style guard, and `npm run build:ci` pass locally; build emitted 1,203
 assets.
-**Exact next action (resume here):** add the remaining campaign lifecycle
-acceptance: an Operations reviewer approval should publish the approved
-campaign, placement approval should be visible to its organizer, and a pending
-customer must remain limited to public browse/join (including rollover and
-share destinations) without gaining organizer mutation rights. Then run the
-exact-head PR CI and record the populated live campaign limitation or evidence
-before moving to WP-081 (Business procurement and restocking).
+**Exact next action (resume here):** decide and implement the missing rollover
+and share-destination behavior for pooled campaigns (there is currently no
+campaign rollover endpoint or logistics-specific share action), keeping public
+links read-only for pending customers. Add focused/browser evidence for those
+destinations, then run exact-head PR CI and record the populated live campaign
+limitation or evidence before moving to WP-081 (Business procurement and
+restocking).
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
