@@ -93,7 +93,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-073 | Restaurant and multi-location statements | P3 | implemented | 8a9ff51c5 | __tests__/progressiveAccessRestaurantStatements.db.test.js, statementCenter.test.js |
 | WP-074 | Consultant profile and referral pipeline | P4 | implemented | 40573c463 | progressiveAccessConsultantNetwork.db.test.js; client navbar navigation and build:ci |
 | WP-075 | Consultant booking, scheduling and billing | P4 | implemented | 8fbe8b4e7 | progressiveAccessConsultantNetwork.db.test.js; 5 existing scheduling, notifications and payment suites; isolated migration and immutable history check |
-| WP-076 | Business launch journey | P4 | in progress | 954117d8a | PostgreSQL verifies signed-in and guest intake, pending Owner access, consultant match/reassignment, and scoped action items. Explicit case-to-application links, attachment visibility, and browser acceptance still open. |
+| WP-076 | Business launch journey | P4 | in progress | 954117d8a, 13a79c2aa | PostgreSQL verifies signed-in and guest intake, pending Owner access, consultant match/reassignment, scoped action items, and the applicant-only case link. Chrome verifies starting a new Owner draft, completing linked intake, and viewing its separate status in Settings. Private case attachment workflow and full live acceptance remain open. |
 | WP-077 | Investor reporting and audience access | P4 | planned | | |
 | WP-078 | Franchise application, review and territory | P4 | planned | | |
 | WP-079 | Logistics buyer and checkout | P4 | planned | | |
@@ -154,7 +154,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-026 | Verified identity with approval still pending | server evidence (partial) | progressiveAccess.db.test.js WP-007 case: verified identity, no grant until a fresh decision; bid deny under enforce in progressiveAccessHelperEnforcement.test.js |
 | AC-027 | Approved helper suspended or unlisted | server evidence (partial) | progressiveAccessHelperEnforcement.test.js: suspended/revoked grant blocks bids and hiring under enforce |
 | AC-028 | Existing contract after new-work revoke | planned | |
-| AC-029 | Apply to create a new business | planned | |
+| AC-029 | Apply to create a new business | browser and server evidence (partial) | Chrome starts the Owner proposal draft in Applications; real PostgreSQL verifies the submitted proposal and independent linked advisory case. Full approval-to-activation acceptance remains open. |
 | AC-030 | Competing claims for an existing business | planned | |
 | AC-031 | Membership approval by actual employer | planned | |
 | AC-032 | Invite link across logged-out state | planned | |

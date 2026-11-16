@@ -397,9 +397,7 @@ their owner. Enforce-mode market matching and referral assignment require an
 effective consultant grant. Reassignment clears the former adviser's status
 notes and timestamps. Four focused server suites passed (37 tests), including
 the full intake and assignment flow, an independently pending Owner application
-with zero Owner grants, and participant-scoped consulting action items. Explicit
-advisory case-to-application links, attachment visibility, and the browser
-journey remain open for WP-076.
+with zero Owner grants, and participant-scoped consulting action items.
 
 WP-014 session isolation in `47fcd2ff2`. The Home, navbar and Settings projection
 now shares work only within the same verified account and auth epoch. The API
@@ -411,11 +409,29 @@ relogin, mismatched cookie identity, and a successful refresh. The existing
 navbar browser test, two PostgreSQL suites (23 tests), frontend references
 (1,241 files), and `npm run build:ci` (1,202 verified assets) passed.
 
-**Exact next action (resume here):** Finish WP-076 from the Business Launch intake
-until it can reference the signed-in applicant's own active Owner application.
-Keep application data private to the applicant and its reviewer. Add the link to
-the existing customer journey, cover the advisory attachment audience and test in
-the browser. Then move to WP-077 (`<a id="wp-077">` in the SPEC.md).
+WP-076 linkage checkpoint `13a79c2aa`. Owners can start a new proposal draft
+from Applications and open the existing intake from that record. A signed-in
+applicant can link their own open ownership application during intake. Coming
+back to Settings shows the latest non-archived advisory status beside the
+separate application status. Foreign accounts and guests cannot submit a link,
+and the adviser view contains no application identifier. The migration applied
+in disposable PostgreSQL and passed the immutable history check. Five server
+suites passed (52 tests). Chrome exercised the real Applications and intake UI
+through the whole form with fixture responses. `npm run build:ci` passed. The UI
+reuses existing strings verified present in all 20 locale catalogs.
+
+**Exact next action (resume here):** Finish WP-076's private advisory attachments.
+Inspect `server/routes/upload.js` and `server/utils/storage.js` for private-object
+and deletion primitives, and `consulting_deliverables` in migration 103 for the
+existing session delivery model. There is no attachment route for the
+`consulting_requests` case. Add case-scoped attachment storage and participant
+reads, with the request owner, currently assigned adviser and authorized
+operations reviewer as the relevant audiences. Keep draft approval evidence and
+advisory files separate. Verify upload and download authorization before and
+after reassignment, customer visibility, and denial by a copied case or file ID.
+Wire the files into the existing Business Launch views. Then move to WP-077
+(` <a id="wp-077">` in SPEC.md) and test the investor role guard on the mounted
+router before changing it.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
