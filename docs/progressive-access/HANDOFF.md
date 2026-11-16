@@ -300,8 +300,13 @@ publish already requires `menu.manage` on source+targets and all-store scope; st
 pricing needs `menu.manage`, 86 needs `pos.use|kitchen.update`. There is no separate
 media permission today — decision 21. Evidence: `progressiveAccessRestaurantCatalog.db.test.js`.
 
+WP-065 done (evidence only): `restaurantHostingController` already resolves the location
+via `assertLocationAccess` and binds tables to that location; host actions need
+`restaurant.manage|pos.use|orders.manage`, so team/calendar overrides do not imply hosting.
+Evidence: `progressiveAccessRestaurantHost.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-065 (SPEC.md, search `<a id="wp-065">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-066 (SPEC.md, search `<a id="wp-066">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
