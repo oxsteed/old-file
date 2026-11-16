@@ -21,6 +21,7 @@ const {
 } = require('../controllers/chatController');
 const { chatLimiter, supportChatLimiter, profileChatLimiter, authLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
 const { authenticate, optionalAuth: sharedOptionalAuth } = require('../middleware/auth');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const checkRestrictions = require('../middleware/checkRestrictions');
 const upload = require('../middleware/upload');
@@ -38,6 +39,15 @@ const chatAgreements = require('../controllers/chatAgreementsController');
 const chatCreditPay = require('../controllers/chatOxsteedCreditPaymentController');
 const chatBookingRequests = require('../controllers/chatBookingRequestsController');
 const chatClientIntakes = require('../controllers/chatClientIntakeController');
+
+// Quote sharing/revision supports both business and helper quotes. Only the
+// helper provider mutations need progressive helper access; business quotes
+// continue through their existing membership/ownership checks.
+const requireHelperQuoteCapability = (req, res, next) => {
+  const kind = String(req.body?.kind || req.body?.quoteKind || req.params?.kind || '').toLowerCase();
+  if (kind !== 'helper') return next();
+  return requireHelperCapability(req, res, next);
+};
 
 const {
   extractGuestAuth,
@@ -140,10 +150,10 @@ router.get('/sessions/guest/messages', chatLimiter, optionalAuth, async (req, re
 router.get('/quotes/list', chatLimiter, authenticate, chatQuotes.listForThread);
 router.get('/quotes/history', chatLimiter, authenticate, chatQuotes.listHistory);
 router.get('/quotes/guest-history', chatLimiter, optionalAuth, chatQuotes.listGuestHistory);
-router.post('/quotes/share', chatLimiter, authenticate, chatQuotes.shareQuote);
+router.post('/quotes/share', chatLimiter, authenticate, requireHelperQuoteCapability, chatQuotes.shareQuote);
 router.get('/quotes/:kind/:id', chatLimiter, optionalAuth, chatQuotes.getQuote);
 router.post('/quotes/:kind/:id/respond', chatLimiter, optionalAuth, chatQuotes.respondQuote);
-router.post('/quotes/:kind/:id/revise', chatLimiter, authenticate, chatQuotes.reviseQuote);
+router.post('/quotes/:kind/:id/revise', chatLimiter, authenticate, requireHelperQuoteCapability, chatQuotes.reviseQuote);
 router.post('/quotes/:kind/:id/schedule', chatLimiter, optionalAuth, chatQuotes.scheduleFromQuote);
 
 

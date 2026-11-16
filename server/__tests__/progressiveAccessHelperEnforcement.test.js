@@ -1,5 +1,8 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+
 /**
  * WP-026 / WP-028: ACCESS_HELPER_ENFORCEMENT off | shadow | enforce on helper
  * writes. The capability decision is mocked here; the resolver itself is
@@ -150,6 +153,16 @@ describe('helper capability gate', () => {
     const { nextCalled } = await run(requireHelperCapability, { user: user('customer') });
     expect(nextCalled).toBe(true);
     expect(access.can).not.toHaveBeenCalled();
+  });
+
+  test('conditional helper quote and product mutations are capability-gated', () => {
+    const chat = fs.readFileSync(path.join(__dirname, '../routes/chat.js'), 'utf8');
+    const products = fs.readFileSync(path.join(__dirname, '../routes/helperProducts.js'), 'utf8');
+    expect(chat).toMatch(/quotes\/share.*requireHelperQuoteCapability/);
+    expect(chat).toMatch(/quotes\/:kind\/:id\/revise.*requireHelperQuoteCapability/);
+    expect(products).toMatch(/router\.post\('\/', authenticate, requireHelperCapability/);
+    expect(products).toMatch(/router\.patch\('\/:id', authenticate, requireHelperCapability/);
+    expect(products).toMatch(/router\.delete\('\/:id', authenticate, requireHelperCapability/);
   });
 
   describe('hiring a helper (jobs.assign)', () => {

@@ -11,6 +11,7 @@
 const express = require('express');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 const pool    = require('../db');
 const logger  = require('../utils/logger');
 
@@ -51,7 +52,7 @@ router.get('/:helperId', async (req, res) => {
 });
 
 // POST /api/helper-products  - create
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, requireHelperCapability, async (req, res) => {
   try {
     const { name, description = '', price_cents, category = 'food', image_url, is_available = true } = req.body;
 
@@ -75,7 +76,7 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // PATCH /api/helper-products/:id  - update (ownership check)
-router.patch('/:id', authenticate, async (req, res) => {
+router.patch('/:id', authenticate, requireHelperCapability, async (req, res) => {
   try {
     // Ownership check
     const { rows: existing } = await pool.query(
@@ -124,7 +125,7 @@ router.patch('/:id', authenticate, async (req, res) => {
 });
 
 // DELETE /api/helper-products/:id  - delete (ownership check)
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', authenticate, requireHelperCapability, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'DELETE FROM helper_products WHERE id = $1 AND helper_id = $2 RETURNING id',

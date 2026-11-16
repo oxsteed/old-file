@@ -1168,19 +1168,24 @@ a helper role or grant, while bid submission remains separately capability-gated
 by WP-026. `job.test.js` adds the explicit regression and the existing lifecycle
 and UI suites cover the customer-owned and assigned-helper state transitions.
 
-WP-026 now has a formal-quote capability checkpoint. Helper profile, onboarding,
-bidding, reconfirm, and payout entry points already use the progressive helper
-capability marker; the remaining `POST /api/helper-quotes` boundary now runs
-through `requireHelperCapability`. Its job bridge accepts an active self
+WP-026 now has a formal-quote and provider-mutation capability checkpoint.
+Helper profile, onboarding, bidding, reconfirm, and payout entry points already
+use the progressive helper capability marker. The direct helper-quote create
+boundary, helper quote share/revise routes, and helper-product create/update/
+delete routes now run through `requireHelperCapability`; business quote sharing
+and customer-readable product surfaces remain available through their existing
+ownership/membership checks. The job bridge accepts an active self
 `helper.offer_services` grant for a customer-role account only when that marker
 was established by the enforced gate, while legacy helper/helper_pro/broker
 roles remain compatible and `users.role` is never mutated. The focused bridge and
-helper-enforcement suites pass (27 tests total), and both changed server files
-pass syntax checks. No live populated quote acceptance has been claimed.
-**Exact next action (resume here):** audit the conditional quote-sharing and
-helper-product write paths for any remaining provider action that relies only on
-`users.role`; preserve customer-readable surfaces, add a capability gate only to
-provider mutations, then move to WP-027 Bookings and calendar with focused tests.
+helper-enforcement suites pass (28 tests total), and all changed server files
+pass syntax checks. No live populated quote or product acceptance has been
+claimed.
+**Exact next action (resume here):** begin WP-027 Bookings and calendar. Audit
+booking-request creation, helper acceptance, calendar visibility, reschedule,
+and cancellation for customer-first versus provider mutations; preserve the same
+off/shadow/enforce rollout behavior and add focused server/client contracts
+before pushing the next small checkpoint.
 
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
