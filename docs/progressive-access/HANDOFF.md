@@ -515,6 +515,18 @@ destinations. Keep pending organizers able to participate only where buyer
 policy permits; do not let a pending or foreign organizer manage another
 organizer's campaign. Exact-head CI and populated live logistics acceptance
 remain open across both packages.
+
+WP-080 is now in progress at `e5c66e332` (server role derivation) and
+`b3e5cfcf3` (customer-view organizer shortcut). When `ACCESS_PROJECTION_ENABLED`
+is active, `resolveLogisticsRole` checks the progressive self grant before
+falling back to the legacy buyer/business role; this keeps organizer submission
+and ownership checks server-authoritative while avoiding a mode or role write.
+**Exact next action (resume here):** exercise the pooled-campaign lifecycle with
+an approved-grant customer and a pending customer: approved can create/edit its
+own draft, submit it, and see review/placement state; pending can browse and
+join permitted public campaigns but cannot submit or modify a foreign draft.
+Add a browser fixture for the customer-view Organizer shortcut and campaign
+return path, then record exact-head CI before moving to WP-081.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
