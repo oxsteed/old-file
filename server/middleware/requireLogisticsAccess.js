@@ -252,6 +252,36 @@ function requireLogisticsCapability(...paths) {
 }
 
 /**
+ * Delivery status writes are allowed to operations staff or the currently
+ * assigned distributor. The assignment is read from the canonical delivery
+ * row, so revoking/changing it takes effect before the next update request.
+ */
+function requireDeliveryActor() {
+  return async (req, res, next) => {
+    try {
+      if (!req.user?.id) return res.status(401).json({ error: 'unauthenticated' });
+      const role = req.logisticsRole || await resolveLogisticsRole(req.user);
+      req.logisticsRole = role;
+      if (['admin', 'super_admin', 'warehouse_operator', 'logistics_coordinator'].includes(role)) return next();
+      if (!['reseller', 'franchise_buyer'].includes(role)) {
+        return res.status(403).json({ error: 'delivery_assignment_required', code: 'delivery_assignment_required' });
+      }
+      const { rows } = await pool.query(
+        'SELECT assigned_to FROM delivery_orders WHERE id = $1',
+        [req.params.id]
+      );
+      if (!rows[0] || String(rows[0].assigned_to || '') !== String(req.user.id)) {
+        return res.status(403).json({ error: 'delivery_assignment_required', code: 'delivery_assignment_required' });
+      }
+      return next();
+    } catch (err) {
+      logger.error('requireDeliveryActor failed', { err: err.message });
+      return res.status(503).json({ error: 'Logistics access checks are temporarily unavailable.', code: 'logistics_access_unavailable', retryable: true });
+    }
+  };
+}
+
+/**
  * Build the role context object consumed by
  * logisticsStateMachine.getAvailableActions for a single entity.
  *
@@ -286,6 +316,7 @@ module.exports = {
   resolveLogisticsRole,
   requireLogisticsRole,
   requireLogisticsCapability,
+  requireDeliveryActor,
   buildActionContext,
   requireLaneAccess,
   enforceCountryRestriction,
