@@ -118,6 +118,12 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
 10. **Profile/mobile saves with an unapproved mode** save everything else and ignore the mode
     (`mode_change_ignored`); switch-role returns 403 `access_required`.
 
+11. **Dedicated helper registration closes** while `ACCESS_CUSTOMER_FIRST_SIGNUP` is on
+    (`/api/helper-registration/start|verify-otp|resend-otp|send-otp|registration-terms` → 410
+    `use_general_signup`, `next: /join?mode=helper`). A half-finished dedicated signup (OTP
+    stage, ≤30 min) restarts in the general flow; authenticated helper onboarding routes
+    (`/finalize`, `/w9`, ...) are unchanged.
+
 ## Next step
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,

@@ -128,3 +128,26 @@ describe('helper capability gate', () => {
     });
   });
 });
+
+describe('dedicated helper registration under customer-first signup (WP-006)', () => {
+  const express = require('express');
+  const request = require('supertest');
+  const app = express();
+  app.use(express.json());
+  app.use('/api/helper-registration', require('../routes/helperRegistration'));
+  afterEach(() => { delete process.env.ACCESS_CUSTOMER_FIRST_SIGNUP; });
+
+  test.each(['/start', '/verify-otp', '/resend-otp', '/send-otp', '/registration-terms'])(
+    'POST %s is closed with a pointer to the general signup when the flag is on', async (path) => {
+      process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = 'true';
+      const res = await request(app).post(`/api/helper-registration${path}`).send({ email: 'x@example.invalid' });
+      expect(res.status).toBe(410);
+      expect(res.body).toMatchObject({ code: 'use_general_signup', signupIntent: 'offer_services', next: '/join?mode=helper' });
+    },
+  );
+
+  test('flag off: the dedicated route still reaches its handler', async () => {
+    const res = await request(app).post('/api/helper-registration/start').send({});
+    expect(res.status).not.toBe(410);
+  });
+});

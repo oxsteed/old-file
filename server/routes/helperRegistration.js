@@ -23,10 +23,24 @@ const {
 } = require('../controllers/helperRegistrationController');
 
 // Public (no auth)
-router.post('/start',       authLimiter, startRegistration);
-router.post('/verify-otp',  authLimiter, verifyOTP);
-router.post('/resend-otp',  authLimiter, resendOTP);
-router.post('/send-otp',    authLimiter, resendOTP);  // alias for frontend
+// Progressive access (WP-006): with customer-first signup on, the dedicated
+// helper registration (which creates users.role='helper' with no review) is
+// closed; helpers sign up as customers with the offer_services intent and
+// apply. The general flow keeps the intent through OTP.
+function dedicatedRegistrationClosed(_req, res, next) {
+  if (!require('../services/access/flags').customerFirstSignup()) return next();
+  return res.status(410).json({
+    error: 'Sign up through the main signup and choose Offer services.',
+    code: 'use_general_signup',
+    signupIntent: 'offer_services',
+    next: '/join?mode=helper',
+  });
+}
+
+router.post('/start',       authLimiter, dedicatedRegistrationClosed, startRegistration);
+router.post('/verify-otp',  authLimiter, dedicatedRegistrationClosed, verifyOTP);
+router.post('/resend-otp',  authLimiter, dedicatedRegistrationClosed, resendOTP);
+router.post('/send-otp',    authLimiter, dedicatedRegistrationClosed, resendOTP);  // alias for frontend
 router.get('/categories',   getCategories);
 // Review P2-482: the deprecated completion endpoint created accounts from an
 // email alone and returned 500s. Account creation happens in /verify-otp now.
@@ -46,7 +60,7 @@ router.post('/w9',          authenticate, saveW9);
 router.post('/accept-terms', authenticate, acceptTerms);
 // Review P2-477: records the signup checkbox against the pending registration
 // (version, time, hashed IP, user agent) before the account exists.
-router.post('/registration-terms', authLimiter, acceptPendingTerms);
+router.post('/registration-terms', authLimiter, dedicatedRegistrationClosed, acceptPendingTerms);
 router.post('/finalize',    authenticate, requireHelperStep('finalize'), finalizeRegistration);
 // Review P2-2-F08/P2-7-F05: POST /payment was a no-op stub ("Payment step
 // recorded") with no client caller; removed. POST /profile and
