@@ -285,8 +285,15 @@ WP-062 done: `foodController.assertBrandMenuManage` (menu.manage + all-store sco
 hides edit affordances and shows `progressiveAccess.menu.storeScoped` when false
 (decision 20). Public storefront reads unchanged. Evidence: `progressiveAccessRestaurantMenu.db.test.js`.
 
+WP-063 done: `foodController.updateOrderStatus` now re-reads the actor's
+`business_members` row `FOR SHARE` and recomputes `getLocationScope` with the transaction
+client (staff only; devices/owner unchanged). The DB test races a removal against a retry
+and fails without the fix. Screen orders are device-location bound; customer cancel needs
+the customer or the tracking token (both traced, unchanged).
+Evidence: `progressiveAccessRestaurantOrders.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-063 (restaurant order management and service cycle; SPEC.md, search `<a id="wp-063">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-064 (SPEC.md, search `<a id="wp-064">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
