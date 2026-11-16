@@ -386,6 +386,35 @@ ddescribe('progressive access (real database, mounted routes)', () => {
     expect((await pool.query('SELECT role::text, default_mode FROM users WHERE id = $1', [helper])).rows[0]).toEqual({ role: 'helper', default_mode: 'helper' });
   });
 
+  test('real in-app delivery: a timeout after delivery is retried without a duplicate notification; link is owner-only (WP-020)', async () => {
+    const { processAccessOutbox } = require('../services/access/outboxWorker');
+    const { sendNotification } = require('../services/notificationService');
+    await processAccessOutbox({ notify: async () => ({ success: true }) });
+    const u = await newUser('outbox-real');
+    const other = await newUser('outbox-other');
+    const r = (await as(u).post('/api/me/access-requests', { capability: 'helper.offer_services', answers: HELPER_ANSWERS, submit: true }, 'wp020-real-0001')).body.request;
+    let timeout = true;
+    const deliverThenTimeout = async (msg) => {
+      const res = await sendNotification({ ...msg, emailChannel: false, pushChannel: false });
+      if (timeout) throw new Error('worker timeout');
+      return res;
+    };
+    expect((await processAccessOutbox({ notify: deliverThenTimeout })).failed).toBeGreaterThanOrEqual(1);
+    await pool.query('UPDATE access_outbox SET next_attempt_at = NOW() WHERE request_id = $1', [r.id]);
+    timeout = false;
+    await processAccessOutbox({ notify: deliverThenTimeout });
+    const { rows } = await pool.query(
+      "SELECT title, body, action_url FROM notifications WHERE user_id = $1 AND type = 'access_request_update'", [u]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].action_url).toBe(`/settings/applications?request=${r.id}`);
+    expect(JSON.stringify(rows[0])).not.toMatch(/plumbing|internal|note/i);
+    expect(await count("SELECT COUNT(*)::int AS n FROM access_outbox WHERE request_id = $1 AND status = 'sent'", [r.id])).toBe(1);
+    // Following the link: owner sees it, another user gets a 404, no user is refused.
+    expect((await as(u).get(`/api/me/access-requests/${r.id}`)).status).toBe(200);
+    expect((await as(other).get(`/api/me/access-requests/${r.id}`)).status).toBe(404);
+    expect((await request(app).get(`/api/me/access-requests/${r.id}`)).status).toBe(401);
+  });
+
   test('verification callbacks bump evidence on the same account only; a stale decision fails; no grant (WP-007)', async () => {
     const evidence = require('../services/access/evidence');
     const a = await newUser('verify-a');

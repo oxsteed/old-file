@@ -1,0 +1,177 @@
+'use strict';
+
+/**
+ * WP-020: access notification copy for the locales not inlined in
+ * outboxWorker.js (en/es/fr/ht/ar live there). Every locale the client
+ * ships (client/src/i18n/locales) is covered; missing keys fall back to en.
+ * Copy is safe by construction: only the capability label is interpolated,
+ * never evidence, reviewer notes or business names.
+ */
+
+const LABELS = {
+  pt: { 'helper.offer_services': 'oferecer serviços', 'business.own': 'administrar uma empresa', 'restaurant.own': 'administrar um restaurante', 'consultant.accept_paying_clients': 'consultoria para clientes pagantes', 'tool_owner.list_equipment': 'anunciar equipamentos', 'logistics.ship': 'enviar com a OxSteed Logistics', 'investor.reporting': 'relatórios para investidores', 'franchise.operate': 'operações de franquia' },
+  it: { 'helper.offer_services': 'offrire servizi', 'business.own': 'gestire un’attività', 'restaurant.own': 'gestire un ristorante', 'consultant.accept_paying_clients': 'consulenza per clienti paganti', 'tool_owner.list_equipment': 'pubblicare attrezzature', 'logistics.ship': 'spedire con OxSteed Logistics', 'investor.reporting': 'report per investitori', 'franchise.operate': 'operazioni in franchising' },
+  de: { 'helper.offer_services': 'Dienstleistungen anbieten', 'business.own': 'ein Unternehmen führen', 'restaurant.own': 'ein Restaurant führen', 'consultant.accept_paying_clients': 'Beratung für zahlende Kunden', 'tool_owner.list_equipment': 'Geräte vermieten', 'logistics.ship': 'Versand mit OxSteed Logistics', 'investor.reporting': 'Investorenberichte', 'franchise.operate': 'Franchise-Betrieb' },
+  id: { 'helper.offer_services': 'menawarkan layanan', 'business.own': 'menjalankan bisnis', 'restaurant.own': 'menjalankan restoran', 'consultant.accept_paying_clients': 'konsultasi untuk klien berbayar', 'tool_owner.list_equipment': 'menyewakan peralatan', 'logistics.ship': 'pengiriman dengan OxSteed Logistics', 'investor.reporting': 'laporan investor', 'franchise.operate': 'operasional waralaba' },
+  tr: { 'helper.offer_services': 'hizmet sunma', 'business.own': 'işletme yönetme', 'restaurant.own': 'restoran yönetme', 'consultant.accept_paying_clients': 'ücretli müşterilere danışmanlık', 'tool_owner.list_equipment': 'ekipman kiralama ilanı', 'logistics.ship': 'OxSteed Logistics ile gönderim', 'investor.reporting': 'yatırımcı raporları', 'franchise.operate': 'franchise operasyonları' },
+  sw: { 'helper.offer_services': 'kutoa huduma', 'business.own': 'kuendesha biashara', 'restaurant.own': 'kuendesha mgahawa', 'consultant.accept_paying_clients': 'ushauri kwa wateja wanaolipa', 'tool_owner.list_equipment': 'kukodisha vifaa', 'logistics.ship': 'kusafirisha kwa OxSteed Logistics', 'investor.reporting': 'ripoti za wawekezaji', 'franchise.operate': 'uendeshaji wa franchise' },
+  vi: { 'helper.offer_services': 'cung cấp dịch vụ', 'business.own': 'điều hành doanh nghiệp', 'restaurant.own': 'điều hành nhà hàng', 'consultant.accept_paying_clients': 'tư vấn cho khách hàng trả phí', 'tool_owner.list_equipment': 'cho thuê thiết bị', 'logistics.ship': 'vận chuyển với OxSteed Logistics', 'investor.reporting': 'báo cáo nhà đầu tư', 'franchise.operate': 'vận hành nhượng quyền' },
+  ru: { 'helper.offer_services': 'оказание услуг', 'business.own': 'управление бизнесом', 'restaurant.own': 'управление рестораном', 'consultant.accept_paying_clients': 'консультирование платных клиентов', 'tool_owner.list_equipment': 'сдача оборудования в аренду', 'logistics.ship': 'доставка с OxSteed Logistics', 'investor.reporting': 'отчётность для инвесторов', 'franchise.operate': 'работа по франшизе' },
+  zh: { 'helper.offer_services': '提供服务', 'business.own': '经营企业', 'restaurant.own': '经营餐厅', 'consultant.accept_paying_clients': '为付费客户提供咨询', 'tool_owner.list_equipment': '出租设备', 'logistics.ship': '使用 OxSteed Logistics 发货', 'investor.reporting': '投资者报告', 'franchise.operate': '特许经营运营' },
+  ja: { 'helper.offer_services': 'サービスの提供', 'business.own': '事業の運営', 'restaurant.own': 'レストランの運営', 'consultant.accept_paying_clients': '有料クライアントへのコンサルティング', 'tool_owner.list_equipment': '機材の貸し出し', 'logistics.ship': 'OxSteed Logistics での発送', 'investor.reporting': '投資家向けレポート', 'franchise.operate': 'フランチャイズ運営' },
+  ko: { 'helper.offer_services': '서비스 제공', 'business.own': '사업 운영', 'restaurant.own': '레스토랑 운영', 'consultant.accept_paying_clients': '유료 고객 컨설팅', 'tool_owner.list_equipment': '장비 대여 등록', 'logistics.ship': 'OxSteed Logistics 배송', 'investor.reporting': '투자자 보고', 'franchise.operate': '프랜차이즈 운영' },
+  hi: { 'helper.offer_services': 'सेवाएँ देना', 'business.own': 'व्यवसाय चलाना', 'restaurant.own': 'रेस्तरां चलाना', 'consultant.accept_paying_clients': 'भुगतान करने वाले ग्राहकों को परामर्श', 'tool_owner.list_equipment': 'उपकरण किराए पर देना', 'logistics.ship': 'OxSteed Logistics से शिपिंग', 'investor.reporting': 'निवेशक रिपोर्टिंग', 'franchise.operate': 'फ्रैंचाइज़ संचालन' },
+  ur: { 'helper.offer_services': 'خدمات فراہم کرنا', 'business.own': 'کاروبار چلانا', 'restaurant.own': 'ریستوران چلانا', 'consultant.accept_paying_clients': 'ادائیگی کرنے والے کلائنٹس کو مشاورت', 'tool_owner.list_equipment': 'سامان کرائے پر دینا', 'logistics.ship': 'OxSteed Logistics کے ذریعے ترسیل', 'investor.reporting': 'سرمایہ کار رپورٹنگ', 'franchise.operate': 'فرنچائز آپریشنز' },
+  bn: { 'helper.offer_services': 'সেবা প্রদান', 'business.own': 'ব্যবসা পরিচালনা', 'restaurant.own': 'রেস্তোরাঁ পরিচালনা', 'consultant.accept_paying_clients': 'অর্থপ্রদানকারী ক্লায়েন্টদের পরামর্শ', 'tool_owner.list_equipment': 'সরঞ্জাম ভাড়া দেওয়া', 'logistics.ship': 'OxSteed Logistics-এ পাঠানো', 'investor.reporting': 'বিনিয়োগকারী প্রতিবেদন', 'franchise.operate': 'ফ্র্যাঞ্চাইজি পরিচালনা' },
+  th: { 'helper.offer_services': 'การให้บริการ', 'business.own': 'การดำเนินธุรกิจ', 'restaurant.own': 'การดำเนินร้านอาหาร', 'consultant.accept_paying_clients': 'การให้คำปรึกษาแก่ลูกค้าที่ชำระเงิน', 'tool_owner.list_equipment': 'การให้เช่าอุปกรณ์', 'logistics.ship': 'การจัดส่งด้วย OxSteed Logistics', 'investor.reporting': 'รายงานสำหรับนักลงทุน', 'franchise.operate': 'การดำเนินงานแฟรนไชส์' },
+};
+
+const E = (submitted, needs, approved, declined, suspended, revoked, active) => ({
+  'access_request.submitted': submitted,
+  'access_request.needs_information': needs,
+  'access_request.approved': approved,
+  'access_request.declined': declined,
+  'access_grant.suspended': suspended,
+  'access_grant.revoked': revoked,
+  'access_grant.active': active,
+});
+
+const COPY = {
+  pt: E(
+    ['Solicitação recebida', (c) => `Recebemos sua solicitação para ${c}. Você pode continuar usando sua conta enquanto analisamos.`],
+    ['Precisamos de mais informações', (c) => `Sua solicitação para ${c} precisa de mais informações. Abra-a para ver o que adicionar.`],
+    ['Solicitação aprovada', (c) => `Você foi aprovado para ${c}. As novas ações já aparecem onde você as usa.`],
+    ['Solicitação não aprovada', (c) => `Sua solicitação para ${c} não foi aprovada. Abra-a para ver o motivo e o que fazer a seguir.`],
+    ['Acesso pausado', (c) => `Seu acesso para ${c} está pausado. Sua conta de cliente continua funcionando.`],
+    ['Acesso removido', (c) => `Seu acesso para ${c} foi removido. Sua conta de cliente continua funcionando.`],
+    ['Acesso restabelecido', (c) => `Seu acesso para ${c} está ativo novamente.`],
+  ),
+  it: E(
+    ['Richiesta ricevuta', (c) => `Abbiamo ricevuto la tua richiesta per ${c}. Puoi continuare a usare il tuo account durante la verifica.`],
+    ['Servono altre informazioni', (c) => `La tua richiesta per ${c} richiede altre informazioni. Aprila per vedere cosa aggiungere.`],
+    ['Richiesta approvata', (c) => `Sei stato approvato per ${c}. Le nuove azioni compaiono già dove le usi.`],
+    ['Richiesta non approvata', (c) => `La tua richiesta per ${c} non è stata approvata. Aprila per vedere il motivo e i passi successivi.`],
+    ['Accesso sospeso', (c) => `Il tuo accesso per ${c} è sospeso. Il tuo account cliente funziona ancora.`],
+    ['Accesso rimosso', (c) => `Il tuo accesso per ${c} è stato rimosso. Il tuo account cliente funziona ancora.`],
+    ['Accesso ripristinato', (c) => `Il tuo accesso per ${c} è di nuovo attivo.`],
+  ),
+  de: E(
+    ['Antrag eingegangen', (c) => `Wir haben deinen Antrag für ${c} erhalten. Du kannst dein Konto während der Prüfung weiter nutzen.`],
+    ['Weitere Angaben nötig', (c) => `Dein Antrag für ${c} braucht weitere Angaben. Öffne ihn, um zu sehen, was fehlt.`],
+    ['Antrag genehmigt', (c) => `Du bist für ${c} freigeschaltet. Die neuen Aktionen erscheinen dort, wo du sie nutzt.`],
+    ['Antrag nicht genehmigt', (c) => `Dein Antrag für ${c} wurde nicht genehmigt. Öffne ihn, um den Grund und die nächsten Schritte zu sehen.`],
+    ['Zugriff pausiert', (c) => `Dein Zugriff für ${c} ist pausiert. Dein Kundenkonto funktioniert weiterhin.`],
+    ['Zugriff entfernt', (c) => `Dein Zugriff für ${c} wurde entfernt. Dein Kundenkonto funktioniert weiterhin.`],
+    ['Zugriff wiederhergestellt', (c) => `Dein Zugriff für ${c} ist wieder aktiv.`],
+  ),
+  id: E(
+    ['Pengajuan diterima', (c) => `Kami telah menerima pengajuan Anda untuk ${c}. Anda tetap dapat menggunakan akun selama kami meninjaunya.`],
+    ['Perlu informasi tambahan', (c) => `Pengajuan Anda untuk ${c} memerlukan informasi tambahan. Buka untuk melihat apa yang perlu ditambahkan.`],
+    ['Pengajuan disetujui', (c) => `Anda disetujui untuk ${c}. Tindakan baru kini muncul di tempat Anda menggunakannya.`],
+    ['Pengajuan tidak disetujui', (c) => `Pengajuan Anda untuk ${c} tidak disetujui. Buka untuk melihat alasannya dan langkah selanjutnya.`],
+    ['Akses dijeda', (c) => `Akses Anda untuk ${c} sedang dijeda. Akun pelanggan Anda tetap berfungsi.`],
+    ['Akses dicabut', (c) => `Akses Anda untuk ${c} telah dicabut. Akun pelanggan Anda tetap berfungsi.`],
+    ['Akses dipulihkan', (c) => `Akses Anda untuk ${c} aktif kembali.`],
+  ),
+  tr: E(
+    ['Başvuru alındı', (c) => `${c} için başvurunuzu aldık. İncelerken hesabınızı kullanmaya devam edebilirsiniz.`],
+    ['Ek bilgi gerekiyor', (c) => `${c} için başvurunuz ek bilgi gerektiriyor. Neyin ekleneceğini görmek için açın.`],
+    ['Başvuru onaylandı', (c) => `${c} için onaylandınız. Yeni işlemler artık kullandığınız yerlerde görünüyor.`],
+    ['Başvuru onaylanmadı', (c) => `${c} için başvurunuz onaylanmadı. Nedenini ve sonraki adımları görmek için açın.`],
+    ['Erişim duraklatıldı', (c) => `${c} erişiminiz duraklatıldı. Müşteri hesabınız çalışmaya devam ediyor.`],
+    ['Erişim kaldırıldı', (c) => `${c} erişiminiz kaldırıldı. Müşteri hesabınız çalışmaya devam ediyor.`],
+    ['Erişim geri yüklendi', (c) => `${c} erişiminiz yeniden etkin.`],
+  ),
+  sw: E(
+    ['Ombi limepokelewa', (c) => `Tumepokea ombi lako la ${c}. Unaweza kuendelea kutumia akaunti yako tunapolikagua.`],
+    ['Taarifa zaidi zinahitajika', (c) => `Ombi lako la ${c} linahitaji taarifa zaidi. Lifungue uone cha kuongeza.`],
+    ['Ombi limeidhinishwa', (c) => `Umeidhinishwa kwa ${c}. Vitendo vipya sasa vinaonekana unapovitumia.`],
+    ['Ombi halikuidhinishwa', (c) => `Ombi lako la ${c} halikuidhinishwa. Lifungue uone sababu na hatua inayofuata.`],
+    ['Ufikiaji umesitishwa', (c) => `Ufikiaji wako wa ${c} umesitishwa kwa muda. Akaunti yako ya mteja bado inafanya kazi.`],
+    ['Ufikiaji umeondolewa', (c) => `Ufikiaji wako wa ${c} umeondolewa. Akaunti yako ya mteja bado inafanya kazi.`],
+    ['Ufikiaji umerejeshwa', (c) => `Ufikiaji wako wa ${c} unatumika tena.`],
+  ),
+  vi: E(
+    ['Đã nhận đơn', (c) => `Chúng tôi đã nhận đơn đăng ký ${c} của bạn. Bạn vẫn có thể dùng tài khoản trong khi chúng tôi xem xét.`],
+    ['Cần thêm thông tin', (c) => `Đơn đăng ký ${c} của bạn cần thêm thông tin. Mở đơn để xem cần bổ sung gì.`],
+    ['Đơn đã được duyệt', (c) => `Bạn đã được duyệt cho ${c}. Các thao tác mới đã xuất hiện ở nơi bạn sử dụng.`],
+    ['Đơn không được duyệt', (c) => `Đơn đăng ký ${c} của bạn không được duyệt. Mở đơn để xem lý do và bước tiếp theo.`],
+    ['Quyền truy cập bị tạm dừng', (c) => `Quyền ${c} của bạn đang bị tạm dừng. Tài khoản khách hàng của bạn vẫn hoạt động.`],
+    ['Quyền truy cập bị gỡ bỏ', (c) => `Quyền ${c} của bạn đã bị gỡ bỏ. Tài khoản khách hàng của bạn vẫn hoạt động.`],
+    ['Quyền truy cập được khôi phục', (c) => `Quyền ${c} của bạn đã hoạt động trở lại.`],
+  ),
+  ru: E(
+    ['Заявка получена', (c) => `Мы получили вашу заявку на ${c}. Вы можете пользоваться аккаунтом, пока мы её рассматриваем.`],
+    ['Нужна дополнительная информация', (c) => `Для вашей заявки на ${c} нужна дополнительная информация. Откройте её, чтобы узнать, что добавить.`],
+    ['Заявка одобрена', (c) => `Вам одобрено: ${c}. Новые действия уже доступны там, где вы ими пользуетесь.`],
+    ['Заявка не одобрена', (c) => `Ваша заявка на ${c} не одобрена. Откройте её, чтобы узнать причину и дальнейшие шаги.`],
+    ['Доступ приостановлен', (c) => `Ваш доступ (${c}) приостановлен. Клиентский аккаунт продолжает работать.`],
+    ['Доступ отозван', (c) => `Ваш доступ (${c}) отозван. Клиентский аккаунт продолжает работать.`],
+    ['Доступ восстановлен', (c) => `Ваш доступ (${c}) снова активен.`],
+  ),
+  zh: E(
+    ['已收到申请', (c) => `我们已收到你关于“${c}”的申请。审核期间你可以继续使用账户。`],
+    ['需要更多信息', (c) => `你关于“${c}”的申请需要更多信息。打开申请查看需要补充的内容。`],
+    ['申请已通过', (c) => `你的“${c}”申请已获批准。新的操作已出现在你使用的位置。`],
+    ['申请未通过', (c) => `你关于“${c}”的申请未获批准。打开申请查看原因和后续步骤。`],
+    ['访问已暂停', (c) => `你的“${c}”访问权限已暂停。你的客户账户仍可正常使用。`],
+    ['访问已移除', (c) => `你的“${c}”访问权限已被移除。你的客户账户仍可正常使用。`],
+    ['访问已恢复', (c) => `你的“${c}”访问权限已重新启用。`],
+  ),
+  ja: E(
+    ['申請を受け付けました', (c) => `「${c}」の申請を受け付けました。審査中もアカウントは引き続きご利用いただけます。`],
+    ['追加情報が必要です', (c) => `「${c}」の申請に追加情報が必要です。開いて追加する内容を確認してください。`],
+    ['申請が承認されました', (c) => `「${c}」が承認されました。新しい操作が利用する場所に表示されます。`],
+    ['申請は承認されませんでした', (c) => `「${c}」の申請は承認されませんでした。開いて理由と次の手順を確認してください。`],
+    ['アクセスが一時停止されました', (c) => `「${c}」へのアクセスが一時停止されました。顧客アカウントは引き続き使えます。`],
+    ['アクセスが削除されました', (c) => `「${c}」へのアクセスが削除されました。顧客アカウントは引き続き使えます。`],
+    ['アクセスが復元されました', (c) => `「${c}」へのアクセスが再び有効になりました。`],
+  ),
+  ko: E(
+    ['신청이 접수되었습니다', (c) => `'${c}' 신청을 접수했습니다. 검토하는 동안에도 계정을 계속 사용할 수 있습니다.`],
+    ['추가 정보가 필요합니다', (c) => `'${c}' 신청에 추가 정보가 필요합니다. 열어서 추가할 내용을 확인하세요.`],
+    ['신청이 승인되었습니다', (c) => `'${c}'이(가) 승인되었습니다. 새 작업이 사용하는 곳에 표시됩니다.`],
+    ['신청이 승인되지 않았습니다', (c) => `'${c}' 신청이 승인되지 않았습니다. 열어서 이유와 다음 단계를 확인하세요.`],
+    ['접근이 일시 중지되었습니다', (c) => `'${c}' 접근이 일시 중지되었습니다. 고객 계정은 계속 사용할 수 있습니다.`],
+    ['접근이 제거되었습니다', (c) => `'${c}' 접근이 제거되었습니다. 고객 계정은 계속 사용할 수 있습니다.`],
+    ['접근이 복원되었습니다', (c) => `'${c}' 접근이 다시 활성화되었습니다.`],
+  ),
+  hi: E(
+    ['आवेदन प्राप्त हुआ', (c) => `हमें ${c} के लिए आपका आवेदन मिल गया है। समीक्षा के दौरान आप अपना खाता इस्तेमाल करते रह सकते हैं।`],
+    ['और जानकारी चाहिए', (c) => `${c} के लिए आपके आवेदन में और जानकारी चाहिए। क्या जोड़ना है, यह देखने के लिए इसे खोलें।`],
+    ['आवेदन स्वीकृत', (c) => `आपको ${c} के लिए स्वीकृति मिल गई है। नई कार्रवाइयाँ अब वहीं दिखती हैं जहाँ आप उनका उपयोग करते हैं।`],
+    ['आवेदन स्वीकृत नहीं हुआ', (c) => `${c} के लिए आपका आवेदन स्वीकृत नहीं हुआ। कारण और अगला कदम देखने के लिए इसे खोलें।`],
+    ['पहुँच रोकी गई', (c) => `${c} के लिए आपकी पहुँच रोक दी गई है। आपका ग्राहक खाता अब भी काम करता है।`],
+    ['पहुँच हटाई गई', (c) => `${c} के लिए आपकी पहुँच हटा दी गई है। आपका ग्राहक खाता अब भी काम करता है।`],
+    ['पहुँच बहाल', (c) => `${c} के लिए आपकी पहुँच फिर से सक्रिय है।`],
+  ),
+  ur: E(
+    ['درخواست موصول ہو گئی', (c) => `ہمیں ${c} کے لیے آپ کی درخواست موصول ہو گئی ہے۔ جائزے کے دوران آپ اپنا اکاؤنٹ استعمال کرتے رہ سکتے ہیں۔`],
+    ['مزید معلومات درکار ہیں', (c) => `${c} کے لیے آپ کی درخواست کو مزید معلومات درکار ہیں۔ کیا شامل کرنا ہے، دیکھنے کے لیے اسے کھولیں۔`],
+    ['درخواست منظور ہو گئی', (c) => `آپ کو ${c} کے لیے منظوری مل گئی ہے۔ نئے اقدامات اب وہیں نظر آتے ہیں جہاں آپ انہیں استعمال کرتے ہیں۔`],
+    ['درخواست منظور نہیں ہوئی', (c) => `${c} کے لیے آپ کی درخواست منظور نہیں ہوئی۔ وجہ اور اگلا قدم دیکھنے کے لیے اسے کھولیں۔`],
+    ['رسائی معطل', (c) => `${c} کے لیے آپ کی رسائی عارضی طور پر معطل ہے۔ آپ کا کسٹمر اکاؤنٹ اب بھی کام کرتا ہے۔`],
+    ['رسائی ختم کر دی گئی', (c) => `${c} کے لیے آپ کی رسائی ختم کر دی گئی ہے۔ آپ کا کسٹمر اکاؤنٹ اب بھی کام کرتا ہے۔`],
+    ['رسائی بحال', (c) => `${c} کے لیے آپ کی رسائی دوبارہ فعال ہے۔`],
+  ),
+  bn: E(
+    ['আবেদন পাওয়া গেছে', (c) => `${c}-এর জন্য আপনার আবেদন আমরা পেয়েছি। পর্যালোচনার সময় আপনি অ্যাকাউন্ট ব্যবহার চালিয়ে যেতে পারেন।`],
+    ['আরও তথ্য প্রয়োজন', (c) => `${c}-এর জন্য আপনার আবেদনে আরও তথ্য প্রয়োজন। কী যোগ করতে হবে দেখতে এটি খুলুন।`],
+    ['আবেদন অনুমোদিত', (c) => `আপনি ${c}-এর জন্য অনুমোদিত হয়েছেন। নতুন কাজগুলো এখন যেখানে ব্যবহার করেন সেখানে দেখা যাচ্ছে।`],
+    ['আবেদন অনুমোদিত হয়নি', (c) => `${c}-এর জন্য আপনার আবেদন অনুমোদিত হয়নি। কারণ ও পরবর্তী ধাপ দেখতে এটি খুলুন।`],
+    ['অ্যাক্সেস স্থগিত', (c) => `${c}-এর জন্য আপনার অ্যাক্সেস স্থগিত করা হয়েছে। আপনার গ্রাহক অ্যাকাউন্ট এখনও কাজ করছে।`],
+    ['অ্যাক্সেস সরানো হয়েছে', (c) => `${c}-এর জন্য আপনার অ্যাক্সেস সরানো হয়েছে। আপনার গ্রাহক অ্যাকাউন্ট এখনও কাজ করছে।`],
+    ['অ্যাক্সেস পুনরুদ্ধার', (c) => `${c}-এর জন্য আপনার অ্যাক্সেস আবার সক্রিয়।`],
+  ),
+  th: E(
+    ['ได้รับใบสมัครแล้ว', (c) => `เราได้รับใบสมัคร${c}ของคุณแล้ว คุณยังใช้บัญชีได้ตามปกติระหว่างการตรวจสอบ`],
+    ['ต้องการข้อมูลเพิ่มเติม', (c) => `ใบสมัคร${c}ของคุณต้องการข้อมูลเพิ่มเติม เปิดดูเพื่อทราบว่าต้องเพิ่มอะไร`],
+    ['อนุมัติใบสมัครแล้ว', (c) => `คุณได้รับอนุมัติสำหรับ${c}แล้ว การดำเนินการใหม่จะแสดงในจุดที่คุณใช้งาน`],
+    ['ใบสมัครไม่ได้รับอนุมัติ', (c) => `ใบสมัคร${c}ของคุณไม่ได้รับอนุมัติ เปิดดูเพื่อทราบเหตุผลและขั้นตอนถัดไป`],
+    ['สิทธิ์ถูกระงับชั่วคราว', (c) => `สิทธิ์${c}ของคุณถูกระงับชั่วคราว บัญชีลูกค้าของคุณยังใช้งานได้`],
+    ['สิทธิ์ถูกเพิกถอน', (c) => `สิทธิ์${c}ของคุณถูกเพิกถอนแล้ว บัญชีลูกค้าของคุณยังใช้งานได้`],
+    ['คืนสิทธิ์แล้ว', (c) => `สิทธิ์${c}ของคุณกลับมาใช้งานได้อีกครั้ง`],
+  ),
+};
+
+module.exports = { LABELS, COPY };

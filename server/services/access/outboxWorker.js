@@ -74,6 +74,10 @@ const COPY = {
   },
 };
 
+// WP-020: the remaining shipped locales (pt it de id tr sw vi ru zh ja ko hi ur bn th).
+Object.assign(CAPABILITY_LABELS, require('./outboxCopy').LABELS);
+Object.assign(COPY, require('./outboxCopy').COPY);
+
 function buildMessage(eventType, capability, language) {
   const lang = COPY[language] ? language : 'en';
   const entry = COPY[lang][eventType] || COPY.en[eventType];
