@@ -130,7 +130,18 @@ async function getProjection(userId, db = pool) {
     [userId],
   );
   const version = await projectionVersion(userId, db);
-  return resolver.project(facts, { openRequestCount: rows[0].n, version });
+  const projection = resolver.project(facts, { openRequestCount: rows[0].n, version });
+  if (projection.personal.includes('investor.reporting')) {
+    const audience = await getInvestorAudience(userId, db);
+    if (audience) {
+      projection.investorAudience = {
+        audienceKey: audience.audience_key,
+        datasets: Array.isArray(audience.datasets) ? audience.datasets : [],
+        expiresAt: audience.expires_at,
+      };
+    }
+  }
+  return projection;
 }
 
 async function can(userId, capability, subject, db = pool) {
@@ -139,21 +150,28 @@ async function can(userId, capability, subject, db = pool) {
 }
 
 async function getInvestorAudience(userId, db = pool) {
-  const { rows } = await db.query(
-    `SELECT a.id, a.audience_key, a.datasets, a.expires_at
-       FROM investor_reporting_audiences a
-       JOIN access_grants g ON g.id = a.grant_id
-      WHERE a.user_id = $1
-        AND g.user_id = a.user_id
-        AND g.capability = 'investor.reporting'
-        AND g.status = 'active'
-        AND a.status = 'active'
-        AND (a.expires_at IS NULL OR a.expires_at > NOW())
-      ORDER BY a.created_at DESC, a.id DESC
-      LIMIT 1`,
-    [userId],
-  );
-  return rows[0] || null;
+  try {
+    const { rows } = await db.query(
+      `SELECT a.id, a.audience_key, a.datasets, a.expires_at
+         FROM investor_reporting_audiences a
+         JOIN access_grants g ON g.id = a.grant_id
+        WHERE a.user_id = $1
+          AND g.user_id = a.user_id
+          AND g.capability = 'investor.reporting'
+          AND g.status = 'active'
+          AND a.status = 'active'
+          AND (a.expires_at IS NULL OR a.expires_at > NOW())
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT 1`,
+      [userId],
+    );
+    return rows[0] || null;
+  } catch (error) {
+    // Older deployments may not have the audience table yet. The capability
+    // projection remains usable until the additive migration is deployed.
+    if (error && error.code === '42P01') return null;
+    throw error;
+  }
 }
 
 // ── serialization ───────────────────────────────────────────────────────────

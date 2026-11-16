@@ -209,6 +209,13 @@ export default function InvestorDashboardPage() {
 
   const legacyInvestor = ['investor', 'admin', 'super_admin'].includes(user?.role ?? user?.default_mode);
   const hasInvestorAccess = legacyInvestor || accessProjection?.personal?.includes('investor.reporting');
+  const audienceDatasets = accessProjection?.investorAudience?.datasets || null;
+  const audienceDatasetKey = audienceDatasets ? audienceDatasets.join('|') : null;
+  const datasetAllowed = useCallback((dataset) => (
+    audienceDatasetKey == null
+    || audienceDatasetKey.split('|').includes(dataset)
+    || audienceDatasetKey.split('|').includes('all')
+  ), [audienceDatasetKey]);
 
   // Customer-class accounts use the approved projection; they do not need a
   // legacy mode switch to reach the same reporting workspace.
@@ -225,9 +232,15 @@ export default function InvestorDashboardPage() {
     try {
       const [k, c, f, s] = await Promise.all([
         api.get('/investor/kpis', { params: { period: p } }).then(r => r.data),
-        api.get('/investor/revenue-chart', { params: { period: p } }).then(r => r.data),
-        api.get('/investor/franchise').then(r => r.data),
-        api.get('/investor/supply-demand').then(r => r.data),
+        datasetAllowed('revenue')
+          ? api.get('/investor/revenue-chart', { params: { period: p } }).then(r => r.data)
+          : Promise.resolve({ chart: [] }),
+        datasetAllowed('franchise')
+          ? api.get('/investor/franchise').then(r => r.data)
+          : Promise.resolve({ pipeline: [], total: 0 }),
+        datasetAllowed('supply_demand')
+          ? api.get('/investor/supply-demand').then(r => r.data)
+          : Promise.resolve({ weekly: [], categories: [] }),
       ]);
       if (k.error) throw new Error(k.error);
       setKpis(k.kpis);
@@ -239,7 +252,7 @@ export default function InvestorDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [period, t]);
+  }, [datasetAllowed, period, t]);
 
   useEffect(() => {
     if (hasInvestorAccess) load(period);
@@ -348,7 +361,7 @@ export default function InvestorDashboardPage() {
               accent="rose" />
           </div>
 
-          <InvestorEvidencePanel period={period} />
+          {datasetAllowed('evidence') && <InvestorEvidencePanel period={period} />}
 
           {/* ── Revenue chart + franchise pipeline ─────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -361,6 +374,8 @@ export default function InvestorDashboardPage() {
               </div>
               {loading
                 ? <Skeleton className="h-28 w-full" />
+                : !datasetAllowed('revenue')
+                  ? <p className="text-xs text-gray-600 text-center py-4">{t('investorDashboard.noData')}</p>
                 : (
                   <AreaChart
                     rows={chart}
@@ -380,6 +395,8 @@ export default function InvestorDashboardPage() {
               </div>
               {loading
                 ? <div className="space-y-3">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-4" />)}</div>
+                : !datasetAllowed('franchise')
+                  ? <p className="text-xs text-gray-600">{t('investorDashboard.noData')}</p>
                 : franchise?.pipeline?.length
                   ? (
                     <div className="space-y-3">
@@ -413,9 +430,11 @@ export default function InvestorDashboardPage() {
               </div>
               {loading
                 ? <Skeleton className="h-16 w-full" />
+                : !datasetAllowed('supply_demand')
+                  ? <p className="text-xs text-gray-600 text-center py-4">{t('investorDashboard.noData')}</p>
                 : <MiniBarChart data={weeklyBars} height={64} emptyLabel={t('investorDashboard.noData')} />
               }
-              {!loading && (
+              {!loading && datasetAllowed('supply_demand') && (
                 <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
                   <span>{t('investorDashboard.trends.helpersAvailableNow', { count: fmt(supDem?.helpers_available) })}</span>
                   <span>{t('investorDashboard.trends.listed', { count: fmt(supDem?.helpers_listed) })}</span>
@@ -431,6 +450,8 @@ export default function InvestorDashboardPage() {
               </div>
               {loading
                 ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-4" />)}</div>
+                : !datasetAllowed('supply_demand')
+                  ? <p className="text-xs text-gray-600">{t('investorDashboard.noData')}</p>
                 : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">

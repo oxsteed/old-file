@@ -28,7 +28,7 @@ test('an approved customer-class investor can open only the projected reporting 
     plugins: [{ name: 'investor-dashboard-shell', setup(plugin) {
       const fixtures = {
         useAuth: `export const useAuth = () => ({ user: { id: 'applicant', role: 'customer', default_mode: 'customer' } });`,
-        useAccessProjection: `export default () => ({ personal: ['customer', 'investor.reporting'], organizations: [] });`,
+        useAccessProjection: `export default () => ({ personal: ['customer', 'investor.reporting'], organizations: [], investorAudience: { audienceKey: 'quarterly board', datasets: ['overview', 'revenue'] } });`,
         PageShell: `export default ({ children }) => children;`,
         Navbar: `export default () => null;`,
         Footer: `export default () => null;`,
@@ -64,6 +64,8 @@ test('an approved customer-class investor can open only the projected reporting 
     assert.equal(await page.getByText('home', { exact: true }).count(), 0);
     assert.ok(calls.includes('/api/investor/kpis'));
     assert.ok(calls.includes('/api/investor/revenue-chart'));
+    assert.ok(!calls.includes('/api/investor/franchise'));
+    assert.ok(!calls.includes('/api/investor/supply-demand'));
   } finally {
     await browser.close();
   }
