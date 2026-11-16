@@ -465,7 +465,8 @@ First mount the declared franchise routes and document whether the existing
 application/territory records can be connected to progressive grants without
 granting an unscoped territory or changing `users.role`.
 
-WP-078 is now in progress at `83c6c82a9`. `franchise_applications` already
+WP-078 is now in progress at `83c6c82a9` and the latest pushed UI checkpoint is
+`4140a091a`. `franchise_applications` already
 contains the applicant/owner, approval status, linked business, and desired
 territory fields; there is no separate territory-assignment table. The safe
 boundary is therefore an active `launched` application with a non-null linked
@@ -473,15 +474,19 @@ business, and the territory routes are gated by `franchise.operate` under
 `ACCESS_FRANCHISE_ENFORCEMENT` while the applicant status routes stay readable.
 The mounted route suite (`server/__tests__/franchiseRouteAccess.test.js`)
 passes for off/enforce/denied cases.
-**Exact next action (resume here):** connect the franchise status/application
-surface to the same projection so pending customer-class applicants are not
-presented with a territory operating link, while an activated owner sees it
-without a mode switch. Then add the admin/browser acceptance for activation,
-reassignment, and a revoked territory link. The territory page itself is now
-at `0dd3848bf`: it reads `{ access, flags }`, makes zero API calls while the
-progressive grant is absent, loads stats/helpers after grant refresh, and
-clears the rendered territory after revoke (`franchiseTerritoryAccess.browser-
-check.cjs`).
+The territory page is at `0dd3848bf`: it reads `{ access, flags }`, makes zero
+API calls while the progressive grant is absent, loads stats/helpers after
+grant refresh, and clears the rendered territory after revoke
+(`franchiseTerritoryAccess.browser-check.cjs`). The application/status surface
+and its franchise quick links are now projection-aware at `4140a091a`; the
+browser fixture proves an approved customer-class applicant has no territory
+link, an activated owner gets both entry points after the grant appears, and a
+revoked grant removes them again.
+**Exact next action (resume here):** add admin/browser acceptance for franchise
+activation, owner reassignment, and a revoked territory link, using the real
+review/activation controls and recording the grant/projection transition. Keep
+the status route readable for pending applicants and do not change
+`users.role`. Then populate live territory acceptance before moving to WP-079.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
