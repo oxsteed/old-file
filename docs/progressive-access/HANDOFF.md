@@ -464,6 +464,21 @@ projection mapping, and dataset-aware loading are complete.
 First mount the declared franchise routes and document whether the existing
 application/territory records can be connected to progressive grants without
 granting an unscoped territory or changing `users.role`.
+
+WP-078 is now in progress at `83c6c82a9`. `franchise_applications` already
+contains the applicant/owner, approval status, linked business, and desired
+territory fields; there is no separate territory-assignment table. The safe
+boundary is therefore an active `launched` application with a non-null linked
+business, and the territory routes are gated by `franchise.operate` under
+`ACCESS_FRANCHISE_ENFORCEMENT` while the applicant status routes stay readable.
+The mounted route suite (`server/__tests__/franchiseRouteAccess.test.js`)
+passes for off/enforce/denied cases.
+**Exact next action (resume here):** make store activation atomically issue or
+reinstate a self `franchise.operate` grant for the application owner, bump the
+access projection, and make admin status/owner changes revoke any prior grant
+when the launched territory is no longer current. Add a disposable PostgreSQL
+case proving the owner reaches territory stats only after activation and a
+foreign user remains denied.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
