@@ -64,6 +64,7 @@ export function capabilityShortcuts(mode, projection) {
   }
   if (mode !== 'logistics' && hasCapability(projection.access, 'logistics.ship')) {
     out.push({ id: 'logisticsBuyer', to: '/logistics/buyer', labelKey: 'logistics.nav.buyer', primary: false });
+    out.push({ id: 'logisticsOrganizer', to: '/logistics/organizer', labelKey: 'logistics.nav.organizer', primary: false });
   }
   return out;
 }

@@ -116,6 +116,7 @@ test('projection backs the logistics mode and adds buyer access without replacin
   const approved = navbarNavigation({ role: 'customer', default_mode: 'customer' }, { projection: on(['customer', 'logistics.ship']) });
   assert.equal(approved.mode, 'customer');
   assert.ok(approved.account.some((item) => item.to === '/logistics/buyer'));
+  assert.ok(approved.account.some((item) => item.to === '/logistics/organizer'));
 
   const logistics = navbarNavigation({ role: 'customer', default_mode: 'logistics' }, { dashboardPath: '/logistics/buyer', projection: on(['customer', 'logistics.ship']) });
   assert.equal(logistics.mode, 'logistics');
