@@ -48,7 +48,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-028 | Quotes and quote requests | P2 | implemented (capability-aware provider writes) | (this checkpoint) | `helperQuotes.test.js`; `jobQuoteBridge.test.js` (6); `chatQuoteShareIdempotency.test.js`; `chatQuoteResponseIdempotency.test.js`; `chatQuoteScheduleExpiry.test.js`; `chatQuoteScheduleIdempotency.test.js`; `quoteRequestOwnership.test.js`; `quoteRequestsAuditGuards.test.js` (33 focused tests); helper share/revise/create mutations use capability, business quote membership remains intact, and customer responses/request creation stay customer-owned |
 | WP-029 | Work agreements and disputes | P2 | implemented (helper-party capability boundary) | (this checkpoint) | `progressiveAccessHelperEnforcement.test.js` (26); 14 focused work-agreement, chat-agreement, dispute and warranty suites (110 passed, 21 environment-gated skips); helper-party mutations use identity-aware capability wrappers while customer-party and admin paths remain scoped |
 | WP-030 | Ratings and review management | P4 | implemented (product review capability boundary) | (this checkpoint) | `progressiveAccessHelperEnforcement.test.js` (27); `progressiveAccessProductReviews.test.mjs`; job/business/food review ownership and moderation suites audited; marketplace product-review writes and client form visibility use helper capability/access projection |
-| WP-031 | Career applications and employer recruiting | P4 | planned | | |
+| WP-031 | Career applications and employer recruiting | P4 | implemented (customer-first applicant + scoped employer boundary) | (this checkpoint) | `progressiveAccessCareers.test.js` (2); `careersUnit.test.js` + `careersPublicVisibility.test.js` (32); disposable `careers.db.test.js` (28); applicant routes stay personal/customer-compatible, employer routes resolve canonical business membership, hiring scope, opening/application ownership, and agency scope; no legacy role gate added |
 | WP-032 | Direct customer requests and bookings | P4 | planned | | |
 | WP-033 | Direct authorized operations | P4 | planned | | |
 | WP-034 | Client message threads | P4 | planned | | |
@@ -174,7 +174,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-046 | Runner sees one assigned delivery | server evidence (partial) | progressiveAccessRestaurantRunner.db.test.js (inbox vs direct claim, foreign task; proof upload not yet) |
 | AC-047 | Inventory transfer permissions | planned | |
 | AC-048 | Tips, payroll and view-only employee | planned | |
-| AC-049 | Careers hiring from an approved business | planned | |
+| AC-049 | Careers hiring from an approved business | server evidence (partial) | `careers.db.test.js` (28): customer-role worker applies, own application history is private, authorized owner/manager can list and pipeline the application, foreign business/application access is denied; full browser and populated live acceptance remain open |
 | AC-050 | Assigned consultant eligibility | server evidence (partial) | progressiveAccessConsultantNetwork.db.test.js: approval/revoke, customer redaction, off/shadow parity, paid booking with exact assignee and expiry denial. Business Launch market matching, assignment, reassignment, and customer-only action item visibility pass with an independently pending Owner application. Browser and live provider checks pending. |
 | AC-051 | Investor report and metric evidence | planned | |
 | AC-052 | Franchise applicant to territory operator | planned | |

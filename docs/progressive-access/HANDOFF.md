@@ -1283,6 +1283,23 @@ candidate messaging, interview scheduling, and offer/withdrawal mutations for
 business membership versus helper/customer access, then add the smallest
 capability-aware boundary and focused contracts.
 
+WP-031 is implemented on the branch. Careers applicant creation, application
+history, messaging, interview booking, and offer decisions remain personal
+customer-compatible actions; they do not inspect a legacy helper/business role.
+Employer posting and candidate access continue through `businessAccess`,
+`resolveBusinessAccess`, hiring permissions, store scope, agency scope, and
+record-level `assertCanManageOpening` / `applicationWithAccess` checks. This is
+the smallest safe capability-aware boundary: adding a helper or business-owner
+role gate would incorrectly block approved staff members whose authority comes
+from the canonical employer membership. Focused unit/public tests passed (34
+tests), and the disposable Careers end-to-end suite passed (28 tests). No
+browser or production acceptance is claimed.
+**Exact next action (resume here):** begin WP-032 Direct customer requests and
+bookings. Audit customer-first access to direct catalog, request, quote,
+booking, payment, and history routes; preserve helper-party capability gates,
+canonical ownership, idempotency, and safe post-auth return state, then add the
+smallest missing contract and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
