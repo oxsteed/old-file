@@ -97,7 +97,8 @@ Spec "Commit-sized delivery sequence" + "Phase 0–5":
 - **Flags** (server env, all default **off**, exposed to client through boot):
   `ACCESS_REQUESTS_ENABLED`, `ACCESS_PROJECTION_ENABLED`,
   `ACCESS_CUSTOMER_FIRST_SIGNUP`, `ACCESS_HELPER_ENFORCEMENT` (`off|shadow|enforce`),
-  `ACCESS_LEGACY_SWITCH_RETIRED`, `ACCESS_BUSINESS_ENFORCEMENT` (`off|shadow|enforce`, WP-046).
+  `ACCESS_LEGACY_SWITCH_RETIRED`, `ACCESS_BUSINESS_ENFORCEMENT` (`off|shadow|enforce`, WP-046),
+  `ACCESS_CONSULTANT_ENFORCEMENT` (`off|shadow|enforce`, WP-074).
 
 ## Decisions for Emile (safe default implemented, behind config)
 
@@ -364,8 +365,27 @@ and `statementCenterService.buildRestaurantSettlement` (decision 23). Downloads 
 every request, so old links die with the standing. Ledgers/currency untouched.
 Evidence: `progressiveAccessRestaurantStatements.db.test.js` (fails without the fix).
 
-**Exact next action (resume here):** Phase 3 continuing
-at WP-074 (SPEC.md, search `<a id="wp-074">`). Small open items: a login-path test for WP-004; helper-only routes still using
+WP-074 implemented in `40573c463`. With `ACCESS_CONSULTANT_ENFORCEMENT=enforce`,
+an effective `consultant.accept_paying_clients` grant is required for a consultant's
+assigned referral to move to engaged or won. Off and shadow retain the legacy
+approval decision. The update locks the assignment and grant, and commits the
+status and referral log together. Setup and unpaid or closing updates on assigned
+work remain available. Former assignees lose the referral and its activity.
+The customer-facing business launch history now excludes consultant notes and
+compensation fields. The contractor dashboard links to Applications when allowed,
+and approved consultants get a shortcut while keeping customer navigation.
+The disposable PostgreSQL run also caught and verified the fix for a pre-existing
+status update 500 from conflicting SQL parameter types. Three focused server
+suites passed (43 tests), the frontend reference check and navbar tests passed,
+and `npm run build:ci` passed. AC-050 has partial evidence.
+
+**Exact next action (resume here):** Phase 4, WP-075 (SPEC.md, search
+`<a id="wp-075">`). In `consultantSchedulingController.js`, trace public availability,
+pre-payment session creation, and final slot confirmation. Reuse
+`services/access/consultantGate.js` for the assigned consultant while preserving
+customer checkout, already confirmed sessions, and safe flag-off behavior.
+Record evidence for pending, approved, expired, and wrong-assignee cases.
+Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 

@@ -91,7 +91,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-071 | Training, SOPs and operational quality | P3 | implemented | 7516fe043 | __tests__/progressiveAccessRestaurantOps.db.test.js |
 | WP-072 | Restaurant offline POS and store hub | P3 | implemented | cf470a04d | __tests__/progressiveAccessRestaurantHub.db.test.js |
 | WP-073 | Restaurant and multi-location statements | P3 | implemented | 8a9ff51c5 | __tests__/progressiveAccessRestaurantStatements.db.test.js, statementCenter.test.js |
-| WP-074 | Consultant profile and referral pipeline | P4 | planned | | |
+| WP-074 | Consultant profile and referral pipeline | P4 | implemented | 40573c463 | progressiveAccessConsultantNetwork.db.test.js; client navbar navigation and build:ci |
 | WP-075 | Consultant booking, scheduling and billing | P4 | planned | | |
 | WP-076 | Business launch journey | P4 | planned | | |
 | WP-077 | Investor reporting and audience access | P4 | planned | | |
@@ -175,7 +175,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-047 | Inventory transfer permissions | planned | |
 | AC-048 | Tips, payroll and view-only employee | planned | |
 | AC-049 | Careers hiring from an approved business | planned | |
-| AC-050 | Assigned consultant eligibility | planned | |
+| AC-050 | Assigned consultant eligibility | server evidence (partial) | progressiveAccessConsultantNetwork.db.test.js: approval and revoke on assigned referrals, foreign IDs and reassigned history denied, customer history redacted, off/shadow parity. Mounted browser and full market-selection journey pending. |
 | AC-051 | Investor report and metric evidence | planned | |
 | AC-052 | Franchise applicant to territory operator | planned | |
 | AC-053 | Tool owner publication versus renter | planned | |
