@@ -229,8 +229,15 @@ serves (an appointment with them as staff); redeem needs `calendar.manage_all|ma
 self-only redeems only for served customers (404 otherwise). Evidence:
 `progressiveAccessPackages.db.test.js`. (Decision 17.)
 
+WP-056 done: Stripe Connect callback was already bound (signed state + browser nonce cookie +
+one-time fingerprint + owner recheck at consume) — now evidenced on real Postgres. Fixed:
+`GET /integrations` and `GET /webhooks` (Stripe account id, webhook URLs that may carry
+tokens) were any-member → need `settings.integrations`; webhook delete for a foreign id → 404.
+Evidence: `progressiveAccessIntegrations.db.test.js`. Brand attach/detach (restaurantBrands)
+left as is (resource-scoped, covered by brand tests).
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-056 (integrations and brand linkage; SPEC.md line ~3355). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-057 (property and maintenance workflows; SPEC.md line ~3383). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
