@@ -1218,6 +1218,19 @@ customer-first versus provider-mutation boundary; retain the off/shadow/enforce
 switch behavior and add focused server/client contracts before pushing the next
 small checkpoint.
 
+WP-028 is now implemented on the branch. Direct helper quote creation and the
+job quote bridge accept an approved customer-role helper only through the
+progressive capability gate; helper quote share/revise and helper-product
+provider mutations follow the same rule. Business quote membership checks,
+customer quote responses, customer-owned quote-request creation, idempotent
+responses, expiry, and quote-to-booking scheduling remain available through
+their existing scopes. The focused quote set passes 33 tests across seven
+server suites. No live populated quote/payment acceptance has been claimed.
+**Exact next action (resume here):** begin WP-029 Work agreements and disputes.
+Audit agreement creation/revision/signature, dispute opening and resolution,
+helper/customer ownership, payment/booking links, and any provider-only writes
+for capability-aware authorization before adding the next focused checkpoint.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
