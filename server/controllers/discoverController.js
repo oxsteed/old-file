@@ -11,6 +11,7 @@ const escapeHtml = require('../utils/escapeHtml');
 const { loadDigestRecipient, decideEmailDelivery, deliverDigestEmail } = require('../services/digestDelivery');
 const { hashIP } = require('../utils/encryption');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
+const { publicHelperStandingPredicate } = require('./helpersController');
 
 const DEFAULT_RADIUS = 60;
 const MAX_RADIUS = 150;
@@ -237,7 +238,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
        LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
-       WHERE u.deleted_at IS NULL AND u.is_active = TRUE AND u.role IN ('helper', 'helper_pro', 'broker')
+       WHERE u.deleted_at IS NULL AND u.is_active = TRUE AND ${publicHelperStandingPredicate('u')}
          AND u.email_verified = TRUE AND u.onboarding_completed = TRUE
          AND COALESCE(hp.is_listed, TRUE) = TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE
@@ -485,7 +486,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
        JOIN helper_profiles hp ON hp.user_id = p.helper_id
        WHERE p.is_available = TRUE
          AND COALESCE(hp.is_listed, TRUE) = TRUE
-         AND u.role IN ('helper', 'helper_pro', 'broker')
+         AND ${publicHelperStandingPredicate('u')}
          AND u.email_verified = TRUE AND u.onboarding_completed = TRUE
          AND (
            LOWER(p.name) LIKE ANY($1::text[])
@@ -550,7 +551,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
            JOIN helper_profiles hp ON hp.user_id = u.id
            JOIN helper_skills hs ON hs.user_id = u.id
            LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
-           WHERE u.deleted_at IS NULL AND u.role IN ('helper', 'helper_pro', 'broker')
+           WHERE u.deleted_at IS NULL AND ${publicHelperStandingPredicate('u')}
              AND u.email_verified AND u.onboarding_completed
              AND COALESCE(hp.is_listed, TRUE) = TRUE
              AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE
@@ -672,7 +673,7 @@ exports.discoverPopular = async (req, res) => {
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
        LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
-       WHERE u.deleted_at IS NULL AND u.is_active = TRUE AND u.role IN ('helper', 'helper_pro', 'broker')
+       WHERE u.deleted_at IS NULL AND u.is_active = TRUE AND ${publicHelperStandingPredicate('u')}
          AND u.email_verified AND u.onboarding_completed
          AND COALESCE(hp.is_listed, TRUE) = TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE

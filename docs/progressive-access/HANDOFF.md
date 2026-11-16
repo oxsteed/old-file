@@ -1148,6 +1148,25 @@ explicit location retention, and stale-response handling. Start with the
 discover, recommendations, and `ModeHomeRoute` contracts; add a capability-aware
 boundary only where the server currently relies on legacy mode.
 
+WP-024 now has a public-discovery and location checkpoint. Unified discovery,
+popular results, helper products, and related-helper cross-links use the same
+effective `helper.offer_services` standing predicate as the helper directory;
+projection-off behavior remains the legacy role predicate. The recommendation
+controller derives helper workflows from an active self grant without changing
+`users.role`, so an approved customer-role helper receives helper recommendations
+while guest/applicant/public discovery remains requester-independent. The Discover
+page rejects late search/popular responses after a query or location change and
+preserves explicit latitude/longitude, city/state, radius, and type when a recent
+search or saved alert is reopened. Focused server tests (9), client contract tests
+(2), and frontend reference verification pass. A full `build:ci` is running from
+this checkpoint; no live populated discovery acceptance has been claimed.
+**Exact next action (resume here):** record the final `build:ci` result if it
+finishes, then audit WP-025 customer job-post and lifecycle entry points for
+customer-first access, applicant parity, and late capability changes. Start with
+the public job detail/bid CTA, post-job routes, and the existing helper-enforcement
+contracts; keep customer access implicit and require helper capability only for
+provider actions.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

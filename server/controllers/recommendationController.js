@@ -34,6 +34,7 @@
 
 const pool   = require('../db');
 const logger = require('../utils/logger');
+const accessFlags = require('../services/access/flags');
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -124,11 +125,32 @@ async function safeQuery(sql, params = []) {
   }
 }
 
+async function hasEffectiveCapability(userId, capability) {
+  if (!accessFlags.projectionEnabled(userId)) return false;
+  const rows = await safeQuery(
+    `SELECT 1
+       FROM access_grants
+      WHERE user_id = $1
+        AND capability = $2
+        AND subject_type = 'self'
+        AND status = 'active'
+        AND (expires_at IS NULL OR expires_at > NOW())
+      LIMIT 1`,
+    [userId, capability],
+  );
+  return rows.length > 0;
+}
+
 // ── Main builder ──────────────────────────────────────────────────────────
 
-async function buildRecommendations(userId, userRole) {
+async function buildRecommendations(userId, userRole, capabilities = {}) {
   const recs = [];
   const role = userRole || 'customer';
+  // Progressive access grants can add helper workflows without mutating the
+  // compatibility role stored on users.
+  const helperAccess = ['helper', 'helper_pro', 'broker'].includes(role)
+    || capabilities.helperOfferServices === true;
+  const recommendationRole = helperAccess && role === 'customer' ? 'helper' : role;
 
   // ── 1. Fetch context in parallel ────────────────────────────────────────
   const [
@@ -294,7 +316,7 @@ async function buildRecommendations(userId, userRole) {
   // "You earned the Plumbing badge — add it to your helper profile"
   // ────────────────────────────────────────────────────────────────────
   for (const cat of earnedBadgeCategories) {
-    const isHelper = ['helper', 'helper_pro', 'broker'].includes(role);
+    const isHelper = helperAccess;
 
     if (isHelper) {
       recs.push(rec(
@@ -351,7 +373,7 @@ async function buildRecommendations(userId, userRole) {
   // RULE D: Helper with completed jobs in a category → suggest tools
   // "You've done 3 electrical jobs — rent a multimeter for the next one"
   // ────────────────────────────────────────────────────────────────────
-  if (['helper', 'helper_pro', 'broker'].includes(role) && activeCategories.size > 0) {
+  if (helperAccess && activeCategories.size > 0) {
     for (const cat of activeCategories) {
       const jobCat = GUIDE_CAT_TO_JOB_CAT[cat] || cat;
       recs.push(rec(
@@ -391,7 +413,7 @@ async function buildRecommendations(userId, userRole) {
   // "4.8 rating across 20+ jobs — you're ready to launch a business"
   // ────────────────────────────────────────────────────────────────────
   if (
-    role === 'helper' &&
+    helperAccess &&
     hp &&
     parseFloat(hp.avg_rating) >= 4.5 &&
     parseInt(hp.total_reviews) >= 10
@@ -466,7 +488,7 @@ async function buildRecommendations(userId, userRole) {
       franchise_owner: { cat: 'franchise', label: 'Launch your franchise' },
       investor:        { cat: 'business',  label: 'Understand the market' },
     };
-    const entry = roleGuideMap[role] || roleGuideMap.customer;
+    const entry = roleGuideMap[recommendationRole] || roleGuideMap.customer;
     const guides = guidesByCategory[entry.cat] || [];
     if (guides.length > 0) {
       recs.push(rec(
@@ -513,7 +535,7 @@ async function buildRecommendations(userId, userRole) {
   // ────────────────────────────────────────────────────────────────────
   // RULE K: Helper profile incomplete — nudge to finish it
   // ────────────────────────────────────────────────────────────────────
-  if (['helper', 'helper_pro', 'broker'].includes(role) && hp) {
+  if (helperAccess && hp) {
     const missing = [];
     if (!hp.profile_headline && !hp.bio_short) missing.push('bio');
     if (!hp.is_identity_verified) missing.push('ID verification');
@@ -541,7 +563,7 @@ async function buildRecommendations(userId, userRole) {
   // We check for open campaigns matching active categories.
   // ────────────────────────────────────────────────────────────────────
 
-  if (['helper', 'helper_pro', 'broker'].includes(role) && activeCategories.size > 0) {
+  if (helperAccess && activeCategories.size > 0) {
     // Find open logistics campaigns matching any of the user's active categories
     const catList = Array.from(activeCategories);
     const jobCatList = catList.map((c) => GUIDE_CAT_TO_JOB_CAT[c] || c);
@@ -632,7 +654,8 @@ exports.getRecommendations = async (req, res) => {
   try {
     const userId   = req.user.id;
     const userRole = req.user.role;
-    const recs = await buildRecommendations(userId, userRole);
+    const helperOfferServices = await hasEffectiveCapability(userId, 'helper.offer_services');
+    const recs = await buildRecommendations(userId, userRole, { helperOfferServices });
     const dismissed = await safeQuery(
       `SELECT recommendation_id
        FROM recommendation_dismissals

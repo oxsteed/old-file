@@ -18,6 +18,10 @@ function buildApp() {
 }
 
 beforeEach(() => resetMocks());
+afterEach(() => {
+  delete process.env.ACCESS_PROJECTION_ENABLED;
+  delete process.env.ACCESS_PILOT_USER_IDS;
+});
 
 describe('recommendations', () => {
   test('GET /recommendations filters recommendation cards dismissed by the current user', async () => {
@@ -87,4 +91,27 @@ describe('recommendations', () => {
     expect(campaignQuery).toMatch(/status = 'open'/);
     expect(campaignQuery).toMatch(/approval_state = 'approved'/);
   });
+
+test('approved customer-role helper receives helper recommendations under projection', async () => {
+  process.env.ACCESS_PROJECTION_ENABLED = 'true';
+  mockQuery.mockImplementation((sql) => {
+    const text = String(sql);
+    if (text.includes('FROM access_grants')) {
+      return Promise.resolve({ rows: [{ ok: 1 }] });
+    }
+    if (text.includes('FROM bids b JOIN jobs j')) {
+      return Promise.resolve({ rows: [{ category_name: 'Plumbing' }] });
+    }
+    if (text.includes('FROM recommendation_dismissals')) {
+      return Promise.resolve({ rows: [] });
+    }
+    return Promise.resolve({ rows: [] });
+  });
+
+  const res = await request(buildApp()).get('/api/recommendations');
+
+  expect(res.status).toBe(200);
+  expect(res.body.recommendations.some((item) => item.type === 'rent_tool')).toBe(true);
+  expect(res.body.recommendations.some((item) => item.type === 'source_materials')).toBe(true);
+});
 });
