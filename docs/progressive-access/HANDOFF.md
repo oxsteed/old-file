@@ -336,8 +336,13 @@ order metadata) in every workspace the user belonged to; offers now need
 visible; handoff already lets the assigned runner finish. Claims were already scoped.
 Evidence: `progressiveAccessRestaurantRunner.db.test.js` (fails without the fix).
 
+WP-071 done: `validateCrewAssignee(restaurantId, assignee, locationId)` now also requires a
+store-scoped assignee to work at the task's store (create and reassign). SOPs/checklists
+are brand-level (`assertManage` + `requireBrand`), so store managers do not author them.
+Evidence: `progressiveAccessRestaurantOps.db.test.js`.
+
 **Exact next action (resume here):** Phase 3 continuing
-at WP-071 (SPEC.md, search `<a id="wp-071">`). Small open items: a login-path test for WP-004; helper-only routes still using
+at WP-072 (SPEC.md, search `<a id="wp-072">`). Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
 
