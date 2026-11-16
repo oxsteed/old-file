@@ -1167,14 +1167,20 @@ route intentionally accepts an authenticated customer account without requiring
 a helper role or grant, while bid submission remains separately capability-gated
 by WP-026. `job.test.js` adds the explicit regression and the existing lifecycle
 and UI suites cover the customer-owned and assigned-helper state transitions.
-**Exact next action (resume here):** audit WP-026 helper bidding and acceptance
-for any remaining legacy role-only routes (especially onboarding, quotes,
-reconfirm and payout entry points), then add capability-aware gates only where
-the server still trusts `users.role`.
-customer-first access, applicant parity, and late capability changes. Start with
-the public job detail/bid CTA, post-job routes, and the existing helper-enforcement
-contracts; keep customer access implicit and require helper capability only for
-provider actions.
+
+WP-026 now has a formal-quote capability checkpoint. Helper profile, onboarding,
+bidding, reconfirm, and payout entry points already use the progressive helper
+capability marker; the remaining `POST /api/helper-quotes` boundary now runs
+through `requireHelperCapability`. Its job bridge accepts an active self
+`helper.offer_services` grant for a customer-role account only when that marker
+was established by the enforced gate, while legacy helper/helper_pro/broker
+roles remain compatible and `users.role` is never mutated. The focused bridge and
+helper-enforcement suites pass (27 tests total), and both changed server files
+pass syntax checks. No live populated quote acceptance has been claimed.
+**Exact next action (resume here):** audit the conditional quote-sharing and
+helper-product write paths for any remaining provider action that relies only on
+`users.role`; preserve customer-readable surfaces, add a capability gate only to
+provider mutations, then move to WP-027 Bookings and calendar with focused tests.
 
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,

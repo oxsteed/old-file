@@ -8,9 +8,21 @@
 const pool = require('../db');
 
 // Validates that `helperId` may quote on `jobId`. Returns the job row.
-async function assertCanQuoteJob(jobId, helperId, db = pool) {
+async function assertCanQuoteJob(jobId, helperId, db = pool, { allowCapability = false } = {}) {
+  const capabilityProjection = allowCapability
+    ? `EXISTS (
+         SELECT 1
+           FROM access_grants ag
+          WHERE ag.user_id = u.id
+            AND ag.capability = 'helper.offer_services'
+            AND ag.subject_type = 'self'
+            AND ag.status = 'active'
+            AND (ag.expires_at IS NULL OR ag.expires_at > NOW())
+       ) AS helper_capability_granted`
+    : 'FALSE AS helper_capability_granted';
   const { rows } = await db.query(
-    `SELECT j.id, j.client_id, j.status, u.role AS helper_role
+    `SELECT j.id, j.client_id, j.status, u.role AS helper_role,
+            ${capabilityProjection}
        FROM jobs j JOIN users u ON u.id = $2
       WHERE j.id = $1`,
     [jobId, helperId]
@@ -18,7 +30,9 @@ async function assertCanQuoteJob(jobId, helperId, db = pool) {
   const job = rows[0];
   if (!job) return { ok: false, status: 404, error: 'Job not found', code: 'job_not_found' };
   if (String(job.client_id) === String(helperId)) return { ok: false, status: 403, error: 'You cannot quote on your own job', code: 'forbidden' };
-  if (!['helper', 'helper_pro', 'broker'].includes(job.helper_role)) return { ok: false, status: 403, error: 'Only helpers can quote on jobs', code: 'helper_required' };
+  if (!['helper', 'helper_pro', 'broker'].includes(job.helper_role) && !job.helper_capability_granted) {
+    return { ok: false, status: 403, error: 'Only helpers can quote on jobs', code: 'helper_required' };
+  }
   if (!['published', 'matched', 'negotiating'].includes(job.status)) return { ok: false, status: 409, error: 'This job is not accepting quotes', code: 'invalid_job_state' };
   return { ok: true, job };
 }

@@ -15,6 +15,13 @@ describe('jobQuoteBridge (P1-134)', () => {
     expect((await assertCanQuoteJob('j', 'h', fakeDb({ rows: [{ client_id: 'c', status: 'published', helper_role: 'helper' }] }))).ok).toBe(true);
   });
 
+  test('an approved helper capability can quote without changing the legacy role', async () => {
+    const db = fakeDb({ rows: [{ client_id: 'c', status: 'published', helper_role: 'customer', helper_capability_granted: true }] });
+    const result = await assertCanQuoteJob('j', 'h', db, { allowCapability: true });
+    expect(result.ok).toBe(true);
+    expect(db.calls[0].sql).toMatch(/helper\.offer_services/);
+  });
+
   test('accepted job quote becomes a pending bid at the quoted price', async () => {
     const db = fakeDb({ rows: [{ status: 'published' }] }, { rows: [{ id: 'bid-1' }] });
     const id = await bidFromAcceptedQuote({ id: 7, job_id: 'j', helper_id: 'h', total_cents: 12345, title: 'Move' }, db);
