@@ -914,12 +914,16 @@ the exact verified candidate before provisioning.
 environment-gated skips). The migration/deployment script run of
 `migration-rehearsal.test.cjs`, `check-migration-history.test.cjs`,
 `deploy-coolify.test.cjs`, `release-check.test.cjs`, and
-`build-release-metadata.test.cjs` passes all 43 tests. No source change was
-needed in this checkpoint.
-**Exact next action (resume here):** run the populated old/new-version
-migration rehearsal with one cohort granted and another revoked, verify both
-decisions persist while unrelated services stay ready, then collect exact-head
-CI and deployment evidence before closing the progressive-access goal.
+`build-release-metadata.test.cjs` passes all 43 tests. The populated
+`progressiveAccess.db.test.js`, `progressiveAccessHealth.db.test.js`, and
+`progressiveAccessSignup.db.test.js` suites also pass against isolated
+PostgreSQL (26 tests). The disposable migration rehearsal applied and
+re-verified all 1,122 migrations in 136.1 seconds, including guard triggers and
+legacy-value checks, then removed its container. No source change was needed
+in this checkpoint.
+**Exact next action (resume here):** collect exact-head CI and deployment
+identity/readiness evidence for the pushed branch before closing the
+progressive-access goal. Do not merge or activate production from this branch.
 
 History of what is done (newest last):
 
