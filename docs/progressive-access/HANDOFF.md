@@ -921,9 +921,10 @@ PostgreSQL (26 tests). The disposable migration rehearsal applied and
 re-verified all 1,122 migrations in 136.1 seconds, including guard triggers and
 legacy-value checks, then removed its container. No source change was needed
 in this checkpoint.
-**Exact next action (resume here):** collect exact-head CI and deployment
-identity/readiness evidence for the pushed branch before closing the
-progressive-access goal. Do not merge or activate production from this branch.
+**Exact next action (resume here):** check exact-head CI run `43943736973`
+for commit `65b30f216` at PR #794, then collect deployment identity/readiness
+evidence if CI succeeds before closing the progressive-access goal. Do not
+merge or activate production from this branch.
 
 History of what is done (newest last):
 
