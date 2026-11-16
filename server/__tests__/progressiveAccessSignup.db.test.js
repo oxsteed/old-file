@@ -7,8 +7,11 @@
  */
 
 jest.unmock('pg');
+jest.unmock('../utils/transaction');
 
 const crypto = require('crypto');
+const express = require('express');
+const request = require('supertest');
 
 const RAW_URL = process.env.ACCESS_TEST_DATABASE_URL || '';
 function isDisposableDb(value) {
@@ -70,6 +73,190 @@ ddescribe('customer-first signup (real database)', () => {
     return { email, token };
   }
   const verify = async (token) => { const r = fakeRes(); await ctrl.verifyRegistrationOTP(fakeReq({ token, otp: '123456' }), r); return r; };
+
+  function journeyApp() {
+    const app = express();
+    const accessRoutes = require('../routes/progressiveAccess');
+    app.use(express.json());
+    app.use('/api/auth', require('../routes/auth'));
+    app.use('/api/me', accessRoutes.meRouter);
+    app.use('/api/admin/access-requests', accessRoutes.adminRouter);
+    app.use('/api/helper-registration', require('../routes/helperRegistration'));
+    app.use('/api/bids', require('../routes/bids'));
+    app.use('/api/jobs', require('../routes/jobs'));
+    app.use('/api/businesses', require('../routes/businesses'));
+    app.use(require('../middleware/errorHandler').errorHandler);
+    return app;
+  }
+
+  const bearer = (call, token) => call.set('Authorization', `Bearer ${token}`);
+
+  async function journeySignup(app, intent) {
+    const { token } = await signup({ signupIntent: intent });
+    const verified = await request(app).post('/api/auth/register/verify-otp').send({ token, otp: '123456' });
+    expect(verified.status).toBe(201);
+    expect(verified.body.user).toMatchObject({ role: 'customer', default_mode: 'customer' });
+    return verified.body;
+  }
+
+  async function approve(app, id, version) {
+    const reviewer = { id: crypto.randomUUID(), role: 'super_admin' };
+    await pool.query(
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, totp_enabled)
+       VALUES ($1, $2, 'x', 'Reviewer', 'Fixture', 'super_admin', TRUE, TRUE, TRUE)`,
+      [reviewer.id, `pa-reviewer-${reviewer.id}@example.invalid`],
+    );
+    const { accessToken } = require('../middleware/auth').generateTokens(reviewer);
+    const approval = await bearer(request(app).post(`/api/admin/access-requests/${id}/decision`), accessToken)
+      .send({ decision: 'approve', expectedVersion: version });
+    expect(approval.status).toBe(200);
+    expect(approval.body.request.status).toBe('approved');
+    return { grantId: approval.body.grantId, accessToken };
+  }
+
+  test('Helper signup, review, onboarding, and first bid keep the customer session (AC-025)', async () => {
+    const app = journeyApp();
+    process.env.ACCESS_REQUESTS_ENABLED = 'true';
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+    try {
+      const customer = await journeySignup(app, 'find_help');
+      const helper = await journeySignup(app, 'offer_services');
+      const id = helper.access.nextStep.requestId;
+      const submit = await bearer(request(app).post(`/api/me/access-requests/${id}/submit`), helper.accessToken)
+        .send({ expectedVersion: 1, answers: { serviceCategories: ['plumbing'], serviceArea: { country: 'US', city: 'Columbus' } } });
+      expect(submit.status).toBe(200);
+
+      const jobBody = {
+        title: 'Repair a leaking kitchen faucet fixture',
+        description: 'The faucet needs a replacement gasket. Please check the fixture and repair it during the day.',
+        location_city: 'Columbus',
+        location_country: 'US',
+      };
+      const foreignJob = await bearer(request(app).post('/api/jobs'), customer.accessToken).send(jobBody);
+      expect(foreignJob.status).toBe(201);
+      const foreignJobId = foreignJob.body.job?.id ?? foreignJob.body.id;
+      const bid = () => bearer(request(app).post('/api/bids'), helper.accessToken)
+        .send({ job_id: foreignJobId, amount: 80, message: 'I can replace the gasket.' });
+      expect((await bid()).body).toMatchObject({ code: 'access_required', capability: 'helper.offer_services' });
+
+      const review = await approve(app, id, submit.body.request.version);
+      const profile = await bearer(request(app).put('/api/helper-registration/onboarding/profile'), helper.accessToken)
+        .send({ phone: '6145550100', city: 'Columbus', state: 'OH', zip_code: '43215' });
+      expect(profile.status).toBe(200);
+      // External identity provider result for this disposable fixture.
+      await pool.query("UPDATE users SET id_verified = TRUE, didit_status = 'verified' WHERE id = $1", [helper.user.id]);
+      const finalized = await bearer(request(app).post('/api/helper-registration/finalize'), helper.accessToken);
+      expect(finalized.status).toBe(200);
+      const status = await bearer(request(app).get('/api/helper-registration/onboarding/status'), helper.accessToken);
+      expect(status.body).toMatchObject({ onboarding_step: 'active', canApplyToJobs: true });
+
+      const [firstBid, ownJob] = await Promise.all([
+        bid(),
+        bearer(request(app).post('/api/jobs'), helper.accessToken).send(jobBody),
+      ]);
+      expect(firstBid.status).toBe(201);
+      expect(firstBid.body.helper_id).toBe(helper.user.id);
+      expect(ownJob.status).toBe(201);
+      const ownJobId = ownJob.body.job?.id ?? ownJob.body.id;
+      const selfBid = await bearer(request(app).post('/api/bids'), helper.accessToken)
+        .send({ job_id: ownJobId, amount: 80 });
+      expect(selfBid.body.code).toBe('self_bid_not_allowed');
+      const revoke = await bearer(request(app).post(`/api/admin/access-requests/grants/${review.grantId}`), review.accessToken)
+        .send({ action: 'revoke', expectedVersion: 1, reasonCode: 'policy_not_met' });
+      expect(revoke.status).toBe(200);
+      expect((await bid()).body.code).toBe('access_required');
+      expect((await pool.query('SELECT role, default_mode FROM users WHERE id = $1', [helper.user.id])).rows[0])
+        .toEqual({ role: 'customer', default_mode: 'customer' });
+    } finally {
+      delete process.env.ACCESS_REQUESTS_ENABLED;
+      delete process.env.ACCESS_HELPER_ENFORCEMENT;
+    }
+  });
+
+  test('an approved Owner signup proposal publishes only one matching owned draft (AC-029)', async () => {
+    const app = journeyApp();
+    process.env.ACCESS_REQUESTS_ENABLED = 'true';
+    process.env.ACCESS_BUSINESS_ENFORCEMENT = 'enforce';
+    try {
+      const owner = await journeySignup(app, 'run_business');
+      const id = owner.access.nextStep.requestId;
+      const businessName = 'Progressive Fixture Auto Repair';
+      const makeDraft = (city) => bearer(request(app).post('/api/businesses'), owner.accessToken)
+        .send({
+          business_name: businessName, business_type: 'Auto Repair', industry_category: 'auto',
+          business_mode: 'services_marketplace', address_city: city, address_state: 'OH',
+          address_country: 'US', description: 'Auto repair services for the local community.',
+        });
+      const publish = (id) => bearer(request(app).post(`/api/businesses/${id}/onboarding/complete`), owner.accessToken);
+      const drafts = await Promise.all([makeDraft('Columbus'), makeDraft('Cleveland'), makeDraft('Columbus')]);
+      for (const draft of drafts) {
+        expect(draft.status).toBe(201);
+        expect(draft.body.business.is_listed).toBe(false);
+      }
+      const [target, wrongCity, duplicate] = drafts.map((draft) => draft.body.business.id);
+      expect((await publish(target)).body.code).toBe('access_required');
+      const submit = await bearer(request(app).post(`/api/me/access-requests/${id}/submit`), owner.accessToken)
+        .send({ expectedVersion: 1, answers: { businessName, businessType: 'llc', serviceArea: { country: 'US', region: 'OH', city: 'Columbus' } } });
+      expect(submit.status).toBe(200);
+      const review = await approve(app, id, submit.body.request.version);
+      expect((await publish(wrongCity)).body.code).toBe('access_required');
+      expect((await publish(target)).body.code).toBe('business_setup_incomplete');
+      expect((await pool.query('SELECT subject_type FROM access_grants WHERE id = $1', [review.grantId])).rows[0].subject_type)
+        .toBe('business_proposal');
+      await pool.query('INSERT INTO business_services (business_id, name) VALUES ($1, $3), ($2, $3)', [target, duplicate, 'Brake inspection']);
+      const [first, second] = await Promise.all([publish(target), publish(duplicate)]);
+      expect([first.status, second.status].sort()).toEqual([200, 403]);
+      expect((first.status === 200 ? first : second).body.business.is_listed).toBe(true);
+      const [published, denied] = first.status === 200 ? [target, duplicate] : [duplicate, target];
+      expect((await publish(denied)).body.code).toBe('access_required');
+      expect((await publish(published)).status).toBe(200);
+      expect((await pool.query('SELECT subject_type, subject_id, source_request_id, version FROM access_grants WHERE id = $1', [review.grantId])).rows[0])
+        .toEqual({ subject_type: 'business', subject_id: String(published), source_request_id: String(id), version: 2 });
+      expect((await bearer(request(app).post(`/api/admin/access-requests/grants/${review.grantId}`), review.accessToken)
+        .send({ action: 'revoke', expectedVersion: 2, reasonCode: 'policy_not_met' })).status).toBe(200);
+      expect((await publish(published)).body.code).toBe('access_required');
+      expect((await pool.query('SELECT role, default_mode FROM users WHERE id = $1', [owner.user.id])).rows[0])
+        .toEqual({ role: 'customer', default_mode: 'customer' });
+    } finally {
+      delete process.env.ACCESS_REQUESTS_ENABLED;
+      delete process.env.ACCESS_BUSINESS_ENFORCEMENT;
+    }
+  });
+
+  test('restaurant signup approval binds at Business Workspace publication (WP-060)', async () => {
+    const app = journeyApp();
+    process.env.ACCESS_REQUESTS_ENABLED = 'true';
+    process.env.ACCESS_BUSINESS_ENFORCEMENT = 'enforce';
+    try {
+      const owner = await journeySignup(app, 'run_restaurant');
+      const id = owner.access.nextStep.requestId;
+      const name = 'Progressive Fixture Bistro';
+      const draft = await bearer(request(app).post('/api/businesses'), owner.accessToken)
+        .send({
+          business_name: name, business_type: 'Restaurant', industry_category: 'food', business_mode: 'food',
+          address_city: 'Columbus', address_state: 'OH', address_country: 'US',
+        });
+      expect(draft.status).toBe(201);
+      const businessId = draft.body.business.id;
+      const { rows: [restaurant] } = await pool.query('SELECT id, status FROM food_restaurants WHERE business_id = $1', [businessId]);
+      expect(restaurant.status).toBe('draft');
+      const publish = () => bearer(request(app).post(`/api/businesses/${businessId}/onboarding/complete`), owner.accessToken);
+      expect((await publish()).body.code).toBe('access_required');
+      const submit = await bearer(request(app).post(`/api/me/access-requests/${id}/submit`), owner.accessToken)
+        .send({ expectedVersion: 1, answers: { restaurantName: name, serviceArea: { country: 'US', city: 'Columbus' } } });
+      expect(submit.status).toBe(200);
+      const { grantId } = await approve(app, id, submit.body.request.version);
+      expect((await publish()).body.code).toBe('business_setup_incomplete');
+      await pool.query('INSERT INTO food_menu_items (restaurant_id, name, price_cents) VALUES ($1, $2, 1200)', [restaurant.id, 'Soup']);
+      expect((await publish()).status).toBe(200);
+      expect((await pool.query('SELECT status FROM food_restaurants WHERE id = $1', [restaurant.id])).rows[0].status).toBe('active');
+      expect((await pool.query('SELECT subject_type, subject_id FROM access_grants WHERE id = $1', [grantId])).rows[0])
+        .toEqual({ subject_type: 'business', subject_id: String(businessId) });
+    } finally {
+      delete process.env.ACCESS_REQUESTS_ENABLED;
+      delete process.env.ACCESS_BUSINESS_ENFORCEMENT;
+    }
+  });
 
   test.each([
     ['helper intent via legacy defaultMode', { defaultMode: 'helper' }, 'offer_services', 'helper.offer_services'],

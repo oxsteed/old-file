@@ -62,7 +62,7 @@ export default function CampaignPreview({ id, open, onClose }) {
       )}
       {!loading && !error && campaign && (
         <div className="lxm-summary">
-          <button type="button" className="lx-btn-ghost" onClick={() => shareCampaign().catch(() => {})}>
+          <button type="button" className="lx-btn-ghost" onClick={() => shareCampaign().catch(() => {})} data-track="ui.95ead84c94.1">
             {tx('logistics.modal.share', 'Share')}
           </button>
           <div className="lxm-summary-row">

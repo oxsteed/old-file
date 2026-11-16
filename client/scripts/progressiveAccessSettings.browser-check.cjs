@@ -37,10 +37,12 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
         const request = { id: 'r1', capability: 'business.own', status: 'draft', version: 1,
           subjectDisplay: { kind: 'new_business', name: 'شركة ضيافة ومطاعم واستشارات غذائية طويلة للغاية للاختبار' },
           availableActions: ['withdraw'], answers: {} };
+        const approved = { id: 'r2', capability: 'restaurant.own', status: 'approved', version: 2,
+          subjectDisplay: { kind: 'new_business', name: 'Approved Bistro' }, availableActions: [], answers: {} };
         const policy = { capability: 'business.own', applicantMayRequest: true, subjectTypes: ['business_proposal'], form: { fields: [{ name: 'business_name', type: 'text', required: true, maxLength: 200 }] } };
         export const accessAPI = {
           getAccess: async () => ({ access: { personal: ['customer'], organizations: [] } }),
-          listRequests: async () => ({ requests: [request] }), listPolicies: async () => ({ policies: [policy] }),
+          listRequests: async () => ({ requests: [request, approved] }), listPolicies: async () => ({ policies: [policy] }),
           getRequest: async () => ({ request }), updateRequest: async () => ({ request }), transition: async () => ({ request }),
           createRequest: async () => ({ request }),
         };
@@ -61,6 +63,8 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
     await page.getByText('شركة ضيافة ومطاعم واستشارات غذائية طويلة للغاية للاختبار', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => document.documentElement.dir), 'rtl');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
+    const workspace = page.getByRole('link', { name: 'مساحة عمل النشاط التجاري' });
+    assert.equal(await workspace.getAttribute('href'), '/business-hub');
 
     const continueButton = page.locator('[data-track="ui.access.applications.continue"]');
     await continueButton.click();

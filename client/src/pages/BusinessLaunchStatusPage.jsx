@@ -581,11 +581,11 @@ function DetailModal({ request, onClose }) {
                   <div key={attachment.id} className="bl-attachments__row">
                     <span className="bl-attachments__name">{attachment.originalName}</span>
                     <span className="bl-attachments__actions">
-                      <button type="button" onClick={() => downloadAttachment(attachment)} className="bl-attachments__download">
+                      <button type="button" onClick={() => downloadAttachment(attachment)} className="bl-attachments__download" data-track="ui.478f2e3593.8">
                         {t('businessLaunchAttachments.download')}
                       </button>
                       {String(attachment.uploadedBy) === String(request.user_id) && (
-                        <button type="button" disabled={attachmentBusy} onClick={() => removeAttachment(attachment)} className="bl-attachments__remove">
+                        <button type="button" disabled={attachmentBusy} onClick={() => removeAttachment(attachment)} className="bl-attachments__remove" data-track="ui.478f2e3593.9">
                           {t('businessLaunchAttachments.remove')}
                         </button>
                       )}

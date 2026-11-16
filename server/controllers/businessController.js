@@ -772,30 +772,32 @@ async function completeBusinessOnboarding(req, res, next) {
     if (req.user.id !== access.owner_id) {
       throw new AppError('Only the business owner can publish this business', 403, 'forbidden');
     }
-    // WP-046: activation is the reviewed step (ACCESS_BUSINESS_ENFORCEMENT).
-    // Off (default): no extra query, legacy behaviour.
-    let publishGate = { allowed: true };
-    if (require('../services/access/flags').businessEnforcement() !== 'off') {
-      const { rows: [kindRow] } = await pool.query('SELECT business_kind FROM businesses WHERE id = $1', [access.id]);
-      publishGate = await require('../services/access/businessGate')
-        .checkPublish(pool, { userId: req.user.id, businessId: access.id, kind: kindRow && kindRow.business_kind });
-    }
-    if (!publishGate.allowed) {
-      return res.status(403).json({
-        error: 'This needs approved access first.',
-        code: 'access_required',
-        capability: publishGate.capability,
-        next: `/settings/applications?apply=${encodeURIComponent(publishGate.capability)}`,
-      });
-    }
-    const readiness = await loadBusinessSetupReadiness(pool, access.id);
-    if (!readiness?.readyToPublish) {
-      throw new AppError('Complete the required setup before publishing', 409, 'business_setup_incomplete', {
-        missing: readiness?.checks.filter((check) => !check.complete).map((check) => check.id) || [],
-      });
-    }
+    const { business, readiness, denied } = await withTransaction(pool, async (client) => {
+      if (require('../services/access/flags').businessEnforcement() !== 'off') {
+        const { rows: [draft] } = await client.query(
+          `SELECT id, business_kind, business_name, published_at,
+                  address_country, address_state, address_city, address_zip
+             FROM businesses
+            WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+            FOR UPDATE`,
+          [access.id, req.user.id],
+        );
+        if (!draft) throw new AppError('Business not found', 404, 'not_found');
+        const gate = await require('../services/access/businessGate').checkPublish(client, {
+          userId: req.user.id,
+          businessId: access.id,
+          kind: draft.business_kind,
+          proposalDraft: req.impersonatedBy ? null : draft,
+        });
+        if (!gate.allowed) return { denied: gate };
+      }
 
-    const { business } = await withTransaction(pool, async (client) => {
+      const readiness = await loadBusinessSetupReadiness(client, access.id);
+      if (!readiness?.readyToPublish) {
+        throw new AppError('Complete the required setup before publishing', 409, 'business_setup_incomplete', {
+          missing: readiness?.checks.filter((check) => !check.complete).map((check) => check.id) || [],
+        });
+      }
       const { rows: [published] } = await client.query(
         `UPDATE businesses
             SET setup_status = 'active', is_active = TRUE, is_listed = TRUE,
@@ -859,9 +861,17 @@ async function completeBusinessOnboarding(req, res, next) {
          VALUES ($1,$2,'owner','business.published','business',$3,$4::jsonb,$5)`,
         [access.id, req.user.id, String(access.id), JSON.stringify(published), req.impersonatedBy || null]
       );
-      return { business: published };
+      return { business: published, readiness };
     }, 'business_publish');
 
+    if (denied) {
+      return res.status(403).json({
+        error: 'This needs approved access first.',
+        code: 'access_required',
+        capability: denied.capability,
+        next: `/settings/applications?apply=${encodeURIComponent(denied.capability)}`,
+      });
+    }
     return res.json({ business: withBusinessCapabilities(business), readiness });
   } catch (err) {
     next(err);

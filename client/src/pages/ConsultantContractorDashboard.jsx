@@ -189,11 +189,11 @@ function ReferralAttachments({ referral, userId, tx }) {
             <span className="min-w-0 truncate text-gray-200">{attachment.originalName}</span>
             <span className="flex shrink-0 items-center gap-2">
               <span className="text-gray-500">{attachment.visibility === 'shared' ? tx('consultantContractorDashboard.attachments.shared', 'Shared') : tx('consultantContractorDashboard.attachments.consultantOnly', 'Consultant only')}</span>
-              <button type="button" onClick={() => downloadAttachment(attachment)} className="font-semibold text-indigo-300 hover:text-indigo-200">
+              <button type="button" onClick={() => downloadAttachment(attachment)} className="font-semibold text-indigo-300 hover:text-indigo-200" data-track="ui.c62ffb2364.5">
                 {t('businessLaunchAttachments.download')}
               </button>
               {String(attachment.uploadedBy) === String(userId) && (
-                <button type="button" disabled={busy} onClick={() => removeAttachment(attachment)} className="font-semibold text-orange-300 hover:text-orange-200 disabled:opacity-50">
+                <button type="button" disabled={busy} onClick={() => removeAttachment(attachment)} className="font-semibold text-orange-300 hover:text-orange-200 disabled:opacity-50" data-track="ui.c62ffb2364.6">
                   {t('businessLaunchAttachments.remove')}
                 </button>
               )}

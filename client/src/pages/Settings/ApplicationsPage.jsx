@@ -428,6 +428,15 @@ function AccountApplications({ accountId, epoch }) {
                             </p>
                           )}
                           <div className="mt-2 flex flex-wrap gap-3">
+                            {r.status === 'approved' && ['business.own', 'restaurant.own'].includes(r.capability) && (
+                              <Link
+                                to="/business-hub"
+                                className="text-sm font-medium text-primary hover:underline"
+                                data-track="ui.access.applications.business-workspace"
+                              >
+                                {t('nav.businessWorkspace')}
+                              </Link>
+                            )}
                             {LAUNCH_VISIBILITY.consulting && r.subjectDisplay?.kind === 'new_business'
                               && OPEN.includes(r.status) && !r.businessLaunch && (
                                 <Link
