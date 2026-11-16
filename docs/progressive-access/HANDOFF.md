@@ -494,6 +494,20 @@ with the real approved/activated owner and a second non-owner account while
 territory API calls, and revoke/reassignment behavior without changing
 `users.role`. If live credentials or populated records are unavailable, record
 that limitation and keep the exact-head CI link open before moving to WP-079.
+
+WP-079 now has its first checkpoint at `61042175e`. The client projection maps
+`logistics` to `logistics.ship`, so an unapproved or revoked logistics preference
+falls back to Customer Home. An approved logistics grant adds a `/logistics/buyer`
+account shortcut without replacing Customer Home, and an actively selected
+logistics preference still lands in the Buyer workspace. Buyer checkout and
+read/history routes remain customer-permitted; this package must not turn a
+pending organizer application into a checkout denial.
+**Exact next action (resume here):** add a focused buyer/checkout acceptance
+against the real logistics HTTP routes: a customer with pending organizer access
+must be able to browse/checkout and see only their own orders, shipments,
+allocations, claims, and refunds; a foreign order or business-scoped record must
+remain denied. Then add the corresponding browser fixture for the Buyer
+workspace and checkout return path before moving to WP-080.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
