@@ -1315,6 +1315,25 @@ and payment-retry routes for operator grants plus canonical entity context;
 confirm a customer (even with an approved business capability) cannot enter
 the operations queue, then add the smallest missing contract and focused tests.
 
+WP-033 is implemented on the branch. Direct’s server operator routes already
+require `manage_operations` (with admin MFA) and sensitive customer-facing staff
+reads reuse the same grant plus step-up check; customer-owned records remain
+available only to their owner. The missing boundary was the SPA entry gate,
+which previously checked only the admin role. `DirectAdminRouteGate` now wraps
+the existing `GrantGuard` for `manage_operations`, so an approved business or
+helper capability cannot imply Direct staff access and a regular admin without
+the grant sees the grant-denied state before the queue shell. Targeted server
+tests passed 15/15; admin route/grant contracts passed 14/14; the Direct client
+contract and frontend reference check passed. The full `build:ci` reached the Vite
+build and `verify:dist-assets` successfully (1,204 emitted assets); the wrapper exit
+marker was not captured after the tool output limit, so no production acceptance is
+claimed.
+**Exact next action (resume here):** begin WP-034 Client message threads. Audit
+the unified Messages surface across personal, helper, business, and Direct
+threads for identity-bound membership, attachment/download scope, unread badges,
+realtime cleanup, and revocation behavior; then add the smallest missing
+capability-aware contract and focused tests.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

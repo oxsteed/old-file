@@ -31,4 +31,17 @@ describe('progressive access Direct customer boundary (WP-032)', () => {
     expect(quoteController).toMatch(/client_request_id|idempot/);
     expect(messages).toMatch(/replays a committed send without updating the request/);
   });
+
+  test('Direct operations remain grant- and step-up-gated', () => {
+    const routes = read('routes/direct.js');
+    const controller = read('controllers/directController.js');
+
+    expect(routes).toMatch(/router\.get\('\/admin\/dashboard', authenticate, requireAdmin, requirePermission\('manage_operations'\)/);
+    expect(routes).toMatch(/router\.get\('\/admin\/inbox', authenticate, requireAdmin, requirePermission\('manage_operations'\)/);
+    expect(routes).toMatch(/router\.patch\('\/admin\/requests\/:id', authenticate, requireAdmin, requirePermission\('manage_operations'\)/);
+    expect(routes).toMatch(/router\.post\('\/requests\/:id\/messages', authenticate, requireDg1StepUp/);
+    expect(controller).toMatch(/async function staffCanAccessDirectRequest\(user\)/);
+    expect(controller).toMatch(/adminTotpEnabled\(user\.id\)/);
+    expect(controller).toMatch(/hasGlobalGrant\(user\.id, 'manage_operations'\)/);
+  });
 });

@@ -16,6 +16,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import DeviceOrStaffRoute from './components/DeviceOrStaffRoute';
 import LogisticsOperatorGuard from './components/LogisticsOperatorGuard';
 import InternalWorkspaceGuard from './components/InternalWorkspaceGuard';
+import GrantGuard from './admin/lib/GrantGuard';
 import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBoundary';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
@@ -394,11 +395,11 @@ function LaunchScopeRouteGate({ children }) {
 }
 
 function DirectAdminRouteGate({ children }) {
-  const { user } = useAuth();
-  if (user && !['admin', 'super_admin'].includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  return children;
+  // Keep the SPA entry gate aligned with the server's `requirePermission
+  // ('manage_operations')` checks. Role alone is not enough for a regular
+  // admin, and an approved business/customer capability must never imply
+  // privileged Direct operations access.
+  return <GrantGuard grant="manage_operations">{children}</GrantGuard>;
 }
 
 // Legacy logistics operator login URLs redirect to the single canonical
