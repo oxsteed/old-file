@@ -623,6 +623,19 @@ target wallets. `oxsteedCreditCurrencyConversion.test.js`,
 **Exact next action (resume here):** run the disposable Credit isolation suite
 covering customer, merchant, restaurant and kiosk scopes; record any remaining
 cross-wallet denial gap before beginning WP-087 statements and exports.
+
+WP-087 is checkpointed at `5216d9091` (statement finance-standing separation).
+The Statement Center now filters business manager scopes through the canonical
+`payouts.view` permission while preserving owner access. The statement archive's
+restaurant-document standing applies the same finance permission and store-scope
+check, so an active operational member cannot discover or download settlement
+documents without finance read. `statementFinanceBoundary.test.js` and
+`statementCenter.test.js` pass together (15 tests). Disposable export/download
+revocation and exact-head CI remain open.
+**Exact next action (resume here):** run the statement archive/export suites with
+a disposable PostgreSQL database, revoke business finance read during a staged
+export, and verify the next metadata, detail, download, and rendition requests
+all re-authorize against the current standing before moving to WP-088.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
