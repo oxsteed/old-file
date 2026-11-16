@@ -41,9 +41,11 @@ function mapLegacyUser(facts) {
 
   // Helper: role 'helper' today, or a helper profile they can switch back to
   // instantly under the legacy model. Existing access survives (Decision 7).
-  if (role === 'helper' || facts.helperProfile) {
-    grants.push(grant('helper.offer_services', role === 'helper' ? 'legacy_helper_role' : 'legacy_helper_profile'));
+  if (role === 'helper' || role === 'helper_pro' || facts.helperProfile) {
+    grants.push(grant('helper.offer_services', role === 'helper' || role === 'helper_pro' ? 'legacy_helper_role' : 'legacy_helper_profile'));
   }
+  // Historic roles with no capability equivalent are reviewed by a human.
+  if (role === 'broker') exceptions.push({ reason: 'unmapped_legacy_role' });
 
   if (approved('consultant')) grants.push(grant('consultant.accept_paying_clients', 'legacy_mode_approval'));
   else if (mode === 'consultant') drafts.push({ capability: 'consultant.accept_paying_clients', reason: 'legacy_mode_unapproved' });

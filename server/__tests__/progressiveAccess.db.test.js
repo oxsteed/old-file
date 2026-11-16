@@ -335,6 +335,57 @@ ddescribe('progressive access (real database, mounted routes)', () => {
     expect(await count('SELECT COUNT(*) AS n FROM access_grants WHERE source_request_id = $1', [r.id])).toBe(1);
   });
 
+  test('backfill: dry run writes nothing, apply is idempotent, never revives a revoked grant, resumes after interruption (D7, AC-075..077)', async () => {
+    const { runBackfill } = require('../services/access/backfill');
+    const helper = await newUser('bf-helper', { role: 'helper', mode: 'helper' });
+    const consultant = await newUser('bf-consult', { role: 'helper', mode: 'consultant' });
+    await pool.query("INSERT INTO mode_platform_approvals (user_id, mode, status) VALUES ($1, 'consultant', 'approved')", [consultant]);
+    const ownerMode = await newUser('bf-owner', { role: 'helper', mode: 'restaurant_owner' });
+    const staffMode = await newUser('bf-staff', { role: 'helper', mode: 'restaurant_staff' });
+    const revoked = await newUser('bf-revoked', { role: 'helper', mode: 'helper' });
+    await pool.query(
+      `INSERT INTO access_grants (user_id, capability, subject_type, subject_key, status, provenance)
+       VALUES ($1, 'helper.offer_services', 'self', 'self', 'revoked', 'request')`, [revoked]);
+    const grantsOf = async (u) => (await pool.query('SELECT capability, status, provenance FROM access_grants WHERE user_id = $1 ORDER BY capability', [u])).rows;
+
+    const dry = await runBackfill({ mode: 'dry_run', batchSize: 3 });
+    expect(dry.status).toBe('completed');
+    expect(dry.counts['grant:helper.offer_services']).toBeGreaterThanOrEqual(4);
+    expect(await grantsOf(helper)).toEqual([]);
+    expect(JSON.stringify(dry.counts)).not.toMatch(/@example/);
+
+    // Interrupted apply: one batch, then resume from the checkpoint.
+    const partial = await runBackfill({ mode: 'apply', batchSize: 2, maxBatches: 1 });
+    expect(partial.status).toBe('running');
+    expect(partial.checkpoint_user_id).toBeTruthy();
+    const resumed = await runBackfill({ mode: 'apply', batchSize: 2, resumeRunId: Number(partial.id) });
+    expect(resumed.status).toBe('completed');
+    expect(resumed.counts.users_scanned).toBe(dry.counts.users_scanned);
+
+    expect(await grantsOf(helper)).toEqual([{ capability: 'helper.offer_services', status: 'active', provenance: 'legacy_backfill' }]);
+    expect((await grantsOf(consultant)).map((g) => g.capability)).toEqual(['consultant.accept_paying_clients', 'helper.offer_services']);
+    expect(await grantsOf(revoked)).toEqual([{ capability: 'helper.offer_services', status: 'revoked', provenance: 'request' }]);
+    const { rows: drafts } = await pool.query("SELECT capability, status, source FROM access_requests WHERE applicant_id = $1", [ownerMode]);
+    expect(drafts).toEqual([{ capability: 'restaurant.own', status: 'draft', source: 'legacy_backfill' }]);
+    expect((await grantsOf(ownerMode)).map((g) => g.capability)).toEqual(['helper.offer_services']);
+    expect(await count("SELECT COUNT(*) AS n FROM access_backfill_exceptions WHERE user_id = $1 AND reason = 'staff_mode_without_membership'", [staffMode])).toBe(1);
+
+    // Second full apply changes nothing.
+    const totals = async () => ({
+      g: await count('SELECT COUNT(*) AS n FROM access_grants'),
+      r: await count('SELECT COUNT(*) AS n FROM access_requests'),
+      e: await count('SELECT COUNT(*) AS n FROM access_backfill_exceptions'),
+    });
+    const before = await totals();
+    const again = await runBackfill({ mode: 'apply', batchSize: 50 });
+    expect(await totals()).toEqual(before);
+    expect(Object.keys(again.counts).filter((k) => k.startsWith('inserted:'))).toEqual([]);
+
+    // Backfilled helper can use the projection immediately; legacy role untouched.
+    expect((await as(helper).get('/api/me/access')).body.access.personal).toEqual(['customer', 'helper.offer_services']);
+    expect((await pool.query('SELECT role::text, default_mode FROM users WHERE id = $1', [helper])).rows[0]).toEqual({ role: 'helper', default_mode: 'helper' });
+  });
+
   test('flags off: APIs answer feature_disabled', async () => {
     const u = await newUser('flagoff');
     process.env.ACCESS_REQUESTS_ENABLED = 'false';

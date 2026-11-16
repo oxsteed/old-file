@@ -157,6 +157,10 @@ describe('D7 — existing valid access, records and ownership survive', () => {
     expect(mapLegacyUser({ user: { role: 'helper', default_mode: 'restaurant_staff' } }).exceptions).toEqual([{ reason: 'staff_mode_without_membership' }]);
     expect(mapLegacyUser({ user: { role: 'customer', default_mode: 'investor' } }).exceptions).toEqual([{ reason: 'investor_mode_without_audience' }]);
   });
+  test('helper_pro keeps helper access; broker goes to review', () => {
+    expect(mapLegacyUser({ user: { role: 'helper_pro', default_mode: 'helper' } }).grants.map((g) => g.capability)).toEqual(['helper.offer_services']);
+    expect(mapLegacyUser({ user: { role: 'broker', default_mode: 'customer' } }).exceptions).toEqual([{ reason: 'unmapped_legacy_role' }]);
+  });
   test('admins are untouched', () => {
     expect(mapLegacyUser({ user: { role: 'super_admin', default_mode: 'helper' }, helperProfile: true })).toEqual({ grants: [], exceptions: [], drafts: [] });
   });
