@@ -563,9 +563,26 @@ reads include assigned distributor records without widening ordinary buyer
 visibility, and the existing delivery state machine remains the only mutation
 path. `logisticsDistributorAssignment.test.js`, warehouse transition tests, and
 buyer warehouse-read tests pass together (149 tests).
-**Exact next action (resume here):** add browser evidence for the distributor
-workspace's assigned-delivery read/update/revocation flow, then inspect WP-083
-internal operations and compliance separation.
+Browser evidence and populated live fulfillment acceptance remain open.
+
+WP-083 is checkpointed at `c5c9c975b` (internal operations/compliance separation).
+The admin router now gives operations and compliance sessions read-only access to
+the restrictions and supplier records they need to inspect, while restriction
+writes remain behind the compliance workspace and supplier writes remain behind
+admin RBAC plus the explicit `logistics.procurement` grant. The restricted-PO
+approval handler now refuses non-restricted orders and writes a structured audit
+entry containing the before state, after state, current staff actor, notes, and
+request IP. `requireAnyInternalLogisticsWorkspace()` preserves route-specific
+session and active-credential checks, and does not grant operations staff the
+compliance approval route. `logisticsInternalWorkspaceBoundary.test.js`,
+`adminBundleBRoutes.test.js`, `logisticsProcurementGates.test.js`, and
+`logisticsRefundsRoutes.test.js` pass together (50 tests).
+**Exact next action (resume here):** add browser evidence for the operations
+read-only restrictions/supplier surface, operations denial of restriction or
+supplier mutation, and compliance approval audit identity; then attempt
+populated live approval acceptance. If the live environment is unavailable,
+record that limitation and keep the exact-head CI link open before moving to
+WP-084.
 Small open items: a login-path test for WP-004; helper-only routes still using
 `req.user.role === 'helper'` (`rg "role !== 'helper'|role === 'helper'" server/routes
 server/controllers`) should move to `isHelperActor(req)` + `requireHelperCapability`.
