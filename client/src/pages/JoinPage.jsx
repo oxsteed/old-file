@@ -50,7 +50,13 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const [pageParams] = useSearchParams();
   const params = embedded ? new URLSearchParams(embeddedSearch) : pageParams;
   const presetMode = params.get('mode');
-  const referralRef = params.get('ref');
+  // Carry only the referral identifier understood by the signup API. Other
+  // query parameters (including forged approval-style flags) never become
+  // signup authority or application state.
+  const rawReferralRef = params.get('ref');
+  const referralRef = rawReferralRef && /^[A-Za-z0-9_-]{1,50}$/.test(rawReferralRef)
+    ? rawReferralRef
+    : null;
   const [draft] = useState(loadDraft);
   const [form, setForm] = useState(() => ({ ...EMPTY, country: detectCountryFromLocale(), ...draft?.form, password: '',
     defaultMode: MODES.includes(presetMode) ? presetMode : MODES.includes(draft?.form?.defaultMode) ? draft.form.defaultMode : 'customer' }));

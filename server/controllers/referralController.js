@@ -410,10 +410,14 @@ exports.validateCode = async (req, res, next) => {
   try {
     const { code } = req.body;
     if (!code) throw new AppError('code is required', 400, 'validation_failed', { code: 'code is required' });
+    const normalizedCode = String(code).trim();
+    if (!/^[A-Za-z0-9_-]{1,50}$/.test(normalizedCode)) {
+      throw new AppError('Referral code is invalid', 400, 'validation_failed', { code: 'Referral code is invalid' });
+    }
 
     const { rows } = await db.query(
       `SELECT id, first_name FROM users WHERE referral_code = $1`,
-      [String(code).trim()]
+      [normalizedCode]
     );
 
     if (!rows.length) {

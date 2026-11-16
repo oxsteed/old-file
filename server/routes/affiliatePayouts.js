@@ -5,6 +5,7 @@ const { requireAdmin, requirePermission, requireSuperAdminOrPermission } = requi
 const { strictLimiter } = require('../middleware/rateLimiter');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
@@ -18,10 +19,10 @@ const AffiliateAnalyticsController = require('../controllers/AffiliateAnalyticsC
 router.use(requireFeatureEnabled('Affiliate', 'AFFILIATE_ENABLED', true));
 
 // ── Stats (must be before /:programId to avoid route clash) ──────────────
-router.get('/stats/all', requireAuth, affiliatePayoutsController.getAffiliateStats);
+router.get('/stats/all', requireAuth, requireHelperCapability, affiliatePayoutsController.getAffiliateStats);
 
 // ── Payouts ───────────────────────────────────────────────────────────────
-router.get('/schedule', requireAuth, affiliatePayoutsController.getPayoutsSchedule);
+router.get('/schedule', requireAuth, requireHelperCapability, affiliatePayoutsController.getPayoutsSchedule);
 
 // Audit fix (auth finding 15, UI track): admin-only list for the maker
 // page. Read-only, so it keeps the view grant; the process route below
@@ -33,7 +34,7 @@ router.get(
   requirePermission('view_financials'),
   affiliatePayoutsController.listAdminPayouts
 );
-router.post('/calculate', strictLimiter, requireAuth, affiliatePayoutsController.calculateAndCreatePayout);
+router.post('/calculate', strictLimiter, requireAuth, requireHelperCapability, affiliatePayoutsController.calculateAndCreatePayout);
 // Review P3-787: processing moves real money, so it is an admin action with
 // the financials grant, rate-limited and audited.
 // ADM-040: processing moves real money; impersonated sessions are blocked.
@@ -100,19 +101,19 @@ router.post(
 );
 
 // ── Programs ──────────────────────────────────────────────────────────────
-router.post('/', requireAuth, affiliatePayoutsController.createAffiliateProgram);
-router.get('/', requireAuth, affiliatePayoutsController.getAffiliatePrograms);
-router.get('/:programId', requireAuth, affiliatePayoutsController.getAffiliateProgram);
+router.post('/', requireAuth, requireHelperCapability, affiliatePayoutsController.createAffiliateProgram);
+router.get('/', requireAuth, requireHelperCapability, affiliatePayoutsController.getAffiliatePrograms);
+router.get('/:programId', requireAuth, requireHelperCapability, affiliatePayoutsController.getAffiliateProgram);
 
 // ── Commissions ───────────────────────────────────────────────────────────
-router.get('/:programId/commissions', requireAuth, affiliatePayoutsController.getAffiliateCommissions);
+router.get('/:programId/commissions', requireAuth, requireHelperCapability, affiliatePayoutsController.getAffiliateCommissions);
 
 // ── Analytics ─────────────────────────────────────────────────────────────
-router.get('/:program_id/analytics/metrics',  requireAuth, AffiliateAnalyticsController.getMetricsTimeSeries);
-router.get('/:program_id/analytics/funnel',   requireAuth, AffiliateAnalyticsController.getConversionFunnel);
-router.get('/:program_id/analytics/products', requireAuth, AffiliateAnalyticsController.getTopProducts);
-router.get('/:program_id/analytics/visitors', requireAuth, AffiliateAnalyticsController.getVisitorFunnel);
-router.get('/:program_id/analytics/sources',  requireAuth, AffiliateAnalyticsController.getSourceBreakdown);
-router.get('/:program_id/analytics/product/:product_id', requireAuth, AffiliateAnalyticsController.getProductAnalytics);
+router.get('/:program_id/analytics/metrics',  requireAuth, requireHelperCapability, AffiliateAnalyticsController.getMetricsTimeSeries);
+router.get('/:program_id/analytics/funnel',   requireAuth, requireHelperCapability, AffiliateAnalyticsController.getConversionFunnel);
+router.get('/:program_id/analytics/products', requireAuth, requireHelperCapability, AffiliateAnalyticsController.getTopProducts);
+router.get('/:program_id/analytics/visitors', requireAuth, requireHelperCapability, AffiliateAnalyticsController.getVisitorFunnel);
+router.get('/:program_id/analytics/sources',  requireAuth, requireHelperCapability, AffiliateAnalyticsController.getSourceBreakdown);
+router.get('/:program_id/analytics/product/:product_id', requireAuth, requireHelperCapability, AffiliateAnalyticsController.getProductAnalytics);
 
 module.exports = router;

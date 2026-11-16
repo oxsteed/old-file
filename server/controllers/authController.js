@@ -1438,6 +1438,12 @@ async function startRegistration(req, res) {
         : [rules.maxLen(20), rules.postalFor(countryCode), rules.noScript],
     });
     const signupErrors = errs || {};
+    // Attribution is an opaque referral code, not a free-form redirect or
+    // approval input. Keep only the identifier format emitted by OxSteed and
+    // reject malformed values before they reach pending-registration storage.
+    if (normalized.ref && !/^[A-Za-z0-9_-]{1,50}$/.test(normalized.ref)) {
+      signupErrors.ref = 'Referral code is invalid';
+    }
     if (!isSignupPasswordValid(password)) signupErrors.password = 'Use 8–128 characters and at least two of uppercase letters, numbers, and symbols';
     if (normalized.ageConfirmed !== true) signupErrors.ageConfirmed = 'Age confirmation required';
     if (Object.keys(signupErrors).length) return res.status(400).json({ error: 'validation_failed', code: 'validation_failed', fields: signupErrors });

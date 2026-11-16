@@ -40,6 +40,16 @@ beforeEach(() => {
 });
 
 describe('affiliate payout grant tightening', () => {
+  test('affiliate user surfaces require approved helper capability', () => {
+    for (const path of [
+      '/stats/all', '/schedule', '/calculate', '/', '/:programId',
+      '/:programId/commissions', '/:program_id/analytics/metrics',
+    ]) {
+      const block = routeBlock(ROUTE_SRC, path);
+      expect(block).toContain('requireHelperCapability');
+    }
+  });
+
   test('process route requires manage_financials, not view_financials', () => {
     const block = routeBlock(ROUTE_SRC, '/:payoutId/process');
     expect(block).toContain("requireSuperAdminOrPermission('manage_financials')");
