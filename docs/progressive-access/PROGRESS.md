@@ -25,11 +25,11 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP-007 | Verification and provider callbacks | P2 | planned | | |
 | WP-008 | Business team access requests | P2 | planned | | |
 | WP-009 | Invitations and Vortex codes | P2 | planned | | |
-| WP-010 | Access policy and form discovery | P1 | in progress | 3e19ebd25, fc9a8422d | progressiveAccessDecisions.test.js; migration replay (local PG17+PostGIS) |
-| WP-011 | Applicant status and resubmission | P1 | planned | | |
-| WP-012 | Platform review and audit | P1 | planned | | |
+| WP-010 | Access policy and form discovery | P1 | implemented (server) | 3e19ebd25, fc9a8422d, 87a95318e | progressiveAccessDecisions.test.js; progressiveAccess.db.test.js |
+| WP-011 | Applicant status and resubmission | P1 | implemented (server API) | 87a95318e | progressiveAccess.db.test.js (11, real PG) |
+| WP-012 | Platform review and audit | P1 | implemented (server API) | 87a95318e | progressiveAccess.db.test.js (11, real PG) |
 | WP-013 | Role switch retirement | P5 | planned | | |
-| WP-014 | Current-user projection and resume | P1 | planned | | |
+| WP-014 | Current-user projection and resume | P1 | implemented (server API) | 87a95318e | progressiveAccess.db.test.js (11, real PG) |
 | WP-015 | Home and dashboard routing | P2 | planned | | |
 | WP-016 | Navigation, notices and settings | P2 | planned | | |
 | WP-017 | JWT, CSRF and cross-tab session safety | P2 | planned | | |
@@ -132,16 +132,16 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-006 | Same email and two signup entry points | planned | |
 | AC-007 | Legacy mode forged on signup | planned | |
 | AC-008 | Resume application on second device | planned | |
-| AC-009 | Withdraw then reapply | planned | |
-| AC-010 | Needs information and revision history | planned | |
+| AC-009 | Withdraw then reapply | server evidence (UI pending) | progressiveAccess.db.test.js |
+| AC-010 | Needs information and revision history | server evidence (UI pending) | progressiveAccess.db.test.js |
 | AC-011 | Draft attachment confidentiality | planned | |
 | AC-012 | Public form policy versus evidence data | planned | |
-| AC-013 | Reviewer privilege narrows mid-session | planned | |
-| AC-014 | Two competing approval decisions | planned | |
-| AC-015 | Duplicate application on two tabs | planned | |
+| AC-013 | Reviewer privilege narrows mid-session | server evidence (UI pending) | progressiveAccess.db.test.js |
+| AC-014 | Two competing approval decisions | server evidence (UI pending) | progressiveAccess.db.test.js |
+| AC-015 | Duplicate application on two tabs | server evidence (UI pending) | progressiveAccess.db.test.js |
 | AC-016 | Policy changes during review | planned | |
 | AC-017 | Admin rejects without harming customer access | planned | |
-| AC-018 | Revoke and reinstate distinct rights | planned | |
+| AC-018 | Revoke and reinstate distinct rights | server evidence (UI pending) | progressiveAccess.db.test.js |
 | AC-019 | Fixture identity changes across tabs | planned | |
 | AC-020 | No role mutation on ordinary page navigation | planned | |
 | AC-021 | Capability refresh during unsaved editing | planned | |
@@ -198,7 +198,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-072 | Entity publisher ownership transfer | planned | |
 | AC-073 | Account closure and unusable pending attachments | planned | |
 | AC-074 | Mixed application versions during migration | planned | |
-| AC-075 | Database upgrade and repeat | planned | |
+| AC-075 | Database upgrade and repeat | partial | migration applied + replayed via psql on local PG17/PostGIS; CI migrates clean DB |
 | AC-076 | Backfill twice with preexisting approval | planned | |
 | AC-077 | Interrupted backfill during revoke | planned | |
 | AC-078 | Mode-role shadow divergence triage | planned | |

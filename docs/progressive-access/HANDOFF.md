@@ -114,10 +114,22 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
 
 ## Next step
 
-Done: registry/lifecycle/resolver/legacyMapping in `server/services/access/` + D1–D7 tests.
-Done: migration `server/migrations/20261116131500_progressive_access.sql` (applied + replayed locally).
-Next: `server/services/access/accessService.js`
-(loadFacts, getProjection, request CRUD with locked transitions + idempotency) with a
-DB test `server/__tests__/progressiveAccessService.db.test.js` gated by
-`ACCESS_TEST_DATABASE_URL`, and add that env var to the CI step
-"Server regression and security tests".
+Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
+migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
+`controllers/progressiveAccessController.js`, `routes/progressiveAccess.js` (mounted in
+`server/index.js`), DB suite `__tests__/progressiveAccess.db.test.js` (CI env
+`ACCESS_TEST_DATABASE_URL` added to "Server regression and security tests").
+
+Next (in order):
+1. **Outbox delivery worker** `server/services/access/outboxWorker.js` + job wiring in
+   `server/bootstrap/auxiliaryWorkers.js`: claim `access_outbox` pending rows
+   (`FOR UPDATE SKIP LOCKED`), send via `notificationService.sendNotification` with
+   `idempotencyKey = 'access-outbox:' + dedupe_key`, localized copy (en/es/fr/ht/ar), retry
+   with backoff, mark sent/failed. (WP-020)
+2. **Backfill** `server/scripts/access-backfill.js` using `legacyMapping.mapLegacyUser`:
+   `--dry-run` counts only, `--apply` batches by `users.id` with checkpoint in
+   `access_backfill_runs`, `INSERT ... ON CONFLICT DO NOTHING` (never reactivates revoked),
+   drafts via `access_requests` source `legacy_backfill`, exceptions table. (AC-076/077)
+3. Customer-first signup (WP-001..WP-003) behind `ACCESS_CUSTOMER_FIRST_SIGNUP`.
+4. Client: `client/src/api/access.js`, `useAccess` hook, My applications page, reviewer queue
+   in admin manifest, i18n in all 20 locale files.
