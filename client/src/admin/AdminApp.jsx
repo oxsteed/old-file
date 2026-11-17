@@ -135,6 +135,7 @@ const SupportTickets = lazyWithRetry(() => import('./pages/SupportTickets'));
 const QuoteRequestsInbox = lazyWithRetry(() => import('./pages/QuoteRequestsInbox'));
 const MediaFlags = lazyWithRetry(() => import('./pages/MediaFlags'));
 const AccessRequestsQueue = lazyWithRetry(() => import('./pages/AccessRequestsQueue'));
+const InvestReviewQueue = lazyWithRetry(() => import('./pages/InvestReviewQueue'));
 const RestaurantSupport = lazyWithRetry(() => import('./pages/RestaurantSupport'));
 const RestaurantSupportCase = lazyWithRetry(() => import('./pages/RestaurantSupportCase'));
 const AdminRestaurants = lazyWithRetry(() => import('./pages/AdminRestaurants'));
@@ -294,6 +295,7 @@ export default function AdminApp() {
           <Route path={adminRoute('contentRemovals').relative} element={<GrantGuard grant={adminRoute('contentRemovals').grant}><ContentRemovals /></GrantGuard>} />
           <Route path={adminRoute('mediaFlags').relative} element={<GrantGuard grant={adminRoute('mediaFlags').grant}><MediaFlags /></GrantGuard>} />
           <Route path={adminRoute('accessRequests').relative} element={<GrantGuard grant={adminRoute('accessRequests').grant}><AccessRequestsQueue /></GrantGuard>} />
+          <Route path={adminRoute('investReviewQueue').relative} element={<GrantGuard grants={['review_invest_participation', 'review_invest_opportunity_publish', 'review_invest_close', 'review_invest_release_proceeds']}><InvestReviewQueue /></GrantGuard>} />
           <Route path={adminRoute('restaurantSupport').relative} element={<GrantGuard grant={adminRoute('restaurantSupport').grant}><RestaurantSupport /></GrantGuard>} />
           <Route path={adminRoute('restaurantSupportCase').relative} element={<GrantGuard grant={adminRoute('restaurantSupportCase').grant}><RestaurantSupportCase /></GrantGuard>} />
           <Route path={adminRoute('restaurants').relative} element={<GrantGuard grant={adminRoute('restaurants').grant}><AdminRestaurants /></GrantGuard>} />

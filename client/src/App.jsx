@@ -271,6 +271,9 @@ const InvestOpportunityPage = lazyWithRetry(() => import('./pages/invest/InvestO
 const InvestApplicationPage = lazyWithRetry(() => import('./pages/invest/InvestApplicationPage'));
 const InvestCommitPage = lazyWithRetry(() => import('./pages/invest/InvestCommitPage'));
 const InvestMyInvestmentsPage = lazyWithRetry(() => import('./pages/invest/InvestMyInvestmentsPage'));
+const InvestEntityRaisePage = lazyWithRetry(() => import('./pages/invest/InvestEntityRaisePage'));
+const InvestEntityRaisesPage = lazyWithRetry(() => import('./pages/invest/InvestEntityRaisesPage'));
+const InvestEntityManagePage = lazyWithRetry(() => import('./pages/invest/InvestEntityManagePage'));
 const AffiliateDashboardPage = lazyWithRetry(() => import('./pages/AffiliateDashboardPage'));
 
 import CookieConsent from './components/CookieConsent';
@@ -697,6 +700,13 @@ export default function App() {
                     <Route path="/invest/opportunities/:id/commit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestCommitPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/invest/apply"                 element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestApplicationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/invest/my-investments"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestMyInvestmentsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* OxSteed Invest: entity fundraising. "Raise capital"
+                        lives in the business workspace (BusinessHubPage
+                        links here); these pages manage the entity's own
+                        raises only. Submission never publishes. */}
+                    <Route path="/invest/entity/raise"          element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestEntityRaisePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/invest/entity/raises"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestEntityRaisesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/invest/entity/raises/:id"    element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestEntityManagePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/affiliate" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AffiliateDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute requireOnboarded><RouteErrorBoundary><HelperDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper/clients" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ClientManagementPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

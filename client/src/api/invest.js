@@ -110,4 +110,129 @@ export async function reconfirmAmendment(opportunityId, amendmentId) {
   return data;
 }
 
+// ── Entity fundraising (Track 4) ─────────────────────────────────────────
+// Every call maps to a documented /api/invest route. A draft is private:
+// creating one never publishes, and submitting it only sends it for review.
+
+export async function listMyOpportunities(sort = 'publication_date') {
+  const { data } = await api.get('/invest/opportunities', { params: { scope: 'mine', sort } });
+  return data;
+}
+
+export async function createOpportunity({ businessId, title, purpose, targetCents, minimumCents, deadlineAt, valuationRule, useOfProceeds, intermediaryRef, details }) {
+  const { data } = await api.post('/invest/opportunities', {
+    businessId, title, purpose, targetCents, minimumCents, deadlineAt,
+    valuationRule, useOfProceeds, intermediaryRef, details,
+  });
+  return data;
+}
+
+export async function getOpportunityPreview(id) {
+  const { data } = await api.get(`/invest/opportunities/${id}/preview`);
+  return data;
+}
+
+export async function submitOpportunityForReview(id) {
+  const { data } = await api.post(`/invest/opportunities/${id}/submit-for-review`, {});
+  return data;
+}
+
+export async function createAgreementVersion(opportunityId, body) {
+  const { data } = await api.post(`/invest/opportunities/${opportunityId}/agreement-versions`, { body });
+  return data;
+}
+
+export async function answerQuestion(opportunityId, questionId, answer) {
+  const { data } = await api.post(`/invest/opportunities/${opportunityId}/questions/${questionId}/answer`, { answer });
+  return data;
+}
+
+export async function listUpdates(opportunityId) {
+  const { data } = await api.get(`/invest/opportunities/${opportunityId}/updates`);
+  return data;
+}
+
+export async function createUpdate(opportunityId, { title, body, dueAt }) {
+  const { data } = await api.post(`/invest/opportunities/${opportunityId}/updates`, { title, body, dueAt });
+  return data;
+}
+
+export async function publishUpdate(opportunityId, updateId) {
+  const { data } = await api.post(`/invest/opportunities/${opportunityId}/updates/${updateId}/publish`, {});
+  return data;
+}
+
+export async function listAmendments(opportunityId) {
+  const { data } = await api.get(`/invest/opportunities/${opportunityId}/amendments`);
+  return data;
+}
+
+export async function createAmendment(opportunityId, { changes, newAgreementVersionId }) {
+  const body = { changes };
+  if (newAgreementVersionId) body.newAgreementVersionId = newAgreementVersionId;
+  const { data } = await api.post(`/invest/opportunities/${opportunityId}/amendments`, body);
+  return data;
+}
+
+export async function proposeAmendment(opportunityId, amendmentId, reconfirmationDeadlineAt) {
+  const { data } = await api.post(`/invest/opportunities/${opportunityId}/amendments/${amendmentId}/propose`, { reconfirmationDeadlineAt });
+  return data;
+}
+
+// ── Reviewer queue, closing, proceeds, distributions (Track 4) ───────────
+// The server scopes the queue per review permission and refuses
+// self-approval and stale versions; this client only sends the version
+// it rendered and surfaces the server's 403/409.
+
+export async function getReviewQueue(type) {
+  const { data } = await api.get('/invest/review-queue', { params: type ? { type } : {} });
+  return data;
+}
+
+export async function reviewApplication(id, { decision, identityVerified, authorityVerified, reviewNote, expectedVersion }) {
+  const { data } = await api.post(`/invest/applications/${id}/review`, {
+    decision, identityVerified, authorityVerified, reviewNote, expectedVersion,
+  });
+  return data;
+}
+
+export async function reviewOpportunity(id, { action, note, verificationSummary, expectedVersion }) {
+  const { data } = await api.post(`/invest/opportunities/${id}/review`, {
+    action, note, verificationSummary, expectedVersion,
+  });
+  return data;
+}
+
+export async function publishOpportunity(id, expectedVersion) {
+  const { data } = await api.post(`/invest/opportunities/${id}/publish`, { expectedVersion });
+  return data;
+}
+
+export async function approveClosingConditions(id) {
+  const { data } = await api.post(`/invest/opportunities/${id}/closing-conditions/approve`, {});
+  return data;
+}
+
+export async function recordClosingApproval(id, { stage, decision, note }) {
+  const { data } = await api.post(`/invest/opportunities/${id}/closing-approvals`, { stage, decision, note });
+  return data;
+}
+
+export async function closeOpportunity(id) {
+  const { data } = await api.post(`/invest/opportunities/${id}/close`, {});
+  return data;
+}
+
+export async function releaseProceeds(id) {
+  const { data } = await api.post(`/invest/opportunities/${id}/release-proceeds`, {});
+  return data;
+}
+
+export async function recordDistribution(opportunityId, { positionId, userId, amountCents }) {
+  const { data } = await api.post(`/invest/opportunities/${opportunityId}/distributions`, {
+    positionId, userId, amountCents,
+  }, idemHeaders());
+  return data;
+}
+
 export { newIdempotencyKey };
