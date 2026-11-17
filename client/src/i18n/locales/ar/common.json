@@ -6645,6 +6645,7 @@
       "continue": "متابعة",
       "withdraw": "سحب",
       "apply": "تقديم طلب",
+      "applyAgain": "قدّم مرة أخرى",
       "retry": "حاول مرة أخرى",
       "cancel": "إلغاء",
       "confirmWithdraw": "سحب الطلب"
@@ -6707,6 +6708,8 @@
     "historyTitle": "السجل",
     "submittedOn": "أُرسلت في {{date}}",
     "accessApproved": "تمت الموافقة على طلب {{capability}}.",
+    "staleNotice": "تغيّر هذا الطلب أثناء تعديلك له. تُحفظ إجاباتك. راجع آخر ملاحظة من المراجع ثم أعد الإرسال.",
+    "staleDismiss": "فهمت",
     "historyAction": {
       "update": "تم تحديث المسودة",
       "submit": "أُرسلت للمراجعة",

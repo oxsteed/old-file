@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { accessAPI } from '../../api/access';
 
@@ -109,10 +109,24 @@ export default function RequestEditor({ t, request, policy, defaultAnswers, onCh
   const [state, setState] = useState(() => toFormState(fields, { ...defaultAnswers, ...request.answers }));
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  // AC-021: a reviewer decision (or any version bump) that lands while the
+  // applicant is editing must not wipe unsaved answers. The form keeps its
+  // state across version changes and surfaces a notice instead of failing.
+  const lastSeenVersionRef = useRef(request.version);
+  const [stale, setStale] = useState(false);
+  useEffect(() => {
+    if (request.version !== lastSeenVersionRef.current) setStale(true);
+  }, [request.version]);
   const keyRef = useRef({});
   const keyFor = (action) => {
     const k = `${action}:${request.version}`;
-    if (!keyRef.current[k]) keyRef.current[k] = crypto.randomUUID();
+    if (!keyRef.current[k]) {
+      // Same fallback as api/access.js: crypto.randomUUID() is unavailable in
+      // insecure contexts, and a missing key must never block a submit.
+      let key = null;
+      try { key = crypto.randomUUID(); } catch { key = null; }
+      keyRef.current[k] = key || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
     return keyRef.current[k];
   };
 
@@ -126,12 +140,16 @@ export default function RequestEditor({ t, request, policy, defaultAnswers, onCh
         ? await accessAPI.updateRequest(request.id, body, keyFor('update'))
         : await accessAPI.transition(request.id, action, body, keyFor(action));
       toast.success(t(`progressiveAccess.toast.${action}`, { ns: NS }));
+      lastSeenVersionRef.current = result.request?.version ?? request.version;
       onChanged(result.request);
       if (action !== 'save') onClose?.();
     } catch (err) {
       const code = errorCode(err);
       if (code === 'request_version_conflict') {
+        // Keep the typed answers; the refetch after onChanged(null) delivers
+        // the newer version and the stale notice explains what to do.
         toast.error(t('progressiveAccess.errors.versionConflict', { ns: NS }));
+        setStale(true);
         onChanged(null);
       } else if (code === 'validation_failed') {
         setFieldErrors(err.response.data.fields || {});
@@ -154,6 +172,19 @@ export default function RequestEditor({ t, request, policy, defaultAnswers, onCh
         <p className="rounded-lg bg-amber-500/10 p-3 text-sm text-content" role="note">
           <span className="font-medium">{t('progressiveAccess.reviewerAsked', { ns: NS })}</span> {request.informationRequest}
         </p>
+      )}
+      {stale && (
+        <div role="status" className="rounded-lg bg-amber-500/10 p-3 text-sm text-content">
+          <p>{t('progressiveAccess.staleNotice', { ns: NS })}</p>
+          <button
+            type="button"
+            onClick={() => { lastSeenVersionRef.current = request.version; setStale(false); }}
+            className="mt-1 text-xs font-medium text-primary hover:underline"
+            data-track="ui.access.applications.stale_ack"
+          >
+            {t('progressiveAccess.staleDismiss', { ns: NS })}
+          </button>
+        </div>
       )}
       {fields.map((f) => (
         <div key={f.name}>

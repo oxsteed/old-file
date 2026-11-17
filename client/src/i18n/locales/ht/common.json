@@ -6645,6 +6645,7 @@
       "continue": "Kontinye",
       "withdraw": "Retire",
       "apply": "Aplike",
+      "applyAgain": "Aplike ankò",
       "retry": "Eseye ankò",
       "cancel": "Anile",
       "confirmWithdraw": "Retire aplikasyon an"
@@ -6707,6 +6708,8 @@
     "historyTitle": "Istorik",
     "submittedOn": "Voye {{date}}",
     "accessApproved": "Demann {{capability}} ou a te apwouve.",
+    "staleNotice": "Demann sa a te chanje pandan w ap modifye l. Repons ou yo konsève. Gade dènye nòt revizè a anvan w voye l ankò.",
+    "staleDismiss": "Konprann",
     "historyAction": {
       "update": "Brouiyon mete ajou",
       "submit": "Voye pou revizyon",

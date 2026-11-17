@@ -6645,6 +6645,7 @@
       "continue": "Continue",
       "withdraw": "Withdraw",
       "apply": "Apply",
+      "applyAgain": "Apply again",
       "retry": "Try again",
       "cancel": "Cancel",
       "confirmWithdraw": "Withdraw application"
@@ -6707,6 +6708,8 @@
     "historyTitle": "History",
     "submittedOn": "Submitted {{date}}",
     "accessApproved": "Your {{capability}} application was approved.",
+    "staleNotice": "This application changed while you were editing. Your answers are kept. Review the latest reviewer note, then submit again.",
+    "staleDismiss": "Got it",
     "historyAction": {
       "update": "Draft updated",
       "submit": "Submitted for review",

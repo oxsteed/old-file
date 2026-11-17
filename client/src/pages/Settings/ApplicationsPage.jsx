@@ -107,6 +107,8 @@ function AccountApplications({ accountId, epoch }) {
   // loading swap, so focus never jumps) and announced politely.
   const versionRef = useRef(null);
   const heldBeforeRef = useRef(null);
+  const openIdRef = useRef(null);
+  openIdRef.current = openId;
   const [announce, setAnnounce] = useState('');
   const load = useCallback(async (silent = false) => {
     if (!isCurrentAuthEpoch(epoch)) return;
@@ -132,6 +134,13 @@ function AccountApplications({ accountId, epoch }) {
       setRequests(r.requests || []);
       setPolicies(p.policies || []);
       setUnavailable(false);
+      // AC-021: refresh the open request during silent reloads so a reviewer
+      // change reaches the editor without remounting it (unsaved answers
+      // survive; the editor flags the version change instead of failing).
+      if (silent && openIdRef.current) {
+        const d = await accessAPI.getRequest(openIdRef.current).catch(() => null);
+        if (d && isCurrentAuthEpoch(epoch)) setDetail(d);
+      }
     } catch (err) {
       if (!isCurrentAuthEpoch(epoch)) return;
       if (errorCode(err) === 'feature_disabled') setUnavailable(true);
@@ -364,13 +373,25 @@ function AccountApplications({ accountId, epoch }) {
                                 {t('progressiveAccess.actions.withdraw', { ns: NS })}
                               </button>
                             )}
+                            {['declined', 'withdrawn'].includes(r.status) && policyFor(r.capability)?.applicantMayRequest
+                              && !held.has(r.capability) && !openCaps.has(r.capability) && (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => startApplication(r.capability)}
+                                className="text-sm font-medium text-primary hover:underline"
+                                data-track="ui.access.applications.apply_again"
+                              >
+                                {t('progressiveAccess.actions.applyAgain', { ns: NS })}
+                              </button>
+                            )}
                           </div>
                           {openId === r.id && detail?.request && (
                             <>
                               <RequestHistory t={t} language={language} history={detail.history} />
                               {EDITABLE.includes(detail.request.status) && (
                                 <RequestEditor
-                                  key={`${detail.request.id}:${detail.request.version}`}
+                                  key={detail.request.id}
                                   t={t}
                                   request={detail.request}
                                   policy={policyFor(detail.request.capability)}

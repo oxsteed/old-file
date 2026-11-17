@@ -6645,6 +6645,7 @@
       "continue": "Continuer",
       "withdraw": "Retirer",
       "apply": "Demander",
+      "applyAgain": "Postuler à nouveau",
       "retry": "Réessayer",
       "cancel": "Annuler",
       "confirmWithdraw": "Retirer la demande"
@@ -6707,6 +6708,8 @@
     "historyTitle": "Historique",
     "submittedOn": "Envoyée le {{date}}",
     "accessApproved": "Votre demande {{capability}} a été approuvée.",
+    "staleNotice": "Cette demande a changé pendant votre modification. Vos réponses sont conservées. Consultez la dernière note du réviseur, puis envoyez à nouveau.",
+    "staleDismiss": "Compris",
     "historyAction": {
       "update": "Brouillon mis à jour",
       "submit": "Envoyée pour révision",
