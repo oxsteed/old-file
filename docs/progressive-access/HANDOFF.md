@@ -63,6 +63,13 @@ recovery after access revocation. `progressiveAccessHelperEnforcement.test.js`
 and `routeShadowing.test.js` pass locally (246 tests). Exact-head CI and
 non-production operational acceptance remain open.
 
+The QR generator now has matching server enforcement: Pro entitlement alone is
+not sufficient for QR CRUD, downloads, or watermark-export checkout. Those
+entry points recheck the projected `helper.offer_services` capability, so a
+direct API call cannot bypass the responsive navbar gate. `qrCodes.test.js`
+passes locally (12 tests), including the denied direct-API case. Exact-head CI
+and non-production operational acceptance remain open.
+
 ## Resume checklist
 
 1. `git status` and `git log --oneline -15` on the branch. Uncommitted work from an
