@@ -84,7 +84,7 @@ are display state only; the routes recheck them server-side.
 
 | Method and path | Auth | Flags | Notes |
 |---|---|---|---|
-| `GET /api/invest/opportunities` | authenticate | INVEST_ENABLED | Published only. `?sort=publication_date` (default) or `closing_date`. Neutral sort only; no score, no ranking. `?scope=mine` lists the caller's entity drafts and published raises. |
+| `GET /api/invest/opportunities` | authenticate | INVEST_ENABLED | Published only. `?sort=publication_date` (default) or `closing_date`. Neutral sort only; no score, no ranking. `?scope=mine` lists the caller's entity drafts and published raises. Each opportunity carries `entityName`, `entityActivity` (business type), and `entityLocation` (city, state) from the entity business record, so the directory can name the entity without a second lookup. Each row also carries `reservedCents` (pending commitments, never completed funding), `completedCents`, and `investorCount` from one grouped commitment query, so directory progress is accurate without per-card reads. |
 | `GET /api/invest/opportunities/:id` | authenticate | INVEST_ENABLED | The eight spec questions with provenance (`entity_provided` / `checked`), funding totals (reserved commitments labeled pending, never completed funding), verification badge, and access-filtered documents. Non-public statuses are visible only to the entity representative or a reviewer (others get 404). |
 | `GET /api/invest/opportunities/:id/preview` | authenticate | INVEST_ENABLED | Investor-facing view of a draft, for the entity representative or a reviewer. |
 

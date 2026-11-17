@@ -336,6 +336,15 @@ describeDatabase('invest routes', () => {
     expect(ids).toContain(opportunity.id);
     expect(ids).not.toContain(draft.id);
     expect(response.body.opportunities.every((row) => row.score === undefined && row.rank === undefined)).toBe(true);
+    // Track 3: the directory card needs the entity identity, which the
+    // opportunity row alone does not carry.
+    const listed = response.body.opportunities.find((row) => row.id === opportunity.id);
+    expect(listed.entityName).toBe('Invest Test Entity');
+    expect(listed.entityActivity).toBe('llc');
+    expect(listed.entityLocation).toBe(null);
+    expect(listed.reservedCents).toBe(0);
+    expect(listed.completedCents).toBe(0);
+    expect(listed.investorCount).toBe(0);
   });
 
   test('detail answers the eight questions and never implies a guarantee', async () => {

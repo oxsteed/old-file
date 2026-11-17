@@ -175,6 +175,34 @@ async function fundingTotals(client, opportunityId) {
 
 // ── Directory and detail ─────────────────────────────────────────────────
 
+/**
+ * Directory/detail need the entity name, activity, and location, but the
+ * opportunity row only carries business_id. One batched lookup per read
+ * attaches them; a missing business row leaves the fields null rather
+ * than failing the read.
+ */
+async function enrichOpportunities(client, opportunities) {
+  const ids = [...new Set(opportunities.map((o) => o.businessId).filter((id) => Number.isSafeInteger(id)))];
+  if (!ids.length) return opportunities;
+  const { rows } = await client.query(
+    `SELECT id, business_name, business_type, address_city, address_state
+       FROM businesses WHERE id = ANY($1::int[])`,
+    [ids],
+  );
+  const byId = new Map(rows.map((row) => [Number(row.id), row]));
+  return opportunities.map((o) => {
+    const business = byId.get(Number(o.businessId));
+    if (!business) return o;
+    const location = [business.address_city, business.address_state].filter(Boolean).join(', ') || null;
+    return {
+      ...o,
+      entityName: business.business_name || null,
+      entityActivity: business.business_type || null,
+      entityLocation: location,
+    };
+  });
+}
+
 const DIRECTORY_SORTS = Object.freeze({
   publication_date: 'published_at DESC NULLS LAST, created_at DESC',
   closing_date: 'deadline_at ASC',
@@ -201,13 +229,40 @@ async function listOpportunities({ scope = 'published', userId = null, sort = 'p
         ORDER BY o.updated_at DESC`,
       [userId],
     );
-    return rows.map(formatOpportunityApi);
+    return attachFundingTotals(dbPool, await enrichOpportunities(dbPool, rows.map(formatOpportunityApi)));
   }
   const { rows } = await dbPool.query(
     `SELECT * FROM investment_opportunities WHERE status = 'published' ORDER BY ${orderBy}`,
     [],
   );
-  return rows.map(formatOpportunityApi);
+  return attachFundingTotals(dbPool, await enrichOpportunities(dbPool, rows.map(formatOpportunityApi)));
+}
+
+/**
+ * Directory progress must be accurate: one grouped query attaches the
+ * reserved (pending, never completed funding) and completed totals plus
+ * the investor count to every listed opportunity.
+ */
+async function attachFundingTotals(client, opportunities) {
+  if (!opportunities.length) return opportunities;
+  const ids = opportunities.map((o) => o.id);
+  const { rows } = await client.query(
+    `SELECT opportunity_id, status, COALESCE(SUM(amount_cents), 0)::bigint AS total_cents,
+            COUNT(DISTINCT user_id)::bigint AS investors
+       FROM investment_commitments WHERE opportunity_id = ANY($1::uuid[])
+      GROUP BY opportunity_id, status`,
+    [ids],
+  );
+  const totals = new Map();
+  for (const row of rows) {
+    const key = String(row.opportunity_id);
+    const entry = totals.get(key) || { reservedCents: 0, completedCents: 0, investorCount: 0 };
+    if (row.status === 'reserved') entry.reservedCents = Number(row.total_cents);
+    if (row.status === 'completed') entry.completedCents = Number(row.total_cents);
+    entry.investorCount = Math.max(entry.investorCount, Number(row.investors || 0));
+    totals.set(key, entry);
+  }
+  return opportunities.map((o) => ({ ...o, ...(totals.get(String(o.id)) || { reservedCents: 0, completedCents: 0, investorCount: 0 }) }));
 }
 
 /**
@@ -219,8 +274,9 @@ async function listOpportunities({ scope = 'published', userId = null, sort = 'p
  */
 async function getOpportunityDetail(user, opportunityId, dbPool = pool) {
   requireUuid(opportunityId, 'invest_opportunity_id_invalid', 'Invalid opportunity id');
-  const opportunity = await getOpportunity(opportunityId, dbPool);
-  if (!opportunity) fail('Opportunity not found', 'invest_opportunity_not_found', 404);
+  const loaded = await getOpportunity(opportunityId, dbPool);
+  if (!loaded) fail('Opportunity not found', 'invest_opportunity_not_found', 404);
+  const [opportunity] = await enrichOpportunities(dbPool, [loaded]);
   const isReviewer = ['admin', 'super_admin'].includes(user.role);
   const isRep = await isEntityRepresentative(dbPool, user.id, opportunity.businessId);
   const isPublic = ['published', 'paused', 'closing', 'closed', 'cancelled'].includes(opportunity.status);
@@ -242,7 +298,9 @@ async function getOpportunityDetail(user, opportunityId, dbPool = pool) {
   const details = opportunity.details || {};
   const answers = [
     { question: 'What is this opportunity?', answer: opportunity.purpose, provenance: 'entity_provided' },
-    { question: 'Who is raising?', answer: `Entity business ${opportunity.businessId}. Legal details: ${details.legalDetails || 'not provided'}. Ownership: ${details.ownership || 'not provided'}.`, provenance: 'entity_provided' },
+    { question: 'Who is raising?', answer: opportunity.entityName
+      ? `${opportunity.entityName}${opportunity.entityLocation ? ` (${opportunity.entityLocation})` : ''}. Legal details: ${details.legalDetails || 'not provided'}. Ownership: ${details.ownership || 'not provided'}.`
+      : `Entity business ${opportunity.businessId}. Legal details: ${details.legalDetails || 'not provided'}. Ownership: ${details.ownership || 'not provided'}.`, provenance: 'entity_provided' },
     { question: 'How much is being raised?', answer: `Target ${opportunity.targetCents} cents, minimum ${opportunity.minimumCents} cents. Reserved commitments so far: ${totals.reservedCents} cents from ${totals.investorCount} investors. Reserved commitments are pending, not completed funding.`, provenance: 'checked' },
     { question: 'What return is offered?', answer: opportunity.valuationRule || 'Revenue share. The exact rule is in the controlling agreement.', provenance: 'entity_provided' },
     { question: 'What will the funds be used for?', answer: opportunity.useOfProceeds || 'Not provided.', provenance: 'entity_provided' },
