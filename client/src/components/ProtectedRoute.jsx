@@ -1,16 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-// Recovery routes must remain reachable even when a work route explicitly
-// requires onboarding. General account/workspace pages do not require helper
-// onboarding; listing, bidding and starting work enforce it on the server.
-const ONBOARDING_ALLOWED_PATHS = [
-  '/helper-dashboard',
-  '/dashboard',
-  '/verify-identity',
-  '/media/verification',
-  '/media/verify-identity',
-];
+import { diditGateSatisfied } from '../utils/diditGate';
+import { isHelperOnboardingRedirectRequired } from '../utils/protectedRouteGates';
 
 // Paths that are themselves part of the identity-verification flow and must
 // NOT trigger the Didit redirect (would create an infinite loop). Media keeps
@@ -26,17 +17,8 @@ const EMAIL_VERIFICATION_EXEMPT_PATHS = [
   '/verify-email',
 ];
 
-function diditGateSatisfied(user) {
-  if (!user?.email_verified) return true;
-  const ds = user.didit_status || 'pending';
-  if (user.didit_enforcement_required) {
-    return ds === 'verified';
-  }
-  return ds === 'verified' || ds === 'skipped';
-}
-
 export default function ProtectedRoute({ children, requiredRole, requireOnboarded = false, requireIdentityVerification = false }) {
-  const { user, loading, isOnboardingComplete } = useAuth();
+  const { user, loading, isHelperOnboardingComplete, hasHelperAccess } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -91,11 +73,17 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
   // Work-route opt-in only. An incomplete helper profile must not block
   // Settings, authorized statements, Support, or business workspace pages.
   // Skipping Didit never marks helper work eligibility complete.
+  // B4: fires for anyone with helper access (new-model helpers carry
+  // role=customer), not just legacy helper roles, and reads the derived
+  // helper-onboarding truth instead of the summary flag.
   if (
-    requireOnboarded &&
-    ['helper', 'helper_pro', 'broker'].includes(user.role) &&
-    !isOnboardingComplete &&
-    !ONBOARDING_ALLOWED_PATHS.includes(location.pathname)
+    isHelperOnboardingRedirectRequired({
+      requireOnboarded,
+      hasHelperAccess,
+      role: user.role,
+      isHelperOnboardingComplete,
+      pathname: location.pathname,
+    })
   ) {
     return <Navigate to="/helper-dashboard" replace />;
   }

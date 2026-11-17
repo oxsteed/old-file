@@ -344,6 +344,29 @@ async function authenticate(req, res, next) {
     const isDiditExempt =
       DIDIT_EXEMPT_PATH_PREFIXES.some((p) => fullPath.startsWith(p)) ||
       fullPath.startsWith('/api/webhooks');
+    // Domain 6 B2 (2026-11-17): a Didit-pending customer must be able to
+    // read their own access projection (GET /api/me/access) or the client
+    // renders a dead dashboard — ProtectedRoute does not redirect plain
+    // customers to /verify-identity, but this gate 403'd every API call
+    // behind the page. Every route under /api/me is self-scoped (own
+    // projection, own access requests/policies, own businesses) and GET
+    // changes no state, so GET /api/me/* is exempt from the Didit gate
+    // only. Writes under /api/me (access-request create/transition,
+    // workspace-context) stay gated, as does every other path. Fail
+    // closed on all three sides:
+    //   - email-unverified accounts stay gated (the /api/auth email hole
+    //     stays closed; the client sends them to /verify-email instead);
+    //   - didit_enforcement_required accounts stay gated everywhere (the
+    //     client redirects them to /verify-identity on every protected
+    //     route, so they never sit behind a dead dashboard);
+    //   - duplicate identities stay gated (recovery flow, not a page).
+    // Invariant: only self-scoped reads may mount under /api/me.
+    const isDiditReadOnlySelfExempt =
+      req.method === 'GET' &&
+      user.email_verified &&
+      !user.didit_enforcement_required &&
+      (user.didit_status || '').toLowerCase() !== 'duplicate' &&
+      (fullPath === '/api/me' || fullPath.startsWith('/api/me/'));
     // Review P2-7-F12: latent lockout trap. With DIDIT_ALLOW_USER_SKIP=false
     // (explicit opt-in) and DIDIT_API_KEY unset, no user can verify (session
     // creation 503s) and no user can skip (403) — every user would be 403'd
@@ -358,7 +381,8 @@ async function authenticate(req, res, next) {
       }
     } else if (
       (!user.email_verified || !isDiditIdentitySatisfied(user)) &&
-      !isDiditExempt
+      !isDiditExempt &&
+      !isDiditReadOnlySelfExempt
     ) {
       // Review P2-7-F13: a duplicate identity is not "verify again"; it is a
       // recovery flow. Return the actionable in-app message with locale keys
