@@ -243,8 +243,13 @@ listings remain canonical evidence for the listing capability. Focused pure
 mapping assertions pass; disposable database backfill and exact-head CI remain
 open.
 
-**Exact next action:** review dry-run 7's 2 staff-without-membership exceptions
-and 2 restaurant drafts, then continue with the next bounded access package.
+**Exact next action:** review dry-run 7's two `helper` accounts carrying the
+historic `restaurant_staff` mode without an active membership and two `helper`
+accounts carrying `restaurant_owner` without an owned business. The former
+remain exceptions, not staff grants; the latter remain private
+`restaurant.own` drafts. Continue with the next bounded access package after
+that review. Do not apply a production backfill or enable new enforcement
+without separate authorization.
 Do not apply a production backfill or enable new enforcement without separate
 authorization.
 
