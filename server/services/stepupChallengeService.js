@@ -395,11 +395,33 @@ async function verifyTotpPresentation(client, { challenge, actorUserId, code }) 
  * closed WITHOUT consuming the challenge or counting an attempt: a
  * wrong-amount challenge is a caller mismatch, not a failed
  * authentication, and burning it would let anyone holding a challenge id
- * destroy the legitimate owner's proof. Callers omit expectedAmountCents
- * only when the action carries no single acted-on amount (settings
- * approvals, compliance decisions, eligibility decisions, rail/card
- * controls); every money-moving caller passes the amount it is about to
- * move, resolved from the same source of truth the issue side used.
+ * destroy the legitimate owner's proof. Every money-moving caller passes
+ * the amount it is about to move, resolved from the same source of truth
+ * the issue side used; so do the money-adjacent sites with a stable
+ * single amount (subscription_cancel binds the plan amount, a load
+ * decline binds the load request's amount, a restaurant wallet-status
+ * change binds the wallet's balance). Callers omit expectedAmountCents
+ * only when the action carries no single acted-on amount, and the
+ * carve-out is exactly this list, not a general "no amount" escape:
+ * settings approvals (a change request carries a config key and old/new
+ * values, not one amount); compliance decisions (verification, sanction,
+ * case transition: they unlock funding or move a case, with no amount);
+ * rail controls (credit_rail_unfreeze lifts the emergency stop, with no
+ * amount); OxSteed Credit account/agreement/entitlement controls
+ * (credit_account_status_update: the status form carries no balance;
+ * credit_agreement_create/transition and credit_entitlement_upsert:
+ * agreements and entitlements carry several limits at once, so no
+ * single amount binds); and the credit-policy maker PUTs (fee schedule,
+ * reserve policy, conversion policy), whose multi-field policy values
+ * carry no single amount and whose checker side resolves null as well —
+ * dual approval by a distinct second admin is the compensating control
+ * there, as it is for the originally documented agent_job_cancel
+ * exception. Two conventions keep issue and verify in agreement: an
+ * action that must stay issuable with no positive amount binds to 1
+ * (free-plan subscription cancels, no-refund dispute decisions,
+ * zero-balance wallets), and a wallet balance that moves between issue
+ * and verify fails closed with an amount mismatch — the admin retries
+ * with a fresh challenge rather than the action proceeding unbound.
  * No tolerance case exists in the current flows: every bound site
  * resolves the same record at issue and verify time (or re-validates
  * the client-supplied amount exactly), so tolerance stays 0 unless a

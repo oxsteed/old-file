@@ -76,6 +76,7 @@ describe('approve', () => {
   });
 
   test('verifies step-up before deciding, then executes', async () => {
+    dualApproval.getMoneyMovementApproval.mockResolvedValue(PENDING);
     stepup.verifyStepupChallenge.mockResolvedValue(undefined);
     dualApproval.decideMoneyMovementApproval.mockResolvedValue({
       approval: { ...PENDING, status: 'executed' },
@@ -84,7 +85,7 @@ describe('approve', () => {
     const res = mockRes();
     await ctrl.approve(approveReq(), res, (e) => { throw e; });
     expect(stepup.verifyStepupChallenge).toHaveBeenCalledWith(
-      expect.objectContaining({ actionType: 'money_movement_approve', actorUserId: 'checker-admin' })
+      expect.objectContaining({ actionType: 'money_movement_approve', actorUserId: 'checker-admin', expectedAmountCents: 60000 })
     );
     expect(dualApproval.decideMoneyMovementApproval).toHaveBeenCalledWith(
       expect.objectContaining({ approvalId: '5', approverId: 'checker-admin', decision: 'approve' })
@@ -98,6 +99,7 @@ describe('approve', () => {
   });
 
   test('a failed step-up never reaches the decision', async () => {
+    dualApproval.getMoneyMovementApproval.mockResolvedValue(PENDING);
     const err = new Error('Invalid or expired challenge');
     err.status = 401;
     err.code = 'stepup_invalid';
@@ -110,6 +112,7 @@ describe('approve', () => {
   });
 
   test('self-approval surfaces the 403 from the service', async () => {
+    dualApproval.getMoneyMovementApproval.mockResolvedValue(PENDING);
     stepup.verifyStepupChallenge.mockResolvedValue(undefined);
     const err = new Error('The requesting admin cannot approve their own money movement.');
     err.status = 403;
@@ -119,6 +122,34 @@ describe('approve', () => {
     const next = jest.fn();
     await ctrl.approve({ ...approveReq(), user: { id: 'maker-admin' } }, res, next);
     expect(next).toHaveBeenCalledWith(err);
+  });
+
+  // Domain 6 finding 4 (2026-11-17): the amount pre-read used to log
+  // "skipping amount binding" and verify unbound when the approval row
+  // could not be loaded. decideMoneyMovementApproval performs no amount
+  // check of its own, so a transient pre-read error let a challenge
+  // issued for a different amount execute the full approval amount.
+  // Both failure modes now fail closed before any verification.
+  test('a failed amount pre-read fails closed with 503; step-up and decision never run', async () => {
+    dualApproval.getMoneyMovementApproval.mockRejectedValue(new Error('db down'));
+    const res = mockRes();
+    const next = jest.fn();
+    await ctrl.approve(approveReq(), res, next);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next.mock.calls[0][0]).toMatchObject({ status: 503, code: 'credit_stepup_amount_preread_failed' });
+    expect(stepup.verifyStepupChallenge).not.toHaveBeenCalled();
+    expect(dualApproval.decideMoneyMovementApproval).not.toHaveBeenCalled();
+  });
+
+  test('a missing approval 404s before the step-up is verified (challenge not burned)', async () => {
+    dualApproval.getMoneyMovementApproval.mockResolvedValue(null);
+    const res = mockRes();
+    const next = jest.fn();
+    await ctrl.approve(approveReq(), res, next);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next.mock.calls[0][0]).toMatchObject({ status: 404, code: 'money_movement_not_found' });
+    expect(stepup.verifyStepupChallenge).not.toHaveBeenCalled();
+    expect(dualApproval.decideMoneyMovementApproval).not.toHaveBeenCalled();
   });
 });
 

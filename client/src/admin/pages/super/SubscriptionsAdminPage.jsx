@@ -127,7 +127,7 @@ export default function SubscriptionsAdminPage() {
       // subscriptions immediately, and cancels Stripe subscriptions at
       // Stripe first. No admin list endpoint exists, so the id is entered
       // by hand.
-      const challengeResponse = await adminApi.post('/admin/super/subscriptions/stepup-challenges', {});
+      const challengeResponse = await adminApi.post('/admin/super/subscriptions/stepup-challenges', { subscriptionId: id });
       const challengeId = challengeResponse?.data?.challenge?.id;
       if (!challengeId) throw new Error(t('adminSubscriptions.stepupFailed'));
       const code = window.prompt(t('adminSubscriptions.stepupPrompt'));

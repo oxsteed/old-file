@@ -328,7 +328,23 @@ function restaurantCreditStepupFields(req) {
 }
 router.post('/super/restaurant-credit/wallets/:accountId/status', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
-    await verifyStepupChallenge({ ...restaurantCreditStepupFields(req), actionType: 'restaurant_credit_wallet_status_update' });
+    // Domain 6 finding 4 (2026-11-17): suspending/reactivating a wallet
+    // locks or unlocks the customer's funds, so the challenge binds to the
+    // wallet's balance at verify time (the issue side carries the balance
+    // shown on screen). A balance that moves between issue and verify
+    // fails closed with an amount mismatch and the admin retries; a
+    // zero balance binds to the unbound-equivalent 1 via the client's
+    // amountCents fallback, matching the verify-side skip below.
+    const expectedAmount = await readRestaurantCreditStepupAmountCents(
+      'SELECT balance_cents AS amount_cents FROM food_customer_wallet_accounts WHERE id = $1',
+      [req.params.accountId],
+      'wallet',
+    );
+    await verifyStepupChallenge({
+      ...restaurantCreditStepupFields(req),
+      actionType: 'restaurant_credit_wallet_status_update',
+      ...(expectedAmount !== null ? { expectedAmountCents: expectedAmount } : {}),
+    });
     return restaurantCreditAdminCtrl.updateWalletStatus(req, res, next);
   } catch (err) { next(err); }
 });
@@ -364,7 +380,20 @@ router.post('/super/restaurant-credit/load-requests/:requestId/approve', require
 });
 router.post('/super/restaurant-credit/load-requests/:requestId/decline', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
-    await verifyStepupChallenge({ ...restaurantCreditStepupFields(req), actionType: 'restaurant_credit_load_decline' });
+    // Domain 6 finding 4 (2026-11-17): declining denies a payout of the
+    // load request's amount, so it binds exactly like approve does above
+    // (same row, same helper); the issue side already carries the amount
+    // shown on screen.
+    const expectedAmount = await readRestaurantCreditStepupAmountCents(
+      'SELECT amount_cents FROM food_customer_wallet_load_requests WHERE id = $1',
+      [req.params.requestId],
+      'load request',
+    );
+    await verifyStepupChallenge({
+      ...restaurantCreditStepupFields(req),
+      actionType: 'restaurant_credit_load_decline',
+      ...(expectedAmount !== null ? { expectedAmountCents: expectedAmount } : {}),
+    });
     return restaurantCreditAdminCtrl.declineLoadRequest(req, res, next);
   } catch (err) { next(err); }
 });
