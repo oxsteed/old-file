@@ -18,7 +18,25 @@ const businesses = [{ business_id: 1, business_name: longName, role: 'owner', is
 
 const fixtureApi = `export default {get: async path => ({data: path==='/notifications' ? [] : path==='/messages/conversations' ? [{unread_count:window.unreadCount}] : path==='/messages/guest-inquiries' ? [{unread_count:window.unreadCount}] : path==='/me/businesses' ? {data:{items:window.fixtureBusinesses}} : {data:window.fixtureSupport?[{}]:[]}}), put: async () => ({data:{}}), delete: async () => ({data:{}})};`;
 
-test('mode navbar renders responsive priorities, accessible disclosures and workspace selection', { timeout: 120_000 }, async () => {
+// WP-104: navigation is projection-only. The navbar no longer branches on a
+// mode: every account renders the same customer-baseline primary links, and
+// capabilities add entry points in the account menu. The business switcher
+// shows only when the projection carries organizations.
+const projections = {
+  none: null,
+  customer: { flags: { accessProjection: true }, access: { personal: ['customer'], organizations: [] } },
+  helper: { flags: { accessProjection: true }, access: { personal: ['helper.offer_services'], organizations: [] } },
+  business: { flags: { accessProjection: true }, access: { personal: ['business.own'], organizations: businesses.map(b => ({ business_id: b.business_id, role: b.role })) } },
+};
+const primaryLinks = ['/helpers', '/my-jobs', '/restaurants', '/messages', '/post-job'];
+const scenarios = {
+  none: { projection: projections.none, switcher: 0 },
+  customer: { projection: projections.customer, switcher: 0 },
+  helper: { projection: projections.helper, switcher: 0 },
+  business: { projection: projections.business, switcher: 1 },
+};
+
+test('projection navbar renders responsive priorities, accessible disclosures and workspace selection', { timeout: 120_000 }, async () => {
   const mocks = {
     '../context/AuthContext': `import React from 'react'; export const AuthContext=React.createContext({}); export const useAuth=()=>React.useContext(AuthContext);`,
     '../context/LanguageContext': `import React from 'react'; export const LanguageContext=React.createContext({}); export const useLanguage=()=>React.useContext(LanguageContext);`,
@@ -36,6 +54,9 @@ test('mode navbar renders responsive priorities, accessible disclosures and work
     '../api/vortex': `export const getMyBusinesses=async()=>({items:window.fixtureBusinesses}); export const setWorkspaceContext=async id=>{window.fixtureWorkspace=id;};`,
     './PrefetchLink': `export {Link as default} from 'react-router-dom';`,
     './OxSteedNetworkSwitcher': `export default ()=>null;`,
+    // The access projection is the navbar's only mode signal now; drive it
+    // from window.fixtureProjection so configure() can swap scenarios.
+    '../hooks/useAccessProjection': `export default ()=>window.fixtureProjection ?? null;`,
   };
   const bundle = await build({
     stdin: { contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
@@ -45,15 +66,16 @@ test('mode navbar renders responsive priorities, accessible disclosures and work
       import Navbar from './src/components/Navbar.jsx';
       import {AuthContext} from '../context/AuthContext'; import {LanguageContext} from '../context/LanguageContext'; import {ThemeContext} from '../context/ThemeContext';
       const queryClient=new QueryClient(); const i18n=createInstance(); await i18n.init({lng:'en',fallbackLng:'en',resources:${JSON.stringify(catalogs)},interpolation:{escapeValue:false}});
-      window.fixtureBusinesses=${JSON.stringify(businesses)}; window.unreadCount=1;
+      window.fixtureBusinesses=${JSON.stringify(businesses)}; window.unreadCount=1; window.fixtureProjection=null;
       const events=new Map(); window.fixtureSocket={on:(name,fn)=>{if(!events.has(name))events.set(name,new Set());events.get(name).add(fn);},off:(name,fn)=>events.get(name)?.delete(fn)};
       window.emitUnread=()=>events.get('messages:read')?.forEach(fn=>fn());
       function Harness(){
-        const navigate=useNavigate(); const [config,setConfig]=React.useState({mode:sessionStorage.getItem('fixtureMode')||'customer',language:'en',theme:'dark'});
-        window.configure=async options=>{window.fixtureBusinesses=options.businesses||${JSON.stringify(businesses)};window.fixtureSupport=!!options.support;await i18n.changeLanguage(options.language||'en');document.documentElement.dir=options.language==='ar'?'rtl':'ltr';document.documentElement.dataset.theme=options.theme||'dark';document.documentElement.classList.toggle('dark',options.theme!=='light');setConfig(options);await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);};
+        const navigate=useNavigate(); const [config,setConfig]=React.useState({scenario:'customer',language:'en',theme:'dark'});
+        window.configure=async options=>{window.fixtureBusinesses=options.businesses||${JSON.stringify(businesses)};window.fixtureSupport=!!options.support;window.fixtureProjection=options.projection??null;await i18n.changeLanguage(options.language||'en');document.documentElement.dir=options.language==='ar'?'rtl':'ltr';document.documentElement.dataset.theme=options.theme||'dark';document.documentElement.classList.toggle('dark',options.theme!=='light');setConfig(options);await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);};
         window.fixtureNavigate=navigate;
-        const user=config.anonymous?null:{id:config.userId||1,role:config.role||(config.mode==='customer'?'customer':'helper'),...(config.legacy?{}:{default_mode:config.mode})};
-        return <I18nextProvider i18n={i18n}><AuthContext.Provider value={{user,isHelper:user?.role!=='customer',logout:()=>{window.fixtureLoggedOut=true;setConfig({...config,anonymous:true});},switchRole:async mode=>{sessionStorage.setItem('fixtureMode',mode);setConfig({...config,mode});}}}>
+        const user=config.anonymous?null:{id:config.userId||1};
+        const hasHelperAccess=(window.fixtureProjection?.access?.personal||[]).includes('helper.offer_services');
+        return <I18nextProvider i18n={i18n}><AuthContext.Provider value={{user,hasHelperAccess,logout:()=>{window.fixtureLoggedOut=true;setConfig({...config,anonymous:true});}}}>
           <LanguageContext.Provider value={{language:config.language||'en',setLanguage:()=>{},availableLanguages:[{code:'en',nativeName:'English',flag:'🇺🇸'},{code:'fr',nativeName:'Français',flag:'🇫🇷'},{code:'ar',nativeName:'العربية',flag:'🇸🇦'}]}}>
           <ThemeContext.Provider value={{isDark:config.theme!=='light',toggleTheme:()=>{}}}><Navbar key={config.userId||1}/><main><button id="outside">Outside navigation</button></main></ThemeContext.Provider>
           </LanguageContext.Provider></AuthContext.Provider></I18nextProvider>;
@@ -80,27 +102,26 @@ test('mode navbar renders responsive priorities, accessible disclosures and work
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
     await page.waitForFunction(() => window.configure);
-    const expected = {customer:['/helpers','/my-jobs','/restaurants','/messages','/post-job'], helper:['/jobs','/helper-dashboard','/helper/messages'],business_owner:['/dashboard','/business-hub','/helper/messages']};
-    for (const language of ['en', 'fr', 'ar']) for (const theme of ['dark', 'light']) for (const mode of Object.keys(expected)) {
-      await page.evaluate(options => window.configure(options), {mode,language,theme});
-      for (const width of [320,390,768,1360,1600]) {
-        await page.setViewportSize({width,height:850});
+    for (const language of ['en', 'fr', 'ar']) for (const theme of ['dark', 'light']) for (const scenario of Object.keys(scenarios)) {
+      await page.evaluate(options => window.configure(options), { scenario, projection: scenarios[scenario].projection, language, theme });
+      for (const width of [320, 390, 768, 1360, 1600]) {
+        await page.setViewportSize({ width, height: 850 });
         const mobile = width <= 1360;
         const menu = page.locator('.ox-nav-mobile-controls > button[aria-expanded]');
         if (mobile) { await menu.click(); await waitExpanded(menu, 'true'); }
         const container = page.locator(mobile ? '.ox-nav-mobile-menu' : '.ox-nav-desktop');
         const primary = container.locator(':scope > a');
-        assert.deepEqual(await primary.evaluateAll(nodes => nodes.map(node => node.getAttribute('href'))), expected[mode], `${mode} ${language} ${theme} ${width}`);
+        assert.deepEqual(await primary.evaluateAll(nodes => nodes.map(node => node.getAttribute('href'))), primaryLinks, `${scenario} ${language} ${theme} ${width}`);
         assert.equal(await container.locator(':scope > a.ox-nav-primary').count(), 1);
         assert.equal(await container.locator('.ox-nav-unread').textContent(), '2');
-        assert.equal(await container.locator('.ox-biz-switcher').count(), mode === 'business_owner' ? 1 : 0);
-        assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim()), theme==='dark' ? '#0a0f1a' : '#f8fafc');
-        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `no overflow: ${mode} ${language} ${theme} ${width}`);
+        assert.equal(await container.locator('.ox-biz-switcher').count(), scenarios[scenario].switcher, `${scenario} switcher ${language} ${theme} ${width}`);
+        assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim()), theme === 'dark' ? '#0a0f1a' : '#f8fafc');
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `no overflow: ${scenario} ${language} ${theme} ${width}`);
         const sizes = await primary.evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().height));
         assert.ok(sizes.every(height => height >= 44), 'navigation targets are at least 44px');
-        const duplicateIds = await page.evaluate(() => {const ids=[...document.querySelectorAll('[id]')].map(node=>node.id);return ids.filter((id,index)=>ids.indexOf(id)!==index);});
+        const duplicateIds = await page.evaluate(() => { const ids = [...document.querySelectorAll('[id]')].map(node => node.id); return ids.filter((id, index) => ids.indexOf(id) !== index); });
         assert.deepEqual(duplicateIds, []);
-        if (mode === 'business_owner') {
+        if (scenario === 'business') {
           const businessToggle = container.locator('.ox-biz-switcher__btn');
           await businessToggle.click();
           await container.locator('.ox-biz-switcher__menu').waitFor();
@@ -111,61 +132,61 @@ test('mode navbar renders responsive priorities, accessible disclosures and work
           assert.equal(await businessToggle.getAttribute('aria-expanded'), 'false');
           if (mobile) assert.equal(await menu.getAttribute('aria-expanded'), 'true');
         }
-        if (process.env.NAVBAR_SCREENSHOT_DIR && language==='en' && theme==='dark' && [390,1600].includes(width)) {
-          fs.mkdirSync(process.env.NAVBAR_SCREENSHOT_DIR, {recursive:true});
-          await page.locator('nav').screenshot({path:path.join(process.env.NAVBAR_SCREENSHOT_DIR, `${mode}-${width}.png`)});
+        if (process.env.NAVBAR_SCREENSHOT_DIR && language === 'en' && theme === 'dark' && [390, 1600].includes(width)) {
+          fs.mkdirSync(process.env.NAVBAR_SCREENSHOT_DIR, { recursive: true });
+          await page.locator('nav').screenshot({ path: path.join(process.env.NAVBAR_SCREENSHOT_DIR, `${scenario}-${width}.png`) });
         }
         if (mobile) await menu.click();
       }
     }
-    await page.setViewportSize({width:1600,height:850});
-    await page.evaluate(()=>window.configure({mode:'customer',language:'en',theme:'dark'}));
-    const account = page.getByRole('button',{name:'Account',exact:true});
+    await page.setViewportSize({ width: 1600, height: 850 });
+    await page.evaluate(() => window.configure({ scenario: 'customer', projection: projections.customer, language: 'en', theme: 'dark' }));
+    const account = page.getByRole('button', { name: 'Account', exact: true });
     await account.focus(); await page.keyboard.press('Enter'); await page.locator('.ox-nav-account-panel').waitFor(); await page.keyboard.press('Tab');
-    assert.equal(await page.evaluate(()=>document.activeElement.getAttribute('href')), '/dashboard');
+    assert.equal(await page.evaluate(() => document.activeElement.getAttribute('href')), '/dashboard');
     await page.keyboard.press('Escape'); await waitExpanded(account, 'false'); assert.equal(await account.getAttribute('aria-expanded'), 'false');
-    assert.equal(await account.evaluate(node=>node===document.activeElement), true);
+    assert.equal(await account.evaluate(node => node === document.activeElement), true);
     await account.click(); await page.locator('#outside').click(); await waitExpanded(account, 'false'); assert.equal(await account.getAttribute('aria-expanded'), 'false');
     await account.click(); await page.locator('.ox-nav-account-panel a[href="/settings"]').click();
     await waitExpanded(account, 'false');
     assert.equal(await account.getAttribute('aria-expanded'), 'false');
     await account.click(); assert.equal(await page.locator('.ox-nav-account-panel a[href="/settings"]').getAttribute('aria-current'), 'page');
     await page.keyboard.press('Escape');
-    await page.evaluate(()=>{window.unreadCount=0;window.emitUnread();});
-    await page.waitForFunction(()=>!document.querySelector('.ox-nav-unread'));
-    await page.evaluate(()=>window.fixtureNavigate('/messages/guest/123'));
+    await page.evaluate(() => { window.unreadCount = 0; window.emitUnread(); });
+    await page.waitForFunction(() => !document.querySelector('.ox-nav-unread'));
+    await page.evaluate(() => window.fixtureNavigate('/messages/guest/123'));
     await page.locator('.ox-nav-desktop > a[href="/messages"][aria-current="page"]').waitFor();
     assert.equal(await page.locator('.ox-nav-desktop > a[href="/messages"]').getAttribute('aria-current'), 'page');
-    await page.evaluate(()=>window.fixtureNavigate('/'));
-    await page.evaluate(()=>window.configure({mode:'business_owner',language:'en',theme:'light',userId:2}));
+    await page.evaluate(() => window.fixtureNavigate('/'));
+    await page.evaluate(() => window.configure({ scenario: 'business', projection: projections.business, language: 'en', theme: 'light', userId: 2 }));
     const businessButton = page.locator('.ox-nav-desktop .ox-biz-switcher__btn');
     assert.ok((await businessButton.getAttribute('aria-label')).includes(longName));
     await businessButton.click(); await page.keyboard.press('Tab'); await page.keyboard.press('Escape');
-    assert.equal(await businessButton.evaluate(node=>node===document.activeElement), true);
+    assert.equal(await businessButton.evaluate(node => node === document.activeElement), true);
     await businessButton.click(); await page.locator('.ox-biz-switcher__menu button').nth(1).click();
     await page.waitForURL('**/business/2/workspace');
-    await page.locator('.ox-nav-desktop > a.ox-nav-primary[href="/business/2/workspace"]').waitFor();
-    assert.equal(await page.locator('.ox-nav-desktop > a.ox-nav-primary').getAttribute('href'), '/business/2/workspace');
-    await page.evaluate(()=>window.fixtureNavigate('/business/1/workspace/calendar'));
-    await page.locator('.ox-nav-desktop > a.ox-nav-primary[href="/business/1/workspace"]').waitFor();
-    assert.equal(await page.locator('.ox-nav-desktop > a.ox-nav-primary').getAttribute('href'), '/business/1/workspace');
-    assert.equal(await page.locator('.ox-nav-desktop > a.ox-nav-primary').getAttribute('aria-current'), 'page');
+    // WP-104: the workspace is no longer a primary nav link (primary is
+    // always the customer baseline); the switcher button tracks the active
+    // business instead.
+    assert.ok((await businessButton.getAttribute('aria-label')).includes('Second Business'));
+    await page.evaluate(() => window.fixtureNavigate('/business/1/workspace/calendar'));
+    await page.waitForFunction(() => document.querySelector('.ox-biz-switcher__btn')?.getAttribute('aria-label')?.includes('Springfield'));
     assert.ok((await businessButton.getAttribute('aria-label')).includes(longName), 'workspace URL controls the business selector too');
-    await page.evaluate(()=>{localStorage.removeItem('oxs:bh:lastBusinessId');window.fixtureNavigate('/');});
-    await page.evaluate(()=>window.configure({mode:'business_owner',language:'en',theme:'dark',userId:3,businesses:[]}));
-    await page.waitForFunction(()=>!document.querySelector('.ox-biz-switcher'));
-    assert.equal(await page.locator('.ox-nav-desktop > a.ox-nav-primary').getAttribute('href'), '/business-hub');
-    await page.evaluate(options=>window.configure(options),{mode:'business_owner',language:'en',theme:'dark',userId:4,businesses:[businesses[0]]});
+    await page.evaluate(() => { localStorage.removeItem('oxs:bh:lastBusinessId'); window.fixtureNavigate('/'); });
+    await page.evaluate(() => window.configure({ scenario: 'business', projection: { flags: { accessProjection: true }, access: { personal: ['business.own'], organizations: [] } }, language: 'en', theme: 'dark', userId: 3, businesses: [] }));
+    await page.waitForFunction(() => !document.querySelector('.ox-biz-switcher'));
+    assert.equal(await page.locator('.ox-nav-desktop > a.ox-nav-primary').getAttribute('href'), '/post-job');
+    await page.evaluate(options => window.configure(options), { scenario: 'business', projection: projections.business, language: 'en', theme: 'dark', userId: 4, businesses: [businesses[0]] });
     const single = page.locator('.ox-nav-desktop .ox-biz-switcher--single'); await single.waitFor();
     assert.equal(await single.getAttribute('aria-label'), longName);
-    await page.setViewportSize({width:390,height:850});
+    await page.setViewportSize({ width: 390, height: 850 });
     const mobileToggle = page.locator('.ox-nav-mobile-controls > button[aria-expanded]'); await mobileToggle.click();
-    await mobileToggle.click(); await page.getByRole('button',{name:'Sign Out',exact:true}).click();
+    await mobileToggle.click(); await page.getByRole('button', { name: 'Sign Out', exact: true }).click();
     assert.equal(await page.locator('.ox-nav-mobile-mode').count(), 0);
     await waitExpanded(mobileToggle, 'false');
     assert.equal(await mobileToggle.getAttribute('aria-expanded'), 'false');
     assert.deepEqual(errors, []);
-    console.log('Verified 90 layout combinations plus menu, unread, workspace, and sign-out behavior.');
+    console.log('Verified 120 layout combinations plus menu, unread, workspace, and sign-out behavior.');
   } finally {
     await browser?.close();
     await new Promise(resolve => server.close(resolve));
