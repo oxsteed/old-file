@@ -4,8 +4,11 @@
 // signup writes to users.default_mode (migration 270).
 //
 // Two responsibilities:
-//   1. Map a mode → landing route (used right after OTP verification and
-//      every time the user signs in or flips the mode switcher).
+//   1. Map a mode → landing route on the legacy/rollback path (used by the
+//      navbar dashboard link and the mode switcher while the access
+//      projection is off). On the progressive path every account lands on
+//      /dashboard (see ModeHomeRoute / SmartDashboard); no mode lands on a
+//      separate mode dashboard any more.
 //   2. Catalog of mode metadata (label key, hint key, icon, "switcher" eligibility)
 //      so the Join dropdown, Settings page, and Mode Switcher all stay in sync.
 //
@@ -39,13 +42,17 @@ export const GRANTED_MODES = [
 
 export const ALL_MODES = [...SELF_SELECTABLE_MODES, ...GRANTED_MODES, 'admin'];
 
-// ── Mode → landing route ─────────────────────────────────────────────────────
+// ── Mode → landing route (legacy/rollback path only) ───────────────────────
 // Keep these routes existing — don't invent URLs. If a mode needs a route that
 // doesn't exist yet, fall back to /dashboard and surface the right tab there.
+// WP-104: /helper-dashboard is a work surface reached via nav (the myWork
+// capability shortcut), never a landing. On the progressive path every
+// account lands on /dashboard; on the legacy path SmartDashboard renders the
+// helper workspace at /dashboard itself, so helper lands there too.
 const ROUTE_BY_MODE = {
   customer:                 '/dashboard',
   investor:                 '/dashboard',
-  helper:                   '/helper-dashboard',
+  helper:                   '/dashboard',
   logistics:                '/logistics/buyer',
   business_owner:           '/dashboard',
   consultant:               '/dashboard',

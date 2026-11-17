@@ -18,6 +18,7 @@ import PostalCodeInput from '../components/PostalCodeInput';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import { detectCountryFromLocale, hasPostalCode, requiresPostalCode, hasRegions, getRegionLabel } from '../lib/countries';
 import { MODE_CATALOG, postSignupRouteForMode } from '../utils/modeRouter';
+import { joinModeForLegacyMode } from '../utils/legacyDeepLinks';
 import { LAUNCH_SELF_SELECTABLE_MODES } from '../utils/launchScope';
 import { normalizeSignupRegion, validateSignup, SIGNUP_FIELD_KEYS } from '../utils/signupValidation';
 import './JoinPage.css';
@@ -68,7 +69,10 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
     : null;
   const [draft] = useState(loadDraft);
   const [form, setForm] = useState(() => ({ ...EMPTY, country: detectCountryFromLocale(), ...draft?.form, password: '',
-    defaultMode: MODES.includes(presetMode) ? presetMode : MODES.includes(draft?.form?.defaultMode) ? draft.form.defaultMode : 'customer' }));
+    // A legacy ?mode= value preselects the matching intent card (see
+    // legacyDeepLinks.js); modes with no card fall back to the draft or the
+    // customer-first default.
+    defaultMode: joinModeForLegacyMode(presetMode) || (MODES.includes(draft?.form?.defaultMode) ? draft.form.defaultMode : 'customer') }));
   const [errors, setErrors] = useState({});
   const [registrationToken, setRegistrationToken] = useState(draft?.registrationToken || '');
   const [otpSent, setOtpSent] = useState(Boolean(draft?.otpSent && draft?.registrationToken));

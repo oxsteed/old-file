@@ -273,6 +273,7 @@ import PwaInstallPrompt from './components/PwaInstallPrompt';
 import PushSoftAsk from './components/PushSoftAsk';
 import { LanguageProvider } from './context/LanguageContext';
 import { getLaunchRedirect, LAUNCH_VISIBILITY } from './utils/launchScope';
+import { resolveLegacyRegisterPath } from './utils/legacyDeepLinks';
 import { useTranslation } from 'react-i18next';
 import { resolveRouteMeta, applyRouteMeta } from './utils/seoMeta';
 
@@ -336,6 +337,14 @@ function LegacyHelperProfileRedirect() {
   const { helperId } = useParams();
   const location = useLocation();
   return <Navigate to={{ pathname: `/helpers/${helperId}`, search: location.search }} replace />;
+}
+
+// Former /register/<mode> entry points land on the join flow with the
+// matching intent card preselected (legacyDeepLinks.js owns the map); modes
+// with no join card land on the customer-first join flow, never a 404.
+function LegacyRegisterRedirect() {
+  const { mode } = useParams();
+  return <Navigate to={resolveLegacyRegisterPath(mode)} replace />;
 }
 
 // /orders/:id redirects to the canonical food order route since the
@@ -486,6 +495,7 @@ export default function App() {
                     <Route path="/investor/login"          element={<Guarded><InvestorLoginPage /></Guarded>} />
                     <Route path="/register/customer"      element={<Navigate to="/join" replace />} />
                     <Route path="/register/helper"        element={<Navigate to="/join?mode=helper" replace />} />
+                    <Route path="/register/:mode"         element={<LegacyRegisterRedirect />} />
                     {/* ── Unified signup (post-2026-05). /join is the single   */}
                     {/*    customer registration page; the old /register/customer */}
                     {/*    page redirects here for inbound links + back-compat.  */}
