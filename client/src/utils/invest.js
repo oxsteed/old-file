@@ -8,8 +8,17 @@
 // rechecks the flags server-side).
 
 export function investAccessFromProjection(projection) {
-  const invest = projection?.invest || {};
-  const personal = projection?.access?.personal || [];
+  // The invest flags live on the projection itself, but callers hold the
+  // projection in two shapes: the raw GET /api/me/access response
+  // ({ access: <projection>, flags }) and the useAccessProjection snapshot
+  // ({ access: <projection>, flags }), where the projection carries
+  // `.invest` and `.personal`. Track 3 read only `projection.invest`,
+  // which is undefined for both shapes live, so investEnabled was always
+  // false and every invest page rendered "not available". Accept the
+  // projection, the hook snapshot, and the raw response: the flags object
+  // has the same keys in all three places.
+  const invest = projection?.invest || projection?.access?.invest || projection?.flags || {};
+  const personal = projection?.access?.personal || projection?.personal || [];
   return {
     investEnabled: invest.investEnabled === true,
     investCommitmentsEnabled: invest.investCommitmentsEnabled === true,
@@ -93,6 +102,51 @@ export function opportunityStatusLabel(status, t) {
     case 'cancelled': return t('invest.common.status.cancelled');
     case 'withdrawn': return t('invest.common.status.withdrawn');
     default: return t('invest.common.status.published');
+  }
+}
+
+/** Review-queue tab label through static keys only, so the i18n gate can resolve every key. */
+export function reviewQueueTabLabel(type, t) {
+  switch (type) {
+    case 'applications': return t('invest.review.tabs.applications');
+    case 'opportunities': return t('invest.review.tabs.opportunities');
+    case 'closing': return t('invest.review.tabs.closing');
+    case 'proceeds': return t('invest.review.tabs.proceeds');
+    default: return t('invest.review.tabs.applications');
+  }
+}
+
+/** Opportunity detail-field label through static keys only, so the i18n gate can resolve every key. */
+export function opportunityDetailFieldLabel(field, t) {
+  switch (field) {
+    case 'legalDetails': return t('invest.review.opportunity.detail.legalDetails');
+    case 'financials': return t('invest.review.opportunity.detail.financials');
+    case 'ownership': return t('invest.review.opportunity.detail.ownership');
+    case 'risks': return t('invest.review.opportunity.detail.risks');
+    case 'relatedParties': return t('invest.review.opportunity.detail.relatedParties');
+    default: return t('invest.review.opportunity.detail.legalDetails');
+  }
+}
+
+/** Amendment status label through static keys only, so the i18n gate can resolve every key. */
+export function amendmentStatusLabel(status, t) {
+  switch (status) {
+    case 'draft': return t('invest.entity.manage.amendments.status.draft');
+    case 'proposed': return t('invest.entity.manage.amendments.status.proposed');
+    case 'effective': return t('invest.entity.manage.amendments.status.effective');
+    case 'withdrawn': return t('invest.entity.manage.amendments.status.withdrawn');
+    case 'rejected': return t('invest.entity.manage.amendments.status.rejected');
+    default: return t('invest.entity.manage.amendments.status.draft');
+  }
+}
+
+/** Update status label through static keys only, so the i18n gate can resolve every key. */
+export function updateStatusLabel(status, t) {
+  switch (status) {
+    case 'draft': return t('invest.entity.manage.updates.status.draft');
+    case 'published': return t('invest.entity.manage.updates.status.published');
+    case 'overdue': return t('invest.entity.manage.updates.status.overdue');
+    default: return t('invest.entity.manage.updates.status.draft');
   }
 }
 

@@ -9,6 +9,8 @@ import {
   opportunityStatusLabel,
   documentVisibilityLabel,
   applicationStatusLabel,
+  amendmentStatusLabel,
+  updateStatusLabel,
   parseAmountToCents,
   commitReviewMissingRows,
   commitmentReferenceCents,
@@ -37,6 +39,44 @@ test('invest access comes from the projection only, never role or mode', () => {
   });
   assert.equal(legacyMode.canParticipate, true);
   assert.equal(legacyMode.investCommitmentsEnabled, true);
+});
+
+test('invest access reads the useAccessProjection snapshot shape too (Track 4)', () => {
+  // Live, pages and the navbar hold the hook snapshot
+  // { access: <projection>, flags: <client flags> }, where the projection
+  // carries `.invest` and `.personal`. Reading only `projection.invest`
+  // made investEnabled always false live, so every invest page rendered
+  // "not available" and no invest nav link ever appeared.
+  const snapshot = {
+    access: {
+      personal: ['investor.participate'],
+      invest: { investEnabled: true, investCommitmentsEnabled: false, investPilot: false },
+    },
+    flags: { investEnabled: true, investCommitmentsEnabled: false, investPilot: false },
+  };
+  const fromSnapshot = investAccessFromProjection(snapshot);
+  assert.equal(fromSnapshot.investEnabled, true);
+  assert.equal(fromSnapshot.investCommitmentsEnabled, false);
+  assert.equal(fromSnapshot.canParticipate, true);
+  // The raw GET /api/me/access response has the same nesting.
+  const raw = {
+    accountId: '1',
+    access: snapshot.access,
+    flags: snapshot.flags,
+  };
+  assert.equal(investAccessFromProjection(raw).investEnabled, true);
+  // The projection on its own also works.
+  assert.equal(investAccessFromProjection(snapshot.access).investEnabled, true);
+  assert.equal(investAccessFromProjection(snapshot.access).canParticipate, true);
+});
+
+test('amendment and update status labels resolve through static keys only (Track 4)', () => {
+  assert.equal(amendmentStatusLabel('proposed', t), 'invest.entity.manage.amendments.status.proposed');
+  assert.equal(amendmentStatusLabel('effective', t), 'invest.entity.manage.amendments.status.effective');
+  assert.equal(amendmentStatusLabel('unknown', t), 'invest.entity.manage.amendments.status.draft');
+  assert.equal(updateStatusLabel('overdue', t), 'invest.entity.manage.updates.status.overdue');
+  assert.equal(updateStatusLabel('published', t), 'invest.entity.manage.updates.status.published');
+  assert.equal(updateStatusLabel('unknown', t), 'invest.entity.manage.updates.status.draft');
 });
 
 test('invest nav links appear only when the projection flag is on, and never remove customer links', () => {
