@@ -168,6 +168,12 @@ test('projection backs the logistics mode and adds buyer access without replacin
 // WP-047: the organization switcher shows a translated permission status.
 test('business switcher renders translated organization roles in every locale', async () => {
   const src = await readFile(new URL('../src/components/BusinessSwitcher.jsx', import.meta.url), 'utf8');
+  const navbar = await readFile(new URL('../src/components/Navbar.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /BUSINESS_HUB_LAST_ID_LS_KEY|readLastBusinessHubId/);
+  assert.doesNotMatch(navbar, /readLastBusinessHubId/);
+  assert.match(src, /accountWorkspaceStorageKey\(userId\)/);
+  assert.match(src, /localStorage\.getItem\(storageKey\)/);
+  assert.match(src, /localStorage\.setItem\(storageKey/);
   assert.doesNotMatch(src, /\{b\._role \|\| 'owner'\}/);
   assert.match(src, /orgRoleLabel\(b\._role \|\| 'owner'\)/);
   const { readdir } = await import('node:fs/promises');

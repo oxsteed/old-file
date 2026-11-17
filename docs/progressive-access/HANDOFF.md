@@ -273,6 +273,15 @@ dry-run 7 scanned 223 users and reported 17 helper grants, 2 consultant grants,
 The Home browser mode matrix, 120-combination navbar browser matrix, and access
 projection cross-account/stale-response browser check also pass locally.
 
+### WP-109: account-scoped navbar workspace selection
+
+The navbar `BusinessSwitcher` now uses the authenticated account's workspace
+storage key for both the saved selection and quick-switch writes. It no longer
+reads or writes the legacy global `oxs:bh:lastBusinessId` key, and Navbar no
+longer performs that dead global read. This closes the remaining client-side
+workspace preference leak between accounts. Navbar unit/browser checks and the
+full client build pass locally.
+
 **Exact next action:** run the Home and full client verification suites, then
 perform the disposable backfill dry-run and cross-account browser acceptance.
 

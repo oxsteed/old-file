@@ -10,9 +10,8 @@ import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
 import BusinessSwitcher from './BusinessSwitcher';
 import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
-import { navbarNavigation, navbarLinkActive, navbarWorkspacePath } from '../utils/navbarNavigation';
+import { navbarNavigation, navbarLinkActive } from '../utils/navbarNavigation';
 import useAccessProjection from '../hooks/useAccessProjection';
-import { readLastBusinessHubId } from '../utils/businessProfileForm';
 import { useNavDisclosure } from '../hooks/useNavDisclosure';
 import { useSupportWorkspaceAccess } from '../hooks/useSupportWorkspaceAccess';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
@@ -40,8 +39,7 @@ export default function Navbar() {
   // WP-104: navigation is projection-only; every account lands in the
   // customer workspace and the dashboard is always /dashboard.
   const dashboardPath = '/dashboard';
-  const workspacePath = navbarWorkspacePath(location.pathname, readLastBusinessHubId());
-  const navigation = navbarNavigation(user, { dashboardPath, workspacePath, showSupportWorkspace: showSupportWorkspaceNav, projection: accessProjection });
+  const navigation = navbarNavigation(user, { dashboardPath, showSupportWorkspace: showSupportWorkspaceNav, projection: accessProjection });
   const currentMode = navigation.mode;
   const authorizedOrganizations = accessProjection?.access?.organizations || [];
   const { open: mobileOpen, setOpen: setMobileOpen, containerRef: mobileRef, triggerRef: mobileTriggerRef, panelId: mobilePanelId } = useNavDisclosure(currentMode);
