@@ -62,11 +62,30 @@ test('an enforced grant satisfies Learn authoring without changing users.role', 
 });
 
 test('legacy helper and consultant accounts remain compatible while enforcement is off', async () => {
+  // B1: helper now defaults to enforce, so "off" must be set explicitly
+  // (consultant still defaults to off).
+  process.env.ACCESS_HELPER_ENFORCEMENT = 'off';
   const helper = await request(appFor({ id: 'u-helper', role: 'helper' })).post('/learn/submit');
   const consultant = await request(appFor({ id: 'u-consultant', role: 'consultant' })).post('/learn/submit');
 
   expect(helper.status).toBe(200);
   expect(consultant.status).toBe(200);
   expect(accessService.can).not.toHaveBeenCalled();
+});
+
+test('shadow (B1): an allowed helper decision is recorded on the request', async () => {
+  process.env.ACCESS_HELPER_ENFORCEMENT = 'shadow';
+  accessService.can.mockResolvedValue({ allowed: true, reason: 'active_grant' });
+
+  const app = express();
+  app.use((req, _res, next) => { req.user = { id: 'u-1', role: 'customer' }; next(); });
+  app.post('/learn/submit', gate, (req, res) => res.json({
+    ok: true,
+    recorded: req.accessCapabilities?.['helper.offer_services'] === true,
+  }));
+
+  const res = await request(app).post('/learn/submit');
+  expect(res.status).toBe(200);
+  expect(res.body).toEqual({ ok: true, recorded: true });
 });
 
