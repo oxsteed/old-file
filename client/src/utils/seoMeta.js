@@ -188,7 +188,6 @@ const REDIRECT_PATTERNS = [
   /^\/features(?:\/.*)?$/,
   /^\/hire(?:\/.*)?$/,
   /^\/translator(?:\/.*)?$/,
-  /^\/register(?:\/.*)?$/,
   /^\/direct\/service-area(?:\/.*)?$/,
   /^\/orders\/[^/]+$/, // OrderIdRedirect to /food/orders/:id
   /^\/helpers\/public\/[^/]+$/, // LegacyHelperProfileRedirect to /helpers/:id

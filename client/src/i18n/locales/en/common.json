@@ -6560,6 +6560,7 @@
       }
     },
     "capabilityHelp": {
+      "customer": "Post jobs, hire helpers, shop the marketplace.",
       "helper": {
         "offer_services": "Bid on jobs and get paid for your work."
       },

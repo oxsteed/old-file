@@ -17,22 +17,26 @@ import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import { detectCountryFromLocale, hasPostalCode, requiresPostalCode, hasRegions, getRegionLabel } from '../lib/countries';
-import { MODE_CATALOG, postSignupRouteForMode } from '../utils/modeRouter';
-import { LAUNCH_SELF_SELECTABLE_MODES } from '../utils/launchScope';
+import { joinModeForLegacyMode } from '../utils/legacyDeepLinks';
 import { normalizeSignupRegion, validateSignup, SIGNUP_FIELD_KEYS } from '../utils/signupValidation';
 import './JoinPage.css';
 
 const DRAFT_KEY = 'oxsteed:join-draft:v1';
-const MODES = LAUNCH_SELF_SELECTABLE_MODES;
 const ICONS = { customer: UserRound, helper: Users, business_owner: Briefcase };
 const SIGNUP_INTENTS = {
   customer: { intent: 'find_help', capability: 'customer' },
   helper: { intent: 'offer_services', capability: 'helper.offer_services' },
   business_owner: { intent: 'run_business', capability: 'business.own' },
 };
+// The intent cards are the signup choice now: the account is always created
+// as a customer and the intent becomes an application on the progressive
+// path. A legacy ?mode= value still preselects the matching intent card
+// (joinModeForLegacyMode maps it to a mode, then to its intent); modes with
+// no card fall back to the draft or the customer-first default.
+const SIGNUP_INTENT_VALUES = Object.values(SIGNUP_INTENTS).map(({ intent }) => intent);
 const SignupApplication = lazy(() => import('../components/registration/SignupApplication'));
 const EMPTY = { firstName: '', lastName: '', email: '', phone: '', country: '', addressLine1: '',
-  city: '', state: '', zipCode: '', defaultMode: 'customer', ageConfirmed: false, termsAccepted: false, password: '' };
+  city: '', state: '', zipCode: '', signupIntent: 'find_help', ageConfirmed: false, termsAccepted: false, password: '' };
 const METADATA_KEYS = ['registrationExpiresAt', 'otpExpiresAt', 'resendAvailableAt', 'lockoutUntil'];
 function loadDraft() {
   try {
@@ -54,8 +58,7 @@ function milliseconds(value) {
 export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const { t } = useTranslation();
   const { user, setUser } = useAuth();
-  const { isAvailable, loading: capabilitiesLoading } = useCapabilities();
-  const customerFirst = isAvailable('customerFirstSignup');
+  const { loading: capabilitiesLoading } = useCapabilities();
   const navigate = useNavigate();
   const [pageParams] = useSearchParams();
   const params = embedded ? new URLSearchParams(embeddedSearch) : pageParams;
@@ -68,8 +71,9 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
     ? rawReferralRef
     : null;
   const [draft] = useState(loadDraft);
+  const presetIntent = presetMode ? SIGNUP_INTENTS[joinModeForLegacyMode(presetMode)]?.intent : undefined;
   const [form, setForm] = useState(() => ({ ...EMPTY, country: detectCountryFromLocale(), ...draft?.form, password: '',
-    defaultMode: MODES.includes(presetMode) ? presetMode : MODES.includes(draft?.form?.defaultMode) ? draft.form.defaultMode : 'customer' }));
+    signupIntent: presetIntent || (SIGNUP_INTENT_VALUES.includes(draft?.form?.signupIntent) ? draft.form.signupIntent : 'find_help') }));
   const [errors, setErrors] = useState({});
   const [registrationToken, setRegistrationToken] = useState(draft?.registrationToken || '');
   const [otpSent, setOtpSent] = useState(Boolean(draft?.otpSent && draft?.registrationToken));
@@ -96,7 +100,10 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   }, [form, registrationToken, otpSent, metadata]);
   useEffect(() => {
     if (user?.email_verified && (!completed.current || (continuation && !isCurrentAuthEpoch(continuation.epoch)))) {
-      navigate(postSignupRouteForMode(user.default_mode || 'customer'), { replace: true });
+      // WP-104: every account lands in the customer workspace; the intent
+      // application (if any) is handled by the continuation panel, not by a
+      // mode-specific landing route.
+      navigate('/dashboard', { replace: true });
     }
   }, [user, navigate, continuation]);
   useEffect(() => {
@@ -136,12 +143,34 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
     setMetadata(previous => ({ ...previous, ...values }));
     setNow(Date.now());
   };
-  const recoveryMessage = error => {
+  const recoveryMessage = (error, { registrationAttempt = false } = {}) => {
     const data = error?.response?.data || {};
     mergeMetadata(data);
-    if (data.code === 'registration_expired' || error?.response?.status === 404) {
-      setExpired(true);
-      setMetadata(previous => ({ ...previous, registrationExpiresAt: new Date().toISOString() }));
+    if (data.code === 'email_already_registered' || error?.response?.status === 409) {
+      // The server recognised a signed decoy token: this email already has
+      // an account. Point at sign-in instead of the expired-registration
+      // dead end. The submit path also maps 409 to the email field directly.
+      return msg('emailTaken');
+    }
+    // Only the server's own registration_expired code means the registration
+    // expired. A bare 404 (for example a proxy 404 while the server is
+    // restarting mid-deploy) is not an expired registration and must not be
+    // reported as one; it falls through to the generic request failure.
+    if (data.code === 'registration_expired') {
+      // A stale tab or a transient expiry can happen before the OTP screen is
+      // shown. Clear only the server token so the same form can immediately
+      // start a fresh registration instead of leaving the user without a code
+      // field or a path forward.
+      if (registrationAttempt) {
+        setRegistrationToken('');
+        setOtpSent(false);
+        setOtpDigits(Array(6).fill(''));
+        setMetadata({});
+        setExpired(false);
+      } else {
+        setExpired(true);
+        setMetadata(previous => ({ ...previous, registrationExpiresAt: new Date().toISOString() }));
+      }
       return msg('registrationExpired');
     }
     if (data.code === 'otp_locked' || /locked|too many/i.test(data.error || '')) {
@@ -159,29 +188,41 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const handleSubmit = async event => {
     event.preventDefault();
     if (operation.current || capabilitiesLoading) return;
-    if (registrationExpired && registrationToken) { setErrors({ general: msg('registrationExpired') }); return; }
-    const invalid = validateSignup(form, MODES);
+    // A draft-restored token whose 30-minute window already passed can never
+    // verify. Drop it and start a fresh registration below instead of
+    // failing every submit with the same expired-token error.
+    let staleToken = false;
+    if (registrationExpired && registrationToken) {
+      setRegistrationToken('');
+      setMetadata({});
+      setExpired(false);
+      staleToken = true;
+    }
+    const invalid = validateSignup(form, SIGNUP_INTENT_VALUES);
     if (Object.keys(invalid).length) {
       setErrors(Object.fromEntries(Object.entries(invalid).map(([field, key]) => [field, msg(key)])));
       focusErrors(invalid); return;
     }
     operation.current = true; setBusy('submit'); setErrors({}); setNotice('');
     try {
-      let token = registrationToken;
+      let token = staleToken ? '' : registrationToken;
       if (!token) {
         const { data } = await api.post('/auth/register/start', {
           email: form.email.trim().toLowerCase(), password: form.password, firstName: form.firstName.trim(),
           lastName: form.lastName.trim(), phone: form.phone.trim(), country: form.country,
           addressLine1: form.addressLine1.trim(), city: form.city.trim(), state: normalizeSignupRegion(form.country, form.state),
           zip: form.zipCode.trim(), ageConfirmed: form.ageConfirmed,
-          ...(customerFirst ? { signupIntent: SIGNUP_INTENTS[form.defaultMode].intent } : { defaultMode: form.defaultMode }),
+          // Interest is not authority. The server creates the customer
+          // account first and turns this into an application on the progressive
+          // path. Keep the wire field stable for older clients as well.
+          signupIntent: form.signupIntent,
           ...(referralRef ? { ref: referralRef } : {}),
         });
         if (!data?.token) throw new Error('Missing registration response');
         token = data.token; setRegistrationToken(token); mergeMetadata(data);
       }
       const { data } = await api.post('/auth/register/accept-terms', {
-        token, termsAccepted: form.termsAccepted, privacyAccepted: form.termsAccepted, brokerAccepted: true,
+        token, email: form.email.trim().toLowerCase(), termsAccepted: form.termsAccepted, privacyAccepted: form.termsAccepted, brokerAccepted: true,
         electronicSignature: { firstName: form.firstName.trim(), lastName: form.lastName.trim(), date: new Date().toISOString() },
       });
       mergeMetadata(data);
@@ -194,19 +235,19 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
       } else if (data.fields && typeof data.fields === 'object') {
         const mapped = {};
         for (const wire of Object.keys(data.fields)) {
-          const field = wire === 'zip' ? 'zipCode' : wire === 'default_mode' ? 'defaultMode' : wire === 'address_line1' ? 'addressLine1' : wire;
+          const field = wire === 'zip' ? 'zipCode' : wire === 'default_mode' || wire === 'signup_intent' ? 'signupIntent' : wire === 'address_line1' ? 'addressLine1' : wire;
           if (SIGNUP_FIELD_KEYS[field]) mapped[field] = msg(SIGNUP_FIELD_KEYS[field]);
         }
         setErrors(Object.keys(mapped).length ? mapped : { general: msg('requestFailed') });
         if (Object.keys(mapped).length) focusErrors(mapped);
-      } else setErrors({ general: recoveryMessage(error) });
+      } else setErrors({ general: recoveryMessage(error, { registrationAttempt: true }) });
     } finally { operation.current = false; setBusy(''); }
   };
   const handleOtpComplete = async code => {
     if (operation.current || registrationExpired || lockedUntil > Date.now()) return;
     operation.current = true; setBusy('verify'); setOtpError(''); setNotice('');
     try {
-      const { data } = await api.post('/auth/register/verify-otp', { token: registrationToken, otp: code });
+      const { data } = await api.post('/auth/register/verify-otp', { token: registrationToken, otp: code, email: form.email.trim().toLowerCase() });
       if (!data?.user) throw new Error('Missing verification response');
       persistSessionPayload(data); completed.current = true;
       try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* storage unavailable */ }
@@ -219,7 +260,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
         setContinuation({ step: nextStep, accountId: data.user.id, epoch: currentAuthEpoch() });
         return;
       }
-      navigate(postSignupRouteForMode(data.user.default_mode || form.defaultMode), { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (error) { setOtpError(recoveryMessage(error)); setOtpDigits(Array(6).fill('')); }
     finally { operation.current = false; setBusy(''); }
   };
@@ -227,7 +268,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
     if (operation.current || registrationExpired || waitSeconds > 0) return;
     operation.current = true; setBusy('resend'); setOtpError(''); setNotice('');
     try {
-      const { data } = await api.post('/auth/register/resend-otp', { token: registrationToken });
+      const { data } = await api.post('/auth/register/resend-otp', { token: registrationToken, email: form.email.trim().toLowerCase() });
       mergeMetadata(data);
       if (!data?.resendAvailableAt) setMetadata(previous => ({ ...previous, resendAvailableAt: new Date(Date.now() + 60000).toISOString() }));
       setOtpDigits(Array(6).fill('')); setNotice(msg('codeSent'));
@@ -285,20 +326,18 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
           </li>)}</ul>{errors.email === msg('emailTaken') && <Link to="/login">{t('nav.signIn')}</Link>}</div>}
           {registrationExpired && <button type="button" className="signup-secondary" onClick={editDetails} data-track="ui.663f47c956.3">{msg('restart')}</button>}
           {!capabilitiesLoading && <fieldset disabled={Boolean(busy)} className="signup-section signup-mode-section"><legend>{msg('modePrompt')}</legend>
-            <div className="signup-mode-grid">{MODES.map((mode, index) => {
+            <div className="signup-mode-grid">{Object.entries(SIGNUP_INTENTS).map(([mode, { intent, capability }], index) => {
               const Icon = ICONS[mode] || UserRound;
-              return <label className={'signup-mode-card' + (form.defaultMode === mode ? ' selected' : '')} key={mode}>
-                <input type="radio" id={index === 0 ? 'defaultMode' : 'mode-' + mode} name="defaultMode" value={mode}
-                  checked={form.defaultMode === mode} onChange={() => set('defaultMode', mode)}
-                  aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.defaultMode) || undefined} data-track="ui.663f47c956.4" />
-                <Icon size={27} aria-hidden="true" /><strong>{customerFirst
-                  ? t(`progressiveAccess.capabilities.${SIGNUP_INTENTS[mode].capability}`, { ns: 'common' })
-                  : t(MODE_CATALOG[mode].labelKey)}</strong>
-                <span className="signup-mode-description">{t(MODE_CATALOG[mode].hintKey)}</span>
-                {form.defaultMode === mode && <Check className="signup-mode-check" size={16} aria-hidden="true" />}
+              return <label className={'signup-mode-card' + (form.signupIntent === intent ? ' selected' : '')} key={intent}>
+                <input type="radio" id={index === 0 ? 'signupIntent' : 'intent-' + intent} name="signupIntent" value={intent}
+                  checked={form.signupIntent === intent} onChange={() => set('signupIntent', intent)}
+                  aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.signupIntent) || undefined} data-track="ui.663f47c956.4" />
+                <Icon size={27} aria-hidden="true" /><strong>{t(`progressiveAccess.capabilities.${capability}`, { ns: 'common' })}</strong>
+                <span className="signup-mode-description">{t(`progressiveAccess.capabilityHelp.${capability}`, { ns: 'common' })}</span>
+                {form.signupIntent === intent && <Check className="signup-mode-check" size={16} aria-hidden="true" />}
               </label>;
             })}</div>
-            <p id="signup-mode-help" className="signup-help">{customerFirst ? msg('intentNote') : <>{msg('switcherNote')} <span>{msg('setupNote')}</span></>}</p>{fieldError('defaultMode')}
+            <p id="signup-mode-help" className="signup-help">{msg('intentNote')}</p>{fieldError('signupIntent')}
           </fieldset>}
           <fieldset disabled={Boolean(busy)} className="signup-section"><legend>{msg('personalTitle')}</legend>
             <p className="signup-help">{msg('contactHelp')} <Link to="/privacy" target="_blank" rel="noopener noreferrer">{t('footer.privacy')}</Link></p>

@@ -34,6 +34,7 @@ function worker(fetch = async () => new Response('asset'), { failPrecache = [] }
     Headers,
     Promise,
     Date,
+    setTimeout,
     fetch,
     caches: { open: async name => name === 'oxsteed-assets-v2' || name.startsWith('oxsteed-static-') ? bucket : metaBucket, match: async (req) => bucket.match(req) },
     self: {
@@ -236,6 +237,7 @@ test('M15: a server 5xx serves the trouble page with a 503, not the offline page
   const response = await w.context.navigationHandler(
     { preloadResponse: Promise.resolve(undefined) },
     new Request('https://oxsteed.test/'),
+    { retryDelayMs: 0 },
   );
   assert.equal(response.status, 503);
   const text = await response.text();
@@ -250,6 +252,7 @@ test('M15: a network error still serves the offline page', async () => {
   const response = await w.context.navigationHandler(
     { preloadResponse: Promise.resolve(undefined) },
     new Request('https://oxsteed.test/'),
+    { retryDelayMs: 0 },
   );
   assert.equal(response.status, 503);
   assert.match(await response.text(), /offline/i);
@@ -260,9 +263,54 @@ test('M15: a 5xx with no cached trouble page still answers 503, not 200', async 
   const response = await w.context.navigationHandler(
     { preloadResponse: Promise.resolve(undefined) },
     new Request('https://oxsteed.test/'),
+    { retryDelayMs: 0 },
   );
   assert.equal(response.status, 503);
   assert.match(await response.text(), /having trouble/i);
+});
+
+test('M15: a 5xx that recovers on retry returns the good document, not the trouble page', async () => {
+  let calls = 0;
+  const w = worker(async () => {
+    calls += 1;
+    return calls === 1 ? new Response('', { status: 503 }) : new Response('<h1>Join</h1>');
+  });
+  w.stored.set('https://oxsteed.test/trouble.html', new Response('<h1>OxSteed is having trouble</h1>'));
+  const response = await w.context.navigationHandler(
+    { preloadResponse: Promise.resolve(undefined) },
+    new Request('https://oxsteed.test/join'),
+    { retryDelayMs: 0 },
+  );
+  assert.equal(calls, 2);
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /Join/);
+});
+
+test('M15: a persistent 5xx fetches twice, then still serves the trouble page', async () => {
+  let calls = 0;
+  const w = worker(async () => {
+    calls += 1;
+    return new Response('', { status: 503 });
+  });
+  w.stored.set('https://oxsteed.test/trouble.html', new Response('<h1>OxSteed is having trouble</h1>'));
+  const response = await w.context.navigationHandler(
+    { preloadResponse: Promise.resolve(undefined) },
+    new Request('https://oxsteed.test/join'),
+    { retryDelayMs: 0 },
+  );
+  assert.equal(calls, 2);
+  assert.equal(response.status, 503);
+  assert.match(await response.text(), /having trouble/i);
+});
+
+test('trouble page retries itself once, bounded by a session marker, instead of stranding the user', () => {
+  const html = fs.readFileSync(new URL('public/trouble.html', root), 'utf8');
+  assert.match(html, /oxs:trouble-retry:v1/);
+  assert.match(html, /setTimeout\(\(\) => window\.location\.reload\(\), 10000\)/);
+  // The marker must gate the reload: a fresh marker within the window means
+  // no second automatic reload, so a persistently-down server never loops.
+  assert.match(html, /Date\.now\(\) - marker > 10 \* 60 \* 1000/);
+  assert.match(html, /sessionStorage\.setItem\(markerKey/);
 });
 
 test('a rejected badge update never prevents displaying a push notification', async () => {

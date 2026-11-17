@@ -3929,6 +3929,7 @@
       }
     },
     "capabilityHelp": {
+      "customer": "Pubblica lavori, assumi aiutanti, faccia acquisti sul mercato.",
       "helper": {
         "offer_services": "Fai offerte sui lavori e vieni pagato per il tuo lavoro."
       },

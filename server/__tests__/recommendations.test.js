@@ -17,7 +17,7 @@ function buildApp() {
   return app;
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => { resetMocks(); process.env.ACCESS_PROJECTION_ENABLED = 'false'; });
 afterEach(() => {
   delete process.env.ACCESS_PROJECTION_ENABLED;
   delete process.env.ACCESS_PILOT_USER_IDS;

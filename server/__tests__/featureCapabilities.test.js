@@ -16,7 +16,9 @@ const AI_KEYS = ['OPENAI_API_KEY', 'META_AI_API_KEY', 'OPENROUTER_API_KEY', 'OLL
 test('public signup configuration follows the server customer-first flag', () => {
   const saved = process.env.ACCESS_CUSTOMER_FIRST_SIGNUP;
   try {
-    delete process.env.ACCESS_CUSTOMER_FIRST_SIGNUP;
+    // Progressive access is the default rollout; an explicit false remains
+    // the rollback contract.
+    process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = 'false';
     expect(getPublicCapabilities().customerFirstSignup.available).toBe(false);
     process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = 'true';
     expect(getPublicCapabilities().customerFirstSignup.available).toBe(true);

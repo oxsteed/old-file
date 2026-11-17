@@ -37,13 +37,21 @@ describe('new registration validation', () => {
     if (allowed) expect(hash).toHaveBeenCalledWith(password, expect.any(Number));
     else expect(mockQuery).not.toHaveBeenCalled();
   });
-  test.each(['customer', 'helper', 'business_owner'])('preserves launch mode, referral and explicit consent: %s', async defaultMode => {
+  test.each([
+    ['customer', 'find_help'],
+    ['helper', 'offer_services'],
+    ['business_owner', 'run_business'],
+  ])('preserves signup intent, referral and explicit consent: %s', async (defaultMode, intent) => {
     const expires = future(1800000);
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'referrer' }] }).mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: 1, expires_at: expires }] });
     const res = await call('startRegistration', { ...valid, defaultMode, ref: 'REFTEST', password: ' A1aaaaa ' });
     expect(res.body.registrationExpiresAt).toBe(expires);
     expect(hash).toHaveBeenCalledWith(' A1aaaaa ', expect.any(Number));
-    const args = mockQuery.mock.calls[2][1]; expect(args[11]).toBe(true); expect(args[13]).toBe('REFTEST'); expect(args[14]).toBe(defaultMode);
+    const args = mockQuery.mock.calls[2][1]; expect(args[11]).toBe(true); expect(args[13]).toBe('REFTEST');
+    // WP-104: the pending row is always a customer; the signup choice is
+    // stored apart from authority as an intent, never as a mode/role.
+    expect(args[14]).toBe('customer');
+    expect(args[15]).toBe(intent);
     expect(mockQuery.mock.calls[2][0]).toMatch(/expires_at = NOW\(\) \+ interval '30 minutes'/);
     expect(mockQuery.mock.calls[2][0]).not.toMatch(/otp_locked_until\s*=/);
   });
@@ -69,6 +77,65 @@ describe('new registration validation', () => {
     // No pending registration is created for an existing email: the only
     // query is the existence check.
     expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+});
+describe('existing-email decoy registration token', () => {
+  // Nov 16 live dead end (test2): startRegistration answered an
+  // already-registered email with a random token that matched no pending
+  // row, so accept-terms 404d with registration_expired before any code
+  // step existed, and every retry repeated the same dead end. The token
+  // must now be a signed decoy that accept-terms recognises with a 409.
+  const taken = { ...valid, email: 'taken@example.test' };
+  async function startAsExisting() {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'existing-user' }] });
+    const res = await call('startRegistration', taken);
+    expect(res.statusCode).toBe(200);
+    // Indistinguishable from a real token: uniform 64 hex characters, so
+    // the step-1 response cannot be used as an enumeration oracle.
+    expect(res.body.token).toMatch(/^[0-9a-f]{64}$/);
+    expect(res.body.message).toBe('Basic info validated');
+    return res.body.token;
+  }
+  test('acceptTerms answers an existing email with already-registered, not expired', async () => {
+    const token = await startAsExisting();
+    mockQuery.mockClear();
+    const res = await call('acceptTerms', { token, email: taken.email });
+    expect(res.statusCode).toBe(409);
+    expect(res.body.code).toBe('email_already_registered');
+    // No pending row exists for a decoy, so acceptTerms must not query and
+    // must never send a code for it.
+    expect(mockQuery).not.toHaveBeenCalled();
+    expect(sendOTPEmail).not.toHaveBeenCalled();
+  });
+  test.each(['verifyRegistrationOTP', 'resendRegistrationOTP'])('%s answers a decoy with already-registered', async (method) => {
+    const token = await startAsExisting();
+    mockQuery.mockClear();
+    const res = await call(method, { token, otp: '123456', email: taken.email });
+    expect(res.statusCode).toBe(409);
+    expect(res.body.code).toBe('email_already_registered');
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+  test('a forged decoy still reads as an expired registration', async () => {
+    const token = await startAsExisting();
+    const forged = token.slice(0, -1) + (token.endsWith('0') ? '1' : '0');
+    const res = await call('acceptTerms', { token: forged, email: taken.email });
+    expect(res.statusCode).toBe(404);
+    expect(res.body.code).toBe('registration_expired');
+  });
+  test('a stale-bucket decoy still reads as an expired registration', async () => {
+    const secret = process.env.OTP_HMAC_SECRET || process.env.JWT_SECRET;
+    const staleBucket = Math.floor((Date.now() - 61 * 60 * 1000) / (30 * 60 * 1000));
+    const stale = crypto.createHmac('sha256', secret)
+      .update(`registration-decoy:${taken.email}:${staleBucket}`).digest('hex');
+    const res = await call('acceptTerms', { token: stale, email: taken.email });
+    expect(res.statusCode).toBe(404);
+    expect(res.body.code).toBe('registration_expired');
+  });
+  test('a decoy without the email falls back to the expired response (older clients)', async () => {
+    const token = await startAsExisting();
+    const res = await call('acceptTerms', { token });
+    expect(res.statusCode).toBe(404);
+    expect(res.body.code).toBe('registration_expired');
   });
 });
 describe('verification metadata and recovery', () => {

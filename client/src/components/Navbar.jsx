@@ -9,11 +9,8 @@ import api from '../api/axios';
 import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
 import BusinessSwitcher from './BusinessSwitcher';
-import ModeSwitcher from './ModeSwitcher';
 import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
-import { MODE_CATALOG, routeForMode } from '../utils/modeRouter';
-import { navbarMode, navbarNavigation, navbarLinkActive, navbarWorkspacePath } from '../utils/navbarNavigation';
-import { resolveHomeMode } from '../utils/accessProjection';
+import { navbarNavigation, navbarLinkActive, navbarWorkspacePath } from '../utils/navbarNavigation';
 import useAccessProjection from '../hooks/useAccessProjection';
 import { readLastBusinessHubId } from '../utils/businessProfileForm';
 import { useNavDisclosure } from '../hooks/useNavDisclosure';
@@ -33,22 +30,23 @@ const SHOW_NETWORK_BRANCH_SWITCHER = LAUNCH_VISIBILITY.networkBranchSwitcher;
 // Shared trusted CSS for the mounted navbar and script-free customer snapshot.
 
 export default function Navbar() {
-  const { user, logout, isHelper } = useAuth();
+  const { user, logout, hasHelperAccess } = useAuth();
   const { t } = useTranslation();
   const location = useLocation();
   const { unreadCount: unreadNotifs } = useNotifications();
   const { unreadCount: unreadMsgs } = useUnreadMessages();
   const accessProjection = useAccessProjection(user);
-  const currentMode = resolveHomeMode(user, navbarMode(user), accessProjection).mode;
-  const { open: mobileOpen, setOpen: setMobileOpen, containerRef: mobileRef, triggerRef: mobileTriggerRef, panelId: mobilePanelId } = useNavDisclosure(currentMode);
-  const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
   const showSupportWorkspaceNav = useSupportWorkspaceAccess(user);
-  const resourcesMenuRef = useRef(null);
-  const dashboardPath = routeForMode(currentMode);
+  // WP-104: navigation is projection-only; every account lands in the
+  // customer workspace and the dashboard is always /dashboard.
+  const dashboardPath = '/dashboard';
   const workspacePath = navbarWorkspacePath(location.pathname, readLastBusinessHubId());
   const navigation = navbarNavigation(user, { dashboardPath, workspacePath, showSupportWorkspace: showSupportWorkspaceNav, projection: accessProjection });
+  const currentMode = navigation.mode;
+  const { open: mobileOpen, setOpen: setMobileOpen, containerRef: mobileRef, triggerRef: mobileTriggerRef, panelId: mobilePanelId } = useNavDisclosure(currentMode);
+  const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
+  const resourcesMenuRef = useRef(null);
   const showBusinessHub = !!user && navigation.showBusinessSwitcher;
-  const modeLabel = t(MODE_CATALOG[currentMode]?.labelKey || 'modes.customer.label');
 
   useEffect(() => { setResourcesMenuOpen(false); }, [location.pathname, location.search, currentMode]);
 
@@ -113,7 +111,6 @@ export default function Navbar() {
             <OxSteedIcon size={28} />
             <span className="ox-nav-brand-text">
               <span className="ox-nav-brand-name">OxSteed</span>
-              {user && <span className="ox-nav-mobile-mode" title={modeLabel}>{modeLabel}</span>}
             </span>
           </PrefetchLink>
 
@@ -195,7 +192,7 @@ export default function Navbar() {
                       >
                         <span className="ox-nav-resource-option-title">{t('nav.learnToDiy')}</span>
                       </PrefetchLink>
-                      {isHelper && (
+                      {hasHelperAccess && (
                         <>
                           {canUseQrGenerator(user) && (
                             <PrefetchLink
@@ -238,7 +235,6 @@ export default function Navbar() {
                 </PrefetchLink>
               </>
             )}
-            {user && <ModeSwitcher />}
             {showBusinessHub && <BusinessSwitcher />}
             <LanguageSelector />
             <ThemeToggle />
@@ -311,7 +307,6 @@ export default function Navbar() {
           <div id={mobilePanelId} className="ox-nav-mobile-menu">
             {(user || showBusinessHub) && (
               <div className="ox-nav-mobile-preferences">
-                {user && <ModeSwitcher compact />}
                 {showBusinessHub && <BusinessSwitcher compact />}
               </div>
             )}

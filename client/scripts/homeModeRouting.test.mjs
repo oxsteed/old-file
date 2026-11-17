@@ -8,7 +8,6 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { normalizeLaunchDashboardMode } from '../src/utils/launchScope.js';
 import { dashboardKeyForMode } from '../src/utils/modeAccess.js';
-import { navbarMode } from '../src/utils/navbarNavigation.js';
 import * as accessProjection from '../src/utils/accessProjection.js';
 
 const require = createRequire(import.meta.url);
@@ -48,6 +47,10 @@ test('home selects the active mode without rendering the wrong landing page or b
   // Active customer mode wins over an older helper role value.
   auth.user = { ...base, default_mode: 'customer' };
   render(); assert.deepEqual(rendered, ['discovery']);
+  auth.user = { ...base, default_mode: 'helper' };
+  render(); assert.deepEqual(rendered, ['discovery'], 'unavailable projection keeps customer Home');
+  projection = { flags: { accessProjection: false } };
+  // An explicit rollback preserves the legacy landing.
   for (const default_mode of ['helper', 'business_owner', 'business_manager', 'business_representative', 'business_employee', 'business_support_agent', 'admin']) {
     auth.user = { ...base, default_mode };
     render(); assert.deepEqual(rendered, ['work'], default_mode);
@@ -57,22 +60,34 @@ test('home selects the active mode without rendering the wrong landing page or b
   auth.user = { ...base, default_mode: 'business_owner', email_verified: false };
   assert.match(render(), /data-redirect="\/verify-email"/);
   assert.deepEqual(rendered, []);
+  // Legacy/rollback path only: a Didit-pending account
+  // that would land on a work dashboard is still sent to /verify-identity.
+  // This is the old home identity gate, kept for the rollback contract; the
+  // projection-active path below never reaches it.
   auth.user = { ...base, default_mode: 'business_owner', didit_status: 'pending' };
   assert.match(render(), /data-redirect="\/verify-identity"/);
   assert.deepEqual(rendered, []);
 
-  // WP-015: with the projection on, the preference is honoured only while
-  // access backs it; removed access falls back to personal Home with a notice.
+  // WP-104 cutover: with the projection on, every account lands in the
+  // customer workspace. An approval adds links inside that workspace; it
+  // never redirects the account to a separate mode dashboard.
   const on = (personal, organizations = []) => ({ flags: { accessProjection: true }, access: { personal, organizations } });
   auth.user = { ...base, default_mode: 'helper' };
   projection = on(['customer', 'helper.offer_services']);
-  render(); assert.deepEqual(rendered, ['work'], 'approved helper keeps the dashboard');
+  render(); assert.deepEqual(rendered, ['discovery'], 'approved helper lands in the customer workspace');
+  // A Didit-pending customer lands straight on the customer workspace with
+  // the projection on: no identity interstitial before the dashboard.
+  auth.user = { ...base, default_mode: 'customer', didit_status: 'pending' };
+  projection = on(['customer']);
+  const pendingHtml = render(); assert.deepEqual(rendered, ['discovery'], 'pending customer lands with no interstitial');
+  assert.doesNotMatch(pendingHtml, /data-redirect/);
+  auth.user = { ...base, default_mode: 'helper' };
   projection = on(['customer']);
   let html = render(); assert.deepEqual(rendered, ['discovery'], 'revoked helper sees personal Home');
   assert.match(html, /role="status"[^>]*>progressiveAccess\.home\.accessChanged/);
   auth.user = { ...base, default_mode: 'business_owner' };
   projection = on(['customer'], [{ type: 'business', id: '7', role: 'owner' }]);
-  render(); assert.deepEqual(rendered, ['work'], 'canonical owner keeps the business dashboard');
+  render(); assert.deepEqual(rendered, ['discovery'], 'canonical owner lands in the customer workspace');
   auth.user = { ...base, default_mode: 'customer' };
   projection = on(['customer', 'helper.offer_services']);
   html = render(); assert.deepEqual(rendered, ['discovery'], 'an approval never replaces the dashboard choice');
@@ -80,31 +95,53 @@ test('home selects the active mode without rendering the wrong landing page or b
   auth.user = { ...base, default_mode: 'helper' };
   projection = { flags: { accessProjection: false }, access: { personal: ['customer'] } };
   render(); assert.deepEqual(rendered, ['work'], 'flag off: legacy behaviour');
+  // Staff use a separate shell; the customer home route does not project a
+  // work dashboard for them while the projection is on.
   auth.user = { ...base, role: 'admin', default_mode: 'admin' };
   projection = on(['customer']);
-  render(); assert.deepEqual(rendered, ['work'], 'staff roles are not projected');
+  render(); assert.deepEqual(rendered, ['discovery'], 'staff roles are not projected');
   projection = null;
 });
 
-test('customer discovery exposes bookings while helper actions follow the active mode', () => {
+test('helper activation routes opt into the identity gate; the legacy home keeps its own', () => {
+  // WP-104: the Didit gate is dead code unless a route opts in. The helper
+  // activation surfaces (/helper-dashboard, /helper/payouts) opt in via
+  // requireOnboarded; the legacy home path opts into the identity gate only
+  // via requireIdentityVerification, so the rollback contract holds without
+  // activating the onboarding-completeness redirect at home.
+  const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+  const home = readFileSync(new URL('../src/components/ModeHomeRoute.jsx', import.meta.url), 'utf8');
+  const gate = readFileSync(new URL('../src/components/ProtectedRoute.jsx', import.meta.url), 'utf8');
+  assert.match(app, /path="\/helper-dashboard".*?<ProtectedRoute requireOnboarded>/);
+  assert.match(app, /path="\/helper\/payouts".*?<ProtectedRoute requireOnboarded>/);
+  assert.match(home, /<ProtectedRoute requireIdentityVerification>/);
+  assert.match(gate, /requireOnboarded \|\| requireIdentityVerification/);
+});
+
+test('customer discovery exposes bookings while helper actions follow helper access', () => {
   let user;
+  let hasHelperAccess = false;
   const Hero = component('components/Hero.jsx', {
-    '../context/AuthContext': { useAuth: () => ({ user }) },
-    '../utils/navbarNavigation': { navbarMode },
+    '../context/AuthContext': { useAuth: () => ({ user, hasHelperAccess }) },
     'react-i18next': { useTranslation: () => ({ t: key => key }) },
     './PrefetchLink': { __esModule: true, default: ({ to, children, ...props }) => React.createElement('a', { href: to, ...props }, children) },
   });
   const render = () => renderToStaticMarkup(React.createElement(Hero));
+  // A helper-role account without helper access sees the customer actions.
   user = { role: 'helper', default_mode: 'customer' };
+  hasHelperAccess = false;
   let html = render();
   assert.match(html, /href="\/my-bookings"/);
   assert.match(html, /href="\/post-job"/);
   assert.doesNotMatch(html, /href="\/jobs"/);
+  // Helper access switches the hero to the work actions, whatever the role.
   user = { role: 'helper', default_mode: 'helper' };
+  hasHelperAccess = true;
   html = render();
   assert.match(html, /href="\/jobs"/);
   assert.match(html, /href="\/helper-dashboard"/);
   user = null;
+  hasHelperAccess = false;
   html = render();
   assert.match(html, /href="\/join"/);
   assert.match(html, /href="\/helpers"/);

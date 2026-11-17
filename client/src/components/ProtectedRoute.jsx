@@ -35,7 +35,7 @@ function diditGateSatisfied(user) {
   return ds === 'verified' || ds === 'skipped';
 }
 
-export default function ProtectedRoute({ children, requiredRole, requireOnboarded = false }) {
+export default function ProtectedRoute({ children, requiredRole, requireOnboarded = false, requireIdentityVerification = false }) {
   const { user, loading, isOnboardingComplete } = useAuth();
   const location = useLocation();
 
@@ -64,8 +64,23 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
     return <Navigate to="/verify-email" replace />;
   }
 
-  // Didit identity-verification gate (matches server authenticate middleware).
+  // Customer accounts can use the product before identity verification.
+  // Two separate opt-ins, because they guard different things:
+  // - requireIdentityVerification restores the legacy home redirect for a
+  //   Didit-pending account on the rollback path (ModeHomeRoute). It fires
+  //   the identity gate only, never the onboarding-completeness redirect.
+  // - requireOnboarded is for helper activation routes (/helper-dashboard,
+  //   /helper/payouts). It implies identity verification AND onboarding
+  //   completeness. Listing, bidding and starting work enforce identity on
+  //   the server as well; this is the client-side redirect layer.
+  // A user with didit_enforcement_required is gated on every protected
+  // route, with no opt-in needed: the server 403s their Didit-unsatisfied
+  // API calls, so the client must not render the page behind a dead end.
+  // "Verify later" sets didit_status to 'skipped', which satisfies the gate
+  // unless enforcement is required, so deferring verification never traps
+  // an ordinary user in a redirect loop.
   if (
+    (requireOnboarded || requireIdentityVerification || user.didit_enforcement_required) &&
     user.email_verified &&
     !diditGateSatisfied(user) &&
     !DIDIT_EXEMPT_PATHS.includes(location.pathname)

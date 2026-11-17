@@ -3929,6 +3929,7 @@
       }
     },
     "capabilityHelp": {
+      "customer": "작업 게시, 도우미 고용, 마켓플레이스 쇼핑.",
       "helper": {
         "offer_services": "작업에 입찰하고 일한 만큼 대가를 받으세요."
       },

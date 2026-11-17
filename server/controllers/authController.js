@@ -55,6 +55,50 @@ function hashOtp(otp) {
   return crypto.createHmac('sha256', OTP_HMAC_SECRET).update(String(otp)).digest('hex');
 }
 
+// ── Existing-email decoy registration tokens (Nov 16, PR #797 Track E) ──
+// Root cause of the test2 live dead end: startRegistration used to answer an
+// already-registered email with a random token that matches no pending row.
+// The client then called accept-terms with it and got 404 registration_expired
+// ("Your registration has expired...") before any code step existed, and every
+// retry repeated the same dead end because start issued a fresh useless token
+// each time. The fix is a SIGNED decoy: the token is the HMAC of the email
+// under OTP_HMAC_SECRET in a 30-minute bucket, so it is a uniform 64 hex
+// characters, indistinguishable from a real random token to anyone without
+// the server secret (the step-1 enumeration oracle stays closed: the start
+// response shape is unchanged). accept-terms / verify-otp / resend-otp
+// recognise a decoy (with the email the client sends) and answer 409
+// email_already_registered instead of the false 404, so the user gets the
+// "already registered, sign in" guidance. A decoy can only be issued by the
+// server for an email that exists, and it grants nothing: no pending row, no
+// code is ever sent for it. Stale decoys decay to 404 like stale real tokens
+// because only the current and previous bucket verify.
+const DECOY_REGISTRATION_TOKEN_TTL_MS = 30 * 60 * 1000;
+function decoyRegistrationBucket(whenMs) {
+  return Math.floor(whenMs / DECOY_REGISTRATION_TOKEN_TTL_MS);
+}
+function issueDecoyRegistrationToken(email) {
+  const bucket = decoyRegistrationBucket(Date.now());
+  return crypto.createHmac('sha256', OTP_HMAC_SECRET)
+    .update(`registration-decoy:${email}:${bucket}`).digest('hex');
+}
+function isDecoyRegistrationToken(token, email) {
+  if (typeof token !== 'string' || typeof email !== 'string') return false;
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || token.length !== 64 || !/^[0-9a-f]{64}$/.test(token)) return false;
+  let presented;
+  try { presented = Buffer.from(token, 'hex'); } catch { return false; }
+  const nowBucket = decoyRegistrationBucket(Date.now());
+  for (const bucket of [nowBucket, nowBucket - 1]) {
+    const expected = crypto.createHmac('sha256', OTP_HMAC_SECRET)
+      .update(`registration-decoy:${normalizedEmail}:${bucket}`).digest();
+    if (presented.length === expected.length && crypto.timingSafeEqual(presented, expected)) return true;
+  }
+  return false;
+}
+function decoyRegistrationResponse(res) {
+  return res.status(409).json({ error: 'This email is already registered. Sign in instead.', code: 'email_already_registered' });
+}
+
 // H10: minimum interval between OTP sends for the same account (users and
 // pending_registrations). Stops OTP email/SMS bombing via re-request.
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
@@ -1489,21 +1533,25 @@ async function startRegistration(req, res) {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalized.email]);
     // Pentest fix: the 409 let an unauthenticated caller confirm whether
     // any email has an account. Return the same success-shaped response as
-    // for a new email, but create no pending registration and send nothing:
-    // the client proceeds to accept-terms, which returns its generic
-    // "Invalid or expired registration" for the unrecognized token, exactly
-    // as for a genuinely expired token.
+    // for a new email, but create no pending registration and send nothing.
+    // The token is a SIGNED decoy (see issueDecoyRegistrationToken): it is
+    // indistinguishable from a real token here, so the step-1 oracle stays
+    // closed, but accept-terms recognises it and answers 409
+    // email_already_registered instead of the false 404 registration_expired
+    // a random unissued token used to produce. Before this fix that 404 was
+    // a dead end: the client cleared the token, the next submit issued
+    // another useless token, and the user could never reach the code step.
     // Residual (documented, not hidden): accept-terms/verify-otp still
-    // differentiate a fake token (404/wrong-code) from a live token that
-    // receives a real emailed code, so a prober who completes the full
-    // 3-step flow can still infer existence one hop later. Fully closing
-    // that requires fake-progression through the whole flow, which would
-    // also turn the clear "already registered, sign in" guidance for real
-    // users into a dead-end wait for a code that never arrives. That is a
-    // product decision for the parent, not a silent change here.
+    // differentiate a decoy token (409) from a live token that receives a
+    // real emailed code, so a prober who completes the full 3-step flow can
+    // still infer existence one hop later. Fully closing that requires
+    // fake-progression through the whole flow, which would also turn the
+    // clear "already registered, sign in" guidance for real users into a
+    // dead-end wait for a code that never arrives. That is a product
+    // decision for the parent, not a silent change here.
     if (existing.rows.length > 0) {
       return res.json({
-        token: crypto.randomBytes(32).toString('hex'),
+        token: issueDecoyRegistrationToken(normalized.email),
         message: 'Basic info validated',
         registrationExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       });
@@ -1547,8 +1595,12 @@ async function startRegistration(req, res) {
 
 async function acceptTerms(req, res) {
   try {
-    const { token } = req.body;
+    const { token, email } = req.body;
     if (!token) return res.status(400).json({ error: 'Token required', code: 'registration_token_required' });
+    // A signed decoy token means this email already has an account: answer
+    // with the sign-in guidance instead of the false expired-registration
+    // 404. No pending row exists for a decoy, so this runs before the lookup.
+    if (isDecoyRegistrationToken(token, email)) return decoyRegistrationResponse(res);
     const { rows } = await pool.query(
       'SELECT * FROM pending_registrations WHERE token = $1 AND expires_at > NOW()', [token]
     );
@@ -1595,8 +1647,9 @@ async function acceptTerms(req, res) {
 
 async function verifyRegistrationOTP(req, res) {
   try {
-    const { token, otp } = req.body;
+    const { token, otp, email } = req.body;
     if (!token || !otp) return res.status(400).json({ error: 'Token and OTP required', code: 'otp_required' });
+    if (isDecoyRegistrationToken(token, email)) return decoyRegistrationResponse(res);
     const { rows } = await pool.query(
       'SELECT * FROM pending_registrations WHERE token = $1 AND expires_at > NOW()', [token]
     );
@@ -1830,7 +1883,8 @@ async function verifyRegistrationOTP(req, res) {
 
 async function resendRegistrationOTP(req, res) {
   try {
-    const { token } = req.body;
+    const { token, email } = req.body;
+    if (isDecoyRegistrationToken(token, email)) return decoyRegistrationResponse(res);
     const { rows } = await pool.query(
       'SELECT * FROM pending_registrations WHERE token = $1 AND expires_at > NOW()', [token]
     );

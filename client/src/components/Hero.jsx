@@ -1,12 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import PrefetchLink from './PrefetchLink';
 import { useAuth } from '../context/AuthContext';
-import { navbarMode } from '../utils/navbarNavigation';
 
 export default function Hero({ search }) {
   const { t } = useTranslation();
-  const { user } = useAuth();
-  const helper = navbarMode(user) === 'helper';
+  const { user, hasHelperAccess } = useAuth();
+  const helper = hasHelperAccess;
 
   return (
     <div className="hp-hero-inner">

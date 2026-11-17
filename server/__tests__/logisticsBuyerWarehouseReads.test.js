@@ -101,7 +101,11 @@ describe('buyer allocation reads', () => {
     const res = await request(buildApp(BUYER_A)).get('/allocations/alloc-1');
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe('alloc-1');
-    const [text, params] = pool.query.mock.calls[0];
+    // The progressive-access projection loads the buyer row first, so find
+    // the allocation query instead of assuming it is the first call.
+    const allocationCall = pool.query.mock.calls.find(([text]) => text.includes('FROM inventory_allocations'));
+    expect(allocationCall).toBeDefined();
+    const [text, params] = allocationCall;
     expect(text).toMatch(/ia\.buyer_user_id = \$\d+/);
     expect(params).toEqual(['alloc-1', 'buyer-a']);
   });
@@ -144,7 +148,11 @@ describe('buyer delivery reads', () => {
     const res = await request(buildApp(BUYER_A)).get('/deliveries/del-1');
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe('del-1');
-    const [text, params] = pool.query.mock.calls[0];
+    // The progressive-access projection loads the buyer row first, so find
+    // the delivery query instead of assuming it is the first call.
+    const deliveryCall = pool.query.mock.calls.find(([text]) => text.includes('FROM delivery_orders'));
+    expect(deliveryCall).toBeDefined();
+    const [text, params] = deliveryCall;
     expect(text).toMatch(/d\.recipient_user_id = \$\d+/);
     expect(params).toEqual(['del-1', 'buyer-a']);
   });

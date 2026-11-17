@@ -26,7 +26,6 @@ import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import HelperCapabilitiesCatalog from '../components/HelperCapabilitiesCatalog';
-import HelperOnboardingChecklist from '../components/HelperOnboardingChecklist';
 import QuoteHistoryPanel from '../components/messaging/QuoteHistoryPanel';
 import { listAssignedMaintenanceRequests } from '../api/maintenanceRequests';
 import '../components/messaging/SharedMessengerShell.css';
@@ -1291,8 +1290,6 @@ export default function HelperDashboard() {
       <div className="helper-dashboard-shell min-h-screen text-white">
         <PageMeta title={t('helperDashboard.title')} description={t('helperDashboard.metaDesc')} noIndex={true} />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <HelperOnboardingChecklist />
-
           <section className="helper-dashboard-hero" aria-labelledby="helper-workspace-heading">
             <div className="helper-dashboard-hero__main">
               <div className="helper-dashboard-hero__eyebrow">
@@ -1305,16 +1302,6 @@ export default function HelperDashboard() {
               <p className="helper-dashboard-hero__subtitle">
                 {t('dashboard.atAGlanceHelper')}
               </p>
-              <div className="helper-dashboard-hero__roles" aria-label={t('helperDashboard.workspaceRoles', { defaultValue: 'Your OxSteed roles' })}>
-                <span className="helper-dashboard-hero__role helper-dashboard-hero__role--active">
-                  <IcoBriefcase size={15} cls="text-orange-400" />
-                  {t('helperDashboard.helperRole', { defaultValue: 'Earn as a helper' })}
-                </span>
-                <span className="helper-dashboard-hero__role">
-                  <IcoHome size={15} cls="text-sky-400" />
-                  {t('helperDashboard.customerRole', { defaultValue: 'Get help as a customer' })}
-                </span>
-              </div>
               {SHOW_HELPER_SUBSCRIPTIONS && (
                 <div className="helper-dashboard-hero__trial"><TrialBanner /></div>
               )}

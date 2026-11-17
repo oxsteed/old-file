@@ -102,7 +102,11 @@ export default function Login({ embedded = false, returnTo } = {}) {
       setUser(result.user);
     }
 
-    if (loggedInUser?.email_verified && !diditGateSatisfied(loggedInUser)) {
+    // Customer-first accounts may enter the product before identity review.
+    // Helper listing and work actions enforce Didit on the server; retain the
+    // login redirect only for legacy helper-role accounts during migration.
+    const legacyHelperAccount = ['helper', 'helper_pro', 'broker'].includes(loggedInUser?.role);
+    if (legacyHelperAccount && loggedInUser?.email_verified && !diditGateSatisfied(loggedInUser)) {
       toast.success(t('login.verifyIdentityToast'));
       // UI gaps item 6: the non-embedded verify path used to drop the
       // return path, so a gated login landed on a dashboard instead of

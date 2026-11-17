@@ -6560,6 +6560,7 @@
       }
     },
     "capabilityHelp": {
+      "customer": "Publiez des tâches, embauchez des aides, achetez sur le marché.",
       "helper": {
         "offer_services": "Faites des offres sur des missions et soyez payé."
       },

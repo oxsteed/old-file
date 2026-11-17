@@ -17,7 +17,7 @@ const { chromium } = require('playwright-core');
 const root = path.resolve(__dirname, '..');
 const catalogs = Object.fromEntries(['en'].map(language => {
   const legacy = JSON.parse(fs.readFileSync(path.join(root, `src/locales/${language}.json`)));
-  return [language, { translation: Object.fromEntries(['nav', 'modes', 'statementCenter', 'modeSwitcher', 'businessHub', 'common', 'commandPalette'].map(key => [key, legacy[key]])),
+  return [language, { translation: Object.fromEntries(['nav', 'statementCenter', 'businessHub', 'common', 'commandPalette'].map(key => [key, legacy[key]])),
     common: JSON.parse(fs.readFileSync(path.join(root, `src/i18n/locales/${language}/common.json`))) }];
 }));
 const businesses = [{ business_id: 1, business_name: 'Springfield Shop', role: 'owner', is_owner: true, status: 'active' }];

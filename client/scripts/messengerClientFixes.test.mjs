@@ -45,7 +45,7 @@ test('customer, helper, and business workspaces render without state initializat
         useRef: React.useRef,
         useState: React.useState,
         useTranslation: () => ({ t: key => key }),
-        useAuth: () => ({ user: { id: 1 }, isHelper: Boolean(scenario.isHelper) }),
+        useAuth: () => ({ user: { id: 1 }, hasHelperAccess: Boolean(scenario.isHelper) }),
         useLocation: () => ({ pathname: scenario.pathname, search: '' }),
         useParams: () => ({ conversationId: scenario.conversationId, inquiryId: scenario.inquiryId }),
         useNavigate: () => () => {},

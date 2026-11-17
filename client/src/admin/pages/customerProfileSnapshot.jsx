@@ -32,7 +32,7 @@ export function renderCustomerProfileMarkup({ type, id, content, i18n, language,
     <QueryClientProvider client={queryClient}>
       <I18nextProvider i18n={i18n}>
       <LanguageContext.Provider value={{ language, availableLanguages, setLanguage: noop, syncLanguageFromServer: noop }}>
-        <AuthContext.Provider value={{ user: null, loading: false, initialized: true, isHelper: false, logout: noop }}>
+        <AuthContext.Provider value={{ user: null, loading: false, initialized: true, logout: noop }}>
           <ThemeContext.Provider value={{ isDark: theme === 'dark', toggleTheme: noop }}>
             <CookieConsentContext.Provider value={{ preferences: null, showBanner: false, showSettings: false,
               acceptAll: noop, rejectAll: noop, savePreferences: noop, openSettings: noop, closeSettings: noop, hasConsent: () => false }}>

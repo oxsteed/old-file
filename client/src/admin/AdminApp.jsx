@@ -35,7 +35,6 @@ const PricingConfig = lazyWithRetry(() => import('./pages/super/PricingConfig'))
 const PricingOverrides = lazyWithRetry(() => import('./pages/super/PricingOverrides'));
 const CountryPacks = lazyWithRetry(() => import('./pages/super/CountryPacks'));
 const ModePolicies = lazyWithRetry(() => import('./pages/super/ModePolicies'));
-const ModeApprovals = lazyWithRetry(() => import('./pages/super/ModeApprovals'));
 const GovernancePage = lazyWithRetry(() => import('./pages/super/workspaces/GovernancePage'));
 const Revenue = lazyWithRetry(() => import('./pages/super/Revenue'));
 const MoneyPage = lazyWithRetry(() => import('./pages/super/MoneyPage'));
@@ -513,9 +512,6 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('modePolicies').relative} element={
             <AdminGuard superOnly={adminRoute('modePolicies').superOnly}><ModePolicies /></AdminGuard>
-          } />
-          <Route path={adminRoute('modeApprovals').relative} element={
-            <AdminGuard superOnly={adminRoute('modeApprovals').superOnly}><ModeApprovals /></AdminGuard>
           } />
           <Route path={adminRoute('governance').relative} element={
             <AdminGuard superOnly={adminRoute('governance').superOnly}><GovernancePage /></AdminGuard>

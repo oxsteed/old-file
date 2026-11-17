@@ -18,7 +18,7 @@ test('job edit: changed-fields patch, conflict recovery, field errors, and RTL',
     '../api/businesses':`export const redeemVortexToken=async()=>({});`,
     '../api/vortex':`export const previewVortexCode=async()=>({});export const redeemVortexCode=async()=>({});`,
     './PrefetchLink':`export {Link as default} from 'react-router-dom';`,
-    './ModeSwitcher':`export default()=>null;`, './BusinessSwitcher':`export default()=>null;`,
+    './BusinessSwitcher':`export default()=>null;`,
     './LanguageSelector':`export default()=>null;`, './ThemeToggle':`export default()=>null;`, './OxSteedNetworkSwitcher':`export default()=>null;`,
   };
   const bundle=await build({stdin:{contents:`import React from 'react';import{createRoot}from'react-dom/client';import{BrowserRouter,Routes,Route,useNavigate}from'react-router-dom';import{QueryClient,QueryClientProvider}from'@tanstack/react-query';import{createInstance}from'i18next';import{I18nextProvider}from'react-i18next';import{AuthContext}from'../context/AuthContext';import{CookieConsentProvider}from'./src/context/CookieConsentContext.tsx';import JobEditPage from './src/pages/JobEditPage.jsx';

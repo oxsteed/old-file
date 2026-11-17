@@ -20,15 +20,15 @@ export function normalizeSignupRegion(country, value) {
 }
 
 export const SIGNUP_FIELD_KEYS = {
-  defaultMode: 'modeError', firstName: 'firstNameError', lastName: 'lastNameError', email: 'emailError',
+  signupIntent: 'modeError', firstName: 'firstNameError', lastName: 'lastNameError', email: 'emailError',
   phone: 'phoneError', country: 'countryError', addressLine1: 'addressError', city: 'cityError',
   state: 'stateError', zipCode: 'postalError', password: 'passwordError', ageConfirmed: 'ageError', termsAccepted: 'termsError',
 };
 
-export function validateSignup(form, modes) {
+export function validateSignup(form, intents) {
   const fields = {};
   const fail = field => { fields[field] = SIGNUP_FIELD_KEYS[field]; };
-  if (!modes.includes(form.defaultMode)) fail('defaultMode');
+  if (!intents.includes(form.signupIntent)) fail('signupIntent');
   for (const [field, limit] of [['firstName', 100], ['lastName', 100], ['addressLine1', 255], ['city', 100]]) {
     const value = String(form[field] || '').trim();
     if (!value || value.length > limit || /<script|javascript:|on\w+\s*=/i.test(value)) fail(field);

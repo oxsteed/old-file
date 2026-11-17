@@ -2,11 +2,10 @@
 // (GET /api/me/access → access.personal[] / organizations[]) instead of the
 // legacy default_mode, when ACCESS_PROJECTION_ENABLED is on for the user.
 //
-// default_mode stays the person's *dashboard preference*; the projection
-// decides whether that preference is still backed by access. A preference
-// whose access was removed falls back to the personal Home with a notice.
-// New approvals never replace the person's dashboard choice: they only add
-// shortcuts. Mirrors MODE_CAPABILITY in server/services/access/modeGate.js.
+// In the progressive experience every account lands in the customer
+// workspace. The projection adds capability shortcuts in place; legacy
+// default_mode remains readable for compatibility and old clients.
+// Mirrors MODE_CAPABILITY in server/services/access/modeGate.js.
 
 export const MODE_CAPABILITY = Object.freeze({
   helper: ['helper.offer_services'],

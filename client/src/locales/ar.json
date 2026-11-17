@@ -5758,9 +5758,6 @@
       "statusPaid": "مدفوع"
     },
     "workspaceEyebrow": "مساحة عملك في OxSteed",
-    "workspaceRoles": "أدوارك في OxSteed",
-    "helperRole": "اكسب كمساعد",
-    "customerRole": "احصل على المساعدة كعميل",
     "customerLaneEyebrow": "الجانب الآخر من OxSteed",
     "customerLaneTitle": "هل تحتاج إلى مساعدة؟",
     "customerLaneCopy": "حسابك كمساعد هو أيضًا حسابك كعميل. أنجز أعمالك أو احجز مساعدة محلية أو اطلب الطعام دون إنشاء ملف آخر.",
@@ -17474,70 +17471,6 @@
     "verifying": "جارٍ التحقق...",
     "editDetails": "البريد الإلكتروني أو الهاتف غير صحيح؟ تعديل البيانات",
     "errorMode": "يرجى اختيار وضع."
-  },
-  "modeSwitcher": {
-    "mode": "الوضع",
-    "switchTo": "التبديل إلى",
-    "setAsDefault": "تعيين كافتراضي",
-    "setAsDefaultHint": "افتح هذا الوضع عند كل تسجيل دخول",
-    "defaultBadge": "افتراضي",
-    "currentBadge": "الحالي",
-    "switchedTo": "تم التبديل إلى {{mode}}",
-    "switchFailed": "تعذر التبديل."
-  },
-  "modes": {
-    "customer": {
-      "label": "عميل",
-      "hint": "انشر وظائف، وظّف مساعدين، وتسوق من السوق."
-    },
-    "helper": {
-      "label": "مساعد",
-      "hint": "قدّم خدماتك، وقدّم عروضًا على الوظائف، وابنِ سمعتك."
-    },
-    "logistics": {
-      "label": "اللوجستيات",
-      "hint": "وفّر السلع، وانضم إلى طلبات مجمّعة، وتتبع الشحن، وأدر التوزيع."
-    },
-    "business_owner": {
-      "label": "مالك عمل",
-      "hint": "أدر عملًا خدميًا مع العملاء والفواتير والفريق."
-    },
-    "consultant": {
-      "label": "مستشار",
-      "hint": "قدّم المشورة للأعمال الأخرى واحجز جلسات مدفوعة."
-    },
-    "tool_owner": {
-      "label": "مالك أدوات",
-      "hint": "اعرض أدواتك للإيجار في منطقتك."
-    },
-    "franchise_applicant": {
-      "label": "متقدم للامتياز",
-      "hint": "تقدّم لتشغيل عمل OxSteed بنظام الامتياز."
-    },
-    "life_only": {
-      "label": "الحياة",
-      "hint": "أدر أموالك الشخصية ومركباتك ومنزلك."
-    },
-    "business_manager": {
-      "label": "مدير عمل",
-      "hint": "أدر مساحة عمل لا تملكها."
-    },
-    "business_representative": {
-      "label": "ممثل",
-      "hint": "مثّل عملًا أمام العملاء."
-    },
-    "business_employee": {
-      "label": "موظف",
-      "hint": "اعمل على الوظائف المسندة إليك."
-    },
-    "business_support_agent": {
-      "label": "وكيل دعم",
-      "hint": "تولَّ دعم العملاء للأعمال التي تعمل معها."
-    },
-    "admin": {
-      "label": "مسؤول",
-      "hint": "أدر منصة OxSteed."
-    }
   },
   "lifePages": {
     "backToDashboard": "العودة إلى لوحة التحكم",
@@ -31998,26 +31931,6 @@
   "adminLogisticsAccessUpdate": "تحديث الوصول الداخلي",
   "adminLogisticsAccessUpdated": "تم تحديث الوصول الداخلي.",
   "adminLogisticsAccessYou": "(أنت)",
-  "adminModeApprovalsActionFailed": "فشل",
-  "adminModeApprovalsApproved": "تمت الموافقة",
-  "adminModeApprovalsConfirmMessage": "الموافقة على {{name}} لوضع {{mode}}؟ سيتم فتح إجراءاته المقيدة.",
-  "adminModeApprovalsConfirmRejection": "تأكيد الرفض",
-  "adminModeApprovalsConfirmTitle": "الموافقة على طلب الوضع",
-  "adminModeApprovalsEmptyQueue": "لا توجد طلبات معلقة. عمل رائع.",
-  "adminModeApprovalsFilterByMode": "تصفية حسب الوضع",
-  "adminModeApprovalsModeBusinessOwner": "business_owner",
-  "adminModeApprovalsModeConsultant": "consultant",
-  "adminModeApprovalsModeFranchiseApplicant": "franchise_applicant",
-  "adminModeApprovalsModeHelper": "helper",
-  "adminModeApprovalsModeToolOwner": "tool_owner",
-  "adminModeApprovalsNoData": "لم يتم تقديم بيانات الطلب.",
-  "adminModeApprovalsReasonPlaceholder": "السبب: مرئي لمقدم الطلب",
-  "adminModeApprovalsReasonRequired": "يرجى تقديم سبب",
-  "adminModeApprovalsReject": "رفض",
-  "adminModeApprovalsRejected": "مرفوض",
-  "adminModeApprovalsSubmitted": "تم التقديم {{date}}",
-  "adminModeApprovalsSubtitle": "راجع طلبات المستخدمين التي تحتاج إلى موافقة OxSteed قبل تنفيذ الإجراءات المقيدة.",
-  "adminModeApprovalsTitle": "موافقات المنصة المعلقة",
   "adminOneTruthAccessApproverEmail": "البريد الإلكتروني للمعتمِد",
   "adminOneTruthAccessExpiry": "مدة الوصول",
   "adminOneTruthAccessExpiry24": "24 ساعة",
@@ -32501,7 +32414,6 @@
     "logisticsOps": "عمليات اللوجستيات",
     "messages": "الرسائل",
     "modeAll": "الكل",
-    "modeApprovals": "موافقات الأوضاع",
     "modeEssential": "أساسية",
     "modePolicies": "سياسات الأوضاع",
     "moderation": "الإشراف",

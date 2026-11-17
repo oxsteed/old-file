@@ -5758,9 +5758,6 @@
       "statusPaid": "Paid"
     },
     "workspaceEyebrow": "Your OxSteed workspace",
-    "workspaceRoles": "Your OxSteed roles",
-    "helperRole": "Earn as a helper",
-    "customerRole": "Get help as a customer",
     "customerLaneEyebrow": "The other side of OxSteed",
     "customerLaneTitle": "Need a hand yourself?",
     "customerLaneCopy": "Your helper account is also your customer account. Get work done, book local help, or order food without creating another profile.",
@@ -17463,70 +17460,6 @@
     "verifying": "Verifying...",
     "editDetails": "Wrong email or phone? Edit details",
     "errorMode": "Please pick a mode."
-  },
-  "modeSwitcher": {
-    "mode": "Mode",
-    "switchTo": "Switch to",
-    "setAsDefault": "Set default",
-    "setAsDefaultHint": "Land here on every sign-in",
-    "defaultBadge": "Default",
-    "currentBadge": "Current",
-    "switchedTo": "Switched to {{mode}}",
-    "switchFailed": "Could not switch."
-  },
-  "modes": {
-    "customer": {
-      "label": "Customer",
-      "hint": "Post jobs, hire helpers, shop the marketplace."
-    },
-    "helper": {
-      "label": "Helper",
-      "hint": "Offer services, bid on jobs, build your reputation."
-    },
-    "logistics": {
-      "label": "Logistics",
-      "hint": "Source goods, join pooled orders, track freight, and manage distribution."
-    },
-    "business_owner": {
-      "label": "Business Owner",
-      "hint": "Run a service business with clients, invoices, and a team."
-    },
-    "consultant": {
-      "label": "Consultant",
-      "hint": "Advise other businesses and book paid sessions."
-    },
-    "tool_owner": {
-      "label": "Tool Owner",
-      "hint": "List your tools for rent in your area."
-    },
-    "franchise_applicant": {
-      "label": "Franchise Applicant",
-      "hint": "Apply to operate a franchised OxSteed business."
-    },
-    "life_only": {
-      "label": "Life",
-      "hint": "Manage your personal finances, vehicles, and home."
-    },
-    "business_manager": {
-      "label": "Business Manager",
-      "hint": "Manage a workspace you don't own."
-    },
-    "business_representative": {
-      "label": "Representative",
-      "hint": "Represent a business with customers."
-    },
-    "business_employee": {
-      "label": "Employee",
-      "hint": "Work on jobs assigned to you."
-    },
-    "business_support_agent": {
-      "label": "Support Agent",
-      "hint": "Handle customer support for the businesses you work for."
-    },
-    "admin": {
-      "label": "Admin",
-      "hint": "Administer the OxSteed platform."
-    }
   },
   "lifePages": {
     "backToDashboard": "Back to dashboard",
@@ -31887,26 +31820,6 @@
   "adminLogisticsAccessUpdate": "Update Internal Access",
   "adminLogisticsAccessUpdated": "Internal access updated.",
   "adminLogisticsAccessYou": "(you)",
-  "adminModeApprovalsActionFailed": "Failed",
-  "adminModeApprovalsApproved": "Approved",
-  "adminModeApprovalsConfirmMessage": "Approve {{name}} for {{mode}} mode? Their gated actions will unlock.",
-  "adminModeApprovalsConfirmRejection": "Confirm rejection",
-  "adminModeApprovalsConfirmTitle": "Approve mode request",
-  "adminModeApprovalsEmptyQueue": "No pending applications. Nicely done.",
-  "adminModeApprovalsFilterByMode": "Filter by mode",
-  "adminModeApprovalsModeBusinessOwner": "business_owner",
-  "adminModeApprovalsModeConsultant": "consultant",
-  "adminModeApprovalsModeFranchiseApplicant": "franchise_applicant",
-  "adminModeApprovalsModeHelper": "helper",
-  "adminModeApprovalsModeToolOwner": "tool_owner",
-  "adminModeApprovalsNoData": "No application data submitted.",
-  "adminModeApprovalsReasonPlaceholder": "Reason: visible to the applicant",
-  "adminModeApprovalsReasonRequired": "Please provide a reason",
-  "adminModeApprovalsReject": "Reject",
-  "adminModeApprovalsRejected": "Rejected",
-  "adminModeApprovalsSubmitted": "Submitted {{date}}",
-  "adminModeApprovalsSubtitle": "Review applications from users who need OxSteed sign-off before performing gated actions.",
-  "adminModeApprovalsTitle": "Pending platform approvals",
   "adminOneTruthAccessApproverEmail": "Approver email",
   "adminOneTruthAccessExpiry": "Access duration",
   "adminOneTruthAccessExpiry24": "24 hours",
@@ -32390,7 +32303,6 @@
     "logisticsOps": "Logistics Ops",
     "messages": "Messages",
     "modeAll": "All",
-    "modeApprovals": "Mode Approvals",
     "modeEssential": "Essential",
     "modePolicies": "Mode Policies",
     "moderation": "Moderation",

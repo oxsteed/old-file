@@ -1,31 +1,44 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { navbarMode, navbarNavigation, navbarLinkActive, navbarWorkspacePath } from '../src/utils/navbarNavigation.js';
-import { hasProAccess } from '../src/utils/modeAccess.js';
+import { navbarNavigation, navbarLinkActive, navbarWorkspacePath } from '../src/utils/navbarNavigation.js';
+import { hasProAccess, hasBusinessHubAccess } from '../src/utils/modeAccess.js';
 
-const shapes = {
-  customer: [['findHelp', '/helpers'], ['myJobs', '/my-jobs'], ['orderFood', '/restaurants'], ['messages', '/messages'], ['postJob', '/post-job']],
-  helper: [['browseJobs', '/jobs'], ['myWork', '/helper-dashboard'], ['messages', '/helper/messages']],
-  business_owner: [['dashboard', '/dashboard'], ['workspace', '/business-hub'], ['messages', '/helper/messages']],
-};
-for (const [mode, expected] of Object.entries(shapes)) {
-  test(`${mode} exposes the ordered daily priorities and one primary action`, () => {
-    const result = navbarNavigation({ default_mode: mode, role: 'helper' });
-    assert.deepEqual(result.primary.map(({ id, to }) => [id, to]), expected);
-    assert.deepEqual(result.primary.filter(item => item.primary).map(item => item.id), [mode === 'customer' ? 'postJob' : mode === 'helper' ? 'browseJobs' : 'workspace']);
-    assert.equal(result.showBusinessSwitcher, mode === 'business_owner');
+// WP-104: navigation is projection-only. Every account gets the customer
+// primary links, whatever its role or default_mode; capabilities add account
+// shortcuts and the business switcher comes from projection organizations.
+const CUSTOMER_PRIMARY = [['findHelp', '/helpers'], ['myJobs', '/my-jobs'], ['orderFood', '/restaurants'], ['messages', '/messages'], ['postJob', '/post-job']];
+const CUSTOMER_ACCOUNT = ['dashboard', 'foodOrders', 'settings', 'wallet', 'statements'];
+
+for (const user of [
+  { default_mode: 'customer', role: 'customer' },
+  { default_mode: 'helper', role: 'helper' },
+  { role: 'helper_pro' },
+  { role: 'broker' },
+  { default_mode: 'business_owner', role: 'helper' },
+  { default_mode: 'business_manager', role: 'helper' },
+  { default_mode: 'business_support_agent', role: 'support_agent' },
+  { default_mode: 'admin', role: 'admin' },
+  { default_mode: 'consultant', role: 'helper' },
+  { default_mode: 'logistics', role: 'customer' },
+]) {
+  test(`projection-only navigation: ${user.default_mode || user.role} gets the customer primary links`, () => {
+    const result = navbarNavigation(user);
+    assert.equal(result.mode, 'customer');
+    assert.deepEqual(result.primary.map(({ id, to }) => [id, to]), CUSTOMER_PRIMARY);
+    assert.deepEqual(result.primary.filter(item => item.primary).map(item => item.id), ['postJob']);
+    assert.equal(result.showBusinessSwitcher, false);
+    assert.deepEqual(result.account.map(item => item.id), CUSTOMER_ACCOUNT);
     assert.ok(result.account.some(item => item.to === '/settings'));
     assert.ok(result.account.some(item => item.to === '/statements'));
   });
 }
-test('legacy helper variants and explicit mode use the same navigation', () => {
-  for (const role of ['helper', 'helper_pro', 'broker']) {
-    assert.equal(navbarMode({ role }), 'helper');
-    assert.deepEqual(navbarNavigation({ role }), navbarNavigation({ role, default_mode: 'helper' }));
+
+test('role and default_mode no longer change the navigation', () => {
+  const baseline = navbarNavigation({ role: 'customer', default_mode: 'customer' });
+  for (const user of [{ role: 'helper' }, { role: 'helper', default_mode: 'helper' }, { role: 'helper', default_mode: 'business_owner' }, { role: 'admin', default_mode: 'admin' }]) {
+    assert.deepEqual(navbarNavigation(user), baseline);
   }
-  assert.equal(navbarMode({ role: 'helper', default_mode: 'customer' }), 'customer');
-  assert.equal(navbarMode({ role: 'customer' }), 'customer');
 });
 
 test('client Pro visibility follows billing state independently of helper capability', () => {
@@ -33,23 +46,28 @@ test('client Pro visibility follows billing state independently of helper capabi
   assert.equal(hasProAccess({ role: 'customer', tier: 'pro', subscription_status: 'cancelled' }), false);
   assert.equal(hasProAccess({ role: 'customer', tier: 'free', subscription_status: 'none', trial_ends_at: new Date(Date.now() + 3600000).toISOString() }), true);
 });
-test('granted business roles use workspace navigation; support and admin retain their dashboards', () => {
-  for (const mode of ['business_manager', 'business_representative', 'business_employee']) {
-    assert.deepEqual(navbarNavigation({ default_mode: mode }).primary, navbarNavigation({ default_mode: 'business_owner' }).primary);
-  }
-  for (const [mode, dashboardPath] of [['admin', '/admin'], ['business_support_agent', '/support/agent'], ['logistics', '/logistics/buyer']]) {
-    const result = navbarNavigation({ default_mode: mode }, { dashboardPath, showSupportWorkspace: true });
-    assert.ok(result.primary.some(item => item.to === dashboardPath));
-    assert.equal(result.account.filter(item => item.to === '/support/agent').length, mode === 'business_support_agent' ? 0 : 1);
-  }
+
+test('Business Hub access comes from the projection, not the mode', () => {
+  const on = (personal, organizations = [], flags = {}) => ({ flags: { accessProjection: true, ...flags }, access: { personal, organizations } });
+  assert.equal(hasBusinessHubAccess(null), false);
+  assert.equal(hasBusinessHubAccess({ flags: {}, access: { personal: ['customer'] } }), false);
+  assert.equal(hasBusinessHubAccess(on(['customer'])), false);
+  assert.equal(hasBusinessHubAccess(on(['customer'], [{ type: 'business', id: '1', role: 'employee' }])), true);
+  assert.equal(hasBusinessHubAccess(on(['customer'], [{ type: 'business', id: '1', role: 'owner' }])), true);
+  // Active customers with an open access request can prepare private drafts.
+  assert.equal(hasBusinessHubAccess(on(['customer'], [], { accessRequests: true })), true);
+  assert.equal(hasBusinessHubAccess(on(['helper.offer_services'], [], { accessRequests: true })), false);
 });
-test('Account keeps personal tasks and permission-gated support out of the primary row', () => {
-  const customer = navbarNavigation({ default_mode: 'customer' });
-  assert.deepEqual(customer.account.map(item => item.id), ['dashboard', 'foodOrders', 'settings', 'wallet', 'statements']);
-  assert.equal(customer.account.some(item => item.id === 'workspace'), false);
-  assert.deepEqual(navbarNavigation({ default_mode: 'helper' }).account.map(item => item.id), ['workspace', 'settings', 'wallet', 'statements']);
+
+test('dashboard path drives the dashboard account link; support workspace is opt-in only', () => {
+  const result = navbarNavigation({ default_mode: 'business_support_agent' }, { dashboardPath: '/support/agent', showSupportWorkspace: true });
+  assert.equal(result.account.find(item => item.id === 'dashboard').to, '/support/agent');
+  assert.equal(result.account.filter(item => item.to === '/support/agent').length, 2);
+  const plain = navbarNavigation({ default_mode: 'customer' });
+  assert.equal(plain.account.some(item => item.id === 'support'), false);
   assert.equal(navbarNavigation({ default_mode: 'customer' }, { showSupportWorkspace: true }).account.at(-1).to, '/support/agent');
 });
+
 test('workspace URL wins over saved selection and never invents a business for new owners', () => {
   assert.equal(navbarWorkspacePath('/business/42/workspace/calendar', '9'), '/business/42/workspace');
   assert.equal(navbarWorkspacePath('/business/a%20b/workspace', '9'), '/business/a%20b/workspace');
@@ -98,13 +116,15 @@ test('projection: approvals add shortcuts without replacing the view; removed ac
   // Organization membership: workspace shortcut from the customer view.
   nav = navbarNavigation({ role: 'customer', default_mode: 'customer' }, { projection: on(['customer'], [{ type: 'business', id: '1', role: 'employee' }]) });
   assert.ok(nav.account.some((i) => i.to === '/business-hub'));
-  // No duplicates when the view already exposes the destination.
+  assert.equal(nav.showBusinessSwitcher, true);
+  // Capability links are additive while Home remains customer-first.
   nav = navbarNavigation({ role: 'helper', default_mode: 'helper' }, { projection: on(['customer', 'helper.offer_services']) });
-  assert.equal(nav.mode, 'helper');
+  assert.equal(nav.mode, 'customer');
   assert.equal([...nav.primary, ...nav.account].filter((i) => i.to === '/helper-dashboard').length, 1);
-  // Flag off or no projection: byte-for-byte legacy.
-  const legacy = navbarNavigation({ role: 'helper', default_mode: 'helper' });
-  assert.deepEqual(navbarNavigation({ role: 'helper', default_mode: 'helper' }, { projection: { flags: {}, access: { personal: ['customer'] } } }), legacy);
+  // WP-104: flag off or no projection is the customer baseline, not legacy.
+  const baseline = navbarNavigation({ role: 'customer', default_mode: 'customer' });
+  assert.deepEqual(navbarNavigation({ role: 'helper', default_mode: 'helper' }), baseline);
+  assert.deepEqual(navbarNavigation({ role: 'helper', default_mode: 'helper' }, { projection: { flags: {}, access: { personal: ['customer'] } } }), baseline);
 });
 
 test('approved consultants can open referrals from their customer navigation', () => {
@@ -125,9 +145,9 @@ test('projection backs the logistics mode and adds buyer access without replacin
   assert.ok(approved.account.some((item) => item.to === '/logistics/buyer'));
   assert.ok(approved.account.some((item) => item.to === '/logistics/organizer'));
 
-  const logistics = navbarNavigation({ role: 'customer', default_mode: 'logistics' }, { dashboardPath: '/logistics/buyer', projection: on(['customer', 'logistics.ship']) });
-  assert.equal(logistics.mode, 'logistics');
-  assert.ok(logistics.primary.some((item) => item.to === '/logistics/buyer'));
+  const logistics = navbarNavigation({ role: 'customer', default_mode: 'logistics' }, { projection: on(['customer', 'logistics.ship']) });
+  assert.equal(logistics.mode, 'customer');
+  assert.ok(logistics.account.some((item) => item.to === '/logistics/buyer'));
 
   const revoked = navbarNavigation({ role: 'customer', default_mode: 'logistics' }, { projection: on(['customer']) });
   assert.equal(revoked.mode, 'customer');

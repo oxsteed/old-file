@@ -4,6 +4,29 @@ Branch `feat/progressive-account-access`, PR https://github.com/oxsteed/old-file
 base `old-files-claude`). Spec: [SPEC.md](SPEC.md). Ledger: [PROGRESS.md](PROGRESS.md).
 Anyone (human or agent) can resume from this file alone.
 
+## PR #797 cutover checkpoint
+
+[PR #797](https://github.com/oxsteed/old-file/pull/797) contains the customer-first
+cutover. Home and Dashboard now require an explicit projection rollback response
+before using a legacy route. The shared access read refreshes after focus, app
+resume and application events. When an application changes during a read, the
+client skips that result and reads again. The browser suite exercises both this
+race and the loss of access after a failed refresh.
+
+The workspace, operations, font and Home browser fixtures now model canonical
+access. The local client build, locale validation, frontend reference checks and
+growth registry passed. Nine affected Chrome scenarios passed, including the
+navbar matrix and mobile sign-out. The [preceding CI run](https://github.com/oxsteed/old-file/actions/runs/44070155981)
+passed the server suite and reported five browser failures addressed here.
+
+Before rollout, validate the backfill on a disposable snapshot. Current
+`legacyMapping.js` still infers equipment and logistics access from mode strings.
+Check those cases against listings, approvals and organization records, and queue
+ambiguous cases before applying backfill. Trace the shared mode writer used by
+profile, mobile and `/switch-role` before removing any compatibility signal.
+Production backfill, helper/business enforcement and live browser acceptance
+require separate verification.
+
 ## Resume checklist
 
 1. `git status` and `git log --oneline -15` on the branch. Uncommitted work from an
@@ -94,12 +117,30 @@ Spec "Commit-sized delivery sequence" + "Phase 0–5":
   `access_request_not_found` (404), `decision_not_permitted` (403),
   `self_review_forbidden` (403), `idempotency_key_reused` (422),
   `feature_disabled` (503, existing).
-- **Flags** (server env, all default **off**, exposed to client through boot):
+- **Flags** (server env, progressive path defaults **on** with explicit false
+  rollback, exposed to client through boot):
   `ACCESS_REQUESTS_ENABLED`, `ACCESS_PROJECTION_ENABLED`,
   `ACCESS_CUSTOMER_FIRST_SIGNUP`, `ACCESS_HELPER_ENFORCEMENT` (`off|shadow|enforce`),
   `ACCESS_LEGACY_SWITCH_RETIRED`, `ACCESS_BUSINESS_ENFORCEMENT` (`off|shadow|enforce`, WP-046),
   `ACCESS_CONSULTANT_ENFORCEMENT` (`off|shadow|enforce`, WP-074),
   `ACCESS_INVESTOR_ENFORCEMENT` (`off|shadow|enforce`, WP-077).
+
+## Cutover checkpoint (2026-11-16)
+
+- Server flags and Coolify Compose defaults enable customer-first signup,
+  access requests, and access projection. An explicit `false` remains the
+  rollback path for each flag.
+- The authenticated client uses a projection-owned customer workspace. Approved
+  helper, business, logistics, and consulting capabilities add links without a
+  mode switcher or a separate account home.
+- Ordinary customer routes no longer redirect to Didit. Helper activation
+  opts into the client gate, while server helper listing and work gates remain
+  the authority boundary.
+- Signup sends `signupIntent` only. Expired registration tokens clear locally
+  and allow a fresh start from the same form.
+- Legacy `users.role`/`default_mode`, `POST /switch-role`, and `modeRole` remain
+  readable for the compatibility window; retirement still requires telemetry
+  and minimum-client evidence.
 
 ## Decisions for Emile (safe default implemented, behind config)
 
@@ -189,8 +230,9 @@ remain in Applications. If draft creation was interrupted, Applications can
 resume the saved signup intent. The same editor is used in Settings.
 
 Coolify Compose passes the signup, request, projection, legacy switch, Helper
-and Business rollout settings into the app with default-off values. A staged
-release should exercise all three signup choices with the application reviewer
+and Business rollout settings into the app with customer-first signup,
+requests, and projection on by default. An explicit false remains available
+for rollback. A staged release should exercise all three signup choices with the application reviewer
 and the first approved action, using the real web shell and both legacy and
 new accounts. Preserve existing Helper and Owner access through the documented
 backfill before changing cohort-wide projection or enforcement. Contextual

@@ -10,8 +10,13 @@ test('P2-477: helper signup records terms on the pending registration', () => {
   assert.match(read('components/registration/AccountForm.tsx'), /\/helper-registration\/registration-terms/);
 });
 
-test('P2-476: helper dashboard renders the onboarding checklist', () => {
-  assert.match(read('pages/HelperDashboard.jsx'), /<HelperOnboardingChecklist \/>/);
+test('P2-476: Jobs work surface renders the helper onboarding checklist', () => {
+  // WP-104: the checklist moved off the helper dashboard onto the Jobs work
+  // surface, gated on helper access; the component contract is unchanged.
+  const jobs = read('pages/JobListPage.jsx');
+  assert.match(jobs, /<HelperOnboardingChecklist \/>/);
+  assert.match(jobs, /hasHelperAccess/);
+  assert.doesNotMatch(read('pages/HelperDashboard.jsx'), /<HelperOnboardingChecklist \/>/);
   const checklist = read('components/HelperOnboardingChecklist.jsx');
   assert.match(checklist, /onboarding\/status/);
   assert.match(checklist, /\/finalize/);

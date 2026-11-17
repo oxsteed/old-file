@@ -30,6 +30,7 @@ const {
   parseEntity,
   audit: auditCatalog,
 } = require('../services/directCatalogService');
+const { normalizeSignupIntent } = require('../services/access/policyRegistry');
 const {
   computeServiceSlots,
   createHold,
@@ -2788,7 +2789,10 @@ exports.getTeam = async (_req, res) => {
         lastName: row.last_name || '',
         email: row.email || '',
         role: row.role || '',
-        defaultMode: row.default_mode || '',
+        // WP-104: the team list sends the member's intent, not a mode. The
+        // Direct team view only renders name, email, and role; no client
+        // reads this field for a decision.
+        intent: normalizeSignupIntent(row.default_mode),
         createdAt: row.created_at,
       })),
     });

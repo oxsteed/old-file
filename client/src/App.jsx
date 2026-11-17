@@ -273,6 +273,7 @@ import PwaInstallPrompt from './components/PwaInstallPrompt';
 import PushSoftAsk from './components/PushSoftAsk';
 import { LanguageProvider } from './context/LanguageContext';
 import { getLaunchRedirect, LAUNCH_VISIBILITY } from './utils/launchScope';
+import { resolveLegacyRegisterPath } from './utils/legacyDeepLinks';
 import { useTranslation } from 'react-i18next';
 import { resolveRouteMeta, applyRouteMeta } from './utils/seoMeta';
 
@@ -336,6 +337,14 @@ function LegacyHelperProfileRedirect() {
   const { helperId } = useParams();
   const location = useLocation();
   return <Navigate to={{ pathname: `/helpers/${helperId}`, search: location.search }} replace />;
+}
+
+// Former /register/<mode> entry points land on the join flow with the
+// matching intent card preselected (legacyDeepLinks.js owns the map); modes
+// with no join card land on the customer-first join flow, never a 404.
+function LegacyRegisterRedirect() {
+  const { mode } = useParams();
+  return <Navigate to={resolveLegacyRegisterPath(mode)} replace />;
 }
 
 // /orders/:id redirects to the canonical food order route since the
@@ -484,11 +493,12 @@ export default function App() {
                     <Route path="/status"                  element={<Guarded><StatusPage /></Guarded>} />
                     <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
                     <Route path="/investor/login"          element={<Guarded><InvestorLoginPage /></Guarded>} />
-                    <Route path="/register/customer"      element={<Navigate to="/join" replace />} />
-                    <Route path="/register/helper"        element={<Navigate to="/join?mode=helper" replace />} />
-                    {/* ── Unified signup (post-2026-05). /join is the single   */}
-                    {/*    customer registration page; the old /register/customer */}
-                    {/*    page redirects here for inbound links + back-compat.  */}
+                    <Route path="/register/:mode"         element={<LegacyRegisterRedirect />} />
+                    {/* ── Unified signup. /join is the single registration  */}
+                    {/*    page; the static /register/customer and            */}
+                    {/*    /register/helper redirects were removed with the  */}
+                    {/*    WP-104 cutover and now resolve through the        */}
+                    {/*    /register/:mode entry above (legacyDeepLinks).    */}
                     <Route path="/join"                    element={<Guarded><JoinPage /></Guarded>} />
                     <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
@@ -672,7 +682,7 @@ export default function App() {
                     <Route path="/dashboard"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/investor/dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestorDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/affiliate" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AffiliateDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
-                    <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute requireOnboarded><RouteErrorBoundary><HelperDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper/clients" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ClientManagementPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/activity"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><ActivityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
@@ -685,7 +695,7 @@ export default function App() {
                     <Route path="/post-job"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><PostJobPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/my-jobs"        element={<Guarded><ProtectedRoute><MyJobsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/my-bids"        element={<Guarded><ProtectedRoute><MyBidsPage /></ProtectedRoute></Guarded>} />
-                    <Route path="/helper/payouts" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperPayoutsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/helper/payouts" element={<Guarded><ProtectedRoute requireOnboarded><RouteErrorBoundary><HelperPayoutsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/invoices"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvoicesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/consultant-availability" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantAvailabilityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/consulting/contractor-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantContractorDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

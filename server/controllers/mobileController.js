@@ -18,6 +18,11 @@ const {
 const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const countriesUtil = require('../utils/countries');
 const modeRoleUtil = require('../utils/modeRole');
+const {
+  normalizeSignupIntent,
+  SIGNUP_INTENTS,
+  LEGACY_MODE_TO_INTENT,
+} = require('../services/access/policyRegistry');
 const logger = require('../utils/logger');
 const accessService = require('../services/access/accessService');
 const accessFlags = require('../services/access/flags');
@@ -28,6 +33,18 @@ const stripe = process.env.STRIPE_SECRET_KEY
 
 const VALID_PROVIDERS = new Set(['apns', 'fcm']);
 const VALID_PLATFORMS = new Set(['ios', 'android', 'web']);
+
+// WP-104: signup intent → legacy mode for mobile profile writes. The intent
+// vocabulary is the policy registry's (find_help, offer_services,
+// run_business, run_restaurant); every target is a self-selectable mode, so
+// an intent can never smuggle in a granted role. Mirrors LEGACY_MODE_TO_INTENT
+// in server/services/access/policyRegistry.js.
+const INTENT_TO_MODE = Object.freeze({
+  find_help: 'customer',
+  offer_services: 'helper',
+  run_business: 'business_owner',
+  run_restaurant: 'restaurant_owner',
+});
 
 function normalizeString(value, maxLength) {
   if (typeof value !== 'string') return null;
@@ -172,7 +189,13 @@ function formatMobileProfile(user, { progressiveAccess = false } = {}) {
     phone: user.phone || null,
     role: user.role,
     mode: {
-      defaultMode: user.default_mode || 'customer',
+      // WP-104: mobile clients send/accept an intent, not a mode. The
+      // intent names what the account is for (find_help, offer_services,
+      // run_business, run_restaurant); a mode never grants access by
+      // itself. Legacy modes collapse through normalizeSignupIntent, so a
+      // mode with no intent (logistics, consultant, tool_owner, investor,
+      // franchise_applicant, granted modes) reads as find_help here.
+      intent: normalizeSignupIntent(user.default_mode),
       role: user.role,
       selfSelectableModes: progressiveAccess ? ['customer'] : modeRoleUtil.SELF_SELECTABLE_MODES,
       grantedModes: progressiveAccess ? [] : modeRoleUtil.GRANTED_MODES,
@@ -940,12 +963,36 @@ exports.updateMobileProfile = async (req, res, next) => {
       }
     }
 
-    const requestedMode = body.defaultMode ?? body.default_mode ?? body.mode;
-    const defaultMode = requestedMode === undefined ? undefined : normalizeString(requestedMode, 80);
-    if (defaultMode !== undefined && !modeRoleUtil.isSelfSelectableMode(defaultMode)) {
-      throw new AppError('Validation failed', 400, 'validation_failed', {
-        defaultMode: 'Unsupported account mode',
-      });
+    // WP-104: new clients send `intent`; old clients still send
+    // defaultMode/default_mode/mode and keep working (their value is
+    // validated and mode-gated exactly as before, never granted by the
+    // request itself). An intent wins when both are sent.
+    const intentInput = body.intent === undefined ? undefined : normalizeString(body.intent, 80);
+    let targetMode;
+    if (intentInput !== undefined) {
+      const knownIntent = intentInput !== null
+        && (Object.prototype.hasOwnProperty.call(SIGNUP_INTENTS, intentInput)
+          || Object.prototype.hasOwnProperty.call(LEGACY_MODE_TO_INTENT, intentInput));
+      if (!knownIntent) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          intent: 'Unsupported intent',
+        });
+      }
+      targetMode = INTENT_TO_MODE[normalizeSignupIntent(intentInput)];
+      if (!modeRoleUtil.isSelfSelectableMode(targetMode)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          intent: 'Unsupported intent',
+        });
+      }
+    } else {
+      const requestedMode = body.defaultMode ?? body.default_mode ?? body.mode;
+      const defaultMode = requestedMode === undefined ? undefined : normalizeString(requestedMode, 80);
+      if (defaultMode !== undefined && !modeRoleUtil.isSelfSelectableMode(defaultMode)) {
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          defaultMode: 'Unsupported account mode',
+        });
+      }
+      targetMode = defaultMode;
     }
 
     const phone = bodyString(body, 'phone', 'phone', 40);
@@ -958,13 +1005,13 @@ exports.updateMobileProfile = async (req, res, next) => {
     await client.query('BEGIN');
     let modeSwitched = false;
     let modeChangeIgnored = null;
-    if (defaultMode !== undefined && defaultMode !== req.user.default_mode) {
+    if (targetMode !== undefined && targetMode !== req.user.default_mode) {
       // WP-005: mobile profile writes never raise authority under progressive access.
       const gate = await require('../services/access/modeGate').checkModeChange(
-        { userId: req.user.id, currentRole: req.user.role, targetMode: defaultMode }, client,
+        { userId: req.user.id, currentRole: req.user.role, targetMode }, client,
       );
       if (gate.allowed) {
-        await modeRoleUtil.applyModeSwitch(client, req.user.id, defaultMode);
+        await modeRoleUtil.applyModeSwitch(client, req.user.id, targetMode);
         modeSwitched = true;
       } else {
         modeChangeIgnored = { code: gate.code, capability: gate.capability };

@@ -3929,6 +3929,7 @@
       }
     },
     "capabilityHelp": {
+      "customer": "Pasang pekerjaan, pekerjakan helper, belanja di marketplace.",
       "helper": {
         "offer_services": "Ajukan penawaran untuk pekerjaan dan dapatkan bayaran."
       },

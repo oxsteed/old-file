@@ -139,6 +139,10 @@ ddescribe('legacy mode writes under progressive access (real database)', () => {
   });
 
   test('flags off: legacy switch behaviour unchanged', async () => {
+    // WP-104 cutover: progressive access is on by default, so "flags off"
+    // must now be stated explicitly; otherwise the gate denies the switch.
+    process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = 'false';
+    process.env.ACCESS_LEGACY_SWITCH_RETIRED = 'false';
     const u = await makeUser();
     const res = fakeRes();
     await ctrl.switchRole(req(u, { mode: 'helper' }), res);

@@ -5758,9 +5758,6 @@
       "statusPaid": "Payé"
     },
     "workspaceEyebrow": "Votre espace OxSteed",
-    "workspaceRoles": "Vos rôles OxSteed",
-    "helperRole": "Gagner comme aidant",
-    "customerRole": "Obtenir de l’aide comme client",
     "customerLaneEyebrow": "L’autre côté d’OxSteed",
     "customerLaneTitle": "Besoin d’un coup de main ?",
     "customerLaneCopy": "Votre compte d’aidant est aussi votre compte client. Faites réaliser vos travaux, réservez une aide locale ou commandez à manger sans créer un autre profil.",
@@ -17463,70 +17460,6 @@
     "verifying": "Vérification...",
     "editDetails": "E-mail ou téléphone incorrect ? Modifier les informations",
     "errorMode": "Veuillez choisir un mode."
-  },
-  "modeSwitcher": {
-    "mode": "Mode d'utilisation",
-    "switchTo": "Basculer vers",
-    "setAsDefault": "Par défaut",
-    "setAsDefaultHint": "Arriver ici à chaque connexion",
-    "defaultBadge": "Défaut",
-    "currentBadge": "Actuel",
-    "switchedTo": "Basculé vers {{mode}}",
-    "switchFailed": "Impossible de basculer."
-  },
-  "modes": {
-    "customer": {
-      "label": "Client",
-      "hint": "Publiez des tâches, embauchez des aides, achetez sur le marché."
-    },
-    "helper": {
-      "label": "Aide",
-      "hint": "Offrez vos services, postulez à des tâches, bâtissez votre réputation."
-    },
-    "logistics": {
-      "label": "Logistique",
-      "hint": "Sourcez des produits, rejoignez des achats groupés, suivez le fret et gérez la distribution."
-    },
-    "business_owner": {
-      "label": "Propriétaire d'entreprise",
-      "hint": "Dirigez une entreprise de services avec clients, factures et équipe."
-    },
-    "consultant": {
-      "label": "Conseiller",
-      "hint": "Conseillez d'autres entreprises et réservez des séances payantes."
-    },
-    "tool_owner": {
-      "label": "Propriétaire d'outils",
-      "hint": "Mettez vos outils en location dans votre région."
-    },
-    "franchise_applicant": {
-      "label": "Candidat franchisé",
-      "hint": "Demandez à exploiter une franchise OxSteed."
-    },
-    "life_only": {
-      "label": "Vie",
-      "hint": "Gérez vos finances personnelles, véhicules et maison."
-    },
-    "business_manager": {
-      "label": "Gestionnaire",
-      "hint": "Gérez un espace de travail qui ne vous appartient pas."
-    },
-    "business_representative": {
-      "label": "Représentant",
-      "hint": "Représentez une entreprise auprès des clients."
-    },
-    "business_employee": {
-      "label": "Employé",
-      "hint": "Travaillez sur les tâches qui vous sont confiées."
-    },
-    "business_support_agent": {
-      "label": "Agent de support",
-      "hint": "Gérez le support client pour les entreprises où vous travaillez."
-    },
-    "admin": {
-      "label": "Administrateur",
-      "hint": "Administrez la plateforme OxSteed."
-    }
   },
   "lifePages": {
     "backToDashboard": "Retour au tableau de bord",
@@ -31887,26 +31820,6 @@
   "adminLogisticsAccessUpdate": "Mettre à jour l'accès interne",
   "adminLogisticsAccessUpdated": "Accès interne mis à jour.",
   "adminLogisticsAccessYou": "(vous)",
-  "adminModeApprovalsActionFailed": "Échec",
-  "adminModeApprovalsApproved": "Approuvé",
-  "adminModeApprovalsConfirmMessage": "Approuver {{name}} pour le mode {{mode}} ? Ses actions restreintes seront débloquées.",
-  "adminModeApprovalsConfirmRejection": "Confirmer le rejet",
-  "adminModeApprovalsConfirmTitle": "Approuver la demande de mode",
-  "adminModeApprovalsEmptyQueue": "Aucune candidature en attente. Beau travail.",
-  "adminModeApprovalsFilterByMode": "Filtrer par mode",
-  "adminModeApprovalsModeBusinessOwner": "business_owner",
-  "adminModeApprovalsModeConsultant": "consultant",
-  "adminModeApprovalsModeFranchiseApplicant": "franchise_applicant",
-  "adminModeApprovalsModeHelper": "helper",
-  "adminModeApprovalsModeToolOwner": "tool_owner",
-  "adminModeApprovalsNoData": "Aucune donnée de candidature soumise.",
-  "adminModeApprovalsReasonPlaceholder": "Motif : visible par le demandeur",
-  "adminModeApprovalsReasonRequired": "Veuillez fournir un motif",
-  "adminModeApprovalsReject": "Rejeter",
-  "adminModeApprovalsRejected": "Rejeté",
-  "adminModeApprovalsSubmitted": "Soumis {{date}}",
-  "adminModeApprovalsSubtitle": "Examinez les candidatures des utilisateurs qui ont besoin de l'aval d'OxSteed avant d'effectuer des actions restreintes.",
-  "adminModeApprovalsTitle": "Approbations de plateforme en attente",
   "adminOneTruthAccessApproverEmail": "E-mail de l'approbateur",
   "adminOneTruthAccessExpiry": "Durée d'accès",
   "adminOneTruthAccessExpiry24": "24 heures",
@@ -32390,7 +32303,6 @@
     "logisticsOps": "Opérations logistiques",
     "messages": "Messages",
     "modeAll": "Tous",
-    "modeApprovals": "Approbations de mode",
     "modeEssential": "Essentiel",
     "modePolicies": "Politiques de mode",
     "moderation": "Modération",

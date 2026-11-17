@@ -3929,6 +3929,7 @@
       }
     },
     "capabilityHelp": {
+      "customer": "Đăng việc, thuê người giúp việc, mua sắm trên chợ.",
       "helper": {
         "offer_services": "Đặt giá cho công việc và được trả tiền cho công sức của bạn."
       },

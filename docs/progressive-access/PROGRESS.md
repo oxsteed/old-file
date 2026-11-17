@@ -19,6 +19,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 
 | WP | Title | Phase | Status | Commit | Tests |
 | --- | --- | --- | --- | --- | --- |
+| WP-104 | Cut over customer Home and refresh access | P2 | in progress | PR #797 | `build:ci` and growth registry passed locally. Browser coverage exercises resume, focus, revocation during refresh, failed access reads, and account changes. Nine affected Chrome scenarios passed. Production backfill and live acceptance are open. |
 | WP-001 | Signup entry and intent selector | P2 | implemented (customer-first browser and server flow) | 242cb47a6, c55e4966e, signup experience follow-up | With customer-first signup enabled, Join presents activity labels and sends intent. After email verification, service and business applicants can complete the policy form in the signup screen or use their new Customer account and finish later. `signup.browser-check.cjs`, `progressiveAccessSignup.db.test.js` |
 | WP-002 | Registration start and pending identity | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |
 | WP-003 | OTP finalization and bootstrap | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |

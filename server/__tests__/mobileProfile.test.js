@@ -74,7 +74,7 @@ function userRow(overrides = {}) {
 
 beforeEach(() => {
   resetMocks();
-  delete process.env.ACCESS_PROJECTION_ENABLED;
+  process.env.ACCESS_PROJECTION_ENABLED = 'false';
   delete process.env.ACCESS_PILOT_USER_IDS;
 });
 
@@ -94,12 +94,27 @@ describe('mobile authenticated profile API', () => {
     expect(res.body.data.profile.preferences.language).toBe('fr');
     expect(res.body.data.profile.preferences.country).toBe('HT');
     expect(res.body.data.profile.preferences.currencyCode).toBe('HTG');
-    expect(res.body.data.profile.mode.defaultMode).toBe('customer');
+    expect(res.body.data.profile.mode.intent).toBe('find_help');
+    expect(res.body.data.profile.mode.defaultMode).toBeUndefined();
     expect(res.body.data.profile.verification.diditEnforcementRequired).toBe(true);
     expect(res.body.data.profile.verification.identityVerificationRequired).toBe(true);
     expect(res.body.data.languages.map((language) => language.code)).toEqual(
       expect.arrayContaining(['en', 'es', 'fr', 'ht', 'ar'])
     );
+  });
+
+  test('returns the signup intent for a helper-mode account instead of the mode', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [userRow({ role: 'helper', default_mode: 'helper' })],
+    });
+
+    const res = await request(buildApp())
+      .get('/api/mobile/profile')
+      .set('Authorization', authHeader({ role: 'helper' }));
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.profile.mode.intent).toBe('offer_services');
+    expect(res.body.data.profile.mode.defaultMode).toBeUndefined();
   });
 
   test('updates mobile profile preferences and address fields', async () => {
@@ -178,5 +193,85 @@ describe('mobile authenticated profile API', () => {
       selfSelectableModes: ['customer'],
       grantedModes: [],
     });
+    expect(res.body.data.profile.mode.intent).toBe('offer_services');
+  });
+
+  // WP-104: mobile profile writes take an intent. A customer asking for the
+  // helper intent is gated (no grant, no business ownership), so the switch
+  // is ignored rather than granted; the same request with the legacy
+  // defaultMode field behaves identically, so old clients keep working.
+  test('ignores an intent the account has no access for instead of raising authority', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [userRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: USER_ID, role: 'customer', is_active: true, deleted_at: null, is_suspended: false, suspended_until: null, is_banned: false }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [userRow()] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .patch('/api/mobile/profile')
+      .set('Authorization', authHeader())
+      .send({ intent: 'offer_services' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.modeSwitched).toBe(false);
+    expect(res.body.data.modeChangeIgnored).toEqual({ code: 'access_required', capability: 'helper.offer_services' });
+    expect(res.body.data.profile.mode.intent).toBe('find_help');
+  });
+
+  test('legacy defaultMode still works for old clients and is gated the same way', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [userRow()] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: USER_ID, role: 'customer', is_active: true, deleted_at: null, is_suspended: false, suspended_until: null, is_banned: false }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [userRow()] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .patch('/api/mobile/profile')
+      .set('Authorization', authHeader())
+      .send({ defaultMode: 'helper' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.modeSwitched).toBe(false);
+    expect(res.body.data.modeChangeIgnored).toEqual({ code: 'access_required', capability: 'helper.offer_services' });
+  });
+
+  test('an intent switch to find_help moves a helper-mode account back to customer', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [userRow({ role: 'helper', default_mode: 'helper' })] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: USER_ID, role: 'helper', default_mode: 'helper' }] })
+      .mockResolvedValueOnce({ rows: [{ id: USER_ID }] })
+      .mockResolvedValueOnce({ rows: [userRow({ role: 'customer', default_mode: 'customer' })] })
+      .mockResolvedValueOnce({ rows: [userRow({ role: 'customer', default_mode: 'customer' })] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(buildApp())
+      .patch('/api/mobile/profile')
+      .set('Authorization', authHeader({ role: 'helper' }))
+      .send({ intent: 'find_help' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.modeSwitched).toBe(true);
+    expect(res.body.data.profile.role).toBe('customer');
+    expect(res.body.data.profile.mode.intent).toBe('find_help');
+  });
+
+  test('rejects an unknown intent instead of collapsing it into a mode', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [userRow()] });
+
+    const res = await request(buildApp())
+      .patch('/api/mobile/profile')
+      .set('Authorization', authHeader())
+      .send({ intent: 'become_admin' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+    expect(res.body.fields.intent).toMatch(/Unsupported intent/);
   });
 });

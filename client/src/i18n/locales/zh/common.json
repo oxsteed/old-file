@@ -3929,6 +3929,7 @@
       }
     },
     "capabilityHelp": {
+      "customer": "发布任务、聘用帮手、逛市场。",
       "helper": {
         "offer_services": "对工作出价，并为您的工作获得报酬。"
       },

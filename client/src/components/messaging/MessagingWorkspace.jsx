@@ -67,8 +67,7 @@ function normalizeBusinessConversation(conversation) {
 
 export default function MessagingWorkspace({ role = 'auto', businessId = null, embedded = false }) {
   const { t } = useTranslation();
-  const { user, isHelper: legacyIsHelper, hasHelperAccess } = useAuth();
-  const accountIsHelper = legacyIsHelper || hasHelperAccess;
+  const { user, hasHelperAccess } = useAuth();
   const location = useLocation();
   const helperRoute = Boolean(businessId) || location.pathname.startsWith('/helper/messages') || role === 'helper';
   const basePath = businessId ? `/business/${businessId}/workspace/messages` : helperRoute ? '/helper/messages' : '/messages';
@@ -119,7 +118,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
   const selectedId = selectedGuestId ? `guest-${selectedGuestId}` : conversationId || null;
   const hasThread = Boolean(conversationId || selectedInquiryId);
   const userId = user?.id || null;
-  const showHelperInbox = hasHelperInboxWork(userId, conversations, accountIsHelper || helperRoute);
+  const showHelperInbox = hasHelperInboxWork(userId, conversations, hasHelperAccess || helperRoute);
   const dualRole = showHelperInbox && conversations.some((conv) => conversationSide(userId, conv) === 'customer');
 
   useEffect(() => {

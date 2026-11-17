@@ -3929,6 +3929,7 @@
       }
     },
     "capabilityHelp": {
+      "customer": "İş yayınlayın, yardımcı işe alın, pazaryerinden alışveriş yapın.",
       "helper": {
         "offer_services": "İşlere teklif verin ve emeğinizin karşılığını alın."
       },

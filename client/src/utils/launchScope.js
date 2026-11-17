@@ -24,16 +24,18 @@ export const LAUNCH_GRANTED_MODES = Object.freeze([
 ]);
 
 // Weekly self-audit 2026-11-04 item 2: life_only, tool_owner, consultant,
-// and franchise_applicant are real modes (MODE_CATALOG + routeForMode in
-// modeRouter.js already cover them, and dashboardKeyForMode already maps
+// and franchise_applicant are real modes (dashboardKeyForMode already maps
 // them to their dashboards), but they were missing here, so
 // normalizeLaunchDashboardMode silently fell them back to helper/customer
 // and their SmartDashboard branches could never run. Adding them restores
 // their dashboards without touching customer, helper, business_owner, or
-// admin mappings. Side effect, intended: ModeSwitcher can now offer these
-// modes (it filters by this same set), and ModeHomeRoute sends life_only
-// and franchise_applicant users to their dashboard instead of Discovery.
-export const LAUNCH_SWITCHER_MODES = new Set([
+// admin mappings. ModeHomeRoute sends life_only and franchise_applicant
+// users to their dashboard instead of Discovery.
+//
+// WP-104: the mode switcher is deleted, so this set is no longer a switcher
+// list. It survives, module-private, as the set of modes with their own
+// dashboard: normalizeLaunchDashboardMode passes these through unchanged.
+const LAUNCH_DASHBOARD_MODES = new Set([
   ...LAUNCH_SELF_SELECTABLE_MODES,
   ...LAUNCH_GRANTED_MODES,
   'admin',
@@ -278,7 +280,7 @@ export function getLaunchRedirect(pathname = '/') {
 }
 
 export function normalizeLaunchDashboardMode(mode, role) {
-  if (LAUNCH_SWITCHER_MODES.has(mode)) return mode;
+  if (LAUNCH_DASHBOARD_MODES.has(mode)) return mode;
   if (['admin', 'super_admin'].includes(role)) return 'admin';
   if (role === 'support_agent') return 'business_support_agent';
   return ['helper', 'helper_pro', 'broker'].includes(role) ? 'helper' : 'customer';
