@@ -22,6 +22,7 @@ const pool = require('../db');
 const { decrypt } = require('../utils/encryption');
 const logger = require('../utils/logger');
 const { isImpersonatedRequest } = require('./rejectImpersonated');
+const { consumeTotpCounter } = require('../services/totpReplayGuard');
 
 function hasUsablePassword(hash) {
   return typeof hash === 'string' && /^\$2[aby]\$\d{2}\$/.test(hash);
@@ -78,6 +79,18 @@ async function requireSensitiveReauth(req, res, next) {
       }
       authenticator.options = { window: 1 };
       if (!authenticator.verify({ secret, token: code })) {
+        return deny(res, 401, 'reauth_invalid', 'Your password or verification code is incorrect.');
+      }
+      // Domain 6 #7: consume this step's counter so the code cannot verify
+      // again at another channel in the same step (and vice versa: a code
+      // already consumed at login or step-up is refused here). A replay
+      // returns false and is denied like a wrong code; a consume failure
+      // throws and the outer catch fails closed with 500, never silently
+      // passing. Window stays 1, matching the other ten sites: the guard
+      // records the current step, so the documented window residual
+      // (code generated in step C, first presented in C+1, replayed in
+      // C+2) applies here exactly as elsewhere.
+      if (!(await consumeTotpCounter(pool, userId))) {
         return deny(res, 401, 'reauth_invalid', 'Your password or verification code is incorrect.');
       }
     }
