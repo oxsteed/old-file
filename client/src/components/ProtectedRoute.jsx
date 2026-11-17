@@ -73,10 +73,14 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
   //   /helper/payouts). It implies identity verification AND onboarding
   //   completeness. Listing, bidding and starting work enforce identity on
   //   the server as well; this is the client-side redirect layer.
-  // "Verify later" sets didit_status to 'skipped', which satisfies the gate,
-  // so deferring verification never traps the user in a redirect loop.
+  // A user with didit_enforcement_required is gated on every protected
+  // route, with no opt-in needed: the server 403s their Didit-unsatisfied
+  // API calls, so the client must not render the page behind a dead end.
+  // "Verify later" sets didit_status to 'skipped', which satisfies the gate
+  // unless enforcement is required, so deferring verification never traps
+  // an ordinary user in a redirect loop.
   if (
-    (requireOnboarded || requireIdentityVerification) &&
+    (requireOnboarded || requireIdentityVerification || user.didit_enforcement_required) &&
     user.email_verified &&
     !diditGateSatisfied(user) &&
     !DIDIT_EXEMPT_PATHS.includes(location.pathname)

@@ -9,6 +9,7 @@ import { renderToPipeableStream } from 'react-dom/server';
 import { Writable } from 'node:stream';
 import { dashboardKeyForMode } from '../src/utils/modeAccess.js';
 import { normalizeLaunchDashboardMode } from '../src/utils/launchScope.js';
+import { projectionActive } from '../src/utils/accessProjection.js';
 
 const root = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const repo = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
@@ -171,6 +172,8 @@ test('dashboard downloads and renders only the active account mode', async () =>
     vm.runInNewContext(code, { module, exports: module.exports, require(name) {
       if (name === 'react-router-dom') return { useNavigate: () => () => {} };
       if (name === '../hooks/useAuth') return { useAuth: () => ({ user: { default_mode: mode }, loading: false }) };
+      if (name === '../hooks/useAccessProjection') return { __esModule: true, default: () => null };
+      if (name === '../utils/accessProjection') return { projectionActive };
       if (name === '../utils/lazyWithRetry') return { lazyWithRetry: React.lazy };
       if (name === '../utils/modeAccess') return { dashboardKeyForMode };
       if (name === '../utils/launchScope') return { normalizeLaunchDashboardMode };
