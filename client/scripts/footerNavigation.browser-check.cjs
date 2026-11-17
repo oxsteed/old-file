@@ -26,7 +26,6 @@ test('footer layouts, shared support access, cookie settings and preserved invit
     '../hooks/useSocket': `export const useSocket=()=>({socket:null});`,
     '../utils/consentScripts': `export const bootConsentedScripts=()=>{};export const initAnalytics=()=>{};export const disableAnalytics=()=>{};export const initMarketing=()=>{};export const initFunctional=()=>{};export const disableMarketing=()=>{};export const hasGlobalPrivacyControl=()=>false;`,
     './PrefetchLink': `export {Link as default} from 'react-router-dom';`,
-    './ModeSwitcher': `export default ()=>null;`,
     './BusinessSwitcher': `export default ()=>null;`,
     './LanguageSelector': `export default ()=>null;`,
     './ThemeToggle': `export default ()=>null;`,

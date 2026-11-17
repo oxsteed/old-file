@@ -9,7 +9,7 @@ const { chromium } = require('playwright-core');
 const root = path.resolve(__dirname, '..');
 const catalogs = Object.fromEntries(['en', 'fr', 'ar'].map(language => {
   const legacy = JSON.parse(fs.readFileSync(path.join(root, `src/locales/${language}.json`)));
-  return [language, { translation: Object.fromEntries(['nav', 'modes', 'statementCenter', 'modeSwitcher', 'businessHub', 'common'].map(key => [key, legacy[key]])),
+  return [language, { translation: Object.fromEntries(['nav', 'statementCenter', 'businessHub', 'common'].map(key => [key, legacy[key]])),
     common: JSON.parse(fs.readFileSync(path.join(root, `src/i18n/locales/${language}/common.json`))) }];
 }));
 const longName = 'Springfield Neighborhood Restaurant and Home Service Company With a Very Long Name';

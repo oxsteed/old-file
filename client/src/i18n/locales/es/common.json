@@ -6560,6 +6560,7 @@
       }
     },
     "capabilityHelp": {
+      "customer": "Publica trabajos, contrata ayudantes, compra en el mercado.",
       "helper": {
         "offer_services": "Haz ofertas en trabajos y cobra por tu trabajo."
       },

@@ -17,7 +17,7 @@ import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import { detectCountryFromLocale, hasPostalCode, requiresPostalCode, hasRegions, getRegionLabel } from '../lib/countries';
-import { MODE_CATALOG, postSignupRouteForMode } from '../utils/modeRouter';
+import { postSignupRouteForMode } from '../utils/modeRouter';
 import { joinModeForLegacyMode } from '../utils/legacyDeepLinks';
 import { LAUNCH_SELF_SELECTABLE_MODES } from '../utils/launchScope';
 import { normalizeSignupRegion, validateSignup, SIGNUP_FIELD_KEYS } from '../utils/signupValidation';
@@ -310,7 +310,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
                   checked={form.defaultMode === mode} onChange={() => set('defaultMode', mode)}
                   aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.defaultMode) || undefined} data-track="ui.663f47c956.4" />
                 <Icon size={27} aria-hidden="true" /><strong>{t(`progressiveAccess.capabilities.${SIGNUP_INTENTS[mode].capability}`, { ns: 'common' })}</strong>
-                <span className="signup-mode-description">{t(MODE_CATALOG[mode].hintKey)}</span>
+                <span className="signup-mode-description">{t(`progressiveAccess.capabilityHelp.${SIGNUP_INTENTS[mode].capability}`, { ns: 'common' })}</span>
                 {form.defaultMode === mode && <Check className="signup-mode-check" size={16} aria-hidden="true" />}
               </label>;
             })}</div>

@@ -3929,6 +3929,7 @@
       }
     },
     "capabilityHelp": {
+      "customer": "Publique trabalhos, contrate prestadores e compre no marketplace.",
       "helper": {
         "offer_services": "Faça propostas em trabalhos e receba pelo seu trabalho."
       },

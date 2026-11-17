@@ -3929,6 +3929,7 @@
       }
     },
     "capabilityHelp": {
+      "customer": "Aufträge ausschreiben, Helfer beauftragen, im Marktplatz einkaufen.",
       "helper": {
         "offer_services": "Gib Angebote für Aufträge ab und werde für deine Arbeit bezahlt."
       },
