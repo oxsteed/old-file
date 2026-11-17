@@ -4,6 +4,29 @@ Branch `feat/progressive-account-access`, PR https://github.com/oxsteed/old-file
 base `old-files-claude`). Spec: [SPEC.md](SPEC.md). Ledger: [PROGRESS.md](PROGRESS.md).
 Anyone (human or agent) can resume from this file alone.
 
+## PR #797 cutover checkpoint
+
+[PR #797](https://github.com/oxsteed/old-file/pull/797) contains the customer-first
+cutover. Home and Dashboard now require an explicit projection rollback response
+before using a legacy route. The shared access read refreshes after focus, app
+resume and application events. When an application changes during a read, the
+client skips that result and reads again. The browser suite exercises both this
+race and the loss of access after a failed refresh.
+
+The workspace, operations, font and Home browser fixtures now model canonical
+access. The local client build, locale validation, frontend reference checks and
+growth registry passed. Nine affected Chrome scenarios passed, including the
+navbar matrix and mobile sign-out. The [preceding CI run](https://github.com/oxsteed/old-file/actions/runs/44070155981)
+passed the server suite and reported five browser failures addressed here.
+
+Before rollout, validate the backfill on a disposable snapshot. Current
+`legacyMapping.js` still infers equipment and logistics access from mode strings.
+Check those cases against listings, approvals and organization records, and queue
+ambiguous cases before applying backfill. Trace the shared mode writer used by
+profile, mobile and `/switch-role` before removing any compatibility signal.
+Production backfill, helper/business enforcement and live browser acceptance
+require separate verification.
+
 ## Resume checklist
 
 1. `git status` and `git log --oneline -15` on the branch. Uncommitted work from an

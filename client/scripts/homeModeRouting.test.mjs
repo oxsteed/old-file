@@ -47,7 +47,10 @@ test('home selects the active mode without rendering the wrong landing page or b
   // Active customer mode wins over an older helper role value.
   auth.user = { ...base, default_mode: 'customer' };
   render(); assert.deepEqual(rendered, ['discovery']);
-  // Legacy path (projection null): a verified account keeps its mode landing.
+  auth.user = { ...base, default_mode: 'helper' };
+  render(); assert.deepEqual(rendered, ['discovery'], 'unavailable projection keeps customer Home');
+  projection = { flags: { accessProjection: false } };
+  // An explicit rollback preserves the legacy landing.
   for (const default_mode of ['helper', 'business_owner', 'business_manager', 'business_representative', 'business_employee', 'business_support_agent', 'admin']) {
     auth.user = { ...base, default_mode };
     render(); assert.deepEqual(rendered, ['work'], default_mode);
@@ -57,7 +60,7 @@ test('home selects the active mode without rendering the wrong landing page or b
   auth.user = { ...base, default_mode: 'business_owner', email_verified: false };
   assert.match(render(), /data-redirect="\/verify-email"/);
   assert.deepEqual(rendered, []);
-  // Legacy/rollback path only (projection null): a Didit-pending account
+  // Legacy/rollback path only: a Didit-pending account
   // that would land on a work dashboard is still sent to /verify-identity.
   // This is the old home identity gate, kept for the rollback contract; the
   // projection-active path below never reaches it.

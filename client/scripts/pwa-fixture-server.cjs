@@ -173,3 +173,18 @@ exports.startPwaFixture = async () => {
     close: () => new Promise((resolve) => server.close(resolve)),
   };
 };
+
+function setWorkspaceAccess(fixture, businesses) {
+  fixture.state.readHandlers['/api/me/access'] = () => ({
+    accountId: String(fixture.state.user.id),
+    access: {
+      personal: ['customer'],
+      organizations: businesses.map(business => ({
+        type: 'business', id: String(business.id), name: business.business_name, role: business.role,
+      })),
+    },
+    flags: { accessRequests: true, accessProjection: true },
+  });
+}
+
+module.exports.setWorkspaceAccess = setWorkspaceAccess;

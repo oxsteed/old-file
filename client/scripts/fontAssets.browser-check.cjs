@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const os = require('node:os');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
-const { startPwaFixture } = require('./pwa-fixture-server.cjs');
+const { startPwaFixture, setWorkspaceAccess } = require('./pwa-fixture-server.cjs');
 
 test('built fonts load as real local font faces across public and authenticated surfaces', { timeout: 180000 }, async () => {
   const fixture = await startPwaFixture();
@@ -19,7 +19,8 @@ test('built fonts load as real local font faces across public and authenticated 
   const cases = [ ['food', '/restaurants'], ['restaurant', '/restaurants/r/42'], ['direct', '/direct'], ['messages', '/messages'], ['workspace', '/business/4/workspace'] ];
   try {
     for (const [name, routePath] of cases) for (const [language, width] of [['en', 1440], ['ar', 390]]) {
-      fixture.state.user = { ...baseUser, role: name === 'workspace' ? 'helper' : 'customer', default_mode: name === 'workspace' ? 'business_owner' : 'customer' };
+      fixture.state.user = { ...baseUser, role: 'customer', default_mode: 'customer' };
+      setWorkspaceAccess(fixture, name === 'workspace' ? [business] : []);
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       await context.addInitScript(({ language }) => {
         localStorage.setItem('oxs:language', language);

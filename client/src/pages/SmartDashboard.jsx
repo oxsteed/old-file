@@ -1,11 +1,6 @@
 // client/src/pages/SmartDashboard.jsx
 //
-// /dashboard router. Reads user.default_mode (the unified account-type field
-// introduced in migration 270) and renders the right child dashboard.
-//
-// Falls back to user.role for accounts created before migration 270 — that
-// keeps the legacy customer/helper experience working until those users
-// touch the account-type panel.
+// The dashboard uses customer Home unless the server has disabled the access projection.
 
 import { Suspense, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -14,7 +9,6 @@ import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { dashboardKeyForMode } from '../utils/modeAccess';
 import { normalizeLaunchDashboardMode } from '../utils/launchScope';
 import useAccessProjection from '../hooks/useAccessProjection';
-import { projectionActive } from '../utils/accessProjection';
 import OfferCard from '../growth/OfferCard';
 
 // Download only the active mode's dashboard. Other modes stay available
@@ -42,14 +36,13 @@ export default function SmartDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const projection = useAccessProjection(user);
-  const progressive = projectionActive(projection);
+  const effectiveMode = projection?.flags?.accessProjection === false
+    ? normalizeLaunchDashboardMode(user?.default_mode || user?.role, user?.role)
+    : 'customer';
+  const key = dashboardKeyForMode(effectiveMode);
 
   useEffect(() => {
     if (loading || !user) return;
-    const launchMode = progressive
-      ? 'customer'
-      : normalizeLaunchDashboardMode(user.default_mode || user.role, user.role);
-    const key = dashboardKeyForMode(launchMode);
     if (key === 'support_agent') {
       navigate('/support/agent', { replace: true });
     } else if (key === 'investor') {
@@ -61,15 +54,9 @@ export default function SmartDashboard() {
     } else if (key === 'admin') {
       navigate('/admin', { replace: true });
     }
-  }, [user, loading, navigate, progressive]);
+  }, [user, loading, navigate, key]);
 
   if (loading || !user) return <Spinner />;
-
-  // Effective mode falls back to legacy role for pre-migration-270 users.
-  const effectiveMode = progressive
-    ? 'customer'
-    : normalizeLaunchDashboardMode(user.default_mode || user.role, user.role);
-  const key = dashboardKeyForMode(effectiveMode);
 
   // The "Offers for you" card (growth spec 16.1) sits at the top of every
   // role home; it renders nothing when there is no offer and no prompt.

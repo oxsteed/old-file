@@ -140,7 +140,7 @@ test('projection navbar renders responsive priorities, accessible disclosures an
       }
     }
     await page.setViewportSize({ width: 1600, height: 850 });
-    await page.evaluate(() => window.configure({ scenario: 'customer', projection: projections.customer, language: 'en', theme: 'dark' }));
+    await page.evaluate(projection => window.configure({ scenario: 'customer', projection, language: 'en', theme: 'dark' }), projections.customer);
     const account = page.getByRole('button', { name: 'Account', exact: true });
     await account.focus(); await page.keyboard.press('Enter'); await page.locator('.ox-nav-account-panel').waitFor(); await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(() => document.activeElement.getAttribute('href')), '/dashboard');
@@ -158,7 +158,7 @@ test('projection navbar renders responsive priorities, accessible disclosures an
     await page.locator('.ox-nav-desktop > a[href="/messages"][aria-current="page"]').waitFor();
     assert.equal(await page.locator('.ox-nav-desktop > a[href="/messages"]').getAttribute('aria-current'), 'page');
     await page.evaluate(() => window.fixtureNavigate('/'));
-    await page.evaluate(() => window.configure({ scenario: 'business', projection: projections.business, language: 'en', theme: 'light', userId: 2 }));
+    await page.evaluate(projection => window.configure({ scenario: 'business', projection, language: 'en', theme: 'light', userId: 2 }), projections.business);
     const businessButton = page.locator('.ox-nav-desktop .ox-biz-switcher__btn');
     assert.ok((await businessButton.getAttribute('aria-label')).includes(longName));
     await businessButton.click(); await page.keyboard.press('Tab'); await page.keyboard.press('Escape');
@@ -180,8 +180,10 @@ test('projection navbar renders responsive priorities, accessible disclosures an
     const single = page.locator('.ox-nav-desktop .ox-biz-switcher--single'); await single.waitFor();
     assert.equal(await single.getAttribute('aria-label'), longName);
     await page.setViewportSize({ width: 390, height: 850 });
-    const mobileToggle = page.locator('.ox-nav-mobile-controls > button[aria-expanded]'); await mobileToggle.click();
-    await mobileToggle.click(); await page.getByRole('button', { name: 'Sign Out', exact: true }).click();
+    const mobileToggle = page.locator('.ox-nav-mobile-controls > button[aria-expanded]');
+    await mobileToggle.click();
+    await waitExpanded(mobileToggle, 'true');
+    await page.getByRole('button', { name: 'Sign Out', exact: true }).click();
     assert.equal(await page.locator('.ox-nav-mobile-mode').count(), 0);
     await waitExpanded(mobileToggle, 'false');
     assert.equal(await mobileToggle.getAttribute('aria-expanded'), 'false');

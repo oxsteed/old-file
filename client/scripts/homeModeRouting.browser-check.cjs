@@ -1,10 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright-core');
+const { setTimeout: delay } = require('node:timers/promises');
 const { startPwaFixture } = require('./pwa-fixture-server.cjs');
 const catalogs = { en: require('../src/locales/en.json'), ar: require('../src/locales/ar.json') };
 
-test('the built homepage follows account mode and retains usable navigation during a cold load', { timeout: 180000 }, async () => {
+test('the built homepage stays in the customer workspace on desktop and mobile', { timeout: 180000 }, async () => {
   const fixture = await startPwaFixture();
   const baseUser = { ...fixture.state.user };
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -24,6 +25,15 @@ test('the built homepage follows account mode and retains usable navigation duri
         '/api/businesses/4/appointments': { appointments: [], total: 0 },
         '/api/vehicles/my': [], '/api/vehicles/makes': [],
       };
+      if (fixture.state.user) {
+        const organization = mode.startsWith('business_')
+          ? [{ type: 'business', id: '4', name: 'Fixture Service Team', role: membership[mode] || 'owner' }]
+          : [];
+        fixture.state.readResponses['/api/me/access'] = {
+          accountId: String(fixture.state.user.id), flags: { accessProjection: true, accessRequests: true },
+          access: { personal: mode === 'helper' ? ['customer', 'helper.offer_services'] : ['customer'], organizations: organization },
+        };
+      }
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       await context.addInitScript(({ language, width }) => {
         localStorage.setItem('oxs:language', language);
@@ -38,26 +48,14 @@ test('the built homepage follows account mode and retains usable navigation duri
       try {
         const start = Date.now();
         await page.goto(fixture.origin + '/');
-        if (mode === 'guest' || mode === 'customer') {
-          await page.getByRole('heading', { name: catalog.hero.title.replace(/\s+/g, ' '), exact: true }).waitFor();
-          if (mode === 'customer') assert.ok(await page.getByRole('link', { name: catalog.toolRentals.myBookings, exact: true }).count());
-          assert.ok(assets.some(file => /\/HomePage-[^/]+\.js$/.test(file)));
-        } else {
-          if (mode === 'helper') await page.locator('#helper-workspace-heading').waitFor();
-          else if (mode === 'business_owner') await page.getByRole('heading', { name: catalog.dashboards.businessOwner.title, exact: true }).waitFor();
-          else {
-            const key = { business_manager: 'businessManager', business_representative: 'businessRepresentative', business_employee: 'businessEmployee' }[mode];
-            await page.getByRole('heading', { name: catalog.businessRoleDashboard[key].title, exact: true }).waitFor();
-          }
-          assert.equal(assets.some(file => /\/HomePage-[^/]+\.js$/.test(file)), false, `${mode} must not download customer discovery`);
-        }
+        await page.getByRole('heading', { name: catalog.hero.title.replace(/\s+/g, ' '), exact: true }).waitFor();
+        if (mode === 'customer') await page.getByRole('link', { name: catalog.toolRentals.myBookings, exact: true }).waitFor();
+        if (mode === 'helper') await page.getByRole('link', { name: catalog.nav.myWork, exact: true }).waitFor();
+        assert.ok(assets.some(file => /\/HomePage-[^/]+\.js$/.test(file)));
+        assert.equal(assets.some(file => /\/(HelperDashboard|Business(?:Owner|Manager|Representative|Employee)Dashboard)-[^/]+\.js$/.test(file)), false);
         assert.equal(await page.locator('html').getAttribute('dir'), language === 'ar' ? 'rtl' : 'ltr');
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${mode} ${width} must fit the viewport`);
         assert.ok(await page.getByRole('navigation', { name: catalog.navigation?.main || 'Main navigation' }).count() || await page.locator('.ox-navbar').count());
-        if (mode === 'helper' || mode.startsWith('business_')) {
-          const destination = mode === 'helper' ? '/helper-dashboard' : '/dashboard';
-          assert.ok(await page.locator(`.ox-navbar a[aria-current="page"][href="${destination}"]`).count(), `${mode} highlights its working homepage`);
-        }
         assert.equal(await page.locator('.pwa-connection-online').count(), 0);
         assert.deepEqual(errors, [], `${mode} ${width}`);
         results.push({ mode, width, language, coldMs: Date.now() - start });
@@ -74,12 +72,12 @@ test('the built homepage follows account mode and retains usable navigation duri
     const held = new Promise(resolve => { releaseChunk = resolve; });
     const chunkRequested = new Promise(resolve => { noteChunkRequest = resolve; });
     await context.route('**/api/auth/me', async route => { await authHeld; await route.continue(); });
-    await context.route('**/assets/HomePage-*.js', async route => { noteChunkRequest(); await held; await route.continue(); });
+    await context.route('**/assets/HomePage-*.js', async route => { noteChunkRequest(true); await held; await route.continue(); });
     try {
       await page.goto(fixture.origin + '/');
       await page.locator('.ox-loading-state:visible').waitFor();
       releaseAuth();
-      await chunkRequested;
+      assert.ok(await Promise.race([chunkRequested, delay(15000, false, { ref: false })]), 'expected the discovery chunk within 15 seconds');
       // Suspense can retain the auth-loading shell with display:none while
       // showing the chunk fallback. Count the UI users can see and access.
       await page.locator('.ox-loading-state:visible').waitFor();

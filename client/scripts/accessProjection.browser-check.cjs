@@ -3,8 +3,9 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { build } = require('esbuild');
 const { chromium } = require('playwright-core');
+const { setTimeout: delay } = require('node:timers/promises');
 
-test('a delayed access projection cannot cross an account or session boundary', { timeout: 30_000 }, async () => {
+test('access refreshes on resume and changes without replaying stale or cross-account access', { timeout: 30_000 }, async () => {
   const root = path.resolve(__dirname, '..');
   const bundle = await build({
     stdin: { resolveDir: root, loader: 'jsx', contents: `
@@ -16,7 +17,7 @@ test('a delayed access projection cannot cross an account or session boundary', 
 
       function AccessLabel({ accountId, id }) {
         const projection = useAccessProjection(accountId ? { id: accountId } : null);
-        const name = projection?.access.organizations[0]?.name || 'empty';
+        const name = projection?.flags.accessProjection === false ? 'rollback' : projection?.access?.organizations[0]?.name || 'empty';
         window.rendered.push([accountId, name]);
         return <output id={id}>{name}</output>;
       }
@@ -34,6 +35,7 @@ test('a delayed access projection cannot cross an account or session boundary', 
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const page = await browser.newPage();
+    page.setDefaultTimeout(5000);
     const requests = [];
     const outgoing = [];
     await page.route('http://projection.test/**', (route) => {
@@ -46,7 +48,12 @@ test('a delayed access projection cannot cross an account or session boundary', 
       if (pathname === '/fixture.js') return route.fulfill({ contentType: 'text/javascript', body: bundle.outputFiles[0].text });
       return route.fulfill({ contentType: 'text/html', body: '<div id="root"></div><script defer src="/fixture.js"></script>' });
     });
-    const waitForRequest = (index) => outgoing[index] || new Promise(resolve => requests.push(resolve));
+    const waitForRequest = async (index) => {
+      const pending = outgoing[index] || new Promise(resolve => requests.push(resolve));
+      const route = await Promise.race([pending, delay(5000, null, { ref: false })]);
+      assert.ok(route, `access request ${index + 1} never arrived`);
+      return route;
+    };
     const answer = (route, accountId, name) => route.fulfill({ json: { accountId, access: { organizations: [{ name }] } } });
     const expectName = async (name) => {
       await page.waitForFunction(expected => ['home', 'nav'].every(id => document.getElementById(id)?.textContent === expected), name);
@@ -79,6 +86,27 @@ test('a delayed access projection cannot cross an account or session boundary', 
     await expectName('Second business updated');
     assert.deepEqual(await page.evaluate(() => window.rendered.filter(([id, name]) => id === 'second'
       && !['empty', 'Second business', 'Second business updated'].includes(name))), []);
+
+    // A fresh window focus starts a check even within the snapshot's TTL.
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    const beforeRevocation = await waitForRequest(5);
+    await page.evaluate(() => window.refreshAccess());
+    await answer(beforeRevocation, 'second', 'Stale business');
+    await (await waitForRequest(6)).fulfill({ json: { accountId: 'second', access: { organizations: [] } } });
+    await expectName('empty');
+    assert.equal(await page.evaluate(() => window.rendered.some(([, name]) => name === 'Stale business')), false);
+
+    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+    await answer(await waitForRequest(7), 'second', 'Restored workspace');
+    await expectName('Restored workspace');
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await (await waitForRequest(8)).fulfill({ status: 503, json: { code: 'internal_error' } });
+    await expectName('empty');
+
+    await page.evaluate(() => window.refreshAccess());
+    await (await waitForRequest(9)).fulfill({ status: 503, json: { code: 'feature_disabled' } });
+    await expectName('rollback');
+    assert.equal(outgoing.length, 10, 'Home and navigation share the refresh listeners');
   } finally {
     await browser.close();
   }

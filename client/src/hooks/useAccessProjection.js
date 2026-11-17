@@ -1,9 +1,5 @@
-// WP-015 / WP-016: shared, cached read of GET /api/me/access for Home and
-// navigation. Returns null until loaded and whenever the API is unavailable
-// or the feature is off, so callers keep their legacy behaviour.
-// Re-reads on window focus and on the `oxsteed:access-changed` event (fired
-// by the Applications page after a change), so an approval or revocation is
-// reflected without a new session.
+// Shared access snapshot for the current authentication session. Only an
+// explicit server rollback response can select legacy account routing.
 import { useEffect, useState } from 'react';
 import { accessAPI } from '../api/access';
 import { currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
@@ -16,19 +12,31 @@ function matches(record, userId, epoch) {
   return Boolean(userId && record?.userId === userId && record.epoch === epoch);
 }
 
-function load(record, force = false) {
-  if (active !== record || !isCurrentAuthEpoch(record.epoch) || record.inflight) return;
+function load(record, { force = false, invalidate = false } = {}) {
+  if (active !== record || !isCurrentAuthEpoch(record.epoch)) return;
+  if (record.inflight) {
+    // The pending read may have started before the application changed.
+    if (invalidate) record.invalidated = true;
+    return;
+  }
   if (!force && Date.now() - record.at < TTL_MS) return;
   record.inflight = accessAPI.getAccess(record.userId)
     .then((data) => (data?.access ? { access: data.access, flags: data.flags || {} } : null))
-    .catch(() => null)
+    .catch(error => error?.response?.status === 503 && error.response.data?.code === 'feature_disabled'
+      ? { access: null, flags: { accessProjection: false } } : null)
     .then((value) => {
-      if (active !== record || !isCurrentAuthEpoch(record.epoch)) return;
+      if (active !== record || !isCurrentAuthEpoch(record.epoch) || record.invalidated) return;
       record.at = Date.now();
       record.value = value;
       record.listeners.forEach((publish) => publish(value));
     })
-    .finally(() => { record.inflight = null; });
+    .finally(() => {
+      record.inflight = null;
+      if (record.invalidated) {
+        record.invalidated = false;
+        load(record, { force: true });
+      }
+    });
 }
 
 export function notifyAccessChanged() {
@@ -54,15 +62,28 @@ export default function useAccessProjection(user) {
     record.listeners.add(publish);
     publish(record.value);
     load(record);
-    const refresh = () => load(record, true);
-    // Focus is frequent: re-read at most every 15 s; explicit changes always re-read.
-    const onFocus = () => { if (Date.now() - record.at > 15_000) refresh(); };
-    window.addEventListener('focus', onFocus);
-    window.addEventListener(ACCESS_CHANGED_EVENT, refresh);
+    if (!record.stopListening) {
+      const refresh = () => load(record, { force: true });
+      const invalidate = () => load(record, { force: true, invalidate: true });
+      const onPageShow = event => { if (event.persisted) invalidate(); };
+      const onVisibility = () => { if (document.visibilityState === 'visible') refresh(); };
+      window.addEventListener('focus', refresh);
+      window.addEventListener('pageshow', onPageShow);
+      document.addEventListener('visibilitychange', onVisibility);
+      window.addEventListener(ACCESS_CHANGED_EVENT, invalidate);
+      record.stopListening = () => {
+        window.removeEventListener('focus', refresh);
+        window.removeEventListener('pageshow', onPageShow);
+        document.removeEventListener('visibilitychange', onVisibility);
+        window.removeEventListener(ACCESS_CHANGED_EVENT, invalidate);
+      };
+    }
     return () => {
       record.listeners.delete(publish);
-      window.removeEventListener('focus', onFocus);
-      window.removeEventListener(ACCESS_CHANGED_EVENT, refresh);
+      if (record.listeners.size === 0) {
+        record.stopListening();
+        record.stopListening = null;
+      }
     };
   }, [userId, epoch]);
   if (matches(snapshot, userId, epoch)) return snapshot.value;

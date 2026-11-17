@@ -22,9 +22,9 @@ export default function ModeHomeRoute({ DiscoveryPage, DashboardPage, LoadingSta
   // links inside the customer workspace; they do not redirect the account to
   // a separate mode dashboard. A saved preference that lost its backing
   // still falls back to personal Home with a notice (WP-015).
-  const { mode, fallback } = projectionActive(projection)
-    ? { mode: 'customer', fallback: !modeBackedByAccess(preferred, projection.access) }
-    : resolveHomeMode(user, preferred, projection);
+  const { mode, fallback } = projection?.flags?.accessProjection === false
+    ? resolveHomeMode(user, preferred, projection)
+    : { mode: 'customer', fallback: projectionActive(projection) && !modeBackedByAccess(preferred, projection.access) };
   if (user && dashboardKeyForMode(mode) !== 'customer') {
     // Legacy path only: the projection-active branch above always resolves
     // to 'customer', so this wrapper is reached only while the projection is

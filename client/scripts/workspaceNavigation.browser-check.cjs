@@ -2,22 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { setTimeout: delay } = require('node:timers/promises');
 const { chromium } = require('playwright-core');
-const { startPwaFixture } = require('./pwa-fixture-server.cjs');
+const { startPwaFixture, setWorkspaceAccess } = require('./pwa-fixture-server.cjs');
 const catalogs = { en: require('../src/locales/en.json'), ar: require('../src/locales/ar.json') };
 const editors = ['PricingRulesManager', 'MemberPermissionsEditor', 'ProductManagement', 'ProductPricingManager', 'BusinessCreationWizard', 'BusinessProfileEditor'];
-
-function setWorkspaceAccess(fixture, businesses) {
-  fixture.state.readHandlers['/api/me/access'] = () => ({
-    accountId: String(fixture.state.user.id),
-    access: {
-      personal: ['customer'],
-      organizations: businesses.map(business => ({
-        type: 'business', id: String(business.id), name: business.business_name, role: business.role,
-      })),
-    },
-    flags: { accessRequests: true, accessProjection: true },
-  });
-}
 
 test('workspace navigation defers inactive editors and remains usable during delayed panel and dialog loads', { timeout: 180000 }, async () => {
   const fixture = await startPwaFixture();

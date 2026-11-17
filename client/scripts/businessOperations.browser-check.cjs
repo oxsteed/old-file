@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {chromium}=require('playwright-core');
-const {startPwaFixture}=require('./pwa-fixture-server.cjs');
+const {startPwaFixture,setWorkspaceAccess}=require('./pwa-fixture-server.cjs');
 const catalogs={en:require('../src/locales/en.json'),ar:require('../src/locales/ar.json')};
 const artifact=process.env.OXSTEED_OPERATIONS_SCREENSHOTS;
 
@@ -18,7 +18,7 @@ function summary(role='owner',today=3,pending=27){
       ...employee?[]:[{type:'followUpInvoices',count:3,panel:'invoices'}]],canViewAnalytics:!employee};
 }
 function configure(fixture,role='owner'){
-  fixture.state.user={...fixture.state.user,role:'helper',default_mode:role==='owner'?'business_owner':'business_employee'};
+  fixture.state.user={...fixture.state.user,role:'customer',default_mode:'customer'};
   const business={id:4,business_id:4,business_name:'Synthetic Service Team',business_kind:'service',business_mode:'service',
     status:'active',setup_status:'active',role,is_owner:role==='owner',currency_code:'USD',address_country:'US',
     permissions:role==='owner'?['*']:['business.view','calendar.view_self','calendar.manage_self','messages.view_assigned','messages.reply']};
@@ -31,6 +31,7 @@ function configure(fixture,role='owner'){
     '/api/businesses/4/calendar':{events:[],appointments:[]},
     '/api/businesses/4/messages':{conversations:[],total:0},
   };
+  setWorkspaceAccess(fixture, [business]);
   const userId=fixture.state.user.id;
   const permissions={all:role==='owner',userId,canManageAll:role==='owner',canManageSelf:true,canCreate:role==='owner',canRecordPayment:role==='owner'};
   const pending=Array.from({length:27},(_,index)=>({id:index+1,service_id:1,staff_id:userId,
@@ -122,7 +123,10 @@ test('activity failures and workspace changes cannot paint invented zeroes or a 
   const fixture=await startPwaFixture(),browser=await chromium.launch({channel:'chrome',headless:true});
   configure(fixture);
   const second={...fixture.state.readResponses['/api/businesses'].businesses[0],id:5,business_id:5,business_name:'Second synthetic team'};
-  fixture.state.readResponses['/api/businesses'].businesses.push(second);
+  const businesses = fixture.state.readResponses['/api/businesses'].businesses;
+  businesses.push(second);
+  fixture.state.readResponses['/api/me/businesses'] = { data: { items: businesses } };
+  setWorkspaceAccess(fixture, businesses);
   fixture.state.readResponses['/api/businesses/5/operations-summary']={data:{...summary('owner',7),businessId:5}};
   const context=await contextFor(browser,fixture,'en',1440),page=await context.newPage();page.setDefaultTimeout(15000);
   try{
