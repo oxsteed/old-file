@@ -74,7 +74,7 @@ function userRow(overrides = {}) {
 
 beforeEach(() => {
   resetMocks();
-  delete process.env.ACCESS_PROJECTION_ENABLED;
+  process.env.ACCESS_PROJECTION_ENABLED = 'false';
   delete process.env.ACCESS_PILOT_USER_IDS;
 });
 

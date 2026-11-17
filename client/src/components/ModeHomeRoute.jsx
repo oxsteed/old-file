@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { normalizeLaunchDashboardMode } from '../utils/launchScope';
 import { dashboardKeyForMode } from '../utils/modeAccess';
-import { resolveHomeMode } from '../utils/accessProjection';
+import { projectionActive, resolveHomeMode } from '../utils/accessProjection';
 import useAccessProjection from '../hooks/useAccessProjection';
 import ProtectedRoute from './ProtectedRoute';
 import RouteErrorBoundary from './RouteErrorBoundary';
@@ -18,7 +18,12 @@ export default function ModeHomeRoute({ DiscoveryPage, DashboardPage, LoadingSta
   const { t: accessT } = useTranslation('common');
   if (loading) return <LoadingState />;
   const preferred = user && normalizeLaunchDashboardMode(user.default_mode || user.role, user.role);
-  const { mode, fallback } = resolveHomeMode(user, preferred, projection);
+  // The projection owns the landing experience. Approved capabilities add
+  // links inside the customer workspace; they do not redirect the account to
+  // a separate mode dashboard.
+  const { mode, fallback } = projectionActive(projection)
+    ? { mode: 'customer', fallback: false }
+    : resolveHomeMode(user, preferred, projection);
   if (user && dashboardKeyForMode(mode) !== 'customer') {
     return <ProtectedRoute><RouteErrorBoundary><DashboardPage /></RouteErrorBoundary></ProtectedRoute>;
   }

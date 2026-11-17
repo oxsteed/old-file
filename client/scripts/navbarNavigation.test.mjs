@@ -98,9 +98,9 @@ test('projection: approvals add shortcuts without replacing the view; removed ac
   // Organization membership: workspace shortcut from the customer view.
   nav = navbarNavigation({ role: 'customer', default_mode: 'customer' }, { projection: on(['customer'], [{ type: 'business', id: '1', role: 'employee' }]) });
   assert.ok(nav.account.some((i) => i.to === '/business-hub'));
-  // No duplicates when the view already exposes the destination.
+  // Capability links are additive while Home remains customer-first.
   nav = navbarNavigation({ role: 'helper', default_mode: 'helper' }, { projection: on(['customer', 'helper.offer_services']) });
-  assert.equal(nav.mode, 'helper');
+  assert.equal(nav.mode, 'customer');
   assert.equal([...nav.primary, ...nav.account].filter((i) => i.to === '/helper-dashboard').length, 1);
   // Flag off or no projection: byte-for-byte legacy.
   const legacy = navbarNavigation({ role: 'helper', default_mode: 'helper' });
@@ -126,8 +126,8 @@ test('projection backs the logistics mode and adds buyer access without replacin
   assert.ok(approved.account.some((item) => item.to === '/logistics/organizer'));
 
   const logistics = navbarNavigation({ role: 'customer', default_mode: 'logistics' }, { dashboardPath: '/logistics/buyer', projection: on(['customer', 'logistics.ship']) });
-  assert.equal(logistics.mode, 'logistics');
-  assert.ok(logistics.primary.some((item) => item.to === '/logistics/buyer'));
+  assert.equal(logistics.mode, 'customer');
+  assert.ok(logistics.account.some((item) => item.to === '/logistics/buyer'));
 
   const revoked = navbarNavigation({ role: 'customer', default_mode: 'logistics' }, { projection: on(['customer']) });
   assert.equal(revoked.mode, 'customer');

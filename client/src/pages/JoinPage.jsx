@@ -54,8 +54,7 @@ function milliseconds(value) {
 export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const { t } = useTranslation();
   const { user, setUser } = useAuth();
-  const { isAvailable, loading: capabilitiesLoading } = useCapabilities();
-  const customerFirst = isAvailable('customerFirstSignup');
+  const { loading: capabilitiesLoading } = useCapabilities();
   const navigate = useNavigate();
   const [pageParams] = useSearchParams();
   const params = embedded ? new URLSearchParams(embeddedSearch) : pageParams;
@@ -136,12 +135,24 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
     setMetadata(previous => ({ ...previous, ...values }));
     setNow(Date.now());
   };
-  const recoveryMessage = error => {
+  const recoveryMessage = (error, { registrationAttempt = false } = {}) => {
     const data = error?.response?.data || {};
     mergeMetadata(data);
     if (data.code === 'registration_expired' || error?.response?.status === 404) {
-      setExpired(true);
-      setMetadata(previous => ({ ...previous, registrationExpiresAt: new Date().toISOString() }));
+      // A stale tab or a transient expiry can happen before the OTP screen is
+      // shown. Clear only the server token so the same form can immediately
+      // start a fresh registration instead of leaving the user without a code
+      // field or a path forward.
+      if (registrationAttempt) {
+        setRegistrationToken('');
+        setOtpSent(false);
+        setOtpDigits(Array(6).fill(''));
+        setMetadata({});
+        setExpired(false);
+      } else {
+        setExpired(true);
+        setMetadata(previous => ({ ...previous, registrationExpiresAt: new Date().toISOString() }));
+      }
       return msg('registrationExpired');
     }
     if (data.code === 'otp_locked' || /locked|too many/i.test(data.error || '')) {
@@ -174,7 +185,10 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
           lastName: form.lastName.trim(), phone: form.phone.trim(), country: form.country,
           addressLine1: form.addressLine1.trim(), city: form.city.trim(), state: normalizeSignupRegion(form.country, form.state),
           zip: form.zipCode.trim(), ageConfirmed: form.ageConfirmed,
-          ...(customerFirst ? { signupIntent: SIGNUP_INTENTS[form.defaultMode].intent } : { defaultMode: form.defaultMode }),
+          // Interest is not authority. The server creates the customer
+          // account first and turns this into an application on the progressive
+          // path. Keep the wire field stable for older clients as well.
+          signupIntent: SIGNUP_INTENTS[form.defaultMode].intent,
           ...(referralRef ? { ref: referralRef } : {}),
         });
         if (!data?.token) throw new Error('Missing registration response');
@@ -199,7 +213,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
         }
         setErrors(Object.keys(mapped).length ? mapped : { general: msg('requestFailed') });
         if (Object.keys(mapped).length) focusErrors(mapped);
-      } else setErrors({ general: recoveryMessage(error) });
+      } else setErrors({ general: recoveryMessage(error, { registrationAttempt: true }) });
     } finally { operation.current = false; setBusy(''); }
   };
   const handleOtpComplete = async code => {
@@ -291,14 +305,12 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
                 <input type="radio" id={index === 0 ? 'defaultMode' : 'mode-' + mode} name="defaultMode" value={mode}
                   checked={form.defaultMode === mode} onChange={() => set('defaultMode', mode)}
                   aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.defaultMode) || undefined} data-track="ui.663f47c956.4" />
-                <Icon size={27} aria-hidden="true" /><strong>{customerFirst
-                  ? t(`progressiveAccess.capabilities.${SIGNUP_INTENTS[mode].capability}`, { ns: 'common' })
-                  : t(MODE_CATALOG[mode].labelKey)}</strong>
+                <Icon size={27} aria-hidden="true" /><strong>{t(`progressiveAccess.capabilities.${SIGNUP_INTENTS[mode].capability}`, { ns: 'common' })}</strong>
                 <span className="signup-mode-description">{t(MODE_CATALOG[mode].hintKey)}</span>
                 {form.defaultMode === mode && <Check className="signup-mode-check" size={16} aria-hidden="true" />}
               </label>;
             })}</div>
-            <p id="signup-mode-help" className="signup-help">{customerFirst ? msg('intentNote') : <>{msg('switcherNote')} <span>{msg('setupNote')}</span></>}</p>{fieldError('defaultMode')}
+            <p id="signup-mode-help" className="signup-help">{msg('intentNote')}</p>{fieldError('defaultMode')}
           </fieldset>}
           <fieldset disabled={Boolean(busy)} className="signup-section"><legend>{msg('personalTitle')}</legend>
             <p className="signup-help">{msg('contactHelp')} <Link to="/privacy" target="_blank" rel="noopener noreferrer">{t('footer.privacy')}</Link></p>

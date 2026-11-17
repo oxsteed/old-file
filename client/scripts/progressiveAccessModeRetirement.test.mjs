@@ -6,10 +6,12 @@ const source = async (file) => readFile(new URL(`../src/${file}`, import.meta.ur
 
 test('progressive access replaces the navbar mode switcher with Applications navigation', async () => {
   const code = await source('components/ModeSwitcher.jsx');
+  const navbar = await source('components/Navbar.jsx');
   assert.match(code, /useAccessProjection/);
   assert.match(code, /accessProjection\?\.flags\?\.accessProjection/);
   assert.match(code, /to="\/settings\/applications"/);
   assert.doesNotMatch(code, /aria-hidden="true".*progressiveAccess\.pageTitle/);
+  assert.doesNotMatch(navbar, /<ModeSwitcher/);
 });
 
 test('settings account no longer offers self-selected mode switching', async () => {

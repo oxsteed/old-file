@@ -39,7 +39,7 @@ async function fixture() {
         const start=window.calls.find(c=>c.url.endsWith('/start'))?.payload;
         const capability={offer_services:'helper.offer_services',run_business:'business.own'}[start?.signupIntent];
         const access=capability?{nextStep:{type:'application',capability,requestId:window.missingApplication?null:'application-1'}}:undefined;
-        return {data:{user:{id:'synthetic',email_verified:true,role:'customer',default_mode:start?.defaultMode||'customer'},access}};
+        return {data:{user:{id:'synthetic',email_verified:true,role:'customer',default_mode:'customer'},access}};
       }
       return {data:{}};
     }};`,
@@ -200,13 +200,13 @@ test('age, drafts, errors, modes, referrals, OTP paste, routing and edit/restart
   const app=await fixture();const browser=await chromium.launch({channel:'chrome',headless:true});
   try{
     for(const mode of ['customer','helper','business_owner']){
-      const page=await browser.newPage();await open(page,`${app.url}/join?mode=${mode}&ref=REFTEST`);
+      const page=await browser.newPage();await open(page,`${app.url}/join?customerFirst&mode=${mode}&ref=REFTEST`);
       assert.equal(await page.locator(`input[value="${mode}"]`).isChecked(),true);
       await fill(page);await page.locator('#ageConfirmed').uncheck();await page.locator('button[type="submit"]').click();
       assert.equal(await page.locator('#ageConfirmed').evaluate(el=>el===document.activeElement),true);
       assert.equal(await page.evaluate(()=>window.calls.length),0);
       await page.locator('#ageConfirmed').check();await submit(page);
-      const payload=await page.evaluate(()=>window.calls[0].payload);assert.equal(payload.defaultMode,mode);assert.equal(payload.ref,'REFTEST');assert.equal(payload.ageConfirmed,true);
+      const payload=await page.evaluate(()=>window.calls[0].payload);assert.equal(payload.signupIntent,{customer:'find_help',helper:'offer_services',business_owner:'run_business'}[mode]);assert.equal(Object.hasOwn(payload,'defaultMode'),false);assert.equal(payload.ref,'REFTEST');assert.equal(payload.ageConfirmed,true);
       const draft=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('oxsteed:join-draft:v1')));assert.equal(draft.form.password,undefined);assert.ok(draft.metadata.resendAvailableAt);
       assert.equal(await page.locator('.signup-secondary').isDisabled(),true);
       // Clipboard paste submits once even when another input event follows.
@@ -218,7 +218,7 @@ test('age, drafts, errors, modes, referrals, OTP paste, routing and edit/restart
       await page.locator('.signup-verification .signup-primary').click();await page.locator('#email').waitFor();
       assert.equal(await page.locator('#email').inputValue(),'synthetic@example.test');assert.equal(await page.locator('#password').inputValue(),'');assert.equal(await page.locator('#ageConfirmed').isChecked(),false);
       await page.locator('#password').fill('Synthetic1');await page.locator('#ageConfirmed').check();await page.evaluate(()=>window.failure='success');await submit(page);await page.locator('[autocomplete="one-time-code"]').fill('123456');
-      await page.waitForFunction(expected=>document.querySelector('[data-route]').textContent===expected,mode==='helper'?'/verify-identity':'/dashboard');
+      await page.waitForFunction(expected=>document.querySelector('[data-route]').textContent===expected,mode==='customer'?'/dashboard':'/join');
       assert.equal(await page.evaluate(()=>sessionStorage.getItem('oxsteed:join-draft:v1')),null);await page.close();
     }
     for(const failure of ['duplicate','fields','unknown','network']){

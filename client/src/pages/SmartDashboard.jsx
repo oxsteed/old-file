@@ -13,6 +13,8 @@ import { useAuth } from '../hooks/useAuth';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { dashboardKeyForMode } from '../utils/modeAccess';
 import { normalizeLaunchDashboardMode } from '../utils/launchScope';
+import useAccessProjection from '../hooks/useAccessProjection';
+import { projectionActive } from '../utils/accessProjection';
 import OfferCard from '../growth/OfferCard';
 
 // Download only the active mode's dashboard. Other modes stay available
@@ -39,10 +41,14 @@ function Spinner() {
 export default function SmartDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const projection = useAccessProjection(user);
+  const progressive = projectionActive(projection);
 
   useEffect(() => {
     if (loading || !user) return;
-    const launchMode = normalizeLaunchDashboardMode(user.default_mode || user.role, user.role);
+    const launchMode = progressive
+      ? 'customer'
+      : normalizeLaunchDashboardMode(user.default_mode || user.role, user.role);
     const key = dashboardKeyForMode(launchMode);
     if (key === 'support_agent') {
       navigate('/support/agent', { replace: true });
@@ -55,15 +61,14 @@ export default function SmartDashboard() {
     } else if (key === 'admin') {
       navigate('/admin', { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, progressive]);
 
   if (loading || !user) return <Spinner />;
 
   // Effective mode falls back to legacy role for pre-migration-270 users.
-  const effectiveMode = normalizeLaunchDashboardMode(
-    user.default_mode || user.role,
-    user.role,
-  );
+  const effectiveMode = progressive
+    ? 'customer'
+    : normalizeLaunchDashboardMode(user.default_mode || user.role, user.role);
   const key = dashboardKeyForMode(effectiveMode);
 
   // The "Offers for you" card (growth spec 16.1) sits at the top of every

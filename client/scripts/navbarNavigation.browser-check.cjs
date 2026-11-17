@@ -160,24 +160,12 @@ test('mode navbar renders responsive priorities, accessible disclosures and work
     assert.equal(await single.getAttribute('aria-label'), longName);
     await page.setViewportSize({width:390,height:850});
     const mobileToggle = page.locator('.ox-nav-mobile-controls > button[aria-expanded]'); await mobileToggle.click();
-    const modeToggle = page.locator('.ox-nav-mobile-preferences [data-nav-disclosure] > button').first();
-    await modeToggle.click(); await page.keyboard.press('Tab'); await page.keyboard.press('Escape');
-    await waitExpanded(modeToggle, 'false');
-    assert.equal(await modeToggle.getAttribute('aria-expanded'), 'false');
-    assert.equal(await mobileToggle.getAttribute('aria-expanded'), 'true', 'Escape closes only the nested disclosure');
-    assert.equal(await modeToggle.evaluate(node=>node===document.activeElement), true);
-    await modeToggle.click();
-    await page.locator('.ox-nav-mobile-preferences [role="group"] button').filter({hasText:'Customer'}).click();
-    await page.waitForFunction(()=>sessionStorage.getItem('fixtureMode')==='customer' && document.querySelector('.ox-nav-mobile-mode')?.textContent==='Customer');
-    await waitExpanded(mobileToggle, 'false');
-    assert.equal(await mobileToggle.getAttribute('aria-expanded'), 'false');
     await mobileToggle.click(); await page.getByRole('button',{name:'Sign Out',exact:true}).click();
-    await page.locator('.ox-nav-mobile-mode').waitFor({state:'detached'});
     assert.equal(await page.locator('.ox-nav-mobile-mode').count(), 0);
     await waitExpanded(mobileToggle, 'false');
     assert.equal(await mobileToggle.getAttribute('aria-expanded'), 'false');
     assert.deepEqual(errors, []);
-    console.log('Verified 90 layout combinations plus menu, unread, mode-switch, workspace, and sign-out behavior.');
+    console.log('Verified 90 layout combinations plus menu, unread, workspace, and sign-out behavior.');
   } finally {
     await browser?.close();
     await new Promise(resolve => server.close(resolve));

@@ -25,6 +25,33 @@ const link = (id, to, labelKey, primary = false) => ({ id, to, labelKey, primary
 // back to the customer navigation, and capabilities the person holds but is
 // not viewing get account-menu shortcuts. Null projection = legacy behaviour.
 export function navbarNavigation(user, { dashboardPath = '/dashboard', workspacePath = '/business-hub', showSupportWorkspace = false, projection = null } = {}) {
+  // Progressive access is additive: the customer workspace remains the one
+  // home, while approved capabilities add entry points alongside it. Keep the
+  // legacy mode branch below for older clients that have no projection yet.
+  if (projectionActive(projection)) {
+    const primary = [
+      link('findHelp', '/helpers', 'nav.findHelp'),
+      link('myJobs', '/my-jobs', 'nav.myJobs'),
+      link('orderFood', '/restaurants', 'nav.orderFood'),
+      link('messages', '/messages', 'nav.messages'),
+      link('postJob', '/post-job', 'nav.postJob', true),
+    ];
+    const account = [link('dashboard', '/dashboard', 'nav.dashboard'), link('foodOrders', '/orders', 'nav.foodOrders')];
+    for (const item of capabilityShortcuts('customer', projection)) {
+      if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
+    }
+    if (LAUNCH_VISIBILITY.consulting && hasCapability(projection.access, 'consultant.accept_paying_clients')) {
+      account.push(link('consultantReferrals', '/consulting/contractor-dashboard', 'consultantContractorDashboard.page.title'));
+    }
+    account.push(link('settings', '/settings', 'nav.settings'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
+    if (showSupportWorkspace) account.push(link('support', '/support/agent', 'nav.supportWorkspace'));
+    return {
+      mode: 'customer',
+      primary,
+      account,
+      showBusinessSwitcher: (projection.access.organizations || []).length > 0,
+    };
+  }
   const mode = resolveHomeMode(user, navbarMode(user), projection).mode;
   const effectiveUser = user ? { ...user, default_mode: mode } : null;
   const business = BUSINESS_MODES.has(mode);

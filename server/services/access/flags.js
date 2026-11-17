@@ -2,7 +2,8 @@
 
 /**
  * Progressive access rollout flags (server-owned; spec "Launch flags and
- * drop-in compatibility"). Every flag defaults OFF. A pilot allowlist lets
+ * drop-in compatibility"). The progressive path is enabled by default; each
+ * flag can be explicitly disabled for rollback. A pilot allowlist still lets
  * development/test users use the flows before a cohort switch.
  *
  *   ACCESS_REQUESTS_ENABLED        applicant + reviewer APIs
@@ -28,9 +29,9 @@ function pilotIds() {
 
 const isPilot = (userId) => !!userId && pilotIds().has(String(userId));
 
-const requestsEnabled = (userId) => envFlagEnabled('ACCESS_REQUESTS_ENABLED', false) || isPilot(userId);
-const projectionEnabled = (userId) => envFlagEnabled('ACCESS_PROJECTION_ENABLED', false) || isPilot(userId);
-const customerFirstSignup = () => envFlagEnabled('ACCESS_CUSTOMER_FIRST_SIGNUP', false);
+const requestsEnabled = (userId) => envFlagEnabled('ACCESS_REQUESTS_ENABLED', true) || isPilot(userId);
+const projectionEnabled = (userId) => envFlagEnabled('ACCESS_PROJECTION_ENABLED', true) || isPilot(userId);
+const customerFirstSignup = () => envFlagEnabled('ACCESS_CUSTOMER_FIRST_SIGNUP', true);
 const legacySwitchRetired = () => envFlagEnabled('ACCESS_LEGACY_SWITCH_RETIRED', false);
 
 function helperEnforcement() {

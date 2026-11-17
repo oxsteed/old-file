@@ -5,6 +5,7 @@ const helpers = require('../controllers/helpersController');
 afterEach(() => { delete process.env.ACCESS_PROJECTION_ENABLED; delete process.env.ACCESS_PILOT_USER_IDS; });
 
 test('legacy helper discovery predicate remains role-compatible when projection is off', () => {
+  process.env.ACCESS_PROJECTION_ENABLED = 'false';
   expect(helpers.publicHelperRolePredicate('u')).toBe('u.role = ANY($1::user_role[])');
   expect(helpers.publicHelperStandingPredicate('u')).toBe("u.role IN ('helper', 'helper_pro', 'broker')");
 });

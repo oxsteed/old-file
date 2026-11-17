@@ -64,8 +64,11 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
     return <Navigate to="/verify-email" replace />;
   }
 
-  // Didit identity-verification gate (matches server authenticate middleware).
+  // Customer accounts can use the product before identity verification.
+  // Helper activation routes opt into this redirect; helper listing and work
+  // actions also enforce identity on the server.
   if (
+    requireOnboarded &&
     user.email_verified &&
     !diditGateSatisfied(user) &&
     !DIDIT_EXEMPT_PATHS.includes(location.pathname)

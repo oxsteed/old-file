@@ -39,6 +39,7 @@ test('unified discovery uses the capability-aware helper boundary when projectio
 });
 
 test('discovery keeps the legacy helper role boundary when projection is off', async () => {
+  process.env.ACCESS_PROJECTION_ENABLED = 'false';
   mockQuery.mockResolvedValue({ rows: [] });
   expect((await request(buildApp()).get('/api/discover?q=plumber')).status).toBe(200);
 
