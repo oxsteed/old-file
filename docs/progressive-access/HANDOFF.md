@@ -19,11 +19,13 @@ growth registry passed. Nine affected Chrome scenarios passed, including the
 navbar matrix and mobile sign-out. The [preceding CI run](https://github.com/oxsteed/old-file/actions/runs/44070155981)
 passed the server suite and reported five browser failures addressed here.
 
-Before rollout, validate the backfill on a disposable snapshot. Current
-`legacyMapping.js` still infers equipment and logistics access from mode strings.
-Check those cases against listings, approvals and organization records, and queue
-ambiguous cases before applying backfill. Trace the shared mode writer used by
-profile, mobile and `/switch-role` before removing any compatibility signal.
+Before rollout, validate the backfill on a disposable snapshot. The follow-up
+mapping now treats equipment and logistics modes as intent only: grants require
+an explicit legacy platform approval or canonical equipment listings, while
+mode-only users receive draft applications. Check those cases against listings,
+approvals and organization records, and queue ambiguous cases before applying
+backfill. Trace the shared mode writer used by profile, mobile and `/switch-role`
+before removing any compatibility signal.
 Production backfill, helper/business enforcement and live browser acceptance
 require separate verification.
 
@@ -230,6 +232,21 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
     whole restaurant's settlement statement.
 
 ## Next step
+
+### WP-106: legacy backfill authority boundary
+
+The follow-up branch removes the remaining mode-only grant paths from
+`services/access/legacyMapping.js`. A historic `tool_owner` or `logistics`
+preference now preserves intent as a draft, never authority. Explicit legacy
+platform approvals can preserve those capabilities, and existing equipment
+listings remain canonical evidence for the listing capability. Focused pure
+mapping assertions pass; disposable database backfill and exact-head CI remain
+open.
+
+**Exact next action:** run the access backfill dry-run against an approved
+disposable snapshot, inspect the exception and draft counts, then continue with
+the next bounded access package. Do not apply a production backfill or enable
+new enforcement without separate authorization.
 
 ### Customer-first signup experience follow-up
 

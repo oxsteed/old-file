@@ -50,10 +50,16 @@ function mapLegacyUser(facts) {
   if (approved('consultant')) grants.push(grant('consultant.accept_paying_clients', 'legacy_mode_approval'));
   else if (mode === 'consultant') drafts.push({ capability: 'consultant.accept_paying_clients', reason: 'legacy_mode_unapproved' });
 
-  if (mode === 'tool_owner' || (facts.toolListingCount || 0) > 0) {
-    grants.push(grant('tool_owner.list_equipment', mode === 'tool_owner' ? 'legacy_mode' : 'existing_listings'));
+  // A historic mode is an expressed preference, not approval. Existing
+  // listings and explicit platform approvals are canonical evidence that can
+  // preserve access; mode-only users resume as drafts for review instead.
+  if (approved('tool_owner') || (facts.toolListingCount || 0) > 0) {
+    grants.push(grant('tool_owner.list_equipment', approved('tool_owner') ? 'legacy_mode_approval' : 'existing_listings'));
+  } else if (mode === 'tool_owner') {
+    drafts.push({ capability: 'tool_owner.list_equipment', reason: 'legacy_mode_unapproved' });
   }
-  if (mode === 'logistics') grants.push(grant('logistics.ship', 'legacy_mode'));
+  if (approved('logistics')) grants.push(grant('logistics.ship', 'legacy_mode_approval'));
+  else if (mode === 'logistics') drafts.push({ capability: 'logistics.ship', reason: 'legacy_mode_unapproved' });
 
   if (facts.investorAudience) grants.push(grant('investor.reporting', 'investor_audience_record'));
   else if (mode === 'investor') exceptions.push({ reason: 'investor_mode_without_audience' });
