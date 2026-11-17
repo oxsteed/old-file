@@ -286,8 +286,7 @@ export function AuthProvider({ children }) {
   }, [persistUser, fetchMe]);
 
   const onboardingComplete = isOnboardingComplete(user);
-  const isHelper = ['helper', 'helper_pro', 'broker'].includes(user?.role);
-  const hasHelperAccess = isHelper || Boolean(
+  const hasHelperAccess = Boolean(
     accessProjection?.flags?.accessProjection
     && accessProjection.access?.personal?.includes('helper.offer_services')
   );
@@ -315,7 +314,6 @@ export function AuthProvider({ children }) {
     initialized,
     sessionRecovering,
     isAuthenticated: !!user,
-    isHelper,
     hasHelperAccess,
     isCustomer,
     membershipTier,
@@ -343,7 +341,6 @@ export function AuthProvider({ children }) {
     loading,
     initialized,
     sessionRecovering,
-    isHelper,
     hasHelperAccess,
     isCustomer,
     membershipTier,

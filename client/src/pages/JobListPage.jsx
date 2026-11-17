@@ -34,6 +34,7 @@ import useAuth from '../hooks/useAuth';
 import { detectCountryFromLocale } from '../lib/countries';
 
 import SearchBar from '../components/jobDirectory/SearchBar';
+import HelperOnboardingChecklist from '../components/HelperOnboardingChecklist';
 import SaveSearchButton from '../components/SaveSearchButton';
 import FilterPanel from '../components/jobDirectory/FilterPanel';
 import SortControls from '../components/jobDirectory/SortControls';
@@ -330,7 +331,7 @@ const DirectoryHero = ({ searchValue, onSearch, categoryLabels, suggestTiles, fi
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function JobListPage() {
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
+  const { user, hasHelperAccess } = useAuth();
   const { jobs, loading, error, pagination, fetchJobs } = useJobs();
   const [, setSearchParams] = useSearchParams();
   const { search: rememberedSearch } = useLocation();
@@ -536,6 +537,16 @@ export default function JobListPage() {
         description={t('jobsDir.metaDescription')}
         url="https://oxsteed.com/jobs"
       />
+
+      {/* WP-104: the helper onboarding checklist lives on the Jobs work
+          surface now, not on the helper dashboard. It only renders for
+          accounts with helper access, and hides itself once the server
+          reports the 'active' onboarding step. */}
+      {hasHelperAccess && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <HelperOnboardingChecklist />
+        </div>
+      )}
 
       {/* Hero + search */}
       <DirectoryHero

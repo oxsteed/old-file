@@ -4,6 +4,15 @@
 // server/index.js at:
 //   app.use('/api/mode-approvals',   userRouter)
 //   app.use('/api/admin',            adminRouter)
+//
+// WP-104 note: the ModeApprovals admin page is deleted, but these endpoints
+// stay. The access review queue does not decide mode approvals yet, the
+// consulting gates (requirePlatformApproval, consultantGate) still read
+// these policies and approval rows at runtime, PlatformApprovalBanner /
+// PlatformApprovalModal still surface them, and ModePolicies is the only
+// editor for the policy rows. Deleting the admin queue endpoints before the
+// review queue covers mode approvals would strand pending requests with no
+// way to decide them, so the whole module stays until that coverage lands.
 
 'use strict';
 
@@ -14,8 +23,8 @@ const ctrl = require('../controllers/modePlatformApprovalController');
 
 const userRouter = express.Router();
 
-// Public — anyone authenticated. Used by the navbar Mode Switcher + the
-// Settings → Account Type panel to render "you need approval" prompts.
+// Public — anyone authenticated. Used by PlatformApprovalBanner /
+// PlatformApprovalModal to render "you need approval" prompts and requests.
 userRouter.get('/policies', authenticate, ctrl.listPublicPolicies);
 userRouter.get('/me',                authenticate, ctrl.listMine);
 userRouter.get('/me/:mode',          authenticate, ctrl.getMine);

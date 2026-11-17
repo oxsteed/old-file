@@ -264,7 +264,7 @@ function OpportunityCard({ item, onApply, t }) {
 
 export default function SupportAgentPortalPage() {
   const { t } = useTranslation();
-  const { isHelper } = useAuth();
+  const { hasHelperAccess } = useAuth();
   const [employments, setEmployments] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -483,7 +483,7 @@ export default function SupportAgentPortalPage() {
                     {savingAvailability ? t('supportAgentPortal.saving') : t('supportAgentPortal.goOffline')}
                   </button>
                   <Link
-                    to={isHelper ? '/helper/messages' : '/messages'}
+                    to={hasHelperAccess ? '/helper/messages' : '/messages'}
                     className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-orange-400/40"
                   >
                     <MessageSquare size={16} />

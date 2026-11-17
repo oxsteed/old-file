@@ -1,11 +1,13 @@
 // client/src/utils/modeAccess.js
 //
-// One place that maps a user's default_mode → UI visibility flags. The legacy
-// codebase uses `isHelper` (from AuthContext) in dozens of places; that flag
-// stays correct because we keep users.role in lockstep with default_mode on
-// the server (see server/utils/modeRole.js). This util just adds mode-aware
-// flags where role wasn't fine-grained enough — primarily for navbar links,
-// settings sidebar items, and dashboard widget selection.
+// WP-104: the legacy gates `canPostJobs` and `canAccessBusinessHub` are
+// deleted. Posting a job is open to any signed-in account (the customer
+// workspace action); Business Hub access comes from the access projection
+// (`hasBusinessHubAccess`). The remaining mode-aware predicates below are
+// untouched by this cutover: they answer dashboard/sidebar questions for
+// surfaces whose own migration is a later phase, and they read
+// `default_mode` (kept in lockstep with `users.role` on the server, see
+// server/utils/modeRole.js), never the deleted role-based `isHelper` flag.
 
 import { projectionActive } from './accessProjection.js';
 
@@ -71,13 +73,6 @@ export function dashboardKeyForMode(mode) {
 // Keep these tight — each one answers a single yes/no question. Pages then
 // compose them.
 
-export function canPostJobs(user) {
-  // Customers + helpers (who sometimes need help themselves) + life mode all
-  // can post jobs. Franchise applicants can too — they often need vendors.
-  const m = getMode(user);
-  return ['customer', 'investor', 'helper', 'business_owner', 'tool_owner', 'consultant', 'life_only', 'franchise_applicant'].includes(m);
-}
-
 export function canBidOnJobs(user) {
   return isHelperClassMode(user);
 }
@@ -109,19 +104,16 @@ export function hasProAccess(user) {
   return false;
 }
 
-// Business Hub gate — helper-class modes (helper, business_owner, team roles)
-// aligned with SmartDashboard families that operate workspaces.
-export function canAccessBusinessHub(user, projection) {
-  if (!user) return false;
-  if (projectionActive(projection)) {
-    const { access, flags } = projection;
-    if (access.organizations?.length > 0) return true;
-    // Active customers can prepare private drafts. The API enforces owner
-    // approval when they publish.
-    if (flags.accessRequests && access.personal?.includes('customer')) return true;
-  }
-  if (isHelperClassMode(user)) return true;
-  return ['admin', 'super_admin'].includes(user.role) || getMode(user) === 'admin';
+// Business Hub gate, projection-only (WP-104): an organization membership
+// opens the hub. An active customer with an open access request can prepare
+// private drafts; the API enforces owner approval when they publish. A
+// missing projection opens nothing — the hub needs the projection to know
+// which organizations the account belongs to.
+export function hasBusinessHubAccess(projection) {
+  if (!projectionActive(projection)) return false;
+  const { access, flags } = projection;
+  if ((access.organizations || []).length > 0) return true;
+  return Boolean(flags?.accessRequests && (access.personal || []).includes('customer'));
 }
 
 // QR code creation and saved-code storage are Pro features on the API.
@@ -170,14 +162,16 @@ export function settingsTabsForMode(user) {
 
 // ── Navbar link visibility ───────────────────────────────────────────────────
 
-export function navLinksForMode(user) {
+export function navLinksForMode(user, projection = null) {
   const m = getMode(user);
   const links = {
     showBrowseJobs: true,
-    showPostJob: canPostJobs(user),
+    // WP-104: posting a job is a customer-workspace action, open to any
+    // signed-in account; the old mode allow-list is deleted.
+    showPostJob: !!user,
     showMessages: !!user,
     showDashboard: !!user,
-    showBusinessHub: canAccessBusinessHub(user),
+    showBusinessHub: hasBusinessHubAccess(projection),
     showQRGenerator: canUseQrGenerator(user),
     showToolRentalsBrowse: true,
     showConsultingPortal: m === 'consultant',
@@ -191,12 +185,11 @@ export default {
   isHelperClassMode,
   isCustomerClassMode,
   dashboardKeyForMode,
-  canPostJobs,
   canBidOnJobs,
   canListTools,
   canManageBusinesses,
   hasProAccess,
-  canAccessBusinessHub,
+  hasBusinessHubAccess,
   canUseQrGenerator,
   canOfferConsulting,
   canSeeLifeFeatures,

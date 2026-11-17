@@ -99,7 +99,7 @@ import { getContinuityOperationsWorkspace } from '../api/continuityOperations';
 import { formatDate, formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import { isBusinessHubTabLaunched, LAUNCH_VISIBILITY } from '../utils/launchScope';
-import { canAccessBusinessHub } from '../utils/modeAccess';
+import { hasBusinessHubAccess } from '../utils/modeAccess';
 import useAccessProjection from '../hooks/useAccessProjection';
 import TabErrorBoundary from '../components/TabErrorBoundary';
 const HiringPipelineBoard = lazyDefault(() => import('../components/careers/HiringPipelineBoard'));
@@ -173,7 +173,11 @@ export default function BusinessHubPage() {
   const { businessId: workspaceBusinessId } = useParams();
   const projection = useAccessProjection(user);
 
-  if (!canAccessBusinessHub(user, projection)) {
+  // WP-104: the hub opens from the access projection only. While the
+  // projection is still loading (null) the denied state below renders;
+  // the projection is on by default and cached, so this is a first-load
+  // flash, not a steady state.
+  if (!hasBusinessHubAccess(projection)) {
     return (
       <PageShell>
         <PageMeta title={t('businessHub.metaTitle')} description={t('businessHub.metaDesc')} />

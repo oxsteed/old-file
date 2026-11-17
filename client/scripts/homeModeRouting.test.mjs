@@ -8,7 +8,6 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { normalizeLaunchDashboardMode } from '../src/utils/launchScope.js';
 import { dashboardKeyForMode } from '../src/utils/modeAccess.js';
-import { navbarMode } from '../src/utils/navbarNavigation.js';
 import * as accessProjection from '../src/utils/accessProjection.js';
 
 const require = createRequire(import.meta.url);
@@ -116,25 +115,30 @@ test('helper activation routes opt into the identity gate; the legacy home keeps
   assert.match(gate, /requireOnboarded \|\| requireIdentityVerification/);
 });
 
-test('customer discovery exposes bookings while helper actions follow the active mode', () => {
+test('customer discovery exposes bookings while helper actions follow helper access', () => {
   let user;
+  let hasHelperAccess = false;
   const Hero = component('components/Hero.jsx', {
-    '../context/AuthContext': { useAuth: () => ({ user }) },
-    '../utils/navbarNavigation': { navbarMode },
+    '../context/AuthContext': { useAuth: () => ({ user, hasHelperAccess }) },
     'react-i18next': { useTranslation: () => ({ t: key => key }) },
     './PrefetchLink': { __esModule: true, default: ({ to, children, ...props }) => React.createElement('a', { href: to, ...props }, children) },
   });
   const render = () => renderToStaticMarkup(React.createElement(Hero));
+  // A helper-role account without helper access sees the customer actions.
   user = { role: 'helper', default_mode: 'customer' };
+  hasHelperAccess = false;
   let html = render();
   assert.match(html, /href="\/my-bookings"/);
   assert.match(html, /href="\/post-job"/);
   assert.doesNotMatch(html, /href="\/jobs"/);
+  // Helper access switches the hero to the work actions, whatever the role.
   user = { role: 'helper', default_mode: 'helper' };
+  hasHelperAccess = true;
   html = render();
   assert.match(html, /href="\/jobs"/);
   assert.match(html, /href="\/helper-dashboard"/);
   user = null;
+  hasHelperAccess = false;
   html = render();
   assert.match(html, /href="\/join"/);
   assert.match(html, /href="\/helpers"/);

@@ -1,16 +1,6 @@
-import { canAccessBusinessHub, canPostJobs } from './modeAccess.js';
 import { businessHubLandingPath } from './businessProfileForm.js';
 import { LAUNCH_VISIBILITY } from './launchScope.js';
-import { resolveHomeMode, capabilityShortcuts, projectionActive, hasCapability } from './accessProjection.js';
-
-const BUSINESS_MODES = new Set(['business_owner', 'business_manager', 'business_representative', 'business_employee']);
-
-export function navbarMode(user) {
-  if (user?.default_mode) return user.default_mode;
-  if (['admin', 'super_admin'].includes(user?.role)) return 'admin';
-  if (user?.role === 'support_agent') return 'business_support_agent';
-  return ['helper', 'helper_pro', 'broker'].includes(user?.role) ? 'helper' : 'customer';
-}
+import { capabilityShortcuts, projectionActive, hasCapability } from './accessProjection.js';
 
 export function navbarWorkspacePath(pathname = '', savedBusinessId) {
   const routeId = pathname.match(/^\/business\/([^/]+)\/workspace(?:\/|$)/)?.[1];
@@ -20,82 +10,39 @@ export function navbarWorkspacePath(pathname = '', savedBusinessId) {
 
 const link = (id, to, labelKey, primary = false) => ({ id, to, labelKey, primary });
 
-// WP-016: `projection` ({ access, flags } from GET /api/me/access) makes the
-// shared navigation capability-aware: a view whose access was removed falls
-// back to the customer navigation, and capabilities the person holds but is
-// not viewing get account-menu shortcuts. Null projection = legacy behaviour.
+// WP-016 / WP-104: navigation is projection-only. Every account lands in the
+// customer workspace; approved capabilities add entry points alongside it in
+// the account menu. A missing projection yields the customer baseline with no
+// shortcuts and no business switcher. There is no mode branch and no
+// null-projection legacy fallback: `navbarMode()` and the three mode-derived
+// link sets are deleted.
+//
+// `user` and `workspacePath` are retained in the signature for callers; the
+// link sets no longer read them. `dashboardPath` drives the dashboard
+// account link (callers pass '/dashboard').
 export function navbarNavigation(user, { dashboardPath = '/dashboard', workspacePath = '/business-hub', showSupportWorkspace = false, projection = null } = {}) {
-  // Progressive access is additive: the customer workspace remains the one
-  // home, while approved capabilities add entry points alongside it. Keep the
-  // legacy mode branch below for older clients that have no projection yet.
-  if (projectionActive(projection)) {
-    const primary = [
-      link('findHelp', '/helpers', 'nav.findHelp'),
-      link('myJobs', '/my-jobs', 'nav.myJobs'),
-      link('orderFood', '/restaurants', 'nav.orderFood'),
-      link('messages', '/messages', 'nav.messages'),
-      link('postJob', '/post-job', 'nav.postJob', true),
-    ];
-    const account = [link('dashboard', '/dashboard', 'nav.dashboard'), link('foodOrders', '/orders', 'nav.foodOrders')];
-    for (const item of capabilityShortcuts('customer', projection)) {
-      if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
-    }
-    if (LAUNCH_VISIBILITY.consulting && hasCapability(projection.access, 'consultant.accept_paying_clients')) {
-      account.push(link('consultantReferrals', '/consulting/contractor-dashboard', 'consultantContractorDashboard.page.title'));
-    }
-    account.push(link('settings', '/settings', 'nav.settings'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
-    if (showSupportWorkspace) account.push(link('support', '/support/agent', 'nav.supportWorkspace'));
-    return {
-      mode: 'customer',
-      primary,
-      account,
-      showBusinessSwitcher: (projection.access.organizations || []).length > 0,
-    };
-  }
-  const mode = resolveHomeMode(user, navbarMode(user), projection).mode;
-  const effectiveUser = user ? { ...user, default_mode: mode } : null;
-  const business = BUSINESS_MODES.has(mode);
-  const helper = mode === 'helper';
-  const customer = mode === 'customer';
-  const messages = link('messages', customer ? '/messages' : '/helper/messages', 'nav.messages');
-  let primary;
-  if (customer) {
-    primary = [link('findHelp', '/helpers', 'nav.findHelp'), link('myJobs', '/my-jobs', 'nav.myJobs'),
-      link('orderFood', '/restaurants', 'nav.orderFood'), messages, link('postJob', '/post-job', 'nav.postJob', true)];
-  } else if (helper) {
-    primary = [link('browseJobs', '/jobs', 'nav.browseJobs', true), link('myWork', '/helper-dashboard', 'nav.myWork'), messages];
-  } else if (business) {
-    primary = [link('dashboard', dashboardPath, 'nav.dashboard'), link('workspace', workspacePath, 'nav.workspace', true), messages];
-  } else {
-    // Preserve specialized dashboards and the existing personal/provider inbox.
-    const provider = ['helper', 'helper_pro', 'broker'].includes(user?.role);
-    primary = [link('browseJobs', '/jobs', 'nav.browseJobs'), link('orderFood', '/restaurants', 'nav.localFoodDirectory')];
-    if (canPostJobs(effectiveUser)) primary.push(link('postJob', '/post-job', 'nav.postJob'));
-    // UI gaps item 12: mode-appropriate links, only where the destination
-    // actually renders. /tool-rentals is a real route; franchise,
-    // consulting, and investor destinations are flag-gated, so their links
-    // appear exactly when the flag is on and never point at a bounce.
-    if (mode === 'tool_owner') primary.push(link('toolRentals', '/tool-rentals', 'toolRentals.browsePage'));
-    if (mode === 'consultant' && LAUNCH_VISIBILITY.consulting) primary.push(link('consulting', '/consulting', 'adminNav.consulting'));
-    if (mode === 'franchise_applicant' && LAUNCH_VISIBILITY.franchise) primary.push(link('franchise', '/franchise/status', 'adminNav.franchiseStatus'));
-    if (mode === 'investor' && LAUNCH_VISIBILITY.investor) primary.push(link('investor', '/investor/dashboard', 'investorDashboard.header.title'));
-    primary.push(link('messages', provider ? '/helper/messages' : '/messages', 'nav.messages'), link('dashboard', dashboardPath, 'nav.dashboard'));
-  }
-  const account = [];
-  if (customer) account.push(link('dashboard', dashboardPath, 'nav.dashboard'), link('foodOrders', '/orders', 'nav.foodOrders'));
-  if (helper && canAccessBusinessHub(effectiveUser)) account.push(link('workspace', workspacePath, 'nav.businessWorkspace'));
-  for (const item of capabilityShortcuts(mode, projection)) {
+  const primary = [
+    link('findHelp', '/helpers', 'nav.findHelp'),
+    link('myJobs', '/my-jobs', 'nav.myJobs'),
+    link('orderFood', '/restaurants', 'nav.orderFood'),
+    link('messages', '/messages', 'nav.messages'),
+    link('postJob', '/post-job', 'nav.postJob', true),
+  ];
+  const account = [link('dashboard', dashboardPath, 'nav.dashboard'), link('foodOrders', '/orders', 'nav.foodOrders')];
+  for (const item of capabilityShortcuts('customer', projection)) {
     if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
   }
-  if (LAUNCH_VISIBILITY.consulting && mode !== 'consultant' && projectionActive(projection)
-      && hasCapability(projection.access, 'consultant.accept_paying_clients')) {
+  if (LAUNCH_VISIBILITY.consulting && projectionActive(projection) && hasCapability(projection.access, 'consultant.accept_paying_clients')) {
     account.push(link('consultantReferrals', '/consulting/contractor-dashboard', 'consultantContractorDashboard.page.title'));
   }
   account.push(link('settings', '/settings', 'nav.settings'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
-  if (showSupportWorkspace && !primary.some(item => item.to === '/support/agent')) {
-    account.push(link('support', '/support/agent', 'nav.supportWorkspace'));
-  }
-  return { mode, primary, account, showBusinessSwitcher: business && canAccessBusinessHub(effectiveUser) };
+  if (showSupportWorkspace) account.push(link('support', '/support/agent', 'nav.supportWorkspace'));
+  return {
+    mode: 'customer',
+    primary,
+    account,
+    showBusinessSwitcher: projectionActive(projection) && (projection.access.organizations || []).length > 0,
+  };
 }
 
 export function navbarLinkActive(item, pathname, mode) {
