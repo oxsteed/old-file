@@ -37,13 +37,21 @@ describe('new registration validation', () => {
     if (allowed) expect(hash).toHaveBeenCalledWith(password, expect.any(Number));
     else expect(mockQuery).not.toHaveBeenCalled();
   });
-  test.each(['customer', 'helper', 'business_owner'])('preserves launch mode, referral and explicit consent: %s', async defaultMode => {
+  test.each([
+    ['customer', 'find_help'],
+    ['helper', 'offer_services'],
+    ['business_owner', 'run_business'],
+  ])('preserves signup intent, referral and explicit consent: %s', async (defaultMode, intent) => {
     const expires = future(1800000);
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'referrer' }] }).mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: 1, expires_at: expires }] });
     const res = await call('startRegistration', { ...valid, defaultMode, ref: 'REFTEST', password: ' A1aaaaa ' });
     expect(res.body.registrationExpiresAt).toBe(expires);
     expect(hash).toHaveBeenCalledWith(' A1aaaaa ', expect.any(Number));
-    const args = mockQuery.mock.calls[2][1]; expect(args[11]).toBe(true); expect(args[13]).toBe('REFTEST'); expect(args[14]).toBe(defaultMode);
+    const args = mockQuery.mock.calls[2][1]; expect(args[11]).toBe(true); expect(args[13]).toBe('REFTEST');
+    // WP-104: the pending row is always a customer; the signup choice is
+    // stored apart from authority as an intent, never as a mode/role.
+    expect(args[14]).toBe('customer');
+    expect(args[15]).toBe(intent);
     expect(mockQuery.mock.calls[2][0]).toMatch(/expires_at = NOW\(\) \+ interval '30 minutes'/);
     expect(mockQuery.mock.calls[2][0]).not.toMatch(/otp_locked_until\s*=/);
   });

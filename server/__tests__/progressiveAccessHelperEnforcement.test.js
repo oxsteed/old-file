@@ -246,6 +246,9 @@ describe('dedicated helper registration under customer-first signup (WP-006)', (
   );
 
   test('flag off: the dedicated route still reaches its handler', async () => {
+    // WP-104 flipped the default on, so "flag off" must be set explicitly;
+    // the ambient default no longer means off.
+    process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = 'false';
     const res = await request(app).post('/api/helper-registration/start').send({});
     expect(res.status).not.toBe(410);
   });

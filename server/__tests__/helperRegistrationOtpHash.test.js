@@ -46,6 +46,14 @@ beforeEach(() => {
   resetMocks();
   settingsCache._clearCacheForTests();
   sendOTPEmail.mockClear();
+  // WP-104: these tests cover the dedicated helper-registration route
+  // itself, which only serves traffic while customer-first signup is off.
+  // The flag-on 410 is covered by progressiveAccessHelperEnforcement.
+  process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = 'false';
+});
+
+afterEach(() => {
+  delete process.env.ACCESS_CUSTOMER_FIRST_SIGNUP;
 });
 
 // The registration gate (requireRegistrationsOpen) issues the first query:

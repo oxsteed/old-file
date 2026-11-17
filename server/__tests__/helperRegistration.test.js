@@ -34,6 +34,14 @@ beforeEach(() => {
   // Review P3-7-F07: the registration gate reads platform_settings first;
   // clear the TTL cache so each test's mock sequence starts fresh.
   settingsCache._clearCacheForTests();
+  // WP-104: these tests cover the dedicated helper-registration route
+  // itself, which only serves traffic while customer-first signup is off.
+  // The flag-on 410 is covered by progressiveAccessHelperEnforcement.
+  process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = 'false';
+});
+
+afterEach(() => {
+  delete process.env.ACCESS_CUSTOMER_FIRST_SIGNUP;
 });
 
 // The registration gate (requireRegistrationsOpen) issues the first query:

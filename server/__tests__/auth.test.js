@@ -260,7 +260,10 @@ describe('POST /api/auth/register/start', () => {
     expect(res.status).toBe(200);
     const insertArgs = mockQuery.mock.calls.find(([sql]) => /INSERT INTO pending_registrations/.test(sql))[1];
     expect(insertArgs[9]).toBe('Île-de-France');
-    expect(insertArgs[14]).toBe('restaurant_staff');
+    // WP-104: the pending row is always a customer; a legacy mode with no
+    // intent mapping collapses to find_help, stored apart from authority.
+    expect(insertArgs[14]).toBe('customer');
+    expect(insertArgs[15]).toBe('find_help');
   });
 
   test('allows empty postal code when the selected country does not require one', async () => {
