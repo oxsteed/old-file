@@ -26,7 +26,7 @@ function subject({ href = 'https://app.invalid/discover', online = true, brokenS
     const code = transformSync(fs.readFileSync(new URL(`../src/utils/${file}`, import.meta.url), 'utf8'), {
       format: 'cjs', define: { 'import.meta.env': JSON.stringify({ VITE_APP_VERSION: 'synthetic' }) },
     }).code;
-    vm.runInNewContext(code, { module, exports: module.exports, require, window: win, URL, Date });
+    vm.runInNewContext(code, { module, exports: module.exports, require, window: win, URL, Date, setTimeout, clearTimeout });
     return module.exports;
   }
   const safety = load('appUpdateSafety.js');
@@ -40,16 +40,19 @@ function subject({ href = 'https://app.invalid/discover', online = true, brokenS
 }
 const failure = () => Error('Importing a module script failed');
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+// In-place chunk retries chain through timers; drain several macrotasks so a
+// [0, 0] retry schedule has fully settled before assertions run.
+const drain = async () => { for (let i = 0; i < 12; i++) await settle(); };
 
 test('unload and explicit worker reload fence failures from the departing document', async () => {
   for (const event of ['beforeunload', 'pagehide', 'explicit-update']) {
     const app = subject();
     let reject;
-    const loading = app.lazyWithRetry(() => new Promise((_, fail) => { reject = fail; }))();
+    const loading = app.lazyWithRetry(() => new Promise((_, fail) => { reject = fail; }), { chunkRetryDelaysMs: [0] })();
     const result = loading.catch(error => error);
     if (event === 'explicit-update') app.safety.markDocumentLeaving(); else app.win.dispatchEvent(new Event(event));
     reject(failure());
-    await settle();
+    await drain();
     assert.equal(app.reloads.length, 0, event);
     assert.match((await result).message, /module script/);
   }
@@ -58,11 +61,11 @@ test('unload and explicit worker reload fence failures from the departing docume
 test('an abandoned SPA route cannot reload the destination chosen afterward', async () => {
   const app = subject();
   let reject;
-  const loading = app.lazyWithRetry(() => new Promise((_, fail) => { reject = fail; }))();
+  const loading = app.lazyWithRetry(() => new Promise((_, fail) => { reject = fail; }), { chunkRetryDelaysMs: [0] })();
   const result = loading.catch(error => error);
   app.win.location.href = 'https://app.invalid/business/4/workspace';
   reject(failure());
-  await settle();
+  await drain();
   assert.equal(app.reloads.length, 0);
   assert.match((await result).message, /module script/);
 });
@@ -71,8 +74,8 @@ test('a newly replaced document cannot immediately start a competing automatic r
   const before = subject();
   before.safety.markDocumentLeaving();
   const after = subject({ store: before.store });
-  const result = after.lazyWithRetry(async () => { throw failure(); })().catch(error => error);
-  await settle();
+  const result = after.lazyWithRetry(async () => { throw failure(); }, { chunkRetryDelaysMs: [0] })().catch(error => error);
+  await drain();
   assert.equal(after.reloads.length, 0);
   assert.match((await result).message, /module script/);
 });
@@ -93,8 +96,8 @@ test('offline, protected workflows and unavailable storage preserve the document
   for (const options of [{ online: false }, { brokenStorage: true }, { href: 'https://app.invalid/post-job' }, { href: 'https://app.invalid/restaurants/r/42' }, { guarded: true }]) {
     const app = subject(options);
     const release = options.guarded ? app.safety.deferAppUpdates() : () => {};
-    const result = app.lazyWithRetry(async () => { throw failure(); })().catch(error => error);
-    await settle();
+    const result = app.lazyWithRetry(async () => { throw failure(); }, { chunkRetryDelaysMs: [0, 0] })().catch(error => error);
+    await drain();
     assert.equal(app.reloads.length, 0, JSON.stringify(options));
     assert.match((await result).message, /module script/);
     release();
@@ -104,15 +107,15 @@ test('offline, protected workflows and unavailable storage preserve the document
 test('a safe missing chunk gets one durable attempt, shared with global failure handling', async () => {
   const app = subject();
   app.installGlobalChunkReload();
-  void app.lazyWithRetry(async () => { throw failure(); })();
-  await settle();
+  void app.lazyWithRetry(async () => { throw failure(); }, { chunkRetryDelaysMs: [0, 0] })();
+  await drain();
   assert.equal(app.reloads.length, 1);
   const event = new Event('unhandledrejection', { cancelable: true });
   Object.defineProperty(event, 'reason', { value: failure() });
   app.win.dispatchEvent(event);
   assert.equal(app.reloads.length, 1);
   const nextDocument = subject({ store: app.store });
-  await assert.rejects(nextDocument.lazyWithRetry(async () => { throw failure(); })(), /module script/);
+  await assert.rejects(nextDocument.lazyWithRetry(async () => { throw failure(); }, { chunkRetryDelaysMs: [0, 0] })(), /module script/);
   assert.equal(nextDocument.reloads.length, 0);
 });
 
@@ -120,16 +123,16 @@ test('a successful sibling cannot erase the failed-route attempt and create a re
   const app = subject();
   let finishSibling;
   const sibling = app.lazyWithRetry(() => new Promise(resolve => { finishSibling = resolve; }))();
-  void app.lazyWithRetry(async () => { throw failure(); })();
-  await settle();
+  void app.lazyWithRetry(async () => { throw failure(); }, { chunkRetryDelaysMs: [0, 0] })();
+  await drain();
   assert.equal(app.reloads.length, 1);
   finishSibling({ default: null }); await sibling;
   const next = subject({ store: app.store });
-  const rejected = next.lazyWithRetry(async () => { throw failure(); })();
+  const rejected = next.lazyWithRetry(async () => { throw failure(); }, { chunkRetryDelaysMs: [0, 0] })();
   // Attach the rejection handler immediately; a passing result must reject
   // into the existing recovery UI rather than leave a second reload pending.
   const result = rejected.then(() => null, error => error);
-  await settle();
+  await drain();
   assert.equal(next.reloads.length, 0);
   assert.match((await result).message, /module script/);
 });
@@ -155,10 +158,46 @@ test('BFCache restore permits safe recovery and a user can explicitly reload wit
   app.win.dispatchEvent(new Event('pagehide'));
   const restored = new Event('pageshow'); Object.defineProperty(restored, 'persisted', { value: true });
   app.win.dispatchEvent(restored);
-  void app.lazyWithRetry(async () => { throw failure(); })();
-  await settle();
+  void app.lazyWithRetry(async () => { throw failure(); }, { chunkRetryDelaysMs: [0, 0] })();
+  await drain();
   assert.equal(app.reloads.length, 1);
   const restricted = subject({ brokenStorage: true });
   restricted.forceChunkReload();
   assert.match(restricted.reloads[0], /chunk-retry=manual/);
+});
+
+test('a transient chunk failure recovers in place without reloading the document', async () => {
+  const app = subject();
+  let attempts = 0;
+  const loading = app.lazyWithRetry(() => {
+    attempts += 1;
+    if (attempts < 3) return Promise.reject(failure());
+    return Promise.resolve({ default: 'join' });
+  }, { chunkRetryDelaysMs: [0, 0] })();
+  assert.deepEqual(await loading, { default: 'join' });
+  assert.equal(attempts, 3);
+  assert.equal(app.reloads.length, 0);
+});
+
+test('a persistently missing chunk still reloads once after the in-place retries', async () => {
+  const app = subject();
+  let attempts = 0;
+  void app.lazyWithRetry(() => {
+    attempts += 1;
+    return Promise.reject(failure());
+  }, { chunkRetryDelaysMs: [0, 0] })();
+  await drain();
+  assert.equal(attempts, 3);
+  assert.equal(app.reloads.length, 1);
+  assert.match(app.reloads[0], /chunk-retry=auto/);
+});
+
+test('retries stop without reloading when the document starts leaving mid-retry', async () => {
+  const app = subject();
+  const loading = app.lazyWithRetry(async () => { throw failure(); }, { chunkRetryDelaysMs: [50, 50] })();
+  const result = loading.catch(error => error);
+  setTimeout(() => app.win.dispatchEvent(new Event('pagehide')), 5);
+  const error = await result;
+  assert.equal(app.reloads.length, 0);
+  assert.match(error.message, /module script/);
 });

@@ -223,7 +223,14 @@ async function revalidateAsset(event, request) {
   return cached || refresh;
 }
 
-async function navigationHandler(event, request) {
+async function navigationHandler(event, request, options = {}) {
+  // Test hook: delay before the single 5xx retry below. Production waits
+  // two seconds so a container that is still coming up can answer.
+  const retryDelayMs = options.retryDelayMs ?? 2000;
+  const sleep = (ms) => new Promise((resolve) => {
+    if (typeof setTimeout === 'function') setTimeout(resolve, ms);
+    else resolve();
+  });
   try {
     // Use the preloaded response when the browser fetched the document in
     // parallel during worker startup; fall back to a live fetch.
@@ -232,6 +239,18 @@ async function navigationHandler(event, request) {
     catch { /* preload unavailable; fall through to fetch */ }
     const response = preloaded || await fetch(request);
     if (response.status >= 500) {
+      // MITIGATION (Nov 16, PR #797 Track E): a 5xx navigation during a
+      // deploy restart is usually transient, but the old code served the
+      // static trouble page on the first 5xx and stranded the user there
+      // (the /join first load on Nov 16 hit exactly this: the chunk reload
+      // fetched a 5xx document and the user saw trouble.html). Retry the
+      // document once after a short delay; only a still-failing server gets
+      // the trouble page. A network error below still means offline.
+      await sleep(retryDelayMs);
+      try {
+        const retry = await fetch(request);
+        if (retry.status < 500) return retry;
+      } catch { /* still down; fall through to the trouble page */ }
       // A server error is not a connectivity problem: serve the trouble
       // page, not the offline page (M15). A cached Response keeps its
       // original 200 status, so the page is re-wrapped with an honest 503.

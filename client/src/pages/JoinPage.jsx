@@ -146,7 +146,17 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const recoveryMessage = (error, { registrationAttempt = false } = {}) => {
     const data = error?.response?.data || {};
     mergeMetadata(data);
-    if (data.code === 'registration_expired' || error?.response?.status === 404) {
+    if (data.code === 'email_already_registered' || error?.response?.status === 409) {
+      // The server recognised a signed decoy token: this email already has
+      // an account. Point at sign-in instead of the expired-registration
+      // dead end. The submit path also maps 409 to the email field directly.
+      return msg('emailTaken');
+    }
+    // Only the server's own registration_expired code means the registration
+    // expired. A bare 404 (for example a proxy 404 while the server is
+    // restarting mid-deploy) is not an expired registration and must not be
+    // reported as one; it falls through to the generic request failure.
+    if (data.code === 'registration_expired') {
       // A stale tab or a transient expiry can happen before the OTP screen is
       // shown. Clear only the server token so the same form can immediately
       // start a fresh registration instead of leaving the user without a code
@@ -178,7 +188,16 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const handleSubmit = async event => {
     event.preventDefault();
     if (operation.current || capabilitiesLoading) return;
-    if (registrationExpired && registrationToken) { setErrors({ general: msg('registrationExpired') }); return; }
+    // A draft-restored token whose 30-minute window already passed can never
+    // verify. Drop it and start a fresh registration below instead of
+    // failing every submit with the same expired-token error.
+    let staleToken = false;
+    if (registrationExpired && registrationToken) {
+      setRegistrationToken('');
+      setMetadata({});
+      setExpired(false);
+      staleToken = true;
+    }
     const invalid = validateSignup(form, SIGNUP_INTENT_VALUES);
     if (Object.keys(invalid).length) {
       setErrors(Object.fromEntries(Object.entries(invalid).map(([field, key]) => [field, msg(key)])));
@@ -186,7 +205,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
     }
     operation.current = true; setBusy('submit'); setErrors({}); setNotice('');
     try {
-      let token = registrationToken;
+      let token = staleToken ? '' : registrationToken;
       if (!token) {
         const { data } = await api.post('/auth/register/start', {
           email: form.email.trim().toLowerCase(), password: form.password, firstName: form.firstName.trim(),
@@ -203,7 +222,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
         token = data.token; setRegistrationToken(token); mergeMetadata(data);
       }
       const { data } = await api.post('/auth/register/accept-terms', {
-        token, termsAccepted: form.termsAccepted, privacyAccepted: form.termsAccepted, brokerAccepted: true,
+        token, email: form.email.trim().toLowerCase(), termsAccepted: form.termsAccepted, privacyAccepted: form.termsAccepted, brokerAccepted: true,
         electronicSignature: { firstName: form.firstName.trim(), lastName: form.lastName.trim(), date: new Date().toISOString() },
       });
       mergeMetadata(data);
@@ -228,7 +247,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
     if (operation.current || registrationExpired || lockedUntil > Date.now()) return;
     operation.current = true; setBusy('verify'); setOtpError(''); setNotice('');
     try {
-      const { data } = await api.post('/auth/register/verify-otp', { token: registrationToken, otp: code });
+      const { data } = await api.post('/auth/register/verify-otp', { token: registrationToken, otp: code, email: form.email.trim().toLowerCase() });
       if (!data?.user) throw new Error('Missing verification response');
       persistSessionPayload(data); completed.current = true;
       try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* storage unavailable */ }
@@ -249,7 +268,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
     if (operation.current || registrationExpired || waitSeconds > 0) return;
     operation.current = true; setBusy('resend'); setOtpError(''); setNotice('');
     try {
-      const { data } = await api.post('/auth/register/resend-otp', { token: registrationToken });
+      const { data } = await api.post('/auth/register/resend-otp', { token: registrationToken, email: form.email.trim().toLowerCase() });
       mergeMetadata(data);
       if (!data?.resendAvailableAt) setMetadata(previous => ({ ...previous, resendAvailableAt: new Date(Date.now() + 60000).toISOString() }));
       setOtpDigits(Array(6).fill('')); setNotice(msg('codeSent'));

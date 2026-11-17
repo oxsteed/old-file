@@ -75,6 +75,20 @@
       const retry = document.getElementById('retry');
       retry.textContent = text[2];
       retry.addEventListener('click', () => window.location.reload());
+      // MITIGATION (Nov 16, PR #797 Track E): this page is served when a
+      // navigation hits a 5xx, which during a deploy restart usually heals
+      // within seconds, but the page used to sit here until the user noticed
+      // and clicked. Reload once after 10 seconds; a fresh session marker
+      // stops a second automatic reload so a persistently-down server never
+      // loops. The button above stays for the manual retry.
+      try {
+        const markerKey = 'oxs:trouble-retry:v1';
+        const marker = Number(sessionStorage.getItem(markerKey));
+        if (!Number.isFinite(marker) || Date.now() - marker > 10 * 60 * 1000) {
+          sessionStorage.setItem(markerKey, String(Date.now()));
+          setTimeout(() => window.location.reload(), 10000);
+        }
+      } catch {}
     </script>
   </body>
 </html>

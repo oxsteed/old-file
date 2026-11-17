@@ -98,6 +98,19 @@ function reportChunkFailure(error, name) {
   });
 }
 
+// In-place retry delays before a chunk failure falls back to a full document
+// reload. A deploy restart makes chunk fetches fail for a few seconds; an
+// immediate reload lands straight in the outage and strands the user on the
+// static trouble page, while a short in-place retry usually rides the blip
+// out with no navigation and no state lost.
+const DEFAULT_CHUNK_RETRY_DELAYS_MS = [1500, 3000];
+
+function delay(ms) {
+  // Non-browser harnesses may not provide timers; retry immediately there.
+  if (typeof setTimeout !== 'function') return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 const GLOBAL_RELOAD_KEY = 'oxs:chunk-reload:global';
 
 /**
@@ -142,21 +155,45 @@ export function installGlobalChunkReload() {
 
 export function lazyWithRetry(loader, options = {}) {
   const name = options.name || loader.name || 'route';
+  // Test and tuning hook: how long to wait between in-place retries of a
+  // failed chunk import before giving up the document to a reload.
+  const retryDelaysMs = Array.isArray(options.chunkRetryDelaysMs)
+    ? options.chunkRetryDelaysMs
+    : DEFAULT_CHUNK_RETRY_DELAYS_MS;
   documentIsLeaving();
 
   return lazy(async () => {
     const startedHref = typeof window === 'undefined' ? null : window.location.href;
     const stopObserving = observePendingChunkNavigation();
     try {
-      const module = await loader();
-      // Keep the bounded attempt marker even when another lazy component
-      // succeeds. Anonymous loaders can share a route key; clearing it here
-      // could let a persistently missing sibling reload every new document.
-      return module;
-    } catch (error) {
-      if (!isChunkLoadError(error)) throw error;
+      // MITIGATION (Nov 16, PR #797 Track E): retry a failed chunk import
+      // in place before reloading the document. The old code reloaded
+      // immediately on the first failure; during a deploy restart that
+      // reload fetched a 5xx document and the service worker served the
+      // static trouble page, so a transient blip became a dead error page
+      // for signup. A blip that heals within a few seconds now becomes a
+      // slightly slow load instead. The reload below stays as the last
+      // resort for a persistently missing chunk.
+      let lastError = null;
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          const module = await loader();
+          // Keep the bounded attempt marker even when another lazy component
+          // succeeds. Anonymous loaders can share a route key; clearing it here
+          // could let a persistently missing sibling reload every new document.
+          return module;
+        } catch (error) {
+          if (!isChunkLoadError(error)) throw error;
+          lastError = error;
+          const waitMs = retryDelaysMs[attempt];
+          if (waitMs === undefined || documentIsLeaving()) break;
+          await delay(waitMs);
+          if (documentIsLeaving()
+            || (startedHref && typeof window !== 'undefined' && window.location.href !== startedHref)) break;
+        }
+      }
 
-      reportChunkFailure(error, name);
+      reportChunkFailure(lastError, name);
       const key = retryKey(name);
       if (canAutomaticallyReload(startedHref) && !hasFreshRetryMarker(key) && setRetryMarker(key)) {
         automaticReloadStarted = true;
@@ -167,7 +204,7 @@ export function lazyWithRetry(loader, options = {}) {
         return new Promise(() => {});
       }
 
-      throw error;
+      throw lastError;
     } finally { stopObserving(); }
   });
 }
