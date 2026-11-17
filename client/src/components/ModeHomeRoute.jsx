@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { normalizeLaunchDashboardMode } from '../utils/launchScope';
 import { dashboardKeyForMode } from '../utils/modeAccess';
-import { projectionActive, resolveHomeMode } from '../utils/accessProjection';
+import { projectionActive, resolveHomeMode, modeBackedByAccess } from '../utils/accessProjection';
 import useAccessProjection from '../hooks/useAccessProjection';
 import ProtectedRoute from './ProtectedRoute';
 import RouteErrorBoundary from './RouteErrorBoundary';
@@ -20,12 +20,20 @@ export default function ModeHomeRoute({ DiscoveryPage, DashboardPage, LoadingSta
   const preferred = user && normalizeLaunchDashboardMode(user.default_mode || user.role, user.role);
   // The projection owns the landing experience. Approved capabilities add
   // links inside the customer workspace; they do not redirect the account to
-  // a separate mode dashboard.
+  // a separate mode dashboard. A saved preference that lost its backing
+  // still falls back to personal Home with a notice (WP-015).
   const { mode, fallback } = projectionActive(projection)
-    ? { mode: 'customer', fallback: false }
+    ? { mode: 'customer', fallback: !modeBackedByAccess(preferred, projection.access) }
     : resolveHomeMode(user, preferred, projection);
   if (user && dashboardKeyForMode(mode) !== 'customer') {
-    return <ProtectedRoute><RouteErrorBoundary><DashboardPage /></RouteErrorBoundary></ProtectedRoute>;
+    // Legacy path only: the projection-active branch above always resolves
+    // to 'customer', so this wrapper is reached only while the projection is
+    // off (rollback). Restore the legacy home identity redirect here: a
+    // Didit-pending account that would have landed on a work dashboard is
+    // sent to /verify-identity, exactly as before the cutover. The narrower
+    // requireIdentityVerification opt-in fires the identity gate only, not
+    // the onboarding-completeness redirect below.
+    return <ProtectedRoute requireIdentityVerification><RouteErrorBoundary><DashboardPage /></RouteErrorBoundary></ProtectedRoute>;
   }
   if (fallback) {
     return (
