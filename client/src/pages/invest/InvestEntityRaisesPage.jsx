@@ -86,6 +86,11 @@ export default function InvestEntityRaisesPage() {
                     <Link to={`/invest/entity/raises/${opportunity.id}`} className={investSecondaryButtonClassName}>
                       {t('invest.entity.raises.card.manage')}
                     </Link>
+                    {opportunity.status === 'draft' ? (
+                      <Link to={`/invest/entity/raises/${opportunity.id}/edit`} className={investSecondaryButtonClassName}>
+                        {t('invest.entity.raises.card.edit')}
+                      </Link>
+                    ) : null}
                     {opportunity.status === 'published' ? (
                       <Link to={`/invest/opportunities/${opportunity.id}`} className={investSecondaryButtonClassName}>
                         {t('invest.entity.raises.card.viewPublic')}

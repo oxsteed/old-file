@@ -14,6 +14,7 @@ const PAGES = [
   'src/pages/invest/InvestEntityRaisePage.jsx',
   'src/pages/invest/InvestEntityRaisesPage.jsx',
   'src/pages/invest/InvestEntityManagePage.jsx',
+  'src/pages/invest/InvestEntityRaiseEditPage.jsx',
 ];
 
 test('invest routes are registered in App.jsx', async () => {
@@ -129,7 +130,7 @@ test('invest locale strings have no em dashes and the API client only calls docu
   const en = JSON.parse(await read('src/locales/en.json'));
   assert.doesNotMatch(JSON.stringify(en.invest), /—/);
   const api = await read('src/api/invest.js');
-  const calls = [...api.matchAll(/api\.(?:get|post|patch)\((?:'|`|")([^'"`]+)/g)].map((m) => m[1]);
+  const calls = [...api.matchAll(/api\.(?:get|post|put|patch)\((?:'|`|")([^'"`]+)/g)].map((m) => m[1]);
   assert.ok(calls.length > 0);
   assert.ok(calls.every((path) => path.startsWith('/invest/')), calls.join(', '));
   assert.ok(calls.some((path) => path.includes('/commitments')), 'commit route present');
@@ -308,6 +309,8 @@ test('Track 4: entity and review API calls only use documented /api/invest route
     assert.ok(api.includes(path), path);
   }
   assert.match(api, /scope: 'mine'/);
+  // Track 5: the draft-edit form saves through the documented PUT route.
+  assert.match(api, /api\.put\(`\/invest\/opportunities\/\$\{id\}`/);
 });
 
 test('Track 4: entity and review locale keys exist in all five locales with no em dashes', async () => {
@@ -340,4 +343,104 @@ test('Track 4: entity and review pages render from the projection only', async (
   assert.match(util, /updateStatusLabel/);
   assert.match(util, /reviewQueueTabLabel/);
   assert.match(util, /opportunityDetailFieldLabel/);
+});
+
+// ── Track 5: draft-edit form ─────────────────────────────────────────────
+// A draft opportunity could previously only be fixed through the PUT API;
+// the edit form reuses the raise-page fields, saves through that endpoint
+// with the opportunity's expectedVersion, shows the investor preview after
+// save, and repeats the "submission does not publish" notice. Agreement
+// text is not edited here (versions are created from the manage page), and
+// there is no reviewer effective/reject step for amendments: the API
+// offers draft-to-proposed only, and the controlled process is notice
+// plus reconfirmation.
+
+const TRACK5_EDIT_KEYS = [
+  'invest.entity.edit.title',
+  'invest.entity.edit.intro',
+  'invest.entity.edit.draftNotice',
+  'invest.entity.edit.save',
+  'invest.entity.edit.saving',
+  'invest.entity.edit.saved.title',
+  'invest.entity.edit.saved.copy',
+  'invest.entity.edit.notEditable.copy',
+  'invest.entity.edit.error.loadFailed',
+  'invest.entity.edit.error.saveFailed',
+  'invest.entity.edit.error.amendmentRequired',
+  'invest.entity.raises.card.edit',
+];
+
+test('Track 5: draft-edit route is registered in App.jsx', async () => {
+  const app = await read('src/App.jsx');
+  assert.match(app, /path="\/invest\/entity\/raises\/:id\/edit"/);
+  assert.match(app, /import\('\.\/pages\/invest\/InvestEntityRaiseEditPage'\)/);
+});
+
+test('Track 5: edit form reuses the raise fields, saves via PUT with expectedVersion, previews after save', async () => {
+  const src = await read('src/pages/invest/InvestEntityRaiseEditPage.jsx');
+  for (const marker of [
+    'getOpportunity',
+    'updateOpportunity',
+    'getOpportunityPreview',
+    'submitOpportunityForReview',
+    'invest.entity.raise.submitReviewNote',
+    'invest.entity.raise.preview.title',
+    'invest.entity.edit.title',
+    'invest.entity.edit.save',
+    'invest.entity.edit.saved.title',
+    'expectedVersion',
+    'invest_opportunity_amendment_required',
+    'invest.entity.edit.error.amendmentRequired',
+  ]) {
+    assert.ok(src.includes(marker), marker);
+  }
+  // Raise-page fields are reused, not duplicated: the same label keys.
+  for (const key of [
+    'invest.entity.raise.form.title.label',
+    'invest.entity.raise.form.purpose.label',
+    'invest.entity.raise.form.target.label',
+    'invest.entity.raise.form.minimum.label',
+    'invest.entity.raise.form.deadline.label',
+    'invest.entity.raise.form.valuation.label',
+    'invest.entity.raise.form.useOfProceeds.label',
+    'invest.entity.raise.form.legal.label',
+    'invest.entity.raise.form.financials.label',
+    'invest.entity.raise.form.ownership.label',
+    'invest.entity.raise.form.risks.label',
+    'invest.entity.raise.form.relatedParties.label',
+  ]) {
+    assert.ok(src.includes(key), key);
+  }
+  // Only drafts can be edited here; non-drafts show the amendment notice.
+  assert.match(src, /opportunity\.status === 'draft'/);
+  assert.match(src, /invest\.entity\.edit\.notEditable\.copy/);
+  // Saving never publishes and never touches agreement versions here.
+  assert.doesNotMatch(src, /publishOpportunity/);
+  assert.doesNotMatch(src, /createAgreementVersion/);
+  // The API client sends the PUT with the version the page rendered.
+  const api = await read('src/api/invest.js');
+  assert.match(api, /export async function updateOpportunity/);
+  assert.match(api, /expectedVersion/);
+});
+
+test('Track 5: manage and raises pages link to the edit form for drafts only', async () => {
+  const manage = await read('src/pages/invest/InvestEntityManagePage.jsx');
+  assert.match(manage, /\/invest\/entity\/raises\/\$\{opportunity\.id\}\/edit/);
+  assert.match(manage, /opportunity\.status === 'draft' \? \(\n[\s\S]*?invest\.entity\.raises\.card\.edit/);
+  const raises = await read('src/pages/invest/InvestEntityRaisesPage.jsx');
+  assert.match(raises, /\/invest\/entity\/raises\/\$\{opportunity\.id\}\/edit/);
+  assert.match(raises, /opportunity\.status === 'draft'/);
+});
+
+test('Track 5: draft-edit locale keys exist in all five locales with no em dashes', async () => {
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    for (const key of TRACK5_EDIT_KEYS) {
+      const parts = key.split('.');
+      let node = catalog;
+      for (const part of parts) node = node?.[part];
+      assert.equal(typeof node, 'string', `${lang} ${key}`);
+    }
+    assert.doesNotMatch(JSON.stringify(catalog.invest.entity.edit), /—/, `${lang} edit em dash`);
+  }
 });

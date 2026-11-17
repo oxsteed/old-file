@@ -22837,6 +22837,25 @@
             "agreement": "Se requiere el texto del acuerdo."
           }
         },
+        "edit": {
+          "title": "Editar borrador de recaudación",
+          "intro": "Cambie los campos del borrador a continuación. Al guardar, la oportunidad sigue siendo un borrador privado. El texto del acuerdo se gestiona desde la página de gestión, y guardar nunca publica nada.",
+          "draftNotice": "Este borrador es privado. Solo usted y los revisores pueden verlo. Guardar cambios nunca publica la oportunidad.",
+          "save": "Guardar cambios del borrador",
+          "saving": "Guardando borrador...",
+          "saved": {
+            "title": "Borrador guardado",
+            "copy": "Sus cambios se guardaron. El borrador sigue siendo privado."
+          },
+          "notEditable": {
+            "copy": "Solo un borrador se puede editar directamente. Una vez enviado, los cambios pasan por el proceso de enmienda con aviso a los inversores y reconfirmación."
+          },
+          "error": {
+            "loadFailed": "No se pudo cargar este borrador. Inténtelo de nuevo.",
+            "saveFailed": "No se pudo guardar el borrador. Inténtelo de nuevo.",
+            "amendmentRequired": "Solo un borrador se puede editar directamente. Esta oportunidad ya avanzó, así que los cambios pasan por el proceso de enmienda."
+          }
+        },
         "raises": {
           "title": "Mis recaudaciones",
           "intro": "Sus solicitudes de recaudación de capital, desde el borrador privado hasta la recaudación publicada.",
@@ -22855,6 +22874,7 @@
             "progress": "{{percent}}% financiado",
             "deadline": "Fecha límite {{date}}",
             "manage": "Gestionar",
+            "edit": "Editar borrador",
             "viewPublic": "Ver página pública"
           }
         },

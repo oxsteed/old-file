@@ -219,7 +219,10 @@ export default function InvestEntityManagePage() {
               {opportunity.status === 'draft' ? (
                 <>
                   <InvestNotice tone="warn">{t('invest.entity.raise.submitReviewNote')}</InvestNotice>
-                  <div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link to={`/invest/entity/raises/${opportunity.id}/edit`} className={investSecondaryButtonClassName}>
+                      {t('invest.entity.raises.card.edit')}
+                    </Link>
                     <button type="button" disabled={busy} onClick={submitForReview} className={investButtonClassName}>
                       {t('invest.entity.raise.submitReview')}
                     </button>

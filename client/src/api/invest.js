@@ -127,6 +127,14 @@ export async function createOpportunity({ businessId, title, purpose, targetCent
   return data;
 }
 
+export async function updateOpportunity(id, { title, purpose, targetCents, minimumCents, deadlineAt, valuationRule, useOfProceeds, intermediaryRef, details, expectedVersion }) {
+  const { data } = await api.put(`/invest/opportunities/${id}`, {
+    title, purpose, targetCents, minimumCents, deadlineAt,
+    valuationRule, useOfProceeds, intermediaryRef, details, expectedVersion,
+  });
+  return data;
+}
+
 export async function getOpportunityPreview(id) {
   const { data } = await api.get(`/invest/opportunities/${id}/preview`);
   return data;

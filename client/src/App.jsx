@@ -272,6 +272,7 @@ const InvestApplicationPage = lazyWithRetry(() => import('./pages/invest/InvestA
 const InvestCommitPage = lazyWithRetry(() => import('./pages/invest/InvestCommitPage'));
 const InvestMyInvestmentsPage = lazyWithRetry(() => import('./pages/invest/InvestMyInvestmentsPage'));
 const InvestEntityRaisePage = lazyWithRetry(() => import('./pages/invest/InvestEntityRaisePage'));
+const InvestEntityRaiseEditPage = lazyWithRetry(() => import('./pages/invest/InvestEntityRaiseEditPage'));
 const InvestEntityRaisesPage = lazyWithRetry(() => import('./pages/invest/InvestEntityRaisesPage'));
 const InvestEntityManagePage = lazyWithRetry(() => import('./pages/invest/InvestEntityManagePage'));
 const AffiliateDashboardPage = lazyWithRetry(() => import('./pages/AffiliateDashboardPage'));
@@ -706,6 +707,7 @@ export default function App() {
                         raises only. Submission never publishes. */}
                     <Route path="/invest/entity/raise"          element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestEntityRaisePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/invest/entity/raises"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestEntityRaisesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/invest/entity/raises/:id/edit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestEntityRaiseEditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/invest/entity/raises/:id"    element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestEntityManagePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/affiliate" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AffiliateDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute requireOnboarded><RouteErrorBoundary><HelperDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

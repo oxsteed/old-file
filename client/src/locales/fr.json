@@ -22837,6 +22837,25 @@
             "agreement": "Le texte de l'accord est requis."
           }
         },
+        "edit": {
+          "title": "Modifier le brouillon de levée",
+          "intro": "Modifiez les champs du brouillon ci-dessous. L'enregistrement conserve l'opportunité comme brouillon privé. Le texte de l'accord se gère depuis la page de gestion, et l'enregistrement ne publie jamais rien.",
+          "draftNotice": "Ce brouillon est privé. Seuls vous et les réviseurs pouvez le voir. Enregistrer des modifications ne publie jamais l'opportunité.",
+          "save": "Enregistrer les modifications du brouillon",
+          "saving": "Enregistrement du brouillon...",
+          "saved": {
+            "title": "Brouillon enregistré",
+            "copy": "Vos modifications sont enregistrées. Le brouillon reste privé."
+          },
+          "notEditable": {
+            "copy": "Seul un brouillon peut être modifié directement. Une fois soumis, les modifications passent par le processus d'amendement avec avis aux investisseurs et reconfirmation."
+          },
+          "error": {
+            "loadFailed": "Impossible de charger ce brouillon. Veuillez réessayer.",
+            "saveFailed": "Impossible d'enregistrer le brouillon. Veuillez réessayer.",
+            "amendmentRequired": "Seul un brouillon peut être modifié directement. Cette opportunité a déjà avancé, les modifications passent donc par le processus d'amendement."
+          }
+        },
         "raises": {
           "title": "Mes levées",
           "intro": "Vos demandes de levée de capitaux, du brouillon privé à la levée publiée.",
@@ -22855,6 +22874,7 @@
             "progress": "{{percent}} % financé",
             "deadline": "Date limite {{date}}",
             "manage": "Gérer",
+            "edit": "Modifier le brouillon",
             "viewPublic": "Voir la page publique"
           }
         },

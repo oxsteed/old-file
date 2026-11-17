@@ -22837,6 +22837,25 @@
             "agreement": "Yo mande tèks akò a."
           }
         },
+        "edit": {
+          "title": "Modifye bouyon ranmasman an",
+          "intro": "Chanje chan bouyon yo anba a. Lè ou anrejistre, opòtinite a rete yon bouyon prive. Tèks akò a jere nan paj jesyon an, epi anrejistreman pa janm pibliye anyen.",
+          "draftNotice": "Bouyon sa a prive. Se ou menm ak revizè yo sèlman ki ka wè li. Anrejistre chanjman pa janm pibliye opòtinite a.",
+          "save": "Anrejistre chanjman bouyon an",
+          "saving": "Y ap anrejistre bouyon an...",
+          "saved": {
+            "title": "Bouyon anrejistre",
+            "copy": "Chanjman ou yo anrejistre. Bouyon an toujou prive."
+          },
+          "notEditable": {
+            "copy": "Se yon bouyon sèlman ki ka modifye dirèkteman. Yon fwa li soumèt, chanjman yo pase nan pwosesis amandman an ak avi pou envestisè yo ak rekonfimasyon."
+          },
+          "error": {
+            "loadFailed": "Li pa t posib pou chaje bouyon sa a. Tanpri eseye ankò.",
+            "saveFailed": "Li pa t posib pou anrejistre bouyon an. Tanpri eseye ankò.",
+            "amendmentRequired": "Se yon bouyon sèlman ki ka modifye dirèkteman. Opòtinite sa a deja avanse, kidonk chanjman yo pase nan pwosesis amandman an."
+          }
+        },
         "raises": {
           "title": "Ranmase mwen yo",
           "intro": "Demann ou yo pou ranmase kapital, depi bouyon prive rive nan ranmase pibliye.",
@@ -22855,6 +22874,7 @@
             "progress": "{{percent}}% finanse",
             "deadline": "Dat limit {{date}}",
             "manage": "Jere",
+            "edit": "Modifye bouyon an",
             "viewPublic": "Wè paj piblik la"
           }
         },

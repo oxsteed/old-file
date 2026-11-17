@@ -22837,6 +22837,25 @@
             "agreement": "Agreement text is required."
           }
         },
+        "edit": {
+          "title": "Edit draft raise",
+          "intro": "Change the draft fields below. Saving keeps the opportunity a private draft. Agreement text is managed from the manage page, and saving never publishes anything.",
+          "draftNotice": "This draft is private. Only you and reviewers can see it. Saving changes never publishes the opportunity.",
+          "save": "Save draft changes",
+          "saving": "Saving draft...",
+          "saved": {
+            "title": "Draft saved",
+            "copy": "Your changes are saved. The draft is still private."
+          },
+          "notEditable": {
+            "copy": "Only a draft can be edited directly. Once submitted, changes go through the amendment process with investor notice and reconfirmation."
+          },
+          "error": {
+            "loadFailed": "Could not load this draft. Please try again.",
+            "saveFailed": "Could not save the draft. Please try again.",
+            "amendmentRequired": "Only a draft can be edited directly. This opportunity has already moved forward, so changes go through the amendment process."
+          }
+        },
         "raises": {
           "title": "My raises",
           "intro": "Your entity fundraising applications, from private draft to published raise.",
@@ -22855,6 +22874,7 @@
             "progress": "{{percent}}% funded",
             "deadline": "Deadline {{date}}",
             "manage": "Manage",
+            "edit": "Edit draft",
             "viewPublic": "View public page"
           }
         },
