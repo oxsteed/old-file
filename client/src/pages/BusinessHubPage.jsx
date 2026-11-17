@@ -111,22 +111,11 @@ import {
   isBusinessPubliclyListed,
   businessFromEditorResponse,
   businessWorkspacePath,
-  BUSINESS_HUB_LAST_ID_LS_KEY,
+  accountWorkspaceStorageKey,
   resolveBusinessHubSeedId,
 } from '../utils/businessProfileForm';
 import { normalizeWebsite, DESCRIPTION_MAX } from '../utils/businessProfileEditor';
 import '../styles/BusinessHubPage.css';
-
-const LS_KEY = BUSINESS_HUB_LAST_ID_LS_KEY;
-
-// Workspace preferences are account data. Keep the legacy key as a migration
-// constant for old links, but never read or write it for an authenticated
-// account: a shared browser profile must not seed one account from another.
-function accountWorkspaceStorageKey(accountId) {
-  return accountId == null || String(accountId).trim() === ''
-    ? LS_KEY
-    : `${LS_KEY}:${String(accountId)}`;
-}
 
 // ── formatters ────────────────────────────────────────────────────────────────
 function fmt$(n, currency = 'USD') {

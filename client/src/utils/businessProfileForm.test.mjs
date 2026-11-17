@@ -9,6 +9,7 @@ import {
   businessWorkspacePath,
   emptyBusinessAnalytics,
   BUSINESS_HUB_LAST_ID_LS_KEY,
+  accountWorkspaceStorageKey,
   resolveBusinessHubSeedId,
   businessHubLandingPath,
   readLastBusinessHubId,
@@ -74,4 +75,6 @@ test('hub seed id and landing path prefer lastBusinessId over bare /business-hub
   };
   assert.equal(readLastBusinessHubId(store), '42');
   assert.equal(BUSINESS_HUB_LAST_ID_LS_KEY, 'oxs:bh:lastBusinessId');
+  assert.equal(accountWorkspaceStorageKey('account-a'), 'oxs:bh:lastBusinessId:account-a');
+  assert.equal(accountWorkspaceStorageKey(null), BUSINESS_HUB_LAST_ID_LS_KEY);
 });

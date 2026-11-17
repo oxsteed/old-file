@@ -82,6 +82,16 @@ export function businessWorkspacePath(businessId, tab = 'overview') {
 export const BUSINESS_HUB_LAST_ID_LS_KEY = 'oxs:bh:lastBusinessId';
 
 /**
+ * Workspace selection is account-scoped browser preference data. The legacy
+ * unscoped key is retained only for unauthenticated compatibility callers.
+ */
+export function accountWorkspaceStorageKey(accountId) {
+  return accountId == null || String(accountId).trim() === ''
+    ? BUSINESS_HUB_LAST_ID_LS_KEY
+    : `${BUSINESS_HUB_LAST_ID_LS_KEY}:${String(accountId)}`;
+}
+
+/**
  * Pick an id to seed via getBusiness when the owned/managed list misses it.
  * Route workspace id wins; otherwise the stored last-business id (legacy hub).
  */
