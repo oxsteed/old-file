@@ -119,6 +119,15 @@ import '../styles/BusinessHubPage.css';
 
 const LS_KEY = BUSINESS_HUB_LAST_ID_LS_KEY;
 
+// Workspace preferences are account data. Keep the legacy key as a migration
+// constant for old links, but never read or write it for an authenticated
+// account: a shared browser profile must not seed one account from another.
+function accountWorkspaceStorageKey(accountId) {
+  return accountId == null || String(accountId).trim() === ''
+    ? LS_KEY
+    : `${LS_KEY}:${String(accountId)}`;
+}
+
 // ── formatters ────────────────────────────────────────────────────────────────
 function fmt$(n, currency = 'USD') {
   return formatMoney(n, { currency });
@@ -199,6 +208,7 @@ function BusinessHubInner() {
   const { t } = useTranslation();
   const { t: accessT } = useTranslation('common');
   const { user } = useAuth();
+  const storageKey = accountWorkspaceStorageKey(user?.id);
   // OxSteed Invest (Track 4): "Raise capital" entry for the entity
   // workspace. Projection-only: the link appears only when the invest
   // master flag is on; the raise pages recheck the projection too.
@@ -220,7 +230,7 @@ function BusinessHubInner() {
   const routeTab = routeParams.tab ? String(routeParams.tab) : null;
   const navigate = useNavigate();
   const [businesses, setBusinesses]   = useState(() => createdFromNav ? [createdFromNav] : []);
-  const [bizId, setBizId]             = useState(() => routeBusinessId || (createdFromNav ? String(createdFromNav.id) : '') || localStorage.getItem(LS_KEY) || '');
+  const [bizId, setBizId]             = useState(() => routeBusinessId || (createdFromNav ? String(createdFromNav.id) : '') || localStorage.getItem(storageKey) || '');
   const [calendarFocus, setCalendarFocus] = useState('all');
   const [requestedTab, setTab]                 = useState(() => routeTab || searchParams.get('tab') || 'overview');
   const [loadingBiz, setLoadingBiz]   = useState(!createdFromNav);
@@ -463,7 +473,7 @@ function BusinessHubInner() {
           ...managedTagged.filter(b => !seen.has(String(b.id))),
         ],
       );
-      const savedLs = localStorage.getItem(LS_KEY);
+      const savedLs = localStorage.getItem(storageKey);
       const seedId = resolveBusinessHubSeedId({
         routeBusinessId,
         lastBusinessId: savedLs,
@@ -477,7 +487,7 @@ function BusinessHubInner() {
       if (merged.length === 0) {
         // Stale oxs:bh:lastBusinessId would otherwise keep tab effects calling /api/businesses/:id/* → 404
         setBizId('');
-        localStorage.removeItem(LS_KEY);
+        localStorage.removeItem(storageKey);
         setAnalytics(null);
         setAnalyticsError(false);
         setInvoiceData(null);
@@ -495,14 +505,14 @@ function BusinessHubInner() {
         const fromLs = savedLs && merged.find(b => String(b.id) === String(savedLs)) ? String(savedLs) : null;
         const chosen = fromUrl || fromLs || String(merged[0].id);
         setBizId(chosen);
-        localStorage.setItem(LS_KEY, chosen);
+        localStorage.setItem(storageKey, chosen);
         // List failed but seed/LS kept hub usable — no fatal toast.
       }
     } catch {
       if (!createdFromNav) toast.error(t('businessHub.toastLoadBizFail'));
     }
     finally { setLoadingBiz(false); }
-  }, [t, routeBusinessId, createdFromNav, seedBusinessFromId]);
+  }, [t, routeBusinessId, createdFromNav, seedBusinessFromId, storageKey]);
 
   useEffect(() => { loadBusinesses(); }, [loadBusinesses]);
 
@@ -512,8 +522,8 @@ function BusinessHubInner() {
     if (!businesses.some(x => String(x.id) === String(b))) return;
     if (String(bizId) === String(b)) return;
     setBizId(String(b));
-    localStorage.setItem(LS_KEY, String(b));
-  }, [searchParams, businesses, bizId]);
+    localStorage.setItem(storageKey, String(b));
+  }, [searchParams, businesses, bizId, storageKey]);
 
   useEffect(() => {
     // Only mirror tab into ?tab= when we're on /business-hub (legacy URL).
@@ -908,7 +918,7 @@ function BusinessHubInner() {
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
     setBizId(id);
-    localStorage.setItem(LS_KEY, id);
+    localStorage.setItem(storageKey, id);
     setAnalyticsLoading(true);
     setAnalytics(null); setAnalyticsError(false); setInvoiceData(null); setTaxData(null); setGoals([]); setMaintenanceData({ requests: [], stats: null }); setPropertyOpsData(null); setTradesOpsData(null); setBeautyOpsData(null); setCreativeOpsData(null); setProfessionalOpsData(null); setContinuityOpsData(null);
     setMembersLoading(true);
@@ -940,7 +950,7 @@ function BusinessHubInner() {
     const nextPath = business.business_kind === 'restaurant'
       ? `/restaurants/merchant?business=${encodeURIComponent(business.id)}&setup=1`
       : businessWorkspacePath(business.id, nextTab);
-    localStorage.setItem(LS_KEY, String(business.id));
+    localStorage.setItem(storageKey, String(business.id));
     setTab(nextTab);
     setBusinesses((prev) => mergeBusinessList(prev, [business]));
     setBizId(String(business.id));
