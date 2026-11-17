@@ -53,6 +53,7 @@
     "test:launch-scope-visibility": "node --test scripts/launchScopeVisibility.test.mjs",
     "test:footer-navigation-browser": "node --test scripts/footerNavigation.browser-check.cjs",
     "test:navbar-navigation": "node --test scripts/navbarNavigation.test.mjs",
+    "test:invest": "node --test scripts/investPages.test.mjs scripts/navbarNavigation.test.mjs src/utils/invest.test.mjs",
     "test:home-mode": "node --test scripts/homeModeRouting.test.mjs",
     "test:home-mode-browser": "node --test scripts/homeModeRouting.browser-check.cjs",
     "test:navbar-navigation-browser": "node --test scripts/navbarNavigation.browser-check.cjs",

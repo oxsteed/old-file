@@ -15,7 +15,6 @@ const {
   issueInstantPayoutStepupChallenge,
   disconnectConnectAccount,
   getPayoutBalance,
-  getInvestorSummary,
 } = require('../controllers/paymentController');
 const { errorHandler } = require('../middleware/errorHandler');
 const checkRestrictions = require('../middleware/checkRestrictions');
@@ -41,8 +40,6 @@ router.get('/payout/balance', authenticate, requirePaymentsEnabled, getPayoutBal
 // instant payouts. Consumed by the POST /payout/instant handler below.
 router.post('/payout/instant/stepup-challenges', authenticate, requirePaymentsEnabled, requireHelperCapability, requireOnboardingStep('active'), requireTaxIdentity, paymentsLimiter, rejectImpersonated, issueInstantPayoutStepupChallenge);
 router.post('/payout/instant', authenticate, requirePaymentsEnabled, requireHelperCapability, requireOnboardingStep('active'), requireTaxIdentity, paymentsLimiter, requestInstantPayout);
-router.get('/investor-summary', authenticate, requireAdmin, getInvestorSummary);
-
 // Payments
 // Review P2-7-F06/F08: moving money requires a verified email and current
 // terms acceptance, like job posting and bidding.

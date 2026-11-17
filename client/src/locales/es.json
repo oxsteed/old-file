@@ -2292,6 +2292,9 @@
     "myJobs": "Mis trabajos",
     "orderFood": "Pedir comida",
     "myWork": "Mi trabajo",
+    "exploreInvestments": "Explorar inversiones",
+    "requestInvestorAccess": "Solicitar acceso como inversionista",
+    "myInvestments": "Mis inversiones",
     "workspace": "Espacio de trabajo",
     "businessWorkspace": "Espacio del negocio",
     "foodOrders": "Pedidos de comida",
@@ -8094,6 +8097,8 @@
     }
   },
   "businessHub": {
+    "raiseCapital": "Recaudar capital",
+    "raiseCapitalTitle": "Recaudar capital de inversores para este negocio",
     "procurement": {
       "title": "Adquisiciones",
       "subtitle": "Programas recurrentes de abastecimiento y solicitudes vinculadas a este negocio.",
@@ -22707,6 +22712,756 @@
       "convertToInvoice": "Convertir a factura"
     }
   },
+  "invest": {
+      "entity": {
+        "raise": {
+          "title": "Recaudar capital",
+          "intro": "Solicite recaudar capital de inversores para uno de sus negocios. Su solicitud se mantiene privada hasta que un revisor la apruebe para su publicación.",
+          "documentsNotice": "No incluya documentos sensibles de identidad o financieros en este formulario. Esos van por los flujos restringidos de verificación y documentos, nunca en la descripción pública de una oportunidad.",
+          "business": {
+            "label": "Negocio",
+            "choose": "Elija un negocio",
+            "empty": {
+              "title": "No hay negocio para recaudar",
+              "copy": "Aún no representa a un negocio. Cree un negocio primero y luego vuelva para recaudar capital."
+            }
+          },
+          "authority": {
+            "label": "Estoy autorizado para representar a esta entidad y presentar esta solicitud de recaudación en su nombre.",
+            "hint": "Solo el propietario, gerente o representante autorizado del negocio puede recaudar capital para él."
+          },
+          "sections": {
+            "entity": {
+              "title": "Entidad",
+              "hint": "Quién recauda y con qué autoridad."
+            },
+            "raise": {
+              "title": "La recaudación",
+              "hint": "Propósito de financiación, objetivo y términos. Solo participación en ingresos, solo Estados Unidos."
+            },
+            "details": {
+              "title": "Detalles de la entidad",
+              "hint": "Información de apoyo para revisores e inversores. Sea factual; las proyecciones y promesas de rendimiento no pertenecen aquí."
+            },
+            "agreement": {
+              "title": "Acuerdo",
+              "hint": "El acuerdo rector que aceptan los inversores. La versión exacta aceptada al comprometerse rige el compromiso."
+            }
+          },
+          "form": {
+            "title": {
+              "label": "Título de la oportunidad"
+            },
+            "purpose": {
+              "label": "Propósito de la financiación",
+              "hint": "Qué hace el negocio y por qué recauda."
+            },
+            "target": {
+              "label": "Monto objetivo (USD)",
+              "hint": "El monto total que la recaudación busca reunir."
+            },
+            "minimum": {
+              "label": "Aporte mínimo (USD)",
+              "hint": "El monto más pequeño que un inversor puede comprometer. No puede ser mayor que el objetivo."
+            },
+            "deadline": {
+              "label": "Fecha límite",
+              "hint": "El cierre es todo o nada: el objetivo, la fecha límite y las condiciones de cierre aprobadas deben cumplirse."
+            },
+            "valuation": {
+              "label": "Regla de valoración",
+              "hint": "Cómo se calcula la participación en ingresos, por ejemplo un porcentaje de los ingresos mensuales."
+            },
+            "useOfProceeds": {
+              "label": "Uso de los fondos"
+            },
+            "intermediary": {
+              "label": "Referencia del intermediario",
+              "hint": "Referencia del intermediario registrado, si ya hay uno asignado."
+            },
+            "legal": {
+              "label": "Detalles legales de la entidad, actividad comercial e historial operativo",
+              "hint": "Forma legal, jurisdicción, qué hace el negocio y cuánto tiempo lleva operando."
+            },
+            "financials": {
+              "label": "Información financiera",
+              "hint": "Resumen financiero que respalda la recaudación. No pegue documentos sensibles aquí."
+            },
+            "ownership": {
+              "label": "Información de propiedad"
+            },
+            "risks": {
+              "label": "Riesgos materiales"
+            },
+            "relatedParties": {
+              "label": "Relaciones con partes relacionadas",
+              "hint": "Cualquier relación entre la entidad, sus propietarios y otras partes que un inversor debería conocer."
+            },
+            "agreement": {
+              "label": "Texto del acuerdo"
+            }
+          },
+          "submit": "Crear borrador privado",
+          "creating": "Creando borrador...",
+          "created": {
+            "title": "Borrador privado creado",
+            "copy": "Este borrador es privado. Solo usted y los revisores pueden verlo.",
+            "target": "Objetivo {{amount}}"
+          },
+          "preview": {
+            "title": "Vista previa para inversores",
+            "hint": "Cómo verán los inversores esta oportunidad una vez publicada."
+          },
+          "submitReview": "Enviar para revisión",
+          "submitReviewNote": "El envío no publica la oportunidad. Un revisor debe aprobarla primero, y la publicación es un paso aparte.",
+          "submitted": {
+            "copy": "Enviado para revisión. La oportunidad no está publicada."
+          },
+          "manageLink": "Gestionar esta recaudación",
+          "error": {
+            "loadFailed": "No se pudieron cargar sus negocios. Inténtelo de nuevo.",
+            "createFailed": "No se pudo crear el borrador. Inténtelo de nuevo.",
+            "agreementFailed": "El borrador se creó, pero no se pudo guardar la versión del acuerdo. Agréguela desde la página de gestión.",
+            "submitFailed": "No se pudo enviar para revisión. Inténtelo de nuevo."
+          },
+          "errors": {
+            "business": "Elija un negocio para esta recaudación.",
+            "authority": "Confirme que está autorizado para representar a esta entidad.",
+            "title": "Se requiere un título para la oportunidad.",
+            "purpose": "Se requiere un propósito de financiación.",
+            "target": "Ingrese un monto objetivo válido mayor que cero.",
+            "minimum": "El aporte mínimo debe estar entre cero y el objetivo.",
+            "deadline": "Elija una fecha límite futura.",
+            "valuation": "Se requiere una regla de valoración.",
+            "useOfProceeds": "Describa el uso de los fondos.",
+            "agreement": "Se requiere el texto del acuerdo."
+          }
+        },
+        "edit": {
+          "title": "Editar borrador de recaudación",
+          "intro": "Cambie los campos del borrador a continuación. Al guardar, la oportunidad sigue siendo un borrador privado. El texto del acuerdo se gestiona desde la página de gestión, y guardar nunca publica nada.",
+          "draftNotice": "Este borrador es privado. Solo usted y los revisores pueden verlo. Guardar cambios nunca publica la oportunidad.",
+          "save": "Guardar cambios del borrador",
+          "saving": "Guardando borrador...",
+          "saved": {
+            "title": "Borrador guardado",
+            "copy": "Sus cambios se guardaron. El borrador sigue siendo privado."
+          },
+          "notEditable": {
+            "copy": "Solo un borrador se puede editar directamente. Una vez enviado, los cambios pasan por el proceso de enmienda con aviso a los inversores y reconfirmación."
+          },
+          "error": {
+            "loadFailed": "No se pudo cargar este borrador. Inténtelo de nuevo.",
+            "saveFailed": "No se pudo guardar el borrador. Inténtelo de nuevo.",
+            "amendmentRequired": "Solo un borrador se puede editar directamente. Esta oportunidad ya avanzó, así que los cambios pasan por el proceso de enmienda."
+          }
+        },
+        "raises": {
+          "title": "Mis recaudaciones",
+          "intro": "Sus solicitudes de recaudación de capital, desde el borrador privado hasta la recaudación publicada.",
+          "newRaise": "Iniciar una nueva recaudación",
+          "error": {
+            "loadFailed": "No se pudieron cargar sus recaudaciones. Inténtelo de nuevo."
+          },
+          "empty": {
+            "title": "Aún no hay recaudaciones",
+            "copy": "Inicie una nueva recaudación para solicitar capital para uno de sus negocios."
+          },
+          "card": {
+            "target": "Objetivo {{amount}}",
+            "committed": "Comprometido {{amount}}",
+            "completed": "Completado {{amount}}",
+            "progress": "{{percent}}% financiado",
+            "deadline": "Fecha límite {{date}}",
+            "manage": "Gestionar",
+            "edit": "Editar borrador",
+            "viewPublic": "Ver página pública"
+          }
+        },
+        "manage": {
+          "title": "Gestionar recaudación",
+          "error": {
+            "loadFailed": "No se pudo cargar esta recaudación. Inténtelo de nuevo.",
+            "actionFailed": "No se pudo completar esa acción. Inténtelo de nuevo.",
+            "previewFailed": "No se pudo cargar la vista previa para inversores. Inténtelo de nuevo."
+          },
+          "status": {
+            "title": "Estado de la recaudación",
+            "target": "Objetivo {{amount}}",
+            "committed": "Comprometido {{amount}}",
+            "completed": "Completado {{amount}}",
+            "progress": "{{percent}}% financiado",
+            "deadline": "Fecha límite {{date}}",
+            "conditionsApproved": "Condiciones de cierre aprobadas.",
+            "closedAt": "Cerrada {{date}}"
+          },
+          "submitted": "Enviado para revisión. La oportunidad no está publicada.",
+          "preview": {
+            "button": "Mostrar vista previa para inversores"
+          },
+          "questions": {
+            "title": "Preguntas de inversores",
+            "hint": "Preguntas de solicitantes e inversores en esta oportunidad. Respóndalas aquí.",
+            "empty": {
+              "title": "Aún no hay preguntas",
+              "copy": "Las preguntas de los inversores aparecerán aquí cuando lleguen."
+            },
+            "answerLabel": "Su respuesta",
+            "answerButton": "Enviar respuesta",
+            "answered": "Respuesta enviada.",
+            "answeredLabel": "Respondida",
+            "answerRequired": "Escriba una respuesta antes de enviar."
+          },
+          "updates": {
+            "title": "Actualizaciones y calendario de informes",
+            "hint": "Publique actualizaciones para los inversores. Una fecha límite perdida se muestra como vencida y nunca desaparece.",
+            "empty": {
+              "title": "Aún no hay actualizaciones",
+              "copy": "Cree la primera actualización para esta recaudación."
+            },
+            "required": "Se requieren el título y el cuerpo de la actualización.",
+            "created": "Actualización creada como borrador.",
+            "published": "Actualización publicada.",
+            "publish": "Publicar",
+            "overdue": "Vencida desde {{date}}",
+            "status": {
+              "draft": "Borrador",
+              "published": "Publicada",
+              "overdue": "Vencida"
+            },
+            "form": {
+              "title": "Título de la actualización",
+              "body": "Actualización",
+              "due": "Fecha de vencimiento",
+              "dueHint": "Cuándo se debe esta actualización a los inversores.",
+              "submit": "Crear actualización"
+            }
+          },
+          "amendments": {
+            "title": "Cambios materiales",
+            "hint": "Los términos no pueden cambiar en silencio después de que existan compromisos. Un cambio material pasa por este proceso controlado: borrador, aviso a los inversores y luego reconfirmación.",
+            "empty": {
+              "title": "No hay enmiendas",
+              "copy": "No se han propuesto cambios materiales para esta oportunidad."
+            },
+            "required": "Describa el cambio antes de crear la enmienda.",
+            "created": "Borrador de enmienda creado.",
+            "proposed": "Enmienda propuesta. Se ha enviado el aviso a los inversores.",
+            "untitled": "Enmienda",
+            "proposedState": "Aviso enviado {{sent}}. Los inversores deben reconfirmar antes del {{deadline}}.",
+          "effectiveState": "Vigente. Los cambios se aplicaron a la oportunidad.",
+          "rejectedState": "Rechazada por un revisor.",
+            "deadlineRequired": "Elija una fecha límite futura para la reconfirmación.",
+            "status": {
+              "draft": "Borrador",
+              "proposed": "Propuesta",
+              "effective": "Vigente",
+              "withdrawn": "Retirada",
+              "rejected": "Rechazada"
+            },
+            "form": {
+              "summary": "Qué cambia",
+              "summaryHint": "Describa el cambio material en lenguaje sencillo.",
+              "version": "Nueva versión del acuerdo",
+              "versionHint": "Elija la versión del acuerdo a la que pasan los inversores, si la hay.",
+              "noNewVersion": "Sin nueva versión del acuerdo",
+              "submit": "Crear enmienda"
+            },
+            "propose": {
+              "deadline": "Fecha límite de reconfirmación",
+              "button": "Proponer y avisar a los inversores"
+            }
+          },
+          "agreements": {
+            "title": "Versiones del acuerdo",
+            "hint": "Las versiones exactas del acuerdo que aceptan los inversores. Un compromiso registra la versión exacta aceptada.",
+            "empty": {
+              "title": "Aún no hay versión del acuerdo",
+              "copy": "Agregue la primera versión del acuerdo. Una oportunidad no puede aprobarse sin una."
+            },
+            "required": "Se requiere el texto del acuerdo.",
+            "created": "Versión del acuerdo creada.",
+          "current": "Versión vigente",
+            "form": {
+              "body": "Texto del acuerdo",
+              "submit": "Agregar versión del acuerdo"
+            }
+          },
+          "obligations": {
+            "title": "Después del cierre: informes y obligaciones",
+            "hint": "La recaudación está cerrada. Estas obligaciones quedan con la entidad.",
+            "item1": "Publique actualizaciones según el calendario de informes. Las actualizaciones perdidas se muestran como vencidas.",
+            "item2": "Pague las distribuciones por el flujo de liquidación aprobado. Ninguna distribución está prometida a los inversores.",
+            "item3": "Conserve los registros de la recaudación, los acuerdos aceptados y todos los informes."
+          }
+        }
+      },
+      "review": {
+        "title": "Cola de revisión de inversiones",
+        "intro": "Solicitudes de participación, revisiones de publicación de oportunidades, aprobaciones de cierre y liberación de fondos. Cada cola muestra solo lo que cubren sus permisos de revisión.",
+        "empty": "No hay colas de revisión disponibles para sus permisos.",
+        "emptyType": "No hay nada esperando en esta cola.",
+        "select": "Elija un elemento para revisarlo.",
+        "tabs": {
+          "applications": "Solicitudes",
+          "opportunities": "Oportunidades",
+          "amendments": "Enmiendas",
+          "closing": "Cierre",
+          "proceeds": "Fondos"
+        },
+        "errors": {
+          "loadFailed": "No se pudo cargar la cola de revisión. Inténtelo de nuevo.",
+          "generic": "No se pudo completar esa acción de revisión. Inténtelo de nuevo.",
+          "notPermitted": "No tiene un permiso de revisión de inversiones, así que esta cola está vacía para usted.",
+          "selfApproval": "No puede revisar su propia solicitud, oportunidad o cierre. Otro revisor debe decidir.",
+          "versionConflict": "Este elemento cambió desde que se cargó. Se ha recargado; revise la versión más reciente e inténtelo de nuevo.",
+          "proceedsBlocked": "Los fondos aún no pueden liberarse. La oportunidad debe estar cerrada con las condiciones de cierre aprobadas primero.",
+          "noAgreement": "Esta oportunidad no puede aprobarse sin una versión del acuerdo.",
+          "transitionInvalid": "Este elemento no puede pasar a ese estado desde donde está ahora."
+        },
+        "actions": {
+          "approve": "Aprobar",
+          "decline": "Rechazar",
+          "needsInformation": "Necesita información",
+          "claim": "Tomar para revisión",
+          "publish": "Publicar"
+        },
+        "application": {
+          "applicant": "Solicitante",
+          "identity": "Identidad verificada",
+          "authority": "Autoridad verificada",
+          "agreementAccepted": "Acuerdo aceptado",
+          "version": "Versión esperada",
+          "eligibility": "Elegibilidad",
+          "note": "Nota de revisión",
+          "confirmIdentity": "Identidad verificada",
+          "confirmAuthority": "Autoridad verificada",
+          "no": "No",
+          "noteRequired": "Se requiere una nota al pedir más información.",
+          "verifyRequired": "La aprobación requiere verificación de identidad y autoridad."
+        },
+        "opportunity": {
+          "target": "Objetivo",
+          "minimum": "Aporte mínimo",
+          "committed": "Comprometido",
+          "progress": "{{percent}}% financiado",
+          "purpose": "Propósito de la financiación",
+          "valuation": "Regla de valoración",
+          "useOfProceeds": "Uso de los fondos",
+          "version": "Versión esperada",
+          "details": "Detalles de la entidad",
+          "detail": {
+            "legalDetails": "Detalles legales",
+            "financials": "Finanzas",
+            "ownership": "Propiedad",
+            "risks": "Riesgos",
+            "relatedParties": "Partes relacionadas"
+          },
+          "decideTitle": "Decisión de revisión",
+          "note": "Nota de revisión",
+          "verifiedItems": "Elementos verificados (uno por línea)",
+          "publishNote": "La publicación es aparte de la aprobación. El representante de la entidad no puede publicar su propia oportunidad."
+        },
+        "closing": {
+          "title": "Cierre",
+          "conditionsApproved": "Condiciones de cierre aprobadas {{date}}.",
+          "conditionsPending": "Las condiciones de cierre aún no están aprobadas.",
+          "reviewApproved": "Revisión aprobada por {{approver}}.",
+          "reviewPending": "La revisión de cierre aún no está aprobada.",
+          "executionApproved": "Ejecución aprobada por {{approver}}.",
+          "executionPending": "La ejecución de cierre aún no está aprobada.",
+          "gateOff": "Los compromisos en vivo están desactivados. El cierre, la liberación de fondos y las distribuciones están inactivos hasta que se apruebe la puerta de compromisos en vivo para un piloto.",
+          "note": "Nota de cierre",
+          "approveConditions": "Aprobar condiciones de cierre",
+          "approveReview": "Aprobar etapa de revisión",
+          "approveExecution": "Aprobar etapa de ejecución",
+          "close": "Cerrar oportunidad",
+          "separateApprovers": "La revisión y la ejecución necesitan aprobadores distintos, y ninguno puede ser el representante de la entidad. Solo el aprobador de ejecución aprobado puede ejecutar el cierre."
+        },
+        "proceeds": {
+          "title": "Fondos y distribuciones",
+          "release": "Liberar fondos",
+          "blockedNote": "La liberación de fondos se mantiene bloqueada hasta que la oportunidad esté cerrada con las condiciones de cierre aprobadas."
+        },
+        "amendments": {
+          "changes": "Cambios propuestos",
+          "reconfirmationTitle": "Reconfirmación del inversor",
+          "reconfirmation": "{{reconfirmed}} de {{total}} inversores reconfirmaron, {{pending}} aún pendientes.",
+          "reconfirmationNone": "Esta enmienda no incluye una nueva versión del acuerdo, así que no hay nada que reconfirmar.",
+          "deadline": "Fecha límite de reconfirmación: {{date}}",
+          "note": "Nota de revisión",
+          "makeEffective": "Marcar como vigente",
+          "reject": "Rechazar",
+          "effectiveNote": "Hacer vigente una enmienda aplica sus cambios a la oportunidad y convierte su nueva versión del acuerdo en la vigente. El rechazo no aplica nada."
+        },
+        "failClose": {
+          "title": "Cierre sin éxito",
+          "copy": "El cierre sin éxito devuelve cada compromiso aún reservado a sus lotes de crédito originales y marca la oportunidad como sin éxito. Úselo cuando la recaudación no se cerrará.",
+          "reason": "Motivo",
+          "button": "Cerrar la oportunidad sin éxito",
+          "note": "Una oportunidad cerrada sin éxito no se puede reabrir. El proceso automático por hora lo hace por las recaudaciones vencidas sin alcanzar el objetivo."
+        },
+        "distributions": {
+          "position": "Posición",
+          "choosePosition": "Elija una posición",
+          "amount": "Monto de la distribución (USD)",
+          "submit": "Registrar distribución",
+          "empty": "Aún no hay posiciones para esta oportunidad.",
+          "required": "Elija una posición e ingrese un monto válido."
+        }
+      },
+    "application": {
+      "agreementAccepted": "La versión del acuerdo fue aceptada y registrada.",
+      "choose": {
+        "title": "Elija una oportunidad para solicitar"
+      },
+      "currentStatus": "Estado de la solicitud: {{status}}",
+      "draftSaved": "Su borrador fue guardado. Puede volver y retomarlo en cualquier momento.",
+      "error": {
+        "acceptFailed": "No se pudo aceptar el acuerdo.",
+        "loadFailed": "No se pudo cargar la solicitud.",
+        "saveFailed": "No se pudo guardar el borrador.",
+        "saveFirst": "Guarde un borrador antes de enviar.",
+        "submitFailed": "No se pudo enviar la solicitud.",
+        "withdrawFailed": "No se pudo retirar la solicitud."
+      },
+      "intro": "Solicite invertir Crédito OxSteed elegible en una oportunidad de una entidad. Cada sección es independiente: la identidad y la autoridad las verifica un revisor, la elegibilidad es su propia declaración y la aceptación del acuerdo se registra por separado.",
+      "noApplicationYet": "Aún no tiene una solicitud para esta oportunidad. Guarde un borrador para comenzar.",
+      "noBlockNotice": "Solicitar no cambia nada más en su cuenta. Puede seguir contratando ayuda, pidiendo comida, enviando mensajes y usando todas las funciones habituales de cliente mientras su solicitud está abierta.",
+      "saveDraft": "Guardar borrador",
+      "sections": {
+        "agreement": {
+          "acceptButton": "Aceptar esta versión del acuerdo",
+          "acceptedAt": "Acuerdo aceptado el {{date}}.",
+          "hash": "Huella del contenido (SHA-256)",
+          "hint": "La aceptación se registra por separado de las demás secciones, con la versión exacta del acuerdo que se muestra aquí.",
+          "none": "Aún no se ha publicado una versión del acuerdo para esta oportunidad.",
+          "notAccepted": "El acuerdo aún no ha sido aceptado.",
+          "title": "5. Aceptación del acuerdo",
+          "version": "Versión del acuerdo"
+        },
+        "documents": {
+          "hint": "Documentos que puede ver como solicitante. El acceso es por inversionista y por oportunidad.",
+          "title": "4. Acceso a documentos confidenciales"
+        },
+        "eligibility": {
+          "actingAs": "Estoy invirtiendo",
+          "actingAsOrganization": "Como representante autorizado de una organización",
+          "actingAsSelf": "Por mí mismo",
+          "adult": "Tengo 18 años o más.",
+          "creditOnlyAck": "Entiendo que las inversiones se hacen solo con Crédito OxSteed elegible. No se usa tarjeta, banco ni efectivo.",
+          "hint": "Sus propias declaraciones sobre elegibilidad. Se verifican de nuevo cuando usted se compromete y de nuevo al cierre.",
+          "organizationName": "Nombre de la organización",
+          "riskAck": "Entiendo que invertir conlleva riesgo, incluida la posible pérdida del monto comprometido, y que no se garantiza ningún rendimiento.",
+          "title": "2. Elegibilidad para participar",
+          "usResident": "Soy residente de los Estados Unidos."
+        },
+        "identity": {
+          "authorityVerified": "Autoridad de la organización verificada",
+          "hint": "Son hallazgos del revisor. Un revisor verifica su identidad y, si actúa por una organización, su autoridad para actuar por ella. Nada de esto lo decide este formulario.",
+          "identityVerified": "Identidad verificada",
+          "note": "Si se necesita más información, el revisor devolverá la solicitud con una nota y usted podrá actualizarla.",
+          "title": "1. Identidad y autoridad de la organización"
+        },
+        "requirements": {
+          "ack": "He leído los requisitos de esta oportunidad y los cumplo.",
+          "hint": "Los requisitos de esta oportunidad. Confirme que los ha leído antes de solicitar.",
+          "title": "3. Requisitos específicos de la oportunidad"
+        }
+      },
+      "status": {
+        "approved": "Aprobada",
+        "declined": "Rechazada",
+        "draft": "Borrador",
+        "needsInformation": "Necesita información",
+        "submitted": "Enviada",
+        "underReview": "En revisión",
+        "withdrawn": "Retirada"
+      },
+      "submit": "Enviar solicitud",
+      "submitted": "Su solicitud fue enviada.",
+      "title": "Solicitar acceso como inversionista",
+      "withdraw": "Retirar solicitud",
+      "withdrawn": "Su solicitud fue retirada."
+    },
+    "commit": {
+      "amount": {
+        "aboveEligible": "El monto es mayor que su Crédito elegible de {{eligible}}.",
+        "belowMinimum": "El monto es menor que el aporte mínimo de {{minimum}}.",
+        "hint": "Ingrese el monto de Crédito elegible a reservar. Debe ser al menos el aporte mínimo y no más que su saldo elegible.",
+        "invalid": "Ingrese un monto válido, por ejemplo 250.00.",
+        "label": "Monto en dólares estadounidenses (mínimo {{minimum}})",
+        "riskAck": "Entiendo que esta inversión conlleva riesgo, incluida la posible pérdida del monto comprometido, y que no se garantiza ningún rendimiento.",
+        "riskRequired": "Confirme el reconocimiento de riesgo antes de continuar.",
+        "title": "Monto"
+      },
+      "backButton": "Volver al monto",
+      "confirmButton": "Confirmar compromiso de inversión",
+      "eligibleBalance": "Crédito elegible disponible: {{amount}}",
+      "error": {
+        "confirmFailed": "No se pudo registrar el compromiso.",
+        "loadFailed": "No se pudo cargar la página de compromiso."
+      },
+      "gateOff": "Los compromisos de inversión aún no están disponibles. Los compromisos se abren solo para el piloto aprobado, después de que el asesor legal y el socio de liquidación lo aprueben. Aún puede revisar la oportunidad y solicitar acceso.",
+      "intro": "Reserve Crédito OxSteed elegible para esta oportunidad. El compromiso queda pendiente hasta que la oportunidad se cierre. Revise cada fila antes de confirmar.",
+      "noApprovedApplication": "Necesita una solicitud de participación aprobada para esta oportunidad antes de comprometerse.",
+      "receipt": {
+        "hint": "Su compromiso pendiente está registrado abajo. Solo se completa si la oportunidad se cierra.",
+        "replayed": "Esta confirmación ya estaba registrada. No se creó un compromiso duplicado.",
+        "title": "Compromiso registrado"
+      },
+      "review": {
+        "agreementVersion": "Versión del acuerdo aceptada",
+        "agreementVersionValue": "Versión {{version}} (SHA-256 {{hash}}...)",
+        "amount": "Monto de Crédito elegible",
+        "cancellation": "Cancelación",
+        "cancellationTerms": "Un compromiso reservado se puede cancelar mientras siga reservado. Al cancelarlo, el Crédito reservado vuelve a la clasificación y las restricciones originales del saldo, y el compromiso queda registrado como cancelado. Un compromiso completado no se puede cancelar.",
+        "fees": "Comisiones",
+        "feesNote": "No se cobran comisiones al inversionista en esta versión. No se ha definido un esquema de comisiones del intermediario, así que no se agrega ninguna comisión al monto anterior.",
+        "hint": "Revise cada fila. Nada es final hasta que usted confirme.",
+        "incomplete": "Faltan algunas filas de revisión. Vuelva atrás y complete los datos del compromiso.",
+        "noFees": "Sin comisiones.",
+        "referenceValue": "Valor monetario de referencia",
+        "referenceValueNote": "El valor monetario de referencia se fija en la reserva, con la tasa de referencia del Crédito vigente en ese momento. Se muestra en su recibo de confirmación después de confirmar.",
+        "rights": "Sus derechos",
+        "rightsSummary": "Los derechos se rigen por la versión {{version}} del acuerdo (SHA-256 {{hash}}). El texto completo del acuerdo es el documento vigente.",
+        "rightsSummaryFallback": "Los derechos se rigen por la versión del acuerdo vigente registrada en el compromiso.",
+        "risk": "Riesgo",
+        "riskNote": "Invertir conlleva riesgo, incluida la posible pérdida del monto comprometido. No se garantiza ningún rendimiento y no se prometen distribuciones.",
+        "status": "Estado",
+        "statusNote": "Este es un compromiso pendiente, no una inversión completada. El Crédito está reservado y el compromiso solo se completa si la oportunidad se cierra.",
+        "statusPending": "Compromiso pendiente",
+        "title": "Revise su compromiso",
+        "valuationRule": "Regla de valoración",
+        "valuationRuleFallback": "Participación en ingresos. La regla exacta está en el acuerdo vigente."
+      },
+      "reviewButton": "Revisar compromiso",
+      "title": "Hacer un compromiso de inversión"
+    },
+    "common": {
+      "country": {
+        "usOnly": "Solo Estados Unidos"
+      },
+      "loading": "Cargando inversiones.",
+      "notAvailable": "OxSteed Invest no está disponible en este momento. Inténtelo de nuevo más tarde.",
+      "notSet": "No establecido",
+      "notYet": "Todavía no",
+      "retry": "Intentar de nuevo",
+      "riskNotice": "Invertir conlleva riesgo, incluida la posible pérdida del monto comprometido. No se garantiza ningún rendimiento y no se prometen distribuciones.",
+      "status": {
+        "approved": "Aprobada",
+        "cancelled": "Cancelada",
+        "closed": "Cerrada",
+        "closing": "En cierre",
+        "draft": "Borrador",
+        "paused": "En pausa",
+        "published": "Publicada",
+        "submitted": "Enviada",
+        "underReview": "En revisión",
+        "unsuccessful": "Sin éxito",
+        "withdrawn": "Retirada"
+      },
+      "structure": {
+        "revenueShare": "Participación en ingresos"
+      },
+      "yes": "Sí"
+    },
+    "detail": {
+      "actions": {
+        "apply": "Solicitar acceso como inversionista",
+        "commit": "Hacer un compromiso",
+        "viewApplication": "Ver mi solicitud"
+      },
+      "answers": {
+        "hint": "Cada respuesta indica su origen. El material proporcionado por la entidad es declaración propia de la entidad. El material verificado se calculó a partir de los registros de inversión.",
+        "title": "Acerca de esta oportunidad"
+      },
+      "applicationStatus": "Su solicitud para esta oportunidad está {{status}}.",
+      "backToDirectory": "Volver a todas las inversiones",
+      "documents": {
+        "confidential": "Confidencial",
+        "empty": {
+          "copy": "No hay documentos que usted pueda ver para esta oportunidad ahora.",
+          "title": "No hay documentos disponibles"
+        },
+        "hint": "Solo se muestran los documentos que usted puede ver. Los documentos confidenciales se muestran solo a solicitantes e inversionistas de esta oportunidad.",
+        "title": "Documentos",
+        "visibility": {
+          "applicants": "Solicitantes",
+          "committed": "Inversionistas con compromiso",
+          "public": "Público",
+          "reviewers": "Revisores"
+        }
+      },
+      "error": {
+        "loadFailed": "No se pudo cargar esta oportunidad."
+      },
+      "exit": {
+        "cancellation": "Un compromiso reservado se puede cancelar mientras siga reservado. Al cancelarlo, el Crédito reservado vuelve a la clasificación y las restricciones originales del saldo, y el compromiso queda registrado como cancelado. Un compromiso completado no se puede cancelar.",
+        "distributions": "Las distribuciones no están prometidas. Si la entidad paga, la distribución se acredita como Crédito a través del flujo de liquidación aprobado, con un registro rastreable. No hay promesa de distribuciones, reembolso en efectivo ni protección del capital.",
+        "hint": "Cómo puede terminar un compromiso y qué sucede con el Crédito.",
+        "title": "Cancelación, transferencia y salida",
+        "transfer": "Un compromiso no se puede transferir a otra persona. Después del cierre, la salida depende de los términos del acuerdo vigente."
+      },
+      "funding": {
+        "completed": "Financiación completada",
+        "pendingNote": "Los compromisos pendientes son reservas de Crédito. No son financiación completada y solo se completan si la oportunidad se cierra.",
+        "reserved": "Compromisos pendientes",
+        "title": "Financiación hasta ahora"
+      },
+      "provenance": {
+        "checked": "Fuente: verificado con los registros de inversión",
+        "entityProvided": "Fuente: proporcionado por la entidad"
+      },
+      "qa": {
+        "askButton": "Enviar pregunta",
+        "askFailed": "No se pudo enviar su pregunta.",
+        "askLabel": "Haga una pregunta a la entidad",
+        "asked": "Su pregunta fue enviada.",
+        "empty": {
+          "copy": "No se han hecho preguntas para esta oportunidad.",
+          "title": "Aún no hay preguntas"
+        },
+        "hint": "Preguntas de inversionistas en esta oportunidad y respuestas de la entidad.",
+        "notAvailable": "Las preguntas y respuestas son visibles para los inversionistas en esta oportunidad.",
+        "questionRequired": "Escriba una pregunta primero.",
+        "title": "Preguntas y respuestas",
+        "unanswered": "Esperando respuesta de la entidad."
+      },
+      "verification": {
+        "notVerifiedTitle": "No verificado por OxSteed",
+        "verifiedTitle": "Lo que OxSteed verificó"
+      }
+    },
+    "directory": {
+      "card": {
+        "committed": "{{reserved}} en compromisos pendientes y {{completed}} en financiación completada.",
+        "deadline": "Fecha límite de financiación",
+        "minimum": "Aporte mínimo",
+        "progress": "El {{percent}}% de la meta está cubierto por compromisos hasta ahora.",
+        "structure": "Estructura de inversión",
+        "target": "Meta de financiación",
+        "view": "Ver oportunidad"
+      },
+      "empty": {
+        "copy": "No hay oportunidades publicadas en este momento. Vuelva a consultar más tarde.",
+        "title": "No hay oportunidades de inversión ahora"
+      },
+      "entityUnknown": "Nombre de la entidad no proporcionado",
+      "error": {
+        "loadFailed": "No se pudo cargar el directorio de inversiones."
+      },
+      "intro": "Oportunidades de entidades elegibles, financiadas con Crédito OxSteed elegible. Se muestran por fecha de publicación o de cierre. OxSteed no clasifica ni recomienda inversiones.",
+      "myInvestments": "Mis inversiones",
+      "requestAccess": "Solicitar acceso como inversionista",
+      "sort": {
+        "closingDate": "Fecha de cierre",
+        "label": "Ordenar por",
+        "publicationDate": "Fecha de publicación"
+      },
+      "title": "Explorar inversiones"
+    },
+    "my": {
+      "agreementVersion": "Versión del acuerdo {{version}}",
+      "agreements": {
+        "empty": {
+          "copy": "Aún no ha aceptado una versión del acuerdo.",
+          "title": "No hay acuerdos"
+        },
+        "hint": "Las versiones exactas del acuerdo que usted aceptó, con sus huellas de contenido.",
+        "title": "Acuerdos y estados"
+      },
+      "applications": {
+        "empty": {
+          "copy": "Aún no ha solicitado invertir.",
+          "title": "No hay solicitudes"
+        },
+        "title": "Solicitudes",
+        "view": "Ver solicitud"
+      },
+      "cancelled": {
+        "empty": {
+          "copy": "No tiene compromisos cancelados ni sin éxito.",
+          "title": "No hay compromisos cancelados"
+        },
+        "hint": "Compromisos que se cancelaron o no se completaron al cierre. El Crédito volvió al saldo original.",
+        "title": "Compromisos cancelados y sin éxito"
+      },
+      "cancelledNotice": "El compromiso fue cancelado y el Crédito reservado volvió al saldo original.",
+      "completed": {
+        "empty": {
+          "copy": "Aún no tiene inversiones completadas.",
+          "title": "No hay inversiones completadas"
+        },
+        "hint": "Compromisos que se completaron al cierre.",
+        "status": "Completada",
+        "title": "Inversiones completadas"
+      },
+      "distributions": {
+        "empty": {
+          "copy": "Aún no se le ha acreditado ninguna distribución.",
+          "title": "No hay distribuciones"
+        },
+        "hint": "Valor acreditado como Crédito. Las distribuciones no están prometidas y no se garantiza ningún rendimiento.",
+        "title": "Distribuciones y ajustes"
+      },
+      "eligibleBalance": "Crédito elegible disponible: {{amount}}",
+      "error": {
+        "cancelFailed": "No se pudo cancelar el compromiso.",
+        "loadFailed": "No se pudieron cargar sus inversiones.",
+        "reconfirmFailed": "No se pudo reconfirmar la enmienda."
+      },
+      "intro": "Sus compromisos pendientes, inversiones completadas, compromisos cancelados, actualizaciones de entidades, distribuciones, acuerdos y solicitudes de soporte. Los montos mostrados son montos comprometidos o distribuidos. No se muestra valor de mercado.",
+      "pending": {
+        "cancel": "Cancelar compromiso",
+        "empty": {
+          "copy": "No tiene compromisos reservados ahora.",
+          "title": "No hay compromisos pendientes"
+        },
+        "hint": "Crédito reservado. No son inversiones completadas.",
+        "status": "Pendiente",
+        "title": "Compromisos pendientes"
+      },
+      "reconfirmation": {
+        "button": "Reconfirmar",
+        "hint": "Se propuso un cambio material para una de sus oportunidades. Reconfirme para aceptar la nueva versión del acuerdo para sus compromisos aún reservados.",
+        "item": "Un cambio material necesita su reconfirmación.",
+        "title": "Reconfirmación necesaria"
+      },
+      "reconfirmed": "La enmienda fue reconfirmada con la nueva versión del acuerdo.",
+      "support": {
+        "category": "Categoría",
+        "categoryAgreement": "Acuerdo",
+        "categoryComplaint": "Queja",
+        "categoryDistribution": "Distribución",
+        "categoryInvestment": "Pregunta de inversión",
+        "details": "Detalles",
+        "empty": {
+          "copy": "Aún no ha enviado una solicitud de soporte de inversión.",
+          "title": "No hay solicitudes de soporte"
+        },
+        "failed": "No se pudo enviar su solicitud de soporte.",
+        "hint": "Haga una pregunta o presente una queja sobre una inversión. Las quejas se tratan como alta prioridad.",
+        "required": "Agregue un asunto y detalles primero.",
+        "sent": "Su solicitud de soporte fue enviada.",
+        "subject": "Asunto",
+        "submit": "Enviar solicitud de soporte",
+        "ticket": "Ticket n.º {{number}} - {{status}}",
+        "title": "Solicitudes de soporte"
+      },
+      "suspendedNotice": "Su cuenta está suspendida. Sus registros de inversión se muestran solo para lectura. Su titularidad, estados y obligaciones se mantienen. Las escrituras no están disponibles.",
+      "title": "Mis inversiones",
+      "updates": {
+        "empty": {
+          "copy": "No hay actualizaciones de entidades para sus inversiones ahora.",
+          "title": "No hay actualizaciones"
+        },
+        "hint": "Actualizaciones publicadas de entidades en las que usted invirtió. Las actualizaciones perdidas siguen visibles como vencidas.",
+        "overdue": "Vencida",
+        "title": "Actualizaciones de entidades"
+      }
+    }
+  },
   "investorDashboard": {
     "evidence": {
       "title": "Cómo se componen estas cifras",
@@ -32244,6 +32999,7 @@
     "confirmRevokeTitle": "Revocar aceptación"
   },
   "adminNav": {
+    "investReviewQueue": "Revisiones de inversión",
     "moneyApprovals": "Aprobaciones de dinero",
     "adminAccounts": "Cuentas de administrador",
     "auditLog": "Registro de auditoría",

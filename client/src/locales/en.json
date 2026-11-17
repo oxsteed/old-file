@@ -2292,6 +2292,9 @@
     "myJobs": "My Jobs",
     "orderFood": "Order Food",
     "myWork": "My Work",
+    "exploreInvestments": "Explore investments",
+    "requestInvestorAccess": "Request investor access",
+    "myInvestments": "My investments",
     "workspace": "Workspace",
     "businessWorkspace": "Business Workspace",
     "foodOrders": "Food Orders",
@@ -8094,6 +8097,8 @@
     }
   },
   "businessHub": {
+    "raiseCapital": "Raise capital",
+    "raiseCapitalTitle": "Raise capital from investors for this business",
     "procurement": {
       "title": "Procurement",
       "subtitle": "Recurring sourcing programs and supply requests linked to this business.",
@@ -22707,6 +22712,756 @@
       "convertToInvoice": "Convert to Invoice"
     }
   },
+  "invest": {
+      "entity": {
+        "raise": {
+          "title": "Raise capital",
+          "intro": "Apply to raise capital from investors for one of your businesses. Your application stays private until a reviewer approves it for publication.",
+          "documentsNotice": "Do not include sensitive identity or financial documents in this form. Those go through restricted verification and document flows, never in a public opportunity description.",
+          "business": {
+            "label": "Business",
+            "choose": "Choose a business",
+            "empty": {
+              "title": "No business to raise for",
+              "copy": "You do not represent a business yet. Create a business first, then come back to raise capital."
+            }
+          },
+          "authority": {
+            "label": "I am authorized to represent this entity and to submit this fundraising application on its behalf.",
+            "hint": "Only an owner, manager, or authorized representative of the business can raise capital for it."
+          },
+          "sections": {
+            "entity": {
+              "title": "Entity",
+              "hint": "Who is raising, and under what authority."
+            },
+            "raise": {
+              "title": "The raise",
+              "hint": "Funding purpose, target, and terms. Revenue share only, United States only."
+            },
+            "details": {
+              "title": "Entity details",
+              "hint": "Supporting information for reviewers and investors. Keep it factual; forecasts and promises of returns do not belong here."
+            },
+            "agreement": {
+              "title": "Agreement",
+              "hint": "The controlling agreement investors accept. The exact version accepted at commit time governs the commitment."
+            }
+          },
+          "form": {
+            "title": {
+              "label": "Opportunity title"
+            },
+            "purpose": {
+              "label": "Funding purpose",
+              "hint": "What the business does and why it is raising."
+            },
+            "target": {
+              "label": "Target amount (USD)",
+              "hint": "The full amount the raise aims to collect."
+            },
+            "minimum": {
+              "label": "Minimum contribution (USD)",
+              "hint": "The smallest amount one investor can commit. It cannot be more than the target."
+            },
+            "deadline": {
+              "label": "Deadline",
+              "hint": "Closing is all-or-nothing: the target, the deadline, and approved closing conditions must all be met."
+            },
+            "valuation": {
+              "label": "Valuation rule",
+              "hint": "How the revenue share is calculated, for example a percentage of monthly revenue."
+            },
+            "useOfProceeds": {
+              "label": "Use of proceeds"
+            },
+            "intermediary": {
+              "label": "Intermediary reference",
+              "hint": "Reference for the registered intermediary, if one is assigned already."
+            },
+            "legal": {
+              "label": "Legal entity details, business activity, and operating history",
+              "hint": "Legal form, jurisdiction, what the business does, and how long it has operated."
+            },
+            "financials": {
+              "label": "Financial information",
+              "hint": "Summary financials that support the raise. Do not paste sensitive documents here."
+            },
+            "ownership": {
+              "label": "Ownership information"
+            },
+            "risks": {
+              "label": "Material risks"
+            },
+            "relatedParties": {
+              "label": "Related-party relationships",
+              "hint": "Any relationship between the entity, its owners, and other parties that an investor should know about."
+            },
+            "agreement": {
+              "label": "Agreement text"
+            }
+          },
+          "submit": "Create private draft",
+          "creating": "Creating draft...",
+          "created": {
+            "title": "Private draft created",
+            "copy": "This draft is private. Only you and reviewers can see it.",
+            "target": "Target {{amount}}"
+          },
+          "preview": {
+            "title": "Investor preview",
+            "hint": "How investors will see this opportunity once it is published."
+          },
+          "submitReview": "Submit for review",
+          "submitReviewNote": "Submission does not publish the opportunity. A reviewer must approve it first, and publication is a separate step.",
+          "submitted": {
+            "copy": "Submitted for review. The opportunity is not published."
+          },
+          "manageLink": "Manage this raise",
+          "error": {
+            "loadFailed": "Could not load your businesses. Please try again.",
+            "createFailed": "Could not create the draft. Please try again.",
+            "agreementFailed": "The draft was created, but the agreement version could not be saved. Add it from the manage page.",
+            "submitFailed": "Could not submit for review. Please try again."
+          },
+          "errors": {
+            "business": "Choose a business for this raise.",
+            "authority": "Confirm that you are authorized to represent this entity.",
+            "title": "An opportunity title is required.",
+            "purpose": "A funding purpose is required.",
+            "target": "Enter a valid target amount greater than zero.",
+            "minimum": "The minimum contribution must be between zero and the target.",
+            "deadline": "Choose a future deadline.",
+            "valuation": "A valuation rule is required.",
+            "useOfProceeds": "Describe the use of proceeds.",
+            "agreement": "Agreement text is required."
+          }
+        },
+        "edit": {
+          "title": "Edit draft raise",
+          "intro": "Change the draft fields below. Saving keeps the opportunity a private draft. Agreement text is managed from the manage page, and saving never publishes anything.",
+          "draftNotice": "This draft is private. Only you and reviewers can see it. Saving changes never publishes the opportunity.",
+          "save": "Save draft changes",
+          "saving": "Saving draft...",
+          "saved": {
+            "title": "Draft saved",
+            "copy": "Your changes are saved. The draft is still private."
+          },
+          "notEditable": {
+            "copy": "Only a draft can be edited directly. Once submitted, changes go through the amendment process with investor notice and reconfirmation."
+          },
+          "error": {
+            "loadFailed": "Could not load this draft. Please try again.",
+            "saveFailed": "Could not save the draft. Please try again.",
+            "amendmentRequired": "Only a draft can be edited directly. This opportunity has already moved forward, so changes go through the amendment process."
+          }
+        },
+        "raises": {
+          "title": "My raises",
+          "intro": "Your entity fundraising applications, from private draft to published raise.",
+          "newRaise": "Start a new raise",
+          "error": {
+            "loadFailed": "Could not load your raises. Please try again."
+          },
+          "empty": {
+            "title": "No raises yet",
+            "copy": "Start a new raise to apply for capital for one of your businesses."
+          },
+          "card": {
+            "target": "Target {{amount}}",
+            "committed": "Committed {{amount}}",
+            "completed": "Completed {{amount}}",
+            "progress": "{{percent}}% funded",
+            "deadline": "Deadline {{date}}",
+            "manage": "Manage",
+            "edit": "Edit draft",
+            "viewPublic": "View public page"
+          }
+        },
+        "manage": {
+          "title": "Manage raise",
+          "error": {
+            "loadFailed": "Could not load this raise. Please try again.",
+            "actionFailed": "That action could not be completed. Please try again.",
+            "previewFailed": "Could not load the investor preview. Please try again."
+          },
+          "status": {
+            "title": "Fundraising status",
+            "target": "Target {{amount}}",
+            "committed": "Committed {{amount}}",
+            "completed": "Completed {{amount}}",
+            "progress": "{{percent}}% funded",
+            "deadline": "Deadline {{date}}",
+            "conditionsApproved": "Closing conditions approved.",
+            "closedAt": "Closed {{date}}"
+          },
+          "submitted": "Submitted for review. The opportunity is not published.",
+          "preview": {
+            "button": "Show investor preview"
+          },
+          "questions": {
+            "title": "Investor questions",
+            "hint": "Questions from applicants and investors in this opportunity. Answer them here.",
+            "empty": {
+              "title": "No questions yet",
+              "copy": "Investor questions will appear here when they arrive."
+            },
+            "answerLabel": "Your answer",
+            "answerButton": "Send answer",
+            "answered": "Answer sent.",
+            "answeredLabel": "Answered",
+            "answerRequired": "Write an answer before sending."
+          },
+          "updates": {
+            "title": "Updates and reporting schedule",
+            "hint": "Publish updates for investors. A missed due date shows as overdue and never disappears.",
+            "empty": {
+              "title": "No updates yet",
+              "copy": "Create the first update for this raise."
+            },
+            "required": "An update title and body are required.",
+            "created": "Update created as a draft.",
+            "published": "Update published.",
+            "publish": "Publish",
+            "overdue": "Overdue since {{date}}",
+            "status": {
+              "draft": "Draft",
+              "published": "Published",
+              "overdue": "Overdue"
+            },
+            "form": {
+              "title": "Update title",
+              "body": "Update",
+              "due": "Due date",
+              "dueHint": "When this update is due to investors.",
+              "submit": "Create update"
+            }
+          },
+          "amendments": {
+            "title": "Material changes",
+            "hint": "Terms cannot change silently after commitments exist. A material change goes through this controlled process: draft, investor notice, then reconfirmation.",
+            "empty": {
+              "title": "No amendments",
+              "copy": "No material changes have been proposed for this opportunity."
+            },
+            "required": "Describe the change before creating the amendment.",
+            "created": "Amendment draft created.",
+            "proposed": "Amendment proposed. Investor notice has been sent.",
+            "untitled": "Amendment",
+            "proposedState": "Notice sent {{sent}}. Investors must reconfirm by {{deadline}}.",
+          "effectiveState": "Effective. The changes were applied to the opportunity.",
+          "rejectedState": "Rejected by a reviewer.",
+            "deadlineRequired": "Choose a future reconfirmation deadline.",
+            "status": {
+              "draft": "Draft",
+              "proposed": "Proposed",
+              "effective": "Effective",
+              "withdrawn": "Withdrawn",
+              "rejected": "Rejected"
+            },
+            "form": {
+              "summary": "What changes",
+              "summaryHint": "Describe the material change in plain language.",
+              "version": "New agreement version",
+              "versionHint": "Choose the agreement version the change moves investors to, if any.",
+              "noNewVersion": "No new agreement version",
+              "submit": "Create amendment"
+            },
+            "propose": {
+              "deadline": "Reconfirmation deadline",
+              "button": "Propose and notify investors"
+            }
+          },
+          "agreements": {
+            "title": "Agreement versions",
+            "hint": "The exact agreement versions investors accept. A commitment records the exact version accepted.",
+            "empty": {
+              "title": "No agreement version yet",
+              "copy": "Add the first agreement version. An opportunity cannot be approved without one."
+            },
+            "required": "Agreement text is required.",
+            "created": "Agreement version created.",
+          "current": "Current version",
+            "form": {
+              "body": "Agreement text",
+              "submit": "Add agreement version"
+            }
+          },
+          "obligations": {
+            "title": "After closing: reporting and obligations",
+            "hint": "The raise is closed. These obligations stay with the entity.",
+            "item1": "Publish updates on the reporting schedule above. Missed updates show as overdue.",
+            "item2": "Pay distributions through the approved settlement flow. No distribution is promised to investors.",
+            "item3": "Keep records of the raise, the agreements accepted, and all reports."
+          }
+        }
+      },
+      "review": {
+        "title": "Invest review queue",
+        "intro": "Participation applications, opportunity publish reviews, closing approvals, and proceeds release. Each queue shows only what your review permissions cover.",
+        "empty": "No review queues are available for your permissions.",
+        "emptyType": "Nothing is waiting in this queue.",
+        "select": "Choose an item to review it.",
+        "tabs": {
+          "applications": "Applications",
+          "opportunities": "Opportunities",
+          "amendments": "Amendments",
+          "closing": "Closing",
+          "proceeds": "Proceeds"
+        },
+        "errors": {
+          "loadFailed": "Could not load the review queue. Please try again.",
+          "generic": "That review action could not be completed. Please try again.",
+          "notPermitted": "You do not have an investment review permission, so this queue is empty for you.",
+          "selfApproval": "You cannot review your own application, opportunity, or closing. Another reviewer must decide.",
+          "versionConflict": "This item changed since it was loaded. It has been reloaded; review the latest version and try again.",
+          "proceedsBlocked": "Proceeds cannot release yet. The opportunity must be closed with approved closing conditions first.",
+          "noAgreement": "This opportunity cannot be approved without an agreement version.",
+          "transitionInvalid": "This item cannot move to that state from where it is now."
+        },
+        "actions": {
+          "approve": "Approve",
+          "decline": "Decline",
+          "needsInformation": "Needs information",
+          "claim": "Claim for review",
+          "publish": "Publish"
+        },
+        "application": {
+          "applicant": "Applicant",
+          "identity": "Identity verified",
+          "authority": "Authority verified",
+          "agreementAccepted": "Agreement accepted",
+          "version": "Expected version",
+          "eligibility": "Eligibility",
+          "note": "Review note",
+          "confirmIdentity": "Identity verified",
+          "confirmAuthority": "Authority verified",
+          "no": "No",
+          "noteRequired": "A note is required when asking for more information.",
+          "verifyRequired": "Approval requires identity and authority verification."
+        },
+        "opportunity": {
+          "target": "Target",
+          "minimum": "Minimum contribution",
+          "committed": "Committed",
+          "progress": "{{percent}}% funded",
+          "purpose": "Funding purpose",
+          "valuation": "Valuation rule",
+          "useOfProceeds": "Use of proceeds",
+          "version": "Expected version",
+          "details": "Entity details",
+          "detail": {
+            "legalDetails": "Legal details",
+            "financials": "Financials",
+            "ownership": "Ownership",
+            "risks": "Risks",
+            "relatedParties": "Related parties"
+          },
+          "decideTitle": "Review decision",
+          "note": "Review note",
+          "verifiedItems": "Verified items (one per line)",
+          "publishNote": "Publication is separate from approval. The entity representative cannot publish their own opportunity."
+        },
+        "closing": {
+          "title": "Closing",
+          "conditionsApproved": "Closing conditions approved {{date}}.",
+          "conditionsPending": "Closing conditions are not approved yet.",
+          "reviewApproved": "Review approved by {{approver}}.",
+          "reviewPending": "Closing review is not approved yet.",
+          "executionApproved": "Execution approved by {{approver}}.",
+          "executionPending": "Closing execution is not approved yet.",
+          "gateOff": "Live commitments are off. Close, proceeds release, and distributions are inert until the live commitment gate is approved for a pilot.",
+          "note": "Closing note",
+          "approveConditions": "Approve closing conditions",
+          "approveReview": "Approve review stage",
+          "approveExecution": "Approve execution stage",
+          "close": "Close opportunity",
+          "separateApprovers": "Review and execution need different approvers, and neither can be the entity representative. Only the approved execution approver can execute the close."
+        },
+        "proceeds": {
+          "title": "Proceeds and distributions",
+          "release": "Release proceeds",
+          "blockedNote": "Proceeds release stays blocked until the opportunity is closed with approved closing conditions."
+        },
+        "amendments": {
+          "changes": "Proposed changes",
+          "reconfirmationTitle": "Investor reconfirmation",
+          "reconfirmation": "{{reconfirmed}} of {{total}} investors reconfirmed, {{pending}} still to reconfirm.",
+          "reconfirmationNone": "This amendment carries no new agreement version, so there is nothing to reconfirm.",
+          "deadline": "Reconfirmation deadline: {{date}}",
+          "note": "Review note",
+          "makeEffective": "Mark effective",
+          "reject": "Reject",
+          "effectiveNote": "Making an amendment effective applies its changes to the opportunity and makes its new agreement version the current one. Rejection applies nothing."
+        },
+        "failClose": {
+          "title": "Unsuccessful closing",
+          "copy": "Fail-close releases every still-reserved commitment back to its original Credit lots and marks the opportunity unsuccessful. Use it when the raise will not close.",
+          "reason": "Reason",
+          "button": "Fail-close opportunity",
+          "note": "A fail-closed opportunity cannot be reopened. The hourly sweeper does this automatically for raises past deadline with the target unmet."
+        },
+        "distributions": {
+          "position": "Position",
+          "choosePosition": "Choose a position",
+          "amount": "Distribution amount (USD)",
+          "submit": "Record distribution",
+          "empty": "No positions exist for this opportunity yet.",
+          "required": "Choose a position and enter a valid amount."
+        }
+      },
+    "application": {
+      "agreementAccepted": "The agreement version was accepted and recorded.",
+      "choose": {
+        "title": "Choose an opportunity to apply for"
+      },
+      "currentStatus": "Application status: {{status}}",
+      "draftSaved": "Your draft was saved. You can come back and resume it any time.",
+      "error": {
+        "acceptFailed": "The agreement could not be accepted.",
+        "loadFailed": "The application could not be loaded.",
+        "saveFailed": "The draft could not be saved.",
+        "saveFirst": "Save a draft before submitting.",
+        "submitFailed": "The application could not be submitted.",
+        "withdrawFailed": "The application could not be withdrawn."
+      },
+      "intro": "Apply to invest eligible OxSteed Credit in an entity opportunity. Each section below is separate: identity and authority are verified by a reviewer, eligibility is your own statement, and agreement acceptance is recorded on its own.",
+      "noApplicationYet": "You have no application for this opportunity yet. Save a draft to start one.",
+      "noBlockNotice": "Applying changes nothing else about your account. You can still hire help, order food, send messages, and use every ordinary customer feature while your application is open.",
+      "saveDraft": "Save draft",
+      "sections": {
+        "agreement": {
+          "acceptButton": "Accept this agreement version",
+          "acceptedAt": "Agreement accepted on {{date}}.",
+          "hash": "Content fingerprint (SHA-256)",
+          "hint": "Acceptance is recorded separately from the other sections, against the exact agreement version shown here.",
+          "none": "No agreement version has been published for this opportunity yet.",
+          "notAccepted": "The agreement has not been accepted yet.",
+          "title": "5. Agreement acceptance",
+          "version": "Agreement version"
+        },
+        "documents": {
+          "hint": "Documents you can see as an applicant. Access is per investor and per opportunity.",
+          "title": "4. Confidential-document access"
+        },
+        "eligibility": {
+          "actingAs": "I am investing",
+          "actingAsOrganization": "As an authorized representative of an organization",
+          "actingAsSelf": "For myself",
+          "adult": "I am 18 years or older.",
+          "creditOnlyAck": "I understand investments are made with eligible OxSteed Credit only. No card, bank, or cash payment is used.",
+          "hint": "Your own statements about eligibility. They are checked again when you commit and again at closing.",
+          "organizationName": "Organization name",
+          "riskAck": "I understand investing involves risk, including possible loss of the amount committed, and no return is guaranteed.",
+          "title": "2. Participation eligibility",
+          "usResident": "I am a resident of the United States."
+        },
+        "identity": {
+          "authorityVerified": "Organization authority verified",
+          "hint": "These are reviewer findings. A reviewer verifies your identity and, if you act for an organization, your authority to act for it. Nothing here is decided by this form.",
+          "identityVerified": "Identity verified",
+          "note": "If more information is needed, the reviewer will send the application back with a note and you can update it.",
+          "title": "1. Identity and organization authority"
+        },
+        "requirements": {
+          "ack": "I have read the requirements of this opportunity and I meet them.",
+          "hint": "The requirements of this opportunity. Confirm you have read them before you apply.",
+          "title": "3. Opportunity-specific requirements"
+        }
+      },
+      "status": {
+        "approved": "Approved",
+        "declined": "Declined",
+        "draft": "Draft",
+        "needsInformation": "Needs information",
+        "submitted": "Submitted",
+        "underReview": "Under review",
+        "withdrawn": "Withdrawn"
+      },
+      "submit": "Submit application",
+      "submitted": "Your application was submitted.",
+      "title": "Request investor access",
+      "withdraw": "Withdraw application",
+      "withdrawn": "Your application was withdrawn."
+    },
+    "commit": {
+      "amount": {
+        "aboveEligible": "The amount is more than your eligible Credit of {{eligible}}.",
+        "belowMinimum": "The amount is below the minimum contribution of {{minimum}}.",
+        "hint": "Enter the amount of eligible Credit to reserve. It must be at least the minimum contribution and no more than your eligible balance.",
+        "invalid": "Enter a valid amount, for example 250.00.",
+        "label": "Amount in US dollars (minimum {{minimum}})",
+        "riskAck": "I understand this investment involves risk, including possible loss of the amount committed, and no return is guaranteed.",
+        "riskRequired": "Confirm the risk acknowledgement before continuing.",
+        "title": "Amount"
+      },
+      "backButton": "Back to amount",
+      "confirmButton": "Confirm investment commitment",
+      "eligibleBalance": "Eligible Credit available: {{amount}}",
+      "error": {
+        "confirmFailed": "The commitment could not be recorded.",
+        "loadFailed": "The commitment page could not be loaded."
+      },
+      "gateOff": "Investment commitments are not available yet. Commitments open only for the approved pilot, after counsel and the settlement partner approve. You can still review the opportunity and apply.",
+      "intro": "Reserve eligible OxSteed Credit for this opportunity. The commitment stays pending until the opportunity closes. Review every row below before you confirm.",
+      "noApprovedApplication": "You need an approved participation application for this opportunity before you can commit.",
+      "receipt": {
+        "hint": "Your pending commitment is recorded below. It completes only if the opportunity closes.",
+        "replayed": "This confirmation was already recorded. No duplicate commitment was created.",
+        "title": "Commitment recorded"
+      },
+      "review": {
+        "agreementVersion": "Agreement version accepted",
+        "agreementVersionValue": "Version {{version}} (SHA-256 {{hash}}...)",
+        "amount": "Amount of eligible Credit",
+        "cancellation": "Cancellation",
+        "cancellationTerms": "A reserved commitment can be cancelled while it is still reserved. On cancellation the reserved Credit is released back to the original balance classification and restrictions, and the commitment is recorded as cancelled. A completed commitment cannot be cancelled.",
+        "fees": "Fees",
+        "feesNote": "No investor fees are charged in this build. No intermediary fee schedule has been defined, so no fee is added to the amount above.",
+        "hint": "Check every row. Nothing is final until you confirm.",
+        "incomplete": "Some review rows are missing. Please go back and complete the commitment details.",
+        "noFees": "No fees.",
+        "referenceValue": "Monetary reference value",
+        "referenceValueNote": "The monetary reference value is set at reservation, at the Credit reference rate in force at that time. It is shown on your confirmation receipt after you confirm.",
+        "rights": "Your rights",
+        "rightsSummary": "Rights are governed by agreement version {{version}} (SHA-256 {{hash}}). The full agreement text is the controlling document.",
+        "rightsSummaryFallback": "Rights are governed by the controlling agreement version recorded on the commitment.",
+        "risk": "Risk",
+        "riskNote": "Investing involves risk, including possible loss of the amount committed. No return is guaranteed and distributions are not promised.",
+        "status": "Status",
+        "statusNote": "This is a pending commitment, not a completed investment. The Credit is reserved and the commitment completes only if the opportunity closes.",
+        "statusPending": "Pending commitment",
+        "title": "Review your commitment",
+        "valuationRule": "Valuation rule",
+        "valuationRuleFallback": "Revenue share. The exact rule is in the controlling agreement."
+      },
+      "reviewButton": "Review commitment",
+      "title": "Make an investment commitment"
+    },
+    "common": {
+      "country": {
+        "usOnly": "United States only"
+      },
+      "loading": "Loading investments.",
+      "notAvailable": "OxSteed Invest is not available right now. Please try again later.",
+      "notSet": "Not set",
+      "notYet": "Not yet",
+      "retry": "Try again",
+      "riskNotice": "Investing involves risk, including possible loss of the amount committed. No return is guaranteed and distributions are not promised.",
+      "status": {
+        "approved": "Approved",
+        "cancelled": "Cancelled",
+        "closed": "Closed",
+        "closing": "Closing",
+        "draft": "Draft",
+        "paused": "Paused",
+        "published": "Published",
+        "submitted": "Submitted",
+        "underReview": "Under review",
+        "unsuccessful": "Unsuccessful",
+        "withdrawn": "Withdrawn"
+      },
+      "structure": {
+        "revenueShare": "Revenue share"
+      },
+      "yes": "Yes"
+    },
+    "detail": {
+      "actions": {
+        "apply": "Request investor access",
+        "commit": "Make a commitment",
+        "viewApplication": "View my application"
+      },
+      "answers": {
+        "hint": "Each answer is labeled with where it comes from. Entity-provided material is the entity's own statement. Checked material was computed from the investment records.",
+        "title": "About this opportunity"
+      },
+      "applicationStatus": "Your application for this opportunity is {{status}}.",
+      "backToDirectory": "Back to all investments",
+      "documents": {
+        "confidential": "Confidential",
+        "empty": {
+          "copy": "There are no documents you can view for this opportunity right now.",
+          "title": "No documents available"
+        },
+        "hint": "Only documents you are allowed to see are listed. Confidential documents are shown to applicants and investors for this opportunity only.",
+        "title": "Documents",
+        "visibility": {
+          "applicants": "Applicants",
+          "committed": "Investors with a commitment",
+          "public": "Public",
+          "reviewers": "Reviewers"
+        }
+      },
+      "error": {
+        "loadFailed": "This opportunity could not be loaded."
+      },
+      "exit": {
+        "cancellation": "A reserved commitment can be cancelled while it is still reserved. On cancellation the reserved Credit is released back to the original balance classification and restrictions, and the commitment is recorded as cancelled. A completed commitment cannot be cancelled.",
+        "distributions": "Distributions are not promised. If the entity pays, the distribution is credited back as Credit through the approved settlement flow, with a traceable record. There is no promise of distributions, cash redeemability, or principal protection.",
+        "hint": "How a commitment can end, and what happens to the Credit.",
+        "title": "Cancellation, transfer, and exit",
+        "transfer": "A commitment cannot be transferred to another person. After closing, exit depends on the terms of the controlling agreement."
+      },
+      "funding": {
+        "completed": "Completed funding",
+        "pendingNote": "Pending commitments are reservations of Credit. They are not completed funding and they complete only if the opportunity closes.",
+        "reserved": "Pending commitments",
+        "title": "Funding so far"
+      },
+      "provenance": {
+        "checked": "Source: checked against the investment records",
+        "entityProvided": "Source: provided by the entity"
+      },
+      "qa": {
+        "askButton": "Ask question",
+        "askFailed": "Your question could not be sent.",
+        "askLabel": "Ask the entity a question",
+        "asked": "Your question was sent.",
+        "empty": {
+          "copy": "No questions have been asked for this opportunity.",
+          "title": "No questions yet"
+        },
+        "hint": "Questions from investors in this opportunity and the entity's answers.",
+        "notAvailable": "Questions and answers are visible to investors in this opportunity.",
+        "questionRequired": "Write a question first.",
+        "title": "Questions and answers",
+        "unanswered": "Awaiting an answer from the entity."
+      },
+      "verification": {
+        "notVerifiedTitle": "Not verified by OxSteed",
+        "verifiedTitle": "What OxSteed verified"
+      }
+    },
+    "directory": {
+      "card": {
+        "committed": "{{reserved}} in pending commitments and {{completed}} in completed funding.",
+        "deadline": "Funding deadline",
+        "minimum": "Minimum contribution",
+        "progress": "{{percent}}% of the funding target is covered by commitments so far.",
+        "structure": "Investment structure",
+        "target": "Funding target",
+        "view": "View opportunity"
+      },
+      "empty": {
+        "copy": "There are no published opportunities at the moment. Please check back later.",
+        "title": "No investment opportunities right now"
+      },
+      "entityUnknown": "Entity name not provided",
+      "error": {
+        "loadFailed": "The investment directory could not be loaded."
+      },
+      "intro": "Opportunities from eligible entities, funded with eligible OxSteed Credit. Opportunities are listed in publication or closing order. OxSteed does not rank or recommend investments.",
+      "myInvestments": "My investments",
+      "requestAccess": "Request investor access",
+      "sort": {
+        "closingDate": "Closing date",
+        "label": "Sort by",
+        "publicationDate": "Publication date"
+      },
+      "title": "Explore investments"
+    },
+    "my": {
+      "agreementVersion": "Agreement version {{version}}",
+      "agreements": {
+        "empty": {
+          "copy": "You have not accepted an agreement version yet.",
+          "title": "No agreements"
+        },
+        "hint": "The exact agreement versions you accepted, with their content fingerprints.",
+        "title": "Agreements and statements"
+      },
+      "applications": {
+        "empty": {
+          "copy": "You have not applied to invest yet.",
+          "title": "No applications"
+        },
+        "title": "Applications",
+        "view": "View application"
+      },
+      "cancelled": {
+        "empty": {
+          "copy": "You have no cancelled or unsuccessful commitments.",
+          "title": "No cancelled commitments"
+        },
+        "hint": "Commitments that were cancelled or did not complete at closing. The Credit was released back to the original balance.",
+        "title": "Cancelled and unsuccessful commitments"
+      },
+      "cancelledNotice": "The commitment was cancelled and the reserved Credit was released back to the original balance.",
+      "completed": {
+        "empty": {
+          "copy": "You have no completed investments yet.",
+          "title": "No completed investments"
+        },
+        "hint": "Commitments that completed at closing.",
+        "status": "Completed",
+        "title": "Completed investments"
+      },
+      "distributions": {
+        "empty": {
+          "copy": "No distributions have been credited to you yet.",
+          "title": "No distributions"
+        },
+        "hint": "Value credited back as Credit. Distributions are not promised and no return is guaranteed.",
+        "title": "Distributions and adjustments"
+      },
+      "eligibleBalance": "Eligible Credit available: {{amount}}",
+      "error": {
+        "cancelFailed": "The commitment could not be cancelled.",
+        "loadFailed": "Your investments could not be loaded.",
+        "reconfirmFailed": "The amendment could not be reconfirmed."
+      },
+      "intro": "Your pending commitments, completed investments, cancelled commitments, entity updates, distributions, agreements, and support requests. Amounts shown are committed or distributed amounts. No market value is shown.",
+      "pending": {
+        "cancel": "Cancel commitment",
+        "empty": {
+          "copy": "You have no reserved commitments right now.",
+          "title": "No pending commitments"
+        },
+        "hint": "Reserved Credit. These are not completed investments.",
+        "status": "Pending",
+        "title": "Pending commitments"
+      },
+      "reconfirmation": {
+        "button": "Reconfirm",
+        "hint": "A material change was proposed for one of your opportunities. Reconfirm to accept the new agreement version for your still-reserved commitments.",
+        "item": "A material change needs your reconfirmation.",
+        "title": "Reconfirmation needed"
+      },
+      "reconfirmed": "The amendment was reconfirmed against the new agreement version.",
+      "support": {
+        "category": "Category",
+        "categoryAgreement": "Agreement",
+        "categoryComplaint": "Complaint",
+        "categoryDistribution": "Distribution",
+        "categoryInvestment": "Investment question",
+        "details": "Details",
+        "empty": {
+          "copy": "You have not sent an investment support request yet.",
+          "title": "No support requests"
+        },
+        "failed": "Your support request could not be sent.",
+        "hint": "Ask a question or raise a complaint about an investment. Complaints are treated as high priority.",
+        "required": "Add a subject and details first.",
+        "sent": "Your support request was sent.",
+        "subject": "Subject",
+        "submit": "Send support request",
+        "ticket": "Ticket {{number}} - {{status}}",
+        "title": "Support requests"
+      },
+      "suspendedNotice": "Your account is suspended. Your investment records are shown read-only. Your ownership, statements, and obligations remain. Writes are unavailable.",
+      "title": "My investments",
+      "updates": {
+        "empty": {
+          "copy": "There are no entity updates for your investments right now.",
+          "title": "No updates"
+        },
+        "hint": "Published updates from entities you invested in. Missed updates stay visible as overdue.",
+        "overdue": "Overdue",
+        "title": "Entity updates"
+      }
+    }
+  },
   "investorDashboard": {
     "evidence": {
       "title": "How these numbers are made up",
@@ -32244,6 +32999,7 @@
     "confirmRevokeTitle": "Revoke Acceptance"
   },
   "adminNav": {
+    "investReviewQueue": "Invest reviews",
     "moneyApprovals": "Money approvals",
     "adminAccounts": "Admin Accounts",
     "auditLog": "Audit Log",

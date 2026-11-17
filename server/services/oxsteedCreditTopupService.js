@@ -32,6 +32,7 @@ const {
   postJournalTransaction,
 } = require('./oxsteedCreditService');
 const { recordIncident } = require('./incidentStore');
+const { createLot } = require('./invest/creditLots');
 
 const MIN_TOPUP_CENTS = 100;
 const STRIPE_INTENT_IDEMPOTENCY_PREFIX = 'stripe-topup-intent:';
@@ -344,11 +345,15 @@ async function getCustomerTopup({ customerId, topupId }) {
 }
 
 // Webhook: the PaymentIntent succeeded. Credit the customer wallet with one
-// balanced `load` journal transaction. Runs in a single DB transaction;
-// journal-post failure parks the top-up as requires_attention, records a
-// critical incident after commit, and rethrows so Stripe redelivers and the
-// journal post is retried (the deterministic journal idempotency key makes
-// the retry safe).
+// balanced `load` journal transaction. Runs in a single DB transaction.
+// KNOWN DEFECT (pre-existing, needs Emile's call; see the counsel brief
+// and investCreditLots.db.test.js): when the journal post fails, the
+// parking UPDATE below runs inside the already-aborted transaction, so
+// the call throws `current transaction is aborted` instead of parking
+// the top-up as requires_attention, the top-up stays `pending`, and no
+// incident is recorded. Stripe redelivery retries the same failure.
+// Do NOT read the catch block below as a working parking path: it only
+// executes when the journal post fails without aborting the transaction.
 async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidence = null }) {
   let journalError = null;
   let topupId = null;
@@ -444,6 +449,27 @@ async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidenc
           WHERE id = $1`,
         [topup.id, wallet.id, transaction.id]
       );
+      // OxSteed Invest lot tagging: a completed top-up is provably
+      // purchased settled value, so it gets a `purchased` lot in the
+      // same transaction as the journal post. The catch below intends
+      // to park the top-up as requires_attention when the journal post
+      // or the tagging fails, but that parking UPDATE runs inside the
+      // already-aborted transaction (see the function header): on a
+      // journal-post failure the call throws instead of parking and
+      // the top-up stays `pending`. createLot is idempotent on the
+      // top-up id, so a retry that does reach the tag cannot double-tag.
+      await createLot(client, {
+        accountId: wallet.id,
+        customerId: topup.customer_id,
+        currencyCode: currency,
+        source: 'purchased',
+        amountCents: amount,
+        settledAt: new Date().toISOString(),
+        originatingTransactionId: transaction.id,
+        topupId: topup.id,
+        referenceType: 'stripe_topup',
+        referenceId: paymentIntentId,
+      });
       return {
         outcome: 'completed',
         topupId,

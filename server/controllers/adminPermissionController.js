@@ -34,6 +34,10 @@ const PERMISSION_SCOPES = {
   moderate_careers:      'Moderate careers openings, fact disputes, fairness reports and the AI-ranking gate',
   review_access_requests: 'Review helper, business, restaurant, consultant, tool and logistics access applications',
   review_investor_access: 'Review investor reporting access applications',
+  review_invest_participation: 'Review investor participation applications (entity opportunities, not platform reporting)',
+  review_invest_opportunity_publish: 'Publish approved investment opportunities',
+  review_invest_close: 'Review and execute investment opportunity closings',
+  review_invest_release_proceeds: 'Release entity proceeds after an approved closing',
   review_franchise_access: 'Review franchise operation access',
 };
 
