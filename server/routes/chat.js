@@ -254,7 +254,10 @@ router.post('/sessions/guest/claim', chatLimiter, authenticate, claimGuestProfil
 router.get('/profile-context/:type/:id', chatLimiter, authenticate, getProfileContext);
 
 // POST /api/chat/transcribe
-// Transcribe audio using OpenRouter (fallback when Web Speech confidence is low)
+// Transcribe audio using a self-hosted transcriber (fallback when Web Speech
+// confidence is low). No server-side transcriber is deployed yet, so this
+// currently answers 501; audio is never sent to an external transcription or
+// AI API (security review F-04: local-only).
 // Requires authentication.
 router.post('/transcribe', chatLimiter, authenticate, upload.single('audio'), validateFileUpload, transcribeAudio);
 

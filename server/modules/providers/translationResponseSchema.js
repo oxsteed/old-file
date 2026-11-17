@@ -1,7 +1,9 @@
 /**
  * JSON Schema for the structured translation response we ask LLM providers to return.
  *
- * Used by OpenRouter + OpenAI adapters via `response_format: { type: 'json_schema', ... }`.
+ * Used by the local Ollama provider via `format: <schema>` (Ollama's
+ * structured-output format). The schema itself is provider-agnostic: it only
+ * describes the JSON shape the model must return.
  * Also used by the in-process validator (validateProviderResponse) in providerRegistry.js
  * so we never trust free-form model output.
  *

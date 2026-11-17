@@ -3,49 +3,19 @@
 // WP-104: the legacy gates `canPostJobs` and `canAccessBusinessHub` are
 // deleted. Posting a job is open to any signed-in account (the customer
 // workspace action); Business Hub access comes from the access projection
-// (`hasBusinessHubAccess`). The remaining mode-aware predicates below are
-// untouched by this cutover: they answer dashboard/sidebar questions for
-// surfaces whose own migration is a later phase, and they read
-// `default_mode` (kept in lockstep with `users.role` on the server, see
-// server/utils/modeRole.js), never the deleted role-based `isHelper` flag.
+// (`hasBusinessHubAccess`).
+//
+// Domain 6 cleanup: the mode-based visibility predicates (`canBidOnJobs`,
+// `canListTools`, `canManageBusinesses`, `canOfferConsulting`,
+// `canSeeLifeFeatures`, `canSeeFranchiseApplications`,
+// `canSeeSupportAgentPortal`, `settingsTabsForMode`, `navLinksForMode`) are
+// deleted — they had zero consumers and answered visibility from
+// `user.default_mode`, so reuse would have reintroduced mode-based gating.
+// Visibility now comes from the access projection / entitlements only. The
+// mode-class helpers they used (`isHelperClassMode`, `isCustomerClassMode`)
+// went with them for the same reason.
 
 import { projectionActive } from './accessProjection.js';
-
-// Modes that imply users.role='helper' on the server. Mirrors MODE_ROLE_MAP
-// in server/utils/modeRole.js.
-const HELPER_CLASS_MODES = new Set([
-  'helper',
-  'business_owner',
-  'consultant',
-  'tool_owner',
-  'business_manager',
-  'business_representative',
-  'business_employee',
-  'business_support_agent',
-]);
-
-// Modes that imply users.role='customer'. life_only + franchise_applicant
-// are customer-class at the DB level — they're customer accounts with extra
-// surfaces shown.
-const CUSTOMER_CLASS_MODES = new Set([
-  'customer',
-  'investor',
-  'logistics',
-  'franchise_applicant',
-  'life_only',
-]);
-
-function getMode(user) {
-  return user?.default_mode || (user?.role === 'helper' ? 'helper' : 'customer');
-}
-
-export function isHelperClassMode(user) {
-  return HELPER_CLASS_MODES.has(getMode(user));
-}
-
-export function isCustomerClassMode(user) {
-  return CUSTOMER_CLASS_MODES.has(getMode(user));
-}
 
 // ── Dashboard selection ──────────────────────────────────────────────────────
 // Used by SmartDashboard / DashboardRouter to pick which child page to render.
@@ -67,24 +37,6 @@ export function dashboardKeyForMode(mode) {
     case 'customer':
     default:                        return 'customer';
   }
-}
-
-// ── Per-mode visibility predicates ───────────────────────────────────────────
-// Keep these tight — each one answers a single yes/no question. Pages then
-// compose them.
-
-export function canBidOnJobs(user) {
-  return isHelperClassMode(user);
-}
-
-export function canListTools(user) {
-  const m = getMode(user);
-  return m === 'tool_owner' || m === 'helper' || m === 'business_owner';
-}
-
-export function canManageBusinesses(user) {
-  const m = getMode(user);
-  return m === 'business_owner' || m === 'helper' || m === 'business_manager' || m === 'admin';
 }
 
 // Pro entitlement is granted by an active first-year trial or a paid legacy
@@ -123,78 +75,9 @@ export function canUseQrGenerator(user) {
   return Boolean(user && hasProAccess(user));
 }
 
-export function canOfferConsulting(user) {
-  return getMode(user) === 'consultant';
-}
-
-export function canSeeLifeFeatures(user) {
-  // Life Pulse / planned needs / vehicles / homes are universal to the
-  // personal side — show them to anyone in a customer-class mode.
-  return isCustomerClassMode(user);
-}
-
-export function canSeeFranchiseApplications(user) {
-  return getMode(user) === 'franchise_applicant';
-}
-
-export function canSeeSupportAgentPortal(user) {
-  return getMode(user) === 'business_support_agent';
-}
-
-// ── Settings sidebar visibility ──────────────────────────────────────────────
-// Returns a Set of tab keys the user should see in /settings for their mode.
-// Used to rewrite SettingsPage TABS.
-
-export function settingsTabsForMode(user) {
-  const m = getMode(user);
-  const base = new Set([
-    'profile', 'security', 'subscription', 'notifications',
-    'referral', 'privacy', 'account', 'danger',
-  ]);
-  if (canListTools(user)) base.add('toolRentals');
-  if (canManageBusinesses(user)) base.add('businesses');
-  // Helper-class modes additionally get the Payment Policies tab (Stripe
-  // Connect, payout schedule, etc.).
-  if (isHelperClassMode(user)) base.add('paymentPolicies');
-  if (canSeeLifeFeatures(user)) base.add('life');
-  return base;
-}
-
-// ── Navbar link visibility ───────────────────────────────────────────────────
-
-export function navLinksForMode(user, projection = null) {
-  const m = getMode(user);
-  const links = {
-    showBrowseJobs: true,
-    // WP-104: posting a job is a customer-workspace action, open to any
-    // signed-in account; the old mode allow-list is deleted.
-    showPostJob: !!user,
-    showMessages: !!user,
-    showDashboard: !!user,
-    showBusinessHub: hasBusinessHubAccess(projection),
-    showQRGenerator: canUseQrGenerator(user),
-    showToolRentalsBrowse: true,
-    showConsultingPortal: m === 'consultant',
-    showLaunchStatus: m === 'franchise_applicant' || m === 'consultant',
-    showSupportWorkspace: m === 'business_support_agent',
-  };
-  return links;
-}
-
 export default {
-  isHelperClassMode,
-  isCustomerClassMode,
   dashboardKeyForMode,
-  canBidOnJobs,
-  canListTools,
-  canManageBusinesses,
   hasProAccess,
   hasBusinessHubAccess,
   canUseQrGenerator,
-  canOfferConsulting,
-  canSeeLifeFeatures,
-  canSeeFranchiseApplications,
-  canSeeSupportAgentPortal,
-  settingsTabsForMode,
-  navLinksForMode,
 };
