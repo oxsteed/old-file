@@ -102,8 +102,21 @@ describe('affiliatePayouts router gate (real router)', () => {
       // requireAuth looks the token's user up in the DB; the default mock
       // returns no user (401), so stub that lookup to reach the handler
       // and prove the gate itself passed.
+      //
+      // Classification (Domain 6 enforce fallout): the 403 here IS from
+      // the helper gate. GET /api/affiliate runs requireHelperCapability
+      // after requireAuth, and loadFacts found no grant for this user.
+      // The stub below answers the gate's three fact queries with an
+      // active helper.offer_services grant (legacy_backfill provenance,
+      // as the backfill writes), so the test keeps proving the
+      // AFFILIATE_ENABLED router gate, not access.
       mockQuery.mockImplementation(async (sql) => {
         if (/FROM users u/.test(sql)) return { rows: [{ id: 'user-123', is_active: true }] };
+        if (/FROM users WHERE id/.test(sql)) return { rows: [{ id: 'user-123', is_active: true }] };
+        if (/FROM access_grants/.test(sql)) {
+          return { rows: [{ id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null, status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1 }] };
+        }
+        if (/FROM businesses b/.test(sql)) return { rows: [] };
         return { rows: [], rowCount: 0 };
       });
       const res = await request(buildApp())

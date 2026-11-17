@@ -42,6 +42,7 @@ describeDatabase('PUT /api/helper-profile/core against migrated PostgreSQL', () 
 
   afterAll(async () => {
     if (created.length) {
+      await pool.query('DELETE FROM access_grants WHERE user_id = ANY($1::uuid[])', [created]);
       await pool.query('DELETE FROM helper_profiles WHERE user_id = ANY($1::uuid[])', [created]);
       // Disposable CI DB only. Do not DELETE FROM users here: food_customer_wallet_ledger
       // is append-only (no-delete rule), so ON DELETE CASCADE from users cannot complete
@@ -57,6 +58,14 @@ describeDatabase('PUT /api/helper-profile/core against migrated PostgreSQL', () 
       `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, didit_verified_at, didit_status, created_at)
        VALUES ($1, $2, 'synthetic-unusable', 'Synthetic', 'Helper', 'helper', TRUE, TRUE, NOW(), 'verified', NOW())`,
       [id, `${id}@example.invalid`],
+    );
+    // Domain 6 enforce contract: the access gate 403s a legacy helper with
+    // no grant, so seed the backfilled helper.offer_services grant the real
+    // legacy backfill would have created (services/access/legacyMapping.js).
+    await pool.query(
+      `INSERT INTO access_grants (user_id, capability, subject_type, subject_key, status, provenance, policy_version)
+       VALUES ($1, 'helper.offer_services', 'self', 'self', 'active', 'legacy_backfill', 'helper-policy-1')`,
+      [id],
     );
     if (withProfile) {
       await pool.query(

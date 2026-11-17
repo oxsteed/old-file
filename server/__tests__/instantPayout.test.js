@@ -65,12 +65,26 @@ beforeEach(() => {
   stripe.balance.retrieve.mockResolvedValue({ instant_available: [{ currency: 'usd', amount: 4200 }] });
 });
 
+// Domain 6 enforce contract (ACCESS_HELPER_ENFORCEMENT=enforce): POST
+// /payout/instant runs requireHelperCapability, which calls
+// accessService.can() -> loadFacts (users, access_grants, businesses)
+// before requireOnboardingStep/requireTaxIdentity. The fixture helper holds
+// an active helper.offer_services grant with the provenance the legacy
+// backfill writes (services/access/legacyMapping.js), so the gate passes
+// and the fail-closed tests keep proving the onboarding/tax gates, not
+// access.
+const ACCESS_GRANT = {
+  id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null,
+  status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1,
+};
+
 // Route pool queries to canned results; records statement order for assertions.
 function routeInstantPayoutQueries({ onInsert, onUpdate, existingRow = null, insertConflict = false, user = HELPER } = {}) {
   const calls = [];
   mockQuery.mockImplementation(async (sql, params) => {
     calls.push(sql);
     if (/FROM users/.test(sql)) return { rows: [user] };
+    if (/FROM access_grants/.test(sql)) return { rows: [ACCESS_GRANT] };
     if (/SELECT \* FROM connect_accounts/.test(sql)) return { rows: [CONNECT_ROW] };
     if (/FROM instant_payouts WHERE idempotency_key/.test(sql)) return { rows: existingRow ? [existingRow] : [] };
     if (/INSERT INTO instant_payouts/.test(sql)) {

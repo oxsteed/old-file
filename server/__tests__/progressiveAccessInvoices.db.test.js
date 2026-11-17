@@ -82,6 +82,15 @@ ddescribe('personal and business invoices from one identity (WP-054, real databa
     await pool.query(
       `INSERT INTO users (id, email, password_hash, first_name, last_name, role, default_mode, email_verified, is_active)
        VALUES ($1, $2, 'x', $3, 'Fixture', 'helper', 'helper', TRUE, TRUE)`, [id, email, label]);
+    // Domain 6 enforce contract: every /api/helpers/invoices route is gated
+    // by requireHelperCapability, so both identities need the backfilled
+    // helper.offer_services grant (the owner later PUTs a helper path
+    // expecting 404, which would 403 without a grant).
+    await pool.query(
+      `INSERT INTO access_grants (user_id, capability, subject_type, subject_key, status, provenance, policy_version)
+       VALUES ($1, 'helper.offer_services', 'self', 'self', 'active', 'legacy_backfill', 'helper-policy-1')`,
+      [id],
+    );
     mockUsers.set(id, { id, role: 'helper', email });
     return id;
   }

@@ -314,7 +314,24 @@ describe('POST /api/jobs/assign', () => {
     location_city: 'Austin', location_state: 'TX', scheduled_start_at: null, deleted_at: null,
   };
   const PENDING_BID = { id: 20, job_id: '10', helper_id: 2, status: 'pending', eta_hours: 2, amount: '250.00', amount_cents: 25000, job_revision: 2, needs_reconfirm: false, expires_at: new Date(Date.now() + 3600e3) };
+  // Domain 6 enforce contract (ACCESS_HELPER_ENFORCEMENT=enforce):
+  // assignHelper calls assertHelperCanBeHired, which calls
+  // accessService.can(helperId, 'helper.offer_services') -> loadFacts
+  // (users, access_grants, businesses). Without a grant the assign 409s
+  // with helper_access_inactive even though the bid itself is fine. The
+  // fixture helper holds an active grant with the provenance the legacy
+  // backfill writes (services/access/legacyMapping.js).
+  const ACCESS_GRANT = {
+    id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null,
+    status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1,
+  };
+  const ACCESS_FACT_ROUTES = [
+    [/FROM users WHERE id = \$1/, { rows: [{ id: 2, role: 'helper', is_active: true }] }],
+    [/FROM access_grants WHERE user_id = \$1/, { rows: [ACCESS_GRANT] }],
+    [/FROM businesses b/, { rows: [] }],
+  ];
   const assignRoutes = ({ job = JOB, bid = PENDING_BID } = {}) => [
+    ...ACCESS_FACT_ROUTES,
     [/FROM users u/, { rows: [MOCK_USER_CUSTOMER] }],
     [/FROM user_consents/, { rows: currentConsentRows() }],
     [/SELECT job_id FROM bids WHERE id = \$1/, { rows: [{ job_id: '10' }] }],

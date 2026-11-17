@@ -158,7 +158,15 @@ describe('requireHelperWorkEligible (P2-7-F01)', () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ ...completeFacts, didit_status: 'pending', id_verified: false, identity_verified: false }] });
     const r = res(); const next = jest.fn();
     // The JWT claim lies (onboarding_completed=true); DB facts must win.
-    await requireHelperWorkEligible({ user: { id: 'u1', role: 'helper', onboarding_completed: true } }, r, next);
+    // Domain 6 enforce contract: requireHelperWorkEligible first runs
+    // isHelperActor, which in enforce mode only passes when the upstream
+    // requireHelperCapability approved the helper.offer_services grant and
+    // recorded it on req.accessCapabilities. The req below carries that
+    // approval, so the test still proves the DB-facts-over-JWT point; the
+    // new gate precedence (grant before onboarding detail) is
+    // correct-by-design: an unapproved helper gets helper_required, and
+    // only an approved helper reaches the onboarding completeness check.
+    await requireHelperWorkEligible({ user: { id: 'u1', role: 'helper', onboarding_completed: true }, accessCapabilities: { 'helper.offer_services': true } }, r, next);
     expect(next).not.toHaveBeenCalled();
     expect(r.statusCode).toBe(403);
     expect(r.body.code).toBe('helper_onboarding_incomplete');
@@ -167,7 +175,8 @@ describe('requireHelperWorkEligible (P2-7-F01)', () => {
   test('passes a helper whose DB facts are complete', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [completeFacts] });
     const r = res(); const next = jest.fn();
-    await requireHelperWorkEligible({ user: { id: 'u1', role: 'helper' } }, r, next);
+    // See above: the upstream gate's approval is carried on the request.
+    await requireHelperWorkEligible({ user: { id: 'u1', role: 'helper' }, accessCapabilities: { 'helper.offer_services': true } }, r, next);
     expect(next).toHaveBeenCalled();
   });
   test('403s non-helper roles', async () => {

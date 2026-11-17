@@ -51,7 +51,15 @@ function invoke(body, userId) {
 describeDb('bid acceptance records the agreed price (P1-2-F11)', () => {
   beforeAll(async () => {
     await db.query(`CREATE SCHEMA ${schema}`);
-    await db.query(`CREATE TABLE ${schema}.users (id UUID PRIMARY KEY)`);
+    // Domain 6 enforce contract: assertHelperCanBeHired calls
+    // accessService.can(), whose loadFacts() SELECTs every column below
+    // from users (search_path resolves to this schema's table), plus the
+    // grant/business lookups that resolve to the public tables. On base
+    // (enforcement off) can() early-returned and never queried.
+    await db.query(`CREATE TABLE ${schema}.users (
+      id UUID PRIMARY KEY, role TEXT, is_active BOOLEAN,
+      deleted_at TIMESTAMPTZ, is_suspended BOOLEAN,
+      suspended_until TIMESTAMPTZ, is_banned BOOLEAN)`);
     await db.query(`CREATE TABLE ${schema}.jobs (
       id UUID PRIMARY KEY, client_id UUID, assigned_helper_id UUID, status TEXT,
       title TEXT, description TEXT, version INT DEFAULT 1, revision INT DEFAULT 1,
@@ -75,7 +83,26 @@ describeDb('bid acceptance records the agreed price (P1-2-F11)', () => {
       scheduled_end_time TIMESTAMPTZ, estimated_duration_minutes INT,
       location_address TEXT, status TEXT, source TEXT, created_by_user_id UUID)`);
     await db.query(`CREATE UNIQUE INDEX appt_job_unique ON ${schema}.appointments(job_id) WHERE job_id IS NOT NULL`);
-    for (const id of [ids.helper, ids.customer]) await db.query('INSERT INTO users(id) VALUES($1)', [id]);
+    for (const [userId, role] of [[ids.helper, 'helper'], [ids.customer, 'customer']]) {
+      await db.query('INSERT INTO users(id, role, is_active) VALUES($1, $2, TRUE)', [userId, role]);
+    }
+    // The grant is seeded schema-local: under this search_path the
+    // unqualified access_grants lookup in loadFacts() resolves here, not to
+    // public. (Seeding public.access_grants instead would need a mirror
+    // public.users row for its FK, and deleting that row trips Postgres RI
+    // triggers that resolve `users` to this schema under the test
+    // search_path.) Columns mirror the public table subset loadFacts reads.
+    await db.query(`CREATE TABLE ${schema}.access_grants (
+      id BIGSERIAL PRIMARY KEY, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      capability VARCHAR(80) NOT NULL, subject_type VARCHAR(30) NOT NULL DEFAULT 'self',
+      subject_id VARCHAR(64), subject_key VARCHAR(120) NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'active', provenance VARCHAR(40) NOT NULL,
+      policy_version VARCHAR(60), expires_at TIMESTAMPTZ, version INTEGER NOT NULL DEFAULT 1)`);
+    await db.query(
+      `INSERT INTO access_grants (user_id, capability, subject_type, subject_key, status, provenance, policy_version)
+       VALUES ($1, 'helper.offer_services', 'self', 'self', 'active', 'legacy_backfill', 'helper-policy-1')`,
+      [ids.helper],
+    );
   });
   afterAll(async () => { await db.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`); await db.end(); });
 
