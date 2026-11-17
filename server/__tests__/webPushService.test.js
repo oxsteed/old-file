@@ -64,6 +64,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSendNotification.mockReset();
   mockSendNotification.mockResolvedValue(undefined);
+  delete process.env.WEBPUSH_429_RETRY_BACKOFF_MS;
 });
 
 // ── M2: TTL by notification type ──
@@ -179,7 +180,11 @@ test('M5: fan-out runs at most FANOUT_CONCURRENCY sends at once', async () => {
   expect(maxInFlight).toBeGreaterThan(1);
 });
 
-test('M5: a 429 aborts the remaining fan-out for that notification', async () => {
+test('M5: a 429 aborts the remaining fan-out, then the single retry pass delivers them', async () => {
+  // Finding 9: the old behaviour stopped at the first chunk and left the
+  // rest to a later, unrelated notification. Now the skipped subscriptions
+  // are re-attempted once, for this notification, after a short backoff.
+  process.env.WEBPUSH_429_RETRY_BACKOFF_MS = '10';
   const subs = Array.from({ length: 12 }, (_, i) => sub(i + 1, `https://push.example/${i + 1}`));
   const { active, counts } = installDb(subs);
   mockSendNotification.mockImplementation(async (target) => {
@@ -187,13 +192,107 @@ test('M5: a 429 aborts the remaining fan-out for that notification', async () =>
   });
   const result = await service.sendToUser('u1', { id: 'n1', type: 'x', title: 'T', body: 'B' });
   expect(result.rateLimited).toBe(true);
-  // Only the first chunk (5 sends) was attempted; the rest were not tried.
-  expect(mockSendNotification).toHaveBeenCalledTimes(5);
+  // First pass attempted only the first chunk (5 sends); the retry pass
+  // then attempted the 7 never-tried subscriptions plus the throttled one.
+  expect(mockSendNotification).toHaveBeenCalledTimes(13);
+  expect(result.retried).toBe(8);
+  expect(result.dropped).toBe(0);
+  // Every subscription except the permanently-throttled one got the push.
+  expect(result.sent).toBe(11);
+  expect(result.failed).toBe(2); // sub 2 failed with 429 in both passes
   for (let i = 6; i <= 12; i += 1) {
-    expect(mockSendNotification.mock.calls.some(([t]) => t.endpoint === `https://push.example/${i}`)).toBe(false);
+    expect(mockSendNotification.mock.calls.some(([t]) => t.endpoint === `https://push.example/${i}`)).toBe(true);
     expect(active.get(i)).toBe(true);
   }
+  // The throttled subscription was attempted twice (once per pass).
+  expect(mockSendNotification.mock.calls.filter(([t]) => t.endpoint === 'https://push.example/2')).toHaveLength(2);
   // The 429 itself is a provider signal, not a dead endpoint: no deactivation.
   expect(result.deactivated).toBe(0);
   expect(counts.get(2) || 0).toBe(0);
+});
+
+// ── Finding 9: 429 retry pass ──
+
+test('Finding 9: a 429 mid-fan-out retries the skipped subscriptions once after backoff', async () => {
+  process.env.WEBPUSH_429_RETRY_BACKOFF_MS = '30';
+  const subs = Array.from({ length: 12 }, (_, i) => sub(i + 1, `https://push.example/${i + 1}`));
+  installDb(subs);
+  const callTimes = [];
+  const attempts = new Map();
+  mockSendNotification.mockImplementation(async (target) => {
+    callTimes.push(Date.now());
+    const n = (attempts.get(target.endpoint) || 0) + 1;
+    attempts.set(target.endpoint, n);
+    // Sub 2 is throttled on its first attempt only, then accepts.
+    if (target.endpoint === 'https://push.example/2' && n === 1) throw failWith(429);
+  });
+  const result = await service.sendToUser('u1', { id: 'n1', type: 'x', title: 'T', body: 'B' });
+  expect(result.rateLimited).toBe(true);
+  // The notification is not lost: every subscription eventually got it.
+  expect(result.sent).toBe(12);
+  expect(result.retried).toBe(8); // 7 never attempted + the throttled sub 2
+  expect(result.dropped).toBe(0);
+  expect(mockSendNotification).toHaveBeenCalledTimes(13);
+  expect(attempts.get('https://push.example/2')).toBe(2);
+  // The retry pass waited for the backoff: the first retry call (6th call)
+  // lands at least ~the backoff after the last first-pass call (5th call).
+  expect(callTimes).toHaveLength(13);
+  expect(callTimes[5] - callTimes[4]).toBeGreaterThanOrEqual(25);
+});
+
+test('Finding 9: the retry is bounded - a second 429 ends it, no retry storm', async () => {
+  process.env.WEBPUSH_429_RETRY_BACKOFF_MS = '10';
+  const subs = Array.from({ length: 12 }, (_, i) => sub(i + 1, `https://push.example/${i + 1}`));
+  const { active, counts } = installDb(subs);
+  const attempts = new Map();
+  mockSendNotification.mockImplementation(async (target) => {
+    const n = (attempts.get(target.endpoint) || 0) + 1;
+    attempts.set(target.endpoint, n);
+    // Sub 2 is throttled on its first attempt only; sub 6 is throttled
+    // on every attempt, so the retry pass itself hits a 429 and must stop.
+    if (target.endpoint === 'https://push.example/2' && n === 1) throw failWith(429);
+    if (target.endpoint === 'https://push.example/6') throw failWith(429);
+  });
+  const result = await service.sendToUser('u1', { id: 'n1', type: 'x', title: 'T', body: 'B' });
+  expect(result.rateLimited).toBe(true);
+  // Exactly two passes: first chunk (5) + first retry chunk (5). No third
+  // pass, no re-attempt of the subscriptions the retry never reached.
+  expect(mockSendNotification).toHaveBeenCalledTimes(10);
+  expect(result.retried).toBe(5);
+  expect(result.dropped).toBe(3); // subs 11, 12 and the throttled sub 2
+  expect(result.sent).toBe(8);
+  expect(attempts.get('https://push.example/2')).toBe(1);
+  for (const i of [11, 12]) {
+    expect(mockSendNotification.mock.calls.some(([t]) => t.endpoint === `https://push.example/${i}`)).toBe(false);
+    expect(active.get(i)).toBe(true);
+  }
+  // Still no deactivation on a throttle, in either pass.
+  expect(result.deactivated).toBe(0);
+  expect(counts.get(2) || 0).toBe(0);
+  expect(counts.get(6) || 0).toBe(0);
+});
+
+test('Finding 9: a Retry-After header on the 429 sets the retry backoff', async () => {
+  // No env override here: the header is the only backoff source.
+  const subs = Array.from({ length: 7 }, (_, i) => sub(i + 1, `https://push.example/${i + 1}`));
+  installDb(subs);
+  const callTimes = [];
+  const fail429WithRetryAfter = () => {
+    const err = failWith(429);
+    err.headers = { 'retry-after': '1' };
+    return err;
+  };
+  mockSendNotification.mockImplementation(async (target) => {
+    callTimes.push(Date.now());
+    if (target.endpoint === 'https://push.example/2') throw fail429WithRetryAfter();
+  });
+  const result = await service.sendToUser('u1', { id: 'n1', type: 'x', title: 'T', body: 'B' });
+  expect(result.rateLimited).toBe(true);
+  expect(result.sent).toBe(6);
+  expect(result.retried).toBe(3); // subs 6, 7 + the throttled sub 2
+  expect(result.dropped).toBe(0);
+  // First pass: 5 calls; retry pass: 3 calls. The first retry call lands
+  // ~1s after the last first-pass call, per the Retry-After header.
+  expect(callTimes).toHaveLength(8);
+  expect(callTimes[5] - callTimes[4]).toBeGreaterThanOrEqual(900);
 });
