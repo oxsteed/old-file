@@ -263,6 +263,14 @@ const ProfessionalIntakeRequestPage = lazyWithRetry(() => import('./pages/Profes
 const ContinuityIntakeRequestPage = lazyWithRetry(() => import('./pages/ContinuityIntakeRequestPage'));
 const TranslatorWorkspacePage = lazyWithRetry(() => import('./pages/TranslatorWorkspacePage'));
 const InvestorDashboardPage = lazyWithRetry(() => import('./pages/InvestorDashboardPage'));
+// OxSteed Invest (investor-facing participation surfaces; NOT the platform
+// reporting dashboard above). Routes are authenticated; invest access is
+// rendered from the access projection, never from a role or mode.
+const InvestDirectoryPage = lazyWithRetry(() => import('./pages/invest/InvestDirectoryPage'));
+const InvestOpportunityPage = lazyWithRetry(() => import('./pages/invest/InvestOpportunityPage'));
+const InvestApplicationPage = lazyWithRetry(() => import('./pages/invest/InvestApplicationPage'));
+const InvestCommitPage = lazyWithRetry(() => import('./pages/invest/InvestCommitPage'));
+const InvestMyInvestmentsPage = lazyWithRetry(() => import('./pages/invest/InvestMyInvestmentsPage'));
 const AffiliateDashboardPage = lazyWithRetry(() => import('./pages/AffiliateDashboardPage'));
 
 import CookieConsent from './components/CookieConsent';
@@ -681,6 +689,14 @@ export default function App() {
                     {/* Critical routes: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/dashboard"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/investor/dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestorDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* OxSteed Invest: investor-facing participation. Distinct from
+                        /investor/* reporting routes; applying never blocks
+                        ordinary customer activity (no global gate). */}
+                    <Route path="/invest"                        element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestDirectoryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/invest/opportunities/:id"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestOpportunityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/invest/opportunities/:id/commit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestCommitPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/invest/apply"                 element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestApplicationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/invest/my-investments"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestMyInvestmentsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/affiliate" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AffiliateDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute requireOnboarded><RouteErrorBoundary><HelperDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper/clients" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ClientManagementPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
