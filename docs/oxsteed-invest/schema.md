@@ -116,7 +116,10 @@ version at commit time.
 
 One live application per investor per opportunity (partial unique
 index). `user_id`, `opportunity_id`, `status` (`draft`, `submitted`,
-`under_review`, `approved`, `rejected`, `withdrawn`),
+`under_review`, `needs_information`, `approved`, `rejected`,
+`withdrawn` — `needs_information` added by the Track 2 migration
+`20261117124812_invest_track2_authority.sql`; declined is stored as
+`rejected` and presented as `declined` by the API),
 `identity_verified`, `authority_verified`, `eligibility` (JSONB),
 `agreement_version_id`, `agreement_accepted_at`, `reviewed_by`,
 `reviewed_at`, `review_note`, `idempotency_key` (unique),

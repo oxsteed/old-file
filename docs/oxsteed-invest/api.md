@@ -54,7 +54,8 @@ never read as a participation gate.
   `invest_account_suspended`. The restricted read is reachable through
   the service layer today; letting a suspended investor reach it live
   needs an auth-exemption decision (the `/api/support/` paths are the
-  existing exemption pattern) and is an open question for Track 3.
+  existing exemption pattern) and is still open; it is also recorded as
+  an open item in the counsel brief.
 
 ## Authority matrix (policy registry)
 
@@ -100,7 +101,7 @@ Errors: `invest_disabled` 503, `invest_opportunity_not_found` 404.
 | Method and path | Auth | Notes |
 |---|---|---|
 | `POST /api/invest/opportunities` | authenticate, entity representative of `businessId` | Private draft. Body: `businessId`, `title`, `purpose`, `targetCents`, `minimumCents`, `deadlineAt` (future), `valuationRule`, `useOfProceeds`, `intermediaryRef`, `details` (`legalDetails`, `financials`, `ownership`, `risks`, `relatedParties`). 201. |
-| `PUT /api/invest/opportunities/:id` | authenticate, entity representative | Draft only. Direct edits to a non-draft opportunity are 409 `invest_opportunity_amendment_required`: material changes go through amendments. |
+| `PUT /api/invest/opportunities/:id` | authenticate, entity representative | Draft only. Direct edits to a non-draft opportunity are 409 `invest_opportunity_amendment_required`: material changes go through amendments. Client: the draft-edit form at `/invest/entity/raises/:id/edit` (Track 5) reuses the raise-page fields, sends the rendered `expectedVersion`, and shows the investor preview after save. |
 | `POST /api/invest/opportunities/:id/submit-for-review` | authenticate, entity representative | Draft to submitted. Submission does NOT publish. |
 | `POST /api/invest/opportunities/:id/agreement-versions` | authenticate, entity representative | Body `body` (agreement text). Creates the next version; the opportunity current version moves to it. 201. |
 | `GET /api/invest/opportunities/:id/agreement-versions` | authenticate, representative / reviewer / related investor | Version list (id, version number, SHA-256 content hash). No body text is returned here. |
