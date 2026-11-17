@@ -724,6 +724,42 @@ describeDatabase('invest routes', () => {
     expect(mine.body.positions).toHaveLength(1);
   });
 
+  test('Track 4: opportunity detail carries closing approvals and positions for reviewers and reps only', async () => {
+    const { userId } = await freshInvestor(20000);
+    const { opportunity, version } = await freshOpportunity(10000);
+    const application = await approvedApplication(userId, opportunity.id, version.id);
+    await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-detail-${crypto.randomUUID()}`, {
+      applicationId: application.id, amountCents: 10000, agreementVersionId: version.id, riskAcknowledged: true,
+    });
+    await as(reviewerId, 'super_admin').post(`/api/invest/opportunities/${opportunity.id}/closing-conditions/approve`, {});
+    await as(reviewerId, 'super_admin').post(`/api/invest/opportunities/${opportunity.id}/closing-approvals`, { stage: 'review', decision: 'approved' });
+    await as(executorId, 'super_admin').post(`/api/invest/opportunities/${opportunity.id}/closing-approvals`, { stage: 'execution', decision: 'approved' });
+    const closed = await as(executorId, 'super_admin').post(`/api/invest/opportunities/${opportunity.id}/close`, {});
+    expect(closed.status).toBe(200);
+
+    const asReviewer = await as(reviewerId, 'super_admin').get(`/api/invest/opportunities/${opportunity.id}`);
+    expect(asReviewer.status).toBe(200);
+    expect(asReviewer.body.closingApprovals).toHaveLength(2);
+    expect(asReviewer.body.closingApprovals.map((a) => a.stage).sort()).toEqual(['execution', 'review']);
+    expect(asReviewer.body.closingApprovals.find((a) => a.stage === 'execution').approverUserId).toBe(String(executorId));
+    expect(asReviewer.body.positions).toHaveLength(1);
+    expect(asReviewer.body.positions[0].userId).toBe(String(userId));
+    expect(asReviewer.body.positions[0].amountCents).toBe(10000);
+
+    const asRep = await as(entityOwnerId).get(`/api/invest/opportunities/${opportunity.id}`);
+    expect(asRep.status).toBe(200);
+    expect(asRep.body.closingApprovals).toHaveLength(2);
+    expect(asRep.body.positions).toHaveLength(1);
+
+    // An unrelated investor sees the public detail shape only: no
+    // approver identities and no investor positions.
+    const stranger = await freshInvestor(10000);
+    const asStranger = await as(stranger.userId).get(`/api/invest/opportunities/${opportunity.id}`);
+    expect(asStranger.status).toBe(200);
+    expect(asStranger.body).not.toHaveProperty('closingApprovals');
+    expect(asStranger.body).not.toHaveProperty('positions');
+  });
+
   test('Q and A and overdue updates', async () => {
     const { userId } = await freshInvestor(20000);
     const { opportunity, version } = await freshOpportunity(10000);

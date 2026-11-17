@@ -327,6 +327,42 @@ async function getOpportunityDetail(user, opportunityId, dbPool = pool) {
       });
     }
   }
+  // Reviewer and entity-representative read-only state for the closing
+  // workflow (Track 4 reviewer UI). Investors never receive these fields:
+  // closing approvals name the approvers, and positions name investors.
+  // The reviewer UI needs them to show which closing stage is approved,
+  // who may execute the close, and which positions a distribution can
+  // target; the server still enforces every rule on write.
+  let closingApprovals;
+  let positions;
+  if (isReviewer || isRep) {
+    const { rows: approvalRows } = await dbPool.query(
+      `SELECT stage, approver_user_id, decision, note, decided_at
+         FROM investment_closing_approvals WHERE opportunity_id = $1 ORDER BY decided_at ASC NULLS LAST`,
+      [opportunityId],
+    );
+    closingApprovals = approvalRows.map((row) => ({
+      stage: row.stage,
+      approverUserId: String(row.approver_user_id),
+      decision: row.decision,
+      note: row.note || null,
+      decidedAt: row.decided_at || null,
+    }));
+    const { rows: positionRows } = await dbPool.query(
+      `SELECT id, user_id, commitment_id, amount_cents, currency_code, status, acquired_at
+         FROM investment_positions WHERE opportunity_id = $1 ORDER BY acquired_at ASC`,
+      [opportunityId],
+    );
+    positions = positionRows.map((row) => ({
+      id: String(row.id),
+      userId: String(row.user_id),
+      commitmentId: String(row.commitment_id),
+      amountCents: Number(row.amount_cents),
+      currencyCode: row.currency_code,
+      status: row.status,
+      acquiredAt: row.acquired_at || null,
+    }));
+  }
   return {
     opportunity,
     answers,
@@ -335,6 +371,7 @@ async function getOpportunityDetail(user, opportunityId, dbPool = pool) {
     documents,
     relatedParties: details.relatedParties || null,
     financials: details.financials || null,
+    ...(closingApprovals !== undefined ? { closingApprovals, positions } : {}),
   };
 }
 
