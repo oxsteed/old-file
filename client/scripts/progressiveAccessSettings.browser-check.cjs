@@ -34,11 +34,14 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
       plugin.onLoad({ filter: /.*/, namespace: 'fixture' }, ({ path: request }) => ({ contents: fixtures[request.split('/').pop()] || 'export default () => null;', loader: 'jsx' }));
       plugin.onResolve({ filter: /\/api\/access$/ }, ({ path: request }) => ({ path: request, namespace: 'access-fixture' }));
       plugin.onLoad({ filter: /.*/, namespace: 'access-fixture' }, () => ({ contents: `
-        window.__fixture = { r1Status: 'draft', stale: false };
-        const request = () => ({ id: 'r1', capability: 'business.own', status: window.__fixture.r1Status, version: 1,
+        window.__fixture = { r1Status: 'draft', version: 1 };
+        const request = () => ({ id: 'r1', capability: 'business.own', status: window.__fixture.r1Status, version: window.__fixture.version,
           subjectDisplay: { kind: 'new_business', name: 'شركة ضيافة ومطاعم واستشارات غذائية طويلة للغاية للاختبار' },
           availableActions: window.__fixture.r1Status === 'draft' ? ['withdraw'] : [], answers: {},
-          ...(window.__fixture.stale ? { version: 2, informationRequest: 'Please add your city' } : {}) });
+          ...(window.__fixture.version > 1 ? { informationRequest: 'Please add your city' } : {}) });
+        // The server rejects writes carrying a stale expectedVersion; the
+        // fixture enforces the same rule so the conflict path is exercised.
+        const checkVersion = (body) => { const current = request(); if (body && body.expectedVersion !== undefined && body.expectedVersion !== current.version) { const err = new Error('request_version_conflict'); err.response = { data: { code: 'request_version_conflict' } }; throw err; } return current; };
         const approved = { id: 'r2', capability: 'restaurant.own', status: 'approved', version: 2,
           subjectDisplay: { kind: 'new_business', name: 'Approved Bistro' }, availableActions: [], answers: {},
           submittedAt: '2026-11-01T10:00:00.000Z', publicReasonCode: 'review_complete' };
@@ -55,8 +58,8 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
           listRequests: async () => ({ requests: resuming ? (recovered ? [request()] : []) : [request(), approved] }),
           listPolicies: async () => ({ policies: [policy] }),
           getRequest: async (id) => (id === 'r2' ? { request: approved, history } : { request: request(), history }),
-          updateRequest: async () => ({ request: request() }),
-          transition: async (id, action) => { if (action === 'withdraw') window.__fixture.r1Status = 'withdrawn'; return { request: request() }; },
+          updateRequest: async (id, body) => ({ request: checkVersion(body) }),
+          transition: async (id, action, body) => { if (action === 'withdraw') window.__fixture.r1Status = 'withdrawn'; return { request: checkVersion(body) }; },
           createRequest: async (body, key) => { recovered = true; window.applicationRecovery = { body, key }; window.__fixture.r1Status = 'draft'; return { request: request() }; },
         };
       `, loader: 'jsx' }));
@@ -120,7 +123,21 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
     await editorSection.waitFor();
     const businessName = page.locator('section[aria-labelledby^="req-r1-title"] textarea').first();
     await businessName.fill('Corner bistro with a patio');
-    await page.evaluate(() => { window.__fixture.stale = true; });
+    // Race: the decision lands after the last reload, so the submit goes out
+    // with the old version and conflicts. The answers must survive the
+    // conflict and the retry must submit against the new version.
+    await page.evaluate(() => { window.__fixture.version = 2; });
+    await page.locator('[data-track="ui.access.applications.submit"]').click();
+    await page.getByText(/changed while you were editing/i).waitFor();
+    assert.equal(await businessName.inputValue(), 'Corner bistro with a patio');
+    assert.ok(await page.getByText('Please add your city').count() >= 1);
+    await page.locator('[data-track="ui.access.applications.submit"]').click();
+    await page.waitForFunction(() => !document.querySelector('section[aria-labelledby^="req-r1-title"]'));
+    // Happy path: a second decision arrives via silent reload before submit.
+    await page.locator('[data-track="ui.access.applications.continue"]').click();
+    await editorSection.waitFor();
+    await businessName.fill('Corner bistro with a patio');
+    await page.evaluate(() => { window.__fixture.version = 3; });
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await page.getByText(/changed while you were editing/i).waitFor();
     assert.equal(await businessName.inputValue(), 'Corner bistro with a patio');

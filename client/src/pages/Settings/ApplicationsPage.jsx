@@ -240,7 +240,10 @@ function AccountApplications({ accountId, epoch }) {
     }
   };
 
-  const onChanged = async () => { await load(); notifyAccessChanged(); if (openId) setDetail(await accessAPI.getRequest(openId).catch(() => null)); };
+  // Silent reload: a non-silent load swaps the whole list for a loading
+  // indicator and unmounts the open editor, which would wipe the typed
+  // answers on exactly the version-conflict path AC-021 must preserve.
+  const onChanged = async () => { await load(true); notifyAccessChanged(); if (openId) setDetail(await accessAPI.getRequest(openId).catch(() => null)); };
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-bg)] text-content">
