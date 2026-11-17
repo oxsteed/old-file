@@ -239,10 +239,10 @@ describe('helper capability gate', () => {
     const controller = fs.readFileSync(path.join(__dirname, '../controllers/bookingController.js'), 'utf8');
     const chat = fs.readFileSync(path.join(__dirname, '../routes/chat.js'), 'utf8');
     const chatController = fs.readFileSync(path.join(__dirname, '../controllers/chatBookingRequestsController.js'), 'utf8');
-    expect(bookings).toMatch(/router\.post\('\/:bookingId\/accept', requireAuth, requireBookingProviderCapability/);
+    expect(bookings).toMatch(/router\.post\('\/:bookingId\/accept', requireAuth, requireBookingProviderCapability, requireBookingProviderActivation/);
     expect(bookings).toMatch(/router\.post\('\/:bookingId\/decline', requireAuth, requireBookingProviderCapability/);
     expect(bookings).toMatch(/router\.post\('\/:bookingId\/helper-cancel', requireAuth, requireBookingProviderCapability/);
-    expect(bookings).toMatch(/router\.post\('\/:bookingId\/counter-propose', requireAuth, requireBookingProviderCapability/);
+    expect(bookings).toMatch(/router\.post\('\/:bookingId\/counter-propose', requireAuth, requireBookingProviderCapability, requireBookingProviderActivation/);
     expect(controller).toMatch(/publicHelperStandingPredicate\('u'\)/);
     expect(controller).toMatch(/helper_capability_granted/);
     expect(chat).toMatch(/booking-requests.*requireChatHelperProviderCapability/);

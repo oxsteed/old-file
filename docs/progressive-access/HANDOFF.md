@@ -313,6 +313,16 @@ checks. `mainAppPayouts.test.js` and `progressiveAccessHelperEnforcement.test.js
 pass together (49 tests). Exact-head CI and non-production operational
 acceptance remain open.
 
+### WP-113: direct booking activation boundary
+
+Helper-owned direct booking accept and counter-propose mutations now require
+the effective `helper.offer_services` capability plus the existing active
+onboarding state. Business-owned bookings continue through organization scope
+without the helper onboarding gate. Decline and helper-cancel remain available
+so revocation does not strand existing work. The booking lifecycle, provider
+authorization, and progressive helper enforcement suites pass together (65
+tests). Exact-head CI and non-production operational acceptance remain open.
+
 ### Customer-first signup experience follow-up
 
 PR #794 reached production as `784bce83d` with the progressive access flags
