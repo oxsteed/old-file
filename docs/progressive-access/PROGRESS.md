@@ -4,6 +4,8 @@ Single source of truth for what is done. Update this file (and HANDOFF.md) in th
 
 Status values: `planned` · `in progress` · `implemented` (code + tests on branch) · `verified` (CI green on branch) · `open dependency` (needs Emile / live env).
 
+Latest follow-up exact-head verification: commit `7eeb7bc581095d7dccf126416d8c2adc9ddcd9f8` passed the complete required GitHub CI workflow in [run 44199339554](https://github.com/oxsteed/old-file/actions/runs/44199339554), including client build, browser/smoke tests, server regression/integration tests, database rehearsals, media harness, statement capacity, and the final Server and Client Verification gate. This proves the pushed code at that SHA only; non-production operational acceptance and production rollout remain separate.
+
 ## Phase 0 / cross-cutting
 
 | Item | Status | Commit | Tests |

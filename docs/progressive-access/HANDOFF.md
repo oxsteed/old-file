@@ -52,8 +52,11 @@ namespaced locale catalogs. The five required product locales (English,
 Spanish, French, Haitian Creole, and Arabic) are covered by the parity contract;
 the remaining catalogs are kept in sync so fallback navigation cannot expose a
 missing key. `test:navbar-navigation` (25), `verify:i18n`, and `git diff --check`
-pass locally. Exact-head CI and non-production operational acceptance remain
-open.
+pass locally. Non-production operational acceptance remains open; the exact-head
+CI result is recorded below.
+
+The pushed follow-up head `7eeb7bc581095d7dccf126416d8c2adc9ddcd9f8` has now
+passed the complete required workflow in [CI run 44199339554](https://github.com/oxsteed/old-file/actions/runs/44199339554): client build, browser/smoke, server regression/integration, database rehearsals, media harness, statement capacity, and the final verification gate. The evidence applies to that exact commit; non-production operational acceptance and production rollout remain separate.
 
 Preferred planned-need acceptance now follows the same operation-specific
 activation rule as booking acceptance: the route rechecks the projected helper
