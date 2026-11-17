@@ -270,6 +270,8 @@ emitted assets. Focused server access suites pass 71 unit tests, and the
 disposable PostgreSQL access/workspace/signup suites pass 58 tests. Backfill
 dry-run 7 scanned 223 users and reported 17 helper grants, 2 consultant grants,
 2 restaurant drafts, and 2 staff-without-membership exceptions.
+The Home browser mode matrix, 120-combination navbar browser matrix, and access
+projection cross-account/stale-response browser check also pass locally.
 
 **Exact next action:** run the Home and full client verification suites, then
 perform the disposable backfill dry-run and cross-account browser acceptance.
