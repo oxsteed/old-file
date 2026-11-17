@@ -52,3 +52,30 @@ test('approved customer-role helpers receive capability-aware client actions', a
     assert.match(await source(file), /hasHelperAccess/, file);
   }
 });
+
+test('WP-104 cutover 1.2: mode-router machinery, register redirects and the JoinPage mode state are gone', async () => {
+  // modeRouter.js is deleted outright: its catalog served only the deleted
+  // ModeSwitcher, and no other module imports it.
+  await assert.rejects(source('utils/modeRouter.js'), /ENOENT/);
+  const app = await source('App.jsx');
+  assert.doesNotMatch(app, /path="\/register\/customer"/);
+  assert.doesNotMatch(app, /path="\/register\/helper"/);
+  // The /register/:mode entry survives (1.7 deep-link index): stale links
+  // resolve through LegacyRegisterRedirect, never 404.
+  assert.match(app, /path="\/register\/:mode"/);
+  const join = await source('pages/JoinPage.jsx');
+  // The ?mode= preset survives, but only as an intent preselect: it maps a
+  // legacy mode to its signup intent and never mints a mode.
+  assert.match(join, /joinModeForLegacyMode/);
+  assert.match(join, /signupIntent: presetIntent/);
+  assert.doesNotMatch(join, /defaultMode/);
+  assert.doesNotMatch(join, /postSignupRouteForMode/);
+  assert.match(join, /signupIntent: form\.signupIntent/);
+  assert.match(join, /name="signupIntent"/);
+  const navbar = await source('components/Navbar.jsx');
+  assert.doesNotMatch(navbar, /routeForMode/);
+  await assert.rejects(source('components/ModeSwitcher.jsx'), /ENOENT/);
+  const validation = await source('utils/signupValidation.js');
+  assert.doesNotMatch(validation, /defaultMode/);
+  assert.match(validation, /form\.signupIntent/);
+});

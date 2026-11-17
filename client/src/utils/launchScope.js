@@ -24,8 +24,7 @@ export const LAUNCH_GRANTED_MODES = Object.freeze([
 ]);
 
 // Weekly self-audit 2026-11-04 item 2: life_only, tool_owner, consultant,
-// and franchise_applicant are real modes (MODE_CATALOG + routeForMode in
-// modeRouter.js already cover them, and dashboardKeyForMode already maps
+// and franchise_applicant are real modes (dashboardKeyForMode already maps
 // them to their dashboards), but they were missing here, so
 // normalizeLaunchDashboardMode silently fell them back to helper/customer
 // and their SmartDashboard branches could never run. Adding them restores

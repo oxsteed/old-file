@@ -493,12 +493,12 @@ export default function App() {
                     <Route path="/status"                  element={<Guarded><StatusPage /></Guarded>} />
                     <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
                     <Route path="/investor/login"          element={<Guarded><InvestorLoginPage /></Guarded>} />
-                    <Route path="/register/customer"      element={<Navigate to="/join" replace />} />
-                    <Route path="/register/helper"        element={<Navigate to="/join?mode=helper" replace />} />
                     <Route path="/register/:mode"         element={<LegacyRegisterRedirect />} />
-                    {/* ── Unified signup (post-2026-05). /join is the single   */}
-                    {/*    customer registration page; the old /register/customer */}
-                    {/*    page redirects here for inbound links + back-compat.  */}
+                    {/* ── Unified signup. /join is the single registration  */}
+                    {/*    page; the static /register/customer and            */}
+                    {/*    /register/helper redirects were removed with the  */}
+                    {/*    WP-104 cutover and now resolve through the        */}
+                    {/*    /register/:mode entry above (legacyDeepLinks).    */}
                     <Route path="/join"                    element={<Guarded><JoinPage /></Guarded>} />
                     <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
                     <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />

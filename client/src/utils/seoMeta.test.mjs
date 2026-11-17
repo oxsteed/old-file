@@ -25,10 +25,22 @@ test('public routes resolve to indexable locale keys', () => {
 });
 
 test('redirect routes never get indexable meta', () => {
-  for (const path of ['/discover', '/discover/anything', '/features', '/hire', '/h/abc', '/helpers/public/abc', '/register/customer', '/direct/service-area', '/support']) {
+  for (const path of ['/discover', '/discover/anything', '/features', '/hire', '/h/abc', '/helpers/public/abc', '/direct/service-area', '/support']) {
     const resolved = resolveRouteMeta(path);
     assert.equal(resolved.noIndex, true, path);
     assert.equal(resolved.redirect, true, path);
+  }
+});
+
+test('removed legacy register redirects resolve as unmatched, not redirects', () => {
+  // WP-104 cutover: the /register/* <Navigate> routes in App.jsx are gone,
+  // so /register/customer and /register/helper 404 instead of redirecting
+  // to /join. They stay noindex but must not claim a redirect.
+  for (const path of ['/register/customer', '/register/helper']) {
+    const resolved = resolveRouteMeta(path);
+    assert.equal(resolved.noIndex, true, path);
+    assert.equal(resolved.redirect, false, path);
+    assert.equal(resolved.unmatched, true, path);
   }
 });
 

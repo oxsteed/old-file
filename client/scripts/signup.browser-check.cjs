@@ -116,13 +116,17 @@ test('customer-first signup presents goals and gathers approval details in the s
     for (const [goal, intent] of [['customer', 'find_help'], ['helper', 'offer_services'], ['business_owner', 'run_business']]) {
       const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
       const owner = goal === 'business_owner';
-      await open(page, `${app.url}/join?customerFirst&mode=${goal}${owner ? '&missingApplication' : ''}`);
+      await open(page, `${app.url}/join?customerFirst${owner ? '&missingApplication' : ''}`);
       const choices = page.locator('.signup-mode-section');
       await choices.getByText('Offer services', { exact: true }).waitFor();
       assert.ok(await choices.getByText('Run a business', { exact: true }).isVisible());
       assert.match(await choices.innerText(), /Everyone starts with customer access/);
       assert.doesNotMatch(await choices.innerText(), /mode|switcher/i);
-      assert.equal(await choices.locator(`input[value="${goal}"]`).isChecked(), true);
+      // WP-104: no ?mode= preset. The intent cards are the choice; the
+      // customer intent is selected by default and the other cards are
+      // picked on the page.
+      if (goal !== 'customer') await choices.getByText(goal === 'helper' ? 'Offer services' : 'Run a business', { exact: true }).click();
+      assert.equal(await choices.locator(`input[value="${intent}"]`).isChecked(), true);
       await fill(page);
       await submit(page);
       await page.evaluate((unavailable) => { window.failure = 'success'; window.failApplication = unavailable; }, owner);
@@ -170,7 +174,7 @@ test('customer-first signup presents goals and gathers approval details in the s
 });
 
 test('standalone and native modal layouts, light/dark, RTL, zoom and focus',async()=>{
-  const app=await fixture();const browser=await chromium.launch({channel:'chrome',headless:true});
+  const app=await fixture();const browser=await chromium.launch({channel: 'chrome',headless:true});
   try{
     for(const embedded of [false,true])for(const width of [320,390,768,1366])for(const dark of [false,true]){
       const page=await browser.newPage({viewport:{width,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -196,12 +200,15 @@ test('standalone and native modal layouts, light/dark, RTL, zoom and focus',asyn
     console.log('Signup screenshot evidence: '+screenshots);
   }finally{await browser.close();await app.close();}
 });
-test('age, drafts, errors, modes, referrals, OTP paste, routing and edit/restart',async()=>{
-  const app=await fixture();const browser=await chromium.launch({channel:'chrome',headless:true});
+test('age, drafts, errors, intents, referrals, OTP paste, routing and edit/restart',async()=>{
+  const app=await fixture();const browser=await chromium.launch({channel: 'chrome',headless:true});
   try{
     for(const mode of ['customer','helper','business_owner']){
-      const page=await browser.newPage();await open(page,`${app.url}/join?customerFirst&mode=${mode}&ref=REFTEST`);
-      assert.equal(await page.locator(`input[value="${mode}"]`).isChecked(),true);
+      const page=await browser.newPage();await open(page,`${app.url}/join?customerFirst&ref=REFTEST`);
+      const intent={customer:'find_help',helper:'offer_services',business_owner:'run_business'}[mode];
+      // WP-104: no ?mode= preset; the intent is picked on the cards.
+      if(mode!=='customer')await page.getByText(mode==='helper'?'Offer services':'Run a business',{exact:true}).click();
+      assert.equal(await page.locator(`input[value="${intent}"]`).isChecked(),true);
       await fill(page);await page.locator('#ageConfirmed').uncheck();await page.locator('button[type="submit"]').click();
       assert.equal(await page.locator('#ageConfirmed').evaluate(el=>el===document.activeElement),true);
       assert.equal(await page.evaluate(()=>window.calls.length),0);
@@ -218,6 +225,11 @@ test('age, drafts, errors, modes, referrals, OTP paste, routing and edit/restart
       await page.locator('.signup-verification .signup-primary').click();await page.locator('#email').waitFor();
       assert.equal(await page.locator('#email').inputValue(),'synthetic@example.test');assert.equal(await page.locator('#password').inputValue(),'');assert.equal(await page.locator('#ageConfirmed').isChecked(),false);
       await page.locator('#password').fill('Synthetic1');await page.locator('#ageConfirmed').check();await page.evaluate(()=>window.failure='success');await submit(page);await page.locator('[autocomplete="one-time-code"]').fill('123456');
+      // Helper/business intents stay on /join (application panel), so the
+      // route wait below resolves immediately and cannot prove the OTP
+      // verification finished. Wait for the registered user first: the
+      // mock sets it after the draft is removed in handleOtpComplete.
+      await page.waitForFunction(() => Boolean(window.registeredUser));
       await page.waitForFunction(expected=>document.querySelector('[data-route]').textContent===expected,mode==='customer'?'/dashboard':'/join');
       assert.equal(await page.evaluate(()=>sessionStorage.getItem('oxsteed:join-draft:v1')),null);await page.close();
     }
@@ -234,7 +246,7 @@ test('age, drafts, errors, modes, referrals, OTP paste, routing and edit/restart
   }finally{await browser.close();await app.close();}
 });
 test('legacy drafts restore without passwords/implicit age and resend stays single-flight',async()=>{
-  const app=await fixture();const browser=await chromium.launch({channel:'chrome',headless:true});
+  const app=await fixture();const browser=await chromium.launch({channel: 'chrome',headless:true});
   try{
     const page=await browser.newPage();await open(page,app.url+'/join');await fill(page);
     await page.evaluate(()=>{const key='oxsteed:join-draft:v1';const draft=JSON.parse(sessionStorage.getItem(key));delete draft.form.ageConfirmed;draft.form.password='NeverRestore1';sessionStorage.setItem(key,JSON.stringify(draft));});

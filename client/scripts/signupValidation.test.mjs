@@ -27,11 +27,12 @@ test('formatted US/international phone numbers and digit limits', () => {
   for (const value of ['123456', '+1234567890123456']) assert.equal(isSignupPhoneValid(value, 'FR'), false);
 });
 test('country-aware regions, postal rules, independent age and Terms', () => {
-  const base = { firstName:'Test',lastName:'Person',email:'synthetic@example.test',phone:'+50937000000',country:'HT',addressLine1:'1 Test Street',city:'Test City',state:'',zipCode:'',password:'Testpass1',defaultMode:'customer',ageConfirmed:true,termsAccepted:true };
-  assert.deepEqual(validateSignup(base, ['customer']), {});
-  assert.equal(validateSignup({ ...base, ageConfirmed:false }, ['customer']).ageConfirmed, 'ageError');
-  assert.equal(validateSignup({ ...base, termsAccepted:false }, ['customer']).termsAccepted, 'termsError');
-  assert.equal(validateSignup({ ...base, country:'US',phone:'9375550100' }, ['customer']).state, 'stateError');
+  const base = { firstName:'Test',lastName:'Person',email:'synthetic@example.test',phone:'+50937000000',country:'HT',addressLine1:'1 Test Street',city:'Test City',state:'',zipCode:'',password:'Testpass1',signupIntent:'find_help',ageConfirmed:true,termsAccepted:true };
+  assert.deepEqual(validateSignup(base, ['find_help']), {});
+  assert.equal(validateSignup({ ...base, signupIntent:'bogus' }, ['find_help']).signupIntent, 'modeError');
+  assert.equal(validateSignup({ ...base, ageConfirmed:false }, ['find_help']).ageConfirmed, 'ageError');
+  assert.equal(validateSignup({ ...base, termsAccepted:false }, ['find_help']).termsAccepted, 'termsError');
+  assert.equal(validateSignup({ ...base, country:'US',phone:'9375550100' }, ['find_help']).state, 'stateError');
   assert.equal(normalizeSignupRegion('US', 'oh'), 'OH'); assert.equal(normalizeSignupRegion('FR', 'Île-de-France'), 'Île-de-France'); assert.equal(normalizeSignupRegion('GB', 'England'), 'England');
 });
 test('all five locales contain identical new keys in both catalog structures', () => {

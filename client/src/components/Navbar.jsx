@@ -10,7 +10,6 @@ import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
 import BusinessSwitcher from './BusinessSwitcher';
 import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
-import { routeForMode } from '../utils/modeRouter';
 import { navbarMode, navbarNavigation, navbarLinkActive, navbarWorkspacePath } from '../utils/navbarNavigation';
 import { projectionActive, resolveHomeMode } from '../utils/accessProjection';
 import useAccessProjection from '../hooks/useAccessProjection';
@@ -43,7 +42,11 @@ export default function Navbar() {
   const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
   const showSupportWorkspaceNav = useSupportWorkspaceAccess(user);
   const resourcesMenuRef = useRef(null);
-  const dashboardPath = projectionActive(accessProjection) ? '/dashboard' : routeForMode(currentMode);
+  // WP-104: every account lands in the customer workspace. SmartDashboard
+  // renders the mode-appropriate dashboard at /dashboard (and redirects
+  // support / logistics / admin to their dedicated shells), so there is no
+  // per-mode landing route anymore.
+  const dashboardPath = '/dashboard';
   const workspacePath = navbarWorkspacePath(location.pathname, readLastBusinessHubId());
   const navigation = navbarNavigation(user, { dashboardPath, workspacePath, showSupportWorkspace: showSupportWorkspaceNav, projection: accessProjection });
   const showBusinessHub = !!user && navigation.showBusinessSwitcher;
