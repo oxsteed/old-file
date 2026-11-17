@@ -754,7 +754,7 @@ router.get('/super/oxsteed-credit/participants/:participantId', requireSuperAdmi
 router.post('/super/oxsteed-credit/participants/:participantId/activation', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminParticipantActivation);
 router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminAgreement);
 router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminAgreement);
-router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.upsertAdminEntitlement);
+router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.upsertAdminEntitlement);
 router.get('/super/oxsteed-credit/entitlements.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminEntitlements);
 // Domain 7 #11: admin-side customer name lookup for the FX quote page.
 // The customer-role transfer-recipient lookup (GET /oxsteed-credit/

@@ -131,7 +131,7 @@ const optionalAuth = async (req, res, next) => {
 // Public - no auth required for support chat. optionalAuth attaches req.user
 // when a valid web cookie or Bearer token is present, so signed-in users get
 // their account snapshot and server-side thread memory. Every caller uses the
-// same OpenRouter -> Ollama provider chain.
+// same local Ollama provider chain.
 // supportChatLimiter runs after optionalAuth so signed-in users are limited
 // per user (40 / 10 min) and guests per IP (20 / 10 min).
 router.post('/message', optionalAuth, supportChatLimiter, chatMessage);

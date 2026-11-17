@@ -13,6 +13,8 @@
  *  Finding 12: POST /super/oxsteed-credit/participants/:participantId/activation,
  *              POST /super/oxsteed-credit/partners/:partnerId/agreements and
  *              POST /super/oxsteed-credit/agreements/:agreementId/transition
+ *  Coordinator follow-up: POST /super/oxsteed-credit/agreements/:agreementId/entitlements
+ *              (directly adjacent agreement mutation, same class) also guarded.
  *              (routes/admin.js) carried only requireSuperAdmin +
  *              creditAdminMutationLimiter; neighbouring credit mutations
  *              carry rejectImpersonated.
@@ -232,6 +234,7 @@ describe('finding 12: rejectImpersonated on participant activation / agreement r
     '/super/oxsteed-credit/participants/:participantId/activation',
     '/super/oxsteed-credit/partners/:partnerId/agreements',
     '/super/oxsteed-credit/agreements/:agreementId/transition',
+    '/super/oxsteed-credit/agreements/:agreementId/entitlements',
   ];
 
   test.each(routes)('the guard is mounted on %s', (routePath) => {
@@ -268,6 +271,7 @@ describe('finding 12: rejectImpersonated on participant activation / agreement r
       ['participant activation', '/api/admin/super/oxsteed-credit/participants/p-1/activation', {}],
       ['agreement create', '/api/admin/super/oxsteed-credit/partners/p-1/agreements', {}],
       ['agreement transition', '/api/admin/super/oxsteed-credit/agreements/a-1/transition', {}],
+      ['agreement entitlements', '/api/admin/super/oxsteed-credit/agreements/a-1/entitlements', {}],
     ])('%s from an impersonated session is 403 impersonation_blocked', async (_label, url, body) => {
       const res = await request(app)
         .post(url)
