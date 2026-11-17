@@ -248,6 +248,12 @@ disposable snapshot, inspect the exception and draft counts, then continue with
 the next bounded access package. Do not apply a production backfill or enable
 new enforcement without separate authorization.
 
+The same follow-up also scopes the Business Hub's last-selected workspace
+preference by account ID. The legacy global browser key is no longer read or
+written for authenticated accounts, so switching accounts cannot seed a stale
+organization context. Client `build:ci` passed after this change; cross-account
+browser acceptance and exact-head CI remain open.
+
 ### Customer-first signup experience follow-up
 
 PR #794 reached production as `784bce83d` with the progressive access flags
