@@ -1,5 +1,7 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
+const { requireHelperCapability } = require('../middleware/requireAccess');
+const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
 const ctrl = require('../controllers/plannedNeedsController');
 
 // Projection must be declared before /:id routes to avoid param capture
@@ -26,7 +28,10 @@ router.post('/:id/complete', authenticate, ctrl.completePlannedNeed);
 router.delete('/:id',        authenticate, ctrl.deletePlannedNeed);
 
 // Task 2: Helper accept/decline
-router.post('/:id/helper/accept',  authenticate, ctrl.helperAccept);
+// Accepting a preferred planned need is a new-work commitment. Keep the
+// customer-owned decline path available for safe recovery after revocation,
+// but require current helper access and active onboarding before acceptance.
+router.post('/:id/helper/accept',  authenticate, requireHelperCapability, requireOnboardingStep('active'), ctrl.helperAccept);
 router.post('/:id/helper/decline', authenticate, ctrl.helperDecline);
 
 // Task 5: Customer broadcast now

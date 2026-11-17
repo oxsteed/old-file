@@ -55,6 +55,14 @@ missing key. `test:navbar-navigation` (25), `verify:i18n`, and `git diff --check
 pass locally. Exact-head CI and non-production operational acceptance remain
 open.
 
+Preferred planned-need acceptance now follows the same operation-specific
+activation rule as booking acceptance: the route rechecks the projected helper
+capability and active onboarding before committing to new work. The
+authenticated, preferred-helper decline route remains available for safe
+recovery after access revocation. `progressiveAccessHelperEnforcement.test.js`
+and `routeShadowing.test.js` pass locally (246 tests). Exact-head CI and
+non-production operational acceptance remain open.
+
 ## Resume checklist
 
 1. `git status` and `git log --oneline -15` on the branch. Uncommitted work from an
