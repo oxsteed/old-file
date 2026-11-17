@@ -9,6 +9,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { normalizeLaunchDashboardMode } from '../src/utils/launchScope.js';
 import { dashboardKeyForMode } from '../src/utils/modeAccess.js';
 import * as accessProjection from '../src/utils/accessProjection.js';
+import { diditGateSatisfied } from '../src/utils/diditGate.js';
+import { isHelperOnboardingRedirectRequired } from '../src/utils/protectedRouteGates.js';
 
 const require = createRequire(import.meta.url);
 function component(file, imports) {
@@ -28,6 +30,8 @@ test('home selects the active mode without rendering the wrong landing page or b
     '../utils/launchScope': { normalizeLaunchDashboardMode },
     '../utils/modeAccess': { dashboardKeyForMode },
     '../utils/accessProjection': accessProjection,
+    '../utils/diditGate': { diditGateSatisfied },
+    '../utils/protectedRouteGates': { isHelperOnboardingRedirectRequired },
     '../hooks/useAccessProjection': { __esModule: true, default: () => projection },
     'react-i18next': { useTranslation: () => ({ t: key => key }) },
     './RouteErrorBoundary': { __esModule: true, default: ({ children }) => children },
@@ -43,7 +47,10 @@ test('home selects the active mode without rendering the wrong landing page or b
   render(); assert.deepEqual(rendered, ['verifying']);
   auth = { user: null, loading: false };
   render(); assert.deepEqual(rendered, ['discovery']);
-  const base = { id: 1, role: 'helper', email_verified: true, didit_status: 'verified' };
+  // Domain 6 B3: verified only counts while fresh (2-year TTL), so the
+  // fixture's verified user carries a fresh verification timestamp; without
+  // it the client gate now fails closed, matching the server.
+  const base = { id: 1, role: 'helper', email_verified: true, didit_status: 'verified', didit_verified_at: new Date().toISOString() };
   // Active customer mode wins over an older helper role value.
   auth.user = { ...base, default_mode: 'customer' };
   render(); assert.deepEqual(rendered, ['discovery']);
