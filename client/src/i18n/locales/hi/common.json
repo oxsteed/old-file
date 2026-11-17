@@ -87,7 +87,8 @@
     "workspace": "वर्कस्पेस",
     "businessWorkspace": "बिज़नेस वर्कस्पेस",
     "foodOrders": "भोजन ऑर्डर",
-    "account": "खाता"
+    "account": "खाता",
+    "help": "सहायता"
   },
   "signupUpgrade": {
     "title": "अपना खाता बनाएं",

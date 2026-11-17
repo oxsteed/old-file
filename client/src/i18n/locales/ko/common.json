@@ -87,7 +87,8 @@
     "workspace": "작업 공간",
     "businessWorkspace": "비즈니스 작업 공간",
     "foodOrders": "음식 주문 내역",
-    "account": "계정"
+    "account": "계정",
+    "help": "도움말"
   },
   "signupUpgrade": {
     "title": "계정 만들기",

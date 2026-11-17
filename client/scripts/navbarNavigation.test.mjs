@@ -105,7 +105,7 @@ test('new labels have matching legacy and namespaced translations in every langu
   for (const language of ['en', 'es', 'fr', 'ht', 'ar']) {
     const legacy = JSON.parse(await readFile(new URL(`../src/locales/${language}.json`, import.meta.url)));
     const common = JSON.parse(await readFile(new URL(`../src/i18n/locales/${language}/common.json`, import.meta.url)));
-    for (const key of ['findHelp', 'myJobs', 'orderFood', 'myWork', 'workspace', 'businessWorkspace', 'foodOrders', 'account']) {
+    for (const key of ['findHelp', 'myJobs', 'orderFood', 'myWork', 'workspace', 'businessWorkspace', 'foodOrders', 'account', 'help']) {
       assert.ok(legacy.nav[key], `${language}: ${key}`);
       assert.equal(legacy.nav[key], common.nav[key]);
     }

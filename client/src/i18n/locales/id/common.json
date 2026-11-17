@@ -87,7 +87,8 @@
     "workspace": "Ruang kerja",
     "businessWorkspace": "Ruang Kerja Bisnis",
     "foodOrders": "Pesanan Makanan",
-    "account": "Akun"
+    "account": "Akun",
+    "help": "Bantuan"
   },
   "signupUpgrade": {
     "title": "Buat akun Anda",

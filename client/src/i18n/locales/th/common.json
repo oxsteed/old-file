@@ -87,7 +87,8 @@
     "workspace": "พื้นที่ทำงาน",
     "businessWorkspace": "พื้นที่ทำงานธุรกิจ",
     "foodOrders": "คำสั่งซื้ออาหาร",
-    "account": "บัญชี"
+    "account": "บัญชี",
+    "help": "ช่วยเหลือ"
   },
   "signupUpgrade": {
     "title": "สร้างบัญชีของคุณ",

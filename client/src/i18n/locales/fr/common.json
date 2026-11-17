@@ -1690,7 +1690,8 @@
     "businessWorkspace": "Espace professionnel",
     "foodOrders": "Commandes de repas",
     "myApplications": "Mes demandes",
-    "account": "Compte"
+    "account": "Compte",
+    "help": "Aide"
   },
   "signupUpgrade": {
     "title": "Créez votre compte",

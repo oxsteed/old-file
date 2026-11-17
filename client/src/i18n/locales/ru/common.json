@@ -87,7 +87,8 @@
     "workspace": "Рабочая область",
     "businessWorkspace": "Кабинет бизнеса",
     "foodOrders": "Заказы еды",
-    "account": "Аккаунт"
+    "account": "Аккаунт",
+    "help": "Помощь"
   },
   "signupUpgrade": {
     "title": "Создайте учётную запись",

@@ -1690,7 +1690,8 @@
     "businessWorkspace": "Business Workspace",
     "foodOrders": "Food Orders",
     "myApplications": "My applications",
-    "account": "Account"
+    "account": "Account",
+    "help": "Help"
   },
   "signupUpgrade": {
     "title": "Create your account",

@@ -46,6 +46,15 @@ Home/projection browser checks, locale validation, and `client/build:ci` pass on
 the follow-up branch. Exact-head CI and non-production operational acceptance
 remain open.
 
+The follow-up also adds the existing authenticated Help route to the shared
+Account navigation and supplies matching `nav.help` labels in all 20 legacy and
+namespaced locale catalogs. The five required product locales (English,
+Spanish, French, Haitian Creole, and Arabic) are covered by the parity contract;
+the remaining catalogs are kept in sync so fallback navigation cannot expose a
+missing key. `test:navbar-navigation` (25), `verify:i18n`, and `git diff --check`
+pass locally. Exact-head CI and non-production operational acceptance remain
+open.
+
 ## Resume checklist
 
 1. `git status` and `git log --oneline -15` on the branch. Uncommitted work from an

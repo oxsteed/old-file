@@ -87,7 +87,8 @@
     "workspace": "Çalışma Alanı",
     "businessWorkspace": "İşletme Çalışma Alanı",
     "foodOrders": "Yemek Siparişleri",
-    "account": "Hesap"
+    "account": "Hesap",
+    "help": "Yardım"
   },
   "signupUpgrade": {
     "title": "Hesabınızı oluşturun",

@@ -87,7 +87,8 @@
     "workspace": "ワークスペース",
     "businessWorkspace": "ビジネスワークスペース",
     "foodOrders": "フード注文",
-    "account": "アカウント"
+    "account": "アカウント",
+    "help": "ヘルプ"
   },
   "signupUpgrade": {
     "title": "アカウントを作成しましょう",

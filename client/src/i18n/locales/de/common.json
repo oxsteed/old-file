@@ -87,7 +87,8 @@
     "workspace": "Arbeitsbereich",
     "businessWorkspace": "Unternehmens-Arbeitsbereich",
     "foodOrders": "Essensbestellungen",
-    "account": "Konto"
+    "account": "Konto",
+    "help": "Hilfe"
   },
   "signupUpgrade": {
     "title": "Konto erstellen",

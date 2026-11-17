@@ -1690,7 +1690,8 @@
     "businessWorkspace": "مساحة عمل النشاط التجاري",
     "foodOrders": "طلبات الطعام",
     "myApplications": "طلباتي",
-    "account": "الحساب"
+    "account": "الحساب",
+    "help": "المساعدة"
   },
   "signupUpgrade": {
     "title": "أنشئ حسابك",

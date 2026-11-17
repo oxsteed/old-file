@@ -87,7 +87,8 @@
     "workspace": "工作台",
     "businessWorkspace": "商家工作台",
     "foodOrders": "餐饮订单",
-    "account": "账户"
+    "account": "账户",
+    "help": "帮助"
   },
   "signupUpgrade": {
     "title": "创建您的账户",

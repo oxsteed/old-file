@@ -87,7 +87,8 @@
     "workspace": "ওয়ার্কস্পেস",
     "businessWorkspace": "ব্যবসায়িক ওয়ার্কস্পেস",
     "foodOrders": "খাবারের অর্ডার",
-    "account": "অ্যাকাউন্ট"
+    "account": "অ্যাকাউন্ট",
+    "help": "সাহায্য"
   },
   "signupUpgrade": {
     "title": "আপনার অ্যাকাউন্ট তৈরি করুন",

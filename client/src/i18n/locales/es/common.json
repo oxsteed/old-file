@@ -1690,7 +1690,8 @@
     "businessWorkspace": "Espacio del negocio",
     "foodOrders": "Pedidos de comida",
     "myApplications": "Mis solicitudes",
-    "account": "Cuenta"
+    "account": "Cuenta",
+    "help": "Ayuda"
   },
   "signupUpgrade": {
     "title": "Crea tu cuenta",
