@@ -4,15 +4,25 @@
  * OxSteed Invest feature flags (server-owned).
  *
  *   INVEST_ENABLED              master gate for the whole participation
- *                               surface; default off.
+ *                               surface; default ON (revised 2026-11-17
+ *                               ~07:58 EST by Emile: "EVERYTHING SHOULD BE
+ *                               BUILT AS DEFAULT ON"). Every Invest surface,
+ *                               flow, and capability ships default-on.
  *   INVEST_COMMITMENTS_ENABLED  separate pilot gate for commitment
- *                               creation; default off.
+ *                               creation, closing, proceeds release, and
+ *                               distributions; default OFF. This is the ONE
+ *                               deliberate exception, held per Emile's
+ *                               locked decision (~07:18 EST) and spec
+ *                               section 13.12: no live commitment is
+ *                               possible while it is off, until counsel +
+ *                               partner approve a pilot.
  *   INVEST_PILOT_USER_IDS       comma-separated user UUIDs that may use
- *                               the surface while the flags are off
+ *                               the commitment surface while the
+ *                               commitments gate is off
  *                               (mirrors ACCESS_PILOT_USER_IDS).
  *
- * Live activity stays DISABLED by design until counsel and partner
- * approval; all three ship off. These flags are checked server-side on
+ * The commitment flows are built COMPLETE but inert behind
+ * INVEST_COMMITMENTS_ENABLED. These flags are checked server-side on
  * every participation write path, never only in UI gating.
  *
  * ACCESS_INVESTOR_ENFORCEMENT governs investor.reporting only. It is
@@ -28,7 +38,7 @@ function investPilotIds() {
 
 const isInvestPilot = (userId) => !!userId && investPilotIds().has(String(userId));
 
-const investEnabled = (userId) => envFlagEnabled('INVEST_ENABLED', false) || isInvestPilot(userId);
+const investEnabled = (userId) => envFlagEnabled('INVEST_ENABLED', true) || isInvestPilot(userId);
 
 const investCommitmentsEnabled = (userId) => investEnabled(userId)
   && (envFlagEnabled('INVEST_COMMITMENTS_ENABLED', false) || isInvestPilot(userId));

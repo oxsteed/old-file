@@ -4,8 +4,11 @@ Date: 2026-11-17. Status: BEST GUESS, not validated. Counsel and the
 registered intermediary must strike or confirm each assumption. If the
 partner cannot support Credit-only settlement in this shape, STOP:
 document the blocker, keep live commitments disabled, and do not build
-an unauthorized fallback. Live activity is disabled by design behind
-`INVEST_ENABLED` / `INVEST_COMMITMENTS_ENABLED` (both default off).
+an unauthorized fallback. Flag posture revised 2026-11-17 ~07:58 EST
+(Emile: everything ships default-on): `INVEST_ENABLED` defaults TRUE;
+only live commitments, closing, proceeds release, and distributions stay
+disabled behind `INVEST_COMMITMENTS_ENABLED` (default off) until counsel
++ partner approve a pilot.
 
 Each assumption is numbered here and cited in code comments as A1-A8
 so a reviewer can find every place that depends on it.

@@ -175,6 +175,73 @@ const CAPABILITIES = Object.freeze({
       answerField('about', 'text', { maxLength: 2000 }),
     ]) }),
   }),
+  'investor.participate': Object.freeze({
+    key: 'investor.participate',
+    version: 'invest-participate-policy-1',
+    intent: 'invest_in_entity_opportunities',
+    subjectTypes: Object.freeze(['self']),
+    reviewerClass: 'platform',
+    // OWN reviewer pool: never reuse review_investor_access (reporting).
+    reviewPermission: 'review_invest_participation',
+    applicantMayRequest: true,
+    // EMPTY legacy mapping: no legacy mode or role grants participation.
+    // A legacy `investor` mode or an investor.reporting grant grants nothing
+    // here; participation needs its own per-opportunity application, identity
+    // and authority verification, eligibility check, and agreement acceptance,
+    // rechecked at commit and at closing. ACCESS_INVESTOR_ENFORCEMENT governs
+    // investor.reporting only and is never read as a participation gate.
+    legacyModes: Object.freeze([]),
+    legacyRoles: Object.freeze([]),
+    activationRequirements: Object.freeze(['identity_verified', 'authority_verified', 'eligibility_verified', 'agreement_accepted']),
+    // Participation applications are per-opportunity through the invest
+    // routes (server/routes/invest.js), not through the generic access
+    // request form; the form stays empty so no generic request can stand
+    // in for the per-opportunity checks.
+    form: Object.freeze({ fields: Object.freeze([]) }),
+  }),
+  'investment_opportunity.publish': Object.freeze({
+    key: 'investment_opportunity.publish',
+    version: 'invest-publish-policy-1',
+    intent: 'publish_investment_opportunity',
+    subjectTypes: Object.freeze(['business']),
+    reviewerClass: 'platform',
+    reviewPermission: 'review_invest_opportunity_publish',
+    // The applicant flow is the entity submission, not a self-service
+    // access request: the entity submits, a platform reviewer publishes.
+    applicantMayRequest: false,
+    legacyModes: Object.freeze([]),
+    legacyRoles: Object.freeze([]),
+    activationRequirements: Object.freeze(['opportunity_approved']),
+    form: Object.freeze({ fields: Object.freeze([]) }),
+  }),
+  'investment.close': Object.freeze({
+    key: 'investment.close',
+    version: 'invest-close-policy-1',
+    intent: 'close_investment_opportunity',
+    subjectTypes: Object.freeze(['business']),
+    reviewerClass: 'platform',
+    reviewPermission: 'review_invest_close',
+    applicantMayRequest: false,
+    legacyModes: Object.freeze([]),
+    legacyRoles: Object.freeze([]),
+    activationRequirements: Object.freeze(['closing_conditions_approved', 'separate_review_and_execution']),
+    form: Object.freeze({ fields: Object.freeze([]) }),
+  }),
+  'investment.release_proceeds': Object.freeze({
+    key: 'investment.release_proceeds',
+    version: 'invest-release-proceeds-policy-1',
+    intent: 'release_investment_proceeds',
+    subjectTypes: Object.freeze(['business']),
+    reviewerClass: 'platform',
+    // SEPARATE authority from investment.close: no single grant may
+    // authorize both closing and proceeds release.
+    reviewPermission: 'review_invest_release_proceeds',
+    applicantMayRequest: false,
+    legacyModes: Object.freeze([]),
+    legacyRoles: Object.freeze([]),
+    activationRequirements: Object.freeze(['opportunity_closed', 'closing_conditions_approved']),
+    form: Object.freeze({ fields: Object.freeze([]) }),
+  }),
   'franchise.operate': Object.freeze({
     key: 'franchise.operate',
     version: 'franchise-policy-1',

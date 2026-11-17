@@ -1,8 +1,12 @@
 # OxSteed Invest schema (Track 1)
 
 Date: 2026-11-17. Migrations: `20261117123200_oxsteed_credit_balance_lots.sql`
-and `20261117123300_investment_domain.sql`. Live activity stays disabled
-behind `INVEST_ENABLED` / `INVEST_COMMITMENTS_ENABLED` (both default off).
+and `20261117123300_investment_domain.sql`. Flag posture revised 2026-11-17
+~07:58 EST (Emile: everything ships default-on): `INVEST_ENABLED` defaults
+TRUE, so every surface is visible and usable without a flag flip; only live
+Credit commitments, closing, proceeds release, and distributions stay
+disabled behind `INVEST_COMMITMENTS_ENABLED` (default off) until counsel +
+partner approve a pilot.
 
 ## Credit lots: why they exist
 
@@ -223,3 +227,24 @@ Immutable subledger journal. `entry_type` (`reservation`,
 rejected by database triggers; corrections are new compensating
 entries. Every category total is a SUM over this table, never a
 stored total, and staff never edit totals directly.
+
+## Track 2 note (2026-11-17, migration `20261117124812_invest_track2_authority.sql`)
+
+One migration added the columns the authority and route layer genuinely
+needed and Track 1 had not stored:
+
+- `investment_opportunities.details` (JSONB, default `{}`): the entity
+  fundraising submission (legal details, financials, ownership, risks,
+  related parties), validated server-side to those keys.
+- `investment_opportunities.verification_summary` (JSONB, default `{}`),
+  `verified_at`, `verified_by`: what a reviewer verified at approval, so
+  the detail page verification badge can describe it.
+- `investment_opportunities.published_at`: the directory sorts neutrally
+  by publication date or closing date.
+- `investment_participation_applications` status CHECK now includes
+  `needs_information`, the specified lifecycle state. Declined is still
+  stored as `rejected` (Track 1 vocabulary, kept) and presented as
+  `declined` by the API.
+
+No other Track 1 table changed. The full route and authority surface is
+documented in `docs/oxsteed-invest/api.md`.

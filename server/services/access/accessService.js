@@ -131,6 +131,15 @@ async function getProjection(userId, db = pool) {
   );
   const version = await projectionVersion(userId, db);
   const projection = resolver.project(facts, { openRequestCount: rows[0].n, version });
+  // OxSteed Invest (Track 2): the client renders participation surfaces
+  // from this projection only. Granted invest capabilities already appear
+  // in projection.personal through resolver.project (any effective grant).
+  // The invest flags below are client-visible state, never a permission
+  // boundary: every invest route rechecks the flags server-side.
+  // investor.reporting stays reporting-only: it never implies
+  // investor.participate, and ACCESS_INVESTOR_ENFORCEMENT is never read
+  // as a participation gate.
+  projection.invest = require('../invest/flags').clientFlags(userId);
   if (projection.personal.includes('investor.reporting')) {
     const audience = await getInvestorAudience(userId, db);
     if (audience) {

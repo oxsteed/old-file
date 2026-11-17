@@ -62,6 +62,11 @@ function formatOpportunity(row) {
     closingConditions: row.closing_conditions || [],
     closingConditionsApprovedAt: row.closing_conditions_approved_at || null,
     closedAt: row.closed_at || null,
+    details: row.details || {},
+    verificationSummary: row.verification_summary || {},
+    verifiedAt: row.verified_at || null,
+    verifiedBy: row.verified_by ? String(row.verified_by) : null,
+    publishedAt: row.published_at || null,
     expectedVersion: Number(row.expected_version || 1),
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
@@ -94,11 +99,15 @@ async function createOpportunity(input, dbPool = pool) {
   const {
     businessId, createdBy, title, purpose, targetCents, minimumCents = 0,
     deadlineAt, valuationRule = null, useOfProceeds = null, intermediaryRef = null,
+    details = {},
   } = input || {};
   if (!businessId) fail('businessId is required for an opportunity', 'invest_opportunity_business_required');
   if (!createdBy) fail('createdBy is required for an opportunity', 'invest_opportunity_creator_required');
   if (!title || !String(title).trim()) fail('An opportunity title is required', 'invest_opportunity_title_required');
   if (!purpose || !String(purpose).trim()) fail('An opportunity purpose is required', 'invest_opportunity_purpose_required');
+  if (details !== null && (typeof details !== 'object' || Array.isArray(details))) {
+    fail('Opportunity details must be an object', 'invest_opportunity_details_invalid');
+  }
   const target = Number(targetCents);
   if (!Number.isSafeInteger(target) || target <= 0) fail('targetCents must be a positive integer number of cents', 'invest_opportunity_target_invalid');
   const minimum = Number(minimumCents || 0);
@@ -109,11 +118,11 @@ async function createOpportunity(input, dbPool = pool) {
     const { rows } = await client.query(
       `INSERT INTO investment_opportunities
          (business_id, created_by, title, purpose, target_cents, minimum_cents,
-          deadline_at, valuation_rule, use_of_proceeds, intermediary_ref)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          deadline_at, valuation_rule, use_of_proceeds, intermediary_ref, details)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
        RETURNING *`,
       [businessId, createdBy, String(title).trim(), String(purpose).trim(), target, minimum,
-        deadline.toISOString(), valuationRule, useOfProceeds, intermediaryRef],
+        deadline.toISOString(), valuationRule, useOfProceeds, intermediaryRef, JSON.stringify(details || {})],
     );
     return formatOpportunity(rows[0]);
   }, 'invest_create_opportunity');
@@ -193,6 +202,7 @@ async function setOpportunityStatus(input, dbPool = pool) {
     const { rows: updated } = await client.query(
       `UPDATE investment_opportunities
           SET status = $2::text,
+              published_at = CASE WHEN $2::text = 'published' THEN NOW() ELSE published_at END,
               expected_version = expected_version + 1,
               updated_at = NOW()
         WHERE id = $1 RETURNING *`,
@@ -263,7 +273,10 @@ async function submitParticipationApplication({ applicationId, userId }, dbPool 
     const application = rows[0];
     if (!application) fail('Participation application not found', 'invest_application_not_found', 404);
     if (String(application.user_id) !== String(userId)) fail('Only the applicant may submit this application', 'invest_application_not_owner', 403);
-    if (application.status !== 'draft') fail('Only a draft application can be submitted', 'invest_application_submit_invalid', 409);
+    // An application sent back for more information returns to submitted
+    // the same way a draft does; otherwise needs_information would be a
+    // dead end with no way to update or resubmit.
+    if (!['draft', 'needs_information'].includes(application.status)) fail('Only a draft application, or one sent back for information, can be submitted', 'invest_application_submit_invalid', 409);
     const { rows: updated } = await client.query(
       `UPDATE investment_participation_applications
           SET status = 'submitted', expected_version = expected_version + 1, updated_at = NOW()
@@ -275,7 +288,7 @@ async function submitParticipationApplication({ applicationId, userId }, dbPool 
 }
 
 async function reviewParticipationApplication(input, dbPool = pool) {
-  const { applicationId, reviewerUserId, decision, identityVerified, authorityVerified, reviewNote = null } = input || {};
+  const { applicationId, reviewerUserId, decision, identityVerified, authorityVerified, reviewNote = null, expectedVersion = null } = input || {};
   if (!['approved', 'rejected'].includes(decision)) fail('Review decision must be approved or rejected', 'invest_application_decision_invalid');
   return withTransaction(dbPool, async (client) => {
     const { rows } = await client.query(
@@ -283,6 +296,12 @@ async function reviewParticipationApplication(input, dbPool = pool) {
     );
     const application = rows[0];
     if (!application) fail('Participation application not found', 'invest_application_not_found', 404);
+    // AC-014 pattern: the expected-version check runs inside the same lock
+    // as the decision, so a reviewer acting on a stale read cannot overwrite
+    // a newer decision.
+    if (expectedVersion !== null && Number(application.expected_version) !== Number(expectedVersion)) {
+      fail('Application changed since it was read; reload and retry', 'invest_application_version_conflict', 409);
+    }
     if (String(application.user_id) === String(reviewerUserId)) {
       fail('An applicant cannot review their own participation application', 'invest_application_self_review', 403);
     }
@@ -306,6 +325,8 @@ async function reviewParticipationApplication(input, dbPool = pool) {
 
 module.exports = {
   OPPORTUNITY_TRANSITIONS,
+  formatOpportunity,
+  formatApplication,
   createOpportunity,
   getOpportunity,
   createAgreementVersion,
