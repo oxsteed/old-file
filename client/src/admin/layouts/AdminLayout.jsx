@@ -42,6 +42,7 @@ export const REGULAR_NAV = [
   // nav, so they were URL-only. Same pattern as the dead-ends item-6 set.
   { tabKey: 'mediaFlags', to: routePath('mediaFlags'), icon: Flag, labelKey: 'adminNav.mediaFlags', grant: adminRoute('mediaFlags').grant },
   { tabKey: 'accessRequests', to: routePath('accessRequests'), icon: FileText, labelKey: 'progressiveAccess.admin.nav', grant: adminRoute('accessRequests').grant },
+  { tabKey: 'investReviewQueue', to: routePath('investReviewQueue'), icon: FileText, labelKey: 'adminNav.investReviewQueue' },
   { tabKey: 'skills', to: routePath('skills'),           icon: Wrench,          labelKey: 'adminNav.skills', grant: adminRoute('skills').grant },
   { tabKey: 'support', to: routePath('support'),          icon: HeadphonesIcon,  labelKey: 'adminNav.supportTickets', grant: adminRoute('support').grant  },
   { tabKey: 'supportChat', to: routePath('supportChat'),     icon: MessageSquare,   labelKey: 'adminNav.liveSupport'     },

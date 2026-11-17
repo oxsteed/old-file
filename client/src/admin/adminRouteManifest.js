@@ -55,6 +55,13 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   mediaFlags: defineRoute('/admin/media-flags', { grant: 'moderate_content' }),
   // Progressive access (WP-012): reviewer queue; the server scopes it per capability.
   accessRequests: defineRoute('/admin/access-requests', { grant: 'review_access_requests' }),
+  // OxSteed Invest (Track 4): reviewer queue for participation
+  // applications, opportunity publish reviews, closing, and proceeds.
+  // No single manifest grant covers the four reviewer permissions, so
+  // the route carries no grant: AdminApp guards it with GrantGuard
+  // grants=[...four invest review permissions], the nav shows it to
+  // admins, and the server scopes each queue (403 when unpermitted).
+  investReviewQueue: defineRoute('/admin/invest/review-queue'),
   foodOrders: defineRoute('/admin/food-orders', { grant: 'manage_orders' }),
   foodOrderDetail: defineRoute('/admin/food-orders/:id', { grant: 'manage_orders' }),
   // Track D: restaurant admin and support surfaces.

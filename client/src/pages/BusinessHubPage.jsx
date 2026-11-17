@@ -101,6 +101,7 @@ import { getDefaultCurrency } from '../lib/countries';
 import { isBusinessHubTabLaunched, LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { hasBusinessHubAccess } from '../utils/modeAccess';
 import useAccessProjection from '../hooks/useAccessProjection';
+import { investAccessFromProjection } from '../utils/invest';
 import TabErrorBoundary from '../components/TabErrorBoundary';
 const HiringPipelineBoard = lazyDefault(() => import('../components/careers/HiringPipelineBoard'));
 import {
@@ -198,6 +199,11 @@ function BusinessHubInner() {
   const { t } = useTranslation();
   const { t: accessT } = useTranslation('common');
   const { user } = useAuth();
+  // OxSteed Invest (Track 4): "Raise capital" entry for the entity
+  // workspace. Projection-only: the link appears only when the invest
+  // master flag is on; the raise pages recheck the projection too.
+  const innerProjection = useAccessProjection(user);
+  const investAccess = investAccessFromProjection(innerProjection);
   const currency = user?.preferred_currency
     || (user?.country ? getDefaultCurrency(user.country) : null)
     || 'USD';
@@ -1637,6 +1643,11 @@ function BusinessHubInner() {
               {bizId && ['owner', 'manager'].includes(currentRole) && <Link className="bh-view-profile-link"
                 to={isRestaurantBusiness ? `/restaurant-settlement/statements${currentBiz?.restaurant_id ? `?accountId=${encodeURIComponent(currentBiz.restaurant_id)}` : ''}` : `/business/statements?accountId=${encodeURIComponent(bizId)}`}>
                 {t(isRestaurantBusiness ? 'statementCenter.restaurantSettlement' : 'statementCenter.business')}
+              </Link>}
+              {bizId && canEditBizProfile && investAccess.investEnabled && <Link className="bh-view-profile-link"
+                to={`/invest/entity/raises?businessId=${encodeURIComponent(bizId)}`}
+                title={t('businessHub.raiseCapitalTitle')}>
+                {t('businessHub.raiseCapital')}
               </Link>}
               {bizId && canEditBizProfile && LAUNCH_VISIBILITY.templates && (
                 <Link

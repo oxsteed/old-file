@@ -1,6 +1,7 @@
 import { businessHubLandingPath } from './businessProfileForm.js';
 import { LAUNCH_VISIBILITY } from './launchScope.js';
 import { capabilityShortcuts, projectionActive, hasCapability } from './accessProjection.js';
+import { investNavLinks } from './invest.js';
 
 export function navbarWorkspacePath(pathname = '', savedBusinessId) {
   const routeId = pathname.match(/^\/business\/([^/]+)\/workspace(?:\/|$)/)?.[1];
@@ -30,6 +31,12 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
   ];
   const account = [link('dashboard', dashboardPath, 'nav.dashboard'), link('foodOrders', '/orders', 'nav.foodOrders')];
   for (const item of capabilityShortcuts('customer', projection)) {
+    if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
+  }
+  // OxSteed Invest: entry points come from the access projection only
+  // (projection.invest.investEnabled). They are additive: customer links
+  // are never removed, and no role or mode is read here.
+  for (const item of investNavLinks(projection)) {
     if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
   }
   if (LAUNCH_VISIBILITY.consulting && projectionActive(projection) && hasCapability(projection.access, 'consultant.accept_paying_clients')) {
