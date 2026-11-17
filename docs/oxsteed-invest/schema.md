@@ -101,8 +101,14 @@ The entity raise. `business_id` (FK to `businesses`), `created_by`,
 `cancelled_at`, `cancellation_reason`, `expected_version`
 (optimistic lock). Statuses: `draft`, `submitted`, `under_review`,
 `approved`, `published`, `paused`, `closing`, `closed`, `cancelled`,
-`withdrawn`. Entity ownership alone cannot publish: publish requires
-status `approved` (a platform review step).
+`unsuccessful`, `withdrawn`. `unsuccessful` is the terminal
+fail-close state (Track 6 migration
+`20261117144108_invest_fail_close_unsuccessful.sql`): a raise whose
+target was missed or whose deadline passed, with every pending
+reservation released back to its original lots; `cancelled_at` /
+`cancellation_reason` record when and why it failed. Entity
+ownership alone cannot publish: publish requires status `approved`
+(a platform review step).
 
 ### `investment_agreement_versions`
 
@@ -110,7 +116,10 @@ The exact agreement text an investor accepts. `opportunity_id`,
 `version_number` (unique per opportunity), `content_hash` (SHA-256 of
 the body), `body`, `created_by`. A commitment records both the version
 id and the version number, and must match the opportunity current
-version at commit time.
+version at commit time. A new version becomes the current version
+only when its amendment becomes effective; the exception is the first
+version on a draft with no live applications and no commitments,
+which becomes current immediately.
 
 ### `investment_participation_applications`
 
@@ -195,7 +204,13 @@ Controlled amendment process for material changes. `opportunity_id`,
 `changes` (JSONB), `previous_agreement_version_id`,
 `new_agreement_version_id`, `notice_sent_at`,
 `reconfirmation_deadline_at`, `created_by`, `reviewed_by`,
-`expected_version`.
+`review_note` (the reviewer note recorded on the effective/reject
+decision), `expected_version`. Only a proposed amendment can be
+decided by a reviewer; `effective` is set only by that reviewer
+decision, which applies the allow-listed changes to the opportunity
+and moves the current agreement version to the amendment's new
+version. Reconfirmation is open only while the amendment is
+`proposed`.
 
 ### `investment_opportunity_questions`
 

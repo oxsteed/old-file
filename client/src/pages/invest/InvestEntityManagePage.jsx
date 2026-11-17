@@ -369,6 +369,17 @@ export default function InvestEntityManagePage() {
                       })}
                     </p>
                   ) : null}
+                  {a.status === 'effective' ? (
+                    <p className="mt-1 text-xs text-emerald-200 leading-relaxed">
+                      {t('invest.entity.manage.amendments.effectiveState')}
+                    </p>
+                  ) : null}
+                  {a.status === 'rejected' ? (
+                    <p className="mt-1 text-xs text-red-300 leading-relaxed">
+                      {t('invest.entity.manage.amendments.rejectedState')}
+                      {a.reviewNote ? ` ${a.reviewNote}` : ''}
+                    </p>
+                  ) : null}
                   {a.status === 'draft' ? (
                     <div className="mt-3 flex flex-wrap items-end gap-2">
                       <InvestField label={t('invest.entity.manage.amendments.propose.deadline')}>
@@ -395,6 +406,9 @@ export default function InvestEntityManagePage() {
               {versions.map((v) => (
                 <div key={v.id} className="rounded-xl border border-gray-800 bg-gray-800/50 px-4 py-3">
                   <p className="text-sm font-medium text-white">{t('invest.my.agreementVersion', { version: v.versionNumber })}</p>
+                  {opportunity && opportunity.currentAgreementVersionId === v.id ? (
+                    <p className="mt-1 text-xs font-semibold text-emerald-300">{t('invest.entity.manage.agreements.current')}</p>
+                  ) : null}
                   <p className="mt-1 break-all font-mono text-xs text-gray-400">{v.contentHash}</p>
                 </div>
               ))}

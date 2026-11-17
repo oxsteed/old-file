@@ -66,6 +66,7 @@ const { startCreditLicenceOversightJobs } = require('../jobs/creditLicenceOversi
 const { startAdminAuditChainVerificationJob } = require('../jobs/adminAuditChainVerification');
 const { startOxsteedCreditNotificationOutboxJob } = require('../jobs/oxsteedCreditNotificationOutbox');
 const { startOxsteedCreditWorkerWatchdog } = require('../jobs/oxsteedCreditWorkerWatchdog');
+const { startInvestFailCloseSweeperJob } = require('../jobs/investFailCloseSweeper'); // OxSteed Invest fail-close sweeper
 const { startRestaurantWalletWatchdog } = require('../jobs/restaurantWalletWatchdog');
 const { startMessageNotificationOutboxJob } = require('../jobs/messageNotificationOutbox');
 const { startMarketplaceRefundReconciliationJob } = require('../jobs/marketplaceRefundReconciliation');
@@ -232,6 +233,7 @@ class BackgroundWorkers {
       startOxsteedCreditNotificationOutboxJob();
       startOxsteedCreditWorkerWatchdog();
       startRestaurantWalletWatchdog();
+      startInvestFailCloseSweeperJob();
       startMessageNotificationOutboxJob();
       startJobEventOutboxJob();
       this.handles.push(startRestaurantScreenSync());

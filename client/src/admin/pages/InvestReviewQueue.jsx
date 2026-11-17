@@ -16,9 +16,10 @@ import api from '../../api/axios';
 import {
   getReviewQueue, getOpportunity, reviewApplication, reviewOpportunity,
   publishOpportunity, approveClosingConditions, recordClosingApproval,
-  closeOpportunity, releaseProceeds, recordDistribution,
+  closeOpportunity, releaseProceeds, recordDistribution, reviewAmendment,
+  failCloseOpportunity,
 } from '../../api/invest';
-import { investAccessFromProjection, formatInvestCents, fundingProgress, opportunityStatusLabel, applicationStatusLabel, parseAmountToCents, reviewQueueTabLabel, opportunityDetailFieldLabel } from '../../utils/invest';
+import { investAccessFromProjection, formatInvestCents, fundingProgress, opportunityStatusLabel, applicationStatusLabel, amendmentStatusLabel, parseAmountToCents, reviewQueueTabLabel, opportunityDetailFieldLabel } from '../../utils/invest';
 
 function formatDate(value) {
   if (!value) return null;
@@ -38,6 +39,8 @@ const SELF_CODES = new Set([
   'invest_proceeds_self_release',
   'invest_close_same_approver',
   'invest_close_executor_mismatch',
+  'invest_fail_close_self_approval',
+  'invest_amendment_self_review',
 ]);
 const VERSION_CODES = new Set([
   'invest_application_version_conflict',
@@ -51,6 +54,8 @@ function errorKey(code) {
   if (code === 'invest_review_not_permitted') return 'invest.review.errors.notPermitted';
   if (code === 'invest_opportunity_no_agreement') return 'invest.review.errors.noAgreement';
   if (code === 'invest_opportunity_transition_invalid') return 'invest.review.errors.transitionInvalid';
+  if (code === 'invest_fail_close_status_invalid') return 'invest.review.errors.transitionInvalid';
+  if (code === 'invest_amendment_review_invalid') return 'invest.review.errors.transitionInvalid';
   return null;
 }
 
@@ -157,12 +162,95 @@ function ApplicationDetail({ t, item, onDecided }) {
   );
 }
 
+function AmendmentDetail({ t, item, onDecided }) {
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const reconfirmation = item.reconfirmation || null;
+  const changes = item.changes && typeof item.changes === 'object' ? item.changes : {};
+
+  const decide = async (decision) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await reviewAmendment(item.id, decision, {
+        note: note.trim() || null,
+        expectedVersion: item.expectedVersion,
+      });
+      onDecided();
+    } catch (err) {
+      const key = errorKey(errorCode(err));
+      setError(key ? t(key) : (errorMessage(err) || t('invest.review.errors.generic')));
+      if (VERSION_CODES.has(errorCode(err))) onDecided();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <header>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{item.opportunityTitle}</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          {amendmentStatusLabel(item.status, t)}
+          {item.noticeSentAt ? ` · ${formatDate(item.noticeSentAt)}` : ''}
+        </p>
+      </header>
+      {Object.keys(changes).length > 0 ? (
+        <section>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('invest.review.amendments.changes')}</h3>
+          <dl className="mt-1 space-y-1 text-sm">
+            {Object.entries(changes).map(([key, value]) => (
+              <div key={key} className="grid grid-cols-1 gap-x-4 sm:grid-cols-3">
+                <dt className="text-gray-500">{key}</dt>
+                <dd className="break-words text-gray-900 dark:text-gray-100 sm:col-span-2">{String(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
+      <section>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('invest.review.amendments.reconfirmationTitle')}</h3>
+        {reconfirmation ? (
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+            {t('invest.review.amendments.reconfirmation', {
+              reconfirmed: reconfirmation.reconfirmed,
+              total: reconfirmation.total,
+              pending: reconfirmation.pending,
+            })}
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{t('invest.review.amendments.reconfirmationNone')}</p>
+        )}
+        {item.reconfirmationDeadlineAt ? (
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+            {t('invest.review.amendments.deadline', { date: formatDate(item.reconfirmationDeadlineAt) || '' })}
+          </p>
+        ) : null}
+      </section>
+      <section className="space-y-3">
+        <label className="block text-sm text-gray-700 dark:text-gray-200">
+          {t('invest.review.amendments.note')}
+          <textarea className={inputCls} rows={2} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
+        </label>
+        {error ? <p className="text-sm text-red-600 dark:text-red-300" role="alert">{error}</p> : null}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={busy} onClick={() => decide('effective')} className={primaryBtn}>{t('invest.review.amendments.makeEffective')}</button>
+          <button type="button" disabled={busy} onClick={() => decide('rejected')} className={dangerBtn}>{t('invest.review.amendments.reject')}</button>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{t('invest.review.amendments.effectiveNote')}</p>
+      </section>
+    </div>
+  );
+}
+
 function OpportunityDetail({ t, item, detail, gateOn, onDecided }) {
   const [note, setNote] = useState('');
   const [verifiedItems, setVerifiedItems] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [closingNote, setClosingNote] = useState('');
+  const [failCloseReason, setFailCloseReason] = useState('');
   const [distribution, setDistribution] = useState({ positionId: '', amount: '' });
 
   const opportunity = detail?.opportunity || item;
@@ -328,6 +416,24 @@ function OpportunityDetail({ t, item, detail, gateOn, onDecided }) {
         </section>
       ) : null}
 
+      {['published', 'paused', 'closing'].includes(opportunity.status) ? (
+        <section className="space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('invest.review.failClose.title')}</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">{t('invest.review.failClose.copy')}</p>
+          <label className="block text-sm text-gray-700 dark:text-gray-200">
+            {t('invest.review.failClose.reason')}
+            <textarea className={inputCls} rows={2} maxLength={2000} value={failCloseReason} onChange={(e) => setFailCloseReason(e.target.value)} />
+          </label>
+          {error ? <p className="text-sm text-red-600 dark:text-red-300" role="alert">{error}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={busy} onClick={() => act(() => failCloseOpportunity(opportunity.id, failCloseReason.trim() || null))} className={dangerBtn}>
+              {t('invest.review.failClose.button')}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{t('invest.review.failClose.note')}</p>
+        </section>
+      ) : null}
+
       {opportunity.status === 'closed' ? (
         <section className="space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t('invest.review.proceeds.title')}</h3>
@@ -436,7 +542,7 @@ export default function InvestReviewQueue() {
   const openDetail = useCallback(async (row) => {
     setSelectedId(row.id);
     setDetail(null);
-    if (type === 'applications') return;
+    if (type === 'applications' || type === 'amendments') return;
     setDetailLoading(true);
     try {
       // Proceeds rows carry the proceeds id; the opportunity id is the
@@ -458,7 +564,9 @@ export default function InvestReviewQueue() {
     setSelectedId(keep);
     // The decision changed the record: refetch the detail too, so the
     // closing approvals and positions shown are the fresh ones.
-    if (type !== 'applications') {
+    // Application and amendment rows carry their own detail; they need
+    // no opportunity fetch.
+    if (type !== 'applications' && type !== 'amendments') {
       const row = (queue?.[type] || []).find((item) => String(item.id) === String(keep));
       if (row) {
         try {
@@ -532,7 +640,9 @@ export default function InvestReviewQueue() {
                           </span>
                         ) : (
                           <span className="block text-xs text-gray-600 dark:text-gray-300">
-                            {type === 'applications' ? applicationStatusLabel(row.status, t) : opportunityStatusLabel(row.status, t)}
+                            {type === 'applications' ? applicationStatusLabel(row.status, t)
+                              : type === 'amendments' ? amendmentStatusLabel(row.status, t)
+                                : opportunityStatusLabel(row.status, t)}
                             {row.createdAt ? ` · ${formatDate(row.createdAt)}` : ''}
                           </span>
                         )}
@@ -552,6 +662,8 @@ export default function InvestReviewQueue() {
                 <p className="text-sm text-gray-600 dark:text-gray-300">{t('invest.review.select')}</p>
               ) : type === 'applications' ? (
                 <ApplicationDetail key={`${selected.id}:${selected.expectedVersion}`} t={t} item={selected} onDecided={reloadAndReselect} />
+              ) : type === 'amendments' ? (
+                <AmendmentDetail key={`${selected.id}:${selected.expectedVersion}`} t={t} item={selected} onDecided={reloadAndReselect} />
               ) : detailLoading ? (
                 <p className="text-sm text-gray-600" role="status">{t('invest.common.loading')}</p>
               ) : (

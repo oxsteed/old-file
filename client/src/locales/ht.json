@@ -22949,6 +22949,8 @@
             "proposed": "Amandman pwopoze. Avi bay envestisè yo voye.",
             "untitled": "Amandman",
             "proposedState": "Avi voye {{sent}}. Envestisè yo dwe rekonfime anvan {{deadline}}.",
+          "effectiveState": "An vigè. Chanjman yo te aplike nan opòtinite a.",
+          "rejectedState": "Yon revizè te rejte li.",
             "deadlineRequired": "Chwazi yon dat limit nan lavni pou rekonfimasyon.",
             "status": {
               "draft": "Bouyon",
@@ -22979,6 +22981,7 @@
             },
             "required": "Yo mande tèks akò a.",
             "created": "Vèsyon akò kreye.",
+          "current": "Vèsyon aktyèl",
             "form": {
               "body": "Tèks akò a",
               "submit": "Ajoute vèsyon akò"
@@ -23002,6 +23005,7 @@
         "tabs": {
           "applications": "Demann",
           "opportunities": "Opòtinite",
+          "amendments": "Amandman",
           "closing": "Fèmti",
           "proceeds": "Lajan"
         },
@@ -23078,6 +23082,24 @@
           "title": "Lajan ak distribisyon",
           "release": "Lage lajan an",
           "blockedNote": "Liberasyon lajan an rete bloke jiskaske opòtinite a fèmen ak kondisyon fèmti yo apwouve."
+        },
+        "amendments": {
+          "changes": "Chanjman yo pwopoze",
+          "reconfirmationTitle": "Rekonfimasyon envestisè yo",
+          "reconfirmation": "{{reconfirmed}} sou {{total}} envestisè te rekonfime, {{pending}} poko rekonfime.",
+          "reconfirmationNone": "Amandman sa a pa gen nouvo vèsyon akò, kidonk pa gen anyen pou rekonfime.",
+          "deadline": "Dat limit rekonfimasyon: {{date}}",
+          "note": "Nòt revizyon",
+          "makeEffective": "Mete an vigè",
+          "reject": "Rejte",
+          "effectiveNote": "Lè yon amandman vin an vigè, chanjman li yo aplike nan opòtinite a epi nouvo vèsyon akò li a vin vèsyon aktyèl la. Rejè pa aplike anyen."
+        },
+        "failClose": {
+          "title": "Fèmti san siksè",
+          "copy": "Fèmti san siksè retounen chak angajman ki toujou rezève nan lo kredi orijinal li yo epi li make opòtinite a san siksè. Sèvi ak li lè levasyon an pap fèmen.",
+          "reason": "Rezon",
+          "button": "Fèmen opòtinite a san siksè",
+          "note": "Yon opòtinite ki fèmen san siksè pa ka relouvri. Pwosesis otomatik chak èdtan an fè li pou levasyon ki depase dat limit yo san yo pa atenn objektif la."
         },
         "distributions": {
           "position": "Pozisyon",
@@ -23236,6 +23258,7 @@
         "published": "Pibliye",
         "submitted": "Soumèt",
         "underReview": "An revizyon",
+        "unsuccessful": "San siksè",
         "withdrawn": "Retire"
       },
       "structure": {

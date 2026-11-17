@@ -36,6 +36,8 @@ const {
 const {
   createCommitment: createCommitmentService,
   cancelCommitment: cancelCommitmentService,
+  failCloseOpportunity: failCloseOpportunityService,
+  recordPartnerEscrowConfirmation: recordPartnerEscrowConfirmationService,
   approveClosingConditions: approveClosingConditionsService,
   recordClosingApproval: recordClosingApprovalService,
   closeOpportunity: closeOpportunityService,
@@ -401,6 +403,25 @@ const closeOpportunity = wrap(async (req, res) => {
   return res.json(result);
 });
 
+const failCloseOpportunity = wrap(async (req, res) => {
+  const result = await failCloseOpportunityService({
+    opportunityId: req.params.id,
+    actorUserId: req.user.id,
+    reason: body(req).reason || null,
+  });
+  return res.json(result);
+});
+
+const recordPartnerEscrowConfirmation = wrap(async (req, res) => {
+  const result = await recordPartnerEscrowConfirmationService({
+    commitmentId: req.params.id,
+    partnerRef: body(req).partnerRef,
+    confirmedBy: req.user.id,
+    note: body(req).note || null,
+  });
+  return res.json({ settlement: result });
+});
+
 const releaseProceeds = wrap(async (req, res) => {
   const result = await releaseProceedsService({ opportunityId: req.params.id, releasedBy: req.user.id });
   return res.json(result);
@@ -466,6 +487,17 @@ const listAmendments = wrap(async (req, res) => {
 const proposeAmendment = wrap(async (req, res) => {
   const amendment = await api.proposeAmendment(req.user.id, req.params.id, req.params.amendmentId, body(req).reconfirmationDeadlineAt);
   return res.json({ amendment });
+});
+
+const reviewAmendment = (decision) => wrap(async (req, res) => {
+  const result = await api.reviewAmendment({
+    amendmentId: req.params.id,
+    reviewerUserId: req.user.id,
+    decision,
+    note: body(req).note || null,
+    expectedVersion: expectedVersion(req),
+  });
+  return res.json(result);
 });
 
 const reconfirmAmendment = wrap(async (req, res) => {
@@ -544,6 +576,8 @@ module.exports = {
   approveClosingConditions,
   recordClosingApproval,
   closeOpportunity,
+  failCloseOpportunity,
+  recordPartnerEscrowConfirmation,
   releaseProceeds,
   recordDistribution,
   askQuestion,
@@ -555,6 +589,7 @@ module.exports = {
   createAmendment,
   listAmendments,
   proposeAmendment,
+  reviewAmendment,
   reconfirmAmendment,
   createDocument,
   listDocuments,

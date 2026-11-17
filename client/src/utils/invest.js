@@ -100,6 +100,7 @@ export function opportunityStatusLabel(status, t) {
     case 'closing': return t('invest.common.status.closing');
     case 'closed': return t('invest.common.status.closed');
     case 'cancelled': return t('invest.common.status.cancelled');
+    case 'unsuccessful': return t('invest.common.status.unsuccessful');
     case 'withdrawn': return t('invest.common.status.withdrawn');
     default: return t('invest.common.status.published');
   }
@@ -110,6 +111,7 @@ export function reviewQueueTabLabel(type, t) {
   switch (type) {
     case 'applications': return t('invest.review.tabs.applications');
     case 'opportunities': return t('invest.review.tabs.opportunities');
+    case 'amendments': return t('invest.review.tabs.amendments');
     case 'closing': return t('invest.review.tabs.closing');
     case 'proceeds': return t('invest.review.tabs.proceeds');
     default: return t('invest.review.tabs.applications');

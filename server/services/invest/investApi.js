@@ -279,7 +279,7 @@ async function getOpportunityDetail(user, opportunityId, dbPool = pool) {
   const [opportunity] = await enrichOpportunities(dbPool, [loaded]);
   const isReviewer = ['admin', 'super_admin'].includes(user.role);
   const isRep = await isEntityRepresentative(dbPool, user.id, opportunity.businessId);
-  const isPublic = ['published', 'paused', 'closing', 'closed', 'cancelled'].includes(opportunity.status);
+  const isPublic = ['published', 'paused', 'closing', 'closed', 'cancelled', 'unsuccessful'].includes(opportunity.status);
   if (!isPublic && !isReviewer && !isRep) {
     fail('Opportunity not found', 'invest_opportunity_not_found', 404);
   }
@@ -749,6 +749,7 @@ async function reviewApplication(input, dbPool = pool) {
 const REVIEW_PERMISSIONS = Object.freeze({
   applications: 'review_invest_participation',
   opportunities: 'review_invest_opportunity_publish',
+  amendments: 'review_invest_opportunity_publish',
   closing: 'review_invest_close',
   proceeds: 'review_invest_release_proceeds',
 });
@@ -787,6 +788,23 @@ async function listReviewQueue(user, { type = null } = {}, dbPool = pool) {
         WHERE status IN ('submitted', 'under_review') ORDER BY created_at ASC`,
     );
     queue.opportunities = rows.map(formatOpportunityApi);
+  }
+  if (types.includes('amendments')) {
+    const { rows } = await dbPool.query(
+      `SELECT a.*, o.title AS opportunity_title
+         FROM investment_amendments a
+         JOIN investment_opportunities o ON o.id = a.opportunity_id
+        WHERE a.status = 'proposed' ORDER BY a.created_at ASC`,
+    );
+    queue.amendments = [];
+    for (const row of rows) {
+      const amendment = formatAmendment(row);
+      queue.amendments.push({
+        ...amendment,
+        opportunityTitle: row.opportunity_title,
+        reconfirmation: await amendmentReconfirmationState(dbPool, amendment),
+      });
+    }
   }
   if (types.includes('closing')) {
     const { rows } = await dbPool.query(
@@ -978,7 +996,7 @@ async function createAmendment(userId, opportunityId, input, dbPool = pool) {
   const opportunity = await getOpportunity(opportunityId, dbPool);
   if (!opportunity) fail('Opportunity not found', 'invest_opportunity_not_found', 404);
   await requireEntityRepresentative(dbPool, userId, opportunity.businessId);
-  if (['closed', 'cancelled', 'withdrawn'].includes(opportunity.status)) {
+  if (['closed', 'cancelled', 'withdrawn', 'unsuccessful'].includes(opportunity.status)) {
     fail('A finished opportunity cannot be amended', 'invest_amendment_opportunity_finished', 409);
   }
   if (newAgreementVersionId) {
@@ -1009,9 +1027,170 @@ function formatAmendment(row) {
     reconfirmationDeadlineAt: row.reconfirmation_deadline_at || null,
     createdBy: String(row.created_by),
     reviewedBy: row.reviewed_by ? String(row.reviewed_by) : null,
+    reviewNote: row.review_note || null,
     expectedVersion: Number(row.expected_version || 1),
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
+  };
+}
+
+/**
+ * The amendment fields that may be applied to the opportunity when an
+ * amendment becomes effective. Only descriptive and term-text fields
+ * are here. targetCents and minimumCents are deliberately NOT
+ * applicable: changing the raise target or the minimum rewrites the
+ * committed economics (the all-or-nothing threshold, the per-investor
+ * floor) for investors who already committed, and that needs a new
+ * raise, not an amendment. Any other key in `changes` (for example the
+ * free-text `summary` the entity form records) is recorded, never
+ * applied. An invalid applicable value fails the whole effectiveness
+ * decision with no partial state.
+ */
+const AMENDMENT_APPLICABLE_FIELDS = Object.freeze({
+  title: { column: 'title' },
+  purpose: { column: 'purpose' },
+  valuationRule: { column: 'valuation_rule' },
+  useOfProceeds: { column: 'use_of_proceeds' },
+  deadlineAt: { column: 'deadline_at' },
+});
+
+function applyAmendmentChanges(changes) {
+  const sets = [];
+  const params = [];
+  const applied = [];
+  for (const [key, field] of Object.entries(AMENDMENT_APPLICABLE_FIELDS)) {
+    if (changes[key] === undefined) continue;
+    const value = changes[key];
+    if (key === 'deadlineAt') {
+      const deadline = new Date(value);
+      if (Number.isNaN(deadline.getTime()) || deadline <= new Date()) {
+        fail('An amended deadline must be a future date', 'invest_amendment_changes_invalid');
+      }
+      params.push(deadline.toISOString());
+    } else {
+      if (typeof value !== 'string' || !value.trim()) {
+        fail(`Amendment change ${key} must be non-empty text`, 'invest_amendment_changes_invalid');
+      }
+      params.push(value.trim());
+    }
+    sets.push(`${field.column} = $${params.length}`);
+    applied.push(key);
+  }
+  return { sets, params, applied };
+}
+
+/**
+ * Reviewer amendment decision. Only a proposed amendment can be
+ * decided: it is the only state where investors have been notified and
+ * the reconfirmation window is open. `effective` is the ONLY path that
+ * sets status `effective`, and it is also the only path that applies
+ * the amendment's changes to the opportunity and moves the
+ * opportunity's current agreement version to the amendment's new
+ * version. `rejected` closes the amendment with no applied change.
+ * The reviewer cannot be the entity representative or the amendment
+ * creator: no self-approval.
+ */
+async function reviewAmendment(input, dbPool = pool) {
+  const { amendmentId, reviewerUserId, decision, note = null, expectedVersion = null } = input || {};
+  if (!['effective', 'rejected'].includes(decision)) {
+    fail('Amendment review decision must be effective or rejected', 'invest_amendment_decision_invalid');
+  }
+  return withTransaction(dbPool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT a.*, o.status AS opportunity_status, o.created_by AS opportunity_created_by,
+              o.current_agreement_version_id AS opportunity_current_version_id
+         FROM investment_amendments a
+         JOIN investment_opportunities o ON o.id = a.opportunity_id
+        WHERE a.id = $1 FOR UPDATE OF a`,
+      [amendmentId],
+    );
+    const amendment = rows[0];
+    if (!amendment) fail('Amendment not found', 'invest_amendment_not_found', 404);
+    if (String(amendment.opportunity_created_by) === String(reviewerUserId)
+      || String(amendment.created_by) === String(reviewerUserId)) {
+      fail('An entity representative cannot decide their own opportunity amendment', 'invest_amendment_self_review', 403);
+    }
+    if (expectedVersion !== null && Number(amendment.expected_version) !== Number(expectedVersion)) {
+      fail('Amendment changed since it was read; reload and retry', 'invest_amendment_version_conflict', 409);
+    }
+    if (amendment.status !== 'proposed') {
+      fail(`Only a proposed amendment can be decided (current status: ${amendment.status})`, 'invest_amendment_review_invalid', 409);
+    }
+    if (['closed', 'cancelled', 'withdrawn', 'unsuccessful'].includes(amendment.opportunity_status)) {
+      fail('A finished opportunity amendment cannot be decided', 'invest_amendment_opportunity_finished', 409);
+    }
+    let appliedFields = [];
+    if (decision === 'effective') {
+      const changes = amendment.changes || {};
+      const { sets, params, applied } = applyAmendmentChanges(changes);
+      appliedFields = applied;
+      if (amendment.new_agreement_version_id) {
+        sets.push(`current_agreement_version_id = $${params.length + 1}`);
+        params.push(amendment.new_agreement_version_id);
+      }
+      // A version bump and timestamp ride with any real change; when
+      // there is nothing to apply (no applicable field and no new
+      // version) the opportunity row is left untouched.
+      if (sets.length > 0) {
+        sets.push('expected_version = expected_version + 1', 'updated_at = NOW()');
+        await client.query(
+          `UPDATE investment_opportunities SET ${sets.join(', ')} WHERE id = $${params.length + 1}`,
+          [...params, amendment.opportunity_id],
+        );
+      }
+    }
+    const { rows: updated } = await client.query(
+      `UPDATE investment_amendments
+          SET status = $2, reviewed_by = $3, review_note = $4,
+              expected_version = expected_version + 1, updated_at = NOW()
+        WHERE id = $1 RETURNING *`,
+      [amendmentId, decision, reviewerUserId, note ? String(note).slice(0, 2000) : null],
+    );
+    return { amendment: formatAmendment(updated[0]), appliedFields };
+  }, 'invest_review_amendment');
+}
+
+/**
+ * Reconfirmation state for one amendment: how many investors with a
+ * live stake (a live application or a still-reserved commitment) have
+ * reconfirmed against the amendment's new agreement version, and how
+ * many have not. An investor counts as reconfirmed when their live
+ * application accepts the new version; without a new version there is
+ * nothing to reconfirm and the state is null.
+ */
+async function amendmentReconfirmationState(client, amendment) {
+  // Accepts either the stored row (snake_case) or the formatted API
+  // shape (camelCase): the review queue formats first, then asks.
+  const newVersionId = amendment.new_agreement_version_id || amendment.newAgreementVersionId;
+  const opportunityId = amendment.opportunity_id || amendment.opportunityId;
+  if (!newVersionId) return null;
+  const { rows } = await client.query(
+    `SELECT a.user_id, a.agreement_version_id
+       FROM investment_participation_applications a
+      WHERE a.opportunity_id = $1
+        AND a.status IN ('draft', 'submitted', 'under_review', 'needs_information', 'approved')
+      UNION
+     SELECT c.user_id, c.agreement_version_id
+       FROM investment_commitments c
+      WHERE c.opportunity_id = $1 AND c.status = 'reserved'`,
+    [opportunityId],
+  );
+  // The UNION above can return one row per application and one per
+  // commitment for the same investor; count each investor once, and
+  // count them reconfirmed when any of their rows accepts the new
+  // version (reconfirmation moves the application and the reserved
+  // commitments together).
+  const byUser = new Map();
+  for (const row of rows) {
+    const userId = String(row.user_id);
+    const reconfirmed = String(row.agreement_version_id) === String(newVersionId);
+    byUser.set(userId, (byUser.get(userId) || false) || reconfirmed);
+  }
+  const reconfirmed = [...byUser.values()].filter(Boolean).length;
+  return {
+    total: byUser.size,
+    reconfirmed,
+    pending: byUser.size - reconfirmed,
   };
 }
 
@@ -1068,7 +1247,12 @@ async function reconfirmAmendment(userId, opportunityId, amendmentId, dbPool = p
     );
     const amendment = rows[0];
     if (!amendment) fail('Amendment not found', 'invest_amendment_not_found', 404);
-    if (!['proposed', 'effective'].includes(amendment.status)) {
+    if (amendment.status !== 'proposed') {
+      // Reconfirmation is the investor's response to a proposed
+      // amendment, inside the notice window. `effective` is never
+      // accepted here: effectiveness comes only from the reviewer
+      // decision (reviewAmendment), and once an amendment is effective
+      // the reconfirmation window is closed.
       fail('This amendment is not open for reconfirmation', 'invest_amendment_reconfirm_invalid', 409);
     }
     if (amendment.reconfirmation_deadline_at && new Date(amendment.reconfirmation_deadline_at) < new Date()) {
@@ -1271,7 +1455,10 @@ async function myInvestments(userId, { suspended = false } = {}, dbPool = pool) 
   const cancelled = commitmentRows.filter((row) => row.status === 'cancelled').map(formatCommitment);
   const reconfirmationRequired = [];
   for (const amendment of amendments) {
-    if (!amendment.newAgreementVersionId) continue;
+    // Only a proposed amendment is open for reconfirmation: once it is
+    // effective the window is closed (reconfirmAmendment refuses it),
+    // so an effective amendment must not surface a reconfirm action.
+    if (amendment.status !== 'proposed' || !amendment.newAgreementVersionId) continue;
     for (const commitment of pending) {
       if (String(commitment.opportunityId) === String(amendment.opportunityId)
         && String(commitment.agreementVersionId) !== String(amendment.newAgreementVersionId)) {
@@ -1512,6 +1699,8 @@ module.exports = {
   listUpdates,
   createAmendment,
   proposeAmendment,
+  reviewAmendment,
+  amendmentReconfirmationState,
   listAmendments,
   reconfirmAmendment,
   createDocument,

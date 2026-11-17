@@ -22949,6 +22949,8 @@
             "proposed": "Amendement proposé. L'avis aux investisseurs a été envoyé.",
             "untitled": "Amendement",
             "proposedState": "Avis envoyé {{sent}}. Les investisseurs doivent reconfirmer avant le {{deadline}}.",
+          "effectiveState": "Effectif. Les modifications ont été appliquées à l'opportunité.",
+          "rejectedState": "Rejeté par un réviseur.",
             "deadlineRequired": "Choisissez une date limite future pour la reconfirmation.",
             "status": {
               "draft": "Brouillon",
@@ -22979,6 +22981,7 @@
             },
             "required": "Le texte de l'accord est requis.",
             "created": "Version de l'accord créée.",
+          "current": "Version en vigueur",
             "form": {
               "body": "Texte de l'accord",
               "submit": "Ajouter une version de l'accord"
@@ -23002,6 +23005,7 @@
         "tabs": {
           "applications": "Demandes",
           "opportunities": "Opportunités",
+          "amendments": "Amendements",
           "closing": "Clôture",
           "proceeds": "Fonds"
         },
@@ -23078,6 +23082,24 @@
           "title": "Fonds et distributions",
           "release": "Libérer les fonds",
           "blockedNote": "La libération des fonds reste bloquée jusqu'à ce que l'opportunité soit clôturée avec des conditions de clôture approuvées."
+        },
+        "amendments": {
+          "changes": "Modifications proposées",
+          "reconfirmationTitle": "Reconfirmation des investisseurs",
+          "reconfirmation": "{{reconfirmed}} investisseurs sur {{total}} ont reconfirmé, {{pending}} en attente.",
+          "reconfirmationNone": "Cet amendement ne comporte pas de nouvelle version de l'accord, il n'y a donc rien à reconfirmer.",
+          "deadline": "Date limite de reconfirmation : {{date}}",
+          "note": "Note de révision",
+          "makeEffective": "Marquer comme effectif",
+          "reject": "Rejeter",
+          "effectiveNote": "Rendre un amendement effectif applique ses modifications à l'opportunité et fait de sa nouvelle version de l'accord la version en vigueur. Le rejet n'applique rien."
+        },
+        "failClose": {
+          "title": "Clôture sans succès",
+          "copy": "La clôture sans succès restitue chaque engagement encore réservé à ses lots de crédit d'origine et marque l'opportunité comme sans succès. Utilisez-la quand la levée ne sera pas clôturée.",
+          "reason": "Motif",
+          "button": "Clôturer sans succès",
+          "note": "Une opportunité clôturée sans succès ne peut pas être rouverte. Le balayage horaire le fait automatiquement pour les levées échues sans atteindre l'objectif."
         },
         "distributions": {
           "position": "Position",
@@ -23236,6 +23258,7 @@
         "published": "Publiée",
         "submitted": "Soumise",
         "underReview": "En cours d'examen",
+        "unsuccessful": "Sans succès",
         "withdrawn": "Retirée"
       },
       "structure": {

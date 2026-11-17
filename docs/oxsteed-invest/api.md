@@ -103,7 +103,7 @@ Errors: `invest_disabled` 503, `invest_opportunity_not_found` 404.
 | `POST /api/invest/opportunities` | authenticate, entity representative of `businessId` | Private draft. Body: `businessId`, `title`, `purpose`, `targetCents`, `minimumCents`, `deadlineAt` (future), `valuationRule`, `useOfProceeds`, `intermediaryRef`, `details` (`legalDetails`, `financials`, `ownership`, `risks`, `relatedParties`). 201. |
 | `PUT /api/invest/opportunities/:id` | authenticate, entity representative | Draft only. Direct edits to a non-draft opportunity are 409 `invest_opportunity_amendment_required`: material changes go through amendments. Client: the draft-edit form at `/invest/entity/raises/:id/edit` (Track 5) reuses the raise-page fields, sends the rendered `expectedVersion`, and shows the investor preview after save. |
 | `POST /api/invest/opportunities/:id/submit-for-review` | authenticate, entity representative | Draft to submitted. Submission does NOT publish. |
-| `POST /api/invest/opportunities/:id/agreement-versions` | authenticate, entity representative | Body `body` (agreement text). Creates the next version; the opportunity current version moves to it. 201. |
+| `POST /api/invest/opportunities/:id/agreement-versions` | authenticate, entity representative | Body `body` (agreement text). Creates the next version. A new version becomes the opportunity current version ONLY when its amendment becomes effective (see Amendments below). The exception is the first version on a draft with no live applications and no commitments, which becomes current immediately so the opportunity can be approved and published against it. 201. |
 | `GET /api/invest/opportunities/:id/agreement-versions` | authenticate, representative / reviewer / related investor | Version list (id, version number, SHA-256 content hash). No body text is returned here. |
 
 ### Participation applications
@@ -160,12 +160,14 @@ Errors: `invest_commitments_disabled` 503,
 
 | Method and path | Auth | Notes |
 |---|---|---|
-| `GET /api/invest/review-queue` | requireAdmin | Capability-scoped: the caller only sees the queues their own review permission covers (`?type=applications|opportunities|closing|proceeds`). Super-admins see all. No permission: 403 `invest_review_not_permitted`. |
+| `GET /api/invest/review-queue` | requireAdmin | Capability-scoped: the caller only sees the queues their own review permission covers (`?type=applications|opportunities|amendments|closing|proceeds`). Super-admins see all. No permission: 403 `invest_review_not_permitted`. The `amendments` type (under `review_invest_opportunity_publish`) lists proposed amendments with the opportunity title, the recorded changes, and the reconfirmation state (how many investors with a live stake reconfirmed against the new agreement version, how many have not; null when the amendment carries no new version). The review-queue page renders effective/reject actions for those rows and the fail-close action for open opportunities; the entity manage page shows each amendment's effective/rejected state and marks the current agreement version. |
 | `POST /api/invest/opportunities/:id/review` | requireAdmin + `review_invest_opportunity_publish` | Body `action`: `claim` (submitted to under_review), `approve` (under_review to approved, with `verificationSummary.verifiedItems`), `decline` (under_review back to submitted, with `note`). `expectedVersion` checked. |
 | `POST /api/invest/opportunities/:id/publish` | requireAdmin + `review_invest_opportunity_publish` | Approved only, with an agreement version; stamps `publishedAt`. The entity representative cannot publish their own opportunity (403 `invest_opportunity_self_publish`). |
 | `POST /api/invest/opportunities/:id/closing-conditions/approve` | requireAdmin + `review_invest_close` | Records the approver of the closing conditions. The entity representative cannot approve their own conditions (403 `invest_close_self_approval`). |
 | `POST /api/invest/opportunities/:id/closing-approvals` | requireAdmin + `review_invest_close` | Body `stage`: `review` or `execution`; `decision`, `note`. Execution requires an approved review first, and the two approvers must differ (403 `invest_close_same_approver`). |
-| `POST /api/invest/opportunities/:id/close` | requireAdmin + `review_invest_close`, commitments flag | All-or-nothing close; only the approved execution approver may execute it (403 `invest_close_executor_mismatch`). Target, approved closing conditions, and both approvals are enforced in the service. |
+| `POST /api/invest/opportunities/:id/close` | requireAdmin + `review_invest_close`, commitments flag | All-or-nothing close; only the approved execution approver may execute it (403 `invest_close_executor_mismatch`). Target, deadline, approved closing conditions, and both approvals are enforced in the service. The deadline is enforced on its own: a raise whose deadline passed cannot close even when the target was met; that raise fail-closes instead. Closing does NOT confirm escrow expectations: the `escrow_expectation` rows stay `pending_partner_confirmation` until explicit partner input arrives through the escrow-confirmation route below. |
+| `POST /api/invest/opportunities/:id/fail-close` | requireAdmin + `review_invest_close` | Unsuccessful closing. Releases every still-reserved commitment back to its original Credit lots (same restore semantics as a cancellation) and marks the opportunity `unsuccessful`. Refuses an opportunity that already closed/funded or already reached a terminal state (409 `invest_fail_close_status_invalid`); the entity representative cannot fail-close their own raise (403 `invest_fail_close_self_approval`). Deliberately NOT behind the live commitment gate: it releases holds and restores prior state, it never creates a position, a proceed, or a distribution. The hourly `invest-fail-close-sweeper` job (`server/jobs/investFailCloseSweeper.js`, wired in `server/bootstrap/backgroundWorkers.js`, fenced with the shared job lock) fail-closes open opportunities past deadline with the target unmet; a past-deadline raise that met its target is left for a reviewer. |
+| `POST /api/invest/commitments/:id/escrow-confirmation` | requireAdmin + `review_invest_release_proceeds` | Records explicit partner confirmation of an escrow expectation: body `partnerRef` (required), `note` (optional). Moves the commitment's `escrow_expectation` row from `pending_partner_confirmation` to `confirmed` with `confirmed_at` and the partner reference. This is the ONLY path that confirms an escrow expectation; closing never does. Nothing calls it yet and no partner integration is implied. |
 | `POST /api/invest/opportunities/:id/release-proceeds` | requireAdmin + `review_invest_release_proceeds`, commitments flag | Blocked until the opportunity is closed with approved closing conditions (409 `invest_proceeds_blocked`). The entity representative cannot release their own proceeds (403 `invest_proceeds_self_release`). |
 | `POST /api/invest/opportunities/:id/distributions` | requireAdmin + `review_invest_release_proceeds`, commitments flag | Idempotency-Key required. Body `positionId`, `userId`, `amountCents`. The distribution is credited as Credit with a traceable journal transaction and a `distribution` lot. |
 
@@ -182,7 +184,9 @@ Errors: `invest_commitments_disabled` 503,
 | `POST /api/invest/opportunities/:id/amendments` | authenticate, entity representative | Body `changes` (object), `newAgreementVersionId` (optional). Draft. 201. |
 | `GET /api/invest/opportunities/:id/amendments` | authenticate | Representative, reviewer, or related investor. |
 | `POST /api/invest/opportunities/:id/amendments/:amendmentId/propose` | authenticate, entity representative | Draft to proposed; sets `noticeSentAt` and requires a future `reconfirmationDeadlineAt`. This is the investor notice step. |
-| `POST /api/invest/opportunities/:id/amendments/:amendmentId/reconfirm` | authenticate, investor with a live application | Accepts the amendment's new agreement version on the live application and moves any still-reserved commitments to it. Completed commitments never move. |
+| `POST /api/invest/amendments/:id/effective` | requireAdmin + `review_invest_opportunity_publish` | Reviewer decision: proposed to effective. The ONLY path that sets status `effective`. On effective, the amendment's changes are applied to the opportunity (allow-listed fields only: `title`, `purpose`, `valuationRule`, `useOfProceeds`, `deadlineAt`; `targetCents` and `minimumCents` are never applied because they rewrite committed economics, and any other key, such as the free-text `summary`, is recorded but never applied), and the opportunity current agreement version moves to the amendment's new version when one is set. The reviewer cannot be the entity representative or the amendment creator (403 `invest_amendment_self_review`). Body `note` (optional), `expectedVersion`. |
+| `POST /api/invest/amendments/:id/reject` | requireAdmin + `review_invest_opportunity_publish` | Reviewer decision: proposed to rejected. Applies nothing. Same self-review rule and body as effective. |
+| `POST /api/invest/opportunities/:id/amendments/:amendmentId/reconfirm` | authenticate, investor with a live application | Accepts the amendment's new agreement version on the live application and moves any still-reserved commitments to it. Completed commitments never move. Only a proposed amendment is open for reconfirmation: once an amendment is effective the window is closed (409 `invest_amendment_reconfirm_invalid`). |
 | `POST /api/invest/opportunities/:id/documents` | authenticate, entity representative | Body `title`, `storageRef`, `visibility` (`public`, `applicants`, `committed`, `reviewers`), `confidential`. 201. |
 | `GET /api/invest/opportunities/:id/documents` | authenticate | Access-filtered list (see below). |
 | `GET /api/invest/documents/:id` | authenticate | Single document with the explicit per-investor x opportunity access check; cross-entity and cross-investor access is 404 (resource hiding). |
@@ -228,6 +232,27 @@ One migration: `20261117124812_invest_track2_authority.sql`.
 Two lifecycle fixes in `participation.js`: an application sent back for
 information can now be updated and resubmitted (both paths previously
 required draft, which made `needs_information` a dead end).
+
+## Schema changes (Track 6, verifier fixes)
+
+One migration: `20261117144108_invest_fail_close_unsuccessful.sql`.
+
+- `investment_opportunities.status` CHECK gains `unsuccessful`, the
+  terminal fail-close state, with the same `cancelled_at IS NOT NULL`
+  guard the `cancelled` state carries (`cancelled_at` /
+  `cancellation_reason` record when and why the raise failed).
+- `investment_amendments.review_note` TEXT: the reviewer note recorded
+  when an amendment is marked effective or rejected.
+
+Behavior changes with no schema change: closing enforces the deadline
+on its own (a past-deadline raise cannot close even with the target
+met) and no longer flips `escrow_expectation` rows to `confirmed`;
+close, proceeds release, and distribution enforce
+`INVEST_COMMITMENTS_ENABLED` in the service as well as at the route;
+a new agreement version becomes current only when its amendment
+becomes effective (except the first version on a draft with no live
+applications or commitments); reconfirmation is open only while an
+amendment is proposed.
 
 ## Open questions for Tracks 3-4 and Emile
 

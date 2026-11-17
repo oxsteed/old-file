@@ -20,6 +20,13 @@
  *   Any lot with an encumbered portion: only the unencumbered remainder
  *   counts, and a disputed lot contributes nothing while fully encumbered.
  *
+ * ASSUMPTION A8 (docs/oxsteed-invest/SETTLEMENT_ASSUMPTIONS.md):
+ * eligibility is purchased settled only in practice. The brief allows
+ * earned settled plus approved Credit, but there is no earned issuance
+ * path and no ledger definition of earned approval, so no earned lot
+ * can exist yet; the backfill classifies existing balances as
+ * `unknown` (ineligible) except for provably completed top-ups.
+ *
  * SPEND-ALLOCATION RULE (the one deterministic rule, applied everywhere):
  * oldest settled eligible lot first (settled_at ascending, then
  * created_at ascending). A commitment records exactly which lots and

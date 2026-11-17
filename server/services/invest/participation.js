@@ -62,6 +62,8 @@ function formatOpportunity(row) {
     closingConditions: row.closing_conditions || [],
     closingConditionsApprovedAt: row.closing_conditions_approved_at || null,
     closedAt: row.closed_at || null,
+    cancelledAt: row.cancelled_at || null,
+    cancellationReason: row.cancellation_reason || null,
     details: row.details || {},
     verificationSummary: row.verification_summary || {},
     verifiedAt: row.verified_at || null,
@@ -135,6 +137,16 @@ async function getOpportunity(opportunityId, dbPool = pool) {
   return formatOpportunity(rows[0]);
 }
 
+/**
+ * Create the next agreement version. A new version becomes the
+ * opportunity's current (accepted) version ONLY when its amendment
+ * becomes effective: creating it must not move existing investors off
+ * the version they accepted while the amendment is still only a draft
+ * or a proposal. The one exception is the FIRST version on a draft
+ * with no live applications and no commitments: nobody has accepted
+ * anything yet, so immediate current is correct and the opportunity
+ * can be approved and published against it.
+ */
 async function createAgreementVersion(input, dbPool = pool) {
   const { opportunityId, body, createdBy = null } = input || {};
   if (!opportunityId) fail('opportunityId is required for an agreement version', 'invest_agreement_opportunity_required');
@@ -147,7 +159,7 @@ async function createAgreementVersion(input, dbPool = pool) {
     );
     const opportunity = oppRows[0];
     if (!opportunity) fail('Opportunity not found', 'invest_opportunity_not_found', 404);
-    if (['closed', 'cancelled', 'withdrawn'].includes(opportunity.status)) {
+    if (['closed', 'cancelled', 'withdrawn', 'unsuccessful'].includes(opportunity.status)) {
       fail('Agreement versions cannot be added to a finished opportunity', 'invest_agreement_opportunity_finished', 409);
     }
     const { rows: maxRows } = await client.query(
@@ -162,17 +174,38 @@ async function createAgreementVersion(input, dbPool = pool) {
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [opportunityId, versionNumber, contentHash, text, createdBy || null],
     );
-    await client.query(
-      `UPDATE investment_opportunities
-          SET current_agreement_version_id = $2, updated_at = NOW()
-        WHERE id = $1`,
-      [opportunityId, rows[0].id],
-    );
+    // Immediate current only for the first version on a draft nobody
+    // has touched yet. Any later version waits for its amendment to
+    // become effective (reviewAmendment), which is the only path that
+    // moves current_agreement_version_id after version 1.
+    let becameCurrent = false;
+    if (versionNumber === 1 && opportunity.status === 'draft') {
+      const { rows: touched } = await client.query(
+        `SELECT 1 FROM investment_participation_applications
+          WHERE opportunity_id = $1
+            AND status IN ('draft', 'submitted', 'under_review', 'needs_information', 'approved')
+          UNION
+         SELECT 1 FROM investment_commitments
+          WHERE opportunity_id = $1 AND status IN ('reserved', 'completed')
+          LIMIT 1`,
+        [opportunityId],
+      );
+      if (!touched[0]) {
+        await client.query(
+          `UPDATE investment_opportunities
+              SET current_agreement_version_id = $2, updated_at = NOW()
+            WHERE id = $1`,
+          [opportunityId, rows[0].id],
+        );
+        becameCurrent = true;
+      }
+    }
     return {
       id: String(rows[0].id),
       opportunityId: String(rows[0].opportunity_id),
       versionNumber: Number(rows[0].version_number),
       contentHash: rows[0].content_hash,
+      becameCurrent,
       createdAt: rows[0].created_at || null,
     };
   }, 'invest_create_agreement_version');

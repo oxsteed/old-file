@@ -228,6 +228,10 @@ async function createCommitment(input, dbPool = pool) {
     // Real Credit reservation: increments reserved_cents and records the
     // oxsteed_credit_reservations row, so ordinary spending cannot spend
     // reserved value and reconciliation can prove the invariant.
+    // ASSUMPTION A2 (docs/oxsteed-invest/SETTLEMENT_ASSUMPTIONS.md):
+    // at commitment, eligible Credit is RESERVED in the dedicated
+    // subledger: unavailable for ordinary spending, not yet an
+    // investment position.
     const { reservation } = await reserveFunds(client, {
       accountId: Number(eligibleBalance.accountId),
       reservationType: 'investment_commitment',
@@ -272,10 +276,75 @@ async function createCommitment(input, dbPool = pool) {
 }
 
 /**
+ * Release one reserved commitment inside the caller's transaction: the
+ * Credit reservation is released and the allocation rows flip to
+ * `released`; lot remaining balances are never touched, so the value
+ * returns to the ORIGINAL lots with their original classification and
+ * restrictions.
+ *
+ * ASSUMPTION A5 (docs/oxsteed-invest/SETTLEMENT_ASSUMPTIONS.md): a
+ * failed closing returns value to the original classification. This
+ * helper is the single implementation of that release, shared by an
+ * investor cancellation and by fail-close, so the two paths cannot
+ * drift apart.
+ */
+async function releaseReservedCommitmentTx(client, commitment, reason) {
+  await releaseReservation(client, {
+    referenceType: 'investment_commitment',
+    referenceId: String(commitment.id),
+    reason: reason || 'investment commitment released',
+  });
+  await client.query(
+    `UPDATE investment_commitment_lots SET status = 'released', updated_at = NOW()
+      WHERE commitment_id = $1 AND status = 'active'`,
+    [commitment.id],
+  );
+  await client.query(
+    `UPDATE investment_settlements
+        SET status = 'cancelled', updated_at = NOW()
+      WHERE commitment_id = $1 AND kind = 'escrow_expectation'
+        AND status = 'pending_partner_confirmation'`,
+    [commitment.id],
+  );
+  const { rows: updated } = await client.query(
+    `UPDATE investment_commitments
+        SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = $2,
+            expected_version = expected_version + 1, updated_at = NOW()
+      WHERE id = $1 RETURNING *`,
+    [commitment.id, reason || null],
+  );
+  await appendEntry(client, {
+    entryType: 'release',
+    category: 'pending_reservations',
+    opportunityId: commitment.opportunity_id,
+    commitmentId: String(commitment.id),
+    userId: commitment.user_id,
+    amountCents: -Number(commitment.amount_cents),
+    currencyCode: commitment.currency_code,
+    referenceType: 'investment_commitment',
+    referenceId: String(commitment.id),
+    idempotencyKey: `${COMMITMENT_IDEMPOTENCY_PREFIX}${commitment.id}:release`,
+  });
+  await appendEntry(client, {
+    entryType: 'release',
+    category: 'cancelled_released',
+    opportunityId: commitment.opportunity_id,
+    commitmentId: String(commitment.id),
+    userId: commitment.user_id,
+    amountCents: Number(commitment.amount_cents),
+    currencyCode: commitment.currency_code,
+    referenceType: 'investment_commitment',
+    referenceId: String(commitment.id),
+    idempotencyKey: `${COMMITMENT_IDEMPOTENCY_PREFIX}${commitment.id}:cancelled`,
+  });
+  return formatCommitment(updated[0]);
+}
+
+/**
  * Cancel a reserved commitment. The Credit reservation is released and
  * the allocation rows flip to `released`; lot remaining balances are
  * never touched, so the value returns to the ORIGINAL lots with their
- * original classification and restrictions.
+ * original classification and restrictions (ASSUMPTION A5).
  */
 async function cancelCommitment(input, dbPool = pool) {
   const { commitmentId, userId, reason = null, actorUserId = null } = input || {};
@@ -290,56 +359,159 @@ async function cancelCommitment(input, dbPool = pool) {
     }
     requireInvestEnabled(userId);
 
-    await releaseReservation(client, {
-      referenceType: 'investment_commitment',
-      referenceId: commitmentId,
-      reason: reason || 'investor cancellation',
-    });
-    await client.query(
-      `UPDATE investment_commitment_lots SET status = 'released', updated_at = NOW()
-        WHERE commitment_id = $1 AND status = 'active'`,
-      [commitmentId],
+    return releaseReservedCommitmentTx(client, commitment, reason || 'investor cancellation');
+  }, 'invest_cancel_commitment');
+}
+
+/**
+ * Fail-close one opportunity: the unsuccessful-closing path (spec
+ * section 7). Every still-reserved commitment is released back to its
+ * ORIGINAL lots through the shared release helper (ASSUMPTION A5), and
+ * the opportunity moves to the terminal `unsuccessful` status with its
+ * terminal timestamp and reason recorded. A reviewer calls this when
+ * the raise failed (target missed, conditions failed, or the entity
+ * withdrew); the sweeper calls it when the deadline passed with the
+ * target unmet. It refuses an opportunity that already closed/funded
+ * or already reached a terminal state, and a human reviewer may never
+ * fail-close their own entity's raise. A null actorUserId is the
+ * system (sweeper) actor, which has no entity to be self-approving
+ * against. Fail-close is deliberately NOT behind the live commitment
+ * gate: it releases holds and restores prior state, it never creates a
+ * position, a proceed, or a distribution.
+ */
+async function failCloseOpportunity(input, dbPool = pool) {
+  const { opportunityId, actorUserId = null, reason = null } = input || {};
+  if (!opportunityId) fail('opportunityId is required to fail-close', 'invest_fail_close_opportunity_required');
+  if (actorUserId) requireInvestEnabled(actorUserId);
+  const failReason = reason || 'Closing did not occur: the opportunity was unsuccessful';
+  return withTransaction(dbPool, async (client) => {
+    const opportunity = await lockOpportunity(client, opportunityId);
+    if (!['published', 'paused', 'closing'].includes(opportunity.status)) {
+      fail(`Only an open opportunity can be fail-closed (current status: ${opportunity.status})`, 'invest_fail_close_status_invalid', 409);
+    }
+    if (actorUserId && String(opportunity.created_by) === String(actorUserId)) {
+      fail('An entity representative cannot fail-close their own opportunity', 'invest_fail_close_self_approval', 403);
+    }
+    const { rows: commitmentRows } = await client.query(
+      `SELECT * FROM investment_commitments
+        WHERE opportunity_id = $1 AND status = 'reserved'
+        ORDER BY created_at ASC FOR UPDATE`,
+      [opportunityId],
     );
-    await client.query(
-      `UPDATE investment_settlements
-          SET status = 'cancelled', updated_at = NOW()
-        WHERE commitment_id = $1 AND kind = 'escrow_expectation'
-          AND status = 'pending_partner_confirmation'`,
-      [commitmentId],
-    );
+    const releasedCommitments = [];
+    let releasedCents = 0;
+    for (const commitment of commitmentRows) {
+      await releaseReservedCommitmentTx(client, commitment, failReason);
+      releasedCommitments.push(String(commitment.id));
+      releasedCents += Number(commitment.amount_cents || 0);
+    }
     const { rows: updated } = await client.query(
-      `UPDATE investment_commitments
-          SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = $2,
+      `UPDATE investment_opportunities
+          SET status = 'unsuccessful', cancelled_at = NOW(), cancellation_reason = $2,
               expected_version = expected_version + 1, updated_at = NOW()
         WHERE id = $1 RETURNING *`,
-      [commitmentId, reason || null],
+      [opportunityId, failReason],
     );
-    await appendEntry(client, {
-      entryType: 'release',
-      category: 'pending_reservations',
-      opportunityId: commitment.opportunity_id,
-      commitmentId,
-      userId: commitment.user_id,
-      amountCents: -Number(commitment.amount_cents),
-      currencyCode: commitment.currency_code,
-      referenceType: 'investment_commitment',
-      referenceId: commitmentId,
-      idempotencyKey: `${COMMITMENT_IDEMPOTENCY_PREFIX}${commitmentId}:release`,
-    });
-    await appendEntry(client, {
-      entryType: 'release',
-      category: 'cancelled_released',
-      opportunityId: commitment.opportunity_id,
-      commitmentId,
-      userId: commitment.user_id,
-      amountCents: Number(commitment.amount_cents),
-      currencyCode: commitment.currency_code,
-      referenceType: 'investment_commitment',
-      referenceId: commitmentId,
-      idempotencyKey: `${COMMITMENT_IDEMPOTENCY_PREFIX}${commitmentId}:cancelled`,
-    });
-    return formatCommitment(updated[0]);
-  }, 'invest_cancel_commitment');
+    return {
+      opportunityId: String(opportunityId),
+      status: updated[0].status,
+      releasedCommitmentIds: releasedCommitments,
+      releasedCommitmentCount: releasedCommitments.length,
+      releasedCents,
+      cancelledAt: updated[0].cancelled_at || null,
+    };
+  }, 'invest_fail_close_opportunity');
+}
+
+/**
+ * Sweeper: find open opportunities whose deadline passed with the
+ * target unmet and fail-close them, so no reservation strands as
+ * `reserved` forever after a missed raise. Only past-deadline,
+ * target-unmet opportunities are picked up: a past-deadline raise
+ * that met its target is left for a reviewer (closing it late, or
+ * fail-closing it, is a human decision, not a sweeper's). Each
+ * opportunity fail-closes in its own transaction; one failure is
+ * recorded in the result and the sweep continues with the rest.
+ */
+async function sweepUnsuccessfulOpportunities(input = {}, dbPool = pool) {
+  const limit = Number.isSafeInteger(Number(input.limit)) && Number(input.limit) > 0
+    ? Math.min(Number(input.limit), 500)
+    : 100;
+  const { rows } = await dbPool.query(
+    `SELECT o.id, o.target_cents,
+            COALESCE(SUM(c.amount_cents), 0)::bigint AS reserved_total
+       FROM investment_opportunities o
+       LEFT JOIN investment_commitments c
+         ON c.opportunity_id = o.id AND c.status = 'reserved'
+      WHERE o.status IN ('published', 'paused', 'closing')
+        AND o.deadline_at < NOW()
+      GROUP BY o.id, o.target_cents
+     HAVING COALESCE(SUM(c.amount_cents), 0) < o.target_cents
+      ORDER BY o.deadline_at ASC
+      LIMIT $1`,
+    [limit],
+  );
+  const failClosed = [];
+  const failed = [];
+  for (const row of rows) {
+    try {
+      const result = await failCloseOpportunity({
+        opportunityId: String(row.id),
+        actorUserId: null,
+        reason: 'Deadline passed without reaching the target',
+      }, dbPool);
+      failClosed.push(result);
+    } catch (err) {
+      failed.push({ opportunityId: String(row.id), code: err.code || null, error: err.message });
+    }
+  }
+  return { checkedAt: new Date().toISOString(), failClosed, failed };
+}
+
+/**
+ * Record partner confirmation of an escrow expectation.
+ *
+ * ASSUMPTION A3 (docs/oxsteed-invest/SETTLEMENT_ASSUMPTIONS.md): the
+ * partner holds the corresponding monetary value in escrow, and the
+ * escrow_expectation row records that expectation as
+ * pending_partner_confirmation. Closing deliberately does NOT flip it:
+ * only explicit partner input moves it to confirmed, through this
+ * function, with the partner reference recorded. Nothing calls this
+ * yet and no partner integration is implied; it is the audited hook
+ * for the future moment partner input arrives.
+ */
+async function recordPartnerEscrowConfirmation(input, dbPool = pool) {
+  const { commitmentId, partnerRef, confirmedBy, note = null } = input || {};
+  if (!commitmentId) fail('commitmentId is required to confirm escrow', 'invest_escrow_commitment_required');
+  if (!partnerRef || !String(partnerRef).trim()) fail('partnerRef is required: the partner confirmation reference', 'invest_escrow_partner_ref_required');
+  if (!confirmedBy) fail('confirmedBy is required: escrow confirmation must be attributable to a reviewer', 'invest_escrow_actor_required');
+  return withTransaction(dbPool, async (client) => {
+    const commitment = await getCommitmentForUpdate(client, commitmentId);
+    const { rows } = await client.query(
+      `UPDATE investment_settlements
+          SET status = 'confirmed', confirmed_at = NOW(), partner_ref = $2,
+              note = $3, updated_at = NOW()
+        WHERE commitment_id = $1 AND kind = 'escrow_expectation'
+          AND status = 'pending_partner_confirmation'
+        RETURNING *`,
+      [commitmentId, String(partnerRef).trim().slice(0, 160), note ? String(note).slice(0, 2000) : null],
+    );
+    if (!rows[0]) {
+      fail('No pending escrow expectation for this commitment', 'invest_escrow_nothing_pending', 409);
+    }
+    return {
+      settlementId: String(rows[0].id),
+      commitmentId: String(commitment.id),
+      opportunityId: String(rows[0].opportunity_id),
+      kind: rows[0].kind,
+      status: rows[0].status,
+      amountCents: Number(rows[0].amount_cents),
+      currencyCode: rows[0].currency_code,
+      partnerRef: rows[0].partner_ref,
+      confirmedAt: rows[0].confirmed_at || null,
+      confirmedBy: String(confirmedBy),
+    };
+  }, 'invest_record_partner_escrow_confirmation');
 }
 
 /**
@@ -460,11 +632,21 @@ async function getClosingApprovals(client, opportunityId) {
  * conditions approved, and separate approved review plus execution.
  * Each reserved commitment completes into a position under the exact
  * agreement version accepted; proceeds move to awaiting release.
+ *
+ * ASSUMPTION A4 (docs/oxsteed-invest/SETTLEMENT_ASSUMPTIONS.md):
+ * closing is all-or-nothing: target plus deadline plus conditions plus
+ * a separate closing approval, enforced here in the service, not the
+ * caller. The deadline is checked first and on its own: a raise whose
+ * deadline passed cannot close even when the target was met; that
+ * raise fail-closes instead.
+ *
+ * The live commitment gate is enforced here in the service, not only
+ * at the route: a direct service caller cannot close past it.
  */
 async function closeOpportunity(input, dbPool = pool) {
   const { opportunityId, executorUserId } = input || {};
   if (!opportunityId || !executorUserId) fail('opportunityId and executorUserId are required to close', 'invest_close_actor_required');
-  requireInvestEnabled(executorUserId);
+  requireInvestCommitmentsEnabled(executorUserId);
   return withTransaction(dbPool, async (client) => {
     await assertCreditRailEnabled(client);
     const opportunity = await lockOpportunity(client, opportunityId);
@@ -494,11 +676,15 @@ async function closeOpportunity(input, dbPool = pool) {
       [opportunityId],
     );
     const reservedTotal = commitmentRows.reduce((sum, row) => sum + Number(row.amount_cents || 0), 0);
+    // The deadline is enforced on its own, before the target check: a
+    // raise whose deadline passed cannot close even when the target was
+    // met. (The old form folded the deadline into the target check, so
+    // the target failure fired first and the deadline never did.)
+    if (new Date(opportunity.deadline_at) < new Date()) {
+      fail('Closing deadline has passed', 'invest_close_deadline_passed', 409);
+    }
     if (reservedTotal < Number(opportunity.target_cents)) {
       fail('Closing target has not been reached', 'invest_close_target_unmet', 409);
-    }
-    if (new Date(opportunity.deadline_at) < new Date() && reservedTotal < Number(opportunity.target_cents)) {
-      fail('Closing deadline passed without reaching the target', 'invest_close_deadline_passed', 409);
     }
 
     const treasury = await ensureAccount(client, {
@@ -593,13 +779,11 @@ async function closeOpportunity(input, dbPool = pool) {
       positions.push(formatPosition(positionRows[0]));
       completedTotal += Number(commitment.amount_cents);
 
-      await client.query(
-        `UPDATE investment_settlements
-            SET status = 'confirmed', confirmed_at = NOW(), updated_at = NOW()
-          WHERE commitment_id = $1 AND kind = 'escrow_expectation'
-            AND status = 'pending_partner_confirmation'`,
-        [commitment.id],
-      );
+      // The escrow-expectation row stays pending_partner_confirmation
+      // here on purpose (ASSUMPTION A3): only explicit partner input,
+      // through recordPartnerEscrowConfirmation, may move it to
+      // confirmed. Closing without partner input must not fabricate
+      // that confirmation.
       await appendEntry(client, {
         entryType: 'completion',
         category: 'pending_reservations',
@@ -680,7 +864,9 @@ async function closeOpportunity(input, dbPool = pool) {
 async function releaseProceeds(input, dbPool = pool) {
   const { opportunityId, releasedBy } = input || {};
   if (!opportunityId || !releasedBy) fail('opportunityId and releasedBy are required to release proceeds', 'invest_proceeds_actor_required');
-  requireInvestEnabled(releasedBy);
+  // The live commitment gate is enforced here in the service, not only
+  // at the route: a direct service caller cannot release past it.
+  requireInvestCommitmentsEnabled(releasedBy);
   return withTransaction(dbPool, async (client) => {
     await assertCreditRailEnabled(client);
     const opportunity = await lockOpportunity(client, opportunityId);
@@ -753,6 +939,14 @@ async function releaseProceeds(input, dbPool = pool) {
  * Idempotent on idempotencyKey. The credit creates a `distribution` lot
  * (settled, ineligible for new commitments) so the value stays
  * traceable to its distribution, never mingled as purchased value.
+ *
+ * ASSUMPTION A6 (docs/oxsteed-invest/SETTLEMENT_ASSUMPTIONS.md):
+ * distributions come back as Credit through the settlement flow, with
+ * a traceable record. No promise of distributions, cash redeemability,
+ * or principal protection is made anywhere in this build.
+ *
+ * The live commitment gate is enforced here in the service, not only
+ * at the route: a direct service caller cannot distribute past it.
  */
 async function recordDistribution(input, dbPool = pool) {
   const {
@@ -764,7 +958,7 @@ async function recordDistribution(input, dbPool = pool) {
   if (!actorUserId) fail('actorUserId is required for a distribution: the Credit load must be attributable to a staff actor (migration 487)', 'invest_distribution_actor_required');
   const amount = Number(amountCents);
   if (!Number.isSafeInteger(amount) || amount <= 0) fail('amountCents must be a positive integer number of cents', 'invest_distribution_amount_invalid');
-  requireInvestEnabled(actorUserId || userId);
+  requireInvestCommitmentsEnabled(actorUserId || userId);
   const key = String(idempotencyKey).slice(0, 160);
 
   return withTransaction(dbPool, async (client) => {
@@ -867,6 +1061,9 @@ async function recordDistribution(input, dbPool = pool) {
 module.exports = {
   createCommitment,
   cancelCommitment,
+  failCloseOpportunity,
+  sweepUnsuccessfulOpportunities,
+  recordPartnerEscrowConfirmation,
   recheckCommitmentEligibility,
   approveClosingConditions,
   recordClosingApproval,

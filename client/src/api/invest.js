@@ -187,6 +187,21 @@ export async function proposeAmendment(opportunityId, amendmentId, reconfirmatio
   return data;
 }
 
+export async function reviewAmendment(amendmentId, decision, { note, expectedVersion } = {}) {
+  const { data } = await api.post(`/invest/amendments/${amendmentId}/${decision === 'effective' ? 'effective' : 'reject'}`, { note, expectedVersion });
+  return data;
+}
+
+export async function failCloseOpportunity(opportunityId, reason) {
+  const { data } = await api.post(`/invest/opportunities/${opportunityId}/fail-close`, { reason });
+  return data;
+}
+
+export async function recordPartnerEscrowConfirmation(commitmentId, { partnerRef, note }) {
+  const { data } = await api.post(`/invest/commitments/${commitmentId}/escrow-confirmation`, { partnerRef, note });
+  return data;
+}
+
 // ── Reviewer queue, closing, proceeds, distributions (Track 4) ───────────
 // The server scopes the queue per review permission and refuses
 // self-approval and stale versions; this client only sends the version

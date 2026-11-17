@@ -78,6 +78,16 @@ router.get('/review-queue', authenticate, invest, requireAdmin, ctrl.getReviewQu
 router.post('/opportunities/:id/closing-conditions/approve', authenticate, invest, requireAdmin, requirePermission('review_invest_close'), ctrl.approveClosingConditions);
 router.post('/opportunities/:id/closing-approvals', authenticate, invest, requireAdmin, requirePermission('review_invest_close'), ctrl.recordClosingApproval);
 router.post('/opportunities/:id/close', authenticate, invest, commitments, requireAdmin, requirePermission('review_invest_close'), rejectImpersonated, ctrl.closeOpportunity);
+// Fail-close: the unsuccessful-closing path. A reviewer decision under
+// the close-review authority; never the entity representative, never
+// self-approval (enforced in the service). It releases holds rather
+// than creating positions, so it is deliberately not behind the live
+// commitment gate.
+router.post('/opportunities/:id/fail-close', authenticate, invest, requireAdmin, requirePermission('review_invest_close'), rejectImpersonated, ctrl.failCloseOpportunity);
+// Escrow confirmation: explicit partner input only, under the
+// settlement/proceeds authority. Nothing calls this yet; there is no
+// partner integration behind it.
+router.post('/commitments/:id/escrow-confirmation', authenticate, invest, requireAdmin, requirePermission('review_invest_release_proceeds'), rejectImpersonated, ctrl.recordPartnerEscrowConfirmation);
 router.post('/opportunities/:id/release-proceeds', authenticate, invest, commitments, requireAdmin, requirePermission('review_invest_release_proceeds'), rejectImpersonated, ctrl.releaseProceeds);
 router.post('/opportunities/:id/distributions', authenticate, invest, commitments, requireAdmin, requirePermission('review_invest_release_proceeds'), rejectImpersonated, ctrl.recordDistribution);
 
@@ -92,6 +102,11 @@ router.post('/opportunities/:id/amendments', authenticate, invest, suspended, ct
 router.get('/opportunities/:id/amendments', authenticate, invest, suspended, ctrl.listAmendments);
 router.post('/opportunities/:id/amendments/:amendmentId/propose', authenticate, invest, suspended, ctrl.proposeAmendment);
 router.post('/opportunities/:id/amendments/:amendmentId/reconfirm', authenticate, invest, suspended, ctrl.reconfirmAmendment);
+// Amendment review: the ONLY path to `effective`. A reviewer under the
+// opportunity-review authority; never the entity representative, never
+// self-approval (enforced in the service).
+router.post('/amendments/:id/effective', authenticate, invest, requireAdmin, requirePermission('review_invest_opportunity_publish'), ctrl.reviewAmendment('effective'));
+router.post('/amendments/:id/reject', authenticate, invest, requireAdmin, requirePermission('review_invest_opportunity_publish'), ctrl.reviewAmendment('rejected'));
 router.post('/opportunities/:id/documents', authenticate, invest, suspended, ctrl.createDocument);
 router.get('/opportunities/:id/documents', authenticate, invest, suspended, ctrl.listDocuments);
 router.get('/documents/:id', authenticate, invest, suspended, ctrl.getDocument);

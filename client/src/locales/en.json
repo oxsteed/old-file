@@ -22949,6 +22949,8 @@
             "proposed": "Amendment proposed. Investor notice has been sent.",
             "untitled": "Amendment",
             "proposedState": "Notice sent {{sent}}. Investors must reconfirm by {{deadline}}.",
+          "effectiveState": "Effective. The changes were applied to the opportunity.",
+          "rejectedState": "Rejected by a reviewer.",
             "deadlineRequired": "Choose a future reconfirmation deadline.",
             "status": {
               "draft": "Draft",
@@ -22979,6 +22981,7 @@
             },
             "required": "Agreement text is required.",
             "created": "Agreement version created.",
+          "current": "Current version",
             "form": {
               "body": "Agreement text",
               "submit": "Add agreement version"
@@ -23002,6 +23005,7 @@
         "tabs": {
           "applications": "Applications",
           "opportunities": "Opportunities",
+          "amendments": "Amendments",
           "closing": "Closing",
           "proceeds": "Proceeds"
         },
@@ -23078,6 +23082,24 @@
           "title": "Proceeds and distributions",
           "release": "Release proceeds",
           "blockedNote": "Proceeds release stays blocked until the opportunity is closed with approved closing conditions."
+        },
+        "amendments": {
+          "changes": "Proposed changes",
+          "reconfirmationTitle": "Investor reconfirmation",
+          "reconfirmation": "{{reconfirmed}} of {{total}} investors reconfirmed, {{pending}} still to reconfirm.",
+          "reconfirmationNone": "This amendment carries no new agreement version, so there is nothing to reconfirm.",
+          "deadline": "Reconfirmation deadline: {{date}}",
+          "note": "Review note",
+          "makeEffective": "Mark effective",
+          "reject": "Reject",
+          "effectiveNote": "Making an amendment effective applies its changes to the opportunity and makes its new agreement version the current one. Rejection applies nothing."
+        },
+        "failClose": {
+          "title": "Unsuccessful closing",
+          "copy": "Fail-close releases every still-reserved commitment back to its original Credit lots and marks the opportunity unsuccessful. Use it when the raise will not close.",
+          "reason": "Reason",
+          "button": "Fail-close opportunity",
+          "note": "A fail-closed opportunity cannot be reopened. The hourly sweeper does this automatically for raises past deadline with the target unmet."
         },
         "distributions": {
           "position": "Position",
@@ -23236,6 +23258,7 @@
         "published": "Published",
         "submitted": "Submitted",
         "underReview": "Under review",
+        "unsuccessful": "Unsuccessful",
         "withdrawn": "Withdrawn"
       },
       "structure": {
