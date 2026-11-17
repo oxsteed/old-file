@@ -6,6 +6,28 @@ const authController = require('../controllers/authController');
 
 beforeEach(() => resetMocks());
 
+// WP-104 cutover: progressive access is on by default, so the mode gate
+// denies an ungranted customer-to-helper switch. These tests target the
+// legacy switchRole internals (session rotation, credit lock), not the gate,
+// so they run with the gate explicitly off. Gate behaviour is covered by
+// progressiveAccessModeGate.db.test.js.
+async function switchRoleWithGateOff(req, res) {
+  const prev = {
+    customerFirst: process.env.ACCESS_CUSTOMER_FIRST_SIGNUP,
+    legacyRetired: process.env.ACCESS_LEGACY_SWITCH_RETIRED,
+  };
+  process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = 'false';
+  process.env.ACCESS_LEGACY_SWITCH_RETIRED = 'false';
+  try {
+    await authController.switchRole(req, res);
+  } finally {
+    if (prev.customerFirst === undefined) delete process.env.ACCESS_CUSTOMER_FIRST_SIGNUP;
+    else process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = prev.customerFirst;
+    if (prev.legacyRetired === undefined) delete process.env.ACCESS_LEGACY_SWITCH_RETIRED;
+    else process.env.ACCESS_LEGACY_SWITCH_RETIRED = prev.legacyRetired;
+  }
+}
+
 describe('mode role policy', () => {
   test('preserves administrative RBAC while changing the visible mode', () => {
     expect(modeRole.roleForMode('helper', { currentRole: 'admin' })).toBe('admin');
@@ -129,7 +151,7 @@ describe('mode role policy', () => {
       .mockResolvedValueOnce({ rows: [] }) // new session
       .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
-    await authController.switchRole(req, res);
+    await switchRoleWithGateOff(req, res);
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: true,
@@ -157,7 +179,7 @@ describe('mode role policy', () => {
       .mockResolvedValueOnce({ rows: [] }) // P2-7-F01: onboarding fact re-derivation
       .mockRejectedValueOnce(Object.assign(new Error('A user with OxSteed Credit activity must remain a customer'), { code: '23514' }));
 
-    await authController.switchRole(req, res);
+    await switchRoleWithGateOff(req, res);
 
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith({
