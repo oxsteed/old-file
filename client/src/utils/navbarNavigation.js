@@ -49,7 +49,12 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
   if (LAUNCH_VISIBILITY.consulting && projectionActive(projection) && hasCapability(projection.access, 'consultant.accept_paying_clients')) {
     account.push(link('consultantReferrals', '/consulting/contractor-dashboard', 'consultantContractorDashboard.page.title'));
   }
-  account.push(link('settings', '/settings', 'nav.settings'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
+  account.push(
+    link('settings', '/settings', 'nav.settings'),
+    link('help', '/support', 'nav.help'),
+    link('wallet', '/wallet', 'nav.wallet'),
+    link('statements', '/statements', 'statementCenter.title'),
+  );
   if (showSupportWorkspace) account.push(link('support', '/support/agent', 'nav.supportWorkspace'));
   return {
     mode: 'customer',

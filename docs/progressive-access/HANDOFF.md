@@ -285,6 +285,15 @@ full client build pass locally.
 **Exact next action:** run the Home and full client verification suites, then
 perform the disposable backfill dry-run and cross-account browser acceptance.
 
+### WP-110: Account Help entry point
+
+The shared authenticated Account menu now includes the existing `/support`
+route as a localized Help entry. This keeps customer support discoverable in
+the Account model required by the progressive-access navigation contract while
+leaving specialist support-agent access separately projection- and server-
+authorized. `test:navbar-navigation` passes all 24 tests and `git diff --check`
+passes. Exact-head CI and non-production operational acceptance remain open.
+
 ### Customer-first signup experience follow-up
 
 PR #794 reached production as `784bce83d` with the progressive access flags

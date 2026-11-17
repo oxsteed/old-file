@@ -8,7 +8,7 @@ import { hasProAccess, hasBusinessHubAccess } from '../src/utils/modeAccess.js';
 // primary links, whatever its role or default_mode; capabilities add account
 // shortcuts and the business switcher comes from projection organizations.
 const CUSTOMER_PRIMARY = [['findHelp', '/helpers'], ['myJobs', '/my-jobs'], ['orderFood', '/restaurants'], ['messages', '/messages'], ['postJob', '/post-job']];
-const CUSTOMER_ACCOUNT = ['dashboard', 'foodOrders', 'applications', 'settings', 'wallet', 'statements'];
+const CUSTOMER_ACCOUNT = ['dashboard', 'foodOrders', 'applications', 'settings', 'help', 'wallet', 'statements'];
 
 for (const user of [
   { default_mode: 'customer', role: 'customer' },
@@ -30,6 +30,7 @@ for (const user of [
     assert.equal(result.showBusinessSwitcher, false);
     assert.deepEqual(result.account.map(item => item.id), CUSTOMER_ACCOUNT);
     assert.ok(result.account.some(item => item.to === '/settings'));
+  assert.ok(result.account.some(item => item.to === '/support'));
     assert.ok(result.account.some(item => item.to === '/statements'));
   });
 }
