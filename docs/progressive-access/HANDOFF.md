@@ -260,8 +260,9 @@ The Home fallback now announces that the unavailable workspace is no longer
 available and that Personal Home is being shown. It no longer presents the
 legacy global dashboard-change message. The supported English, Spanish, French,
 Haitian Creole, and Arabic catalogs use the same `workspaceUnavailable` key.
-The focused catalog/parsing checks pass; rerun the Home browser check after
-dependencies are available.
+The focused catalog/parsing checks pass. Client `build:ci` passes with 1,220
+emitted assets, and focused server access suites pass 71 tests; 12 database
+cases remain skipped because no disposable PostgreSQL instance is configured.
 
 **Exact next action:** run the Home and full client verification suites, then
 perform the disposable backfill dry-run and cross-account browser acceptance.
