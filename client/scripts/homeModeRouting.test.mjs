@@ -91,7 +91,7 @@ test('home selects the active mode without rendering the wrong landing page or b
   auth.user = { ...base, default_mode: 'helper' };
   projection = on(['customer']);
   let html = render(); assert.deepEqual(rendered, ['discovery'], 'revoked helper sees personal Home');
-  assert.match(html, /role="status"[^>]*>progressiveAccess\.home\.accessChanged/);
+  assert.match(html, /role="status"[^>]*>progressiveAccess\.home\.workspaceUnavailable/);
   auth.user = { ...base, default_mode: 'business_owner' };
   projection = on(['customer'], [{ type: 'business', id: '7', role: 'owner' }]);
   render(); assert.deepEqual(rendered, ['discovery'], 'canonical owner lands in the customer workspace');

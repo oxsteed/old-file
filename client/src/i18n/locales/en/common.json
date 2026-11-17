@@ -6703,7 +6703,7 @@
     },
     "accessRequired": "This needs approved access first.",
     "home": {
-      "accessChanged": "Your access to that dashboard changed, so you're seeing your personal Home."
+      "workspaceUnavailable": "That workspace is no longer available, so you’re viewing Personal Home."
     },
     "accessUpdated": "Your access was updated.",
     "viewStatus": "View status",

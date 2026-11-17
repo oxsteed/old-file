@@ -4067,7 +4067,7 @@
     },
     "accessRequired": "先にアクセスの承認が必要です。",
     "home": {
-      "accessChanged": "そのダッシュボードへのアクセス権が変更されたため、個人用ホームを表示しています。"
+      "workspaceUnavailable": "そのワークスペースは利用できなくなったため、個人用ホームを表示しています。"
     },
     "accessUpdated": "アクセス権が更新されました。",
     "orgRoles": {

@@ -6703,7 +6703,7 @@
     },
     "accessRequired": "Sa a mande yon aksè apwouve anvan.",
     "home": {
-      "accessChanged": "Aksè ou sou tablo bò sa a chanje, kidonk w ap wè paj akèy pèsonèl ou."
+      "workspaceUnavailable": "Espas travay sa a pa disponib ankò, kidonk w ap wè paj akèy pèsonèl ou."
     },
     "accessUpdated": "Aksè ou mete ajou.",
     "viewStatus": "Gere estatou a",

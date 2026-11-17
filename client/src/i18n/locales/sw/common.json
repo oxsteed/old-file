@@ -4065,7 +4065,7 @@
     },
     "accessRequired": "Hili linahitaji ufikiaji ulioidhinishwa kwanza.",
     "home": {
-      "accessChanged": "Ufikiaji wako wa dashibodi hiyo umebadilika, kwa hiyo unaona Ukurasa wako wa Nyumbani binafsi."
+      "workspaceUnavailable": "Nafasi hiyo ya kazi haipatikani tena, kwa hiyo unaona Ukurasa wako wa Nyumbani binafsi."
     },
     "accessUpdated": "Ufikiaji wako umesasishwa.",
     "orgRoles": {

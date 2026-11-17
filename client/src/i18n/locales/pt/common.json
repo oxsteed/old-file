@@ -4067,7 +4067,7 @@
     },
     "accessRequired": "Isso exige um acesso aprovado primeiro.",
     "home": {
-      "accessChanged": "Seu acesso a esse painel mudou, por isso você está vendo seu início pessoal."
+      "workspaceUnavailable": "Esse espaço de trabalho não está mais disponível, então você está vendo sua página inicial pessoal."
     },
     "accessUpdated": "Seu acesso foi atualizado.",
     "orgRoles": {

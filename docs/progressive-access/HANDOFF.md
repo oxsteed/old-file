@@ -254,6 +254,18 @@ written for authenticated accounts, so switching accounts cannot seed a stale
 organization context. Client `build:ci` passed after this change; cross-account
 browser acceptance and exact-head CI remain open.
 
+### WP-108: contextual workspace recovery
+
+The Home fallback now announces that the unavailable workspace is no longer
+available and that Personal Home is being shown. It no longer presents the
+legacy global dashboard-change message. The supported English, Spanish, French,
+Haitian Creole, and Arabic catalogs use the same `workspaceUnavailable` key.
+The focused catalog/parsing checks pass; rerun the Home browser check after
+dependencies are available.
+
+**Exact next action:** run the Home and full client verification suites, then
+perform the disposable backfill dry-run and cross-account browser acceptance.
+
 ### Customer-first signup experience follow-up
 
 PR #794 reached production as `784bce83d` with the progressive access flags

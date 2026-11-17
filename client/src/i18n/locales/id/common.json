@@ -4067,7 +4067,7 @@
     },
     "accessRequired": "Ini memerlukan akses yang disetujui terlebih dahulu.",
     "home": {
-      "accessChanged": "Akses Anda ke dasbor itu berubah, jadi Anda melihat Beranda pribadi Anda."
+      "workspaceUnavailable": "Ruang kerja itu tidak lagi tersedia, jadi Anda melihat Beranda pribadi Anda."
     },
     "accessUpdated": "Akses Anda telah diperbarui.",
     "orgRoles": {

@@ -11,7 +11,7 @@ import RouteErrorBoundary from './RouteErrorBoundary';
 // customer discovery/location effects on the way to their working homepage.
 // WP-015: with the access projection on, the saved dashboard preference is
 // honoured only while access still backs it; otherwise the personal Home
-// renders with a polite notice (no focus move, no redirect loop).
+// renders with a contextual recovery notice (no focus move, no redirect loop).
 export default function ModeHomeRoute({ DiscoveryPage, DashboardPage, LoadingState }) {
   const { user, loading } = useAuth();
   const projection = useAccessProjection(user);
@@ -39,7 +39,7 @@ export default function ModeHomeRoute({ DiscoveryPage, DashboardPage, LoadingSta
     return (
       <>
         <p role="status" className="mx-auto max-w-5xl px-4 pt-3 text-sm text-gray-700 dark:text-gray-300">
-          {accessT('progressiveAccess.home.accessChanged')}
+          {accessT('progressiveAccess.home.workspaceUnavailable')}
         </p>
         <DiscoveryPage />
       </>

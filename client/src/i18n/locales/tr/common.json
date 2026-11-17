@@ -4067,7 +4067,7 @@
     },
     "accessRequired": "Bunun için önce onaylı erişim gerekir.",
     "home": {
-      "accessChanged": "O panele erişiminiz değişti, bu yüzden kişisel ana sayfanızı görüyorsunuz."
+      "workspaceUnavailable": "Bu çalışma alanı artık kullanılamıyor; bu nedenle kişisel ana sayfanızı görüyorsunuz."
     },
     "accessUpdated": "Erişiminiz güncellendi.",
     "orgRoles": {
