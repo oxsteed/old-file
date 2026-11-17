@@ -9,6 +9,8 @@ import { renderToPipeableStream } from 'react-dom/server';
 import { Writable } from 'node:stream';
 import { dashboardKeyForMode } from '../src/utils/modeAccess.js';
 import { normalizeLaunchDashboardMode } from '../src/utils/launchScope.js';
+import { diditGateSatisfied } from '../src/utils/diditGate.js';
+import { isHelperOnboardingRedirectRequired } from '../src/utils/protectedRouteGates.js';
 
 const root = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const repo = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
@@ -24,7 +26,9 @@ test('account and business pages do not inherit helper work eligibility', () => 
   const module = { exports: {} };
   vm.runInNewContext(code, { module, exports: module.exports, require(name) {
     if (name === 'react-router-dom') return { Navigate() {}, useLocation: () => ({ pathname }) };
-    if (name === '../context/AuthContext') return { useAuth: () => ({ user, loading: false, isOnboardingComplete: complete }) };
+    if (name === '../context/AuthContext') return { useAuth: () => ({ user, loading: false, isOnboardingComplete: complete, isHelperOnboardingComplete: complete }) };
+    if (name === '../utils/diditGate') return { diditGateSatisfied };
+    if (name === '../utils/protectedRouteGates') return { isHelperOnboardingRedirectRequired };
     return require(name);
   } });
   const render = (props = {}) => {

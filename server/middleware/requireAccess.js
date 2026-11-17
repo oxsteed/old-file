@@ -8,7 +8,11 @@
  * Behaviour follows ACCESS_HELPER_ENFORCEMENT:
  *   off      no-op (legacy role checks decide, exactly as before)
  *   shadow   evaluate the capability and log any disagreement with the
- *            legacy role decision (`access.shadow_mismatch`), never block
+ *            legacy role decision (`access.shadow_mismatch`), never block;
+ *            an allowed decision is still recorded on
+ *            `req.accessCapabilities` so downstream legacy checks see the
+ *            same grant the resolver just approved (B1: shadow promises
+ *            not to block, not to hide the decision)
  *   enforce  the capability decides: no effective grant → 403
  *            `access_required`; an effective grant satisfies the downstream
  *            legacy role checks through `req.accessCapabilities` (so a
@@ -60,6 +64,14 @@ function requireCapability(capability, { modeFn, audienceLoader = null, legacyAl
           reason: decision.reason, route: req.baseUrl + (req.route ? req.route.path : ''),
         });
       }
+      // B1: shadow never blocks, but an allowed decision is still recorded
+      // so downstream legacy checks (isHelperActor, requireRole widening,
+      // helper onboarding gates) see the grant the resolver just approved.
+      // A denied decision records nothing: nothing downstream may treat a
+      // shadow evaluation as permission.
+      if (decision.allowed) {
+        req.accessCapabilities = { ...(req.accessCapabilities || {}), [capability]: true };
+      }
       return next();
     }
     if (!decision.allowed) {
@@ -98,7 +110,10 @@ function requireCapability(capability, { modeFn, audienceLoader = null, legacyAl
  * `enforce` mode requires a current grant unless another entry still has an
  * explicitly compatible legacy path. This lets a single customer-first
  * surface (for example Learn authoring) serve helpers or consultants without
- * treating either role as a permanent account type.
+ * treating either role as a permanent account type. As with the single
+ * capability gate, an allowed decision is recorded on
+ * `req.accessCapabilities` in shadow mode as well as enforce, so downstream
+ * legacy checks see the grant; a denied decision records nothing.
  */
 function requireAnyCapability(entries = []) {
   return async function anyCapabilityGate(req, res, next) {
@@ -142,9 +157,14 @@ function requireAnyCapability(entries = []) {
       entry.mode !== 'enforce' && entry.legacyAllowedFn && entry.legacyAllowedFn(req)
     );
     if (granted || legacyCompatible || !decisions.some(({ entry }) => entry.mode === 'enforce')) {
-      const approved = decisions.find(({ entry, decision }) => entry.mode === 'enforce' && decision.allowed);
-      if (approved) {
-        req.accessCapabilities = { ...(req.accessCapabilities || {}), [approved.entry.capability]: true };
+      // B1: record every allowed decision, shadow as well as enforce, so a
+      // downstream legacy check sees the grant the resolver just approved.
+      // Denied decisions record nothing. Recording happens only on the
+      // pass path: a 403 below records nothing.
+      for (const { entry, decision } of decisions) {
+        if (decision.allowed) {
+          req.accessCapabilities = { ...(req.accessCapabilities || {}), [entry.capability]: true };
+        }
       }
       return next();
     }

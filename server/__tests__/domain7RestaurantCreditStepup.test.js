@@ -70,6 +70,9 @@ function mockDbForPreReads() {
     if (text.includes('FROM food_customer_wallet_load_requests')) {
       return { rows: [{ amount_cents: 5000 }] };
     }
+    if (text.includes('FROM food_customer_wallet_accounts')) {
+      return { rows: [{ amount_cents: 7500 }] };
+    }
     return { rows: [], rowCount: 0 };
   });
 }
@@ -159,7 +162,7 @@ describe('Domain 7 #2: wallet-status update requires a fresh step-up', () => {
     expect(restaurantCreditAdminCtrl.updateWalletStatus).not.toHaveBeenCalled();
   });
 
-  test('fresh step-up: controller runs', async () => {
+  test('fresh step-up bound to the wallet balance: controller runs', async () => {
     stepup.verifyStepupChallenge.mockResolvedValue({ verified: true });
     const res = await request(buildApp()).post(url).set('Authorization', bearer())
       .send({ status: 'suspended', reason: 'fraud', stepupChallengeId: 'ch-1', stepupCode: '123456' });
@@ -167,8 +170,26 @@ describe('Domain 7 #2: wallet-status update requires a fresh step-up', () => {
     expect(stepup.verifyStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({
       actionType: 'restaurant_credit_wallet_status_update',
       actorUserId: 'admin-1',
+      expectedAmountCents: 7500,
     }));
     expect(restaurantCreditAdminCtrl.updateWalletStatus).toHaveBeenCalledTimes(1);
+  });
+
+  test('balance pre-read failure fails closed with 503, step-up never verified', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text.includes('COALESCE(totp_enabled')) {
+        return { rows: [{ id: 'admin-1', role: 'super_admin', is_active: true, totp_enabled: true }] };
+      }
+      if (text.includes('FROM food_customer_wallet_accounts')) throw new Error('db down');
+      return { rows: [], rowCount: 0 };
+    });
+    stepup.verifyStepupChallenge.mockResolvedValue({ verified: true });
+    const res = await request(buildApp()).post(url).set('Authorization', bearer())
+      .send({ status: 'suspended', reason: 'fraud', stepupChallengeId: 'ch-1', stepupCode: '123456' });
+    expect(res.status).toBe(503);
+    expect(stepup.verifyStepupChallenge).not.toHaveBeenCalled();
+    expect(restaurantCreditAdminCtrl.updateWalletStatus).not.toHaveBeenCalled();
   });
 });
 
@@ -209,7 +230,7 @@ describe('Domain 7 #2: load-request decline requires a fresh step-up', () => {
     expect(restaurantCreditAdminCtrl.declineLoadRequest).not.toHaveBeenCalled();
   });
 
-  test('fresh step-up: controller runs', async () => {
+  test('fresh step-up bound to the requested amount: controller runs', async () => {
     stepup.verifyStepupChallenge.mockResolvedValue({ verified: true });
     const res = await request(buildApp()).post(url).set('Authorization', bearer())
       .send({ reason: 'nope', stepupChallengeId: 'ch-1', stepupCode: '123456' });
@@ -217,7 +238,25 @@ describe('Domain 7 #2: load-request decline requires a fresh step-up', () => {
     expect(stepup.verifyStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({
       actionType: 'restaurant_credit_load_decline',
       actorUserId: 'admin-1',
+      expectedAmountCents: 5000,
     }));
     expect(restaurantCreditAdminCtrl.declineLoadRequest).toHaveBeenCalledTimes(1);
+  });
+
+  test('amount pre-read failure fails closed with 503, step-up never verified', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text.includes('COALESCE(totp_enabled')) {
+        return { rows: [{ id: 'admin-1', role: 'super_admin', is_active: true, totp_enabled: true }] };
+      }
+      if (text.includes('FROM food_customer_wallet_load_requests')) throw new Error('db down');
+      return { rows: [], rowCount: 0 };
+    });
+    stepup.verifyStepupChallenge.mockResolvedValue({ verified: true });
+    const res = await request(buildApp()).post(url).set('Authorization', bearer())
+      .send({ reason: 'nope', stepupChallengeId: 'ch-1', stepupCode: '123456' });
+    expect(res.status).toBe(503);
+    expect(stepup.verifyStepupChallenge).not.toHaveBeenCalled();
+    expect(restaurantCreditAdminCtrl.declineLoadRequest).not.toHaveBeenCalled();
   });
 });

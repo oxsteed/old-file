@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { authLimiter, loginLimiter, authSessionLimiter, authLookupLimiter, strictLimiter, passwordResetLimiter, passwordResetVerifyLimiter } = require('../middleware/rateLimiter');
 const { verifyCaptcha, captchaClientConfig } = require('../middleware/verifyCaptcha'); // audit L1 hook point (off by default)
 const {
@@ -87,7 +88,7 @@ router.post('/confirm-email-change', authLimiter, authenticate, confirmEmailChan
 router.post('/resend-verification', authLimiter, authenticate, resendVerification);
 
 // Role switching (customer ↔ helper)
-router.post('/switch-role', authLimiter, authenticate, switchRole);
+router.post('/switch-role', authLimiter, authenticate, rejectImpersonated, switchRole);
 
 // Route-local error handler so this router returns JSON errors even when mounted
 // in isolation (tests, serverless handlers, etc.). In the full server, this also

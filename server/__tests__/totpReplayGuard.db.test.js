@@ -111,4 +111,38 @@ dbDescribe('Domain 6 #7: totp_used_counters', () => {
     expect(out.statusCode).toBe(403);
     expect(out.body).toMatchObject({ code: 'totp_stepup_invalid' });
   });
+
+  test('the same code cannot verify at account deletion and then at payout step-up', async () => {
+    // Domain 6 finding 2: requireSensitiveReauth was the eleventh TOTP
+    // verify site and the only one that never consumed the shared counter.
+    // A code verified at DELETE /delete-account must now be a replay at
+    // any other guarded site in the same step. Uses a distinct time base
+    // from the other tests so the shared user's stored counter cannot
+    // collide with them.
+    const stepStart = 1780014400000 - (1780014400000 % 30000);
+    jest.spyOn(Date, 'now').mockReturnValue(stepStart + 15000);
+    await pool.query('UPDATE users SET totp_secret = $1, totp_enabled = true WHERE id = $2', [encrypt('TESTSECRET'), userId]);
+
+    const { requireSensitiveReauth } = require('../middleware/requireSensitiveReauth');
+    const next = jest.fn();
+    const res = { status: jest.fn(() => res), json: jest.fn(() => res) };
+    // Synthetic fixture password_hash is not a bcrypt hash, so no password
+    // is required here; only the TOTP leg runs.
+    await requireSensitiveReauth(
+      { user: { id: userId }, body: { totpCode: '123456' }, headers: {} },
+      res, next
+    );
+    expect(next).toHaveBeenCalled();
+
+    const out = await new Promise((resolve) => {
+      const stepRes = { statusCode: null, body: null };
+      stepRes.status = jest.fn((code) => { stepRes.statusCode = code; return stepRes; });
+      stepRes.json = jest.fn((body) => { stepRes.body = body; resolve(stepRes); return stepRes; });
+      const stepNext = jest.fn(() => resolve({ passed: true, next: stepNext }));
+      requireUserTotpStepUp({ user: { id: userId }, body: { totp_code: '123456' } }, stepRes, stepNext);
+    });
+    expect(out.passed).toBeUndefined();
+    expect(out.statusCode).toBe(403);
+    expect(out.body).toMatchObject({ code: 'totp_stepup_invalid' });
+  });
 });

@@ -20,6 +20,7 @@ const {
   decideMoneyMovementApproval,
 } = require('../services/dualApprovalService');
 const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
+const AppError = require('../utils/appError');
 const { logAdminAction } = require('../services/auditService');
 const { sanitizeApproval } = require('../utils/dualApprovalHttp');
 const logger = require('../utils/logger');
@@ -67,23 +68,46 @@ async function approve(req, res, next) {
 
     // The checker re-authenticates at the moment money moves. Auth audit
     // item 6: bind to the approval's amount (the same figure the issue
-    // endpoint binds when the client sends approvalId); a missing
-    // approval skips binding and the decide call fails downstream as
-    // before.
-    let moneyApprovalExpectedAmount = null;
+    // endpoint binds when the client sends approvalId).
+    //
+    // Domain 6 finding 4 (2026-11-17): this pre-read used to log "skipping
+    // amount binding" and verify unbound when the approval row could not be
+    // loaded. That was fail-open, not harmless: decideMoneyMovementApproval
+    // performs NO amount check of its own (it trusts the caller's verify —
+    // see dualApprovalService.js), so a transient pre-read error let a
+    // challenge issued for a different amount (the issue endpoint mints a
+    // 1-cent challenge when the approval cannot be loaded) execute the
+    // full approval amount. The in-code comment that used to sit here
+    // claimed the decide call "fails as before"; that holds only when the
+    // row is genuinely missing (decide 404s), and even then only after the
+    // challenge has been consumed. So: a failed pre-read fails closed with
+    // 503 before any verification, and a missing row 404s before any
+    // verification (the same error decide would throw, without burning the
+    // challenge). A found row always carries a positive amount
+    // (requestMoneyMovementApproval enforces it), so binding never skips.
+    let moneyApprovalExpectedAmount;
+    let approvalRow;
     try {
-      const approvalRow = await getMoneyMovementApproval(req.params.id);
-      const n = Number(approvalRow?.amount_cents);
-      if (Number.isSafeInteger(n) && n > 0) moneyApprovalExpectedAmount = n;
+      approvalRow = await getMoneyMovementApproval(req.params.id);
     } catch (loadError) {
-      logger.warn('moneyApproval.approve stepup pre-read failed, skipping amount binding', { approvalId: req.params.id, error: loadError.message });
+      logger.warn('moneyApproval.approve stepup pre-read failed, failing closed', { approvalId: req.params.id, error: loadError.message });
+      throw new AppError('Could not read the approval amount for step-up binding; retry the approval', 503, 'credit_stepup_amount_preread_failed');
     }
+    if (!approvalRow) {
+      throw new AppError('Approval request not found', 404, 'money_movement_not_found');
+    }
+    const n = Number(approvalRow.amount_cents);
+    if (!Number.isSafeInteger(n) || n <= 0) {
+      logger.warn('moneyApproval.approve stepup pre-read found no bindable amount, failing closed', { approvalId: req.params.id });
+      throw new AppError('Could not read the approval amount for step-up binding; retry the approval', 503, 'credit_stepup_amount_preread_failed');
+    }
+    moneyApprovalExpectedAmount = n;
     await verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
       actorUserId: approverId,
       actionType: 'money_movement_approve',
       code: req.body?.stepupCode || req.body?.stepup_code,
-      ...(moneyApprovalExpectedAmount !== null ? { expectedAmountCents: moneyApprovalExpectedAmount } : {}),
+      expectedAmountCents: moneyApprovalExpectedAmount,
     });
 
     const { approval, result } = await decideMoneyMovementApproval({

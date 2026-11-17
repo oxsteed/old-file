@@ -88,6 +88,17 @@ describeDb('payment layers on real Postgres', () => {
         [id, `${id}@payment-layers.test`, role]
       );
       await acceptCurrentConsents(pool, id);
+      if (role === 'helper') {
+        // Domain 6 enforce contract: the access gate 403s a legacy helper
+        // with no grant, so seed the backfilled helper.offer_services grant
+        // the real legacy backfill would have created
+        // (services/access/legacyMapping.js).
+        await pool.query(
+          `INSERT INTO access_grants (user_id, capability, subject_type, subject_key, status, provenance, policy_version)
+           VALUES ($1, 'helper.offer_services', 'self', 'self', 'active', 'legacy_backfill', 'helper-policy-1')`,
+          [id],
+        );
+      }
     }
     const { rows } = await pool.query(`SELECT * FROM payment_country_policies WHERE country_code = 'CA'`);
     savedPolicy = rows[0];

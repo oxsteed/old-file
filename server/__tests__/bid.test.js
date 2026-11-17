@@ -40,13 +40,55 @@ function buildApp() {
 }
 const auth = r => r.set('Authorization', `Bearer ${TOKEN_HELPER}`);
 
+// Domain 6 enforce contract (ACCESS_HELPER_ENFORCEMENT=enforce): the bid
+// routes run requireHelperCapability, which calls accessService.can() ->
+// loadFacts (users, access_grants, businesses) before the handler. The
+// fixture helper holds an active helper.offer_services grant with the
+// provenance the legacy backfill writes (services/access/legacyMapping.js),
+// so the gate passes and these tests keep proving bid behaviour, not access.
+const ACCESS_GRANT = {
+  id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null,
+  status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1,
+};
+
+// Queue the three loadFacts answers (users, access_grants, businesses) for
+// one gate evaluation, in the order accessService.loadFacts issues them.
+function mockGrantFacts(user = MOCK_HELPER) {
+  mockQuery.mockResolvedValueOnce({ rows: [user] });
+  mockQuery.mockResolvedValueOnce({ rows: [ACCESS_GRANT] });
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+}
+
+// Auth lookup + gate facts, then the handler's own mock sequence. Use for
+// gated routes only (POST /, PUT /:id, POST /:id/reconfirm); GETs and
+// withdraw have no helper gate and keep plain mockAuth.
+function mockGatedAuth(...extras) {
+  mockQuery.mockResolvedValueOnce({ rows: [MOCK_HELPER] });
+  mockGrantFacts();
+  extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
+}
+
+// Route-based equivalent of mockGrantFacts for routeQueries suites.
+const ACCESS_FACT_ROUTES = [
+  [/FROM users WHERE id = \$1/, { rows: [MOCK_HELPER] }],
+  [/FROM access_grants WHERE user_id = \$1/, { rows: [ACCESS_GRANT] }],
+  [/FROM businesses b/, { rows: [] }],
+];
+
 function mockAuth(...extras) {
   mockQuery.mockResolvedValueOnce({ rows: [MOCK_HELPER] });
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
 }
 
 function mockBidAuth(...extras) {
-  mockAuth({ rows: currentConsentRows() }, ...extras);
+  // Chain order on POST /api/bids: authenticate, requireEmailVerified,
+  // requireTermsAcceptance (queries user_consents), requireOnboardingStep
+  // (mocked), then requireHelperCapability (loadFacts). The grant facts go
+  // AFTER the consent rows, not right after auth.
+  mockQuery.mockResolvedValueOnce({ rows: [MOCK_HELPER] });
+  mockQuery.mockResolvedValueOnce({ rows: currentConsentRows() });
+  mockGrantFacts();
+  extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
 }
 
 beforeEach(() => resetMocks());
@@ -82,6 +124,7 @@ describe('POST /api/bids', () => {
 
   const JOB = { id: '10', client_id: 1, status: 'published', version: 3, revision: 2, title: 'Fix the fence', description: 'x'.repeat(60) };
   const routesFor = (extra = []) => [
+    ...ACCESS_FACT_ROUTES,
     [/FROM users u/, { rows: [MOCK_HELPER] }],
     [/FROM user_consents/, { rows: currentConsentRows() }],
     [/SELECT id, client_id, status, deleted_at FROM jobs/, { rows: [JOB] }],
@@ -132,6 +175,7 @@ describe('POST /api/bids', () => {
   test('accepts bids while the customer is negotiating', async () => {
     const negotiating = { ...JOB, status: 'negotiating' };
     routeQueries(mockQuery, [
+      ...ACCESS_FACT_ROUTES,
       [/FROM users u/, { rows: [MOCK_HELPER] }],
       [/FROM user_consents/, { rows: currentConsentRows() }],
       [/SELECT id, client_id, status, deleted_at FROM jobs/, { rows: [negotiating] }],
@@ -206,13 +250,14 @@ describe('GET /api/bids/:id', () => {
 // ── PUT /api/bids/:id ─────────────────────────────────────────────────────────
 describe('PUT /api/bids/:id', () => {
   test('returns 404 when bid not found', async () => {
-    mockAuth({ rows: [] });
+    mockGatedAuth({ rows: [] });
     const res = await auth(request(buildApp()).put('/api/bids/999').send({ amount: 200 }));
     expect(res.status).toBe(404);
   });
 
   const JOB = { id: '10', client_id: 1, status: 'published', version: 5, revision: 3, title: 'Fix the fence', description: 'y'.repeat(60) };
   const bidRoutesFor = (bid, extra = []) => [
+    ...ACCESS_FACT_ROUTES,
     [/FROM users u/, { rows: [MOCK_HELPER] }],
     [/SELECT job_id FROM bids WHERE id = \$1/, { rows: [{ job_id: '10' }] }],
     [/SELECT \* FROM jobs WHERE id = \$1 FOR SHARE/, { rows: [JOB] }],
@@ -260,6 +305,7 @@ describe('PUT /api/bids/:id', () => {
 describe('POST /api/bids/:id/reconfirm', () => {
   const JOB = { id: '10', client_id: 1, status: 'matched', version: 5, revision: 3, title: 'Fix the fence', description: 'z'.repeat(60) };
   const routesFor = (bid, job = JOB, extra = []) => [
+    ...ACCESS_FACT_ROUTES,
     [/FROM users u/, { rows: [MOCK_HELPER] }],
     [/SELECT job_id FROM bids WHERE id = \$1/, { rows: [{ job_id: '10' }] }],
     [/SELECT \* FROM jobs WHERE id = \$1 FOR SHARE/, { rows: [job] }],

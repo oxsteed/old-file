@@ -328,7 +328,23 @@ function restaurantCreditStepupFields(req) {
 }
 router.post('/super/restaurant-credit/wallets/:accountId/status', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
-    await verifyStepupChallenge({ ...restaurantCreditStepupFields(req), actionType: 'restaurant_credit_wallet_status_update' });
+    // Domain 6 finding 4 (2026-11-17): suspending/reactivating a wallet
+    // locks or unlocks the customer's funds, so the challenge binds to the
+    // wallet's balance at verify time (the issue side carries the balance
+    // shown on screen). A balance that moves between issue and verify
+    // fails closed with an amount mismatch and the admin retries; a
+    // zero balance binds to the unbound-equivalent 1 via the client's
+    // amountCents fallback, matching the verify-side skip below.
+    const expectedAmount = await readRestaurantCreditStepupAmountCents(
+      'SELECT balance_cents AS amount_cents FROM food_customer_wallet_accounts WHERE id = $1',
+      [req.params.accountId],
+      'wallet',
+    );
+    await verifyStepupChallenge({
+      ...restaurantCreditStepupFields(req),
+      actionType: 'restaurant_credit_wallet_status_update',
+      ...(expectedAmount !== null ? { expectedAmountCents: expectedAmount } : {}),
+    });
     return restaurantCreditAdminCtrl.updateWalletStatus(req, res, next);
   } catch (err) { next(err); }
 });
@@ -364,7 +380,20 @@ router.post('/super/restaurant-credit/load-requests/:requestId/approve', require
 });
 router.post('/super/restaurant-credit/load-requests/:requestId/decline', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
-    await verifyStepupChallenge({ ...restaurantCreditStepupFields(req), actionType: 'restaurant_credit_load_decline' });
+    // Domain 6 finding 4 (2026-11-17): declining denies a payout of the
+    // load request's amount, so it binds exactly like approve does above
+    // (same row, same helper); the issue side already carries the amount
+    // shown on screen.
+    const expectedAmount = await readRestaurantCreditStepupAmountCents(
+      'SELECT amount_cents FROM food_customer_wallet_load_requests WHERE id = $1',
+      [req.params.requestId],
+      'load request',
+    );
+    await verifyStepupChallenge({
+      ...restaurantCreditStepupFields(req),
+      actionType: 'restaurant_credit_load_decline',
+      ...(expectedAmount !== null ? { expectedAmountCents: expectedAmount } : {}),
+    });
     return restaurantCreditAdminCtrl.declineLoadRequest(req, res, next);
   } catch (err) { next(err); }
 });
@@ -722,10 +751,10 @@ router.post('/super/oxsteed-credit/partners/:partnerId/activation', requireSuper
 router.get('/super/oxsteed-credit/participants', requireSuperAdmin, oxsteedCreditCtrl.listAdminParticipants);
 router.post('/super/oxsteed-credit/participants', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.enrollAdminParticipant);
 router.get('/super/oxsteed-credit/participants/:participantId', requireSuperAdmin, oxsteedCreditCtrl.getAdminParticipant);
-router.post('/super/oxsteed-credit/participants/:participantId/activation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminParticipantActivation);
-router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminAgreement);
-router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminAgreement);
-router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.upsertAdminEntitlement);
+router.post('/super/oxsteed-credit/participants/:participantId/activation', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminParticipantActivation);
+router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminAgreement);
+router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminAgreement);
+router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.upsertAdminEntitlement);
 router.get('/super/oxsteed-credit/entitlements.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminEntitlements);
 // Domain 7 #11: admin-side customer name lookup for the FX quote page.
 // The customer-role transfer-recipient lookup (GET /oxsteed-credit/

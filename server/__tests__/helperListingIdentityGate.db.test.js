@@ -46,6 +46,7 @@ describeDatabase('helper listing identity gate against migrated PostgreSQL', () 
 
   afterAll(async () => {
     if (created.length) {
+      await pool.query('DELETE FROM access_grants WHERE user_id = ANY($1::uuid[])', [created]);
       await pool.query('DELETE FROM helper_profiles WHERE user_id = ANY($1::uuid[])', [created]);
       // Do not DELETE FROM users: the append-only ledger rule blocks
       // cascades for rows with ledger references; synthetic users stay.
@@ -74,6 +75,15 @@ describeDatabase('helper listing identity gate against migrated PostgreSQL', () 
     );
     await pool.query(
       'INSERT INTO helper_profiles (user_id, is_listed) VALUES ($1, FALSE)',
+      [id],
+    );
+    // Domain 6 enforce contract: the /api/helpers/me/listing route is gated
+    // by requireHelperCapability, so seed the backfilled grant; the
+    // listing_requires_onboarding / listing_requires_identity_verification
+    // checks under test run after the gate passes.
+    await pool.query(
+      `INSERT INTO access_grants (user_id, capability, subject_type, subject_key, status, provenance, policy_version)
+       VALUES ($1, 'helper.offer_services', 'self', 'self', 'active', 'legacy_backfill', 'helper-policy-1')`,
       [id],
     );
     const token = jwt.sign({ id, role: 'helper', typ: 'access', sid: 'test-session' }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '5m' });

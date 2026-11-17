@@ -131,7 +131,7 @@ const optionalAuth = async (req, res, next) => {
 // Public - no auth required for support chat. optionalAuth attaches req.user
 // when a valid web cookie or Bearer token is present, so signed-in users get
 // their account snapshot and server-side thread memory. Every caller uses the
-// same OpenRouter -> Ollama provider chain.
+// same local Ollama provider chain.
 // supportChatLimiter runs after optionalAuth so signed-in users are limited
 // per user (40 / 10 min) and guests per IP (20 / 10 min).
 router.post('/message', optionalAuth, supportChatLimiter, chatMessage);
@@ -254,7 +254,10 @@ router.post('/sessions/guest/claim', chatLimiter, authenticate, claimGuestProfil
 router.get('/profile-context/:type/:id', chatLimiter, authenticate, getProfileContext);
 
 // POST /api/chat/transcribe
-// Transcribe audio using OpenRouter (fallback when Web Speech confidence is low)
+// Transcribe audio using a self-hosted transcriber (fallback when Web Speech
+// confidence is low). No server-side transcriber is deployed yet, so this
+// currently answers 501; audio is never sent to an external transcription or
+// AI API (security review F-04: local-only).
 // Requires authentication.
 router.post('/transcribe', chatLimiter, authenticate, upload.single('audio'), validateFileUpload, transcribeAudio);
 

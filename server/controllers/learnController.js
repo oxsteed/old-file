@@ -961,7 +961,7 @@ exports.adminDeleteGuide = async (req, res, next) => {
   }
 };
 
-/* ── Phase 2: OpenRouter AI tagging pipeline ─────────────────────────────── */
+/* ── Phase 2: Ollama (self-hosted) AI tagging pipeline ─────────────────────── */
 
 /**
  * POST /api/admin/learn/guides/:id/tag

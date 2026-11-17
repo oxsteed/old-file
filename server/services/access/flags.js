@@ -6,10 +6,24 @@
  * flag can be explicitly disabled for rollback. A pilot allowlist still lets
  * development/test users use the flows before a cohort switch.
  *
+ * Enforcement defaults (Domain 6 B1, 2026-11-17): only helper defaults to
+ * enforce. The other five stay off deliberately — each would block a legacy
+ * path whose users hold no access grant yet (business publishing,
+ * consultant platform approvals, investor role, franchise applicants, tool
+ * drafts), and none of them has a downstream req.accessCapabilities reader
+ * that the B1 recording fix unblocks. Flip one per surface only with an
+ * explicit rollout decision (and a grant migration for its legacy users);
+ * the rollout value for every key is `enforce`, documented in
+ * server/.env.example.
+ *
  *   ACCESS_REQUESTS_ENABLED        applicant + reviewer APIs
  *   ACCESS_PROJECTION_ENABLED      GET /api/me/access and boot projection
  *   ACCESS_CUSTOMER_FIRST_SIGNUP   signup creates customer + intent/draft
- *   ACCESS_HELPER_ENFORCEMENT      off | shadow | enforce (helper writes)
+ *   ACCESS_HELPER_ENFORCEMENT      off | shadow | enforce (helper writes;
+ *                                  default enforce since the Domain 6 B1
+ *                                  fix: an approved helper must be able to
+ *                                  bid/work, and the gate records the live
+ *                                  decision for downstream legacy checks)
  *   ACCESS_LEGACY_SWITCH_RETIRED   switch-role stops changing authority
  *   ACCESS_BUSINESS_ENFORCEMENT    off | shadow | enforce (publishing a new
  *                                  business/restaurant needs an approved
@@ -35,7 +49,7 @@ const customerFirstSignup = () => envFlagEnabled('ACCESS_CUSTOMER_FIRST_SIGNUP',
 const legacySwitchRetired = () => envFlagEnabled('ACCESS_LEGACY_SWITCH_RETIRED', false);
 
 function helperEnforcement() {
-  const v = String(process.env.ACCESS_HELPER_ENFORCEMENT || 'off').trim().toLowerCase();
+  const v = String(process.env.ACCESS_HELPER_ENFORCEMENT || 'enforce').trim().toLowerCase();
   return ['off', 'shadow', 'enforce'].includes(v) ? v : 'off';
 }
 

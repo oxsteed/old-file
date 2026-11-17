@@ -10,13 +10,7 @@ import { persistSessionPayload } from '../api/auth';
 import Footer from '../components/Footer';
 import AuthNavbar from '../components/AuthNavbar';
 import { resolveAuthReturnPath } from '../utils/authReturnPath';
-
-function diditGateSatisfied(user) {
-  if (!user?.email_verified) return true;
-  const ds = user.didit_status || 'pending';
-  if (user.didit_enforcement_required) return ds === 'verified';
-  return ds === 'verified' || ds === 'skipped';
-}
+import { diditGateSatisfied } from '../utils/diditGate';
 
 /**
  * Returns true when `name` looks like a real full name:

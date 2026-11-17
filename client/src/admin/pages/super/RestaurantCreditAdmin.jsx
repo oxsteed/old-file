@@ -645,7 +645,12 @@ export default function RestaurantCreditAdmin() {
         approve: { actionType: 'restaurant_credit_load_approve', amountCents: modal.request?.amountCents, currencyCode: modal.request?.currencyCode },
         decline: { actionType: 'restaurant_credit_load_decline', amountCents: modal.request?.amountCents, currencyCode: modal.request?.currencyCode },
         release: { actionType: 'restaurant_credit_hold_release', amountCents: modal.hold?.amountCents, currencyCode: modal.hold?.currencyCode },
-        status: { actionType: 'restaurant_credit_wallet_status_update' },
+        // Domain 6 finding 4: the status challenge binds to the wallet's
+        // balance on screen (the server re-reads it at verify time); a
+        // zero balance falls back to the unbound-equivalent 1, matching
+        // the server's skip, and a balance that moved in between fails
+        // closed with a mismatch for the admin to retry.
+        status: { actionType: 'restaurant_credit_wallet_status_update', amountCents: modal.wallet?.balanceCents, currencyCode: modal.wallet?.currencyCode },
       }[modal.kind];
       const stepup = await requestStepupChallengeCode({
         requestDialog,

@@ -613,12 +613,46 @@ async function createCreditSubscription(req, res, next, plan, userId) {
 
 // POST /api/admin/super/subscriptions/stepup-challenges — issue the fresh
 // step-up challenge an admin cancel must prove (Nov 3 audit item 4).
+//
+// Domain 6 finding 4 (2026-11-17): the challenge binds to the plan amount
+// (the recurring amount the cancel stops), resolved from the same
+// subscription/plan row the cancel side verifies against, so issue and
+// verify agree by construction. A free plan (or a subscription with no
+// plan row) binds to 1, the unbound-equivalent placeholder the dispute
+// resolver uses for amount-less actions. Before this fix the endpoint
+// passed no amount at all, so issueStepupChallenge threw 400
+// ('Amount must be a positive integer number of cents') on every call
+// and the super-admin cancel flow could not start.
+function subscriptionCancelBoundAmountCents(planAmountCents) {
+  const n = Number(planAmountCents);
+  return Number.isSafeInteger(n) && n > 0 ? n : 1;
+}
+
 exports.issueAdminCancelStepupChallenge = async (req, res, next) => {
   try {
+    const subscriptionId = String(
+      req.body?.subscriptionId || req.body?.subscription_id
+      || req.query?.subscriptionId || req.query?.subscription_id || ''
+    ).trim();
+    if (!subscriptionId) throw new AppError('Subscription id is required', 400, 'validation_failed');
+    let plan;
+    try {
+      const { rows } = await db.query(
+        `SELECT p.amount_cents AS plan_amount_cents, p.currency AS plan_currency
+           FROM subscriptions s LEFT JOIN plans p ON p.id = s.plan_id WHERE s.id = $1`,
+        [subscriptionId]
+      );
+      plan = rows[0];
+    } catch (preReadError) {
+      throw new AppError('Could not read the subscription amount for step-up binding; retry the cancel', 503, 'credit_stepup_amount_preread_failed');
+    }
+    if (!plan) throw new AppError('Subscription not found', 404, 'not_found');
     const { challenge, delivery } = await require('../services/stepupChallengeService').issueStepupChallenge({
       actorUserId: req.user?.id || null,
       actorEmail: req.user?.email,
       actionType: 'subscription_cancel',
+      amountCents: subscriptionCancelBoundAmountCents(plan.plan_amount_cents),
+      currencyCode: plan.plan_currency || 'USD',
     });
     res.status(201).json({
       challenge: {
@@ -719,17 +753,24 @@ exports.adminCancelSubscription = async (req, res, next) => {
     if (!reason) throw new AppError('A reason is required', 400, 'reason_required');
 
     const { rows: [sub] } = await db.query(
-      'SELECT id, user_id, status, payment_method, stripe_subscription_id FROM subscriptions WHERE id = $1',
+      `SELECT s.id, s.user_id, s.status, s.payment_method, s.stripe_subscription_id,
+              p.amount_cents AS plan_amount_cents
+         FROM subscriptions s LEFT JOIN plans p ON p.id = s.plan_id WHERE s.id = $1`,
       [subscriptionId]
     );
     if (!sub) throw new AppError('Subscription not found', 404, 'not_found');
     if (sub.status === 'cancelled') return res.json({ subscription: sub, alreadyCancelled: true });
 
+    // Domain 6 finding 4: bind to the plan amount from the same row the
+    // issue side resolved (free/no plan binds to 1); the pre-read above
+    // already fails closed (DB error propagates, missing row 404s) before
+    // any verification, so binding never skips.
     await require('../services/stepupChallengeService').verifyStepupChallenge({
       challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
       actorUserId: req.user?.id || null,
       actionType: 'subscription_cancel',
       code: req.body?.stepupCode || req.body?.stepup_code,
+      expectedAmountCents: subscriptionCancelBoundAmountCents(sub.plan_amount_cents),
     });
 
     if (sub.stripe_subscription_id) {

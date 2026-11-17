@@ -56,6 +56,30 @@ function mockAuth(...extras) {
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
 }
 
+// Domain 6 enforce contract (ACCESS_HELPER_ENFORCEMENT=enforce): POST
+// /connect runs requireHelperCapability, which calls accessService.can() ->
+// loadFacts (users, access_grants, businesses) before the handler. The
+// fixture user holds an active helper.offer_services grant with the
+// provenance the legacy backfill writes (services/access/legacyMapping.js),
+// so the gate passes and these tests keep proving Connect onboarding, not
+// access. (The grant is capability-based: users.role is deliberately not
+// an input to the resolver, so a customer-role fixture user can hold it.)
+const ACCESS_GRANT = {
+  id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null,
+  status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1,
+};
+
+// Auth lookup + gate facts, then the handler's own mock sequence. Use for
+// gated routes only (POST /connect); the other payment routes have no
+// helper gate and keep plain mockAuth.
+function mockGatedAuth(...extras) {
+  mockQuery.mockResolvedValueOnce({ rows: [MOCK_AUTH_USER] });
+  mockQuery.mockResolvedValueOnce({ rows: [MOCK_AUTH_USER] }); // loadFacts users
+  mockQuery.mockResolvedValueOnce({ rows: [ACCESS_GRANT] }); // loadFacts access_grants
+  mockQuery.mockResolvedValueOnce({ rows: [] }); // loadFacts businesses
+  extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
+}
+
 function mockPaymentAuth(...extras) {
   mockAuth({ rows: currentConsentRows() }, ...extras);
 }
@@ -411,7 +435,7 @@ describe('POST /api/payments/connect', () => {
       stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_new' });
       stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/onboard' });
 
-      mockAuth(
+      mockGatedAuth(
         { rows: [] }, // existing connect account lookup
         { rows: [{ stripe_account_id: 'acct_new' }] }, // persisted account
       );
@@ -436,12 +460,12 @@ describe('POST /api/payments/connect', () => {
   test('links the persisted winner and ignores untrusted redirect headers', async () => {
     stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_candidate' });
     stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/onboard' });
-    mockAuth({ rows: [] }, { rows: [{ stripe_account_id: 'acct_winner' }] });
+    mockGatedAuth({ rows: [] }, { rows: [{ stripe_account_id: 'acct_winner' }] });
     const res = await auth(request(buildApp()).post('/api/payments/connect')
       .set('Origin', 'https://attacker.invalid').set('Referer', 'https://attacker.invalid/path').set('Host', 'attacker.invalid'));
     expect(res.status).toBe(200);
     expect(res.body.account_id).toBe('acct_winner');
-    expect(mockQuery.mock.calls[2][0]).toContain('ON CONFLICT (user_id)');
+    expect(mockQuery.mock.calls[5][0]).toContain('ON CONFLICT (user_id)'); // [0] auth, [1..3] gate loadFacts, [4] lookup, [5] upsert
     expect(stripe.accountLinks.create).toHaveBeenCalledWith({ account: 'acct_winner', type: 'account_onboarding',
       refresh_url: 'https://oxsteed.com/helper-dashboard?refresh=true',
       return_url: 'https://oxsteed.com/helper-dashboard?onboarding=complete' });
@@ -454,7 +478,7 @@ describe('POST /api/payments/connect', () => {
   ])('resumes submitted onboarding when capabilities or requirements remain: %j', async account => {
     stripe.accounts.retrieve.mockResolvedValueOnce({ id: 'acct_resume', details_submitted: true, ...account });
     stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/resume' });
-    mockAuth({ rows: [{ stripe_account_id: 'acct_resume', onboarding_complete: true,
+    mockGatedAuth({ rows: [{ stripe_account_id: 'acct_resume', onboarding_complete: true,
       charges_enabled: account.charges_enabled, payouts_enabled: account.payouts_enabled }] });
     const res = await auth(request(buildApp()).post('/api/payments/connect'));
     expect(res.status).toBe(200);
@@ -466,7 +490,7 @@ describe('POST /api/payments/connect', () => {
   test('honors a same-origin return_path for the onboarding round-trip', async () => {
     stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_qr' });
     stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/onboard' });
-    mockAuth({ rows: [] }, { rows: [{ stripe_account_id: 'acct_qr' }] });
+    mockGatedAuth({ rows: [] }, { rows: [{ stripe_account_id: 'acct_qr' }] });
 
     const res = await auth(request(buildApp()).post('/api/payments/connect').send({ return_path: '/qr-payments' }));
 
@@ -481,7 +505,7 @@ describe('POST /api/payments/connect', () => {
     for (const return_path of ['https://attacker.invalid/evil', '//evil.invalid', '/\\evil', '/ok?x=1#frag']) {
       stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_qr2' });
       stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/onboard' });
-      mockAuth({ rows: [] }, { rows: [{ stripe_account_id: 'acct_qr2' }] });
+      mockGatedAuth({ rows: [] }, { rows: [{ stripe_account_id: 'acct_qr2' }] });
 
       const res = await auth(request(buildApp()).post('/api/payments/connect').send({ return_path }));
 
@@ -497,7 +521,7 @@ describe('POST /api/payments/connect', () => {
 
   test('provider status failure is retryable and does not create a duplicate account', async () => {
     stripe.accounts.retrieve.mockRejectedValueOnce(new Error('provider unavailable'));
-    mockAuth({ rows: [{ stripe_account_id: 'acct_x', onboarding_complete: true }] });
+    mockGatedAuth({ rows: [{ stripe_account_id: 'acct_x', onboarding_complete: true }] });
     const res = await auth(request(buildApp()).post('/api/payments/connect'));
     expect(res.status).toBe(503);
     expect(stripe.accounts.create).not.toHaveBeenCalled();
@@ -506,7 +530,7 @@ describe('POST /api/payments/connect', () => {
 
   test('failed persistence never produces an onboarding link', async () => {
     stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_candidate' });
-    mockAuth({ rows: [] }, { rows: [] });
+    mockGatedAuth({ rows: [] }, { rows: [] });
     const res = await auth(request(buildApp()).post('/api/payments/connect'));
     expect(res.status).toBe(503);
     expect(stripe.accountLinks.create).not.toHaveBeenCalled();

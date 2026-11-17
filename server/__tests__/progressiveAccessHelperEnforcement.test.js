@@ -12,7 +12,8 @@ const path = require('path');
 jest.mock('../services/access/accessService', () => ({ can: jest.fn() }));
 const access = require('../services/access/accessService');
 const logger = require('../utils/logger');
-const { requireHelperCapability, isHelperActor } = require('../middleware/requireAccess');
+const flags = require('../services/access/flags');
+const { requireHelperCapability, requireInvestorCapability, requireFranchiseCapability, isHelperActor } = require('../middleware/requireAccess');
 const { requireHelperWorkEligible, requireHelperStep, requireTaxIdentity } = require('../middleware/helperOnboardingMiddleware');
 const requireRole = require('../middleware/requireRole');
 
@@ -31,9 +32,13 @@ describe('helper capability gate', () => {
   afterEach(() => { delete process.env.ACCESS_HELPER_ENFORCEMENT; jest.clearAllMocks(); });
 
   test('off: never consults the resolver and legacy roles decide', async () => {
-    const { nextCalled } = await run(requireHelperCapability, { user: user('customer') });
+    // B1: the helper default is now enforce, so "off" must be set explicitly.
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'off';
+    const req = { user: user('customer') };
+    const { nextCalled } = await run(requireHelperCapability, req);
     expect(nextCalled).toBe(true);
     expect(access.can).not.toHaveBeenCalled();
+    expect(req.accessCapabilities).toBeUndefined();
     expect(isHelperActor({ user: user('helper') })).toBe(true);
     expect(isHelperActor({ user: user('customer') })).toBe(false);
   });
@@ -46,6 +51,70 @@ describe('helper capability gate', () => {
     expect(nextCalled).toBe(true);
     expect(warn).toHaveBeenCalledWith('access.shadow_mismatch', expect.objectContaining({ legacyAllowed: true, capabilityAllowed: false }));
     warn.mockRestore();
+  });
+
+  test('shadow (B1): an allowed decision is recorded so downstream legacy checks pass for a customer-role helper', async () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'shadow';
+    access.can.mockResolvedValue({ allowed: true, reason: 'grant' });
+    const warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    const req = { user: user('customer'), baseUrl: '/api/bids', route: { path: '/' } };
+    const { nextCalled } = await run(requireHelperCapability, req);
+    expect(nextCalled).toBe(true);
+    expect(warn).toHaveBeenCalledWith('access.shadow_mismatch', expect.objectContaining({ legacyAllowed: false, capabilityAllowed: true }));
+    warn.mockRestore();
+    expect(req.accessCapabilities).toEqual({ 'helper.offer_services': true });
+    expect(isHelperActor(req)).toBe(true);
+    const rolePass = await run(requireRole('helper', 'helper_pro', 'broker'), req);
+    expect(rolePass.nextCalled).toBe(true);
+    jest.spyOn(require('../services/helperOnboarding'), 'loadHelperOnboarding').mockResolvedValue({ complete: true });
+    const work = await run(requireHelperWorkEligible, req);
+    expect(work.nextCalled).toBe(true);
+  });
+
+  test('shadow (B1): a denied decision records nothing and grants nothing', async () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'shadow';
+    access.can.mockResolvedValue({ allowed: false, reason: 'not_granted' });
+    const warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    const req = { user: user('customer'), baseUrl: '/api/bids', route: { path: '/' } };
+    const { nextCalled } = await run(requireHelperCapability, req);
+    expect(nextCalled).toBe(true);
+    warn.mockRestore();
+    expect(req.accessCapabilities).toBeUndefined();
+    expect(isHelperActor(req)).toBe(false);
+    const roleDeny = await run(requireRole('helper', 'helper_pro', 'broker'), req);
+    expect(roleDeny.nextCalled).toBe(false);
+    expect(roleDeny.res.statusCode).toBe(403);
+    // The legacy role path is untouched: a legacy helper still passes.
+    const legacyReq = { user: user('helper'), baseUrl: '/api/bids', route: { path: '/' } };
+    await run(requireHelperCapability, legacyReq);
+    expect(isHelperActor(legacyReq)).toBe(true);
+  });
+
+  test('shadow (B1): investor and franchise gates record an allowed decision too', async () => {
+    process.env.ACCESS_INVESTOR_ENFORCEMENT = 'shadow';
+    process.env.ACCESS_FRANCHISE_ENFORCEMENT = 'shadow';
+    access.can.mockResolvedValue({ allowed: true, reason: 'grant' });
+    const warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    const investorReq = { user: user('customer'), baseUrl: '/api/investor', route: { path: '/' } };
+    const franchiseReq = { user: user('customer'), baseUrl: '/api/franchise', route: { path: '/' } };
+    expect((await run(requireInvestorCapability, investorReq)).nextCalled).toBe(true);
+    expect((await run(requireFranchiseCapability, franchiseReq)).nextCalled).toBe(true);
+    warn.mockRestore();
+    expect(investorReq.accessCapabilities).toEqual({ 'investor.reporting': true });
+    expect(franchiseReq.accessCapabilities).toEqual({ 'franchise.operate': true });
+    delete process.env.ACCESS_INVESTOR_ENFORCEMENT;
+    delete process.env.ACCESS_FRANCHISE_ENFORCEMENT;
+  });
+
+  test('enforce (B1): a denied decision records nothing allowing', async () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+    access.can.mockResolvedValue({ allowed: false, reason: 'not_granted' });
+    const req = { user: user('customer') };
+    const { res, nextCalled } = await run(requireHelperCapability, req);
+    expect(nextCalled).toBe(false);
+    expect(res.statusCode).toBe(403);
+    expect(req.accessCapabilities).toBeUndefined();
+    expect(isHelperActor(req)).toBe(false);
   });
 
   test('shadow: a resolver failure fails open to legacy behaviour', async () => {
@@ -204,6 +273,8 @@ describe('helper capability gate', () => {
     const { assertHelperCanBeHired } = require('../controllers/jobController');
 
     test('off: no resolver call', async () => {
+      // B1: the helper default is now enforce, so "off" must be set explicitly.
+      process.env.ACCESS_HELPER_ENFORCEMENT = 'off';
       await expect(assertHelperCanBeHired({}, 'h-1')).resolves.toBeUndefined();
       expect(access.can).not.toHaveBeenCalled();
     });
@@ -225,6 +296,33 @@ describe('helper capability gate', () => {
       access.can.mockResolvedValue({ allowed: true, reason: 'grant' });
       await expect(assertHelperCanBeHired({}, 'h-1')).resolves.toBeUndefined();
     });
+  });
+});
+
+describe('enforcement flag defaults (Domain 6 B1)', () => {
+  const KEYS = [
+    'ACCESS_HELPER_ENFORCEMENT',
+    'ACCESS_BUSINESS_ENFORCEMENT',
+    'ACCESS_CONSULTANT_ENFORCEMENT',
+    'ACCESS_INVESTOR_ENFORCEMENT',
+    'ACCESS_FRANCHISE_ENFORCEMENT',
+    'ACCESS_TOOL_OWNER_ENFORCEMENT',
+  ];
+  afterEach(() => { KEYS.forEach((k) => delete process.env[k]); });
+
+  test('helper defaults to enforce; every other enforcement flag defaults to off', () => {
+    KEYS.forEach((k) => delete process.env[k]);
+    expect(flags.helperEnforcement()).toBe('enforce');
+    expect(flags.businessEnforcement()).toBe('off');
+    expect(flags.consultantEnforcement()).toBe('off');
+    expect(flags.investorEnforcement()).toBe('off');
+    expect(flags.franchiseEnforcement()).toBe('off');
+    expect(flags.toolOwnerEnforcement()).toBe('off');
+  });
+
+  test('an explicit off still opts helper enforcement out', () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'off';
+    expect(flags.helperEnforcement()).toBe('off');
   });
 });
 

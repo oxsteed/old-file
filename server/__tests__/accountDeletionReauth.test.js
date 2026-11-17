@@ -94,3 +94,79 @@ test('the privacy router mounts the re-authentication gate on delete-account', (
   expect(names).toEqual(expect.arrayContaining(['authenticate', 'requireSensitiveReauth']));
   expect(names.indexOf('requireSensitiveReauth')).toBeGreaterThan(names.indexOf('authenticate'));
 });
+
+// Domain 6 #7 (finding 2): requireSensitiveReauth was the eleventh TOTP
+// verify site and the only one that never consumed the shared counter, so
+// a code used at login still verified at DELETE /delete-account and vice
+// versa. These tests simulate the atomic upsert in totp_used_counters
+// (INSERT ... ON CONFLICT ... WHERE new counter > stored max RETURNING):
+// the consume returns one row only when the current 30s step counter is
+// strictly greater than the stored max for the user; a second consume in
+// the same step returns zero rows (replay).
+describe('Domain 6 #7: TOTP replay guard at the sensitive-reauth site', () => {
+  const { consumeTotpCounter } = require('../services/totpReplayGuard');
+
+  afterEach(() => { jest.restoreAllMocks(); });
+
+  function pinClockMidStep(baseMs) {
+    const stepStart = baseMs - (baseMs % 30000);
+    jest.spyOn(Date, 'now').mockReturnValue(stepStart + 15000);
+  }
+
+  // Account SELECT keeps returning the TOTP-enabled account; the guard
+  // INSERT behaves like the real upsert, tracked per user in memory.
+  function installGuardSimulation() {
+    const consumed = new Map();
+    mockQuery.mockImplementation(async (text, params) => {
+      if (String(text).includes('totp_used_counters')) {
+        const counter = Math.floor(Date.now() / 30000);
+        const userId = params[0];
+        if ((consumed.get(userId) ?? -1) >= counter) return { rows: [], rowCount: 0 };
+        consumed.set(userId, counter);
+        return { rows: [{ max_counter: counter }], rowCount: 1 };
+      }
+      return { rows: [{ password_hash: passwordHash, totp_enabled: true, totp_secret: encrypt('TESTSECRET') }] };
+    });
+    return consumed;
+  }
+
+  const deleteBody = { confirmation: 'DELETE MY ACCOUNT', currentPassword: 'correct horse battery', totpCode: '123456' };
+
+  test('a code verified here cannot verify again here in the same step', async () => {
+    pinClockMidStep(1780014400000);
+    installGuardSimulation();
+    const first = await request(app()).delete('/delete').send(deleteBody);
+    expect(first.status).toBe(200);
+    const replay = await request(app()).delete('/delete').send(deleteBody);
+    expect(replay.status).toBe(401);
+    expect(replay.body.code).toBe('reauth_invalid');
+  });
+
+  test('a code already consumed at another guarded site is refused here', async () => {
+    pinClockMidStep(1780018000000);
+    installGuardSimulation();
+    expect(await consumeTotpCounter({ query: mockQuery }, USER)).toBe(true);
+    const res = await request(app()).delete('/delete').send(deleteBody);
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('reauth_invalid');
+  });
+
+  test('a code verified here cannot verify again at another guarded site', async () => {
+    pinClockMidStep(1780021600000);
+    installGuardSimulation();
+    const res = await request(app()).delete('/delete').send(deleteBody);
+    expect(res.status).toBe(200);
+    expect(await consumeTotpCounter({ query: mockQuery }, USER)).toBe(false);
+  });
+
+  test('a consumption failure fails closed instead of silently passing', async () => {
+    pinClockMidStep(1780025200000);
+    mockQuery.mockImplementation(async (text) => {
+      if (String(text).includes('totp_used_counters')) throw new Error('guard store unavailable');
+      return { rows: [{ password_hash: passwordHash, totp_enabled: true, totp_secret: encrypt('TESTSECRET') }] };
+    });
+    const res = await request(app()).delete('/delete').send(deleteBody);
+    expect(res.status).toBe(500);
+    expect(res.body.code).toBe('reauth_failed');
+  });
+});
