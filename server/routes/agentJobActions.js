@@ -34,6 +34,7 @@ router.post(
   '/jobs/:jobId/cancel',
   strictLimiter,
   requireAdmin,
+  rejectImpersonated,
   requirePermission('issue_refunds'),
   agentJobActions.cancelJobAsAgent
 );

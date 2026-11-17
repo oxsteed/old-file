@@ -751,9 +751,9 @@ router.post('/super/oxsteed-credit/partners/:partnerId/activation', requireSuper
 router.get('/super/oxsteed-credit/participants', requireSuperAdmin, oxsteedCreditCtrl.listAdminParticipants);
 router.post('/super/oxsteed-credit/participants', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.enrollAdminParticipant);
 router.get('/super/oxsteed-credit/participants/:participantId', requireSuperAdmin, oxsteedCreditCtrl.getAdminParticipant);
-router.post('/super/oxsteed-credit/participants/:participantId/activation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminParticipantActivation);
-router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminAgreement);
-router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminAgreement);
+router.post('/super/oxsteed-credit/participants/:participantId/activation', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminParticipantActivation);
+router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminAgreement);
+router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminAgreement);
 router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.upsertAdminEntitlement);
 router.get('/super/oxsteed-credit/entitlements.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminEntitlements);
 // Domain 7 #11: admin-side customer name lookup for the FX quote page.
