@@ -38,7 +38,12 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
           subjectDisplay: { kind: 'new_business', name: 'شركة ضيافة ومطاعم واستشارات غذائية طويلة للغاية للاختبار' },
           availableActions: ['withdraw'], answers: {} };
         const approved = { id: 'r2', capability: 'restaurant.own', status: 'approved', version: 2,
-          subjectDisplay: { kind: 'new_business', name: 'Approved Bistro' }, availableActions: [], answers: {} };
+          subjectDisplay: { kind: 'new_business', name: 'Approved Bistro' }, availableActions: [], answers: {},
+          submittedAt: '2026-11-01T10:00:00.000Z', publicReasonCode: 'review_complete' };
+        const history = [
+          { action: 'submit', at: '2026-11-01T10:00:00.000Z', publicReasonCode: null },
+          { action: 'approve', at: '2026-11-05T15:30:00.000Z', publicReasonCode: 'review_complete' },
+        ];
         const policy = { capability: 'business.own', applicantMayRequest: true, subjectTypes: ['business_proposal'], form: { fields: [{ name: 'business_name', type: 'text', required: true, maxLength: 200 }] } };
         const resuming = new URLSearchParams(window.location.search).has('resume');
         let recovered = false;
@@ -47,7 +52,8 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
             ...(resuming ? { signupResume: { capability: 'business.own', requestId: null, returnTo: '/jobs/42' } } : {}) } }),
           listRequests: async () => ({ requests: resuming ? (recovered ? [request] : []) : [request, approved] }),
           listPolicies: async () => ({ policies: [policy] }),
-          getRequest: async () => ({ request }), updateRequest: async () => ({ request }), transition: async () => ({ request }),
+          getRequest: async (id) => (id === 'r2' ? { request: approved, history } : { request, history }),
+          updateRequest: async () => ({ request }), transition: async () => ({ request }),
           createRequest: async (body, key) => { recovered = true; window.applicationRecovery = { body, key }; return { request }; },
         };
       `, loader: 'jsx' }));
@@ -67,8 +73,17 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
     await page.getByText('شركة ضيافة ومطاعم واستشارات غذائية طويلة للغاية للاختبار', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => document.documentElement.dir), 'rtl');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
-    const workspace = page.getByRole('link', { name: 'مساحة عمل النشاط التجاري' });
+    const workspace = page.getByRole('link', { name: 'افتح مساحة عملك التجارية' });
     assert.equal(await workspace.getAttribute('href'), '/business-hub');
+
+    // AC-010: the approved row shows its decision timeline and dates.
+    const approvedRow = page.locator('li', { hasText: 'Approved Bistro' });
+    await approvedRow.getByRole('button', { name: 'عرض الحالة' }).click();
+    await approvedRow.getByText('تمت الموافقة').waitFor();
+    assert.equal(await approvedRow.locator('ol li time').count(), 2);
+    assert.ok(await approvedRow.getByText(/أُرسلت في/).count() >= 1);
+    await approvedRow.getByRole('button', { name: 'إغلاق' }).click();
+    assert.equal(await approvedRow.locator('ol li time').count(), 0);
 
     const continueButton = page.locator('[data-track="ui.access.applications.continue"]');
     await continueButton.click();

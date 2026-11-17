@@ -6703,6 +6703,30 @@
       "accessChanged": "Votre accès à ce tableau de bord a changé : vous voyez donc votre accueil personnel."
     },
     "accessUpdated": "Votre accès a été mis à jour.",
+    "viewStatus": "Voir le statut",
+    "historyTitle": "Historique",
+    "submittedOn": "Envoyée le {{date}}",
+    "accessApproved": "Votre demande {{capability}} a été approuvée.",
+    "historyAction": {
+      "update": "Brouillon mis à jour",
+      "submit": "Envoyée pour révision",
+      "resubmit": "Réponses mises à jour envoyées",
+      "withdraw": "Retirée",
+      "claim": "Révision commencée",
+      "request_information": "Le réviseur a demandé des informations",
+      "approve": "Approuvée",
+      "decline": "Refusée"
+    },
+    "useNow": {
+      "helper.offer_services": "Trouver du travail sur Jobs",
+      "business.own": "Ouvrir votre espace entreprise",
+      "restaurant.own": "Ouvrir votre espace entreprise",
+      "tool_owner.list_equipment": "Lister du matériel sur Tool Rentals",
+      "consultant.accept_paying_clients": "Ouvrir votre tableau de bord conseil",
+      "logistics.ship": "Ouvrir Logistique",
+      "investor.reporting": "Ouvrir votre tableau de bord investisseur",
+      "franchise.operate": "Ouvrir votre territoire de franchise"
+    },
     "orgRoles": {
       "owner": "Propriétaire",
       "manager": "Responsable",

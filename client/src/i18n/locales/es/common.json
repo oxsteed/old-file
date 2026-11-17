@@ -6703,6 +6703,30 @@
       "accessChanged": "Tu acceso a ese panel cambió, así que estás viendo tu inicio personal."
     },
     "accessUpdated": "Tu acceso se actualizó.",
+    "viewStatus": "Ver estado",
+    "historyTitle": "Historial",
+    "submittedOn": "Enviada el {{date}}",
+    "accessApproved": "Tu solicitud de {{capability}} fue aprobada.",
+    "historyAction": {
+      "update": "Borrador actualizado",
+      "submit": "Enviada para revisión",
+      "resubmit": "Respuestas actualizadas enviadas",
+      "withdraw": "Retirada",
+      "claim": "Revisión iniciada",
+      "request_information": "El revisor pidió información",
+      "approve": "Aprobada",
+      "decline": "Rechazada"
+    },
+    "useNow": {
+      "helper.offer_services": "Buscar trabajo en Jobs",
+      "business.own": "Abrir tu espacio de negocio",
+      "restaurant.own": "Abrir tu espacio de negocio",
+      "tool_owner.list_equipment": "Publicar equipo en Tool Rentals",
+      "consultant.accept_paying_clients": "Abrir tu panel de consultoría",
+      "logistics.ship": "Abrir Logística",
+      "investor.reporting": "Abrir tu panel de inversor",
+      "franchise.operate": "Abrir tu territorio de franquicia"
+    },
     "orgRoles": {
       "owner": "Propietario",
       "manager": "Gerente",

@@ -6703,6 +6703,30 @@
       "accessChanged": "تغيّر وصولك إلى لوحة التحكم تلك، لذا تُعرض لك صفحتك الرئيسية الشخصية."
     },
     "accessUpdated": "تم تحديث وصولك.",
+    "viewStatus": "عرض الحالة",
+    "historyTitle": "السجل",
+    "submittedOn": "أُرسلت في {{date}}",
+    "accessApproved": "تمت الموافقة على طلب {{capability}}.",
+    "historyAction": {
+      "update": "تم تحديث المسودة",
+      "submit": "أُرسلت للمراجعة",
+      "resubmit": "أُرسلت الإجابات المحدثة",
+      "withdraw": "تم سحبها",
+      "claim": "بدأت المراجعة",
+      "request_information": "طلب المراجع معلومات",
+      "approve": "تمت الموافقة",
+      "decline": "تم الرفض"
+    },
+    "useNow": {
+      "helper.offer_services": "ابحث عن عمل في Jobs",
+      "business.own": "افتح مساحة عملك التجارية",
+      "restaurant.own": "افتح مساحة عملك التجارية",
+      "tool_owner.list_equipment": "أدرج معداتك في Tool Rentals",
+      "consultant.accept_paying_clients": "افتح لوحة الاستشارات",
+      "logistics.ship": "افتح اللوجستيات",
+      "investor.reporting": "افتح لوحة المستثمر",
+      "franchise.operate": "افتح منطقة الامتياز"
+    },
     "orgRoles": {
       "owner": "المالك",
       "manager": "المدير",

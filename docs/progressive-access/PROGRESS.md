@@ -136,7 +136,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-007 | Legacy mode forged on signup | implemented | progressiveAccessSignup.db.test.js (server) |
 | AC-008 | Resume application on second device | planned | |
 | AC-009 | Withdraw then reapply | server evidence (UI pending) | progressiveAccess.db.test.js |
-| AC-010 | Needs information and revision history | server evidence (UI pending) | progressiveAccess.db.test.js |
+| AC-010 | Needs information and revision history | browser and server evidence (partial) | progressiveAccess.db.test.js (server); progressiveAccessSettings.browser-check.cjs renders the per-request decision timeline, submitted dates and approved use-it-now links on Settings → Applications. Exact-head CI remains open. |
 | AC-011 | Draft attachment confidentiality | browser + server evidence (partial) | `progressiveAccessConsultantNetwork.db.test.js` verifies private object keys, shared/applicant-only/consultant-only reads, copied-case denial, uploader deletion, reassignment denial, and signed download authorization. `businessLaunchAttachments.browser-check.cjs` verifies the applicant modal keeps shared/applicant-only choices and uploads within the selected request; consultant controls are covered in the referral workspace. Admin reviewer browser flow, deletion acceptance, and live storage acceptance remain open. |
 | AC-012 | Public form policy versus evidence data | planned | |
 | AC-013 | Reviewer privilege narrows mid-session | server evidence (UI pending) | progressiveAccess.db.test.js |

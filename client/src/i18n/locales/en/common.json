@@ -6703,6 +6703,30 @@
       "accessChanged": "Your access to that dashboard changed, so you're seeing your personal Home."
     },
     "accessUpdated": "Your access was updated.",
+    "viewStatus": "View status",
+    "historyTitle": "History",
+    "submittedOn": "Submitted {{date}}",
+    "accessApproved": "Your {{capability}} application was approved.",
+    "historyAction": {
+      "update": "Draft updated",
+      "submit": "Submitted for review",
+      "resubmit": "Updated answers sent",
+      "withdraw": "Withdrawn",
+      "claim": "Review started",
+      "request_information": "Reviewer asked for information",
+      "approve": "Approved",
+      "decline": "Declined"
+    },
+    "useNow": {
+      "helper.offer_services": "Find work on Jobs",
+      "business.own": "Open your Business Workspace",
+      "restaurant.own": "Open your Business Workspace",
+      "tool_owner.list_equipment": "List equipment on Tool Rentals",
+      "consultant.accept_paying_clients": "Open your consulting dashboard",
+      "logistics.ship": "Open Logistics",
+      "investor.reporting": "Open your investor dashboard",
+      "franchise.operate": "Open your franchise territory"
+    },
     "orgRoles": {
       "owner": "Owner",
       "manager": "Manager",
