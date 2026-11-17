@@ -32,6 +32,7 @@ const {
   postJournalTransaction,
 } = require('./oxsteedCreditService');
 const { recordIncident } = require('./incidentStore');
+const { createLot } = require('./invest/creditLots');
 
 const MIN_TOPUP_CENTS = 100;
 const STRIPE_INTENT_IDEMPOTENCY_PREFIX = 'stripe-topup-intent:';
@@ -444,6 +445,24 @@ async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidenc
           WHERE id = $1`,
         [topup.id, wallet.id, transaction.id]
       );
+      // OxSteed Invest lot tagging: a completed top-up is provably
+      // purchased settled value, so it gets a `purchased` lot in the
+      // same transaction as the journal post. If lot tagging fails the
+      // top-up parks as requires_attention and the webhook retry
+      // replays the journal post and retries the tag; createLot is
+      // idempotent on the top-up id, so the retry cannot double-tag.
+      await createLot(client, {
+        accountId: wallet.id,
+        customerId: topup.customer_id,
+        currencyCode: currency,
+        source: 'purchased',
+        amountCents: amount,
+        settledAt: new Date().toISOString(),
+        originatingTransactionId: transaction.id,
+        topupId: topup.id,
+        referenceType: 'stripe_topup',
+        referenceId: paymentIntentId,
+      });
       return {
         outcome: 'completed',
         topupId,
