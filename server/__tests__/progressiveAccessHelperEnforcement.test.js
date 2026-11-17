@@ -258,6 +258,18 @@ describe('helper capability gate', () => {
     expect(plannedNeeds).toMatch(/Cache-Control', 'private, no-store'/);
   });
 
+  test('scan-to-pay code mutations require projected helper or business access', () => {
+    const qrPayments = fs.readFileSync(path.join(__dirname, '../routes/qrPayments.js'), 'utf8');
+    expect(qrPayments).toMatch(/async function requireQrPaymentOwner/);
+    expect(qrPayments).toMatch(/router\.post\('\/codes', authenticate, requireQrPaymentOwner/);
+    expect(qrPayments).toMatch(/function requireQrMutationAccess/);
+    expect(qrPayments).toMatch(/router\.patch\('\/codes\/:id', authenticate, requireQrMutationAccess/);
+    expect(qrPayments).toMatch(/access\.can\(req\.user\.id, 'helper\.offer_services'\)/);
+    expect(qrPayments).toMatch(/access\.can\(req\.user\.id, 'business\.own'/);
+    expect(qrPayments).toMatch(/router\.use\('\/codes', \(req, res, next\) =>/);
+    expect(qrPayments).toMatch(/Cache-Control', 'private, no-store'/);
+  });
+
   test('agreements and disputes gate helper-party mutations without gating customers', () => {
     const chat = fs.readFileSync(path.join(__dirname, '../routes/chat.js'), 'utf8');
     const agreements = fs.readFileSync(path.join(__dirname, '../routes/workAgreements.js'), 'utf8');

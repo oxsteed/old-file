@@ -1782,6 +1782,20 @@ Credit-participant, partner, and workforce/learning surfaces; only change a
 route when its authoritative admission, scope, activation, and tests reveal a
 concrete gap.
 
+WP-118 is implemented on the branch. Scan-to-pay QR code creation and
+reactivation previously relied on Stripe Connect alone, which allowed a
+customer with a connected account to create a professional payment destination.
+Those mutations now re-read effective `helper.offer_services` access or a
+canonical owned-business scope through the shared access service. Listing
+existing codes remains self-scoped, and deactivation remains available for
+safe recovery after access ends. `qrPayments.test.js`,
+`ws3-qr-security.test.js`, and `progressiveAccessHelperEnforcement.test.js`
+pass locally (86 tests), including denial before the Connect lookup and post-revocation deactivation. No populated payment-provider or production
+acceptance is claimed.
+**Exact next action (resume here):** finish the remaining Package 4 route audit
+and acceptance evidence, then run the complete verification matrix against the
+latest pushed head.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

@@ -13,12 +13,16 @@ jest.mock('../middleware/auth', () => ({
     next();
   },
 }));
+jest.mock('../services/access/accessService', () => ({
+  can: jest.fn().mockResolvedValue({ allowed: true }),
+}));
 
 const stripeFactory = require('stripe');
 const mockStripe = stripeFactory.__mockInstance;
 
 const qrPaymentsRoutes = require('../routes/qrPayments');
 const { notifyQrPayee } = require('../services/qrPaymentNotifications');
+const accessService = require('../services/access/accessService');
 const webhookController = require('../controllers/webhookController');
 
 function buildApp({ user = null } = {}) {
@@ -52,6 +56,8 @@ const CODE_ROW = {
 beforeEach(() => {
   resetMocks();
   notifyQrPayee.mockClear();
+  accessService.can.mockReset();
+  accessService.can.mockResolvedValue({ allowed: true });
   mockStripe.checkout.sessions.retrieve.mockReset();
   mockStripe.checkout.sessions.create.mockReset();
   mockStripe.checkout.sessions.create.mockResolvedValue({
@@ -61,6 +67,17 @@ beforeEach(() => {
 });
 
 describe('POST /api/qr-payments/codes', () => {
+  test('rejects a customer without helper or owned-business access before Connect lookup', async () => {
+    accessService.can.mockResolvedValue({ allowed: false });
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // no owned businesses
+    const res = await request(buildApp())
+      .post('/api/qr-payments/codes')
+      .send({ label: 'Mowing' });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('access_required');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
   test('rejects missing label without touching the database', async () => {
     const res = await request(buildApp()).post('/api/qr-payments/codes').send({});
     expect(res.status).toBe(400);
@@ -483,6 +500,22 @@ describe('PUBLIC_APP_URL guard (P1-299)', () => {
 });
 
 describe('PATCH and DELETE /api/qr-payments/codes/:id', () => {
+  test('allows deactivation recovery after professional access ends', async () => {
+    accessService.can.mockResolvedValue({ allowed: false });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'qr-1' }], rowCount: 1 }) // ownership check
+      .mockResolvedValueOnce({
+        rows: [{ id: 'qr-1', code: 'AbCdEfGhIjKl', is_active: false }],
+        rowCount: 1,
+      }); // update
+    const res = await request(buildApp())
+      .patch('/api/qr-payments/codes/qr-1')
+      .send({ is_active: false });
+    expect(res.status).toBe(200);
+    expect(res.body.code.is_active).toBe(false);
+    expect(accessService.can).not.toHaveBeenCalled();
+  });
+
   test('PATCH rejects codes owned by someone else', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // ownership check
     const res = await request(buildApp())
