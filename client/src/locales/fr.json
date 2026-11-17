@@ -8097,6 +8097,8 @@
     }
   },
   "businessHub": {
+    "raiseCapital": "Lever des capitaux",
+    "raiseCapitalTitle": "Lever des capitaux auprès d'investisseurs pour cette entreprise",
     "procurement": {
       "title": "Approvisionnement",
       "subtitle": "Programmes d’achat récurrents et demandes liées à cette entreprise.",
@@ -22711,6 +22713,361 @@
     }
   },
   "invest": {
+      "entity": {
+        "raise": {
+          "title": "Lever des capitaux",
+          "intro": "Demandez à lever des capitaux auprès d'investisseurs pour l'une de vos entreprises. Votre demande reste privée jusqu'à ce qu'un réviseur l'approuve pour publication.",
+          "documentsNotice": "N'incluez pas de documents sensibles d'identité ou financiers dans ce formulaire. Ils passent par les flux restreints de vérification et de documents, jamais dans la description publique d'une opportunité.",
+          "business": {
+            "label": "Entreprise",
+            "choose": "Choisir une entreprise",
+            "empty": {
+              "title": "Aucune entreprise pour lever des capitaux",
+              "copy": "Vous ne représentez pas encore d'entreprise. Créez d'abord une entreprise, puis revenez lever des capitaux."
+            }
+          },
+          "authority": {
+            "label": "Je suis autorisé à représenter cette entité et à soumettre cette demande de levée de fonds en son nom.",
+            "hint": "Seul le propriétaire, le gérant ou le représentant autorisé de l'entreprise peut lever des capitaux pour elle."
+          },
+          "sections": {
+            "entity": {
+              "title": "Entité",
+              "hint": "Qui lève des fonds, et en vertu de quelle autorité."
+            },
+            "raise": {
+              "title": "La levée",
+              "hint": "Objet du financement, objectif et conditions. Partage de revenus uniquement, États-Unis uniquement."
+            },
+            "details": {
+              "title": "Détails de l'entité",
+              "hint": "Informations à l'appui pour les réviseurs et les investisseurs. Restez factuel ; les prévisions et les promesses de rendement n'ont pas leur place ici."
+            },
+            "agreement": {
+              "title": "Accord",
+              "hint": "L'accord de référence que les investisseurs acceptent. La version exacte acceptée au moment de l'engagement régit l'engagement."
+            }
+          },
+          "form": {
+            "title": {
+              "label": "Titre de l'opportunité"
+            },
+            "purpose": {
+              "label": "Objet du financement",
+              "hint": "Ce que fait l'entreprise et pourquoi elle lève des fonds."
+            },
+            "target": {
+              "label": "Montant cible (USD)",
+              "hint": "Le montant total que la levée vise à collecter."
+            },
+            "minimum": {
+              "label": "Contribution minimale (USD)",
+              "hint": "Le plus petit montant qu'un investisseur peut engager. Il ne peut pas dépasser l'objectif."
+            },
+            "deadline": {
+              "label": "Date limite",
+              "hint": "La clôture est tout ou rien : l'objectif, la date limite et les conditions de clôture approuvées doivent tous être remplis."
+            },
+            "valuation": {
+              "label": "Règle d'évaluation",
+              "hint": "Comment la part de revenus est calculée, par exemple un pourcentage du revenu mensuel."
+            },
+            "useOfProceeds": {
+              "label": "Utilisation des fonds"
+            },
+            "intermediary": {
+              "label": "Référence de l'intermédiaire",
+              "hint": "Référence de l'intermédiaire agréé, si un est déjà désigné."
+            },
+            "legal": {
+              "label": "Détails juridiques de l'entité, activité commerciale et historique d'exploitation",
+              "hint": "Forme juridique, juridiction, ce que fait l'entreprise et depuis combien de temps elle opère."
+            },
+            "financials": {
+              "label": "Informations financières",
+              "hint": "Résumé financier à l'appui de la levée. Ne collez pas de documents sensibles ici."
+            },
+            "ownership": {
+              "label": "Informations sur la propriété"
+            },
+            "risks": {
+              "label": "Risques importants"
+            },
+            "relatedParties": {
+              "label": "Relations avec des parties liées",
+              "hint": "Toute relation entre l'entité, ses propriétaires et d'autres parties qu'un investisseur devrait connaître."
+            },
+            "agreement": {
+              "label": "Texte de l'accord"
+            }
+          },
+          "submit": "Créer un brouillon privé",
+          "creating": "Création du brouillon...",
+          "created": {
+            "title": "Brouillon privé créé",
+            "copy": "Ce brouillon est privé. Seuls vous et les réviseurs pouvez le voir.",
+            "target": "Objectif {{amount}}"
+          },
+          "preview": {
+            "title": "Aperçu pour les investisseurs",
+            "hint": "Comment les investisseurs verront cette opportunité une fois publiée."
+          },
+          "submitReview": "Soumettre pour révision",
+          "submitReviewNote": "La soumission ne publie pas l'opportunité. Un réviseur doit d'abord l'approuver, et la publication est une étape distincte.",
+          "submitted": {
+            "copy": "Soumis pour révision. L'opportunité n'est pas publiée."
+          },
+          "manageLink": "Gérer cette levée",
+          "error": {
+            "loadFailed": "Impossible de charger vos entreprises. Veuillez réessayer.",
+            "createFailed": "Impossible de créer le brouillon. Veuillez réessayer.",
+            "agreementFailed": "Le brouillon a été créé, mais la version de l'accord n'a pas pu être enregistrée. Ajoutez-la depuis la page de gestion.",
+            "submitFailed": "Impossible de soumettre pour révision. Veuillez réessayer."
+          },
+          "errors": {
+            "business": "Choisissez une entreprise pour cette levée.",
+            "authority": "Confirmez que vous êtes autorisé à représenter cette entité.",
+            "title": "Un titre d'opportunité est requis.",
+            "purpose": "Un objet de financement est requis.",
+            "target": "Saisissez un montant cible valide supérieur à zéro.",
+            "minimum": "La contribution minimale doit être entre zéro et l'objectif.",
+            "deadline": "Choisissez une date limite future.",
+            "valuation": "Une règle d'évaluation est requise.",
+            "useOfProceeds": "Décrivez l'utilisation des fonds.",
+            "agreement": "Le texte de l'accord est requis."
+          }
+        },
+        "raises": {
+          "title": "Mes levées",
+          "intro": "Vos demandes de levée de capitaux, du brouillon privé à la levée publiée.",
+          "newRaise": "Commencer une nouvelle levée",
+          "error": {
+            "loadFailed": "Impossible de charger vos levées. Veuillez réessayer."
+          },
+          "empty": {
+            "title": "Aucune levée pour l'instant",
+            "copy": "Commencez une nouvelle levée pour demander des capitaux pour l'une de vos entreprises."
+          },
+          "card": {
+            "target": "Objectif {{amount}}",
+            "committed": "Engagé {{amount}}",
+            "completed": "Terminé {{amount}}",
+            "progress": "{{percent}} % financé",
+            "deadline": "Date limite {{date}}",
+            "manage": "Gérer",
+            "viewPublic": "Voir la page publique"
+          }
+        },
+        "manage": {
+          "title": "Gérer la levée",
+          "error": {
+            "loadFailed": "Impossible de charger cette levée. Veuillez réessayer.",
+            "actionFailed": "Cette action n'a pas pu être effectuée. Veuillez réessayer.",
+            "previewFailed": "Impossible de charger l'aperçu pour les investisseurs. Veuillez réessayer."
+          },
+          "status": {
+            "title": "État de la levée",
+            "target": "Objectif {{amount}}",
+            "committed": "Engagé {{amount}}",
+            "completed": "Terminé {{amount}}",
+            "progress": "{{percent}} % financé",
+            "deadline": "Date limite {{date}}",
+            "conditionsApproved": "Conditions de clôture approuvées.",
+            "closedAt": "Clôturée {{date}}"
+          },
+          "submitted": "Soumis pour révision. L'opportunité n'est pas publiée.",
+          "preview": {
+            "button": "Afficher l'aperçu pour les investisseurs"
+          },
+          "questions": {
+            "title": "Questions des investisseurs",
+            "hint": "Questions des candidats et des investisseurs sur cette opportunité. Répondez-y ici.",
+            "empty": {
+              "title": "Aucune question pour l'instant",
+              "copy": "Les questions des investisseurs apparaîtront ici quand elles arriveront."
+            },
+            "answerLabel": "Votre réponse",
+            "answerButton": "Envoyer la réponse",
+            "answered": "Réponse envoyée.",
+            "answeredLabel": "Répondu",
+            "answerRequired": "Rédigez une réponse avant d'envoyer."
+          },
+          "updates": {
+            "title": "Mises à jour et calendrier des rapports",
+            "hint": "Publiez des mises à jour pour les investisseurs. Une date limite manquée s'affiche comme en retard et ne disparaît jamais.",
+            "empty": {
+              "title": "Aucune mise à jour pour l'instant",
+              "copy": "Créez la première mise à jour pour cette levée."
+            },
+            "required": "Le titre et le corps de la mise à jour sont requis.",
+            "created": "Mise à jour créée comme brouillon.",
+            "published": "Mise à jour publiée.",
+            "publish": "Publier",
+            "overdue": "En retard depuis {{date}}",
+            "status": {
+              "draft": "Brouillon",
+              "published": "Publiée",
+              "overdue": "En retard"
+            },
+            "form": {
+              "title": "Titre de la mise à jour",
+              "body": "Mise à jour",
+              "due": "Date d'échéance",
+              "dueHint": "Quand cette mise à jour est due aux investisseurs.",
+              "submit": "Créer la mise à jour"
+            }
+          },
+          "amendments": {
+            "title": "Changements importants",
+            "hint": "Les conditions ne peuvent pas changer en silence après l'existence d'engagements. Un changement important passe par ce processus contrôlé : brouillon, avis aux investisseurs, puis reconfirmation.",
+            "empty": {
+              "title": "Aucun amendement",
+              "copy": "Aucun changement important n'a été proposé pour cette opportunité."
+            },
+            "required": "Décrivez le changement avant de créer l'amendement.",
+            "created": "Brouillon d'amendement créé.",
+            "proposed": "Amendement proposé. L'avis aux investisseurs a été envoyé.",
+            "untitled": "Amendement",
+            "proposedState": "Avis envoyé {{sent}}. Les investisseurs doivent reconfirmer avant le {{deadline}}.",
+            "deadlineRequired": "Choisissez une date limite future pour la reconfirmation.",
+            "status": {
+              "draft": "Brouillon",
+              "proposed": "Proposé",
+              "effective": "En vigueur",
+              "withdrawn": "Retiré",
+              "rejected": "Rejeté"
+            },
+            "form": {
+              "summary": "Ce qui change",
+              "summaryHint": "Décrivez le changement important en langage simple.",
+              "version": "Nouvelle version de l'accord",
+              "versionHint": "Choisissez la version de l'accord vers laquelle passent les investisseurs, le cas échéant.",
+              "noNewVersion": "Aucune nouvelle version de l'accord",
+              "submit": "Créer l'amendement"
+            },
+            "propose": {
+              "deadline": "Date limite de reconfirmation",
+              "button": "Proposer et aviser les investisseurs"
+            }
+          },
+          "agreements": {
+            "title": "Versions de l'accord",
+            "hint": "Les versions exactes de l'accord que les investisseurs acceptent. Un engagement enregistre la version exacte acceptée.",
+            "empty": {
+              "title": "Aucune version de l'accord pour l'instant",
+              "copy": "Ajoutez la première version de l'accord. Une opportunité ne peut pas être approuvée sans elle."
+            },
+            "required": "Le texte de l'accord est requis.",
+            "created": "Version de l'accord créée.",
+            "form": {
+              "body": "Texte de l'accord",
+              "submit": "Ajouter une version de l'accord"
+            }
+          },
+          "obligations": {
+            "title": "Après la clôture : rapports et obligations",
+            "hint": "La levée est clôturée. Ces obligations restent avec l'entité.",
+            "item1": "Publiez des mises à jour selon le calendrier des rapports ci-dessus. Les mises à jour manquées s'affichent comme en retard.",
+            "item2": "Payez les distributions via le flux de règlement approuvé. Aucune distribution n'est promise aux investisseurs.",
+            "item3": "Conservez les dossiers de la levée, des accords acceptés et de tous les rapports."
+          }
+        }
+      },
+      "review": {
+        "title": "File de révision des investissements",
+        "intro": "Demandes de participation, révisions de publication des opportunités, approbations de clôture et libération des fonds. Chaque file n'affiche que ce que vos permissions de révision couvrent.",
+        "empty": "Aucune file de révision n'est disponible pour vos permissions.",
+        "emptyType": "Rien n'attend dans cette file.",
+        "select": "Choisissez un élément pour le réviser.",
+        "tabs": {
+          "applications": "Demandes",
+          "opportunities": "Opportunités",
+          "closing": "Clôture",
+          "proceeds": "Fonds"
+        },
+        "errors": {
+          "loadFailed": "Impossible de charger la file de révision. Veuillez réessayer.",
+          "generic": "Cette action de révision n'a pas pu être effectuée. Veuillez réessayer.",
+          "notPermitted": "Vous n'avez pas de permission de révision des investissements, donc cette file est vide pour vous.",
+          "selfApproval": "Vous ne pouvez pas réviser votre propre demande, opportunité ou clôture. Un autre réviseur doit décider.",
+          "versionConflict": "Cet élément a changé depuis son chargement. Il a été rechargé ; examinez la dernière version et réessayez.",
+          "proceedsBlocked": "Les fonds ne peuvent pas encore être libérés. L'opportunité doit d'abord être clôturée avec des conditions de clôture approuvées.",
+          "noAgreement": "Cette opportunité ne peut pas être approuvée sans une version de l'accord.",
+          "transitionInvalid": "Cet élément ne peut pas passer à cet état depuis sa position actuelle."
+        },
+        "actions": {
+          "approve": "Approuver",
+          "decline": "Refuser",
+          "needsInformation": "Informations requises",
+          "claim": "Prendre pour révision",
+          "publish": "Publier"
+        },
+        "application": {
+          "applicant": "Candidat",
+          "identity": "Identité vérifiée",
+          "authority": "Autorité vérifiée",
+          "agreementAccepted": "Accord accepté",
+          "version": "Version attendue",
+          "eligibility": "Admissibilité",
+          "note": "Note de révision",
+          "confirmIdentity": "Identité vérifiée",
+          "confirmAuthority": "Autorité vérifiée",
+          "no": "Non",
+          "noteRequired": "Une note est requise pour demander plus d'informations.",
+          "verifyRequired": "L'approbation exige la vérification de l'identité et de l'autorité."
+        },
+        "opportunity": {
+          "target": "Objectif",
+          "minimum": "Contribution minimale",
+          "committed": "Engagé",
+          "progress": "{{percent}} % financé",
+          "purpose": "Objet du financement",
+          "valuation": "Règle d'évaluation",
+          "useOfProceeds": "Utilisation des fonds",
+          "version": "Version attendue",
+          "details": "Détails de l'entité",
+          "detail": {
+            "legalDetails": "Détails juridiques",
+            "financials": "Finances",
+            "ownership": "Propriété",
+            "risks": "Risques",
+            "relatedParties": "Parties liées"
+          },
+          "decideTitle": "Décision de révision",
+          "note": "Note de révision",
+          "verifiedItems": "Éléments vérifiés (un par ligne)",
+          "publishNote": "La publication est distincte de l'approbation. Le représentant de l'entité ne peut pas publier sa propre opportunité."
+        },
+        "closing": {
+          "title": "Clôture",
+          "conditionsApproved": "Conditions de clôture approuvées {{date}}.",
+          "conditionsPending": "Les conditions de clôture ne sont pas encore approuvées.",
+          "reviewApproved": "Révision approuvée par {{approver}}.",
+          "reviewPending": "La révision de clôture n'est pas encore approuvée.",
+          "executionApproved": "Exécution approuvée par {{approver}}.",
+          "executionPending": "L'exécution de clôture n'est pas encore approuvée.",
+          "gateOff": "Les engagements en direct sont désactivés. La clôture, la libération des fonds et les distributions sont inactives jusqu'à ce que la porte des engagements en direct soit approuvée pour un pilote.",
+          "note": "Note de clôture",
+          "approveConditions": "Approuver les conditions de clôture",
+          "approveReview": "Approuver l'étape de révision",
+          "approveExecution": "Approuver l'étape d'exécution",
+          "close": "Clôturer l'opportunité",
+          "separateApprovers": "La révision et l'exécution nécessitent des approbateurs différents, et aucun ne peut être le représentant de l'entité. Seul l'approbateur d'exécution approuvé peut exécuter la clôture."
+        },
+        "proceeds": {
+          "title": "Fonds et distributions",
+          "release": "Libérer les fonds",
+          "blockedNote": "La libération des fonds reste bloquée jusqu'à ce que l'opportunité soit clôturée avec des conditions de clôture approuvées."
+        },
+        "distributions": {
+          "position": "Position",
+          "choosePosition": "Choisir une position",
+          "amount": "Montant de la distribution (USD)",
+          "submit": "Enregistrer la distribution",
+          "empty": "Aucune position n'existe encore pour cette opportunité.",
+          "required": "Choisissez une position et saisissez un montant valide."
+        }
+      },
     "application": {
       "agreementAccepted": "La version de l'accord a été acceptée et enregistrée.",
       "choose": {
@@ -32599,6 +32956,7 @@
     "confirmRevokeTitle": "Révoquer l'acceptation"
   },
   "adminNav": {
+    "investReviewQueue": "Révisions des investissements",
     "moneyApprovals": "Approbations monétaires",
     "adminAccounts": "Comptes admin",
     "auditLog": "Journal d’audit",

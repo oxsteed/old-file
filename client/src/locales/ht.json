@@ -8375,6 +8375,8 @@
     }
   },
   "businessHub": {
+    "raiseCapital": "Ranmase kapital",
+    "raiseCapitalTitle": "Ranmase kapital nan men envestisè pou biznis sa a",
     "procurement": {
       "title": "Acha",
       "subtitle": "Pwogram acha repete ak demann ki lye ak biznis sa a.",
@@ -22711,6 +22713,361 @@
     }
   },
   "invest": {
+      "entity": {
+        "raise": {
+          "title": "Ranmase kapital",
+          "intro": "Mande pou ranmase kapital nan men envestisè pou youn nan biznis ou yo. Demann ou an rete prive jiskaske yon revizè apwouve li pou piblikasyon.",
+          "documentsNotice": "Pa mete dokiman sansib idantite oswa finansye nan fòm sa a. Yo pase nan sikui verifikasyon ak dokiman ki gen restriksyon, janm nan deskripsyon piblik yon opòtinite.",
+          "business": {
+            "label": "Biznis",
+            "choose": "Chwazi yon biznis",
+            "empty": {
+              "title": "Pa gen biznis pou ranmase",
+              "copy": "Ou poko reprezante yon biznis. Kreye yon biznis anvan, apre sa tounen pou ranmase kapital."
+            }
+          },
+          "authority": {
+            "label": "Mwen otorize pou m reprezante antite sa a epi pou m soumèt demann ranmase lajan sa a nan non li.",
+            "hint": "Se sèlman pwopriyetè, manadjè, oswa reprezantan otorize biznis la ki ka ranmase kapital pou li."
+          },
+          "sections": {
+            "entity": {
+              "title": "Antite",
+              "hint": "Kiyès k ap ranmase, ak ki otorite."
+            },
+            "raise": {
+              "title": "Ranmase lajan an",
+              "hint": "Objektif finansman, sib, ak kondisyon. Pataj revni sèlman, Etazini sèlman."
+            },
+            "details": {
+              "title": "Detay antite a",
+              "hint": "Enfòmasyon pou sipòte revizè ak envestisè yo. Rete sou reyalite; previzyon ak pwomès retou pa gen plas isit la."
+            },
+            "agreement": {
+              "title": "Akò",
+              "hint": "Akò prensipal envestisè yo aksepte. Vèsyon egzak yo aksepte lè yo angaje yo se sa ki gouvène angajman an."
+            }
+          },
+          "form": {
+            "title": {
+              "label": "Tit opòtinite a"
+            },
+            "purpose": {
+              "label": "Objektif finansman an",
+              "hint": "Kisa biznis la fè ak poukisa l ap ranmase."
+            },
+            "target": {
+              "label": "Montan sib (USD)",
+              "hint": "Montan total ranmase lajan an vize rasanble."
+            },
+            "minimum": {
+              "label": "Kontribisyon minimòm (USD)",
+              "hint": "Pi piti montan yon envestisè ka angaje. Li pa ka depase sib la."
+            },
+            "deadline": {
+              "label": "Dat limit",
+              "hint": "Fèmti a se tout oswa anyen: sib la, dat limit la, ak kondisyon fèmti yo apwouve dwe tout satisfè."
+            },
+            "valuation": {
+              "label": "Règ evalyasyon",
+              "hint": "Kijan pataj revni an kalkile, pa egzanp yon pousantaj nan revni mansyèl la."
+            },
+            "useOfProceeds": {
+              "label": "Itilizasyon lajan an"
+            },
+            "intermediary": {
+              "label": "Referans entèmedyè a",
+              "hint": "Referans entèmedyè anrejistre a, si gen youn ki deja asiyen."
+            },
+            "legal": {
+              "label": "Detay legal antite a, aktivite biznis, ak istwa operasyon",
+              "hint": "Fòm legal, jiridiksyon, kisa biznis la fè, ak depi konbyen tan l ap fonksyone."
+            },
+            "financials": {
+              "label": "Enfòmasyon finansye",
+              "hint": "Rezime finansye ki sipòte ranmase lajan an. Pa kole dokiman sansib isit la."
+            },
+            "ownership": {
+              "label": "Enfòmasyon sou pwopriyetè"
+            },
+            "risks": {
+              "label": "Risk enpòtan"
+            },
+            "relatedParties": {
+              "label": "Relasyon ak pati ki gen rapò",
+              "hint": "Nenpòt relasyon ant antite a, pwopriyetè li yo, ak lòt pati yon envestisè ta dwe konnen."
+            },
+            "agreement": {
+              "label": "Tèks akò a"
+            }
+          },
+          "submit": "Kreye bouyon prive",
+          "creating": "Y ap kreye bouyon an...",
+          "created": {
+            "title": "Bouyon prive kreye",
+            "copy": "Bouyon sa a prive. Se ou menm ak revizè yo sèlman ki ka wè li.",
+            "target": "Sib {{amount}}"
+          },
+          "preview": {
+            "title": "Apèsi pou envestisè",
+            "hint": "Kijan envestisè yo pral wè opòtinite sa a lè li pibliye."
+          },
+          "submitReview": "Soumèt pou revizyon",
+          "submitReviewNote": "Soumisyon an pa pibliye opòtinite a. Yon revizè dwe apwouve li anvan, epi piblikasyon an se yon etap apa.",
+          "submitted": {
+            "copy": "Soumèt pou revizyon. Opòtinite a pa pibliye."
+          },
+          "manageLink": "Jere ranmase sa a",
+          "error": {
+            "loadFailed": "Pa t ka chaje biznis ou yo. Tanpri eseye ankò.",
+            "createFailed": "Pa t ka kreye bouyon an. Tanpri eseye ankò.",
+            "agreementFailed": "Bouyon an te kreye, men vèsyon akò a pa t ka anrejistre. Ajoute li nan paj jesyon an.",
+            "submitFailed": "Pa t ka soumèt pou revizyon. Tanpri eseye ankò."
+          },
+          "errors": {
+            "business": "Chwazi yon biznis pou ranmase sa a.",
+            "authority": "Konfime ou otorize pou reprezante antite sa a.",
+            "title": "Yo mande yon tit pou opòtinite a.",
+            "purpose": "Yo mande yon objektif finansman.",
+            "target": "Antre yon montan sib valab ki pi gran pase zewo.",
+            "minimum": "Kontribisyon minimòm lan dwe ant zewo ak sib la.",
+            "deadline": "Chwazi yon dat limit nan lavni.",
+            "valuation": "Yo mande yon règ evalyasyon.",
+            "useOfProceeds": "Dekri itilizasyon lajan an.",
+            "agreement": "Yo mande tèks akò a."
+          }
+        },
+        "raises": {
+          "title": "Ranmase mwen yo",
+          "intro": "Demann ou yo pou ranmase kapital, depi bouyon prive rive nan ranmase pibliye.",
+          "newRaise": "Kòmanse yon nouvo ranmase",
+          "error": {
+            "loadFailed": "Pa t ka chaje ranmase ou yo. Tanpri eseye ankò."
+          },
+          "empty": {
+            "title": "Poko gen ranmase",
+            "copy": "Kòmanse yon nouvo ranmase pou mande kapital pou youn nan biznis ou yo."
+          },
+          "card": {
+            "target": "Sib {{amount}}",
+            "committed": "Angaje {{amount}}",
+            "completed": "Konplete {{amount}}",
+            "progress": "{{percent}}% finanse",
+            "deadline": "Dat limit {{date}}",
+            "manage": "Jere",
+            "viewPublic": "Wè paj piblik la"
+          }
+        },
+        "manage": {
+          "title": "Jere ranmase",
+          "error": {
+            "loadFailed": "Pa t ka chaje ranmase sa a. Tanpri eseye ankò.",
+            "actionFailed": "Aksyon sa a pa t ka fèt. Tanpri eseye ankò.",
+            "previewFailed": "Pa t ka chaje apèsi pou envestisè a. Tanpri eseye ankò."
+          },
+          "status": {
+            "title": "Eta ranmase lajan an",
+            "target": "Sib {{amount}}",
+            "committed": "Angaje {{amount}}",
+            "completed": "Konplete {{amount}}",
+            "progress": "{{percent}}% finanse",
+            "deadline": "Dat limit {{date}}",
+            "conditionsApproved": "Kondisyon fèmti yo apwouve.",
+            "closedAt": "Fèmen {{date}}"
+          },
+          "submitted": "Soumèt pou revizyon. Opòtinite a pa pibliye.",
+          "preview": {
+            "button": "Montre apèsi pou envestisè"
+          },
+          "questions": {
+            "title": "Kesyon envestisè",
+            "hint": "Kesyon moun k ap aplike ak envestisè nan opòtinite sa a. Reponn yo isit la.",
+            "empty": {
+              "title": "Poko gen kesyon",
+              "copy": "Kesyon envestisè yo ap parèt isit la lè yo rive."
+            },
+            "answerLabel": "Repons ou",
+            "answerButton": "Voye repons",
+            "answered": "Repons voye.",
+            "answeredLabel": "Reponn",
+            "answerRequired": "Ekri yon repons anvan ou voye."
+          },
+          "updates": {
+            "title": "Mizajou ak orè rapò",
+            "hint": "Pibliye mizajou pou envestisè yo. Yon dat limit ki rate parèt kòm an reta epi li pa janm disparèt.",
+            "empty": {
+              "title": "Poko gen mizajou",
+              "copy": "Kreye premye mizajou pou ranmase sa a."
+            },
+            "required": "Yo mande tit ak kò mizajou a.",
+            "created": "Mizajou kreye kòm bouyon.",
+            "published": "Mizajou pibliye.",
+            "publish": "Pibliye",
+            "overdue": "An reta depi {{date}}",
+            "status": {
+              "draft": "Bouyon",
+              "published": "Pibliye",
+              "overdue": "An reta"
+            },
+            "form": {
+              "title": "Tit mizajou a",
+              "body": "Mizajou",
+              "due": "Dat limit",
+              "dueHint": "Kilè mizajou sa a dwe bay envestisè yo.",
+              "submit": "Kreye mizajou"
+            }
+          },
+          "amendments": {
+            "title": "Chanjman enpòtan",
+            "hint": "Kondisyon yo pa ka chanje an kachèt apre angajman yo egziste. Yon chanjman enpòtan pase nan pwosesis kontwole sa a: bouyon, avi bay envestisè, apre sa rekonfimasyon.",
+            "empty": {
+              "title": "Pa gen amandman",
+              "copy": "Pa gen chanjman enpòtan ki pwopoze pou opòtinite sa a."
+            },
+            "required": "Dekri chanjman an anvan ou kreye amandman an.",
+            "created": "Bouyon amandman kreye.",
+            "proposed": "Amandman pwopoze. Avi bay envestisè yo voye.",
+            "untitled": "Amandman",
+            "proposedState": "Avi voye {{sent}}. Envestisè yo dwe rekonfime anvan {{deadline}}.",
+            "deadlineRequired": "Chwazi yon dat limit nan lavni pou rekonfimasyon.",
+            "status": {
+              "draft": "Bouyon",
+              "proposed": "Pwopoze",
+              "effective": "An vigè",
+              "withdrawn": "Retire",
+              "rejected": "Rejte"
+            },
+            "form": {
+              "summary": "Kisa k ap chanje",
+              "summaryHint": "Dekri chanjman enpòtan an nan lang senp.",
+              "version": "Nouvo vèsyon akò",
+              "versionHint": "Chwazi vèsyon akò chanjman an deplase envestisè yo ladan li, si genyen.",
+              "noNewVersion": "Pa gen nouvo vèsyon akò",
+              "submit": "Kreye amandman"
+            },
+            "propose": {
+              "deadline": "Dat limit rekonfimasyon",
+              "button": "Pwopoze epi avèti envestisè yo"
+            }
+          },
+          "agreements": {
+            "title": "Vèsyon akò yo",
+            "hint": "Vèsyon egzak akò envestisè yo aksepte. Yon angajman anrejistre vèsyon egzak yo aksepte.",
+            "empty": {
+              "title": "Poko gen vèsyon akò",
+              "copy": "Ajoute premye vèsyon akò a. Yon opòtinite pa ka apwouve san li."
+            },
+            "required": "Yo mande tèks akò a.",
+            "created": "Vèsyon akò kreye.",
+            "form": {
+              "body": "Tèks akò a",
+              "submit": "Ajoute vèsyon akò"
+            }
+          },
+          "obligations": {
+            "title": "Apre fèmti: rapò ak obligasyon",
+            "hint": "Ranmase lajan an fèmen. Obligasyon sa yo rete ak antite a.",
+            "item1": "Pibliye mizajou selon orè rapò ki anwo a. Mizajou ki rate parèt kòm an reta.",
+            "item2": "Peye distribisyon yo atravè sikui règleman apwouve a. Okenn distribisyon pa pwomèt bay envestisè yo.",
+            "item3": "Kenbe dosye ranmase lajan an, akò yo aksepte, ak tout rapò yo."
+          }
+        }
+      },
+      "review": {
+        "title": "Liy revizyon envestisman",
+        "intro": "Demann patisipasyon, revizyon piblikasyon opòtinite, apwobasyon fèmti, ak liberasyon lajan. Chak liy montre sèlman sa pèmisyon revizyon ou yo kouvri.",
+        "empty": "Pa gen liy revizyon ki disponib pou pèmisyon ou yo.",
+        "emptyType": "Pa gen anyen k ap tann nan liy sa a.",
+        "select": "Chwazi yon eleman pou revize li.",
+        "tabs": {
+          "applications": "Demann",
+          "opportunities": "Opòtinite",
+          "closing": "Fèmti",
+          "proceeds": "Lajan"
+        },
+        "errors": {
+          "loadFailed": "Pa t ka chaje liy revizyon an. Tanpri eseye ankò.",
+          "generic": "Aksyon revizyon sa a pa t ka fèt. Tanpri eseye ankò.",
+          "notPermitted": "Ou pa gen yon pèmisyon revizyon envestisman, kidonk liy sa a vid pou ou.",
+          "selfApproval": "Ou pa ka revize pwòp demann, opòtinite, oswa fèmti ou. Se yon lòt revizè ki dwe deside.",
+          "versionConflict": "Eleman sa a chanje depi li te chaje. Li rechaje; revize dènye vèsyon an epi eseye ankò.",
+          "proceedsBlocked": "Lajan an poko ka lage. Opòtinite a dwe fèmen ak kondisyon fèmti yo apwouve anvan.",
+          "noAgreement": "Opòtinite sa a pa ka apwouve san yon vèsyon akò.",
+          "transitionInvalid": "Eleman sa a pa ka pase nan eta sa a depi kote li ye kounye a."
+        },
+        "actions": {
+          "approve": "Apwouve",
+          "decline": "Refize",
+          "needsInformation": "Bezwen enfòmasyon",
+          "claim": "Pran pou revizyon",
+          "publish": "Pibliye"
+        },
+        "application": {
+          "applicant": "Moun k ap aplike",
+          "identity": "Idantite verifye",
+          "authority": "Otorite verifye",
+          "agreementAccepted": "Akò aksepte",
+          "version": "Vèsyon yo atann",
+          "eligibility": "Eligibilite",
+          "note": "Nòt revizyon",
+          "confirmIdentity": "Idantite verifye",
+          "confirmAuthority": "Otorite verifye",
+          "no": "Non",
+          "noteRequired": "Yo mande yon nòt lè w ap mande plis enfòmasyon.",
+          "verifyRequired": "Apwobasyon mande verifikasyon idantite ak otorite."
+        },
+        "opportunity": {
+          "target": "Sib",
+          "minimum": "Kontribisyon minimòm",
+          "committed": "Angaje",
+          "progress": "{{percent}}% finanse",
+          "purpose": "Objektif finansman",
+          "valuation": "Règ evalyasyon",
+          "useOfProceeds": "Itilizasyon lajan an",
+          "version": "Vèsyon yo atann",
+          "details": "Detay antite a",
+          "detail": {
+            "legalDetails": "Detay legal",
+            "financials": "Finans",
+            "ownership": "Pwopriyetè",
+            "risks": "Risk",
+            "relatedParties": "Pati ki gen rapò"
+          },
+          "decideTitle": "Desizyon revizyon",
+          "note": "Nòt revizyon",
+          "verifiedItems": "Eleman verifye (youn pa liy)",
+          "publishNote": "Piblikasyon separe ak apwobasyon. Reprezantan antite a pa ka pibliye pwòp opòtinite li."
+        },
+        "closing": {
+          "title": "Fèmti",
+          "conditionsApproved": "Kondisyon fèmti yo apwouve {{date}}.",
+          "conditionsPending": "Kondisyon fèmti yo poko apwouve.",
+          "reviewApproved": "Revizyon apwouve pa {{approver}}.",
+          "reviewPending": "Revizyon fèmti a poko apwouve.",
+          "executionApproved": "Egzekisyon apwouve pa {{approver}}.",
+          "executionPending": "Egzekisyon fèmti a poko apwouve.",
+          "gateOff": "Angajman an dirèk yo koupe. Fèmti, liberasyon lajan, ak distribisyon yo pa aktif jiskaske pòtay angajman an dirèk la apwouve pou yon pilòt.",
+          "note": "Nòt fèmti",
+          "approveConditions": "Apwouve kondisyon fèmti yo",
+          "approveReview": "Apwouve etap revizyon an",
+          "approveExecution": "Apwouve etap egzekisyon an",
+          "close": "Fèmen opòtinite a",
+          "separateApprovers": "Revizyon ak egzekisyon bezwen apwobatè diferan, epi okenn pa ka reprezantan antite a. Se sèlman apwobatè egzekisyon apwouve a ki ka egzekite fèmti a."
+        },
+        "proceeds": {
+          "title": "Lajan ak distribisyon",
+          "release": "Lage lajan an",
+          "blockedNote": "Liberasyon lajan an rete bloke jiskaske opòtinite a fèmen ak kondisyon fèmti yo apwouve."
+        },
+        "distributions": {
+          "position": "Pozisyon",
+          "choosePosition": "Chwazi yon pozisyon",
+          "amount": "Montan distribisyon (USD)",
+          "submit": "Anrejistre distribisyon",
+          "empty": "Poko gen pozisyon pou opòtinite sa a.",
+          "required": "Chwazi yon pozisyon epi antre yon montan valab."
+        }
+      },
     "application": {
       "agreementAccepted": "Vèsyon akò a te aksepte epi anrejistre.",
       "choose": {
@@ -32599,6 +32956,7 @@
     "confirmRevokeTitle": "Anile akseptasyon"
   },
   "adminNav": {
+    "investReviewQueue": "Revizyon envestisman",
     "moneyApprovals": "Apwobasyon lajan",
     "adminAccounts": "Kont admin",
     "auditLog": "Jounal odit",

@@ -8097,6 +8097,8 @@
     }
   },
   "businessHub": {
+    "raiseCapital": "Raise capital",
+    "raiseCapitalTitle": "Raise capital from investors for this business",
     "procurement": {
       "title": "Procurement",
       "subtitle": "Recurring sourcing programs and supply requests linked to this business.",
@@ -22711,6 +22713,361 @@
     }
   },
   "invest": {
+      "entity": {
+        "raise": {
+          "title": "Raise capital",
+          "intro": "Apply to raise capital from investors for one of your businesses. Your application stays private until a reviewer approves it for publication.",
+          "documentsNotice": "Do not include sensitive identity or financial documents in this form. Those go through restricted verification and document flows, never in a public opportunity description.",
+          "business": {
+            "label": "Business",
+            "choose": "Choose a business",
+            "empty": {
+              "title": "No business to raise for",
+              "copy": "You do not represent a business yet. Create a business first, then come back to raise capital."
+            }
+          },
+          "authority": {
+            "label": "I am authorized to represent this entity and to submit this fundraising application on its behalf.",
+            "hint": "Only an owner, manager, or authorized representative of the business can raise capital for it."
+          },
+          "sections": {
+            "entity": {
+              "title": "Entity",
+              "hint": "Who is raising, and under what authority."
+            },
+            "raise": {
+              "title": "The raise",
+              "hint": "Funding purpose, target, and terms. Revenue share only, United States only."
+            },
+            "details": {
+              "title": "Entity details",
+              "hint": "Supporting information for reviewers and investors. Keep it factual; forecasts and promises of returns do not belong here."
+            },
+            "agreement": {
+              "title": "Agreement",
+              "hint": "The controlling agreement investors accept. The exact version accepted at commit time governs the commitment."
+            }
+          },
+          "form": {
+            "title": {
+              "label": "Opportunity title"
+            },
+            "purpose": {
+              "label": "Funding purpose",
+              "hint": "What the business does and why it is raising."
+            },
+            "target": {
+              "label": "Target amount (USD)",
+              "hint": "The full amount the raise aims to collect."
+            },
+            "minimum": {
+              "label": "Minimum contribution (USD)",
+              "hint": "The smallest amount one investor can commit. It cannot be more than the target."
+            },
+            "deadline": {
+              "label": "Deadline",
+              "hint": "Closing is all-or-nothing: the target, the deadline, and approved closing conditions must all be met."
+            },
+            "valuation": {
+              "label": "Valuation rule",
+              "hint": "How the revenue share is calculated, for example a percentage of monthly revenue."
+            },
+            "useOfProceeds": {
+              "label": "Use of proceeds"
+            },
+            "intermediary": {
+              "label": "Intermediary reference",
+              "hint": "Reference for the registered intermediary, if one is assigned already."
+            },
+            "legal": {
+              "label": "Legal entity details, business activity, and operating history",
+              "hint": "Legal form, jurisdiction, what the business does, and how long it has operated."
+            },
+            "financials": {
+              "label": "Financial information",
+              "hint": "Summary financials that support the raise. Do not paste sensitive documents here."
+            },
+            "ownership": {
+              "label": "Ownership information"
+            },
+            "risks": {
+              "label": "Material risks"
+            },
+            "relatedParties": {
+              "label": "Related-party relationships",
+              "hint": "Any relationship between the entity, its owners, and other parties that an investor should know about."
+            },
+            "agreement": {
+              "label": "Agreement text"
+            }
+          },
+          "submit": "Create private draft",
+          "creating": "Creating draft...",
+          "created": {
+            "title": "Private draft created",
+            "copy": "This draft is private. Only you and reviewers can see it.",
+            "target": "Target {{amount}}"
+          },
+          "preview": {
+            "title": "Investor preview",
+            "hint": "How investors will see this opportunity once it is published."
+          },
+          "submitReview": "Submit for review",
+          "submitReviewNote": "Submission does not publish the opportunity. A reviewer must approve it first, and publication is a separate step.",
+          "submitted": {
+            "copy": "Submitted for review. The opportunity is not published."
+          },
+          "manageLink": "Manage this raise",
+          "error": {
+            "loadFailed": "Could not load your businesses. Please try again.",
+            "createFailed": "Could not create the draft. Please try again.",
+            "agreementFailed": "The draft was created, but the agreement version could not be saved. Add it from the manage page.",
+            "submitFailed": "Could not submit for review. Please try again."
+          },
+          "errors": {
+            "business": "Choose a business for this raise.",
+            "authority": "Confirm that you are authorized to represent this entity.",
+            "title": "An opportunity title is required.",
+            "purpose": "A funding purpose is required.",
+            "target": "Enter a valid target amount greater than zero.",
+            "minimum": "The minimum contribution must be between zero and the target.",
+            "deadline": "Choose a future deadline.",
+            "valuation": "A valuation rule is required.",
+            "useOfProceeds": "Describe the use of proceeds.",
+            "agreement": "Agreement text is required."
+          }
+        },
+        "raises": {
+          "title": "My raises",
+          "intro": "Your entity fundraising applications, from private draft to published raise.",
+          "newRaise": "Start a new raise",
+          "error": {
+            "loadFailed": "Could not load your raises. Please try again."
+          },
+          "empty": {
+            "title": "No raises yet",
+            "copy": "Start a new raise to apply for capital for one of your businesses."
+          },
+          "card": {
+            "target": "Target {{amount}}",
+            "committed": "Committed {{amount}}",
+            "completed": "Completed {{amount}}",
+            "progress": "{{percent}}% funded",
+            "deadline": "Deadline {{date}}",
+            "manage": "Manage",
+            "viewPublic": "View public page"
+          }
+        },
+        "manage": {
+          "title": "Manage raise",
+          "error": {
+            "loadFailed": "Could not load this raise. Please try again.",
+            "actionFailed": "That action could not be completed. Please try again.",
+            "previewFailed": "Could not load the investor preview. Please try again."
+          },
+          "status": {
+            "title": "Fundraising status",
+            "target": "Target {{amount}}",
+            "committed": "Committed {{amount}}",
+            "completed": "Completed {{amount}}",
+            "progress": "{{percent}}% funded",
+            "deadline": "Deadline {{date}}",
+            "conditionsApproved": "Closing conditions approved.",
+            "closedAt": "Closed {{date}}"
+          },
+          "submitted": "Submitted for review. The opportunity is not published.",
+          "preview": {
+            "button": "Show investor preview"
+          },
+          "questions": {
+            "title": "Investor questions",
+            "hint": "Questions from applicants and investors in this opportunity. Answer them here.",
+            "empty": {
+              "title": "No questions yet",
+              "copy": "Investor questions will appear here when they arrive."
+            },
+            "answerLabel": "Your answer",
+            "answerButton": "Send answer",
+            "answered": "Answer sent.",
+            "answeredLabel": "Answered",
+            "answerRequired": "Write an answer before sending."
+          },
+          "updates": {
+            "title": "Updates and reporting schedule",
+            "hint": "Publish updates for investors. A missed due date shows as overdue and never disappears.",
+            "empty": {
+              "title": "No updates yet",
+              "copy": "Create the first update for this raise."
+            },
+            "required": "An update title and body are required.",
+            "created": "Update created as a draft.",
+            "published": "Update published.",
+            "publish": "Publish",
+            "overdue": "Overdue since {{date}}",
+            "status": {
+              "draft": "Draft",
+              "published": "Published",
+              "overdue": "Overdue"
+            },
+            "form": {
+              "title": "Update title",
+              "body": "Update",
+              "due": "Due date",
+              "dueHint": "When this update is due to investors.",
+              "submit": "Create update"
+            }
+          },
+          "amendments": {
+            "title": "Material changes",
+            "hint": "Terms cannot change silently after commitments exist. A material change goes through this controlled process: draft, investor notice, then reconfirmation.",
+            "empty": {
+              "title": "No amendments",
+              "copy": "No material changes have been proposed for this opportunity."
+            },
+            "required": "Describe the change before creating the amendment.",
+            "created": "Amendment draft created.",
+            "proposed": "Amendment proposed. Investor notice has been sent.",
+            "untitled": "Amendment",
+            "proposedState": "Notice sent {{sent}}. Investors must reconfirm by {{deadline}}.",
+            "deadlineRequired": "Choose a future reconfirmation deadline.",
+            "status": {
+              "draft": "Draft",
+              "proposed": "Proposed",
+              "effective": "Effective",
+              "withdrawn": "Withdrawn",
+              "rejected": "Rejected"
+            },
+            "form": {
+              "summary": "What changes",
+              "summaryHint": "Describe the material change in plain language.",
+              "version": "New agreement version",
+              "versionHint": "Choose the agreement version the change moves investors to, if any.",
+              "noNewVersion": "No new agreement version",
+              "submit": "Create amendment"
+            },
+            "propose": {
+              "deadline": "Reconfirmation deadline",
+              "button": "Propose and notify investors"
+            }
+          },
+          "agreements": {
+            "title": "Agreement versions",
+            "hint": "The exact agreement versions investors accept. A commitment records the exact version accepted.",
+            "empty": {
+              "title": "No agreement version yet",
+              "copy": "Add the first agreement version. An opportunity cannot be approved without one."
+            },
+            "required": "Agreement text is required.",
+            "created": "Agreement version created.",
+            "form": {
+              "body": "Agreement text",
+              "submit": "Add agreement version"
+            }
+          },
+          "obligations": {
+            "title": "After closing: reporting and obligations",
+            "hint": "The raise is closed. These obligations stay with the entity.",
+            "item1": "Publish updates on the reporting schedule above. Missed updates show as overdue.",
+            "item2": "Pay distributions through the approved settlement flow. No distribution is promised to investors.",
+            "item3": "Keep records of the raise, the agreements accepted, and all reports."
+          }
+        }
+      },
+      "review": {
+        "title": "Invest review queue",
+        "intro": "Participation applications, opportunity publish reviews, closing approvals, and proceeds release. Each queue shows only what your review permissions cover.",
+        "empty": "No review queues are available for your permissions.",
+        "emptyType": "Nothing is waiting in this queue.",
+        "select": "Choose an item to review it.",
+        "tabs": {
+          "applications": "Applications",
+          "opportunities": "Opportunities",
+          "closing": "Closing",
+          "proceeds": "Proceeds"
+        },
+        "errors": {
+          "loadFailed": "Could not load the review queue. Please try again.",
+          "generic": "That review action could not be completed. Please try again.",
+          "notPermitted": "You do not have an investment review permission, so this queue is empty for you.",
+          "selfApproval": "You cannot review your own application, opportunity, or closing. Another reviewer must decide.",
+          "versionConflict": "This item changed since it was loaded. It has been reloaded; review the latest version and try again.",
+          "proceedsBlocked": "Proceeds cannot release yet. The opportunity must be closed with approved closing conditions first.",
+          "noAgreement": "This opportunity cannot be approved without an agreement version.",
+          "transitionInvalid": "This item cannot move to that state from where it is now."
+        },
+        "actions": {
+          "approve": "Approve",
+          "decline": "Decline",
+          "needsInformation": "Needs information",
+          "claim": "Claim for review",
+          "publish": "Publish"
+        },
+        "application": {
+          "applicant": "Applicant",
+          "identity": "Identity verified",
+          "authority": "Authority verified",
+          "agreementAccepted": "Agreement accepted",
+          "version": "Expected version",
+          "eligibility": "Eligibility",
+          "note": "Review note",
+          "confirmIdentity": "Identity verified",
+          "confirmAuthority": "Authority verified",
+          "no": "No",
+          "noteRequired": "A note is required when asking for more information.",
+          "verifyRequired": "Approval requires identity and authority verification."
+        },
+        "opportunity": {
+          "target": "Target",
+          "minimum": "Minimum contribution",
+          "committed": "Committed",
+          "progress": "{{percent}}% funded",
+          "purpose": "Funding purpose",
+          "valuation": "Valuation rule",
+          "useOfProceeds": "Use of proceeds",
+          "version": "Expected version",
+          "details": "Entity details",
+          "detail": {
+            "legalDetails": "Legal details",
+            "financials": "Financials",
+            "ownership": "Ownership",
+            "risks": "Risks",
+            "relatedParties": "Related parties"
+          },
+          "decideTitle": "Review decision",
+          "note": "Review note",
+          "verifiedItems": "Verified items (one per line)",
+          "publishNote": "Publication is separate from approval. The entity representative cannot publish their own opportunity."
+        },
+        "closing": {
+          "title": "Closing",
+          "conditionsApproved": "Closing conditions approved {{date}}.",
+          "conditionsPending": "Closing conditions are not approved yet.",
+          "reviewApproved": "Review approved by {{approver}}.",
+          "reviewPending": "Closing review is not approved yet.",
+          "executionApproved": "Execution approved by {{approver}}.",
+          "executionPending": "Closing execution is not approved yet.",
+          "gateOff": "Live commitments are off. Close, proceeds release, and distributions are inert until the live commitment gate is approved for a pilot.",
+          "note": "Closing note",
+          "approveConditions": "Approve closing conditions",
+          "approveReview": "Approve review stage",
+          "approveExecution": "Approve execution stage",
+          "close": "Close opportunity",
+          "separateApprovers": "Review and execution need different approvers, and neither can be the entity representative. Only the approved execution approver can execute the close."
+        },
+        "proceeds": {
+          "title": "Proceeds and distributions",
+          "release": "Release proceeds",
+          "blockedNote": "Proceeds release stays blocked until the opportunity is closed with approved closing conditions."
+        },
+        "distributions": {
+          "position": "Position",
+          "choosePosition": "Choose a position",
+          "amount": "Distribution amount (USD)",
+          "submit": "Record distribution",
+          "empty": "No positions exist for this opportunity yet.",
+          "required": "Choose a position and enter a valid amount."
+        }
+      },
     "application": {
       "agreementAccepted": "The agreement version was accepted and recorded.",
       "choose": {
@@ -32599,6 +32956,7 @@
     "confirmRevokeTitle": "Revoke Acceptance"
   },
   "adminNav": {
+    "investReviewQueue": "Invest reviews",
     "moneyApprovals": "Money approvals",
     "adminAccounts": "Admin Accounts",
     "auditLog": "Audit Log",

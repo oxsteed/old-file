@@ -8097,6 +8097,8 @@
     }
   },
   "businessHub": {
+    "raiseCapital": "Recaudar capital",
+    "raiseCapitalTitle": "Recaudar capital de inversores para este negocio",
     "procurement": {
       "title": "Adquisiciones",
       "subtitle": "Programas recurrentes de abastecimiento y solicitudes vinculadas a este negocio.",
@@ -22711,6 +22713,361 @@
     }
   },
   "invest": {
+      "entity": {
+        "raise": {
+          "title": "Recaudar capital",
+          "intro": "Solicite recaudar capital de inversores para uno de sus negocios. Su solicitud se mantiene privada hasta que un revisor la apruebe para su publicación.",
+          "documentsNotice": "No incluya documentos sensibles de identidad o financieros en este formulario. Esos van por los flujos restringidos de verificación y documentos, nunca en la descripción pública de una oportunidad.",
+          "business": {
+            "label": "Negocio",
+            "choose": "Elija un negocio",
+            "empty": {
+              "title": "No hay negocio para recaudar",
+              "copy": "Aún no representa a un negocio. Cree un negocio primero y luego vuelva para recaudar capital."
+            }
+          },
+          "authority": {
+            "label": "Estoy autorizado para representar a esta entidad y presentar esta solicitud de recaudación en su nombre.",
+            "hint": "Solo el propietario, gerente o representante autorizado del negocio puede recaudar capital para él."
+          },
+          "sections": {
+            "entity": {
+              "title": "Entidad",
+              "hint": "Quién recauda y con qué autoridad."
+            },
+            "raise": {
+              "title": "La recaudación",
+              "hint": "Propósito de financiación, objetivo y términos. Solo participación en ingresos, solo Estados Unidos."
+            },
+            "details": {
+              "title": "Detalles de la entidad",
+              "hint": "Información de apoyo para revisores e inversores. Sea factual; las proyecciones y promesas de rendimiento no pertenecen aquí."
+            },
+            "agreement": {
+              "title": "Acuerdo",
+              "hint": "El acuerdo rector que aceptan los inversores. La versión exacta aceptada al comprometerse rige el compromiso."
+            }
+          },
+          "form": {
+            "title": {
+              "label": "Título de la oportunidad"
+            },
+            "purpose": {
+              "label": "Propósito de la financiación",
+              "hint": "Qué hace el negocio y por qué recauda."
+            },
+            "target": {
+              "label": "Monto objetivo (USD)",
+              "hint": "El monto total que la recaudación busca reunir."
+            },
+            "minimum": {
+              "label": "Aporte mínimo (USD)",
+              "hint": "El monto más pequeño que un inversor puede comprometer. No puede ser mayor que el objetivo."
+            },
+            "deadline": {
+              "label": "Fecha límite",
+              "hint": "El cierre es todo o nada: el objetivo, la fecha límite y las condiciones de cierre aprobadas deben cumplirse."
+            },
+            "valuation": {
+              "label": "Regla de valoración",
+              "hint": "Cómo se calcula la participación en ingresos, por ejemplo un porcentaje de los ingresos mensuales."
+            },
+            "useOfProceeds": {
+              "label": "Uso de los fondos"
+            },
+            "intermediary": {
+              "label": "Referencia del intermediario",
+              "hint": "Referencia del intermediario registrado, si ya hay uno asignado."
+            },
+            "legal": {
+              "label": "Detalles legales de la entidad, actividad comercial e historial operativo",
+              "hint": "Forma legal, jurisdicción, qué hace el negocio y cuánto tiempo lleva operando."
+            },
+            "financials": {
+              "label": "Información financiera",
+              "hint": "Resumen financiero que respalda la recaudación. No pegue documentos sensibles aquí."
+            },
+            "ownership": {
+              "label": "Información de propiedad"
+            },
+            "risks": {
+              "label": "Riesgos materiales"
+            },
+            "relatedParties": {
+              "label": "Relaciones con partes relacionadas",
+              "hint": "Cualquier relación entre la entidad, sus propietarios y otras partes que un inversor debería conocer."
+            },
+            "agreement": {
+              "label": "Texto del acuerdo"
+            }
+          },
+          "submit": "Crear borrador privado",
+          "creating": "Creando borrador...",
+          "created": {
+            "title": "Borrador privado creado",
+            "copy": "Este borrador es privado. Solo usted y los revisores pueden verlo.",
+            "target": "Objetivo {{amount}}"
+          },
+          "preview": {
+            "title": "Vista previa para inversores",
+            "hint": "Cómo verán los inversores esta oportunidad una vez publicada."
+          },
+          "submitReview": "Enviar para revisión",
+          "submitReviewNote": "El envío no publica la oportunidad. Un revisor debe aprobarla primero, y la publicación es un paso aparte.",
+          "submitted": {
+            "copy": "Enviado para revisión. La oportunidad no está publicada."
+          },
+          "manageLink": "Gestionar esta recaudación",
+          "error": {
+            "loadFailed": "No se pudieron cargar sus negocios. Inténtelo de nuevo.",
+            "createFailed": "No se pudo crear el borrador. Inténtelo de nuevo.",
+            "agreementFailed": "El borrador se creó, pero no se pudo guardar la versión del acuerdo. Agréguela desde la página de gestión.",
+            "submitFailed": "No se pudo enviar para revisión. Inténtelo de nuevo."
+          },
+          "errors": {
+            "business": "Elija un negocio para esta recaudación.",
+            "authority": "Confirme que está autorizado para representar a esta entidad.",
+            "title": "Se requiere un título para la oportunidad.",
+            "purpose": "Se requiere un propósito de financiación.",
+            "target": "Ingrese un monto objetivo válido mayor que cero.",
+            "minimum": "El aporte mínimo debe estar entre cero y el objetivo.",
+            "deadline": "Elija una fecha límite futura.",
+            "valuation": "Se requiere una regla de valoración.",
+            "useOfProceeds": "Describa el uso de los fondos.",
+            "agreement": "Se requiere el texto del acuerdo."
+          }
+        },
+        "raises": {
+          "title": "Mis recaudaciones",
+          "intro": "Sus solicitudes de recaudación de capital, desde el borrador privado hasta la recaudación publicada.",
+          "newRaise": "Iniciar una nueva recaudación",
+          "error": {
+            "loadFailed": "No se pudieron cargar sus recaudaciones. Inténtelo de nuevo."
+          },
+          "empty": {
+            "title": "Aún no hay recaudaciones",
+            "copy": "Inicie una nueva recaudación para solicitar capital para uno de sus negocios."
+          },
+          "card": {
+            "target": "Objetivo {{amount}}",
+            "committed": "Comprometido {{amount}}",
+            "completed": "Completado {{amount}}",
+            "progress": "{{percent}}% financiado",
+            "deadline": "Fecha límite {{date}}",
+            "manage": "Gestionar",
+            "viewPublic": "Ver página pública"
+          }
+        },
+        "manage": {
+          "title": "Gestionar recaudación",
+          "error": {
+            "loadFailed": "No se pudo cargar esta recaudación. Inténtelo de nuevo.",
+            "actionFailed": "No se pudo completar esa acción. Inténtelo de nuevo.",
+            "previewFailed": "No se pudo cargar la vista previa para inversores. Inténtelo de nuevo."
+          },
+          "status": {
+            "title": "Estado de la recaudación",
+            "target": "Objetivo {{amount}}",
+            "committed": "Comprometido {{amount}}",
+            "completed": "Completado {{amount}}",
+            "progress": "{{percent}}% financiado",
+            "deadline": "Fecha límite {{date}}",
+            "conditionsApproved": "Condiciones de cierre aprobadas.",
+            "closedAt": "Cerrada {{date}}"
+          },
+          "submitted": "Enviado para revisión. La oportunidad no está publicada.",
+          "preview": {
+            "button": "Mostrar vista previa para inversores"
+          },
+          "questions": {
+            "title": "Preguntas de inversores",
+            "hint": "Preguntas de solicitantes e inversores en esta oportunidad. Respóndalas aquí.",
+            "empty": {
+              "title": "Aún no hay preguntas",
+              "copy": "Las preguntas de los inversores aparecerán aquí cuando lleguen."
+            },
+            "answerLabel": "Su respuesta",
+            "answerButton": "Enviar respuesta",
+            "answered": "Respuesta enviada.",
+            "answeredLabel": "Respondida",
+            "answerRequired": "Escriba una respuesta antes de enviar."
+          },
+          "updates": {
+            "title": "Actualizaciones y calendario de informes",
+            "hint": "Publique actualizaciones para los inversores. Una fecha límite perdida se muestra como vencida y nunca desaparece.",
+            "empty": {
+              "title": "Aún no hay actualizaciones",
+              "copy": "Cree la primera actualización para esta recaudación."
+            },
+            "required": "Se requieren el título y el cuerpo de la actualización.",
+            "created": "Actualización creada como borrador.",
+            "published": "Actualización publicada.",
+            "publish": "Publicar",
+            "overdue": "Vencida desde {{date}}",
+            "status": {
+              "draft": "Borrador",
+              "published": "Publicada",
+              "overdue": "Vencida"
+            },
+            "form": {
+              "title": "Título de la actualización",
+              "body": "Actualización",
+              "due": "Fecha de vencimiento",
+              "dueHint": "Cuándo se debe esta actualización a los inversores.",
+              "submit": "Crear actualización"
+            }
+          },
+          "amendments": {
+            "title": "Cambios materiales",
+            "hint": "Los términos no pueden cambiar en silencio después de que existan compromisos. Un cambio material pasa por este proceso controlado: borrador, aviso a los inversores y luego reconfirmación.",
+            "empty": {
+              "title": "No hay enmiendas",
+              "copy": "No se han propuesto cambios materiales para esta oportunidad."
+            },
+            "required": "Describa el cambio antes de crear la enmienda.",
+            "created": "Borrador de enmienda creado.",
+            "proposed": "Enmienda propuesta. Se ha enviado el aviso a los inversores.",
+            "untitled": "Enmienda",
+            "proposedState": "Aviso enviado {{sent}}. Los inversores deben reconfirmar antes del {{deadline}}.",
+            "deadlineRequired": "Elija una fecha límite futura para la reconfirmación.",
+            "status": {
+              "draft": "Borrador",
+              "proposed": "Propuesta",
+              "effective": "Vigente",
+              "withdrawn": "Retirada",
+              "rejected": "Rechazada"
+            },
+            "form": {
+              "summary": "Qué cambia",
+              "summaryHint": "Describa el cambio material en lenguaje sencillo.",
+              "version": "Nueva versión del acuerdo",
+              "versionHint": "Elija la versión del acuerdo a la que pasan los inversores, si la hay.",
+              "noNewVersion": "Sin nueva versión del acuerdo",
+              "submit": "Crear enmienda"
+            },
+            "propose": {
+              "deadline": "Fecha límite de reconfirmación",
+              "button": "Proponer y avisar a los inversores"
+            }
+          },
+          "agreements": {
+            "title": "Versiones del acuerdo",
+            "hint": "Las versiones exactas del acuerdo que aceptan los inversores. Un compromiso registra la versión exacta aceptada.",
+            "empty": {
+              "title": "Aún no hay versión del acuerdo",
+              "copy": "Agregue la primera versión del acuerdo. Una oportunidad no puede aprobarse sin una."
+            },
+            "required": "Se requiere el texto del acuerdo.",
+            "created": "Versión del acuerdo creada.",
+            "form": {
+              "body": "Texto del acuerdo",
+              "submit": "Agregar versión del acuerdo"
+            }
+          },
+          "obligations": {
+            "title": "Después del cierre: informes y obligaciones",
+            "hint": "La recaudación está cerrada. Estas obligaciones quedan con la entidad.",
+            "item1": "Publique actualizaciones según el calendario de informes. Las actualizaciones perdidas se muestran como vencidas.",
+            "item2": "Pague las distribuciones por el flujo de liquidación aprobado. Ninguna distribución está prometida a los inversores.",
+            "item3": "Conserve los registros de la recaudación, los acuerdos aceptados y todos los informes."
+          }
+        }
+      },
+      "review": {
+        "title": "Cola de revisión de inversiones",
+        "intro": "Solicitudes de participación, revisiones de publicación de oportunidades, aprobaciones de cierre y liberación de fondos. Cada cola muestra solo lo que cubren sus permisos de revisión.",
+        "empty": "No hay colas de revisión disponibles para sus permisos.",
+        "emptyType": "No hay nada esperando en esta cola.",
+        "select": "Elija un elemento para revisarlo.",
+        "tabs": {
+          "applications": "Solicitudes",
+          "opportunities": "Oportunidades",
+          "closing": "Cierre",
+          "proceeds": "Fondos"
+        },
+        "errors": {
+          "loadFailed": "No se pudo cargar la cola de revisión. Inténtelo de nuevo.",
+          "generic": "No se pudo completar esa acción de revisión. Inténtelo de nuevo.",
+          "notPermitted": "No tiene un permiso de revisión de inversiones, así que esta cola está vacía para usted.",
+          "selfApproval": "No puede revisar su propia solicitud, oportunidad o cierre. Otro revisor debe decidir.",
+          "versionConflict": "Este elemento cambió desde que se cargó. Se ha recargado; revise la versión más reciente e inténtelo de nuevo.",
+          "proceedsBlocked": "Los fondos aún no pueden liberarse. La oportunidad debe estar cerrada con las condiciones de cierre aprobadas primero.",
+          "noAgreement": "Esta oportunidad no puede aprobarse sin una versión del acuerdo.",
+          "transitionInvalid": "Este elemento no puede pasar a ese estado desde donde está ahora."
+        },
+        "actions": {
+          "approve": "Aprobar",
+          "decline": "Rechazar",
+          "needsInformation": "Necesita información",
+          "claim": "Tomar para revisión",
+          "publish": "Publicar"
+        },
+        "application": {
+          "applicant": "Solicitante",
+          "identity": "Identidad verificada",
+          "authority": "Autoridad verificada",
+          "agreementAccepted": "Acuerdo aceptado",
+          "version": "Versión esperada",
+          "eligibility": "Elegibilidad",
+          "note": "Nota de revisión",
+          "confirmIdentity": "Identidad verificada",
+          "confirmAuthority": "Autoridad verificada",
+          "no": "No",
+          "noteRequired": "Se requiere una nota al pedir más información.",
+          "verifyRequired": "La aprobación requiere verificación de identidad y autoridad."
+        },
+        "opportunity": {
+          "target": "Objetivo",
+          "minimum": "Aporte mínimo",
+          "committed": "Comprometido",
+          "progress": "{{percent}}% financiado",
+          "purpose": "Propósito de la financiación",
+          "valuation": "Regla de valoración",
+          "useOfProceeds": "Uso de los fondos",
+          "version": "Versión esperada",
+          "details": "Detalles de la entidad",
+          "detail": {
+            "legalDetails": "Detalles legales",
+            "financials": "Finanzas",
+            "ownership": "Propiedad",
+            "risks": "Riesgos",
+            "relatedParties": "Partes relacionadas"
+          },
+          "decideTitle": "Decisión de revisión",
+          "note": "Nota de revisión",
+          "verifiedItems": "Elementos verificados (uno por línea)",
+          "publishNote": "La publicación es aparte de la aprobación. El representante de la entidad no puede publicar su propia oportunidad."
+        },
+        "closing": {
+          "title": "Cierre",
+          "conditionsApproved": "Condiciones de cierre aprobadas {{date}}.",
+          "conditionsPending": "Las condiciones de cierre aún no están aprobadas.",
+          "reviewApproved": "Revisión aprobada por {{approver}}.",
+          "reviewPending": "La revisión de cierre aún no está aprobada.",
+          "executionApproved": "Ejecución aprobada por {{approver}}.",
+          "executionPending": "La ejecución de cierre aún no está aprobada.",
+          "gateOff": "Los compromisos en vivo están desactivados. El cierre, la liberación de fondos y las distribuciones están inactivos hasta que se apruebe la puerta de compromisos en vivo para un piloto.",
+          "note": "Nota de cierre",
+          "approveConditions": "Aprobar condiciones de cierre",
+          "approveReview": "Aprobar etapa de revisión",
+          "approveExecution": "Aprobar etapa de ejecución",
+          "close": "Cerrar oportunidad",
+          "separateApprovers": "La revisión y la ejecución necesitan aprobadores distintos, y ninguno puede ser el representante de la entidad. Solo el aprobador de ejecución aprobado puede ejecutar el cierre."
+        },
+        "proceeds": {
+          "title": "Fondos y distribuciones",
+          "release": "Liberar fondos",
+          "blockedNote": "La liberación de fondos se mantiene bloqueada hasta que la oportunidad esté cerrada con las condiciones de cierre aprobadas."
+        },
+        "distributions": {
+          "position": "Posición",
+          "choosePosition": "Elija una posición",
+          "amount": "Monto de la distribución (USD)",
+          "submit": "Registrar distribución",
+          "empty": "Aún no hay posiciones para esta oportunidad.",
+          "required": "Elija una posición e ingrese un monto válido."
+        }
+      },
     "application": {
       "agreementAccepted": "La versión del acuerdo fue aceptada y registrada.",
       "choose": {
@@ -32599,6 +32956,7 @@
     "confirmRevokeTitle": "Revocar aceptación"
   },
   "adminNav": {
+    "investReviewQueue": "Revisiones de inversión",
     "moneyApprovals": "Aprobaciones de dinero",
     "adminAccounts": "Cuentas de administrador",
     "auditLog": "Registro de auditoría",

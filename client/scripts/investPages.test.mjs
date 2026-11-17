@@ -11,6 +11,9 @@ const PAGES = [
   'src/pages/invest/InvestApplicationPage.jsx',
   'src/pages/invest/InvestCommitPage.jsx',
   'src/pages/invest/InvestMyInvestmentsPage.jsx',
+  'src/pages/invest/InvestEntityRaisePage.jsx',
+  'src/pages/invest/InvestEntityRaisesPage.jsx',
+  'src/pages/invest/InvestEntityManagePage.jsx',
 ];
 
 test('invest routes are registered in App.jsx', async () => {
@@ -131,4 +134,210 @@ test('invest locale strings have no em dashes and the API client only calls docu
   assert.ok(calls.every((path) => path.startsWith('/invest/')), calls.join(', '));
   assert.ok(calls.some((path) => path.includes('/commitments')), 'commit route present');
   assert.ok(calls.some((path) => path === '/invest/me'), 'my investments route present');
+});
+
+// ── Track 4: entity fundraising + reviewer UI ─────────────────────────────
+
+const TRACK4_PAGES = [
+  ...PAGES.slice(5),
+  'src/admin/pages/InvestReviewQueue.jsx',
+];
+
+const TRACK4_ENTITY_KEYS = [
+  'invest.entity.raise.title',
+  'invest.entity.raise.authority.label',
+  'invest.entity.raise.documentsNotice',
+  'invest.entity.raise.submitReviewNote',
+  'invest.entity.raise.created.title',
+  'invest.entity.raise.preview.title',
+  'invest.entity.raises.title',
+  'invest.entity.raises.card.manage',
+  'invest.entity.manage.questions.title',
+  'invest.entity.manage.updates.title',
+  'invest.entity.manage.updates.overdue',
+  'invest.entity.manage.amendments.title',
+  'invest.entity.manage.amendments.proposedState',
+  'invest.entity.manage.agreements.title',
+  'invest.entity.manage.obligations.title',
+];
+
+test('Track 4: entity routes are registered in App.jsx and the business hub links to them', async () => {
+  const app = await read('src/App.jsx');
+  for (const route of ['/invest/entity/raise"', '/invest/entity/raises"', '/invest/entity/raises/:id"']) {
+    assert.match(app, new RegExp(`path="${route.replace(/"/g, '')}"`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), route);
+  }
+  for (const page of ['InvestEntityRaisePage', 'InvestEntityRaisesPage', 'InvestEntityManagePage']) {
+    assert.match(app, new RegExp(`import\\('./pages/invest/${page}'\\)`), page);
+  }
+  const hub = await read('src/pages/BusinessHubPage.jsx');
+  assert.match(hub, /invest\/entity\/raises\?businessId=/);
+  assert.match(hub, /investAccessFromProjection/);
+  assert.match(hub, /businessHub\.raiseCapital/);
+  assert.match(hub, /investAccess\.investEnabled/);
+});
+
+test('Track 4: raise form collects every application section and submission never publishes', async () => {
+  const src = await read('src/pages/invest/InvestEntityRaisePage.jsx');
+  for (const key of [
+    'invest.entity.raise.authority.label',
+    'invest.entity.raise.form.title.label',
+    'invest.entity.raise.form.purpose.label',
+    'invest.entity.raise.form.target.label',
+    'invest.entity.raise.form.minimum.label',
+    'invest.entity.raise.form.deadline.label',
+    'invest.entity.raise.form.valuation.label',
+    'invest.entity.raise.form.useOfProceeds.label',
+    'invest.entity.raise.form.legal.label',
+    'invest.entity.raise.form.financials.label',
+    'invest.entity.raise.form.ownership.label',
+    'invest.entity.raise.form.risks.label',
+    'invest.entity.raise.form.relatedParties.label',
+    'invest.entity.raise.form.agreement.label',
+  ]) {
+    assert.ok(src.includes(key), key);
+  }
+  assert.match(src, /documentsNotice/);
+  assert.match(src, /getOpportunityPreview/);
+  assert.match(src, /submitOpportunityForReview/);
+  assert.match(src, /submitReviewNote/);
+  assert.match(src, /createOpportunity/);
+  assert.match(src, /createAgreementVersion/);
+  assert.doesNotMatch(src, /publishOpportunity/);
+  // Drafts are private: the create call never publishes.
+  assert.doesNotMatch(src, /submit-for-review.*publish|publish.*submit-for-review/);
+});
+
+test('Track 4: manage page answers questions, publishes updates, and runs amendments', async () => {
+  const src = await read('src/pages/invest/InvestEntityManagePage.jsx');
+  for (const marker of [
+    'answerQuestion',
+    'invest.entity.manage.questions.answerButton',
+    'createUpdate',
+    'publishUpdate',
+    'invest.entity.manage.updates.overdue',
+    'updateStatusLabel',
+    'createAmendment',
+    'proposeAmendment',
+    'invest.entity.manage.amendments.proposedState',
+    'reconfirmationDeadlineAt',
+    'noticeSentAt',
+    'createAgreementVersion',
+    'listAgreementVersions',
+    'invest.entity.manage.obligations.title',
+    'invest.entity.manage.status.conditionsApproved',
+  ]) {
+    assert.ok(src.includes(marker), marker);
+  }
+  // Missed updates show as OVERDUE, never disappear: the overdue label
+  // and the overdue copy are both rendered from the API status.
+  assert.match(src, /status === 'overdue'/);
+  assert.doesNotMatch(src, /filter\(.*status !== 'overdue'/);
+});
+
+test('Track 4: review queue covers all four queues with stale-version and self-approval surfacing', async () => {
+  const src = await read('src/admin/pages/InvestReviewQueue.jsx');
+  for (const marker of [
+    'getReviewQueue',
+    'reviewApplication',
+    'reviewOpportunity',
+    'publishOpportunity',
+    'approveClosingConditions',
+    'recordClosingApproval',
+    'closeOpportunity',
+    'releaseProceeds',
+    'recordDistribution',
+    'invest.review.errors.versionConflict',
+    'invest.review.errors.selfApproval',
+    'invest.review.errors.proceedsBlocked',
+    'invest.review.closing.gateOff',
+    'invest.review.closing.separateApprovers',
+    'reviewQueueTabLabel',
+    'investAccessFromProjection',
+  ]) {
+    assert.ok(src.includes(marker), marker);
+  }
+  // Live-commitment gate: close, proceeds, and distribution actions are
+  // disabled while the gate is off, never rendered as working buttons.
+  assert.match(src, /disabled=\{busy \|\| !gateOn\}/);
+  assert.match(src, /!access\.investCommitmentsEnabled/);
+  // Every queue tab comes from the server's capability-scoped response.
+  assert.match(src, /queue\?\.queues/);
+  assert.match(src, /invest_review_not_permitted/);
+  // Proceeds rows carry the proceeds id; the detail key is the
+  // opportunity id, so the detail fetch must use row.opportunityId.
+  assert.match(src, /type === 'proceeds' \? row\.opportunityId : row\.id/);
+});
+
+test('Track 4: admin invest review route is in the manifest, AdminApp, nav, and server allowlist', async () => {
+  const manifest = await read('src/admin/adminRouteManifest.js');
+  assert.match(manifest, /investReviewQueue: defineRoute\('\/admin\/invest\/review-queue'\)/);
+  const app = await read('src/admin/AdminApp.jsx');
+  assert.match(app, /adminRoute\('investReviewQueue'\)\.relative/);
+  assert.match(app, /review_invest_participation/);
+  assert.match(app, /review_invest_opportunity_publish/);
+  assert.match(app, /review_invest_close/);
+  assert.match(app, /review_invest_release_proceeds/);
+  assert.match(app, /import\('\.\/pages\/InvestReviewQueue'\)/);
+  const layout = await read('src/admin/layouts/AdminLayout.jsx');
+  assert.match(layout, /routePath\('investReviewQueue'\)/);
+  assert.match(layout, /adminNav\.investReviewQueue/);
+  const allowlist = await read('../server/utils/adminSpaRoutes.js');
+  assert.ok(allowlist.includes("'/admin/invest/review-queue'"), 'allowlist entry');
+});
+
+test('Track 4: entity and review API calls only use documented /api/invest routes', async () => {
+  const api = await read('src/api/invest.js');
+  for (const path of [
+    '/invest/opportunities',
+    '/invest/opportunities/${id}/submit-for-review',
+    '/invest/opportunities/${id}/preview',
+    '/invest/opportunities/${opportunityId}/agreement-versions',
+    '/invest/opportunities/${opportunityId}/questions/${questionId}/answer',
+    '/invest/opportunities/${opportunityId}/updates',
+    '/invest/opportunities/${opportunityId}/amendments',
+    '/invest/review-queue',
+    '/invest/applications/${id}/review',
+    '/invest/opportunities/${id}/review',
+    '/invest/opportunities/${id}/publish',
+    '/invest/opportunities/${id}/closing-conditions/approve',
+    '/invest/opportunities/${id}/closing-approvals',
+    '/invest/opportunities/${id}/close',
+    '/invest/opportunities/${id}/release-proceeds',
+    '/invest/opportunities/${opportunityId}/distributions',
+  ]) {
+    assert.ok(api.includes(path), path);
+  }
+  assert.match(api, /scope: 'mine'/);
+});
+
+test('Track 4: entity and review locale keys exist in all five locales with no em dashes', async () => {
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    for (const key of TRACK4_ENTITY_KEYS) {
+      const parts = key.split('.');
+      let node = catalog;
+      for (const part of parts) node = node?.[part];
+      assert.equal(typeof node, 'string', `${lang} ${key}`);
+    }
+    assert.equal(typeof catalog.invest.review.title, 'string', `${lang} review title`);
+    assert.equal(typeof catalog.businessHub.raiseCapital, 'string', `${lang} raise capital`);
+    assert.equal(typeof catalog.adminNav.investReviewQueue, 'string', `${lang} admin nav`);
+    assert.doesNotMatch(JSON.stringify(catalog.invest.entity), /—/, `${lang} entity em dash`);
+    assert.doesNotMatch(JSON.stringify(catalog.invest.review), /—/, `${lang} review em dash`);
+  }
+});
+
+test('Track 4: entity and review pages render from the projection only', async () => {
+  for (const file of [...TRACK4_PAGES, 'src/utils/invest.js']) {
+    const raw = await read(file);
+    const src = raw.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    assert.doesNotMatch(src, /default_mode/, file);
+    assert.doesNotMatch(src, /user\?\.role|user\.role|\.role ===/, file);
+    assert.doesNotMatch(src, /defaultValue/, file);
+  }
+  const util = await read('src/utils/invest.js');
+  assert.match(util, /amendmentStatusLabel/);
+  assert.match(util, /updateStatusLabel/);
+  assert.match(util, /reviewQueueTabLabel/);
+  assert.match(util, /opportunityDetailFieldLabel/);
 });
