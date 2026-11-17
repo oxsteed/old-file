@@ -54,7 +54,7 @@ test('workspace navigation defers inactive editors and remains usable during del
         let start = Date.now();
         await page.goto(fixture.origin + (progressive ? '/settings/applications' : '/business/4/workspace'));
         if (progressive) {
-          await page.locator('[data-track="ui.access.applications.business-workspace"]').click();
+          await page.locator('[data-track="ui.access.applications.use_now"]').click();
           await page.waitForURL('**/business-hub');
         }
         await tabs.locator('.active').waitFor();

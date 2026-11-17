@@ -20,10 +20,52 @@ const NS = 'common';
 const OPEN = ['draft', 'submitted', 'in_review', 'needs_information'];
 const EDITABLE = ['draft', 'needs_information'];
 
+// AC-010: an approved application names where the capability is used day to
+// day, so the applicant can act on the grant immediately.
+const USE_NOW_ROUTES = Object.freeze({
+  'helper.offer_services': '/jobs',
+  'business.own': '/business-hub',
+  'restaurant.own': '/business-hub',
+  'tool_owner.list_equipment': '/tool-rentals',
+  'consultant.accept_paying_clients': '/consulting/contractor-dashboard',
+  'logistics.ship': '/logistics',
+  'investor.reporting': '/investor/dashboard',
+  'franchise.operate': '/franchise/territory',
+});
+
 const errorCode = (err) => err?.response?.data?.code || null;
 
 function capabilityLabel(t, capability) {
   return t(`progressiveAccess.capabilities.${capability}`, { ns: NS, defaultValue: capability });
+}
+
+const formatDate = (value, language) => (value
+  ? new Intl.DateTimeFormat(language || 'en', { dateStyle: 'medium' }).format(new Date(value))
+  : null);
+
+// AC-010: the server already returns every decision recorded on the request;
+// render it as an accessible timeline so the applicant sees what happened and
+// when without contacting support.
+function RequestHistory({ t, language, history }) {
+  if (!history?.length) return null;
+  return (
+    <div className="mt-3 rounded-xl border border-border bg-surface p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t('progressiveAccess.historyTitle', { ns: NS })}</p>
+      <ol className="mt-2 space-y-1.5">
+        {history.map((h, index) => (
+          <li key={index} className="flex flex-wrap items-baseline gap-x-2 text-xs">
+            <time dateTime={h.at} className="text-muted">{formatDate(h.at, language)}</time>
+            <span className="font-medium text-content">
+              {t(`progressiveAccess.historyAction.${h.action}`, { ns: NS, defaultValue: h.action })}
+            </span>
+            {h.publicReasonCode && (
+              <span className="text-muted">{t(`progressiveAccess.reasons.${h.publicReasonCode}`, { ns: NS, defaultValue: '' })}</span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 function StatusBadge({ t, status }) {
@@ -45,7 +87,8 @@ export default function ApplicationsPage() {
 }
 
 function AccountApplications({ accountId, epoch }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.resolvedLanguage;
   const [params, setParams] = useSearchParams();
   const [access, setAccess] = useState(null);
   const [requests, setRequests] = useState([]);
@@ -63,6 +106,9 @@ function AccountApplications({ accountId, epoch }) {
   // on focus / access-changed, re-rendered in place (silent reload: no
   // loading swap, so focus never jumps) and announced politely.
   const versionRef = useRef(null);
+  const heldBeforeRef = useRef(null);
+  const openIdRef = useRef(null);
+  openIdRef.current = openId;
   const [announce, setAnnounce] = useState('');
   const load = useCallback(async (silent = false) => {
     if (!isCurrentAuthEpoch(epoch)) return;
@@ -71,16 +117,30 @@ function AccountApplications({ accountId, epoch }) {
     try {
       const [a, r, p] = await Promise.all([accessAPI.getAccess(accountId), accessAPI.listRequests({ limit: 50 }), accessAPI.listPolicies()]);
       if (!isCurrentAuthEpoch(epoch)) return;
-      const version = a.access ? JSON.stringify([a.access.personal || [], (a.access.organizations || []).map((o) => [o.id, o.role])]) : null;
+      const heldNow = a.access?.personal || [];
+      const version = a.access ? JSON.stringify([heldNow, (a.access.organizations || []).map((o) => [o.id, o.role])]) : null;
       if (versionRef.current !== null && version !== versionRef.current) {
-        setAnnounce(t('progressiveAccess.accessUpdated', { ns: NS }));
+        // Name the capability when the change is an approval so the applicant
+        // knows what they can now do, not just that "something" changed.
+        const newlyApproved = heldNow.filter((c) => !heldBeforeRef.current?.has(c));
+        setAnnounce(newlyApproved.length > 0
+          ? t('progressiveAccess.accessApproved', { ns: NS, capability: capabilityLabel(t, newlyApproved[0]) })
+          : t('progressiveAccess.accessUpdated', { ns: NS }));
         notifyAccessChanged();
       }
+      heldBeforeRef.current = new Set(heldNow);
       versionRef.current = version;
       setAccess(a.access);
       setRequests(r.requests || []);
       setPolicies(p.policies || []);
       setUnavailable(false);
+      // AC-021: refresh the open request during silent reloads so a reviewer
+      // change reaches the editor without remounting it (unsaved answers
+      // survive; the editor flags the version change instead of failing).
+      if (silent && openIdRef.current) {
+        const d = await accessAPI.getRequest(openIdRef.current).catch(() => null);
+        if (d && isCurrentAuthEpoch(epoch)) setDetail(d);
+      }
     } catch (err) {
       if (!isCurrentAuthEpoch(epoch)) return;
       if (errorCode(err) === 'feature_disabled') setUnavailable(true);
@@ -180,7 +240,10 @@ function AccountApplications({ accountId, epoch }) {
     }
   };
 
-  const onChanged = async () => { await load(); notifyAccessChanged(); if (openId) setDetail(await accessAPI.getRequest(openId).catch(() => null)); };
+  // Silent reload: a non-silent load swaps the whole list for a loading
+  // indicator and unmounts the open editor, which would wipe the typed
+  // answers on exactly the version-conflict path AC-021 must preserve.
+  const onChanged = async () => { await load(true); notifyAccessChanged(); if (openId) setDetail(await accessAPI.getRequest(openId).catch(() => null)); };
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-bg)] text-content">
@@ -239,8 +302,11 @@ function AccountApplications({ accountId, epoch }) {
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium text-content">{capabilityLabel(t, r.capability)}</p>
-                              {r.publicReasonCode && ['declined', 'needs_information'].includes(r.status) && (
+                              {r.publicReasonCode && ['approved', 'declined', 'needs_information'].includes(r.status) && (
                                 <p className="text-xs text-muted">{t(`progressiveAccess.reasons.${r.publicReasonCode}`, { ns: NS, defaultValue: '' })}</p>
+                              )}
+                              {r.submittedAt && (
+                                <p className="text-xs text-muted">{t('progressiveAccess.submittedOn', { ns: NS, date: formatDate(r.submittedAt, language) })}</p>
                               )}
                               {r.subjectDisplay?.name && (
                                 <p className="max-w-full truncate text-xs text-muted" title={r.subjectDisplay.name}>
@@ -256,13 +322,13 @@ function AccountApplications({ accountId, epoch }) {
                             </p>
                           )}
                           <div className="mt-2 flex flex-wrap gap-3">
-                            {r.status === 'approved' && ['business.own', 'restaurant.own'].includes(r.capability) && (
+                            {r.status === 'approved' && USE_NOW_ROUTES[r.capability] && (
                               <Link
-                                to="/business-hub"
+                                to={USE_NOW_ROUTES[r.capability]}
                                 className="text-sm font-medium text-primary hover:underline"
-                                data-track="ui.access.applications.business-workspace"
+                                data-track="ui.access.applications.use_now"
                               >
-                                {t('nav.businessWorkspace')}
+                                {t(`progressiveAccess.useNow.${r.capability}`, { ns: NS, defaultValue: '' })}
                               </Link>
                             )}
                             {LAUNCH_VISIBILITY.consulting && r.subjectDisplay?.kind === 'new_business'
@@ -275,6 +341,16 @@ function AccountApplications({ accountId, epoch }) {
                                 >
                                   {t('network.businessLaunch.title')}
                                 </Link>
+                            )}
+                            {!(openId === r.id && EDITABLE.includes(r.status)) && (
+                              <button
+                                type="button"
+                                onClick={(event) => { returnFocusRef.current = event.currentTarget; openRequest(openId === r.id ? null : r.id); }}
+                                className="text-sm font-medium text-primary hover:underline"
+                                data-track="ui.access.applications.view_status"
+                              >
+                                {t(openId === r.id ? 'progressiveAccess.actions.close' : 'progressiveAccess.viewStatus', { ns: NS })}
+                              </button>
                             )}
                             {EDITABLE.includes(r.status) && (
                               <button
@@ -300,16 +376,33 @@ function AccountApplications({ accountId, epoch }) {
                                 {t('progressiveAccess.actions.withdraw', { ns: NS })}
                               </button>
                             )}
+                            {['declined', 'withdrawn'].includes(r.status) && policyFor(r.capability)?.applicantMayRequest
+                              && !held.has(r.capability) && !openCaps.has(r.capability) && (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => startApplication(r.capability)}
+                                className="text-sm font-medium text-primary hover:underline"
+                                data-track="ui.access.applications.apply_again"
+                              >
+                                {t('progressiveAccess.actions.applyAgain', { ns: NS })}
+                              </button>
+                            )}
                           </div>
-                          {openId === r.id && detail?.request && EDITABLE.includes(detail.request.status) && (
-                            <RequestEditor
-                              key={`${detail.request.id}:${detail.request.version}`}
-                              t={t}
-                              request={detail.request}
-                              policy={policyFor(detail.request.capability)}
-                              onChanged={onChanged}
-                              onClose={closeEditor}
-                            />
+                          {openId === r.id && detail?.request && (
+                            <>
+                              <RequestHistory t={t} language={language} history={detail.history} />
+                              {EDITABLE.includes(detail.request.status) && (
+                                <RequestEditor
+                                  key={detail.request.id}
+                                  t={t}
+                                  request={detail.request}
+                                  policy={policyFor(detail.request.capability)}
+                                  onChanged={onChanged}
+                                  onClose={closeEditor}
+                                />
+                              )}
+                            </>
                           )}
                         </li>
                       ))}

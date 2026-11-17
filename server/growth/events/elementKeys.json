@@ -2172,6 +2172,7 @@
   "ui.ac8f65ba03.3",
   "ui.access.applications.close",
   "ui.access.applications.save",
+  "ui.access.applications.stale_ack",
   "ui.access.applications.submit",
   "ui.ad1a37c5b3.1",
   "ui.ad1a37c5b3.10",

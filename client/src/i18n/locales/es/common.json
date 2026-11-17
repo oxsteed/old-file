@@ -6645,6 +6645,7 @@
       "continue": "Continuar",
       "withdraw": "Retirar",
       "apply": "Solicitar",
+      "applyAgain": "Solicitar de nuevo",
       "retry": "Intentar de nuevo",
       "cancel": "Cancelar",
       "confirmWithdraw": "Retirar solicitud"
@@ -6703,6 +6704,32 @@
       "accessChanged": "Tu acceso a ese panel cambió, así que estás viendo tu inicio personal."
     },
     "accessUpdated": "Tu acceso se actualizó.",
+    "viewStatus": "Ver estado",
+    "historyTitle": "Historial",
+    "submittedOn": "Enviada el {{date}}",
+    "accessApproved": "Tu solicitud de {{capability}} fue aprobada.",
+    "staleNotice": "Esta solicitud cambió mientras la editabas. Tus respuestas se conservan. Revisa la última nota del revisor y envía de nuevo.",
+    "staleDismiss": "Entendido",
+    "historyAction": {
+      "update": "Borrador actualizado",
+      "submit": "Enviada para revisión",
+      "resubmit": "Respuestas actualizadas enviadas",
+      "withdraw": "Retirada",
+      "claim": "Revisión iniciada",
+      "request_information": "El revisor pidió información",
+      "approve": "Aprobada",
+      "decline": "Rechazada"
+    },
+    "useNow": {
+      "helper.offer_services": "Buscar trabajo en Jobs",
+      "business.own": "Abrir tu espacio de negocio",
+      "restaurant.own": "Abrir tu espacio de negocio",
+      "tool_owner.list_equipment": "Publicar equipo en Tool Rentals",
+      "consultant.accept_paying_clients": "Abrir tu panel de consultoría",
+      "logistics.ship": "Abrir Logística",
+      "investor.reporting": "Abrir tu panel de inversor",
+      "franchise.operate": "Abrir tu territorio de franquicia"
+    },
     "orgRoles": {
       "owner": "Propietario",
       "manager": "Gerente",

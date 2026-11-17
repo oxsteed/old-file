@@ -6645,6 +6645,7 @@
       "continue": "Kontinye",
       "withdraw": "Retire",
       "apply": "Aplike",
+      "applyAgain": "Aplike ankò",
       "retry": "Eseye ankò",
       "cancel": "Anile",
       "confirmWithdraw": "Retire aplikasyon an"
@@ -6703,6 +6704,32 @@
       "accessChanged": "Aksè ou sou tablo bò sa a chanje, kidonk w ap wè paj akèy pèsonèl ou."
     },
     "accessUpdated": "Aksè ou mete ajou.",
+    "viewStatus": "Gere estatou a",
+    "historyTitle": "Istorik",
+    "submittedOn": "Voye {{date}}",
+    "accessApproved": "Demann {{capability}} ou a te apwouve.",
+    "staleNotice": "Demann sa a te chanje pandan w ap modifye l. Repons ou yo konsève. Gade dènye nòt revizè a anvan w voye l ankò.",
+    "staleDismiss": "Konprann",
+    "historyAction": {
+      "update": "Brouiyon mete ajou",
+      "submit": "Voye pou revizyon",
+      "resubmit": "Repons mete ajou ki voye",
+      "withdraw": "Retire",
+      "claim": "Revizyon kòmanse",
+      "request_information": "Revizè a mande enfòmasyon",
+      "approve": "Apwouve",
+      "decline": "Refze"
+    },
+    "useNow": {
+      "helper.offer_services": "Chèche travay sou Jobs",
+      "business.own": "Ouvri espas biznis ou a",
+      "restaurant.own": "Ouvri espas biznis ou a",
+      "tool_owner.list_equipment": "Mete ekipman sou Tool Rentals",
+      "consultant.accept_paying_clients": "Ouvri tablo konsèy ou a",
+      "logistics.ship": "Ouvri Logistik",
+      "investor.reporting": "Ouvri tablo envestisè ou a",
+      "franchise.operate": "Ouvri teritwa franchise ou a"
+    },
     "orgRoles": {
       "owner": "Pwopriyetè",
       "manager": "Manadjè",

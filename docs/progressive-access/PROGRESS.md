@@ -135,8 +135,8 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-006 | Same email and two signup entry points | server evidence (partial) | dedicated helper start closed under flag (WP-006); duplicate OTP finalize → 409 account_already_created |
 | AC-007 | Legacy mode forged on signup | implemented | progressiveAccessSignup.db.test.js (server) |
 | AC-008 | Resume application on second device | planned | |
-| AC-009 | Withdraw then reapply | server evidence (UI pending) | progressiveAccess.db.test.js |
-| AC-010 | Needs information and revision history | server evidence (UI pending) | progressiveAccess.db.test.js |
+| AC-009 | Withdraw then reapply | browser and server evidence (partial) | progressiveAccess.db.test.js (server); progressiveAccessSettings.browser-check.cjs withdraws from the Applications row and applies again in place. Exact-head CI remains open. |
+| AC-010 | Needs information and revision history | browser and server evidence (partial) | progressiveAccess.db.test.js (server); progressiveAccessSettings.browser-check.cjs renders the per-request decision timeline, submitted dates and approved use-it-now links on Settings → Applications. Exact-head CI remains open. |
 | AC-011 | Draft attachment confidentiality | browser + server evidence (partial) | `progressiveAccessConsultantNetwork.db.test.js` verifies private object keys, shared/applicant-only/consultant-only reads, copied-case denial, uploader deletion, reassignment denial, and signed download authorization. `businessLaunchAttachments.browser-check.cjs` verifies the applicant modal keeps shared/applicant-only choices and uploads within the selected request; consultant controls are covered in the referral workspace. Admin reviewer browser flow, deletion acceptance, and live storage acceptance remain open. |
 | AC-012 | Public form policy versus evidence data | planned | |
 | AC-013 | Reviewer privilege narrows mid-session | server evidence (UI pending) | progressiveAccess.db.test.js |
@@ -147,8 +147,8 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC-018 | Revoke and reinstate distinct rights | server evidence (UI pending) | progressiveAccess.db.test.js |
 | AC-019 | Fixture identity changes across tabs | browser evidence (partial) | accessProjection.browser-check.cjs rejects late responses across account/session changes and responses for a different cookie account. Full cross-tab login and navigation acceptance pending. |
 | AC-020 | No role mutation on ordinary page navigation | server evidence (partial) | progressiveAccessModeGate.db.test.js: mode writes never raise role |
-| AC-021 | Capability refresh during unsaved editing | planned | |
-| AC-022 | Arabic approval status keyboard flow | planned | |
+| AC-021 | Capability refresh during unsaved editing | browser evidence (partial) | progressiveAccessSettings.browser-check.cjs: a reviewer decision arriving mid-edit keeps the typed answers, flags the version change, and the retry submits against the new version. Live server replay and exact-head CI remain open. |
+| AC-022 | Arabic approval status keyboard flow | browser evidence (partial) | progressiveAccessSettings.browser-check.cjs: the Arabic status timeline is reachable and closable by keyboard alone with focus restored to the trigger. Exact-head CI remains open. |
 | AC-023 | Feature flag unavailable at boot | planned | |
 | AC-024 | Mobile notification deep-link identity | server evidence (partial) | progressiveAccess.db.test.js WP-020 real in-app case: link owner 200 / other user 404 / signed-out 401; native deep-link parsing pending |
 | AC-025 | Provider and customer work side by side | server evidence (partial) | One Customer session posts a job and bids on someone else's job after Helper approval and onboarding. Self-bid and post-revocation bids are rejected. Browser tabs, an active food order, detached bid update, and cross-customer order history remain open in this acceptance case. |
