@@ -1,13 +1,15 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserRound, Users, Briefcase, Check, ArrowRight, MapPin } from 'lucide-react';
 import api from '../api/axios';
 import { persistSessionPayload } from '../api/auth';
+import { currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
 import Footer from '../components/Footer';
 import AuthNavbar from '../components/AuthNavbar';
 import PageMeta from '../components/PageMeta';
 import { useAuth } from '../context/AuthContext';
+import { useCapabilities } from '../hooks/useCapabilities';
 import OTPInput from '../components/registration/OTPInput';
 import PasswordField from '../components/registration/PasswordField';
 import CountrySelect from '../components/CountrySelect';
@@ -23,6 +25,12 @@ import './JoinPage.css';
 const DRAFT_KEY = 'oxsteed:join-draft:v1';
 const MODES = LAUNCH_SELF_SELECTABLE_MODES;
 const ICONS = { customer: UserRound, helper: Users, business_owner: Briefcase };
+const SIGNUP_INTENTS = {
+  customer: { intent: 'find_help', capability: 'customer' },
+  helper: { intent: 'offer_services', capability: 'helper.offer_services' },
+  business_owner: { intent: 'run_business', capability: 'business.own' },
+};
+const SignupApplication = lazy(() => import('../components/registration/SignupApplication'));
 const EMPTY = { firstName: '', lastName: '', email: '', phone: '', country: '', addressLine1: '',
   city: '', state: '', zipCode: '', defaultMode: 'customer', ageConfirmed: false, termsAccepted: false, password: '' };
 const METADATA_KEYS = ['registrationExpiresAt', 'otpExpiresAt', 'resendAvailableAt', 'lockoutUntil'];
@@ -46,6 +54,8 @@ function milliseconds(value) {
 export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const { t } = useTranslation();
   const { user, setUser } = useAuth();
+  const { isAvailable, loading: capabilitiesLoading } = useCapabilities();
+  const customerFirst = isAvailable('customerFirstSignup');
   const navigate = useNavigate();
   const [pageParams] = useSearchParams();
   const params = embedded ? new URLSearchParams(embeddedSearch) : pageParams;
@@ -63,6 +73,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const [errors, setErrors] = useState({});
   const [registrationToken, setRegistrationToken] = useState(draft?.registrationToken || '');
   const [otpSent, setOtpSent] = useState(Boolean(draft?.otpSent && draft?.registrationToken));
+  const [continuation, setContinuation] = useState(null);
   const [metadata, setMetadata] = useState(draft?.metadata || {});
   const [otpDigits, setOtpDigits] = useState(Array(6).fill(''));
   const [otpError, setOtpError] = useState('');
@@ -84,8 +95,10 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
     } catch { /* Tab-scoped recovery is optional when storage is unavailable. */ }
   }, [form, registrationToken, otpSent, metadata]);
   useEffect(() => {
-    if (user?.email_verified && !completed.current) navigate(postSignupRouteForMode(user.default_mode || 'customer'), { replace: true });
-  }, [user, navigate]);
+    if (user?.email_verified && (!completed.current || (continuation && !isCurrentAuthEpoch(continuation.epoch)))) {
+      navigate(postSignupRouteForMode(user.default_mode || 'customer'), { replace: true });
+    }
+  }, [user, navigate, continuation]);
   useEffect(() => {
     if (!registrationToken) return undefined;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -145,7 +158,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   };
   const handleSubmit = async event => {
     event.preventDefault();
-    if (operation.current) return;
+    if (operation.current || capabilitiesLoading) return;
     if (registrationExpired && registrationToken) { setErrors({ general: msg('registrationExpired') }); return; }
     const invalid = validateSignup(form, MODES);
     if (Object.keys(invalid).length) {
@@ -160,7 +173,8 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
           email: form.email.trim().toLowerCase(), password: form.password, firstName: form.firstName.trim(),
           lastName: form.lastName.trim(), phone: form.phone.trim(), country: form.country,
           addressLine1: form.addressLine1.trim(), city: form.city.trim(), state: normalizeSignupRegion(form.country, form.state),
-          zip: form.zipCode.trim(), ageConfirmed: form.ageConfirmed, defaultMode: form.defaultMode,
+          zip: form.zipCode.trim(), ageConfirmed: form.ageConfirmed,
+          ...(customerFirst ? { signupIntent: SIGNUP_INTENTS[form.defaultMode].intent } : { defaultMode: form.defaultMode }),
           ...(referralRef ? { ref: referralRef } : {}),
         });
         if (!data?.token) throw new Error('Missing registration response');
@@ -202,7 +216,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
       // application on the customer account instead of a role switch.
       const nextStep = data.access?.nextStep;
       if (nextStep?.type === 'application') {
-        navigate(nextStep.requestId ? `/settings/applications?request=${encodeURIComponent(nextStep.requestId)}` : '/settings/applications', { replace: true });
+        setContinuation({ step: nextStep, accountId: data.user.id, epoch: currentAuthEpoch() });
         return;
       }
       navigate(postSignupRouteForMode(data.user.default_mode || form.defaultMode), { replace: true });
@@ -240,7 +254,8 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const entries = Object.entries(errors).filter(([, value]) => value);
   return <div className={'signup-page' + (embedded ? ' signup-embedded media-auth-content' : '')}>
     {!embedded && <><PageMeta title={msg('title')} description={msg('intro')} url="https://oxsteed.com/join" />
-      <AuthNavbar links={[{ to: '/how-it-works', label: t('nav.howItWorks'), hideOnSmall: true }]} cta={{ to: '/login', label: t('nav.signIn') }} /></>}
+      <AuthNavbar links={[{ to: '/how-it-works', label: t('nav.howItWorks'), hideOnSmall: true }]}
+        cta={continuation ? null : { to: '/login', label: t('nav.signIn') }} /></>}
     <Layout className="signup-layout">
       {!embedded && <aside className="signup-intro">
         <h1>{msg('headline')} <span>{msg('headlineAccent')}</span></h1>
@@ -256,25 +271,35 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
           {!embedded && <h2 id="signup-title">{msg('title')}</h2>}
           <p>{msg('subtitle')}</p>
         </header>
-        {!otpSent ? <form ref={formRef} onSubmit={handleSubmit} noValidate aria-busy={busy === 'submit'} data-track="ui.663f47c956.1" data-track-private>
+        {continuation && isCurrentAuthEpoch(continuation.epoch) && (
+          <Suspense fallback={<p role="status">{t('common.loading')}</p>}>
+            <SignupApplication continuation={continuation} serviceArea={{
+              country: form.country, region: normalizeSignupRegion(form.country, form.state),
+              city: form.city, postalCode: form.zipCode,
+            }} />
+          </Suspense>
+        )}
+        {!continuation && (!otpSent ? <form ref={formRef} onSubmit={handleSubmit} noValidate aria-busy={busy === 'submit'} data-track="ui.663f47c956.1" data-track-private>
           {entries.length > 0 && <div className="signup-error-summary" role="alert"><p>{msg('errorSummary')}</p><ul>{entries.map(([field, value]) => <li key={field}>
             {field === 'general' ? value : <button type="button" onClick={() => focusField(field)} data-track="ui.663f47c956.2">{value}</button>}
           </li>)}</ul>{errors.email === msg('emailTaken') && <Link to="/login">{t('nav.signIn')}</Link>}</div>}
           {registrationExpired && <button type="button" className="signup-secondary" onClick={editDetails} data-track="ui.663f47c956.3">{msg('restart')}</button>}
-          <fieldset disabled={Boolean(busy)} className="signup-section signup-mode-section"><legend>{msg('modePrompt')}</legend>
+          {!capabilitiesLoading && <fieldset disabled={Boolean(busy)} className="signup-section signup-mode-section"><legend>{msg('modePrompt')}</legend>
             <div className="signup-mode-grid">{MODES.map((mode, index) => {
               const Icon = ICONS[mode] || UserRound;
               return <label className={'signup-mode-card' + (form.defaultMode === mode ? ' selected' : '')} key={mode}>
                 <input type="radio" id={index === 0 ? 'defaultMode' : 'mode-' + mode} name="defaultMode" value={mode}
                   checked={form.defaultMode === mode} onChange={() => set('defaultMode', mode)}
                   aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.defaultMode) || undefined} data-track="ui.663f47c956.4" />
-                <Icon size={27} aria-hidden="true" /><strong>{t(MODE_CATALOG[mode].labelKey)}</strong>
+                <Icon size={27} aria-hidden="true" /><strong>{customerFirst
+                  ? t(`progressiveAccess.capabilities.${SIGNUP_INTENTS[mode].capability}`, { ns: 'common' })
+                  : t(MODE_CATALOG[mode].labelKey)}</strong>
                 <span className="signup-mode-description">{t(MODE_CATALOG[mode].hintKey)}</span>
                 {form.defaultMode === mode && <Check className="signup-mode-check" size={16} aria-hidden="true" />}
               </label>;
             })}</div>
-            <p id="signup-mode-help" className="signup-help">{msg('switcherNote')} <span>{msg('setupNote')}</span></p>{fieldError('defaultMode')}
-          </fieldset>
+            <p id="signup-mode-help" className="signup-help">{customerFirst ? msg('intentNote') : <>{msg('switcherNote')} <span>{msg('setupNote')}</span></>}</p>{fieldError('defaultMode')}
+          </fieldset>}
           <fieldset disabled={Boolean(busy)} className="signup-section"><legend>{msg('personalTitle')}</legend>
             <p className="signup-help">{msg('contactHelp')} <Link to="/privacy" target="_blank" rel="noopener noreferrer">{t('footer.privacy')}</Link></p>
             <div className="signup-pair">{input('firstName', t('register.firstName'), 'text', 100, 'given-name')}{input('lastName', t('register.lastName'), 'text', 100, 'family-name')}</div>
@@ -313,7 +338,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
                 {' '}{msg('and')}{' '}<Link to="/privacy" target="_blank" rel="noopener noreferrer">{t('footer.privacy')}</Link>.</span>
             </label>{fieldError('termsAccepted')}
           </fieldset>
-          <button type="submit" className="signup-primary" disabled={Boolean(busy) || (Boolean(registrationToken) && waitSeconds > 0) || registrationExpired} data-track="ui.663f47c956.7">
+          <button type="submit" className="signup-primary" disabled={capabilitiesLoading || Boolean(busy) || (Boolean(registrationToken) && waitSeconds > 0) || registrationExpired} data-track="ui.663f47c956.7">
             {busy === 'submit' ? msg('submitting') : waitSeconds > 0 && registrationToken ? t('signupUpgrade.resendWait', { seconds: waitSeconds }) : t('join.submit')}
             {!busy && <ArrowRight size={18} aria-hidden="true" />}
           </button>
@@ -331,8 +356,8 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
             : <><button type="button" className="signup-secondary" onClick={handleResend} disabled={Boolean(busy) || waitSeconds > 0} data-track="ui.663f47c956.9">
               {waitSeconds > 0 ? t('signupUpgrade.resendWait', { seconds: waitSeconds }) : t('join.resend')}</button>
               <button type="button" className="signup-text-button" onClick={editDetails} disabled={Boolean(busy)} data-track="ui.663f47c956.10">{t('join.editDetails')}</button></>}
-        </section>}
-        <p className="signup-signin">{msg('alreadyMember')} <Link to="/login">{t('nav.signIn')}</Link></p>
+        </section>)}
+        {!continuation && <p className="signup-signin">{msg('alreadyMember')} <Link to="/login">{t('nav.signIn')}</Link></p>}
       </section>
     </Layout>
     {!embedded && <Footer />}

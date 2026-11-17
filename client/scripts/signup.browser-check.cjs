@@ -20,7 +20,9 @@ async function fixture() {
     '../context/LanguageContext': `export const useLanguage=()=>({language:window.language,setLanguage:()=>{},availableLanguages:[{code:window.language,name:window.language,nativeName:window.language}]});`,
     '../context/ThemeContext': `export const useTheme=()=>({isDark:document.documentElement.classList.contains('dark'),toggleTheme:()=>document.documentElement.classList.toggle('dark')});`,
     '../api/geo': `export const suggestLocation=async()=>[];`,
-    '../api/axios': `export default {post:async(url,payload)=>{
+    '../api/axios': `export default {
+    get: async () => ({ data: { capabilities: { customerFirstSignup: { available: window.customerFirst } } } }),
+    post:async(url,payload)=>{
       window.calls.push({url,payload}); await new Promise(r=>setTimeout(r,100));
       const mode=window.failure;
       if(mode==='network')throw new Error('Synthetic offline');
@@ -34,10 +36,39 @@ async function fixture() {
       if(url.endsWith('/verify-otp')){
         const code=mode==='locked'?'otp_locked':mode==='expired'?'registration_expired':mode==='otpExpired'?'otp_expired':'otp_invalid';
         if(mode!=='success')throw {response:{status:mode==='locked'?429:mode==='expired'?404:400,data:{code,error:'Synthetic verification failure',...(mode==='locked'?{lockoutUntil:new Date(Date.now()+3600000).toISOString(),retryAfterMs:3600000}:{})}}};
-        return {data:{user:{id:'synthetic',email_verified:true,default_mode:window.calls.find(c=>c.url.endsWith('/start'))?.payload.defaultMode||'customer'}}};
+        const start=window.calls.find(c=>c.url.endsWith('/start'))?.payload;
+        const capability={offer_services:'helper.offer_services',run_business:'business.own'}[start?.signupIntent];
+        const access=capability?{nextStep:{type:'application',capability,requestId:window.missingApplication?null:'application-1'}}:undefined;
+        return {data:{user:{id:'synthetic',email_verified:true,role:'customer',default_mode:start?.defaultMode||'customer'},access}};
       }
       return {data:{}};
     }};`,
+    '../../api/access': `
+      const area={ name:'serviceArea',type:'service_area',required:true };
+      const helperFields=[{ name:'serviceCategories',type:'string_list',required:true },area];
+      const businessFields=[{ name:'businessName',type:'string',required:true },{ name:'businessType',type:'enum',options:['llc'],required:true },area];
+      let capability;
+      let application={ id:'application-1',status:'draft',version:1,answers:{} };
+      export const accessAPI={
+        getPolicy: async (requested) => {
+          capability=requested;
+          if (window.failApplication) throw new Error('Synthetic application unavailable');
+          const helper=requested==='helper.offer_services';
+          return {policy:{subjectTypes:[helper?'self':'business_proposal'],form:{fields:helper?helperFields:businessFields}}};
+        },
+        getRequest: async () => ({request:{...application,capability}}),
+        createRequest: async (body,key) => {
+          window.calls.push({url:'create-application',body,key});
+          return {request:{...application,capability}};
+        },
+        updateRequest: async () => ({request:{...application,capability}}),
+        transition: async (id,action,body) => {
+          window.calls.push({url:action,id,body});
+          application={...application,status:'submitted',version:2,answers:body.answers};
+          return {request:{...application,capability}};
+        },
+      };
+    `,
   };
   const bundle = await build({ stdin:{resolveDir:root,loader:'jsx',contents:`
     import React from 'react';import {createRoot} from 'react-dom/client';import {BrowserRouter,useLocation} from 'react-router-dom';
@@ -66,7 +97,7 @@ async function fixture() {
       nav>div{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:16px;gap:10px}nav a{display:inline-flex;align-items:center;gap:8px;color:var(--color-text);text-decoration:none}nav>div>div{display:flex;gap:10px;align-items:center}nav button{min-height:44px}
       [data-footer]{padding:24px;text-align:center;color:var(--color-text-muted)}
     </style></head><body><div id="root"></div><script>
-      window.embedded=${params.has('embedded')};window.calls=[];window.language=${JSON.stringify(lang)};window.failure='';
+      window.embedded=${params.has('embedded')};window.customerFirst=${params.has('customerFirst')};window.missingApplication=${params.has('missingApplication')};window.calls=[];window.language=${JSON.stringify(lang)};window.failure='';
       window.catalog=${JSON.stringify(catalog).replace(/</g,'\\u003c')};window.common=${JSON.stringify(common).replace(/</g,'\\u003c')};
       window.translate=(key,options={})=>{const read=c=>key.split('.').reduce((v,k)=>v?.[k],c);const value=read(window.catalog)??read(window.common);return(typeof value==='string'?value:options.defaultValue||key).replace(/\\{\\{(\\w+)\\}\\}/g,(_,k)=>String(options[k]??''));};
     </script><script src="/app.js"></script></body></html>`);
@@ -77,6 +108,66 @@ async function open(page,url,embedded=false){await page.goto(url);if(embedded)aw
 async function fill(page){for(const [id,value] of Object.entries({firstName:'Synthetic',lastName:'Person',email:'synthetic@example.test',phone:'9375550100',addressLine1:'123 Test Street',city:'Springfield',zipCode:'45502',password:'Synthetic1'}))await page.locator('#'+id).fill(value);
   await page.locator('#country').selectOption('US');await page.locator('#state').selectOption('OH');await page.locator('#zipCode').fill('45502');await page.locator('#ageConfirmed').check();await page.locator('#termsAccepted').check();}
 async function submit(page){await page.locator('button[type="submit"]').click();await page.locator('[autocomplete="one-time-code"]').waitFor();}
+
+test('customer-first signup presents goals and gathers approval details in the same flow', { timeout: 90_000 }, async () => {
+  const app = await fixture();
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  try {
+    for (const [goal, intent] of [['customer', 'find_help'], ['helper', 'offer_services'], ['business_owner', 'run_business']]) {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+      const owner = goal === 'business_owner';
+      await open(page, `${app.url}/join?customerFirst&mode=${goal}${owner ? '&missingApplication' : ''}`);
+      const choices = page.locator('.signup-mode-section');
+      await choices.getByText('Offer services', { exact: true }).waitFor();
+      assert.ok(await choices.getByText('Run a business', { exact: true }).isVisible());
+      assert.match(await choices.innerText(), /Everyone starts with customer access/);
+      assert.doesNotMatch(await choices.innerText(), /mode|switcher/i);
+      assert.equal(await choices.locator(`input[value="${goal}"]`).isChecked(), true);
+      await fill(page);
+      await submit(page);
+      await page.evaluate((unavailable) => { window.failure = 'success'; window.failApplication = unavailable; }, owner);
+      await page.locator('[autocomplete="one-time-code"]').fill('123456');
+      await page.waitForFunction(() => Boolean(window.registeredUser));
+      assert.deepEqual(await page.evaluate(() => [window.registeredUser.role, window.registeredUser.default_mode]), ['customer', 'customer']);
+      const start = await page.evaluate(() => window.calls.find((entry) => entry.url.endsWith('/start')).payload);
+      assert.equal(start.signupIntent, intent);
+      assert.equal(Object.hasOwn(start, 'defaultMode'), false);
+      if (goal === 'customer') {
+        await page.waitForURL('**/dashboard');
+      } else {
+        if (owner) {
+          await page.getByRole('alert').filter({ hasText: 'couldn’t load the application' }).waitFor();
+          assert.equal(await page.getByRole('link', { name: 'Finish later' }).getAttribute('href'), '/dashboard');
+          await page.evaluate(() => { window.failApplication = false; });
+          await page.getByRole('button', { name: 'Try again', exact: true }).click();
+          await page.getByLabel('Business name').fill('Synthetic Repair');
+          await page.getByLabel('Business type').selectOption('llc');
+          const creation = await page.evaluate(() => window.calls.find((entry) => entry.url === 'create-application'));
+          assert.equal(creation.key, 'signup-synthetic');
+          assert.equal(creation.body.subject.type, 'business_proposal');
+        } else {
+          await page.getByLabel('Services you offer').fill('Plumbing, carpentry');
+        }
+        assert.equal(new URL(page.url()).pathname, '/join');
+        assert.equal(await page.getByRole('link', { name: 'Sign In', exact: true }).count(), 0);
+        assert.equal(await page.locator('#req-application-1-serviceArea-city').inputValue(), 'Springfield');
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+        await page.getByRole('button', { name: 'Submit application' }).click();
+        await page.getByRole('status').filter({ hasText: 'Application status: Submitted' }).waitFor();
+        const answers = await page.evaluate(() => window.calls.find((entry) => entry.url === 'submit').body.answers);
+        assert.deepEqual(answers.serviceArea, { country: 'US', region: 'OH', city: 'Springfield', postalCode: '45502' });
+        if (owner) assert.equal(answers.businessName, 'Synthetic Repair');
+        else assert.deepEqual(answers.serviceCategories, ['Plumbing', 'carpentry']);
+        await page.getByRole('link', { name: 'Go to my account' }).click();
+        await page.waitForURL('**/dashboard');
+      }
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+    await app.close();
+  }
+});
 
 test('standalone and native modal layouts, light/dark, RTL, zoom and focus',async()=>{
   const app=await fixture();const browser=await chromium.launch({channel:'chrome',headless:true});
