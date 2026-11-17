@@ -37,6 +37,9 @@ const {
 const {
   createCommitment,
   cancelCommitment,
+  failCloseOpportunity,
+  sweepUnsuccessfulOpportunities,
+  recordPartnerEscrowConfirmation,
   approveClosingConditions,
   recordClosingApproval,
   closeOpportunity,
@@ -476,6 +479,253 @@ describeDatabase('invest settlement', () => {
     const reconciliation = await reconcileInvestments({ opportunityId: opportunity.id });
     expect(reconciliation.ok).toBe(true);
     expect(reconciliation.differences).toEqual([]);
+  });
+
+  test('fail-close releases reservations to the original lots and marks the opportunity unsuccessful', async () => {
+    const first = await freshInvestor(20000);
+    const second = await freshInvestor(20000);
+    const { opportunity, version } = await freshOpportunity(30000);
+    const app1 = await approvedApplication(first.userId, opportunity.id, version.id);
+    const app2 = await approvedApplication(second.userId, opportunity.id, version.id);
+    const { commitment: firstCommitment } = await createCommitment({
+      userId: first.userId,
+      opportunityId: opportunity.id,
+      applicationId: app1.id,
+      amountCents: 10000,
+      agreementVersionId: version.id,
+      idempotencyKey: `invest-failclose-1-${crypto.randomUUID()}`,
+    });
+    const { commitment: secondCommitment } = await createCommitment({
+      userId: second.userId,
+      opportunityId: opportunity.id,
+      applicationId: app2.id,
+      amountCents: 5000,
+      agreementVersionId: version.id,
+      idempotencyKey: `invest-failclose-2-${crypto.randomUUID()}`,
+    });
+
+    const result = await failCloseOpportunity({
+      opportunityId: opportunity.id, actorUserId: reviewerId, reason: 'target missed',
+    });
+    expect(result.status).toBe('unsuccessful');
+    expect(result.releasedCommitmentCount).toBe(2);
+    expect(result.releasedCents).toBe(15000);
+    expect(result.releasedCommitmentIds.sort()).toEqual([firstCommitment.id, secondCommitment.id].sort());
+
+    const { rows: oppRows } = await pool.query(
+      `SELECT status, cancelled_at, cancellation_reason FROM investment_opportunities WHERE id = $1`,
+      [opportunity.id],
+    );
+    expect(oppRows[0].status).toBe('unsuccessful');
+    expect(oppRows[0].cancelled_at).not.toBeNull();
+    expect(oppRows[0].cancellation_reason).toBe('target missed');
+
+    for (const { userId, walletId } of [first, second]) {
+      const wallet = await walletBalance(walletId);
+      expect(wallet.reservedCents).toBe(0);
+      const eligible = await withTransaction(pool, async (client) => getEligibleBalance(client, { customerId: userId, currencyCode: 'USD' }), 'invest_failclose_eligible');
+      expect(eligible.eligibleAvailableCents).toBe(20000);
+      const { rows: lotRows } = await pool.query(
+        `SELECT source, remaining_cents FROM oxsteed_credit_balance_lots WHERE customer_id = $1`,
+        [userId],
+      );
+      expect(lotRows).toHaveLength(1);
+      expect(lotRows[0].source).toBe('purchased');
+      expect(Number(lotRows[0].remaining_cents)).toBe(20000);
+    }
+    const { rows: commitmentRows } = await pool.query(
+      `SELECT status FROM investment_commitments WHERE opportunity_id = $1 ORDER BY created_at ASC`,
+      [opportunity.id],
+    );
+    expect(commitmentRows.map((row) => row.status)).toEqual(['cancelled', 'cancelled']);
+    const { rows: lotLinkRows } = await pool.query(
+      `SELECT status FROM investment_commitment_lots WHERE commitment_id = $1`,
+      [firstCommitment.id],
+    );
+    expect(lotLinkRows[0].status).toBe('released');
+    const { rows: settlementRows } = await pool.query(
+      `SELECT status FROM investment_settlements WHERE commitment_id = $1`,
+      [firstCommitment.id],
+    );
+    expect(settlementRows[0].status).toBe('cancelled');
+    const balances = await getSubledgerBalances(pool, { opportunityId: opportunity.id, currencyCode: 'USD' });
+    expect(balances.pendingReservationsCents).toBe(0);
+    expect(balances.cancelledReleasedCents).toBe(15000);
+  });
+
+  test('fail-close refuses an already-closed opportunity and a self-approving entity rep', async () => {
+    const { userId } = await freshInvestor(20000);
+    const { opportunity, version } = await freshOpportunity(10000);
+    const application = await approvedApplication(userId, opportunity.id, version.id);
+    await createCommitment({
+      userId,
+      opportunityId: opportunity.id,
+      applicationId: application.id,
+      amountCents: 10000,
+      agreementVersionId: version.id,
+      idempotencyKey: `invest-failclose-closed-${crypto.randomUUID()}`,
+    });
+    await approveClosingConditions({ opportunityId: opportunity.id, approverUserId: reviewerId });
+    await recordClosingApproval({ opportunityId: opportunity.id, stage: 'review', approverUserId: reviewerId });
+    await recordClosingApproval({ opportunityId: opportunity.id, stage: 'execution', approverUserId: executorId });
+    await closeOpportunity({ opportunityId: opportunity.id, executorUserId: executorId });
+    await expect(failCloseOpportunity({ opportunityId: opportunity.id, actorUserId: reviewerId }))
+      .rejects.toMatchObject({ code: 'invest_fail_close_status_invalid' });
+
+    const open = await freshOpportunity(10000);
+    await expect(failCloseOpportunity({ opportunityId: open.opportunity.id, actorUserId: entityOwnerId }))
+      .rejects.toMatchObject({ code: 'invest_fail_close_self_approval' });
+  });
+
+  test('closing deadline is enforced even when the target is met', async () => {
+    const { userId } = await freshInvestor(20000);
+    const { opportunity, version } = await freshOpportunity(10000);
+    const application = await approvedApplication(userId, opportunity.id, version.id);
+    await createCommitment({
+      userId,
+      opportunityId: opportunity.id,
+      applicationId: application.id,
+      amountCents: 10000,
+      agreementVersionId: version.id,
+      idempotencyKey: `invest-deadline-${crypto.randomUUID()}`,
+    });
+    await approveClosingConditions({ opportunityId: opportunity.id, approverUserId: reviewerId });
+    await recordClosingApproval({ opportunityId: opportunity.id, stage: 'review', approverUserId: reviewerId });
+    await recordClosingApproval({ opportunityId: opportunity.id, stage: 'execution', approverUserId: executorId });
+    await pool.query(
+      `UPDATE investment_opportunities SET deadline_at = NOW() - interval '1 hour' WHERE id = $1`,
+      [opportunity.id],
+    );
+    await expect(closeOpportunity({ opportunityId: opportunity.id, executorUserId: executorId }))
+      .rejects.toMatchObject({ code: 'invest_close_deadline_passed' });
+  });
+
+  test('sweeper fail-closes only past-deadline opportunities with the target unmet', async () => {
+    async function reservedOpportunity(targetCents, amountCents) {
+      const { userId } = await freshInvestor(20000);
+      const { opportunity, version } = await freshOpportunity(targetCents);
+      const application = await approvedApplication(userId, opportunity.id, version.id);
+      await createCommitment({
+        userId,
+        opportunityId: opportunity.id,
+        applicationId: application.id,
+        amountCents,
+        agreementVersionId: version.id,
+        idempotencyKey: `invest-sweep-${crypto.randomUUID()}`,
+      });
+      return opportunity;
+    }
+    const pastUnmet = await reservedOpportunity(20000, 5000);
+    const futureUnmet = await reservedOpportunity(20000, 5000);
+    const pastMet = await reservedOpportunity(10000, 10000);
+    await pool.query(
+      `UPDATE investment_opportunities SET deadline_at = NOW() - interval '1 hour' WHERE id = ANY($1::uuid[])`,
+      [[pastUnmet.id, pastMet.id]],
+    );
+
+    const result = await sweepUnsuccessfulOpportunities({});
+    expect(result.failed).toEqual([]);
+    expect(result.failClosed).toHaveLength(1);
+    expect(result.failClosed[0].opportunityId).toBe(pastUnmet.id);
+    expect(result.failClosed[0].releasedCents).toBe(5000);
+
+    const { rows } = await pool.query(
+      `SELECT id, status FROM investment_opportunities WHERE id = ANY($1::uuid[])`,
+      [[pastUnmet.id, futureUnmet.id, pastMet.id]],
+    );
+    const byId = new Map(rows.map((row) => [String(row.id), row.status]));
+    expect(byId.get(pastUnmet.id)).toBe('unsuccessful');
+    expect(byId.get(futureUnmet.id)).toBe('published');
+    expect(byId.get(pastMet.id)).toBe('published');
+    const { rows: kept } = await pool.query(
+      `SELECT status FROM investment_commitments WHERE opportunity_id = $1`,
+      [futureUnmet.id],
+    );
+    expect(kept[0].status).toBe('reserved');
+  });
+
+  test('close leaves escrow expectations pending until explicit partner confirmation', async () => {
+    const { userId } = await freshInvestor(20000);
+    const { opportunity, version } = await freshOpportunity(10000);
+    const application = await approvedApplication(userId, opportunity.id, version.id);
+    const { commitment } = await createCommitment({
+      userId,
+      opportunityId: opportunity.id,
+      applicationId: application.id,
+      amountCents: 10000,
+      agreementVersionId: version.id,
+      idempotencyKey: `invest-escrow-${crypto.randomUUID()}`,
+    });
+    await approveClosingConditions({ opportunityId: opportunity.id, approverUserId: reviewerId });
+    await recordClosingApproval({ opportunityId: opportunity.id, stage: 'review', approverUserId: reviewerId });
+    await recordClosingApproval({ opportunityId: opportunity.id, stage: 'execution', approverUserId: executorId });
+    await closeOpportunity({ opportunityId: opportunity.id, executorUserId: executorId });
+
+    const { rows: pending } = await pool.query(
+      `SELECT status FROM investment_settlements WHERE commitment_id = $1 AND kind = 'escrow_expectation'`,
+      [commitment.id],
+    );
+    expect(pending).toHaveLength(1);
+    expect(pending[0].status).toBe('pending_partner_confirmation');
+
+    await expect(recordPartnerEscrowConfirmation({ commitmentId: commitment.id, confirmedBy: reviewerId }))
+      .rejects.toMatchObject({ code: 'invest_escrow_partner_ref_required' });
+    const confirmed = await recordPartnerEscrowConfirmation({
+      commitmentId: commitment.id, partnerRef: 'partner-esc-1', confirmedBy: reviewerId,
+    });
+    expect(confirmed.status).toBe('confirmed');
+    expect(confirmed.partnerRef).toBe('partner-esc-1');
+    expect(confirmed.confirmedAt).not.toBeNull();
+    await expect(recordPartnerEscrowConfirmation({
+      commitmentId: commitment.id, partnerRef: 'partner-esc-2', confirmedBy: reviewerId,
+    })).rejects.toMatchObject({ code: 'invest_escrow_nothing_pending' });
+  });
+
+  test('close, proceeds release, and distribution refuse when the live gate is off (service level)', async () => {
+    const { userId } = await freshInvestor(20000);
+    const { opportunity, version } = await freshOpportunity(10000);
+    const application = await approvedApplication(userId, opportunity.id, version.id);
+    await createCommitment({
+      userId,
+      opportunityId: opportunity.id,
+      applicationId: application.id,
+      amountCents: 10000,
+      agreementVersionId: version.id,
+      idempotencyKey: `invest-gate-${crypto.randomUUID()}`,
+    });
+    await approveClosingConditions({ opportunityId: opportunity.id, approverUserId: reviewerId });
+    await recordClosingApproval({ opportunityId: opportunity.id, stage: 'review', approverUserId: reviewerId });
+    await recordClosingApproval({ opportunityId: opportunity.id, stage: 'execution', approverUserId: executorId });
+
+    const previous = process.env.INVEST_COMMITMENTS_ENABLED;
+    process.env.INVEST_COMMITMENTS_ENABLED = 'false';
+    try {
+      // A direct service call, not a route: the service itself refuses.
+      await expect(closeOpportunity({ opportunityId: opportunity.id, executorUserId: executorId }))
+        .rejects.toMatchObject({ code: 'invest_commitments_disabled' });
+    } finally {
+      process.env.INVEST_COMMITMENTS_ENABLED = previous;
+    }
+    const closed = await closeOpportunity({ opportunityId: opportunity.id, executorUserId: executorId });
+    expect(closed.status).toBe('closed');
+
+    process.env.INVEST_COMMITMENTS_ENABLED = 'false';
+    try {
+      await expect(releaseProceeds({ opportunityId: opportunity.id, releasedBy: executorId }))
+        .rejects.toMatchObject({ code: 'invest_commitments_disabled' });
+      await expect(recordDistribution({
+        opportunityId: opportunity.id,
+        positionId: closed.positions[0].id,
+        userId,
+        amountCents: 500,
+        idempotencyKey: `invest-gate-dist-${crypto.randomUUID()}`,
+        actorUserId: adminId,
+      })).rejects.toMatchObject({ code: 'invest_commitments_disabled' });
+    } finally {
+      process.env.INVEST_COMMITMENTS_ENABLED = previous;
+    }
+    const released = await releaseProceeds({ opportunityId: opportunity.id, releasedBy: executorId });
+    expect(released.status).toBe('released');
   });
 
   test('reconciliation catches a planted subledger difference', async () => {

@@ -7,6 +7,7 @@ import {
   fundingProgress,
   provenanceLabelKey,
   opportunityStatusLabel,
+  reviewQueueTabLabel,
   documentVisibilityLabel,
   applicationStatusLabel,
   amendmentStatusLabel,
@@ -143,6 +144,9 @@ test('monetary reference value uses the Credit reference rate in force', () => {
 test('status, visibility, and provenance labels resolve through static keys', () => {
   assert.equal(opportunityStatusLabel('published', t), 'invest.common.status.published');
   assert.equal(opportunityStatusLabel('under_review', t), 'invest.common.status.underReview');
+  assert.equal(opportunityStatusLabel('unsuccessful', t), 'invest.common.status.unsuccessful');
+  assert.equal(reviewQueueTabLabel('amendments', t), 'invest.review.tabs.amendments');
+  assert.equal(reviewQueueTabLabel('closing', t), 'invest.review.tabs.closing');
   assert.equal(documentVisibilityLabel('committed', t), 'invest.detail.documents.visibility.committed');
   assert.equal(applicationStatusLabel('needs_information', t), 'invest.application.status.needsInformation');
   assert.equal(provenanceLabelKey('checked'), 'invest.detail.provenance.checked');

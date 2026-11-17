@@ -520,19 +520,184 @@ describeDatabase('invest routes', () => {
     expect(noRisk.body.code).toBe('invest_commitment_risk_acknowledgement_required');
   });
 
-  test('spec 6b: a stale agreement version cannot commit', async () => {
+  test('spec 6b: a new agreement version becomes current only when its amendment becomes effective', async () => {
     const { userId } = await freshInvestor(20000);
     const { opportunity, version } = await freshOpportunity(15000);
     const application = await approvedApplication(userId, opportunity.id, version.id);
-    const version2 = await createAgreementVersion({
-      opportunityId: opportunity.id, body: 'Test investment agreement version 2.', createdBy: entityOwnerId,
+    // Creating version 2 does NOT move the current version: new
+    // applicants still accept version 1 until the amendment is effective.
+    const created = await as(entityOwnerId).post(`/api/invest/opportunities/${opportunity.id}/agreement-versions`, {
+      body: 'Test investment agreement version 2.',
     });
-    const stale = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-stale-${crypto.randomUUID()}`, {
+    expect(created.status).toBe(201);
+    const version2 = created.body.agreementVersion;
+    expect(version2.versionNumber).toBe(2);
+    expect(version2.becameCurrent).toBe(false);
+    const stillCurrent = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-stale-${crypto.randomUUID()}`, {
+      applicationId: application.id, amountCents: 5000, agreementVersionId: version.id, riskAcknowledged: true,
+    });
+    expect(stillCurrent.status).toBe(201);
+    expect(stillCurrent.body.commitment.agreementVersionNumber).toBe(1);
+
+    const amendment = await as(entityOwnerId).post(`/api/invest/opportunities/${opportunity.id}/amendments`, {
+      changes: { valuationRule: 'Revenue share of 7 percent of monthly revenue.' },
+      newAgreementVersionId: version2.id,
+    });
+    expect(amendment.status).toBe(201);
+    const amendmentId = amendment.body.amendment.id;
+    const proposed = await as(entityOwnerId).post(`/api/invest/opportunities/${opportunity.id}/amendments/${amendmentId}/propose`, {
+      reconfirmationDeadlineAt: new Date('2027-01-01T00:00:00Z').toISOString(),
+    });
+    expect(proposed.status).toBe(200);
+
+    // The amendments queue shows the proposed amendment with its
+    // reconfirmation state: one investor, none reconfirmed yet.
+    const queue = await as(reviewerId, 'super_admin').get('/api/invest/review-queue?type=amendments');
+    expect(queue.status).toBe(200);
+    const queued = queue.body.amendments.find((row) => row.id === amendmentId);
+    expect(queued).toBeDefined();
+    expect(queued.reconfirmation).toEqual({ total: 1, reconfirmed: 0, pending: 1 });
+
+    const effective = await as(reviewerId, 'super_admin').post(`/api/invest/amendments/${amendmentId}/effective`, {
+      note: 'Terms reviewed.', expectedVersion: proposed.body.amendment.expectedVersion,
+    });
+    expect(effective.status).toBe(200);
+    expect(effective.body.amendment.status).toBe('effective');
+    expect(effective.body.appliedFields).toContain('valuationRule');
+    const detail = await as(reviewerId, 'super_admin').get(`/api/invest/opportunities/${opportunity.id}`);
+    expect(detail.body.opportunity.valuationRule).toBe('Revenue share of 7 percent of monthly revenue.');
+    expect(detail.body.opportunity.currentAgreementVersionId).toBe(version2.id);
+
+    // Version 1 is stale only now that version 2 is effective, and the
+    // reconfirmation window closed with effectiveness.
+    const stale = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-stale2-${crypto.randomUUID()}`, {
       applicationId: application.id, amountCents: 5000, agreementVersionId: version.id, riskAcknowledged: true,
     });
     expect(stale.status).toBe(409);
     expect(stale.body.code).toBe('invest_commitment_agreement_stale');
-    expect(version2.versionNumber).toBe(2);
+    const tooLate = await as(userId).post(`/api/invest/opportunities/${opportunity.id}/amendments/${amendmentId}/reconfirm`, {});
+    expect(tooLate.status).toBe(409);
+    expect(tooLate.body.code).toBe('invest_amendment_reconfirm_invalid');
+  });
+
+  test('amendment reject applies nothing and self-review is refused', async () => {
+    const { userId } = await freshInvestor(20000);
+    const { opportunity, version } = await freshOpportunity(15000);
+    await approvedApplication(userId, opportunity.id, version.id);
+    const version2 = await createAgreementVersion({
+      opportunityId: opportunity.id, body: 'Test investment agreement version 2.', createdBy: entityOwnerId,
+    });
+    const amendment = await as(entityOwnerId).post(`/api/invest/opportunities/${opportunity.id}/amendments`, {
+      changes: { valuationRule: 'Revenue share of 7 percent of monthly revenue.' },
+      newAgreementVersionId: version2.id,
+    });
+    const amendmentId = amendment.body.amendment.id;
+    const proposed = await as(entityOwnerId).post(`/api/invest/opportunities/${opportunity.id}/amendments/${amendmentId}/propose`, {
+      reconfirmationDeadlineAt: new Date('2027-01-01T00:00:00Z').toISOString(),
+    });
+    const rejected = await as(reviewerId, 'super_admin').post(`/api/invest/amendments/${amendmentId}/reject`, {
+      note: 'Terms need work.', expectedVersion: proposed.body.amendment.expectedVersion,
+    });
+    expect(rejected.status).toBe(200);
+    expect(rejected.body.amendment.status).toBe('rejected');
+    expect(rejected.body.amendment.reviewNote).toBe('Terms need work.');
+    expect(rejected.body.appliedFields).toEqual([]);
+    const detail = await as(reviewerId, 'super_admin').get(`/api/invest/opportunities/${opportunity.id}`);
+    expect(detail.body.opportunity.valuationRule).toBe('Revenue share of 5 percent of monthly revenue.');
+    expect(detail.body.opportunity.currentAgreementVersionId).toBe(version.id);
+
+    // The entity representative cannot decide their own amendment, even
+    // as a super-admin: the service refuses self-review.
+    const entityOwnerSuperId = await createUser('entity-super-amend', 'super_admin');
+    const { rows: bizRows } = await pool.query(
+      `INSERT INTO businesses (user_id, business_name, business_type)
+       VALUES ($1, 'Amend Invest Entity', 'llc') RETURNING id`,
+      [entityOwnerSuperId],
+    );
+    const own = await freshOpportunity(10000, entityOwnerSuperId, bizRows[0].id);
+    const ownAmendment = await as(entityOwnerSuperId).post(`/api/invest/opportunities/${own.opportunity.id}/amendments`, {
+      changes: { purpose: 'Changed purpose.' },
+    });
+    const ownAmendmentId = ownAmendment.body.amendment.id;
+    await as(entityOwnerSuperId).post(`/api/invest/opportunities/${own.opportunity.id}/amendments/${ownAmendmentId}/propose`, {
+      reconfirmationDeadlineAt: new Date('2027-01-01T00:00:00Z').toISOString(),
+    });
+    const selfReview = await as(entityOwnerSuperId, 'super_admin').post(`/api/invest/amendments/${ownAmendmentId}/effective`, {});
+    expect(selfReview.status).toBe(403);
+    expect(selfReview.body.code).toBe('invest_amendment_self_review');
+  });
+
+  test('fail-close route releases reservations and refuses self-approval; escrow confirmation route records partner input', async () => {
+    const { userId, walletId } = await freshInvestor(20000);
+    const { opportunity, version } = await freshOpportunity(15000);
+    const application = await approvedApplication(userId, opportunity.id, version.id);
+    const committed = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-failclose-${crypto.randomUUID()}`, {
+      applicationId: application.id, amountCents: 6000, agreementVersionId: version.id, riskAcknowledged: true,
+    });
+    expect(committed.status).toBe(201);
+    const commitmentId = committed.body.commitment.id;
+
+    const failed = await as(reviewerId, 'super_admin').post(`/api/invest/opportunities/${opportunity.id}/fail-close`, {
+      reason: 'target missed',
+    });
+    expect(failed.status).toBe(200);
+    expect(failed.body.status).toBe('unsuccessful');
+    expect(failed.body.releasedCommitmentCount).toBe(1);
+    expect(failed.body.releasedCents).toBe(6000);
+    const { rows: reservedRows } = await pool.query(
+      `SELECT reserved_cents FROM oxsteed_credit_accounts WHERE id = $1`, [walletId],
+    );
+    expect(Number(reservedRows[0].reserved_cents)).toBe(0);
+    const mine = await as(userId).get('/api/invest/me');
+    expect(mine.body.cancelled).toHaveLength(1);
+    expect(mine.body.pending).toHaveLength(0);
+    const again = await as(reviewerId, 'super_admin').post(`/api/invest/opportunities/${opportunity.id}/fail-close`, {});
+    expect(again.status).toBe(409);
+    expect(again.body.code).toBe('invest_fail_close_status_invalid');
+
+    // The entity representative cannot fail-close their own raise, even
+    // as a super-admin.
+    const entityOwnerSuperId = await createUser('entity-super-fail', 'super_admin');
+    const { rows: bizRows } = await pool.query(
+      `INSERT INTO businesses (user_id, business_name, business_type)
+       VALUES ($1, 'Fail Invest Entity', 'llc') RETURNING id`,
+      [entityOwnerSuperId],
+    );
+    const own = await freshOpportunity(10000, entityOwnerSuperId, bizRows[0].id);
+    const selfFail = await as(entityOwnerSuperId, 'super_admin').post(`/api/invest/opportunities/${own.opportunity.id}/fail-close`, {});
+    expect(selfFail.status).toBe(403);
+    expect(selfFail.body.code).toBe('invest_fail_close_self_approval');
+
+    // Escrow confirmation: close a raise, then confirm partner input
+    // explicitly through the route. Closing alone leaves it pending.
+    const second = await freshInvestor(20000);
+    const closedOpp = await freshOpportunity(10000);
+    const secondApp = await approvedApplication(second.userId, closedOpp.opportunity.id, closedOpp.version.id);
+    const secondCommitted = await as(second.userId).postKey(`/api/invest/opportunities/${closedOpp.opportunity.id}/commitments`, `invest-escrow-${crypto.randomUUID()}`, {
+      applicationId: secondApp.id, amountCents: 10000, agreementVersionId: closedOpp.version.id, riskAcknowledged: true,
+    });
+    expect(secondCommitted.status).toBe(201);
+    await as(reviewerId, 'super_admin').post(`/api/invest/opportunities/${closedOpp.opportunity.id}/closing-conditions/approve`, {});
+    await as(reviewerId, 'super_admin').post(`/api/invest/opportunities/${closedOpp.opportunity.id}/closing-approvals`, { stage: 'review', decision: 'approved' });
+    await as(executorId, 'super_admin').post(`/api/invest/opportunities/${closedOpp.opportunity.id}/closing-approvals`, { stage: 'execution', decision: 'approved' });
+    const closed = await as(executorId, 'super_admin').post(`/api/invest/opportunities/${closedOpp.opportunity.id}/close`, {});
+    expect(closed.status).toBe(200);
+    const { rows: escrowRows } = await pool.query(
+      `SELECT status FROM investment_settlements WHERE commitment_id = $1 AND kind = 'escrow_expectation'`,
+      [secondCommitted.body.commitment.id],
+    );
+    expect(escrowRows[0].status).toBe('pending_partner_confirmation');
+    const confirmed = await as(executorId, 'super_admin').post(`/api/invest/commitments/${secondCommitted.body.commitment.id}/escrow-confirmation`, {
+      partnerRef: 'partner-esc-route-1', note: 'Partner confirmed the hold.',
+    });
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.settlement.status).toBe('confirmed');
+    expect(confirmed.body.settlement.partnerRef).toBe('partner-esc-route-1');
+    const duplicate = await as(executorId, 'super_admin').post(`/api/invest/commitments/${secondCommitted.body.commitment.id}/escrow-confirmation`, {
+      partnerRef: 'partner-esc-route-2',
+    });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body.code).toBe('invest_escrow_nothing_pending');
   });
 
   test('commit then cancel restores the reservation and lands in My investments', async () => {

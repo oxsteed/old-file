@@ -121,6 +121,10 @@ describe('invest route middleware chains', () => {
       ['post', '/opportunities/:id/closing-conditions/approve'],
       ['post', '/opportunities/:id/closing-approvals'],
       ['post', '/opportunities/:id/close'],
+      ['post', '/opportunities/:id/fail-close'],
+      ['post', '/amendments/:id/effective'],
+      ['post', '/amendments/:id/reject'],
+      ['post', '/commitments/:id/escrow-confirmation'],
       ['post', '/opportunities/:id/release-proceeds'],
       ['post', '/opportunities/:id/distributions'],
     ];

@@ -444,3 +444,80 @@ test('Track 5: draft-edit locale keys exist in all five locales with no em dashe
     assert.doesNotMatch(JSON.stringify(catalog.invest.entity.edit), /—/, `${lang} edit em dash`);
   }
 });
+
+const TRACK6_KEYS = [
+  'invest.common.status.unsuccessful',
+  'invest.review.tabs.amendments',
+  'invest.review.amendments.changes',
+  'invest.review.amendments.reconfirmationTitle',
+  'invest.review.amendments.reconfirmation',
+  'invest.review.amendments.reconfirmationNone',
+  'invest.review.amendments.deadline',
+  'invest.review.amendments.note',
+  'invest.review.amendments.makeEffective',
+  'invest.review.amendments.reject',
+  'invest.review.amendments.effectiveNote',
+  'invest.review.failClose.title',
+  'invest.review.failClose.copy',
+  'invest.review.failClose.reason',
+  'invest.review.failClose.button',
+  'invest.review.failClose.note',
+  'invest.entity.manage.amendments.effectiveState',
+  'invest.entity.manage.amendments.rejectedState',
+  'invest.entity.manage.agreements.current',
+];
+
+test('Track 6: review queue decides amendments and fail-closes; entity page shows amendment outcomes', async () => {
+  const queue = await read('src/admin/pages/InvestReviewQueue.jsx');
+  for (const marker of [
+    'reviewAmendment',
+    'failCloseOpportunity',
+    'AmendmentDetail',
+    'invest.review.amendments.makeEffective',
+    'invest.review.amendments.reject',
+    'invest.review.amendments.reconfirmation',
+    'invest.review.failClose.button',
+    'invest.review.failClose.title',
+    'amendmentStatusLabel',
+    "type === 'amendments'",
+  ]) {
+    assert.ok(queue.includes(marker), marker);
+  }
+  const api = await read('src/api/invest.js');
+  for (const fn of [
+    'export async function reviewAmendment',
+    'export async function failCloseOpportunity',
+    'export async function recordPartnerEscrowConfirmation',
+  ]) {
+    assert.ok(api.includes(fn), fn);
+  }
+  for (const path of [
+    '/invest/opportunities/${opportunityId}/fail-close',
+    '/invest/commitments/${commitmentId}/escrow-confirmation',
+  ]) {
+    assert.ok(api.includes(path), path);
+  }
+  // reviewAmendment builds the effective/reject suffix from its decision
+  // argument; both suffixes must be present in the one call.
+  assert.match(api, /\/invest\/amendments\/\$\{amendmentId\}\/\$\{decision === 'effective' \? 'effective' : 'reject'\}/);
+  const manage = await read('src/pages/invest/InvestEntityManagePage.jsx');
+  for (const marker of [
+    'invest.entity.manage.amendments.effectiveState',
+    'invest.entity.manage.amendments.rejectedState',
+    'invest.entity.manage.agreements.current',
+    'opportunity.currentAgreementVersionId',
+  ]) {
+    assert.ok(manage.includes(marker), marker);
+  }
+  for (const lang of ['en', 'es', 'fr', 'ht', 'ar']) {
+    const catalog = JSON.parse(await read(`src/locales/${lang}.json`));
+    for (const key of TRACK6_KEYS) {
+      const parts = key.split('.');
+      let node = catalog;
+      for (const part of parts) node = node?.[part];
+      assert.equal(typeof node, 'string', `${lang} ${key}`);
+    }
+    assert.doesNotMatch(JSON.stringify(catalog.invest.review.amendments), /—/, `${lang} amendments em dash`);
+    assert.doesNotMatch(JSON.stringify(catalog.invest.review.failClose), /—/, `${lang} fail-close em dash`);
+  }
+});
