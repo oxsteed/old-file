@@ -4,6 +4,17 @@ const { requireHelperCapability } = require('../middleware/requireAccess');
 const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
 const ctrl = require('../controllers/plannedNeedsController');
 
+// Planned needs contain private financial planning and invitation data. Keep
+// authenticated responses out of browser, service-worker, and intermediary
+// caches so an account or scope transition cannot briefly reveal the prior
+// user's data. Server authorization remains authoritative for every route.
+router.use((req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  res.set('Pragma', 'no-cache');
+  res.set('X-Content-Type-Options', 'nosniff');
+  next();
+});
+
 // Projection must be declared before /:id routes to avoid param capture
 router.get('/suggestions',       authenticate, ctrl.getSuggestions);
 // Keep the static projection route before any future /:id GET route.
@@ -13,7 +24,7 @@ router.get('/projection',        authenticate, ctrl.getProjection);
 router.get('/templates',     authenticate, ctrl.getTemplates);
 
 // Helper offers (Task 3)
-router.get('/helper/offers',  authenticate, ctrl.getHelperOffers);
+router.get('/helper/offers',  authenticate, requireHelperCapability, ctrl.getHelperOffers);
 
 // Preferred-by count (Task 12)
 router.get('/helper/preferred-count',       authenticate, ctrl.getPreferredByCount);

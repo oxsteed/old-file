@@ -1763,6 +1763,25 @@ ownership and transitions, customer-versus-helper actions, recommendation
 links, exports, and behavior after access revocation or account deletion; then
 add the smallest missing capability-aware contract and focused tests.
 
+WP-045 is implemented on the branch. The personal wallet, earnings, tax,
+statement, and export surfaces remain self-scoped and server-authorized; no
+cross-account financial read was found in the audited routes. The concrete
+planned-needs gap was the helper-offer read: any authenticated account could
+read pending offers addressed to itself without an effective helper grant.
+`GET /api/planned-needs/helper/offers` now rechecks `helper.offer_services`
+through the shared capability middleware. The preferred-helper decline route
+remains ungated for safe recovery after revocation, while acceptance retains
+the active-onboarding requirement. All planned-needs responses now carry
+private no-store headers so account and scope transitions cannot reuse cached
+planning or invitation data. Focused server tests pass 246/246 across the
+helper-enforcement and route-shadowing suites. No populated browser, live
+financial-provider, or production acceptance is claimed.
+**Exact next action (resume here):** continue the remaining Package 4 audit
+with consultant, equipment-owner, logistics, franchise, investor-reporting,
+Credit-participant, partner, and workforce/learning surfaces; only change a
+route when its authoritative admission, scope, activation, and tests reveal a
+concrete gap.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,

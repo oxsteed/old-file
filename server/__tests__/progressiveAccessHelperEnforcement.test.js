@@ -252,8 +252,10 @@ describe('helper capability gate', () => {
 
   test('planned-need acceptance requires active helper access while decline remains recovery-safe', () => {
     const plannedNeeds = fs.readFileSync(path.join(__dirname, '../routes/plannedNeeds.js'), 'utf8');
+    expect(plannedNeeds).toMatch(/router\.get\('\/helper\/offers',\s+authenticate, requireHelperCapability, ctrl\.getHelperOffers\)/);
     expect(plannedNeeds).toMatch(/router\.post\('\/:id\/helper\/accept',\s+authenticate, requireHelperCapability, requireOnboardingStep\('active'\), ctrl\.helperAccept\)/);
     expect(plannedNeeds).toMatch(/router\.post\('\/:id\/helper\/decline',\s+authenticate, ctrl\.helperDecline\)/);
+    expect(plannedNeeds).toMatch(/Cache-Control', 'private, no-store'/);
   });
 
   test('agreements and disputes gate helper-party mutations without gating customers', () => {
