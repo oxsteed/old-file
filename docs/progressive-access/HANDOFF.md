@@ -303,6 +303,16 @@ capability from seeing a specialist entry point only on mobile. The navbar
 contract suite passes all 25 tests and `git diff --check` passes. Exact-head CI
 and non-production operational acceptance remain open.
 
+### WP-112: standard payout activation gate
+
+The standard helper payout-request route (`POST /api/payouts`) now requires the
+existing `active` helper onboarding step before the tax-identity gate and
+request creation. Balance reads remain available separately, and the route
+continues to require the effective helper capability plus fresh W-9/identity
+checks. `mainAppPayouts.test.js` and `progressiveAccessHelperEnforcement.test.js`
+pass together (49 tests). Exact-head CI and non-production operational
+acceptance remain open.
+
 ### Customer-first signup experience follow-up
 
 PR #794 reached production as `784bce83d` with the progressive access flags

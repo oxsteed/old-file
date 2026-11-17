@@ -609,12 +609,13 @@ describe('main app service fallback-data contracts', () => {
 describe('standard payout request tax-identity gate (P3-10-F16)', () => {
   test('POST /payouts requires tax identity before the controller runs', () => {
     const router = require('../routes/mainApp');
-    const { requireTaxIdentity } = require('../middleware/helperOnboardingMiddleware');
+    const { requireOnboardingStep, requireTaxIdentity } = require('../middleware/helperOnboardingMiddleware');
     const layer = router.stack.find(
       (l) => l.route && l.route.path === '/payouts' && l.route.methods.post
     );
     expect(layer).toBeTruthy();
     const handlers = layer.route.stack.map((s) => s.handle);
+    expect(handlers.some((handler) => handler.requiredOnboardingStep === 'active')).toBe(true);
     expect(handlers).toContain(requireTaxIdentity);
     // The gate runs before the controller.
     expect(handlers.indexOf(requireTaxIdentity)).toBeLessThan(handlers.length - 1);

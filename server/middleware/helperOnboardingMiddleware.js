@@ -18,7 +18,7 @@ function requireOnboardingStep(minimumStep) {
     'active'
   ];
 
-  return (req, res, next) => {
+  const middleware = (req, res, next) => {
     // Map onboarding_status to step
     const status = req.user?.onboarding_status || 'verified_pending_onboarding';
     const completed = req.user?.onboarding_completed;
@@ -44,6 +44,10 @@ function requireOnboardingStep(minimumStep) {
     }
     next();
   };
+  // Keep the requirement inspectable for route-contract tests and operational
+  // audits without changing the middleware's runtime behavior.
+  middleware.requiredOnboardingStep = minimumStep;
+  return middleware;
 }
 
 
