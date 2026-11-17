@@ -2292,6 +2292,9 @@
     "myJobs": "Mes demandes",
     "orderFood": "Commander à manger",
     "myWork": "Mon activité",
+    "exploreInvestments": "Explorer les investissements",
+    "requestInvestorAccess": "Demander l'accès investisseur",
+    "myInvestments": "Mes investissements",
     "workspace": "Espace de travail",
     "businessWorkspace": "Espace professionnel",
     "foodOrders": "Commandes de repas",
@@ -22705,6 +22708,358 @@
       "send": "Envoyer",
       "delete": "Supprimer",
       "convertToInvoice": "Convertir en facture"
+    }
+  },
+  "invest": {
+    "application": {
+      "agreementAccepted": "La version de l'accord a été acceptée et enregistrée.",
+      "choose": {
+        "title": "Choisissez une opportunité pour votre demande"
+      },
+      "currentStatus": "État de la demande : {{status}}",
+      "draftSaved": "Votre brouillon a été enregistré. Vous pouvez revenir et le reprendre à tout moment.",
+      "error": {
+        "acceptFailed": "L'accord n'a pas pu être accepté.",
+        "loadFailed": "La demande n'a pas pu être chargée.",
+        "saveFailed": "Le brouillon n'a pas pu être enregistré.",
+        "saveFirst": "Enregistrez un brouillon avant de soumettre.",
+        "submitFailed": "La demande n'a pas pu être soumise.",
+        "withdrawFailed": "La demande n'a pas pu être retirée."
+      },
+      "intro": "Demandez à investir du Crédit OxSteed éligible dans une opportunité d'entité. Chaque section ci-dessous est distincte : l'identité et l'autorité sont vérifiées par un examinateur, l'éligibilité est votre propre déclaration et l'acceptation de l'accord est enregistrée séparément.",
+      "noApplicationYet": "Vous n'avez pas encore de demande pour cette opportunité. Enregistrez un brouillon pour commencer.",
+      "noBlockNotice": "La demande ne change rien d'autre à votre compte. Vous pouvez toujours embaucher de l'aide, commander des repas, envoyer des messages et utiliser toutes les fonctions clientes habituelles pendant que votre demande est ouverte.",
+      "saveDraft": "Enregistrer le brouillon",
+      "sections": {
+        "agreement": {
+          "acceptButton": "Accepter cette version de l'accord",
+          "acceptedAt": "Accord accepté le {{date}}.",
+          "hash": "Empreinte du contenu (SHA-256)",
+          "hint": "L'acceptation est enregistrée séparément des autres sections, pour la version exacte de l'accord affichée ici.",
+          "none": "Aucune version de l'accord n'a encore été publiée pour cette opportunité.",
+          "notAccepted": "L'accord n'a pas encore été accepté.",
+          "title": "5. Acceptation de l'accord",
+          "version": "Version de l'accord"
+        },
+        "documents": {
+          "hint": "Documents que vous pouvez voir en tant que candidat. L'accès est par investisseur et par opportunité.",
+          "title": "4. Accès aux documents confidentiels"
+        },
+        "eligibility": {
+          "actingAs": "J'investis",
+          "actingAsOrganization": "En tant que représentant autorisé d'une organisation",
+          "actingAsSelf": "Pour moi-même",
+          "adult": "J'ai 18 ans ou plus.",
+          "creditOnlyAck": "Je comprends que les investissements se font uniquement avec du Crédit OxSteed éligible. Aucun paiement par carte, banque ou espèces n'est utilisé.",
+          "hint": "Vos propres déclarations sur l'éligibilité. Elles sont vérifiées à nouveau lorsque vous vous engagez, puis à la clôture.",
+          "organizationName": "Nom de l'organisation",
+          "riskAck": "Je comprends qu'investir comporte un risque, y compris la perte possible du montant engagé, et qu'aucun rendement n'est garanti.",
+          "title": "2. Éligibilité à participer",
+          "usResident": "Je suis résident des États-Unis."
+        },
+        "identity": {
+          "authorityVerified": "Autorité de l'organisation vérifiée",
+          "hint": "Ce sont des conclusions de l'examinateur. Un examinateur vérifie votre identité et, si vous agissez pour une organisation, votre autorité à agir pour elle. Rien de cela n'est décidé par ce formulaire.",
+          "identityVerified": "Identité vérifiée",
+          "note": "Si plus d'informations sont nécessaires, l'examinateur renverra la demande avec une note et vous pourrez la mettre à jour.",
+          "title": "1. Identité et autorité de l'organisation"
+        },
+        "requirements": {
+          "ack": "J'ai lu les exigences de cette opportunité et je les remplis.",
+          "hint": "Les exigences de cette opportunité. Confirmez que vous les avez lues avant de faire votre demande.",
+          "title": "3. Exigences propres à l'opportunité"
+        }
+      },
+      "status": {
+        "approved": "Approuvée",
+        "declined": "Refusée",
+        "draft": "Brouillon",
+        "needsInformation": "Informations requises",
+        "submitted": "Soumise",
+        "underReview": "En cours d'examen",
+        "withdrawn": "Retirée"
+      },
+      "submit": "Soumettre la demande",
+      "submitted": "Votre demande a été soumise.",
+      "title": "Demander l'accès investisseur",
+      "withdraw": "Retirer la demande",
+      "withdrawn": "Votre demande a été retirée."
+    },
+    "commit": {
+      "amount": {
+        "aboveEligible": "Le montant est supérieur à votre Crédit éligible de {{eligible}}.",
+        "belowMinimum": "Le montant est inférieur à la contribution minimale de {{minimum}}.",
+        "hint": "Saisissez le montant de Crédit éligible à réserver. Il doit être au moins égal à la contribution minimale et ne pas dépasser votre solde éligible.",
+        "invalid": "Saisissez un montant valide, par exemple 250.00.",
+        "label": "Montant en dollars américains (minimum {{minimum}})",
+        "riskAck": "Je comprends que cet investissement comporte un risque, y compris la perte possible du montant engagé, et qu'aucun rendement n'est garanti.",
+        "riskRequired": "Confirmez la reconnaissance du risque avant de continuer.",
+        "title": "Montant"
+      },
+      "backButton": "Retour au montant",
+      "confirmButton": "Confirmer l'engagement d'investissement",
+      "eligibleBalance": "Crédit éligible disponible : {{amount}}",
+      "error": {
+        "confirmFailed": "L'engagement n'a pas pu être enregistré.",
+        "loadFailed": "La page d'engagement n'a pas pu être chargée."
+      },
+      "gateOff": "Les engagements d'investissement ne sont pas encore disponibles. Les engagements s'ouvrent uniquement pour le pilote approuvé, après l'accord du conseiller juridique et du partenaire de règlement. Vous pouvez toujours examiner l'opportunité et faire une demande.",
+      "intro": "Réservez du Crédit OxSteed éligible pour cette opportunité. L'engagement reste en attente jusqu'à la clôture de l'opportunité. Vérifiez chaque ligne ci-dessous avant de confirmer.",
+      "noApprovedApplication": "Vous avez besoin d'une demande de participation approuvée pour cette opportunité avant de pouvoir vous engager.",
+      "receipt": {
+        "hint": "Votre engagement en attente est enregistré ci-dessous. Il ne se concrétise que si l'opportunité se clôture.",
+        "replayed": "Cette confirmation avait déjà été enregistrée. Aucun engagement en double n'a été créé.",
+        "title": "Engagement enregistré"
+      },
+      "review": {
+        "agreementVersion": "Version de l'accord acceptée",
+        "agreementVersionValue": "Version n° {{version}} (SHA-256 {{hash}}...)",
+        "amount": "Montant de Crédit éligible",
+        "cancellation": "Annulation",
+        "cancellationTerms": "Un engagement réservé peut être annulé tant qu'il est réservé. Lors de l'annulation, le Crédit réservé revient à la classification et aux restrictions d'origine du solde, et l'engagement est enregistré comme annulé. Un engagement terminé ne peut pas être annulé.",
+        "fees": "Frais",
+        "feesNote": "Aucun frais n'est facturé à l'investisseur dans cette version. Aucun barème de frais d'intermédiaire n'a été défini, donc aucun frais n'est ajouté au montant ci-dessus.",
+        "hint": "Vérifiez chaque ligne. Rien n'est définitif tant que vous n'avez pas confirmé.",
+        "incomplete": "Certaines lignes de vérification manquent. Veuillez revenir en arrière et compléter les détails de l'engagement.",
+        "noFees": "Aucun frais.",
+        "referenceValue": "Valeur monétaire de référence",
+        "referenceValueNote": "La valeur monétaire de référence est fixée lors de la réservation, au taux de référence du Crédit en vigueur à ce moment. Elle est indiquée sur votre reçu de confirmation après votre confirmation.",
+        "rights": "Vos droits",
+        "rightsSummary": "Les droits sont régis par la version {{version}} de l'accord (SHA-256 {{hash}}). Le texte complet de l'accord est le document qui fait foi.",
+        "rightsSummaryFallback": "Les droits sont régis par la version de l'accord en vigueur enregistrée sur l'engagement.",
+        "risk": "Risque",
+        "riskNote": "Investir comporte un risque, y compris la perte possible du montant engagé. Aucun rendement n'est garanti et aucune distribution n'est promise.",
+        "status": "État",
+        "statusNote": "Ceci est un engagement en attente, pas un investissement terminé. Le Crédit est réservé et l'engagement ne se concrétise que si l'opportunité se clôture.",
+        "statusPending": "Engagement en attente",
+        "title": "Vérifiez votre engagement",
+        "valuationRule": "Règle d'évaluation",
+        "valuationRuleFallback": "Partage des revenus. La règle exacte figure dans l'accord en vigueur."
+      },
+      "reviewButton": "Vérifier l'engagement",
+      "title": "Prendre un engagement d'investissement"
+    },
+    "common": {
+      "country": {
+        "usOnly": "États-Unis uniquement"
+      },
+      "loading": "Chargement des investissements.",
+      "notAvailable": "OxSteed Invest n'est pas disponible pour le moment. Veuillez réessayer plus tard.",
+      "notSet": "Non défini",
+      "notYet": "Pas encore",
+      "retry": "Réessayer",
+      "riskNotice": "Investir comporte un risque, y compris la perte possible du montant engagé. Aucun rendement n'est garanti et aucune distribution n'est promise.",
+      "status": {
+        "approved": "Approuvée",
+        "cancelled": "Annulée",
+        "closed": "Clôturée",
+        "closing": "En clôture",
+        "draft": "Brouillon",
+        "paused": "Suspendue",
+        "published": "Publiée",
+        "submitted": "Soumise",
+        "underReview": "En cours d'examen",
+        "withdrawn": "Retirée"
+      },
+      "structure": {
+        "revenueShare": "Partage des revenus"
+      },
+      "yes": "Oui"
+    },
+    "detail": {
+      "actions": {
+        "apply": "Demander l'accès investisseur",
+        "commit": "Prendre un engagement",
+        "viewApplication": "Voir ma demande"
+      },
+      "answers": {
+        "hint": "Chaque réponse indique sa source. Le contenu fourni par l'entité est la déclaration de l'entité elle-même. Le contenu vérifié a été calculé à partir des dossiers d'investissement.",
+        "title": "À propos de cette opportunité"
+      },
+      "applicationStatus": "Votre demande pour cette opportunité est {{status}}.",
+      "backToDirectory": "Retour à tous les investissements",
+      "documents": {
+        "confidential": "Confidentiel",
+        "empty": {
+          "copy": "Il n'y a aucun document que vous pouvez consulter pour cette opportunité pour le moment.",
+          "title": "Aucun document disponible"
+        },
+        "hint": "Seuls les documents que vous êtes autorisé à voir sont listés. Les documents confidentiels sont montrés aux candidats et aux investisseurs de cette opportunité uniquement.",
+        "title": "Documents",
+        "visibility": {
+          "applicants": "Candidats",
+          "committed": "Investisseurs avec un engagement",
+          "public": "Public",
+          "reviewers": "Examinateurs"
+        }
+      },
+      "error": {
+        "loadFailed": "Cette opportunité n'a pas pu être chargée."
+      },
+      "exit": {
+        "cancellation": "Un engagement réservé peut être annulé tant qu'il est réservé. Lors de l'annulation, le Crédit réservé revient à la classification et aux restrictions d'origine du solde, et l'engagement est enregistré comme annulé. Un engagement terminé ne peut pas être annulé.",
+        "distributions": "Les distributions ne sont pas promises. Si l'entité paie, la distribution est créditée en Crédit par le flux de règlement approuvé, avec un relevé traçable. Il n'y a aucune promesse de distribution, de remboursement en espèces, ni de protection du capital.",
+        "hint": "Comment un engagement peut prendre fin, et ce qu'il advient du Crédit.",
+        "title": "Annulation, transfert et sortie",
+        "transfer": "Un engagement ne peut pas être transféré à une autre personne. Après la clôture, la sortie dépend des conditions de l'accord en vigueur."
+      },
+      "funding": {
+        "completed": "Financement terminé",
+        "pendingNote": "Les engagements en attente sont des réserves de Crédit. Ce n'est pas du financement terminé et ils ne se concrétisent que si l'opportunité se clôture.",
+        "reserved": "Engagements en attente",
+        "title": "Financement à ce jour"
+      },
+      "provenance": {
+        "checked": "Source : vérifié dans les dossiers d'investissement",
+        "entityProvided": "Source : fourni par l'entité"
+      },
+      "qa": {
+        "askButton": "Envoyer la question",
+        "askFailed": "Votre question n'a pas pu être envoyée.",
+        "askLabel": "Poser une question à l'entité",
+        "asked": "Votre question a été envoyée.",
+        "empty": {
+          "copy": "Aucune question n'a été posée pour cette opportunité.",
+          "title": "Aucune question pour le moment"
+        },
+        "hint": "Questions des investisseurs dans cette opportunité et réponses de l'entité.",
+        "notAvailable": "Les questions et réponses sont visibles pour les investisseurs dans cette opportunité.",
+        "questionRequired": "Écrivez d'abord une question.",
+        "title": "Questions et réponses",
+        "unanswered": "En attente d'une réponse de l'entité."
+      },
+      "verification": {
+        "notVerifiedTitle": "Non vérifié par OxSteed",
+        "verifiedTitle": "Ce qu'OxSteed a vérifié"
+      }
+    },
+    "directory": {
+      "card": {
+        "committed": "{{reserved}} en engagements en attente et {{completed}} en financement terminé.",
+        "deadline": "Date limite de financement",
+        "minimum": "Contribution minimale",
+        "progress": "{{percent}} % de l'objectif de financement est couvert par les engagements jusqu'à présent.",
+        "structure": "Structure d'investissement",
+        "target": "Objectif de financement",
+        "view": "Voir l'opportunité"
+      },
+      "empty": {
+        "copy": "Il n'y a aucune opportunité publiée pour le moment. Veuillez revenir plus tard.",
+        "title": "Aucune opportunité d'investissement pour le moment"
+      },
+      "entityUnknown": "Nom de l'entité non fourni",
+      "error": {
+        "loadFailed": "Le répertoire des investissements n'a pas pu être chargé."
+      },
+      "intro": "Des opportunités d'entités éligibles, financées avec du Crédit OxSteed éligible. Elles sont classées par date de publication ou de clôture. OxSteed ne classe ni ne recommande les investissements.",
+      "myInvestments": "Mes investissements",
+      "requestAccess": "Demander l'accès investisseur",
+      "sort": {
+        "closingDate": "Date de clôture",
+        "label": "Trier par",
+        "publicationDate": "Date de publication"
+      },
+      "title": "Explorer les investissements"
+    },
+    "my": {
+      "agreementVersion": "Version de l'accord {{version}}",
+      "agreements": {
+        "empty": {
+          "copy": "Vous n'avez pas encore accepté de version de l'accord.",
+          "title": "Aucun accord"
+        },
+        "hint": "Les versions exactes de l'accord que vous avez acceptées, avec leurs empreintes de contenu.",
+        "title": "Accords et relevés"
+      },
+      "applications": {
+        "empty": {
+          "copy": "Vous n'avez pas encore demandé à investir.",
+          "title": "Aucune demande"
+        },
+        "title": "Demandes",
+        "view": "Voir la demande"
+      },
+      "cancelled": {
+        "empty": {
+          "copy": "Vous n'avez aucun engagement annulé ou sans suite.",
+          "title": "Aucun engagement annulé"
+        },
+        "hint": "Engagements qui ont été annulés ou qui ne se sont pas concrétisés à la clôture. Le Crédit est revenu au solde d'origine.",
+        "title": "Engagements annulés et sans suite"
+      },
+      "cancelledNotice": "L'engagement a été annulé et le Crédit réservé est revenu au solde d'origine.",
+      "completed": {
+        "empty": {
+          "copy": "Vous n'avez pas encore d'investissement terminé.",
+          "title": "Aucun investissement terminé"
+        },
+        "hint": "Engagements qui se sont concrétisés à la clôture.",
+        "status": "Terminé",
+        "title": "Investissements terminés"
+      },
+      "distributions": {
+        "empty": {
+          "copy": "Aucune distribution ne vous a encore été créditée.",
+          "title": "Aucune distribution"
+        },
+        "hint": "Valeur créditée en Crédit. Les distributions ne sont pas promises et aucun rendement n'est garanti.",
+        "title": "Distributions et ajustements"
+      },
+      "eligibleBalance": "Crédit éligible disponible : {{amount}}",
+      "error": {
+        "cancelFailed": "L'engagement n'a pas pu être annulé.",
+        "loadFailed": "Vos investissements n'ont pas pu être chargés.",
+        "reconfirmFailed": "La modification n'a pas pu être reconfirmée."
+      },
+      "intro": "Vos engagements en attente, investissements terminés, engagements annulés, mises à jour des entités, distributions, accords et demandes d'assistance. Les montants affichés sont des montants engagés ou distribués. Aucune valeur de marché n'est affichée.",
+      "pending": {
+        "cancel": "Annuler l'engagement",
+        "empty": {
+          "copy": "Vous n'avez aucun engagement réservé pour le moment.",
+          "title": "Aucun engagement en attente"
+        },
+        "hint": "Crédit réservé. Ce ne sont pas des investissements terminés.",
+        "status": "En attente",
+        "title": "Engagements en attente"
+      },
+      "reconfirmation": {
+        "button": "Reconfirmer",
+        "hint": "Un changement important a été proposé pour l'une de vos opportunités. Reconfirmez pour accepter la nouvelle version de l'accord pour vos engagements encore réservés.",
+        "item": "Un changement important nécessite votre reconfirmation.",
+        "title": "Reconfirmation nécessaire"
+      },
+      "reconfirmed": "La modification a été reconfirmée avec la nouvelle version de l'accord.",
+      "support": {
+        "category": "Catégorie",
+        "categoryAgreement": "Accord",
+        "categoryComplaint": "Plainte",
+        "categoryDistribution": "Distribution",
+        "categoryInvestment": "Question d'investissement",
+        "details": "Détails",
+        "empty": {
+          "copy": "Vous n'avez pas encore envoyé de demande d'assistance pour un investissement.",
+          "title": "Aucune demande d'assistance"
+        },
+        "failed": "Votre demande d'assistance n'a pas pu être envoyée.",
+        "hint": "Posez une question ou signalez un problème au sujet d'un investissement. Les plaintes sont traitées en haute priorité.",
+        "required": "Ajoutez d'abord un objet et des détails.",
+        "sent": "Votre demande d'assistance a été envoyée.",
+        "subject": "Objet",
+        "submit": "Envoyer la demande d'assistance",
+        "ticket": "Ticket n° {{number}} - {{status}}",
+        "title": "Demandes d'assistance"
+      },
+      "suspendedNotice": "Votre compte est suspendu. Vos dossiers d'investissement sont affichés en lecture seule. Votre propriété, vos relevés et vos obligations demeurent. Les écritures sont indisponibles.",
+      "title": "Mes investissements",
+      "updates": {
+        "empty": {
+          "copy": "Il n'y a aucune mise à jour d'entité pour vos investissements pour le moment.",
+          "title": "Aucune mise à jour"
+        },
+        "hint": "Mises à jour publiées des entités dans lesquelles vous avez investi. Les mises à jour manquées restent visibles comme en retard.",
+        "overdue": "En retard",
+        "title": "Mises à jour des entités"
+      }
     }
   },
   "investorDashboard": {

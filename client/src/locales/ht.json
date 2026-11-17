@@ -2292,6 +2292,9 @@
     "myJobs": "Travay mwen yo",
     "orderFood": "Kòmande manje",
     "myWork": "Aktivite mwen",
+    "exploreInvestments": "Eksplore envestisman yo",
+    "requestInvestorAccess": "Mande aksè envestisè",
+    "myInvestments": "Envestisman mwen yo",
     "workspace": "Espas travay",
     "businessWorkspace": "Espas biznis",
     "foodOrders": "Kòmann manje",
@@ -22705,6 +22708,358 @@
       "send": "Voye",
       "delete": "Efase",
       "convertToInvoice": "Konvèti nan bòdwo"
+    }
+  },
+  "invest": {
+    "application": {
+      "agreementAccepted": "Vèsyon akò a te aksepte epi anrejistre.",
+      "choose": {
+        "title": "Chwazi yon opòtinite pou aplike"
+      },
+      "currentStatus": "Estati aplikasyon an: {{status}}",
+      "draftSaved": "Bouyon ou a te sove. Ou ka tounen epi reprann li nenpòt lè.",
+      "error": {
+        "acceptFailed": "Akò a pa t ka aksepte.",
+        "loadFailed": "Aplikasyon an pa t ka chaje.",
+        "saveFailed": "Bouyon an pa t ka sove.",
+        "saveFirst": "Sove yon bouyon anvan ou soumèt.",
+        "submitFailed": "Aplikasyon an pa t ka soumèt.",
+        "withdrawFailed": "Aplikasyon an pa t ka retire."
+      },
+      "intro": "Mande pou envesti Kredi OxSteed ki kalifye nan yon opòtinite antite. Chak seksyon anba a separe: idantite ak otorite se yon revizè ki verifye yo, kalifikasyon se pwòp deklarasyon ou, epi akseptasyon akò a anrejistre pou kont li.",
+      "noApplicationYet": "Ou poko gen aplikasyon pou opòtinite sa a. Sove yon bouyon pou kòmanse.",
+      "noBlockNotice": "Aplike pa chanje okenn lòt bagay nan kont ou. Ou ka toujou anboche èd, kòmande manje, voye mesaj, epi sèvi ak tout fonksyon kliyan nòmal yo pandan aplikasyon ou a louvri.",
+      "saveDraft": "Sove bouyon an",
+      "sections": {
+        "agreement": {
+          "acceptButton": "Aksepte vèsyon akò sa a",
+          "acceptedAt": "Akò a te aksepte nan dat {{date}}.",
+          "hash": "Anprent kontni an (SHA-256)",
+          "hint": "Akseptasyon an anrejistre apa de lòt seksyon yo, pou vèsyon egzak akò ki parèt isit la.",
+          "none": "Poko gen vèsyon akò ki pibliye pou opòtinite sa a.",
+          "notAccepted": "Akò a poko aksepte.",
+          "title": "5. Akseptasyon akò a",
+          "version": "Vèsyon akò a"
+        },
+        "documents": {
+          "hint": "Dokiman ou ka wè kòm aplikan. Aksè a se pa envestisè epi pa opòtinite.",
+          "title": "4. Aksè nan dokiman konfidansyèl"
+        },
+        "eligibility": {
+          "actingAs": "M ap envesti",
+          "actingAsOrganization": "Kòm reprezantan otorize yon òganizasyon",
+          "actingAsSelf": "Pou tèt mwen",
+          "adult": "Mwen gen 18 an oswa plis.",
+          "creditOnlyAck": "Mwen konprann envestisman yo fèt sèlman ak Kredi OxSteed ki kalifye. Yo pa sèvi ak kat, bank, oswa lajan kach.",
+          "hint": "Pwòp deklarasyon ou sou kalifikasyon. Yo verifye yo ankò lè ou angaje ou, epi ankò nan fèmti a.",
+          "organizationName": "Non òganizasyon an",
+          "riskAck": "Mwen konprann envesti gen risk ladan, tankou pèt posib kantite mwen te angaje a, epi okenn rannman pa garanti.",
+          "title": "2. Kalifikasyon pou patisipe",
+          "usResident": "Mwen se yon rezidan Etazini."
+        },
+        "identity": {
+          "authorityVerified": "Otorite òganizasyon an verifye",
+          "hint": "Sa yo se konklizyon revizè a. Yon revizè verifye idantite ou epi, si ou aji pou yon òganizasyon, otorite ou pou aji pou li. Fòmilè sa a pa deside okenn nan sa yo.",
+          "identityVerified": "Idantite verifye",
+          "note": "Si yo bezwen plis enfòmasyon, revizè a ap voye aplikasyon an tounen ak yon nòt epi ou ka mete li ajou.",
+          "title": "1. Idantite ak otorite òganizasyon an"
+        },
+        "requirements": {
+          "ack": "Mwen te li egzijans opòtinite sa a epi mwen satisfè yo.",
+          "hint": "Egzijans opòtinite sa a. Konfime ou te li yo anvan ou aplike.",
+          "title": "3. Egzijans espesifik opòtinite a"
+        }
+      },
+      "status": {
+        "approved": "Apwouve",
+        "declined": "Refize",
+        "draft": "Bouyon",
+        "needsInformation": "Bezwen enfòmasyon",
+        "submitted": "Soumèt",
+        "underReview": "An revizyon",
+        "withdrawn": "Retire"
+      },
+      "submit": "Soumèt aplikasyon an",
+      "submitted": "Aplikasyon ou a te soumèt.",
+      "title": "Mande aksè envestisè",
+      "withdraw": "Retire aplikasyon an",
+      "withdrawn": "Aplikasyon ou a te retire."
+    },
+    "commit": {
+      "amount": {
+        "aboveEligible": "Kantite a pi plis pase Kredi ki kalifye ou a ki se {{eligible}}.",
+        "belowMinimum": "Kantite a pi ba pase kontribisyon minimòm {{minimum}} lan.",
+        "hint": "Mete kantite Kredi ki kalifye pou rezève a. Li dwe omwen kontribisyon minimòm lan epi pa plis pase balans ki kalifye ou a.",
+        "invalid": "Mete yon kantite ki valab, pa egzanp 250.00.",
+        "label": "Kantite an dola ameriken (minimòm {{minimum}})",
+        "riskAck": "Mwen konprann envestisman sa a gen risk ladan, tankou pèt posib kantite mwen te angaje a, epi okenn rannman pa garanti.",
+        "riskRequired": "Konfime ou rekonèt risk la anvan ou kontinye.",
+        "title": "Kantite"
+      },
+      "backButton": "Retounen nan kantite a",
+      "confirmButton": "Konfime angajman envestisman an",
+      "eligibleBalance": "Kredi ki kalifye ki disponib: {{amount}}",
+      "error": {
+        "confirmFailed": "Angajman an pa t ka anrejistre.",
+        "loadFailed": "Paj angajman an pa t ka chaje."
+      },
+      "gateOff": "Angajman envestisman yo poko disponib. Angajman yo louvri sèlman pou pilòt ki apwouve a, apre konseye legal la ak patnè règleman an apwouve. Ou ka toujou revize opòtinite a epi aplike.",
+      "intro": "Rezève Kredi OxSteed ki kalifye pou opòtinite sa a. Angajman an rete an atant jiskaske opòtinite a fèmen. Revize chak liy anba a anvan ou konfime.",
+      "noApprovedApplication": "Ou bezwen yon aplikasyon patisipasyon ki apwouve pou opòtinite sa a anvan ou ka angaje ou.",
+      "receipt": {
+        "hint": "Angajman ou ki an atant an anrejistre anba a. Li fini sèlman si opòtinite a fèmen.",
+        "replayed": "Konfimasyon sa a te deja anrejistre. Yo pa t kreye okenn angajman an doub.",
+        "title": "Angajman an anrejistre"
+      },
+      "review": {
+        "agreementVersion": "Vèsyon akò ki aksepte a",
+        "agreementVersionValue": "Vèsyon {{version}} (SHA-256 {{hash}}...)",
+        "amount": "Kantite Kredi ki kalifye",
+        "cancellation": "Anilasyon",
+        "cancellationTerms": "Yon angajman ki rezève ka anile pandan li rezève toujou. Lè yo anile li, Kredi ki te rezève a retounen nan klasifikasyon ak restriksyon orijinal balans lan, epi angajman an anrejistre kòm anile. Yon angajman ki fini pa ka anile.",
+        "fees": "Frè",
+        "feesNote": "Yo pa chaje envestisè okenn frè nan vèsyon sa a. Yo poko defini yon orè frè entèmedyè, donk yo pa ajoute okenn frè nan kantite ki anwo a.",
+        "hint": "Tcheke chak liy. Anyen pa final jiskaske ou konfime.",
+        "incomplete": "Gen kèk liy revizyon ki manke. Tanpri retounen epi konplete detay angajman an.",
+        "noFees": "Pa gen frè.",
+        "referenceValue": "Valè referans monetè",
+        "referenceValueNote": "Valè referans monetè a fikse nan moman rezèv la, ak to referans Kredi ki an vigè nan moman sa a. Li parèt nan resi konfimasyon ou apre ou fin konfime.",
+        "rights": "Dwa ou yo",
+        "rightsSummary": "Dwa yo gouvène pa vèsyon {{version}} akò a (SHA-256 {{hash}}). Tèks konplè akò a se dokiman ki fè lalwa.",
+        "rightsSummaryFallback": "Dwa yo gouvène pa vèsyon akò ki an vigè ki anrejistre sou angajman an.",
+        "risk": "Risk",
+        "riskNote": "Envesti gen risk ladan, tankou pèt posib kantite ou te angaje a. Okenn rannman pa garanti epi okenn distribisyon pa pwomèt.",
+        "status": "Estati",
+        "statusNote": "Sa a se yon angajman an atant, pa yon envestisman ki fini. Kredi a rezève epi angajman an fini sèlman si opòtinite a fèmen.",
+        "statusPending": "Angajman an atant",
+        "title": "Revize angajman ou a",
+        "valuationRule": "Règ evalyasyon an",
+        "valuationRuleFallback": "Pataj revni. Règ egzak la nan akò ki an vigè a."
+      },
+      "reviewButton": "Revize angajman an",
+      "title": "Fè yon angajman envestisman"
+    },
+    "common": {
+      "country": {
+        "usOnly": "Etazini sèlman"
+      },
+      "loading": "N ap chaje envestisman yo.",
+      "notAvailable": "OxSteed Invest pa disponib kounye a. Tanpri eseye ankò pita.",
+      "notSet": "Pa defini",
+      "notYet": "Poko",
+      "retry": "Eseye ankò",
+      "riskNotice": "Envesti gen risk ladan, tankou pèt posib kantite ou te angaje a. Okenn rannman pa garanti epi okenn distribisyon pa pwomèt.",
+      "status": {
+        "approved": "Apwouve",
+        "cancelled": "Anile",
+        "closed": "Fèmen",
+        "closing": "An fèmti",
+        "draft": "Bouyon",
+        "paused": "Sispann",
+        "published": "Pibliye",
+        "submitted": "Soumèt",
+        "underReview": "An revizyon",
+        "withdrawn": "Retire"
+      },
+      "structure": {
+        "revenueShare": "Pataj revni"
+      },
+      "yes": "Wi"
+    },
+    "detail": {
+      "actions": {
+        "apply": "Mande aksè envestisè",
+        "commit": "Fè yon angajman",
+        "viewApplication": "Wè aplikasyon mwen an"
+      },
+      "answers": {
+        "hint": "Chak repons di ki kote li soti. Materyèl antite a bay se deklarasyon antite a li menm. Materyèl ki verifye a te kalkile apati dosye envestisman yo.",
+        "title": "Sou opòtinite sa a"
+      },
+      "applicationStatus": "Aplikasyon ou pou opòtinite sa a se {{status}}.",
+      "backToDirectory": "Retounen nan tout envestisman yo",
+      "documents": {
+        "confidential": "Konfidansyèl",
+        "empty": {
+          "copy": "Pa gen dokiman ou ka wè pou opòtinite sa a kounye a.",
+          "title": "Pa gen dokiman disponib"
+        },
+        "hint": "Se sèlman dokiman ou gen dwa wè ki nan lis la. Dokiman konfidansyèl yo montre bay aplikan ak envestisè opòtinite sa a sèlman.",
+        "title": "Dokiman",
+        "visibility": {
+          "applicants": "Aplikan",
+          "committed": "Envestisè ki gen angajman",
+          "public": "Piblik",
+          "reviewers": "Revizè"
+        }
+      },
+      "error": {
+        "loadFailed": "Opòtinite sa a pa t ka chaje."
+      },
+      "exit": {
+        "cancellation": "Yon angajman ki rezève ka anile pandan li rezève toujou. Lè yo anile li, Kredi ki te rezève a retounen nan klasifikasyon ak restriksyon orijinal balans lan, epi angajman an anrejistre kòm anile. Yon angajman ki fini pa ka anile.",
+        "distributions": "Distribisyon yo pa pwomèt. Si antite a peye, distribisyon an kredite tounen kòm Kredi nan koule règleman ki apwouve a, ak yon dosye ou ka swiv. Pa gen pwomès distribisyon, ranbousman lajan kach, oswa pwoteksyon kapital.",
+        "hint": "Kijan yon angajman ka fini, ak sa k rive Kredi a.",
+        "title": "Anilasyon, transfè, ak sòti",
+        "transfer": "Yon angajman pa ka transfere bay yon lòt moun. Apre fèmti a, sòti a depann de kondisyon akò ki an vigè a."
+      },
+      "funding": {
+        "completed": "Finansman ki fini",
+        "pendingNote": "Angajman an atant yo se rezèv Kredi. Yo pa finansman ki fini epi yo fini sèlman si opòtinite a fèmen.",
+        "reserved": "Angajman an atant",
+        "title": "Finansman jous kounye a"
+      },
+      "provenance": {
+        "checked": "Sous: verifye ak dosye envestisman yo",
+        "entityProvided": "Sous: antite a te bay li"
+      },
+      "qa": {
+        "askButton": "Voye kesyon an",
+        "askFailed": "Kesyon ou a pa t ka voye.",
+        "askLabel": "Poze antite a yon kesyon",
+        "asked": "Kesyon ou a te voye.",
+        "empty": {
+          "copy": "Pa gen kesyon yo te poze pou opòtinite sa a.",
+          "title": "Poko gen kesyon"
+        },
+        "hint": "Kesyon envestisè nan opòtinite sa a ak repons antite a.",
+        "notAvailable": "Kesyon ak repons yo vizib pou envestisè nan opòtinite sa a.",
+        "questionRequired": "Ekri yon kesyon anvan.",
+        "title": "Kesyon ak repons",
+        "unanswered": "N ap tann repons antite a."
+      },
+      "verification": {
+        "notVerifiedTitle": "OxSteed poko verifye",
+        "verifiedTitle": "Sa OxSteed te verifye"
+      }
+    },
+    "directory": {
+      "card": {
+        "committed": "{{reserved}} nan angajman an atant ak {{completed}} nan finansman ki fini.",
+        "deadline": "Dat limit finansman",
+        "minimum": "Kontribisyon minimòm",
+        "progress": "{{percent}}% nan objektif finansman an kouvri pa angajman yo jous kounye a.",
+        "structure": "Estrikti envestisman",
+        "target": "Objektif finansman",
+        "view": "Wè opòtinite a"
+      },
+      "empty": {
+        "copy": "Pa gen opòtinite ki pibliye nan moman sa a. Tanpri tounen pita.",
+        "title": "Pa gen opòtinite envestisman kounye a"
+      },
+      "entityUnknown": "Non antite a pa bay",
+      "error": {
+        "loadFailed": "Anyè envestisman an pa t ka chaje."
+      },
+      "intro": "Opòtinite antite ki kalifye yo, finanse ak Kredi OxSteed ki kalifye. Yo klase pa dat piblikasyon oswa dat fèmti. OxSteed pa klase ni rekòmande envestisman.",
+      "myInvestments": "Envestisman mwen yo",
+      "requestAccess": "Mande aksè envestisè",
+      "sort": {
+        "closingDate": "Dat fèmti",
+        "label": "Triye pa",
+        "publicationDate": "Dat piblikasyon"
+      },
+      "title": "Eksplore envestisman yo"
+    },
+    "my": {
+      "agreementVersion": "Vèsyon akò {{version}}",
+      "agreements": {
+        "empty": {
+          "copy": "Ou poko aksepte yon vèsyon akò.",
+          "title": "Pa gen akò"
+        },
+        "hint": "Vèsyon egzak akò ou te aksepte yo, ak anprent kontni yo.",
+        "title": "Akò ak deklarasyon"
+      },
+      "applications": {
+        "empty": {
+          "copy": "Ou poko aplike pou envesti.",
+          "title": "Pa gen aplikasyon"
+        },
+        "title": "Aplikasyon",
+        "view": "Wè aplikasyon an"
+      },
+      "cancelled": {
+        "empty": {
+          "copy": "Ou pa gen angajman ki anile oswa ki pa reyisi.",
+          "title": "Pa gen angajman ki anile"
+        },
+        "hint": "Angajman yo te anile oswa yo pa t fini nan fèmti a. Kredi a te retounen nan balans orijinal la.",
+        "title": "Angajman ki anile ak ki pa reyisi"
+      },
+      "cancelledNotice": "Angajman an te anile epi Kredi ki te rezève a te retounen nan balans orijinal la.",
+      "completed": {
+        "empty": {
+          "copy": "Ou poko gen envestisman ki fini.",
+          "title": "Pa gen envestisman ki fini"
+        },
+        "hint": "Angajman ki te fini nan fèmti a.",
+        "status": "Fini",
+        "title": "Envestisman ki fini"
+      },
+      "distributions": {
+        "empty": {
+          "copy": "Yo poko kredite okenn distribisyon ba ou.",
+          "title": "Pa gen distribisyon"
+        },
+        "hint": "Valè ki kredite tounen kòm Kredi. Distribisyon yo pa pwomèt epi okenn rannman pa garanti.",
+        "title": "Distribisyon ak ajisteman"
+      },
+      "eligibleBalance": "Kredi ki kalifye ki disponib: {{amount}}",
+      "error": {
+        "cancelFailed": "Angajman an pa t ka anile.",
+        "loadFailed": "Envestisman ou yo pa t ka chaje.",
+        "reconfirmFailed": "Amandman an pa t ka rekonfime."
+      },
+      "intro": "Angajman ou ki an atant, envestisman ou ki fini, angajman ou ki anile, mizajou antite yo, distribisyon yo, akò yo, ak demann sipò yo. Kantite yo montre yo se kantite ou te angaje oswa yo te distribye. Yo pa montre valè mache.",
+      "pending": {
+        "cancel": "Anile angajman an",
+        "empty": {
+          "copy": "Ou pa gen angajman ki rezève kounye a.",
+          "title": "Pa gen angajman an atant"
+        },
+        "hint": "Kredi ki rezève. Yo pa envestisman ki fini.",
+        "status": "An atant",
+        "title": "Angajman an atant"
+      },
+      "reconfirmation": {
+        "button": "Rekonfime",
+        "hint": "Yo te pwopoze yon chanjman enpòtan pou youn nan opòtinite ou yo. Rekonfime pou aksepte nouvo vèsyon akò a pou angajman ou ki rezève toujou.",
+        "item": "Yon chanjman enpòtan bezwen rekonfimasyon ou.",
+        "title": "Rekonfimasyon nesesè"
+      },
+      "reconfirmed": "Amandman an te rekonfime ak nouvo vèsyon akò a.",
+      "support": {
+        "category": "Kategori",
+        "categoryAgreement": "Akò",
+        "categoryComplaint": "Plent",
+        "categoryDistribution": "Distribisyon",
+        "categoryInvestment": "Kesyon sou envestisman",
+        "details": "Detay",
+        "empty": {
+          "copy": "Ou poko voye yon demann sipò pou envestisman.",
+          "title": "Pa gen demann sipò"
+        },
+        "failed": "Demann sipò ou a pa t ka voye.",
+        "hint": "Poze yon kesyon oswa pote yon plent sou yon envestisman. Yo trete plent yo kòm priyorite wo.",
+        "required": "Mete yon sijè ak detay anvan.",
+        "sent": "Demann sipò ou a te voye.",
+        "subject": "Sijè",
+        "submit": "Voye demann sipò a",
+        "ticket": "Tikè {{number}} - {{status}}",
+        "title": "Demann sipò"
+      },
+      "suspendedNotice": "Kont ou a sispann. Dosye envestisman ou yo parèt pou lekti sèlman. Posesyon ou, deklarasyon ou, ak obligasyon ou yo rete. Ou pa ka ekri.",
+      "title": "Envestisman mwen yo",
+      "updates": {
+        "empty": {
+          "copy": "Pa gen mizajou antite pou envestisman ou yo kounye a.",
+          "title": "Pa gen mizajou"
+        },
+        "hint": "Mizajou ki pibliye nan men antite ou te envesti ladan yo. Mizajou yo te rate yo rete vizib kòm an reta.",
+        "overdue": "An reta",
+        "title": "Mizajou antite yo"
+      }
     }
   },
   "investorDashboard": {

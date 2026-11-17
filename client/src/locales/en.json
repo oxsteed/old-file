@@ -2292,6 +2292,9 @@
     "myJobs": "My Jobs",
     "orderFood": "Order Food",
     "myWork": "My Work",
+    "exploreInvestments": "Explore investments",
+    "requestInvestorAccess": "Request investor access",
+    "myInvestments": "My investments",
     "workspace": "Workspace",
     "businessWorkspace": "Business Workspace",
     "foodOrders": "Food Orders",
@@ -22705,6 +22708,358 @@
       "send": "Send",
       "delete": "Delete",
       "convertToInvoice": "Convert to Invoice"
+    }
+  },
+  "invest": {
+    "application": {
+      "agreementAccepted": "The agreement version was accepted and recorded.",
+      "choose": {
+        "title": "Choose an opportunity to apply for"
+      },
+      "currentStatus": "Application status: {{status}}",
+      "draftSaved": "Your draft was saved. You can come back and resume it any time.",
+      "error": {
+        "acceptFailed": "The agreement could not be accepted.",
+        "loadFailed": "The application could not be loaded.",
+        "saveFailed": "The draft could not be saved.",
+        "saveFirst": "Save a draft before submitting.",
+        "submitFailed": "The application could not be submitted.",
+        "withdrawFailed": "The application could not be withdrawn."
+      },
+      "intro": "Apply to invest eligible OxSteed Credit in an entity opportunity. Each section below is separate: identity and authority are verified by a reviewer, eligibility is your own statement, and agreement acceptance is recorded on its own.",
+      "noApplicationYet": "You have no application for this opportunity yet. Save a draft to start one.",
+      "noBlockNotice": "Applying changes nothing else about your account. You can still hire help, order food, send messages, and use every ordinary customer feature while your application is open.",
+      "saveDraft": "Save draft",
+      "sections": {
+        "agreement": {
+          "acceptButton": "Accept this agreement version",
+          "acceptedAt": "Agreement accepted on {{date}}.",
+          "hash": "Content fingerprint (SHA-256)",
+          "hint": "Acceptance is recorded separately from the other sections, against the exact agreement version shown here.",
+          "none": "No agreement version has been published for this opportunity yet.",
+          "notAccepted": "The agreement has not been accepted yet.",
+          "title": "5. Agreement acceptance",
+          "version": "Agreement version"
+        },
+        "documents": {
+          "hint": "Documents you can see as an applicant. Access is per investor and per opportunity.",
+          "title": "4. Confidential-document access"
+        },
+        "eligibility": {
+          "actingAs": "I am investing",
+          "actingAsOrganization": "As an authorized representative of an organization",
+          "actingAsSelf": "For myself",
+          "adult": "I am 18 years or older.",
+          "creditOnlyAck": "I understand investments are made with eligible OxSteed Credit only. No card, bank, or cash payment is used.",
+          "hint": "Your own statements about eligibility. They are checked again when you commit and again at closing.",
+          "organizationName": "Organization name",
+          "riskAck": "I understand investing involves risk, including possible loss of the amount committed, and no return is guaranteed.",
+          "title": "2. Participation eligibility",
+          "usResident": "I am a resident of the United States."
+        },
+        "identity": {
+          "authorityVerified": "Organization authority verified",
+          "hint": "These are reviewer findings. A reviewer verifies your identity and, if you act for an organization, your authority to act for it. Nothing here is decided by this form.",
+          "identityVerified": "Identity verified",
+          "note": "If more information is needed, the reviewer will send the application back with a note and you can update it.",
+          "title": "1. Identity and organization authority"
+        },
+        "requirements": {
+          "ack": "I have read the requirements of this opportunity and I meet them.",
+          "hint": "The requirements of this opportunity. Confirm you have read them before you apply.",
+          "title": "3. Opportunity-specific requirements"
+        }
+      },
+      "status": {
+        "approved": "Approved",
+        "declined": "Declined",
+        "draft": "Draft",
+        "needsInformation": "Needs information",
+        "submitted": "Submitted",
+        "underReview": "Under review",
+        "withdrawn": "Withdrawn"
+      },
+      "submit": "Submit application",
+      "submitted": "Your application was submitted.",
+      "title": "Request investor access",
+      "withdraw": "Withdraw application",
+      "withdrawn": "Your application was withdrawn."
+    },
+    "commit": {
+      "amount": {
+        "aboveEligible": "The amount is more than your eligible Credit of {{eligible}}.",
+        "belowMinimum": "The amount is below the minimum contribution of {{minimum}}.",
+        "hint": "Enter the amount of eligible Credit to reserve. It must be at least the minimum contribution and no more than your eligible balance.",
+        "invalid": "Enter a valid amount, for example 250.00.",
+        "label": "Amount in US dollars (minimum {{minimum}})",
+        "riskAck": "I understand this investment involves risk, including possible loss of the amount committed, and no return is guaranteed.",
+        "riskRequired": "Confirm the risk acknowledgement before continuing.",
+        "title": "Amount"
+      },
+      "backButton": "Back to amount",
+      "confirmButton": "Confirm investment commitment",
+      "eligibleBalance": "Eligible Credit available: {{amount}}",
+      "error": {
+        "confirmFailed": "The commitment could not be recorded.",
+        "loadFailed": "The commitment page could not be loaded."
+      },
+      "gateOff": "Investment commitments are not available yet. Commitments open only for the approved pilot, after counsel and the settlement partner approve. You can still review the opportunity and apply.",
+      "intro": "Reserve eligible OxSteed Credit for this opportunity. The commitment stays pending until the opportunity closes. Review every row below before you confirm.",
+      "noApprovedApplication": "You need an approved participation application for this opportunity before you can commit.",
+      "receipt": {
+        "hint": "Your pending commitment is recorded below. It completes only if the opportunity closes.",
+        "replayed": "This confirmation was already recorded. No duplicate commitment was created.",
+        "title": "Commitment recorded"
+      },
+      "review": {
+        "agreementVersion": "Agreement version accepted",
+        "agreementVersionValue": "Version {{version}} (SHA-256 {{hash}}...)",
+        "amount": "Amount of eligible Credit",
+        "cancellation": "Cancellation",
+        "cancellationTerms": "A reserved commitment can be cancelled while it is still reserved. On cancellation the reserved Credit is released back to the original balance classification and restrictions, and the commitment is recorded as cancelled. A completed commitment cannot be cancelled.",
+        "fees": "Fees",
+        "feesNote": "No investor fees are charged in this build. No intermediary fee schedule has been defined, so no fee is added to the amount above.",
+        "hint": "Check every row. Nothing is final until you confirm.",
+        "incomplete": "Some review rows are missing. Please go back and complete the commitment details.",
+        "noFees": "No fees.",
+        "referenceValue": "Monetary reference value",
+        "referenceValueNote": "The monetary reference value is set at reservation, at the Credit reference rate in force at that time. It is shown on your confirmation receipt after you confirm.",
+        "rights": "Your rights",
+        "rightsSummary": "Rights are governed by agreement version {{version}} (SHA-256 {{hash}}). The full agreement text is the controlling document.",
+        "rightsSummaryFallback": "Rights are governed by the controlling agreement version recorded on the commitment.",
+        "risk": "Risk",
+        "riskNote": "Investing involves risk, including possible loss of the amount committed. No return is guaranteed and distributions are not promised.",
+        "status": "Status",
+        "statusNote": "This is a pending commitment, not a completed investment. The Credit is reserved and the commitment completes only if the opportunity closes.",
+        "statusPending": "Pending commitment",
+        "title": "Review your commitment",
+        "valuationRule": "Valuation rule",
+        "valuationRuleFallback": "Revenue share. The exact rule is in the controlling agreement."
+      },
+      "reviewButton": "Review commitment",
+      "title": "Make an investment commitment"
+    },
+    "common": {
+      "country": {
+        "usOnly": "United States only"
+      },
+      "loading": "Loading investments.",
+      "notAvailable": "OxSteed Invest is not available right now. Please try again later.",
+      "notSet": "Not set",
+      "notYet": "Not yet",
+      "retry": "Try again",
+      "riskNotice": "Investing involves risk, including possible loss of the amount committed. No return is guaranteed and distributions are not promised.",
+      "status": {
+        "approved": "Approved",
+        "cancelled": "Cancelled",
+        "closed": "Closed",
+        "closing": "Closing",
+        "draft": "Draft",
+        "paused": "Paused",
+        "published": "Published",
+        "submitted": "Submitted",
+        "underReview": "Under review",
+        "withdrawn": "Withdrawn"
+      },
+      "structure": {
+        "revenueShare": "Revenue share"
+      },
+      "yes": "Yes"
+    },
+    "detail": {
+      "actions": {
+        "apply": "Request investor access",
+        "commit": "Make a commitment",
+        "viewApplication": "View my application"
+      },
+      "answers": {
+        "hint": "Each answer is labeled with where it comes from. Entity-provided material is the entity's own statement. Checked material was computed from the investment records.",
+        "title": "About this opportunity"
+      },
+      "applicationStatus": "Your application for this opportunity is {{status}}.",
+      "backToDirectory": "Back to all investments",
+      "documents": {
+        "confidential": "Confidential",
+        "empty": {
+          "copy": "There are no documents you can view for this opportunity right now.",
+          "title": "No documents available"
+        },
+        "hint": "Only documents you are allowed to see are listed. Confidential documents are shown to applicants and investors for this opportunity only.",
+        "title": "Documents",
+        "visibility": {
+          "applicants": "Applicants",
+          "committed": "Investors with a commitment",
+          "public": "Public",
+          "reviewers": "Reviewers"
+        }
+      },
+      "error": {
+        "loadFailed": "This opportunity could not be loaded."
+      },
+      "exit": {
+        "cancellation": "A reserved commitment can be cancelled while it is still reserved. On cancellation the reserved Credit is released back to the original balance classification and restrictions, and the commitment is recorded as cancelled. A completed commitment cannot be cancelled.",
+        "distributions": "Distributions are not promised. If the entity pays, the distribution is credited back as Credit through the approved settlement flow, with a traceable record. There is no promise of distributions, cash redeemability, or principal protection.",
+        "hint": "How a commitment can end, and what happens to the Credit.",
+        "title": "Cancellation, transfer, and exit",
+        "transfer": "A commitment cannot be transferred to another person. After closing, exit depends on the terms of the controlling agreement."
+      },
+      "funding": {
+        "completed": "Completed funding",
+        "pendingNote": "Pending commitments are reservations of Credit. They are not completed funding and they complete only if the opportunity closes.",
+        "reserved": "Pending commitments",
+        "title": "Funding so far"
+      },
+      "provenance": {
+        "checked": "Source: checked against the investment records",
+        "entityProvided": "Source: provided by the entity"
+      },
+      "qa": {
+        "askButton": "Ask question",
+        "askFailed": "Your question could not be sent.",
+        "askLabel": "Ask the entity a question",
+        "asked": "Your question was sent.",
+        "empty": {
+          "copy": "No questions have been asked for this opportunity.",
+          "title": "No questions yet"
+        },
+        "hint": "Questions from investors in this opportunity and the entity's answers.",
+        "notAvailable": "Questions and answers are visible to investors in this opportunity.",
+        "questionRequired": "Write a question first.",
+        "title": "Questions and answers",
+        "unanswered": "Awaiting an answer from the entity."
+      },
+      "verification": {
+        "notVerifiedTitle": "Not verified by OxSteed",
+        "verifiedTitle": "What OxSteed verified"
+      }
+    },
+    "directory": {
+      "card": {
+        "committed": "{{reserved}} in pending commitments and {{completed}} in completed funding.",
+        "deadline": "Funding deadline",
+        "minimum": "Minimum contribution",
+        "progress": "{{percent}}% of the funding target is covered by commitments so far.",
+        "structure": "Investment structure",
+        "target": "Funding target",
+        "view": "View opportunity"
+      },
+      "empty": {
+        "copy": "There are no published opportunities at the moment. Please check back later.",
+        "title": "No investment opportunities right now"
+      },
+      "entityUnknown": "Entity name not provided",
+      "error": {
+        "loadFailed": "The investment directory could not be loaded."
+      },
+      "intro": "Opportunities from eligible entities, funded with eligible OxSteed Credit. Opportunities are listed in publication or closing order. OxSteed does not rank or recommend investments.",
+      "myInvestments": "My investments",
+      "requestAccess": "Request investor access",
+      "sort": {
+        "closingDate": "Closing date",
+        "label": "Sort by",
+        "publicationDate": "Publication date"
+      },
+      "title": "Explore investments"
+    },
+    "my": {
+      "agreementVersion": "Agreement version {{version}}",
+      "agreements": {
+        "empty": {
+          "copy": "You have not accepted an agreement version yet.",
+          "title": "No agreements"
+        },
+        "hint": "The exact agreement versions you accepted, with their content fingerprints.",
+        "title": "Agreements and statements"
+      },
+      "applications": {
+        "empty": {
+          "copy": "You have not applied to invest yet.",
+          "title": "No applications"
+        },
+        "title": "Applications",
+        "view": "View application"
+      },
+      "cancelled": {
+        "empty": {
+          "copy": "You have no cancelled or unsuccessful commitments.",
+          "title": "No cancelled commitments"
+        },
+        "hint": "Commitments that were cancelled or did not complete at closing. The Credit was released back to the original balance.",
+        "title": "Cancelled and unsuccessful commitments"
+      },
+      "cancelledNotice": "The commitment was cancelled and the reserved Credit was released back to the original balance.",
+      "completed": {
+        "empty": {
+          "copy": "You have no completed investments yet.",
+          "title": "No completed investments"
+        },
+        "hint": "Commitments that completed at closing.",
+        "status": "Completed",
+        "title": "Completed investments"
+      },
+      "distributions": {
+        "empty": {
+          "copy": "No distributions have been credited to you yet.",
+          "title": "No distributions"
+        },
+        "hint": "Value credited back as Credit. Distributions are not promised and no return is guaranteed.",
+        "title": "Distributions and adjustments"
+      },
+      "eligibleBalance": "Eligible Credit available: {{amount}}",
+      "error": {
+        "cancelFailed": "The commitment could not be cancelled.",
+        "loadFailed": "Your investments could not be loaded.",
+        "reconfirmFailed": "The amendment could not be reconfirmed."
+      },
+      "intro": "Your pending commitments, completed investments, cancelled commitments, entity updates, distributions, agreements, and support requests. Amounts shown are committed or distributed amounts. No market value is shown.",
+      "pending": {
+        "cancel": "Cancel commitment",
+        "empty": {
+          "copy": "You have no reserved commitments right now.",
+          "title": "No pending commitments"
+        },
+        "hint": "Reserved Credit. These are not completed investments.",
+        "status": "Pending",
+        "title": "Pending commitments"
+      },
+      "reconfirmation": {
+        "button": "Reconfirm",
+        "hint": "A material change was proposed for one of your opportunities. Reconfirm to accept the new agreement version for your still-reserved commitments.",
+        "item": "A material change needs your reconfirmation.",
+        "title": "Reconfirmation needed"
+      },
+      "reconfirmed": "The amendment was reconfirmed against the new agreement version.",
+      "support": {
+        "category": "Category",
+        "categoryAgreement": "Agreement",
+        "categoryComplaint": "Complaint",
+        "categoryDistribution": "Distribution",
+        "categoryInvestment": "Investment question",
+        "details": "Details",
+        "empty": {
+          "copy": "You have not sent an investment support request yet.",
+          "title": "No support requests"
+        },
+        "failed": "Your support request could not be sent.",
+        "hint": "Ask a question or raise a complaint about an investment. Complaints are treated as high priority.",
+        "required": "Add a subject and details first.",
+        "sent": "Your support request was sent.",
+        "subject": "Subject",
+        "submit": "Send support request",
+        "ticket": "Ticket {{number}} - {{status}}",
+        "title": "Support requests"
+      },
+      "suspendedNotice": "Your account is suspended. Your investment records are shown read-only. Your ownership, statements, and obligations remain. Writes are unavailable.",
+      "title": "My investments",
+      "updates": {
+        "empty": {
+          "copy": "There are no entity updates for your investments right now.",
+          "title": "No updates"
+        },
+        "hint": "Published updates from entities you invested in. Missed updates stay visible as overdue.",
+        "overdue": "Overdue",
+        "title": "Entity updates"
+      }
     }
   },
   "investorDashboard": {

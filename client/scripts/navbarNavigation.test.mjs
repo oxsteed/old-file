@@ -168,3 +168,36 @@ test('business switcher renders translated organization roles in every locale', 
     assert.ok(Object.values(roles).every((v) => typeof v === 'string' && v.trim()), l);
   }
 });
+
+// OxSteed Invest (Track 3): invest entry points come from the access
+// projection only (projection.invest.investEnabled). They are additive:
+// the customer primary links are untouched, and no role or mode is read.
+test('invest navigation appears only when the projection flag is on', () => {
+  const on = (invest) => ({
+    flags: { accessProjection: true },
+    access: { personal: [], organizations: [] },
+    invest,
+  });
+  const baseline = navbarNavigation({ role: 'customer' });
+  assert.ok(!baseline.account.some((item) => item.to.startsWith('/invest')));
+  const off = navbarNavigation({ role: 'customer' }, { projection: on({ investEnabled: false, investCommitmentsEnabled: false, investPilot: false }) });
+  assert.ok(!off.account.some((item) => item.to.startsWith('/invest')));
+  const enabled = navbarNavigation({ role: 'customer' }, { projection: on({ investEnabled: true, investCommitmentsEnabled: false, investPilot: false }) });
+  assert.deepEqual(enabled.primary.map(({ id, to }) => [id, to]), CUSTOMER_PRIMARY);
+  assert.deepEqual(
+    enabled.account.filter((item) => item.to.startsWith('/invest')).map(({ id, to, labelKey }) => [id, to, labelKey]),
+    [
+      ['exploreInvestments', '/invest', 'nav.exploreInvestments'],
+      ['requestInvestorAccess', '/invest/apply', 'nav.requestInvestorAccess'],
+      ['myInvestments', '/invest/my-investments', 'nav.myInvestments'],
+    ],
+  );
+  // Role and mode do not change the invest entries; applying never blocks
+  // the customer links.
+  for (const user of [{ role: 'helper' }, { role: 'helper', default_mode: 'helper' }, { role: 'admin', default_mode: 'investor' }]) {
+    const result = navbarNavigation(user, { projection: on({ investEnabled: true, investCommitmentsEnabled: false, investPilot: false }) });
+    assert.deepEqual(result.account.filter((item) => item.to.startsWith('/invest')).map((item) => item.to),
+      ['/invest', '/invest/apply', '/invest/my-investments']);
+    assert.deepEqual(result.primary.map(({ id, to }) => [id, to]), CUSTOMER_PRIMARY);
+  }
+});
