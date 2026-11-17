@@ -243,10 +243,10 @@ listings remain canonical evidence for the listing capability. Focused pure
 mapping assertions pass; disposable database backfill and exact-head CI remain
 open.
 
-**Exact next action:** run the access backfill dry-run against an approved
-disposable snapshot, inspect the exception and draft counts, then continue with
-the next bounded access package. Do not apply a production backfill or enable
-new enforcement without separate authorization.
+**Exact next action:** review dry-run 7's 2 staff-without-membership exceptions
+and 2 restaurant drafts, then continue with the next bounded access package.
+Do not apply a production backfill or enable new enforcement without separate
+authorization.
 
 The same follow-up also scopes the Business Hub's last-selected workspace
 preference by account ID. The legacy global browser key is no longer read or
@@ -261,8 +261,10 @@ available and that Personal Home is being shown. It no longer presents the
 legacy global dashboard-change message. The supported English, Spanish, French,
 Haitian Creole, and Arabic catalogs use the same `workspaceUnavailable` key.
 The focused catalog/parsing checks pass. Client `build:ci` passes with 1,220
-emitted assets, and focused server access suites pass 71 tests; 12 database
-cases remain skipped because no disposable PostgreSQL instance is configured.
+emitted assets. Focused server access suites pass 71 unit tests, and the
+disposable PostgreSQL access/workspace/signup suites pass 58 tests. Backfill
+dry-run 7 scanned 223 users and reported 17 helper grants, 2 consultant grants,
+2 restaurant drafts, and 2 staff-without-membership exceptions.
 
 **Exact next action:** run the Home and full client verification suites, then
 perform the disposable backfill dry-run and cross-account browser acceptance.
