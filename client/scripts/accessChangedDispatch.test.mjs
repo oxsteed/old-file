@@ -4,13 +4,9 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// WP-104 (Track D 1.8): after a successful application transition the access
-// projection must refresh. The dispatch already exists through
-// notifyAccessChanged(); this test locks the chain in so a later refactor
-// cannot silently drop a leg. The audit's "no dispatchEvent call site"
-// reading was literal: the dispatch lives inside notifyAccessChanged in
-// useAccessProjection.js, and every applicant-side transition call site
-// reaches it (see below). No code change was needed.
+// Verify applicant writes reach the shared event. The projection browser check
+// verifies that focus and this event actually refresh access, including when a
+// read is already in flight.
 
 const src = async (file) => readFile(new URL(`../src/${file}`, import.meta.url), 'utf8');
 
@@ -19,9 +15,6 @@ test('notifyAccessChanged dispatches the oxsteed:access-changed event', async ()
   assert.match(hook, /export const ACCESS_CHANGED_EVENT = 'oxsteed:access-changed'/);
   assert.match(hook, /export function notifyAccessChanged\(\)/);
   assert.match(hook, /window\.dispatchEvent\(new Event\(ACCESS_CHANGED_EVENT\)\)/);
-  // The hook itself refreshes on the event and on focus.
-  assert.match(hook, /window\.addEventListener\(ACCESS_CHANGED_EVENT, refresh\)/);
-  assert.match(hook, /window\.addEventListener\('focus', onFocus\)/);
 });
 
 test('editor submit/resubmit/save notifies through onChanged after success', async () => {
