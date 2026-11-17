@@ -1,0 +1,13 @@
+.persona-explorer { --persona-border: var(--border-color, #94a3b8); color: var(--text-primary, #172033); background: var(--bg-primary, #fff); max-inline-size: 1120px; margin: 2rem auto; padding: 1.25rem; border: 1px solid var(--persona-border); border-radius: 1rem; text-align: start; overflow-wrap: anywhere; }
+.persona-explorer p { line-height: 1.6; }
+.persona-explorer__notice { padding-inline-start: 1rem; border-inline-start: 3px solid currentColor; }
+.persona-explorer__filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 1rem; align-items: end; }
+.persona-explorer label { display: grid; gap: .5rem; min-inline-size: 0; }
+.persona-explorer input, .persona-explorer select, .persona-explorer button { box-sizing: border-box; inline-size: 100%; min-inline-size: 0; min-block-size: 44px; padding: .65rem; border: 1px solid var(--persona-border); border-radius: .5rem; color: inherit; background: inherit; font: inherit; }
+.persona-explorer button { cursor: pointer; }
+.persona-explorer :is(input, select, button):focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+.persona-explorer__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; list-style: none; padding: 0; }
+.persona-explorer__grid > li { min-inline-size: 0; padding: 1rem; border: 1px solid var(--persona-border); border-radius: .75rem; }
+.persona-explorer__grid h3 { margin-block: 0 .5rem; font-size: 1.1rem; }
+.persona-explorer__evidence { display: block; font-size: .9rem; }
+.dark .persona-explorer, [data-theme='dark'] .persona-explorer { color: var(--text-primary, #f8fafc); background: var(--bg-primary, #0f172a); }

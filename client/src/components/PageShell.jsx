@@ -2,6 +2,8 @@ import { useRef } from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
+import PersonaExplorer from '../features/personas/PersonaExplorer';
 
 /**
  * PageShell - Shared layout wrapper for all OxSteed pages.
@@ -18,6 +20,8 @@ import { useTranslation } from 'react-i18next';
 export default function PageShell({ children, hideNav = false, hideFooter = false, mainId = 'main-content' }) {
   const { t } = useTranslation('common');
   const mainRef = useRef(null);
+  const { pathname } = useLocation();
+  const showPersonaExplorer = pathname.replace(/\/+$/, '') === '/how-it-works';
 
   const skipToMain = (event) => {
     if (!mainRef.current || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -34,6 +38,7 @@ export default function PageShell({ children, hideNav = false, hideFooter = fals
       {!hideNav && <Navbar />}
       <main ref={mainRef} id={mainId} className="ox-main" tabIndex={-1} style={{ outline: 'none' }}>
         {children}
+        {showPersonaExplorer && <PersonaExplorer />}
       </main>
       {!hideFooter && <Footer />}
     </div>
