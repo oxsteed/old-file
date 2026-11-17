@@ -23,7 +23,7 @@ const LS_KEY = BUSINESS_HUB_LAST_ID_LS_KEY;
  *   2. localStorage('oxs:bh:lastBusinessId')
  *   3. First business in the list
  */
-export default function BusinessSwitcher({ compact = false }) {
+export default function BusinessSwitcher({ compact = false, authorizedOrganizations = null }) {
   const { t } = useTranslation();
   // WP-047: permission status per organization, translated (never a raw role code).
   const { t: accessT } = useTranslation('common');
@@ -47,7 +47,7 @@ export default function BusinessSwitcher({ compact = false }) {
 
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { open, setOpen, containerRef: menuRef, triggerRef, panelId } = useNavDisclosure(user?.default_mode);
+  const { open, setOpen, containerRef: menuRef, triggerRef, panelId } = useNavDisclosure(user?.id);
 
   // Don't try to fetch until we have a logged-in user.
   const userId = user && user.id ? user.id : null;
@@ -78,7 +78,8 @@ export default function BusinessSwitcher({ compact = false }) {
               _is_owner: b.is_owner,
               _last_selected_at: b.last_selected_at,
             }));
-          setBusinesses(normalized);
+          setBusinesses(normalized.filter(b => !Array.isArray(authorizedOrganizations)
+            || authorizedOrganizations.some(o => String(o.id ?? o.business_id) === String(b.id))));
           setLoading(false);
           return;
         }
@@ -98,7 +99,9 @@ export default function BusinessSwitcher({ compact = false }) {
           ...ownedTagged,
           ...managedTagged.filter(b => !seen.has(String(b.id))),
         ];
-        setBusinesses(merged);
+        setBusinesses(Array.isArray(authorizedOrganizations)
+          ? merged.filter(b => authorizedOrganizations.some(o => String(o.id ?? o.business_id) === String(b.id)))
+          : merged);
       } catch {
         if (!cancelled) setBusinesses([]);
       } finally {
@@ -106,7 +109,7 @@ export default function BusinessSwitcher({ compact = false }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, authorizedOrganizations]);
 
   const activeId = routeBusinessId
     || readLastBusinessHubId()

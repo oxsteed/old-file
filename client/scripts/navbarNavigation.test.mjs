@@ -8,7 +8,7 @@ import { hasProAccess, hasBusinessHubAccess } from '../src/utils/modeAccess.js';
 // primary links, whatever its role or default_mode; capabilities add account
 // shortcuts and the business switcher comes from projection organizations.
 const CUSTOMER_PRIMARY = [['findHelp', '/helpers'], ['myJobs', '/my-jobs'], ['orderFood', '/restaurants'], ['messages', '/messages'], ['postJob', '/post-job']];
-const CUSTOMER_ACCOUNT = ['dashboard', 'foodOrders', 'settings', 'wallet', 'statements'];
+const CUSTOMER_ACCOUNT = ['dashboard', 'foodOrders', 'applications', 'settings', 'wallet', 'statements'];
 
 for (const user of [
   { default_mode: 'customer', role: 'customer' },
@@ -66,6 +66,17 @@ test('dashboard path drives the dashboard account link; support workspace is opt
   const plain = navbarNavigation({ default_mode: 'customer' });
   assert.equal(plain.account.some(item => item.id === 'support'), false);
   assert.equal(navbarNavigation({ default_mode: 'customer' }, { showSupportWorkspace: true }).account.at(-1).to, '/support/agent');
+});
+
+test('open applications are visible in Account without changing primary navigation', () => {
+  const projection = {
+    flags: { accessProjection: true },
+    access: { personal: ['customer'], organizations: [], openRequestCount: 2 },
+  };
+  const result = navbarNavigation({ role: 'customer' }, { projection });
+  assert.deepEqual(result.primary.map(({ id, to }) => [id, to]), CUSTOMER_PRIMARY);
+  assert.equal(result.account.find(item => item.id === 'applications').to, '/settings/applications');
+  assert.equal(result.account.find(item => item.id === 'applications').count, 2);
 });
 
 test('workspace URL wins over saved selection and never invents a business for new owners', () => {

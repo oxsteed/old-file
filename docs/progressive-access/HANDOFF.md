@@ -27,6 +27,23 @@ profile, mobile and `/switch-role` before removing any compatibility signal.
 Production backfill, helper/business enforcement and live browser acceptance
 require separate verification.
 
+## Follow-up navigation checkpoint
+
+PR #797 is merged. The follow-up branch starts from the current default-branch
+integration base and must preserve unrelated local worktrees. Package 0 is
+recorded in [EXECUTION.md](EXECUTION.md): it documents the architecture map,
+admission matrix, projection response, compatibility owners, and acceptance
+states.
+
+The first follow-up implementation adds the projection-backed Applications
+entry and open-request badge to the Account menu, filters `BusinessSwitcher` to
+organization IDs present in the current access projection, and keys its
+disclosure state by account ID rather than legacy mode. It does not add a new
+capability or transactional operation. Local navbar unit/browser checks,
+Home/projection browser checks, locale validation, and `client/build:ci` pass on
+the follow-up branch. Exact-head CI and non-production operational acceptance
+remain open.
+
 ## Resume checklist
 
 1. `git status` and `git log --oneline -15` on the branch. Uncommitted work from an

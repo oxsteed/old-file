@@ -9,6 +9,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | Item | Status | Commit | Tests |
 | --- | --- | --- | --- |
 | Handoff + ledger docs | implemented | (this commit) | n/a |
+| Package 0 execution contract and verified inventory | implemented | follow-up navigation branch | `docs/progressive-access/EXECUTION.md` |
 | Decisions-already-made product tests (D1–D7) | implemented | 3e19ebd25 | server/__tests__/progressiveAccessDecisions.test.js (35) |
 | Baseline inventory of mode/role authority (docs/progressive-access/BASELINE.md) | implemented | (this checkpoint) | authority map and migration hazards |
 | Legacy backfill (services/access/backfill.js, scripts/access-backfill.js) | implemented | 4eb2e22eb | progressiveAccess.db.test.js backfill case |
@@ -20,6 +21,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | WP | Title | Phase | Status | Commit | Tests |
 | --- | --- | --- | --- | --- | --- |
 | WP-104 | Cut over customer Home and refresh access | P2 | in progress | PR #797 | `build:ci` and growth registry passed locally. Browser coverage exercises resume, focus, revocation during refresh, failed access reads, and account changes. Nine affected Chrome scenarios passed. Production backfill and live acceptance are open. |
+| WP-105 | Projection-backed Applications status and workspace scope | P2 | implemented (local verification) | follow-up navigation branch | `navbarNavigation.test.mjs` (24), `navbarNavigation.browser-check.cjs` (120 responsive combinations), `homeModeRouting.browser-check.cjs`, `accessProjection.browser-check.cjs`, `build:ci`, `verify:i18n`; Account now exposes open application count and BusinessSwitcher filters results to projected organization IDs. Exact-head CI and non-production operational acceptance remain open. |
 | WP-001 | Signup entry and intent selector | P2 | implemented (customer-first browser and server flow) | 242cb47a6, c55e4966e, signup experience follow-up | With customer-first signup enabled, Join presents activity labels and sends intent. After email verification, service and business applicants can complete the policy form in the signup screen or use their new Customer account and finish later. `signup.browser-check.cjs`, `progressiveAccessSignup.db.test.js` |
 | WP-002 | Registration start and pending identity | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |
 | WP-003 | OTP finalization and bootstrap | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |

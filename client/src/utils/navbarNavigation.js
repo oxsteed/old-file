@@ -29,7 +29,14 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
     link('messages', '/messages', 'nav.messages'),
     link('postJob', '/post-job', 'nav.postJob', true),
   ];
-  const account = [link('dashboard', dashboardPath, 'nav.dashboard'), link('foodOrders', '/orders', 'nav.foodOrders')];
+  const account = [
+    link('dashboard', dashboardPath, 'nav.dashboard'),
+    link('foodOrders', '/orders', 'nav.foodOrders'),
+    {
+      ...link('applications', '/settings/applications', 'nav.myApplications'),
+      count: projectionActive(projection) ? Number(projection.access.openRequestCount || 0) : 0,
+    },
+  ];
   for (const item of capabilityShortcuts('customer', projection)) {
     if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
   }

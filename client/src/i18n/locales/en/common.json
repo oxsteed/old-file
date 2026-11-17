@@ -1689,6 +1689,7 @@
     "workspace": "Workspace",
     "businessWorkspace": "Business Workspace",
     "foodOrders": "Food Orders",
+    "myApplications": "My applications",
     "account": "Account"
   },
   "signupUpgrade": {

@@ -43,6 +43,7 @@ export default function Navbar() {
   const workspacePath = navbarWorkspacePath(location.pathname, readLastBusinessHubId());
   const navigation = navbarNavigation(user, { dashboardPath, workspacePath, showSupportWorkspace: showSupportWorkspaceNav, projection: accessProjection });
   const currentMode = navigation.mode;
+  const authorizedOrganizations = accessProjection?.access?.organizations || [];
   const { open: mobileOpen, setOpen: setMobileOpen, containerRef: mobileRef, triggerRef: mobileTriggerRef, panelId: mobilePanelId } = useNavDisclosure(currentMode);
   const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
   const resourcesMenuRef = useRef(null);
@@ -235,7 +236,7 @@ export default function Navbar() {
                 </PrefetchLink>
               </>
             )}
-            {showBusinessHub && <BusinessSwitcher />}
+            {showBusinessHub && <BusinessSwitcher authorizedOrganizations={authorizedOrganizations} />}
             <LanguageSelector />
             <ThemeToggle />
             {/* UI gaps item 11: visible palette trigger (was hotkey-only).
@@ -307,7 +308,7 @@ export default function Navbar() {
           <div id={mobilePanelId} className="ox-nav-mobile-menu">
             {(user || showBusinessHub) && (
               <div className="ox-nav-mobile-preferences">
-                {showBusinessHub && <BusinessSwitcher compact />}
+                {showBusinessHub && <BusinessSwitcher compact authorizedOrganizations={authorizedOrganizations} />}
               </div>
             )}
             {user ? (
@@ -322,7 +323,7 @@ export default function Navbar() {
                   <span className="ox-nav-section-label">{t('nav.account')}</span>
                   {navigation.account.map(item => (
                     <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname, currentMode)}>
-                      {t(item.labelKey)}
+                      {t(item.labelKey)}{item.count > 0 && <UnreadBadge count={item.count} />}
                     </MobileNavLink>
                   ))}
                   <button type="button" className="ox-nav-signout" onClick={() => { logout(); setMobileOpen(false); }} data-track="ui.0b9e115b87.3">{t('nav.signOut')}</button>
@@ -474,7 +475,7 @@ function AccountDisclosure({ items, mode, logout }) {
       {open && (
         <div id={panelId} className="ox-nav-account-panel">
           {items.map(item => (
-            <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname, mode)}>{t(item.labelKey)}</NavLink>
+            <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname, mode)}>{t(item.labelKey)}{item.count > 0 && <UnreadBadge count={item.count} />}</NavLink>
           ))}
           <button type="button" className="ox-nav-signout" onClick={logout} data-track="ui.0b9e115b87.5">{t('nav.signOut')}</button>
         </div>
