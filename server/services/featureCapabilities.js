@@ -1,6 +1,7 @@
 'use strict';
 
 const { isSupportChatProviderConfigured } = require('./supportChatProviders');
+const { customerFirstSignup } = require('./access/flags');
 
 function present(name) {
   return typeof process.env[name] === 'string' && process.env[name].trim().length > 0;
@@ -27,6 +28,7 @@ function getPublicCapabilities() {
     // An OLLAMA_URL the chat would reject (non-allowlisted host) does not count.
     aiSupport: capability(isSupportChatProviderConfigured()),
     geocoding: capability(present('GOOGLE_MAPS_API_KEY')),
+    customerFirstSignup: capability(customerFirstSignup(), 'feature_disabled'),
   };
 }
 

@@ -61,7 +61,7 @@ async function finalize(userId, pending) {
   return {
     signupIntent: intent,
     nextStep: capability
-      ? { type: 'application', capability, requestId, resumable: true }
+      ? { type: 'application', capability, requestId, resumable: true, returnTo }
       : { type: 'none', returnTo },
   };
 }

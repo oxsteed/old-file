@@ -13,6 +13,19 @@ const { resolveOllamaUrl } = require('../services/supportChatProviders');
 
 const AI_KEYS = ['OPENAI_API_KEY', 'META_AI_API_KEY', 'OPENROUTER_API_KEY', 'OLLAMA_URL'];
 
+test('public signup configuration follows the server customer-first flag', () => {
+  const saved = process.env.ACCESS_CUSTOMER_FIRST_SIGNUP;
+  try {
+    delete process.env.ACCESS_CUSTOMER_FIRST_SIGNUP;
+    expect(getPublicCapabilities().customerFirstSignup.available).toBe(false);
+    process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = 'true';
+    expect(getPublicCapabilities().customerFirstSignup.available).toBe(true);
+  } finally {
+    if (saved === undefined) delete process.env.ACCESS_CUSTOMER_FIRST_SIGNUP;
+    else process.env.ACCESS_CUSTOMER_FIRST_SIGNUP = saved;
+  }
+});
+
 describe('aiSupport capability follows the chat provider chain', () => {
   let saved;
 

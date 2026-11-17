@@ -40,11 +40,15 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
         const approved = { id: 'r2', capability: 'restaurant.own', status: 'approved', version: 2,
           subjectDisplay: { kind: 'new_business', name: 'Approved Bistro' }, availableActions: [], answers: {} };
         const policy = { capability: 'business.own', applicantMayRequest: true, subjectTypes: ['business_proposal'], form: { fields: [{ name: 'business_name', type: 'text', required: true, maxLength: 200 }] } };
+        const resuming = new URLSearchParams(window.location.search).has('resume');
+        let recovered = false;
         export const accessAPI = {
-          getAccess: async () => ({ access: { personal: ['customer'], organizations: [] } }),
-          listRequests: async () => ({ requests: [request, approved] }), listPolicies: async () => ({ policies: [policy] }),
+          getAccess: async () => ({ access: { personal: ['customer'], organizations: [],
+            ...(resuming ? { signupResume: { capability: 'business.own', requestId: null, returnTo: '/jobs/42' } } : {}) } }),
+          listRequests: async () => ({ requests: resuming ? (recovered ? [request] : []) : [request, approved] }),
+          listPolicies: async () => ({ policies: [policy] }),
           getRequest: async () => ({ request }), updateRequest: async () => ({ request }), transition: async () => ({ request }),
-          createRequest: async () => ({ request }),
+          createRequest: async (body, key) => { recovered = true; window.applicationRecovery = { body, key }; return { request }; },
         };
       `, loader: 'jsx' }));
     } }],
@@ -71,6 +75,14 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
     await page.getByRole('button', { name: /إغلاق|Close/ }).click();
     await page.waitForFunction(() => document.activeElement?.getAttribute('data-track') === 'ui.access.applications.continue');
     assert.equal(await page.locator('[role="status"][aria-live="polite"]').count(), 1);
+
+    await page.goto('http://progressive-settings.test/settings/applications?resume=1');
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.waitForURL('**/settings/applications?resume=1&request=r1');
+    assert.deepEqual(await page.evaluate(() => window.applicationRecovery), {
+      body: { capability: 'business.own', subject: { type: 'business_proposal' }, source: 'signup', answers: {}, returnTo: '/jobs/42' },
+      key: 'signup-applicant',
+    });
   } finally {
     await browser.close();
   }

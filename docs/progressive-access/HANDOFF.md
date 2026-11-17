@@ -173,6 +173,29 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
 
 ## Next step
 
+### Customer-first signup experience follow-up
+
+PR #794 reached production as `784bce83d` with the progressive access flags
+off. The public signup presented the legacy account labels and told users
+they could change modes later. The enabled code also used that copy and sent
+applicants to Settings immediately after verification.
+
+With customer-first signup enabled, Join now offers activities and explains
+that every new account starts with customer access. After OTP, Helper and
+Owner applicants can finish the same short policy form in signup. They can
+save a draft, submit for review, retry loading, or continue to their account.
+The service area starts with the verified signup location. Saved requests
+remain in Applications. If draft creation was interrupted, Applications can
+resume the saved signup intent. The same editor is used in Settings.
+
+Coolify Compose passes the signup, request, projection, legacy switch, Helper
+and Business rollout settings into the app with default-off values. A staged
+release should exercise all three signup choices with the application reviewer
+and the first approved action, using the real web shell and both legacy and
+new accounts. Preserve existing Helper and Owner access through the documented
+backfill before changing cohort-wide projection or enforcement. Contextual
+entry points after approval remain part of the wider acceptance work.
+
 ### PR #794 signup and activation checkpoint
 
 - `31035c379` repairs the fraud reporting, tax identity, and support attachment

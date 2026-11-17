@@ -19,7 +19,7 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 
 | WP | Title | Phase | Status | Commit | Tests |
 | --- | --- | --- | --- | --- | --- |
-| WP-001 | Signup entry and intent selector | P2 | implemented (server + JoinPage continuation) | 242cb47a6, c55e4966e | progressiveAccessSignup.db.test.js; JoinPage follows access.nextStep |
+| WP-001 | Signup entry and intent selector | P2 | implemented (customer-first browser and server flow) | 242cb47a6, c55e4966e, signup experience follow-up | With customer-first signup enabled, Join presents activity labels and sends intent. After email verification, service and business applicants can complete the policy form in the signup screen or use their new Customer account and finish later. `signup.browser-check.cjs`, `progressiveAccessSignup.db.test.js` |
 | WP-002 | Registration start and pending identity | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |
 | WP-003 | OTP finalization and bootstrap | P2 | implemented | 242cb47a6 | progressiveAccessSignup.db.test.js |
 | WP-004 | Login and legacy mode inputs | P2 | implemented | bb9a413fa, (this checkpoint) | `progressiveAccessModeGate.db.test.js` (6), including populated login with privileged legacy mode input |
@@ -128,8 +128,8 @@ Status values: `planned` · `in progress` · `implemented` (code + tests on bran
 | AC | Title | Status | Evidence |
 | --- | --- | --- | --- |
 | AC-001 | Guest finds a task and signs up | planned | |
-| AC-002 | Helper intent survives OTP | server evidence (partial) | Signup preserves the Helper draft through OTP and denies pending bids in real PostgreSQL. Browser signup and live OTP delivery remain open. |
-| AC-003 | Owner intent with application failure | in progress | signup DB test; retry-from-resume pending client |
+| AC-002 | Helper intent survives OTP | browser and server evidence (partial) | The Join component in Chrome selects Offer services, verifies fixture OTP, fills and submits the request in signup, and enters the Customer account while review is pending. Real PostgreSQL verifies the Helper draft through OTP and denies pending bids. Live OTP delivery and connected browser review remain open. |
+| AC-003 | Owner intent with application failure | browser and server evidence (partial) | Browser fixture verifies customer account creation, an unavailable application response, retry of a missing draft with a stable key, submission, and account entry. Real PostgreSQL verifies the durable Owner intent. A connected failure-and-resume rehearsal remains open. |
 | AC-004 | Unverified email and pending account | planned | |
 | AC-005 | OTP retry, expiry and resend | server evidence | progressiveAccessSignup.db.test.js (resend → old code fails, new code keeps intent) |
 | AC-006 | Same email and two signup entry points | server evidence (partial) | dedicated helper start closed under flag (WP-006); duplicate OTP finalize → 409 account_already_created |
