@@ -10,7 +10,8 @@ const root = path.resolve(__dirname, '..');
 
 async function fixture({ refreshable = false, legacyOnly = false, refreshFailure = null } = {}) {
   let user = { id: 'synthetic', first_name: 'Synthetic', last_name: 'Person',
-    email_verified: true, didit_status: 'verified', role: 'helper', onboarding_completed: true };
+    email_verified: true, didit_status: 'verified', didit_verified_at: new Date().toISOString(),
+    role: 'helper', onboarding_completed: true };
   const calls = [];
   let accessExpired = false;
   let refreshCount = 0;
