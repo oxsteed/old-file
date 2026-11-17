@@ -1,9 +1,23 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { setTimeout: delay } = require('node:timers/promises');
 const { chromium } = require('playwright-core');
 const { startPwaFixture } = require('./pwa-fixture-server.cjs');
 const catalogs = { en: require('../src/locales/en.json'), ar: require('../src/locales/ar.json') };
 const editors = ['PricingRulesManager', 'MemberPermissionsEditor', 'ProductManagement', 'ProductPricingManager', 'BusinessCreationWizard', 'BusinessProfileEditor'];
+
+function setWorkspaceAccess(fixture, businesses) {
+  fixture.state.readHandlers['/api/me/access'] = () => ({
+    accountId: String(fixture.state.user.id),
+    access: {
+      personal: ['customer'],
+      organizations: businesses.map(business => ({
+        type: 'business', id: String(business.id), name: business.business_name, role: business.role,
+      })),
+    },
+    flags: { accessRequests: true, accessProjection: true },
+  });
+}
 
 test('workspace navigation defers inactive editors and remains usable during delayed panel and dialog loads', { timeout: 180000 }, async () => {
   const fixture = await startPwaFixture();
@@ -12,9 +26,8 @@ test('workspace navigation defers inactive editors and remains usable during del
   try {
     for (const [language, width] of [['en', 1440], ['ar', 390]]) {
       const catalog = catalogs[language];
-      const progressive = language === 'en';
-      fixture.state.user = { ...fixture.state.user, role: progressive ? 'customer' : 'helper',
-        default_mode: progressive ? 'customer' : 'business_owner', preferred_language: language };
+      const startFromApproval = language === 'en';
+      fixture.state.user = { ...fixture.state.user, role: 'customer', default_mode: 'customer', preferred_language: language };
       const business = { id: 4, business_name: 'Fixture Service Team', business_kind: 'service', status: 'active', setup_status: 'active', role: 'owner', is_owner: true, currency: 'USD', address_country: 'US' };
       fixture.state.readResponses = {
         '/api/businesses': { businesses: [business] }, '/api/businesses/managed': { businesses: [] },
@@ -24,12 +37,8 @@ test('workspace navigation defers inactive editors and remains usable during del
         '/api/businesses/4/services': { services: [] },
         '/api/businesses/categories': { categories: [], operatingModels: [] },
       };
-      if (progressive) {
-        fixture.state.readResponses['/api/me/access'] = {
-          accountId: String(fixture.state.user.id),
-          access: { personal: ['customer'], organizations: [] },
-          flags: { accessRequests: true, accessProjection: true },
-        };
+      setWorkspaceAccess(fixture, [business]);
+      if (startFromApproval) {
         fixture.state.readResponses['/api/me/access-requests'] = { requests: [{
           id: 'owner-approval', capability: 'business.own', status: 'approved',
           subjectDisplay: { kind: 'new_business', name: business.business_name }, availableActions: [],
@@ -52,8 +61,8 @@ test('workspace navigation defers inactive editors and remains usable during del
       const tabs = page.locator('.bh-tabs');
       try {
         let start = Date.now();
-        await page.goto(fixture.origin + (progressive ? '/settings/applications' : '/business/4/workspace'));
-        if (progressive) {
+        await page.goto(fixture.origin + (startFromApproval ? '/settings/applications' : '/business/4/workspace'));
+        if (startFromApproval) {
           await page.locator('[data-track="ui.access.applications.use_now"]').click();
           await page.waitForURL('**/business-hub');
         }
@@ -123,12 +132,14 @@ test('workspace navigation defers inactive editors and remains usable during del
     }
 
     // A directly requested editor route must retain the existing team gate.
-    fixture.state.user = { ...fixture.state.user, default_mode: 'business_employee' };
     fixture.state.readResponses['/api/businesses'] = { businesses: [] };
-    fixture.state.readResponses['/api/businesses/managed'] = { businesses: [{
+    const memberBusiness = {
       id: 4, business_name: 'Fixture Team', business_kind: 'service', status: 'active',
       setup_status: 'active', role: 'employee', permissions: ['business.view', 'calendar.view_self'],
-    }] };
+    };
+    fixture.state.readResponses['/api/businesses/managed'] = { businesses: [memberBusiness] };
+    fixture.state.readResponses['/api/me/businesses'] = { data: { items: [memberBusiness] } };
+    setWorkspaceAccess(fixture, [memberBusiness]);
     fixture.state.readResponses['/api/launch-visibility'] = { media: true };
     fixture.state.readResponses['/api/businesses/4/operations-summary'] = { data: {
       timezone: 'America/New_York', tasks: [], sections: {
@@ -138,6 +149,7 @@ test('workspace navigation defers inactive editors and remains usable during del
     const teamContext = await browser.newContext();
     await teamContext.addInitScript(() => localStorage.setItem('oxs:language', 'en'));
     const teamPage = await teamContext.newPage();
+    teamPage.setDefaultTimeout(15000);
     const teamAssets = [];
     teamPage.on('request', request => teamAssets.push(new URL(request.url()).pathname));
     await teamContext.route('**/*', route => new URL(route.request().url()).origin === fixture.origin ? route.continue() : route.abort());
@@ -164,13 +176,14 @@ test('workspace navigation defers inactive editors and remains usable during del
 
 test('an unavailable editor read never substitutes a partial business listing', { timeout: 45000 }, async () => {
   const fixture = await startPwaFixture();
-  fixture.state.user = { ...fixture.state.user, role: 'helper', default_mode: 'business_owner' };
+  fixture.state.user = { ...fixture.state.user, role: 'customer', default_mode: 'customer' };
   const business = { id: 4, business_name: 'Listed service team', business_kind: 'service', status: 'active', setup_status: 'active', role: 'owner', is_owner: true, currency: 'USD', address_country: 'US' };
   fixture.state.readResponses = {
     '/api/businesses': { businesses: [business] }, '/api/businesses/managed': { businesses: [] },
     '/api/me/businesses': { data: { items: [business] } },
     '/api/businesses/4/profile-edit': { business: { ...business, description: 'Complete editable profile' } },
   };
+  setWorkspaceAccess(fixture, [business]);
   fixture.state.failures['/api/businesses/4/profile-edit'] = 503;
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const context = await browser.newContext();
@@ -195,7 +208,7 @@ test('an unavailable editor read never substitutes a partial business listing', 
 
 test('profile drafts and delayed reads stay within their business and account', { timeout: 90000 }, async () => {
   const fixture = await startPwaFixture();
-  fixture.state.user = { ...fixture.state.user, role: 'helper', default_mode: 'business_owner' };
+  fixture.state.user = { ...fixture.state.user, role: 'customer', default_mode: 'customer' };
   const first = { id: 4, business_name: 'First service team', business_kind: 'service', status: 'active', setup_status: 'active', role: 'owner', is_owner: true, currency: 'USD', address_country: 'US' };
   const second = { ...first, id: 5, business_name: 'Second service team' };
   fixture.state.readResponses = {
@@ -204,6 +217,7 @@ test('profile drafts and delayed reads stay within their business and account', 
     '/api/businesses/4/profile-edit': { business: first },
     '/api/businesses/5/profile-edit': { business: second },
   };
+  setWorkspaceAccess(fixture, [first, second]);
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -213,7 +227,11 @@ test('profile drafts and delayed reads stay within their business and account', 
   let releaseFirst, noteFirst;
   const held = new Promise(resolve => { releaseFirst = resolve; });
   const requested = new Promise(resolve => { noteFirst = resolve; });
-  await context.route('**/api/businesses/4/profile-edit', async route => { noteFirst(); await held; await route.continue(); });
+  await context.route('**/api/businesses/4/profile-edit', async route => {
+    noteFirst(true);
+    await held;
+    await route.continue();
+  });
   const openIdentity = async () => {
     await page.locator('.bpe-studio').waitFor();
     await page.getByRole('button', { name: /Business Identity/ }).click();
@@ -221,7 +239,9 @@ test('profile drafts and delayed reads stay within their business and account', 
   };
   try {
     await page.goto(fixture.origin + '/business/4/workspace/profile');
-    await requested;
+    // Playwright may emit the request event only after the route is released.
+    const profileRequested = await Promise.race([requested, delay(15000, false, { ref: false })]);
+    assert.ok(profileRequested, 'expected the first business profile request within 15 seconds');
     await page.locator('.bh-switcher select').selectOption('5');
     await openIdentity();
     assert.equal(await page.locator('#bh-business-name').inputValue(), second.business_name);
