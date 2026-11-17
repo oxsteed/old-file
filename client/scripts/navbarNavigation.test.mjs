@@ -187,6 +187,12 @@ test('business switcher renders translated organization roles in every locale', 
   }
 });
 
+test('mobile QR entry uses the same helper projection gate as desktop', async () => {
+  const navbar = await readFile(new URL('../src/components/Navbar.jsx', import.meta.url), 'utf8');
+  assert.match(navbar, /hasHelperAccess && canUseQrGenerator\(user\) && <MobileNavLink to="\/qr-generator"/);
+  assert.match(navbar, /\{hasHelperAccess && \(/);
+});
+
 // OxSteed Invest (Track 3): invest entry points come from the access
 // projection only (projection.invest.investEnabled). They are additive:
 // the customer primary links are untouched, and no role or mode is read.

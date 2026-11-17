@@ -294,6 +294,15 @@ leaving specialist support-agent access separately projection- and server-
 authorized. `test:navbar-navigation` passes all 24 tests and `git diff --check`
 passes. Exact-head CI and non-production operational acceptance remain open.
 
+### WP-111: responsive QR access parity
+
+The mobile navbar now applies the same `hasHelperAccess` projection gate and
+Pro entitlement check already used by the desktop Resources menu before
+showing QR Generator. This prevents a Pro customer without an effective helper
+capability from seeing a specialist entry point only on mobile. The navbar
+contract suite passes all 25 tests and `git diff --check` passes. Exact-head CI
+and non-production operational acceptance remain open.
+
 ### Customer-first signup experience follow-up
 
 PR #794 reached production as `784bce83d` with the progressive access flags
