@@ -51,11 +51,13 @@ const ACCESS_GRANT = {
   status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1,
 };
 
-// Queue the three loadFacts answers (users, access_grants, businesses) for
+// Queue the four loadFacts answers (users, access_grants, businesses,
+// restaurant locations) for
 // one gate evaluation, in the order accessService.loadFacts issues them.
 function mockGrantFacts(user = MOCK_HELPER) {
   mockQuery.mockResolvedValueOnce({ rows: [user] });
   mockQuery.mockResolvedValueOnce({ rows: [ACCESS_GRANT] });
+  mockQuery.mockResolvedValueOnce({ rows: [] });
   mockQuery.mockResolvedValueOnce({ rows: [] });
 }
 
@@ -73,6 +75,7 @@ const ACCESS_FACT_ROUTES = [
   [/FROM users WHERE id = \$1/, { rows: [MOCK_HELPER] }],
   [/FROM access_grants WHERE user_id = \$1/, { rows: [ACCESS_GRANT] }],
   [/FROM businesses b/, { rows: [] }],
+  [/FROM restaurant_locations rl/, { rows: [] }],
 ];
 
 function mockAuth(...extras) {

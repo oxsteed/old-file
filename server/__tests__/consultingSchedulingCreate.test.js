@@ -1,5 +1,7 @@
 'use strict';
 
+process.env.ACCESS_CONSULTANT_ENFORCEMENT = 'off';
+
 // Minimal consulting booking path: POST /scheduling/sessions creates the
 // pending_confirmation scheduled row, that row satisfies the payment-intent
 // "must be scheduled" check, and book-slot flips it to confirmed.

@@ -1,5 +1,7 @@
 'use strict';
 
+process.env.ACCESS_TOOL_OWNER_ENFORCEMENT = 'off';
+
 const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');

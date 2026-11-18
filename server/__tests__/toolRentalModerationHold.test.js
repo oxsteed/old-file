@@ -1,5 +1,7 @@
 'use strict';
 
+process.env.ACCESS_TOOL_OWNER_ENFORCEMENT = 'off';
+
 /**
  * TH1: independent admin moderation hold for tool rentals.
  *

@@ -30,11 +30,13 @@ const ACCESS_GRANT = {
   status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1,
 };
 
-// Queue the three loadFacts answers (users, access_grants, businesses) for
+// Queue the four loadFacts answers (users, access_grants, businesses,
+// restaurant locations) for
 // one gate evaluation, in the order accessService.loadFacts issues them.
 function mockGrantFacts() {
   mockQuery.mockResolvedValueOnce({ rows: [HELPER_USER] });
   mockQuery.mockResolvedValueOnce({ rows: [ACCESS_GRANT] });
+  mockQuery.mockResolvedValueOnce({ rows: [] });
   mockQuery.mockResolvedValueOnce({ rows: [] });
 }
 
@@ -90,7 +92,7 @@ describe('helper profile booking buffer setting', () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
 
-    // The gate's three SELECTs run first; the update is no longer call 0.
+    // The gate's four SELECTs run first; the update is no longer call 0.
     const updateCall = mockQuery.mock.calls.find(([sql]) => /UPDATE/i.test(sql));
     expect(updateCall[0]).toMatch(/booking_buffer_minutes/);
     // availability_json was retired from the write; the buffer is now $17.

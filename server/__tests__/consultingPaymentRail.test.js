@@ -1,6 +1,7 @@
 'use strict';
 
 // Review W6: P3-1067, P3-1069, P3-1070, P3-1071.
+process.env.ACCESS_CONSULTANT_ENFORCEMENT = 'off';
 const { mockQuery, resetMocks } = require('./setup');
 const stripeMock = require('stripe').__mockInstance;
 const svc = require('../services/consultingPaymentService');

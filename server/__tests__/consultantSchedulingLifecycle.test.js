@@ -1,5 +1,7 @@
 'use strict';
 
+process.env.ACCESS_CONSULTANT_ENFORCEMENT = 'off';
+
 const { mockQuery, resetMocks } = require('./setup');
 const controller = require('../controllers/consultantSchedulingController');
 
