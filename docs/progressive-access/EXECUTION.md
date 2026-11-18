@@ -68,6 +68,7 @@ server authorization:
     "version": 0,
     "personal": ["customer"],
     "organizations": [],
+    "locations": [],
     "openRequestCount": 0,
     "signupResume": null
   }
@@ -77,8 +78,8 @@ server authorization:
 The implementation preserves this shape. Any future additions must be
 additive and documented before client consumption. `personal` contains only
 effective projection capabilities; `organizations` identifies currently
-accessible organization scopes; `openRequestCount` is a status indicator, not
-authority.
+accessible organization scopes; `locations` identifies assigned restaurant
+location scopes; `openRequestCount` is a status indicator, not authority.
 
 Projection handling distinguishes initial loading, refresh, temporary failure,
 unauthenticated state, account-wide restriction, and explicit feature rollback.

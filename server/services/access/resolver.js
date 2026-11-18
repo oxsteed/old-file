@@ -77,7 +77,16 @@ function project(facts, { openRequestCount = 0, version = 0 } = {}) {
     if ((g.subject_type || 'self') === 'self' && grantIsEffective(g, now) && getCapability(g.capability)) personal.add(g.capability);
   }
   const organizations = (facts.businesses || []).map((b) => ({ type: 'business', id: String(b.id), name: b.name || null, role: b.role }));
-  return { version, personal: [...personal].sort((a, b) => (a === CUSTOMER ? -1 : b === CUSTOMER ? 1 : a.localeCompare(b))), organizations, openRequestCount };
+  const locations = (facts.restaurantLocations || []).map((location) => ({
+    type: 'restaurant_location',
+    scopeType: 'restaurant_location',
+    id: String(location.id),
+    name: location.name || null,
+    restaurantId: String(location.restaurant_id),
+    businessId: String(location.business_id),
+    role: location.role || null,
+  }));
+  return { version, personal: [...personal].sort((a, b) => (a === CUSTOMER ? -1 : b === CUSTOMER ? 1 : a.localeCompare(b))), organizations, locations, openRequestCount };
 }
 
 /**

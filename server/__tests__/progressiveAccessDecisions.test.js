@@ -121,6 +121,13 @@ describe('D5 — work continues in the existing task context with scoped authori
     expect(resolver.evaluate(facts, 'business.own', { type: 'business', id: '10' })).toMatchObject({ allowed: true, reason: 'canonical_owner' });
     expect(resolver.evaluate(facts, 'business.own', { type: 'business', id: '12' }).allowed).toBe(false);
   });
+  test('restaurant location scopes are projected separately and disappear on revocation', () => {
+    const active = resolver.project({ user: USER, grants: [], businesses: [{ id: 10, name: 'Brand', role: 'employee' }], restaurantLocations: [{ id: 7, restaurant_id: 3, business_id: 10, name: 'Downtown', role: 'employee' }] });
+    expect(active.organizations).toEqual([{ type: 'business', id: '10', name: 'Brand', role: 'employee' }]);
+    expect(active.locations).toEqual([expect.objectContaining({ type: 'restaurant_location', id: '7', businessId: '10' })]);
+    const revoked = resolver.project({ user: USER, grants: [], businesses: [{ id: 10, name: 'Brand', role: 'employee' }], restaurantLocations: [] });
+    expect(revoked.locations).toEqual([]);
+  });
 });
 
 describe('D6 — the approver is the authority for the requested access', () => {

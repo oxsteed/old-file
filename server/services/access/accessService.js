@@ -106,7 +106,35 @@ async function loadFacts(userId, db = pool) {
       ORDER BY b.id`,
     [userId],
   );
-  return { user, grants, businesses };
+  // Location assignments are a separate scope from the business membership.
+  // They are additive to the projection so a restaurant employee can see only
+  // assigned locations while retaining the business/customer relationship.
+  let restaurantLocations = [];
+  try {
+    const result = await db.query(
+      `SELECT rl.id, rl.name, rl.restaurant_id, fr.business_id,
+              COALESCE(bm.role, 'owner') AS role
+         FROM restaurant_locations rl
+         JOIN food_restaurants fr ON fr.id = rl.restaurant_id
+         JOIN businesses b ON b.id = fr.business_id AND b.deleted_at IS NULL
+         LEFT JOIN business_members bm
+                ON bm.business_id = b.id AND bm.member_id = $1 AND bm.status = 'active'
+         LEFT JOIN restaurant_location_memberships rlm
+                ON rlm.restaurant_id = rl.restaurant_id
+               AND rlm.location_id = rl.id
+               AND rlm.membership_id = bm.id
+               AND rlm.status = 'active'
+        WHERE b.user_id = $1 OR rlm.id IS NOT NULL
+        ORDER BY rl.id`,
+      [userId],
+    );
+    restaurantLocations = result?.rows || [];
+  } catch (error) {
+    // Older deployments may not have location scope tables yet. Business
+    // projection remains usable until the additive schema is deployed.
+    if (error?.code !== '42P01') throw error;
+  }
+  return { user, grants, businesses, restaurantLocations };
 }
 
 async function projectionVersion(userId, db = pool) {

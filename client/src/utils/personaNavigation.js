@@ -56,7 +56,10 @@ function addUnique(target, item) {
 }
 
 function organizationLinks(projection) {
-  const organizations = projection?.access?.organizations || [];
+  const organizations = [
+    ...(projection?.access?.organizations || []),
+    ...(projection?.access?.locations || []),
+  ];
   const links = [];
   for (const scope of organizations) {
     const scopeId = scope && (scope.id ?? scope.business_id);
