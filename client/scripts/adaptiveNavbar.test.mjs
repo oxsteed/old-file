@@ -1,0 +1,100 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { PERSONA_NAVIGATION_CATALOG, deriveAdaptiveNavigation } from '../src/utils/personaNavigation.js';
+
+const projection = (personal = ['customer'], organizations = [], extra = {}) => ({
+  flags: { accessProjection: true },
+  access: { personal, organizations, ...extra },
+});
+
+const destinations = (nav) => [...nav.primary, ...nav.account].map((item) => item.to);
+
+test('the adaptive catalog covers all 18 persona families and every shared surface', () => {
+  assert.equal(PERSONA_NAVIGATION_CATALOG.length, 18);
+  for (const family of PERSONA_NAVIGATION_CATALOG) {
+    assert.ok(family.id && family.variants.length, family.id);
+    assert.ok(family.scope, family.id);
+    assert.ok(Array.isArray(family.setup), family.id);
+    const expectedSurfaces = family.id === 'device-service-account' ? [] : ['desktop', 'mobile', 'installed', 'bottom'];
+    assert.deepEqual(family.surfaces, expectedSurfaces, family.id);
+  }
+});
+
+test('customer baseline is shared and remains available beside every approved relationship', () => {
+  const nav = deriveAdaptiveNavigation(projection());
+  assert.equal(nav.mode, 'customer');
+  assert.ok(destinations(nav).includes('/dashboard'));
+  assert.ok(destinations(nav).includes('/post-job'));
+  assert.deepEqual(nav.surfaces, ['desktop', 'mobile', 'installed', 'bottom']);
+});
+
+test('active helper sees Opportunities and My Bids without a persona switch', () => {
+  const nav = deriveAdaptiveNavigation(projection(['customer', 'helper.offer_services']));
+  assert.equal(nav.mode, 'customer');
+  assert.ok(destinations(nav).includes('/jobs'));
+  assert.ok(destinations(nav).includes('/helper-dashboard'));
+});
+
+test('approved but incomplete activation exposes setup, not a protected helper workspace', () => {
+  const nav = deriveAdaptiveNavigation(projection(['customer', 'helper.offer_services'], [], { activation: { 'helper.offer_services': 'needs_setup' } }));
+  assert.ok(destinations(nav).includes('/settings/applications'));
+  assert.ok(!destinations(nav).includes('/helper-dashboard'));
+});
+
+test('restaurant tools are limited to explicit assigned-location shortcuts', () => {
+  const nav = deriveAdaptiveNavigation(projection(['customer'], [
+    { type: 'restaurant_location', id: 7, name: 'Downtown', role: 'staff', shortcuts: [{ id: 'orders', to: '/restaurants/locations/7/orders', labelKey: 'nav.foodOrders' }] },
+    { type: 'restaurant_location', id: 8, name: 'Uptown', role: 'staff', shortcuts: [] },
+  ]));
+  const paths = destinations(nav);
+  assert.ok(paths.includes('/restaurants/locations/7/orders'));
+  assert.ok(!paths.includes('/restaurants/locations/8/orders'));
+  assert.ok(paths.includes('/business/7/workspace'));
+  assert.ok(paths.includes('/business/8/workspace'));
+});
+
+test('overlapping helper and restaurant access revokes one location only', () => {
+  const before = deriveAdaptiveNavigation(projection(['customer', 'helper.offer_services'], [
+    { type: 'restaurant_location', id: 7, shortcuts: [{ id: 'orders', to: '/restaurants/locations/7/orders', labelKey: 'nav.foodOrders' }] },
+    { type: 'restaurant_location', id: 8, shortcuts: [{ id: 'orders', to: '/restaurants/locations/8/orders', labelKey: 'nav.foodOrders' }] },
+  ]));
+  const after = deriveAdaptiveNavigation(projection(['customer', 'helper.offer_services'], [
+    { type: 'restaurant_location', id: 8, shortcuts: [{ id: 'orders', to: '/restaurants/locations/8/orders', labelKey: 'nav.foodOrders' }] },
+  ]));
+  assert.ok(destinations(before).includes('/helper-dashboard'));
+  assert.ok(destinations(before).includes('/restaurants/locations/7/orders'));
+  assert.ok(!destinations(after).includes('/restaurants/locations/7/orders'));
+  assert.ok(destinations(after).includes('/restaurants/locations/8/orders'));
+  assert.ok(destinations(after).includes('/post-job'));
+  assert.ok(destinations(after).includes('/helper-dashboard'));
+});
+
+test('staff enters a separate shell while retaining Personal Home', () => {
+  const nav = deriveAdaptiveNavigation(projection(['customer', 'staff.support']));
+  assert.ok(destinations(nav).includes('/support/agent'));
+  assert.ok(destinations(nav).includes('/dashboard'));
+  assert.equal(nav.account.find((item) => item.id === 'support').staffShell, true);
+});
+
+test('investor reporting is read-only and never exposes investment participation', () => {
+  const nav = deriveAdaptiveNavigation({
+    ...projection(['customer', 'investor.reporting']),
+    investorAudience: { audienceKey: 'entity', datasets: ['kpis'] },
+  });
+  assert.ok(destinations(nav).includes('/investor'));
+  assert.ok(!destinations(nav).some((path) => /commit|participat/i.test(path)));
+});
+
+test('planned, unverified, and nonhuman actors fail closed', () => {
+  const planned = deriveAdaptiveNavigation(projection(['customer', 'credit.participate']));
+  assert.ok(!destinations(planned).some((path) => path.includes('credit')));
+  const nonhuman = deriveAdaptiveNavigation(projection([], [], { actorType: 'nonhuman' }));
+  assert.deepEqual(nonhuman.primary, []);
+  assert.deepEqual(nonhuman.account, []);
+});
+
+test('projection failure never restores protected persona links', () => {
+  const nav = deriveAdaptiveNavigation({ flags: {}, access: { personal: ['helper.offer_services'] } });
+  assert.ok(destinations(nav).includes('/post-job'));
+  assert.ok(!destinations(nav).includes('/helper-dashboard'));
+});

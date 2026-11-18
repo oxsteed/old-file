@@ -36,6 +36,7 @@ describe('mounted franchise territory access', () => {
   });
 
   test('legacy rollout keeps the territory route available', async () => {
+    process.env.ACCESS_FRANCHISE_ENFORCEMENT = 'off';
     const response = await request(mountedFixture()).get('/api/franchise/territory-stats');
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ reached: true });

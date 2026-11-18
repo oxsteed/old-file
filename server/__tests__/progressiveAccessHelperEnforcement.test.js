@@ -226,11 +226,11 @@ describe('helper capability gate', () => {
     expect(access.can).not.toHaveBeenCalled();
   });
 
-  test('unknown enforcement values fall back to off', async () => {
+  test('unknown enforcement values fail closed to the default-on gate', async () => {
     process.env.ACCESS_HELPER_ENFORCEMENT = 'ENFORCE-ish';
     const { nextCalled } = await run(requireHelperCapability, { user: user('customer') });
     expect(nextCalled).toBe(true);
-    expect(access.can).not.toHaveBeenCalled();
+    expect(access.can).toHaveBeenCalledWith('u-1', 'helper.offer_services');
   });
 
   test('conditional helper quote and product mutations are capability-gated', () => {
@@ -335,7 +335,7 @@ describe('helper capability gate', () => {
   });
 });
 
-describe('enforcement flag defaults (Domain 6 B1)', () => {
+describe('enforcement flag defaults (progressive access default-on)', () => {
   const KEYS = [
     'ACCESS_HELPER_ENFORCEMENT',
     'ACCESS_BUSINESS_ENFORCEMENT',
@@ -346,14 +346,14 @@ describe('enforcement flag defaults (Domain 6 B1)', () => {
   ];
   afterEach(() => { KEYS.forEach((k) => delete process.env[k]); });
 
-  test('helper defaults to enforce; every other enforcement flag defaults to off', () => {
+  test('every progressive-access enforcement flag defaults to enforce', () => {
     KEYS.forEach((k) => delete process.env[k]);
     expect(flags.helperEnforcement()).toBe('enforce');
-    expect(flags.businessEnforcement()).toBe('off');
-    expect(flags.consultantEnforcement()).toBe('off');
-    expect(flags.investorEnforcement()).toBe('off');
-    expect(flags.franchiseEnforcement()).toBe('off');
-    expect(flags.toolOwnerEnforcement()).toBe('off');
+    expect(flags.businessEnforcement()).toBe('enforce');
+    expect(flags.consultantEnforcement()).toBe('enforce');
+    expect(flags.investorEnforcement()).toBe('enforce');
+    expect(flags.franchiseEnforcement()).toBe('enforce');
+    expect(flags.toolOwnerEnforcement()).toBe('enforce');
   });
 
   test('an explicit off still opts helper enforcement out', () => {

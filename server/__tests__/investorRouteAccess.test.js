@@ -32,16 +32,19 @@ describe('mounted investor reporting access', () => {
     access.getInvestorAudience.mockReset();
   });
 
-  test.each(['investor', 'admin', 'super_admin'])('%s reaches KPI reporting', async (role) => {
+  test.each(['investor', 'admin', 'super_admin'])('%s reaches KPI reporting during explicit legacy rollback', async (role) => {
+    process.env.ACCESS_INVESTOR_ENFORCEMENT = 'off';
     const response = await request(mountedFixture()).get('/api/investor/kpis').set('x-test-role', role);
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ reached: true });
   });
 
   test('a customer is denied before the reporting handler', async () => {
+    process.env.ACCESS_INVESTOR_ENFORCEMENT = 'enforce';
+    access.can.mockResolvedValue({ allowed: false, reason: 'no_grant' });
     const response = await request(mountedFixture()).get('/api/investor/kpis').set('x-test-role', 'customer');
     expect(response.status).toBe(403);
-    expect(response.body.error).toBe('Insufficient permissions');
+    expect(response.body).toMatchObject({ code: 'access_required', capability: 'investor.reporting' });
   });
 
   test('enforce mode lets an approved customer-class grant reach reporting', async () => {

@@ -1,7 +1,6 @@
 import { businessHubLandingPath } from './businessProfileForm.js';
-import { LAUNCH_VISIBILITY } from './launchScope.js';
-import { capabilityShortcuts, projectionActive, hasCapability } from './accessProjection.js';
 import { investNavLinks } from './invest.js';
+import { deriveAdaptiveNavigation } from './personaNavigation.js';
 
 export function navbarWorkspacePath(pathname = '', savedBusinessId) {
   const routeId = pathname.match(/^\/business\/([^/]+)\/workspace(?:\/|$)/)?.[1];
@@ -22,23 +21,17 @@ const link = (id, to, labelKey, primary = false) => ({ id, to, labelKey, primary
 // link sets no longer read them. `dashboardPath` drives the dashboard
 // account link (callers pass '/dashboard').
 export function navbarNavigation(user, { dashboardPath = '/dashboard', workspacePath = '/business-hub', showSupportWorkspace = false, projection = null } = {}) {
-  const primary = [
-    link('findHelp', '/helpers', 'nav.findHelp'),
-    link('myJobs', '/my-jobs', 'nav.myJobs'),
-    link('orderFood', '/restaurants', 'nav.orderFood'),
-    link('messages', '/messages', 'nav.messages'),
-    link('postJob', '/post-job', 'nav.postJob', true),
-  ];
-  const account = [
-    link('dashboard', dashboardPath, 'nav.dashboard'),
-    link('foodOrders', '/orders', 'nav.foodOrders'),
-    {
-      ...link('applications', '/settings/applications', 'nav.myApplications'),
-      count: projectionActive(projection) ? Number(projection.access.openRequestCount || 0) : 0,
-    },
-  ];
-  for (const item of capabilityShortcuts('customer', projection)) {
-    if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
+  const navigation = deriveAdaptiveNavigation(projection, { showSupportWorkspace });
+  const primary = navigation.primary;
+  const account = navigation.account;
+  const dashboard = account.find((item) => item.id === 'dashboard');
+  if (dashboard) dashboard.to = dashboardPath;
+  // Preserve the existing staff-shell contract: the explicit support entry is
+  // the final account action, even when the shell is also the dashboard path.
+  if (showSupportWorkspace) {
+    const index = account.findIndex((item) => item.id === 'support');
+    const [support] = index >= 0 ? account.splice(index, 1) : [];
+    account.push(support || link('support', '/support/agent', 'nav.supportWorkspace'));
   }
   // OxSteed Invest: entry points come from the access projection only
   // (projection.invest.investEnabled). They are additive: customer links
@@ -46,21 +39,12 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
   for (const item of investNavLinks(projection)) {
     if (![...primary, ...account].some((x) => x.id === item.id || x.to === item.to)) account.push(item);
   }
-  if (LAUNCH_VISIBILITY.consulting && projectionActive(projection) && hasCapability(projection.access, 'consultant.accept_paying_clients')) {
-    account.push(link('consultantReferrals', '/consulting/contractor-dashboard', 'consultantContractorDashboard.page.title'));
-  }
-  account.push(
-    link('settings', '/settings', 'nav.settings'),
-    link('help', '/support', 'nav.help'),
-    link('wallet', '/wallet', 'nav.wallet'),
-    link('statements', '/statements', 'statementCenter.title'),
-  );
-  if (showSupportWorkspace) account.push(link('support', '/support/agent', 'nav.supportWorkspace'));
   return {
-    mode: 'customer',
+    ...navigation,
+    mode: navigation.mode || 'customer',
     primary,
     account,
-    showBusinessSwitcher: projectionActive(projection) && (projection.access.organizations || []).length > 0,
+    showBusinessSwitcher: navigation.showBusinessSwitcher,
   };
 }
 
