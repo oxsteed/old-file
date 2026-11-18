@@ -110,12 +110,17 @@ test('access refreshes on resume and changes without replaying stale or cross-ac
     await page.waitForFunction(() => window.projectionStates.some(([, status]) => status === 'temporary_failure'));
 
     await page.evaluate(() => window.refreshAccess());
-    await (await waitForRequest(9)).fulfill({ status: 503, json: { code: 'feature_disabled' } });
+    await (await waitForRequest(9)).fulfill({ status: 403, json: { code: 'ACCOUNT_SUSPENDED' } });
+    await expectName('empty');
+    await page.waitForFunction(() => window.projectionStates.some(([, status]) => status === 'restricted'));
+
+    await page.evaluate(() => window.refreshAccess());
+    await (await waitForRequest(10)).fulfill({ status: 503, json: { code: 'feature_disabled' } });
     await expectName('rollback');
     await page.waitForFunction(() => window.projectionStates.some(([, status]) => status === 'rollback'));
     await page.evaluate(() => window.signInAs(null));
     await page.waitForFunction(() => window.projectionStates.some(([, status]) => status === 'unauthenticated'));
-    assert.equal(outgoing.length, 10, 'Home and navigation share the refresh listeners');
+    assert.equal(outgoing.length, 11, 'Home and navigation share the refresh listeners');
   } finally {
     await browser.close();
   }

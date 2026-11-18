@@ -1833,6 +1833,13 @@ audit. No browser, storage-provider, live, or exact-head acceptance is claimed.
 learning/workforce product surfaces, then run the complete verification matrix
 against the latest pushed head.
 
+WP-123 adds the missing restricted-state browser assertion. The projection
+fixture now covers all seven lifecycle states, including a server
+`ACCOUNT_SUSPENDED` response resolving to `restricted`, while retaining the
+stale-response, rollback, unauthenticated, and cross-account checks.
+`accessProjection.browser-check.cjs` and `test:navbar-navigation` (25) pass
+locally. Exact-head CI and non-production operational acceptance remain open.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
