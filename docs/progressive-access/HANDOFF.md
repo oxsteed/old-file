@@ -1850,6 +1850,14 @@ live Credit, and exact-head acceptance remain open. **Exact next action
 harness result, and rerun only infrastructure-failed jobs before the final
 verification matrix.
 
+WP-125 fixes a real Package 4 browser regression exposed by the new explicit
+projection states. `InvestorDashboardPage` previously treated the safe loading
+snapshot as a settled denial and redirected approved customer-class investors
+before their access read completed. The route now defers fallback until loading
+and refresh states settle; revoked access still redirects before stale KPI or
+chart data can render. `investorDashboard.revocation.browser-check.cjs` passes
+locally. Exact-head CI and live reporting acceptance remain open.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
