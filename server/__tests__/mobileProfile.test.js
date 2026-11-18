@@ -177,6 +177,7 @@ describe('mobile authenticated profile API', () => {
       .mockResolvedValueOnce({ rows: [{ id: USER_ID, role: 'customer', is_active: true, deleted_at: null, is_suspended: false, suspended_until: null, is_banned: false }] })
       .mockResolvedValueOnce({ rows: [{ id: 'grant-1', capability: 'helper.offer_services', subject_type: 'self', status: 'active', expires_at: null, provenance: 'application' }] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ n: 0 }] })
       .mockResolvedValueOnce({ rows: [{ version: 7 }] });
 
@@ -207,6 +208,7 @@ describe('mobile authenticated profile API', () => {
       .mockResolvedValueOnce({ rows: [{ id: USER_ID, role: 'customer', is_active: true, deleted_at: null, is_suspended: false, suspended_until: null, is_banned: false }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [userRow()] })
       .mockResolvedValueOnce({ rows: [] });
 
@@ -226,6 +228,7 @@ describe('mobile authenticated profile API', () => {
       .mockResolvedValueOnce({ rows: [userRow()] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: USER_ID, role: 'customer', is_active: true, deleted_at: null, is_suspended: false, suspended_until: null, is_banned: false }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [userRow()] })

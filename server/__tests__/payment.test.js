@@ -77,6 +77,7 @@ function mockGatedAuth(...extras) {
   mockQuery.mockResolvedValueOnce({ rows: [MOCK_AUTH_USER] }); // loadFacts users
   mockQuery.mockResolvedValueOnce({ rows: [ACCESS_GRANT] }); // loadFacts access_grants
   mockQuery.mockResolvedValueOnce({ rows: [] }); // loadFacts businesses
+  mockQuery.mockResolvedValueOnce({ rows: [] }); // loadFacts restaurant locations
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
 }
 
@@ -465,7 +466,8 @@ describe('POST /api/payments/connect', () => {
       .set('Origin', 'https://attacker.invalid').set('Referer', 'https://attacker.invalid/path').set('Host', 'attacker.invalid'));
     expect(res.status).toBe(200);
     expect(res.body.account_id).toBe('acct_winner');
-    expect(mockQuery.mock.calls[5][0]).toContain('ON CONFLICT (user_id)'); // [0] auth, [1..3] gate loadFacts, [4] lookup, [5] upsert
+    const upsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO connect_accounts/i.test(sql));
+    expect(upsert[0]).toContain('ON CONFLICT (user_id)');
     expect(stripe.accountLinks.create).toHaveBeenCalledWith({ account: 'acct_winner', type: 'account_onboarding',
       refresh_url: 'https://oxsteed.com/helper-dashboard?refresh=true',
       return_url: 'https://oxsteed.com/helper-dashboard?onboarding=complete' });

@@ -1,5 +1,7 @@
 'use strict';
 
+process.env.ACCESS_CONSULTANT_ENFORCEMENT = 'off';
+
 // Notifications audit item 53: createScheduledSession set
 // consultant_assigned_id with no sendNotification/email/socket call, so
 // the assigned consultant was never told a session was scheduled.

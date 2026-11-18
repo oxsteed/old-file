@@ -62,12 +62,13 @@ server authorization:
     "accessProjection": true,
     "accessRequests": true,
     "customerFirstSignup": true,
-    "legacySwitchRetired": false
+    "legacySwitchRetired": true
   },
   "access": {
     "version": 0,
     "personal": ["customer"],
     "organizations": [],
+    "locations": [],
     "openRequestCount": 0,
     "signupResume": null
   }
@@ -77,8 +78,8 @@ server authorization:
 The implementation preserves this shape. Any future additions must be
 additive and documented before client consumption. `personal` contains only
 effective projection capabilities; `organizations` identifies currently
-accessible organization scopes; `openRequestCount` is a status indicator, not
-authority.
+accessible organization scopes; `locations` identifies assigned restaurant
+location scopes; `openRequestCount` is a status indicator, not authority.
 
 Projection handling distinguishes initial loading, refresh, temporary failure,
 unauthenticated state, account-wide restriction, and explicit feature rollback.
@@ -100,6 +101,43 @@ operations.
 Pending applications do not create workspaces. A workspace selector is shown
 only when the projection contains an active organization scope. Changing the
 selected workspace changes context only and is revalidated by the server.
+
+### Adaptive navbar coverage matrix
+
+`client/src/utils/personaNavigation.js` is the reconciled display catalog. The
+catalog is descriptive: variants may emphasize shortcuts, but only effective
+projection capability plus validated scope and activation state can expose a
+protected destination. It is checked against the legacy role map in `SPEC.md`,
+the policy registry, and the route/domain inventory; it is not a replacement
+for those sources of authority.
+
+| Family and variants | Supported scope | Effective access | Personal Home / primary | Protected shortcuts | Setup/status links | Surfaces | Inventory / delivery |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Customer (`customer`, restaurant customer) | Personal | Active account / customer | Personal Home | Find Help, Order Food, My activity | Applications when applicable | All four | Existing / Verified |
+| Helper/provider (`helper`, `helper_pro`, `broker`) | Personal | `helper.offer_services` + operation prerequisites | Personal Home | Opportunities, My Bids | Applications / helper setup | All four | Existing / Implemented |
+| Business owner | Business | `business.own` + ownership scope | Personal Home | Named Business Workspace | Business launch status | All four | Existing / Implemented |
+| Business team (manager, representative, employee, support agent) | Business membership | Active membership and permission | Personal Home | Named business tools only | Membership/application status | All four | Existing / Needs verification per permission |
+| Restaurant owner | Business/restaurant | `restaurant.own` + restaurant activation | Personal Home | Restaurant workspace | Business launch status | All four | Existing / Implemented |
+| Restaurant team (manager, staff, runner) | Assigned restaurant location | Location membership plus explicit tool permission | Personal Home | Only shortcuts returned for that location | Application/status | All four | Existing / Implemented; location acceptance required |
+| Logistics/delivery | Personal, assignment, territory | `logistics.ship` + assignment/operation guard | Personal Home | Buyer, organizer, delivery tools | Application/status | All four | Existing / Needs verification |
+| Consultant | Personal | `consultant.accept_paying_clients` + payout/setup policy | Personal Home | Referrals/consultant work | Application/status | All four | Existing / Needs verification |
+| Equipment owner | Personal | `tool_owner.list_equipment` | Personal Home | Equipment listing/tools | Application/status | All four | Existing / Needs verification |
+| Franchise operator/applicant | Territory | `franchise.operate` + territory assignment | Personal Home | Territory operations only | Application/status | All four | Existing / Needs verification |
+| Investor reporting | Reporting audience | `investor.reporting` + live audience/datasets | Personal Home | Reporting only | Application/status | All four | Existing / Needs verification |
+| Credit participant | Credit account | Domain-owned Credit eligibility | Personal Home | Credit tools only after verified domain access | Credit enrollment/status | All four | Existing / Needs verification |
+| Partner/affiliate | Personal/partner | Domain-owned attribution/partner grant | Personal Home | Partner/affiliate tools | Application/status | All four | Existing / Needs verification |
+| Workforce/learning | Personal/program | Domain-owned workforce or learning grant | Personal Home | Learning/workforce tools | Enrollment/status | All four | Existing / Needs verification |
+| Reviewer | Staff | Provisioned reviewer capability | Personal Home | Review queue in staff shell | None | All four | Existing / Needs verification |
+| Support agent | Staff | Provisioned support capability | Personal Home | Support workspace in staff shell | None | All four | Existing / Needs verification |
+| Operations staff (`admin`, `super_admin`) | Staff | Provisioned operation permission | Personal Home | Operations/admin shell | None | All four | Existing / Needs verification |
+| Device/service account | Nonhuman credential scope | Credential and endpoint-specific authority | No human navbar | No human shortcuts | Domain client only | Not applicable | Existing / Planned or blocked per connector |
+
+Pending applicants receive application status links only. Approved users whose
+activation is incomplete receive setup links rather than protected workspaces.
+Revocation removes only the affected links and invalid workspace; overlapping
+helper, customer, and other-location access remains. A staff shell always has a
+route back to Personal Home. Investor reporting never implies participation,
+and live investment commitments remain disabled.
 
 ## Compatibility register
 
@@ -129,6 +167,8 @@ account-wide restrictions.
 | Reviewer race | One valid decision; immutable history; durable outbox intent | DB concurrency and review suites |
 | Investor reporting | Reporting only; no investment participation | Investment route and projection suites |
 | Localization/accessibility | Five locales, RTL, keyboard, focus, responsive behavior | i18n and browser acceptance |
+| Adaptive catalog coverage | All 18 families, variants, surfaces, overlap, revocation, nonhuman fail-closed | `client/scripts/adaptiveNavbar.test.mjs`; source/catalog reconciliation |
+| Removed-location old link | Server rejects an action after location membership removal, even from a stale URL | Restaurant location scope DB/route regression suite |
 
 ## Cross-cutting requirements
 

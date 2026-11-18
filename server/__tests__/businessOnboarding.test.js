@@ -1,4 +1,8 @@
 'use strict';
+
+// This fixture focuses on onboarding state policy. Production business
+// capability enforcement defaults on; opt this minimal legacy fixture out.
+process.env.ACCESS_BUSINESS_ENFORCEMENT = 'off';
 const { mockQuery, resetMocks } = require('./setup');
 const { collect } = require('../services/attention/adapters/setupVerification');
 const controller = require('../controllers/businessController');

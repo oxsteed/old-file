@@ -62,9 +62,9 @@ test('an enforced grant satisfies Learn authoring without changing users.role', 
 });
 
 test('legacy helper and consultant accounts remain compatible while enforcement is off', async () => {
-  // B1: helper now defaults to enforce, so "off" must be set explicitly
-  // (consultant still defaults to off).
+  // Default-on enforcement requires explicit off for compatibility rollback.
   process.env.ACCESS_HELPER_ENFORCEMENT = 'off';
+  process.env.ACCESS_CONSULTANT_ENFORCEMENT = 'off';
   const helper = await request(appFor({ id: 'u-helper', role: 'helper' })).post('/learn/submit');
   const consultant = await request(appFor({ id: 'u-consultant', role: 'consultant' })).post('/learn/submit');
 
