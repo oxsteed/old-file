@@ -37,8 +37,9 @@ async function fixture() {
         const code=mode==='locked'?'otp_locked':mode==='expired'?'registration_expired':mode==='otpExpired'?'otp_expired':'otp_invalid';
         if(mode!=='success')throw {response:{status:mode==='locked'?429:mode==='expired'?404:400,data:{code,error:'Synthetic verification failure',...(mode==='locked'?{lockoutUntil:new Date(Date.now()+3600000).toISOString(),retryAfterMs:3600000}:{})}}};
         const start=window.calls.find(c=>c.url.endsWith('/start'))?.payload;
-        const capability={offer_services:'helper.offer_services',run_business:'business.own'}[start?.signupIntent];
-        const access=capability?{nextStep:{type:'application',capability,requestId:window.missingApplication?null:'application-1'}}:undefined;
+        const capability={offer_services:'helper.offer_services',run_business:'business.own',run_restaurant:'restaurant.own',ship_goods:'logistics.ship',consult:'consultant.accept_paying_clients',list_equipment:'tool_owner.list_equipment',request_reporting:'investor.reporting'}[start?.signupIntent];
+        const admission={join_business_team:'organization_invitation',join_restaurant_team:'organization_invitation',franchise:'domain_enrollment',join_credit:'domain_enrollment',join_partner:'domain_enrollment',join_workforce:'domain_enrollment',request_reviewer:'staff_provisioning',request_support:'staff_provisioning',request_operations:'staff_provisioning',request_device:'nonhuman_provisioning'}[start?.signupIntent];
+        const access=start?.signupIntent&&start.signupIntent!=='find_help'?{nextStep:capability?{type:'application',intent:start.signupIntent,capability,requestId:window.missingApplication?null:'application-1'}:{type:'none',intent:start.signupIntent,kind:admission,statusPath:'/settings/applications'}}:undefined;
         return {data:{user:{id:'synthetic',email_verified:true,role:'customer',default_mode:'customer'},access}};
       }
       return {data:{}};
@@ -173,6 +174,23 @@ test('customer-first signup presents goals and gathers approval details in the s
   }
 });
 
+test('non-application personas receive a safe admission handoff after verification', async () => {
+  const app = await fixture();
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await open(page, `${app.url}/join?customerFirst`);
+    await page.getByText('Join a business team', { exact: true }).click();
+    await fill(page); await submit(page);
+    await page.evaluate(() => { window.failure = 'success'; });
+    await page.locator('[autocomplete="one-time-code"]').fill('123456');
+    await page.getByRole('heading', { name: 'Your account is ready for this path' }).waitFor();
+    assert.match(await page.locator('.signup-intent-confirmation').innerText(), /invitation|membership/i);
+    assert.equal(await page.getByRole('link', { name: 'View next step' }).getAttribute('href'), '/settings/applications');
+    await page.close();
+  } finally { await browser.close(); await app.close(); }
+});
+
 test('standalone and native modal layouts, light/dark, RTL, zoom and focus',async()=>{
   const app=await fixture();const browser=await chromium.launch({channel: 'chrome',headless:true});
   try{
@@ -184,7 +202,7 @@ test('standalone and native modal layouts, light/dark, RTL, zoom and focus',asyn
       assert.equal(await page.locator('#ageConfirmed').isChecked(),false);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`overflow ${embedded}/${width}/${dark}`);
       assert.equal(await page.locator('label[for="password"]').count(),1);
-      assert.equal(await page.locator('input[type="radio"]').count(),3);
+      assert.equal(await page.locator('input[type="radio"]').count(),18);
       const font=await page.locator('#email').evaluate(el=>getComputedStyle(el).fontSize);assert.equal(font,'16px');
       if(width===390||width===1366)await page.screenshot({path:path.join(screenshots,`${embedded?'modal':'standalone'}-${width}-${dark?'dark':'light'}.png`),fullPage:true,animations:'disabled'});
       if(embedded){await page.locator('#firstName').focus();await page.keyboard.press('Escape');await page.locator('[role="dialog"]').waitFor({state:'hidden'});assert.equal(await page.locator('#trigger').evaluate(el=>el===document.activeElement),true);}

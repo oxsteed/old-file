@@ -12,11 +12,9 @@
 //     *intent* card, not a mode grant. The signup payload sends only
 //     `signupIntent`, and the server decides what the account may do.
 //     `/register/<mode>` and `/join?mode=<mode>` both resolve through
-//     joinTargetForLegacyMode / joinModeForLegacyMode below. Modes with no
-//     join card (restaurant_owner, investor, logistics, consultant,
-//     tool_owner, franchise_applicant, life_only, granted modes) land on the
-//     customer-first join flow; their intent is expressed later through the
-//     application flow (Settings → Applications), not at signup.
+//     joinTargetForLegacyMode / joinModeForLegacyMode below. Self-selectable
+//     persona intents preselect their descriptive card; granted staff,
+//     membership, and nonhuman modes still land on the customer-first flow.
 //  2. Former dashboard deep links. These are recorded with the mechanism
 //     that already resolves them; this module does not re-implement those
 //     redirects. /helper-dashboard itself is NOT stale: it stays as the work
@@ -47,7 +45,11 @@ export const LEGACY_MODE_TO_INTENT = Object.freeze({
 
 // Modes the join flow actually offers as cards. Mirrors
 // LAUNCH_SELF_SELECTABLE_MODES in ./launchScope.js (JoinPage's MODES).
-export const JOIN_MODE_CARDS = Object.freeze(['customer', 'helper', 'business_owner']);
+export const JOIN_MODE_CARDS = Object.freeze([
+  'customer', 'helper', 'business_owner', 'restaurant_owner', 'logistics', 'delivery', 'driver',
+  'consultant', 'tool_owner', 'equipment_owner', 'franchise_applicant', 'investor',
+  'credit_participant', 'credit_member', 'partner', 'affiliate', 'workforce', 'learner', 'instructor',
+]);
 
 /** Intent a legacy mode value expresses; unknown values collapse to find_help. */
 export function intentForLegacyMode(mode) {

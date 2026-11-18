@@ -265,6 +265,22 @@ const SIGNUP_INTENTS = Object.freeze({
   offer_services: 'helper.offer_services',
   run_business: 'business.own',
   run_restaurant: 'restaurant.own',
+  // These are descriptive admissions, not grants. Organization, staff,
+  // domain-owned, and nonhuman flows are completed by their owning system.
+  join_business_team: null,
+  join_restaurant_team: null,
+  ship_goods: 'logistics.ship',
+  consult: 'consultant.accept_paying_clients',
+  list_equipment: 'tool_owner.list_equipment',
+  franchise: null,
+  request_reporting: 'investor.reporting',
+  join_credit: null,
+  join_partner: null,
+  join_workforce: null,
+  request_reviewer: null,
+  request_support: null,
+  request_operations: null,
+  request_device: null,
 });
 
 /** Legacy defaultMode / accountType values accepted from old clients → intent. */
@@ -275,6 +291,21 @@ const LEGACY_MODE_TO_INTENT = Object.freeze({
   helper: 'offer_services',
   business_owner: 'run_business',
   restaurant_owner: 'run_restaurant',
+  consultant: 'consult',
+  tool_owner: 'list_equipment',
+  equipment_owner: 'list_equipment',
+  logistics: 'ship_goods',
+  delivery: 'ship_goods',
+  driver: 'ship_goods',
+  franchise_applicant: 'franchise',
+  investor: 'request_reporting',
+  credit_participant: 'join_credit',
+  credit_member: 'join_credit',
+  partner: 'join_partner',
+  affiliate: 'join_partner',
+  workforce: 'join_workforce',
+  learner: 'join_workforce',
+  instructor: 'join_workforce',
 });
 
 function getCapability(key) {

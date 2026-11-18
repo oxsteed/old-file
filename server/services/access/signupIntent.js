@@ -15,6 +15,35 @@ const logger = require('../../utils/logger');
 const registry = require('./policyRegistry');
 const access = require('./accessService');
 
+// Admission describes who owns the next step. It is deliberately separate
+// from capability and never grants access. The client uses this only to show
+// an accurate post-verification handoff for personas that do not use the
+// generic platform application form.
+const SIGNUP_ADMISSIONS = Object.freeze({
+  find_help: Object.freeze({ kind: 'baseline', statusPath: '/dashboard' }),
+  offer_services: Object.freeze({ kind: 'platform_review', statusPath: '/settings/applications' }),
+  run_business: Object.freeze({ kind: 'platform_review', statusPath: '/settings/applications' }),
+  run_restaurant: Object.freeze({ kind: 'platform_review', statusPath: '/settings/applications' }),
+  join_business_team: Object.freeze({ kind: 'organization_invitation', statusPath: '/settings/applications' }),
+  join_restaurant_team: Object.freeze({ kind: 'organization_invitation', statusPath: '/settings/applications' }),
+  ship_goods: Object.freeze({ kind: 'platform_review', statusPath: '/settings/applications' }),
+  consult: Object.freeze({ kind: 'platform_review', statusPath: '/settings/applications' }),
+  list_equipment: Object.freeze({ kind: 'platform_review', statusPath: '/settings/applications' }),
+  franchise: Object.freeze({ kind: 'domain_enrollment', statusPath: '/settings/applications' }),
+  request_reporting: Object.freeze({ kind: 'platform_review', statusPath: '/settings/applications' }),
+  join_credit: Object.freeze({ kind: 'domain_enrollment', statusPath: '/settings/applications' }),
+  join_partner: Object.freeze({ kind: 'domain_enrollment', statusPath: '/settings/applications' }),
+  join_workforce: Object.freeze({ kind: 'domain_enrollment', statusPath: '/learn' }),
+  request_reviewer: Object.freeze({ kind: 'staff_provisioning', statusPath: '/support' }),
+  request_support: Object.freeze({ kind: 'staff_provisioning', statusPath: '/support' }),
+  request_operations: Object.freeze({ kind: 'staff_provisioning', statusPath: '/support' }),
+  request_device: Object.freeze({ kind: 'nonhuman_provisioning', statusPath: '/support' }),
+});
+
+function admissionForIntent(intent) {
+  return SIGNUP_ADMISSIONS[intent] || SIGNUP_ADMISSIONS.find_help;
+}
+
 /** Pending-registration fields for a start request (flag on). */
 function startFields(body = {}) {
   const raw = body.signupIntent ?? body.signup_intent ?? body.intent ?? body.defaultMode ?? body.default_mode;
@@ -61,8 +90,8 @@ async function finalize(userId, pending) {
   return {
     signupIntent: intent,
     nextStep: capability
-      ? { type: 'application', capability, requestId, resumable: true, returnTo }
-      : { type: 'none', returnTo },
+      ? { type: 'application', intent, capability, requestId, resumable: true, returnTo, ...admissionForIntent(intent) }
+      : { type: 'none', intent, returnTo, ...admissionForIntent(intent) },
   };
 }
 
@@ -73,8 +102,15 @@ async function pendingIntent(userId) {
       WHERE user_id = $1 AND consumed_at IS NULL`,
     [userId],
   );
-  if (!rows.length || !rows[0].capability) return null;
-  return { intent: rows[0].intent, capability: rows[0].capability, requestId: rows[0].request_id ? String(rows[0].request_id) : null, returnTo: rows[0].return_to };
+  if (!rows.length) return null;
+  const row = rows[0];
+  return {
+    intent: row.intent,
+    capability: row.capability,
+    requestId: row.request_id ? String(row.request_id) : null,
+    returnTo: row.return_to,
+    ...admissionForIntent(row.intent),
+  };
 }
 
-module.exports = { startFields, finalize, pendingIntent };
+module.exports = { SIGNUP_ADMISSIONS, admissionForIntent, startFields, finalize, pendingIntent };
