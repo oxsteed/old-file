@@ -1869,6 +1869,15 @@ green at commit `4b3bf0329` in [run 44211840162](https://github.com/oxsteed/old-
 Live reporting, non-production operational acceptance, merge, deployment, and
 production activation remain separately authorized steps.
 
+WP-127 closes a remaining helper authority gap. Onboarding-step, listing,
+tax-identity, and legacy helper-onboarding gates now use the shared
+projection-backed `isHelperActor` decision rather than reading a persisted role
+directly. The mobile helper-gallery write now requires
+`requireHelperCapability`, with the controller applying the same defense in
+depth. Focused onboarding, tax-identity, gallery-lifecycle, and helper-
+enforcement suites pass 100/100 locally. Exact-head CI for `9e519f2d2` and
+non-production operational acceptance remain open.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
