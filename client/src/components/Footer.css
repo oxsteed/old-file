@@ -78,7 +78,7 @@
 
 .site-footer__link-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-content: start;
   gap: 1.25rem clamp(1rem, 2vw, 2rem);
   padding-top: 0.35rem;
@@ -168,6 +168,7 @@
 
 @media (max-width: 900px) {
   .site-footer__top { grid-template-columns: 1fr; gap: 1.5rem; }
+  .site-footer__link-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
