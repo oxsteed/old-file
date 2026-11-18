@@ -1840,6 +1840,16 @@ stale-response, rollback, unauthenticated, and cross-account checks.
 `accessProjection.browser-check.cjs` and `test:navbar-navigation` (25) pass
 locally. Exact-head CI and non-production operational acceptance remain open.
 
+WP-124 records the Credit-participant and account-safety audit. Focused server
+tests pass 38/38 across Credit participant activation, guest limits, partner
+boundaries and ledger behavior, and deleted-account invariants. These checks
+cover maker-checker and verification gates, session-bound guest caps,
+append-only partner accounting, and deleted-user isolation. Cashier-specific,
+live Credit, and exact-head acceptance remain open. **Exact next action
+(resume here):** wait for the current CI run to finish, diagnose the media
+harness result, and rerun only infrastructure-failed jobs before the final
+verification matrix.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
