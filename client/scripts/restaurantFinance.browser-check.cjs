@@ -39,30 +39,22 @@ test('restaurant finances: unavailable versus empty, permissions, safeguards, an
   await page.getByLabel(/Payout amount/).fill('24');assert.equal(await page.getByRole('button',{name:'Request payout',exact:true}).isEnabled(),false);
   await page.getByLabel(/Payout amount/).fill('101');assert.equal(await page.getByRole('button',{name:'Request payout',exact:true}).isEnabled(),false);
   await page.getByLabel(/Payout amount/).fill('30');
-  // Accept the confirm synchronously in the listener, the same way
-  // the other dialog fixtures in this folder do. An async listener
-  // that awaits dialog.accept() returns a Promise before Chrome has
-  // applied the accept; under CI load Playwright then auto-dismisses
-  // the still-open confirm, and the later accept() throws "No dialog
-  // is showing" as an unhandledRejection during click() — before this
-  // promise is awaited (CI run 42819992357, line 47).
-  const dialogHandled = new Promise((resolve, reject) => {
-   page.once('dialog', dialog => {
-    try {
-     assert.equal(dialog.type(),'confirm');
-     assert.ok(dialog.message().includes('$30.00'),'confirmation shows the requested payout amount');
-    } catch (err) {
-     dialog.dismiss().catch(()=>{});
-     reject(err);
-     return;
-    }
-    dialog.accept().then(resolve, reject);
-   });
+  // Native dialogs are timing-sensitive in the shared CI Chrome runner: a
+  // dialog event can be auto-dismissed before Playwright's protocol accept
+  // reaches the page, producing "No dialog is showing" even though the
+  // submit handler ran. Replace confirm for this fixture so the test still
+  // verifies the user-facing amount and the synchronous confirmation branch
+  // without depending on browser-dialog scheduling.
+  await page.evaluate(() => {
+   window.__restaurantFinanceConfirmMessage = null;
+   window.confirm = message => {
+    window.__restaurantFinanceConfirmMessage = String(message);
+    return true;
+   };
   });
-  await Promise.all([
-   dialogHandled,
-   page.getByRole('button',{name:'Request payout',exact:true}).click(),
-  ]);
+  await page.getByRole('button',{name:'Request payout',exact:true}).click();
+  const confirmMessage = await page.evaluate(() => window.__restaurantFinanceConfirmMessage);
+  assert.ok(confirmMessage?.includes('$30.00'),'confirmation shows the requested payout amount');
   await page.waitForFunction(()=>window.calls.some(call=>call.name==='requestWalletPayout'));
   const calls=await page.evaluate(()=>window.calls);assert.equal(calls.find(c=>c.name==='requestWalletPayout').args[1].amountCents,3000);assert.ok(calls.find(c=>c.name==='requestWalletPayout').args[2]);
   await configure({}, {canManagePayouts:false,canManageCredit:true});assert.equal(await page.getByRole('heading',{name:'Bank payouts',exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Connect payouts',exact:true}).count(),0);
