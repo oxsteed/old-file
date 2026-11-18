@@ -185,6 +185,15 @@ describe('helper capability gate', () => {
     expect(result.res.statusCode).toBe(200);
   });
 
+  test('helper onboarding steps reject a legacy helper role after grant revocation', async () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+    const req = { user: user('helper') };
+    const result = await run(requireHelperStep('profile'), req);
+    expect(result.nextCalled).toBe(false);
+    expect(result.res.statusCode).toBe(403);
+    expect(result.res.body.code).toBe('helper_required');
+  });
+
   test('tax identity keeps the capability marker as the helper authority', async () => {
     process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
     const approved = { user: { ...user('customer'), w9_completed: true, didit_status: 'verified', didit_verified_at: new Date().toISOString() }, accessCapabilities: { 'helper.offer_services': true } };
@@ -234,20 +243,47 @@ describe('helper capability gate', () => {
     expect(products).toMatch(/router\.delete\('\/:id', authenticate, requireHelperCapability/);
   });
 
+  test('mobile helper gallery uses the same capability boundary', () => {
+    const mobile = fs.readFileSync(path.join(__dirname, '../routes/mobile.js'), 'utf8');
+    const controller = fs.readFileSync(path.join(__dirname, '../controllers/mobileController.js'), 'utf8');
+    expect(mobile).toMatch(/router\.post\('\/helper\/gallery', authenticate, requireHelperCapability/);
+    expect(controller).toMatch(/uploadHelperGallery[\s\S]*isHelperActor\(req\)/);
+  });
+
   test('booking provider mutations use the same helper capability boundary', () => {
     const bookings = fs.readFileSync(path.join(__dirname, '../routes/bookings.js'), 'utf8');
     const controller = fs.readFileSync(path.join(__dirname, '../controllers/bookingController.js'), 'utf8');
     const chat = fs.readFileSync(path.join(__dirname, '../routes/chat.js'), 'utf8');
     const chatController = fs.readFileSync(path.join(__dirname, '../controllers/chatBookingRequestsController.js'), 'utf8');
-    expect(bookings).toMatch(/router\.post\('\/:bookingId\/accept', requireAuth, requireBookingProviderCapability/);
+    expect(bookings).toMatch(/router\.post\('\/:bookingId\/accept', requireAuth, requireBookingProviderCapability, requireBookingProviderActivation/);
     expect(bookings).toMatch(/router\.post\('\/:bookingId\/decline', requireAuth, requireBookingProviderCapability/);
     expect(bookings).toMatch(/router\.post\('\/:bookingId\/helper-cancel', requireAuth, requireBookingProviderCapability/);
-    expect(bookings).toMatch(/router\.post\('\/:bookingId\/counter-propose', requireAuth, requireBookingProviderCapability/);
+    expect(bookings).toMatch(/router\.post\('\/:bookingId\/counter-propose', requireAuth, requireBookingProviderCapability, requireBookingProviderActivation/);
     expect(controller).toMatch(/publicHelperStandingPredicate\('u'\)/);
     expect(controller).toMatch(/helper_capability_granted/);
     expect(chat).toMatch(/booking-requests.*requireChatHelperProviderCapability/);
     expect(chatController).toMatch(/publicHelperStandingPredicate\('users'\)/);
     expect(chatController).toMatch(/req\.accessCapabilities\?\.\['helper\.offer_services'\]/);
+  });
+
+  test('planned-need acceptance requires active helper access while decline remains recovery-safe', () => {
+    const plannedNeeds = fs.readFileSync(path.join(__dirname, '../routes/plannedNeeds.js'), 'utf8');
+    expect(plannedNeeds).toMatch(/router\.get\('\/helper\/offers',\s+authenticate, requireHelperCapability, ctrl\.getHelperOffers\)/);
+    expect(plannedNeeds).toMatch(/router\.post\('\/:id\/helper\/accept',\s+authenticate, requireHelperCapability, requireOnboardingStep\('active'\), ctrl\.helperAccept\)/);
+    expect(plannedNeeds).toMatch(/router\.post\('\/:id\/helper\/decline',\s+authenticate, ctrl\.helperDecline\)/);
+    expect(plannedNeeds).toMatch(/Cache-Control', 'private, no-store'/);
+  });
+
+  test('scan-to-pay code mutations require projected helper or business access', () => {
+    const qrPayments = fs.readFileSync(path.join(__dirname, '../routes/qrPayments.js'), 'utf8');
+    expect(qrPayments).toMatch(/async function requireQrPaymentOwner/);
+    expect(qrPayments).toMatch(/router\.post\('\/codes', authenticate, requireQrPaymentOwner/);
+    expect(qrPayments).toMatch(/function requireQrMutationAccess/);
+    expect(qrPayments).toMatch(/router\.patch\('\/codes\/:id', authenticate, requireQrMutationAccess/);
+    expect(qrPayments).toMatch(/access\.can\(req\.user\.id, 'helper\.offer_services'\)/);
+    expect(qrPayments).toMatch(/access\.can\(req\.user\.id, 'business\.own'/);
+    expect(qrPayments).toMatch(/router\.use\('\/codes', \(req, res, next\) =>/);
+    expect(qrPayments).toMatch(/Cache-Control', 'private, no-store'/);
   });
 
   test('agreements and disputes gate helper-party mutations without gating customers', () => {

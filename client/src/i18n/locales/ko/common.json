@@ -87,7 +87,8 @@
     "workspace": "작업 공간",
     "businessWorkspace": "비즈니스 작업 공간",
     "foodOrders": "음식 주문 내역",
-    "account": "계정"
+    "account": "계정",
+    "help": "도움말"
   },
   "signupUpgrade": {
     "title": "계정 만들기",
@@ -4067,7 +4068,7 @@
     },
     "accessRequired": "먼저 승인된 권한이 필요합니다.",
     "home": {
-      "accessChanged": "해당 대시보드에 대한 접근 권한이 변경되어 개인 홈을 표시하고 있습니다."
+      "workspaceUnavailable": "해당 작업 공간을 더 이상 사용할 수 없어 개인 홈을 표시하고 있습니다."
     },
     "accessUpdated": "접근 권한이 업데이트되었습니다.",
     "orgRoles": {

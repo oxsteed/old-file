@@ -5,10 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { listBusinesses, listManagedBusinesses } from '../api/businesses';
 import { getMyBusinesses, setWorkspaceContext } from '../api/vortex';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
-import { businessWorkspacePath, readLastBusinessHubId, BUSINESS_HUB_LAST_ID_LS_KEY } from '../utils/businessProfileForm';
+import { accountWorkspaceStorageKey, businessWorkspacePath } from '../utils/businessProfileForm';
 import { useNavDisclosure } from '../hooks/useNavDisclosure';
-
-const LS_KEY = BUSINESS_HUB_LAST_ID_LS_KEY;
 
 /**
  * Global business switcher for the navbar.
@@ -20,10 +18,10 @@ const LS_KEY = BUSINESS_HUB_LAST_ID_LS_KEY;
  *
  * Source of truth for the active business (in priority order):
  *   1. useParams().businessId — when we're already on a /business/:id/workspace URL
- *   2. localStorage('oxs:bh:lastBusinessId')
+ *   2. account-scoped localStorage('oxs:bh:lastBusinessId:<accountId>')
  *   3. First business in the list
  */
-export default function BusinessSwitcher({ compact = false }) {
+export default function BusinessSwitcher({ compact = false, authorizedOrganizations = null }) {
   const { t } = useTranslation();
   // WP-047: permission status per organization, translated (never a raw role code).
   const { t: accessT } = useTranslation('common');
@@ -47,10 +45,11 @@ export default function BusinessSwitcher({ compact = false }) {
 
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { open, setOpen, containerRef: menuRef, triggerRef, panelId } = useNavDisclosure(user?.default_mode);
+  const { open, setOpen, containerRef: menuRef, triggerRef, panelId } = useNavDisclosure(user?.id);
 
   // Don't try to fetch until we have a logged-in user.
   const userId = user && user.id ? user.id : null;
+  const storageKey = accountWorkspaceStorageKey(userId);
 
   useEffect(() => {
     if (!userId) {
@@ -78,7 +77,8 @@ export default function BusinessSwitcher({ compact = false }) {
               _is_owner: b.is_owner,
               _last_selected_at: b.last_selected_at,
             }));
-          setBusinesses(normalized);
+          setBusinesses(normalized.filter(b => !Array.isArray(authorizedOrganizations)
+            || authorizedOrganizations.some(o => String(o.id ?? o.business_id) === String(b.id))));
           setLoading(false);
           return;
         }
@@ -98,7 +98,9 @@ export default function BusinessSwitcher({ compact = false }) {
           ...ownedTagged,
           ...managedTagged.filter(b => !seen.has(String(b.id))),
         ];
-        setBusinesses(merged);
+        setBusinesses(Array.isArray(authorizedOrganizations)
+          ? merged.filter(b => authorizedOrganizations.some(o => String(o.id ?? o.business_id) === String(b.id)))
+          : merged);
       } catch {
         if (!cancelled) setBusinesses([]);
       } finally {
@@ -106,10 +108,10 @@ export default function BusinessSwitcher({ compact = false }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, authorizedOrganizations]);
 
   const activeId = routeBusinessId
-    || readLastBusinessHubId()
+    || (storageKey ? localStorage.getItem(storageKey) : null)
     || (businesses[0] && String(businesses[0].id))
     || null;
 
@@ -117,7 +119,7 @@ export default function BusinessSwitcher({ compact = false }) {
 
   const switchTo = useCallback((id) => {
     if (!id) return;
-    localStorage.setItem(LS_KEY, String(id));
+    localStorage.setItem(storageKey, String(id));
     // Best-effort: record the user's current workspace selection server-side
     // so subsequent logins land on the right business.
     setWorkspaceContext(id).catch(() => {});
@@ -125,7 +127,7 @@ export default function BusinessSwitcher({ compact = false }) {
     const path = businessWorkspacePath(id, tab);
     navigate(path);
     setOpen(false);
-  }, [navigate, routeTab, routeBusinessId]);
+  }, [navigate, routeTab, routeBusinessId, storageKey]);
 
   if (!userId || loading || businesses.length === 0) return null;
 

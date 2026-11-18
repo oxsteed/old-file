@@ -87,7 +87,8 @@
     "workspace": "工作台",
     "businessWorkspace": "商家工作台",
     "foodOrders": "餐饮订单",
-    "account": "账户"
+    "account": "账户",
+    "help": "帮助"
   },
   "signupUpgrade": {
     "title": "创建您的账户",
@@ -4067,7 +4068,7 @@
     },
     "accessRequired": "此操作需要先获得批准的权限。",
     "home": {
-      "accessChanged": "你对该控制面板的访问权限已更改，因此现在显示的是你的个人主页。"
+      "workspaceUnavailable": "该工作区已不再可用，因此现在显示的是你的个人主页。"
     },
     "accessUpdated": "你的访问权限已更新。",
     "orgRoles": {

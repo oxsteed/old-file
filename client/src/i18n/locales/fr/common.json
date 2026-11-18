@@ -1689,7 +1689,9 @@
     "workspace": "Espace de travail",
     "businessWorkspace": "Espace professionnel",
     "foodOrders": "Commandes de repas",
-    "account": "Compte"
+    "myApplications": "Mes demandes",
+    "account": "Compte",
+    "help": "Aide"
   },
   "signupUpgrade": {
     "title": "Créez votre compte",
@@ -6702,7 +6704,7 @@
     },
     "accessRequired": "Cela nécessite d'abord un accès approuvé.",
     "home": {
-      "accessChanged": "Votre accès à ce tableau de bord a changé : vous voyez donc votre accueil personnel."
+      "workspaceUnavailable": "Cet espace de travail n’est plus disponible, vous consultez donc votre accueil personnel."
     },
     "accessUpdated": "Votre accès a été mis à jour.",
     "viewStatus": "Voir le statut",

@@ -4,6 +4,7 @@ const requireEmailVerified = require('../middleware/requireEmailVerified');
 const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const bookingController = require('../controllers/bookingController');
 const { requireHelperCapability } = require('../middleware/requireAccess');
+const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
 const pool = require('../db');
 
 const router = express.Router();
@@ -19,11 +20,20 @@ const requireBookingProviderCapability = async (req, res, next) => {
       'SELECT business_id FROM booking_requests WHERE id = $1',
       [req.params.bookingId],
     );
-    if (!rows[0] || rows[0].business_id) return next();
+    req.bookingProviderNeedsActivation = Boolean(rows[0] && !rows[0].business_id);
+    if (!req.bookingProviderNeedsActivation) return next();
     return requireHelperCapability(req, res, next);
   } catch (err) {
     return next(err);
   }
+};
+
+// Business providers use their organization scope; helper-owned bookings must
+// be fully activated before accepting work or counter-proposing a time. Keep
+// decline/cancel available so revoked helpers can safely unwind existing work.
+const requireBookingProviderActivation = (req, res, next) => {
+  if (!req.bookingProviderNeedsActivation) return next();
+  return requireOnboardingStep('active')(req, res, next);
 };
 
 // Review P2-7-F06/F08: booking requests lead to payment; require verified
@@ -42,11 +52,11 @@ router.get('/business/:businessId/available-slots', scopeExempt('public-storefro
 router.get('/helper/:helperId/available-slots', bookingController.getHelperAvailableSlots);
 
 router.get('/:bookingId', requireAuth, bookingController.getBookingRequest);
-router.post('/:bookingId/accept', requireAuth, requireBookingProviderCapability, bookingController.acceptBookingRequest);
+router.post('/:bookingId/accept', requireAuth, requireBookingProviderCapability, requireBookingProviderActivation, bookingController.acceptBookingRequest);
 router.post('/:bookingId/decline', requireAuth, requireBookingProviderCapability, bookingController.declineBookingRequest);
 router.post('/:bookingId/cancel', requireAuth, bookingController.cancelBookingRequest);
 router.post('/:bookingId/helper-cancel', requireAuth, requireBookingProviderCapability, bookingController.helperCancelAcceptedBooking);
-router.post('/:bookingId/counter-propose', requireAuth, requireBookingProviderCapability, bookingController.counterProposeBooking);
+router.post('/:bookingId/counter-propose', requireAuth, requireBookingProviderCapability, requireBookingProviderActivation, bookingController.counterProposeBooking);
 router.post('/:bookingId/counter-propose/respond', requireAuth, bookingController.respondToCounterPropose);
 router.post('/:bookingId/convert-to-job', requireAuth, bookingController.convertBookingToJob);
 

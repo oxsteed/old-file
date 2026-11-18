@@ -8,7 +8,7 @@ import { hasProAccess, hasBusinessHubAccess } from '../src/utils/modeAccess.js';
 // primary links, whatever its role or default_mode; capabilities add account
 // shortcuts and the business switcher comes from projection organizations.
 const CUSTOMER_PRIMARY = [['findHelp', '/helpers'], ['myJobs', '/my-jobs'], ['orderFood', '/restaurants'], ['messages', '/messages'], ['postJob', '/post-job']];
-const CUSTOMER_ACCOUNT = ['dashboard', 'foodOrders', 'settings', 'wallet', 'statements'];
+const CUSTOMER_ACCOUNT = ['dashboard', 'foodOrders', 'applications', 'settings', 'help', 'wallet', 'statements'];
 
 for (const user of [
   { default_mode: 'customer', role: 'customer' },
@@ -30,6 +30,7 @@ for (const user of [
     assert.equal(result.showBusinessSwitcher, false);
     assert.deepEqual(result.account.map(item => item.id), CUSTOMER_ACCOUNT);
     assert.ok(result.account.some(item => item.to === '/settings'));
+  assert.ok(result.account.some(item => item.to === '/support'));
     assert.ok(result.account.some(item => item.to === '/statements'));
   });
 }
@@ -68,6 +69,17 @@ test('dashboard path drives the dashboard account link; support workspace is opt
   assert.equal(navbarNavigation({ default_mode: 'customer' }, { showSupportWorkspace: true }).account.at(-1).to, '/support/agent');
 });
 
+test('open applications are visible in Account without changing primary navigation', () => {
+  const projection = {
+    flags: { accessProjection: true },
+    access: { personal: ['customer'], organizations: [], openRequestCount: 2 },
+  };
+  const result = navbarNavigation({ role: 'customer' }, { projection });
+  assert.deepEqual(result.primary.map(({ id, to }) => [id, to]), CUSTOMER_PRIMARY);
+  assert.equal(result.account.find(item => item.id === 'applications').to, '/settings/applications');
+  assert.equal(result.account.find(item => item.id === 'applications').count, 2);
+});
+
 test('workspace URL wins over saved selection and never invents a business for new owners', () => {
   assert.equal(navbarWorkspacePath('/business/42/workspace/calendar', '9'), '/business/42/workspace');
   assert.equal(navbarWorkspacePath('/business/a%20b/workspace', '9'), '/business/a%20b/workspace');
@@ -93,7 +105,7 @@ test('new labels have matching legacy and namespaced translations in every langu
   for (const language of ['en', 'es', 'fr', 'ht', 'ar']) {
     const legacy = JSON.parse(await readFile(new URL(`../src/locales/${language}.json`, import.meta.url)));
     const common = JSON.parse(await readFile(new URL(`../src/i18n/locales/${language}/common.json`, import.meta.url)));
-    for (const key of ['findHelp', 'myJobs', 'orderFood', 'myWork', 'workspace', 'businessWorkspace', 'foodOrders', 'account']) {
+    for (const key of ['findHelp', 'myJobs', 'orderFood', 'myWork', 'workspace', 'businessWorkspace', 'foodOrders', 'account', 'help']) {
       assert.ok(legacy.nav[key], `${language}: ${key}`);
       assert.equal(legacy.nav[key], common.nav[key]);
     }
@@ -157,6 +169,12 @@ test('projection backs the logistics mode and adds buyer access without replacin
 // WP-047: the organization switcher shows a translated permission status.
 test('business switcher renders translated organization roles in every locale', async () => {
   const src = await readFile(new URL('../src/components/BusinessSwitcher.jsx', import.meta.url), 'utf8');
+  const navbar = await readFile(new URL('../src/components/Navbar.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /BUSINESS_HUB_LAST_ID_LS_KEY|readLastBusinessHubId/);
+  assert.doesNotMatch(navbar, /readLastBusinessHubId/);
+  assert.match(src, /accountWorkspaceStorageKey\(userId\)/);
+  assert.match(src, /localStorage\.getItem\(storageKey\)/);
+  assert.match(src, /localStorage\.setItem\(storageKey/);
   assert.doesNotMatch(src, /\{b\._role \|\| 'owner'\}/);
   assert.match(src, /orgRoleLabel\(b\._role \|\| 'owner'\)/);
   const { readdir } = await import('node:fs/promises');
@@ -167,6 +185,12 @@ test('business switcher renders translated organization roles in every locale', 
     assert.deepEqual(Object.keys(roles).sort(), ['employee', 'manager', 'owner', 'representative', 'support_agent'], l);
     assert.ok(Object.values(roles).every((v) => typeof v === 'string' && v.trim()), l);
   }
+});
+
+test('mobile QR entry uses the same helper projection gate as desktop', async () => {
+  const navbar = await readFile(new URL('../src/components/Navbar.jsx', import.meta.url), 'utf8');
+  assert.match(navbar, /hasHelperAccess && canUseQrGenerator\(user\) && <MobileNavLink to="\/qr-generator"/);
+  assert.match(navbar, /\{hasHelperAccess && \(/);
 });
 
 // OxSteed Invest (Track 3): invest entry points come from the access

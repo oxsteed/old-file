@@ -210,6 +210,8 @@ export default function InvestorDashboardPage() {
   const legacyInvestor = ['investor', 'admin', 'super_admin'].includes(user?.role ?? user?.default_mode);
   const projectedAccess = accessProjection?.access || accessProjection;
   const hasInvestorAccess = legacyInvestor || projectedAccess?.personal?.includes('investor.reporting');
+  const projectionSettled = Boolean(accessProjection?.status)
+    && !['loading', 'refreshing'].includes(accessProjection.status);
   const audienceDatasets = projectedAccess?.investorAudience?.datasets || null;
   const audienceDatasetKey = audienceDatasets ? audienceDatasets.join('|') : null;
   const datasetAllowed = useCallback((dataset) => (
@@ -221,11 +223,11 @@ export default function InvestorDashboardPage() {
   // Customer-class accounts use the approved projection; they do not need a
   // legacy mode switch to reach the same reporting workspace.
   useEffect(() => {
-    if (!user) return;
-    if (!legacyInvestor && accessProjection && !hasInvestorAccess) {
+    if (!user || !projectionSettled) return;
+    if (!legacyInvestor && !hasInvestorAccess) {
       navigate('/dashboard', { replace: true });
     }
-  }, [user, legacyInvestor, accessProjection, hasInvestorAccess, navigate]);
+  }, [user, legacyInvestor, projectionSettled, hasInvestorAccess, navigate]);
 
   const load = useCallback(async (p = period) => {
     setLoading(true);

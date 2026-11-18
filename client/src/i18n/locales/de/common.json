@@ -87,7 +87,8 @@
     "workspace": "Arbeitsbereich",
     "businessWorkspace": "Unternehmens-Arbeitsbereich",
     "foodOrders": "Essensbestellungen",
-    "account": "Konto"
+    "account": "Konto",
+    "help": "Hilfe"
   },
   "signupUpgrade": {
     "title": "Konto erstellen",
@@ -4067,7 +4068,7 @@
     },
     "accessRequired": "Dafür brauchst du zuerst einen genehmigten Zugang.",
     "home": {
-      "accessChanged": "Dein Zugriff auf dieses Dashboard hat sich geändert, daher siehst du deine persönliche Startseite."
+      "workspaceUnavailable": "Dieser Arbeitsbereich ist nicht mehr verfügbar. Du siehst deshalb deine persönliche Startseite."
     },
     "accessUpdated": "Dein Zugriff wurde aktualisiert.",
     "orgRoles": {

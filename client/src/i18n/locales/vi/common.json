@@ -87,7 +87,8 @@
     "workspace": "Không gian làm việc",
     "businessWorkspace": "Không gian làm việc doanh nghiệp",
     "foodOrders": "Đơn đặt món",
-    "account": "Tài khoản"
+    "account": "Tài khoản",
+    "help": "Trợ giúp"
   },
   "signupUpgrade": {
     "title": "Tạo tài khoản của bạn",
@@ -4067,7 +4068,7 @@
     },
     "accessRequired": "Việc này cần quyền truy cập đã được duyệt trước.",
     "home": {
-      "accessChanged": "Quyền truy cập bảng điều khiển đó của bạn đã thay đổi, nên bạn đang xem Trang chủ cá nhân."
+      "workspaceUnavailable": "Không gian làm việc đó không còn khả dụng, nên bạn đang xem Trang chủ cá nhân."
     },
     "accessUpdated": "Quyền truy cập của bạn đã được cập nhật.",
     "orgRoles": {

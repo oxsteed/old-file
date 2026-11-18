@@ -129,6 +129,22 @@ describeDb('R05 isolated durable SQL export pipeline',()=>{
     const manifest=await service.process(await service.claim());
     expect(manifest.rowCount).toBe(5001);expect(manifest.cutoffAt).toBe(frozen.generatedAt);
   },30000);
+  test('access revoked during rendering fails closed before completion',async()=>{
+    await seed(5001);const job=await queue();
+    storage.uploadFile.mockImplementationOnce(async({filePath,objectKey})=>{
+      objects.set(objectKey,fs.readFileSync(filePath));
+      // Simulate the wallet standing disappearing while the worker is still
+      // publishing the export. The final scope checkpoint must prevent a
+      // complete manifest from being committed.
+      await db.query('DELETE FROM food_customer_wallet_accounts WHERE id=1');
+    });
+    await expect(service.process(await service.claim())).rejects.toMatchObject({code:'statement_export_not_found'});
+    expect((await db.query('SELECT state,error_code FROM statement_export_jobs WHERE id=$1',[job.id])).rows[0])
+      .toMatchObject({state:'failed',error_code:'statement_export_not_found'});
+    await expect(service.status(job.id,user)).rejects.toMatchObject({code:'statement_export_not_found'});
+    await db.query(`INSERT INTO food_customer_wallet_accounts (id,customer_id,restaurant_id,currency_code,created_at)
+      VALUES (1,$1,1,'USD','2020-01-01') ON CONFLICT (id) DO NOTHING`,[user]);
+  },30000);
   test('cancel retains frozen/verified evidence and retry can finish remaining volumes',async()=>{
     await seed(5001);const job=await queue({format:'pdf'});
     storage.uploadFile.mockImplementationOnce(async({filePath,objectKey})=>{

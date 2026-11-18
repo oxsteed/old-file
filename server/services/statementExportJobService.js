@@ -180,8 +180,15 @@ function createService({db=require('../db'),storage=require('../utils/statementS
       await client.query('COMMIT');return claimed;
     } catch(error) {await client.query('ROLLBACK');throw error;} finally {client.release();}
   }
-  async function checkpoint(job,signal,{rowsRendered,freezing=false}={}) {
+  async function checkpoint(job,signal,{rowsRendered,freezing=false,verifyScope=false}={}) {
     if (signal?.aborted||stopping) fail('statement_export_cancelled',499);
+    // Long-running exports must not keep rendering after the caller loses the
+    // underlying account, membership, or scope.  The heartbeat and final
+    // checkpoint opt into this relatively expensive check; chunk checkpoints
+    // remain lease-only so million-row exports stay bounded.
+    if (verifyScope) {
+      await authorizeScope(db,job.requested_by,job.product,job.scope_id,job.currency_code,job.account_id);
+    }
     const {rows:[current]}=await db.query(
       `UPDATE statement_export_jobs SET lease_until=now()+($4::int*interval '1 second'),
        rows_rendered=COALESCE($5,rows_rendered),updated_at=now()
@@ -266,7 +273,7 @@ function createService({db=require('../db'),storage=require('../utils/statementS
     const deadline=setTimeout(()=>controller.abort(),BUDGET.attemptMs);
     const heartbeat=setInterval(async()=>{
       if (heartbeatBusy) return;heartbeatBusy=true;
-      try {await checkpoint(job,signal,{freezing:!job.frozen_header});}
+      try {await checkpoint(job,signal,{freezing:!job.frozen_header,verifyScope:true});}
       catch(error) {heartbeatError=error;controller.abort();}
       finally {heartbeatBusy=false;}
     },10000);
@@ -282,7 +289,7 @@ function createService({db=require('../db'),storage=require('../utils/statementS
       await checkpoint(job,signal,{freezing:true});
       const header=await snapshots.freezeExportSource(db,job,{materialize,timeoutMs:BUDGET.freezeMs});
       job.frozen_header=header;
-      await checkpoint(job,signal);
+      await checkpoint(job,signal,{verifyScope:true});
       directory=await fs.promises.mkdtemp(path.join(tempRoot,'statement-export-'));
       const evidence=exportsRenderer.createEvidenceAccumulator(header);
       const files=[];let bytesUsed=0,rendered=0,opening=String(header.openingBalanceCents);
@@ -338,7 +345,7 @@ function createService({db=require('../db'),storage=require('../utils/statementS
         openingMinor:String(header.openingBalanceCents),closingMinor:result.closingMinor,creditsMinor:result.creditsMinor,
         debitsMinor:result.debitsMinor,sourceHash:result.sourceHash,byteLength:bytesUsed,
         fileCount:files.length,format:job.format,language:job.language,holdsUnavailable:true,files:files.map(shapeFile)};
-      await checkpoint(job,signal);
+      await checkpoint(job,signal,{verifyScope:true});
       const {rows:[completed]}=await db.query(
         `UPDATE statement_export_jobs SET state='complete',manifest=$4,source_hash=$5,rows_rendered=row_count,
          lease_owner=NULL,lease_until=NULL,error_code=NULL,completed_at=now(),updated_at=now()

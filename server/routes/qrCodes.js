@@ -7,6 +7,7 @@ const { authenticate } = require('../middleware/auth');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const checkRestrictions = require('../middleware/checkRestrictions');
 const { hasProAccess } = require('../utils/trial');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 const {
   createQRCode,
   getQRCodes,
@@ -43,25 +44,25 @@ router.use(generalLimiter);
 // One-time watermark removal purchase for a QR export. These routes must be
 // registered before /:id so "export-checkout" is not treated as a QR id.
 // Review P2-7-F07: creating a Stripe checkout session is a checkout surface.
-router.post('/export-checkout', checkRestrictions('checkout'), createQrExportCheckout);
+router.post('/export-checkout', checkRestrictions('checkout'), requireHelperCapability, createQrExportCheckout);
 router.post('/export-checkout/verify', verifyQrExportCheckout);
 
 // Create new QR code
-router.post('/', createQRCode);
+router.post('/', requireHelperCapability, createQRCode);
 
 // Get all QR codes for user
-router.get('/', getQRCodes);
+router.get('/', requireHelperCapability, getQRCodes);
 
 // Get single QR code
-router.get('/:id', getQRCode);
+router.get('/:id', requireHelperCapability, getQRCode);
 
 // Update QR code
-router.put('/:id', updateQRCode);
+router.put('/:id', requireHelperCapability, updateQRCode);
 
 // Delete QR code
-router.delete('/:id', deleteQRCode);
+router.delete('/:id', requireHelperCapability, deleteQRCode);
 
 // Download QR code (with analytics tracking)
-router.post('/:id/download', downloadQRCode);
+router.post('/:id/download', requireHelperCapability, downloadQRCode);
 
 module.exports = router;

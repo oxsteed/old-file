@@ -30,6 +30,9 @@ jest.mock('../middleware/auth', () => ({
     next();
   },
 }));
+jest.mock('../services/access/accessService', () => ({
+  can: jest.fn().mockResolvedValue({ allowed: true }),
+}));
 
 const qrCodesController = require('../controllers/qrCodesController');
 

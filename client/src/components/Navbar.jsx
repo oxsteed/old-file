@@ -10,9 +10,8 @@ import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
 import BusinessSwitcher from './BusinessSwitcher';
 import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
-import { navbarNavigation, navbarLinkActive, navbarWorkspacePath } from '../utils/navbarNavigation';
+import { navbarNavigation, navbarLinkActive } from '../utils/navbarNavigation';
 import useAccessProjection from '../hooks/useAccessProjection';
-import { readLastBusinessHubId } from '../utils/businessProfileForm';
 import { useNavDisclosure } from '../hooks/useNavDisclosure';
 import { useSupportWorkspaceAccess } from '../hooks/useSupportWorkspaceAccess';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
@@ -40,9 +39,9 @@ export default function Navbar() {
   // WP-104: navigation is projection-only; every account lands in the
   // customer workspace and the dashboard is always /dashboard.
   const dashboardPath = '/dashboard';
-  const workspacePath = navbarWorkspacePath(location.pathname, readLastBusinessHubId());
-  const navigation = navbarNavigation(user, { dashboardPath, workspacePath, showSupportWorkspace: showSupportWorkspaceNav, projection: accessProjection });
+  const navigation = navbarNavigation(user, { dashboardPath, showSupportWorkspace: showSupportWorkspaceNav, projection: accessProjection });
   const currentMode = navigation.mode;
+  const authorizedOrganizations = accessProjection?.access?.organizations || [];
   const { open: mobileOpen, setOpen: setMobileOpen, containerRef: mobileRef, triggerRef: mobileTriggerRef, panelId: mobilePanelId } = useNavDisclosure(currentMode);
   const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
   const resourcesMenuRef = useRef(null);
@@ -235,7 +234,7 @@ export default function Navbar() {
                 </PrefetchLink>
               </>
             )}
-            {showBusinessHub && <BusinessSwitcher />}
+            {showBusinessHub && <BusinessSwitcher authorizedOrganizations={authorizedOrganizations} />}
             <LanguageSelector />
             <ThemeToggle />
             {/* UI gaps item 11: visible palette trigger (was hotkey-only).
@@ -307,7 +306,7 @@ export default function Navbar() {
           <div id={mobilePanelId} className="ox-nav-mobile-menu">
             {(user || showBusinessHub) && (
               <div className="ox-nav-mobile-preferences">
-                {showBusinessHub && <BusinessSwitcher compact />}
+                {showBusinessHub && <BusinessSwitcher compact authorizedOrganizations={authorizedOrganizations} />}
               </div>
             )}
             {user ? (
@@ -322,7 +321,7 @@ export default function Navbar() {
                   <span className="ox-nav-section-label">{t('nav.account')}</span>
                   {navigation.account.map(item => (
                     <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname, currentMode)}>
-                      {t(item.labelKey)}
+                      {t(item.labelKey)}{item.count > 0 && <UnreadBadge count={item.count} />}
                     </MobileNavLink>
                   ))}
                   <button type="button" className="ox-nav-signout" onClick={() => { logout(); setMobileOpen(false); }} data-track="ui.0b9e115b87.3">{t('nav.signOut')}</button>
@@ -336,7 +335,7 @@ export default function Navbar() {
                     <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howOxsteedWorks')}</MobileNavLink>
                     <MobileNavLink to="/tool-rentals" onClick={() => setMobileOpen(false)}>{t('toolRentals.browsePage')}</MobileNavLink>
                     <MobileNavLink to="/learn" onClick={() => setMobileOpen(false)}>{t('nav.learnToDiy')}</MobileNavLink>
-                    {canUseQrGenerator(user) && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
+                    {hasHelperAccess && canUseQrGenerator(user) && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
                   </div>
                 )}
                 {SHOW_NETWORK_BRANCH_SWITCHER && (
@@ -474,7 +473,7 @@ function AccountDisclosure({ items, mode, logout }) {
       {open && (
         <div id={panelId} className="ox-nav-account-panel">
           {items.map(item => (
-            <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname, mode)}>{t(item.labelKey)}</NavLink>
+            <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname, mode)}>{t(item.labelKey)}{item.count > 0 && <UnreadBadge count={item.count} />}</NavLink>
           ))}
           <button type="button" className="ox-nav-signout" onClick={logout} data-track="ui.0b9e115b87.5">{t('nav.signOut')}</button>
         </div>

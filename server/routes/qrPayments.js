@@ -164,6 +164,70 @@ function connectRequired(res) {
   });
 }
 
+// Creating or reactivating a scan-to-pay code is a professional receiving
+// capability, not an account-type preference. Re-read effective access and
+// canonical business ownership for every mutation; never infer authority from
+// a role, mode, Connect account, or a client-provided business id.
+async function requireQrPaymentOwner(req, res, next) {
+  if (!req.user) return next();
+  if (['admin', 'super_admin'].includes(req.user.role)) return next();
+  try {
+    const access = require('../services/access/accessService');
+    const helper = await access.can(req.user.id, 'helper.offer_services');
+    if (helper.allowed) {
+      req.accessCapabilities = { ...(req.accessCapabilities || {}), 'helper.offer_services': true };
+      return next();
+    }
+
+    // Business grants may be bound to a specific business, so evaluate them
+    // against each canonical business owned by the caller. A draft, member
+    // role, or arbitrary id is not enough to create a payment destination.
+    const { rows: businesses } = await pool.query(
+      `SELECT id FROM businesses
+         WHERE user_id = $1 AND deleted_at IS NULL AND COALESCE(is_active, TRUE) = TRUE`,
+      [req.user.id],
+    );
+    for (const business of businesses) {
+      const decision = await access.can(req.user.id, 'business.own', {
+        type: 'business', id: String(business.id),
+      });
+      if (decision.allowed) {
+        req.accessCapabilities = { ...(req.accessCapabilities || {}), 'business.own': true };
+        return next();
+      }
+    }
+
+    return res.status(403).json({
+      error: 'This needs approved helper or business access. Apply from Settings → Applications.',
+      code: 'access_required',
+      capability: ['helper.offer_services', 'business.own'],
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+function requireQrMutationAccess(req, res, next) {
+  // Deactivation is a safe recovery action and must remain available after a
+  // grant or business standing ends. Reactivation and all other edits still
+  // require current professional access.
+  const keys = req.body && typeof req.body === 'object' ? Object.keys(req.body) : [];
+  if (req.method === 'PATCH' && req.body?.is_active === false && keys.every((key) => key === 'is_active')) {
+    return next();
+  }
+  return requireQrPaymentOwner(req, res, next);
+}
+
+// QR code records contain private receiving links. Never let an authenticated
+// account's code list or mutation response survive an account transition in a
+// browser, service worker, or shared intermediary cache.
+router.use('/codes', (req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  res.set('Pragma', 'no-cache');
+  res.set('X-Content-Type-Options', 'nosniff');
+  next();
+});
+
 async function getActiveCode(code) {
   const { rows } = await pool.query(
     `SELECT c.id, c.owner_user_id, c.code, c.label, c.amount_cents, c.currency,
@@ -191,7 +255,7 @@ function codeNotFound(res) {
 }
 
 // ── Create a payment code ────────────────────────────────────────
-router.post('/codes', authenticate, paymentsLimiter, async (req, res, next) => {
+router.post('/codes', authenticate, requireQrPaymentOwner, paymentsLimiter, async (req, res, next) => {
   try {
     if (!hasAbsolutePublicUrl()) return publicUrlMissing(res);
     const label = typeof req.body?.label === 'string' ? req.body.label.trim() : '';
@@ -280,7 +344,7 @@ router.get('/codes', authenticate, async (req, res, next) => {
 });
 
 // ── Update a code (owner only) ────────────────────────────────────
-router.patch('/codes/:id', authenticate, paymentsLimiter, async (req, res, next) => {
+router.patch('/codes/:id', authenticate, requireQrMutationAccess, paymentsLimiter, async (req, res, next) => {
   try {
     const { rows: existing } = await pool.query(
       'SELECT id FROM qr_payment_codes WHERE id = $1 AND owner_user_id = $2',

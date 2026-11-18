@@ -1,6 +1,19 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
+const { requireHelperCapability } = require('../middleware/requireAccess');
+const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
 const ctrl = require('../controllers/plannedNeedsController');
+
+// Planned needs contain private financial planning and invitation data. Keep
+// authenticated responses out of browser, service-worker, and intermediary
+// caches so an account or scope transition cannot briefly reveal the prior
+// user's data. Server authorization remains authoritative for every route.
+router.use((req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  res.set('Pragma', 'no-cache');
+  res.set('X-Content-Type-Options', 'nosniff');
+  next();
+});
 
 // Projection must be declared before /:id routes to avoid param capture
 router.get('/suggestions',       authenticate, ctrl.getSuggestions);
@@ -11,7 +24,7 @@ router.get('/projection',        authenticate, ctrl.getProjection);
 router.get('/templates',     authenticate, ctrl.getTemplates);
 
 // Helper offers (Task 3)
-router.get('/helper/offers',  authenticate, ctrl.getHelperOffers);
+router.get('/helper/offers',  authenticate, requireHelperCapability, ctrl.getHelperOffers);
 
 // Preferred-by count (Task 12)
 router.get('/helper/preferred-count',       authenticate, ctrl.getPreferredByCount);
@@ -26,7 +39,10 @@ router.post('/:id/complete', authenticate, ctrl.completePlannedNeed);
 router.delete('/:id',        authenticate, ctrl.deletePlannedNeed);
 
 // Task 2: Helper accept/decline
-router.post('/:id/helper/accept',  authenticate, ctrl.helperAccept);
+// Accepting a preferred planned need is a new-work commitment. Keep the
+// customer-owned decline path available for safe recovery after revocation,
+// but require current helper access and active onboarding before acceptance.
+router.post('/:id/helper/accept',  authenticate, requireHelperCapability, requireOnboardingStep('active'), ctrl.helperAccept);
 router.post('/:id/helper/decline', authenticate, ctrl.helperDecline);
 
 // Task 5: Customer broadcast now

@@ -14,10 +14,12 @@ jest.mock('../middleware/auth', () => ({authenticate(req, res, next) {
   req.user = {id: 'qr-test-owner', role: 'customer', membership_tier: req.get('x-test-tier') || 'pro'};
   next();
 }}));
+jest.mock('../services/access/accessService', () => ({ can: jest.fn().mockResolvedValue({ allowed: true, reason: 'grant' }) }));
 jest.mock('../middleware/rateLimiter', () => ({generalLimiter: (_req, _res, next) => next()}));
 jest.mock('../utils/logger', () => ({error: jest.fn(), warn: jest.fn()}));
 
 const routes = require('../routes/qrCodes');
+const access = require('../services/access/accessService');
 const app = express();
 app.use(express.json());
 app.use('/api/qr-codes', routes);
@@ -25,7 +27,11 @@ app.use('/qr-codes', express.static(QR_UPLOAD_DIR, {fallthrough: false}));
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a0ZkAAAAASUVORK5CYII=', 'base64');
 const payload = {title:'Test QR', url:'https://example.com', dotColor:'#000000', backgroundColor:'#ffffff', dotStyle:'square', size:300, imageFormat:'png', imageData:`data:image/png;base64,${png.toString('base64')}`};
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  access.can.mockReset();
+  access.can.mockResolvedValue({ allowed: true, reason: 'grant' });
+});
 afterAll(() => {
   delete process.env.LOCAL_UPLOAD_DIR;
   fs.rmSync(uploadRoot, {recursive: true, force: true});
@@ -71,6 +77,14 @@ test('image write failure returns an error instead of reporting a successful sav
 
 test('free customers remain blocked by the Pro entitlement gate', async () => {
   await request(app).post('/api/qr-codes').set('x-test-tier', 'free').send(payload).expect(403);
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('a Pro account without projected helper access cannot bypass the API gate', async () => {
+  access.can.mockResolvedValueOnce({ allowed: false, reason: 'not_granted' });
+  const response = await request(app).post('/api/qr-codes').send(payload);
+  expect(response.status).toBe(403);
+  expect(response.body).toMatchObject({ code: 'access_required', capability: 'helper.offer_services' });
   expect(mockQuery).not.toHaveBeenCalled();
 });
 

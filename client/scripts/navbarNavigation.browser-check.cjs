@@ -146,6 +146,13 @@ test('projection navbar renders responsive priorities, accessible disclosures an
     assert.equal(await page.evaluate(() => document.activeElement.getAttribute('href')), '/dashboard');
     await page.keyboard.press('Escape'); await waitExpanded(account, 'false'); assert.equal(await account.getAttribute('aria-expanded'), 'false');
     assert.equal(await account.evaluate(node => node === document.activeElement), true);
+    await page.evaluate(projection => window.configure({ scenario: 'customer', projection, language: 'en', theme: 'dark' }), {
+      flags: { accessProjection: true },
+      access: { personal: ['customer'], organizations: [], openRequestCount: 2 },
+    });
+    await account.click(); await page.locator('.ox-nav-account-panel').waitFor();
+    assert.equal(await page.locator('.ox-nav-account-panel .ox-nav-unread').textContent(), '2');
+    await page.keyboard.press('Escape'); await waitExpanded(account, 'false');
     await account.click(); await page.locator('#outside').click(); await waitExpanded(account, 'false'); assert.equal(await account.getAttribute('aria-expanded'), 'false');
     await account.click(); await page.locator('.ox-nav-account-panel a[href="/settings"]').click();
     await waitExpanded(account, 'false');
@@ -179,6 +186,13 @@ test('projection navbar renders responsive priorities, accessible disclosures an
     await page.evaluate(options => window.configure(options), { scenario: 'business', projection: projections.business, language: 'en', theme: 'dark', userId: 4, businesses: [businesses[0]] });
     const single = page.locator('.ox-nav-desktop .ox-biz-switcher--single'); await single.waitFor();
     assert.equal(await single.getAttribute('aria-label'), longName);
+    await page.evaluate(options => window.configure(options), {
+      scenario: 'business',
+      projection: { flags: { accessProjection: true }, access: { personal: ['business.own'], organizations: [{ id: 1, role: 'owner', name: longName }] } },
+      language: 'en', theme: 'dark', userId: 5, businesses,
+    });
+    const projectedSingle = page.locator('.ox-nav-desktop .ox-biz-switcher--single'); await projectedSingle.waitFor();
+    assert.equal(await projectedSingle.getAttribute('aria-label'), longName, 'workspace list is filtered by the access projection');
     await page.setViewportSize({ width: 390, height: 850 });
     const mobileToggle = page.locator('.ox-nav-mobile-controls > button[aria-expanded]');
     await mobileToggle.click();

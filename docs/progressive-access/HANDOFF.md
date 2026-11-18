@@ -19,13 +19,59 @@ growth registry passed. Nine affected Chrome scenarios passed, including the
 navbar matrix and mobile sign-out. The [preceding CI run](https://github.com/oxsteed/old-file/actions/runs/44070155981)
 passed the server suite and reported five browser failures addressed here.
 
-Before rollout, validate the backfill on a disposable snapshot. Current
-`legacyMapping.js` still infers equipment and logistics access from mode strings.
-Check those cases against listings, approvals and organization records, and queue
-ambiguous cases before applying backfill. Trace the shared mode writer used by
-profile, mobile and `/switch-role` before removing any compatibility signal.
+Before rollout, validate the backfill on a disposable snapshot. The follow-up
+mapping now treats equipment and logistics modes as intent only: grants require
+an explicit legacy platform approval or canonical equipment listings, while
+mode-only users receive draft applications. Check those cases against listings,
+approvals and organization records, and queue ambiguous cases before applying
+backfill. Trace the shared mode writer used by profile, mobile and `/switch-role`
+before removing any compatibility signal.
 Production backfill, helper/business enforcement and live browser acceptance
 require separate verification.
+
+## Follow-up navigation checkpoint
+
+PR #797 is merged. The follow-up branch starts from the current default-branch
+integration base and must preserve unrelated local worktrees. Package 0 is
+recorded in [EXECUTION.md](EXECUTION.md): it documents the architecture map,
+admission matrix, projection response, compatibility owners, and acceptance
+states.
+
+The first follow-up implementation adds the projection-backed Applications
+entry and open-request badge to the Account menu, filters `BusinessSwitcher` to
+organization IDs present in the current access projection, and keys its
+disclosure state by account ID rather than legacy mode. It does not add a new
+capability or transactional operation. Local navbar unit/browser checks,
+Home/projection browser checks, locale validation, and `client/build:ci` pass on
+the follow-up branch. Exact-head CI and non-production operational acceptance
+remain open.
+
+The follow-up also adds the existing authenticated Help route to the shared
+Account navigation and supplies matching `nav.help` labels in all 20 legacy and
+namespaced locale catalogs. The five required product locales (English,
+Spanish, French, Haitian Creole, and Arabic) are covered by the parity contract;
+the remaining catalogs are kept in sync so fallback navigation cannot expose a
+missing key. `test:navbar-navigation` (25), `verify:i18n`, and `git diff --check`
+pass locally. Non-production operational acceptance remains open; the exact-head
+CI result is recorded below.
+
+The pushed follow-up head `7eeb7bc581095d7dccf126416d8c2adc9ddcd9f8` has now
+passed the complete required workflow in [CI run 44199339554](https://github.com/oxsteed/old-file/actions/runs/44199339554): client build, browser/smoke, server regression/integration, database rehearsals, media harness, statement capacity, and the final verification gate. The evidence applies to that exact commit; non-production operational acceptance and production rollout remain separate.
+
+Preferred planned-need acceptance now follows the same operation-specific
+activation rule as booking acceptance: the route rechecks the projected helper
+capability and active onboarding before committing to new work. The
+authenticated, preferred-helper decline route remains available for safe
+recovery after access revocation. `progressiveAccessHelperEnforcement.test.js`
+and `routeShadowing.test.js` pass locally (246 tests). Exact-head CI and
+non-production operational acceptance remain open.
+
+The QR generator now has matching server enforcement: Pro entitlement alone is
+not sufficient for QR CRUD, downloads, or watermark-export checkout. Those
+entry points recheck the projected `helper.offer_services` capability, so a
+direct API call cannot bypass the responsive navbar gate. `qrCodes.test.js`
+passes locally (12 tests), including the denied direct-API case. Exact-head CI
+and non-production operational acceptance remain open.
 
 ## Resume checklist
 
@@ -213,6 +259,96 @@ Kept in sync with the PR description. See PROGRESS.md for the full list.
     whole restaurant's settlement statement.
 
 ## Next step
+
+### WP-106: legacy backfill authority boundary
+
+The follow-up branch removes the remaining mode-only grant paths from
+`services/access/legacyMapping.js`. A historic `tool_owner` or `logistics`
+preference now preserves intent as a draft, never authority. Explicit legacy
+platform approvals can preserve those capabilities, and existing equipment
+listings remain canonical evidence for the listing capability. Focused pure
+mapping assertions pass; disposable database backfill and exact-head CI remain
+open.
+
+**Exact next action:** review dry-run 7's two `helper` accounts carrying the
+historic `restaurant_staff` mode without an active membership and two `helper`
+accounts carrying `restaurant_owner` without an owned business. The former
+remain exceptions, not staff grants; the latter remain private
+`restaurant.own` drafts. Continue with the next bounded access package after
+that review. Do not apply a production backfill or enable new enforcement
+without separate authorization.
+Do not apply a production backfill or enable new enforcement without separate
+authorization.
+
+The same follow-up also scopes the Business Hub's last-selected workspace
+preference by account ID. The legacy global browser key is no longer read or
+written for authenticated accounts, so switching accounts cannot seed a stale
+organization context. Client `build:ci` passed after this change; cross-account
+browser acceptance and exact-head CI remain open.
+
+### WP-108: contextual workspace recovery
+
+The Home fallback now announces that the unavailable workspace is no longer
+available and that Personal Home is being shown. It no longer presents the
+legacy global dashboard-change message. The supported English, Spanish, French,
+Haitian Creole, and Arabic catalogs use the same `workspaceUnavailable` key.
+The focused catalog/parsing checks pass. Client `build:ci` passes with 1,220
+emitted assets. Focused server access suites pass 71 unit tests, and the
+disposable PostgreSQL access/workspace/signup suites pass 58 tests. Backfill
+dry-run 7 scanned 223 users and reported 17 helper grants, 2 consultant grants,
+2 restaurant drafts, and 2 staff-without-membership exceptions.
+The Home browser mode matrix, 120-combination navbar browser matrix, and access
+projection cross-account/stale-response browser check also pass locally.
+
+### WP-109: account-scoped navbar workspace selection
+
+The navbar `BusinessSwitcher` now uses the authenticated account's workspace
+storage key for both the saved selection and quick-switch writes. It no longer
+reads or writes the legacy global `oxs:bh:lastBusinessId` key, and Navbar no
+longer performs that dead global read. This closes the remaining client-side
+workspace preference leak between accounts. Navbar unit/browser checks and the
+full client build pass locally.
+
+**Exact next action:** run the Home and full client verification suites, then
+perform the disposable backfill dry-run and cross-account browser acceptance.
+
+### WP-110: Account Help entry point
+
+The shared authenticated Account menu now includes the existing `/support`
+route as a localized Help entry. This keeps customer support discoverable in
+the Account model required by the progressive-access navigation contract while
+leaving specialist support-agent access separately projection- and server-
+authorized. `test:navbar-navigation` passes all 24 tests and `git diff --check`
+passes. Exact-head CI and non-production operational acceptance remain open.
+
+### WP-111: responsive QR access parity
+
+The mobile navbar now applies the same `hasHelperAccess` projection gate and
+Pro entitlement check already used by the desktop Resources menu before
+showing QR Generator. This prevents a Pro customer without an effective helper
+capability from seeing a specialist entry point only on mobile. The navbar
+contract suite passes all 25 tests and `git diff --check` passes. Exact-head CI
+and non-production operational acceptance remain open.
+
+### WP-112: standard payout activation gate
+
+The standard helper payout-request route (`POST /api/payouts`) now requires the
+existing `active` helper onboarding step before the tax-identity gate and
+request creation. Balance reads remain available separately, and the route
+continues to require the effective helper capability plus fresh W-9/identity
+checks. `mainAppPayouts.test.js` and `progressiveAccessHelperEnforcement.test.js`
+pass together (49 tests). Exact-head CI and non-production operational
+acceptance remain open.
+
+### WP-113: direct booking activation boundary
+
+Helper-owned direct booking accept and counter-propose mutations now require
+the effective `helper.offer_services` capability plus the existing active
+onboarding state. Business-owned bookings continue through organization scope
+without the helper onboarding gate. Decline and helper-cancel remain available
+so revocation does not strand existing work. The booking lifecycle, provider
+authorization, and progressive helper enforcement suites pass together (65
+tests). Exact-head CI and non-production operational acceptance remain open.
 
 ### Customer-first signup experience follow-up
 
@@ -1626,6 +1762,121 @@ planned needs. Audit personal wallet/statement visibility, planned-need
 ownership and transitions, customer-versus-helper actions, recommendation
 links, exports, and behavior after access revocation or account deletion; then
 add the smallest missing capability-aware contract and focused tests.
+
+WP-045 is implemented on the branch. The personal wallet, earnings, tax,
+statement, and export surfaces remain self-scoped and server-authorized; no
+cross-account financial read was found in the audited routes. The concrete
+planned-needs gap was the helper-offer read: any authenticated account could
+read pending offers addressed to itself without an effective helper grant.
+`GET /api/planned-needs/helper/offers` now rechecks `helper.offer_services`
+through the shared capability middleware. The preferred-helper decline route
+remains ungated for safe recovery after revocation, while acceptance retains
+the active-onboarding requirement. All planned-needs responses now carry
+private no-store headers so account and scope transitions cannot reuse cached
+planning or invitation data. Focused server tests pass 246/246 across the
+helper-enforcement and route-shadowing suites. No populated browser, live
+financial-provider, or production acceptance is claimed.
+**Exact next action (resume here):** continue the remaining Package 4 audit
+with consultant, equipment-owner, logistics, franchise, investor-reporting,
+Credit-participant, partner, and workforce/learning surfaces; only change a
+route when its authoritative admission, scope, activation, and tests reveal a
+concrete gap.
+
+WP-118 is implemented on the branch. Scan-to-pay QR code creation and
+reactivation previously relied on Stripe Connect alone, which allowed a
+customer with a connected account to create a professional payment destination.
+Those mutations now re-read effective `helper.offer_services` access or a
+canonical owned-business scope through the shared access service. Listing
+existing codes remains self-scoped, and deactivation remains available for
+safe recovery after access ends. `qrPayments.test.js`,
+`ws3-qr-security.test.js`, and `progressiveAccessHelperEnforcement.test.js`
+pass locally (86 tests), including denial before the Connect lookup and post-revocation deactivation. No populated payment-provider or production
+acceptance is claimed.
+WP-119 is implemented on the branch. Statement export jobs already rechecked
+standing when requested, polled, manifested, or downloaded, but a long-running
+worker could continue after access was revoked. The worker now reauthorizes on
+its heartbeat and before committing a complete manifest. The isolated
+`statementExportJobs.db.test.js` passes 16/16, including revocation during
+rendering, and `statementExportPipeline.test.js` passes 28/28. No populated
+financial-provider or production acceptance is claimed.
+
+WP-120 is implemented on the branch. The client access hook now exposes
+explicit `loading`, `refreshing`, `ready`, `temporary_failure`,
+`unauthenticated`, `restricted`, and `rollback` states. Every non-ready state
+uses a safe customer baseline and cannot restore specialist access from roles,
+modes, intent, local storage, or a stale response. Authentication epochs still
+discard late responses, and the browser projection check now exercises all
+seven states plus cross-account isolation. `accessProjection.browser-check.cjs`,
+`test:navbar-navigation` (25), `verify:i18n`, and `client npm run build:ci`
+(1,220 emitted assets) pass locally. No exact-head CI or non-production
+operational acceptance is claimed yet.
+**Exact next action (resume here):** commit and push WP-120, then inspect the
+new exact-head CI run while continuing the remaining Package 4 audit and
+acceptance evidence.
+
+WP-121 records the next Package 4 audit slice. Investor reporting/policy and
+logistics-role tests pass 25/25; consultant and franchise disposable-DB suites
+pass 5/5; and the equipment-owner/rental lifecycle suites pass 15/15. These
+checks found no new server authorization gap in the audited slices, but they do
+not replace browser, provider, live, or exact-head acceptance. **Exact next
+action (resume here):** continue the remaining Package 4 audit (media, Credit,
+partners, and workforce/learning), then reconcile the acceptance matrix before
+the full verification run.
+
+WP-122 records the media, partner, and workforce audit. The progressive media
+contract, workforce delegation/lifecycle tests, and affiliate grant/dashboard/
+gate suites pass 37/37. Selected-author verification is rechecked at media
+publication and edit time; media drafts/assets remain owner-bound; and workforce
+delegations enforce scope, expiry, revoke, self-grant denial, and lifecycle
+audit. No browser, storage-provider, live, or exact-head acceptance is claimed.
+**Exact next action (resume here):** audit the remaining Credit-participant and
+learning/workforce product surfaces, then run the complete verification matrix
+against the latest pushed head.
+
+WP-123 adds the missing restricted-state browser assertion. The projection
+fixture now covers all seven lifecycle states, including a server
+`ACCOUNT_SUSPENDED` response resolving to `restricted`, while retaining the
+stale-response, rollback, unauthenticated, and cross-account checks.
+`accessProjection.browser-check.cjs` and `test:navbar-navigation` (25) pass
+locally. Exact-head CI and non-production operational acceptance remain open.
+
+WP-124 records the Credit-participant and account-safety audit. Focused server
+tests pass 38/38 across Credit participant activation, guest limits, partner
+boundaries and ledger behavior, and deleted-account invariants. These checks
+cover maker-checker and verification gates, session-bound guest caps,
+append-only partner accounting, and deleted-user isolation. Cashier-specific,
+live Credit, and exact-head acceptance remain open. **Exact next action
+(resume here):** wait for the current CI run to finish, diagnose the media
+harness result, and rerun only infrastructure-failed jobs before the final
+verification matrix.
+
+WP-125 fixes a real Package 4 browser regression exposed by the new explicit
+projection states. `InvestorDashboardPage` previously treated the safe loading
+snapshot as a settled denial and redirected approved customer-class investors
+before their access read completed. The route now defers fallback until loading
+and refresh states settle; revoked access still redirects before stale KPI or
+chart data can render. `investorDashboard.revocation.browser-check.cjs` passes
+locally.
+
+WP-126 stabilizes the existing restaurant payout browser fixture. The shared CI
+Chrome runner occasionally auto-dismissed the native confirm before the
+Playwright protocol accept, producing a false failure at
+`restaurantFinance.browser-check.cjs`. The fixture now captures `window.confirm`
+synchronously, asserts the localized amount, and continues through the same
+request path. Focused local verification passes, and exact-head GitHub CI is
+green at commit `4b3bf0329` in [run 44211840162](https://github.com/oxsteed/old-file/actions/runs/44211840162).
+
+Live reporting, non-production operational acceptance, merge, deployment, and
+production activation remain separately authorized steps.
+
+WP-127 closes a remaining helper authority gap. Onboarding-step, listing,
+tax-identity, and legacy helper-onboarding gates now use the shared
+projection-backed `isHelperActor` decision rather than reading a persisted role
+directly. The mobile helper-gallery write now requires
+`requireHelperCapability`, with the controller applying the same defense in
+depth. Focused onboarding, tax-identity, gallery-lifecycle, and helper-
+enforcement suites pass 100/100 locally. Exact-head CI for `9e519f2d2` and
+non-production operational acceptance remain open.
 
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,

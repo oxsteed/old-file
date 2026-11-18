@@ -791,7 +791,8 @@
     "workspace": "Eneo la Kazi",
     "businessWorkspace": "Eneo la Kazi la Biashara",
     "foodOrders": "Oda za Chakula",
-    "account": "Akaunti"
+    "account": "Akaunti",
+    "help": "Msaada"
   },
   "jobDetail": {
     "acceptingBids": "Inapokea Zabuni",
@@ -4065,7 +4066,7 @@
     },
     "accessRequired": "Hili linahitaji ufikiaji ulioidhinishwa kwanza.",
     "home": {
-      "accessChanged": "Ufikiaji wako wa dashibodi hiyo umebadilika, kwa hiyo unaona Ukurasa wako wa Nyumbani binafsi."
+      "workspaceUnavailable": "Nafasi hiyo ya kazi haipatikani tena, kwa hiyo unaona Ukurasa wako wa Nyumbani binafsi."
     },
     "accessUpdated": "Ufikiaji wako umesasishwa.",
     "orgRoles": {

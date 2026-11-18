@@ -153,6 +153,26 @@ describe('D7 — existing valid access, records and ownership survive', () => {
     expect(r.grants.map((g) => g.capability)).not.toContain('restaurant.own');
     expect(r.drafts).toEqual([{ capability: 'restaurant.own', reason: 'legacy_owner_mode_without_business' }]);
   });
+  test('historic tool and logistics modes preserve intent but never grant access', () => {
+    const tool = mapLegacyUser({ user: { role: 'helper', default_mode: 'tool_owner' } });
+    expect(tool.grants.map((g) => g.capability)).not.toContain('tool_owner.list_equipment');
+    expect(tool.drafts).toContainEqual({ capability: 'tool_owner.list_equipment', reason: 'legacy_mode_unapproved' });
+
+    const logistics = mapLegacyUser({ user: { role: 'customer', default_mode: 'logistics' } });
+    expect(logistics.grants.map((g) => g.capability)).not.toContain('logistics.ship');
+    expect(logistics.drafts).toContainEqual({ capability: 'logistics.ship', reason: 'legacy_mode_unapproved' });
+  });
+  test('explicit legacy platform approvals can preserve tool and logistics access', () => {
+    const r = mapLegacyUser({
+      user: { role: 'customer', default_mode: 'logistics' },
+      modeApprovals: [
+        { mode: 'tool_owner', status: 'approved' },
+        { mode: 'logistics', status: 'approved' },
+      ],
+    });
+    expect(r.grants.map((g) => g.capability)).toEqual(['tool_owner.list_equipment', 'logistics.ship']);
+    expect(r.drafts).toEqual([]);
+  });
   test('staff modes without membership and investor modes without audience become exceptions', () => {
     expect(mapLegacyUser({ user: { role: 'helper', default_mode: 'restaurant_staff' } }).exceptions).toEqual([{ reason: 'staff_mode_without_membership' }]);
     expect(mapLegacyUser({ user: { role: 'customer', default_mode: 'investor' } }).exceptions).toEqual([{ reason: 'investor_mode_without_audience' }]);

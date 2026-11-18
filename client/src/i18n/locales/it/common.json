@@ -87,7 +87,8 @@
     "workspace": "Area di lavoro",
     "businessWorkspace": "Area di lavoro aziendale",
     "foodOrders": "Ordini di cibo",
-    "account": "Account"
+    "account": "Account",
+    "help": "Aiuto"
   },
   "signupUpgrade": {
     "title": "Crei il suo account",
@@ -4067,7 +4068,7 @@
     },
     "accessRequired": "Prima serve un accesso approvato.",
     "home": {
-      "accessChanged": "Il tuo accesso a quella dashboard è cambiato, quindi vedi la tua home personale."
+      "workspaceUnavailable": "Quello spazio di lavoro non è più disponibile, quindi stai visualizzando la tua home personale."
     },
     "accessUpdated": "Il tuo accesso è stato aggiornato.",
     "orgRoles": {
