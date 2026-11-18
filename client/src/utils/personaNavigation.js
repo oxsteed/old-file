@@ -59,7 +59,8 @@ function organizationLinks(projection) {
   const organizations = projection?.access?.organizations || [];
   const links = [];
   for (const scope of organizations) {
-    if (!scope || scope.id == null) continue;
+    const scopeId = scope && (scope.id ?? scope.business_id);
+    if (!scope || scopeId == null) continue;
     const type = scope.type || scope.scopeType;
     const isRestaurantLocation = type === 'restaurant_location' || type === 'restaurant-location';
     // Restaurant tools are opt-in per assigned location. Never infer them from
@@ -67,10 +68,10 @@ function organizationLinks(projection) {
     if (isRestaurantLocation) {
       for (const tool of scope.shortcuts || scope.navigation || []) {
         if (!tool || !tool.to || tool.protected === false) continue;
-        links.push(link(`restaurant-${scope.id}-${tool.id || tool.to}`, tool.to, tool.labelKey || 'nav.businessWorkspace', { scopeId: String(scope.id), protected: true }));
+        links.push(link(`restaurant-${scopeId}-${tool.id || tool.to}`, tool.to, tool.labelKey || 'nav.businessWorkspace', { scopeId: String(scopeId), protected: true }));
       }
     }
-    links.push(link(`workspace-${scope.id}`, `/business/${encodeURIComponent(scope.id)}/workspace`, scope.name || 'nav.businessWorkspace', { scopeId: String(scope.id), workspace: true, protected: true }));
+    links.push(link(`workspace-${scopeId}`, `/business/${encodeURIComponent(scopeId)}/workspace`, scope.name || scope.business_name || 'nav.businessWorkspace', { scopeId: String(scopeId), workspace: true, protected: true }));
   }
   return links;
 }
