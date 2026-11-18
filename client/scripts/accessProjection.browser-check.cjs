@@ -19,9 +19,11 @@ test('access refreshes on resume and changes without replaying stale or cross-ac
         const projection = useAccessProjection(accountId ? { id: accountId } : null);
         const name = projection?.flags.accessProjection === false ? 'rollback' : projection?.access?.organizations[0]?.name || 'empty';
         window.rendered.push([accountId, name]);
+        window.projectionStates.push([accountId, projection?.status]);
         return <output id={id}>{name}</output>;
       }
       window.rendered = [];
+      window.projectionStates = [];
       const root = createRoot(document.getElementById('root'));
       window.signInAs = accountId => {
         advanceAuthEpoch();
@@ -60,12 +62,15 @@ test('access refreshes on resume and changes without replaying stale or cross-ac
     };
 
     await page.goto('http://projection.test/');
+    await page.waitForFunction(() => window.projectionStates.some(([, status]) => status === 'loading'));
     await answer(await waitForRequest(0), 'first', 'First business');
     await expectName('First business');
+    await page.waitForFunction(() => window.projectionStates.some(([, status]) => status === 'ready'));
     assert.equal(outgoing.length, 1);
 
     await page.evaluate(() => window.refreshAccess());
     const firstRefresh = await waitForRequest(1);
+    await page.waitForFunction(() => window.projectionStates.some(([, status]) => status === 'refreshing'));
     await page.evaluate(() => window.signInAs('second'));
     await expectName('empty');
     const secondRequest = await waitForRequest(2);
@@ -102,10 +107,14 @@ test('access refreshes on resume and changes without replaying stale or cross-ac
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await (await waitForRequest(8)).fulfill({ status: 503, json: { code: 'internal_error' } });
     await expectName('empty');
+    await page.waitForFunction(() => window.projectionStates.some(([, status]) => status === 'temporary_failure'));
 
     await page.evaluate(() => window.refreshAccess());
     await (await waitForRequest(9)).fulfill({ status: 503, json: { code: 'feature_disabled' } });
     await expectName('rollback');
+    await page.waitForFunction(() => window.projectionStates.some(([, status]) => status === 'rollback'));
+    await page.evaluate(() => window.signInAs(null));
+    await page.waitForFunction(() => window.projectionStates.some(([, status]) => status === 'unauthenticated'));
     assert.equal(outgoing.length, 10, 'Home and navigation share the refresh listeners');
   } finally {
     await browser.close();

@@ -1799,9 +1799,20 @@ its heartbeat and before committing a complete manifest. The isolated
 `statementExportJobs.db.test.js` passes 16/16, including revocation during
 rendering, and `statementExportPipeline.test.js` passes 28/28. No populated
 financial-provider or production acceptance is claimed.
-**Exact next action (resume here):** finish the remaining Package 4 route audit
-and acceptance evidence, then run the complete verification matrix against the
-latest pushed head.
+
+WP-120 is implemented on the branch. The client access hook now exposes
+explicit `loading`, `refreshing`, `ready`, `temporary_failure`,
+`unauthenticated`, `restricted`, and `rollback` states. Every non-ready state
+uses a safe customer baseline and cannot restore specialist access from roles,
+modes, intent, local storage, or a stale response. Authentication epochs still
+discard late responses, and the browser projection check now exercises all
+seven states plus cross-account isolation. `accessProjection.browser-check.cjs`,
+`test:navbar-navigation` (25), `verify:i18n`, and `client npm run build:ci`
+(1,220 emitted assets) pass locally. No exact-head CI or non-production
+operational acceptance is claimed yet.
+**Exact next action (resume here):** commit and push WP-120, then inspect the
+new exact-head CI run while continuing the remaining Package 4 audit and
+acceptance evidence.
 
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,

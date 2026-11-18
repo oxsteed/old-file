@@ -5,8 +5,38 @@ import { accessAPI } from '../api/access';
 import { currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
 
 export const ACCESS_CHANGED_EVENT = 'oxsteed:access-changed';
+export const ACCESS_PROJECTION_STATES = Object.freeze({
+  loading: 'loading',
+  refreshing: 'refreshing',
+  ready: 'ready',
+  temporaryFailure: 'temporary_failure',
+  unauthenticated: 'unauthenticated',
+  restricted: 'restricted',
+  rollback: 'rollback',
+});
 const TTL_MS = 60_000;
 let active = null;
+
+function safeSnapshot(status, flags = {}) {
+  return { access: null, flags, status };
+}
+
+function failureSnapshot(error) {
+  const response = error?.response;
+  const code = response?.data?.code || error?.code;
+  if (response?.status === 503 && code === 'feature_disabled') {
+    return safeSnapshot(ACCESS_PROJECTION_STATES.rollback, { accessProjection: false });
+  }
+  if (response?.status === 401 || code === 'AUTH_SESSION_CHANGED') {
+    return safeSnapshot(ACCESS_PROJECTION_STATES.unauthenticated);
+  }
+  if (response?.status === 403 && [
+    'ACCOUNT_SUSPENDED', 'account_suspended', 'account_restricted', 'account_disabled',
+  ].includes(code)) {
+    return safeSnapshot(ACCESS_PROJECTION_STATES.restricted);
+  }
+  return safeSnapshot(ACCESS_PROJECTION_STATES.temporaryFailure);
+}
 
 function matches(record, userId, epoch) {
   return Boolean(userId && record?.userId === userId && record.epoch === epoch);
@@ -20,10 +50,14 @@ function load(record, { force = false, invalidate = false } = {}) {
     return;
   }
   if (!force && Date.now() - record.at < TTL_MS) return;
+  const refreshing = Boolean(record.value && record.value.status === ACCESS_PROJECTION_STATES.ready);
+  record.value = safeSnapshot(
+    refreshing ? ACCESS_PROJECTION_STATES.refreshing : ACCESS_PROJECTION_STATES.loading,
+  );
+  record.listeners.forEach((publish) => publish(record.value));
   record.inflight = accessAPI.getAccess(record.userId)
-    .then((data) => (data?.access ? { access: data.access, flags: data.flags || {} } : null))
-    .catch(error => error?.response?.status === 503 && error.response.data?.code === 'feature_disabled'
-      ? { access: null, flags: { accessProjection: false } } : null)
+    .then((data) => ({ access: data?.access || null, flags: data?.flags || {}, status: ACCESS_PROJECTION_STATES.ready }))
+    .catch(failureSnapshot)
     .then((value) => {
       if (active !== record || !isCurrentAuthEpoch(record.epoch) || record.invalidated) return;
       record.at = Date.now();
@@ -51,11 +85,18 @@ export default function useAccessProjection(user) {
     if (!isCurrentAuthEpoch(epoch)) return undefined;
     if (!userId) {
       active = null;
-      setSnapshot(null);
+      setSnapshot(safeSnapshot(ACCESS_PROJECTION_STATES.unauthenticated));
       return undefined;
     }
     if (!matches(active, userId, epoch)) {
-      active = { userId, epoch, at: 0, value: null, listeners: new Set(), inflight: null };
+      active = {
+        userId,
+        epoch,
+        at: 0,
+        value: safeSnapshot(ACCESS_PROJECTION_STATES.loading),
+        listeners: new Set(),
+        inflight: null,
+      };
     }
     const record = active;
     const publish = (value) => setSnapshot({ userId, epoch, value });
