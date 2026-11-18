@@ -1792,6 +1792,13 @@ safe recovery after access ends. `qrPayments.test.js`,
 `ws3-qr-security.test.js`, and `progressiveAccessHelperEnforcement.test.js`
 pass locally (86 tests), including denial before the Connect lookup and post-revocation deactivation. No populated payment-provider or production
 acceptance is claimed.
+WP-119 is implemented on the branch. Statement export jobs already rechecked
+standing when requested, polled, manifested, or downloaded, but a long-running
+worker could continue after access was revoked. The worker now reauthorizes on
+its heartbeat and before committing a complete manifest. The isolated
+`statementExportJobs.db.test.js` passes 16/16, including revocation during
+rendering, and `statementExportPipeline.test.js` passes 28/28. No populated
+financial-provider or production acceptance is claimed.
 **Exact next action (resume here):** finish the remaining Package 4 route audit
 and acceptance evidence, then run the complete verification matrix against the
 latest pushed head.
