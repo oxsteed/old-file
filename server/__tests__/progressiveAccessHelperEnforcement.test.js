@@ -185,6 +185,15 @@ describe('helper capability gate', () => {
     expect(result.res.statusCode).toBe(200);
   });
 
+  test('helper onboarding steps reject a legacy helper role after grant revocation', async () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+    const req = { user: user('helper') };
+    const result = await run(requireHelperStep('profile'), req);
+    expect(result.nextCalled).toBe(false);
+    expect(result.res.statusCode).toBe(403);
+    expect(result.res.body.code).toBe('helper_required');
+  });
+
   test('tax identity keeps the capability marker as the helper authority', async () => {
     process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
     const approved = { user: { ...user('customer'), w9_completed: true, didit_status: 'verified', didit_verified_at: new Date().toISOString() }, accessCapabilities: { 'helper.offer_services': true } };
@@ -232,6 +241,13 @@ describe('helper capability gate', () => {
     expect(products).toMatch(/router\.post\('\/', authenticate, requireHelperCapability/);
     expect(products).toMatch(/router\.patch\('\/:id', authenticate, requireHelperCapability/);
     expect(products).toMatch(/router\.delete\('\/:id', authenticate, requireHelperCapability/);
+  });
+
+  test('mobile helper gallery uses the same capability boundary', () => {
+    const mobile = fs.readFileSync(path.join(__dirname, '../routes/mobile.js'), 'utf8');
+    const controller = fs.readFileSync(path.join(__dirname, '../controllers/mobileController.js'), 'utf8');
+    expect(mobile).toMatch(/router\.post\('\/helper\/gallery', authenticate, requireHelperCapability/);
+    expect(controller).toMatch(/uploadHelperGallery[\s\S]*isHelperActor\(req\)/);
   });
 
   test('booking provider mutations use the same helper capability boundary', () => {

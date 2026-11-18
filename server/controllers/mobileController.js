@@ -26,6 +26,7 @@ const {
 const logger = require('../utils/logger');
 const accessService = require('../services/access/accessService');
 const accessFlags = require('../services/access/flags');
+const { isHelperActor } = require('../middleware/requireAccess');
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -1603,7 +1604,7 @@ exports.unregisterPushToken = async (req, res, next) => {
 exports.uploadHelperGallery = async (req, res, next) => {
   let key = null;
   try {
-    if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)) {
+    if (!isHelperActor(req)) {
       throw new AppError('Helper access required', 403, 'forbidden');
     }
     if (!req.file) {

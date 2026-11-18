@@ -57,7 +57,7 @@ describe('requireHelperStep', () => {
   test('blocks finalize until identity is verified (P2-593)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ ...done, didit_status: 'pending', onboarding_completed: false }] });
     const r = res(); const next = jest.fn();
-    await requireHelperStep('finalize')({ user: { id: 'u1' } }, r, next);
+    await requireHelperStep('finalize')({ user: { id: 'u1', role: 'customer' }, accessCapabilities: { 'helper.offer_services': true } }, r, next);
     expect(next).not.toHaveBeenCalled();
     expect(r.statusCode).toBe(403);
     expect(r.body.missing).toEqual(['identityVerified']);
@@ -65,7 +65,7 @@ describe('requireHelperStep', () => {
   test('passes when prerequisites are met', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [done] });
     const next = jest.fn();
-    await requireHelperStep('finalize')({ user: { id: 'u1' } }, res(), next);
+    await requireHelperStep('finalize')({ user: { id: 'u1', role: 'customer' }, accessCapabilities: { 'helper.offer_services': true } }, res(), next);
     expect(next).toHaveBeenCalledWith();
   });
 });
@@ -73,14 +73,14 @@ describe('requireHelperStep', () => {
 describe('requireListingEligible (P2-596)', () => {
   test('unlisting needs no checks', async () => {
     const next = jest.fn();
-    await requireListingEligible({ user: { id: 'u1' }, body: { is_listed: false } }, res(), next);
+    await requireListingEligible({ user: { id: 'u1', role: 'customer' }, accessCapabilities: { 'helper.offer_services': true }, body: { is_listed: false } }, res(), next);
     expect(next).toHaveBeenCalled();
     expect(mockQuery).not.toHaveBeenCalled();
   });
   test('publishing blocked until onboarding is finalized', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ ...done, onboarding_completed: false }] });
     const r = res(); const next = jest.fn();
-    await requireListingEligible({ user: { id: 'u1' }, body: { is_listed: true } }, r, next);
+    await requireListingEligible({ user: { id: 'u1', role: 'customer' }, accessCapabilities: { 'helper.offer_services': true }, body: { is_listed: true } }, r, next);
     expect(next).not.toHaveBeenCalled();
     expect(r.body.code).toBe('listing_requires_onboarding');
     expect(r.body.missing).toContain('finalize');
@@ -88,7 +88,7 @@ describe('requireListingEligible (P2-596)', () => {
   test('publishing allowed for a fully onboarded helper', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [done] });
     const next = jest.fn();
-    await requireListingEligible({ user: { id: 'u1' }, body: { is_listed: true } }, res(), next);
+    await requireListingEligible({ user: { id: 'u1', role: 'customer' }, accessCapabilities: { 'helper.offer_services': true }, body: { is_listed: true } }, res(), next);
     expect(next).toHaveBeenCalledWith();
   });
 });

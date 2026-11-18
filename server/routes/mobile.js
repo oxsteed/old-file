@@ -9,6 +9,7 @@ const businessInvoiceStripeConnectController = require('../controllers/businessI
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { strictLimiter } = require('../middleware/rateLimiter');
 const checkRestrictions = require('../middleware/checkRestrictions');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 
 router.get('/public/bootstrap', mobileController.getPublicBootstrap);
 router.get('/public/nearby', mobileController.getPublicNearby);
@@ -36,6 +37,6 @@ router.post(
 );
 router.post('/bookings/:bookingId/payment-intent', strictLimiter, authenticate, checkRestrictions('checkout'), mobileController.createBookingPaymentIntent);
 router.post('/bookings/:bookingId/confirm-payment', strictLimiter, authenticate, checkRestrictions('checkout'), mobileController.confirmBookingPayment);
-router.post('/helper/gallery', authenticate, upload.single('file'), validateFileUpload, mobileController.uploadHelperGallery);
+router.post('/helper/gallery', authenticate, requireHelperCapability, upload.single('file'), validateFileUpload, mobileController.uploadHelperGallery);
 
 module.exports = router;

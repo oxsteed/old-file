@@ -17,7 +17,7 @@ describe('requireTaxIdentity', () => {
     const res = mockRes();
     let nextCalled = false;
     requireTaxIdentity(
-      { user: { id: 1, role: 'helper', w9_completed: false, didit_status: 'verified', didit_verified_at: new Date() } },
+      { user: { id: 1, role: 'helper', w9_completed: false, didit_status: 'verified', didit_verified_at: new Date() }, accessCapabilities: { 'helper.offer_services': true } },
       res,
       () => { nextCalled = true; },
     );
@@ -33,7 +33,7 @@ describe('requireTaxIdentity', () => {
     const threeYearsAgo = new Date();
     threeYearsAgo.setUTCFullYear(threeYearsAgo.getUTCFullYear() - 3);
     requireTaxIdentity(
-      { user: { id: 1, role: 'helper', w9_completed: true, didit_status: 'verified', didit_verified_at: threeYearsAgo } },
+      { user: { id: 1, role: 'helper', w9_completed: true, didit_status: 'verified', didit_verified_at: threeYearsAgo }, accessCapabilities: { 'helper.offer_services': true } },
       res,
       () => { nextCalled = true; },
     );
@@ -47,7 +47,7 @@ describe('requireTaxIdentity', () => {
     const res = mockRes();
     let nextCalled = false;
     requireTaxIdentity(
-      { user: { id: 1, role: 'helper', w9_completed: true, didit_status: 'pending', didit_verified_at: null } },
+      { user: { id: 1, role: 'helper', w9_completed: true, didit_status: 'pending', didit_verified_at: null }, accessCapabilities: { 'helper.offer_services': true } },
       res,
       () => { nextCalled = true; },
     );
@@ -60,7 +60,7 @@ describe('requireTaxIdentity', () => {
     const res = mockRes();
     let nextCalled = false;
     requireTaxIdentity(
-      { user: { id: 1, role: 'helper', w9_completed: true, didit_status: 'verified', didit_verified_at: new Date() } },
+      { user: { id: 1, role: 'helper', w9_completed: true, didit_status: 'verified', didit_verified_at: new Date() }, accessCapabilities: { 'helper.offer_services': true } },
       res,
       () => { nextCalled = true; },
     );

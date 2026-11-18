@@ -33,6 +33,7 @@ test('failed gallery persistence removes the newly uploaded object', async () =>
   const next = jest.fn();
   await controller.uploadHelperGallery({
     user: { id: 'helper-1', role: 'helper' },
+    accessCapabilities: { 'helper.offer_services': true },
     file: { buffer: Buffer.from('image'), originalname: 'photo.jpg', mimetype: 'image/jpeg' },
     body: {},
   }, res, next);
@@ -51,6 +52,7 @@ test('successful gallery persistence retains the uploaded object', async () => {
   const next = jest.fn();
   await controller.uploadHelperGallery({
     user: { id: 'helper-1', role: 'helper' },
+    accessCapabilities: { 'helper.offer_services': true },
     file: { buffer: Buffer.from('image'), originalname: 'photo.jpg', mimetype: 'image/jpeg' },
     body: { caption: 'Portfolio' },
   }, res, next);
@@ -58,4 +60,18 @@ test('successful gallery persistence retains the uploaded object', async () => {
   expect(next).not.toHaveBeenCalled();
   expect(res.status).toHaveBeenCalledWith(201);
   expect(storage.deleteFile).not.toHaveBeenCalled();
+});
+
+test('revoked legacy helper role cannot upload a gallery image', async () => {
+  const res = response();
+  const next = jest.fn();
+  await controller.uploadHelperGallery({
+    user: { id: 'helper-1', role: 'helper' },
+    file: { buffer: Buffer.from('image'), originalname: 'photo.jpg', mimetype: 'image/jpeg' },
+    body: {},
+  }, res, next);
+
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'forbidden', statusCode: 403 }));
+  expect(storage.uploadFile).not.toHaveBeenCalled();
+  expect(pool.query).not.toHaveBeenCalled();
 });

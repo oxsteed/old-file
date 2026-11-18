@@ -1,6 +1,7 @@
 // server/middleware/helperOnboardingMiddleware.js
 
 const { getEffectiveTier } = require('../utils/trial');
+const { isHelperActor } = require('./requireAccess');
 
 // ── New onboarding step gating ──────────────────────────
 // Require minimum onboarding step before allowing an action
@@ -61,8 +62,7 @@ function requireOnboardingStep(minimumStep) {
 function requireTaxIdentity(req, res, next) {
   const { isDiditVerificationFresh } = require('../utils/diditGate');
   const user = req.user || {};
-  const capabilityApproved = req.accessCapabilities?.['helper.offer_services'] === true;
-  if (!capabilityApproved && user.role !== 'helper') {
+  if (!isHelperActor(req)) {
     return res.status(403).json({ error: 'Helper access required.', code: 'helper_required' });
   }
   if (!user.w9_completed) {
@@ -89,8 +89,7 @@ function requireHelperStep(step) {
     try {
       const { loadHelperOnboarding, missingFor } = require('../services/helperOnboarding');
       const onboarding = await loadHelperOnboarding(req.user.id);
-      const capabilityApproved = req.accessCapabilities?.['helper.offer_services'] === true;
-      if (!onboarding || (onboarding.user.role !== 'helper' && !capabilityApproved)) {
+      if (!onboarding || !isHelperActor(req)) {
         return res.status(403).json({ error: 'Helper account required', code: 'helper_required' });
       }
       const missing = missingFor(step, onboarding);
@@ -112,8 +111,7 @@ function requireListingEligible(req, res, next) {
   if (!req.body || req.body.is_listed !== true) return next();
   const { loadHelperOnboarding } = require('../services/helperOnboarding');
   return loadHelperOnboarding(req.user.id).then((onboarding) => {
-    const capabilityApproved = req.accessCapabilities?.['helper.offer_services'] === true;
-    if (!onboarding || (!['helper', 'helper_pro', 'broker'].includes(onboarding.user.role) && !capabilityApproved)) {
+    if (!onboarding || !isHelperActor(req)) {
       return res.status(403).json({ error: 'Helper account required', code: 'helper_required' });
     }
     if (!onboarding.user.onboarding_completed || !onboarding.canAppearInSearch) {
@@ -198,7 +196,7 @@ function requireCompletedHelperOnboarding(req, res, next) {
       message: 'Authentication required'
     });
   }
-  if (req.user.role !== 'helper') {
+  if (!isHelperActor(req)) {
     return res.status(403).json({
       success: false,
       message: 'Helper access required'
@@ -230,7 +228,7 @@ function requireHelperLimitedAccess(req, res, next) {
       message: 'Authentication required'
     });
   }
-  if (req.user.role !== 'helper') {
+  if (!isHelperActor(req)) {
     return res.status(403).json({
       success: false,
       message: 'Helper access required'
