@@ -1823,6 +1823,16 @@ action (resume here):** continue the remaining Package 4 audit (media, Credit,
 partners, and workforce/learning), then reconcile the acceptance matrix before
 the full verification run.
 
+WP-122 records the media, partner, and workforce audit. The progressive media
+contract, workforce delegation/lifecycle tests, and affiliate grant/dashboard/
+gate suites pass 37/37. Selected-author verification is rechecked at media
+publication and edit time; media drafts/assets remain owner-bound; and workforce
+delegations enforce scope, expiry, revoke, self-grant denial, and lifecycle
+audit. No browser, storage-provider, live, or exact-head acceptance is claimed.
+**Exact next action (resume here):** audit the remaining Credit-participant and
+learning/workforce product surfaces, then run the complete verification matrix
+against the latest pushed head.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
