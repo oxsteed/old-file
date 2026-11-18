@@ -1856,7 +1856,18 @@ snapshot as a settled denial and redirected approved customer-class investors
 before their access read completed. The route now defers fallback until loading
 and refresh states settle; revoked access still redirects before stale KPI or
 chart data can render. `investorDashboard.revocation.browser-check.cjs` passes
-locally. Exact-head CI and live reporting acceptance remain open.
+locally.
+
+WP-126 stabilizes the existing restaurant payout browser fixture. The shared CI
+Chrome runner occasionally auto-dismissed the native confirm before the
+Playwright protocol accept, producing a false failure at
+`restaurantFinance.browser-check.cjs`. The fixture now captures `window.confirm`
+synchronously, asserts the localized amount, and continues through the same
+request path. Focused local verification passes, and exact-head GitHub CI is
+green at commit `4b3bf0329` in [run 44211840162](https://github.com/oxsteed/old-file/actions/runs/44211840162).
+
+Live reporting, non-production operational acceptance, merge, deployment, and
+production activation remain separately authorized steps.
 
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
