@@ -1814,6 +1814,15 @@ operational acceptance is claimed yet.
 new exact-head CI run while continuing the remaining Package 4 audit and
 acceptance evidence.
 
+WP-121 records the next Package 4 audit slice. Investor reporting/policy and
+logistics-role tests pass 25/25; consultant and franchise disposable-DB suites
+pass 5/5; and the equipment-owner/rental lifecycle suites pass 15/15. These
+checks found no new server authorization gap in the audited slices, but they do
+not replace browser, provider, live, or exact-head acceptance. **Exact next
+action (resume here):** continue the remaining Package 4 audit (media, Credit,
+partners, and workforce/learning), then reconcile the acceptance matrix before
+the full verification run.
+
 
 Done so far: registry/lifecycle/resolver/legacyMapping (`server/services/access/`), D1–D7 tests,
 migration `20261116131500_progressive_access.sql`, `accessService.js` + `reviewService.js`,
