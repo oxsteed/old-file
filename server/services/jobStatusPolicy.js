@@ -11,7 +11,7 @@
 
 const JOB_STATUSES = Object.freeze([
   'draft', 'published', 'matched', 'negotiating', 'accepted',
-  'in_progress', 'completed', 'cancelled', 'closed',
+  'in_progress', 'completed', 'cancelled', 'closed', 'no_show',
 ]);
 
 const OPEN_STATUSES = Object.freeze(['published', 'matched', 'negotiating']);
@@ -22,7 +22,8 @@ const ACCEPTABLE_STATUSES = OPEN_STATUSES;
 // Admins may correct non-financial details after acceptance. Money and scope
 // changes after acceptance go through work-agreement change orders.
 const ADMIN_EDITABLE_STATUSES = Object.freeze([...OWNER_EDITABLE_STATUSES, 'accepted', 'in_progress']);
-const TERMINAL_STATUSES = Object.freeze(['completed', 'cancelled', 'closed']);
+// PR #804 G-15: no-show is terminal; it never transitions onward.
+const TERMINAL_STATUSES = Object.freeze(['completed', 'cancelled', 'closed', 'no_show']);
 
 const TRANSITIONS = Object.freeze({
   draft: ['published', 'cancelled'],
@@ -32,11 +33,12 @@ const TRANSITIONS = Object.freeze({
   published: ['accepted', 'cancelled'],
   matched: ['published', 'accepted', 'cancelled'],
   negotiating: ['published', 'accepted', 'cancelled'],
-  accepted: ['in_progress', 'cancelled'],
-  in_progress: ['completed', 'cancelled'],
+  accepted: ['in_progress', 'cancelled', 'no_show'],
+  in_progress: ['completed', 'cancelled', 'no_show'],
   completed: ['closed'],
   cancelled: [],
   closed: [],
+  no_show: [],
 });
 
 function canTransition(from, to) {

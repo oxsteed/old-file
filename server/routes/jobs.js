@@ -17,7 +17,8 @@ const { errorHandler } = require('../middleware/errorHandler');
 
 const {
   createJob, getJobs, getJob, getPublicJob, updateJob, patchJob, getJobRevisions,
-  cancelJob, assignHelper, startJob, completeJob, closeJob, getMyJobs,
+  cancelJob, assignHelper, startJob, markJobArrived, markJobNoShow, requestJobChanges,
+  completeJob, closeJob, getMyJobs,
 } = require('../controllers/jobController');
 
 const { getDraft, saveDraft, deleteDraft } = require('../controllers/draftController');
@@ -82,6 +83,11 @@ router.post('/:id/payment-reauthorization', ...reauthGuards, requireCardPayments
 router.post('/:id/payment-reauthorization/:attemptId/confirm', ...reauthGuards, requirePaymentsEnabled, confirmPaymentReauthorization);
 router.post('/:id/cancel',    authenticate, cancelJob);
 router.post('/:id/start',    authenticate, startJob);
+// G-15: helper marks arrival (customer notified); either party marks a no-show.
+router.post('/:id/arrive',   authenticate, markJobArrived);
+router.post('/:id/no-show',  authenticate, markJobNoShow);
+// G-16: customer asks for changes on a completion request (rework, not a dispute).
+router.post('/:id/request-changes', authenticate, requestJobChanges);
 router.post('/:id/complete', authenticate, completeJob);
 router.post('/:id/close',    authenticate, closeJob);
 
