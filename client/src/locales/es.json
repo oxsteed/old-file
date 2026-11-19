@@ -1874,7 +1874,7 @@
     "benefitBusinessText": "Encuentra talento y llega a más personas cerca de ti.",
     "modePrompt": "¿Cómo usarás OxSteed?",
     "switcherNote": "Puedes cambiar de modo en cualquier momento desde el selector de la aplicación.",
-    "setupNote": "Algunos modos requieren configuración adicional.",
+    "setupNote": "Otras formas de usar OxSteed",
     "intentNote": "Todas las personas comienzan con acceso de cliente. Elige el camino que describe tus necesidades; el proceso de admisión comienza después de verificarte.",
     "personas": {
       "customer": { "title": "Contratar ayuda local", "description": "Publica un trabajo, encuentra ayuda y pide comida." },

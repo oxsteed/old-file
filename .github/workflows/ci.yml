@@ -767,7 +767,8 @@ jobs:
 
       - name: Install server dependencies
         working-directory: server
-        run: npm ci
+        # The ClickHouse rehearsal does not use media binaries or native addons.
+        run: npm ci --ignore-scripts
 
       - name: Start pinned ClickHouse fixture
         env:

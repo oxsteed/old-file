@@ -1714,7 +1714,7 @@
     "benefitBusinessText": "Find talent and reach more people locally.",
     "modePrompt": "How will you use OxSteed?",
     "switcherNote": "You can change your mode at any time from the in-app switcher.",
-    "setupNote": "Some modes require additional setup.",
+    "setupNote": "Additional paths",
     "intentNote": "Everyone starts with customer access. Choose the future path that best describes your needs; the owning admission process comes after verification.",
     "personas": {
       "customer": { "title": "Hire local help", "description": "Post a job, find trusted help, and order food." },
