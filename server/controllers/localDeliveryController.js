@@ -12,6 +12,9 @@ const { broadcastToUser } = require('../services/socketService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { canStatusTransition, canInternalAssign, canReleaseToMarketplace } = require('../services/localDeliveryState');
 const { accrueDriverPayout, approvePayout, markPayoutPaid, voidPayout, getPayout } = require('../services/deliveryDriverPayoutService');
+// G-46: driver admission on the progressive contract (logistics.ship grant
+// admits drivers who hold no legacy helper state).
+const { canDriveMarketplace, isAdmittedDriver, hasApprovedActiveDriverProfile } = require('../services/deliveryDriverAdmission');
 
 const HELPER_MODES = new Set([
   'helper', 'helper_pro', 'business_owner', 'business_manager',
@@ -542,13 +545,19 @@ exports.list = async (req, res, next) => {
     const helper = isDeliveryHelper(req.user);
     const driver = await pool.query('SELECT approved,active FROM delivery_driver_profiles WHERE user_id=$1',[req.user.id]);
     const internalDriver = driver.rows[0]?.approved === true && driver.rows[0]?.active === true;
+    // G-46: marketplace visibility is driver admission, not legacy helper
+    // state alone. A logistics.ship holder with no helper history sees the
+    // same open jobs a helper sees; the claim itself still requires an
+    // approved/active driver profile. Pure internal drivers stay excluded
+    // (operations assigns them; they do not take marketplace jobs).
+    const canDrive = await canDriveMarketplace(req.user);
     // Geo filter for marketplace: only show jobs within 50 miles of helper's location (if provided).
     const lat = parseFloat(req.query.lat);
     const lng = parseFloat(req.query.lng);
     const hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
     const maxMiles = 50;
     let marketplaceClause = `($2::boolean AND status='posted' AND dispatch_state='marketplace_posted' AND fulfillment_source='marketplace' AND helper_user_id IS NULL AND internal_driver_user_id IS NULL)`;
-    const params = [req.user.id, helper];
+    const params = [req.user.id, canDrive];
     if (hasGeo) {
       // Haversine distance filter (approximate).
       marketplaceClause += ` AND (
@@ -559,7 +568,7 @@ exports.list = async (req, res, next) => {
     const {rows} = await pool.query(`SELECT * FROM delivery_jobs WHERE customer_user_id=$1 OR helper_user_id=$1 OR internal_driver_user_id=$1
       OR ${marketplaceClause}
       ORDER BY created_at DESC LIMIT 100`, params);
-    res.json({success:true,jobs:rows.map(job=>customerSafeJob(job,req.user)),helper,internalDriver});
+    res.json({success:true,jobs:rows.map(job=>customerSafeJob(job,req.user)),helper,internalDriver,canDrive});
   } catch(error) {next(error);}
 };
 
@@ -835,9 +844,11 @@ exports.upsertDriver = async (req, res, next) => {
 // approval (approved = FALSE); ops approves via upsertDriver. The helper
 // supplies their own capacity data so onboarding no longer requires an
 // ops-provisioned row to get started.
+// G-46: admission is driver admission, not legacy helper state alone: a
+// logistics.ship holder with no helper history registers here too.
 exports.selfServeDriverOnboarding = async (req, res, next) => {
   try {
-    if (!isDeliveryHelper(req.user) && !isInternalDriver(req.user)) {
+    if (!(await isAdmittedDriver(req.user))) {
       throw new AppError('Helper access required', 403, 'delivery_helper_required');
     }
     const insuranceAcknowledged = req.body.insuranceAcknowledged === true || req.body.insurance_acknowledged === true;
@@ -913,6 +924,14 @@ exports.setDriverAvailability = async (req, res, next) => {
 // Driver-facing: list own payouts.
 exports.listDriverPayouts = async (req, res, next) => {
   try {
+    // G-46: driver payouts are gated on driver admission plus the
+    // driver-specific activation state (approved/active profile), not on
+    // legacy helper state alone. A driver whose profile was deactivated
+    // loses payout visibility until it is active again.
+    if (!(await isAdmittedDriver(req.user))
+      || !(await hasApprovedActiveDriverProfile(req.user.id))) {
+      throw new AppError('Driver access required', 403, 'delivery_driver_required');
+    }
     const status = text(req.query.status, 24);
     const params = [req.user.id];
     let filter = '';

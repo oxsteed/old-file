@@ -491,9 +491,11 @@ function CustomerDelivery({ t, initial, onPosted }) {
 
 const DRIVER_VEHICLE_TYPES = ['car', 'van', 'pickup', 'box_truck', 'cargo_bike'];
 
-// P2-4-F10: self-serve driver onboarding. Helpers without an ops-provisioned
+// P2-4-F10: self-serve driver onboarding. Drivers without an ops-provisioned
 // driver profile register their own capability profile here; the profile is
 // created pending operations approval, and claiming stays gated until then.
+// G-46: registration is open to admitted drivers (helper mode or a
+// logistics.ship grant), not helpers only.
 function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
   const [form, setForm] = useState({
     vehicleType: 'car',
@@ -513,10 +515,10 @@ function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
 
   const submit = async (event) => {
     event.preventDefault();
-    // Self-serve onboarding requires helper mode server-side; the form is
-    // shown to non-helpers with a hint instead of a dead-end 403.
+    // Self-serve onboarding requires driver admission server-side; the form is
+    // shown to non-drivers with a hint instead of a dead-end 403.
     if (!canRegister) {
-      setError(t('delivery.driver.helperModeHint'));
+      setError(t('delivery.driver.driverAccessHint'));
       return;
     }
     if (!form.insuranceAcknowledged) {
@@ -563,7 +565,7 @@ function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
         <div><h2>{t('delivery.driver.title')}</h2><p>{t('delivery.driver.body')}</p></div>
       </div>
       <form className="delivery-form" onSubmit={submit}>
-        {!canRegister && <p className="delivery-alert delivery-alert--error" role="alert">{t('delivery.driver.helperModeHint')}</p>}
+        {!canRegister && <p className="delivery-alert delivery-alert--error" role="alert">{t('delivery.driver.driverAccessHint')}</p>}
         <fieldset className="delivery-form-fields" disabled={!canRegister}>
         <div className="delivery-options-grid">
           <label className="delivery-field">{t('delivery.ui.vehicleType')}
@@ -610,12 +612,13 @@ function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
 function HelperDelivery({ t }) {
   const { user } = useAuth();
   const { i18n } = useTranslation();
-  // helperMode is the server's helper flag (default_mode in HELPER_MODES or
-  // role helper). It drives the open list: approved internal drivers in
-  // helper mode see open deliveries too (item 11 drops the old client-side
-  // internalDriver exclusion). Pure internal drivers (helperMode false) do
-  // not receive marketplace jobs from GET /delivery/jobs server-side.
-  const [helperMode, setHelperMode] = useState(false);
+  // canDrive is the server's driver-admission flag (legacy helper state or
+  // a logistics.ship grant). It drives the open list and the registration
+  // form: approved internal drivers in helper mode see open deliveries too
+  // (item 11 drops the old client-side internalDriver exclusion). Pure
+  // internal drivers (canDrive false) do not receive marketplace jobs from
+  // GET /delivery/jobs server-side.
+  const [canDrive, setCanDrive] = useState(false);
   const [internalDriver, setInternalDriver] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -646,7 +649,7 @@ function HelperDelivery({ t }) {
     try {
       const response = await listDeliveryJobs();
       setJobs(response.jobs || []);
-      setHelperMode(response.helper === true);
+      setCanDrive(response.canDrive === true);
       setInternalDriver(response.internalDriver === true);
     } catch (requestError) {
       setError(deliveryError(requestError, t, 'delivery.errors.load'));
@@ -660,13 +663,13 @@ function HelperDelivery({ t }) {
   // Earnings summary (item 12): totals by payout status, aggregated
   // client-side from the driver's own payout rows. No new queries.
   useEffect(() => {
-    if (!helperMode && !internalDriver) return;
+    if (!canDrive && !internalDriver) return;
     let cancelled = false;
     listMyDriverPayouts()
       .then((response) => { if (!cancelled) setPayouts(response.payouts || []); })
       .catch(() => { if (!cancelled) setPayouts([]); });
     return () => { cancelled = true; };
-  }, [helperMode, internalDriver]);
+  }, [canDrive, internalDriver]);
 
   const claim = async (id) => {
     setBusyId(String(id));
@@ -675,7 +678,7 @@ function HelperDelivery({ t }) {
       await claimDeliveryJob(id);
       await loadJobs();
     } catch (requestError) {
-      // P2-4-F10: a helper with no driver profile gets a registration path
+      // P2-4-F10: a driver with no driver profile gets a registration path
       // instead of a dead-end 409.
       if (requestError?.response?.data?.code === 'delivery_driver_onboarding_required') {
         setOnboardingForced(true);
@@ -695,9 +698,9 @@ function HelperDelivery({ t }) {
   // open jobs. Claiming itself stays ungated (canClaim and the server claim
   // path never read `available`).
   const isOnline = driverProfile?.available === true;
-  const openJobs = useMemo(() => selectOpenJobs(jobs, { helperMode, available: isOnline, userId: user?.id }), [jobs, helperMode, isOnline, user?.id]);
+  const openJobs = useMemo(() => selectOpenJobs(jobs, { canDrive, available: isOnline, userId: user?.id }), [jobs, canDrive, isOnline, user?.id]);
   const myJobs = useMemo(() => jobs.filter((job) => job.is_assigned_operator === true || String(job.customer_user_id) === String(user?.id)), [jobs, user?.id]);
-  const isDriver = helperMode || internalDriver;
+  const isDriver = canDrive || internalDriver;
   const payoutTotals = useMemo(() => {
     const totals = { paid: 0, pending: 0, voided: 0 };
     for (const payout of payouts || []) {
@@ -731,7 +734,7 @@ function HelperDelivery({ t }) {
       {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
       {loading ? <div className="delivery-loading"><Loader2 className="delivery-spin" size={24} aria-hidden="true" />{t('delivery.helper.loading')}</div> : (
         <>
-          {helperMode && (driverProfile?.approved !== true || onboardingForced) && (
+          {canDrive && (driverProfile?.approved !== true || onboardingForced) && (
             <div ref={onboardingRef}>
               <DriverOnboarding
                 t={t}
@@ -740,7 +743,7 @@ function HelperDelivery({ t }) {
               />
             </div>
           )}
-          {!helperMode && driverProfile?.approved !== true && (
+          {!canDrive && driverProfile?.approved !== true && (
             <div ref={onboardingRef}>
               <DriverOnboarding
                 t={t}
@@ -774,7 +777,7 @@ function HelperDelivery({ t }) {
               </section>
             </>
           )}
-          {helperMode && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
+          {canDrive && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
           <section><div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
         </>
       )}
