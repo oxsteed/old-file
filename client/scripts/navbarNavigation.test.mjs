@@ -8,7 +8,7 @@ import { hasProAccess, hasBusinessHubAccess } from '../src/utils/modeAccess.js';
 // primary links, whatever its role or default_mode; capabilities add account
 // shortcuts and the business switcher comes from projection organizations.
 const CUSTOMER_PRIMARY = [['findHelp', '/helpers'], ['myJobs', '/my-jobs'], ['orderFood', '/restaurants'], ['messages', '/messages'], ['postJob', '/post-job']];
-const CUSTOMER_ACCOUNT = ['dashboard', 'foodOrders', 'applications', 'settings', 'help', 'wallet', 'statements'];
+const CUSTOMER_ACCOUNT = ['dashboard', 'foodOrders', 'applications', 'credit', 'partner', 'learning', 'settings', 'help', 'wallet', 'statements'];
 
 for (const user of [
   { default_mode: 'customer', role: 'customer' },

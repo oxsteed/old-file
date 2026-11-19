@@ -96,9 +96,23 @@ test('investor reporting is read-only and never exposes investment participation
   assert.ok(!destinations(nav).some((path) => /commit|participat/i.test(path)));
 });
 
-test('planned, unverified, and nonhuman actors fail closed', () => {
+test('phantom capabilities grant nothing; credit, partner, and learning are baseline links', () => {
+  // G-9: credit.participate, partner.attribute, and workforce.learn do not
+  // exist in the capability registry, so the catalog must not reference
+  // them. The three pages are reachable from the customer baseline without
+  // a grant and promise none.
+  for (const family of PERSONA_NAVIGATION_CATALOG) {
+    assert.ok(!['credit.participate', 'partner.attribute', 'workforce.learn'].includes(family.capability), family.id);
+  }
+  const baseline = deriveAdaptiveNavigation(projection());
+  assert.ok(destinations(baseline).includes('/oxsteed-credit'));
+  assert.ok(destinations(baseline).includes('/affiliate'));
+  assert.ok(destinations(baseline).includes('/learn'));
+  // A projection that still carries a phantom value gains no persona link
+  // for it: the pages stay baseline-only, never protected persona links.
   const planned = deriveAdaptiveNavigation(projection(['customer', 'credit.participate'], [], { activation: { 'credit.participate': 'needs_setup' } }));
-  assert.ok(!destinations(planned).some((path) => path.includes('credit')));
+  assert.deepEqual(planned.personas, ['customer']);
+  assert.ok(!planned.account.some((item) => item.protected && item.to === '/oxsteed-credit'));
   const nonhuman = deriveAdaptiveNavigation(projection([], [], { actorType: 'nonhuman' }));
   assert.deepEqual(nonhuman.primary, []);
   assert.deepEqual(nonhuman.account, []);

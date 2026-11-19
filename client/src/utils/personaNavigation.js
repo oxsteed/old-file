@@ -15,9 +15,9 @@ export const PERSONA_NAVIGATION_CATALOG = Object.freeze([
   { id: 'equipment-owner', variants: ['tool_owner', 'equipment_owner'], capability: 'tool_owner.list_equipment', scope: 'personal', primary: 'equipment', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
   { id: 'franchise', variants: ['franchise_operator', 'franchise_applicant'], capability: 'franchise.operate', scope: 'territory', primary: 'franchise', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
   { id: 'investor-reporting', variants: ['investor'], capability: 'investor.reporting', scope: 'reporting-audience', primary: 'investor-reporting', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'credit-participant', variants: ['credit_participant', 'credit_member'], capability: 'credit.participate', scope: 'credit-account', primary: 'credit', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'partner-affiliate', variants: ['partner', 'affiliate'], capability: 'partner.attribute', scope: 'personal-or-partner', primary: 'partner', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'workforce-learning', variants: ['workforce', 'learner', 'instructor'], capability: 'workforce.learn', scope: 'personal-or-program', primary: 'learn', setup: ['/learn'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'credit-participant', variants: ['credit_participant', 'credit_member'], scope: 'credit-account', primary: 'credit', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'partner-affiliate', variants: ['partner', 'affiliate'], scope: 'personal-or-partner', primary: 'partner', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'workforce-learning', variants: ['workforce', 'learner', 'instructor'], scope: 'personal-or-program', primary: 'learn', setup: ['/learn'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
   { id: 'reviewer', variants: ['reviewer'], scope: 'staff', primary: 'staff-shell', setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
   { id: 'support-agent', variants: ['support_agent'], scope: 'staff', primary: 'staff-shell', setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
   { id: 'operations-staff', variants: ['admin', 'super_admin', 'operations'], scope: 'staff', primary: 'staff-shell', setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
@@ -42,9 +42,11 @@ const PERSONA_NAV_TARGETS = Object.freeze({
   'equipment-owner': [{ id: 'persona-equipment', to: '/tool-rentals/analytics', labelKey: 'progressiveAccess.capabilities.tool_owner.list_equipment' }],
   franchise: [{ id: 'persona-franchise', to: '/franchise/territory', labelKey: 'progressiveAccess.capabilities.franchise.operate' }],
   'investor-reporting': [{ id: 'persona-investments', to: '/investments', labelKey: 'nav.investments' }],
-  'credit-participant': [{ id: 'persona-credit', to: '/oxsteed-credit', labelKey: 'nav.credit' }],
-  'partner-affiliate': [{ id: 'persona-partner', to: '/affiliate', labelKey: 'nav.partner' }],
-  'workforce-learning': [{ id: 'persona-learning', to: '/learn', labelKey: 'nav.learning' }],
+  // G-9: credit-participant, partner-affiliate, and workforce-learning have
+  // no registry capability (no credit.*, partner.*, or workforce.* key
+  // exists), so they have no persona target here. /oxsteed-credit,
+  // /affiliate, and /learn are linked from the customer baseline account
+  // menu below instead, reachable without a grant and promising none.
 });
 
 function isProjectionReady(projection) {
@@ -198,6 +200,12 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
     link('dashboard', '/dashboard', 'nav.dashboard'),
     link('foodOrders', '/orders', 'nav.foodOrders'),
     link('applications', '/settings/applications', 'nav.myApplications', { count: isProjectionReady(projection) ? Number(projection.access.openRequestCount || 0) : 0 }),
+    // G-9: these pages have no grant behind them, so they live in the
+    // customer baseline, not behind a persona capability. They are reachable
+    // for every signed-in account and promise no access.
+    link('credit', '/oxsteed-credit', 'nav.credit'),
+    link('partner', '/affiliate', 'nav.partner'),
+    link('learning', '/learn', 'nav.learning'),
   ];
   if (!isProjectionReady(projection)) {
     account.push(link('settings', '/settings', 'nav.settings'), link('help', '/support', 'nav.help'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
@@ -239,7 +247,11 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
   // Families without a verified domain destination remain customer-only.
   addPersonaLinks(account, projection, approved);
 
-  const staffAccess = showSupportWorkspace || (access.personal || []).some((capability) => STAFF_CAPABILITIES.has(capability)) || ['admin', 'super_admin', 'support_agent', 'reviewer'].includes(access.staffRole);
+  // G-9: the dead access.staffRole branch is deleted. resolver.project never
+  // emits staffRole, so the clause could never fire. Staff reach the shell
+  // through the live /support/agent/me check (showSupportWorkspace) or a
+  // staff capability, both above.
+  const staffAccess = showSupportWorkspace || (access.personal || []).some((capability) => STAFF_CAPABILITIES.has(capability));
   if (staffAccess) addUnique(account, link('support', '/support/agent', 'nav.supportWorkspace', { staffShell: true }));
   account.push(link('settings', '/settings', 'nav.settings'), link('help', '/support', 'nav.help'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
   return { mode: 'customer', primary, account, workspaces, personas: personas.length ? personas : ['customer'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'], showBusinessSwitcher: hasBusinessWorkspace, projectionNotice };
