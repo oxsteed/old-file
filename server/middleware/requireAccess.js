@@ -40,7 +40,7 @@ function isHelperActor(req) {
   return LEGACY_HELPER_ROLES.includes(req.user.role);
 }
 
-function requireCapability(capability, { modeFn, audienceLoader = null, legacyAllowedFn = null } = {}) {
+function requireCapability(capability, { modeFn, audienceLoader = null, legacyAllowedFn = null, subject = null } = {}) {
   return async function accessCapabilityGate(req, res, next) {
     const mode = modeFn();
     if (mode === 'off' || !req.user) return next();
@@ -48,7 +48,11 @@ function requireCapability(capability, { modeFn, audienceLoader = null, legacyAl
     let decision;
     try {
       const access = require('../services/access/accessService');
-      decision = await access.can(req.user.id, capability);
+      // G-26: most capabilities evaluate against the self subject; the
+      // franchise gate passes { type: 'any' } because franchise.operate
+      // is granted per territory and any active territory suffices.
+      const resolvedSubject = typeof subject === 'function' ? subject(req) : subject;
+      decision = await access.can(req.user.id, capability, resolvedSubject || undefined);
     } catch (err) {
       if (mode === 'shadow') {
         logger.warn('access.shadow_error', { capability, err: err.message });
@@ -198,6 +202,10 @@ const requireInvestorCapability = requireCapability('investor.reporting', {
 });
 const requireFranchiseCapability = requireCapability('franchise.operate', {
   modeFn: flags.franchiseEnforcement,
+  // G-26: franchise.operate is granted per territory; holding any active
+  // territory grant opens the workspace. Per-territory data stays scoped
+  // by the application id in the URL, resolved by the controller.
+  subject: { type: 'any' },
   legacyAllowedFn: (req) => req.user?.default_mode === 'franchise_applicant',
 });
 

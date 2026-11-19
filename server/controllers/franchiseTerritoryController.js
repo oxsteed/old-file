@@ -50,13 +50,29 @@ exports.getTerritoryStats = async (req, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
+    // G-26: resolve per application id from the URL (?application_id=)
+    // instead of newest-wins. Without it the newest launched application
+    // is still the default, so existing clients keep working.
+    const requestedApplicationId = typeof req.query?.application_id === 'string'
+      && /^[0-9a-f-]{36}$/i.test(req.query.application_id)
+      ? req.query.application_id
+      : null;
+    if (req.query?.application_id && !requestedApplicationId) {
+      return res.status(400).json({ error: 'Invalid application_id.' });
+    }
+
     // Resolve the user's launched franchise application
+    const appParams = [userId];
+    let applicationFilter = '';
+    if (requestedApplicationId) {
+      appParams.push(requestedApplicationId);
+      applicationFilter = `AND fa.id = $${appParams.length}`;
+    }
     const [appRow] = await safeQuery(`
       SELECT fa.id, fa.desired_country, fa.desired_region, fa.desired_city,
              fa.status, fa.agreement_status, fa.training_status,
              fa.launch_readiness_status, fa.linked_business_id,
              fa.desired_brand_name, fa.current_company_name,
-             fa.checklist_completed, fa.checklist_total,
              COALESCE(progress.completed_count, 0) AS checklist_done,
              COALESCE(progress.total_count, 0)     AS checklist_all
         FROM franchise_applications fa
@@ -69,9 +85,10 @@ exports.getTerritoryStats = async (req, res) => {
         ) progress ON progress.application_id = fa.id
        WHERE (fa.applicant_user_id = $1 OR fa.owner_user_id = $1)
          AND fa.status IN ('approved','launched')
+         ${applicationFilter}
        ORDER BY fa.submitted_at DESC
        LIMIT 1
-    `, [userId]);
+    `, appParams);
 
     if (!appRow) {
       return res.json({
@@ -217,13 +234,29 @@ exports.getTerritoryHelpers = async (req, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
+    // G-26: same per-application resolution as getTerritoryStats.
+    const requestedApplicationId = typeof req.query?.application_id === 'string'
+      && /^[0-9a-f-]{36}$/i.test(req.query.application_id)
+      ? req.query.application_id
+      : null;
+    if (req.query?.application_id && !requestedApplicationId) {
+      return res.status(400).json({ error: 'Invalid application_id.' });
+    }
+    const appParams = [userId];
+    let applicationFilter = '';
+    if (requestedApplicationId) {
+      appParams.push(requestedApplicationId);
+      applicationFilter = `AND fa.id = $${appParams.length}`;
+    }
+
     const [appRow] = await safeQuery(`
       SELECT desired_country, desired_region, desired_city
         FROM franchise_applications
        WHERE (applicant_user_id = $1 OR owner_user_id = $1)
          AND status IN ('approved','launched')
+         ${applicationFilter}
        ORDER BY submitted_at DESC LIMIT 1
-    `, [userId]);
+    `, appParams);
 
     if (!appRow) return res.json({ helpers: [] });
 

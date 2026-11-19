@@ -208,7 +208,12 @@ const CAPABILITIES = Object.freeze({
     key: 'franchise.operate',
     version: 'franchise-policy-1',
     intent: 'franchise',
-    subjectTypes: Object.freeze(['self']),
+    // G-26: one franchisee, two territories. The grant is scoped per
+    // territory: subject_type 'franchise_application' with the application
+    // id as subject_id, the same shape business subjects already use.
+    // Legacy 'self' grants stay valid until sync revokes them when no
+    // launched application remains.
+    subjectTypes: Object.freeze(['self', 'franchise_application']),
     reviewerClass: 'platform',
     reviewPermission: 'review_franchise_access',
     // Franchise intake keeps its own approved pipeline (routes/franchise.js);

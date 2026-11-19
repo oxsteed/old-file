@@ -96,6 +96,25 @@ export default function FranchiseTerritoryOpsPage() {
   const [helpers, setHelpers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
+  // G-26: one franchisee, two territories. The operator picks which
+  // territory to view; the choice travels as ?application_id=.
+  const [applications, setApplications] = useState([]);
+  const [selectedApplicationId, setSelectedApplicationId] = useState('');
+  const operableApplications = applications.filter((a) => ['approved', 'launched'].includes(a.status));
+
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/franchise/my-applications')
+      .then((res) => {
+        if (cancelled) return;
+        const rows = Array.isArray(res.data?.applications) ? res.data.applications : [];
+        setApplications(rows);
+        const operable = rows.filter((a) => ['approved', 'launched'].includes(a.status));
+        if (operable.length === 1) setSelectedApplicationId(operable[0].id);
+      })
+      .catch(() => { if (!cancelled) setApplications([]); });
+    return () => { cancelled = true; };
+  }, []);
   // Revenue currency, default USD to match the server default. The selector
   // is sent as ?currency= so operators outside the US stop seeing every
   // revenue tile silently converted to dollars by the USD default.
@@ -109,9 +128,11 @@ export default function FranchiseTerritoryOpsPage() {
     setLoading(true);
     setError(null);
     try {
+      const appParam = selectedApplicationId ? `&application_id=${selectedApplicationId}` : '';
+      const helpersQuery = selectedApplicationId ? `?application_id=${selectedApplicationId}` : '';
       const [sRes, hRes] = await Promise.all([
-        api.get(`/franchise/territory-stats?currency=${currency.toLowerCase()}`),
-        api.get('/franchise/territory-helpers'),
+        api.get(`/franchise/territory-stats?currency=${currency.toLowerCase()}${appParam}`),
+        api.get(`/franchise/territory-helpers${helpersQuery}`),
       ]);
       setStats(sRes.data);
       setHelpers(hRes.data?.helpers ?? []);
@@ -120,7 +141,7 @@ export default function FranchiseTerritoryOpsPage() {
     } finally {
       setLoading(false);
     }
-  }, [t, currency]);
+  }, [t, currency, selectedApplicationId]);
 
   useEffect(() => {
     if (territoryBlocked) {
@@ -246,7 +267,29 @@ export default function FranchiseTerritoryOpsPage() {
           )}
 
           {/* ── KPI grid ───────────────────────────────────────────── */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4 flex-wrap">
+            {operableApplications.length > 1 && (
+              <div className="flex items-center gap-2">
+                <label htmlFor="territory-application" className="text-xs text-gray-400">
+                  {t('franchiseTerritoryPage.territory.label')}
+                </label>
+                <select
+                  id="territory-application"
+                  value={selectedApplicationId}
+                  onChange={(e) => setSelectedApplicationId(e.target.value)}
+                  className="rounded-xl border border-gray-800 bg-gray-900 px-2.5 py-1.5 text-sm text-white"
+                >
+                  <option value="">{t('franchiseTerritoryPage.territory.newest')}</option>
+                  {operableApplications.map((application) => (
+                    <option key={application.id} value={application.id}>
+                      {[application.desired_city, application.desired_region, application.desired_country].filter(Boolean).join(', ')}
+                      {application.desired_brand_name ? ` (${application.desired_brand_name})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
             <label htmlFor="territory-revenue-currency" className="text-xs text-gray-400">
               {t('franchiseTerritoryPage.currency.label')}
             </label>
@@ -260,6 +303,7 @@ export default function FranchiseTerritoryOpsPage() {
                 <option key={code} value={code}>{code}</option>
               ))}
             </select>
+            </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
             <KpiTile icon={Users}      label={t('franchiseTerritoryPage.kpis.helpers')} loading={loading}

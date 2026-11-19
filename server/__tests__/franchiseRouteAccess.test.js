@@ -56,6 +56,7 @@ describe('mounted franchise territory access', () => {
     const response = await request(mountedFixture()).get('/api/franchise/territory-stats');
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ reached: true });
-    expect(access.can).toHaveBeenCalledWith('franchise-fixture', 'franchise.operate');
+    // G-26: the franchise gate evaluates "any active territory grant".
+    expect(access.can).toHaveBeenCalledWith('franchise-fixture', 'franchise.operate', { type: 'any' });
   });
 });

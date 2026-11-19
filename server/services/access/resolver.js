@@ -32,6 +32,11 @@ function grantIsEffective(g, now) {
 
 function subjectMatches(grant, subject) {
   const type = (subject && subject.type) || 'self';
+  // G-26: a gate that only needs "holds franchise.operate somewhere"
+  // (the franchise workspace gate) passes subject { type: 'any' }; any
+  // grant of the capability matches. Per-territory checks pass the
+  // concrete application subject instead.
+  if (type === 'any') return true;
   if ((grant.subject_type || 'self') !== type) return false;
   if (type === 'self') return true;
   return grant.subject_id != null && subject.id != null && String(grant.subject_id) === String(subject.id);
@@ -94,6 +99,14 @@ function project(facts, { openRequestCount = 0, version = 0 } = {}) {
   const personal = new Set([CUSTOMER]);
   for (const g of facts.grants || []) {
     if ((g.subject_type || 'self') === 'self' && grantIsEffective(g, now) && getCapability(g.capability)) personal.add(g.capability);
+  }
+  // G-26: franchise.operate is granted per territory now, not per self.
+  // The franchise workspace gates on personal including this capability,
+  // so an active grant for any territory keeps it visible; losing the
+  // last territory drops it. No other capability is projected this way:
+  // business grants live under organizations, not personal.
+  if ((facts.grants || []).some((g) => g.capability === 'franchise.operate' && grantIsEffective(g, now))) {
+    personal.add('franchise.operate');
   }
   const organizations = (facts.businesses || []).map((b) => ({ type: 'business', id: String(b.id), name: b.name || null, role: b.role }));
   const locations = (facts.restaurantLocations || []).map((location) => ({
