@@ -31,7 +31,7 @@ test('job details: viewer actions, asynchronous guards, dialogs, keyboard galler
     '../components/ReportModal':`export default()=>null;`,
     '../components/JobMaterialsPanel':`export default()=>null;`,
     '../hooks/useSocket':`export const useSocket=()=>({socket:null});`,
-    '../api/businesses':`export const redeemVortexToken=async()=>({});`,
+    '../api/businesses':`export const redeemVortexToken=async()=>({});export const listManagedBusinesses=async()=>[];export const requestJobRefund=async()=>({});export const listJobRefundRequests=async()=>[];`,
     '../api/vortex':`export const previewVortexCode=async()=>({});export const redeemVortexCode=async()=>({});`,
     './PrefetchLink':`export {Link as default} from 'react-router-dom';`,
     './BusinessSwitcher':`export default()=>null;`,

@@ -15,7 +15,10 @@ jest.mock('../middleware/requireRole', () => () => (_req, _res, next) => next())
 // ../middleware/requireAccess, which under the Domain 6 enforce default
 // runs the resolver against the mocked ../db and throws -> 500. Mock it
 // pass-through the same way requireRole is mocked.
-jest.mock('../middleware/requireAccess', () => ({ requireHelperCapability: (_req, _res, next) => next() }));
+jest.mock('../middleware/requireAccess', () => ({
+  requireHelperCapability: (_req, _res, next) => next(),
+  requireHelperSetupCapability: (_req, _res, next) => next(),
+}));
 jest.mock('../middleware/rateLimiter', () => ({ generalLimiter: (_req, _res, next) => next() }));
 jest.mock('../utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn() }));
 

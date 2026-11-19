@@ -179,6 +179,10 @@
 }
 
 @media (max-width: 420px) {
+  /* Leave room for the fixed support launcher when the long mobile footer is
+     scrolled to its end. Without this, the last wrapped footer links sit
+     underneath the launcher on narrow screens and translated layouts. */
+  .site-footer { padding-bottom: calc(10rem + env(safe-area-inset-bottom)); }
   .site-footer__link-grid { grid-template-columns: 1fr; }
 }
 

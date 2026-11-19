@@ -63,7 +63,8 @@ test('franchise territory data follows the projected grant', { timeout: 30_000 }
 
     await page.evaluate(() => window.grantFranchise());
     await page.getByText(/Columbus, OH/).waitFor();
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
+    assert.ok(calls.includes('/api/franchise/my-applications'));
     assert.ok(calls.some((call) => call.startsWith('/api/franchise/territory-stats')));
     assert.ok(calls.includes('/api/franchise/territory-helpers'));
 

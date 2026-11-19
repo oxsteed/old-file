@@ -101,8 +101,17 @@ export default function FranchiseTerritoryOpsPage() {
   const [applications, setApplications] = useState([]);
   const [selectedApplicationId, setSelectedApplicationId] = useState('');
   const operableApplications = applications.filter((a) => ['approved', 'launched'].includes(a.status));
+  const projectedAccess = accessProjection?.access || accessProjection;
+  const projectionControlsTerritory = Boolean(accessProjection?.flags?.accessProjection);
+  const hasFranchiseAccess = projectedAccess?.personal?.includes('franchise.operate');
+  const territoryBlocked = projectionControlsTerritory && !hasFranchiseAccess;
 
   useEffect(() => {
+    if (territoryBlocked) {
+      setApplications([]);
+      setSelectedApplicationId('');
+      return undefined;
+    }
     let cancelled = false;
     api.get('/franchise/my-applications')
       .then((res) => {
@@ -114,16 +123,11 @@ export default function FranchiseTerritoryOpsPage() {
       })
       .catch(() => { if (!cancelled) setApplications([]); });
     return () => { cancelled = true; };
-  }, []);
+  }, [territoryBlocked]);
   // Revenue currency, default USD to match the server default. The selector
   // is sent as ?currency= so operators outside the US stop seeing every
   // revenue tile silently converted to dollars by the USD default.
   const [currency, setCurrency] = useState('USD');
-  const projectedAccess = accessProjection?.access || accessProjection;
-  const projectionControlsTerritory = Boolean(accessProjection?.flags?.accessProjection);
-  const hasFranchiseAccess = projectedAccess?.personal?.includes('franchise.operate');
-  const territoryBlocked = projectionControlsTerritory && !hasFranchiseAccess;
-
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);

@@ -80,8 +80,9 @@ ddescribe('personal and business invoices from one identity (WP-054, real databa
     const id = crypto.randomUUID();
     const email = `pa-inv-${label}-${id}@example.invalid`;
     await pool.query(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, default_mode, email_verified, is_active)
-       VALUES ($1, $2, 'x', $3, 'Fixture', 'helper', 'helper', TRUE, TRUE)`, [id, email, label]);
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, default_mode, email_verified, is_active,
+                          identity_verified, terms_accepted, terms_accepted_at, terms_version)
+       VALUES ($1, $2, 'x', $3, 'Fixture', 'helper', 'helper', TRUE, TRUE, TRUE, TRUE, NOW(), 'invoice-fixture')`, [id, email, label]);
     // Domain 6 enforce contract: every /api/helpers/invoices route is gated
     // by requireHelperCapability, so both identities need the backfilled
     // helper.offer_services grant (the owner later PUTs a helper path
