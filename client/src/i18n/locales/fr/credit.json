@@ -2373,7 +2373,22 @@
     "title": "Ajouter de l'argent",
     "intro": "Ajoutez de l'argent à OxSteed Credit par carte. Il est crédité une fois le paiement confirmé.",
     "credited": "Argent ajouté à votre OxSteed Credit",
-    "invalidAmount": "Saisissez au moins {{min}}."
+    "invalidAmount": "Saisissez au moins {{min}}.",
+    "businessTitle": "Financer le Crédit d’un membre",
+    "businessIntro": "Ajoutez du Crédit OxSteed à un membre de l’équipe avec le moyen de paiement de l’entreprise. Vous payez avec votre carte ; le membre est crédité une fois le paiement encaissé.",
+    "businessMemberLabel": "Membre à financer",
+    "businessMemberPlaceholder": "Choisissez un membre",
+    "businessReasonLabel": "Pourquoi l’entreprise finance-t-elle ceci ?",
+    "businessReasonPlaceholder": "Par exemple : allocation trimestrielle d’outils.",
+    "businessMemberRequired": "Choisissez un membre à financer.",
+    "businessReasonRequired": "Un motif est requis.",
+    "businessCredited": "Crédit ajouté au membre.",
+    "status": {
+      "pending": "En attente",
+      "completed": "Crédité",
+      "failed": "Échoué",
+      "requires_attention": "Nécessite une attention"
+    }
   },
   "identityVerification": {
     "eyebrow": "Vérification d'identité",

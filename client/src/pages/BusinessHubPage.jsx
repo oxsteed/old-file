@@ -118,6 +118,61 @@ import {
 } from '../utils/businessProfileForm';
 import { normalizeWebsite, DESCRIPTION_MAX } from '../utils/businessProfileEditor';
 import '../styles/BusinessHubPage.css';
+import './food/OxsteedCreditPage.css';
+import OxsteedCreditTopupPanel from '../components/credit/OxsteedCreditTopupPanel';
+import { listBusinessCreditTopups } from '../api/businesses';
+
+// G-22: business-funded Credit tab content. The owner/manager names a
+// member, records why the business is funding them, and pays with their own
+// card; the member is credited once the payment clears. History below shows
+// every funded top-up with its reason (the audit record).
+function BusinessCreditFundingTab({ businessId, members, currency }) {
+  const { t } = useTranslation();
+  const { t: ct } = useTranslation('credit');
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const loadHistory = useCallback(() => {
+    setHistoryLoading(true);
+    listBusinessCreditTopups(businessId)
+      .then((rows) => setHistory(rows))
+      .catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false));
+  }, [businessId]);
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+  const memberName = (topup) => {
+    const m = (members || []).find((row) => String(row.user_id) === String(topup.recipientCustomerId));
+    return m ? [m.first_name, m.last_name].filter(Boolean).join(' ') || m.member_email : topup.recipientCustomerId;
+  };
+  return (
+    <div>
+      <OxsteedCreditTopupPanel
+        currency={currency || 'USD'}
+        businessFunding={{ businessId, members }}
+        onCredited={loadHistory}
+      />
+      <section className="bh-card" aria-labelledby="bh-credit-history">
+        <h2 id="bh-credit-history">{t('businessHub.creditHistoryTitle', { defaultValue: 'Funded Credit' })}</h2>
+        {historyLoading ? <p className="bh-loading">{t('businessHub.loading')}</p> : history.length === 0 ? (
+          <p>{t('businessHub.creditHistoryEmpty', { defaultValue: 'No member Credit funded yet.' })}</p>
+        ) : (
+          <table className="bh-table">
+            <thead><tr><th>{t('businessHub.creditHistoryMember', { defaultValue: 'Member' })}</th><th>{t('businessHub.creditHistoryAmount', { defaultValue: 'Amount' })}</th><th>{t('businessHub.creditHistoryStatus', { defaultValue: 'Status' })}</th><th>{t('businessHub.creditHistoryReason', { defaultValue: 'Reason' })}</th></tr></thead>
+            <tbody>
+              {history.map((row) => (
+                <tr key={row.id}>
+                  <td>{memberName(row)}</td>
+                  <td>{formatMoney(row.amountCents / 100, { currency: row.currencyCode || 'USD' })}</td>
+                  <td>{ct(`walletTopup.status.${row.status}`, { defaultValue: row.status })}</td>
+                  <td>{row.fundingReason || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </div>
+  );
+}
 
 // ── formatters ────────────────────────────────────────────────────────────────
 function fmt$(n, currency = 'USD') {
@@ -272,6 +327,7 @@ function BusinessHubInner() {
     'messages',
     'clients',
     'invoices',
+    'credit',
     'workflow',
     'profile',
     'media',
@@ -322,6 +378,8 @@ function BusinessHubInner() {
       if (tb === 'calendar' && !canAccessCalendar) return false;
       if (tb === 'analytics' && !hasPermission('analytics.view_financial')) return false;
       if (tb === 'invoices' && !hasPermission('invoices.view')) return false;
+      // G-22: funding member Credit is owner/manager only.
+      if (tb === 'credit' && !['owner', 'manager'].includes(currentRole)) return false;
       if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
       if (tb === 'loyalty' && !canEditBizProfile) return false;
       if (tb === 'hiring' && !canEditBizProfile) return false;
@@ -1531,6 +1589,7 @@ function BusinessHubInner() {
     if (tb === 'overview') return t('businessHub.tabOverviewLabel');
     if (tb === 'analytics') return t('businessAnalytics.title');
     if (tb === 'invoices') return t('businessHub.tabInvoicesLabel');
+    if (tb === 'credit') return t('businessHub.tabCreditLabel', { defaultValue: 'Member Credit' });
     if (tb === 'tax') return t('businessHub.tabTaxLabel');
     if (tb === 'goals') return t('businessHub.tabGoalsLabel');
     if (tb === 'maintenance') return t('businessHub.tabMaintenanceLabel', { defaultValue: 'Maintenance' });
@@ -2136,6 +2195,11 @@ function BusinessHubInner() {
                 onPay={inv => { setSelected(inv); setForm({ amount: inv.total || '' }); setFormErr(''); setModal('pay-inv'); }}
                 onDelete={handleDeleteInvoice}
               />
+            )}
+
+            {/* ── Member Credit tab (G-22) ───────────────────────────── */}
+            {tab === 'credit' && bizId && ['owner', 'manager'].includes(currentRole) && (
+              <BusinessCreditFundingTab businessId={bizId} members={members} currency={currency} />
             )}
 
             {/* ── Tax tab ──────────────────────────────────────────── */}

@@ -4,6 +4,10 @@ const { requireAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const { requireFinanceRead, requireFinanceWrite } = require('../middleware/requireBusinessFinance');
 const refundRequests = require('../controllers/businessRefundRequestController');
+const topupController = require('../controllers/oxsteedCreditTopupController');
+const { creditMutationLimiter } = require('../middleware/rateLimiter');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const checkRestrictions = require('../middleware/checkRestrictions');
 const expenses = require('../controllers/businessExpensesController');
 const quotes = require('../controllers/businessQuotesController');
 const recurring = require('../controllers/businessRecurringBillingController');
@@ -26,6 +30,14 @@ const financeWrite = requireFinanceWrite('invoices.create');
 const refundRequestGate = requireFinanceWrite('refunds.request');
 router.post  ('/:businessId/jobs/:jobId/refund-request',  requireAuth, financeMember, refundRequestGate, refundRequests.requestRefund);
 router.get   ('/:businessId/jobs/:jobId/refund-requests', requireAuth, financeMember, financeRead, refundRequests.listRefundRequests);
+
+// G-22: business-funded Credit. The owner/manager pays with the business
+// payment method (their own card via the returned client secret) and the
+// named member is credited. The controller enforces the owner/manager
+// gate; the self-service /api/oxsteed-credit/topups route is untouched.
+router.post  ('/:businessId/credit-topups',          requireAuth, financeMember, creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), topupController.createBusinessTopup);
+router.get   ('/:businessId/credit-topups',          requireAuth, financeMember, topupController.listBusinessTopups);
+router.get   ('/:businessId/credit-topups/:topupId', requireAuth, financeMember, topupController.getBusinessTopup);
 
 // Expenses
 router.get   ('/:businessId/expenses',               requireAuth, financeMember, financeRead, expenses.listExpenses);

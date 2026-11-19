@@ -114,6 +114,127 @@ async function getTopup(req, res, next) {
   }
 }
 
+// ─── G-22: business-funded Credit ───────────────────────────────────────
+// "Business-funded Credit implemented: owner/manager initiates, names a
+// member, funds from the business payment method, with explicit
+// authorization and an audit record; funds never move silently."
+//
+// The owner/manager pays with their own card (the returned client secret is
+// confirmed by the funder, exactly like a self-service top-up); settlement
+// credits the named member. The self-service path above is untouched:
+// its requireRole('customer') + rejectImpersonated gates live on the
+// /api/oxsteed-credit router, and this handler lives on the business
+// router with its own owner/manager gate.
+const db = require('../db');
+const { canManageBusinessFinance } = require('../utils/businessOwnership');
+
+function formatBusinessTopup(topup) {
+  return {
+    ...formatTopup(topup),
+    fundedByUserId: topup.funded_by_user_id ? String(topup.funded_by_user_id) : null,
+    fundedByBusinessId: topup.funded_by_business_id ? String(topup.funded_by_business_id) : null,
+    fundingReason: topup.funding_reason || null,
+    recipientCustomerId: topup.customer_id ? String(topup.customer_id) : null,
+  };
+}
+
+async function createBusinessTopup(req, res, next) {
+  try {
+    const businessId = Number(req.params.businessId);
+    const funderId = req.user?.id;
+    if (!Number.isSafeInteger(businessId) || !funderId) {
+      throw new AppError('A valid business is required', 400, 'validation_failed');
+    }
+    // Owner/manager only. No team permission code exists for funding
+    // Credit, and none is invented: the decision is role-based.
+    const access = await canManageBusinessFinance(funderId, businessId);
+    if (!access) {
+      throw new AppError('Only the business owner or a manager can fund member Credit.', 403, 'business_credit_fund_required');
+    }
+    const memberId = req.body?.memberId || req.body?.member_id;
+    const reason = String(req.body?.reason || '').trim();
+    if (!memberId) throw new AppError('A member to fund is required', 400, 'credit_topup_member_required');
+    if (!reason) throw new AppError('A funding reason is required', 400, 'credit_topup_reason_required');
+    if (reason.length > 500) throw new AppError('Funding reason is too long', 400, 'credit_topup_reason_too_long');
+    const { rows: [member] } = await db.query(
+      `SELECT bm.member_id, u.id AS user_id
+         FROM business_members bm JOIN users u ON u.id = bm.member_id
+        WHERE bm.business_id = $1 AND bm.member_id = $2 AND bm.status = 'active'`,
+      [businessId, String(memberId)]);
+    if (!member) {
+      throw new AppError('Member not found for this business', 404, 'credit_topup_member_not_found');
+    }
+    const idempotencyKey = getIdempotencyKey(req);
+    const { amountCents, currencyCode } = req.body || {};
+    const { requestIp, correlationId } = getRequestContext(req);
+
+    // The funder pays: step-up binds to the funder, not the recipient.
+    if (topupRequiresStepup(amountCents)) {
+      await verifyStepupChallenge({
+        challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+        actorUserId: funderId,
+        actionType: 'topup',
+        code: req.body?.stepupCode || req.body?.stepup_code,
+        expectedAmountCents: amountCents,
+      });
+    }
+
+    // Compliance gate for the recipient, with the funder as actor.
+    await evaluateFundingCompliance({
+      customerId: member.user_id,
+      amountCents,
+      currencyCode,
+      fundingMethod: 'stripe_topup',
+      actorUserId: funderId,
+      requestIp,
+      correlationId,
+    });
+
+    const { topup, clientSecret, replayed } = await topupService.createTopup({
+      customerId: member.user_id,
+      amountCents,
+      currencyCode,
+      idempotencyKey,
+      fundedBy: { userId: funderId, businessId, reason },
+    });
+
+    res.status(replayed ? 200 : 201).json({
+      topup: formatBusinessTopup(topup),
+      clientSecret,
+      replayed,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getBusinessTopup(req, res, next) {
+  try {
+    const businessId = Number(req.params.businessId);
+    const access = await canManageBusinessFinance(req.user?.id, businessId);
+    if (!access) throw new AppError('Business finance access is required.', 403, 'business_finance_required');
+    const topup = await topupService.getBusinessTopup({ businessId, topupId: req.params.topupId });
+    if (!topup) throw new AppError('Credit top-up not found', 404, 'credit_topup_not_found');
+    res.json({ topup: formatBusinessTopup(topup) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function listBusinessTopups(req, res, next) {
+  try {
+    const businessId = Number(req.params.businessId);
+    const access = await canManageBusinessFinance(req.user?.id, businessId);
+    if (!access) throw new AppError('Business finance access is required.', 403, 'business_finance_required');
+    const topups = await topupService.listBusinessTopups({
+      businessId, limit: req.query.limit, offset: req.query.offset,
+    });
+    res.json({ topups: topups.map(formatBusinessTopup) });
+  } catch (err) {
+    next(err);
+  }
+}
+
 /**
  * POST /api/oxsteed-credit/stepup-challenges
  *
@@ -157,4 +278,7 @@ module.exports = {
   createTopup,
   getTopup,
   issueTopupStepupChallenge,
+  createBusinessTopup,
+  getBusinessTopup,
+  listBusinessTopups,
 };

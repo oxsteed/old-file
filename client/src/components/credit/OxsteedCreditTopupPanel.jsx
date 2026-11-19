@@ -8,6 +8,7 @@ import {
   getOxsteedCreditTopup,
   issueOxsteedCreditTopupStepup,
 } from '../../api/oxsteedCredit';
+import { createBusinessCreditTopup, getBusinessCreditTopup } from '../../api/businesses';
 import { createStableIdempotencyKeyStore } from '../../lib/idempotency';
 import { formatCreditMinorUnits, parseCreditMajorAmount } from '../../lib/creditCurrency';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
@@ -77,11 +78,17 @@ function CardStep({ clientSecret, amountCents, currency, onConfirmed }) {
   );
 }
 
-export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = false, onCredited }) {
+// G-22: when businessFunding ({ businessId, members }) is passed, the panel
+// funds a named member's Credit from the business payment method: the
+// owner/manager pays with their own card and the member is credited.
+// The self-service flow (no businessFunding) is unchanged.
+export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = false, onCredited, businessFunding = null }) {
   const { t } = useTranslation('credit');
   const [step, setStep] = useState('amount');
   const [amount, setAmount] = useState('');
   const [amountCents, setAmountCents] = useState(0);
+  const [memberId, setMemberId] = useState('');
+  const [reason, setReason] = useState('');
   const [challengeId, setChallengeId] = useState(null);
   const [code, setCode] = useState('');
   const [intent, setIntent] = useState(null);
@@ -112,14 +119,17 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
       attempts += 1;
       let status = null;
       try {
-        status = (await getOxsteedCreditTopup(topupId))?.topup?.status || null;
+        // G-22: a business-funded top-up is read as the funder, not the recipient.
+        status = businessFunding
+          ? (await getBusinessCreditTopup(businessFunding.businessId, topupId))?.topup?.status || null
+          : (await getOxsteedCreditTopup(topupId))?.topup?.status || null;
       } catch {
         status = null;
       }
       if (status === 'completed') {
-        keysRef.current.clear('credit-topup', { amountCents: cents, currency });
-        toast.success(t('walletTopup.credited'));
-        setMessage({ tone: 'success', text: t('walletTopup.credited') });
+        keysRef.current.clear(businessFunding ? 'business-credit-topup' : 'credit-topup', { amountCents: cents, currency });
+        toast.success(t(businessFunding ? 'walletTopup.businessCredited' : 'walletTopup.credited'));
+        setMessage({ tone: 'success', text: t(businessFunding ? 'walletTopup.businessCredited' : 'walletTopup.credited') });
         reset();
         onCredited?.();
         return;
@@ -138,14 +148,17 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
     };
     timerRef.current = setTimeout(tick, POLL_INTERVAL_MS);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currency, onCredited, stopPolling, t]);
+  }, [currency, onCredited, stopPolling, t, businessFunding]);
 
   const begin = async (cents, stepup) => {
     setSubmitting(true);
     try {
-      const key = keysRef.current.get('credit-topup', { amountCents: cents, currency });
+      const key = keysRef.current.get(businessFunding ? 'business-credit-topup' : 'credit-topup', { amountCents: cents, currency });
       const payload = { amountCents: cents, currencyCode: currency, ...(stepup || {}) };
-      const result = await createOxsteedCreditTopup(payload, key);
+      // G-22: the business-funded create names the member and records the reason.
+      const result = businessFunding
+        ? await createBusinessCreditTopup(businessFunding.businessId, { ...payload, memberId, reason: reason.trim() }, key)
+        : await createOxsteedCreditTopup(payload, key);
       const topupId = result?.topup?.id;
       if (!topupId) throw new Error('topup-missing');
       setIntent({ topupId, clientSecret: result.clientSecret || null });
@@ -176,6 +189,10 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
       setMessage({ tone: 'error', text: t('walletTopup.invalidAmount', { min: formatCreditMinorUnits(MIN_CENTS, currency) }) });
       return;
     }
+    if (businessFunding) {
+      if (!memberId) { setMessage({ tone: 'error', text: t('walletTopup.businessMemberRequired') }); return; }
+      if (!reason.trim()) { setMessage({ tone: 'error', text: t('walletTopup.businessReasonRequired') }); return; }
+    }
     setMessage(null);
     setAmountCents(cents);
     begin(cents, null);
@@ -196,13 +213,30 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
     <section className="ox-credit-panel" aria-labelledby="wallet-topup-heading" data-testid="wallet-topup">
       <div className="ox-credit-panel-heading">
         <div>
-          <h2 id="wallet-topup-heading">{t('walletTopup.title')}</h2>
-          <p className="ox-credit-panel-copy">{t('walletTopup.intro')}</p>
+          <h2 id="wallet-topup-heading">{businessFunding ? t('walletTopup.businessTitle') : t('walletTopup.title')}</h2>
+          <p className="ox-credit-panel-copy">{businessFunding ? t('walletTopup.businessIntro') : t('walletTopup.intro')}</p>
         </div>
       </div>
       {message && <p role={message.tone === 'error' ? 'alert' : 'status'} className="credit-modal-subtitle">{message.text}</p>}
       {step === 'amount' && (
         <form className="credit-form" onSubmit={submitAmount}>
+          {businessFunding && <>
+            <label>
+              <span>{t('walletTopup.businessMemberLabel')}</span>
+              <select value={memberId} onChange={(e) => setMemberId(e.target.value)}>
+                <option value="">{t('walletTopup.businessMemberPlaceholder')}</option>
+                {(businessFunding.members || []).filter((m) => m.status === 'active' && m.user_id).map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {[m.first_name, m.last_name].filter(Boolean).join(' ') || m.member_email || m.user_id} ({m.role})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{t('walletTopup.businessReasonLabel')}</span>
+              <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('walletTopup.businessReasonPlaceholder')} />
+            </label>
+          </>}
           <label>
             <span>{t('restaurantTopups.amount')}</span>
             <div className="credit-money-input">

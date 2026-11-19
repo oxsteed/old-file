@@ -2373,7 +2373,22 @@
     "title": "إضافة رصيد",
     "intro": "أضف رصيدًا إلى OxSteed Credit بالبطاقة. تتم إضافته بعد تأكيد الدفع.",
     "credited": "تمت إضافة الرصيد إلى OxSteed Credit",
-    "invalidAmount": "أدخل {{min}} على الأقل."
+    "invalidAmount": "أدخل {{min}} على الأقل.",
+    "businessTitle": "تمويل رصيد عضو",
+    "businessIntro": "أضف رصيد OxSteed إلى عضو في الفريق باستخدام طريقة دفع النشاط التجاري. تدفع ببطاقتك؛ ويُضاف الرصيد إلى العضو بمجرد إتمام الدفع.",
+    "businessMemberLabel": "العضو المراد تمويله",
+    "businessMemberPlaceholder": "اختر عضوًا",
+    "businessReasonLabel": "لماذا يمول النشاط التجاري هذا؟",
+    "businessReasonPlaceholder": "على سبيل المثال: بدل أدوات ربع سنوي.",
+    "businessMemberRequired": "اختر عضوًا لتمويله.",
+    "businessReasonRequired": "السبب مطلوب.",
+    "businessCredited": "تمت إضافة الرصيد إلى العضو.",
+    "status": {
+      "pending": "قيد الانتظار",
+      "completed": "تم الإيداع",
+      "failed": "فشل",
+      "requires_attention": "يحتاج إلى انتباه"
+    }
   },
   "identityVerification": {
     "eyebrow": "التحقق من الهوية",

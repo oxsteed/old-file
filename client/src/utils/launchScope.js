@@ -80,6 +80,8 @@ export const LAUNCH_BUSINESS_HUB_TABS = new Set([
   'professional-ops',
   'trades-ops',
   'maintenance',
+  // G-22: business-funded Credit tab (owner/manager funds member Credit).
+  'credit',
 ]);
 
 export const LAUNCH_DEFAULTS = Object.freeze({

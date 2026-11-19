@@ -2373,7 +2373,22 @@
     "title": "Add money",
     "intro": "Add money to OxSteed Credit with a card. It is credited once the payment clears.",
     "credited": "Money added to your OxSteed Credit",
-    "invalidAmount": "Enter at least {{min}}."
+    "invalidAmount": "Enter at least {{min}}.",
+    "businessTitle": "Fund member Credit",
+    "businessIntro": "Add OxSteed Credit to a team member with the business payment method. You pay with your card; the member is credited once the payment clears.",
+    "businessMemberLabel": "Member to fund",
+    "businessMemberPlaceholder": "Choose a member",
+    "businessReasonLabel": "Why is the business funding this?",
+    "businessReasonPlaceholder": "For example: quarterly tools allowance.",
+    "businessMemberRequired": "Choose a member to fund.",
+    "businessReasonRequired": "A reason is required.",
+    "businessCredited": "Credit added to the member.",
+    "status": {
+      "pending": "Pending",
+      "completed": "Credited",
+      "failed": "Failed",
+      "requires_attention": "Needs attention"
+    }
   },
   "identityVerification": {
     "eyebrow": "Identity check",

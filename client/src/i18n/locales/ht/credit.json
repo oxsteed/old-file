@@ -2373,7 +2373,22 @@
     "title": "Ajoute lajan",
     "intro": "Ajoute lajan nan OxSteed Credit ak yon kat. Li antre lè peman an konfime.",
     "credited": "Lajan ajoute nan OxSteed Credit ou",
-    "invalidAmount": "Antre omwen {{min}}."
+    "invalidAmount": "Antre omwen {{min}}.",
+    "businessTitle": "Finanse Kredi yon manm",
+    "businessIntro": "Ajoute Kredi OxSteed pou yon manm ekip la ak metòd peman biznis la. Ou peye ak kat ou; manm lan resevwa kredi a lè peman an pase.",
+    "businessMemberLabel": "Manm pou finanse",
+    "businessMemberPlaceholder": "Chwazi yon manm",
+    "businessReasonLabel": "Poukisa biznis la ap finanse sa a?",
+    "businessReasonPlaceholder": "Pa egzanp: alokasyon trimès pou zouti.",
+    "businessMemberRequired": "Chwazi yon manm pou finanse.",
+    "businessReasonRequired": "Yo bezwen yon rezon.",
+    "businessCredited": "Kredi a ajoute pou manm lan.",
+    "status": {
+      "pending": "An atant",
+      "completed": "Kredite",
+      "failed": "Echwe",
+      "requires_attention": "Bezwen atansyon"
+    }
   },
   "identityVerification": {
     "eyebrow": "Verifikasyon idantite",
