@@ -1,5 +1,7 @@
 'use strict';
 
+const { seedHelperPayoutReadiness } = require('./helpers/helperPayoutReadiness');
+
 /**
  * Real-Postgres checks for the job-edit foundation (migration 760):
  * canonical-field triggers, version bumps, and the edit-vs-accept race.
@@ -77,6 +79,7 @@ describeDb('job edit foundation on real Postgres', () => {
       );
       await acceptCurrentConsents(pool, id);
       if (role === 'helper') {
+        await seedHelperPayoutReadiness(pool, id);
         // Domain 6 enforce contract: the access gate 403s a legacy helper
         // with no grant, so seed the backfilled helper.offer_services grant
         // the real legacy backfill would have created

@@ -1,5 +1,7 @@
 'use strict';
 
+const { seedHelperPayoutReadiness } = require('./helpers/helperPayoutReadiness');
+
 /**
  * Customer-first signup (WP-001..WP-003; AC-002, AC-003, AC-005, AC-007)
  * against a real migrated database, through the real controller.
@@ -150,6 +152,12 @@ ddescribe('customer-first signup (real database)', () => {
       expect(finalized.status).toBe(200);
       const status = await bearer(request(app).get('/api/helper-registration/onboarding/status'), helper.accessToken);
       expect(status.body).toMatchObject({ onboarding_step: 'active', canApplyToJobs: true });
+
+      // Approval and profile completion still cannot bypass payout activation.
+      const beforePayoutSetup = await bid();
+      expect(beforePayoutSetup.status).toBe(403);
+      expect(beforePayoutSetup.body).toMatchObject({ code: 'activation_incomplete', missing: expect.arrayContaining(['payout_setup']) });
+      await seedHelperPayoutReadiness(pool, helper.user.id);
 
       const [firstBid, ownJob] = await Promise.all([
         bid(),
