@@ -4,24 +4,24 @@
 // emphasize links; they cannot grant access.
 
 export const PERSONA_NAVIGATION_CATALOG = Object.freeze([
-  { id: 'customer', variants: ['customer', 'restaurant_customer'], scope: 'personal', primary: 'home', shortcuts: ['findHelp', 'orderFood'], setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'helper', variants: ['helper', 'helper_pro', 'broker'], capability: 'helper.offer_services', scope: 'personal', primary: 'helper-dashboard', shortcuts: ['jobs', 'helper-dashboard'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'business-owner', variants: ['business_owner'], capability: 'business.own', scope: 'business', primary: 'business-workspace', shortcuts: ['business-workspace'], setup: ['/business-launch-status'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'business-team', variants: ['business_manager', 'business_representative', 'business_employee', 'business_support_agent'], scope: 'business-membership', primary: 'business-workspace', shortcuts: ['business-workspace'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'restaurant-owner', variants: ['restaurant_owner'], capability: 'restaurant.own', scope: 'restaurant', primary: 'restaurant-workspace', shortcuts: ['restaurant-workspace'], setup: ['/business-launch-status'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'restaurant-team', variants: ['restaurant_manager', 'restaurant_staff', 'restaurant_runner'], scope: 'restaurant-location', primary: 'restaurant-workspace', shortcuts: ['restaurant-tools'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'logistics', variants: ['logistics', 'delivery', 'dispatcher', 'driver'], capability: 'logistics.ship', scope: 'personal-or-assignment', primary: 'logistics', shortcuts: ['logistics-buyer', 'logistics-organizer'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'consultant', variants: ['consultant'], capability: 'consultant.accept_paying_clients', scope: 'personal', primary: 'consulting', shortcuts: ['consulting'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'equipment-owner', variants: ['tool_owner', 'equipment_owner'], capability: 'tool_owner.list_equipment', scope: 'personal', primary: 'equipment', shortcuts: ['equipment'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'franchise', variants: ['franchise_operator', 'franchise_applicant'], capability: 'franchise.operate', scope: 'territory', primary: 'franchise', shortcuts: ['franchise'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'investor-reporting', variants: ['investor'], capability: 'investor.reporting', scope: 'reporting-audience', primary: 'investor-reporting', shortcuts: ['investor-reporting'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'credit-participant', variants: ['credit_participant', 'credit_member'], capability: 'credit.participate', scope: 'credit-account', primary: 'credit', shortcuts: ['credit'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'partner-affiliate', variants: ['partner', 'affiliate'], capability: 'partner.attribute', scope: 'personal-or-partner', primary: 'partner', shortcuts: ['partner'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'workforce-learning', variants: ['workforce', 'learner', 'instructor'], capability: 'workforce.learn', scope: 'personal-or-program', primary: 'learn', shortcuts: ['learn'], setup: ['/learn'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'reviewer', variants: ['reviewer'], scope: 'staff', primary: 'staff-shell', shortcuts: ['review-queue'], setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'support-agent', variants: ['support_agent'], scope: 'staff', primary: 'staff-shell', shortcuts: ['support'], setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'operations-staff', variants: ['admin', 'super_admin', 'operations'], scope: 'staff', primary: 'staff-shell', shortcuts: ['admin'], setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'device-service-account', variants: ['device', 'service_account', 'kiosk'], scope: 'nonhuman', primary: null, shortcuts: [], setup: [], surfaces: [] },
+  { id: 'customer', variants: ['customer', 'restaurant_customer'], scope: 'personal', primary: 'home', setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'helper', variants: ['helper', 'helper_pro', 'broker'], capability: 'helper.offer_services', scope: 'personal', primary: 'helper-dashboard', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'business-owner', variants: ['business_owner'], capability: 'business.own', scope: 'business', primary: 'business-workspace', setup: ['/business-launch-status'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'business-team', variants: ['business_manager', 'business_representative', 'business_employee', 'business_support_agent'], scope: 'business-membership', primary: 'business-workspace', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'restaurant-owner', variants: ['restaurant_owner'], capability: 'restaurant.own', scope: 'restaurant', primary: 'restaurant-workspace', setup: ['/business-launch-status'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'restaurant-team', variants: ['restaurant_manager', 'restaurant_staff', 'restaurant_runner'], scope: 'restaurant-location', primary: 'restaurant-workspace', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'logistics', variants: ['logistics', 'delivery', 'dispatcher', 'driver'], capability: 'logistics.ship', scope: 'personal-or-assignment', primary: 'logistics', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'consultant', variants: ['consultant'], capability: 'consultant.accept_paying_clients', scope: 'personal', primary: 'consulting', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'equipment-owner', variants: ['tool_owner', 'equipment_owner'], capability: 'tool_owner.list_equipment', scope: 'personal', primary: 'equipment', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'franchise', variants: ['franchise_operator', 'franchise_applicant'], capability: 'franchise.operate', scope: 'territory', primary: 'franchise', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'investor-reporting', variants: ['investor'], capability: 'investor.reporting', scope: 'reporting-audience', primary: 'investor-reporting', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'credit-participant', variants: ['credit_participant', 'credit_member'], capability: 'credit.participate', scope: 'credit-account', primary: 'credit', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'partner-affiliate', variants: ['partner', 'affiliate'], capability: 'partner.attribute', scope: 'personal-or-partner', primary: 'partner', setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'workforce-learning', variants: ['workforce', 'learner', 'instructor'], capability: 'workforce.learn', scope: 'personal-or-program', primary: 'learn', setup: ['/learn'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'reviewer', variants: ['reviewer'], scope: 'staff', primary: 'staff-shell', setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'support-agent', variants: ['support_agent'], scope: 'staff', primary: 'staff-shell', setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'operations-staff', variants: ['admin', 'super_admin', 'operations'], scope: 'staff', primary: 'staff-shell', setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'device-service-account', variants: ['device', 'service_account', 'kiosk'], scope: 'nonhuman', primary: null, setup: [], surfaces: [] },
 ]);
 
 const link = (id, to, labelKey, extra = {}) => ({ id, to, labelKey, primary: false, ...extra });
@@ -50,6 +50,56 @@ function isProjectionReady(projection) {
   return !!(projection?.flags?.accessProjection && projection?.access);
 }
 
+// G-40: catalog `primary` values used to be symbolic ids no code read.
+// This map is the single place a primary becomes a route, and
+// ModeHomeRoute consumes it (see G-13). Every value is a route registered
+// in App.jsx. `staff-shell` has no entry on purpose: staff reach
+// /support/agent through the separate staff-shell check, never through a
+// catalog primary.
+const PRIMARY_ROUTES = Object.freeze({
+  home: '/',
+  'helper-dashboard': '/helper-dashboard',
+  'business-workspace': '/business-hub',
+  'restaurant-workspace': '/restaurants/merchant',
+  logistics: '/logistics',
+  consulting: '/consulting/contractor-dashboard',
+  equipment: '/tool-rentals/analytics',
+  franchise: '/franchise/territory',
+  'investor-reporting': '/investments',
+  credit: '/oxsteed-credit',
+  partner: '/affiliate',
+  learn: '/learn',
+});
+
+export function familyForMode(mode) {
+  if (!mode) return null;
+  return PERSONA_NAVIGATION_CATALOG.find((family) => (family.variants || []).includes(mode)) || null;
+}
+
+/**
+ * Resolve a catalog family's `primary` to a working route, or null.
+ * Only a family whose capability the projection actually backs (and whose
+ * activation is ready) resolves. The seven capability-less families never
+ * gain a nav target from this map, and investor reporting additionally
+ * needs its audience. Customer resolves to '/' (the real home).
+ */
+export function primaryRouteForFamily(familyId, projection) {
+  const family = PERSONA_NAVIGATION_CATALOG.find((entry) => entry.id === familyId);
+  if (!family || !family.primary) return null;
+  const to = PRIMARY_ROUTES[family.primary];
+  if (!to) return null;
+  if (family.id === 'customer') return to;
+  if (!family.capability || !hasCapability(projection, family.capability)) return null;
+  if (!activationReady(projection, family.capability)) return null;
+  if (family.id === 'investor-reporting' && !projection?.access?.investorAudience) return null;
+  return to;
+}
+
+function setupLinksFor(familyId) {
+  const family = PERSONA_NAVIGATION_CATALOG.find((entry) => entry.id === familyId);
+  return (family?.setup || []).filter((to) => typeof to === 'string' && to.startsWith('/'));
+}
+
 function isNonhuman(projection) {
   const access = projection?.access || {};
   return access.actorType === 'nonhuman' || access.subjectType === 'device' || access.subjectType === 'service_account' || projection?.subject?.type === 'nonhuman';
@@ -59,7 +109,16 @@ function hasCapability(projection, capability) {
   const access = projection?.access;
   if (!access || !capability) return false;
   if ((access.personal || []).includes(capability)) return true;
-  return (access.organizations || []).some((scope) => (scope.capabilities || scope.access || []).includes(capability));
+  if ((access.organizations || []).some((scope) => (scope.capabilities || scope.access || []).includes(capability))) return true;
+  // The server projects organizations as { type, id, name, role } with no
+  // capabilities array (resolver.project), so ownership capabilities resolve
+  // from the owner role, mirroring accessProjection.hasCapability. Without
+  // this, business.own / restaurant.own could never be held in nav even
+  // though the account owns the business.
+  if (capability === 'business.own' || capability === 'restaurant.own') {
+    return (access.organizations || []).some((scope) => scope && scope.role === 'owner');
+  }
+  return false;
 }
 
 function activationReady(projection, capability) {
@@ -156,10 +215,10 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
     addUnique(account, link('investments', '/investments', 'nav.investments', { protected: true }));
   }
   if (hasCapability(projection, 'business.own') && !activationReady(projection, 'business.own')) {
-    addUnique(account, link('businessSetup', '/business-launch-status', 'nav.businessLaunchStatus'));
+    for (const to of setupLinksFor('business-owner')) addUnique(account, link('businessSetup', to, 'nav.businessLaunchStatus'));
   }
   if (hasCapability(projection, 'restaurant.own') && !activationReady(projection, 'restaurant.own')) {
-    addUnique(account, link('restaurantSetup', '/business-launch-status', 'nav.businessLaunchStatus'));
+    for (const to of setupLinksFor('restaurant-owner')) addUnique(account, link('restaurantSetup', to, 'nav.businessLaunchStatus'));
   }
   if (approved('business.own') || approved('restaurant.own') || hasBusinessWorkspace) {
     addUnique(account, link('workspace', '/business-hub', 'nav.businessWorkspace', { protected: true }));

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PERSONA_NAVIGATION_CATALOG, deriveAdaptiveNavigation } from '../src/utils/personaNavigation.js';
+import { PERSONA_NAVIGATION_CATALOG, deriveAdaptiveNavigation, primaryRouteForFamily, familyForMode } from '../src/utils/personaNavigation.js';
 
 const projection = (personal = ['customer'], organizations = [], extra = {}) => ({
   flags: { accessProjection: true },
@@ -123,4 +123,39 @@ test('business and restaurant setup links point at the real launch status page',
   for (const family of PERSONA_NAVIGATION_CATALOG.filter((entry) => ['business-owner', 'restaurant-owner'].includes(entry.id))) {
     assert.deepEqual(family.setup, ['/business-launch-status'], family.id);
   }
+});
+
+test('catalog primary resolves to a real route only for access-backed families', () => {
+  // G-40: primary used to be a symbolic id with no consumer. The route map
+  // makes it load-bearing; capability-less families never gain a target.
+  const held = (personal, extra = {}) => ({ flags: { accessProjection: true }, access: { personal, organizations: [], ...extra } });
+  assert.equal(primaryRouteForFamily('helper', held(['customer', 'helper.offer_services'])), '/helper-dashboard');
+  assert.equal(primaryRouteForFamily('helper', held(['customer'])), null);
+  assert.equal(primaryRouteForFamily('business-owner', held(['customer'], { organizations: [{ type: 'business', id: 9, role: 'owner', capabilities: ['business.own'] }] })), '/business-hub');
+  // The server projects organizations as { type, id, name, role } with no
+  // capabilities array, so the owner role alone must back the primary too.
+  assert.equal(primaryRouteForFamily('business-owner', held(['customer'], { organizations: [{ type: 'business', id: 9, role: 'owner' }] })), '/business-hub');
+  assert.equal(primaryRouteForFamily('business-owner', held(['customer'], { organizations: [{ type: 'business', id: 9, role: 'manager' }] })), null, 'a manager holds no ownership capability');
+  assert.equal(primaryRouteForFamily('investor-reporting', held(['customer', 'investor.reporting'])), null, 'reporting without an audience has no destination');
+  assert.equal(primaryRouteForFamily('investor-reporting', held(['customer', 'investor.reporting'], { investorAudience: { audienceKey: 'entity', datasets: ['overview'] } })), '/investments');
+  assert.equal(primaryRouteForFamily('customer', held(['customer'])), '/');
+  for (const familyId of ['business-team', 'restaurant-team', 'reviewer', 'support-agent', 'operations-staff', 'device-service-account']) {
+    assert.equal(primaryRouteForFamily(familyId, held(['customer', 'helper.offer_services'])), null, familyId);
+  }
+  assert.equal(familyForMode('helper').id, 'helper');
+  assert.equal(familyForMode('business_owner').id, 'business-owner');
+  assert.equal(familyForMode('investor').id, 'investor-reporting');
+  assert.equal(familyForMode('no-such-mode'), null);
+});
+
+test('catalog carries no dead shortcuts field and every setup entry is a real path', () => {
+  for (const family of PERSONA_NAVIGATION_CATALOG) {
+    assert.equal('shortcuts' in family, false, `${family.id} still ships dead shortcuts`);
+    assert.ok(Array.isArray(family.setup), family.id);
+    for (const entry of family.setup) assert.match(entry, /^\//, `${family.id} setup entry ${entry}`);
+  }
+  // The activation setup links read the catalog entries, not a hardcoded copy.
+  const businessSetup = PERSONA_NAVIGATION_CATALOG.find((entry) => entry.id === 'business-owner').setup;
+  const nav = deriveAdaptiveNavigation({ flags: { accessProjection: true }, access: { personal: ['customer', 'business.own'], organizations: [], activation: { 'business.own': 'needs_setup' } } });
+  assert.ok(destinations(nav).includes(businessSetup[0]));
 });
