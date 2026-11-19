@@ -6564,6 +6564,18 @@
     "requestsTitle": "Vos demandes",
     "noRequests": "Vous n'avez encore aucune demande.",
     "applyTitle": "Demander davantage",
+    "activationTitle": "Terminez la configuration pour utiliser cet accès",
+    "activationIntro": "L’approbation n’est que la première étape. Complétez les points ci-dessous pour commencer à utiliser cet accès.",
+    "activationRequirements": {
+      "identity_verified": "Vérifiez votre identité",
+      "helper_terms": "Acceptez les conditions pour les aidants",
+      "payout_setup": "Configurez les paiements",
+      "restaurant_activation": "Activez votre restaurant",
+      "territory_assignment": "Confirmez votre affectation de territoire",
+      "authority_verified": "Vérifiez votre autorité pour investir",
+      "eligibility_verified": "Terminez la vérification d’admissibilité",
+      "agreement_accepted": "Acceptez l’accord d’investissement"
+    },
     "editTitle": "Demande : {{capability}}",
     "reviewerAsked": "L'examinateur a demandé :",
     "choose": "Choisir…",

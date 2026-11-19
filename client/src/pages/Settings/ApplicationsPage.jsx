@@ -187,6 +187,12 @@ function AccountApplications({ accountId, epoch }) {
   };
 
   const held = new Set(access?.personal || []);
+  // G-1: approval is not activation. The projection carries the activation
+  // state per held capability; surface the missing setup steps here so the
+  // user completes them instead of hitting a bare 403 on first use.
+  const activation = access?.activation || {};
+  const activationIncomplete = [...held].filter((c) => activation[c] && activation[c].ready === false);
+  const activationReadyFor = (capability) => !activation[capability] || activation[capability].ready !== false;
   const openCaps = new Set(requests.filter((r) => OPEN.includes(r.status)).map((r) => r.capability));
   const applyable = policies.filter((p) => p.applicantMayRequest && !held.has(p.capability) && !openCaps.has(p.capability));
   const policyFor = (capability) => policies.find((p) => p.capability === capability);
@@ -306,6 +312,25 @@ function AccountApplications({ accountId, epoch }) {
                   )}
                 </section>
 
+                {activationIncomplete.length > 0 && (
+                  <section aria-labelledby="access-activation-title">
+                    <h2 id="access-activation-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.activationTitle', { ns: NS })}</h2>
+                    <p className="mb-3 text-sm text-muted">{t('progressiveAccess.activationIntro', { ns: NS })}</p>
+                    <ul className="space-y-3">
+                      {activationIncomplete.map((c) => (
+                        <li key={c} className="rounded-xl border border-border p-3">
+                          <p className="text-sm font-medium text-content">{capabilityLabel(t, c)}</p>
+                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted">
+                            {(activation[c].missing || []).map((req) => (
+                              <li key={req}>{t(`progressiveAccess.activationRequirements.${req}`, { ns: NS })}</li>
+                            ))}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
                 <section aria-labelledby="access-requests-title">
                   <h2 id="access-requests-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.requestsTitle', { ns: NS })}</h2>
                   {requests.length === 0 ? (
@@ -337,7 +362,7 @@ function AccountApplications({ accountId, epoch }) {
                             </p>
                           )}
                           <div className="mt-2 flex flex-wrap gap-3">
-                            {r.status === 'approved' && USE_NOW_ROUTES[r.capability] && (
+                            {r.status === 'approved' && USE_NOW_ROUTES[r.capability] && activationReadyFor(r.capability) && (
                               <Link
                                 to={USE_NOW_ROUTES[r.capability]}
                                 className="text-sm font-medium text-primary hover:underline"

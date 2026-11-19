@@ -6564,6 +6564,18 @@
     "requestsTitle": "Tus solicitudes",
     "noRequests": "Aún no tienes solicitudes.",
     "applyTitle": "Solicitar más",
+    "activationTitle": "Completa la configuración para usar este acceso",
+    "activationIntro": "La aprobación es solo el primer paso. Completa los puntos siguientes para empezar a usar este acceso.",
+    "activationRequirements": {
+      "identity_verified": "Verifica tu identidad",
+      "helper_terms": "Acepta los términos para ayudantes",
+      "payout_setup": "Configura los pagos",
+      "restaurant_activation": "Activa tu restaurante",
+      "territory_assignment": "Confirma tu asignación de territorio",
+      "authority_verified": "Verifica tu autoridad para invertir",
+      "eligibility_verified": "Completa la verificación de elegibilidad",
+      "agreement_accepted": "Acepta el acuerdo de inversión"
+    },
     "editTitle": "Solicitud: {{capability}}",
     "reviewerAsked": "El revisor preguntó:",
     "choose": "Elige…",

@@ -53,7 +53,16 @@ function evaluate(facts, capability, subject = { type: 'self' }) {
   // Ownership of an existing business is canonical in businesses.user_id.
   if ((capability === 'business.own' || capability === 'restaurant.own') && subject && subject.type === 'business') {
     const b = (facts.businesses || []).find((row) => String(row.id) === String(subject.id) && row.role === 'owner');
-    if (b) return { allowed: true, reason: 'canonical_owner', source: { type: 'business_owner', id: String(b.id) }, policyVersion: cap.version };
+    if (b) {
+      // G-1: canonical ownership is authority, not activation. An owner
+      // whose payout setup is incomplete holds the capability but cannot
+      // use it until the declared requirements are met.
+      const activation = facts.activation && facts.activation[capability];
+      if (activation && activation.ready === false) {
+        return { allowed: false, reason: 'activation_incomplete', missing: activation.missing || [], source: { type: 'business_owner', id: String(b.id) }, policyVersion: cap.version };
+      }
+      return { allowed: true, reason: 'canonical_owner', source: { type: 'business_owner', id: String(b.id) }, policyVersion: cap.version };
+    }
   }
 
   const matches = (facts.grants || [])
@@ -61,6 +70,16 @@ function evaluate(facts, capability, subject = { type: 'self' }) {
     .sort((a, b) => String(a.id).localeCompare(String(b.id)));
   const active = matches.find((g) => grantIsEffective(g, now));
   if (active) {
+    // G-1: approval is not activation. A grant whose declared activation
+    // requirements are unmet stays HELD: the caller must complete setup
+    // (see activationFor) instead of discovering a bare 403 downstream.
+    // facts.activation is supplied by accessService.can / getProjection;
+    // a caller without activation facts keeps the previous grant-only
+    // behavior.
+    const activation = facts.activation && facts.activation[capability];
+    if (activation && activation.ready === false) {
+      return { allowed: false, reason: 'activation_incomplete', missing: activation.missing || [], source: { type: 'grant', id: String(active.id), provenance: active.provenance }, policyVersion: cap.version };
+    }
     return { allowed: true, reason: 'grant', source: { type: 'grant', id: String(active.id), provenance: active.provenance }, policyVersion: cap.version };
   }
   if (matches.some((g) => g.status === 'suspended')) return { allowed: false, reason: 'grant_suspended' };

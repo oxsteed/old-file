@@ -6564,6 +6564,18 @@
     "requestsTitle": "طلباتك",
     "noRequests": "ليس لديك أي طلبات بعد.",
     "applyTitle": "قدّم طلبًا للمزيد",
+    "activationTitle": "أكمل الإعداد لاستخدام هذا الوصول",
+    "activationIntro": "الموافقة هي الخطوة الأولى فقط. أكمل العناصر أدناه لبدء استخدام هذا الوصول.",
+    "activationRequirements": {
+      "identity_verified": "تحقق من هويتك",
+      "helper_terms": "اقبل شروط المساعد",
+      "payout_setup": "أعدّ المدفوعات",
+      "restaurant_activation": "فعّل مطعمك",
+      "territory_assignment": "أكّد تعيين منطقتك",
+      "authority_verified": "تحقق من صلاحيتك للاستثمار",
+      "eligibility_verified": "أكمل التحقق من الأهلية",
+      "agreement_accepted": "اقبل اتفاقية الاستثمار"
+    },
     "editTitle": "الطلب: {{capability}}",
     "reviewerAsked": "سأل المراجع:",
     "choose": "اختر…",

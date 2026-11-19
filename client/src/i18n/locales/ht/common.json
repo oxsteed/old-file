@@ -6564,6 +6564,18 @@
     "requestsTitle": "Aplikasyon ou yo",
     "noRequests": "Ou poko gen okenn aplikasyon.",
     "applyTitle": "Aplike pou plis",
+    "activationTitle": "Fini konfigirasyon an pou w ka itilize aksè sa a",
+    "activationIntro": "Apwobasyon an se sèlman premye etap la. Konplete pwen ki anba yo pou w ka kòmanse itilize aksè sa a.",
+    "activationRequirements": {
+      "identity_verified": "Verifye idantite w",
+      "helper_terms": "Aksepte kondisyon pou edan yo",
+      "payout_setup": "Mete peman yo sou pye",
+      "restaurant_activation": "Aktive restoran w lan",
+      "territory_assignment": "Konfime plas teritwa w la",
+      "authority_verified": "Verifye otorite w pou envesti",
+      "eligibility_verified": "Konplete verifikasyon elijiblite a",
+      "agreement_accepted": "Aksepte akò envestisman an"
+    },
     "editTitle": "Aplikasyon: {{capability}}",
     "reviewerAsked": "Revizè a mande:",
     "choose": "Chwazi…",

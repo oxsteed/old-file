@@ -75,6 +75,17 @@ function requireCapability(capability, { modeFn, audienceLoader = null, legacyAl
       return next();
     }
     if (!decision.allowed) {
+      // G-1: an approved-but-incomplete capability is not a missing grant.
+      // Name the missing setup steps so the client can send the user to
+      // Settings → Applications instead of showing a bare 403.
+      if (decision.reason === 'activation_incomplete') {
+        return res.status(403).json({
+          error: 'This access is approved but setup is not finished. Complete the remaining steps in Settings → Applications.',
+          code: 'activation_incomplete',
+          capability,
+          missing: decision.missing || [],
+        });
+      }
       return res.status(403).json({
         error: 'This needs approved access. Apply from Settings → Applications.',
         code: 'access_required',

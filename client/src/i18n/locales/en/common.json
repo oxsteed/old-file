@@ -6564,6 +6564,18 @@
     "requestsTitle": "Your applications",
     "noRequests": "You have no applications yet.",
     "applyTitle": "Apply for more",
+    "activationTitle": "Finish setup to use this access",
+    "activationIntro": "Approval is only the first step. Complete the items below to start using this access.",
+    "activationRequirements": {
+      "identity_verified": "Verify your identity",
+      "helper_terms": "Accept the helper terms",
+      "payout_setup": "Set up payouts",
+      "restaurant_activation": "Activate your restaurant",
+      "territory_assignment": "Confirm your territory assignment",
+      "authority_verified": "Verify your authority to invest",
+      "eligibility_verified": "Complete the eligibility check",
+      "agreement_accepted": "Accept the investment agreement"
+    },
     "editTitle": "Application: {{capability}}",
     "reviewerAsked": "The reviewer asked:",
     "choose": "Choose…",

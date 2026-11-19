@@ -159,6 +159,19 @@ async function getProjection(userId, db = pool) {
   );
   const version = await projectionVersion(userId, db);
   const projection = resolver.project(facts, { openRequestCount: rows[0].n, version });
+  // G-1: emit activation state per held capability so the client can show
+  // the missing setup steps (ApplicationsPage) and the nav can hold the
+  // protected links (activationReady) instead of the user discovering a
+  // bare 403. Capabilities with no declared requirements are ready.
+  {
+    const { activationFor } = require('./activation');
+    const activation = {};
+    for (const capability of projection.personal) {
+      if (capability === registry.CUSTOMER) continue;
+      activation[capability] = await activationFor(capability, userId, db);
+    }
+    projection.activation = activation;
+  }
   // OxSteed Invest (Track 2): the client renders participation surfaces
   // from this projection only. Granted invest capabilities already appear
   // in projection.personal through resolver.project (any effective grant).
@@ -183,6 +196,11 @@ async function getProjection(userId, db = pool) {
 
 async function can(userId, capability, subject, db = pool) {
   const facts = await loadFacts(userId, db);
+  // G-1: approval is not activation. Resolve the capability's declared
+  // activation requirements against real evidence and let the resolver
+  // hold a granted-but-incomplete capability instead of authorizing it.
+  const { activationFor } = require('./activation');
+  facts.activation = { [capability]: await activationFor(capability, userId, db) };
   return resolver.evaluate(facts, capability, subject);
 }
 

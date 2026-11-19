@@ -41,6 +41,23 @@ test('approved but incomplete activation exposes setup, not a protected helper w
   assert.ok(!destinations(nav).includes('/helper-dashboard'));
 });
 
+test('G-1 server activation shape holds protected links until requirements are met', () => {
+  // The server projection emits { ready, missing } per capability; the
+  // branch above must fire for that shape too, not just the 'needs_setup'
+  // string the fixture hand-injects.
+  const held = deriveAdaptiveNavigation(projection(['customer', 'helper.offer_services'], [], {
+    activation: { 'helper.offer_services': { ready: false, missing: ['identity_verified', 'helper_terms', 'payout_setup'] } },
+  }));
+  assert.ok(destinations(held).includes('/settings/applications'));
+  assert.ok(!destinations(held).includes('/helper-dashboard'));
+  assert.ok(!destinations(held).includes('/jobs'));
+  const ready = deriveAdaptiveNavigation(projection(['customer', 'helper.offer_services'], [], {
+    activation: { 'helper.offer_services': { ready: true, missing: [] } },
+  }));
+  assert.ok(destinations(ready).includes('/helper-dashboard'));
+  assert.ok(destinations(ready).includes('/jobs'));
+});
+
 test('restaurant tools are limited to explicit assigned-location shortcuts', () => {
   const nav = deriveAdaptiveNavigation(projection(['customer'], [{ type: 'business', id: 42, name: 'Restaurant business' }], {
     locations: [
