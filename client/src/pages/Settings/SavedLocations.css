@@ -1,0 +1,10 @@
+/* Group 1, item 43: saved service locations settings page. */
+.sl-page {
+  background: var(--color-bg, #030712);
+  color: var(--color-text, #f3f4f6);
+}
+
+.sl-alert {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}

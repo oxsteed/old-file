@@ -58,6 +58,12 @@ router.get('/saved-helpers',     authenticate, ctrl.getSavedHelpers);
 router.post('/saved-helpers',    authenticate, ctrl.saveHelper);
 router.delete('/saved-helpers/:id', authenticate, ctrl.removeSavedHelper);
 
+// Group 1, item 43: saved service locations (owner-scoped).
+router.get('/saved-locations',      authenticate, ctrl.getSavedLocations);
+router.post('/saved-locations',     authenticate, ctrl.createSavedLocation);
+router.put('/saved-locations/:id',  authenticate, ctrl.updateSavedLocation);
+router.delete('/saved-locations/:id', authenticate, ctrl.deleteSavedLocation);
+
 // ── Home Tasks ───────────────────────────────────────────────────────────
 router.get('/home-tasks',              authenticate, ctrl.getHomeTasks);
 router.post('/home-tasks',             authenticate, ctrl.createHomeTask);

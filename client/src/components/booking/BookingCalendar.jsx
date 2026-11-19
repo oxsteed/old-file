@@ -42,6 +42,15 @@ export default function BookingCalendar({
   const [loading, setLoading] = useState(false);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Group 1, item 43: saved service locations the customer picks from
+  // instead of retyping the address. Loaded once; signed-out guests see
+  // only the free-text field.
+  const [savedLocations, setSavedLocations] = useState([]);
+  useEffect(() => {
+    api.get('/life/saved-locations')
+      .then((r) => setSavedLocations(Array.isArray(r.data?.saved_locations) ? r.data.saved_locations : []))
+      .catch(() => setSavedLocations([]));
+  }, []);
   // Whether the draft already carried a service name (restored from
   // sessionStorage): in that case don't let initialServiceName or the
   // first-business-service default clobber it.
@@ -183,7 +192,34 @@ export default function BookingCalendar({
             </div>
           )}
         </div>
-        <div className="booking-form-group"><label htmlFor="booking-service-location">{t('booking.serviceLocation')}</label><input id="booking-service-location" type="text" placeholder={t('booking.serviceLocation')} value={serviceData.serviceLocation} onChange={(e) => onDraftChange({ serviceLocation: e.target.value })} className="booking-input" /></div>
+        <div className="booking-form-group"><label htmlFor="booking-service-location">{t('booking.serviceLocation')}</label>
+          {savedLocations.length > 0 && (
+            <select
+              aria-label={t('booking.savedLocation')}
+              value=""
+              onChange={(e) => {
+                const loc = savedLocations.find((l) => String(l.id) === e.target.value);
+                if (loc) {
+                  onDraftChange({
+                    serviceLocation: loc.entry_instructions
+                      ? `${loc.address} (${loc.entry_instructions})`
+                      : loc.address,
+                  });
+                }
+              }}
+              className="booking-input mb-2"
+            >
+              <option value="">{t('booking.savedLocationPlaceholder')}</option>
+              {savedLocations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.label}{loc.is_default ? ` (${t('booking.savedLocationDefault')})` : ''} — {loc.address}
+                </option>
+              ))}
+            </select>
+          )}
+          <input id="booking-service-location" type="text" placeholder={t('booking.serviceLocation')} value={serviceData.serviceLocation} onChange={(e) => onDraftChange({ serviceLocation: e.target.value })} className="booking-input" />
+          <a href="/settings/locations" className="booking-saved-locations-link" data-track="ui.ac0691bf43.8">{t('booking.manageSavedLocations')}</a>
+        </div>
         <div className="booking-form-group"><label htmlFor="booking-description">{t('booking.description')}</label><textarea id="booking-description" placeholder={t('booking.descriptionPlaceholder')} value={serviceData.description} onChange={(e) => onDraftChange({ description: e.target.value })} className="booking-textarea" rows="5" /></div>
       </section>
 

@@ -85,6 +85,7 @@ const SessionsSetup = lazyWithRetry(() => import('./pages/Settings/SessionsSetup
 const ApplicationsPage = lazyWithRetry(() => import('./pages/Settings/ApplicationsPage'));
 const YourData = lazyWithRetry(() => import('./pages/Settings/YourData'));
 const NotificationSettings = lazyWithRetry(() => import('./pages/Settings/Notifications'));
+const SavedLocations = lazyWithRetry(() => import('./pages/Settings/SavedLocations'));
 const CountrySettings = lazyWithRetry(() => import('./pages/Settings/Country'));
 const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'));
 const HelperCancellationSettings = lazyWithRetry(() => import('./pages/HelperCancellationSettings'));
@@ -742,6 +743,7 @@ export default function App() {
                     <Route path="/settings/applications" element={<Guarded><ProtectedRoute><ApplicationsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/your-data" element={<Guarded><ProtectedRoute><YourData /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
+                    <Route path="/settings/locations" element={<Guarded><ProtectedRoute><SavedLocations /></ProtectedRoute></Guarded>} />
                     {/* Weekly self-audit 2026-11-04 item 11: every sibling settings route wraps in ProtectedRoute; this one did not. */}
                     <Route path="/settings/country" element={<Guarded><ProtectedRoute><CountrySettings /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />

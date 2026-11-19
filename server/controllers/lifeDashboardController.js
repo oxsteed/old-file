@@ -724,6 +724,113 @@ exports.removeSavedHelper = async (req, res) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// GROUP 1, ITEM 43: SAVED SERVICE LOCATIONS
+// The customer's own addresses (home, office, a property) with optional
+// entry instructions, so booking does not retype the address every time.
+// Owner-scoped; the address is the customer's private data.
+// ═══════════════════════════════════════════════════════════════════════════
+
+exports.getSavedLocations = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT id, label, address, entry_instructions, is_default, created_at, updated_at
+        FROM customer_saved_locations
+       WHERE user_id = $1
+       ORDER BY is_default DESC, created_at ASC
+    `, [req.user.id]);
+    res.json({ saved_locations: rows });
+  } catch (err) {
+    logger.error('getSavedLocations error', { message: err.message });
+    res.status(500).json({ error: 'Failed to fetch saved locations.' });
+  }
+};
+
+exports.createSavedLocation = async (req, res) => {
+  try {
+    const { label, address, entry_instructions, is_default } = req.body || {};
+    if (!label || !String(label).trim() || !address || !String(address).trim()) {
+      return res.status(400).json({ error: 'Label and address are required.' });
+    }
+    if (String(label).length > 80 || String(address).length > 500
+      || (entry_instructions && String(entry_instructions).length > 1000)) {
+      return res.status(400).json({ error: 'Location fields are too long.' });
+    }
+    const { rows } = await db.query(`
+      INSERT INTO customer_saved_locations (user_id, label, address, entry_instructions, is_default)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, label, address, entry_instructions, is_default, created_at, updated_at
+    `, [
+      req.user.id,
+      String(label).trim(),
+      String(address).trim(),
+      entry_instructions ? String(entry_instructions).trim() : null,
+      is_default === true,
+    ]);
+    // A new default unsets the previous default, so only one is default.
+    if (is_default === true) {
+      await db.query(`
+        UPDATE customer_saved_locations SET is_default = false
+        WHERE user_id = $1 AND id <> $2
+      `, [req.user.id, rows[0].id]);
+    }
+    res.status(201).json({ saved_location: rows[0] });
+  } catch (err) {
+    logger.error('createSavedLocation error', { message: err.message });
+    res.status(500).json({ error: 'Failed to save location.' });
+  }
+};
+
+exports.updateSavedLocation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { label, address, entry_instructions, is_default } = req.body || {};
+    const { rows } = await db.query(`
+      UPDATE customer_saved_locations
+         SET label = COALESCE($2, label),
+             address = COALESCE($3, address),
+             entry_instructions = COALESCE($4, entry_instructions),
+             is_default = COALESCE($5, is_default),
+             updated_at = NOW()
+       WHERE id = $1 AND user_id = $6
+       RETURNING id, label, address, entry_instructions, is_default, created_at, updated_at
+    `, [
+      id,
+      label ? String(label).trim().slice(0, 80) : null,
+      address ? String(address).trim().slice(0, 500) : null,
+      entry_instructions !== undefined ? String(entry_instructions).trim().slice(0, 1000) : null,
+      is_default === undefined ? null : is_default === true,
+      req.user.id,
+    ]);
+    if (!rows.length) return res.status(404).json({ error: 'Saved location not found.' });
+    if (is_default === true) {
+      await db.query(`
+        UPDATE customer_saved_locations SET is_default = false
+        WHERE user_id = $1 AND id <> $2
+      `, [req.user.id, rows[0].id]);
+    }
+    res.json({ saved_location: rows[0] });
+  } catch (err) {
+    logger.error('updateSavedLocation error', { message: err.message });
+    res.status(500).json({ error: 'Failed to update location.' });
+  }
+};
+
+exports.deleteSavedLocation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await db.query(
+      'DELETE FROM customer_saved_locations WHERE id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Saved location not found.' });
+    res.json({ message: 'Saved location removed.' });
+  } catch (err) {
+    logger.error('deleteSavedLocation error', { message: err.message });
+    res.status(500).json({ error: 'Failed to remove location.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // HOME TASKS
 // ═══════════════════════════════════════════════════════════════════════════
 
