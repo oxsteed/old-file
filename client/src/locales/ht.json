@@ -1677,6 +1677,11 @@
   "merchantFinance": {
     "walletPaused": "Vèsman bous yo pa aktive. Ou ka revize balans lan ak istorik la; kontakte sipò anvan ou mande yon vèsman.",
     "refresh": "Rafrechi demann yo",
+    "draftAwaitingOwner": "Bouyon. Y ap tann pwopriyetè restoran an konfime li anvan li ale nan revizyon.",
+    "draftCreated": "Bouyon an anrejistre. Pwopriyetè restoran an dwe konfime li anvan li ale nan revizyon.",
+    "confirmDraft": "Konfime epi voye pou revizyon",
+    "draftConfirmed": "Peman an konfime epi voye pou revizyon.",
+    "confirmDraftError": "Pa t kapab konfime bouyon peman an.",
     "eyebrow": "Finans restoran",
     "title": "Vèsman ak kredi",
     "description": "Jere fason restoran an resevwa lajan, revize demann kredi kliyan yo epi swiv règleman yo.",
@@ -25754,6 +25759,7 @@
         "minPayout": "Peman minimòm: {{amount}}",
         "status": {
           "requested": "Mande",
+          "draft": "Bouyon",
           "approved": "Apwouve",
           "processing": "N ap trete",
           "completed": "Fini",

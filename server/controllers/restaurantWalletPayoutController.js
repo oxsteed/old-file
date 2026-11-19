@@ -23,11 +23,16 @@ exports.getPayoutBalance = async (req, res, next) => {
     const currency = (req.query.currency || '').toString().toUpperCase() || null;
     const client = await db.connect();
     try {
+      // G-18: managers read the balance too (owner or active manager of
+      // the restaurant's business).
       const { rows } = await client.query(
         `SELECT fr.id, fr.display_name, fr.currency_code
            FROM food_restaurants fr
            JOIN businesses b ON b.id = fr.business_id
-          WHERE fr.id = $1 AND b.user_id = $2
+           LEFT JOIN business_members bm
+             ON bm.business_id = b.id AND bm.member_id = $2 AND bm.status = 'active'
+          WHERE fr.id = $1
+            AND (b.user_id = $2 OR bm.role = 'manager')
             AND fr.status = 'active' AND b.is_active = TRUE AND b.deleted_at IS NULL`,
         [restaurantId, req.user.id]
       );
@@ -56,6 +61,9 @@ exports.getPayoutBalance = async (req, res, next) => {
 exports.requestPayout = async (req, res, next) => {
   try {
     const restaurantId = parseRestaurantId(req.params.restaurantId);
+    // G-18: the gate already admitted owner-or-manager. The service
+    // derives the status from the actor: owners request, managers draft.
+    // req.restaurant is set by requirePayoutManager / requirePayoutReader.
     const payout = await payoutService.requestPayout({
       restaurantId,
       userId: req.user.id,
@@ -63,8 +71,24 @@ exports.requestPayout = async (req, res, next) => {
       currencyCode: req.body.currencyCode || req.body.currency_code,
       idempotencyKey:
         req.get('Idempotency-Key') || req.body.idempotencyKey || req.body.idempotency_key,
+      initialStatus: req.restaurant?.effective_role === 'owner' ? 'requested' : 'draft',
     });
     res.status(201).json({ payout });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// G-18: owner confirmation of a manager-drafted payout (draft -> requested).
+exports.confirmDraftPayout = async (req, res, next) => {
+  try {
+    const restaurantId = parseRestaurantId(req.params.restaurantId);
+    const payout = await payoutService.confirmDraftPayout({
+      restaurantId,
+      userId: req.user.id,
+      payoutId: req.params.payoutId,
+    });
+    res.json({ payout });
   } catch (err) {
     next(err);
   }

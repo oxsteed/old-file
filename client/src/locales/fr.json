@@ -1677,6 +1677,11 @@
   "merchantFinance": {
     "walletPaused": "Les versements du portefeuille ne sont pas activés. Consultez le solde et l’historique ; contactez l’assistance avant de demander un versement.",
     "refresh": "Actualiser les demandes",
+    "draftAwaitingOwner": "Brouillon. En attente de la confirmation du propriétaire du restaurant avant envoi en révision.",
+    "draftCreated": "Brouillon enregistré. Le propriétaire du restaurant doit le confirmer avant envoi en révision.",
+    "confirmDraft": "Confirmer et envoyer en révision",
+    "draftConfirmed": "Paiement confirmé et envoyé en révision.",
+    "confirmDraftError": "Impossible de confirmer le brouillon du paiement.",
     "eyebrow": "Finances du restaurant",
     "title": "Versements et crédit",
     "description": "Gérez les versements de ce restaurant, examinez les demandes de crédit et suivez les règlements.",
@@ -25754,6 +25759,7 @@
         "minPayout": "Paiement minimum : {{amount}}",
         "status": {
           "requested": "Demandé",
+          "draft": "Brouillon",
           "approved": "Approuvé",
           "processing": "En cours",
           "completed": "Terminé",

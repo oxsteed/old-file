@@ -1677,6 +1677,11 @@
   "merchantFinance": {
     "walletPaused": "Wallet payouts are not enabled. You can review the balance and history; contact support before requesting a payout.",
     "refresh": "Refresh requests",
+    "draftAwaitingOwner": "Draft. Waiting for the restaurant owner to confirm before it goes to admin review.",
+    "draftCreated": "Draft saved. The restaurant owner must confirm it before it goes to admin review.",
+    "confirmDraft": "Confirm and send for review",
+    "draftConfirmed": "Payout confirmed and sent for admin review.",
+    "confirmDraftError": "Could not confirm the payout draft.",
     "eyebrow": "Restaurant finances",
     "title": "Payouts & credit",
     "description": "Manage how this restaurant gets paid, review customer credit requests, and track settlement activity.",
@@ -25754,6 +25759,7 @@
         "minPayout": "Minimum payout: {{amount}}",
         "status": {
           "requested": "Requested",
+          "draft": "Draft",
           "approved": "Approved",
           "processing": "Processing",
           "completed": "Completed",

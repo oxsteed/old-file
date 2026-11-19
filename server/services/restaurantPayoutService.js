@@ -142,10 +142,45 @@ async function requireRestaurantOwnership(client, userId, restaurantId) {
   return row;
 }
 
+// G-18: payout standing for a restaurant actor. The owner always stands;
+// a manager of the restaurant's business stands for reads and for
+// drafting payout requests (never for executing them). Other staff do not.
+async function resolvePayoutActor(client, userId, restaurantId) {
+  const { rows } = await client.query(
+    `SELECT fr.id, fr.display_name, fr.currency_code,
+            rca.stripe_account_id AS stripe_account_id,
+            COALESCE(rca.payouts_enabled, FALSE) AS stripe_payouts_enabled,
+            b.user_id AS owner_id,
+            bm.role AS member_role
+       FROM food_restaurants fr
+       JOIN businesses b ON b.id = fr.business_id
+       LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
+       LEFT JOIN business_members bm
+         ON bm.business_id = b.id AND bm.member_id = $2 AND bm.status = 'active'
+      WHERE fr.id = $1
+        AND fr.status = 'active'
+        AND b.is_active = TRUE
+        AND b.deleted_at IS NULL`,
+    [restaurantId, userId]
+  );
+  const row = rows[0];
+  if (!row) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  const isOwner = String(row.owner_id) === String(userId);
+  const isManager = row.member_role === 'manager';
+  if (!isOwner && !isManager) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  return { ...row, isOwner, isManager };
+}
+
 /**
  * Restaurant requests a payout of wallet earnings.
+ *
+ * Owners create a 'requested' payout, which enters the admin approval
+ * queue. Managers create a 'draft' payout (initialStatus 'draft'): it
+ * moves no money and reaches no admin until the owner confirms it
+ * (confirmDraftPayout). Either way the requester must be the owner or a
+ * manager, and the amount is checked against the current balance.
  */
-async function requestPayout({ restaurantId, userId, amountCents, currencyCode, idempotencyKey }) {
+async function requestPayout({ restaurantId, userId, amountCents, currencyCode, idempotencyKey, initialStatus }) {
   const amount = Number(amountCents);
   if (!Number.isSafeInteger(amount) || amount <= 0) {
     throw new AppError('Invalid payout amount', 400, 'validation_failed');
@@ -161,7 +196,13 @@ async function requestPayout({ restaurantId, userId, amountCents, currencyCode, 
   if (!key) throw new AppError('Idempotency key is required', 400, 'validation_failed');
 
   const payout = await withTransaction(pool, async (client) => {
-    const restaurant = await requireRestaurantOwnership(client, userId, restaurantId);
+    const restaurant = await resolvePayoutActor(client, userId, restaurantId);
+    // A manager may only draft; an owner request goes straight to the
+    // admin queue. Never let a caller self-promote a draft to requested.
+    const status = restaurant.isOwner ? 'requested' : 'draft';
+    if (initialStatus && initialStatus !== status) {
+      throw new AppError('Only the restaurant owner can submit a payout for review', 403, 'forbidden');
+    }
     const currency = assertSupportedCreditCurrency(currencyCode || restaurant.currency_code);
     if (!restaurant.stripe_account_id) {
       throw new AppError('Connect a Stripe payout account first', 400, 'payout_account_not_connected');
@@ -175,11 +216,11 @@ async function requestPayout({ restaurantId, userId, amountCents, currencyCode, 
     const { rows } = await client.query(
       `INSERT INTO restaurant_payouts
          (restaurant_id, currency_code, amount_cents, stripe_account_id,
-          idempotency_key, requested_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+          idempotency_key, requested_by, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (restaurant_id, idempotency_key) DO NOTHING
        RETURNING *`,
-      [restaurantId, currency, amount, restaurant.stripe_account_id, key, userId]
+      [restaurantId, currency, amount, restaurant.stripe_account_id, key, userId, status]
     );
     let created = rows[0];
     if (!created) {
@@ -219,13 +260,48 @@ async function requestPayout({ restaurantId, userId, amountCents, currencyCode, 
   }, 'restaurant_payout_request');
 
   // Review P2-3-F09: the owner heard nothing until the money landed or was
-  // reversed. Notify on request too (idempotent per payout).
-  await notifyPayoutOwner(payout, 'payout_requested');
+  // reversed. Notify on request too (idempotent per payout). A manager
+  // draft notifies as a draft awaiting confirmation, not as a request.
+  await notifyPayoutOwner(payout, payout.status === 'draft' ? 'payout_draft_created' : 'payout_requested');
   return payout;
 }
 
+/**
+ * G-18: owner confirmation of a manager-drafted payout. A draft becomes
+ * 'requested' and enters the admin approval queue; nothing else changes.
+ * Only the restaurant owner confirms, and only a draft can be confirmed,
+ * so a manager can never promote their own draft and an already-requested
+ * payout cannot be re-confirmed into a second queue entry.
+ */
+async function confirmDraftPayout({ restaurantId, userId, payoutId }) {
+  return withTransaction(pool, async (client) => {
+    await requireRestaurantOwnership(client, userId, restaurantId);
+    const { rows } = await client.query(
+      `UPDATE restaurant_payouts
+          SET status = 'requested', confirmed_by_user_id = $3, confirmed_at = NOW(),
+              updated_at = NOW()
+        WHERE id = $1 AND restaurant_id = $2 AND status = 'draft'
+        RETURNING *`,
+      [payoutId, restaurantId, userId]
+    );
+    if (!rows[0]) {
+      const { rows: existing } = await client.query(
+        'SELECT status FROM restaurant_payouts WHERE id = $1 AND restaurant_id = $2',
+        [payoutId, restaurantId]
+      );
+      if (!existing[0]) throw new AppError('Payout not found', 404, 'payout_not_found');
+      throw new AppError(`Payout is ${existing[0].status}, cannot confirm`, 409, 'payout_invalid_status');
+    }
+    logger.info('[RestaurantPayout] draft confirmed by owner', {
+      payoutId, restaurantId, confirmedBy: userId,
+    });
+    return rows[0];
+  }, 'restaurant_payout_confirm_draft');
+}
+
 async function listPayouts(client, { restaurantId, userId, status, limit = 50, offset = 0 }) {
-  await requireRestaurantOwnership(client, userId, restaurantId);
+  // G-18: managers read the payout list (and balance) too.
+  await resolvePayoutActor(client, userId, restaurantId);
   const conditions = ['restaurant_id = $1'];
   const values = [restaurantId];
   if (status) {
@@ -992,6 +1068,7 @@ module.exports = {
   processorEnabled,
   getPayoutableBalance,
   requestPayout,
+  confirmDraftPayout,
   listPayouts,
   approvePayout,
   processNextTransfer,

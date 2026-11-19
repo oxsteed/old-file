@@ -1677,6 +1677,11 @@
   "merchantFinance": {
     "walletPaused": "Los pagos del monedero no están habilitados. Puedes consultar el saldo y el historial; contacta con soporte antes de solicitar un pago.",
     "refresh": "Actualizar solicitudes",
+    "draftAwaitingOwner": "Borrador. Esperando que el propietario del restaurante lo confirme antes de enviarlo a revisión.",
+    "draftCreated": "Borrador guardado. El propietario del restaurante debe confirmarlo antes de enviarlo a revisión.",
+    "confirmDraft": "Confirmar y enviar a revisión",
+    "draftConfirmed": "Pago confirmado y enviado a revisión.",
+    "confirmDraftError": "No se pudo confirmar el borrador del pago.",
     "eyebrow": "Finanzas del restaurante",
     "title": "Pagos y crédito",
     "description": "Gestiona cómo cobra este restaurante, revisa solicitudes de crédito y consulta liquidaciones.",
@@ -25754,6 +25759,7 @@
         "minPayout": "Pago mínimo: {{amount}}",
         "status": {
           "requested": "Solicitado",
+          "draft": "Borrador",
           "approved": "Aprobado",
           "processing": "Procesando",
           "completed": "Completado",
