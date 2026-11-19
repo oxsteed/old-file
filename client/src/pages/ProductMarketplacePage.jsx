@@ -25,10 +25,11 @@ import PageMeta from '../components/PageMeta';
 import ProductCard from '../components/ProductCard';
 import ProductDetailModal from '../components/ProductDetailModal';
 
-import { marketplaceApi, cartApi } from '../api/marketplaceApi';
+import { marketplaceApi, cartApi, jobKitsApi } from '../api/marketplaceApi';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { SuggestDropdown } from '../components/SuggestDropdown';
+import DiyKitPicker from '../components/DiyKitPicker';
 import '../styles/ProductMarketplacePage.css';
 
 // Product categories with icons
@@ -676,6 +677,9 @@ export default function ProductMarketplacePage() {
 
           {/* Results column */}
           <div className="flex-1 min-w-0 space-y-6">
+            {/* Group 1, item 32: customer DIY kit picker. */}
+            <DiyKitPicker signedIn={!!user} />
+
             {/* Grid */}
             {isLoading && allProducts.length === 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" aria-busy="true">

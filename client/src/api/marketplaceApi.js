@@ -145,6 +145,9 @@ export const jobKitsApi = {
   // List available job kits for the helper copilot parts-list flow
   listKits: () => api.get('/job-kits'),
 
+  // Preview a kit: resolved items, omitted items, substitution suggestions
+  previewKit: (jobType) => api.get(`/job-kits/${encodeURIComponent(jobType)}/preview`),
+
   // Build a kit into a draft cart; prices are live DB prices
   buildKit: (jobType, { name, jobId } = {}) =>
     api.post(`/job-kits/${jobType}/build`, { name, jobId }),

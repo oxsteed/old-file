@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { generalLimiter } = require('../middleware/rateLimiter');
-const { listJobKits, buildKitFromTemplate } = require('../services/jobKitService');
+const { listJobKits, buildKitFromTemplate, previewKit } = require('../services/jobKitService');
 
 // All routes require authentication
 router.use(authenticate);
@@ -16,6 +16,20 @@ router.get('/', async (req, res, next) => {
   try {
     const kits = await listJobKits();
     res.json({ kits });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Preview a kit: resolved items, omitted items, and substitution
+ * suggestions for each omitted item. Nothing is built or charged.
+ * GET /api/job-kits/:jobType/preview
+ */
+router.get('/:jobType/preview', async (req, res, next) => {
+  try {
+    const preview = await previewKit(req.params.jobType);
+    res.json(preview);
   } catch (err) {
     next(err);
   }
