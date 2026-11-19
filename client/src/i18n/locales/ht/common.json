@@ -6832,6 +6832,20 @@
     },
     "menu": {
       "storeScoped": "Se moun ki gen aksè nan tout magazen yo ki jere meni pataje a. Sèvi ak meni magazen pa w la pou chanje disponiblite oswa pri la."
+    },
+    "pastGrantsTitle": "Aksè anvan yo",
+    "pastGrantsDescription": "Aksè yo te revoke, sispann, oswa ki ekspire, ak rezon chanjman an.",
+    "grantStatus": {
+      "active": "Aktif",
+      "suspended": "Sispann",
+      "revoked": "Revoke",
+      "expired": "Ekspire"
+    },
+    "grantReasons": {
+      "account_deleted": "Kont lan efase.",
+      "review_complete": "Revizyon an fini.",
+      "territory_assigned": "Teritwa a asiyen.",
+      "territory_assignment_ended": "Asiyasyon teritwa a fini."
     }
   },
   "businessLaunchAttachments": {

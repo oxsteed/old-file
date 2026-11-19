@@ -65,7 +65,7 @@ export default function PublicBookingStatusPage() {
           </p>
           <p>
             <CheckCircle2 size={18} aria-hidden="true" />{' '}
-            {t(`booking.publicStatus.${status.status}`, { defaultValue: status.status })}
+            {t(`booking.publicStatus.${status.status}`)}
           </p>
           {status.arrivedAt && (
             <p>{t('booking.publicStatusArrived', { time: new Date(status.arrivedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}</p>

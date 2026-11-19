@@ -114,7 +114,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
     const draft = transferDrafts[bookingId] || {};
     const newHelperId = String(draft.newHelperId || '').trim();
     if (!newHelperId) {
-      toast.error(t('calendar.transferProviderRequired', { defaultValue: 'Enter the new provider’s user id.' }));
+      toast.error(t('calendar.transferProviderRequired',));
       return;
     }
     if (transferringId) return;
@@ -124,7 +124,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
         newHelperId,
         reason: String(draft.reason || '').trim() || undefined,
       });
-      toast.success(t('calendar.bookingTransferred', { defaultValue: 'Booking transferred.' }));
+      toast.success(t('calendar.bookingTransferred',));
       setTransferDrafts((current) => {
         const next = { ...current };
         delete next[bookingId];
@@ -133,7 +133,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
       loadBookingRequests();
       onBookingConfirmed?.();
     } catch (err) {
-      toast.error(err?.response?.data?.error || t('calendar.errorTransferringBooking', { defaultValue: 'Failed to transfer booking' }));
+      toast.error(err?.response?.data?.error || t('calendar.errorTransferringBooking',));
     } finally {
       setTransferringId(null);
     }
@@ -230,11 +230,9 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
         <>
           <div className="booking-requests-header">
             <div>
-              <h2>{t('calendar.acceptedBookings', { defaultValue: 'Accepted Bookings' })}</h2>
+              <h2>{t('calendar.acceptedBookings',)}</h2>
               <p className="booking-requests-subtitle">
-                {t('calendar.acceptedBookingsSub', {
-                  defaultValue: 'Hand an accepted booking to another provider instead of cancelling it.',
-                })}
+                {t('calendar.acceptedBookingsSub',)}
               </p>
             </div>
             <div className="booking-count">{acceptedBookings.length}</div>
@@ -414,16 +412,16 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
             type="text"
             value={transferDraft?.newHelperId || ''}
             onChange={(e) => onTransferDraftChange?.({ newHelperId: e.target.value })}
-            placeholder={t('calendar.transferProviderPlaceholder', { defaultValue: 'New provider user id' })}
-            aria-label={t('calendar.transferProviderPlaceholder', { defaultValue: 'New provider user id' })}
+            placeholder={t('calendar.transferProviderPlaceholder',)}
+            aria-label={t('calendar.transferProviderPlaceholder',)}
             disabled={!!transferring}
           />
           <input
             type="text"
             value={transferDraft?.reason || ''}
             onChange={(e) => onTransferDraftChange?.({ reason: e.target.value })}
-            placeholder={t('calendar.transferReasonPlaceholder', { defaultValue: 'Reason (optional)' })}
-            aria-label={t('calendar.transferReasonPlaceholder', { defaultValue: 'Reason (optional)' })}
+            placeholder={t('calendar.transferReasonPlaceholder',)}
+            aria-label={t('calendar.transferReasonPlaceholder',)}
             disabled={!!transferring}
           />
           <button
@@ -431,14 +429,14 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
             className="btn-confirm"
             onClick={onTransfer}
             disabled={!!transferring || !(transferDraft?.newHelperId || '').trim()}
-            title={t('calendar.transferBooking', { defaultValue: 'Transfer this booking to another provider' })}
+            title={t('calendar.transferBooking',)}
           >
             {transferring
-              ? t('calendar.transferringBooking', { defaultValue: 'Transferring...' })
-              : t('calendar.transfer', { defaultValue: 'Transfer' })}
+              ? t('calendar.transferringBooking',)
+              : t('calendar.transfer',)}
           </button>
           <p className="booking-transfer-hint">
-            {t('calendar.transferHint', { defaultValue: 'The booking, its deposit, and its appointment stay in place; only the provider changes.' })}
+            {t('calendar.transferHint',)}
           </p>
         </div>
       ) : canRespond ? (

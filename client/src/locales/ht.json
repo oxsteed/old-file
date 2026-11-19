@@ -17,6 +17,39 @@
     "fulfillmentMoveBackTitle": "Deplase livrezon kat la tounen",
     "fulfillmentMoveBackConfirm": "Deplase kat sa a tounen nan {{status}}? Itilize sa a sèlman pou korije yon etap yo te make anvan li te rive. Yon kat ki deja aktive pa ka deplase tounen."
   },
+  "adminSupportBooking": {
+    "title": "Rezèvasyon (sipò)",
+    "backToSupport": "Retounen nan sipò",
+    "loading": "Y ap chaje rezèvasyon an...",
+    "loadFailed": "Yo pa t reyisi chaje rezèvasyon sa a.",
+    "notFound": "Yo pa t jwenn rezèvasyon an.",
+    "booking": "Rezèvasyon",
+    "appointment": "Randevou",
+    "payment": "Peman",
+    "status": "Estati",
+    "service": "Sèvis",
+    "requestedDate": "Dat yo te mande",
+    "time": "Lè",
+    "location": "Kote",
+    "description": "Deskripsyon",
+    "customer": "Kliyan",
+    "helper": "Prestatè",
+    "unassigned": "Pa asiyen",
+    "bookedFor": "Rezève pou",
+    "siteContact": "Kontak sou plas",
+    "bookedBy": "Rezève pa",
+    "convertedJob": "Travay konvèti",
+    "scheduled": "Pwograme",
+    "cancellationReason": "Rezon anilasyon",
+    "noAppointment": "Pa gen randevou pou kounye a.",
+    "paymentStatus": "Estati peman an",
+    "paymentRequirement": "Egzijans peman",
+    "amount": "Montan",
+    "grossAmount": "Montan brit",
+    "promoDiscount": "Rabè pwomosyon",
+    "refundedAt": "Ranbouse nan",
+    "paymentNote": "Detay peman yo montre san nimewo kat oswa kont."
+  },
   "learnPrograms": {
     "completed": "Konplete",
     "customer-service-essentials": {
@@ -7055,7 +7088,26 @@
     "signWorkAgreement": "Revize epi siyen akò travay la",
     "viewWorkAgreement": "Gade akò travay la",
     "createWorkAgreement": "Kreye yon akò travay",
-    "reviewsLoadFailed": "Revizyon yo pa t chaje."
+    "reviewsLoadFailed": "Revizyon yo pa t chaje.",
+    "markArrived": "Make arive",
+    "arrivedRecorded": "Arive an anrejistre.",
+    "arrivedAt": "Rive nan {{time}}",
+    "markNoShow": "Make absan",
+    "noShowReasonLabel": "Poukisa pesonn pa t parèt?",
+    "noShowReasonPlaceholder": "Rezon kout pou absans lan",
+    "noShowReasonRequired": "Yo bezwen yon rezon pou make yon absans.",
+    "confirmNoShow": "Konfime absans lan",
+    "noShowRecorded": "Absans lan anrejistre.",
+    "noShowNotice": "Yo make travay sa a kòm yon absans.",
+    "rebookJob": "Rezève ankò",
+    "requestChanges": "Mande chanjman",
+    "changesReasonLabel": "Kisa ki dwe chanje?",
+    "changesReasonPlaceholder": "Dekri chanjman ou bezwen yo",
+    "changesReasonRequired": "Yo bezwen yon rezon pou mande chanjman.",
+    "changesHint": "Travay la rete an kou epi revèy konfimasyon otomatik la poz pandan prestatè a ap fè chanjman yo.",
+    "sendChangesRequest": "Voye demann chanjman an",
+    "changesRequested": "Chanjman yo mande.",
+    "changesRequestedNotice": "Yo te mande chanjman pou travay sa a."
   },
   "myJobs": {
     "cancelUndoNote": "W ap gen 5 segonn pou defèt li apre konfimasyon.",
@@ -9189,7 +9241,21 @@
       "toastUpdated": "Demann antretyen mete ajou",
       "toastUpdateFail": "Nou pa t kapab mete ajou demann antretyen an",
       "toastConverted": "Demann antretyen tounen yon travay",
-      "toastConvertFail": "Nou pa t kapab tounen demann lan an travay"
+      "toastConvertFail": "Nou pa t kapab tounen demann lan an travay",
+      "addProperty": "Ajoute pwopriyete",
+      "allProperties": "Tout pwopriyete yo",
+      "propertiesDescription": "Gwoup travay antretyen yo pa pwopriyete.",
+      "propertiesTitle": "Pwopriyete",
+      "property": "Pwopriyete",
+      "propertyAddress": "Adrès pwopriyete a",
+      "propertyAddressPlaceholder": "Lari, vil, eta",
+      "propertyCreateFail": "Yo pa t reyisi anrejistre pwopriyete a.",
+      "propertyCreated": "Pwopriyete a ajoute.",
+      "propertyFilter": "Filtre pa pwopriyete",
+      "propertyName": "Non pwopriyete a",
+      "propertyNamePlaceholder": "Egzanp: bilding Main Street la",
+      "saveProperty": "Anrejistre pwopriyete a",
+      "toastLoadFail": "Yo pa t reyisi chaje pwopriyete yo."
     },
     "title": "Sant Biznis",
     "tabOverview": "Apèsi",
@@ -15359,7 +15425,18 @@
     "export": "Ekspòte",
     "cancelUnavailable": "Yo pa ka anile randevou sa a ankò.",
     "appointmentUnavailableBody": "Nou pa t kapab chaje randevou sa a.",
-    "appointmentUnavailable": "Randevou pa disponib"
+    "appointmentUnavailable": "Randevou pa disponib",
+    "acceptedBookings": "Rezèvasyon aksepte yo",
+    "acceptedBookingsSub": "Transfere yon rezèvasyon aksepte bay yon lòt prestatè olye ou anile li.",
+    "bookingTransferred": "Rezèvasyon an transfere.",
+    "errorTransferringBooking": "Yo pa t reyisi transfere rezèvasyon an",
+    "transfer": "Transfere",
+    "transferBooking": "Transfere rezèvasyon sa a bay yon lòt prestatè",
+    "transferHint": "Rezèvasyon an, depo li a ak randevou li rete an plas; se prestatè a sèlman ki chanje.",
+    "transferProviderPlaceholder": "ID itilizatè nouvo prestatè a",
+    "transferProviderRequired": "Antre ID itilizatè nouvo prestatè a.",
+    "transferReasonPlaceholder": "Rezon (si ou vle)",
+    "transferringBooking": "Y ap transfere..."
   },
   "verifyEmail": {
     "title": "Verifye imèl ou",
@@ -16246,7 +16323,36 @@
     "nextStepsTitle": "Sa ki pral swiv",
     "nextStepOne": "Koòdone detay nan mesaj si sa nesesè.",
     "nextStepTwo": "Kalandriye ou montre randevou a lè li konfime.",
-    "nextStepThree": "Si plan chanje, anile nan rezèvasyon ou oswa kalandriye a."
+    "nextStepThree": "Si plan chanje, anile nan rezèvasyon ou oswa kalandriye a.",
+    "bookForSomeoneElse": "Rezève pou yon lòt moun",
+    "bookForSomeoneElseHint": "Rezèvasyon an sou non ou epi ou peye depo a. Travay la se pou moun ki anba a.",
+    "recipientName": "Non moun k ap resevwa a",
+    "recipientNamePlaceholder": "Pou ki moun travay la ye?",
+    "recipientPhone": "Telefòn moun k ap resevwa a",
+    "recipientPhonePlaceholder": "Nimewo telefòn moun k ap resevwa a",
+    "siteContact": "Kontak sou plas",
+    "siteContactHint": "Moun ki pral sou plas la lè travay la ap fèt.",
+    "siteContactName": "Non kontak sou plas la",
+    "siteContactNamePlaceholder": "Ki moun ki pral sou plas la?",
+    "siteContactPhone": "Telefòn kontak sou plas la",
+    "siteContactPhonePlaceholder": "Nimewo telefòn kontak sou plas la",
+    "bookedFor": "Rezève pou",
+    "statusLink": "Lyen estati",
+    "copyLink": "Kopye lyen an",
+    "linkCopied": "Lyen an kopye",
+    "publicStatusTitle": "Estati rezèvasyon an",
+    "publicStatusNotFound": "Nou pa t jwenn rezèvasyon sa a.",
+    "publicStatusArrived": "Rive nan {{time}}",
+    "publicStatusFor": "Pou {{name}}",
+    "publicStatusNote": "Paj sa a montre estati rezèvasyon an ak lè rive a sèlman.",
+    "publicStatus": {
+      "pending": "An atant",
+      "accepted": "Aksepte",
+      "declined": "Refize",
+      "expired": "Ekspire",
+      "cancelled": "Anile",
+      "accepted_cancelled": "Anile apre akseptasyon"
+    }
   },
   "checkout": {
     "title": "Kesye",
@@ -20774,7 +20880,8 @@
       "rangeNote": "Soti nan sèvis estanda rive nan sèvis ijan",
       "standardTotal": "Estanda",
       "signInToBook": "Konekte pou rezève",
-      "signInNote": "Konekte oswa kreye yon kont pou rezève. Estimasyon ou an ap rete ranpli."
+      "signInNote": "Konekte oswa kreye yon kont pou rezève. Estimasyon ou an ap rete ranpli.",
+      "unavailable": "Estimasyon livrezon yo pa disponib kounye a."
     },
     "tabs": {
       "driving": "Kondwi"
@@ -21582,7 +21689,8 @@
       "earningsPending": "An atant",
       "earningsVoided": "Anile",
       "earningsEmpty": "Poko gen peman.",
-      "helperModeHint": "Pou w enskri kòm chofè, ou bezwen mòd èd la anvan. Chanje pou mòd èd nan paramèt yo, epi tounen isit la pou w enskri."
+      "helperModeHint": "Pou w enskri kòm chofè, ou bezwen mòd èd la anvan. Chanje pou mòd èd nan paramèt yo, epi tounen isit la pou w enskri.",
+      "driverAccessHint": "Se sèlman chofè livrezon yo apwouve ki ka enskri isit la. Chofè yo enskri atravè aplikasyon lojistik la, oswa yo chanje pou mòd prestatè nan paramèt yo."
     }
   },
   "aboutPage": {
@@ -22062,7 +22170,8 @@
       "entryPreference": "Preferans antre",
       "bestUpdateChannel": "Pi bon chanèl mizajou",
       "contactPhone": "Pi bon nimewo telefòn",
-      "billableParty": "Faktirasyon default"
+      "billableParty": "Faktirasyon default",
+      "property": "Pwopriyete"
     },
     "placeholders": {
       "title": "Kran nan kwizin nan ap koule anba kabinè a",
@@ -22075,7 +22184,8 @@
       "preferredWindows": "Apre 4è apremidi jou fèy, maten samdi elatriye",
       "accessNotes": "Bèt, kòd pòtay, pakin, règ otorizasyon, oswa fason pou kontakte w.",
       "entryPreference": "Rele an premye, kle jere a bon, voye tèks lè rive",
-      "contactPhone": "Opsyonèl"
+      "contactPhone": "Opsyonèl",
+      "selectProperty": "Chwazi yon pwopriyete"
     },
     "issueCategories": [
       "Plonbri",
@@ -22336,6 +22446,10 @@
         "available": "Disponib"
       },
       "showingTop": "Ap montre 20 premye nan {{count}}"
+    },
+    "territory": {
+      "label": "Teritwa",
+      "newest": "Pi resan"
     }
   },
   "professionalIntakePage": {

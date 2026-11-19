@@ -6832,6 +6832,20 @@
     },
     "menu": {
       "storeScoped": "The shared menu is managed by people with access to every store. Use your store's menu to change availability or prices there."
+    },
+    "pastGrantsTitle": "Past access",
+    "pastGrantsDescription": "Access that was revoked, suspended, or expired, with the reason it changed.",
+    "grantStatus": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "revoked": "Revoked",
+      "expired": "Expired"
+    },
+    "grantReasons": {
+      "account_deleted": "Account deleted.",
+      "review_complete": "Review complete.",
+      "territory_assigned": "Territory assigned.",
+      "territory_assignment_ended": "Territory assignment ended."
     }
   },
   "businessLaunchAttachments": {

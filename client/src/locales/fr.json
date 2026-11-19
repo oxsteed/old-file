@@ -17,6 +17,39 @@
     "fulfillmentMoveBackTitle": "Reculer la remise de la carte",
     "fulfillmentMoveBackConfirm": "Remettre cette carte à {{status}} ? Utilisez ceci uniquement pour corriger une étape marquée avant qu’elle ne se produise. Une carte déjà active ne peut pas être reculée."
   },
+  "adminSupportBooking": {
+    "title": "Réservation (assistance)",
+    "backToSupport": "Retour à l’assistance",
+    "loading": "Chargement de la réservation...",
+    "loadFailed": "Impossible de charger cette réservation.",
+    "notFound": "Réservation introuvable.",
+    "booking": "Réservation",
+    "appointment": "Rendez-vous",
+    "payment": "Paiement",
+    "status": "État",
+    "service": "Service",
+    "requestedDate": "Date demandée",
+    "time": "Heure",
+    "location": "Lieu",
+    "description": "Description",
+    "customer": "Client",
+    "helper": "Prestataire",
+    "unassigned": "Non assigné",
+    "bookedFor": "Réservé pour",
+    "siteContact": "Contact sur place",
+    "bookedBy": "Réservé par",
+    "convertedJob": "Travail converti",
+    "scheduled": "Planifié",
+    "cancellationReason": "Raison d’annulation",
+    "noAppointment": "Aucun rendez-vous pour l’instant.",
+    "paymentStatus": "État du paiement",
+    "paymentRequirement": "Exigence de paiement",
+    "amount": "Montant",
+    "grossAmount": "Montant brut",
+    "promoDiscount": "Remise promotionnelle",
+    "refundedAt": "Remboursé le",
+    "paymentNote": "Les détails du paiement s’affichent sans numéro de carte ou de compte."
+  },
   "learnPrograms": {
     "completed": "Terminé",
     "customer-service-essentials": {
@@ -6777,7 +6810,26 @@
     "signWorkAgreement": "Relire et signer l’accord de travail",
     "viewWorkAgreement": "Voir l’accord de travail",
     "createWorkAgreement": "Créer un accord de travail",
-    "reviewsLoadFailed": "Impossible de charger les avis."
+    "reviewsLoadFailed": "Impossible de charger les avis.",
+    "markArrived": "Marquer l’arrivée",
+    "arrivedRecorded": "Arrivée enregistrée.",
+    "arrivedAt": "Arrivé à {{time}}",
+    "markNoShow": "Marquer absent",
+    "noShowReasonLabel": "Pourquoi personne ne s’est présenté ?",
+    "noShowReasonPlaceholder": "Raison brève de l’absence",
+    "noShowReasonRequired": "Une raison est requise pour marquer une absence.",
+    "confirmNoShow": "Confirmer l’absence",
+    "noShowRecorded": "Absence enregistrée.",
+    "noShowNotice": "Ce travail a été marqué comme absence.",
+    "rebookJob": "Réserver de nouveau",
+    "requestChanges": "Demander des modifications",
+    "changesReasonLabel": "Que faut-il modifier ?",
+    "changesReasonPlaceholder": "Décrivez les modifications souhaitées",
+    "changesReasonRequired": "Une raison est requise pour demander des modifications.",
+    "changesHint": "Le travail reste en cours et le délai de confirmation automatique est suspendu pendant que le prestataire effectue les modifications.",
+    "sendChangesRequest": "Envoyer la demande de modifications",
+    "changesRequested": "Modifications demandées.",
+    "changesRequestedNotice": "Des modifications ont été demandées pour ce travail."
   },
   "myJobs": {
     "cancelUndoNote": "Vous aurez 5 secondes pour annuler après confirmation.",
@@ -9530,7 +9582,21 @@
       "toastUpdated": "Demande de maintenance mise à jour",
       "toastUpdateFail": "Impossible de mettre à jour la demande de maintenance",
       "toastConverted": "Demande de maintenance convertie en job",
-      "toastConvertFail": "Impossible de convertir la demande"
+      "toastConvertFail": "Impossible de convertir la demande",
+      "addProperty": "Ajouter un bien",
+      "allProperties": "Tous les biens",
+      "propertiesDescription": "Regroupez les travaux de maintenance par bien.",
+      "propertiesTitle": "Biens",
+      "property": "Bien",
+      "propertyAddress": "Adresse du bien",
+      "propertyAddressPlaceholder": "Rue, ville, État",
+      "propertyCreateFail": "Impossible d’enregistrer le bien.",
+      "propertyCreated": "Bien ajouté.",
+      "propertyFilter": "Filtrer par bien",
+      "propertyName": "Nom du bien",
+      "propertyNamePlaceholder": "Exemple : immeuble de la rue Main",
+      "saveProperty": "Enregistrer le bien",
+      "toastLoadFail": "Impossible de charger les biens."
     },
     "toastHoursUpdated": "Horaires mis à jour",
     "toastHoursUpdateFail": "Impossible de mettre à jour les horaires",
@@ -15359,7 +15425,18 @@
     "export": "Exporter",
     "cancelUnavailable": "Ce rendez-vous ne peut plus être annulé.",
     "appointmentUnavailableBody": "Nous n'avons pas pu charger ce rendez-vous.",
-    "appointmentUnavailable": "Rendez-vous indisponible"
+    "appointmentUnavailable": "Rendez-vous indisponible",
+    "acceptedBookings": "Réservations acceptées",
+    "acceptedBookingsSub": "Transférez une réservation acceptée à un autre prestataire au lieu de l’annuler.",
+    "bookingTransferred": "Réservation transférée.",
+    "errorTransferringBooking": "Échec du transfert de la réservation",
+    "transfer": "Transférer",
+    "transferBooking": "Transférer cette réservation à un autre prestataire",
+    "transferHint": "La réservation, son acompte et son rendez-vous restent en place ; seul le prestataire change.",
+    "transferProviderPlaceholder": "Identifiant du nouveau prestataire",
+    "transferProviderRequired": "Saisissez l’identifiant du nouveau prestataire.",
+    "transferReasonPlaceholder": "Raison (facultatif)",
+    "transferringBooking": "Transfert en cours..."
   },
   "verifyEmail": {
     "title": "Vérifiez votre e-mail",
@@ -16246,7 +16323,36 @@
     "nextStepsTitle": "La suite",
     "nextStepOne": "Coordonnez les détails par message si besoin.",
     "nextStepTwo": "Votre calendrier affiche le rendez-vous une fois confirmé.",
-    "nextStepThree": "Si les plans changent, annulez depuis votre réservation ou le calendrier."
+    "nextStepThree": "Si les plans changent, annulez depuis votre réservation ou le calendrier.",
+    "bookForSomeoneElse": "Réserver pour quelqu’un d’autre",
+    "bookForSomeoneElseHint": "La réservation est à votre nom et vous payez l’acompte. Le travail est destiné à la personne ci-dessous.",
+    "recipientName": "Nom du destinataire",
+    "recipientNamePlaceholder": "Pour qui est le travail ?",
+    "recipientPhone": "Téléphone du destinataire",
+    "recipientPhonePlaceholder": "Numéro de téléphone du destinataire",
+    "siteContact": "Contact sur place",
+    "siteContactHint": "La personne qui sera sur place pendant les travaux.",
+    "siteContactName": "Nom du contact sur place",
+    "siteContactNamePlaceholder": "Qui sera sur place ?",
+    "siteContactPhone": "Téléphone du contact sur place",
+    "siteContactPhonePlaceholder": "Numéro de téléphone du contact sur place",
+    "bookedFor": "Réservé pour",
+    "statusLink": "Lien de suivi",
+    "copyLink": "Copier le lien",
+    "linkCopied": "Lien copié",
+    "publicStatusTitle": "État de la réservation",
+    "publicStatusNotFound": "Nous n’avons pas trouvé cette réservation.",
+    "publicStatusArrived": "Arrivé à {{time}}",
+    "publicStatusFor": "Pour {{name}}",
+    "publicStatusNote": "Cette page montre uniquement l’état de la réservation et l’heure d’arrivée.",
+    "publicStatus": {
+      "pending": "En attente",
+      "accepted": "Acceptée",
+      "declined": "Refusée",
+      "expired": "Expirée",
+      "cancelled": "Annulée",
+      "accepted_cancelled": "Annulée après acceptation"
+    }
   },
   "checkout": {
     "title": "Vérifier",
@@ -20774,7 +20880,8 @@
       "rangeNote": "Du service standard à l’express",
       "standardTotal": "Standard",
       "signInToBook": "Connectez-vous pour réserver",
-      "signInNote": "Connectez-vous ou créez un compte pour réserver. Votre estimation reste remplie."
+      "signInNote": "Connectez-vous ou créez un compte pour réserver. Votre estimation reste remplie.",
+      "unavailable": "Les estimations de livraison sont indisponibles pour le moment."
     },
     "tabs": {
       "driving": "Conduite"
@@ -21582,7 +21689,8 @@
       "earningsPending": "En attente",
       "earningsVoided": "Annulé",
       "earningsEmpty": "Aucun paiement pour l’instant.",
-      "helperModeHint": "L’inscription comme chauffeur nécessite d’abord le mode aide. Passez en mode aide dans les réglages, puis revenez ici pour vous inscrire."
+      "helperModeHint": "L’inscription comme chauffeur nécessite d’abord le mode aide. Passez en mode aide dans les réglages, puis revenez ici pour vous inscrire.",
+      "driverAccessHint": "Seuls les chauffeurs-livreurs approuvés peuvent s’inscrire ici. Les chauffeurs s’inscrivent via la demande logistique, ou passent en mode prestataire dans les réglages."
     }
   },
   "aboutPage": {
@@ -22062,7 +22170,8 @@
       "entryPreference": "Préférence d’entrée",
       "bestUpdateChannel": "Meilleur canal de mise à jour",
       "contactPhone": "Numéro de téléphone préféré",
-      "billableParty": "Facturation par défaut"
+      "billableParty": "Facturation par défaut",
+      "property": "Bien"
     },
     "placeholders": {
       "title": "Fuite d’évier dans la cuisine sous l’armoire",
@@ -22075,7 +22184,8 @@
       "preferredWindows": "En semaine après 16h, samedi matin, etc.",
       "accessNotes": "Animaux, code de portail, parking, règles d’accès, ou comment vous joindre.",
       "entryPreference": "Appeler d’abord, clé de gestion acceptée, SMS à l’arrivée",
-      "contactPhone": "Optionnel"
+      "contactPhone": "Optionnel",
+      "selectProperty": "Sélectionnez un bien"
     },
     "issueCategories": [
       "Plomberie",
@@ -22336,6 +22446,10 @@
         "available": "Disponible"
       },
       "showingTop": "Affichage des 20 premiers sur {{count}}"
+    },
+    "territory": {
+      "label": "Territoire",
+      "newest": "Le plus récent"
     }
   },
   "professionalIntakePage": {

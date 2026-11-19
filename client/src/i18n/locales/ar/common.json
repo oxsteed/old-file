@@ -6832,6 +6832,20 @@
     },
     "menu": {
       "storeScoped": "يدير القائمة المشتركة من لديهم وصول إلى كل الفروع. استخدم قائمة فرعك لتغيير التوفر أو الأسعار فيه."
+    },
+    "pastGrantsTitle": "الوصول السابق",
+    "pastGrantsDescription": "الوصول الذي تم إلغاؤه أو تعليقه أو انتهت صلاحيته، مع سبب التغيير.",
+    "grantStatus": {
+      "active": "نشط",
+      "suspended": "معلّق",
+      "revoked": "ملغى",
+      "expired": "منتهٍ"
+    },
+    "grantReasons": {
+      "account_deleted": "تم حذف الحساب.",
+      "review_complete": "اكتملت المراجعة.",
+      "territory_assigned": "تم إسناد المنطقة.",
+      "territory_assignment_ended": "انتهى إسناد المنطقة."
     }
   },
   "businessLaunchAttachments": {

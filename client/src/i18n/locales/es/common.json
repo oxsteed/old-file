@@ -6832,6 +6832,20 @@
     },
     "menu": {
       "storeScoped": "El menú compartido lo gestionan quienes tienen acceso a todas las tiendas. Usa el menú de tu tienda para cambiar allí la disponibilidad o los precios."
+    },
+    "pastGrantsTitle": "Acceso anterior",
+    "pastGrantsDescription": "Acceso revocado, suspendido o vencido, con el motivo del cambio.",
+    "grantStatus": {
+      "active": "Activo",
+      "suspended": "Suspendido",
+      "revoked": "Revocado",
+      "expired": "Vencido"
+    },
+    "grantReasons": {
+      "account_deleted": "Cuenta eliminada.",
+      "review_complete": "Revisión completa.",
+      "territory_assigned": "Territorio asignado.",
+      "territory_assignment_ended": "Asignación de territorio finalizada."
     }
   },
   "businessLaunchAttachments": {

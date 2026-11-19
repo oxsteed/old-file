@@ -17,6 +17,39 @@
     "fulfillmentMoveBackTitle": "Move card fulfillment back",
     "fulfillmentMoveBackConfirm": "Move this card back to {{status}}? Use this only to correct a step that was marked before it happened. A card that is already active cannot be moved back."
   },
+  "adminSupportBooking": {
+    "title": "Support booking",
+    "backToSupport": "Back to support",
+    "loading": "Loading booking...",
+    "loadFailed": "Could not load this booking.",
+    "notFound": "Booking not found.",
+    "booking": "Booking",
+    "appointment": "Appointment",
+    "payment": "Payment",
+    "status": "Status",
+    "service": "Service",
+    "requestedDate": "Requested date",
+    "time": "Time",
+    "location": "Location",
+    "description": "Description",
+    "customer": "Customer",
+    "helper": "Provider",
+    "unassigned": "Unassigned",
+    "bookedFor": "Booked for",
+    "siteContact": "Site contact",
+    "bookedBy": "Booked by",
+    "convertedJob": "Converted job",
+    "scheduled": "Scheduled",
+    "cancellationReason": "Cancellation reason",
+    "noAppointment": "No appointment yet.",
+    "paymentStatus": "Payment status",
+    "paymentRequirement": "Payment requirement",
+    "amount": "Amount",
+    "grossAmount": "Gross amount",
+    "promoDiscount": "Promo discount",
+    "refundedAt": "Refunded at",
+    "paymentNote": "Payment details are shown without card or account numbers."
+  },
   "learnPrograms": {
     "completed": "Completed",
     "customer-service-essentials": {
@@ -6777,7 +6810,26 @@
     "signWorkAgreement": "Review and sign the work agreement",
     "viewWorkAgreement": "View work agreement",
     "createWorkAgreement": "Create a work agreement",
-    "reviewsLoadFailed": "Reviews could not be loaded."
+    "reviewsLoadFailed": "Reviews could not be loaded.",
+    "markArrived": "Mark arrived",
+    "arrivedRecorded": "Arrival recorded.",
+    "arrivedAt": "Arrived at {{time}}",
+    "markNoShow": "Mark no-show",
+    "noShowReasonLabel": "Why did no one show up?",
+    "noShowReasonPlaceholder": "Brief reason for the no-show",
+    "noShowReasonRequired": "A reason is required to mark a no-show.",
+    "confirmNoShow": "Confirm no-show",
+    "noShowRecorded": "No-show recorded.",
+    "noShowNotice": "This job was marked as a no-show.",
+    "rebookJob": "Rebook",
+    "requestChanges": "Request changes",
+    "changesReasonLabel": "What needs to change?",
+    "changesReasonPlaceholder": "Describe the changes you need",
+    "changesReasonRequired": "A reason is required to request changes.",
+    "changesHint": "The job stays in progress and the auto-confirm clock pauses while the helper makes the changes.",
+    "sendChangesRequest": "Send changes request",
+    "changesRequested": "Changes requested.",
+    "changesRequestedNotice": "Changes were requested on this job."
   },
   "myJobs": {
     "cancelUndoNote": "You will have 5 seconds to undo after confirming.",
@@ -9530,7 +9582,21 @@
       "toastUpdated": "Maintenance request updated",
       "toastUpdateFail": "Could not update maintenance request",
       "toastConverted": "Maintenance request converted to a job",
-      "toastConvertFail": "Could not convert request to job"
+      "toastConvertFail": "Could not convert request to job",
+      "addProperty": "Add property",
+      "allProperties": "All properties",
+      "propertiesDescription": "Group maintenance work by property.",
+      "propertiesTitle": "Properties",
+      "property": "Property",
+      "propertyAddress": "Property address",
+      "propertyAddressPlaceholder": "Street, city, state",
+      "propertyCreateFail": "Could not save the property.",
+      "propertyCreated": "Property added.",
+      "propertyFilter": "Filter by property",
+      "propertyName": "Property name",
+      "propertyNamePlaceholder": "Example: Main Street building",
+      "saveProperty": "Save property",
+      "toastLoadFail": "Could not load properties."
     },
     "toastHoursUpdated": "Hours updated",
     "toastHoursUpdateFail": "Failed to update hours",
@@ -15359,7 +15425,18 @@
     "export": "Export",
     "cancelUnavailable": "This appointment can no longer be cancelled.",
     "appointmentUnavailableBody": "We could not load this appointment.",
-    "appointmentUnavailable": "Appointment unavailable"
+    "appointmentUnavailable": "Appointment unavailable",
+    "acceptedBookings": "Accepted Bookings",
+    "acceptedBookingsSub": "Hand an accepted booking to another provider instead of cancelling it.",
+    "bookingTransferred": "Booking transferred.",
+    "errorTransferringBooking": "Failed to transfer booking",
+    "transfer": "Transfer",
+    "transferBooking": "Transfer this booking to another provider",
+    "transferHint": "The booking, its deposit, and its appointment stay in place; only the provider changes.",
+    "transferProviderPlaceholder": "New provider user id",
+    "transferProviderRequired": "Enter the new provider’s user id.",
+    "transferReasonPlaceholder": "Reason (optional)",
+    "transferringBooking": "Transferring..."
   },
   "myBookings": {
     "unknownTool": "Unknown tool",
@@ -15535,7 +15612,36 @@
     "nextStepsTitle": "What's next",
     "nextStepOne": "Coordinate details by message if needed.",
     "nextStepTwo": "Your calendar will show the appointment once confirmed.",
-    "nextStepThree": "If plans change, cancel from your booking or calendar."
+    "nextStepThree": "If plans change, cancel from your booking or calendar.",
+    "bookForSomeoneElse": "Book for someone else",
+    "bookForSomeoneElseHint": "The booking is in your name and you pay the deposit. The work is for the person below.",
+    "recipientName": "Recipient name",
+    "recipientNamePlaceholder": "Who is the work for?",
+    "recipientPhone": "Recipient phone",
+    "recipientPhonePlaceholder": "Recipient phone number",
+    "siteContact": "Site contact",
+    "siteContactHint": "The person who will be on site when the work happens.",
+    "siteContactName": "Site contact name",
+    "siteContactNamePlaceholder": "Who will be on site?",
+    "siteContactPhone": "Site contact phone",
+    "siteContactPhonePlaceholder": "Site contact phone number",
+    "bookedFor": "Booked for",
+    "statusLink": "Status link",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "publicStatusTitle": "Booking status",
+    "publicStatusNotFound": "We could not find this booking.",
+    "publicStatusArrived": "Arrived at {{time}}",
+    "publicStatusFor": "For {{name}}",
+    "publicStatusNote": "This page shows the booking status and arrival window only.",
+    "publicStatus": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired",
+      "cancelled": "Cancelled",
+      "accepted_cancelled": "Cancelled after acceptance"
+    }
   },
   "verifyEmail": {
     "title": "Verify your email",
@@ -20774,7 +20880,8 @@
       "rangeNote": "Standard to rush service",
       "standardTotal": "Standard",
       "signInToBook": "Sign in to book",
-      "signInNote": "Sign in or create an account to book. Your estimate stays filled in."
+      "signInNote": "Sign in or create an account to book. Your estimate stays filled in.",
+      "unavailable": "Delivery estimates are unavailable right now."
     },
     "tabs": {
       "driving": "Driving"
@@ -21582,7 +21689,8 @@
       "earningsPending": "Pending",
       "earningsVoided": "Voided",
       "earningsEmpty": "No payouts yet.",
-      "helperModeHint": "Driver sign-up needs helper mode first. Switch to helper mode in settings, then come back here to register."
+      "helperModeHint": "Driver sign-up needs helper mode first. Switch to helper mode in settings, then come back here to register.",
+      "driverAccessHint": "Only approved delivery drivers can register here. Drivers sign up through the logistics application, or switch to helper mode in settings."
     }
   },
   "aboutPage": {
@@ -22062,7 +22170,8 @@
       "entryPreference": "Entry preference",
       "bestUpdateChannel": "Best update channel",
       "contactPhone": "Best phone number",
-      "billableParty": "Default bill to"
+      "billableParty": "Default bill to",
+      "property": "Property"
     },
     "placeholders": {
       "title": "Kitchen sink leaking under cabinet",
@@ -22075,7 +22184,8 @@
       "preferredWindows": "Weekdays after 4 PM, Saturday morning, etc.",
       "accessNotes": "Pets, gate code, parking, permission rules, or how to reach you.",
       "entryPreference": "Call first, manager key okay, text on arrival",
-      "contactPhone": "Optional"
+      "contactPhone": "Optional",
+      "selectProperty": "Select a property"
     },
     "issueCategories": [
       "Plumbing",
@@ -22336,6 +22446,10 @@
         "available": "Available"
       },
       "showingTop": "Showing top 20 of {{count}}"
+    },
+    "territory": {
+      "label": "Territory",
+      "newest": "Newest"
     }
   },
   "professionalIntakePage": {

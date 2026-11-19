@@ -17,6 +17,39 @@
     "fulfillmentMoveBackTitle": "إرجاع تسليم البطاقة خطوة إلى الوراء",
     "fulfillmentMoveBackConfirm": "هل تريد إرجاع هذه البطاقة إلى {{status}}؟ استخدم هذا فقط لتصحيح خطوة تم وضع علامة عليها قبل حدوثها. لا يمكن إرجاع البطاقة المفعلة بالفعل."
   },
+  "adminSupportBooking": {
+    "title": "حجز الدعم",
+    "backToSupport": "العودة إلى الدعم",
+    "loading": "جارٍ تحميل الحجز...",
+    "loadFailed": "تعذّر تحميل هذا الحجز.",
+    "notFound": "الحجز غير موجود.",
+    "booking": "الحجز",
+    "appointment": "الموعد",
+    "payment": "الدفع",
+    "status": "الحالة",
+    "service": "الخدمة",
+    "requestedDate": "التاريخ المطلوب",
+    "time": "الوقت",
+    "location": "الموقع",
+    "description": "الوصف",
+    "customer": "العميل",
+    "helper": "المزود",
+    "unassigned": "غير مُسند",
+    "bookedFor": "محجوز لـ",
+    "siteContact": "جهة الاتصال في الموقع",
+    "bookedBy": "حجز بواسطة",
+    "convertedJob": "المهمة المحوّلة",
+    "scheduled": "مجدول",
+    "cancellationReason": "سبب الإلغاء",
+    "noAppointment": "لا يوجد موعد بعد.",
+    "paymentStatus": "حالة الدفع",
+    "paymentRequirement": "متطلب الدفع",
+    "amount": "المبلغ",
+    "grossAmount": "المبلغ الإجمالي",
+    "promoDiscount": "خصم العرض",
+    "refundedAt": "تم رد المبلغ في",
+    "paymentNote": "تُعرض تفاصيل الدفع دون أرقام البطاقات أو الحسابات."
+  },
   "learnPrograms": {
     "completed": "مكتمل",
     "customer-service-essentials": {
@@ -6777,7 +6810,26 @@
     "signWorkAgreement": "راجع اتفاقية العمل ووقّعها",
     "viewWorkAgreement": "عرض اتفاقية العمل",
     "createWorkAgreement": "إنشاء اتفاقية عمل",
-    "reviewsLoadFailed": "تعذر تحميل المراجعات."
+    "reviewsLoadFailed": "تعذر تحميل المراجعات.",
+    "markArrived": "تسجيل الوصول",
+    "arrivedRecorded": "تم تسجيل الوصول.",
+    "arrivedAt": "وصل في {{time}}",
+    "markNoShow": "تسجيل عدم الحضور",
+    "noShowReasonLabel": "لماذا لم يحضر أحد؟",
+    "noShowReasonPlaceholder": "سبب موجز لعدم الحضور",
+    "noShowReasonRequired": "يلزم ذكر سبب لتسجيل عدم الحضور.",
+    "confirmNoShow": "تأكيد عدم الحضور",
+    "noShowRecorded": "تم تسجيل عدم الحضور.",
+    "noShowNotice": "تم تسجيل هذه المهمة كعدم حضور.",
+    "rebookJob": "إعادة الحجز",
+    "requestChanges": "طلب تغييرات",
+    "changesReasonLabel": "ما الذي يجب تغييره؟",
+    "changesReasonPlaceholder": "صف التغييرات التي تحتاج إليها",
+    "changesReasonRequired": "يلزم ذكر سبب لطلب التغييرات.",
+    "changesHint": "تبقى المهمة قيد التنفيذ ويتوقف مؤقت التأكيد التلقائي أثناء إجراء المُساعد للتغييرات.",
+    "sendChangesRequest": "إرسال طلب التغييرات",
+    "changesRequested": "تم طلب التغييرات.",
+    "changesRequestedNotice": "تم طلب تغييرات على هذه المهمة."
   },
   "myJobs": {
     "cancelUndoNote": "سيكون لديك 5 ثوانٍ للتراجع بعد التأكيد.",
@@ -9530,7 +9582,21 @@
       "toastUpdated": "تم تحديث طلب الصيانة",
       "toastUpdateFail": "لا يمكن تحديث طلب الصيانة",
       "toastConverted": "تحويل طلب الصيانة إلى وظيفة",
-      "toastConvertFail": "تعذر تحويل الطلب إلى وظيفة"
+      "toastConvertFail": "تعذر تحويل الطلب إلى وظيفة",
+      "addProperty": "إضافة عقار",
+      "allProperties": "كل العقارات",
+      "propertiesDescription": "جمّع أعمال الصيانة حسب العقار.",
+      "propertiesTitle": "العقارات",
+      "property": "العقار",
+      "propertyAddress": "عنوان العقار",
+      "propertyAddressPlaceholder": "الشارع، المدينة، الولاية",
+      "propertyCreateFail": "تعذّر حفظ العقار.",
+      "propertyCreated": "تمت إضافة العقار.",
+      "propertyFilter": "تصفية حسب العقار",
+      "propertyName": "اسم العقار",
+      "propertyNamePlaceholder": "مثال: مبنى الشارع الرئيسي",
+      "saveProperty": "حفظ العقار",
+      "toastLoadFail": "تعذّر تحميل العقارات."
     },
     "toastHoursUpdated": "تم تحديث الساعات",
     "toastHoursUpdateFail": "فشل تحديث ساعات العمل",
@@ -15362,7 +15428,18 @@
     "export": "تصدير",
     "cancelUnavailable": "لا يمكن إلغاء هذا الموعد بعد الآن.",
     "appointmentUnavailableBody": "تعذّر تحميل هذا الموعد.",
-    "appointmentUnavailable": "الموعد غير متاح"
+    "appointmentUnavailable": "الموعد غير متاح",
+    "acceptedBookings": "الحجوزات المقبولة",
+    "acceptedBookingsSub": "انقل حجزًا مقبولًا إلى مزود آخر بدلًا من إلغائه.",
+    "bookingTransferred": "تم تحويل الحجز.",
+    "errorTransferringBooking": "تعذّر تحويل الحجز",
+    "transfer": "تحويل",
+    "transferBooking": "تحويل هذا الحجز إلى مزود آخر",
+    "transferHint": "يبقى الحجز وعربونه وموعدُه كما هي؛ يتغير المزود فقط.",
+    "transferProviderPlaceholder": "معرّف المستخدم للمزود الجديد",
+    "transferProviderRequired": "أدخل معرّف المستخدم للمزود الجديد.",
+    "transferReasonPlaceholder": "السبب (اختياري)",
+    "transferringBooking": "جارٍ التحويل..."
   },
   "myBookings": {
     "unknownTool": "أداة غير معروفة",
@@ -15538,7 +15615,36 @@
     "nextStepsTitle": "ما هي الخطوة التالية",
     "nextStepOne": "تنسيق التفاصيل عن طريق الرسالة إذا لزم الأمر.",
     "nextStepTwo": "سيظهر التقويم الخاص بك الموعد بمجرد تأكيده.",
-    "nextStepThree": "إذا تغيرت الخطط، قم بالإلغاء من الحجز أو التقويم الخاص بك."
+    "nextStepThree": "إذا تغيرت الخطط، قم بالإلغاء من الحجز أو التقويم الخاص بك.",
+    "bookForSomeoneElse": "احجز لشخص آخر",
+    "bookForSomeoneElseHint": "الحجز باسمك وأنت تدفع العربون. العمل للشخص المذكور أدناه.",
+    "recipientName": "اسم المستلم",
+    "recipientNamePlaceholder": "لمن هذا العمل؟",
+    "recipientPhone": "هاتف المستلم",
+    "recipientPhonePlaceholder": "رقم هاتف المستلم",
+    "siteContact": "جهة الاتصال في الموقع",
+    "siteContactHint": "الشخص الذي سيكون في الموقع عند تنفيذ العمل.",
+    "siteContactName": "اسم جهة الاتصال في الموقع",
+    "siteContactNamePlaceholder": "من سيكون في الموقع؟",
+    "siteContactPhone": "هاتف جهة الاتصال في الموقع",
+    "siteContactPhonePlaceholder": "رقم هاتف جهة الاتصال في الموقع",
+    "bookedFor": "محجوز لـ",
+    "statusLink": "رابط الحالة",
+    "copyLink": "نسخ الرابط",
+    "linkCopied": "تم نسخ الرابط",
+    "publicStatusTitle": "حالة الحجز",
+    "publicStatusNotFound": "تعذّر العثور على هذا الحجز.",
+    "publicStatusArrived": "وصل في {{time}}",
+    "publicStatusFor": "لـ {{name}}",
+    "publicStatusNote": "تعرض هذه الصفحة حالة الحجز ووقت الوصول فقط.",
+    "publicStatus": {
+      "pending": "قيد الانتظار",
+      "accepted": "مقبول",
+      "declined": "مرفوض",
+      "expired": "منتهٍ",
+      "cancelled": "ملغى",
+      "accepted_cancelled": "أُلغي بعد القبول"
+    }
   },
   "verifyEmail": {
     "title": "تحقق من بريدك الإلكتروني",
@@ -20785,7 +20891,8 @@
       "rangeNote": "من الخدمة العادية إلى الخدمة العاجلة",
       "standardTotal": "عادي",
       "signInToBook": "سجّل الدخول للحجز",
-      "signInNote": "سجّل الدخول أو أنشئ حسابًا للحجز. سيبقى تقديرك محفوظًا في النموذج."
+      "signInNote": "سجّل الدخول أو أنشئ حسابًا للحجز. سيبقى تقديرك محفوظًا في النموذج.",
+      "unavailable": "تقديرات التوصيل غير متاحة حاليًا."
     },
     "tabs": {
       "driving": "القيادة"
@@ -21593,7 +21700,8 @@
       "earningsPending": "معلّق",
       "earningsVoided": "ملغى",
       "earningsEmpty": "لا توجد مدفوعات بعد.",
-      "helperModeHint": "يتطلب التسجيل كسائق وضع المساعد أولًا. بدّل إلى وضع المساعد في الإعدادات، ثم عُد إلى هنا للتسجيل."
+      "helperModeHint": "يتطلب التسجيل كسائق وضع المساعد أولًا. بدّل إلى وضع المساعد في الإعدادات، ثم عُد إلى هنا للتسجيل.",
+      "driverAccessHint": "يمكن فقط لسائقي التوصيل المعتمدين التسجيل هنا. يسجل السائقون عبر طلب الخدمات اللوجستية، أو يبدّلون إلى وضع المُساعد في الإعدادات."
     }
   },
   "aboutPage": {
@@ -22073,7 +22181,8 @@
       "entryPreference": "تفضيل طريقة الدخول",
       "bestUpdateChannel": "أفضل قناة للتحديث",
       "contactPhone": "أفضل رقم هاتف",
-      "billableParty": "الفواتير باسم"
+      "billableParty": "الفواتير باسم",
+      "property": "العقار"
     },
     "placeholders": {
       "title": "صنبور المطبخ يتسرب تحت الخزانة",
@@ -22086,7 +22195,8 @@
       "preferredWindows": "أيام الأسبوع بعد الساعة 4 مساءً، صباح السبت، إلخ.",
       "accessNotes": "حيوانات أليفة، رمز البوابة، مواقف، شروط الدخول أو طريقة التواصل معك.",
       "entryPreference": "الاتصال أولًا، مفتاح المدير مقبول، رسالة عند الوصول",
-      "contactPhone": "اختياري"
+      "contactPhone": "اختياري",
+      "selectProperty": "اختر عقارًا"
     },
     "issueCategories": [
       "السباكة",
@@ -22347,6 +22457,10 @@
         "available": "متاح"
       },
       "showingTop": "عرض أول 20 من أصل {{count}}"
+    },
+    "territory": {
+      "label": "المنطقة",
+      "newest": "الأحدث"
     }
   },
   "professionalIntakePage": {

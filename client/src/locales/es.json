@@ -17,6 +17,39 @@
     "fulfillmentMoveBackTitle": "Retroceder la entrega de la tarjeta",
     "fulfillmentMoveBackConfirm": "¿Mover esta tarjeta de nuevo a {{status}}? Usa esto solo para corregir un paso que se marcó antes de que ocurriera. Una tarjeta que ya está activa no se puede mover hacia atrás."
   },
+  "adminSupportBooking": {
+    "title": "Reserva de soporte",
+    "backToSupport": "Volver a soporte",
+    "loading": "Cargando reserva...",
+    "loadFailed": "No se pudo cargar esta reserva.",
+    "notFound": "Reserva no encontrada.",
+    "booking": "Reserva",
+    "appointment": "Cita",
+    "payment": "Pago",
+    "status": "Estado",
+    "service": "Servicio",
+    "requestedDate": "Fecha solicitada",
+    "time": "Hora",
+    "location": "Ubicación",
+    "description": "Descripción",
+    "customer": "Cliente",
+    "helper": "Proveedor",
+    "unassigned": "Sin asignar",
+    "bookedFor": "Reservado para",
+    "siteContact": "Contacto en el lugar",
+    "bookedBy": "Reservado por",
+    "convertedJob": "Trabajo convertido",
+    "scheduled": "Programada",
+    "cancellationReason": "Motivo de cancelación",
+    "noAppointment": "Aún no hay cita.",
+    "paymentStatus": "Estado del pago",
+    "paymentRequirement": "Requisito de pago",
+    "amount": "Monto",
+    "grossAmount": "Monto bruto",
+    "promoDiscount": "Descuento promocional",
+    "refundedAt": "Reembolsado el",
+    "paymentNote": "Los detalles del pago se muestran sin números de tarjeta o cuenta."
+  },
   "learnPrograms": {
     "completed": "Completado",
     "customer-service-essentials": {
@@ -6777,7 +6810,26 @@
     "signWorkAgreement": "Revisa y firma el acuerdo de trabajo",
     "viewWorkAgreement": "Ver acuerdo de trabajo",
     "createWorkAgreement": "Crear un acuerdo de trabajo",
-    "reviewsLoadFailed": "No se pudieron cargar las reseñas."
+    "reviewsLoadFailed": "No se pudieron cargar las reseñas.",
+    "markArrived": "Marcar llegada",
+    "arrivedRecorded": "Llegada registrada.",
+    "arrivedAt": "Llegada a las {{time}}",
+    "markNoShow": "Marcar ausencia",
+    "noShowReasonLabel": "¿Por qué nadie se presentó?",
+    "noShowReasonPlaceholder": "Motivo breve de la ausencia",
+    "noShowReasonRequired": "Se requiere un motivo para marcar una ausencia.",
+    "confirmNoShow": "Confirmar ausencia",
+    "noShowRecorded": "Ausencia registrada.",
+    "noShowNotice": "Este trabajo se marcó como ausencia.",
+    "rebookJob": "Volver a reservar",
+    "requestChanges": "Solicitar cambios",
+    "changesReasonLabel": "¿Qué debe cambiar?",
+    "changesReasonPlaceholder": "Describe los cambios que necesitas",
+    "changesReasonRequired": "Se requiere un motivo para solicitar cambios.",
+    "changesHint": "El trabajo sigue en curso y el reloj de confirmación automática se pausa mientras el ayudante realiza los cambios.",
+    "sendChangesRequest": "Enviar solicitud de cambios",
+    "changesRequested": "Cambios solicitados.",
+    "changesRequestedNotice": "Se solicitaron cambios en este trabajo."
   },
   "myJobs": {
     "cancelUndoNote": "Tendrás 5 segundos para deshacerlo después de confirmar.",
@@ -8911,7 +8963,21 @@
       "toastUpdated": "Solicitud de mantenimiento actualizada",
       "toastUpdateFail": "No se pudo actualizar la solicitud de mantenimiento",
       "toastConverted": "Solicitud convertida a trabajo",
-      "toastConvertFail": "No se pudo convertir la solicitud"
+      "toastConvertFail": "No se pudo convertir la solicitud",
+      "addProperty": "Agregar propiedad",
+      "allProperties": "Todas las propiedades",
+      "propertiesDescription": "Agrupa el trabajo de mantenimiento por propiedad.",
+      "propertiesTitle": "Propiedades",
+      "property": "Propiedad",
+      "propertyAddress": "Dirección de la propiedad",
+      "propertyAddressPlaceholder": "Calle, ciudad, estado",
+      "propertyCreateFail": "No se pudo guardar la propiedad.",
+      "propertyCreated": "Propiedad agregada.",
+      "propertyFilter": "Filtrar por propiedad",
+      "propertyName": "Nombre de la propiedad",
+      "propertyNamePlaceholder": "Ejemplo: Edificio de Main Street",
+      "saveProperty": "Guardar propiedad",
+      "toastLoadFail": "No se pudieron cargar las propiedades."
     },
     "title": "Centro de negocios",
     "tabOverview": "Resumen",
@@ -15359,7 +15425,18 @@
     "export": "Exportar",
     "cancelUnavailable": "Esta cita ya no se puede cancelar.",
     "appointmentUnavailableBody": "No pudimos cargar esta cita.",
-    "appointmentUnavailable": "Cita no disponible"
+    "appointmentUnavailable": "Cita no disponible",
+    "acceptedBookings": "Reservas aceptadas",
+    "acceptedBookingsSub": "Pasa una reserva aceptada a otro proveedor en lugar de cancelarla.",
+    "bookingTransferred": "Reserva transferida.",
+    "errorTransferringBooking": "No se pudo transferir la reserva",
+    "transfer": "Transferir",
+    "transferBooking": "Transferir esta reserva a otro proveedor",
+    "transferHint": "La reserva, su depósito y su cita se mantienen; solo cambia el proveedor.",
+    "transferProviderPlaceholder": "ID de usuario del nuevo proveedor",
+    "transferProviderRequired": "Ingresa el ID de usuario del nuevo proveedor.",
+    "transferReasonPlaceholder": "Motivo (opcional)",
+    "transferringBooking": "Transfiriendo..."
   },
   "verifyEmail": {
     "title": "Verifica tu correo",
@@ -16246,7 +16323,36 @@
     "nextStepsTitle": "Qué sigue",
     "nextStepOne": "Coordina detalles por mensaje si hace falta.",
     "nextStepTwo": "Tu calendario mostrará la cita cuando esté confirmada.",
-    "nextStepThree": "Si cambian los planes, cancela desde tu reserva o calendario."
+    "nextStepThree": "Si cambian los planes, cancela desde tu reserva o calendario.",
+    "bookForSomeoneElse": "Reservar para otra persona",
+    "bookForSomeoneElseHint": "La reserva queda a tu nombre y tú pagas el depósito. El trabajo es para la persona indicada abajo.",
+    "recipientName": "Nombre del destinatario",
+    "recipientNamePlaceholder": "¿Para quién es el trabajo?",
+    "recipientPhone": "Teléfono del destinatario",
+    "recipientPhonePlaceholder": "Número de teléfono del destinatario",
+    "siteContact": "Contacto en el lugar",
+    "siteContactHint": "La persona que estará en el lugar cuando se realice el trabajo.",
+    "siteContactName": "Nombre del contacto en el lugar",
+    "siteContactNamePlaceholder": "¿Quién estará en el lugar?",
+    "siteContactPhone": "Teléfono del contacto en el lugar",
+    "siteContactPhonePlaceholder": "Número de teléfono del contacto en el lugar",
+    "bookedFor": "Reservado para",
+    "statusLink": "Enlace de estado",
+    "copyLink": "Copiar enlace",
+    "linkCopied": "Enlace copiado",
+    "publicStatusTitle": "Estado de la reserva",
+    "publicStatusNotFound": "No pudimos encontrar esta reserva.",
+    "publicStatusArrived": "Llegada a las {{time}}",
+    "publicStatusFor": "Para {{name}}",
+    "publicStatusNote": "Esta página muestra solo el estado de la reserva y la hora de llegada.",
+    "publicStatus": {
+      "pending": "Pendiente",
+      "accepted": "Aceptada",
+      "declined": "Rechazada",
+      "expired": "Vencida",
+      "cancelled": "Cancelada",
+      "accepted_cancelled": "Cancelada tras la aceptación"
+    }
   },
   "checkout": {
     "title": "Verificar",
@@ -20774,7 +20880,8 @@
       "rangeNote": "De servicio estándar a urgente",
       "standardTotal": "Estándar",
       "signInToBook": "Inicia sesión para reservar",
-      "signInNote": "Inicia sesión o crea una cuenta para reservar. Tu estimación se mantiene completada."
+      "signInNote": "Inicia sesión o crea una cuenta para reservar. Tu estimación se mantiene completada.",
+      "unavailable": "Las estimaciones de entrega no están disponibles en este momento."
     },
     "tabs": {
       "driving": "Conduciendo"
@@ -21582,7 +21689,8 @@
       "earningsPending": "Pendiente",
       "earningsVoided": "Anulado",
       "earningsEmpty": "Aún no hay pagos.",
-      "helperModeHint": "Para registrarte como conductor primero necesitas el modo ayudante. Cambia al modo ayudante en ajustes y vuelve aquí para registrarte."
+      "helperModeHint": "Para registrarte como conductor primero necesitas el modo ayudante. Cambia al modo ayudante en ajustes y vuelve aquí para registrarte.",
+      "driverAccessHint": "Solo los conductores de entrega aprobados pueden registrarse aquí. Los conductores se registran a través de la solicitud de logística, o cambian al modo ayudante en ajustes."
     }
   },
   "aboutPage": {
@@ -22062,7 +22170,8 @@
       "entryPreference": "Preferencia de entrada",
       "bestUpdateChannel": "Mejor canal de actualización",
       "contactPhone": "Número de teléfono preferido",
-      "billableParty": "Facturar a"
+      "billableParty": "Facturar a",
+      "property": "Propiedad"
     },
     "placeholders": {
       "title": "Grifo de la cocina goteando bajo el gabinete",
@@ -22075,7 +22184,8 @@
       "preferredWindows": "Entre semana después de las 4 p. m., sábado por la mañana, etc.",
       "accessNotes": "Mascotas, código de portón, estacionamiento, reglas de permiso o cómo llegarte.",
       "entryPreference": "Llamar primero, llave de administrador disponible, mensaje al llegar",
-      "contactPhone": "Opcional"
+      "contactPhone": "Opcional",
+      "selectProperty": "Selecciona una propiedad"
     },
     "issueCategories": [
       "Fontanería",
@@ -22336,6 +22446,10 @@
         "available": "Disponible"
       },
       "showingTop": "Mostrando los 20 mejores de {{count}}"
+    },
+    "territory": {
+      "label": "Territorio",
+      "newest": "Más reciente"
     }
   },
   "professionalIntakePage": {

@@ -6832,6 +6832,20 @@
     },
     "menu": {
       "storeScoped": "Le menu partagé est géré par les personnes ayant accès à tous les établissements. Utilisez le menu de votre établissement pour y modifier la disponibilité ou les prix."
+    },
+    "pastGrantsTitle": "Accès antérieurs",
+    "pastGrantsDescription": "Accès révoqués, suspendus ou expirés, avec la raison du changement.",
+    "grantStatus": {
+      "active": "Actif",
+      "suspended": "Suspendu",
+      "revoked": "Révoqué",
+      "expired": "Expiré"
+    },
+    "grantReasons": {
+      "account_deleted": "Compte supprimé.",
+      "review_complete": "Examen terminé.",
+      "territory_assigned": "Territoire attribué.",
+      "territory_assignment_ended": "Attribution du territoire terminée."
     }
   },
   "businessLaunchAttachments": {
