@@ -3223,7 +3223,18 @@
       "unsubscribeAll": "Dezabòne nan tout imèl",
       "unsubscribedToast": "Ou dezabòne nan tout imèl",
       "failedLoad": "Pa t kapab chaje preferans imèl",
-      "failedAction": "Sa pa t mache. Tanpri eseye ankò."
+      "failedAction": "Sa pa t mache. Tanpri eseye ankò.",
+      "savedToast": "Preferans imèl yo sove.",
+      "marketingTitle": "Imèl maketing",
+      "marketingBody": "Òf, nouvo fonksyonalite, ak nouvèl OxSteed. Imèl sou rezèvasyon ak peman ou yo pa afekte.",
+      "frequencyTitle": "Frekans imèl",
+      "frequencyBody": "Konbyen fwa imèl rezime yo rive. Imèl rezèvasyon ak peman yo toujou rive touswit.",
+      "frequency": {
+        "real-time": "Lè yo rive",
+        "daily": "Chak jou",
+        "weekly": "Chak semèn",
+        "off": "Koupe"
+      }
     },
     "typeGroups": {
       "work": {
@@ -4877,7 +4888,27 @@
     },
     "tabPaymentPolicies": "Règleman peman",
     "accountDeleteHasBalance": "Ou toujou gen yon balans, yon kenbe oswa yon peman ki an atant. Retire oswa itilize rès balans ou epi kite peman ki an atant yo fini anvan ou efase kont ou, oswa kontakte support@oxsteed.com.",
-    "accountDeleteSubscriptionRetry": "Nou pa t ka anile abònman ou kounye a, kidonk kont ou pa t efase. Tanpri eseye ankò nan kèk minit."
+    "accountDeleteSubscriptionRetry": "Nou pa t ka anile abònman ou kounye a, kidonk kont ou pa t efase. Tanpri eseye ankò nan kèk minit.",
+    "savedLocations": {
+      "required": "Yo bezwen yon etikèt ak yon adrès.",
+      "saveFailed": "Nou pa t kapab sove kote sa a.",
+      "deleteFailed": "Nou pa t kapab retire kote sa a.",
+      "backToSettings": "Retounen nan paramèt yo",
+      "title": "Kote ki sovgade yo",
+      "subtitle": "Adrès kote travay la fèt, ak enstriksyon pou antre. Chwazi youn lè w ap rezève olye ou tape adrès la ankò.",
+      "empty": "Poko gen kote ki sovgade. Ajoute adrès kote travay la fèt abityèlman.",
+      "defaultBadge": "Pa defo",
+      "editTitle": "Modifye kote a",
+      "addTitle": "Ajoute yon kote",
+      "labelLabel": "Etikèt",
+      "labelPlaceholder": "Egzanp: Kay",
+      "addressLabel": "Adrès",
+      "addressPlaceholder": "Ri, vil, eta, kòd postal",
+      "entryLabel": "Enstriksyon pou antre (opsyonèl)",
+      "entryPlaceholder": "Egzanp: Kòd pòtay la 1234, sèvi ak pòt sou kote a.",
+      "defaultLabel": "Sèvi ak li kòm kote pa defo mwen",
+      "addButton": "Ajoute kote a"
+    }
   },
   "partsList": {
     "toolbarLabel": "Lis pyès",
@@ -6090,7 +6121,18 @@
       "addFailed": "Erè ajoute sèvis otomobil",
       "vinDecodeFailed": "Erè dekode VIN",
       "unknownModel": "Modèl Enkoni",
-      "quickAdded": "Travay swen machin ajoute vit"
+      "quickAdded": "Travay swen machin ajoute vit",
+      "mileage": "Kilometraj aktyèl",
+      "mileagePlaceholder": "Egzanp: 45200",
+      "lastOilChangeMile": "Kilometraj nan dènye chanjman lwil la",
+      "lastOilChangeMilePlaceholder": "Egzanp: 40500",
+      "lastServiceDate": "Dat dènye sèvis la",
+      "serviceReminders": "Rapèl sèvis",
+      "oilChangeDue": "Chanjman lwil la dwe fèt",
+      "oilChangeSoonMiles": "Chanjman lwil nan {{miles}} mil",
+      "oilChangeSoonDays": "Chanjman lwil nan {{days}} jou",
+      "serviceDue": "Sèvis la dwe fèt",
+      "serviceSoon": "Sèvis nan {{days}} jou"
     },
     "products": {
       "title": "Pwodwi ak Ekipman mwen",
@@ -7133,7 +7175,11 @@
     "changesHint": "Travay la rete an kou epi revèy konfimasyon otomatik la poz pandan prestatè a ap fè chanjman yo.",
     "sendChangesRequest": "Voye demann chanjman an",
     "changesRequested": "Chanjman yo mande.",
-    "changesRequestedNotice": "Yo te mande chanjman pou travay sa a."
+    "changesRequestedNotice": "Yo te mande chanjman pou travay sa a.",
+    "aftercareLabel": "Enstriksyon swen apre travay la pou kliyan an",
+    "aftercarePlaceholder": "Egzanp: Kenbe zòn nan sèk pandan 24 èdtan, apre sa siye l ak yon twal mouye.",
+    "aftercareHint": "Opsyonèl. Kliyan an wè sa apre travay la fini.",
+    "aftercareTitle": "Swen apre"
   },
   "myJobs": {
     "cancelUndoNote": "W ap gen 5 segonn pou defèt li apre konfimasyon.",
@@ -7323,7 +7369,23 @@
     "priceStartingAt": "Depi {{amount}}",
     "jobsCount": "{{count}} travay fini",
     "licenseCount": "{{count}} lisans",
-    "helperCount": "{{count}} asistan yo te jwenn"
+    "helperCount": "{{count}} asistan yo te jwenn",
+    "saved": "Sovgade",
+    "saveToShortlist": "Sovgade",
+    "inComparison": "Nan konparezon",
+    "compare": "Konpare",
+    "shortlistCount": "Lis ou a: {{count}}",
+    "viewShortlist": "Wè lis la",
+    "comparingCount": "N ap konpare {{count}}",
+    "hideComparison": "Kache konparezon an",
+    "showComparison": "Konpare seleksyon an",
+    "clearComparison": "Efase",
+    "compareField": "Chan",
+    "compareRating": "Nòt",
+    "compareJobs": "Travay ki fèt",
+    "comparePrice": "Pri kòmansman",
+    "compareServices": "Sèvis",
+    "compareAvailable": "Disponib jodi a"
   },
   "jobsDir": {
     "metaTitle": "Gade travay ki disponib",
@@ -8043,7 +8105,14 @@
       "profileHandoffTitle": "Ap kontinye soti nan chat pwofil la",
       "profileHandoffBody": "OxSteed sou pwofil la se AI sèlman. Paj sa a konekte ou ak sipò platfòm nan.",
       "profileHandoffContext": "Pwofil: {{name}}",
-      "returnToProfile": "Retounen nan pwofil la"
+      "returnToProfile": "Retounen nan pwofil la",
+      "topicLabel": "Sijè",
+      "topicGeneral": "Sipò jeneral",
+      "topicBilling": "Faktirasyon",
+      "topicTechnical": "Pwoblèm teknik",
+      "topicAccount": "Kont",
+      "topicAccessibility": "Èd aksesibilite",
+      "topicAccessibilityHint": "Chwazi èd aksesibilite si ou bezwen èd pou itilize OxSteed ak yon lektè ekran, klavye, oswa lòt zouti asistans."
     },
     "customer360": {
       "resolution": {
@@ -11397,7 +11466,19 @@
       "regenerated": "Renouvle"
     },
     "loadFailed": "Bezwen planifye ou yo pa t chaje.",
-    "pauseFailed": "Poz la pa t chanje."
+    "pauseFailed": "Poz la pa t chanje.",
+    "seasonalPacksTitle": "Pak travay sezon yo",
+    "seasonalPacksHint": "Yon sèl tòch ajoute travay abityèl sezon an. Sa ou deja planifye yo pa ajoute.",
+    "seasonalApplying": "N ap ajoute…",
+    "seasonalApply": "Ajoute pak sa a",
+    "seasonalApplied": "Nou ajoute {{created}} travay, nou sote {{skipped}} ou te gen deja.",
+    "seasonalApplyFailed": "Nou pa t kapab ajoute pak sa a.",
+    "season": {
+      "spring": "Prentan",
+      "summer": "Ete",
+      "fall": "Otòn",
+      "winter": "Ivè"
+    }
   },
   "helperRegister": {
     "step4": {
@@ -13872,6 +13953,9 @@
     "title": "Sa ou te gade dènyeman"
   },
   "discover": {
+    "showMap": "Montre kat la",
+    "hideMap": "Kache kat la",
+    "mapEmpty": "Pa gen rezilta sou kat la nan zòn sa a pou kounye a.",
     "metaTitle": "Dekouvri - OxSteed",
     "metaDesc": "Chèche asistan, travay, biznis, lokasyon zouti, ak pwodwi piblik sou OxSteed.",
     "title": "Dekouvri",
@@ -15639,7 +15723,29 @@
     "onlyXLeft": "Se sèlman {{count}} ki rete",
     "save": "Sove",
     "pickASkillFilter": "Chwazi youn nan konpetans ou yo pou redui katalòg la.",
-    "clearSkillFilter": "Efase filt konpetans lan"
+    "clearSkillFilter": "Efase filt konpetans lan",
+    "kits": {
+      "title": "Twous pou fè l tèt ou",
+      "hint": "Pyès yo chwazi pou travay komen yo. Bati yon twous nan yon kabwa ak pri aktyèl yo.",
+      "items": "{{available}} sou {{total}} atik ki disponib",
+      "missing": "{{count}} pa disponib",
+      "estimatedTotal": "Total estime: {{amount}}",
+      "building": "N ap bati…",
+      "buildKit": "Bati twous la",
+      "buildFailed": "Nou pa t kapab bati twous sa a.",
+      "omittedNotice": "Twous {{jobType}} la te bati san: {{items}}.",
+      "previewSubstitutes": "Wè ranplasan yo",
+      "hidePreview": "Kache apèsi a",
+      "previewLoading": "N ap chaje apèsi a…",
+      "previewTitle": "Apèsi twous la: {{jobType}}",
+      "previewAllAvailable": "Tout sa ki nan twous sa a disponib kounye a.",
+      "omittedItem": "Pa disponib: {{name}}",
+      "useInstead": "Sèvi ak sa a",
+      "noSubstitutes": "Pa gen ranplasan pou atik sa a.",
+      "previewFailed": "Nou pa t kapab chaje apèsi a."
+    },
+    "paidLink": "(lyen peye)",
+    "affiliateDisclosure": "OxSteed ka resevwa yon komisyon si ou achte nan lyen sa a, san okenn frè anplis pou ou."
   },
   "templatePicker": {
     "pageTitle": "Chwazi Modèl Pwofil Ou",
@@ -16422,7 +16528,32 @@
       "expired": "Ekspire",
       "cancelled": "Anile",
       "accepted_cancelled": "Anile apre akseptasyon"
-    }
+    },
+    "reschedule": {
+      "missingFields": "Chwazi yon dat ak yon lè kòmansman ak yon lè fen.",
+      "endAfterStart": "Lè fen an dwe apre lè kòmansman an.",
+      "proposed": "Demann pou chanje orè a voye.",
+      "proposeFailed": "Nou pa t kapab voye demann lan. Tanpri eseye ankò.",
+      "accepted": "Nouvo lè a aksepte.",
+      "declined": "Demann pou chanje orè a refize.",
+      "respondFailed": "Nou pa t kapab reponn demann lan. Tanpri eseye ankò.",
+      "proposedBanner": "Yo pwopoze yon nouvo lè pou rezèvasyon sa a.",
+      "waitingOtherParty": "N ap tann lòt pati a aksepte oswa refize.",
+      "accept": "Aksepte",
+      "decline": "Refize",
+      "propose": "Pwopoze yon nouvo lè",
+      "proposeHint": "Rezèvasyon an chanje sèlman si lòt pati a aksepte. Pri a ni depo a pa chanje.",
+      "date": "Dat",
+      "start": "Kòmansman",
+      "end": "Fen",
+      "message": "Mesaj",
+      "messagePlaceholder": "Poukisa ou bezwen yon nouvo lè? (opsyonèl)",
+      "sendProposal": "Voye pwopozisyon an"
+    },
+    "savedLocation": "Kote ki sovgade",
+    "savedLocationPlaceholder": "Sèvi ak yon kote ki sovgade…",
+    "savedLocationDefault": "pa defo",
+    "manageSavedLocations": "Jere kote ki sovgade yo"
   },
   "checkout": {
     "title": "Kesye",
@@ -17780,7 +17911,13 @@
       "subtitle": "Tout sa k ap tann ou lakay, nan yon sèl kote.",
       "empty": "Pa gen travay k ap tann.",
       "completed": "Fini",
-      "filter": { "all": "Tout", "open": "Ouvè", "completed": "Fini" }
+      "filter": { "all": "Tout", "open": "Ouvè", "completed": "Fini" },
+      "calendarTitle": "Kalandriye swen kay",
+      "prevMonth": "Mwa anvan",
+      "nextMonth": "Mwa pwochen",
+      "overdueCount": "{{count}} an reta",
+      "moreTasks": "+{{count}} anplis",
+      "unscheduledCount": "{{count}} travay pa gen dat limit."
     },
     "vehicles": {
       "title": "Garaj",
@@ -17816,7 +17953,17 @@
       "paymentReference": "Referans peman",
       "paymentAmount": "Montan peye",
       "noPayment": "Poko gen peman anrejistre pou kòmann sa a.",
-      "statusLabel": "Eta: {{status}}"
+      "statusLabel": "Eta: {{status}}",
+      "returnReasonRequired": "Di nou poukisa w ap retounen kòmand lan.",
+      "returnFailed": "Nou pa t kapab voye demann retou a.",
+      "returnsTitle": "Retou",
+      "returnStatus": "Retou: {{status}}",
+      "requestReturn": "Mande yon retou",
+      "returnReasonLabel": "Poukisa w ap retounen kòmand sa a?",
+      "returnReasonPlaceholder": "Egzanp: Atik la te rive domaje.",
+      "returnNoRefundNote": "Demann retou a sèlman anrejistre demann ou a. Yon ranbousman, si yo apwouve l, pase nan apwobasyon abityèl yo epi li pa bay isit la.",
+      "submitReturn": "Voye demann retou a",
+      "returnNotAvailable": "Retou yo louvri lè kòmand lan peye oswa lè y ap prepare l."
     }
   },
   "dashboards": {
@@ -28764,7 +28911,8 @@
         "urgency": "Ijans",
         "timelineNotes": "Nòt sou delè",
         "accessNotes": "Nòt sou aksè",
-        "details": "Kisa nou ta dwe konnen?"
+        "details": "Kisa nou ta dwe konnen?",
+        "responseDeadline": "Dat limit repons"
       },
       "hints": {
         "outsideServiceArea": "Kòd postal sa a deyò zòn nou konn sèvi yo. Ou ka toujou voye demann lan, n ap konfime.",
@@ -28772,7 +28920,8 @@
         "workLocation": "Vil, katye, oswa adrès konplè.",
         "serviceZipCode": "Yo itilize l pou fè matche ak quote ou a pita.",
         "accessNotes": "Kòd pòtay, pakin, bèt, mach eskalye, oswa nenpòt detay ki ka ede.",
-        "details": "Yon ti deskripsyon sifi pou kòmanse."
+        "details": "Yon ti deskripsyon sifi pou kòmanse.",
+        "responseDeadline": "Opsyonèl. Èd yo wè dat ou bezwen yon repons lan, jiska 30 jou."
       },
       "placeholders": {
         "optional": "Opsyonèl",
@@ -42728,5 +42877,27 @@
     "version": "Vèsyon {{version}}",
     "acceptNote": "Pou aksepte kondisyon sa yo epi itilize OxSteed Credit, konekte nan kont ou.",
     "signIn": "Konekte"
+  },
+  "myQuotes": {
+    "pageTitle": "Devi mwen yo",
+    "pageDescription": "Demann devi ou te voye yo, dat limit yo, ak yon konparezon.",
+    "title": "Devi mwen yo",
+    "intro": "Konpare demann devi ou yo anvan ou rezève.",
+    "loadFailed": "Nou pa t kapab chaje devi ou yo.",
+    "empty": "Ou poko gen okenn demann devi.",
+    "requestQuote": "Mande yon devi",
+    "compare": "Konpare",
+    "clearComparison": "Efase konparezon an",
+    "selectHint": "Chwazi jiska 3 demann pou konpare.",
+    "comparisonTitle": "Konparezon",
+    "compareField": "Chan",
+    "untitledRequest": "Demann san tit",
+    "services": "Sèvis",
+    "amount": "Montan",
+    "deadline": "Dat limit repons",
+    "deadlinePassed": "Dat limit la pase",
+    "status": "Estati",
+    "selectForComparison": "Chwazi pou konpare",
+    "view": "Wè"
   }
 }

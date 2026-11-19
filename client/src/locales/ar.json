@@ -4599,7 +4599,27 @@
     "preferencesTab": "التفضيلات",
     "tabPaymentPolicies": "سياسات الدفع",
     "accountDeleteHasBalance": "لا يزال لديك رصيد أو مبلغ محجوز أو دفعة معلقة. اسحب رصيدك المتبقي أو استخدمه وانتظر اكتمال الدفعات المعلقة قبل حذف حسابك، أو تواصل مع support@oxsteed.com.",
-    "accountDeleteSubscriptionRetry": "تعذّر علينا إلغاء اشتراكك الآن، لذلك لم يتم حذف حسابك. يرجى المحاولة مرة أخرى بعد بضع دقائق."
+    "accountDeleteSubscriptionRetry": "تعذّر علينا إلغاء اشتراكك الآن، لذلك لم يتم حذف حسابك. يرجى المحاولة مرة أخرى بعد بضع دقائق.",
+    "savedLocations": {
+      "required": "يلزم إدخال تسمية وعنوان.",
+      "saveFailed": "تعذّر حفظ هذا الموقع.",
+      "deleteFailed": "تعذّر حذف هذا الموقع.",
+      "backToSettings": "العودة إلى الإعدادات",
+      "title": "المواقع المحفوظة",
+      "subtitle": "عناوين أماكن العمل مع تعليمات الدخول. اختر أحدها عند الحجز بدلًا من كتابة العنوان مجددًا.",
+      "empty": "لا توجد مواقع محفوظة بعد. أضف العناوين التي يتم فيها العمل عادةً.",
+      "defaultBadge": "افتراضي",
+      "editTitle": "تعديل الموقع",
+      "addTitle": "إضافة موقع",
+      "labelLabel": "التسمية",
+      "labelPlaceholder": "مثال: المنزل",
+      "addressLabel": "العنوان",
+      "addressPlaceholder": "الشارع، المدينة، الولاية، الرمز البريدي",
+      "entryLabel": "تعليمات الدخول (اختياري)",
+      "entryPlaceholder": "مثال: رمز البوابة 1234، استخدم الباب الجانبي.",
+      "defaultLabel": "استخدمه كموقعي الافتراضي",
+      "addButton": "أضف الموقع"
+    }
   },
   "partsList": {
     "toolbarLabel": "قائمة القطع",
@@ -5812,7 +5832,18 @@
       "removed": "تمت إزالة خدمة السيارات",
       "addFailed": "فشلت إضافة خدمة السيارات",
       "vinDecodeFailed": "فشل في فك تشفير VIN",
-      "quickAdded": "مهمة العناية بالسيارات المضافة بسرعة"
+      "quickAdded": "مهمة العناية بالسيارات المضافة بسرعة",
+      "mileage": "المسافة المقطوعة الحالية",
+      "mileagePlaceholder": "مثال: 45200",
+      "lastOilChangeMile": "المسافة المقطوعة عند آخر تغيير للزيت",
+      "lastOilChangeMilePlaceholder": "مثال: 40500",
+      "lastServiceDate": "تاريخ آخر صيانة",
+      "serviceReminders": "تذكيرات الصيانة",
+      "oilChangeDue": "حان موعد تغيير الزيت",
+      "oilChangeSoonMiles": "تغيير الزيت مستحق خلال {{miles}} ميل",
+      "oilChangeSoonDays": "تغيير الزيت مستحق خلال {{days}} يوم",
+      "serviceDue": "حان موعد الصيانة",
+      "serviceSoon": "الصيانة مستحقة خلال {{days}} يوم"
     },
     "products": {
       "title": "منتجاتي ومعداتي",
@@ -6855,7 +6886,11 @@
     "changesHint": "تبقى المهمة قيد التنفيذ ويتوقف مؤقت التأكيد التلقائي أثناء إجراء المُساعد للتغييرات.",
     "sendChangesRequest": "إرسال طلب التغييرات",
     "changesRequested": "تم طلب التغييرات.",
-    "changesRequestedNotice": "تم طلب تغييرات على هذه المهمة."
+    "changesRequestedNotice": "تم طلب تغييرات على هذه المهمة.",
+    "aftercareLabel": "تعليمات العناية بعد العمل للعميل",
+    "aftercarePlaceholder": "مثال: حافظ على جفاف المنطقة لمدة 24 ساعة، ثم امسحها بقطعة قماش مبللة.",
+    "aftercareHint": "اختياري. يرى العميل هذا بعد اكتمال العمل.",
+    "aftercareTitle": "العناية اللاحقة"
   },
   "myJobs": {
     "cancelUndoNote": "سيكون لديك 5 ثوانٍ للتراجع بعد التأكيد.",
@@ -7045,7 +7080,23 @@
     "priceStartingAt": "من {{amount}}",
     "jobsCount": "اكتملت مهمة {{count}}",
     "licenseCount": "{{count}} الترخيص",
-    "helperCount": "تم العثور على مساعد {{count}}"
+    "helperCount": "تم العثور على مساعد {{count}}",
+    "saved": "محفوظ",
+    "saveToShortlist": "حفظ",
+    "inComparison": "قيد المقارنة",
+    "compare": "قارن",
+    "shortlistCount": "قائمتك المختصرة: {{count}}",
+    "viewShortlist": "عرض القائمة المختصرة",
+    "comparingCount": "تتم مقارنة {{count}}",
+    "hideComparison": "إخفاء المقارنة",
+    "showComparison": "قارن المحدد",
+    "clearComparison": "مسح",
+    "compareField": "الحقل",
+    "compareRating": "التقييم",
+    "compareJobs": "الأعمال المنجزة",
+    "comparePrice": "سعر البداية",
+    "compareServices": "الخدمات",
+    "compareAvailable": "متاح اليوم"
   },
   "jobsDir": {
     "metaTitle": "تصفح الوظائف المفتوحة",
@@ -7765,7 +7816,14 @@
       "profileHandoffTitle": "المتابعة من دردشة الملف الشخصي",
       "profileHandoffBody": "OxSteed في الملف الشخصي ذكاء اصطناعي فقط. تربطك هذه الصفحة بدعم المنصة.",
       "profileHandoffContext": "الملف الشخصي: {{name}}",
-      "returnToProfile": "العودة إلى الملف الشخصي"
+      "returnToProfile": "العودة إلى الملف الشخصي",
+      "topicLabel": "الموضوع",
+      "topicGeneral": "دعم عام",
+      "topicBilling": "الفوترة",
+      "topicTechnical": "مشكلة تقنية",
+      "topicAccount": "الحساب",
+      "topicAccessibility": "مساعدة في إمكانية الوصول",
+      "topicAccessibilityHint": "اختر مساعدة إمكانية الوصول إذا كنت بحاجة إلى مساعدة في استخدام OxSteed مع قارئ شاشة أو لوحة مفاتيح أو أدوات مساعدة أخرى."
     },
     "customer360": {
       "resolution": {
@@ -11110,7 +11168,18 @@
       "unsubscribeAll": "إلغاء الاشتراك في جميع الرسائل",
       "unsubscribedToast": "تم إلغاء اشتراكك في جميع الرسائل",
       "failedLoad": "تعذّر تحميل تفضيلات البريد الإلكتروني",
-      "failedAction": "لم ينجح ذلك. حاول مرة أخرى."
+      "failedAction": "لم ينجح ذلك. حاول مرة أخرى.",
+      "savedToast": "تم حفظ تفضيلات البريد الإلكتروني.",
+      "marketingTitle": "رسائل التسويق الإلكترونية",
+      "marketingBody": "عروض وميزات جديدة وأخبار من OxSteed. ولا تتأثر رسائل المعاملات المتعلقة بحجوزاتك ومدفوعاتك.",
+      "frequencyTitle": "تكرار البريد الإلكتروني",
+      "frequencyBody": "كم مرة تصل رسائل الملخص. وتصل رسائل الحجز والدفع دائمًا فورًا.",
+      "frequency": {
+        "real-time": "عند حدوثها",
+        "daily": "يوميًا",
+        "weekly": "أسبوعيًا",
+        "off": "متوقف"
+      }
     },
     "typeGroups": {
       "work": {
@@ -11397,7 +11466,19 @@
       "regenerated": "متجدد"
     },
     "loadFailed": "تعذر تحميل احتياجاتك المخططة.",
-    "pauseFailed": "تعذر تغيير الإيقاف المؤقت."
+    "pauseFailed": "تعذر تغيير الإيقاف المؤقت.",
+    "seasonalPacksTitle": "حزم المهام الموسمية",
+    "seasonalPacksHint": "بنقرة واحدة تضيف مهام الموسم المعتادة كمهام مخططة. ويتم تخطي المهام المخططة لديك بالفعل.",
+    "seasonalApplying": "جارٍ الإضافة…",
+    "seasonalApply": "أضف هذه الحزمة",
+    "seasonalApplied": "تمت إضافة {{created}} مهمة، وتم تخطي {{skipped}} كانت لديك بالفعل.",
+    "seasonalApplyFailed": "تعذّرت إضافة هذه الحزمة.",
+    "season": {
+      "spring": "الربيع",
+      "summer": "الصيف",
+      "fall": "الخريف",
+      "winter": "الشتاء"
+    }
   },
   "helperRegister": {
     "step4": {
@@ -13872,6 +13953,9 @@
     "title": "شوهدت مؤخرا"
   },
   "discover": {
+    "showMap": "إظهار الخريطة",
+    "hideMap": "إخفاء الخريطة",
+    "mapEmpty": "لا توجد نتائج على الخريطة في هذه المنطقة بعد.",
     "metaTitle": "اكتشف - أوكسستيد",
     "metaDesc": "ابحث عن المساعدين العامين والوظائف والشركات وتأجير الأدوات والمنتجات على OxSteed.",
     "title": "يكتشف",
@@ -15714,7 +15798,32 @@
       "expired": "منتهٍ",
       "cancelled": "ملغى",
       "accepted_cancelled": "أُلغي بعد القبول"
-    }
+    },
+    "reschedule": {
+      "missingFields": "اختر تاريخًا ووقت بداية ووقت نهاية.",
+      "endAfterStart": "يجب أن يكون وقت النهاية بعد وقت البداية.",
+      "proposed": "تم إرسال طلب إعادة الجدولة.",
+      "proposeFailed": "تعذّر إرسال الطلب. يُرجى المحاولة مرة أخرى.",
+      "accepted": "تم قبول الوقت الجديد.",
+      "declined": "تم رفض طلب إعادة الجدولة.",
+      "respondFailed": "تعذّر الرد على الطلب. يُرجى المحاولة مرة أخرى.",
+      "proposedBanner": "تم اقتراح وقت جديد لهذا الحجز.",
+      "waitingOtherParty": "بانتظار قبول الطرف الآخر أو رفضه.",
+      "accept": "قبول",
+      "decline": "رفض",
+      "propose": "اقتراح وقت جديد",
+      "proposeHint": "لا يتغير الحجز إلا إذا قبل الطرف الآخر. ولا يتغير السعر أو العربون.",
+      "date": "التاريخ",
+      "start": "البداية",
+      "end": "النهاية",
+      "message": "رسالة",
+      "messagePlaceholder": "لماذا تحتاج إلى وقت جديد؟ (اختياري)",
+      "sendProposal": "إرسال الاقتراح"
+    },
+    "savedLocation": "موقع محفوظ",
+    "savedLocationPlaceholder": "استخدم موقعًا محفوظًا…",
+    "savedLocationDefault": "افتراضي",
+    "manageSavedLocations": "إدارة المواقع المحفوظة"
   },
   "verifyEmail": {
     "title": "تحقق من بريدك الإلكتروني",
@@ -15865,7 +15974,29 @@
     "onlyXLeft": "لم يتبق سوى {{count}} فقط",
     "save": "يحفظ",
     "pickASkillFilter": "اختر إحدى مهاراتك لتضييق الكتالوج.",
-    "clearSkillFilter": "مسح مرشح المهارة"
+    "clearSkillFilter": "مسح مرشح المهارة",
+    "kits": {
+      "title": "مجموعات افعلها بنفسك",
+      "hint": "قطع مختارة للأعمال الشائعة. أنشئ مجموعة في سلة مسودة بالأسعار الحالية.",
+      "items": "{{available}} من {{total}} عنصرًا متاحًا",
+      "missing": "{{count}} غير متاح",
+      "estimatedTotal": "الإجمالي التقديري: {{amount}}",
+      "building": "جارٍ الإنشاء…",
+      "buildKit": "أنشئ المجموعة",
+      "buildFailed": "تعذّر إنشاء هذه المجموعة.",
+      "omittedNotice": "تم إنشاء المجموعة {{jobType}} بدون: {{items}}.",
+      "previewSubstitutes": "معاينة البدائل",
+      "hidePreview": "إخفاء المعاينة",
+      "previewLoading": "جارٍ تحميل المعاينة…",
+      "previewTitle": "معاينة المجموعة: {{jobType}}",
+      "previewAllAvailable": "كل ما في هذه المجموعة متاح الآن.",
+      "omittedItem": "غير متاح: {{name}}",
+      "useInstead": "استخدم هذا بدلًا منه",
+      "noSubstitutes": "لم يتم العثور على بديل لهذا العنصر.",
+      "previewFailed": "تعذّر تحميل المعاينة."
+    },
+    "paidLink": "(رابط مدفوع)",
+    "affiliateDisclosure": "قد تحصل OxSteed على عمولة إذا اشتريت عبر هذا الرابط، دون أي تكلفة إضافية عليك."
   },
   "templatePicker": {
     "pageTitle": "اختر قالب ملف التعريف الخاص بك",
@@ -17791,7 +17922,13 @@
       "subtitle": "كل ما ينتظرك في المنزل في مكان واحد.",
       "empty": "لا مهام معلقة.",
       "completed": "مكتملة",
-      "filter": { "all": "الكل", "open": "المفتوحة", "completed": "المكتملة" }
+      "filter": { "all": "الكل", "open": "المفتوحة", "completed": "المكتملة" },
+      "calendarTitle": "تقويم العناية بالمنزل",
+      "prevMonth": "الشهر السابق",
+      "nextMonth": "الشهر التالي",
+      "overdueCount": "{{count}} متأخرة",
+      "moreTasks": "+{{count}} أخرى",
+      "unscheduledCount": "{{count}} مهمة بلا موعد نهائي."
     },
     "vehicles": {
       "title": "المرآب",
@@ -17827,7 +17964,17 @@
       "paymentReference": "مرجع الدفع",
       "paymentAmount": "المبلغ المدفوع",
       "noPayment": "لا دفعة مسجلة لهذا الطلب بعد.",
-      "statusLabel": "الحالة: {{status}}"
+      "statusLabel": "الحالة: {{status}}",
+      "returnReasonRequired": "يُرجى إخبارنا بسبب إرجاع الطلب.",
+      "returnFailed": "تعذّر إرسال طلب الإرجاع.",
+      "returnsTitle": "المرتجعات",
+      "returnStatus": "الإرجاع: {{status}}",
+      "requestReturn": "طلب إرجاع",
+      "returnReasonLabel": "لماذا ترجع هذا الطلب؟",
+      "returnReasonPlaceholder": "مثال: وصل العنصر تالفًا.",
+      "returnNoRefundNote": "طلب الإرجاع يسجّل طلبك فقط. وأي استرداد، إن تمت الموافقة عليه، يمر عبر الموافقات المعتادة ولا يُصدر من هنا.",
+      "submitReturn": "إرسال طلب الإرجاع",
+      "returnNotAvailable": "تُفتح المرتجعات بعد دفع الطلب أو بدء تجهيزه."
     }
   },
   "dashboards": {
@@ -28779,7 +28926,8 @@
         "urgency": "الاستعجال",
         "timelineNotes": "ملاحظات الجدول الزمني",
         "accessNotes": "ملاحظات الوصول",
-        "details": "ماذا يجب أن نعرف؟"
+        "details": "ماذا يجب أن نعرف؟",
+        "responseDeadline": "الموعد النهائي للرد"
       },
       "hints": {
         "outsideServiceArea": "هذا الرمز البريدي خارج مناطق خدمتنا المعتادة. لا يزال بإمكانك إرسال الطلب وسنؤكد لك.",
@@ -28787,7 +28935,8 @@
         "workLocation": "المدينة أو الحي أو العنوان الكامل.",
         "serviceZipCode": "يُستخدم لمطابقة عرض السعر لاحقًا.",
         "accessNotes": "رمز البوابة أو الموقف أو الحيوانات الأليفة أو السلالم أو أي شيء مفيد.",
-        "details": "يكفي وصف قصير للبدء."
+        "details": "يكفي وصف قصير للبدء.",
+        "responseDeadline": "اختياري. يرى المساعدون التاريخ الذي تحتاج فيه إلى إجابة، حتى 30 يومًا."
       },
       "placeholders": {
         "optional": "اختياري",
@@ -42842,5 +42991,27 @@
     "version": "الإصدار {{version}}",
     "acceptNote": "لقبول هذه الشروط واستخدام OxSteed Credit، سجّل الدخول إلى حسابك.",
     "signIn": "تسجيل الدخول"
+  },
+  "myQuotes": {
+    "pageTitle": "عروض الأسعار الخاصة بي",
+    "pageDescription": "طلبات عروض الأسعار التي أرسلتها ومواعيدها النهائية ومقارنة جنبًا إلى جنب.",
+    "title": "عروض الأسعار الخاصة بي",
+    "intro": "قارن طلبات عروض الأسعار قبل الحجز.",
+    "loadFailed": "تعذّر تحميل عروض الأسعار الخاصة بك.",
+    "empty": "ليس لديك أي طلبات عروض أسعار بعد.",
+    "requestQuote": "طلب عرض سعر",
+    "compare": "قارن",
+    "clearComparison": "مسح المقارنة",
+    "selectHint": "حدد ما يصل إلى 3 طلبات للمقارنة.",
+    "comparisonTitle": "مقارنة",
+    "compareField": "الحقل",
+    "untitledRequest": "طلب بلا عنوان",
+    "services": "الخدمات",
+    "amount": "المبلغ",
+    "deadline": "الموعد النهائي للرد",
+    "deadlinePassed": "انتهى الموعد النهائي",
+    "status": "الحالة",
+    "selectForComparison": "حدد للمقارنة",
+    "view": "عرض"
   }
 }

@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { toolRentalsApi } from '../api/toolRentals';
 import api from '../api/axios';
 import { cancelBookingRequest, fetchBookingPrefillForJob } from '../api/bookings';
+import BookingRescheduleBox from '../components/calendar/BookingRescheduleBox';
 import { prefillBookingDraft } from '../components/booking/BookingFlow';
 import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle, Briefcase, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -38,6 +39,16 @@ interface HelperBooking {
   declinedAt?: string | null;
   helperResponseReason?: string | null;
   createdAt: string;
+  pendingRescheduleProposal?: {
+    id: string;
+    proposedBy: string;
+    proposedByRole: string;
+    proposedDate: string;
+    proposedStartTime: string;
+    proposedEndTime: string;
+    message?: string | null;
+    status: string;
+  } | null;
 }
 
 interface Booking {
@@ -449,6 +460,14 @@ const MyBookingsPage = () => {
         )}
         {b.helperResponseReason && (
           <p className="hb-reason">{b.helperResponseReason}</p>
+        )}
+        {b.status === 'accepted' && (
+          <BookingRescheduleBox
+            bookingId={b.id}
+            proposal={b.pendingRescheduleProposal || null}
+            currentUserId={user?.id}
+            onDone={loadBookings}
+          />
         )}
         <div className="booking-card-actions">
           <button

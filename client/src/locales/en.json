@@ -4599,7 +4599,27 @@
     "preferencesTab": "Preferences",
     "tabPaymentPolicies": "Payment Policies",
     "accountDeleteHasBalance": "You still have a balance, hold, or pending payout. Withdraw or use your remaining balance and let pending payouts finish before deleting your account, or contact support@oxsteed.com.",
-    "accountDeleteSubscriptionRetry": "We could not cancel your subscription right now, so your account was not deleted. Please try again in a few minutes."
+    "accountDeleteSubscriptionRetry": "We could not cancel your subscription right now, so your account was not deleted. Please try again in a few minutes.",
+    "savedLocations": {
+      "required": "A label and an address are required.",
+      "saveFailed": "Could not save this location. Please try again.",
+      "deleteFailed": "Could not remove this location. Please try again.",
+      "backToSettings": "Back to settings",
+      "title": "Saved locations",
+      "subtitle": "Addresses where work happens, with entry instructions. Pick one when you book instead of typing the address again.",
+      "empty": "No saved locations yet. Add the addresses where work usually happens.",
+      "defaultBadge": "Default",
+      "editTitle": "Edit location",
+      "addTitle": "Add a location",
+      "labelLabel": "Label",
+      "labelPlaceholder": "e.g. Home",
+      "addressLabel": "Address",
+      "addressPlaceholder": "Street, city, state, ZIP",
+      "entryLabel": "Entry instructions (optional)",
+      "entryPlaceholder": "e.g. Gate code 1234, use the side door.",
+      "defaultLabel": "Use as my default location",
+      "addButton": "Add location"
+    }
   },
   "partsList": {
     "toolbarLabel": "Parts list",
@@ -5812,7 +5832,18 @@
       "removed": "Car service removed",
       "addFailed": "Failed to add car service",
       "vinDecodeFailed": "Failed to decode VIN",
-      "quickAdded": "Quick-added car care task"
+      "quickAdded": "Quick-added car care task",
+      "mileage": "Current mileage",
+      "mileagePlaceholder": "e.g. 45200",
+      "lastOilChangeMile": "Mileage at last oil change",
+      "lastOilChangeMilePlaceholder": "e.g. 40500",
+      "lastServiceDate": "Last service date",
+      "serviceReminders": "Service reminders",
+      "oilChangeDue": "Oil change due",
+      "oilChangeSoonMiles": "Oil change due in {{miles}} miles",
+      "oilChangeSoonDays": "Oil change due in {{days}} days",
+      "serviceDue": "Service due",
+      "serviceSoon": "Service due in {{days}} days"
     },
     "products": {
       "title": "My Products & Gear",
@@ -6855,7 +6886,11 @@
     "changesHint": "The job stays in progress and the auto-confirm clock pauses while the helper makes the changes.",
     "sendChangesRequest": "Send changes request",
     "changesRequested": "Changes requested.",
-    "changesRequestedNotice": "Changes were requested on this job."
+    "changesRequestedNotice": "Changes were requested on this job.",
+    "aftercareLabel": "Aftercare instructions for the customer",
+    "aftercarePlaceholder": "e.g. Keep the area dry for 24 hours, then wipe with a damp cloth.",
+    "aftercareHint": "Optional. The customer sees this after the job is complete.",
+    "aftercareTitle": "Aftercare"
   },
   "myJobs": {
     "cancelUndoNote": "You will have 5 seconds to undo after confirming.",
@@ -7045,7 +7080,23 @@
     "priceStartingAt": "From {{amount}}",
     "jobsCount": "{{count}} job completed",
     "licenseCount": "{{count}} license",
-    "helperCount": "{{count}} helper found"
+    "helperCount": "{{count}} helper found",
+    "saved": "Saved",
+    "saveToShortlist": "Save",
+    "inComparison": "Comparing",
+    "compare": "Compare",
+    "shortlistCount": "Your shortlist: {{count}}",
+    "viewShortlist": "View shortlist",
+    "comparingCount": "Comparing {{count}}",
+    "hideComparison": "Hide comparison",
+    "showComparison": "Compare selected",
+    "clearComparison": "Clear",
+    "compareField": "Field",
+    "compareRating": "Rating",
+    "compareJobs": "Jobs done",
+    "comparePrice": "Starting price",
+    "compareServices": "Services",
+    "compareAvailable": "Available today"
   },
   "jobsDir": {
     "metaTitle": "Browse Open Jobs",
@@ -7765,7 +7816,14 @@
       "profileHandoffTitle": "Continuing from a profile chat",
       "profileHandoffBody": "OxSteed on the profile is AI-only. This page connects you with platform support.",
       "profileHandoffContext": "Profile: {{name}}",
-      "returnToProfile": "Return to profile"
+      "returnToProfile": "Return to profile",
+      "topicLabel": "Topic",
+      "topicGeneral": "General support",
+      "topicBilling": "Billing",
+      "topicTechnical": "Technical issue",
+      "topicAccount": "Account",
+      "topicAccessibility": "Accessibility assistance",
+      "topicAccessibilityHint": "Choose accessibility assistance if you need help using OxSteed with a screen reader, keyboard, or other assistive tools."
     },
     "customer360": {
       "resolution": {
@@ -11110,7 +11168,18 @@
       "unsubscribeAll": "Unsubscribe from all emails",
       "unsubscribedToast": "You have been unsubscribed from all emails",
       "failedLoad": "Failed to load email preferences",
-      "failedAction": "That did not work. Please try again."
+      "failedAction": "That did not work. Please try again.",
+      "savedToast": "Email preferences saved.",
+      "marketingTitle": "Marketing emails",
+      "marketingBody": "Offers, new features, and news from OxSteed. Transactional emails about your bookings and payments are not affected.",
+      "frequencyTitle": "Email frequency",
+      "frequencyBody": "How often summary emails arrive. Booking and payment emails always arrive right away.",
+      "frequency": {
+        "real-time": "As they happen",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "off": "Off"
+      }
     },
     "typeGroups": {
       "work": {
@@ -11397,7 +11466,19 @@
       "regenerated": "Renewed"
     },
     "loadFailed": "Could not load your planned needs.",
-    "pauseFailed": "Could not change the pause setting."
+    "pauseFailed": "Could not change the pause setting.",
+    "seasonalPacksTitle": "Seasonal task packs",
+    "seasonalPacksHint": "One tap adds a season's usual tasks as planned needs. Tasks you already have planned are skipped.",
+    "seasonalApplying": "Adding…",
+    "seasonalApply": "Add this pack",
+    "seasonalApplied": "Added {{created}} tasks, skipped {{skipped}} you already had.",
+    "seasonalApplyFailed": "Could not add this pack. Please try again.",
+    "season": {
+      "spring": "Spring",
+      "summer": "Summer",
+      "fall": "Fall",
+      "winter": "Winter"
+    }
   },
   "helperRegister": {
     "step4": {
@@ -13872,6 +13953,9 @@
     "title": "Recently viewed"
   },
   "discover": {
+    "showMap": "Show map",
+    "hideMap": "Hide map",
+    "mapEmpty": "No mapped results in this area yet.",
     "metaTitle": "Discover - OxSteed",
     "metaDesc": "Search public helpers, jobs, businesses, tool rentals, and products on OxSteed.",
     "title": "Discover",
@@ -15711,7 +15795,32 @@
       "expired": "Expired",
       "cancelled": "Cancelled",
       "accepted_cancelled": "Cancelled after acceptance"
-    }
+    },
+    "reschedule": {
+      "missingFields": "Choose a date and a start and end time.",
+      "endAfterStart": "The end time must be after the start time.",
+      "proposed": "Reschedule request sent.",
+      "proposeFailed": "Could not send the reschedule request. Please try again.",
+      "accepted": "New time accepted.",
+      "declined": "Reschedule request declined.",
+      "respondFailed": "Could not respond to the request. Please try again.",
+      "proposedBanner": "A new time has been proposed for this booking.",
+      "waitingOtherParty": "Waiting for the other party to accept or decline.",
+      "accept": "Accept",
+      "decline": "Decline",
+      "propose": "Propose a new time",
+      "proposeHint": "The booking only moves if the other party accepts. Nothing about the price or deposit changes.",
+      "date": "Date",
+      "start": "Start",
+      "end": "End",
+      "message": "Message",
+      "messagePlaceholder": "Why do you need a new time? (optional)",
+      "sendProposal": "Send proposal"
+    },
+    "savedLocation": "Saved location",
+    "savedLocationPlaceholder": "Use a saved location…",
+    "savedLocationDefault": "default",
+    "manageSavedLocations": "Manage saved locations"
   },
   "verifyEmail": {
     "title": "Verify your email",
@@ -15862,7 +15971,29 @@
     "onlyXLeft": "Only {{count}} left",
     "save": "Save",
     "pickASkillFilter": "Pick one of your skills to narrow the catalog.",
-    "clearSkillFilter": "Clear skill filter"
+    "clearSkillFilter": "Clear skill filter",
+    "kits": {
+      "title": "DIY kits",
+      "hint": "Curated parts for common jobs. Build a kit into a draft cart at live prices.",
+      "items": "{{available}} of {{total}} items available",
+      "missing": "{{count}} unavailable",
+      "estimatedTotal": "Estimated total: {{amount}}",
+      "building": "Building…",
+      "buildKit": "Build kit",
+      "buildFailed": "Could not build this kit. Please try again.",
+      "omittedNotice": "Kit {{jobType}} was built without: {{items}}.",
+      "previewSubstitutes": "Preview substitutes",
+      "hidePreview": "Hide preview",
+      "previewLoading": "Loading preview…",
+      "previewTitle": "Kit preview: {{jobType}}",
+      "previewAllAvailable": "Everything in this kit is available right now.",
+      "omittedItem": "Not available: {{name}}",
+      "useInstead": "Use instead",
+      "noSubstitutes": "No substitute found for this item.",
+      "previewFailed": "Could not load the preview. Please try again."
+    },
+    "paidLink": "(paid link)",
+    "affiliateDisclosure": "OxSteed may earn a commission if you buy through this link, at no extra cost to you."
   },
   "templatePicker": {
     "pageTitle": "Choose Your Profile Template",
@@ -17780,7 +17911,13 @@
       "subtitle": "Everything waiting for you at home, in one place.",
       "empty": "No tasks waiting.",
       "completed": "Completed",
-      "filter": { "all": "All", "open": "Open", "completed": "Completed" }
+      "filter": { "all": "All", "open": "Open", "completed": "Completed" },
+      "calendarTitle": "Home care calendar",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "overdueCount": "{{count}} overdue",
+      "moreTasks": "+{{count}} more",
+      "unscheduledCount": "{{count}} tasks have no due date."
     },
     "vehicles": {
       "title": "Garage",
@@ -17816,7 +17953,17 @@
       "paymentReference": "Payment reference",
       "paymentAmount": "Amount paid",
       "noPayment": "No payment recorded for this order yet.",
-      "statusLabel": "Status: {{status}}"
+      "statusLabel": "Status: {{status}}",
+      "returnReasonRequired": "Please tell us why you are returning the order.",
+      "returnFailed": "Could not submit the return request. Please try again.",
+      "returnsTitle": "Returns",
+      "returnStatus": "Return: {{status}}",
+      "requestReturn": "Request a return",
+      "returnReasonLabel": "Why are you returning this order?",
+      "returnReasonPlaceholder": "e.g. The item arrived damaged.",
+      "returnNoRefundNote": "A return request only records your request. A refund, if approved, goes through the usual approvals and is not issued here.",
+      "submitReturn": "Submit return request",
+      "returnNotAvailable": "Returns open once the order is paid or being fulfilled."
     }
   },
   "dashboards": {
@@ -28764,7 +28911,8 @@
         "urgency": "Urgency",
         "timelineNotes": "Timeline notes",
         "accessNotes": "Access notes",
-        "details": "What should we know?"
+        "details": "What should we know?",
+        "responseDeadline": "Response deadline"
       },
       "hints": {
         "outsideServiceArea": "This ZIP is outside our usual service areas. You can still send the request and we'll confirm.",
@@ -28772,7 +28920,8 @@
         "workLocation": "City, neighborhood, or full address.",
         "serviceZipCode": "Used to match your quote later.",
         "accessNotes": "Gate code, parking, pets, stairs, or anything helpful.",
-        "details": "A short description is enough to start."
+        "details": "A short description is enough to start.",
+        "responseDeadline": "Optional. Helpers see the date you need an answer by, up to 30 days out."
       },
       "placeholders": {
         "optional": "Optional",
@@ -42728,5 +42877,27 @@
     "version": "Version {{version}}",
     "acceptNote": "To accept these terms and use OxSteed Credit, sign in to your account.",
     "signIn": "Sign in"
+  },
+  "myQuotes": {
+    "pageTitle": "My quotes",
+    "pageDescription": "Quote requests you sent, their deadlines, and a side-by-side comparison.",
+    "title": "My quotes",
+    "intro": "Compare your quote requests before you book.",
+    "loadFailed": "Could not load your quotes. Please try again.",
+    "empty": "You have no quote requests yet.",
+    "requestQuote": "Request a quote",
+    "compare": "Compare",
+    "clearComparison": "Clear comparison",
+    "selectHint": "Select up to 3 requests to compare.",
+    "comparisonTitle": "Comparison",
+    "compareField": "Field",
+    "untitledRequest": "Untitled request",
+    "services": "Services",
+    "amount": "Amount",
+    "deadline": "Response deadline",
+    "deadlinePassed": "Deadline passed",
+    "status": "Status",
+    "selectForComparison": "Select to compare",
+    "view": "View"
   }
 }

@@ -62,6 +62,9 @@ router.post('/:bookingId/status-link/revoke', requireAuth, bookingController.rev
 router.post('/:bookingId/accept', requireAuth, requireBookingProviderCapability, requireBookingProviderActivation, bookingController.acceptBookingRequest);
 router.post('/:bookingId/decline', requireAuth, requireBookingProviderCapability, bookingController.declineBookingRequest);
 router.post('/:bookingId/cancel', requireAuth, bookingController.cancelBookingRequest);
+router.post('/:bookingId/reschedule', requireAuth, bookingController.proposeReschedule);
+router.post('/:bookingId/reschedule/:proposalId/respond', requireAuth, bookingController.respondToReschedule);
+router.get('/:bookingId/reschedule', requireAuth, bookingController.listReschedules);
 router.post('/:bookingId/helper-cancel', requireAuth, requireBookingProviderCapability, bookingController.helperCancelAcceptedBooking);
 // G-37: transfer an accepted booking to another eligible provider.
 // No activation gate for the caller: a revoked helper can still hand

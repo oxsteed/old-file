@@ -650,6 +650,74 @@ const T = {
       ar: 'تم قبول طلبك.',
     },
   },
+  // Group 1, item 14: booking-level reschedule proposals. The body
+  // carries the proposed window; the booking itself moves only on accept.
+  booking_reschedule_proposed: {
+    title: {
+      en: 'Reschedule Proposed',
+      fr: 'Nouvel horaire proposé',
+      es: 'Cambio de horario propuesto',
+      ht: 'Yo pwopoze yon lòt lè',
+      ar: 'اقتراح موعد جديد',
+    },
+    body: {
+      en: 'A new time was proposed for your booking. Review it and accept or decline.',
+      fr: 'Un nouvel horaire a été proposé pour votre réservation. Examinez-le et acceptez ou refusez.',
+      es: 'Se propuso una nueva hora para tu reserva. Revísala y acepta o rechaza.',
+      ht: 'Yo pwopoze yon lòt lè pou rezervasyon ou an. Gade li epi aksepte oswa refize li.',
+      ar: 'تم اقتراح موعد جديد لحجزك. راجعه واقبل أو ارفض.',
+    },
+  },
+  booking_reschedule_accepted: {
+    title: {
+      en: 'Reschedule Accepted',
+      fr: 'Nouvel horaire accepté',
+      es: 'Cambio de horario aceptado',
+      ht: 'Yo aksepte lòt lè a',
+      ar: 'تم قبول الموعد الجديد',
+    },
+    body: {
+      en: 'The rescheduled time was accepted. Your booking has moved to the new time.',
+      fr: 'Le nouvel horaire a été accepté. Votre réservation a été déplacée.',
+      es: 'El nuevo horario fue aceptado. Tu reserva se movió a la nueva hora.',
+      ht: 'Yo aksepte lòt lè a. Rezèvasyon ou an deplase nan nouvo lè a.',
+      ar: 'تم قبول الموعد الجديد. تم نقل حجزك إلى الموعد الجديد.',
+    },
+  },
+  booking_reschedule_declined: {
+    title: {
+      en: 'Reschedule Declined',
+      fr: 'Nouvel horaire refusé',
+      es: 'Cambio de horario rechazado',
+      ht: 'Yo refize lòt lè a',
+      ar: 'تم رفض الموعد الجديد',
+    },
+    body: {
+      en: 'The proposed new time was declined. Your booking stays at its original time.',
+      fr: 'Le nouvel horaire proposé a été refusé. Votre réservation reste à son horaire initial.',
+      es: 'La nueva hora propuesta fue rechazada. Tu reserva se mantiene en su hora original.',
+      ht: 'Yo refize lòt lè yo te pwopoze a. Rezèvasyon ou an rete nan lè orijinal li.',
+      ar: 'تم رفض الموعد الجديد المقترح. يبقى حجزك في موعده الأصلي.',
+    },
+  },
+  // Group 1, item 10: the customer set a response deadline and it passed
+  // with the request still unquoted.
+  quote_deadline_passed: {
+    title: {
+      en: 'Quote Deadline Passed',
+      fr: 'Délai de devis dépassé',
+      es: 'Plazo de cotización vencido',
+      ht: 'Dat limit pou devis la pase',
+      ar: 'انتهت مهلة عرض السعر',
+    },
+    body: {
+      en: 'The response deadline on your quote request has passed with no quote yet.',
+      fr: 'Le délai de réponse de votre demande de devis est dépassé sans devis reçu.',
+      es: 'El plazo de respuesta de tu solicitud de cotización venció sin recibir cotización.',
+      ht: 'Dat limit pou repons demann devis ou an pase san ou pa resevwa devis.',
+      ar: 'انتهت مهلة الرد على طلب عرض السعر الخاص بك دون تلقي عرض سعر بعد.',
+    },
+  },
   // G-6/G-7: book-for-another invite, site-contact status link, and the
   // booker's notice that the recipient responded.
   booking_recipient_invite: {

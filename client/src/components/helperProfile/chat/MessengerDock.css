@@ -1663,3 +1663,44 @@ html:not(.dark) .client-intake-card__question { color: #64748b !important; }
 html:not(.dark) .client-intake-card__answer { color: #13233f !important; }
 html:not(.dark) .client-intake-card__input { border-color: #cbd5e1 !important; background: #ffffff !important; color: #13233f !important; }
 html:not(.dark) .client-intake-card__error { color: #b91c1c !important; }
+
+/* Group 1, item 14: booking-level reschedule proposal box (provider surface). */
+.hb-reschedule-box {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+}
+.hb-reschedule-text {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.hb-reschedule-waiting {
+  font-size: 12px;
+  font-style: italic;
+  margin: 0;
+}
+.hb-reschedule-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.hb-reschedule-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.hb-reschedule-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+.hb-reschedule-form input {
+  padding: 6px 8px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}

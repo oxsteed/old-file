@@ -4599,7 +4599,27 @@
     },
     "tabPaymentPolicies": "Políticas de pago",
     "accountDeleteHasBalance": "Todavía tienes un saldo, una retención o un pago pendiente. Retira o usa tu saldo restante y espera a que terminen los pagos pendientes antes de eliminar tu cuenta, o escribe a support@oxsteed.com.",
-    "accountDeleteSubscriptionRetry": "No pudimos cancelar tu suscripción en este momento, así que tu cuenta no se eliminó. Inténtalo de nuevo en unos minutos."
+    "accountDeleteSubscriptionRetry": "No pudimos cancelar tu suscripción en este momento, así que tu cuenta no se eliminó. Inténtalo de nuevo en unos minutos.",
+    "savedLocations": {
+      "required": "Se requieren una etiqueta y una dirección.",
+      "saveFailed": "No se pudo guardar esta ubicación.",
+      "deleteFailed": "No se pudo eliminar esta ubicación.",
+      "backToSettings": "Volver a ajustes",
+      "title": "Ubicaciones guardadas",
+      "subtitle": "Direcciones donde se realiza el trabajo, con instrucciones de acceso. Elige una al reservar en lugar de escribirla de nuevo.",
+      "empty": "Aún no hay ubicaciones guardadas. Agrega las direcciones donde suele realizarse el trabajo.",
+      "defaultBadge": "Predeterminada",
+      "editTitle": "Editar ubicación",
+      "addTitle": "Agregar una ubicación",
+      "labelLabel": "Etiqueta",
+      "labelPlaceholder": "Ej.: Casa",
+      "addressLabel": "Dirección",
+      "addressPlaceholder": "Calle, ciudad, estado, código postal",
+      "entryLabel": "Instrucciones de acceso (opcional)",
+      "entryPlaceholder": "Ej.: Código de la puerta 1234, usa la puerta lateral.",
+      "defaultLabel": "Usar como mi ubicación predeterminada",
+      "addButton": "Agregar ubicación"
+    }
   },
   "partsList": {
     "toolbarLabel": "Lista de materiales",
@@ -5812,7 +5832,18 @@
       "removed": "Servicio de automóvil removido",
       "addFailed": "Error al agregar servicio de automóvil",
       "vinDecodeFailed": "Error al decodificar VIN",
-      "quickAdded": "Tarea de cuidado del automóvil agregada rápidamente"
+      "quickAdded": "Tarea de cuidado del automóvil agregada rápidamente",
+      "mileage": "Kilometraje actual",
+      "mileagePlaceholder": "Ej.: 45200",
+      "lastOilChangeMile": "Kilometraje del último cambio de aceite",
+      "lastOilChangeMilePlaceholder": "Ej.: 40500",
+      "lastServiceDate": "Fecha del último servicio",
+      "serviceReminders": "Recordatorios de servicio",
+      "oilChangeDue": "Cambio de aceite vencido",
+      "oilChangeSoonMiles": "Cambio de aceite en {{miles}} millas",
+      "oilChangeSoonDays": "Cambio de aceite en {{days}} días",
+      "serviceDue": "Servicio vencido",
+      "serviceSoon": "Servicio en {{days}} días"
     },
     "products": {
       "title": "Mis Productos y Equipo",
@@ -6855,7 +6886,11 @@
     "changesHint": "El trabajo sigue en curso y el reloj de confirmación automática se pausa mientras el ayudante realiza los cambios.",
     "sendChangesRequest": "Enviar solicitud de cambios",
     "changesRequested": "Cambios solicitados.",
-    "changesRequestedNotice": "Se solicitaron cambios en este trabajo."
+    "changesRequestedNotice": "Se solicitaron cambios en este trabajo.",
+    "aftercareLabel": "Instrucciones de cuidado posterior para el cliente",
+    "aftercarePlaceholder": "Ej.: Mantén la zona seca durante 24 horas y luego limpia con un paño húmedo.",
+    "aftercareHint": "Opcional. El cliente lo ve cuando el trabajo termina.",
+    "aftercareTitle": "Cuidado posterior"
   },
   "myJobs": {
     "cancelUndoNote": "Tendrás 5 segundos para deshacerlo después de confirmar.",
@@ -7045,7 +7080,23 @@
     "priceStartingAt": "Desde {{amount}}",
     "jobsCount": "{{count}} trabajo completado",
     "licenseCount": "Licencia {{count}}",
-    "helperCount": "{{count}} ayudante encontrado"
+    "helperCount": "{{count}} ayudante encontrado",
+    "saved": "Guardado",
+    "saveToShortlist": "Guardar",
+    "inComparison": "Comparando",
+    "compare": "Comparar",
+    "shortlistCount": "Tu lista: {{count}}",
+    "viewShortlist": "Ver lista",
+    "comparingCount": "Comparando {{count}}",
+    "hideComparison": "Ocultar comparación",
+    "showComparison": "Comparar selección",
+    "clearComparison": "Limpiar",
+    "compareField": "Campo",
+    "compareRating": "Calificación",
+    "compareJobs": "Trabajos realizados",
+    "comparePrice": "Precio inicial",
+    "compareServices": "Servicios",
+    "compareAvailable": "Disponible hoy"
   },
   "jobsDir": {
     "metaTitle": "Explorar trabajos abiertos",
@@ -7765,7 +7816,14 @@
       "profileHandoffTitle": "Continuando desde el chat del perfil",
       "profileHandoffBody": "OxSteed en el perfil es solo IA. Esta página te conecta con el soporte de la plataforma.",
       "profileHandoffContext": "Perfil: {{name}}",
-      "returnToProfile": "Volver al perfil"
+      "returnToProfile": "Volver al perfil",
+      "topicLabel": "Tema",
+      "topicGeneral": "Soporte general",
+      "topicBilling": "Facturación",
+      "topicTechnical": "Problema técnico",
+      "topicAccount": "Cuenta",
+      "topicAccessibility": "Ayuda de accesibilidad",
+      "topicAccessibilityHint": "Elige ayuda de accesibilidad si necesitas ayuda para usar OxSteed con un lector de pantalla, teclado u otras herramientas de apoyo."
     },
     "customer360": {
       "resolution": {
@@ -11110,7 +11168,18 @@
       "unsubscribeAll": "Darme de baja de todos los correos",
       "unsubscribedToast": "Te has dado de baja de todos los correos",
       "failedLoad": "No se pudieron cargar las preferencias de correo",
-      "failedAction": "No funcionó. Inténtalo de nuevo."
+      "failedAction": "No funcionó. Inténtalo de nuevo.",
+      "savedToast": "Preferencias de correo guardadas.",
+      "marketingTitle": "Correos de marketing",
+      "marketingBody": "Ofertas, novedades y noticias de OxSteed. Los correos sobre tus reservas y pagos no se ven afectados.",
+      "frequencyTitle": "Frecuencia de correo",
+      "frequencyBody": "Cada cuánto llegan los correos de resumen. Los correos de reservas y pagos siempre llegan al momento.",
+      "frequency": {
+        "real-time": "En cuanto ocurren",
+        "daily": "Diaria",
+        "weekly": "Semanal",
+        "off": "Desactivada"
+      }
     },
     "typeGroups": {
       "work": {
@@ -11397,7 +11466,19 @@
       "regenerated": "Renovada"
     },
     "loadFailed": "No se pudieron cargar tus necesidades planificadas.",
-    "pauseFailed": "No se pudo cambiar la pausa."
+    "pauseFailed": "No se pudo cambiar la pausa.",
+    "seasonalPacksTitle": "Paquetes de tareas por temporada",
+    "seasonalPacksHint": "Con un toque agregas las tareas habituales de la temporada. Las que ya tienes planeadas se omiten.",
+    "seasonalApplying": "Agregando…",
+    "seasonalApply": "Agregar este paquete",
+    "seasonalApplied": "Se agregaron {{created}} tareas, se omitieron {{skipped}} que ya tenías.",
+    "seasonalApplyFailed": "No se pudo agregar este paquete.",
+    "season": {
+      "spring": "Primavera",
+      "summer": "Verano",
+      "fall": "Otoño",
+      "winter": "Invierno"
+    }
   },
   "helperRegister": {
     "step4": {
@@ -13872,6 +13953,9 @@
     "title": "Vistos recientemente"
   },
   "discover": {
+    "showMap": "Mostrar mapa",
+    "hideMap": "Ocultar mapa",
+    "mapEmpty": "Aún no hay resultados en el mapa en esta zona.",
     "metaTitle": "Descubrir - OxSteed",
     "metaDesc": "Busca ayudantes, trabajos, negocios, alquiler de herramientas y productos públicos en OxSteed.",
     "title": "Descubrir",
@@ -15639,7 +15723,29 @@
     "onlyXLeft": "Sólo queda {{count}}",
     "save": "Ahorrar",
     "pickASkillFilter": "Elige una de tus habilidades para acotar el catálogo.",
-    "clearSkillFilter": "Borrar filtro de habilidad"
+    "clearSkillFilter": "Borrar filtro de habilidad",
+    "kits": {
+      "title": "Kits para hacerlo tú mismo",
+      "hint": "Piezas seleccionadas para trabajos comunes. Arma un kit en un carrito con precios actuales.",
+      "items": "{{available}} de {{total}} artículos disponibles",
+      "missing": "{{count}} no disponibles",
+      "estimatedTotal": "Total estimado: {{amount}}",
+      "building": "Armando…",
+      "buildKit": "Armar kit",
+      "buildFailed": "No se pudo armar este kit.",
+      "omittedNotice": "El kit {{jobType}} se armó sin: {{items}}.",
+      "previewSubstitutes": "Ver sustitutos",
+      "hidePreview": "Ocultar vista previa",
+      "previewLoading": "Cargando vista previa…",
+      "previewTitle": "Vista previa del kit: {{jobType}}",
+      "previewAllAvailable": "Todo en este kit está disponible ahora.",
+      "omittedItem": "No disponible: {{name}}",
+      "useInstead": "Usar este",
+      "noSubstitutes": "No se encontró sustituto para este artículo.",
+      "previewFailed": "No se pudo cargar la vista previa."
+    },
+    "paidLink": "(enlace patrocinado)",
+    "affiliateDisclosure": "OxSteed puede ganar una comisión si compras a través de este enlace, sin costo adicional para ti."
   },
   "templatePicker": {
     "pageTitle": "Elige Tu Plantilla de Perfil",
@@ -16422,7 +16528,32 @@
       "expired": "Vencida",
       "cancelled": "Cancelada",
       "accepted_cancelled": "Cancelada tras la aceptación"
-    }
+    },
+    "reschedule": {
+      "missingFields": "Elige una fecha y una hora de inicio y de fin.",
+      "endAfterStart": "La hora de fin debe ser posterior a la hora de inicio.",
+      "proposed": "Solicitud de cambio de horario enviada.",
+      "proposeFailed": "No se pudo enviar la solicitud. Inténtalo de nuevo.",
+      "accepted": "Nueva hora aceptada.",
+      "declined": "Solicitud de cambio rechazada.",
+      "respondFailed": "No se pudo responder a la solicitud. Inténtalo de nuevo.",
+      "proposedBanner": "Se propuso una nueva hora para esta reserva.",
+      "waitingOtherParty": "Esperando a que la otra parte acepte o rechace.",
+      "accept": "Aceptar",
+      "decline": "Rechazar",
+      "propose": "Proponer una nueva hora",
+      "proposeHint": "La reserva solo cambia si la otra parte acepta. Nada del precio ni del depósito cambia.",
+      "date": "Fecha",
+      "start": "Inicio",
+      "end": "Fin",
+      "message": "Mensaje",
+      "messagePlaceholder": "¿Por qué necesitas una nueva hora? (opcional)",
+      "sendProposal": "Enviar propuesta"
+    },
+    "savedLocation": "Ubicación guardada",
+    "savedLocationPlaceholder": "Usar una ubicación guardada…",
+    "savedLocationDefault": "predeterminada",
+    "manageSavedLocations": "Gestionar ubicaciones guardadas"
   },
   "checkout": {
     "title": "Verificar",
@@ -17780,7 +17911,13 @@
       "subtitle": "Todo lo pendiente en casa, en un solo lugar.",
       "empty": "No hay tareas pendientes.",
       "completed": "Completada",
-      "filter": { "all": "Todo", "open": "Abiertas", "completed": "Completadas" }
+      "filter": { "all": "Todo", "open": "Abiertas", "completed": "Completadas" },
+      "calendarTitle": "Calendario de cuidado del hogar",
+      "prevMonth": "Mes anterior",
+      "nextMonth": "Mes siguiente",
+      "overdueCount": "{{count}} vencidas",
+      "moreTasks": "+{{count}} más",
+      "unscheduledCount": "{{count}} tareas no tienen fecha límite."
     },
     "vehicles": {
       "title": "Garaje",
@@ -17816,7 +17953,17 @@
       "paymentReference": "Referencia de pago",
       "paymentAmount": "Importe pagado",
       "noPayment": "Aún no hay un pago registrado para este pedido.",
-      "statusLabel": "Estado: {{status}}"
+      "statusLabel": "Estado: {{status}}",
+      "returnReasonRequired": "Cuéntanos por qué devuelves el pedido.",
+      "returnFailed": "No se pudo enviar la solicitud de devolución.",
+      "returnsTitle": "Devoluciones",
+      "returnStatus": "Devolución: {{status}}",
+      "requestReturn": "Solicitar una devolución",
+      "returnReasonLabel": "¿Por qué devuelves este pedido?",
+      "returnReasonPlaceholder": "Ej.: El artículo llegó dañado.",
+      "returnNoRefundNote": "La solicitud solo registra tu petición. Un reembolso, si se aprueba, pasa por las aprobaciones habituales y no se emite aquí.",
+      "submitReturn": "Enviar solicitud de devolución",
+      "returnNotAvailable": "Las devoluciones se abren cuando el pedido está pagado o en preparación."
     }
   },
   "dashboards": {
@@ -28764,7 +28911,8 @@
         "urgency": "Urgencia",
         "timelineNotes": "Notas de cronograma",
         "accessNotes": "Notas de acceso",
-        "details": "¿Qué debemos saber?"
+        "details": "¿Qué debemos saber?",
+        "responseDeadline": "Fecha límite de respuesta"
       },
       "hints": {
         "outsideServiceArea": "Este código postal está fuera de nuestras zonas habituales. Aún puedes enviar la solicitud y te confirmaremos.",
@@ -28772,7 +28920,8 @@
         "workLocation": "Ciudad, vecindario o dirección completa.",
         "serviceZipCode": "Se usa para coincidir con su cotización más tarde.",
         "accessNotes": "Código de puerta, estacionamiento, mascotas, escaleras o cualquier detalle útil.",
-        "details": "Una breve descripción basta para empezar."
+        "details": "Una breve descripción basta para empezar.",
+        "responseDeadline": "Opcional. Los ayudantes ven la fecha en la que necesitas una respuesta, hasta 30 días."
       },
       "placeholders": {
         "optional": "Opcional",
@@ -42728,5 +42877,27 @@
     "version": "Versión {{version}}",
     "acceptNote": "Para aceptar estos términos y usar OxSteed Credit, inicie sesión en su cuenta.",
     "signIn": "Iniciar sesión"
+  },
+  "myQuotes": {
+    "pageTitle": "Mis cotizaciones",
+    "pageDescription": "Solicitudes de cotización que enviaste, sus plazos y una comparación.",
+    "title": "Mis cotizaciones",
+    "intro": "Compara tus solicitudes de cotización antes de reservar.",
+    "loadFailed": "No se pudieron cargar tus cotizaciones.",
+    "empty": "Aún no tienes solicitudes de cotización.",
+    "requestQuote": "Solicitar una cotización",
+    "compare": "Comparar",
+    "clearComparison": "Limpiar comparación",
+    "selectHint": "Selecciona hasta 3 solicitudes para comparar.",
+    "comparisonTitle": "Comparación",
+    "compareField": "Campo",
+    "untitledRequest": "Solicitud sin título",
+    "services": "Servicios",
+    "amount": "Monto",
+    "deadline": "Fecha límite de respuesta",
+    "deadlinePassed": "Plazo vencido",
+    "status": "Estado",
+    "selectForComparison": "Seleccionar para comparar",
+    "view": "Ver"
   }
 }

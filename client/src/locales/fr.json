@@ -4599,7 +4599,27 @@
     },
     "tabPaymentPolicies": "Politiques de paiement",
     "accountDeleteHasBalance": "Vous avez encore un solde, une retenue ou un versement en attente. Retirez ou utilisez votre solde restant et attendez la fin des versements en attente avant de supprimer votre compte, ou contactez support@oxsteed.com.",
-    "accountDeleteSubscriptionRetry": "Nous n'avons pas pu annuler votre abonnement pour le moment, votre compte n'a donc pas été supprimé. Réessayez dans quelques minutes."
+    "accountDeleteSubscriptionRetry": "Nous n'avons pas pu annuler votre abonnement pour le moment, votre compte n'a donc pas été supprimé. Réessayez dans quelques minutes.",
+    "savedLocations": {
+      "required": "Un libellé et une adresse sont requis.",
+      "saveFailed": "Impossible d'enregistrer ce lieu.",
+      "deleteFailed": "Impossible de supprimer ce lieu.",
+      "backToSettings": "Retour aux réglages",
+      "title": "Lieux enregistrés",
+      "subtitle": "Adresses où le travail a lieu, avec les consignes d’accès. Choisissez-en une lors de la réservation au lieu de retaper l’adresse.",
+      "empty": "Aucun lieu enregistré pour le moment. Ajoutez les adresses où le travail a habituellement lieu.",
+      "defaultBadge": "Par défaut",
+      "editTitle": "Modifier le lieu",
+      "addTitle": "Ajouter un lieu",
+      "labelLabel": "Libellé",
+      "labelPlaceholder": "Ex. : Maison",
+      "addressLabel": "Adresse",
+      "addressPlaceholder": "Rue, ville, État, code postal",
+      "entryLabel": "Consignes d'accès (facultatif)",
+      "entryPlaceholder": "Ex. : Code du portail 1234, utilisez la porte latérale.",
+      "defaultLabel": "Utiliser comme lieu par défaut",
+      "addButton": "Ajouter le lieu"
+    }
   },
   "partsList": {
     "toolbarLabel": "Liste de pièces",
@@ -5812,7 +5832,18 @@
       "removed": "Service automobile supprimé",
       "addFailed": "Erreur lors de l'ajout du service automobile",
       "vinDecodeFailed": "Erreur de décodage VIN",
-      "quickAdded": "Tâche d'entretien automobile ajoutée rapidement"
+      "quickAdded": "Tâche d'entretien automobile ajoutée rapidement",
+      "mileage": "Kilométrage actuel",
+      "mileagePlaceholder": "Ex. : 45200",
+      "lastOilChangeMile": "Kilométrage lors de la dernière vidange",
+      "lastOilChangeMilePlaceholder": "Ex. : 40500",
+      "lastServiceDate": "Date du dernier entretien",
+      "serviceReminders": "Rappels d'entretien",
+      "oilChangeDue": "Vidange due",
+      "oilChangeSoonMiles": "Vidange dans {{miles}} miles",
+      "oilChangeSoonDays": "Vidange dans {{days}} jours",
+      "serviceDue": "Entretien dû",
+      "serviceSoon": "Entretien dans {{days}} jours"
     },
     "products": {
       "title": "Mes Produits & Équipement",
@@ -6855,7 +6886,11 @@
     "changesHint": "Le travail reste en cours et le délai de confirmation automatique est suspendu pendant que le prestataire effectue les modifications.",
     "sendChangesRequest": "Envoyer la demande de modifications",
     "changesRequested": "Modifications demandées.",
-    "changesRequestedNotice": "Des modifications ont été demandées pour ce travail."
+    "changesRequestedNotice": "Des modifications ont été demandées pour ce travail.",
+    "aftercareLabel": "Consignes d'entretien pour le client",
+    "aftercarePlaceholder": "Ex. : Gardez la zone sèche pendant 24 heures, puis essuyez avec un chiffon humide.",
+    "aftercareHint": "Facultatif. Le client voit ces consignes une fois le travail terminé.",
+    "aftercareTitle": "Entretien"
   },
   "myJobs": {
     "cancelUndoNote": "Vous aurez 5 secondes pour annuler après confirmation.",
@@ -7045,7 +7080,23 @@
     "priceStartingAt": "À partir de {{amount}}",
     "jobsCount": "{{count}} travail terminé",
     "licenseCount": "Licence {{count}}",
-    "helperCount": "{{count}} assistant trouvé"
+    "helperCount": "{{count}} assistant trouvé",
+    "saved": "Enregistré",
+    "saveToShortlist": "Enregistrer",
+    "inComparison": "En comparaison",
+    "compare": "Comparer",
+    "shortlistCount": "Votre liste : {{count}}",
+    "viewShortlist": "Voir la liste",
+    "comparingCount": "Comparaison de {{count}}",
+    "hideComparison": "Masquer la comparaison",
+    "showComparison": "Comparer la sélection",
+    "clearComparison": "Effacer",
+    "compareField": "Champ",
+    "compareRating": "Note",
+    "compareJobs": "Travaux réalisés",
+    "comparePrice": "Prix de départ",
+    "compareServices": "Services",
+    "compareAvailable": "Disponible aujourd'hui"
   },
   "jobsDir": {
     "metaTitle": "Parcourir les missions ouvertes",
@@ -7765,7 +7816,14 @@
       "profileHandoffTitle": "Suite depuis le chat du profil",
       "profileHandoffBody": "OxSteed sur le profil est uniquement une IA. Cette page vous met en relation avec le support de la plateforme.",
       "profileHandoffContext": "Profil : {{name}}",
-      "returnToProfile": "Retourner au profil"
+      "returnToProfile": "Retourner au profil",
+      "topicLabel": "Sujet",
+      "topicGeneral": "Assistance générale",
+      "topicBilling": "Facturation",
+      "topicTechnical": "Problème technique",
+      "topicAccount": "Compte",
+      "topicAccessibility": "Aide à l'accessibilité",
+      "topicAccessibilityHint": "Choisissez l'aide à l'accessibilité si vous avez besoin d'aide pour utiliser OxSteed avec un lecteur d'écran, un clavier ou d'autres outils d'assistance."
     },
     "customer360": {
       "resolution": {
@@ -11110,7 +11168,18 @@
       "unsubscribeAll": "Me désabonner de tous les e-mails",
       "unsubscribedToast": "Vous êtes désabonné de tous les e-mails",
       "failedLoad": "Impossible de charger les préférences e-mail",
-      "failedAction": "Cela n'a pas fonctionné. Veuillez réessayer."
+      "failedAction": "Cela n'a pas fonctionné. Veuillez réessayer.",
+      "savedToast": "Préférences e-mail enregistrées.",
+      "marketingTitle": "E-mails marketing",
+      "marketingBody": "Offres, nouveautés et actualités d’OxSteed. Les e-mails liés à vos réservations et paiements ne sont pas concernés.",
+      "frequencyTitle": "Fréquence des e-mails",
+      "frequencyBody": "Fréquence des e-mails récapitulatifs. Les e-mails de réservation et de paiement arrivent toujours immédiatement.",
+      "frequency": {
+        "real-time": "Au fur et à mesure",
+        "daily": "Quotidienne",
+        "weekly": "Hebdomadaire",
+        "off": "Désactivée"
+      }
     },
     "typeGroups": {
       "work": {
@@ -11397,7 +11466,19 @@
       "regenerated": "Renouvelé"
     },
     "loadFailed": "Impossible de charger vos besoins planifiés.",
-    "pauseFailed": "Impossible de modifier la pause."
+    "pauseFailed": "Impossible de modifier la pause.",
+    "seasonalPacksTitle": "Packs de tâches saisonniers",
+    "seasonalPacksHint": "En un geste, ajoutez les tâches habituelles de la saison. Celles déjà planifiées sont ignorées.",
+    "seasonalApplying": "Ajout…",
+    "seasonalApply": "Ajouter ce pack",
+    "seasonalApplied": "{{created}} tâches ajoutées, {{skipped}} déjà présentes ignorées.",
+    "seasonalApplyFailed": "Impossible d'ajouter ce pack.",
+    "season": {
+      "spring": "Printemps",
+      "summer": "Été",
+      "fall": "Automne",
+      "winter": "Hiver"
+    }
   },
   "helperRegister": {
     "step4": {
@@ -13872,6 +13953,9 @@
     "title": "Consultés récemment"
   },
   "discover": {
+    "showMap": "Afficher la carte",
+    "hideMap": "Masquer la carte",
+    "mapEmpty": "Aucun résultat cartographié dans cette zone pour le moment.",
     "metaTitle": "Découvrir - OxSteed",
     "metaDesc": "Recherchez des assistants, missions, entreprises, locations d’outils et produits publics sur OxSteed.",
     "title": "Découvrir",
@@ -15639,7 +15723,29 @@
     "onlyXLeft": "Il ne reste que {{count}}",
     "save": "Sauvegarder",
     "pickASkillFilter": "Choisissez l'une de vos compétences pour affiner le catalogue.",
-    "clearSkillFilter": "Effacer le filtre de compétence"
+    "clearSkillFilter": "Effacer le filtre de compétence",
+    "kits": {
+      "title": "Kits à faire soi-même",
+      "hint": "Pièces sélectionnées pour les travaux courants. Créez un kit dans un panier aux prix du moment.",
+      "items": "{{available}} articles sur {{total}} disponibles",
+      "missing": "{{count}} indisponibles",
+      "estimatedTotal": "Total estimé : {{amount}}",
+      "building": "Création…",
+      "buildKit": "Créer le kit",
+      "buildFailed": "Impossible de créer ce kit.",
+      "omittedNotice": "Le kit {{jobType}} a été créé sans : {{items}}.",
+      "previewSubstitutes": "Voir les remplacements",
+      "hidePreview": "Masquer l'aperçu",
+      "previewLoading": "Chargement de l'aperçu…",
+      "previewTitle": "Aperçu du kit : {{jobType}}",
+      "previewAllAvailable": "Tout ce kit est disponible pour le moment.",
+      "omittedItem": "Indisponible : {{name}}",
+      "useInstead": "Utiliser celui-ci",
+      "noSubstitutes": "Aucun remplacement trouvé pour cet article.",
+      "previewFailed": "Impossible de charger l'aperçu."
+    },
+    "paidLink": "(lien rémunéré)",
+    "affiliateDisclosure": "OxSteed peut percevoir une commission si vous achetez via ce lien, sans frais supplémentaires pour vous."
   },
   "templatePicker": {
     "pageTitle": "Choisissez votre modele de profil",
@@ -16422,7 +16528,32 @@
       "expired": "Expirée",
       "cancelled": "Annulée",
       "accepted_cancelled": "Annulée après acceptation"
-    }
+    },
+    "reschedule": {
+      "missingFields": "Choisissez une date et une heure de début et de fin.",
+      "endAfterStart": "L'heure de fin doit être après l'heure de début.",
+      "proposed": "Demande de report envoyée.",
+      "proposeFailed": "Impossible d'envoyer la demande. Veuillez réessayer.",
+      "accepted": "Nouvel horaire accepté.",
+      "declined": "Demande de report refusée.",
+      "respondFailed": "Impossible de répondre à la demande. Veuillez réessayer.",
+      "proposedBanner": "Un nouvel horaire a été proposé pour cette réservation.",
+      "waitingOtherParty": "En attente de l'acceptation ou du refus de l'autre partie.",
+      "accept": "Accepter",
+      "decline": "Refuser",
+      "propose": "Proposer un nouvel horaire",
+      "proposeHint": "La réservation ne change que si l'autre partie accepte. Ni le prix ni l'acompte ne changent.",
+      "date": "Date",
+      "start": "Début",
+      "end": "Fin",
+      "message": "Message",
+      "messagePlaceholder": "Pourquoi avez-vous besoin d'un nouvel horaire ? (facultatif)",
+      "sendProposal": "Envoyer la proposition"
+    },
+    "savedLocation": "Lieu enregistré",
+    "savedLocationPlaceholder": "Utiliser un lieu enregistré…",
+    "savedLocationDefault": "par défaut",
+    "manageSavedLocations": "Gérer les lieux enregistrés"
   },
   "checkout": {
     "title": "Vérifier",
@@ -17780,7 +17911,13 @@
       "subtitle": "Tout ce qui vous attend à la maison, au même endroit.",
       "empty": "Aucune tâche en attente.",
       "completed": "Terminée",
-      "filter": { "all": "Toutes", "open": "Ouvertes", "completed": "Terminées" }
+      "filter": { "all": "Toutes", "open": "Ouvertes", "completed": "Terminées" },
+      "calendarTitle": "Calendrier d'entretien de la maison",
+      "prevMonth": "Mois précédent",
+      "nextMonth": "Mois suivant",
+      "overdueCount": "{{count}} en retard",
+      "moreTasks": "+{{count}} de plus",
+      "unscheduledCount": "{{count}} tâches n'ont pas d'échéance."
     },
     "vehicles": {
       "title": "Garage",
@@ -17816,7 +17953,17 @@
       "paymentReference": "Référence de paiement",
       "paymentAmount": "Montant payé",
       "noPayment": "Aucun paiement enregistré pour cette commande pour le moment.",
-      "statusLabel": "Statut : {{status}}"
+      "statusLabel": "Statut : {{status}}",
+      "returnReasonRequired": "Dites-nous pourquoi vous retournez la commande.",
+      "returnFailed": "Impossible de renvoyer la demande de retour.",
+      "returnsTitle": "Retours",
+      "returnStatus": "Retour : {{status}}",
+      "requestReturn": "Demander un retour",
+      "returnReasonLabel": "Pourquoi retournez-vous cette commande ?",
+      "returnReasonPlaceholder": "Ex. : L'article est arrivé endommagé.",
+      "returnNoRefundNote": "La demande enregistre seulement votre demande. Un remboursement, s'il est approuvé, suit le circuit habituel et n'est pas émis ici.",
+      "submitReturn": "Envoyer la demande de retour",
+      "returnNotAvailable": "Les retours s’ouvrent une fois la commande payée ou en préparation."
     }
   },
   "dashboards": {
@@ -28764,7 +28911,8 @@
         "urgency": "Urgence",
         "timelineNotes": "Notes de calendrier",
         "accessNotes": "Notes d’accès",
-        "details": "Que devons-nous savoir ?"
+        "details": "Que devons-nous savoir ?",
+        "responseDeadline": "Date limite de réponse"
       },
       "hints": {
         "outsideServiceArea": "Ce code postal est hors de nos zones habituelles. Vous pouvez quand même envoyer la demande et nous confirmerons.",
@@ -28772,7 +28920,8 @@
         "workLocation": "Ville, quartier ou adresse complète.",
         "serviceZipCode": "Utilisé pour retrouver votre devis plus tard.",
         "accessNotes": "Code portail, stationnement, animaux, escaliers, ou tout autre détail utile.",
-        "details": "Une courte description suffit pour commencer."
+        "details": "Une courte description suffit pour commencer.",
+        "responseDeadline": "Facultatif. Les helpers voient la date à laquelle vous attendez une réponse, jusqu’à 30 jours."
       },
       "placeholders": {
         "optional": "Facultatif",
@@ -42728,5 +42877,27 @@
     "version": "Version {{version}}",
     "acceptNote": "Pour accepter ces conditions et utiliser OxSteed Credit, connectez-vous à votre compte.",
     "signIn": "Se connecter"
+  },
+  "myQuotes": {
+    "pageTitle": "Mes devis",
+    "pageDescription": "Vos demandes de devis, leurs échéances et une comparaison côte à côte.",
+    "title": "Mes devis",
+    "intro": "Comparez vos demandes de devis avant de réserver.",
+    "loadFailed": "Impossible de charger vos devis.",
+    "empty": "Vous n'avez aucune demande de devis pour le moment.",
+    "requestQuote": "Demander un devis",
+    "compare": "Comparer",
+    "clearComparison": "Effacer la comparaison",
+    "selectHint": "Sélectionnez jusqu'à 3 demandes à comparer.",
+    "comparisonTitle": "Comparaison",
+    "compareField": "Champ",
+    "untitledRequest": "Demande sans titre",
+    "services": "Services",
+    "amount": "Montant",
+    "deadline": "Date limite de réponse",
+    "deadlinePassed": "Échéance dépassée",
+    "status": "Statut",
+    "selectForComparison": "Sélectionner pour comparer",
+    "view": "Voir"
   }
 }

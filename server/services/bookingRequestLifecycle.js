@@ -581,7 +581,7 @@ async function checkBusinessSlotFree(businessId, startDate, endDate, db, exclude
  * Shared pre-accept / pre-create slot validation. Returns { ok } or
  * { ok:false, code, message } so controllers can answer 409 without throwing.
  */
-async function validateBookingSlot({ helperId, businessId, date, start, end, requestOnly = false }, db = pool) {
+async function validateBookingSlot({ helperId, businessId, date, start, end, requestOnly = false, excludeAppointmentId = null }, db = pool) {
   if (requestOnly) return { ok: true };
   const slot = parseBookingSlot({ requested_date: date, requested_start_time: start, requested_end_time: end });
   if (!slot) {
@@ -589,9 +589,9 @@ async function validateBookingSlot({ helperId, businessId, date, start, end, req
   }
   try {
     if (businessId) {
-      await checkBusinessSlotFree(businessId, slot.startDate, slot.endDate, db);
+      await checkBusinessSlotFree(businessId, slot.startDate, slot.endDate, db, excludeAppointmentId);
     } else if (helperId) {
-      await checkHelperSlotFree(helperId, slot.startDate, slot.endDate, db);
+      await checkHelperSlotFree(helperId, slot.startDate, slot.endDate, db, excludeAppointmentId);
     }
     return { ok: true, slot };
   } catch (e) {
@@ -1632,6 +1632,268 @@ async function customerCancelBookingRequest({ booking, actorId, actorType = 'cus
   return { booking: updated };
 }
 
+/**
+ * Group 1, item 14 — booking-level reschedule proposals.
+ *
+ * An accepted booking's time window moves ONLY when the other party
+ * accepts a proposal. The proposal is a row in
+ * booking_reschedule_proposals, not a mutation: proposing never touches
+ * booking_requests.requested_date / requested_start_time /
+ * requested_end_time or the linked appointment, and a declined proposal
+ * leaves the booking exactly as it was. Deposits, pricing, and the
+ * cancellation rules are untouched by a pending proposal; no money
+ * moves anywhere in this flow.
+ *
+ * Scope: accepted bookings only. Pending bookings already negotiate
+ * time through the provider counter-propose path, and
+ * cancelled/declined/expired bookings have no window left to move.
+ * Either party (the booker, or the provider via isBookingManagerForBooking)
+ * may propose; only the OTHER party may respond. A new proposal
+ * supersedes any pending one so there is ever at most one live proposal
+ * per booking. Acceptance re-validates the slot inside the same
+ * transaction that moves the window (advisory lock + own-appointment
+ * exclusion, mirroring acceptBookingRequest), so two racing accepts
+ * cannot double-book.
+ */
+function rescheduleProposalShape(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    bookingId: row.booking_id,
+    proposedBy: row.proposed_by,
+    proposedByRole: row.proposed_by_role,
+    proposedDate: row.proposed_date instanceof Date
+      ? row.proposed_date.toISOString().slice(0, 10)
+      : String(row.proposed_date || '').slice(0, 10),
+    proposedStartTime: String(row.proposed_start_time || '').slice(0, 5),
+    proposedEndTime: String(row.proposed_end_time || '').slice(0, 5),
+    message: row.message || null,
+    status: row.status,
+    decidedBy: row.decided_by || null,
+    decidedAt: row.decided_at || null,
+    createdAt: row.created_at || null,
+  };
+}
+
+function validateRescheduleWindow(date, start, end) {
+  const d = normalizeDate(date);
+  const s = normalizeClock(start);
+  const e = normalizeClock(end);
+  if (!d || !s || !e) {
+    const err = new Error('proposed_date, proposed_start_time, and proposed_end_time are required');
+    err.code = 'validation_failed';
+    err.status = 400;
+    throw err;
+  }
+  if (s >= e) {
+    const err = new Error('End time must be after start time');
+    err.code = 'validation_failed';
+    err.status = 400;
+    throw err;
+  }
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (d < todayStr) {
+    const err = new Error('Cannot propose a time in the past');
+    err.code = 'validation_failed';
+    err.status = 400;
+    throw err;
+  }
+  return { date: d, start: s, end: e };
+}
+
+async function proposeBookingReschedule({ booking, actorId, actorType = 'customer', date, start, end, note = null }) {
+  if (!booking || toChatStatus(booking.status) !== 'accepted') {
+    const err = new Error('Only an accepted booking can be rescheduled');
+    err.code = 'invalid_status';
+    err.status = 409;
+    throw err;
+  }
+  const window = validateRescheduleWindow(date, start, end);
+  const ownAppointmentId = booking.business_appointment_id || booking.appointment_id || null;
+  const slotCheck = await validateBookingSlot({
+    helperId: booking.helper_id,
+    businessId: booking.business_id,
+    date: window.date,
+    start: window.start,
+    end: window.end,
+    excludeAppointmentId: ownAppointmentId,
+  });
+  if (!slotCheck.ok) {
+    const err = new Error(slotCheck.message || 'Proposed time is not available');
+    err.code = slotCheck.code || 'slot_conflict';
+    err.status = 409;
+    throw err;
+  }
+  const noteClean = note ? String(note).trim().slice(0, 500) : null;
+  const startSql = window.start.length === 5 ? `${window.start}:00` : window.start;
+  const endSql = window.end.length === 5 ? `${window.end}:00` : window.end;
+  const { rows } = await pool.query(
+    `WITH superseded AS (
+       UPDATE booking_reschedule_proposals
+          SET status = 'superseded', updated_at = NOW()
+        WHERE booking_id = $1 AND status = 'pending'
+    )
+    INSERT INTO booking_reschedule_proposals
+      (booking_id, proposed_by, proposed_by_role, proposed_date,
+       proposed_start_time, proposed_end_time, message)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING *`,
+    [booking.id, actorId, actorType, window.date, startSql, endSql, noteClean],
+  );
+  const proposal = rescheduleProposalShape(rows[0]);
+  await logAudit(booking.id, 'reschedule_proposed', actorId, actorType, booking.status, booking.status);
+  return { booking, proposal };
+}
+
+async function respondToBookingReschedule({ booking, proposalId, actorId, action }) {
+  if (!['accept', 'decline'].includes(action)) {
+    const err = new Error('action must be accept or decline');
+    err.code = 'validation_failed';
+    err.status = 400;
+    throw err;
+  }
+  const outcome = await withTransaction(
+    pool,
+    async (client) => {
+      const { rows: currentRows } = await client.query(
+        'SELECT * FROM booking_requests WHERE id = $1 FOR UPDATE',
+        [booking.id],
+      );
+      const current = currentRows[0];
+      if (!current) {
+        const err = new Error('Booking request not found');
+        err.code = 'not_found';
+        err.status = 404;
+        throw err;
+      }
+      if (toChatStatus(current.status) !== 'accepted') {
+        const err = new Error('Only an accepted booking can be rescheduled');
+        err.code = 'invalid_status';
+        err.status = 409;
+        throw err;
+      }
+      const { rows: proposalRows } = await client.query(
+        `SELECT * FROM booking_reschedule_proposals
+          WHERE id = $1 AND booking_id = $2 AND status = 'pending'
+          FOR UPDATE`,
+        [proposalId, booking.id],
+      );
+      const proposalRow = proposalRows[0];
+      if (!proposalRow) {
+        const err = new Error('Reschedule proposal not found or already handled');
+        err.code = 'not_found';
+        err.status = 404;
+        throw err;
+      }
+      if (String(proposalRow.proposed_by) === String(actorId)) {
+        const err = new Error('Cannot respond to your own reschedule proposal');
+        err.code = 'own_proposal';
+        err.status = 409;
+        throw err;
+      }
+      const proposal = rescheduleProposalShape(proposalRow);
+      let updated = current;
+      if (action === 'accept') {
+        // Re-validate inside the lock, excluding the booking's own
+        // appointment, so a slot taken since the proposal still fails
+        // cleanly instead of moving the booking onto a double-booking.
+        const ownAppointmentId = current.business_appointment_id || current.appointment_id || null;
+        if (current.business_id) {
+          await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [advisoryLockKey(current)]);
+        } else if (current.helper_id) {
+          await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [advisoryLockKey(current)]);
+        }
+        const slotCheck = await validateBookingSlot({
+          helperId: current.helper_id,
+          businessId: current.business_id,
+          date: proposal.proposedDate,
+          start: proposal.proposedStartTime,
+          end: proposal.proposedEndTime,
+          excludeAppointmentId: ownAppointmentId,
+        }, client);
+        if (!slotCheck.ok) {
+          const err = new Error(slotCheck.message || 'Proposed time is no longer available');
+          err.code = slotCheck.code || 'slot_conflict';
+          err.status = 409;
+          throw err;
+        }
+        const { rows: updatedRows } = await client.query(
+          `UPDATE booking_requests
+              SET requested_date = $2,
+                  requested_start_time = $3,
+                  requested_end_time = $4,
+                  updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1 AND status = 'accepted'
+            RETURNING *`,
+          [current.id, proposal.proposedDate, `${proposal.proposedStartTime}:00`, `${proposal.proposedEndTime}:00`],
+        );
+        if (!updatedRows[0]) {
+          const err = new Error('Booking is no longer accepted');
+          err.code = 'invalid_status';
+          err.status = 409;
+          throw err;
+        }
+        updated = updatedRows[0];
+        // Move the linked appointment with the booking. A 409 here
+        // fails the accept (transaction rolls back) so the booking and
+        // its appointment never land on different times.
+        await syncAppointmentTimes(updated, proposal.proposedDate, proposal.proposedStartTime, proposal.proposedEndTime, client);
+        await client.query(
+          `UPDATE booking_reschedule_proposals
+              SET status = 'accepted', decided_by = $2, decided_at = NOW(), updated_at = NOW()
+            WHERE id = $1`,
+          [proposalRow.id, actorId],
+        );
+        await logAudit(updated.id, 'reschedule_accepted', actorId, 'responder', current.status, updated.status, client);
+        proposal.status = 'accepted';
+      } else {
+        await client.query(
+          `UPDATE booking_reschedule_proposals
+              SET status = 'declined', decided_by = $2, decided_at = NOW(), updated_at = NOW()
+            WHERE id = $1`,
+          [proposalRow.id, actorId],
+        );
+        await logAudit(current.id, 'reschedule_declined', actorId, 'responder', current.status, current.status, client);
+        proposal.status = 'declined';
+      }
+      proposal.decidedBy = actorId;
+      return { booking: updated, proposal };
+    },
+    'respondToBookingReschedule',
+  );
+  if (action === 'accept') {
+    await emitBookingEvent({ booking: outcome.booking, event: 'rescheduled', actorId });
+  }
+  return outcome;
+}
+
+async function listBookingRescheduleProposals(bookingId) {
+  const { rows } = await pool.query(
+    `SELECT * FROM booking_reschedule_proposals
+      WHERE booking_id = $1
+      ORDER BY created_at DESC
+      LIMIT 20`,
+    [bookingId],
+  );
+  return rows.map(rescheduleProposalShape);
+}
+
+async function pendingRescheduleProposalsForBookings(bookingIds) {
+  const ids = [...new Set((bookingIds || []).filter(Boolean))];
+  if (!ids.length) return new Map();
+  const { rows } = await pool.query(
+    `SELECT DISTINCT ON (booking_id) *
+       FROM booking_reschedule_proposals
+      WHERE booking_id = ANY($1::uuid[]) AND status = 'pending'
+      ORDER BY booking_id, created_at DESC`,
+    [ids],
+  );
+  const map = new Map();
+  for (const row of rows) map.set(String(row.booking_id), rescheduleProposalShape(row));
+  return map;
+}
+
 module.exports = {
   INBOX_STATUSES,
   PROVIDER_RESPOND_STATUSES,
@@ -1654,6 +1916,10 @@ module.exports = {
   acceptBookingRequest,
   declineBookingRequest,
   proposeBookingTime,
+  proposeBookingReschedule,
+  respondToBookingReschedule,
+  listBookingRescheduleProposals,
+  pendingRescheduleProposalsForBookings,
   customerAcceptBookingRequest,
   customerDeclineBookingRequest,
   customerCancelBookingRequest,

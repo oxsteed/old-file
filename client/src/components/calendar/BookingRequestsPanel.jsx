@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import api from '../../api/axios';
 import { toast } from 'sonner';
 import { useSocket } from '../../hooks/useSocket';
+import { useAuth } from '../../hooks/useAuth';
+import BookingRescheduleBox from './BookingRescheduleBox';
 import MessengerAvailabilityPicker from '../helperProfile/chat/MessengerAvailabilityPicker';
 import { buildProposeBookingPayload } from '../helperProfile/chat/messengerBookingRequests.js';
 import '../helperProfile/chat/MessengerDock.css';
@@ -17,6 +19,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage || i18n.language;
   const { socket } = useSocket();
+  const { user } = useAuth();
   const [bookingRequests, setBookingRequests] = useState([]);
   const [acceptedBookings, setAcceptedBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -244,6 +247,9 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
                 booking={booking}
                 acting={null}
                 onTransfer={() => handleTransferBooking(booking.id)}
+                rescheduleProposal={booking.pendingRescheduleProposal || null}
+                currentUserId={user?.id}
+                onRescheduleDone={loadBookingRequests}
                 transferDraft={transferDrafts[booking.id] || {}}
                 onTransferDraftChange={(patch) =>
                   setTransferDrafts((current) => ({
@@ -293,7 +299,7 @@ function statusClass(status) {
   return 'pending';
 }
 
-function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onPropose, onTransfer, transferDraft, onTransferDraftChange, transferring, t, locale }) {
+function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onPropose, onTransfer, transferDraft, onTransferDraftChange, transferring, rescheduleProposal, currentUserId, onRescheduleDone, t, locale }) {
   const _rawDate = booking.requestedDate || booking.requested_date;
   const requestedDate = _rawDate ? String(_rawDate).split('T')[0] : null;
   const startTime = booking.requestedStartTime || booking.requested_start_time || booking.start_time;
@@ -407,15 +413,16 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
       </div>
 
       {onTransfer ? (
-        <div className="booking-actions booking-transfer-actions">
-          <input
-            type="text"
-            value={transferDraft?.newHelperId || ''}
-            onChange={(e) => onTransferDraftChange?.({ newHelperId: e.target.value })}
-            placeholder={t('calendar.transferProviderPlaceholder')}
-            aria-label={t('calendar.transferProviderPlaceholder')}
-            disabled={!!transferring}
-          />
+        <>
+          <div className="booking-actions booking-transfer-actions">
+            <input
+              type="text"
+              value={transferDraft?.newHelperId || ''}
+              onChange={(e) => onTransferDraftChange?.({ newHelperId: e.target.value })}
+              placeholder={t('calendar.transferProviderPlaceholder')}
+              aria-label={t('calendar.transferProviderPlaceholder')}
+              disabled={!!transferring}
+            />
           <input
             type="text"
             value={transferDraft?.reason || ''}
@@ -438,7 +445,14 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
           <p className="booking-transfer-hint">
             {t('calendar.transferHint')}
           </p>
-        </div>
+          </div>
+          <BookingRescheduleBox
+            bookingId={booking.id}
+            proposal={rescheduleProposal || null}
+            currentUserId={currentUserId}
+            onDone={onRescheduleDone}
+          />
+        </>
       ) : canRespond ? (
         <div className="booking-actions">
           <button

@@ -571,9 +571,15 @@ exports.getBookingRequest = async (req, res) => {
       return sendError(res, 403, 'Not authorized to view this booking');
     }
 
+    const view = bookingViewForUser(booking, userId);
+    if (isCustomer || isProvider) {
+      const pending = await bookingLifecycle.pendingRescheduleProposalsForBookings([booking.id]);
+      view.pendingRescheduleProposal = pending.get(String(booking.id)) || null;
+    }
+
     res.json({
       success: true,
-      data: bookingViewForUser(booking, userId),
+      data: view,
     });
   } catch (err) {
     logger.error('Error fetching booking request', { error: err.message });
@@ -846,9 +852,14 @@ exports.getMyBookingRequests = async (req, res) => {
     query += ' ORDER BY created_at DESC';
 
     const result = await pool.query(query, params);
+    const pending = await bookingLifecycle.pendingRescheduleProposalsForBookings(
+      result.rows.map((r) => r.id),
+    );
     const rows = [];
     for (const row of result.rows) {
-      rows.push(bookingViewForUser(await expireIfStale(row), customerId));
+      const view = bookingViewForUser(await expireIfStale(row), customerId);
+      view.pendingRescheduleProposal = pending.get(String(row.id)) || null;
+      rows.push(view);
     }
 
     res.json({
@@ -876,6 +887,12 @@ exports.getIncomingBookingRequests = async (req, res) => {
       status: statusList ? undefined : status,
       statuses: statusList,
     });
+    const pending = await bookingLifecycle.pendingRescheduleProposalsForBookings(
+      rows.map((r) => r.id),
+    );
+    for (const row of rows) {
+      row.pendingRescheduleProposal = pending.get(String(row.id)) || null;
+    }
 
     res.json({
       success: true,
@@ -1943,6 +1960,136 @@ exports.respondToCounterPropose = async (req, res) => {
     sendError(res, 500, 'Failed to respond to counter-proposal');
   }
 };
+
+// ─── Group 1, item 14: booking-level reschedule proposals ─────────────
+// POST /api/bookings/:bookingId/reschedule
+// Either party proposes a new date/time for an ACCEPTED booking. The
+// proposal is a request: the booking's window, deposit, price, and
+// cancellation rules do not change until the other party accepts.
+exports.proposeReschedule = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.user.id;
+    const body = req.body || {};
+    const booking = await bookingLifecycle.loadBooking(bookingId);
+    if (!booking) return sendError(res, 404, 'Booking request not found');
+    const isCustomer = String(booking.customer_id) === String(userId);
+    const isProvider = await bookingLifecycle.isBookingManagerForBooking(userId, booking);
+    if (!isCustomer && !isProvider) {
+      return sendError(res, 403, 'Only the customer or the provider can propose a reschedule', 'forbidden');
+    }
+    const actorType = isCustomer ? 'customer' : (booking.helper_id && String(booking.helper_id) === String(userId) ? 'helper' : 'business');
+    let result;
+    try {
+      result = await bookingLifecycle.proposeBookingReschedule({
+        booking,
+        actorId: userId,
+        actorType,
+        date: body.proposed_date || body.proposedDate || body.date || body.requestedDate,
+        start: body.proposed_start_time || body.proposedStartTime || body.start || body.requestedStartTime,
+        end: body.proposed_end_time || body.proposedEndTime || body.end || body.requestedEndTime,
+        note: body.message || body.note || body.reason || null,
+      });
+    } catch (e) {
+      const status = e.status || 400;
+      return sendError(res, status, e.message || 'Cannot propose reschedule', e.code);
+    }
+    const proposal = result.proposal;
+    const otherUserId = isCustomer
+      ? (booking.helper_id || (await businessOwnerId(booking.business_id)))
+      : booking.customer_id;
+    if (otherUserId) {
+      await sendNotification({
+        userId: otherUserId,
+        type: 'booking_reschedule_proposed',
+        body: `${booking.service_name}, ${proposal.proposedDate} ${proposal.proposedStartTime}-${proposal.proposedEndTime}`,
+        data: { bookingId, proposalId: proposal.id },
+        action_url: '/my-bookings',
+      }).catch((err) => logger.warn('Failed reschedule proposal notification', { error: err.message }));
+    }
+    res.status(201).json({ booking: transformBooking(result.booking), proposal, message: 'Reschedule proposed' });
+  } catch (err) {
+    logger.error('Error proposing booking reschedule', { error: err.message });
+    sendError(res, 500, 'Failed to propose reschedule');
+  }
+};
+
+// POST /api/bookings/:bookingId/reschedule/:proposalId/respond
+// The OTHER party accepts or declines. Accept moves the booking window
+// (and the linked appointment) in the same transaction; decline leaves
+// the booking exactly as it was.
+exports.respondToReschedule = async (req, res) => {
+  try {
+    const { bookingId, proposalId } = req.params;
+    const userId = req.user.id;
+    const action = String(req.body?.action || '').toLowerCase();
+    if (!['accept', 'decline'].includes(action)) {
+      return sendValidationError(res, { action: 'Use accept or decline' });
+    }
+    const booking = await bookingLifecycle.loadBooking(bookingId);
+    if (!booking) return sendError(res, 404, 'Booking request not found');
+    const isCustomer = String(booking.customer_id) === String(userId);
+    const isProvider = await bookingLifecycle.isBookingManagerForBooking(userId, booking);
+    if (!isCustomer && !isProvider) {
+      return sendError(res, 403, 'Only the customer or the provider can respond to a reschedule', 'forbidden');
+    }
+    let result;
+    try {
+      result = await bookingLifecycle.respondToBookingReschedule({ booking, proposalId, actorId: userId, action });
+    } catch (e) {
+      const status = e.status || 400;
+      return sendError(res, status, e.message || 'Cannot respond to reschedule', e.code);
+    }
+    const proposerId = result.proposal.proposedBy;
+    if (proposerId) {
+      await sendNotification({
+        userId: proposerId,
+        type: action === 'accept' ? 'booking_reschedule_accepted' : 'booking_reschedule_declined',
+        body: `${booking.service_name}: reschedule ${action === 'accept' ? 'accepted' : 'declined'}`,
+        data: { bookingId, proposalId },
+        action_url: '/my-bookings',
+      }).catch((err) => logger.warn('Failed reschedule response notification', { error: err.message }));
+    }
+    res.json({
+      booking: transformBooking(result.booking),
+      proposal: result.proposal,
+      message: action === 'accept' ? 'Reschedule accepted' : 'Reschedule declined',
+    });
+  } catch (err) {
+    logger.error('Error responding to booking reschedule', { error: err.message });
+    sendError(res, 500, 'Failed to respond to reschedule');
+  }
+};
+
+// GET /api/bookings/:bookingId/reschedule
+exports.listReschedules = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.user.id;
+    const booking = await bookingLifecycle.loadBooking(bookingId);
+    if (!booking) return sendError(res, 404, 'Booking request not found');
+    const isCustomer = String(booking.customer_id) === String(userId);
+    const isProvider = await bookingLifecycle.isBookingManagerForBooking(userId, booking);
+    if (!isCustomer && !isProvider) {
+      return sendError(res, 403, 'Not authorized to view this booking', 'forbidden');
+    }
+    const proposals = await bookingLifecycle.listBookingRescheduleProposals(bookingId);
+    res.json({ proposals });
+  } catch (err) {
+    logger.error('Error listing booking reschedules', { error: err.message });
+    sendError(res, 500, 'Failed to list reschedules');
+  }
+};
+
+async function businessOwnerId(businessId) {
+  if (!businessId) return null;
+  try {
+    const { rows } = await pool.query('SELECT user_id FROM businesses WHERE id = $1', [businessId]);
+    return rows[0]?.user_id || null;
+  } catch {
+    return null;
+  }
+}
 
 
 function timeFromTimestamptz(ts) {
