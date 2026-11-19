@@ -11,7 +11,7 @@ import { readNavigationState, saveNavigationState } from '../utils/navigationMem
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X, ChevronDown, Sparkles, MapPin } from 'lucide-react';
 
@@ -36,6 +36,7 @@ import {
 } from '../utils/jobsTaxonomy';
 import { getPublicSiteUrl } from '../utils/seoDescription';
 import { fetchHelpers } from '../api/helpers';
+import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
 
 const PAGE_SIZE = 9;
@@ -506,6 +507,51 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
   const [loadState, setLoadState]       = useState<'loading' | 'success' | 'error'>('loading');
   const [drawerOpen, setDrawerOpen]     = useState(false);
   const [selectedTileId, setSelectedTileId] = useState<string | null>(_initTileId);
+  // Group 1, items 4-5: provider shortlist (saved helpers, server-backed)
+  // and side-by-side comparison (local, up to 3 providers).
+  const [savedByHelper, setSavedByHelper] = useState<Record<string, string>>({});
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
+
+  const loadSaved = useCallback(async () => {
+    try {
+      const r = await api.get('/life/saved-helpers');
+      const rows = Array.isArray(r.data?.saved_helpers) ? r.data.saved_helpers : [];
+      const map: Record<string, string> = {};
+      for (const row of rows) {
+        if (row.helper_id) map[String(row.helper_id)] = String(row.id);
+      }
+      setSavedByHelper(map);
+    } catch {
+      // Signed-out visitors browse without a shortlist; the save button
+      // will prompt sign-in through the API's 401.
+    }
+  }, []);
+
+  useEffect(() => { loadSaved(); }, [loadSaved]);
+
+  const handleToggleSave = useCallback(async (helperId: string) => {
+    const savedRowId = savedByHelper[helperId];
+    try {
+      if (savedRowId) {
+        await api.delete(`/life/saved-helpers/${savedRowId}`);
+      } else {
+        await api.post('/life/saved-helpers', { helper_id: helperId });
+      }
+      await loadSaved();
+    } catch {
+      // Leave the shortlist as it was; the API error surfaces in the
+      // global handler. No optimistic flip, so the button never lies.
+    }
+  }, [savedByHelper, loadSaved]);
+
+  const handleToggleCompare = useCallback((helperId: string) => {
+    setCompareIds((prev) => {
+      if (prev.includes(helperId)) return prev.filter((x) => x !== helperId);
+      if (prev.length >= 3) return prev;
+      return [...prev, helperId];
+    });
+  }, []);
 
   useEffect(()=>{saveNavigationState('helpers:'+entryPoint,{filters,sort,page,tileId:selectedTileId,search:rememberedSearch});},[filters,sort,page,selectedTileId,entryPoint,rememberedSearch]);
 
@@ -781,6 +827,91 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
               <ActiveFilterTags filters={filters} onChange={updateFilters} />
             </div>
 
+            {/* Group 1, items 4-5: shortlist strip + side-by-side comparison */}
+            {Object.keys(savedByHelper).length > 0 && (
+              <div className="rounded-xl border border-rose-900/50 bg-rose-950/30 px-4 py-3 text-sm text-rose-200">
+                {t('helpersDir.shortlistCount', { count: Object.keys(savedByHelper).length })}
+                {' · '}
+                <Link to="/dashboard" className="underline">
+                  {t('helpersDir.viewShortlist')}
+                </Link>
+              </div>
+            )}
+            {compareIds.length > 0 && (
+              <div className="rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm font-medium text-white">
+                    {t('helpersDir.comparingCount', { count: compareIds.length })}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={compareIds.length < 2}
+                    onClick={() => setShowComparison((v) => !v)}
+                    className="px-3 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium disabled:opacity-50" data-track="ui.184cdf1d7c.10"
+                  >
+                    {showComparison ? t('helpersDir.hideComparison') : t('helpersDir.showComparison')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCompareIds([]); setShowComparison(false); }}
+                    className="px-3 py-1.5 rounded-lg border border-gray-700 text-gray-300 text-sm hover:bg-gray-800" data-track="ui.184cdf1d7c.11"
+                  >
+                    {t('helpersDir.clearComparison')}
+                  </button>
+                </div>
+                {showComparison && compareIds.length >= 2 && (
+                  <div className="overflow-x-auto mt-3">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-800">
+                          <th className="text-left p-2 font-semibold text-gray-400">{t('helpersDir.compareField')}</th>
+                          {displayed.filter((h) => compareIds.includes(h.id)).map((h) => (
+                            <th key={h.id} className="text-left p-2 font-semibold text-white">
+                              {h.businessName || h.ownerName}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-gray-800">
+                          <td className="p-2 text-gray-400">{t('helpersDir.compareRating')}</td>
+                          {displayed.filter((h) => compareIds.includes(h.id)).map((h) => (
+                            <td key={h.id} className="p-2">
+                              {Number.isFinite(h.rating) ? Number(h.rating).toFixed(1) : '—'}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr className="border-b border-gray-800">
+                          <td className="p-2 text-gray-400">{t('helpersDir.compareJobs')}</td>
+                          {displayed.filter((h) => compareIds.includes(h.id)).map((h) => (
+                            <td key={h.id} className="p-2">{h.jobsCompleted ?? '—'}</td>
+                          ))}
+                        </tr>
+                        <tr className="border-b border-gray-800">
+                          <td className="p-2 text-gray-400">{t('helpersDir.comparePrice')}</td>
+                          {displayed.filter((h) => compareIds.includes(h.id)).map((h) => (
+                            <td key={h.id} className="p-2">{h.startingPrice != null ? `$${h.startingPrice}` : '—'}</td>
+                          ))}
+                        </tr>
+                        <tr className="border-b border-gray-800">
+                          <td className="p-2 text-gray-400">{t('helpersDir.compareServices')}</td>
+                          {displayed.filter((h) => compareIds.includes(h.id)).map((h) => (
+                            <td key={h.id} className="p-2">{(h.topServices || []).slice(0, 3).join(', ') || '—'}</td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="p-2 text-gray-400">{t('helpersDir.compareAvailable')}</td>
+                          {displayed.filter((h) => compareIds.includes(h.id)).map((h) => (
+                            <td key={h.id} className="p-2">{h.availableToday ? t('common.yes') : t('common.no')}</td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Grid */}
             {loadState === 'loading' && displayed.length === 0 ? (
               <div
@@ -826,6 +957,10 @@ const HelpersDirectoryPage: React.FC<{ entryPoint?: 'helpers' | 'direct' }> = ({
                         helper={helper}
                         onMessage={handleMessage}
                         highlightCategory={boostedCategory}
+                        saved={Boolean(savedByHelper[helper.id])}
+                        onToggleSave={handleToggleSave}
+                        comparing={compareIds.includes(helper.id)}
+                        onToggleCompare={handleToggleCompare}
                       />
                     </div>
                   ))}
