@@ -1601,10 +1601,17 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null, req =
     // leaves a job with no price at all unpriced (NULL), not zero-filled.
     // All right-hand sides read the pre-update row, so the decimal mirror
     // below is consistent with the stamped cents value.
+    // Group 1, item 20: aftercare instructions the helper leaves with the
+    // completed work. Informational only; never moves money or changes
+    // pricing, escrow, or cancellation. Stored with the completion stamp.
+    const aftercareInstructions = typeof req?.body?.aftercare_instructions === 'string'
+      ? req.body.aftercare_instructions.trim().slice(0, 2000) || null
+      : null;
     const { rows } = await client.query(`
       UPDATE jobs SET
         status = 'completed',
         completed_at = now(),
+        aftercare_instructions = COALESCE($2, aftercare_instructions),
         final_price_cents = COALESCE(final_price_cents, ROUND(final_price * 100)::int, job_value_cents),
         final_price = COALESCE(final_price, final_price_cents / 100.0, job_value_cents / 100.0),
         updated_at = now()
@@ -1612,7 +1619,7 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null, req =
         -- A change order approved meanwhile still needs re-authorization.
         AND NOT (COALESCE(metadata, '{}'::jsonb) ?| ARRAY['paymentAdjustmentRequired', 'creditAdjustmentRequired'])
       RETURNING *
-    `, [jobId]);
+    `, [jobId, aftercareInstructions]);
 
     if (!rows.length) {
       throw new AppError('Job state changed during completion', 409, 'state_conflict');
@@ -1771,7 +1778,12 @@ exports.completeJob = async (req, res, next) => {
       const { rows: authorized } = await pool.query(
         `SELECT id FROM payments WHERE job_id = $1 AND status = 'authorized' LIMIT 1`, [id]);
       if (authorized.length) {
-        const requested = await requestHelperCompletion({ job, helperId: req.user.id });
+        // Group 1, item 20: aftercare rides with the completion request so
+        // it is on the job when the customer confirms (or it auto-confirms).
+        const aftercareInstructions = typeof req.body?.aftercare_instructions === 'string'
+          ? req.body.aftercare_instructions.trim().slice(0, 2000) || null
+          : null;
+        const requested = await requestHelperCompletion({ job, helperId: req.user.id, aftercareInstructions });
         return res.status(202).json({
           message: 'Completion requested',
           pending_confirmation: true,
@@ -1790,15 +1802,16 @@ exports.completeJob = async (req, res, next) => {
 };
 
 
-async function requestHelperCompletion({ job, helperId }) {
+async function requestHelperCompletion({ job, helperId, aftercareInstructions = null }) {
   const { rows } = await pool.query(
     `UPDATE jobs
         SET completion_requested_at = COALESCE(completion_requested_at, NOW()),
             completion_requested_by = COALESCE(completion_requested_by, $2),
+            aftercare_instructions = COALESCE($4, aftercare_instructions),
             updated_at = NOW()
       WHERE id = $1 AND status = 'in_progress' AND assigned_helper_id = $2
       RETURNING *, completion_requested_at + make_interval(hours => $3) AS completion_auto_confirm_at`,
-    [job.id, helperId, HELPER_COMPLETION_CONFIRM_HOURS]
+    [job.id, helperId, HELPER_COMPLETION_CONFIRM_HOURS, aftercareInstructions]
   );
   if (!rows.length) throw new AppError('Job state changed', 409, 'state_conflict');
   try {

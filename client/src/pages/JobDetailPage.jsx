@@ -241,6 +241,9 @@ function JobDetailContent() {
   // G-15/G-16: arrival, no-show, and rework prompts.
   const [showNoShowPanel, setShowNoShowPanel] = useState(false);
   const [noShowReason, setNoShowReason] = useState('');
+  // Group 1, item 20: aftercare instructions the helper leaves on completion.
+  const [showAftercarePanel, setShowAftercarePanel] = useState(false);
+  const [aftercareText, setAftercareText] = useState('');
   const [showChangesPanel, setShowChangesPanel] = useState(false);
   const [changesReason, setChangesReason] = useState('');
   const [showJobCancellationModal, setShowJobCancellationModal] = useState(false);
@@ -452,7 +455,9 @@ function JobDetailContent() {
   async function handleComplete() {
     setActionLoading(true);
     try {
-      const result = await completeJob(id);
+      const result = await completeJob(id, aftercareText.trim() ? { aftercare_instructions: aftercareText.trim() } : undefined);
+      setShowAftercarePanel(false);
+      setAftercareText('');
       fetchJob(id);
       toast.success(t(result?.pending_confirmation ? 'jobDetail.completionRequested' : 'jobDetail.jobCompleted'));
     } catch (err) {
@@ -789,7 +794,23 @@ function JobDetailContent() {
             {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids} data-track="ui.573dfef74b.7">{t('jobDetail.retryBids')}</button>}
           </div>}
           {view.canHelperComplete && <div className="jdp-secondary-action jdp-helper-complete-action">
-            <button type="button" className="jdp-btn-ghost" onClick={handleComplete} disabled={actionLoading || loading} data-track="ui.573dfef74b.8">{t('jobDetail.helperMarkDone')}</button>
+            <button type="button" className="jdp-btn-ghost" onClick={() => setShowAftercarePanel((v) => !v)} disabled={actionLoading || loading} data-track="ui.573dfef74b.8">{t('jobDetail.helperMarkDone')}</button>
+          </div>}
+          {/* Group 1, item 20: the helper leaves aftercare instructions with
+              the completed work; the customer reads them below. */}
+          {showAftercarePanel && <div className="jdp-card" role="group" aria-label={t('jobDetail.helperMarkDone')}>
+            <label htmlFor={`${fieldId}-aftercare`}>{t('jobDetail.aftercareLabel')}</label>
+            <textarea id={`${fieldId}-aftercare`} rows={3} maxLength={2000} value={aftercareText}
+              onChange={(e) => setAftercareText(e.target.value)} placeholder={t('jobDetail.aftercarePlaceholder')} />
+            <p className="jd-aftercare-hint">{t('jobDetail.aftercareHint')}</p>
+            <div className="jdp-modal-actions">
+              <button type="button" className="jdp-btn-primary" onClick={handleComplete} disabled={actionLoading} data-track="ui.573dfef74b.26">{t('jobDetail.confirmComplete')}</button>
+              <button type="button" className="jdp-btn-ghost" onClick={() => setShowAftercarePanel(false)} data-track="ui.573dfef74b.27">{t('common.cancel')}</button>
+            </div>
+          </div>}
+          {job.status === 'completed' && job.aftercare_instructions && <div className="jdp-card" role="region" aria-label={t('jobDetail.aftercareTitle')}>
+            <h3>{t('jobDetail.aftercareTitle')}</h3>
+            <p className="jd-aftercare-text">{job.aftercare_instructions}</p>
           </div>}
           {/* G-15: the assigned helper marks arrival; the customer sees it. */}
           {isAssignedHelper && ['accepted', 'in_progress'].includes(job.status) && !job.arrived_at && <div className="jdp-secondary-action">
