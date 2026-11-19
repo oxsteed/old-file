@@ -1487,6 +1487,63 @@ async function customerDeclineBookingRequest({ booking, actorId, actorType = 'cu
   return { booking: updated };
 }
 
+/**
+ * G-30: customer / verified guest cancels their own booking request.
+ * Mirrors the signed-in cancel in bookingController.cancelBookingRequest:
+ * pending | counter_proposed → cancelled, accepted → accepted_cancelled,
+ * with the linked appointment cancelled. Deposit settlement and the
+ * helper notification live in the chat controller, next to the other
+ * customer-side chat actions.
+ */
+async function customerCancelBookingRequest({ booking, actorId, actorType = 'customer', reason = null }) {
+  const status = toChatStatus(booking.status);
+  const cancellable = status === 'pending' || status === 'counter_proposed' || status === 'accepted';
+  if (!cancellable) {
+    const err = new Error(`Cannot cancel a ${booking.status} booking request`);
+    err.code = 'invalid_status';
+    err.status = 409;
+    throw err;
+  }
+  if (isStalePending(booking)) {
+    await expireIfStale(booking);
+    throw expiredError();
+  }
+  const oldStatus = booking.status;
+  const nextStatus = status === 'accepted' ? 'accepted_cancelled' : 'cancelled';
+  const note = reason ? String(reason).trim().slice(0, 500) : null;
+  const { rows } = await pool.query(
+    `UPDATE booking_requests
+        SET status = $2,
+            cancelled_at = CURRENT_TIMESTAMP,
+            helper_response_reason = COALESCE($3, helper_response_reason),
+            updated_at = CURRENT_TIMESTAMP,
+            counter_status = CASE
+              WHEN counter_status = 'pending' THEN 'cancelled'
+              ELSE counter_status
+            END
+      WHERE id = $1 AND status = ANY($4::text[])
+      RETURNING *`,
+    [booking.id, nextStatus, note, ['pending', 'counter_proposed', 'accepted']],
+  );
+  if (!rows[0]) {
+    const err = new Error('Booking is no longer cancellable');
+    err.code = 'invalid_status';
+    err.status = 409;
+    throw err;
+  }
+  const updated = rows[0];
+  if (nextStatus === 'accepted_cancelled') {
+    try {
+      await cancelLinkedAppointment(updated, updated.helper_id);
+    } catch (e) {
+      logger.warn('[bookingLifecycle] customer-cancel appointment cancel failed', { error: e.message });
+    }
+  }
+  await logAudit(updated.id, nextStatus, actorId, actorType, oldStatus, nextStatus);
+  await emitBookingEvent({ booking: updated, event: 'cancelled', actorId });
+  return { booking: updated };
+}
+
 module.exports = {
   INBOX_STATUSES,
   PROVIDER_RESPOND_STATUSES,
@@ -1510,6 +1567,7 @@ module.exports = {
   proposeBookingTime,
   customerAcceptBookingRequest,
   customerDeclineBookingRequest,
+  customerCancelBookingRequest,
   logAudit,
   formatTimePart,
   buildStatusMessage,

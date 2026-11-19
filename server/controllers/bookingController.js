@@ -1512,6 +1512,10 @@ async function notifyHelperOfBookingCancellation(helperId, booking) {
     logger.warn('Failed to notify helper of booking cancellation', { error: err.message });
   }
 }
+// G-30: the chat customer-cancel path reuses the same helper notification
+// as the signed-in cancel (lazy-required there to avoid a load-time cycle:
+// this controller lazily requires the chat controller inside handlers).
+exports.notifyHelperOfBookingCancellation = notifyHelperOfBookingCancellation;
 
 /**
  * Marketplace fallback for expired bookings. The DB work lives in

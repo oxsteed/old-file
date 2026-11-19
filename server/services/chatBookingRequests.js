@@ -194,6 +194,8 @@ function buildStatusMessage({ booking, event, reason = '' }) {
       : `Booking declined: ${title} · ${when}`;
   } else if (event === 'counter_proposed') {
     label = `Different time proposed: ${title} · ${when}`;
+  } else if (event === 'cancelled') {
+    label = `Booking cancelled: ${title} · ${when}`;
   } else if (event === 'requested') {
     label = `Booking requested: ${title} · ${when}`;
   }
