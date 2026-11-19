@@ -778,6 +778,12 @@ app.post(
   require('./middleware/rejectImpersonated').rejectImpersonated,
   require('./controllers/oxsteedCreditController').applyForCredit
 );
+// G-25: applicant-side status for the caller's own participant rows.
+app.get(
+  '/api/oxsteed-credit/participants/me',
+  authenticate,
+  require('./controllers/oxsteedCreditController').getMyParticipants
+);
 app.use('/api/media', launchGate(), require('./routes/media'));
 // Monthly statement operations: private archive, entry investigation, and
 // accessible renditions. Each router enforces per-request authorization.
