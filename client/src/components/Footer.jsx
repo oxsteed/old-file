@@ -81,7 +81,15 @@ export default function Footer() {
             {groups.map(group => (
               <nav key={group.id} className="site-footer__group" aria-labelledby={`${footerId}-${group.id}`}>
                 <h2 id={`${footerId}-${group.id}`} className="site-footer__heading">{t(group.labelKey)}</h2>
-                {group.links.map(item => <FooterLink key={item.to} to={item.to}>{t(item.labelKey)}</FooterLink>)}
+                {group.links.map(item => (
+                  <FooterLink
+                    key={item.to}
+                    to={item.to}
+                    ariaLabel={group.id === 'your-access' ? `${t(item.labelKey)} — ${t(group.labelKey)}` : undefined}
+                  >
+                    {t(item.labelKey)}
+                  </FooterLink>
+                ))}
               </nav>
             ))}
           </div>
@@ -128,8 +136,8 @@ export default function Footer() {
   );
 }
 
-function FooterLink({ to, children }) {
-  return <PrefetchLink className="site-footer__link" to={to}>{children}</PrefetchLink>;
+function FooterLink({ to, children, ariaLabel }) {
+  return <PrefetchLink className="site-footer__link" to={to} aria-label={ariaLabel}>{children}</PrefetchLink>;
 }
 
 function VortexModal({ onClose, initialToken = '' }) {
