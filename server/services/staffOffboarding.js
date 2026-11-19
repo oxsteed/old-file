@@ -25,6 +25,11 @@
  *     REASSIGNED to a manager (never NULLed): the acting manager when
  *     they hold a manager/owner role on the business, else the business
  *     owner. Completed items keep their assignee: they are history.
+ *   - G-37: open business bookings owned by the user (pending or
+ *     accepted) are REASSIGNED to the same target, with their linked
+ *     appointments and two-party conversations. The booking, its deposit
+ *     and its appointment are preserved; only the provider moves. The
+ *     user's personal (non-business) bookings are untouched.
  *   - a staff_offboarding_records row captures the whole outcome plus the
  *     retention deadline (businesses.staff_record_retention_years,
  *     default 7 years) before which the staff history must be kept.
@@ -77,6 +82,8 @@ async function applyStaffOffboarding(client, {
     drawersFlagged: 0,
     crewTasksReassigned: 0,
     correctiveActionsReassigned: 0,
+    bookingsReassigned: 0,
+    appointmentsReassigned: 0,
     reassignedToUserId: null,
     offboardingRecord: null,
     refreshTokensRevoked: 0,
@@ -157,6 +164,55 @@ async function applyStaffOffboarding(client, {
     [userId, businessId, reassignTo]
   );
 
+  // G-37: open business bookings owned by the departing member move to
+  // the reassignment target the same way crew tasks do: the booking, its
+  // deposit, and its appointment are preserved, only the provider moves.
+  // The departing member's personal (non-business) bookings are untouched;
+  // they are not business work. A double-booked target fails the whole
+  // offboarding closed on the appointment overlap guard, like every other
+  // failure in this transaction.
+  const { rows: bookingsToMove } = await client.query(
+    `SELECT id, appointment_id, business_appointment_id, conversation_id FROM booking_requests
+      WHERE helper_id = $1 AND business_id = $2 AND status IN ('pending', 'accepted')`,
+    [userId, businessId]
+  );
+  const bookings = await client.query(
+    `UPDATE booking_requests
+        SET helper_id = $3, updated_at = NOW()
+      WHERE helper_id = $1 AND business_id = $2 AND status IN ('pending', 'accepted')
+      RETURNING id`,
+    [userId, businessId, reassignTo]
+  );
+  let appointmentsReassigned = 0;
+  for (const row of bookingsToMove) {
+    if (!row.appointment_id) continue;
+    const moved = await client.query(
+      `UPDATE appointments SET helper_id = $2, updated_at = NOW()
+        WHERE id = $1 AND helper_id = $3 AND status <> 'cancelled'`,
+      [row.appointment_id, reassignTo, userId]
+    );
+    appointmentsReassigned += moved.rowCount || 0;
+  }
+  // Business bookings link their appointment through
+  // business_appointment_id instead: the staff member on the live
+  // business appointment moves the same way.
+  for (const row of bookingsToMove) {
+    if (!row.business_appointment_id) continue;
+    const moved = await client.query(
+      `UPDATE business_appointments SET staff_id = $2, updated_at = NOW()
+        WHERE id = $1 AND staff_id = $3 AND status IN ('pending', 'confirmed', 'in_progress')`,
+      [row.business_appointment_id, reassignTo, userId]
+    );
+    appointmentsReassigned += moved.rowCount || 0;
+  }
+  for (const row of bookingsToMove) {
+    if (!row.conversation_id) continue;
+    await client.query(
+      'UPDATE conversations SET helper_id = $2, updated_at = NOW() WHERE id = $1 AND helper_id = $3',
+      [row.conversation_id, reassignTo, userId]
+    );
+  }
+
   // Audit fix (finding 32): a refresh token is a long-lived credential, not
   // a membership row. Revoke every refresh token for the offboarded user
   // inside the same transaction, so a revoked member cannot silently mint
@@ -176,6 +232,8 @@ async function applyStaffOffboarding(client, {
     drawersFlagged: drawers.rowCount || 0,
     crewTasksReassigned: crewTasks.rowCount || 0,
     correctiveActionsReassigned: correctiveActions.rowCount || 0,
+    bookingsReassigned: bookings.rowCount || 0,
+    appointmentsReassigned,
     reassignedToUserId: reassignTo,
     refreshTokensRevoked: refreshTokens.rowCount || 0,
   };
@@ -187,8 +245,9 @@ async function applyStaffOffboarding(client, {
        (business_id, membership_id, user_id, removed_by, reason,
         pins_deactivated, sessions_ended, drawers_flagged,
         crew_tasks_reassigned, corrective_actions_reassigned,
+        bookings_reassigned, appointments_reassigned,
         reassigned_to_user_id, retain_until)
-     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
             (CURRENT_DATE + (COALESCE(b.staff_record_retention_years, 7) * INTERVAL '1 year'))::date
        FROM businesses b
       WHERE b.id = $1
@@ -197,6 +256,7 @@ async function applyStaffOffboarding(client, {
       businessId, membershipId, userId, removedBy, reason,
       counts.pinsDeactivated, counts.sessionsEnded, counts.drawersFlagged,
       counts.crewTasksReassigned, counts.correctiveActionsReassigned,
+      counts.bookingsReassigned, counts.appointmentsReassigned,
       reassignTo,
     ]
   );

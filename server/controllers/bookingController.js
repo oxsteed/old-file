@@ -826,6 +826,162 @@ exports.helperCancelAcceptedBooking = async (req, res) => {
 };
 
 /**
+ * G-37: transfer an accepted booking to another eligible provider.
+ * Preserves the booking (status stays accepted), its deposit (payment_*
+ * columns untouched), and its appointment (helper_id moves to the new
+ * provider). The linked two-party conversation moves with it so the new
+ * provider sees the thread and the old one loses it.
+ *
+ * The caller must be the current provider. The new provider must be
+ * eligible: for a business booking, an owner/active member of that
+ * business; for a helper-owned booking, an activated helper holding
+ * helper.offer_services (grant in enforce mode, legacy role otherwise).
+ * A transfer to a double-booked provider fails closed on the
+ * appointment overlap guard.
+ */
+exports.transferBookingRequest = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const actorId = req.user.id;
+    const { newHelperId, reason } = req.body || {};
+
+    if (typeof newHelperId !== 'string' || !/^[0-9a-f-]{36}$/i.test(newHelperId)) {
+      return sendError(res, 400, 'A valid new provider id is required', 'validation_failed');
+    }
+
+    const booking = await bookingLifecycle.loadBooking(bookingId);
+    if (!booking) {
+      return sendError(res, 404, 'Booking request not found');
+    }
+    if (!(await bookingLifecycle.isProviderForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider can transfer this booking', 'forbidden');
+    }
+    if (booking.status !== 'accepted') {
+      return sendError(res, 400, 'Only accepted bookings can be transferred');
+    }
+    if (String(newHelperId) === String(booking.helper_id)) {
+      return sendError(res, 400, 'Booking is already with this provider', 'validation_failed');
+    }
+    if (String(newHelperId) === String(booking.customer_id)) {
+      return sendError(res, 400, 'The customer cannot be the provider', 'validation_failed');
+    }
+
+    // ── Target eligibility ──────────────────────────────────────
+    const { rows: [target] } = await pool.query(
+      `SELECT id, role, is_active, deleted_at, onboarding_completed, onboarding_status
+         FROM users WHERE id = $1`,
+      [newHelperId]
+    );
+    if (!target || target.deleted_at || target.is_active === false) {
+      return sendError(res, 404, 'New provider not found');
+    }
+    if (booking.business_id) {
+      const { rows: [membership] } = await pool.query(
+        `SELECT 1 FROM businesses WHERE id = $1 AND user_id = $2 AND is_active = TRUE
+          UNION
+         SELECT 1 FROM business_members
+          WHERE business_id = $1 AND member_id = $2 AND status = 'active'`,
+        [booking.business_id, newHelperId]
+      );
+      if (!membership) {
+        return sendError(res, 400, 'New provider is not a member of this business', 'transfer_target_ineligible');
+      }
+    } else {
+      const access = require('../services/access/accessService');
+      const flags = require('../services/access/flags');
+      const decision = await access.can(newHelperId, 'helper.offer_services');
+      const legacyHelper = ['helper', 'helper_pro', 'broker'].includes(target.role);
+      const capabilityOk = decision.allowed || (flags.helperEnforcement() !== 'enforce' && legacyHelper);
+      const activated = target.onboarding_completed === true || target.onboarding_status === 'active';
+      if (!capabilityOk || !activated) {
+        return sendError(res, 400, 'New provider is not an activated helper', 'transfer_target_ineligible');
+      }
+    }
+
+    const previousHelperId = booking.helper_id;
+    const updatedResult = await withTransaction(pool, async (client) => {
+      const updated = await client.query(
+        `UPDATE booking_requests
+            SET helper_id = $2,
+                helper_response_reason = COALESCE($3, helper_response_reason),
+                updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1 AND status = 'accepted'
+          RETURNING *`,
+        [bookingId, newHelperId, reason || null]
+      );
+      if (!updated.rows.length) return updated;
+      // The appointment is preserved; only its provider moves. A
+      // double-booked target fails closed on the overlap guard.
+      if (booking.appointment_id) {
+        await client.query(
+          `UPDATE appointments SET helper_id = $2, updated_at = NOW()
+            WHERE id = $1 AND status <> 'cancelled'`,
+          [booking.appointment_id, newHelperId]
+        );
+      }
+      // The two-party thread moves to the new provider.
+      if (booking.conversation_id) {
+        await client.query(
+          'UPDATE conversations SET helper_id = $2, updated_at = NOW() WHERE id = $1',
+          [booking.conversation_id, newHelperId]
+        );
+      }
+      await emitDomainEvent(client, 'booking.transferred', serviceEventProps(updated.rows[0]), {
+        userId: actorId,
+        req,
+      });
+      return updated;
+    }, 'booking_provider_transfer_growth');
+
+    const updated = updatedResult.rows[0];
+    if (!updated) {
+      return sendError(res, 400, 'Booking cannot be transferred', 'booking_not_transferable');
+    }
+
+    await logBookingAudit(bookingId, 'provider_transfer', actorId, 'helper', 'accepted', 'accepted');
+    // The customer learns the provider changed; the new provider gets the
+    // booking in their inbox. The deposit is untouched by the transfer.
+    try {
+      await sendNotification({
+        userId: booking.customer_id,
+        type: 'booking_transferred',
+        body: `${booking.service_name}, ${booking.requested_date}${reason ? ` (${reason})` : ''}`,
+        data: { bookingId: booking.id, previousHelperId, newHelperId },
+        action_url: '/my-bookings',
+      });
+    } catch (e) {
+      logger.warn('Failed to notify customer of booking transfer', { error: e.message });
+    }
+    await notifyHelperOfBooking(newHelperId, updated);
+    if (updated.conversation_id || updated.guest_session_id) {
+      try {
+        const chatCtrl = require('./chatBookingRequestsController');
+        if (typeof chatCtrl.postStatusToThreadForLifecycle === 'function') {
+          const actorName = [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || 'Provider';
+          await chatCtrl.postStatusToThreadForLifecycle({
+            booking: updated,
+            event: 'transferred',
+            actorId,
+            actorName,
+          });
+        }
+      } catch (e) {
+        logger.warn('Transfer chat status post skipped', { error: e.message });
+      }
+    }
+
+    logger.info('Booking transferred', { bookingId, actorId, previousHelperId, newHelperId });
+    res.json({
+      success: true,
+      data: transformBooking(updated),
+    });
+  } catch (err) {
+    logger.error('Error transferring booking', { error: err.message });
+    sendError(res, 500, 'Failed to transfer booking');
+  }
+};
+
+/**
  * Returns prefill payload for Post Job wizard (does not create a job row).
  */
 exports.convertBookingToJob = async (req, res) => {

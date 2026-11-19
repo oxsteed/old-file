@@ -20,6 +20,16 @@ export async function cancelBookingRequest(bookingId) {
   return data;
 }
 
+// G-37: hand an accepted booking to another eligible provider. The
+// booking, its deposit, and its appointment are preserved.
+export async function transferBookingRequest(bookingId, { newHelperId, reason } = {}) {
+  const { data } = await api.post(`/bookings/${bookingId}/transfer`, {
+    newHelperId,
+    ...(reason ? { reason } : {}),
+  });
+  return data?.data ?? data;
+}
+
 export async function fetchBookingPrefillForJob(bookingId) {
   const { data } = await api.post(`/bookings/${bookingId}/convert-to-job`);
   return data?.data ?? data;

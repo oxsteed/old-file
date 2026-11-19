@@ -18,8 +18,12 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
   const locale = i18n.resolvedLanguage || i18n.language;
   const { socket } = useSocket();
   const [bookingRequests, setBookingRequests] = useState([]);
+  const [acceptedBookings, setAcceptedBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [proposingBooking, setProposingBooking] = useState(null);
+  // G-37: transfer drafts for accepted bookings (new provider id + reason).
+  const [transferDrafts, setTransferDrafts] = useState({});
+  const [transferringId, setTransferringId] = useState(null);
   // Per-row acting state: while a confirm/decline POST is in flight the row's
   // buttons are disabled (double-click cannot double-fire a money-adjacent accept).
   const [acting, setActing] = useState(null); // { id, kind: 'confirm' | 'decline' } | null
@@ -29,8 +33,14 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
     setLoading(true);
     try {
       // Default server inbox = pending + counter_proposed
-      const response = await api.get('/bookings/incoming');
-      setBookingRequests(Array.isArray(response.data?.data) ? response.data.data : []);
+      const [incoming, accepted] = await Promise.all([
+        api.get('/bookings/incoming'),
+        // G-37: accepted bookings live here too, so the provider can hand
+        // one to another eligible provider instead of cancelling it.
+        api.get('/bookings/incoming', { params: { statuses: 'accepted' } }),
+      ]);
+      setBookingRequests(Array.isArray(incoming.data?.data) ? incoming.data.data : []);
+      setAcceptedBookings(Array.isArray(accepted.data?.data) ? accepted.data.data : []);
     } catch (err) {
       console.error('Error loading booking requests:', err);
       toast.error(t('calendar.errorLoadingBookings', { defaultValue: 'Failed to load booking requests' }));
@@ -97,6 +107,38 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
     }
   };
 
+  // G-37: hand an accepted booking to another eligible provider. The
+  // booking, its deposit, and its appointment are preserved; only the
+  // provider moves. The server validates the target and fails closed.
+  const handleTransferBooking = async (bookingId) => {
+    const draft = transferDrafts[bookingId] || {};
+    const newHelperId = String(draft.newHelperId || '').trim();
+    if (!newHelperId) {
+      toast.error(t('calendar.transferProviderRequired', { defaultValue: 'Enter the new provider’s user id.' }));
+      return;
+    }
+    if (transferringId) return;
+    setTransferringId(bookingId);
+    try {
+      await api.post(`/bookings/${bookingId}/transfer`, {
+        newHelperId,
+        reason: String(draft.reason || '').trim() || undefined,
+      });
+      toast.success(t('calendar.bookingTransferred', { defaultValue: 'Booking transferred.' }));
+      setTransferDrafts((current) => {
+        const next = { ...current };
+        delete next[bookingId];
+        return next;
+      });
+      loadBookingRequests();
+      onBookingConfirmed?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('calendar.errorTransferringBooking', { defaultValue: 'Failed to transfer booking' }));
+    } finally {
+      setTransferringId(null);
+    }
+  };
+
   const handleProposeSlot = async (slot) => {
     if (!proposingBooking?.id) return;
     const bookingId = proposingBooking.id;
@@ -137,7 +179,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
     );
   }
 
-  if (bookingRequests.length === 0) {
+  if (bookingRequests.length === 0 && acceptedBookings.length === 0) {
     return (
       <div className="booking-requests-empty">
         <div className="empty-icon">📅</div>
@@ -152,6 +194,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
   }
 
   const displayRequests = compact ? bookingRequests.slice(0, 8) : bookingRequests;
+  const displayAccepted = compact ? acceptedBookings.slice(0, 8) : acceptedBookings;
 
   return (
     <div className={`booking-requests-section${compact ? ' compact' : ''}`}>
@@ -182,6 +225,42 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
           />
         ))}
       </div>
+
+      {displayAccepted.length > 0 ? (
+        <>
+          <div className="booking-requests-header">
+            <div>
+              <h2>{t('calendar.acceptedBookings', { defaultValue: 'Accepted Bookings' })}</h2>
+              <p className="booking-requests-subtitle">
+                {t('calendar.acceptedBookingsSub', {
+                  defaultValue: 'Hand an accepted booking to another provider instead of cancelling it.',
+                })}
+              </p>
+            </div>
+            <div className="booking-count">{acceptedBookings.length}</div>
+          </div>
+          <div className="booking-requests-list">
+            {displayAccepted.map((booking) => (
+              <CalendarBookingRequestCard
+                key={booking.id}
+                booking={booking}
+                acting={null}
+                onTransfer={() => handleTransferBooking(booking.id)}
+                transferDraft={transferDrafts[booking.id] || {}}
+                onTransferDraftChange={(patch) =>
+                  setTransferDrafts((current) => ({
+                    ...current,
+                    [booking.id]: { ...(current[booking.id] || {}), ...patch },
+                  }))
+                }
+                transferring={transferringId === booking.id}
+                t={t}
+                locale={locale}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
 
       {proposingBooking ? (
         <div className="booking-propose-picker-wrap">
@@ -216,7 +295,7 @@ function statusClass(status) {
   return 'pending';
 }
 
-function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onPropose, t, locale }) {
+function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onPropose, onTransfer, transferDraft, onTransferDraftChange, transferring, t, locale }) {
   const _rawDate = booking.requestedDate || booking.requested_date;
   const requestedDate = _rawDate ? String(_rawDate).split('T')[0] : null;
   const startTime = booking.requestedStartTime || booking.requested_start_time || booking.start_time;
@@ -329,7 +408,40 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
         )}
       </div>
 
-      {canRespond && (
+      {onTransfer ? (
+        <div className="booking-actions booking-transfer-actions">
+          <input
+            type="text"
+            value={transferDraft?.newHelperId || ''}
+            onChange={(e) => onTransferDraftChange?.({ newHelperId: e.target.value })}
+            placeholder={t('calendar.transferProviderPlaceholder', { defaultValue: 'New provider user id' })}
+            aria-label={t('calendar.transferProviderPlaceholder', { defaultValue: 'New provider user id' })}
+            disabled={!!transferring}
+          />
+          <input
+            type="text"
+            value={transferDraft?.reason || ''}
+            onChange={(e) => onTransferDraftChange?.({ reason: e.target.value })}
+            placeholder={t('calendar.transferReasonPlaceholder', { defaultValue: 'Reason (optional)' })}
+            aria-label={t('calendar.transferReasonPlaceholder', { defaultValue: 'Reason (optional)' })}
+            disabled={!!transferring}
+          />
+          <button
+            type="button"
+            className="btn-confirm"
+            onClick={onTransfer}
+            disabled={!!transferring || !(transferDraft?.newHelperId || '').trim()}
+            title={t('calendar.transferBooking', { defaultValue: 'Transfer this booking to another provider' })}
+          >
+            {transferring
+              ? t('calendar.transferringBooking', { defaultValue: 'Transferring...' })
+              : t('calendar.transfer', { defaultValue: 'Transfer' })}
+          </button>
+          <p className="booking-transfer-hint">
+            {t('calendar.transferHint', { defaultValue: 'The booking, its deposit, and its appointment stay in place; only the provider changes.' })}
+          </p>
+        </div>
+      ) : canRespond ? (
         <div className="booking-actions">
           <button
             type="button"
@@ -368,7 +480,7 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
             </button>
           ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

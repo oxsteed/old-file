@@ -583,6 +583,16 @@ async function confirmOrCreateHelperAppointment(booking, helperId, { source = 'b
   const duration = Math.max(15, Math.min(480, Math.round((slot.endDate - slot.startDate) / 60000) || 60));
   const customerId = booking.customer_id || '00000000-0000-4000-8000-000000000001';
 
+  // G-37 follow-on: the accept callers pass a provenance label
+  // ('calendar_accept', 'booking_accept', 'booking_customer_accept') as
+  // the appointment source, but chk_appointments_source (migration 167)
+  // only allows 'user' | 'ai_chat' | 'job', so every accept rolled the
+  // transaction back. The appointment is user-initiated; the accept
+  // provenance itself is already recorded in the booking audit log and
+  // the booking.confirmed domain event, so map unknown labels to 'user'
+  // instead of failing the accept.
+  const sourceValue = ['user', 'ai_chat', 'job'].includes(source) ? source : 'user';
+
   const { rows } = await db.query(
     `INSERT INTO appointments (
        customer_id, helper_id, job_id, service_description,
@@ -608,7 +618,7 @@ async function confirmOrCreateHelperAppointment(booking, helperId, { source = 'b
         .filter(Boolean)
         .join(' | '),
       helperId,
-      source,
+      sourceValue,
     ],
   );
   const appt = rows[0];

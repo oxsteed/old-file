@@ -42,6 +42,7 @@ const NOTIFICATION_TYPES = [
   { type: 'booking_counter_proposed', group: 'work' },
   { type: 'booking_declined', group: 'work' },
   { type: 'booking_expired', group: 'work' },
+  { type: 'booking_transferred', group: 'work' },
   { type: 'booking_request_new', group: 'work' },
   { type: 'consulting_session_scheduled', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
