@@ -23291,7 +23291,8 @@
           "versionConflict": "Cet élément a changé depuis son chargement. Il a été rechargé ; examinez la dernière version et réessayez.",
           "proceedsBlocked": "Les fonds ne peuvent pas encore être libérés. L'opportunité doit d'abord être clôturée avec des conditions de clôture approuvées.",
           "noAgreement": "Cette opportunité ne peut pas être approuvée sans une version de l'accord.",
-          "transitionInvalid": "Cet élément ne peut pas passer à cet état depuis sa position actuelle."
+          "transitionInvalid": "Cet élément ne peut pas passer à cet état depuis sa position actuelle.",
+          "reconfirmationPending": "Certains investisseurs n'ont pas encore reconfirmé cet amendement. Attendez la reconfirmation, ou que le délai de reconfirmation soit écoulé, avant de le rendre effectif."
         },
         "actions": {
           "approve": "Approuver",
@@ -23350,7 +23351,8 @@
           "approveReview": "Approuver l'étape de révision",
           "approveExecution": "Approuver l'étape d'exécution",
           "close": "Clôturer l'opportunité",
-          "separateApprovers": "La révision et l'exécution nécessitent des approbateurs différents, et aucun ne peut être le représentant de l'entité. Seul l'approbateur d'exécution approuvé peut exécuter la clôture."
+          "separateApprovers": "La révision et l'exécution nécessitent des approbateurs différents, et aucun ne peut être le représentant de l'entité. Seul l'approbateur d'exécution approuvé peut exécuter la clôture.",
+          "currentVersionOnly": "La clôture ne capture que les engagements sur la version actuelle de l'accord. Les engagements sur une version antérieure restent réservés et doivent être annulés séparément."
         },
         "proceeds": {
           "title": "Fonds et distributions",
@@ -23361,6 +23363,7 @@
           "changes": "Modifications proposées",
           "reconfirmationTitle": "Reconfirmation des investisseurs",
           "reconfirmation": "{{reconfirmed}} investisseurs sur {{total}} ont reconfirmé, {{pending}} en attente.",
+          "reconfirmationPendingUsers": "En attente de reconfirmation (identifiants des investisseurs) :",
           "reconfirmationNone": "Cet amendement ne comporte pas de nouvelle version de l'accord, il n'y a donc rien à reconfirmer.",
           "deadline": "Date limite de reconfirmation : {{date}}",
           "note": "Note de révision",

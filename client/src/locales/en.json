@@ -23291,7 +23291,8 @@
           "versionConflict": "This item changed since it was loaded. It has been reloaded; review the latest version and try again.",
           "proceedsBlocked": "Proceeds cannot release yet. The opportunity must be closed with approved closing conditions first.",
           "noAgreement": "This opportunity cannot be approved without an agreement version.",
-          "transitionInvalid": "This item cannot move to that state from where it is now."
+          "transitionInvalid": "This item cannot move to that state from where it is now.",
+          "reconfirmationPending": "Some investors have not reconfirmed this amendment yet. Wait for reconfirmation, or for the reconfirmation deadline to pass, before making it effective."
         },
         "actions": {
           "approve": "Approve",
@@ -23350,7 +23351,8 @@
           "approveReview": "Approve review stage",
           "approveExecution": "Approve execution stage",
           "close": "Close opportunity",
-          "separateApprovers": "Review and execution need different approvers, and neither can be the entity representative. Only the approved execution approver can execute the close."
+          "separateApprovers": "Review and execution need different approvers, and neither can be the entity representative. Only the approved execution approver can execute the close.",
+          "currentVersionOnly": "Closing captures only commitments on the current agreement version. Commitments on an older version stay reserved and must be cancelled separately."
         },
         "proceeds": {
           "title": "Proceeds and distributions",
@@ -23361,6 +23363,7 @@
           "changes": "Proposed changes",
           "reconfirmationTitle": "Investor reconfirmation",
           "reconfirmation": "{{reconfirmed}} of {{total}} investors reconfirmed, {{pending}} still to reconfirm.",
+          "reconfirmationPendingUsers": "Awaiting reconfirmation (investor user ids):",
           "reconfirmationNone": "This amendment carries no new agreement version, so there is nothing to reconfirm.",
           "deadline": "Reconfirmation deadline: {{date}}",
           "note": "Review note",

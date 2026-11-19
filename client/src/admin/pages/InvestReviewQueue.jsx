@@ -56,6 +56,7 @@ function errorKey(code) {
   if (code === 'invest_opportunity_transition_invalid') return 'invest.review.errors.transitionInvalid';
   if (code === 'invest_fail_close_status_invalid') return 'invest.review.errors.transitionInvalid';
   if (code === 'invest_amendment_review_invalid') return 'invest.review.errors.transitionInvalid';
+  if (code === 'invest_amendment_reconfirmation_pending') return 'invest.review.errors.reconfirmationPending';
   return null;
 }
 
@@ -222,6 +223,16 @@ function AmendmentDetail({ t, item, onDecided }) {
         ) : (
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{t('invest.review.amendments.reconfirmationNone')}</p>
         )}
+        {reconfirmation?.pendingUserIds?.length > 0 ? (
+          <div className="mt-2">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('invest.review.amendments.reconfirmationPendingUsers')}</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-gray-600 dark:text-gray-300">
+              {reconfirmation.pendingUserIds.map((userId) => (
+                <li key={userId} className="break-all">{userId}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {item.reconfirmationDeadlineAt ? (
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
             {t('invest.review.amendments.deadline', { date: formatDate(item.reconfirmationDeadlineAt) || '' })}
@@ -414,6 +425,7 @@ function OpportunityDetail({ t, item, detail, gateOn, onDecided }) {
             ) : null}
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">{t('invest.review.closing.separateApprovers')}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{t('invest.review.closing.currentVersionOnly')}</p>
         </section>
       ) : null}
 

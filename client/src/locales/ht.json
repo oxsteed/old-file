@@ -23291,7 +23291,8 @@
           "versionConflict": "Eleman sa a chanje depi li te chaje. Li rechaje; revize dènye vèsyon an epi eseye ankò.",
           "proceedsBlocked": "Lajan an poko ka lage. Opòtinite a dwe fèmen ak kondisyon fèmti yo apwouve anvan.",
           "noAgreement": "Opòtinite sa a pa ka apwouve san yon vèsyon akò.",
-          "transitionInvalid": "Eleman sa a pa ka pase nan eta sa a depi kote li ye kounye a."
+          "transitionInvalid": "Eleman sa a pa ka pase nan eta sa a depi kote li ye kounye a.",
+          "reconfirmationPending": "Gen kèk envestisè ki poko rekonfime amannman sa a. Tann rekonfimasyon an, oswa dat limit rekonfimasyon an pase, anvan ou fè li vin efektif."
         },
         "actions": {
           "approve": "Apwouve",
@@ -23350,7 +23351,8 @@
           "approveReview": "Apwouve etap revizyon an",
           "approveExecution": "Apwouve etap egzekisyon an",
           "close": "Fèmen opòtinite a",
-          "separateApprovers": "Revizyon ak egzekisyon bezwen apwobatè diferan, epi okenn pa ka reprezantan antite a. Se sèlman apwobatè egzekisyon apwouve a ki ka egzekite fèmti a."
+          "separateApprovers": "Revizyon ak egzekisyon bezwen apwobatè diferan, epi okenn pa ka reprezantan antite a. Se sèlman apwobatè egzekisyon apwouve a ki ka egzekite fèmti a.",
+          "currentVersionOnly": "Fèmti a pran sèlman angajman ki sou vèsyon akò aktyèl la. Angajman ki sou yon ansyen vèsyon rete rezève epi yo dwe anile apa."
         },
         "proceeds": {
           "title": "Lajan ak distribisyon",
@@ -23361,6 +23363,7 @@
           "changes": "Chanjman yo pwopoze",
           "reconfirmationTitle": "Rekonfimasyon envestisè yo",
           "reconfirmation": "{{reconfirmed}} sou {{total}} envestisè te rekonfime, {{pending}} poko rekonfime.",
+          "reconfirmationPendingUsers": "An atant rekonfimasyon (id itilizatè envestisè yo):",
           "reconfirmationNone": "Amandman sa a pa gen nouvo vèsyon akò, kidonk pa gen anyen pou rekonfime.",
           "deadline": "Dat limit rekonfimasyon: {{date}}",
           "note": "Nòt revizyon",

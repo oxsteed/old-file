@@ -23291,7 +23291,8 @@
           "versionConflict": "Este elemento cambió desde que se cargó. Se ha recargado; revise la versión más reciente e inténtelo de nuevo.",
           "proceedsBlocked": "Los fondos aún no pueden liberarse. La oportunidad debe estar cerrada con las condiciones de cierre aprobadas primero.",
           "noAgreement": "Esta oportunidad no puede aprobarse sin una versión del acuerdo.",
-          "transitionInvalid": "Este elemento no puede pasar a ese estado desde donde está ahora."
+          "transitionInvalid": "Este elemento no puede pasar a ese estado desde donde está ahora.",
+          "reconfirmationPending": "Algunos inversores aún no han reconfirmado esta enmienda. Espere la reconfirmación o a que pase el plazo de reconfirmación antes de hacerla efectiva."
         },
         "actions": {
           "approve": "Aprobar",
@@ -23350,7 +23351,8 @@
           "approveReview": "Aprobar etapa de revisión",
           "approveExecution": "Aprobar etapa de ejecución",
           "close": "Cerrar oportunidad",
-          "separateApprovers": "La revisión y la ejecución necesitan aprobadores distintos, y ninguno puede ser el representante de la entidad. Solo el aprobador de ejecución aprobado puede ejecutar el cierre."
+          "separateApprovers": "La revisión y la ejecución necesitan aprobadores distintos, y ninguno puede ser el representante de la entidad. Solo el aprobador de ejecución aprobado puede ejecutar el cierre.",
+          "currentVersionOnly": "El cierre solo captura los compromisos de la versión actual del acuerdo. Los compromisos de una versión anterior quedan reservados y deben cancelarse por separado."
         },
         "proceeds": {
           "title": "Fondos y distribuciones",
@@ -23361,6 +23363,7 @@
           "changes": "Cambios propuestos",
           "reconfirmationTitle": "Reconfirmación del inversor",
           "reconfirmation": "{{reconfirmed}} de {{total}} inversores reconfirmaron, {{pending}} aún pendientes.",
+          "reconfirmationPendingUsers": "Pendientes de reconfirmación (identificadores de usuario del inversor):",
           "reconfirmationNone": "Esta enmienda no incluye una nueva versión del acuerdo, así que no hay nada que reconfirmar.",
           "deadline": "Fecha límite de reconfirmación: {{date}}",
           "note": "Nota de revisión",

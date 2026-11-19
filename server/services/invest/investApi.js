@@ -1128,6 +1128,27 @@ async function reviewAmendment(input, dbPool = pool) {
     if (['closed', 'cancelled', 'withdrawn', 'unsuccessful'].includes(amendment.opportunity_status)) {
       fail('A finished opportunity amendment cannot be decided', 'invest_amendment_opportunity_finished', 409);
     }
+    // Fail closed: an amendment that carries a new agreement version
+    // cannot become effective while investors with a live stake have
+    // not reconfirmed against it. The reconfirmation deadline is the
+    // deadlock escape: once it has passed, the reviewer may make the
+    // amendment effective anyway (the unreconfirmed commitments are
+    // then excluded at closing, never captured on the old version).
+    // Rejection is never blocked: it needs no reconfirmation.
+    if (decision === 'effective' && amendment.new_agreement_version_id) {
+      const state = await amendmentReconfirmationState(client, amendment);
+      const deadline = amendment.reconfirmation_deadline_at
+        ? new Date(amendment.reconfirmation_deadline_at)
+        : null;
+      const deadlinePassed = Boolean(deadline) && deadline < new Date();
+      if (state && state.pending > 0 && !deadlinePassed) {
+        fail(
+          `Amendment cannot become effective: ${state.pending} investor(s) have not reconfirmed the new agreement version`,
+          'invest_amendment_reconfirmation_pending',
+          409,
+        );
+      }
+    }
     let appliedFields = [];
     if (decision === 'effective') {
       const changes = amendment.changes || {};
@@ -1196,10 +1217,16 @@ async function amendmentReconfirmationState(client, amendment) {
     byUser.set(userId, (byUser.get(userId) || false) || reconfirmed);
   }
   const reconfirmed = [...byUser.values()].filter(Boolean).length;
+  // The reviewer must see exactly WHO has not reconfirmed, not just a
+  // count: the queue is admin-only, so user ids are safe to expose here.
+  const pendingUserIds = [...byUser.entries()]
+    .filter(([, isReconfirmed]) => !isReconfirmed)
+    .map(([userId]) => userId);
   return {
     total: byUser.size,
     reconfirmed,
     pending: byUser.size - reconfirmed,
+    pendingUserIds,
   };
 }
 

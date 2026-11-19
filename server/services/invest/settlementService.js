@@ -669,11 +669,28 @@ async function closeOpportunity(input, dbPool = pool) {
       fail('Only the approved execution approver may execute the close', 'invest_close_executor_mismatch', 403);
     }
 
-    const { rows: commitmentRows } = await client.query(
+    // Fail closed: only commitments on the opportunity's CURRENT
+    // agreement version are captured. A commitment still on an older
+    // version (its investor never reconfirmed after an amendment went
+    // effective) is excluded from the close entirely: it does not
+    // count toward the target, its wallet is not debited, and no
+    // position is created for it. It stays 'reserved' so an admin can
+    // cancel/release it through the existing cancel path; the excluded
+    // ids and total are returned so the caller can act on them.
+    // A NULL current version (no versioning in play) matches NULL
+    // commitment versions, so unversioned raises close as before.
+    const { rows: reservedRows } = await client.query(
       `SELECT * FROM investment_commitments
         WHERE opportunity_id = $1 AND status = 'reserved'
         ORDER BY created_at ASC FOR UPDATE`,
       [opportunityId],
+    );
+    const currentVersionId = String(opportunity.current_agreement_version_id);
+    const commitmentRows = reservedRows.filter(
+      (row) => String(row.agreement_version_id) === currentVersionId,
+    );
+    const excludedCommitments = reservedRows.filter(
+      (row) => String(row.agreement_version_id) !== currentVersionId,
     );
     const reservedTotal = commitmentRows.reduce((sum, row) => sum + Number(row.amount_cents || 0), 0);
     // The deadline is enforced on its own, before the target check: a
@@ -684,7 +701,16 @@ async function closeOpportunity(input, dbPool = pool) {
       fail('Closing deadline has passed', 'invest_close_deadline_passed', 409);
     }
     if (reservedTotal < Number(opportunity.target_cents)) {
-      fail('Closing target has not been reached', 'invest_close_target_unmet', 409);
+      // Name the excluded amount: when this fails because stale-version
+      // commitments were left out, the admin needs to know the shortfall
+      // is stale money, not missing money, and that cancelling those
+      // commitments frees the overfill headroom for new money.
+      const excludedCents = excludedCommitments.reduce((sum, row) => sum + Number(row.amount_cents || 0), 0);
+      fail(
+        `Closing target has not been reached (${reservedTotal} captured on the current agreement version, ${excludedCents} excluded on older versions)`,
+        'invest_close_target_unmet',
+        409,
+      );
     }
 
     const treasury = await ensureAccount(client, {
@@ -852,6 +878,8 @@ async function closeOpportunity(input, dbPool = pool) {
       completedTotalCents: completedTotal,
       positions,
       proceedsId: String(proceedsRows[0].id),
+      excludedCommitmentIds: excludedCommitments.map((row) => String(row.id)),
+      excludedCents: excludedCommitments.reduce((sum, row) => sum + Number(row.amount_cents || 0), 0),
     };
   }, 'invest_close_opportunity');
 }
