@@ -2326,6 +2326,7 @@
     "exploreInvestments": "Explorar inversiones",
     "requestInvestorAccess": "Solicitar acceso como inversionista",
     "myInvestments": "Mis inversiones",
+    "investments": "Inversiones",
     "workspace": "Espacio de trabajo",
     "businessWorkspace": "Espacio del negocio",
     "foodOrders": "Pedidos de comida",
@@ -22751,6 +22752,15 @@
     }
   },
   "invest": {
+    "workspace": {
+      "title": "Inversiones",
+      "intro": "Un espacio para informes verificados, oportunidades elegibles y tus contribuciones y estados de cuenta.",
+      "reports": { "title": "Informes", "description": "Consulta el rendimiento verificado de las entidades, sus actualizaciones y los informes que estás autorizado a ver." },
+      "opportunities": { "title": "Oportunidades de inversión", "description": "Explora oportunidades publicadas por entidades elegibles y revisa sus condiciones antes de solicitar participar." },
+      "contributions": { "title": "Contribuciones y estados de cuenta", "description": "Consulta tus contribuciones en OxSteed Credit, asignaciones, acuerdos, estados de cuenta y actividad inmutable." },
+      "actions": { "open": "Abrir", "setup": "Completar configuración" },
+      "status": { "available": "Disponible", "readOnly": "Solo lectura", "setup": "Configuración requerida" }
+    },
       "entity": {
         "raise": {
           "title": "Recaudar capital",

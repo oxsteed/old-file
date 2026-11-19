@@ -2326,6 +2326,7 @@
     "exploreInvestments": "Explore investments",
     "requestInvestorAccess": "Request investor access",
     "myInvestments": "My investments",
+    "investments": "Investments",
     "workspace": "Workspace",
     "businessWorkspace": "Business Workspace",
     "foodOrders": "Food Orders",
@@ -22751,6 +22752,15 @@
     }
   },
   "invest": {
+    "workspace": {
+      "title": "Investments",
+      "intro": "One workspace for verified reports, eligible opportunities, and your contributions and statements.",
+      "reports": { "title": "Reports", "description": "Review verified entity performance, updates, and reporting records for the relationships you are authorized to view." },
+      "opportunities": { "title": "Investment opportunities", "description": "Explore published opportunities from eligible entities. Review the terms and eligibility before requesting participation." },
+      "contributions": { "title": "Contributions and statements", "description": "Review your OxSteed Credit contributions, allocations, agreements, statements, and immutable activity history." },
+      "actions": { "open": "Open", "setup": "Complete setup" },
+      "status": { "available": "Available", "readOnly": "Read-only", "setup": "Setup required" }
+    },
       "entity": {
         "raise": {
           "title": "Raise capital",

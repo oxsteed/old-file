@@ -40,7 +40,7 @@ const PERSONA_NAV_TARGETS = Object.freeze({
   consultant: [{ id: 'persona-consulting', to: '/consulting/contractor-dashboard', labelKey: 'consultantContractorDashboard.page.title' }],
   'equipment-owner': [{ id: 'persona-equipment', to: '/tool-rentals/analytics', labelKey: 'progressiveAccess.capabilities.tool_owner.list_equipment' }],
   franchise: [{ id: 'persona-franchise', to: '/franchise/territory', labelKey: 'progressiveAccess.capabilities.franchise.operate' }],
-  'investor-reporting': [{ id: 'persona-investor-reporting', to: '/investor/dashboard', labelKey: 'progressiveAccess.capabilities.investor.reporting', reportingOnly: true }],
+  'investor-reporting': [{ id: 'persona-investments', to: '/investments', labelKey: 'nav.investments' }],
   'credit-participant': [{ id: 'persona-credit', to: '/oxsteed-credit', labelKey: 'nav.credit' }],
   'partner-affiliate': [{ id: 'persona-partner', to: '/affiliate', labelKey: 'nav.partner' }],
   'workforce-learning': [{ id: 'persona-learning', to: '/learn', labelKey: 'nav.learning' }],
@@ -77,7 +77,7 @@ function addUnique(target, item) {
 function addPersonaLinks(target, projection, approved) {
   for (const family of PERSONA_NAVIGATION_CATALOG) {
     if (!family.capability || !approved(family.capability)) continue;
-    if (family.id === 'investor-reporting' && !projection.investorAudience) continue;
+    if (family.id === 'investor-reporting' && !projection?.access?.investorAudience) continue;
     for (const item of PERSONA_NAV_TARGETS[family.id] || []) {
       addUnique(target, link(item.id, item.to, item.labelKey, {
         protected: true,
@@ -148,8 +148,8 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
     addUnique(account, link('logisticsBuyer', '/logistics/buyer', 'logistics.nav.buyer', { protected: true }));
     addUnique(account, link('logisticsOrganizer', '/logistics/organizer', 'logistics.nav.organizer', { protected: true }));
   }
-  if (approved('investor.reporting') && projection.investorAudience) {
-    addUnique(account, link('investorReporting', '/investor/dashboard', 'progressiveAccess.capabilities.investor.reporting', { protected: true, reportingOnly: true }));
+  if (approved('investor.reporting') && access.investorAudience) {
+    addUnique(account, link('investments', '/investments', 'nav.investments', { protected: true }));
   }
   if (hasCapability(projection, 'business.own') && !activationReady(projection, 'business.own')) {
     addUnique(account, link('businessSetup', '/business-launch/status', 'nav.businessLaunchStatus'));

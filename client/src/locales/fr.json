@@ -2326,6 +2326,7 @@
     "exploreInvestments": "Explorer les investissements",
     "requestInvestorAccess": "Demander l'accès investisseur",
     "myInvestments": "Mes investissements",
+    "investments": "Investissements",
     "workspace": "Espace de travail",
     "businessWorkspace": "Espace professionnel",
     "foodOrders": "Commandes de repas",
@@ -22751,6 +22752,15 @@
     }
   },
   "invest": {
+    "workspace": {
+      "title": "Investissements",
+      "intro": "Un espace pour les rapports vérifiés, les opportunités éligibles et vos contributions et relevés.",
+      "reports": { "title": "Rapports", "description": "Consultez les performances vérifiées des entités, leurs mises à jour et les rapports auxquels vous êtes autorisé à accéder." },
+      "opportunities": { "title": "Opportunités d’investissement", "description": "Explorez les opportunités publiées par des entités éligibles et examinez les conditions avant de demander à participer." },
+      "contributions": { "title": "Contributions et relevés", "description": "Consultez vos contributions OxSteed Credit, vos allocations, vos accords, vos relevés et votre historique immuable." },
+      "actions": { "open": "Ouvrir", "setup": "Terminer la configuration" },
+      "status": { "available": "Disponible", "readOnly": "Lecture seule", "setup": "Configuration requise" }
+    },
       "entity": {
         "raise": {
           "title": "Lever des capitaux",

@@ -36,9 +36,48 @@ export function investAccessFromProjection(projection) {
 export function investNavLinks(projection) {
   if (!investAccessFromProjection(projection).investEnabled) return [];
   return [
-    { id: 'exploreInvestments', to: '/invest', labelKey: 'nav.exploreInvestments', primary: false },
-    { id: 'requestInvestorAccess', to: '/invest/apply', labelKey: 'nav.requestInvestorAccess', primary: false },
-    { id: 'myInvestments', to: '/invest/my-investments', labelKey: 'nav.myInvestments', primary: false },
+    { id: 'investments', to: '/investments', labelKey: 'nav.investments', primary: false },
+  ];
+}
+
+/**
+ * The user-facing Investor persona is one workspace, but its three surfaces
+ * retain independent access states. This is a display model only: every
+ * destination continues to enforce its own server-side policy.
+ */
+export function investorWorkspaceSections(projection) {
+  const access = projection?.access || {};
+  const invest = investAccessFromProjection(projection);
+  const personal = Array.isArray(access.personal) ? access.personal : [];
+  const hasReporting = personal.includes('investor.reporting') && Boolean(access.investorAudience);
+  const canParticipate = personal.includes('investor.participate');
+
+  return [
+    {
+      id: 'reports',
+      titleKey: 'invest.workspace.reports.title',
+      descriptionKey: 'invest.workspace.reports.description',
+      to: hasReporting ? '/investor/dashboard' : '/settings/applications',
+      available: hasReporting,
+      setupRequired: !hasReporting,
+    },
+    {
+      id: 'opportunities',
+      titleKey: 'invest.workspace.opportunities.title',
+      descriptionKey: 'invest.workspace.opportunities.description',
+      to: invest.investEnabled ? '/invest' : '/dashboard',
+      available: invest.investEnabled,
+      setupRequired: false,
+    },
+    {
+      id: 'contributions',
+      titleKey: 'invest.workspace.contributions.title',
+      descriptionKey: 'invest.workspace.contributions.description',
+      to: canParticipate ? '/invest/my-investments' : '/invest/apply',
+      available: canParticipate,
+      setupRequired: !canParticipate,
+      readOnly: canParticipate && !invest.investCommitmentsEnabled,
+    },
   ];
 }
 

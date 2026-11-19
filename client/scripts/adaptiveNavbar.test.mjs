@@ -81,7 +81,7 @@ test('investor reporting is read-only and never exposes investment participation
     ...projection(['customer', 'investor.reporting']),
     investorAudience: { audienceKey: 'entity', datasets: ['kpis'] },
   });
-  assert.ok(destinations(nav).includes('/investor/dashboard'));
+  assert.ok(destinations(nav).includes('/investments'));
   assert.ok(!destinations(nav).some((path) => /commit|participat/i.test(path)));
 });
 

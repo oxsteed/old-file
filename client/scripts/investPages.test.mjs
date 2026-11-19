@@ -6,6 +6,7 @@ const root = new URL('../', import.meta.url);
 const read = (rel) => readFile(new URL(rel, root), 'utf8');
 
 const PAGES = [
+  'src/pages/InvestmentsWorkspacePage.jsx',
   'src/pages/invest/InvestDirectoryPage.jsx',
   'src/pages/invest/InvestOpportunityPage.jsx',
   'src/pages/invest/InvestApplicationPage.jsx',
@@ -19,11 +20,14 @@ const PAGES = [
 
 test('invest routes are registered in App.jsx', async () => {
   const app = await read('src/App.jsx');
-  for (const route of ['/invest"', '/invest/opportunities/:id"', '/invest/opportunities/:id/commit"', '/invest/apply"', '/invest/my-investments"']) {
+  for (const route of ['/investments"', '/invest"', '/invest/opportunities/:id"', '/invest/opportunities/:id/commit"', '/invest/apply"', '/invest/my-investments"']) {
     assert.match(app, new RegExp(`path="${route.replace(/"/g, '')}"`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), route);
   }
-  for (const page of ['InvestDirectoryPage', 'InvestOpportunityPage', 'InvestApplicationPage', 'InvestCommitPage', 'InvestMyInvestmentsPage']) {
-    assert.match(app, new RegExp(`import\\('./pages/invest/${page}'\\)`), page);
+  for (const page of ['InvestmentsWorkspacePage', 'InvestDirectoryPage', 'InvestOpportunityPage', 'InvestApplicationPage', 'InvestCommitPage', 'InvestMyInvestmentsPage']) {
+    const importPattern = page === 'InvestmentsWorkspacePage'
+      ? `import\\('./pages/${page}'\\)`
+      : `import\\('./pages/invest/${page}'\\)`;
+    assert.match(app, new RegExp(importPattern), page);
   }
 });
 

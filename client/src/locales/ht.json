@@ -2326,6 +2326,7 @@
     "exploreInvestments": "Eksplore envestisman yo",
     "requestInvestorAccess": "Mande aksè envestisè",
     "myInvestments": "Envestisman mwen yo",
+    "investments": "Envestisman",
     "workspace": "Espas travay",
     "businessWorkspace": "Espas biznis",
     "foodOrders": "Kòmann manje",
@@ -22751,6 +22752,15 @@
     }
   },
   "invest": {
+    "workspace": {
+      "title": "Envestisman",
+      "intro": "Yon sèl espas pou rapò verifye, opòtinite ki kalifye, ak kontribisyon ak relevè ou yo.",
+      "reports": { "title": "Rapò", "description": "Revize pèfòmans antite yo verifye, mizajou yo, ak rapò ou gen otorizasyon pou wè." },
+      "opportunities": { "title": "Opòtinite envestisman", "description": "Eksplore opòtinite antite ki kalifye pibliye epi revize kondisyon yo anvan ou mande pou patisipe." },
+      "contributions": { "title": "Kontribisyon ak relevè", "description": "Revize kontribisyon OxSteed Credit ou yo, alokasyon, akò, relevè, ak istwa aktivite ki pa ka chanje." },
+      "actions": { "open": "Louvri", "setup": "Fini konfigirasyon" },
+      "status": { "available": "Disponib", "readOnly": "Lekti sèlman", "setup": "Konfigirasyon nesesè" }
+    },
       "entity": {
         "raise": {
           "title": "Ranmase kapital",

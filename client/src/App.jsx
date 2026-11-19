@@ -263,6 +263,7 @@ const ProfessionalIntakeRequestPage = lazyWithRetry(() => import('./pages/Profes
 const ContinuityIntakeRequestPage = lazyWithRetry(() => import('./pages/ContinuityIntakeRequestPage'));
 const TranslatorWorkspacePage = lazyWithRetry(() => import('./pages/TranslatorWorkspacePage'));
 const InvestorDashboardPage = lazyWithRetry(() => import('./pages/InvestorDashboardPage'));
+const InvestmentsWorkspacePage = lazyWithRetry(() => import('./pages/InvestmentsWorkspacePage'));
 // OxSteed Invest (investor-facing participation surfaces; NOT the platform
 // reporting dashboard above). Routes are authenticated; invest access is
 // rendered from the access projection, never from a role or mode.
@@ -692,6 +693,7 @@ export default function App() {
 
                     {/* Critical routes: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/dashboard"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/investments" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestmentsWorkspacePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/investor/dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvestorDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* OxSteed Invest: investor-facing participation. Distinct from
                         /investor/* reporting routes; applying never blocks
