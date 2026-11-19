@@ -115,6 +115,91 @@ describe('discover search routes', () => {
     expect(res.body.results[0].matchReasons).toContain('skill');
   });
 
+  test('Group 1, item 2: search results carry the coordinates the map pins need', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 12,
+          first_name: 'Sam',
+          last_name: 'Rivera',
+          display_name_preference: 'first_name',
+          primary_business_name: null,
+          subtitle: 'Licensed plumber for urgent repairs',
+          image_url: null,
+          service_city: 'Austin',
+          service_state: 'TX',
+          lat: 30.2672,
+          lng: -97.7431,
+          avg_rating: '4.8',
+          total_reviews: '17',
+          is_identity_verified: true,
+          is_background_checked: true,
+          is_available_now: true,
+          freshness_ts: new Date().toISOString(),
+          matched_name: true,
+          matched_skill: true,
+          matched_profile: false,
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 7,
+          title: 'Fix leaky tap',
+          category: 'Plumbing',
+          location_city: 'Austin',
+          location_state: 'TX',
+          lat: 30.27,
+          lng: -97.74,
+          freshness_ts: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 2 });
+
+    const res = await request(buildApp())
+      .get('/api/discover')
+      .query({ q: 'plumber', limit: 10 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.results).toHaveLength(2);
+    const helper = res.body.results.find((r) => r.type === 'helper');
+    const job = res.body.results.find((r) => r.type === 'job');
+    expect(helper.lat).toBe(30.2672);
+    expect(helper.lng).toBe(-97.7431);
+    expect(job.lat).toBe(30.27);
+    expect(job.lng).toBe(-97.74);
+  });
+
+  test('Group 1, item 2: popular listings carry coordinates too, nulls stay null', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 12,
+          first_name: 'Sam',
+          last_name: 'Rivera',
+          display_name_preference: 'first_name',
+          primary_business_name: null,
+          subtitle: 'Licensed plumber',
+          lat: 30.2672,
+          lng: -97.7431,
+          avg_rating: '4.8',
+          total_reviews: '17',
+          is_identity_verified: true,
+          is_background_checked: true,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp()).get('/api/discover/popular');
+    expect(res.status).toBe(200);
+    expect(res.body.results).toHaveLength(1);
+    expect(res.body.results[0].lat).toBe(30.2672);
+    expect(res.body.results[0].lng).toBe(-97.7431);
+  });
+
   test('public discovery applies the same owner and listing gates to businesses and tools', async () => {
     mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
 

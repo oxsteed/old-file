@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -6,6 +6,7 @@ import {
   Briefcase,
   Building2,
   Hammer,
+  Map,
   Package,
   Search,
   User,
@@ -17,6 +18,10 @@ import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import RecentlyViewedStrip from '../components/RecentlyViewedStrip';
+
+// Group 1, item 2: map search. Keep the MapLibre engine off the discovery
+// path until the customer opens the map, same as the food home page.
+const AwsLocationMap = lazy(() => import('../components/AwsLocationMap'));
 
 const RECENT_KEY = 'oxs:discoverRecent';
 const MAX_RECENT = 8;
@@ -119,6 +124,7 @@ export default function DiscoverPage() {
   const [popular, setPopular] = useState([]);
   const [popularLoading, setPopularLoading] = useState(false);
   const [recent, setRecent] = useState(() => readRecent());
+  const [showMap, setShowMap] = useState(false);
   const requestGeneration = useRef(0);
 
   const radius = Math.min(150, Math.max(5, parseInt(radiusParam || '60', 10) || 60));
@@ -148,6 +154,30 @@ export default function DiscoverPage() {
       return true;
     });
   }, [q, expandedTerms]);
+
+  // Group 1, item 2: map search. The rows on screen (search results while
+  // querying, popular listings otherwise) that carry coordinates become map
+  // pins; rows without coordinates stay list-only, never guessed onto the
+  // map. The pin links to the same destination as the list row.
+  const mapRows = q.trim() ? results : popular;
+  const mapPlaces = useMemo(
+    () => mapRows
+      .filter((r) => r.lat != null && r.lng != null)
+      .map((r) => ({ lat: r.lat, lng: r.lng, display_name: r.title, href: r.url })),
+    [mapRows],
+  );
+  const mapCenter = useMemo(() => {
+    const searchLat = Number(lat);
+    const searchLng = Number(lng);
+    if (Number.isFinite(searchLat) && Number.isFinite(searchLng)) return [searchLat, searchLng];
+    if (mapPlaces.length) return [mapPlaces[0].lat, mapPlaces[0].lng];
+    return undefined;
+  }, [lat, lng, mapPlaces]);
+  const hasSearchGeo = useMemo(() => {
+    const searchLat = Number(lat);
+    const searchLng = Number(lng);
+    return Number.isFinite(searchLat) && Number.isFinite(searchLng);
+  }, [lat, lng]);
 
   const loadPopular = useCallback(async () => {
     const generation = ++requestGeneration.current;
@@ -450,6 +480,35 @@ export default function DiscoverPage() {
 
         {loading && <p className="text-gray-400">{t('common.loading')}</p>}
         {error && <p className="text-red-400">{error}</p>}
+
+        {!loading && !error && mapPlaces.length > 0 && (
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              aria-expanded={showMap}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-600 text-sm text-gray-200 hover:bg-gray-800"
+              data-track="ui.1fbc0342b4.4"
+            >
+              <Map className="w-4 h-4" aria-hidden />
+              {t(showMap ? 'discover.hideMap' : 'discover.showMap')}
+            </button>
+            {showMap && (
+              <div className="mt-3">
+                <Suspense fallback={<p className="text-sm text-gray-400" role="status">{t('common.loading')}</p>}>
+                  <AwsLocationMap
+                    center={mapCenter}
+                    zoom={hasSearchGeo ? 12 : 5}
+                    places={mapPlaces}
+                  />
+                </Suspense>
+              </div>
+            )}
+          </div>
+        )}
+        {!loading && !error && mapPlaces.length === 0 && (results.length > 0 || popular.length > 0) && (
+          <p className="text-sm text-gray-500 mb-6">{t('discover.mapEmpty')}</p>
+        )}
 
         {!loading && !error && q.trim() && results.length === 0 && (
           <div className="rounded-xl border border-gray-700 bg-gray-900/40 p-6 space-y-4">
