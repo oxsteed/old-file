@@ -587,6 +587,24 @@ async function listApprovalsForUser(userId) {
   return rows;
 }
 
+// R-2 (PR #804): the admin decision UI needs one approval by id so an
+// approved row can be revoked. The controller header already documented
+// GET /api/admin/mode-approvals/:id, but no such route existed.
+async function getApprovalById(approvalId) {
+  const id = parseInt(approvalId, 10);
+  if (!Number.isSafeInteger(id)) return null;
+  const { rows } = await pool.query(
+    `SELECT a.id, a.user_id, a.mode, a.status, a.application_data, a.requested_at,
+            a.reviewed_at, a.reviewer_user_id, a.approval_notes, a.rejection_reason,
+            u.first_name, u.last_name, u.email
+       FROM mode_platform_approvals a
+       JOIN users u ON u.id = a.user_id
+      WHERE a.id = $1`,
+    [id],
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   getPolicy,
   listPolicies,
@@ -600,6 +618,7 @@ module.exports = {
   decideApproval,
   listPendingApprovals,
   listApprovalsForUser,
+  getApprovalById,
   publicApplicationSchema,
   invalidatePolicy,
 };

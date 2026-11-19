@@ -145,6 +145,7 @@ export const SUPER_NAV = [
   { tabKey: 'countryPacks', to: routePath('countryPacks'),          icon: Globe,         labelKey: 'adminNav.countryPacks'   },
   { tabKey: 'corporateSetup', to: routePath('corporateSetup'),  icon: Building2,     labelKey: 'adminNav.corporateSetup' },
   { tabKey: 'modePolicies', to: routePath('modePolicies'),          icon: Key,           labelKey: 'adminNav.modePolicies'   },
+  { tabKey: 'modeApprovals', to: routePath('modeApprovals'),        icon: Key,           labelKey: 'adminNav.modeApprovals'  },
   { tabKey: 'governance', to: routePath('governance'),           icon: ShieldCheck,   labelKey: 'adminNav.governance'     },
   { tabKey: 'serviceOps', to: routePath('serviceOps'),          icon: Activity,      labelKey: 'adminNav.serviceOps',    grant: adminRoute('serviceOps').grant },
   { tabKey: 'reliability', to: routePath('reliability'),          icon: Activity,      labelKey: 'adminNav.reliability',    grant: adminRoute('reliability').grant },

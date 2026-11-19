@@ -41,6 +41,7 @@ adminRouter.post('/mode-policies/:mode/rollback', authenticate, requireSuperAdmi
 
 // Super-admin approval queue
 adminRouter.get('/mode-approvals',                  authenticate, requireSuperAdmin, ctrl.adminListApprovals);
+adminRouter.get('/mode-approvals/:id',              authenticate, requireSuperAdmin, ctrl.adminGetApproval);
 adminRouter.post('/mode-approvals/:id/approve',     authenticate, requireSuperAdmin, ctrl.adminDecide('approve'));
 adminRouter.post('/mode-approvals/:id/reject',      authenticate, requireSuperAdmin, ctrl.adminDecide('reject'));
 adminRouter.post('/mode-approvals/:id/revoke',      authenticate, requireSuperAdmin, ctrl.adminDecide('revoke'));
