@@ -412,6 +412,41 @@ async function getCustomerTopup({ customerId, topupId }) {
   return rows[0] || null;
 }
 
+// R-3: resolve the actor for top-up settlement journal posts.
+// Migration 487's trigger rejects load/adjustment posts unless the
+// actor is an admin with a user id and a real reason. A Stripe webhook
+// has no human admin, so settlement posted as actorType 'system' and
+// fails on any database where 487 is applied: Stripe-paid top-ups
+// then never credit and the customer wallet stays empty.
+// When OXSTEED_CREDIT_SERVICE_ADMIN_ID names an existing admin user,
+// settlement posts as that admin with reason 'stripe top-up
+// settlement'. When it is unset, or names no admin user, the current
+// behavior is preserved exactly (system actor + a loud log), because
+// deployments where 487 is not applied still complete top-ups through
+// the system actor today. Emile must set the value in Coolify to the
+// id of a dedicated service-admin user (role admin) for any deployment
+// where 487 is applied. Whether 487 is applied in production is
+// UNVERIFIED (Emile's domain).
+async function resolveTopupSettlementActor(client) {
+  const serviceAdminId = String(process.env.OXSTEED_CREDIT_SERVICE_ADMIN_ID || '').trim();
+  if (!serviceAdminId) {
+    logger.warn('[credit-topup] OXSTEED_CREDIT_SERVICE_ADMIN_ID is not set; top-up settlement posts as actorType system and will fail on databases with migration 487 applied. Set it in Coolify to a dedicated service-admin user id.');
+    return { actorType: 'system', actorUserId: null, reason: 'Stripe top-up' };
+  }
+  const { rows } = await client.query(
+    `SELECT id, role FROM users WHERE id = $1 AND is_active = TRUE`,
+    [serviceAdminId]
+  );
+  const admin = rows[0];
+  // Migration 477 binds the admin actor label to an active user with
+  // role admin or super_admin; anything else is not attributable.
+  if (!admin || !['admin', 'super_admin'].includes(admin.role)) {
+    logger.error('[credit-topup] OXSTEED_CREDIT_SERVICE_ADMIN_ID does not name an admin user; falling back to the system actor (top-up settlement will fail on databases with migration 487 applied).');
+    return { actorType: 'system', actorUserId: null, reason: 'Stripe top-up' };
+  }
+  return { actorType: 'admin', actorUserId: admin.id, reason: 'stripe top-up settlement' };
+}
+
 // Webhook: the PaymentIntent succeeded. Credit the customer wallet with one
 // balanced `load` journal transaction. Runs in a single DB transaction.
 // KNOWN DEFECT (pre-existing, needs Emile's call; see the counsel brief
@@ -495,6 +530,9 @@ async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidenc
     });
 
     try {
+      // R-3: resolve the settlement actor before posting (see
+      // resolveTopupSettlementActor above).
+      const settlementActor = await resolveTopupSettlementActor(client);
       const { transaction } = await postJournalTransaction(client, {
         transactionType: 'load',
         debitAccountId: treasury.id,
@@ -503,8 +541,9 @@ async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidenc
         amountCents: amount,
         currencyCode: currency,
         idempotencyKey: `${JOURNAL_IDEMPOTENCY_PREFIX}${topup.id}`,
-        actorType: 'system',
-        reason: 'Stripe top-up',
+        actorType: settlementActor.actorType,
+        actorUserId: settlementActor.actorUserId,
+        reason: settlementActor.reason,
         description: 'Stripe top-up',
         referenceType: 'stripe_topup',
         referenceId: paymentIntentId,
