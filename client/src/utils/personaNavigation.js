@@ -106,6 +106,9 @@ function organizationLinks(projection) {
         if (!tool || !tool.to || tool.protected === false) continue;
         links.push(link(`restaurant-${scopeId}-${tool.id || tool.to}`, tool.to, tool.labelKey || 'nav.businessWorkspace', { scopeId: String(scopeId), protected: true }));
       }
+      // The parent workspace comes from its business membership above.
+      // A location ID identifies location tools, never a business workspace.
+      continue;
     }
     links.push(link(`workspace-${scopeId}`, `/business/${encodeURIComponent(scopeId)}/workspace`, scope.name || scope.business_name || 'nav.businessWorkspace', { scopeId: String(scopeId), workspace: true, protected: true }));
   }
@@ -136,6 +139,7 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
   const access = projection.access;
   const personas = PERSONA_NAVIGATION_CATALOG.filter((family) => family.capability ? hasCapability(projection, family.capability) : false).map((family) => family.id);
   const workspaces = organizationLinks(projection);
+  const hasBusinessWorkspace = workspaces.some((item) => item.workspace);
   const approved = (capability) => hasCapability(projection, capability) && activationReady(projection, capability);
   if (approved('helper.offer_services')) {
     addUnique(account, link('browseJobs', '/jobs', 'nav.browseJobs', { protected: true }));
@@ -157,10 +161,10 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
   if (hasCapability(projection, 'restaurant.own') && !activationReady(projection, 'restaurant.own')) {
     addUnique(account, link('restaurantSetup', '/business-launch/status', 'nav.businessLaunchStatus'));
   }
-  if (approved('business.own') || approved('restaurant.own') || workspaces.length) {
+  if (approved('business.own') || approved('restaurant.own') || hasBusinessWorkspace) {
     addUnique(account, link('workspace', '/business-hub', 'nav.businessWorkspace', { protected: true }));
-    for (const workspace of workspaces) addUnique(account, workspace);
   }
+  for (const workspace of workspaces) addUnique(account, workspace);
 
   // Every implemented catalog family gets its own contextual shortcut when
   // the projection says its capability is effective and activation is ready.
@@ -170,6 +174,6 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
   const staffAccess = showSupportWorkspace || (access.personal || []).some((capability) => STAFF_CAPABILITIES.has(capability)) || ['admin', 'super_admin', 'support_agent', 'reviewer'].includes(access.staffRole);
   if (staffAccess) addUnique(account, link('support', '/support/agent', 'nav.supportWorkspace', { staffShell: true }));
   account.push(link('settings', '/settings', 'nav.settings'), link('help', '/support', 'nav.help'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
-  return { mode: 'customer', primary, account, workspaces, personas: personas.length ? personas : ['customer'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'], showBusinessSwitcher: workspaces.length > 0 };
+  return { mode: 'customer', primary, account, workspaces, personas: personas.length ? personas : ['customer'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'], showBusinessSwitcher: hasBusinessWorkspace };
 }
 

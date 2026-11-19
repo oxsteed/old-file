@@ -42,29 +42,41 @@ test('approved but incomplete activation exposes setup, not a protected helper w
 });
 
 test('restaurant tools are limited to explicit assigned-location shortcuts', () => {
-  const nav = deriveAdaptiveNavigation(projection(['customer'], [
-    { type: 'restaurant_location', id: 7, name: 'Downtown', role: 'staff', shortcuts: [{ id: 'orders', to: '/restaurants/locations/7/orders', labelKey: 'nav.foodOrders' }] },
-    { type: 'restaurant_location', id: 8, name: 'Uptown', role: 'staff', shortcuts: [] },
-  ]));
+  const nav = deriveAdaptiveNavigation(projection(['customer'], [{ type: 'business', id: 42, name: 'Restaurant business' }], {
+    locations: [
+      { type: 'restaurant_location', id: 7, businessId: 42, name: 'Downtown', role: 'staff', shortcuts: [{ id: 'orders', to: '/restaurants/locations/7/orders', labelKey: 'nav.foodOrders' }] },
+      { type: 'restaurant_location', id: 8, businessId: 42, name: 'Uptown', role: 'staff', shortcuts: [] },
+    ],
+  }));
   const paths = destinations(nav);
   assert.ok(paths.includes('/restaurants/locations/7/orders'));
   assert.ok(!paths.includes('/restaurants/locations/8/orders'));
-  assert.ok(paths.includes('/business/7/workspace'));
-  assert.ok(paths.includes('/business/8/workspace'));
+  assert.deepEqual(paths.filter((path) => /^\/business\//.test(path)), ['/business/42/workspace']);
+});
+
+test('a restaurant location alone never exposes a business workspace', () => {
+  const nav = deriveAdaptiveNavigation(projection(['customer'], [], {
+    locations: [{ type: 'restaurant_location', id: 7, businessId: 42, shortcuts: [{ id: 'orders', to: '/restaurants/locations/7/orders' }] }],
+  }));
+  assert.equal(nav.showBusinessSwitcher, false);
+  assert.ok(destinations(nav).includes('/restaurants/locations/7/orders'));
+  assert.ok(!destinations(nav).some((path) => path.startsWith('/business')));
 });
 
 test('overlapping helper and restaurant access revokes one location only', () => {
-  const before = deriveAdaptiveNavigation(projection(['customer', 'helper.offer_services'], [
-    { type: 'restaurant_location', id: 7, shortcuts: [{ id: 'orders', to: '/restaurants/locations/7/orders', labelKey: 'nav.foodOrders' }] },
-    { type: 'restaurant_location', id: 8, shortcuts: [{ id: 'orders', to: '/restaurants/locations/8/orders', labelKey: 'nav.foodOrders' }] },
-  ]));
-  const after = deriveAdaptiveNavigation(projection(['customer', 'helper.offer_services'], [
-    { type: 'restaurant_location', id: 8, shortcuts: [{ id: 'orders', to: '/restaurants/locations/8/orders', labelKey: 'nav.foodOrders' }] },
-  ]));
+  const organizations = [{ type: 'business', id: 42, name: 'Restaurant business' }];
+  const locations = [7, 8].map((id) => ({
+    type: 'restaurant_location', id, businessId: 42,
+    shortcuts: [{ id: 'orders', to: `/restaurants/locations/${id}/orders`, labelKey: 'nav.foodOrders' }],
+  }));
+  const personal = ['customer', 'helper.offer_services'];
+  const before = deriveAdaptiveNavigation(projection(personal, organizations, { locations }));
+  const after = deriveAdaptiveNavigation(projection(personal, organizations, { locations: locations.slice(1) }));
   assert.ok(destinations(before).includes('/helper-dashboard'));
   assert.ok(destinations(before).includes('/restaurants/locations/7/orders'));
   assert.ok(!destinations(after).includes('/restaurants/locations/7/orders'));
   assert.ok(destinations(after).includes('/restaurants/locations/8/orders'));
+  assert.ok(destinations(after).includes('/business/42/workspace'));
   assert.ok(destinations(after).includes('/post-job'));
   assert.ok(destinations(after).includes('/helper-dashboard'));
 });
