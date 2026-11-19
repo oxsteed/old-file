@@ -1960,6 +1960,7 @@
     "sending": "جارٍ إرسال رمز جديد…"
   },
   "statementCenter": {
+    "delegatedReadPermission": "قراءة الكشوفات الصادرة فقط",
     "accountsTitle": "اختر حسابًا",
     "personalTitle": "الحسابات الشخصية",
     "personalDescription": "حسابات الائتمان الشخصية ومحافظ المطاعم الخاصة بك.",

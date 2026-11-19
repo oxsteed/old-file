@@ -6,6 +6,7 @@
     "fulfillmentMoveBackConfirm": "Deplase kat sa a tounen nan {{status}}? Itilize sa a sèlman pou korije yon etap yo te make anvan li te rive. Yon kat ki deja aktive pa ka deplase tounen."
   },
   "statementCenter": {
+    "delegatedReadPermission": "Li deklarasyon ki deja pibliye sèlman",
     "title": "Sant deklarasyon",
     "description": "Revize deklarasyon kredi, règleman, revni ak biznis ou yo nan yon sèl kote.",
     "eyebrow": "Dosye finansye",

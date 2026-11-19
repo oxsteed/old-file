@@ -6,6 +6,7 @@
     "fulfillmentMoveBackConfirm": "Move this card back to {{status}}? Use this only to correct a step that was marked before it happened. A card that is already active cannot be moved back."
   },
   "statementCenter": {
+    "delegatedReadPermission": "Read issued statements only",
     "title": "Statement center",
     "description": "Review your credit, settlement, earnings, and business statements in one place.",
     "eyebrow": "Financial records",

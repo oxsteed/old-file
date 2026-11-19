@@ -6,6 +6,7 @@
     "fulfillmentMoveBackConfirm": "Remettre cette carte à {{status}} ? Utilisez ceci uniquement pour corriger une étape marquée avant qu’elle ne se produise. Une carte déjà active ne peut pas être reculée."
   },
   "statementCenter": {
+    "delegatedReadPermission": "Consulter uniquement les relevés émis",
     "title": "Centre des relevés",
     "description": "Consultez vos relevés de crédit, de règlement, de revenus et d’entreprise au même endroit.",
     "eyebrow": "Documents financiers",

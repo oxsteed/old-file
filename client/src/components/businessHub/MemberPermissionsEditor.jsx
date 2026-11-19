@@ -124,12 +124,14 @@ export default function MemberPermissionsEditor({ businessId, member, onClose, o
                   const choice = choices[p.code] || 'inherit';
                   const overridden = choice === 'allow' || choice === 'deny';
                   const d = details[p.code] || {};
+                  const issuedStatementRead = p.code === 'statements.view';
+                  const permissionLabel = issuedStatementRead ? t('statementCenter.delegatedReadPermission') : p.code;
                   return (
                     <div key={p.code} style={{ padding: '0.45rem 0', borderBottom: '1px solid var(--border-color, #2a2a2a)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                         <div style={{ flex: '1 1 220px', minWidth: '180px' }}>
-                          <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{p.code}</div>
-                          {p.description && (
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{permissionLabel}</div>
+                          {!issuedStatementRead && p.description && (
                             <div style={{ fontSize: '0.78rem', color: 'var(--muted-text)' }}>{p.description}</div>
                           )}
                         </div>
@@ -140,7 +142,7 @@ export default function MemberPermissionsEditor({ businessId, member, onClose, o
                         </span>
                         <select
                           className="bh-select"
-                          aria-label={p.code}
+                          aria-label={permissionLabel}
                           value={choice}
                           onChange={(e) => setChoices((prev) => ({ ...prev, [p.code]: e.target.value }))}
                         >

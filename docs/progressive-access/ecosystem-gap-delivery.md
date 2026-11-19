@@ -6,10 +6,10 @@ passed at `1f06e552891ca7848dd345f540befab4ef286cd9`.
 
 | Audit gap | Delivery state | Evidence and next acceptance check |
 | --- | --- | --- |
-| Restaurant workspace uses the wrong ID | Implemented | `8a06153f47e6da480b60997a2fd5362e14ce79cd`. Projection unit tests cover retained businesses and unaffected shortcuts after location revocation. Navbar browser test opens the parent workspace when a location ID overlaps another business ID. Verify the [CI run for this commit](https://github.com/oxsteed/old-file/actions/runs/44484642312) and retain server-side store isolation checks. |
+| Restaurant workspace uses the wrong ID | Verified in CI | `8a06153f47e6da480b60997a2fd5362e14ce79cd`. Projection tests cover retained businesses and unaffected shortcuts after location revocation. Navbar browser test opens the parent workspace when a location ID overlaps another business ID. [CI passed](https://github.com/oxsteed/old-file/actions/runs/44484642312). |
 | Delivery driver admission stops at legacy helper checks | In progress | `logistics.ship` enables organizer access in `requireLogisticsAccess.js`. Implement a separate driver intake backed by the operations-approved driver profile. Prove that a newly verified customer can submit setup, a pending or inactive profile cannot see or claim open marketplace jobs, and operations approval cannot be bypassed by signup intent or legacy modes. |
 | Property work is authorized at business scope | Not started | Introduce a canonical property assignment, scope reads and mutations server-side, and test two properties under one business and revocation during an active workspace. |
-| Finance read access depends on manager standing | Not started | Add an explicit read-only finance permission path and verify statement reads remain independent of payout modifications. |
+| Finance read access depends on manager standing | Implemented and verified locally | Owners can assign the expirable `statements.view` override to an active team member. It allows authenticated access to issued records in that business. Location-restricted members cannot read restaurant-wide settlements. Tests cover owner grant, self-grant denial, another business, statement download and HTML, expiry, removal, blocked issuance, and blocked payout approval. |
 | Requester, payer, recipient and site contact cannot be delegated independently | Not started | Add per-booking, time-bounded access. Test contact-only coordination, billing privacy, identity binding and revocation. |
 | Investor reporting uses platform datasets for every audience | Not started | Separate platform and entity/position report scopes within the Investor workspace and test cross-entity denials. |
 | Investment contributions require separate activation | Gated | Keep live commitment writes disabled. Verify eligible Credit-only transaction and statement journeys with isolated data before release approval. |
@@ -26,6 +26,12 @@ zero grants, memberships, or generic applications from those choices. The
 browser fixtures exercised the three post-verification links, the Settings
 resume link, and rejection of an unsupported resume destination. The client
 production build passed with `npm run build:ci`.
+
+The read-only finance package passed 60 statement and archive tests in four
+suites on a freshly migrated disposable PostgreSQL/PostGIS database. The
+client build and growth instrumentation coverage also passed locally. The
+permission does not grant live balance access, statement investigations,
+new issuance, anonymous download links, or payout mutations.
 
 Production rollout and operational acceptance are separate from code and CI
 verification. Record exact commits and the environment for each acceptance run.

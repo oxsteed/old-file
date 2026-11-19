@@ -1960,6 +1960,7 @@
     "sending": "Sending a new code…"
   },
   "statementCenter": {
+    "delegatedReadPermission": "Read issued statements only",
     "accountsTitle": "Choose an account",
     "personalTitle": "Personal accounts",
     "personalDescription": "Your personal credit accounts and restaurant wallets.",

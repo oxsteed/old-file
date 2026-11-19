@@ -1960,6 +1960,7 @@
     "sending": "Enviando otro código…"
   },
   "statementCenter": {
+    "delegatedReadPermission": "Solo lectura de estados de cuenta emitidos",
     "accountsTitle": "Elige una cuenta",
     "personalTitle": "Cuentas personales",
     "personalDescription": "Tus cuentas de crédito personales y billeteras de restaurantes.",

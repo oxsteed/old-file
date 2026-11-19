@@ -6,6 +6,7 @@
     "fulfillmentMoveBackConfirm": "¿Mover esta tarjeta de nuevo a {{status}}? Usa esto solo para corregir un paso que se marcó antes de que ocurriera. Una tarjeta que ya está activa no se puede mover hacia atrás."
   },
   "statementCenter": {
+    "delegatedReadPermission": "Solo lectura de estados de cuenta emitidos",
     "title": "Centro de estados de cuenta",
     "description": "Revisa tus estados de crédito, liquidaciones, ingresos y negocio en un solo lugar.",
     "eyebrow": "Registros financieros",

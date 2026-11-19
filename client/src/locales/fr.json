@@ -1960,6 +1960,7 @@
     "sending": "Envoi d’un nouveau code…"
   },
   "statementCenter": {
+    "delegatedReadPermission": "Consulter uniquement les relevés émis",
     "accountsTitle": "Choisissez un compte",
     "personalTitle": "Comptes personnels",
     "personalDescription": "Vos comptes de crédit personnels et portefeuilles de restaurants.",
