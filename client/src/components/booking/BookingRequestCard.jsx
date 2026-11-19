@@ -197,6 +197,14 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
               </span>
             </div>
           )}
+          {/* Group 2, item 54: the visit ownership label — who the visit
+              is for and whether a household delegate booked it. */}
+          {live.ownershipLabel && (
+            <div className="detail-row">
+              <span className="detail-label">{t('booking.visitOwnership')}:</span>
+              <span className="detail-value">{live.ownershipLabel}</span>
+            </div>
+          )}
           {/* G-7: site contact + their status link (status and arrival window
               only, no amounts, no billing). The booker shares this link. */}
           {(live.siteContactName || live.siteContactPhone) && (

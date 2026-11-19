@@ -86,6 +86,7 @@ const ApplicationsPage = lazyWithRetry(() => import('./pages/Settings/Applicatio
 const YourData = lazyWithRetry(() => import('./pages/Settings/YourData'));
 const NotificationSettings = lazyWithRetry(() => import('./pages/Settings/Notifications'));
 const SavedLocations = lazyWithRetry(() => import('./pages/Settings/SavedLocations'));
+const HouseholdPage = lazyWithRetry(() => import('./pages/HouseholdPage'));
 const CountrySettings = lazyWithRetry(() => import('./pages/Settings/Country'));
 const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'));
 const HelperCancellationSettings = lazyWithRetry(() => import('./pages/HelperCancellationSettings'));
@@ -744,6 +745,8 @@ export default function App() {
                     <Route path="/settings/your-data" element={<Guarded><ProtectedRoute><YourData /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/locations" element={<Guarded><ProtectedRoute><SavedLocations /></ProtectedRoute></Guarded>} />
+                    {/* Group 2: household delegates — invites, shared calendar, prep, tasks, approvals, documents. */}
+                    <Route path="/household" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HouseholdPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Weekly self-audit 2026-11-04 item 11: every sibling settings route wraps in ProtectedRoute; this one did not. */}
                     <Route path="/settings/country" element={<Guarded><ProtectedRoute><CountrySettings /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />
