@@ -732,10 +732,16 @@ exports.removeSavedHelper = async (req, res) => {
 
 exports.getSavedLocations = async (req, res) => {
   try {
+    // Group 2, items 56-60: the address book. Archived rows (60) are
+    // hidden unless explicitly asked for; the shared flag (56), entry
+    // preset (57), and private notes (58) travel with the row.
+    const includeArchived = req.query.includeArchived === 'true';
     const { rows } = await db.query(`
-      SELECT id, label, address, entry_instructions, is_default, created_at, updated_at
+      SELECT id, label, address, entry_instructions, entry_preset,
+             private_notes, shared_with_household, is_archived,
+             is_default, created_at, updated_at
         FROM customer_saved_locations
-       WHERE user_id = $1
+       WHERE user_id = $1 ${includeArchived ? '' : 'AND is_archived = FALSE'}
        ORDER BY is_default DESC, created_at ASC
     `, [req.user.id]);
     res.json({ saved_locations: rows });
@@ -745,26 +751,40 @@ exports.getSavedLocations = async (req, res) => {
   }
 };
 
+const ENTRY_PRESETS = ['gate_code', 'parking', 'pets', 'stairs', 'key_location', 'none'];
+
 exports.createSavedLocation = async (req, res) => {
   try {
-    const { label, address, entry_instructions, is_default } = req.body || {};
+    const { label, address, entry_instructions, is_default,
+      entry_preset, private_notes, shared_with_household } = req.body || {};
     if (!label || !String(label).trim() || !address || !String(address).trim()) {
       return res.status(400).json({ error: 'Label and address are required.' });
     }
     if (String(label).length > 80 || String(address).length > 500
-      || (entry_instructions && String(entry_instructions).length > 1000)) {
+      || (entry_instructions && String(entry_instructions).length > 1000)
+      || (private_notes && String(private_notes).length > 2000)) {
       return res.status(400).json({ error: 'Location fields are too long.' });
     }
+    if (entry_preset && !ENTRY_PRESETS.includes(String(entry_preset))) {
+      return res.status(400).json({ error: 'Unknown entry preset.' });
+    }
     const { rows } = await db.query(`
-      INSERT INTO customer_saved_locations (user_id, label, address, entry_instructions, is_default)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, label, address, entry_instructions, is_default, created_at, updated_at
+      INSERT INTO customer_saved_locations
+        (user_id, label, address, entry_instructions, is_default,
+         entry_preset, private_notes, shared_with_household)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id, label, address, entry_instructions, entry_preset,
+        private_notes, shared_with_household, is_archived,
+        is_default, created_at, updated_at
     `, [
       req.user.id,
       String(label).trim(),
       String(address).trim(),
       entry_instructions ? String(entry_instructions).trim() : null,
       is_default === true,
+      entry_preset || null,
+      private_notes ? String(private_notes).trim() : null,
+      shared_with_household === true,
     ]);
     // A new default unsets the previous default, so only one is default.
     if (is_default === true) {
@@ -783,22 +803,36 @@ exports.createSavedLocation = async (req, res) => {
 exports.updateSavedLocation = async (req, res) => {
   try {
     const { id } = req.params;
-    const { label, address, entry_instructions, is_default } = req.body || {};
+    const { label, address, entry_instructions, is_default,
+      entry_preset, private_notes, shared_with_household, is_archived } = req.body || {};
+    if (entry_preset !== undefined && entry_preset !== null && !ENTRY_PRESETS.includes(String(entry_preset))) {
+      return res.status(400).json({ error: 'Unknown entry preset.' });
+    }
     const { rows } = await db.query(`
       UPDATE customer_saved_locations
          SET label = COALESCE($2, label),
              address = COALESCE($3, address),
              entry_instructions = COALESCE($4, entry_instructions),
              is_default = COALESCE($5, is_default),
+             entry_preset = COALESCE($6, entry_preset),
+             private_notes = COALESCE($7, private_notes),
+             shared_with_household = COALESCE($8, shared_with_household),
+             is_archived = COALESCE($9, is_archived),
              updated_at = NOW()
-       WHERE id = $1 AND user_id = $6
-       RETURNING id, label, address, entry_instructions, is_default, created_at, updated_at
+       WHERE id = $1 AND user_id = $10
+       RETURNING id, label, address, entry_instructions, entry_preset,
+         private_notes, shared_with_household, is_archived,
+         is_default, created_at, updated_at
     `, [
       id,
       label ? String(label).trim().slice(0, 80) : null,
       address ? String(address).trim().slice(0, 500) : null,
       entry_instructions !== undefined ? String(entry_instructions).trim().slice(0, 1000) : null,
       is_default === undefined ? null : is_default === true,
+      entry_preset || null,
+      private_notes !== undefined ? String(private_notes).trim().slice(0, 2000) : null,
+      shared_with_household === undefined ? null : shared_with_household === true,
+      is_archived === undefined ? null : is_archived === true,
       req.user.id,
     ]);
     if (!rows.length) return res.status(404).json({ error: 'Saved location not found.' });

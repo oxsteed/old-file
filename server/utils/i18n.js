@@ -768,6 +768,73 @@ const T = {
       ar: 'ردّ المستلم على الحجز.',
     },
   },
+  // Group 2: household delegate invite, delegation updates, spending
+  // requests, and visit updates (reminders, replacement, unavailability,
+  // emergency fallback, document forwarding).
+  household_delegate_invite: {
+    title: {
+      en: 'Household Delegate Invite',
+      fr: 'Invitation de délégué du foyer',
+      es: 'Invitación de delegado del hogar',
+      ht: 'Envitasyon pou delege kay la',
+      ar: 'دعوة مندوب الأسرة',
+    },
+    body: {
+      en: 'You were invited to help manage a household. Review the scope and accept or decline.',
+      fr: 'Vous êtes invité à aider à gérer un foyer. Examinez le périmètre puis acceptez ou refusez.',
+      es: 'Te invitaron a ayudar a gestionar un hogar. Revisa el alcance y acepta o rechaza.',
+      ht: 'Yo envite ou pou ede jere yon kay. Gade sa ou ka fè epi aksepte oswa refize.',
+      ar: 'تمت دعوتك للمساعدة في إدارة أسرة. راجع النطاق واقبل أو ارفض.',
+    },
+  },
+  household_delegation_update: {
+    title: {
+      en: 'Household Delegation Update',
+      fr: 'Mise à jour de la délégation du foyer',
+      es: 'Actualización de delegación del hogar',
+      ht: 'Mizajou sou delegasyon kay la',
+      ar: 'تحديث تفويض الأسرة',
+    },
+    body: {
+      en: 'A household delegation changed. Open the household page for details.',
+      fr: 'Une délégation du foyer a changé. Ouvrez la page du foyer pour plus de détails.',
+      es: 'Una delegación del hogar cambió. Abre la página del hogar para ver los detalles.',
+      ht: 'Yon delegasyon kay la chanje. Louvri paj kay la pou detay yo.',
+      ar: 'تغيّر تفويض أسرة. افتح صفحة الأسرة للتفاصيل.',
+    },
+  },
+  household_spending_request: {
+    title: {
+      en: 'Spending Approval Request',
+      fr: 'Demande d’approbation de dépense',
+      es: 'Solicitud de aprobación de gasto',
+      ht: 'Demann apwobasyon pou depans',
+      ar: 'طلب الموافقة على الإنفاق',
+    },
+    body: {
+      en: 'A household spending request needs a decision.',
+      fr: 'Une demande de dépense du foyer attend une décision.',
+      es: 'Una solicitud de gasto del hogar necesita una decisión.',
+      ht: 'Yon demann depans kay la bezwen yon desizyon.',
+      ar: 'طلب إنفاق أسرة يحتاج إلى قرار.',
+    },
+  },
+  household_visit_update: {
+    title: {
+      en: 'Household Visit Update',
+      fr: 'Mise à jour de visite du foyer',
+      es: 'Actualización de visita del hogar',
+      ht: 'Mizajou sou vizit kay la',
+      ar: 'تحديث زيارة الأسرة',
+    },
+    body: {
+      en: 'Something changed about a household visit. Open the household page for details.',
+      fr: 'Quelque chose a changé pour une visite du foyer. Ouvrez la page du foyer pour plus de détails.',
+      es: 'Algo cambió en una visita del hogar. Abre la página del hogar para ver los detalles.',
+      ht: 'Gen yon bagay ki chanje pou yon vizit kay la. Louvri paj kay la pou detay yo.',
+      ar: 'تغيّر شيء ما بشأن زيارة أسرة. افتح صفحة الأسرة للتفاصيل.',
+    },
+  },
   booking_approved: {
     title: {
       en: 'Booking Approved',
@@ -1319,6 +1386,34 @@ const EMAIL_TEMPLATES = {
       es: 'Ver reservas',
       ht: 'Gade rezervasyon yo',
       ar: 'عرض الحجوزات',
+    },
+    household_delegate_invite: {
+      en: 'View Household',
+      fr: 'Voir le foyer',
+      es: 'Ver hogar',
+      ht: 'Gade kay la',
+      ar: 'عرض الأسرة',
+    },
+    household_delegation_update: {
+      en: 'View Household',
+      fr: 'Voir le foyer',
+      es: 'Ver hogar',
+      ht: 'Gade kay la',
+      ar: 'عرض الأسرة',
+    },
+    household_spending_request: {
+      en: 'View Household',
+      fr: 'Voir le foyer',
+      es: 'Ver hogar',
+      ht: 'Gade kay la',
+      ar: 'عرض الأسرة',
+    },
+    household_visit_update: {
+      en: 'View Household',
+      fr: 'Voir le foyer',
+      es: 'Ver hogar',
+      ht: 'Gade kay la',
+      ar: 'عرض الأسرة',
     },
     booking_accepted: {
       en: 'View Calendar',

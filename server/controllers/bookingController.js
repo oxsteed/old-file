@@ -129,6 +129,7 @@ function inviteLinkUsable(booking) {
  * Nobody else reaches this helper (getBookingRequest 403s first).
  */
 function bookingViewForUser(booking, userId) {
+  // The ownership label rides on the transform (item 54) for every view.
   const full = transformBooking(booking);
   const isBooker = userId && String(userId) === String(booking.customer_id);
   if (isBooker) {
@@ -151,6 +152,8 @@ function bookingViewForUser(booking, userId) {
       siteContactPhone: full.siteContactPhone,
       statusTokenExpiresAt: full.statusTokenExpiresAt,
       conversationId: full.conversationId,
+      ownershipLabel: full.ownershipLabel,
+      bookedByDelegate: full.bookedByDelegate,
     };
   }
   const { statusToken, ...rest } = full;
@@ -237,7 +240,26 @@ function nextDateForPreferredDay(day) {
  */
 exports.createBookingRequest = async (req, res) => {
   try {
-    const customerId = req.user.id;
+    // Group 2, item 51 (delegate leg): a delegate with 'book' scope books
+    // on the owner's behalf. The booking's customer stays the owner (the
+    // deposit payer); booked_by records the delegate, so the ownership
+    // label (54) always shows both. Anyone else passing onBehalfOfOwnerId
+    // gets a 403, never a booking on a stranger's account.
+    let customerId = req.user.id;
+    let bookedByUserId = req.user.id;
+    const onBehalfOfOwnerId = req.body && req.body.onBehalfOfOwnerId
+      ? String(req.body.onBehalfOfOwnerId) : null;
+    if (onBehalfOfOwnerId) {
+      if (onBehalfOfOwnerId === String(req.user.id)) {
+        return sendValidationError(res, { onBehalfOfOwnerId: 'You are already the booker.' });
+      }
+      const householdSvc = require('../services/householdDelegationService');
+      const delegation = await householdSvc.findActiveDelegation(pool, onBehalfOfOwnerId, req.user.id);
+      if (!delegation || !householdSvc.hasScope(delegation, 'book')) {
+        return sendError(res, 403, 'You do not hold booking scope for this household', 'DELEGATE_SCOPE_DENIED');
+      }
+      customerId = onBehalfOfOwnerId;
+    }
     const {
       helperId: helperIdInput,
       businessId,
@@ -496,7 +518,7 @@ const bookingId = uuidv4();
           source || (conversationId || guestSessionId ? 'messenger_picker' : 'calendar'),
           serviceId != null ? String(serviceId) : null,
           timezone || null,
-          customerId,
+          bookedByUserId,
           cleanRecipientUserId,
           cleanRecipientName,
           cleanRecipientPhone,
@@ -514,7 +536,8 @@ const bookingId = uuidv4();
 
     const booking = result.rows[0];
 
-    await logBookingAudit(bookingId, 'created', customerId, 'customer', 'pending', 'pending');
+    await logBookingAudit(bookingId, 'created', bookedByUserId,
+      bookedByUserId === customerId ? 'customer' : 'delegate', 'pending', 'pending');
     await notifyHelperOfBooking(helperId, booking);
     // G-6/G-7: deliver the status link to the recipient / site contact
     // accounts (in-app notification channel); named-only parties get the
@@ -566,8 +589,17 @@ exports.getBookingRequest = async (req, res) => {
     // attached to (status, schedule, address, helper contact); no money,
     // no recipient details, no status link, no modification.
     const isSiteContact = userId && booking.site_contact_user_id && String(userId) === String(booking.site_contact_user_id);
+    // Group 2: an accepted household delegate of the owner (book, schedule,
+    // or prepare scope) reads the booking the same way a recipient does:
+    // no status link, no payment internals (the transform carries none).
+    let isDelegate = false;
+    if (userId && !isCustomer && !isRecipient && !isSiteContact) {
+      const householdSvc = require('../services/householdDelegationService');
+      const delegation = await householdSvc.findActiveDelegation(pool, booking.customer_id, userId);
+      isDelegate = Boolean(delegation && ['book', 'schedule', 'prepare'].some((s) => householdSvc.hasScope(delegation, s)));
+    }
     const isProvider = userId && (await bookingLifecycle.isProviderForBooking(userId, booking));
-    if (userId && !isCustomer && !isRecipient && !isSiteContact && !isProvider) {
+    if (userId && !isCustomer && !isRecipient && !isSiteContact && !isDelegate && !isProvider) {
       return sendError(res, 403, 'Not authorized to view this booking');
     }
 
@@ -2145,12 +2177,25 @@ function sliceWindowToHourSlots(windowStart, windowEnd, busyRanges, durationMinu
 }
 
 function transformBooking(booking) {
+  // Item 54: the visit ownership label — who the visit is for, and
+  // whether a household delegate booked it. Computed here so every read
+  // shape (create response, single read, list) carries it. The label
+  // carries no payment information.
+  const ownershipFields = (shape) => {
+    const bookedBy = shape.bookedByUserId || booking.booked_by_user_id || shape.customerId;
+    const recipientName = shape.recipientName !== undefined ? shape.recipientName : booking.recipient_name;
+    const bookedByDelegate = Boolean(bookedBy && String(bookedBy) !== String(shape.customerId));
+    const ownershipLabel = recipientName
+      ? `Visit for ${recipientName}${bookedByDelegate ? ' · booked by a household delegate' : ''}`
+      : (bookedByDelegate ? 'Booked by a household delegate' : null);
+    return { ...shape, ownershipLabel, bookedByDelegate };
+  };
   // Prefer shared calendar shape when row already transformed / has snake_case DB fields
   if (booking && booking.customerId != null && booking.conversationId !== undefined) {
-    return booking;
+    return ownershipFields(booking);
   }
   const base = bookingLifecycle.toCalendarBooking(booking);
-  return base || {
+  const shaped = base || {
     id: booking.id,
     customerId: booking.customer_id,
     helperId: booking.helper_id,
@@ -2183,6 +2228,7 @@ function transformBooking(booking) {
     createdAt: booking.created_at,
     updatedAt: booking.updated_at,
   };
+  return ownershipFields(shaped);
 }
 
 function transformRecurringBooking(row) {

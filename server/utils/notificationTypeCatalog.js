@@ -45,6 +45,12 @@ const NOTIFICATION_TYPES = [
   // G-6/G-7: recipient invite, recipient response notice, site-contact link.
   { type: 'booking_recipient_invite', group: 'work' },
   { type: 'booking_recipient_response', group: 'work' },
+  // Group 2: household delegate invite, delegation updates, spending
+  // requests, visit updates.
+  { type: 'household_delegate_invite', group: 'work' },
+  { type: 'household_delegation_update', group: 'work' },
+  { type: 'household_spending_request', group: 'work' },
+  { type: 'household_visit_update', group: 'work' },
   { type: 'booking_transferred', group: 'work' },
   { type: 'booking_request_new', group: 'work' },
   { type: 'booking_reschedule_accepted', group: 'work' },
