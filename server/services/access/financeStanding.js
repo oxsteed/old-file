@@ -46,6 +46,14 @@ async function memberFinanceReadStanding(queryable, { businessId, userId, restau
       [member.id, DELEGATED_STATEMENT_READ]);
     if (rows.length) standing = 'issued_statements';
   }
+  // G-19, deliberate boundary: a member with active location assignments
+  // gets NO restaurant-wide settlement standing here, even if they hold a
+  // finance read code. The settlement journal is restaurant-level (one
+  // sub-bank account per restaurant+currency; the stored document's orders
+  // carry no location_id), so a location-filtered settlement cannot be
+  // derived without fabricating numbers. Location-scoped members get their
+  // finance view from memberLocationFinanceStanding below (the
+  // location-scoped sales report), and settlement stays HQ-only.
   if (standing && restaurantId != null) {
     const { rows } = await queryable.query(
       `SELECT 1 FROM restaurant_location_memberships
@@ -56,8 +64,35 @@ async function memberFinanceReadStanding(queryable, { businessId, userId, restau
   return standing;
 }
 
+// G-19: location-scoped finance standing. A member with active assignments
+// to stores of this restaurant may read the location-scoped financial
+// report for exactly those stores. This standing admits NOTHING
+// restaurant-wide: no settlement documents, no sub-bank balances.
+async function memberLocationFinanceStanding(queryable, { businessId, userId, restaurantId }) {
+  const { rows: [member] } = await queryable.query(
+    `SELECT id FROM business_members
+      WHERE business_id = $1 AND member_id::text = $2::text AND status = 'active'
+      ORDER BY id LIMIT 1`,
+    [businessId, String(userId)]);
+  if (!member) return null;
+  const { rows } = await queryable.query(
+    `SELECT lm.location_id, l.name AS location_name
+       FROM restaurant_location_memberships lm
+       JOIN restaurant_locations l
+         ON l.id = lm.location_id AND l.restaurant_id = lm.restaurant_id
+      WHERE lm.restaurant_id = $1 AND lm.membership_id = $2 AND lm.status = 'active'
+      ORDER BY l.name ASC, l.id ASC`,
+    [restaurantId, member.id]);
+  if (!rows.length) return null;
+  return {
+    standing: 'location_reports',
+    locationIds: rows.map((row) => String(row.location_id)),
+    locationNames: rows.map((row) => String(row.location_name || '')),
+  };
+}
+
 async function memberHasFinanceRead(queryable, scope) {
   return Boolean(await memberFinanceReadStanding(queryable, scope));
 }
 
-module.exports = { memberFinanceReadStanding, memberHasFinanceRead, FINANCE_READ };
+module.exports = { memberFinanceReadStanding, memberHasFinanceRead, memberLocationFinanceStanding, FINANCE_READ };

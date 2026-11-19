@@ -95,3 +95,8 @@
 @media (prefers-reduced-motion: reduce) {
   .statement-center-page *, .statement-center-page *::before, .statement-center-page *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* G-19: location-scoped finance view. Reuses the page's surface tokens. */
+.statement-center-location-reports { border: 1px solid var(--hatch-widget-border); border-radius: 12px; padding: 20px; background: var(--hatch-widget-surface); }
+.statement-center-location-reports h3 { margin: 0 0 8px; }
+.statement-center-location-reports p { margin: 0 0 12px; color: var(--hatch-widget-muted); }

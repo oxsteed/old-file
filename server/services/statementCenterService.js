@@ -250,13 +250,21 @@ async function buildRestaurantSettlement(userId) {
       ORDER BY fr.display_name ASC`,
     [userId]);
   // Restaurant-wide statements require finance read with no store boundary.
-  const { memberFinanceReadStanding } = require('./access/financeStanding');
+  const { memberFinanceReadStanding, memberLocationFinanceStanding } = require('./access/financeStanding');
   const restaurants = [];
   for (const row of candidateRestaurants) {
     const standing = row.is_owner ? 'finance' : await memberFinanceReadStanding(pool, {
       businessId: row.business_id, userId, restaurantId: row.id, allowDelegated: true,
     });
-    if (standing) restaurants.push({ ...row, standing });
+    if (standing) { restaurants.push({ ...row, standing }); continue; }
+    // G-19: a location-scoped member sees no settlement numbers at all, but
+    // the restaurant still surfaces as a location-reports scope so they have
+    // a finance view (their stores' sales report) and an explicit note that
+    // settlement is HQ-only. No balance or document is attached below.
+    const location = await memberLocationFinanceStanding(pool, {
+      businessId: row.business_id, userId, restaurantId: row.id,
+    });
+    if (location) restaurants.push({ ...row, standing: 'location_reports', locationIds: location.locationIds, locationNames: location.locationNames });
   }
   const hasAccount = restaurants.length > 0;
   const setupState = hasAccount ? 'ready' : 'unavailable';
@@ -292,6 +300,24 @@ async function buildRestaurantSettlement(userId) {
 
   const scopes = [];
   for (const restaurant of restaurants) {
+    // G-19: location-scoped members get a reports-only scope: no currency,
+    // no document, no balance, no summary numbers.
+    if (restaurant.standing === 'location_reports') {
+      scopes.push({
+        scopeKey: `restaurant_settlement:${restaurant.id}:locations`,
+        businessId: restaurant.business_id == null ? null : String(restaurant.business_id),
+        label: String(restaurant.display_name || 'Restaurant'),
+        currency: null,
+        restaurantId: String(restaurant.id),
+        latestPeriod: null,
+        latestDocumentId: null,
+        statementStatus: 'location_reports',
+        locationIds: restaurant.locationIds || [],
+        locationNames: restaurant.locationNames || [],
+        summary: { outstanding: null, invoiced: null, collected: null, adjusted: null },
+      });
+      continue;
+    }
     const currencies = new Set([
       ...[...balances.keys()].filter((key) => key.startsWith(`${restaurant.id}:`)).map((key) => key.split(':')[1]),
       ...[...documents.keys()].filter((key) => key.startsWith(`${restaurant.id}:`)).map((key) => key.split(':')[1]),
