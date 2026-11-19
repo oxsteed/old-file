@@ -88,6 +88,13 @@ async function createAffiliateProgram(req, res) {
 
     logger.info('Affiliate program created', { programId: program.rows[0].id, program_type });
 
+    // G-2/G-23: creating a program completes the partner handoff for a
+    // helper-holder (the owning page is /affiliate).
+    try {
+      const signupIntent = require('../services/access/signupIntent');
+      await signupIntent.consumeIntent(userId, 'join_partner');
+    } catch (_consumeErr) { /* consumption never fails the create */ }
+
     res.json({
       success: true,
       data: program.rows[0]

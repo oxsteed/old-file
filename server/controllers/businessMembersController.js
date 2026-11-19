@@ -812,6 +812,15 @@ async function acceptInvitation(req, res) {
     });
     // F-12: join the new member's live sockets to the rooms their role allows.
     permissionsService.invalidateCache(record.business_id, req.user.id);
+    // G-2/G-3: accepting a team invitation completes the team signup
+    // handoff. (The invite email CTA carries ?invite=<id> so the invitee
+    // reaches this accept from signup alone; no Vortex code is minted for
+    // an invitation.)
+    try {
+      const signupIntent = require('../services/access/signupIntent');
+      await signupIntent.consumeIntent(req.user.id, 'join_business_team');
+      await signupIntent.consumeIntent(req.user.id, 'join_restaurant_team');
+    } catch (_consumeErr) { /* consumption never fails the accept */ }
     return res.json({ ok: true, member: record });
   } catch (err) {
     logger.error('acceptInvitation error', { err: err.message });

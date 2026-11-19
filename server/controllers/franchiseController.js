@@ -359,6 +359,13 @@ async function createFranchiseApplication(req, res) {
 
       await client.query('COMMIT');
 
+      // G-2: filing a franchise application completes the franchise
+      // signup handoff (the owning page is /franchise/apply).
+      try {
+        const signupIntent = require('../services/access/signupIntent');
+        await signupIntent.consumeIntent(req.user?.id, 'franchise');
+      } catch (_consumeErr) { /* consumption never fails the application */ }
+
       const bundle = await fetchFranchiseApplicationBundle(applicationId);
       return res.status(201).json(bundle);
     } catch (err) {

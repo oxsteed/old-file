@@ -544,6 +544,13 @@ exports.redeemCode = async (req, res, next) => {
     // Invalidate any cached permissions for this user on this business
     permissionsService.invalidateCache(codeRow.business_id, req.user.id);
 
+    // G-2/G-3: redeeming a team code completes the team signup handoff.
+    try {
+      const signupIntent = require('../services/access/signupIntent');
+      await signupIntent.consumeIntent(req.user.id, 'join_business_team');
+      await signupIntent.consumeIntent(req.user.id, 'join_restaurant_team');
+    } catch (_consumeErr) { /* consumption never fails the redeem */ }
+
     res.status(200).json({
       data: {
         business_id: codeRow.business_id,
