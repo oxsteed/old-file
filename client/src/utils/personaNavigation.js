@@ -6,9 +6,9 @@
 export const PERSONA_NAVIGATION_CATALOG = Object.freeze([
   { id: 'customer', variants: ['customer', 'restaurant_customer'], scope: 'personal', primary: 'home', shortcuts: ['findHelp', 'orderFood'], setup: [], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
   { id: 'helper', variants: ['helper', 'helper_pro', 'broker'], capability: 'helper.offer_services', scope: 'personal', primary: 'helper-dashboard', shortcuts: ['jobs', 'helper-dashboard'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'business-owner', variants: ['business_owner'], capability: 'business.own', scope: 'business', primary: 'business-workspace', shortcuts: ['business-workspace'], setup: ['/business-launch/status'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'business-owner', variants: ['business_owner'], capability: 'business.own', scope: 'business', primary: 'business-workspace', shortcuts: ['business-workspace'], setup: ['/business-launch-status'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
   { id: 'business-team', variants: ['business_manager', 'business_representative', 'business_employee', 'business_support_agent'], scope: 'business-membership', primary: 'business-workspace', shortcuts: ['business-workspace'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
-  { id: 'restaurant-owner', variants: ['restaurant_owner'], capability: 'restaurant.own', scope: 'restaurant', primary: 'restaurant-workspace', shortcuts: ['restaurant-workspace'], setup: ['/business-launch/status'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
+  { id: 'restaurant-owner', variants: ['restaurant_owner'], capability: 'restaurant.own', scope: 'restaurant', primary: 'restaurant-workspace', shortcuts: ['restaurant-workspace'], setup: ['/business-launch-status'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
   { id: 'restaurant-team', variants: ['restaurant_manager', 'restaurant_staff', 'restaurant_runner'], scope: 'restaurant-location', primary: 'restaurant-workspace', shortcuts: ['restaurant-tools'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
   { id: 'logistics', variants: ['logistics', 'delivery', 'dispatcher', 'driver'], capability: 'logistics.ship', scope: 'personal-or-assignment', primary: 'logistics', shortcuts: ['logistics-buyer', 'logistics-organizer'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
   { id: 'consultant', variants: ['consultant'], capability: 'consultant.accept_paying_clients', scope: 'personal', primary: 'consulting', shortcuts: ['consulting'], setup: ['/settings/applications'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'] },
@@ -156,10 +156,10 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
     addUnique(account, link('investments', '/investments', 'nav.investments', { protected: true }));
   }
   if (hasCapability(projection, 'business.own') && !activationReady(projection, 'business.own')) {
-    addUnique(account, link('businessSetup', '/business-launch/status', 'nav.businessLaunchStatus'));
+    addUnique(account, link('businessSetup', '/business-launch-status', 'nav.businessLaunchStatus'));
   }
   if (hasCapability(projection, 'restaurant.own') && !activationReady(projection, 'restaurant.own')) {
-    addUnique(account, link('restaurantSetup', '/business-launch/status', 'nav.businessLaunchStatus'));
+    addUnique(account, link('restaurantSetup', '/business-launch-status', 'nav.businessLaunchStatus'));
   }
   if (approved('business.own') || approved('restaurant.own') || hasBusinessWorkspace) {
     addUnique(account, link('workspace', '/business-hub', 'nav.businessWorkspace', { protected: true }));

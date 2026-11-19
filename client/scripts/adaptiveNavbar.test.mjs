@@ -109,3 +109,18 @@ test('projection failure never restores protected persona links', () => {
   assert.ok(destinations(nav).includes('/post-job'));
   assert.ok(!destinations(nav).includes('/helper-dashboard'));
 });
+
+test('business and restaurant setup links point at the real launch status page', () => {
+  const business = deriveAdaptiveNavigation(projection(['customer', 'business.own'], [], { activation: { 'business.own': 'needs_setup' } }));
+  assert.ok(destinations(business).includes('/business-launch-status'));
+  const restaurant = deriveAdaptiveNavigation(projection(['customer', 'restaurant.own'], [], { activation: { 'restaurant.own': 'needs_setup' } }));
+  assert.ok(destinations(restaurant).includes('/business-launch-status'));
+  for (const nav of [business, restaurant]) {
+    assert.ok(!destinations(nav).includes('/business-launch/status'), 'the misspelled setup path must not ship');
+  }
+  // The catalog is the source for those links: both setup entries name the
+  // real route.
+  for (const family of PERSONA_NAVIGATION_CATALOG.filter((entry) => ['business-owner', 'restaurant-owner'].includes(entry.id))) {
+    assert.deepEqual(family.setup, ['/business-launch-status'], family.id);
+  }
+});

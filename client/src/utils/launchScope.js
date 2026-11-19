@@ -221,8 +221,7 @@ const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
   // Review P3-7-F06: /affiliate is gated by the affiliateRewards flag rather
   // than a static redirect, so the flag has a real consumer.
   // No owning flag for the entries below: network, planned-needs, car-care,
-  // upgrade, promote, and business-launch-status have no launch key on
-  // either side (networkBranchSwitcher gates only the branch switcher, not
+  // upgrade, and promote have no launch key on either side (networkBranchSwitcher gates only the branch switcher, not
   // the /network product; businessAscension gates a HomePage upsell, not
   // the launch-status page). Their redirects stay unconditional until a
   // flag is defined for each product.
@@ -234,7 +233,6 @@ const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
   { prefix: '/promote', to: '/business-hub' },
   { prefix: '/consultant-availability', to: '/calendar', flag: 'consulting' },
   { prefix: '/consulting', to: '/business-hub', flag: 'consulting' },
-  { prefix: '/business-launch-status', to: '/business-hub' },
   { prefix: '/franchise', to: '/business-hub', flag: 'franchise' },
 ]);
 
