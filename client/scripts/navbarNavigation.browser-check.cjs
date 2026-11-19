@@ -139,6 +139,20 @@ test('projection navbar renders responsive priorities, accessible disclosures an
         if (mobile) await menu.click();
       }
     }
+    // Logged-out navigation is a customer discovery surface. It must not
+    // advertise specialist logistics/jobs or a persona-oriented join flow.
+    await page.evaluate(() => window.configure({ anonymous: true, language: 'en', theme: 'dark' }));
+    await page.setViewportSize({ width: 1600, height: 850 });
+    assert.deepEqual(await page.locator('.ox-nav-desktop > a').evaluateAll(nodes => nodes.map(node => node.getAttribute('href'))), ['/helpers', '/restaurants', '/how-it-works', '/login', '/join']);
+    assert.equal(await page.locator('.ox-nav-desktop > a.ox-btn-primary').getAttribute('href'), '/join');
+    assert.equal(await page.locator('.ox-nav-desktop > a[href="/jobs"]').count(), 0);
+    assert.equal(await page.locator('.ox-nav-desktop > a[href="/logistics"]').count(), 0);
+    await page.setViewportSize({ width: 390, height: 850 });
+    const guestMenu = page.locator('.ox-nav-mobile-controls > button[aria-expanded]');
+    await guestMenu.click(); await waitExpanded(guestMenu, 'true');
+    assert.deepEqual(await page.locator('.ox-nav-mobile-menu > a').evaluateAll(nodes => nodes.map(node => node.getAttribute('href'))), ['/helpers', '/restaurants', '/login']);
+    assert.equal(await page.locator('.ox-nav-mobile-menu a.ox-nav-primary').getAttribute('href'), '/join');
+    await guestMenu.click();
     await page.setViewportSize({ width: 1600, height: 850 });
     await page.evaluate(projection => window.configure({ scenario: 'customer', projection, language: 'en', theme: 'dark' }), projections.customer);
     const account = page.getByRole('button', { name: 'Account', exact: true });

@@ -1676,6 +1676,7 @@
   },
   "footer": {
     "explore": "Explorer",
+    "services": "Services",
     "help": "Aide",
     "compactTagline": "Aide locale, restauration et services aux entreprises.",
     "teamAccess": "Accès à l’équipe (Vortex)",

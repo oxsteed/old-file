@@ -214,23 +214,20 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <NavLink to="/login" active={isActive('/login')}>{t('nav.signIn')}</NavLink>
-                <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
-                <NavLink to="/restaurants" active={isActive('/restaurants')}>{t('nav.localFoodDirectory')}</NavLink>
-                <NavLink to="/logistics" active={location.pathname.startsWith('/logistics')}>{t('nav.logistics')}</NavLink>
+                <NavLink to="/helpers" active={location.pathname.startsWith('/helpers')}>{t('nav.findHelp')}</NavLink>
+                <NavLink to="/restaurants" active={location.pathname.startsWith('/restaurants')}>{t('nav.orderFood')}</NavLink>
                 {SHOW_LEGACY_NAV_RESOURCES && (
                   <NavLink to="/how-it-works" active={isActive('/how-it-works')}>{t('nav.howItWorks')}</NavLink>
                 )}
-                {/* Unified signup CTA — replaces the customer/helper dropdown.
-                    Mode picker now lives inside /join itself. The customer/
-                    helper register pages are still mounted in App.jsx for
-                    back-compat with old inbound links. */}
+                <NavLink to="/login" active={isActive('/login')}>{t('nav.signIn')}</NavLink>
+                {/* Customer-first entry point: /join captures intent without
+                    granting professional access or asking for a persona switch. */}
                 <PrefetchLink
                   to="/join"
                   className="ox-btn ox-btn-primary ox-btn-sm"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                 >
-                  {t('nav.joinOxsteed')}
+                  {t('nav.postJob')}
                 </PrefetchLink>
               </>
             )}
@@ -346,10 +343,9 @@ export default function Navbar() {
               </>
             ) : (
               <>
+                <MobileNavLink to="/helpers" onClick={() => setMobileOpen(false)}>{t('nav.findHelp')}</MobileNavLink>
+                <MobileNavLink to="/restaurants" onClick={() => setMobileOpen(false)}>{t('nav.orderFood')}</MobileNavLink>
                 <MobileNavLink to="/login" onClick={() => setMobileOpen(false)}>{t('nav.signIn')}</MobileNavLink>
-                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
-                <MobileNavLink to="/restaurants" onClick={() => setMobileOpen(false)}>{t('nav.localFoodDirectory')}</MobileNavLink>
-                <MobileNavLink to="/logistics" onClick={() => setMobileOpen(false)}>{t('nav.logistics')}</MobileNavLink>
                 {SHOW_LEGACY_NAV_RESOURCES && (
                   <div className="ox-nav-account-section">
                     <span className="ox-nav-section-label">{t('nav.resources')}</span>
@@ -364,7 +360,7 @@ export default function Navbar() {
                   }}
                 >
                   <MobileNavLink to="/join" onClick={() => setMobileOpen(false)} primary>
-                    {t('nav.joinOxsteed')}
+                    {t('nav.postJob')}
                   </MobileNavLink>
                 </div>
               </>

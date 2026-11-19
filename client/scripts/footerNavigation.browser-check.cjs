@@ -62,15 +62,15 @@ test('footer layouts, shared support access, cookie settings and preserved invit
   try{
     browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>window.configure);
-    // All-launch flip (2026-11-04): the default-visibility footer gains
-    // /media (after /delivery) alongside /products; the fixture modes
-    // here are non-Pro, so no /qr-generator appears.
-    const expected=[['/restaurants','/direct','/delivery','/media','/products'],['/how-it-works','/about','/careers','/consulting-intake'],['/support','/learn','/vortex']];
+    // The public footer stays customer-first. Signed-in accounts get their
+    // personal entry points, while team/staff workspaces remain access-gated.
+    const expected=[['/helpers','/restaurants','/how-it-works'],['/direct','/delivery','/media','/products'],['/about','/careers','/support'],['/login','/join']];
     for(const language of ['en','fr','ar'])for(const theme of ['dark','light'])for(const mode of ['guest','customer','helper','business_owner']){
       await page.evaluate(options=>window.configure(options),{mode,language,theme});
       for(const width of [320,390,768,1360,1600]){
         await page.setViewportSize({width,height:850});await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));
-        assert.deepEqual(await page.locator('.site-footer__group').evaluateAll(groups=>groups.map(group=>[...group.querySelectorAll('a')].map(a=>a.getAttribute('href')))),expected,`${mode} ${language} ${theme} ${width}`);
+        const accountLinks=mode==='guest'?expected[3]:['/dashboard','/post-job'];
+        assert.deepEqual(await page.locator('.site-footer__group').evaluateAll(groups=>groups.map(group=>[...group.querySelectorAll('a')].map(a=>a.getAttribute('href')))),[...expected.slice(0,3),accountLinks],`${mode} ${language} ${theme} ${width}`);
         assert.equal(await page.locator('.site-footer__legal-links a').count(),7);
         assert.equal(await page.locator('.site-footer__legal-links button').count(),1);
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`no overflow ${language} ${width}`);
@@ -100,7 +100,7 @@ test('footer layouts, shared support access, cookie settings and preserved invit
     }
     await page.locator('.site-footer__cookie-button').focus();await page.keyboard.press('Enter');await page.getByRole('dialog').waitFor();
     assert.equal(await page.getByRole('dialog').count(),1);await page.getByRole('button',{name:'Close',exact:true}).click();await page.getByRole('dialog').waitFor({state:'detached'});
-    await page.locator('.site-footer__group a[href="/vortex"]').focus();await page.keyboard.press('Enter');await page.waitForURL('**/vortex');
+    assert.equal(await page.locator('.site-footer__group a[href="/vortex"]').count(),0,'team access is not advertised publicly');
     const account=page.getByRole('button',{name:'Account',exact:true});
     await page.evaluate(()=>window.configure({mode:'helper',userId:20,support:true,delay:150}));
     assert.equal(await page.locator('.site-footer a[href="/support/agent"]').count(),0,'pending is hidden');
