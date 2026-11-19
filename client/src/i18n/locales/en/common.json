@@ -6742,7 +6742,8 @@
     "home": {
       "workspaceUnavailable": "That workspace is no longer available, so you’re viewing Personal Home.",
       "workspaceReady": "Your approved workspace is ready.",
-      "openWorkspace": "Open your workspace"
+      "openWorkspace": "Open your workspace",
+      "workspaceLinksUnavailable": "Workspace links unavailable, retrying."
     },
     "accessUpdated": "Your access was updated.",
     "viewStatus": "View status",

@@ -6742,7 +6742,8 @@
     "home": {
       "workspaceUnavailable": "Ese espacio de trabajo ya no está disponible, así que estás viendo tu inicio personal.",
       "workspaceReady": "Tu espacio de trabajo aprobado está listo.",
-      "openWorkspace": "Abrir tu espacio de trabajo"
+      "openWorkspace": "Abrir tu espacio de trabajo",
+      "workspaceLinksUnavailable": "Enlaces del espacio de trabajo no disponibles, reintentando."
     },
     "accessUpdated": "Tu acceso se actualizó.",
     "viewStatus": "Ver estado",

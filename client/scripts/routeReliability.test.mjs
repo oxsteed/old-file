@@ -175,11 +175,12 @@ test('dashboard downloads and renders only the active account mode', async () =>
     vm.runInNewContext(code, { module, exports: module.exports, require(name) {
       if (name === 'react-router-dom') return { useNavigate: () => () => {} };
       if (name === '../hooks/useAuth') return { useAuth: () => ({ user: { default_mode: mode }, loading: false }) };
-      if (name === '../hooks/useAccessProjection') return { __esModule: true, default: () => ({ flags: { accessProjection: false } }) };
+      if (name === '../hooks/useAccessProjection') return { __esModule: true, ACCESS_CHANGED_EVENT: 'oxsteed:access-changed', default: () => ({ flags: { accessProjection: false } }) };
       if (name === '../utils/lazyWithRetry') return { lazyWithRetry: React.lazy };
       if (name === '../utils/modeAccess') return { dashboardKeyForMode };
       if (name === '../utils/launchScope') return { normalizeLaunchDashboardMode };
       if (name === '../growth/OfferCard') return { default: () => null, __esModule: true };
+      if (name === '../components/PersonaWorkspaceNotice') return { default: () => null, __esModule: true };
       if (name.startsWith('./')) {
         const page = name.slice(2);
         loaded.push(page);

@@ -26,6 +26,7 @@ export const PERSONA_NAVIGATION_CATALOG = Object.freeze([
 
 const link = (id, to, labelKey, extra = {}) => ({ id, to, labelKey, primary: false, ...extra });
 const STAFF_CAPABILITIES = new Set(['staff.review', 'staff.support', 'admin.access', 'manage_operations']);
+const PROJECTION_NOTICE_STATES = new Set(['loading', 'temporary_failure', 'rollback']);
 const PERSONA_NAV_TARGETS = Object.freeze({
   helper: [
     { id: 'persona-helper-opportunities', to: '/jobs', labelKey: 'nav.browseJobs' },
@@ -176,7 +177,15 @@ function organizationLinks(projection) {
 
 /** Return one shared navigation model for all responsive presentations. */
 export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = false } = {}) {
-  if (isNonhuman(projection)) return { mode: 'none', primary: [], account: [], workspaces: [], personas: [], surfaces: [] };
+  // G-41: the projection can be slow or failed while the nav renders
+  // customer-only. Fail-closed stays, but surface the state so the user
+  // knows workspace links are unavailable and retrying instead of gone.
+  // Only the transient hook states signal it; unauthenticated and
+  // restricted render customer-only with no notice.
+  const projectionNotice = !isProjectionReady(projection) && PROJECTION_NOTICE_STATES.has(projection?.status)
+    ? projection.status
+    : null;
+  if (isNonhuman(projection)) return { mode: 'none', primary: [], account: [], workspaces: [], personas: [], surfaces: [], projectionNotice: null };
 
   const primary = [
     link('findHelp', '/helpers', 'nav.findHelp'),
@@ -192,7 +201,7 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
   ];
   if (!isProjectionReady(projection)) {
     account.push(link('settings', '/settings', 'nav.settings'), link('help', '/support', 'nav.help'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
-    return { mode: 'customer', primary, account, workspaces: [], personas: ['customer'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'], showBusinessSwitcher: false };
+    return { mode: 'customer', primary, account, workspaces: [], personas: ['customer'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'], showBusinessSwitcher: false, projectionNotice };
   }
 
   const access = projection.access;
@@ -233,6 +242,6 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
   const staffAccess = showSupportWorkspace || (access.personal || []).some((capability) => STAFF_CAPABILITIES.has(capability)) || ['admin', 'super_admin', 'support_agent', 'reviewer'].includes(access.staffRole);
   if (staffAccess) addUnique(account, link('support', '/support/agent', 'nav.supportWorkspace', { staffShell: true }));
   account.push(link('settings', '/settings', 'nav.settings'), link('help', '/support', 'nav.help'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
-  return { mode: 'customer', primary, account, workspaces, personas: personas.length ? personas : ['customer'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'], showBusinessSwitcher: hasBusinessWorkspace };
+  return { mode: 'customer', primary, account, workspaces, personas: personas.length ? personas : ['customer'], surfaces: ['desktop', 'mobile', 'installed', 'bottom'], showBusinessSwitcher: hasBusinessWorkspace, projectionNotice };
 }
 

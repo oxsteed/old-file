@@ -159,3 +159,19 @@ test('catalog carries no dead shortcuts field and every setup entry is a real pa
   const nav = deriveAdaptiveNavigation({ flags: { accessProjection: true }, access: { personal: ['customer', 'business.own'], organizations: [], activation: { 'business.own': 'needs_setup' } } });
   assert.ok(destinations(nav).includes(businessSetup[0]));
 });
+
+test('projection loading or failure surfaces a retrying notice instead of silent customer-only nav', () => {
+  // G-41: fail-closed stays (customer-only links, no workspace), but the nav
+  // now says the workspace links are unavailable and retrying instead of
+  // silently dropping them.
+  for (const status of ['loading', 'temporary_failure', 'rollback']) {
+    const nav = deriveAdaptiveNavigation({ flags: {}, access: null, status });
+    assert.equal(nav.projectionNotice, status);
+    assert.ok(destinations(nav).includes('/post-job'));
+    assert.ok(!destinations(nav).includes('/helper-dashboard'));
+  }
+  const ready = deriveAdaptiveNavigation(projection(['customer', 'helper.offer_services']));
+  assert.equal(ready.projectionNotice, null);
+  const signedOut = deriveAdaptiveNavigation({ flags: {}, access: null, status: 'unauthenticated' });
+  assert.equal(signedOut.projectionNotice, null);
+});

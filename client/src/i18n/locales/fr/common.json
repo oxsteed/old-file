@@ -6742,7 +6742,8 @@
     "home": {
       "workspaceUnavailable": "Cet espace de travail n’est plus disponible, vous consultez donc votre accueil personnel.",
       "workspaceReady": "Votre espace de travail approuvé est prêt.",
-      "openWorkspace": "Ouvrir votre espace de travail"
+      "openWorkspace": "Ouvrir votre espace de travail",
+      "workspaceLinksUnavailable": "Liens de l’espace de travail indisponibles, nouvelle tentative en cours."
     },
     "accessUpdated": "Votre accès a été mis à jour.",
     "viewStatus": "Voir le statut",

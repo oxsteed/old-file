@@ -56,7 +56,7 @@ test('projection navbar renders responsive priorities, accessible disclosures an
     './OxSteedNetworkSwitcher': `export default ()=>null;`,
     // The access projection is the navbar's only mode signal now; drive it
     // from window.fixtureProjection so configure() can swap scenarios.
-    '../hooks/useAccessProjection': `export default ()=>window.fixtureProjection ?? null;`,
+    '../hooks/useAccessProjection': `export const ACCESS_CHANGED_EVENT = 'oxsteed:access-changed'; export default ()=>window.fixtureProjection ?? null;`,
   };
   const bundle = await build({
     stdin: { contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
