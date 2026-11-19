@@ -89,6 +89,13 @@ describeDb('payment layers on real Postgres', () => {
       );
       await acceptCurrentConsents(pool, id);
       if (role === 'helper') {
+        await pool.query(
+          `UPDATE users
+              SET id_verified = TRUE, identity_verified = TRUE,
+                  terms_accepted = TRUE, terms_accepted_at = NOW(), terms_version = 'payment-test'
+            WHERE id = $1`,
+          [id],
+        );
         // Domain 6 enforce contract: the access gate 403s a legacy helper
         // with no grant, so seed the backfilled helper.offer_services grant
         // the real legacy backfill would have created
