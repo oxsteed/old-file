@@ -34,6 +34,8 @@ import JobPaymentLayersPanel from '../components/paymentLayers/JobPaymentLayersP
 import JobRevisionHistory from '../components/JobRevisionHistory';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+import { listManagedBusinesses, requestJobRefund, listJobRefundRequests } from '../api/businesses';
+
 function formatBudget(job, t) {
   if (!job) return '-';
   if (job.budget_type === 'open' || (!job.budget_min && !job.budget_max)) return t('jobDetail.openToBids');
@@ -95,6 +97,89 @@ function daysUntil(dateStr) {
 // ─── Component ────────────────────────────────────────────────────────────────
 // Statuses where work is agreed or done, so a dispute is meaningful.
 const DISPUTABLE_JOB_STATUSES = ['accepted', 'in_progress', 'pending_completion', 'completed', 'closed'];
+
+// G-20: business-initiated refund requests. The owner asks for a refund on
+// a paid job; the request always queues for platform-admin approval and the
+// requester can never execute it. The business is the owner's business
+// (jobs carry no business_id; the job belongs to the business via its client).
+function JobRefundRequestSection({ job, fieldId }) {
+  const { t } = useTranslation();
+  const [businessId, setBusinessId] = useState(null);
+  const [requests, setRequests] = useState([]);
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let current = true;
+    listManagedBusinesses()
+      .then((businesses) => {
+        if (!current) return;
+        const owned = businesses.find((b) => b.role === 'owner')
+          || businesses.find((b) => (b.permissions || []).includes('refunds.request'));
+        if (owned) {
+          setBusinessId(owned.id);
+          listJobRefundRequests(owned.id, job.id).then((rows) => { if (current) setRequests(rows); }).catch(() => {});
+        }
+      })
+      .catch(() => {});
+    return () => { current = false; };
+  }, [job.id]);
+
+  const submit = async () => {
+    if (!businessId || submitting) return;
+    const cleanReason = reason.trim();
+    if (!cleanReason) { setError(t('jobDetail.refundReasonRequired')); return; }
+    const parsed = amount.trim() === '' ? null : Number(amount);
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) { setError(t('jobDetail.refundAmountInvalid')); return; }
+    setError(null);
+    setSubmitting(true);
+    try {
+      const payload = { reason: cleanReason, idempotencyKey: `job-refund-${job.id}-${Date.now()}` };
+      if (parsed === null) payload.fullRefund = true;
+      else payload.amount_cents = Math.round(parsed * 100);
+      await requestJobRefund(businessId, job.id, payload);
+      toast.success(t('jobDetail.refundRequestQueued'));
+      setAmount(''); setReason('');
+      listJobRefundRequests(businessId, job.id).then(setRequests).catch(() => {});
+    } catch (err) {
+      setError(err?.response?.data?.error || t('jobDetail.refundRequestFailed'));
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <section className="jdp-card" aria-labelledby={`${fieldId}-refund`}>
+      <h2 id={`${fieldId}-refund`} className="jdp-section-title">{t('jobDetail.refundTitle')}</h2>
+      <p className="jdp-count">{t('jobDetail.refundHelp')}</p>
+      {businessId ? <>
+        <label htmlFor={`${fieldId}-refund-amount`}>{t('jobDetail.refundAmountLabel')}</label>
+        <div className="jdp-input-prefix">
+          <span>{job.currency || 'USD'}</span>
+          <input id={`${fieldId}-refund-amount`} type="number" min="0" step="0.01" inputMode="decimal"
+            placeholder={t('jobDetail.refundAmountPlaceholder')} value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </div>
+        <label htmlFor={`${fieldId}-refund-reason`}>{t('jobDetail.refundReasonLabel')}</label>
+        <textarea id={`${fieldId}-refund-reason`} className="jdp-modal-textarea" rows={3}
+          placeholder={t('jobDetail.refundReasonPlaceholder')} value={reason} onChange={(e) => setReason(e.target.value)} />
+        {error && <p role="alert" className="jdp-error">{error}</p>}
+        <button type="button" className="jdp-btn-ghost" onClick={submit} disabled={submitting} data-track="ui.573dfef74b.18">
+          {submitting ? t('jobDetail.refundSubmitting') : t('jobDetail.requestRefund')}
+        </button>
+      </> : <p className="jdp-count">{t('jobDetail.refundNoBusiness')}</p>}
+      {requests.length > 0 && <div className="jdp-refund-list">
+        <h3 className="jdp-small-heading">{t('jobDetail.refundRequestsHeading')}</h3>
+        {requests.map((r) => (
+          <div key={r.id} className="jdp-refund-row">
+            <span>{formatMoney(r.amountCents / 100, { currency: r.currencyCode || 'USD' })}</span>
+            <span>{t('jobDetail.refundStatus.' + r.status, { defaultValue: r.status })}</span>
+            <span className="jdp-count">{r.reason}</span>
+          </div>
+        ))}
+      </div>}
+    </section>
+  );
+}
 
 export default function JobDetailPage() {
   const { id } = useParams();
@@ -763,6 +848,7 @@ function JobDetailContent() {
             </div>
           </section>}
           {isOwner && bidsCard}
+          {isOwner && ['accepted', 'in_progress', 'completed', 'closed'].includes(job.status) && <JobRefundRequestSection job={job} fieldId={fieldId} />}
           {requirementsCard}
           {view.canSubmitBid && <section className="jdp-card jdp-bid-form-card" aria-labelledby={`${fieldId}-bid-form`}>
             <h2 id={`${fieldId}-bid-form`} className="jdp-section-title" tabIndex={-1}>{t('jobDetail.submitYourBid')}</h2>

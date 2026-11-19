@@ -106,6 +106,12 @@ function namespacedIdempotencyKey(movementType, supplied) {
  *
  * Returns { queued: false } when below threshold (caller executes directly),
  * or { queued: true, approval, replay } when queued.
+ *
+ * forceQueue: always queue, even below the threshold. Business-initiated
+ * refund requests (G-20) use this: the requester must never be able to
+ * execute the refund themselves, so the movement always waits for a
+ * platform-admin approval. Same by-design bypass as fee_config_change,
+ * which queues every change.
  */
 async function requestMoneyMovementApproval({
   movementType,
@@ -115,6 +121,7 @@ async function requestMoneyMovementApproval({
   requestedBy,
   idempotencyKey,
   payload = {},
+  forceQueue = false,
 }) {
   // Self-healing registration: the executors are registered at server
   // startup (routes/admin.js), but a rail reached without that wiring must
@@ -136,7 +143,7 @@ async function requestMoneyMovementApproval({
   }
   if (!requestedBy) throw new AppError('requestedBy is required', 400, 'money_movement_actor_required');
 
-  if (!(await movementRequiresDualApproval(amount))) {
+  if (!(await movementRequiresDualApproval(amount)) && !forceQueue) {
     return { queued: false };
   }
 

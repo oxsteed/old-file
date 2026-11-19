@@ -3,6 +3,7 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const { requireFinanceRead, requireFinanceWrite } = require('../middleware/requireBusinessFinance');
+const refundRequests = require('../controllers/businessRefundRequestController');
 const expenses = require('../controllers/businessExpensesController');
 const quotes = require('../controllers/businessQuotesController');
 const recurring = require('../controllers/businessRecurringBillingController');
@@ -17,6 +18,14 @@ const recurring = require('../controllers/businessRecurringBillingController');
 const financeMember = requireBusinessAccess({ minRole: 'any' });
 const financeRead = requireFinanceRead();
 const financeWrite = requireFinanceWrite('invoices.create');
+
+// G-20: business-initiated refund requests. Gated on refunds.request
+// (managers hold it by default; representatives only by explicit override).
+// Requests always queue for platform-admin approval (refunds.approve step in
+// the Money Approvals queue); the requester can never execute the refund.
+const refundRequestGate = requireFinanceWrite('refunds.request');
+router.post  ('/:businessId/jobs/:jobId/refund-request',  requireAuth, financeMember, refundRequestGate, refundRequests.requestRefund);
+router.get   ('/:businessId/jobs/:jobId/refund-requests', requireAuth, financeMember, financeRead, refundRequests.listRefundRequests);
 
 // Expenses
 router.get   ('/:businessId/expenses',               requireAuth, financeMember, financeRead, expenses.listExpenses);

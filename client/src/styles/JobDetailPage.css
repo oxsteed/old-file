@@ -122,3 +122,8 @@
 }
 
 .jdp-next-step > button:not(.jdp-btn-primary) { min-height: 44px; padding: .7rem 1rem; border: 0; border-radius: 9px; color: var(--color-on-action); background: var(--color-action); }
+
+/* G-20: business refund request rows on the job page. */
+.jdp-refund-list { margin-block-start: 16px; display: grid; gap: 8px; }
+.jdp-refund-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 9px; background: var(--color-surface-2); }
+.jdp-error { color: var(--color-danger, #c0392b); }
