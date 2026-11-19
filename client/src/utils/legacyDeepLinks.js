@@ -41,6 +41,21 @@ export const LEGACY_MODE_TO_INTENT = Object.freeze({
   helper: 'offer_services',
   business_owner: 'run_business',
   restaurant_owner: 'run_restaurant',
+  consultant: 'consult',
+  tool_owner: 'list_equipment',
+  equipment_owner: 'list_equipment',
+  logistics: 'ship_goods',
+  delivery: 'ship_goods',
+  driver: 'ship_goods',
+  franchise_applicant: 'franchise',
+  investor: 'request_reporting',
+  credit_participant: 'join_credit',
+  credit_member: 'join_credit',
+  partner: 'join_partner',
+  affiliate: 'join_partner',
+  workforce: 'join_workforce',
+  learner: 'join_workforce',
+  instructor: 'join_workforce',
 });
 
 // Modes the join flow actually offers as cards. Mirrors

@@ -30,6 +30,9 @@ test('legacy mode values map to the signup intent, never to a role', () => {
   assert.equal(intentForLegacyMode('helper'), 'offer_services');
   assert.equal(intentForLegacyMode('business_owner'), 'run_business');
   assert.equal(intentForLegacyMode('restaurant_owner'), 'run_restaurant');
+  assert.equal(intentForLegacyMode('driver'), 'ship_goods');
+  assert.equal(intentForLegacyMode('delivery'), 'ship_goods');
+  assert.equal(intentForLegacyMode('consultant'), 'consult');
   assert.equal(intentForLegacyMode('customer'), 'find_help');
   assert.equal(intentForLegacyMode('life_only'), 'find_help');
   assert.equal(intentForLegacyMode('restaurant_customer'), 'find_help');
