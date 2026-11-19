@@ -1514,7 +1514,6 @@ async function customerCancelBookingRequest({ booking, actorId, actorType = 'cus
   const { rows } = await pool.query(
     `UPDATE booking_requests
         SET status = $2,
-            cancelled_at = CURRENT_TIMESTAMP,
             helper_response_reason = COALESCE($3, helper_response_reason),
             updated_at = CURRENT_TIMESTAMP,
             counter_status = CASE
