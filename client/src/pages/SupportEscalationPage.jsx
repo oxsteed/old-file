@@ -567,6 +567,9 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
   const [visitorName, setVisitorName] = useState(profileName);
   const [visitorEmail, setVisitorEmail] = useState(profileEmail);
   const [ticketMessage, setTicketMessage] = useState(() => handoff?.prefillMessage || '');
+  // Group 1, item 40: the customer picks the topic; accessibility
+  // assistance is a first-class topic, routed with its own category.
+  const [ticketCategory, setTicketCategory] = useState('support_request');
   const [ticketSubmitting, setTicketSubmitting] = useState(false);
   const [successTicketId, setSuccessTicketId] = useState(null);
 
@@ -982,7 +985,7 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
           visitorEmail,
           visitorName,
           message: ticketMessage,
-          category: 'support_request',
+          category: ticketCategory,
           priority: 'normal',
           clientRequestId,
           accessRequestId: handoff?.accessRequestId || undefined,
@@ -1299,6 +1302,26 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
                 </div>
 
                 <form onSubmit={handleSubmitTicket} className="space-y-5" data-track-private>
+                  <div>
+                    <label className="block text-slate-300 text-sm font-medium mb-2">
+                      {t('support.escalation.topicLabel')} <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      value={ticketCategory}
+                      onChange={(event) => setTicketCategory(event.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition"
+                    >
+                      <option value="support_request">{t('support.escalation.topicGeneral')}</option>
+                      <option value="billing">{t('support.escalation.topicBilling')}</option>
+                      <option value="technical">{t('support.escalation.topicTechnical')}</option>
+                      <option value="account">{t('support.escalation.topicAccount')}</option>
+                      <option value="accessibility">{t('support.escalation.topicAccessibility')}</option>
+                    </select>
+                    <p className="text-slate-500 text-xs mt-2">
+                      {t('support.escalation.topicAccessibilityHint')}
+                    </p>
+                  </div>
+
                   <div>
                     <label className="block text-slate-300 text-sm font-medium mb-2">
                       {t('support.escalation.nameLabel')} <span className="text-red-400">*</span>

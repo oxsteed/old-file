@@ -47,9 +47,13 @@ export function PreferenceSection({ title, description, children }) {
 // from GET /notifications/email and offers the explicit re-subscribe action
 // (POST /notifications/email/resubscribe-all). Saving other email
 // preferences never re-subscribes; only this button clears the flag.
+// Group 1, item 44: the same panel now also carries the marketing-email
+// toggle and the email frequency, saved with PUT /notifications/email.
 export function EmailPreferencesPanel() {
   const { t } = useTranslation();
   const [unsubscribed, setUnsubscribed] = useState(null);
+  const [marketingEmails, setMarketingEmails] = useState(true);
+  const [frequency, setFrequency] = useState('real-time');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -57,6 +61,12 @@ export function EmailPreferencesPanel() {
     api.get('/notifications/email')
       .then(r => {
         setUnsubscribed(!!r.data?.data?.unsubscribeAll);
+        if (typeof r.data?.data?.marketingEmails === 'boolean') {
+          setMarketingEmails(r.data.data.marketingEmails);
+        }
+        if (typeof r.data?.data?.frequency === 'string') {
+          setFrequency(r.data.data.frequency);
+        }
         setLoading(false);
       })
       .catch(() => {
@@ -64,6 +74,25 @@ export function EmailPreferencesPanel() {
         setLoading(false);
       });
   }, [t]);
+
+  const saveMarketing = useCallback(async (next) => {
+    setSaving(true);
+    const previous = { marketingEmails, frequency };
+    setMarketingEmails(next.marketingEmails);
+    setFrequency(next.frequency);
+    try {
+      const { data } = await api.put('/notifications/email', next);
+      setMarketingEmails(!!data?.data?.marketingEmails);
+      setFrequency(data?.data?.frequency || next.frequency);
+      toast.success(t('notifications.emailPrefs.savedToast'));
+    } catch {
+      setMarketingEmails(previous.marketingEmails);
+      setFrequency(previous.frequency);
+      toast.error(t('notifications.emailPrefs.failedAction'));
+    } finally {
+      setSaving(false);
+    }
+  }, [t, marketingEmails, frequency]);
 
   const runAction = useCallback(async (action) => {
     setSaving(true);
@@ -91,6 +120,35 @@ export function EmailPreferencesPanel() {
       title={t('notifications.emailPrefs.title')}
       description={t('notifications.emailPrefs.description')}
     >
+      <div className="notification-settings__preference-row">
+        <div>
+          <p className="notification-settings__row-title">{t('notifications.emailPrefs.marketingTitle')}</p>
+          <p className="notification-settings__muted text-xs mt-0.5">{t('notifications.emailPrefs.marketingBody')}</p>
+        </div>
+        <SettingsToggle
+          checked={marketingEmails}
+          disabled={saving || unsubscribed}
+          onChange={(next) => saveMarketing({ marketingEmails: next, frequency })}
+          ariaLabel={t('notifications.emailPrefs.marketingTitle')}
+        />
+      </div>
+      <div className="notification-settings__preference-row">
+        <div>
+          <p className="notification-settings__row-title">{t('notifications.emailPrefs.frequencyTitle')}</p>
+          <p className="notification-settings__muted text-xs mt-0.5">{t('notifications.emailPrefs.frequencyBody')}</p>
+        </div>
+        <select
+          value={frequency}
+          disabled={saving || unsubscribed}
+          onChange={(e) => saveMarketing({ marketingEmails, frequency: e.target.value })}
+          className="notification-settings__select"
+          aria-label={t('notifications.emailPrefs.frequencyTitle')}
+        >
+          {['real-time', 'daily', 'weekly', 'off'].map((f) => (
+            <option key={f} value={f}>{t(`notifications.emailPrefs.frequency.${f}`)}</option>
+          ))}
+        </select>
+      </div>
       {unsubscribed ? (
         <div className="notification-settings__preference-row">
           <div>
