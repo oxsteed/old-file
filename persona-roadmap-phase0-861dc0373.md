@@ -10,7 +10,7 @@
 
 | # | Group | Items | 1898dcf03 | 8b5810e65 (deleted) | **861dc0373 (merged tip)** |
 |---|---|---|---|---|---|
-| 1 | Customer | 1-50 | PARTIAL | PARTIAL | **PARTIAL** |
+| 1 | Customer | 1-50 | PARTIAL | PARTIAL | **EXISTS** |
 | 2 | Household delegate | 51-100 | MISSING | MISSING | **MOSTLY MISSING** |
 | 3 | Recipient and sponsor | 101-150 | MISSING | MISSING | **MOSTLY MISSING** |
 | 4 | Helper/provider | 151-200 | PARTIAL | EXISTS | **PARTIAL** |
@@ -34,6 +34,10 @@
 **Counts at the merged tip: 1 EXISTS, 13 PARTIAL, 5 MOSTLY MISSING, 1 MISSING.**
 Was at 1898dcf03: 1 EXISTS, 11 PARTIAL, 5 MOSTLY MISSING, 3 MISSING.
 Four verdicts moved, all upward: G2 and G3 MISSING to MOSTLY MISSING, G7 and G15 MOSTLY MISSING to PARTIAL. No verdict moved down, but Helper did NOT reach EXISTS as it did on the deleted remediation branch, because the merged tree carries the PR's looser G-1 variant (see below).
+
+## Post-build update — Group 1: Customer (2026-11-19)
+
+Group 1 moved PARTIAL to EXISTS in the Group 1 commit ("Group 1: Customer (items 1-50)"). Counts after that build: 2 EXISTS, 12 PARTIAL, 5 MOSTLY MISSING, 1 MISSING. All 50 items verified existing or built (booking-level reschedule, quote deadline/comparison/expiry notice, map search on the existing MapLibre + AWS Location stack, shortlist/comparison, aftercare, home care calendar, vehicle service reminders, seasonal task packs, DIY kit picker + substitution preview, product return entry, accessibility support category, saved service locations, marketing preferences UI, affiliate labeling); item 49 closed by decision D-6. No item deferred. Decisions D-25 to D-33 in `persona-roadmap-decisions.md`.
 
 ## Sharpest findings
 
