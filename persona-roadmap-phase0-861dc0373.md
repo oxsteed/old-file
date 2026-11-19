@@ -51,9 +51,9 @@ Four verdicts moved, all upward: G2 and G3 MISSING to MOSTLY MISSING, G7 and G15
 
 | Gate | Status | Phase 1 consequence |
 |---|---|---|
-| G-1 activation | Enforced, PR-loose variant (helper bar identity+terms; `payout_setup` deleted for helpers; `allowActivationIncomplete` on profile/registration/Connect routes) | Decision needed FIRST: restore or accept (see finding 1) |
-| G-6/G-7 book-for-another + site-contact | API-real; UI name/phone-only; link never delivered; no acceptance, no chat admission, no jobs carry-over | Build the UI + acceptance + delivery legs; model decisions in D-10 |
-| G-8 read-only finance scope | Route-level closed (code-gated finance reads/writes); statement archive still manager-gated; no scoped invitation | Extend code-gating to the archive or accept the delegated-read override as the auditor path |
+| G-1 activation | Enforced, restored with per-route carve-outs (commit `35efeaa9b`: `payout_setup` required again; Connect onboarding route carved out; profile tightened to the full gate) | Done; no gate work needed |
+| G-6/G-7 book-for-another + site-contact | Built (commit `632b1ba25`: booking by id/email, status-link delivery via `sendNotification`, 7-day tokens, accept/decline/revoke, site-contact scoped read + chat admission, jobs carry-over) | Done; recipient-pays-through-own-instrument deferred |
+| G-8 read-only finance scope | Closed (commit `7eca48d09`: credit archive honors the live `statements.view` override; expired/revoked overrides read nothing; G-19 boundary kept; link minting stays owner/manager-only) | Done; no gate work needed |
 | G-46 driver onboarding gate | Closed (`deliveryDriverAdmission.js`, legacy OR `logistics.ship`) | No gate work needed |
 | G-9/G-10 phantom capabilities | Closed by removal (`credit.participate`, `partner.attribute`, `workforce.learn` gone); `investor.participate` generic minting closed | No gate work needed |
 | G-2/G-3 handoffs | Closed for all intents (team to `/vortex` + invite link, credit to `/credit/apply`, franchise to `/franchise/apply`, partner to `/affiliate`, workforce to `/learn`, staff/device to Applications with a visible request) | No gate work needed |
