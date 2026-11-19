@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { AlertCircle, Calendar, CheckCircle2, Clock3, MapPin } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
+import { respondToRecipientInvite } from '../api/bookings';
+import toast from 'react-hot-toast';
 
 // G-7: public site-contact status link. Token-gated, no sign-in. Shows the
 // service, its status, and the arrival window only. No amounts, no billing,
@@ -21,6 +23,7 @@ export default function PublicBookingStatusPage() {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [responding, setResponding] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -36,6 +39,26 @@ export default function PublicBookingStatusPage() {
     })();
     return () => { mounted = false; };
   }, [token]);
+
+  // G-6: the recipient accepts or declines via their invite token. The
+  // site-contact link never offers this: only the recipient token does.
+  const handleRespond = async (decision) => {
+    setResponding(true);
+    try {
+      const result = await respondToRecipientInvite(token, decision);
+      setStatus((prev) => (prev ? {
+        ...prev,
+        recipientConsentStatus: result.recipientConsentStatus || decision,
+        recipientConsentedAt: result.recipientConsentedAt || new Date().toISOString(),
+        canRespondAsRecipient: false,
+      } : prev));
+      toast.success(t(decision === 'accepted' ? 'booking.recipientAccepted' : 'booking.recipientDeclined'));
+    } catch {
+      toast.error(t('booking.recipientResponseFailed'));
+    } finally {
+      setResponding(false);
+    }
+  };
 
   const dateLabel = status?.requestedDate
     ? new Date(`${status.requestedDate}T12:00:00`).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
@@ -72,6 +95,38 @@ export default function PublicBookingStatusPage() {
           )}
           {status.siteContactName && (
             <p>{t('booking.publicStatusFor', { name: status.siteContactName })}</p>
+          )}
+          {status.hasRecipient && status.recipientConsentStatus === 'accepted' && (
+            <p>{t('booking.recipientAcceptedNote')}</p>
+          )}
+          {status.hasRecipient && status.recipientConsentStatus === 'declined' && (
+            <p>{t('booking.recipientDeclinedNote')}</p>
+          )}
+          {status.canRespondAsRecipient && (
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <p style={{ width: '100%' }}>{t('booking.recipientRespondPrompt')}</p>
+              <button
+                type="button"
+                disabled={responding}
+                onClick={() => handleRespond('accepted')}
+                data-track="ui.474702b501.8"
+              >
+                {t('booking.acceptBooking')}
+              </button>
+              <button
+                type="button"
+                disabled={responding}
+                onClick={() => handleRespond('declined')}
+                data-track="ui.474702b501.9"
+              >
+                {t('booking.declineBooking')}
+              </button>
+            </div>
+          )}
+          {status.statusTokenExpiresAt && (
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
+              {t('booking.publicStatusExpires', { date: new Date(status.statusTokenExpiresAt).toLocaleDateString() })}
+            </p>
           )}
           <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>{t('booking.publicStatusNote')}</p>
         </div>

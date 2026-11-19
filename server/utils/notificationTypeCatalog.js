@@ -42,8 +42,12 @@ const NOTIFICATION_TYPES = [
   { type: 'booking_counter_proposed', group: 'work' },
   { type: 'booking_declined', group: 'work' },
   { type: 'booking_expired', group: 'work' },
+  // G-6/G-7: recipient invite, recipient response notice, site-contact link.
+  { type: 'booking_recipient_invite', group: 'work' },
+  { type: 'booking_recipient_response', group: 'work' },
   { type: 'booking_transferred', group: 'work' },
   { type: 'booking_request_new', group: 'work' },
+  { type: 'booking_site_contact_link', group: 'work' },
   { type: 'consulting_session_scheduled', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
   { type: 'crew_shift_published', group: 'work' },

@@ -10,6 +10,24 @@ export async function getPublicBookingStatus(token) {
   return data?.data ?? data;
 }
 
+// G-6: recipient accept/decline via their invite token (public link).
+export async function respondToRecipientInvite(token, decision) {
+  const { data } = await api.post(`/bookings/status/${encodeURIComponent(token)}/respond`, { decision });
+  return data?.data ?? data;
+}
+
+// G-6: account-linked recipient accept/decline.
+export async function respondAsRecipient(bookingId, decision) {
+  const { data } = await api.post(`/bookings/${bookingId}/recipient/respond`, { decision });
+  return data?.data ?? data;
+}
+
+// G-6/G-7: booker revokes the invite/status links before acceptance.
+export async function revokeBookingStatusLink(bookingId) {
+  const { data } = await api.post(`/bookings/${bookingId}/status-link/revoke`);
+  return data?.data ?? data;
+}
+
 export async function getBookingRequest(bookingId) {
   const { data } = await api.get(`/bookings/${bookingId}`);
   return data;

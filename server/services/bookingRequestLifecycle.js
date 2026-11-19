@@ -105,13 +105,21 @@ async function autoPostExpiredBooking(bookingId) {
         .filter(Boolean)
         .join('\n\n');
 
+      // G-6/G-7: the recipient and the site contact carry onto the posted
+      // job so both see it in their jobs views with the same scoped read.
+      // The deposit still belongs to the booker (customer_id).
       const jobResult = await client.query(
         `INSERT INTO jobs (
            client_id, title, description, category_name,
-           location_address, status, expires_at
-         ) VALUES ($1, $2, $3, $4, $5, 'published', NOW() + INTERVAL '30 days')
+           location_address, status, expires_at,
+           recipient_user_id, recipient_name, recipient_phone,
+           site_contact_user_id, site_contact_name, site_contact_phone
+         ) VALUES ($1, $2, $3, $4, $5, 'published', NOW() + INTERVAL '30 days',
+                   $6, $7, $8, $9, $10, $11)
          RETURNING id`,
-        [booking.customer_id, title, description || title, title.slice(0, 100), booking.service_location || null],
+        [booking.customer_id, title, description || title, title.slice(0, 100), booking.service_location || null,
+         booking.recipient_user_id || null, booking.recipient_name || null, booking.recipient_phone || null,
+         booking.site_contact_user_id || null, booking.site_contact_name || null, booking.site_contact_phone || null],
       );
       const job = jobResult.rows[0];
 
@@ -236,6 +244,13 @@ function toCalendarBooking(row) {
     siteContactPhone: row.site_contact_phone || null,
     siteContactUserId: row.site_contact_user_id || null,
     statusToken: row.status_token || null,
+    // G-6/G-7: recipient consent state and the shared 7-day link expiry.
+    // The recipient invite token itself is never in the read shape: only
+    // the booker sees it (create response / booker read in the controller).
+    recipientConsentStatus: row.recipient_consent_status || 'pending',
+    recipientConsentedAt: row.recipient_consented_at || null,
+    statusTokenExpiresAt: row.status_token_expires_at || null,
+    statusTokenRevokedAt: row.status_token_revoked_at || null,
     helperId: row.helper_id,
     businessId: row.business_id || null,
     serviceName: row.service_name,

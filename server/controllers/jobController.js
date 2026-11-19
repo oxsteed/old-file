@@ -605,6 +605,8 @@ exports.getJob = async (req, res, next) => {
         j.version, j.revision, j.material_edit_count, j.last_material_edit_at,
         j.requirements, j.media_urls, j.bid_count, j.assigned_helper_id,
         j.preferred_helper_id, j.preferred_helper_name,
+        j.recipient_user_id, j.recipient_name, j.recipient_phone,
+        j.site_contact_user_id, j.site_contact_name, j.site_contact_phone,
         j.created_at, j.updated_at, j.expires_at,
         j.started_at, j.completed_at, j.cancelled_at, j.cancellation_reason,
         j.escrow_status, j.accepted_at, j.completion_requested_at,
@@ -1935,8 +1937,13 @@ exports.getMyJobs = async (req, res, next) => {
     // dashboard list so customers don't see ghost rows. Pass ?include_deleted=1
     // for archive views.
     // Review P2-479: ?role=helper lists jobs assigned to the caller.
+    // G-6/G-7: the client list also carries jobs the caller is the
+    // recipient or the site contact of (same scoped read as the booking
+    // lists; the job serializer strips money/private fields for them).
     const asHelper = req.query.role === 'helper';
-    let where = asHelper ? 'WHERE assigned_helper_id = $1' : 'WHERE client_id = $1';
+    let where = asHelper
+      ? 'WHERE assigned_helper_id = $1'
+      : 'WHERE (client_id = $1 OR recipient_user_id = $1 OR site_contact_user_id = $1)';
     if (!include_deleted) where += ' AND deleted_at IS NULL';
     if (status) {
       params.push(status);
@@ -1955,6 +1962,8 @@ exports.getMyJobs = async (req, res, next) => {
         location_approx_lat, location_approx_lng,
         requirements, media_urls, bid_count,
         assigned_helper_id, preferred_helper_id, preferred_helper_name,
+        recipient_user_id, recipient_name, recipient_phone,
+        site_contact_user_id, site_contact_name, site_contact_phone,
         scheduled_date, scheduled_time, recurrence,
         scheduled_start_at, scheduled_precision,
         budget_min_cents, budget_max_cents, currency_code,
@@ -1968,6 +1977,15 @@ exports.getMyJobs = async (req, res, next) => {
       ORDER BY created_at DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
+
+    // G-6/G-7: a recipient / site contact sees their linked jobs with the
+    // same scoped read as the booking lists: the booker's private notes
+    // are not theirs. (Budget stays: the public feed already shows it.)
+    if (!asHelper) {
+      for (const row of rows) {
+        if (String(row.client_id) !== String(req.user.id)) row.private_notes = null;
+      }
+    }
 
     const translatedRows = await translateRecordsForRequest(rows, req, {
       fields: ['title', 'description', 'category_name'],

@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
 const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const bookingController = require('../controllers/bookingController');
@@ -44,6 +44,9 @@ router.get('/incoming', requireAuth, bookingController.getIncomingBookingRequest
 
 /** Static paths must be registered before /:bookingId */
 router.get('/status/:token', bookingController.getPublicBookingStatus);
+// G-6: recipient accept/decline via their invite token. Optional auth so a
+// signed-in recipient links their account on accept; token-only otherwise.
+router.post('/status/:token/respond', optionalAuth, bookingController.respondToRecipientInvite);
 router.get('/recurring', requireAuth, bookingController.listRecurringBookings);
 router.post('/recurring', requireAuth, bookingController.createRecurringBooking);
 router.post('/recurring/:id/cancel', requireAuth, bookingController.updateRecurringBookingStatus);
@@ -53,6 +56,9 @@ router.get('/business/:businessId/available-slots', scopeExempt('public-storefro
 router.get('/helper/:helperId/available-slots', bookingController.getHelperAvailableSlots);
 
 router.get('/:bookingId', requireAuth, bookingController.getBookingRequest);
+// G-6: account-linked recipient accept/decline; booker revokes the links.
+router.post('/:bookingId/recipient/respond', requireAuth, bookingController.respondAsRecipient);
+router.post('/:bookingId/status-link/revoke', requireAuth, bookingController.revokeStatusLink);
 router.post('/:bookingId/accept', requireAuth, requireBookingProviderCapability, requireBookingProviderActivation, bookingController.acceptBookingRequest);
 router.post('/:bookingId/decline', requireAuth, requireBookingProviderCapability, bookingController.declineBookingRequest);
 router.post('/:bookingId/cancel', requireAuth, bookingController.cancelBookingRequest);

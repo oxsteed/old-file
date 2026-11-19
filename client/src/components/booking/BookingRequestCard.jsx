@@ -207,7 +207,7 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
               </span>
             </div>
           )}
-          {live.statusToken && (
+          {live.statusToken && !live.statusTokenRevokedAt && (
             <div className="detail-row">
               <span className="detail-label">{t('booking.statusLink')}:</span>
               <span className="detail-value" style={{ overflowWrap: 'anywhere' }}>
@@ -222,6 +222,52 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
                   }} data-track="ui.474702b501.5"
                 >
                   {t('booking.copyLink')}
+                </button>
+              </span>
+            </div>
+          )}
+          {/* G-6: the recipient invite link (accept/decline). The booker
+              shares it with a named recipient; account recipients get it
+              in-app. Only the booker ever sees this token. */}
+          {live.recipientToken && !live.statusTokenRevokedAt && (
+            <div className="detail-row">
+              <span className="detail-label">{t('booking.recipientInviteLink')}:</span>
+              <span className="detail-value" style={{ overflowWrap: 'anywhere' }}>
+                {`${window.location.origin}/bookings/status/${live.recipientToken}`}
+                <button
+                  type="button"
+                  className="booking-btn-secondary"
+                  style={{ marginLeft: '0.5rem' }}
+                  onClick={() => {
+                    navigator.clipboard?.writeText(`${window.location.origin}/bookings/status/${live.recipientToken}`);
+                    toast.success(t('booking.linkCopied'));
+                  }} data-track="ui.474702b501.6"
+                >
+                  {t('booking.copyLink')}
+                </button>
+              </span>
+            </div>
+          )}
+          {/* G-6/G-7: the booker revokes both links before the recipient
+              responds. Shown only while consent is still pending. */}
+          {(live.statusToken || live.recipientToken) && !live.statusTokenRevokedAt && (live.recipientConsentStatus || 'pending') === 'pending' && (
+            <div className="detail-row">
+              <span className="detail-label">{t('booking.statusLinkRevoke')}:</span>
+              <span className="detail-value">
+                <button
+                  type="button"
+                  className="booking-btn-secondary"
+                  onClick={async () => {
+                    try {
+                      const { data } = await api.post(`/bookings/${live.id}/status-link/revoke`);
+                      if (data?.data) setLive(data.data);
+                      toast.success(t('booking.statusLinkRevoked'));
+                    } catch {
+                      toast.error(t('booking.statusLinkRevokeFailed'));
+                    }
+                  }} data-track="ui.474702b501.7"
+                >
+                  {t('booking.revokeLink')}
                 </button>
               </span>
             </div>

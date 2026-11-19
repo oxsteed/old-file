@@ -160,8 +160,10 @@ export default function BookingFlow({ helperId, helperName, businessId, business
         // G-6/G-7: recipient and site contact, when the booker supplied them.
         recipientName: formData.recipientName || undefined,
         recipientPhone: formData.recipientPhone || undefined,
+        recipientEmail: formData.recipientEmail || undefined,
         siteContactName: formData.siteContactName || undefined,
         siteContactPhone: formData.siteContactPhone || undefined,
+        siteContactEmail: formData.siteContactEmail || undefined,
       });
 
       setBookingRequest(bookingRow);

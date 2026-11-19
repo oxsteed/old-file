@@ -41,9 +41,13 @@ export default function BookingConfirmation({
   const [forSomeoneElse, setForSomeoneElse] = useState(false);
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
+  // G-6: an email links an existing OxSteed account as the recipient, so
+  // they get the invite in-app instead of only through a shared link.
+  const [recipientEmail, setRecipientEmail] = useState('');
   // G-7: site contact who coordinates arrival on site.
   const [siteContactName, setSiteContactName] = useState('');
   const [siteContactPhone, setSiteContactPhone] = useState('');
+  const [siteContactEmail, setSiteContactEmail] = useState('');
   const deadlineLimitHours = useMemo(
     () => getDeadlineLimitHours(bookingData.requestedDate, bookingData.requestedStartTime),
     [bookingData.requestedDate, bookingData.requestedStartTime],
@@ -75,8 +79,10 @@ export default function BookingConfirmation({
       confirmationHours: effectiveConfirmationHours,
       recipientName: forSomeoneElse ? recipientName.trim() || undefined : undefined,
       recipientPhone: forSomeoneElse ? recipientPhone.trim() || undefined : undefined,
+      recipientEmail: forSomeoneElse ? recipientEmail.trim() || undefined : undefined,
       siteContactName: siteContactName.trim() || undefined,
       siteContactPhone: siteContactPhone.trim() || undefined,
+      siteContactEmail: siteContactEmail.trim() || undefined,
     });
   };
 
@@ -230,6 +236,15 @@ export default function BookingConfirmation({
                 aria-label={t('booking.recipientPhone')}
                 maxLength={40}
               />
+              <input
+                type="email"
+                className="booking-input"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                placeholder={t('booking.recipientEmailPlaceholder')}
+                aria-label={t('booking.recipientEmail')}
+                maxLength={200}
+              />
               <p style={{ fontSize: '0.8rem', color: 'var(--muted-text)' }}>
                 {t('booking.bookForSomeoneElseHint')}
               </p>
@@ -259,6 +274,15 @@ export default function BookingConfirmation({
               placeholder={t('booking.siteContactPhonePlaceholder')}
               aria-label={t('booking.siteContactPhone')}
               maxLength={40}
+            />
+            <input
+              type="email"
+              className="booking-input"
+              value={siteContactEmail}
+              onChange={(e) => setSiteContactEmail(e.target.value)}
+              placeholder={t('booking.siteContactEmailPlaceholder')}
+              aria-label={t('booking.siteContactEmail')}
+              maxLength={200}
             />
             <p style={{ fontSize: '0.8rem', color: 'var(--muted-text)' }}>
               {t('booking.siteContactHint')}

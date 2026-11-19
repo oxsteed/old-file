@@ -18,6 +18,11 @@ const DEFAULT_CONFIRMATION_HOURS = 24;
 const MIN_CONFIRMATION_HOURS = 1;
 const MAX_CONFIRMATION_HOURS = 168;
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
+// G-6/G-7: both status links (recipient invite + site-contact status) live
+// 7 days from creation. No product precedent for a token TTL exists
+// (quote lookup codes are 15-minute one-time challenges; invoice public
+// tokens never expire), so 7 days is the recorded D-10 decision.
+const STATUS_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const WEEKDAY_INDEX = {
   sunday: 0,
   monday: 1,
@@ -27,6 +32,130 @@ const WEEKDAY_INDEX = {
   friday: 5,
   saturday: 6,
 };
+
+/**
+ * G-6/G-7: resolve an account by email for a recipient / site contact.
+ * Returns the user id when an active, non-deleted account matches, else
+ * null (the booking stays a named, token-linked recipient/contact). A
+ * non-matching or malformed email is never an error: the booker sees
+ * recipientUserId null in the response and can correct it.
+ */
+async function resolveUserIdByEmail(email) {
+  const clean = String(email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return null;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id FROM users WHERE lower(email) = $1 AND deleted_at IS NULL AND is_active = TRUE LIMIT 1`,
+      [clean]
+    );
+    return rows[0] ? String(rows[0].id) : null;
+  } catch (err) {
+    logger.warn('Failed to resolve booking contact by email', { error: err.message });
+    return null;
+  }
+}
+
+/**
+ * G-6/G-7: deliver the status link through the channel booking
+ * confirmations already use: sendNotification (in-app notification plus
+ * push/email per the recipient's prefs) with a realtime socket event.
+ * No new channel is invented. Named-only recipients/contacts have no
+ * account, so there is nobody to notify: the booker shares the link from
+ * the booking card (BookingRequestCard copy-link UI).
+ */
+async function deliverBookingStatusLinks(booking) {
+  const deliveries = [];
+  if (booking.recipient_user_id && booking.recipient_token) {
+    deliveries.push((async () => {
+      try {
+        broadcastToUser(booking.recipient_user_id, 'booking:recipient_invite', {
+          bookingId: booking.id,
+          status: booking.status,
+        });
+        await sendNotification({
+          userId: booking.recipient_user_id,
+          type: 'booking_recipient_invite',
+          body: `${booking.service_name}, ${booking.requested_date}`,
+          data: { bookingId: booking.id },
+          action_url: `/bookings/status/${booking.recipient_token}`,
+          idempotencyKey: `booking-recipient-invite:${booking.id}:${booking.recipient_user_id}`,
+        });
+      } catch (err) {
+        logger.warn('Failed to deliver recipient invite link', { bookingId: booking.id, error: err.message });
+      }
+    })());
+  }
+  if (booking.site_contact_user_id && booking.status_token) {
+    deliveries.push((async () => {
+      try {
+        broadcastToUser(booking.site_contact_user_id, 'booking:site_contact_link', {
+          bookingId: booking.id,
+          status: booking.status,
+        });
+        await sendNotification({
+          userId: booking.site_contact_user_id,
+          type: 'booking_site_contact_link',
+          body: `${booking.service_name}, ${booking.requested_date}`,
+          data: { bookingId: booking.id },
+          action_url: `/bookings/status/${booking.status_token}`,
+          idempotencyKey: `booking-site-contact-link:${booking.id}:${booking.site_contact_user_id}`,
+        });
+      } catch (err) {
+        logger.warn('Failed to deliver site-contact status link', { bookingId: booking.id, error: err.message });
+      }
+    })());
+  }
+  await Promise.allSettled(deliveries);
+}
+
+/**
+ * G-6/G-7: the invite/status link is usable while it is neither revoked
+ * nor past its 7-day expiry. Expired and revoked links answer exactly
+ * like unknown ones (404) so they leak nothing.
+ */
+function inviteLinkUsable(booking) {
+  if (!booking) return false;
+  if (booking.status_token_revoked_at) return false;
+  if (booking.status_token_expires_at && new Date(booking.status_token_expires_at) <= new Date()) return false;
+  return true;
+}
+
+/**
+ * G-6/G-7: shape a booking for the viewer. The booker sees everything
+ * including both links. The recipient sees the booking without the
+ * site-contact link (and never any payment internals: the transform
+ * carries none). The site contact gets a scoped subset only: status,
+ * schedule, address, helper reference, and their own contact details.
+ * Nobody else reaches this helper (getBookingRequest 403s first).
+ */
+function bookingViewForUser(booking, userId) {
+  const full = transformBooking(booking);
+  const isBooker = userId && String(userId) === String(booking.customer_id);
+  if (isBooker) {
+    return { ...full, recipientToken: booking.recipient_token || null };
+  }
+  const isSiteContact =
+    userId && booking.site_contact_user_id && String(userId) === String(booking.site_contact_user_id);
+  if (isSiteContact) {
+    return {
+      id: full.id,
+      serviceName: full.serviceName,
+      status: full.status,
+      requestedDate: full.requestedDate,
+      requestedStartTime: full.requestedStartTime,
+      requestedEndTime: full.requestedEndTime,
+      serviceLocation: full.serviceLocation,
+      description: full.description,
+      helperId: full.helperId,
+      siteContactName: full.siteContactName,
+      siteContactPhone: full.siteContactPhone,
+      statusTokenExpiresAt: full.statusTokenExpiresAt,
+      conversationId: full.conversationId,
+    };
+  }
+  const { statusToken, ...rest } = full;
+  return rest;
+}
 
 /**
  * If pending and past expires_at, mark expired (single-row).
@@ -126,14 +255,18 @@ exports.createBookingRequest = async (req, res) => {
       serviceId,
       timezone,
       // G-6: book for another person. The booker stays customer_id (and the
-      // deposit payer); the recipient is who the work is for.
+      // deposit payer); the recipient is who the work is for. An account is
+      // attached by id, or by email (resolved server-side); otherwise the
+      // recipient is named-only and token-linked.
       recipientUserId,
       recipientName,
       recipientPhone,
+      recipientEmail,
       // G-7: site contact who coordinates arrival on site.
       siteContactName,
       siteContactPhone,
       siteContactUserId,
+      siteContactEmail,
       source,
     } = req.body;
 
@@ -196,6 +329,14 @@ exports.createBookingRequest = async (req, res) => {
     const cleanSiteContactPhone = String(siteContactPhone || '').trim().slice(0, 40) || null;
     let cleanRecipientUserId = recipientUserId ? String(recipientUserId) : null;
     let cleanSiteContactUserId = siteContactUserId ? String(siteContactUserId) : null;
+    // G-6/G-7: an email attaches an existing account when one matches;
+    // a non-matching email stays a named, token-linked party.
+    if (!cleanRecipientUserId && recipientEmail) {
+      cleanRecipientUserId = await resolveUserIdByEmail(recipientEmail);
+    }
+    if (!cleanSiteContactUserId && siteContactEmail) {
+      cleanSiteContactUserId = await resolveUserIdByEmail(siteContactEmail);
+    }
     if (cleanRecipientUserId === customerId) {
       return sendValidationError(res, { recipientUserId: 'The recipient must be someone other than the booker' });
     }
@@ -217,8 +358,14 @@ exports.createBookingRequest = async (req, res) => {
     }
     // G-7: a site contact gets a single-booking signed status link at
     // booking time (status + arrival window only, no amounts, no billing).
+    // G-6: a recipient gets their own invite token on the same link: the
+    // two roles never share a token, so a site contact cannot accept or
+    // decline on the recipient's behalf. Both links expire in 7 days.
+    const hasRecipient = Boolean(cleanRecipientUserId || cleanRecipientName || cleanRecipientPhone);
     const hasSiteContact = Boolean(cleanSiteContactName || cleanSiteContactPhone || cleanSiteContactUserId);
-    const statusToken = hasSiteContact ? crypto.randomBytes(32).toString('hex') : null;
+    const statusToken = (hasRecipient || hasSiteContact) ? crypto.randomBytes(32).toString('hex') : null;
+    const recipientToken = hasRecipient ? crypto.randomBytes(32).toString('hex') : null;
+    const statusTokenExpiresAt = statusToken ? new Date(Date.now() + STATUS_LINK_TTL_MS) : null;
 
     if (!requestOnly && requestedStartTime >= requestedEndTime) {
       return sendValidationError(res, { requestedEndTime: 'End time must be after start time' });
@@ -324,9 +471,10 @@ const bookingId = uuidv4();
           availability_mode, auto_post_on_expiry,
           conversation_id, guest_session_id, source, service_id, timezone,
           booked_by_user_id, recipient_user_id, recipient_name, recipient_phone,
-          site_contact_name, site_contact_phone, site_contact_user_id, status_token
+          site_contact_name, site_contact_phone, site_contact_user_id, status_token,
+          recipient_token, status_token_expires_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
-                  $20, $21, $22, $23, $24, $25, $26, $27)
+                  $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
          RETURNING *`,
         [
           bookingId,
@@ -356,6 +504,8 @@ const bookingId = uuidv4();
           cleanSiteContactPhone,
           cleanSiteContactUserId,
           statusToken,
+          recipientToken,
+          statusTokenExpiresAt,
         ]
       );
       await emitDomainEvent(client, 'booking.requested', serviceEventProps({ service_id: serviceId }), { userId: customerId, req });
@@ -366,6 +516,10 @@ const bookingId = uuidv4();
 
     await logBookingAudit(bookingId, 'created', customerId, 'customer', 'pending', 'pending');
     await notifyHelperOfBooking(helperId, booking);
+    // G-6/G-7: deliver the status link to the recipient / site contact
+    // accounts (in-app notification channel); named-only parties get the
+    // link from the booker via the booking card.
+    await deliverBookingStatusLinks(booking);
 
     logger.info('Booking request created', {
       bookingId,
@@ -376,7 +530,9 @@ const bookingId = uuidv4();
 
     res.status(201).json({
       success: true,
-      data: transformBooking(booking),
+      // The booker alone sees the recipient invite token (to share with a
+      // named recipient); reads never carry it.
+      data: { ...transformBooking(booking), recipientToken: booking.recipient_token || null },
     });
     // Growth Center attribution (visit -> booking); after the response.
     attributePromotionConversion(req, { businessId: booking.business_id, helperUserId: booking.helper_id,
@@ -406,14 +562,18 @@ exports.getBookingRequest = async (req, res) => {
     const isCustomer = userId && String(userId) === String(booking.customer_id);
     // G-6: the recipient the work is for can read the booking too.
     const isRecipient = userId && booking.recipient_user_id && String(userId) === String(booking.recipient_user_id);
+    // G-7: the site contact gets a scoped read of the booking they are
+    // attached to (status, schedule, address, helper contact); no money,
+    // no recipient details, no status link, no modification.
+    const isSiteContact = userId && booking.site_contact_user_id && String(userId) === String(booking.site_contact_user_id);
     const isProvider = userId && (await bookingLifecycle.isProviderForBooking(userId, booking));
-    if (userId && !isCustomer && !isRecipient && !isProvider) {
+    if (userId && !isCustomer && !isRecipient && !isSiteContact && !isProvider) {
       return sendError(res, 403, 'Not authorized to view this booking');
     }
 
     res.json({
       success: true,
-      data: transformBooking(booking),
+      data: bookingViewForUser(booking, userId),
     });
   } catch (err) {
     logger.error('Error fetching booking request', { error: err.message });
@@ -426,6 +586,10 @@ exports.getBookingRequest = async (req, res) => {
  * Public, token-gated: status and arrival window only. No amounts, no
  * billing, no customer/helper identity, no payment state. Reuses the
  * public-token pattern (/quotes/view/:token, /invoice/p/:public_token).
+ * G-6: the same URL also serves the recipient invite token; only that
+ * token can accept or decline (canRespondAsRecipient), and only while
+ * consent is still pending. Expired or revoked links 404 like unknown
+ * ones. Both links share one 7-day expiry.
  */
 exports.getPublicBookingStatus = async (req, res) => {
   try {
@@ -436,15 +600,20 @@ exports.getPublicBookingStatus = async (req, res) => {
     const { rows } = await pool.query(
       `SELECT b.id, b.service_name, b.status, b.requested_date,
               b.requested_start_time, b.requested_end_time,
-              b.site_contact_name,
+              b.site_contact_name, b.status_token, b.recipient_token,
+              b.recipient_consent_status, b.recipient_consented_at,
+              b.status_token_expires_at, b.status_token_revoked_at,
+              b.recipient_user_id, b.recipient_name,
               a.arrived_at
          FROM booking_requests b
          LEFT JOIN appointments a ON a.id = b.appointment_id
-        WHERE b.status_token = $1`,
+        WHERE b.status_token = $1 OR b.recipient_token = $1`,
       [token]
     );
     if (!rows.length) return sendError(res, 404, 'Booking status link not found');
     const row = rows[0];
+    if (!inviteLinkUsable(row)) return sendError(res, 404, 'Booking status link not found');
+    const isRecipientToken = row.recipient_token && String(row.recipient_token) === token;
     return res.json({
       success: true,
       data: {
@@ -455,6 +624,11 @@ exports.getPublicBookingStatus = async (req, res) => {
         requestedEndTime: row.requested_end_time,
         arrivedAt: row.arrived_at,
         siteContactName: row.site_contact_name || null,
+        hasRecipient: Boolean(row.recipient_user_id || row.recipient_name),
+        recipientConsentStatus: row.recipient_consent_status || 'pending',
+        recipientConsentedAt: row.recipient_consented_at || null,
+        statusTokenExpiresAt: row.status_token_expires_at || null,
+        canRespondAsRecipient: Boolean(isRecipientToken && (row.recipient_consent_status || 'pending') === 'pending'),
       },
     });
   } catch (err) {
@@ -463,12 +637,200 @@ exports.getPublicBookingStatus = async (req, res) => {
   }
 };
 
+/**
+ * G-6: the recipient accepts or declines via their invite token.
+ * Public, token-gated, optional auth: a signed-in recipient whose account
+ * is not yet linked is linked on accept (their account becomes
+ * recipient_user_id); decline never links. The booker and the helper can
+ * never respond as the recipient, and the site-contact token cannot
+ * respond at all (only the recipient token opens this endpoint).
+ */
+exports.respondToRecipientInvite = async (req, res) => {
+  try {
+    const token = String(req.params.token || '');
+    const decision = String(req.body?.decision || '').trim().toLowerCase();
+    if (!/^[a-f0-9]{64}$/.test(token)) {
+      return sendError(res, 404, 'Booking status link not found');
+    }
+    if (decision !== 'accepted' && decision !== 'declined') {
+      return sendValidationError(res, { decision: 'Decision must be accepted or declined' });
+    }
+    const { rows } = await pool.query(
+      'SELECT * FROM booking_requests WHERE recipient_token = $1',
+      [token]
+    );
+    const booking = rows[0];
+    if (!booking || !inviteLinkUsable(booking)) {
+      return sendError(res, 404, 'Booking status link not found');
+    }
+    if ((booking.recipient_consent_status || 'pending') !== 'pending') {
+      return sendError(res, 409, 'The recipient has already responded', 'recipient_already_responded');
+    }
+    const actorId = req.user?.id ? String(req.user.id) : null;
+    if (actorId && actorId === String(booking.customer_id)) {
+      return sendError(res, 403, 'Only the recipient can respond to this invite');
+    }
+    if (actorId && actorId === String(booking.helper_id)) {
+      return sendError(res, 403, 'Only the recipient can respond to this invite');
+    }
+    if (actorId && booking.recipient_user_id && actorId !== String(booking.recipient_user_id)) {
+      return sendError(res, 403, 'Only the recipient can respond to this invite');
+    }
+    const linkAccount = decision === 'accepted' && actorId && !booking.recipient_user_id;
+    const method = actorId && (linkAccount || booking.recipient_user_id) ? 'account' : 'token';
+    const updated = await pool.query(
+      `UPDATE booking_requests
+          SET recipient_consent_status = $2,
+              recipient_consented_at = CURRENT_TIMESTAMP,
+              recipient_consent_method = $3,
+              recipient_user_id = COALESCE($4, recipient_user_id),
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND recipient_consent_status = 'pending'
+        RETURNING *`,
+      [booking.id, decision, method, linkAccount ? actorId : null]
+    );
+    if (!updated.rows.length) {
+      return sendError(res, 409, 'The recipient has already responded', 'recipient_already_responded');
+    }
+    await logBookingAudit(booking.id, `recipient_${decision}`, linkAccount ? actorId : null, 'recipient', booking.status, booking.status);
+    try {
+      broadcastToUser(booking.customer_id, 'booking:updated', { bookingId: booking.id, status: booking.status });
+      await sendNotification({
+        userId: booking.customer_id,
+        type: 'booking_recipient_response',
+        body: `${booking.service_name}, ${booking.requested_date}`,
+        data: { bookingId: booking.id, recipientConsentStatus: decision },
+        action_url: '/my-bookings',
+        idempotencyKey: `booking-recipient-response:${booking.id}:${decision}`,
+      });
+    } catch (notifyErr) {
+      logger.warn('Failed to notify booker of recipient response', { error: notifyErr.message });
+    }
+    return res.json({
+      success: true,
+      data: {
+        bookingId: booking.id,
+        recipientConsentStatus: decision,
+        recipientConsentedAt: updated.rows[0].recipient_consented_at,
+      },
+    });
+  } catch (err) {
+    logger.error('Error recording recipient response', { error: err.message });
+    sendError(res, 500, 'Failed to record response');
+  }
+};
+
+/**
+ * G-6: the account-linked recipient accepts or declines from their own
+ * account (no token needed). Same consent record as the token path.
+ */
+exports.respondAsRecipient = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const decision = String(req.body?.decision || '').trim().toLowerCase();
+    if (decision !== 'accepted' && decision !== 'declined') {
+      return sendValidationError(res, { decision: 'Decision must be accepted or declined' });
+    }
+    const { rows } = await pool.query('SELECT * FROM booking_requests WHERE id = $1', [bookingId]);
+    const booking = rows[0];
+    if (!booking) return sendError(res, 404, 'Booking request not found');
+    if (!booking.recipient_user_id || String(booking.recipient_user_id) !== String(req.user.id)) {
+      return sendError(res, 403, 'Only the recipient can respond to this booking');
+    }
+    if (!inviteLinkUsable(booking)) {
+      return sendError(res, 410, 'The invite link has expired or was revoked', 'invite_expired');
+    }
+    if ((booking.recipient_consent_status || 'pending') !== 'pending') {
+      return sendError(res, 409, 'The recipient has already responded', 'recipient_already_responded');
+    }
+    const updated = await pool.query(
+      `UPDATE booking_requests
+          SET recipient_consent_status = $2,
+              recipient_consented_at = CURRENT_TIMESTAMP,
+              recipient_consent_method = 'account',
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND recipient_consent_status = 'pending'
+        RETURNING *`,
+      [booking.id, decision]
+    );
+    if (!updated.rows.length) {
+      return sendError(res, 409, 'The recipient has already responded', 'recipient_already_responded');
+    }
+    await logBookingAudit(booking.id, `recipient_${decision}`, req.user.id, 'recipient', booking.status, booking.status);
+    try {
+      broadcastToUser(booking.customer_id, 'booking:updated', { bookingId: booking.id, status: booking.status });
+      await sendNotification({
+        userId: booking.customer_id,
+        type: 'booking_recipient_response',
+        body: `${booking.service_name}, ${booking.requested_date}`,
+        data: { bookingId: booking.id, recipientConsentStatus: decision },
+        action_url: '/my-bookings',
+        idempotencyKey: `booking-recipient-response:${booking.id}:${decision}`,
+      });
+    } catch (notifyErr) {
+      logger.warn('Failed to notify booker of recipient response', { error: notifyErr.message });
+    }
+    return res.json({
+      success: true,
+      data: {
+        bookingId: booking.id,
+        recipientConsentStatus: decision,
+        recipientConsentedAt: updated.rows[0].recipient_consented_at,
+      },
+    });
+  } catch (err) {
+    logger.error('Error recording recipient response', { error: err.message });
+    sendError(res, 500, 'Failed to record response');
+  }
+};
+
+/**
+ * G-6/G-7: the booker revokes the invite/status links before acceptance.
+ * Booking-level: both links die at once (recorded D-10). Once the
+ * recipient has accepted, the booking stands and revocation is refused.
+ */
+exports.revokeStatusLink = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { rows } = await pool.query('SELECT * FROM booking_requests WHERE id = $1', [bookingId]);
+    const booking = rows[0];
+    if (!booking) return sendError(res, 404, 'Booking request not found');
+    if (String(booking.customer_id) !== String(req.user.id)) {
+      return sendError(res, 403, 'Only the booker can revoke the status link');
+    }
+    if (booking.status_token_revoked_at) {
+      return sendError(res, 409, 'The status link is already revoked', 'link_already_revoked');
+    }
+    if ((booking.recipient_consent_status || 'pending') !== 'pending') {
+      return sendError(res, 400, 'The recipient has already responded; the link cannot be revoked', 'link_already_accepted');
+    }
+    if (!booking.status_token && !booking.recipient_token) {
+      return sendError(res, 400, 'This booking has no status link to revoke', 'no_status_link');
+    }
+    const updated = await pool.query(
+      `UPDATE booking_requests
+          SET status_token_revoked_at = CURRENT_TIMESTAMP,
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND status_token_revoked_at IS NULL
+        RETURNING *`,
+      [booking.id]
+    );
+    await logBookingAudit(bookingId, 'status_link_revoked', req.user.id, 'customer', booking.status, booking.status);
+    return res.json({ success: true, data: bookingViewForUser(updated.rows[0], req.user.id) });
+  } catch (err) {
+    logger.error('Error revoking status link', { error: err.message });
+    sendError(res, 500, 'Failed to revoke status link');
+  }
+};
+
 exports.getMyBookingRequests = async (req, res) => {
   try {
     const customerId = req.user.id;
     const { status, helperId } = req.query;
 
-    let query = 'SELECT * FROM booking_requests WHERE customer_id = $1 OR recipient_user_id = $1';
+    // G-6/G-7: the booker's own list also carries the bookings they are
+    // the recipient or the site contact of, each shaped for that role.
+    let query = 'SELECT * FROM booking_requests WHERE customer_id = $1 OR recipient_user_id = $1 OR site_contact_user_id = $1';
     const params = [customerId];
 
     if (status) {
@@ -486,7 +848,7 @@ exports.getMyBookingRequests = async (req, res) => {
     const result = await pool.query(query, params);
     const rows = [];
     for (const row of result.rows) {
-      rows.push(transformBooking(await expireIfStale(row)));
+      rows.push(bookingViewForUser(await expireIfStale(row), customerId));
     }
 
     res.json({
@@ -1767,6 +2129,26 @@ async function notifyCustomerOfBookingResponse(customerId, booking, response) {
         });
       } catch (recipientErr) {
         logger.warn('Failed to notify booking recipient of response', { error: recipientErr.message });
+      }
+    }
+    // G-7: the site contact coordinates arrival, so they hear the
+    // accept/decline too (status link, no billing).
+    if (booking.site_contact_user_id && String(booking.site_contact_user_id) !== String(customerId)
+        && String(booking.site_contact_user_id) !== String(booking.recipient_user_id)) {
+      try {
+        broadcastToUser(booking.site_contact_user_id, 'booking:updated', {
+          bookingId: booking.id,
+          status: booking.status,
+        });
+        await sendNotification({
+          userId: booking.site_contact_user_id,
+          type,
+          body,
+          data: { bookingId: booking.id },
+          action_url: booking.status_token ? `/bookings/status/${booking.status_token}` : action_url,
+        });
+      } catch (siteContactErr) {
+        logger.warn('Failed to notify site contact of booking response', { error: siteContactErr.message });
       }
     }
   } catch (err) {

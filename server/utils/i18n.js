@@ -650,6 +650,56 @@ const T = {
       ar: 'تم قبول طلبك.',
     },
   },
+  // G-6/G-7: book-for-another invite, site-contact status link, and the
+  // booker's notice that the recipient responded.
+  booking_recipient_invite: {
+    title: {
+      en: 'Booking for You',
+      fr: 'Réservation pour vous',
+      es: 'Reserva para ti',
+      ht: 'Rezèvasyon pou ou',
+      ar: 'حجز لك',
+    },
+    body: {
+      en: 'A booking was made for you. Review it and accept or decline.',
+      fr: 'Une réservation a été faite pour vous. Examinez-la et acceptez ou refusez.',
+      es: 'Se hizo una reserva para ti. Revísala y acepta o rechaza.',
+      ht: 'Yo fè yon rezervasyon pou ou. Gade li epi aksepte oswa refize li.',
+      ar: 'تم إجراء حجز لك. راجعه واقبل أو ارفض.',
+    },
+  },
+  booking_site_contact_link: {
+    title: {
+      en: 'Booking Status Link',
+      fr: 'Lien de suivi de réservation',
+      es: 'Enlace de estado de reserva',
+      ht: 'Lyen pou swiv rezervasyon an',
+      ar: 'رابط حالة الحجز',
+    },
+    body: {
+      en: 'You are the site contact for a booking. Follow the link for status and arrival time.',
+      fr: 'Vous êtes le contact sur place pour une réservation. Suivez le lien pour le statut et l’heure d’arrivée.',
+      es: 'Eres el contacto en el lugar de una reserva. Sigue el enlace para ver el estado y la hora de llegada.',
+      ht: 'Ou se kontak sou plas pou yon rezervasyon. Swiv lyen an pou wè estati a ak lè yo pral rive.',
+      ar: 'أنت جهة الاتصال في الموقع لحجز ما. اتبع الرابط لمعرفة الحالة ووقت الوصول.',
+    },
+  },
+  booking_recipient_response: {
+    title: {
+      en: 'Recipient Responded',
+      fr: 'Réponse du destinataire',
+      es: 'El destinatario respondió',
+      ht: 'Moun k ap resevwa a te reponn',
+      ar: 'ردّ المستلم',
+    },
+    body: {
+      en: 'The recipient responded to the booking.',
+      fr: 'Le destinataire a répondu à la réservation.',
+      es: 'El destinatario respondió a la reserva.',
+      ht: 'Moun k ap resevwa a te reponn rezervasyon an.',
+      ar: 'ردّ المستلم على الحجز.',
+    },
+  },
   booking_approved: {
     title: {
       en: 'Booking Approved',
@@ -1180,6 +1230,27 @@ const EMAIL_TEMPLATES = {
       es: 'Ver solicitud de reserva',
       ht: 'Gade demann rezèvasyon an',
       ar: 'عرض طلب الحجز',
+    },
+    booking_recipient_invite: {
+      en: 'View Booking',
+      fr: 'Voir la réservation',
+      es: 'Ver reserva',
+      ht: 'Gade rezervasyon an',
+      ar: 'عرض الحجز',
+    },
+    booking_site_contact_link: {
+      en: 'View Booking Status',
+      fr: 'Voir le statut de la réservation',
+      es: 'Ver estado de la reserva',
+      ht: 'Gade estati rezervasyon an',
+      ar: 'عرض حالة الحجز',
+    },
+    booking_recipient_response: {
+      en: 'View Bookings',
+      fr: 'Voir les réservations',
+      es: 'Ver reservas',
+      ht: 'Gade rezervasyon yo',
+      ar: 'عرض الحجوزات',
     },
     booking_accepted: {
       en: 'View Calendar',
