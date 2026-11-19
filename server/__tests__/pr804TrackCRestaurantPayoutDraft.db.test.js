@@ -17,6 +17,7 @@ process.env.DATABASE_URL = TEST_DB_URL;
 
 jest.unmock('pg');
 jest.unmock('../db');
+jest.unmock('../utils/transaction');
 const db = require('../db');
 const payoutService = require('../services/restaurantPayoutService');
 

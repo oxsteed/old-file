@@ -10,6 +10,7 @@
 
 jest.unmock('pg');
 jest.unmock('../db');
+jest.unmock('../utils/transaction');
 
 const TEST_DB_URL = process.env.STATEMENT_TEST_DATABASE_URL || '';
 if (!TEST_DB_URL.includes('/credit_statement_test_pr804_c')) {

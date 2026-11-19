@@ -14,6 +14,7 @@ process.env.DATABASE_URL = TEST_DB_URL;
 
 jest.unmock('pg');
 jest.unmock('../db');
+jest.unmock('../utils/transaction');
 
 const pool = require('../db');
 const { requestBusinessRefund, listBusinessRefundRequests } = require('../services/businessRefundRequestService');

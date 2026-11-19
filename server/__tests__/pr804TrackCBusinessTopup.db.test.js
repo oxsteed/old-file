@@ -14,6 +14,7 @@ process.env.DATABASE_URL = TEST_DB_URL;
 
 jest.unmock('pg');
 jest.unmock('../db');
+jest.unmock('../utils/transaction');
 jest.mock('stripe', () => jest.fn(() => ({
   paymentIntents: {
     create: jest.fn(async () => ({ id: 'pi_g22_fake', client_secret: 'cs_g22_fake' })),
