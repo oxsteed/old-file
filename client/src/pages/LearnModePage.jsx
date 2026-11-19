@@ -3926,6 +3926,15 @@ export default function LearnModePage() {
   // Social proof stats (Priority 8)
   const [guideStats, setGuideStats] = useState({});  // { [guide_id]: { completions, views } }
 
+  // G-24: workforce programs. A program is a named bundle of one guide
+  // category; enrollment is the program -> enrollment -> completion record
+  // the join_workforce intent links to. Completion is derived server-side
+  // (every guide in the category complete), never self-declared.
+  const [programs, setPrograms]         = useState([]);
+  const [enrollments, setEnrollments]   = useState([]);
+  const [enrollBusy, setEnrollBusy]     = useState(null);
+  const [enrollError, setEnrollError]   = useState('');
+
   // Community video voting: in-flight guard + failure toast (L3)
   const [votingVideoId, setVotingVideoId] = useState(null); // video id of the vote POST in flight
   const [voteError, setVoteError]         = useState(null); // transient error toast text
@@ -4005,6 +4014,36 @@ export default function LearnModePage() {
       .then(({ data }) => { if (Array.isArray(data.badges)) setBadges(data.badges.map((b) => b.category)); })
       .catch(() => {});
   }, [user]);
+
+  // G-24: fetch programs (public) and the signed-in user's enrollments.
+  useEffect(() => {
+    api.get('/learn/programs')
+      .then(({ data }) => { if (Array.isArray(data.programs)) setPrograms(data.programs); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!user) { setEnrollments([]); return; }
+    api.get('/learn/enrollments/mine')
+      .then(({ data }) => { if (Array.isArray(data.enrollments)) setEnrollments(data.enrollments); })
+      .catch(() => {});
+  }, [user]);
+
+  const enrollInProgram = useCallback(async (slug) => {
+    if (enrollBusy || !user) return;
+    setEnrollBusy(slug);
+    setEnrollError('');
+    try {
+      const { data } = await api.post(`/learn/programs/${slug}/enroll`);
+      if (data?.enrollment) {
+        setEnrollments((prev) => [...prev.filter((e) => e.programSlug !== slug), data.enrollment]);
+      }
+    } catch {
+      setEnrollError(t('learnPrograms.enrollFailed'));
+    } finally {
+      setEnrollBusy(null);
+    }
+  }, [enrollBusy, user, t]);
 
   // Cleanup toast timers on unmount
   useEffect(() => () => {
@@ -4703,6 +4742,53 @@ export default function LearnModePage() {
             </ul>
           )}
         </form>
+
+        {/* ── Workforce programs (G-24) ─────────────────────────────────────── */}
+        {programs.length > 0 && (
+          <section className="lrn-section" aria-labelledby="lrn-programs-title">
+            <h2 id="lrn-programs-title" className="lrn-section-label">
+              {t('learnPrograms.title')}
+            </h2>
+            <p className="lrn-program-intro">{t('learnPrograms.subtitle')}</p>
+            {enrollError && <p role="alert" className="lrn-program-error">{enrollError}</p>}
+            <div className="lrn-featured-grid">
+              {programs.map((program) => {
+                const enrollment = enrollments.find((e) => e.programSlug === program.slug);
+                const completed = enrollment?.status === 'completed';
+                return (
+                  <article key={program.slug} className={`lrn-featured-card${completed ? ' is-done' : ''}`}>
+                    <h3 className="lrn-featured-name">{t(`learnPrograms.${program.slug}.title`)}</h3>
+                    <p className="lrn-program-desc">{t(`learnPrograms.${program.slug}.description`)}</p>
+                    {user && (
+                      <p className="lrn-program-progress">
+                        {t('learnPrograms.progress', { completed: program.completedGuides, total: program.totalGuides })}
+                      </p>
+                    )}
+                    {completed ? (
+                      <span className="lrn-completed-badge">{t('learnPrograms.completed')}</span>
+                    ) : enrollment ? (
+                      <span className="lrn-done-chip">{t('learnPrograms.enrolled')}</span>
+                    ) : user ? (
+                      <button
+                        type="button"
+                        className="lrn-complete-btn"
+                        disabled={enrollBusy === program.slug}
+                        onClick={() => enrollInProgram(program.slug)}
+                        data-track="ui.learn.programs.enroll"
+                      >
+                        {t('learnPrograms.enroll')}
+                      </button>
+                    ) : (
+                      <Link to="/join" className="lrn-complete-btn" data-track="ui.learn.programs.enroll_signin">
+                        {t('learnPrograms.enroll')}
+                      </Link>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* ── Featured guides ───────────────────────────────────────────────── */}
         {showFeatured && (

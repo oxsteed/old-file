@@ -410,6 +410,31 @@ html.dark .lrn-featured-card:hover {
   opacity: .85;
 }
 
+/* G-24 workforce program cards reuse the featured-card shell. */
+.lrn-program-intro {
+  margin: .25rem 0 1rem;
+  font-size: .85rem;
+  color: var(--app-text-muted, #475569);
+}
+
+.lrn-program-desc {
+  font-size: .85rem;
+  line-height: 1.45;
+  color: var(--app-text, #0f172a);
+}
+
+.lrn-program-progress {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--app-text-muted, #475569);
+}
+
+.lrn-program-error {
+  margin: 0 0 1rem;
+  font-size: .85rem;
+  color: #dc2626;
+}
+
 .lrn-featured-check {
   position: absolute;
   top: .75rem;
