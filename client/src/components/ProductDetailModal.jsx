@@ -235,18 +235,21 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
               </div>
             </div>
 
-            {/* Affiliate link */}
+            {/* Affiliate link: labelled as a paid link, mirroring the Learn
+                page pattern (item 33). The relationship is never hidden. */}
             {hasAffiliateLink && (
               <div className="pdm-affiliate-section">
                 <a
                   href={fullProduct.affiliate_url || fullProduct.external_url || '#'}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noopener noreferrer sponsored"
                   className="pdm-affiliate-link" data-track="ui.31e98355d6.4"
                 >
                   <ExternalLink size={16} />
                   {t('marketplace.buyOnHomeDepot')}
                 </a>
+                <span className="pdm-affiliate-label">{t('marketplace.paidLink')}</span>
+                <p className="pdm-affiliate-disclosure">{t('marketplace.affiliateDisclosure')}</p>
               </div>
             )}
 
