@@ -209,9 +209,38 @@ exports.requirePayoutManager = async (req, res, next) => {
   }
 };
 
+// G-18: read gate for payout status and balance, and the gate for creating
+// payout requests. Owners and restaurant managers pass; a manager's
+// request is a draft until the owner confirms it (the wallet controller
+// and payout service derive the status from the actor, never from the
+// request body). Connect/disconnect stay owner-only under
+// requirePayoutManager above. Other staff roles still get 403.
+exports.requirePayoutReader = async (req, res, next) => {
+  try {
+    const restaurantId = parseRestaurantId(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    if (req.isAdmin) {
+      const { rows } = await pool.query('SELECT id FROM food_restaurants WHERE id = $1', [restaurantId]);
+      if (!rows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+      req.restaurantId = restaurantId;
+      req.restaurant = { id: restaurantId, effective_role: 'admin' };
+      req.isSuper = req.isSuperAdmin;
+      return requirePermission(RESTAURANT_PAYOUTS_GRANT)(req, res, next);
+    }
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    req.restaurantId = restaurantId;
+    req.restaurant = restaurant;
+    if (restaurant.effective_role === 'owner' || restaurant.effective_role === 'manager') return next();
+    return next(new AppError('Only the restaurant owner or a manager can view payouts', 403, 'forbidden'));
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Route scope guard: this is the payout domain's restaurant gate (owner via the
 // canonical restaurant gate, or a platform admin holding the payouts grant).
 require('../middleware/scopeGates').markGate(exports.requirePayoutManager, 'restaurant', 'payout-manager');
+require('../middleware/scopeGates').markGate(exports.requirePayoutReader, 'restaurant', 'payout-reader');
 
 // ── handlers ─────────────────────────────────────────────────────────────────
 

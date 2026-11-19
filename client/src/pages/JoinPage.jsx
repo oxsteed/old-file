@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { UserRound, Users, Briefcase, Check, ArrowRight, MapPin } from 'lucide-react';
+import { UserRound, Users, Briefcase, Check, ArrowRight, MapPin, Store, Truck, GraduationCap, ShieldCheck, Wrench, BarChart3, Utensils, Factory, Smartphone } from 'lucide-react';
 import api from '../api/axios';
 import { persistSessionPayload } from '../api/auth';
 import { currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
@@ -17,23 +17,100 @@ import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import { detectCountryFromLocale, hasPostalCode, requiresPostalCode, hasRegions, getRegionLabel } from '../lib/countries';
-import { joinModeForLegacyMode } from '../utils/legacyDeepLinks';
+import { intentForLegacyMode } from '../utils/legacyDeepLinks';
+import { listMyInvitations, acceptInvitation, declineInvitation } from '../api/businesses';
 import { normalizeSignupRegion, validateSignup, SIGNUP_FIELD_KEYS } from '../utils/signupValidation';
+import { SIGNUP_PERSONAS, SIGNUP_INTENT_VALUES, signupPersonaForIntent } from '../utils/signupPersonas';
 import './JoinPage.css';
 
 const DRAFT_KEY = 'oxsteed:join-draft:v1';
-const ICONS = { customer: UserRound, helper: Users, business_owner: Briefcase };
-const SIGNUP_INTENTS = {
-  customer: { intent: 'find_help', capability: 'customer' },
-  helper: { intent: 'offer_services', capability: 'helper.offer_services' },
-  business_owner: { intent: 'run_business', capability: 'business.own' },
+
+// G-3: an invitee who follows the team-invite email lands on /join with
+// ?invite=<id>. After verification this panel surfaces the pending
+// invitation (matched by id or invite email server-side) so joining works
+// from the email + signup alone, with no Vortex code and no trip to
+// BusinessHub. Invitations that are expired or already handled report
+// that instead of a dead end.
+function InvitationAcceptPanel({ inviteId }) {
+  const { t } = useTranslation();
+  const msg = (key, vars) => t(`signupUpgrade.${key}`, vars);
+  const [state, setState] = useState({ status: 'loading', invitation: null });
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    listMyInvitations()
+      .then((invitations) => {
+        if (cancelled) return;
+        const found = (invitations || []).find((inv) => String(inv.id) === String(inviteId));
+        setState(found ? { status: 'found', invitation: found } : { status: 'missing', invitation: null });
+      })
+      .catch(() => { if (!cancelled) setState({ status: 'error', invitation: null }); });
+    return () => { cancelled = true; };
+  }, [inviteId]);
+  const decide = async (action) => {
+    if (busy || !state.invitation) return;
+    setBusy(true);
+    try {
+      if (action === 'accept') await acceptInvitation(state.invitation.id);
+      else await declineInvitation(state.invitation.id);
+      setState({ status: action === 'accept' ? 'accepted' : 'declined', invitation: state.invitation });
+    } catch {
+      setState({ status: 'error', invitation: state.invitation });
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (state.status === 'loading') return <p role="status" className="signup-help">{msg('inviteLoading')}</p>;
+  if (state.status === 'missing' || state.status === 'error') {
+    return (
+      <section className="signup-intent-confirmation" aria-labelledby="signup-invite-title">
+        <h3 id="signup-invite-title">{msg('inviteTitle')}</h3>
+        <p>{msg('inviteMissing')}</p>
+        <Link className="signup-primary signup-primary-link" to="/settings/applications">{msg('viewNextStep')}</Link>
+      </section>
+    );
+  }
+  if (state.status === 'accepted') {
+    return (
+      <section className="signup-intent-confirmation" aria-labelledby="signup-invite-title">
+        <h3 id="signup-invite-title">{msg('inviteTitle')}</h3>
+        <p>{msg('inviteAccepted')}</p>
+        <Link className="signup-primary signup-primary-link" to="/business-hub">{msg('inviteOpenWorkspace')}</Link>
+      </section>
+    );
+  }
+  if (state.status === 'declined') {
+    return (
+      <section className="signup-intent-confirmation" aria-labelledby="signup-invite-title">
+        <h3 id="signup-invite-title">{msg('inviteTitle')}</h3>
+        <p>{msg('inviteDeclined')}</p>
+        <Link className="signup-primary signup-primary-link" to="/dashboard">{msg('continueToAccount')}</Link>
+      </section>
+    );
+  }
+  const inv = state.invitation;
+  return (
+    <section className="signup-intent-confirmation" aria-labelledby="signup-invite-title">
+      <h3 id="signup-invite-title">{msg('inviteTitle')}</h3>
+      <p>{msg('inviteFound', { business: inv.business_name || '', role: inv.role || '' })}</p>
+      <div className="signup-invite-actions">
+        <button type="button" className="signup-primary" disabled={busy} onClick={() => decide('accept')} data-track="ui.663f47c956.11">{msg('inviteAccept')}</button>
+        <button type="button" className="signup-secondary" disabled={busy} onClick={() => decide('decline')} data-track="ui.663f47c956.12">{msg('inviteDecline')}</button>
+      </div>
+    </section>
+  );
+}
+const ICONS = {
+  customer: UserRound, helper: Users, business: Briefcase, team: Users, restaurant: Utensils,
+  restaurantTeam: Store, logistics: Truck, consultant: GraduationCap, equipment: Wrench,
+  franchise: Factory, investor: BarChart3, credit: Users, partner: Users,
+  learning: GraduationCap, staff: ShieldCheck, device: Smartphone,
 };
 // The intent cards are the signup choice now: the account is always created
 // as a customer and the intent becomes an application on the progressive
 // path. A legacy ?mode= value still preselects the matching intent card
-// (joinModeForLegacyMode maps it to a mode, then to its intent); modes with
-// no card fall back to the draft or the customer-first default.
-const SIGNUP_INTENT_VALUES = Object.values(SIGNUP_INTENTS).map(({ intent }) => intent);
+// (intentForLegacyMode maps it to an intent); unsupported or privileged modes
+// fall back to the draft or the customer-first default.
 const SignupApplication = lazy(() => import('../components/registration/SignupApplication'));
 const EMPTY = { firstName: '', lastName: '', email: '', phone: '', country: '', addressLine1: '',
   city: '', state: '', zipCode: '', signupIntent: 'find_help', ageConfirmed: false, termsAccepted: false, password: '' };
@@ -70,8 +147,13 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const referralRef = rawReferralRef && /^[A-Za-z0-9_-]{1,50}$/.test(rawReferralRef)
     ? rawReferralRef
     : null;
+  // G-3: team-invite email CTA (?invite=<id>). Only the invitation id is
+  // carried; it grants nothing until the signed-in accept call matches it
+  // to this account by member id or invite email.
+  const rawInvite = params.get('invite');
+  const inviteId = rawInvite && /^[A-Za-z0-9-]{1,64}$/.test(rawInvite) ? rawInvite : null;
   const [draft] = useState(loadDraft);
-  const presetIntent = presetMode ? SIGNUP_INTENTS[joinModeForLegacyMode(presetMode)]?.intent : undefined;
+  const presetIntent = presetMode ? intentForLegacyMode(presetMode) : undefined;
   const [form, setForm] = useState(() => ({ ...EMPTY, country: detectCountryFromLocale(), ...draft?.form, password: '',
     signupIntent: presetIntent || (SIGNUP_INTENT_VALUES.includes(draft?.form?.signupIntent) ? draft.form.signupIntent : 'find_help') }));
   const [errors, setErrors] = useState({});
@@ -83,6 +165,14 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const [otpError, setOtpError] = useState('');
   const [notice, setNotice] = useState('');
   const [expired, setExpired] = useState(false);
+  // G-31: resume a signup started on another device. The typed draft is
+  // already server-side (pending_registrations); the emailed OTP code is
+  // the proof that unlocks it here. The password is never restored.
+  const [showResume, setShowResume] = useState(false);
+  const [resumeEmail, setResumeEmail] = useState('');
+  const [resumeCode, setResumeCode] = useState('');
+  const [resumeError, setResumeError] = useState('');
+  const [resumeBusy, setResumeBusy] = useState(false);
   const [busy, setBusy] = useState('');
   const [now, setNow] = useState(Date.now);
   const operation = useRef(false);
@@ -260,6 +350,10 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
         setContinuation({ step: nextStep, accountId: data.user.id, epoch: currentAuthEpoch() });
         return;
       }
+      if (nextStep?.type === 'none' && nextStep.intent && nextStep.intent !== 'find_help') {
+        setContinuation({ step: nextStep, accountId: data.user.id, epoch: currentAuthEpoch() });
+        return;
+      }
       navigate('/dashboard', { replace: true });
     } catch (error) { setOtpError(recoveryMessage(error)); setOtpDigits(Array(6).fill('')); }
     finally { operation.current = false; setBusy(''); }
@@ -274,6 +368,34 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
       setOtpDigits(Array(6).fill('')); setNotice(msg('codeSent'));
     } catch (error) { setOtpError(recoveryMessage(error)); }
     finally { operation.current = false; setBusy(''); }
+  };
+  const handleResume = async (event) => {
+    event.preventDefault();
+    if (resumeBusy) return;
+    setResumeBusy(true);
+    setResumeError('');
+    try {
+      const { data } = await api.post('/auth/register/resume', {
+        email: resumeEmail.trim().toLowerCase(),
+        otp: resumeCode.trim(),
+      });
+      if (!data?.token || !data?.draft) throw new Error('Missing resume response');
+      // Restore typed fields only; the password is never restored from a
+      // draft and the code itself is not consumed, so the OTP screen below
+      // still verifies with the same code.
+      setForm((previous) => ({ ...previous, ...data.draft, password: '' }));
+      setRegistrationToken(data.token);
+      mergeMetadata(data);
+      setOtpSent(true);
+      setOtpDigits(Array(6).fill(''));
+      setShowResume(false);
+      setNotice(msg('resumeRestored'));
+    } catch (error) {
+      const code = error?.response?.data?.code;
+      setResumeError(code === 'otp_locked' ? msg('locked') : msg('resumeFailed'));
+    } finally {
+      setResumeBusy(false);
+    }
   };
   const editDetails = () => {
     if (operation.current) return;
@@ -292,6 +414,17 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
       onChange={event => set(field, event.target.value)} maxLength={maxLength} autoComplete={autoComplete}
       className="signup-input" required {...aria(field)} />{fieldError(field)}
   </div>;
+  const personaCard = (persona, index) => {
+    const Icon = ICONS[persona.icon] || UserRound;
+    return <label className={'signup-mode-card' + (form.signupIntent === persona.intent ? ' selected' : '')} key={persona.intent}>
+      <input type="radio" id={index === 0 ? 'signupIntent' : 'intent-' + persona.intent} name="signupIntent" value={persona.intent}
+        checked={form.signupIntent === persona.intent} onChange={() => set('signupIntent', persona.intent)}
+        aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.signupIntent) || undefined} data-track="ui.663f47c956.4" />
+      <Icon size={27} aria-hidden="true" /><strong>{msg(`personas.${persona.copy}.title`)}</strong>
+      <span className="signup-mode-description">{msg(`personas.${persona.copy}.description`)}</span>
+      {form.signupIntent === persona.intent && <Check className="signup-mode-check" size={16} aria-hidden="true" />}
+    </label>;
+  };
   const entries = Object.entries(errors).filter(([, value]) => value);
   return <div className={'signup-page' + (embedded ? ' signup-embedded media-auth-content' : '')}>
     {!embedded && <><PageMeta title={msg('title')} description={msg('intro')} url="https://oxsteed.com/join" />
@@ -312,7 +445,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
           {!embedded && <h2 id="signup-title">{msg('title')}</h2>}
           <p>{msg('subtitle')}</p>
         </header>
-        {continuation && isCurrentAuthEpoch(continuation.epoch) && (
+        {continuation && isCurrentAuthEpoch(continuation.epoch) && continuation.step?.type === 'application' && (
           <Suspense fallback={<p role="status">{t('common.loading')}</p>}>
             <SignupApplication continuation={continuation} serviceArea={{
               country: form.country, region: normalizeSignupRegion(form.country, form.state),
@@ -320,24 +453,39 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
             }} />
           </Suspense>
         )}
+        {continuation && isCurrentAuthEpoch(continuation.epoch) && continuation.step?.type === 'none' && (
+          <section className="signup-intent-confirmation" aria-labelledby="signup-intent-confirmation-title">
+            <h3 id="signup-intent-confirmation-title">{msg('intentConfirmed')}</h3>
+            <p>{msg(`admission.${continuation.step.kind}`)}</p>
+            <p className="signup-help">{msg('intentConfirmationNote')}</p>
+            <Link className="signup-primary signup-primary-link" to={continuation.step.statusPath || '/dashboard'}>{msg('viewNextStep')}</Link>
+          </section>
+        )}
+        {continuation && isCurrentAuthEpoch(continuation.epoch) && continuation.step?.type === 'none' && inviteId && (
+          <InvitationAcceptPanel inviteId={inviteId} />
+        )}
         {!continuation && (!otpSent ? <form ref={formRef} onSubmit={handleSubmit} noValidate aria-busy={busy === 'submit'} data-track="ui.663f47c956.1" data-track-private>
           {entries.length > 0 && <div className="signup-error-summary" role="alert"><p>{msg('errorSummary')}</p><ul>{entries.map(([field, value]) => <li key={field}>
             {field === 'general' ? value : <button type="button" onClick={() => focusField(field)} data-track="ui.663f47c956.2">{value}</button>}
           </li>)}</ul>{errors.email === msg('emailTaken') && <Link to="/login">{t('nav.signIn')}</Link>}</div>}
           {registrationExpired && <button type="button" className="signup-secondary" onClick={editDetails} data-track="ui.663f47c956.3">{msg('restart')}</button>}
           {!capabilitiesLoading && <fieldset disabled={Boolean(busy)} className="signup-section signup-mode-section"><legend>{msg('modePrompt')}</legend>
-            <div className="signup-mode-grid">{Object.entries(SIGNUP_INTENTS).map(([mode, { intent, capability }], index) => {
-              const Icon = ICONS[mode] || UserRound;
-              return <label className={'signup-mode-card' + (form.signupIntent === intent ? ' selected' : '')} key={intent}>
-                <input type="radio" id={index === 0 ? 'signupIntent' : 'intent-' + intent} name="signupIntent" value={intent}
-                  checked={form.signupIntent === intent} onChange={() => set('signupIntent', intent)}
-                  aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.signupIntent) || undefined} data-track="ui.663f47c956.4" />
-                <Icon size={27} aria-hidden="true" /><strong>{t(`progressiveAccess.capabilities.${capability}`, { ns: 'common' })}</strong>
-                <span className="signup-mode-description">{t(`progressiveAccess.capabilityHelp.${capability}`, { ns: 'common' })}</span>
-                {form.signupIntent === intent && <Check className="signup-mode-check" size={16} aria-hidden="true" />}
-              </label>;
-            })}</div>
-            <p id="signup-mode-help" className="signup-help">{msg('intentNote')}</p>{fieldError('signupIntent')}
+            <p className="signup-help">{msg('intentNote')}</p>
+            <div className="signup-layer-stack">
+              <section className="signup-core-layer" aria-labelledby="signup-core-layer-title">
+                <div className="signup-layer-label" id="signup-core-layer-title">{msg('personas.customer.title')}</div>
+                <p className="signup-layer-copy">{msg('personas.customer.description')}</p>
+                <div className="signup-mode-grid signup-core-grid">{personaCard(SIGNUP_PERSONAS[0], 0)}</div>
+              </section>
+              <div className="signup-layer-divider" aria-hidden="true"><span>+</span></div>
+              <section className="signup-additional-layer" aria-labelledby="signup-additional-layer-title">
+                <div className="signup-layer-label" id="signup-additional-layer-title">{msg('setupNote')}</div>
+                <p className="signup-layer-copy">{msg('intentNote')}</p>
+                <div className="signup-mode-grid">{SIGNUP_PERSONAS.slice(1).map((persona, index) => personaCard(persona, index + 1))}</div>
+              </section>
+            </div>
+            {(() => { const selected = signupPersonaForIntent(form.signupIntent); return <p id="signup-mode-help" className="signup-help signup-admission-help">{msg(`admission.${selected.admission}`)}</p>; })()}
+            {fieldError('signupIntent')}
           </fieldset>}
           <fieldset disabled={Boolean(busy)} className="signup-section"><legend>{msg('personalTitle')}</legend>
             <p className="signup-help">{msg('contactHelp')} <Link to="/privacy" target="_blank" rel="noopener noreferrer">{t('footer.privacy')}</Link></p>
@@ -397,6 +545,30 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
               <button type="button" className="signup-text-button" onClick={editDetails} disabled={Boolean(busy)} data-track="ui.663f47c956.10">{t('join.editDetails')}</button></>}
         </section>)}
         {!continuation && <p className="signup-signin">{msg('alreadyMember')} <Link to="/login">{t('nav.signIn')}</Link></p>}
+        {!continuation && !otpSent && (
+          <section className="signup-resume" aria-labelledby="signup-resume-title">
+            <button type="button" className="signup-text-button" onClick={() => setShowResume((v) => !v)} data-track="ui.663f47c956.13">
+              {msg('resumeTitle')}
+            </button>
+            {showResume && (
+              <form onSubmit={handleResume} noValidate data-track="ui.663f47c956.15">
+                <p className="signup-help">{msg('resumeHelp')}</p>
+                <div className="signup-field">
+                  <label htmlFor="resumeEmail">{t('register.emailAddress')}</label>
+                  <input id="resumeEmail" name="resumeEmail" type="email" value={resumeEmail} onChange={(event) => setResumeEmail(event.target.value)} className="signup-input" required autoComplete="email" />
+                </div>
+                <div className="signup-field">
+                  <label htmlFor="resumeCode">{msg('resumeCode')}</label>
+                  <input id="resumeCode" name="resumeCode" type="text" inputMode="numeric" value={resumeCode} onChange={(event) => setResumeCode(event.target.value.replace(/[^0-9]/g, '').slice(0, 6))} className="signup-input" required autoComplete="one-time-code" />
+                </div>
+                {resumeError && <p className="signup-field-error" role="alert">{resumeError}</p>}
+                <button type="submit" className="signup-secondary" disabled={resumeBusy || resumeCode.length !== 6 || !resumeEmail.includes('@')} data-track="ui.663f47c956.14">
+                  {resumeBusy ? msg('verifying') : msg('resumeSubmit')}
+                </button>
+              </form>
+            )}
+          </section>
+        )}
       </section>
     </Layout>
     {!embedded && <Footer />}

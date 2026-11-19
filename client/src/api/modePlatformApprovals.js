@@ -39,6 +39,9 @@ export const adminRollbackPolicy = (mode, payload) =>
 export const adminListApprovals = (params = {}) =>
   api.get('/admin/mode-approvals', { params }).then(r => r.data);
 
+export const adminGetApproval = (approvalId) =>
+  api.get(`/admin/mode-approvals/${encodeURIComponent(approvalId)}`).then(r => r.data);
+
 export const adminApprove = (approvalId, notes) =>
   api.post(`/admin/mode-approvals/${approvalId}/approve`, { notes }).then(r => r.data);
 
@@ -59,6 +62,7 @@ export default {
   adminListPolicyCoverage,
   adminRollbackPolicy,
   adminListApprovals,
+  adminGetApproval,
   adminApprove,
   adminReject,
   adminRevoke,

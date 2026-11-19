@@ -1328,6 +1328,170 @@ exports.startJob = async (req, res, next) => {
   }
 };
 
+// G-15: arrival is a recorded event, not a new status machine (mirrors the
+// delivery scan pattern, migration 576): the helper marks arrival, the
+// customer is notified, and arrived_at is stamped on the job and its linked
+// appointment. The job status is untouched by arrival.
+exports.markJobArrived = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rows: jobRows } = await pool.query(
+      `SELECT id, client_id, assigned_helper_id, status, arrived_at
+         FROM jobs WHERE id = $1 AND assigned_helper_id = $2`,
+      [id, req.user.id]
+    );
+    if (!jobRows[0]) {
+      throw new AppError('Job not found or you are not the assigned helper', 404, 'job_not_found');
+    }
+    const job = jobRows[0];
+    if (!['accepted', 'in_progress'].includes(job.status)) {
+      throw new AppError(`Job cannot be marked arrived in '${job.status}' state`, 400, 'invalid_job_state');
+    }
+    if (job.arrived_at) {
+      throw new AppError('Arrival is already recorded for this job', 409, 'already_arrived');
+    }
+    const result = await withJobTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `UPDATE jobs SET arrived_at = NOW(), updated_at = NOW()
+          WHERE id = $1 AND arrived_at IS NULL RETURNING *`,
+        [id]
+      );
+      if (!rows.length) throw new AppError('Job state changed during processing', 400, 'state_conflict');
+      await client.query(
+        `UPDATE appointments SET arrived_at = NOW(), updated_at = NOW()
+          WHERE job_id = $1 AND arrived_at IS NULL`,
+        [id]
+      );
+      return rows[0];
+    }, 'job_arrived');
+    await sendNotification({
+      userId: result.client_id,
+      type: 'job_arrived',
+      data: { job_id: result.id },
+      action_url: `/jobs/${result.id}`,
+      idempotencyKey: `job-arrived:${result.id}`,
+    }).catch((notifErr) => logger.warn('Failed to send job arrived notification', {
+      jobId: result.id, error: notifErr.message,
+    }));
+    res.json({ message: 'Arrival recorded', job: serializeJob(result, { user: req.user }) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// G-15: no-show is a terminal state for a job (and its linked appointment)
+// when one party never shows. The other party is notified and the client
+// gets a rebook prompt on the job page.
+exports.markJobNoShow = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const reason = String(req.body?.reason || '').trim().slice(0, 500);
+    if (!reason) {
+      throw new AppError('A reason is required to mark a no-show', 400, 'validation_failed');
+    }
+    const { rows: jobRows } = await pool.query(
+      `SELECT id, client_id, assigned_helper_id, status
+         FROM jobs WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)`,
+      [id, req.user.id]
+    );
+    if (!jobRows[0]) {
+      throw new AppError('Job not found or you are not authorized', 404, 'job_not_found');
+    }
+    const job = jobRows[0];
+    if (!['accepted', 'in_progress'].includes(job.status)) {
+      throw new AppError(`Job cannot be marked no-show in '${job.status}' state`, 400, 'invalid_job_state');
+    }
+    const isClient = String(job.client_id) === String(req.user.id);
+    const otherPartyId = isClient ? job.assigned_helper_id : job.client_id;
+    const result = await withJobTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `UPDATE jobs SET status = 'no_show', no_show_at = NOW(),
+               no_show_by = $2, no_show_reason = $3, updated_at = NOW()
+          WHERE id = $1 AND status IN ('accepted', 'in_progress') RETURNING *`,
+        [id, req.user.id, reason]
+      );
+      if (!rows.length) throw new AppError('Job state changed during processing', 400, 'state_conflict');
+      await client.query(
+        `UPDATE appointments SET status = 'no_show', no_show_at = NOW(),
+               no_show_by = $2, no_show_reason = $3, updated_at = NOW()
+          WHERE job_id = $1 AND status NOT IN ('completed', 'cancelled', 'no_show')`,
+        [id, req.user.id, reason]
+      );
+      return rows[0];
+    }, 'job_no_show');
+    if (otherPartyId) {
+      await sendNotification({
+        userId: otherPartyId,
+        type: 'job_no_show',
+        data: { job_id: result.id, reason },
+        action_url: `/jobs/${result.id}`,
+        idempotencyKey: `job-no-show:${result.id}`,
+      }).catch((notifErr) => logger.warn('Failed to send job no-show notification', {
+        jobId: result.id, error: notifErr.message,
+      }));
+    }
+    res.json({ message: 'No-show recorded', job: serializeJob(result, { user: req.user }) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// G-16: rework path. The customer asks for changes on a completion request
+// instead of opening a formal dispute. The job returns to in_progress (no
+// new status), the reason is required and recorded, and the 72h
+// auto-confirm clock is paused by clearing the completion request.
+// Dispute resolutions are unchanged.
+exports.requestJobChanges = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const reason = String(req.body?.reason || '').trim().slice(0, 2000);
+    if (!reason) {
+      throw new AppError('Tell the helper what needs to change', 400, 'validation_failed');
+    }
+    const { rows: jobRows } = await pool.query(
+      `SELECT id, client_id, assigned_helper_id, status, completion_requested_at
+         FROM jobs WHERE id = $1 AND client_id = $2`,
+      [id, req.user.id]
+    );
+    if (!jobRows[0]) {
+      throw new AppError('Job not found or you are not the customer', 404, 'job_not_found');
+    }
+    const job = jobRows[0];
+    if (job.status !== 'in_progress') {
+      throw new AppError(`Changes can only be requested while the job is in progress, not '${job.status}'`, 400, 'invalid_job_state');
+    }
+    if (!job.completion_requested_at) {
+      throw new AppError('The helper has not requested completion yet', 400, 'invalid_job_state');
+    }
+    const result = await withJobTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `UPDATE jobs SET completion_requested_at = NULL, completion_requested_by = NULL,
+               change_request_reason = $2, change_requested_at = NOW(),
+               change_requested_by = $3, updated_at = NOW()
+          WHERE id = $1 AND status = 'in_progress' AND completion_requested_at IS NOT NULL
+          RETURNING *`,
+        [id, reason, req.user.id]
+      );
+      if (!rows.length) throw new AppError('Job state changed during processing', 400, 'state_conflict');
+      return rows[0];
+    }, 'job_request_changes');
+    if (result.assigned_helper_id) {
+      await sendNotification({
+        userId: result.assigned_helper_id,
+        type: 'job_changes_requested',
+        data: { job_id: result.id, reason },
+        action_url: `/jobs/${result.id}`,
+        idempotencyKey: `job-changes-requested:${result.id}`,
+      }).catch((notifErr) => logger.warn('Failed to send job changes-requested notification', {
+        jobId: result.id, error: notifErr.message,
+      }));
+    }
+    res.json({ message: 'Changes requested', job: serializeJob(result, { user: req.user }) });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Complete a job
 /**
  * Complete an in_progress job. Shared by the user endpoint and the

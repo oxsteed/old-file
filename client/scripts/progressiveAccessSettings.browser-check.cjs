@@ -50,12 +50,16 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
           { action: 'approve', at: '2026-11-05T15:30:00.000Z', publicReasonCode: 'review_complete' },
         ];
         const policy = { capability: 'business.own', applicantMayRequest: true, subjectTypes: ['business_proposal'], form: { fields: [{ name: 'business_name', type: 'text', required: true, maxLength: 200 }] } };
-        const resuming = new URLSearchParams(window.location.search).has('resume');
+        const params = new URLSearchParams(window.location.search);
+        const resuming = params.has('resume');
+        const handoff = params.get('handoff');
         let recovered = false;
         export const accessAPI = {
           getAccess: async () => ({ access: { personal: ['customer'], organizations: [],
-            ...(resuming ? { signupResume: { capability: 'business.own', requestId: null, returnTo: '/jobs/42' } } : {}) } }),
+            ...(resuming ? { signupResume: { capability: 'business.own', requestId: null, returnTo: '/jobs/42' } } : {}),
+            ...(handoff ? { signupResume: { capability: null, kind: 'domain_enrollment', statusPath: handoff } } : {}) } }),
           listRequests: async () => ({ requests: resuming ? (recovered ? [request()] : []) : [request(), approved] }),
+          listMyGrants: async () => [],
           listPolicies: async () => ({ policies: [policy] }),
           getRequest: async (id) => (id === 'r2' ? { request: approved, history } : { request: request(), history }),
           updateRequest: async (id, body) => ({ request: checkVersion(body) }),
@@ -75,6 +79,7 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
     });
     await page.goto('http://progressive-settings.test/settings/applications');
     await page.getByRole('heading', { level: 1 }).waitFor();
+    await page.getByText('شركة ضيافة ومطاعم واستشارات غذائية طويلة للغاية للاختبار', { exact: true }).waitFor();
     await page.evaluate(() => window.setLanguage('ar'));
     await page.getByText('شركة ضيافة ومطاعم واستشارات غذائية طويلة للغاية للاختبار', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => document.documentElement.dir), 'rtl');
@@ -113,6 +118,15 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
       body: { capability: 'business.own', subject: { type: 'business_proposal' }, source: 'signup', answers: {}, returnTo: '/jobs/42' },
       key: 'signup-applicant',
     });
+    await page.goto('http://progressive-settings.test/settings/applications?handoff=%2Fcredit%2Fapply');
+    const resumeLink = page.getByRole('link', { name: 'View next step' });
+    await resumeLink.waitFor();
+    assert.equal(await resumeLink.getAttribute('href'), '/credit/apply');
+    assert.equal(await page.evaluate(() => window.applicationRecovery), undefined);
+
+    await page.goto('http://progressive-settings.test/settings/applications?handoff=https%3A%2F%2Fexample.test');
+    await page.locator('#access-held-title').waitFor();
+    assert.equal(await resumeLink.count(), 0);
     // Fresh load: English again, no signup resume in play.
     await page.goto('http://progressive-settings.test/settings/applications');
     await page.getByRole('heading', { level: 1 }).waitFor();
@@ -130,7 +144,7 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
     await page.locator('[data-track="ui.access.applications.submit"]').click();
     await page.getByText(/changed while you were editing/i).waitFor();
     assert.equal(await businessName.inputValue(), 'Corner bistro with a patio');
-    assert.ok(await page.getByText('Please add your city').count() >= 1);
+    await page.getByText('Please add your city').waitFor();
     await page.locator('[data-track="ui.access.applications.submit"]').click();
     await page.waitForFunction(() => !document.querySelector('section[aria-labelledby^="req-r1-title"]'));
     // Happy path: a second decision arrives via silent reload before submit.
@@ -141,7 +155,7 @@ test('Applications keeps long business subjects bounded and restores focus in Ar
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await page.getByText(/changed while you were editing/i).waitFor();
     assert.equal(await businessName.inputValue(), 'Corner bistro with a patio');
-    assert.ok(await page.getByText('Please add your city').count() >= 1);
+    await page.getByText('Please add your city').waitFor();
     await page.locator('[data-track="ui.access.applications.submit"]').click();
     await page.waitForFunction(() => !document.querySelector('section[aria-labelledby^="req-r1-title"]'));
 

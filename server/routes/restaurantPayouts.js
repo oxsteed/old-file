@@ -16,6 +16,7 @@ const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const { errorHandler } = require('../middleware/errorHandler');
 const {
   requirePayoutManager,
+  requirePayoutReader,
   createConnectRestaurantAccount,
   getRestaurantConnectStatus,
   disconnectConnectRestaurantAccount,
@@ -36,7 +37,7 @@ router.get(
   '/:restaurantId/payouts/status',
   authenticate,
   requirePaymentsEnabled,
-  requirePayoutManager,
+  requirePayoutReader,
   getRestaurantConnectStatus
 );
 router.post(
@@ -54,20 +55,28 @@ router.post(
 router.get(
   '/:restaurantId/wallet-payouts/balance',
   authenticate,
-  requirePayoutManager,
+  requirePayoutReader,
   walletPayoutCtrl.getPayoutBalance
 );
 router.post(
   '/:restaurantId/wallet-payouts',
   strictLimiter,
   authenticate,
-  requirePayoutManager,
+  requirePayoutReader,
   walletPayoutCtrl.requestPayout
+);
+// G-18: owner confirmation of a manager-drafted payout (draft -> requested).
+router.post(
+  '/:restaurantId/wallet-payouts/:payoutId/confirm',
+  strictLimiter,
+  authenticate,
+  requirePayoutManager,
+  walletPayoutCtrl.confirmDraftPayout
 );
 router.get(
   '/:restaurantId/wallet-payouts',
   authenticate,
-  requirePayoutManager,
+  requirePayoutReader,
   walletPayoutCtrl.listPayouts
 );
 

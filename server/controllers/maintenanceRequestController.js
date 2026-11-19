@@ -2,7 +2,7 @@ const pool = require('../db');
 const path = require('path');
 const { AppError } = require('../middleware/errorHandler');
 const jobSchema = require('../validation/jobSchema');
-const { canAccessBusinessTeam } = require('../utils/businessOwnership');
+const { canAccessBusinessTeam, canReadBusinessFinance } = require('../utils/businessOwnership');
 const { businessScopeSatisfies } = require('../middleware/scopeGates');
 const { toPrivatePhotoRef, withHydratedPhotos, withHydratedPhotosList, resolvePhotoKey } = require('../utils/intakeMedia');
 const { copyObject, deleteFile, getPublicUrl } = require('../utils/storage');
@@ -144,6 +144,14 @@ function forTenant(row) {
   const { owner_notes: _ownerNotes, ...rest } = row;
   return rest;
 }
+// G-8: cost fields are finance data, not team data. A business team member
+// without finance read (invoices.view / payments.view / payouts.view, or
+// owner) sees the request but not its costs; the list total is hidden too.
+function withoutCosts(row) {
+  if (!row) return row;
+  const { estimated_cost: _estimatedCost, actual_cost: _actualCost, ...rest } = row;
+  return rest;
+}
 function tenantEvents(events) {
   return events.map((e) => (e.metadata && e.metadata.tenant_visible === true ? e : { ...e, note: null }));
 }
@@ -168,7 +176,16 @@ exports.getPublicBusiness = async (req, res, next) => {
       [business.id]
     );
     const settings = settingRows[0] || null;
+    // G-17: the public intake lists the business's canonical properties so
+    // a tenant picks their building instead of typing free text. Labels
+    // and addresses only; nothing internal.
+    const { rows: properties } = await pool.query(
+      `SELECT id, label, address, address_city, address_state, address_zip, address_country
+         FROM properties WHERE business_id = $1 ORDER BY label ASC, created_at ASC`,
+      [business.id]
+    );
     return res.json({
+      properties,
       business: {
         id: business.id,
         business_name: business.business_name,
@@ -226,6 +243,20 @@ exports.createRequest = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
+    // G-17: an intake may name a canonical property. It must belong to
+    // this business; the free-text property_label stays intake copy.
+    const propertyId = typeof (req.body.property_id || req.body.propertyId) === 'string'
+      && /^[0-9a-f-]{36}$/i.test(req.body.property_id || req.body.propertyId)
+      ? (req.body.property_id || req.body.propertyId)
+      : null;
+    if (propertyId) {
+      const { rows: propRows } = await pool.query(
+        'SELECT id FROM properties WHERE id = $1 AND business_id = $2',
+        [propertyId, business.id]
+      );
+      if (!propRows.length) throw new AppError('Property not found for this business', 404, 'property_not_found');
+    }
+
     let photoUrls = [];
     if (req.files?.length) {
       const nonImage = req.files.find((file) => !String(file.mimetype || '').startsWith('image/'));
@@ -247,9 +278,10 @@ exports.createRequest = async (req, res, next) => {
            business_id, owner_id, requester_id, urgency, issue_category, title, description,
            property_label, unit_label, access_notes, preferred_times, permission_to_enter,
            contact_name, contact_email, contact_phone, photo_urls, workflow_stage,
-           intake_channel, billable_party, template_intake, sla_target_at, follow_up_due_at
+           intake_channel, billable_party, template_intake, sla_target_at, follow_up_due_at,
+           property_id
          )
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,$21,$22)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,$21,$22,$23)
          RETURNING *`,
         [
           business.id,
@@ -274,6 +306,7 @@ exports.createRequest = async (req, res, next) => {
           JSON.stringify(templateIntake),
           slaTargetAt,
           followUpDueAt,
+          propertyId,
         ]
       );
       await insertEvent(client, request.id, req.user.id, 'created', null, 'reported', 'Tenant submitted maintenance request');
@@ -300,19 +333,30 @@ exports.listBusinessRequests = async (req, res, next) => {
     if (!access) throw new AppError('Business not found', 404, 'not_found');
 
     const status = req.query.status && VALID_STATUSES.has(req.query.status) ? req.query.status : null;
+    // G-17: filter by canonical property. The free-text property_label is
+    // intake copy, never scoping: only property_id scopes.
+    const propertyId = typeof req.query.property_id === 'string' && /^[0-9a-f-]{36}$/i.test(req.query.property_id)
+      ? req.query.property_id
+      : null;
     const params = [businessId];
     let where = 'WHERE r.business_id = $1';
     if (status) {
       params.push(status);
       where += ` AND r.status = $${params.length}`;
     }
+    if (propertyId) {
+      params.push(propertyId);
+      where += ` AND r.property_id = $${params.length}`;
+    }
 
     const { rows } = await pool.query(
       `SELECT r.*, u.first_name, u.last_name, u.email AS requester_email,
-              ah.first_name AS assigned_first_name, ah.last_name AS assigned_last_name
+              ah.first_name AS assigned_first_name, ah.last_name AS assigned_last_name,
+              p.label AS property_name
        FROM property_maintenance_requests r
        LEFT JOIN users u ON u.id = r.requester_id
        LEFT JOIN users ah ON ah.id = r.assigned_helper_id
+       LEFT JOIN properties p ON p.id = r.property_id
        ${where}
        ORDER BY
          CASE r.status
@@ -328,6 +372,14 @@ exports.listBusinessRequests = async (req, res, next) => {
       params
     );
 
+    // Stats follow the same filter so a property's cost total is that
+    // property's, not the whole business's.
+    const statsParams = [businessId];
+    let statsWhere = 'WHERE business_id = $1';
+    if (propertyId) {
+      statsParams.push(propertyId);
+      statsWhere += ` AND property_id = $${statsParams.length}`;
+    }
     const { rows: [stats] } = await pool.query(
       `SELECT
          COUNT(*)::int AS total,
@@ -337,11 +389,68 @@ exports.listBusinessRequests = async (req, res, next) => {
          COUNT(*) FILTER (WHERE sla_target_at IS NOT NULL AND sla_target_at < NOW() AND status NOT IN ('completed', 'cancelled', 'rejected'))::int AS overdue_sla_count,
          COALESCE(SUM(actual_cost), 0)::numeric AS actual_cost_total
        FROM property_maintenance_requests
-       WHERE business_id = $1`,
-      [businessId]
+       ${statsWhere}`,
+      statsParams
     );
 
-    return res.json({ requests: await withHydratedPhotosList(rows), stats });
+    // G-8: cost totals are finance data; hide them from team members
+    // without finance read instead of returning them to any member.
+    const canReadFinance = await canReadBusinessFinance(req.user.id, businessId);
+    const requests = await withHydratedPhotosList(rows);
+    if (!canReadFinance) {
+      return res.json({
+        requests: requests.map(withoutCosts),
+        stats: { ...stats, actual_cost_total: null },
+      });
+    }
+    return res.json({ requests, stats });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// G-17: canonical properties for a business. A property is a real entity
+// (label + address), not the free-text property_label on an intake.
+exports.listProperties = async (req, res, next) => {
+  try {
+    const { businessId } = req.params;
+    const access = businessScopeSatisfies(req, businessId, 'any') || await canAccessBusinessTeam(req.user.id, businessId);
+    if (!access) throw new AppError('Business not found', 404, 'not_found');
+    const { rows } = await pool.query(
+      `SELECT id, business_id, label, address, address_city, address_state,
+              address_zip, address_country, created_at, updated_at
+         FROM properties WHERE business_id = $1 ORDER BY label ASC, created_at ASC`,
+      [businessId]
+    );
+    return res.json({ properties: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createProperty = async (req, res, next) => {
+  try {
+    const { businessId } = req.params;
+    const access = await canAccessBusinessTeam(req.user.id, businessId);
+    if (!access) throw new AppError('Business not found', 404, 'not_found');
+    const label = trimString(req.body.label, 200);
+    if (!label) throw new AppError('A property name is required', 400, 'validation_failed');
+    const { rows: [property] } = await pool.query(
+      `INSERT INTO properties
+         (business_id, label, address, address_city, address_state, address_zip, address_country, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        businessId,
+        label,
+        trimString(req.body.address, 500) || null,
+        trimString(req.body.address_city || req.body.addressCity, 120) || null,
+        trimString(req.body.address_state || req.body.addressState, 80) || null,
+        trimString(req.body.address_zip || req.body.addressZip, 20) || null,
+        trimString(req.body.address_country || req.body.addressCountry, 80) || null,
+        req.user.id,
+      ]
+    );
+    return res.status(201).json({ property });
   } catch (err) {
     next(err);
   }
@@ -365,7 +474,12 @@ exports.getRequest = async (req, res, next) => {
     if (tenantOnly) {
       return res.json({ request: forTenant(await withHydratedPhotos(request)), events: tenantEvents(events) });
     }
-    return res.json({ request: await withHydratedPhotos(request), events });
+    // G-8: a team member without finance read sees the request without
+    // its cost fields.
+    const hydrated = await withHydratedPhotos(request);
+    const canReadFinance = String(request.business_owner_id) === String(req.user.id)
+      || Boolean(await canReadBusinessFinance(req.user.id, request.business_id));
+    return res.json({ request: canReadFinance ? hydrated : withoutCosts(hydrated), events });
   } catch (err) {
     next(err);
   }
@@ -516,6 +630,18 @@ exports.convertToJob = async (req, res, next) => {
     if (!access) throw new AppError('Not authorized', 403, 'forbidden');
     if (request.job_id) throw new AppError('Request already has a job', 409, 'state_conflict');
 
+    // G-17: carry the canonical property onto the job. The property's
+    // address is the job location when one is linked; the free-text
+    // property_label stays in the description only.
+    let property = null;
+    if (request.property_id) {
+      const { rows: [propRow] } = await client.query(
+        'SELECT * FROM properties WHERE id = $1 AND business_id = $2',
+        [request.property_id, request.business_id]
+      );
+      property = propRow || null;
+    }
+
     // Review P2-9-F10: this used to INSERT into jobs directly, skipping the
     // shared job-posting validation. Run the constructed input through the
     // same schema POST /api/jobs uses so invalid jobs fail fast at 422.
@@ -558,9 +684,9 @@ exports.convertToJob = async (req, res, next) => {
          site_access, job_type_label, notes, location_address, location_city,
          location_state, location_zip, location_country, media_urls,
          preferred_helper_id, preferred_helper_name, scheduled_date, scheduled_time,
-         status, expires_at, metadata
+         status, expires_at, metadata, property_id
        )
-       VALUES ($1,$2,$3,$4,'open',$5,$6,'standard','one_time',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'published',now() + interval '30 days',$18)
+       VALUES ($1,$2,$3,$4,'open',$5,$6,'standard','one_time',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'published',now() + interval '30 days',$18,$19)
        RETURNING *`,
       [
         request.business_owner_id,
@@ -570,11 +696,11 @@ exports.convertToJob = async (req, res, next) => {
         request.urgency === 'emergency' || request.urgency === 'urgent' ? 'asap' : 'flexible',
         request.urgency === 'emergency' || request.urgency === 'urgent',
         `Created from maintenance request ${request.id}`,
-        request.property_label || request.address_street || null,
-        request.address_city || null,
-        request.address_state || null,
-        request.address_zip || null,
-        request.address_country || null,
+        property?.address || request.property_label || request.address_street || null,
+        property?.address_city || request.address_city || null,
+        property?.address_state || request.address_state || null,
+        property?.address_zip || request.address_zip || null,
+        property?.address_country || request.address_country || null,
         [],
         request.assigned_helper_id || null,
         request.vendor_name || null,
@@ -587,6 +713,8 @@ exports.convertToJob = async (req, res, next) => {
           tenant_requester_id: request.requester_id || null,
           converted_from: 'property_maintenance_request',
         }),
+        // G-17: the converted job keeps the property link.
+        request.property_id || null,
       ]
     );
 

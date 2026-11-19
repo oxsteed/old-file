@@ -26,6 +26,7 @@ const writeLimiter = rateLimit({
 
 const meRouter = express.Router();
 meRouter.get('/access', authenticate, ctrl.requireProjectionFlag, ctrl.getAccess);
+meRouter.get('/access-grants', authenticate, ctrl.requireProjectionFlag, ctrl.listMyGrants);
 meRouter.get('/access-policies', authenticate, ctrl.requireRequestsFlag, ctrl.listPolicies);
 meRouter.get('/access-policies/:capability', authenticate, ctrl.requireRequestsFlag, ctrl.getPolicy);
 meRouter.get('/access-requests', authenticate, ctrl.requireRequestsFlag, ctrl.listMine);

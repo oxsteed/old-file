@@ -1156,6 +1156,12 @@ async function sendBusinessInviteEmail(email, options = {}) {
       : require('./staffNotificationTemplates').staffRoleName(options.role, lang);
   const values = { business: businessName, inviter: inviterName, role: roleLabel };
   const subject = templateText(copy.subject, values);
+  const inviteId = textSafe(options.inviteId);
+  // G-3: the CTA carries the invite id so the invitee lands on signup with
+  // the invitation attached; JoinPage surfaces it after verification and
+  // ApplicationsPage lists it. Without the id the invitee had no path from
+  // the email to the accept action.
+  const inviteUrl = inviteId ? `/join?invite=${encodeURIComponent(inviteId)}` : '/join';
   const rendered = renderOxSteedEmail({
     language: lang,
     preheader: templateText(copy.intro, values),
@@ -1164,10 +1170,9 @@ async function sendBusinessInviteEmail(email, options = {}) {
     intro: templateText(copy.intro, values),
     bodyText: copy.body,
     bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">${escapeHtml(copy.body)}</p>`,
-    cta: { label: copy.cta, url: '/join' },
+    cta: { label: copy.cta, url: inviteUrl },
     footerText: copy.footer,
   });
-  const inviteId = textSafe(options.inviteId);
   return sendEmail({
     to: safeEmail,
     subject,

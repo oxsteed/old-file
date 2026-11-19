@@ -682,6 +682,24 @@ const T = {
       ar: 'للأسف، تم رفض طلب حجزك لـ%{toolName}.',
     },
   },
+  // G-37: the provider changed on an accepted booking. The deposit and
+  // appointment are unchanged; only the provider moves.
+  booking_transferred: {
+    title: {
+      en: 'Booking Transferred',
+      fr: 'Réservation transférée',
+      es: 'Reserva transferida',
+      ht: 'Rezèvasyon an transfere',
+      ar: 'تم تحويل الحجز',
+    },
+    body: {
+      en: 'Your booking has been transferred to another provider.',
+      fr: 'Votre réservation a été transférée à un autre prestataire.',
+      es: 'Tu reserva ha sido transferida a otro proveedor.',
+      ht: 'Yo transfere rezèvasyon ou a yon lòt prestatè.',
+      ar: 'تم تحويل حجزك إلى مزود آخر.',
+    },
+  },
   vortex_approval_requested: {
     title: {
       en: 'Approval needed',
@@ -1182,6 +1200,13 @@ const EMAIL_TEMPLATES = {
       fr: 'Voir les réservations',
       es: 'Ver reservas',
       ht: 'Gade randevou yo',
+      ar: 'عرض الحجوزات',
+    },
+    booking_transferred: {
+      en: 'View Bookings',
+      fr: 'Voir les réservations',
+      es: 'Ver reservas',
+      ht: 'Gade rezèvasyon yo',
       ar: 'عرض الحجوزات',
     },
     consulting_session_scheduled: {

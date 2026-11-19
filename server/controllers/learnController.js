@@ -183,6 +183,173 @@ exports.getCompletions = async (req, res, next) => {
   }
 };
 
+// ── Workforce programs (PR #804 G-24) ───────────────────────────────────────
+// A program is a named bundle of one guide category (migration
+// 20261119093003). Enrollment is the program -> enrollment -> completion
+// record the join_workforce intent links to. Completion is derived, never
+// self-declared: an enrollment completes when every guide in the program's
+// category is complete. Titles/descriptions are localized client-side by
+// slug, so the API carries no user-visible program copy. Guide submission
+// stays gated on helper/consultant capabilities; enrollment grants no
+// authoring authority.
+
+async function programProgress(client, userId, program) {
+  const guideIds = GUIDES_BY_CATEGORY[program.category] || [];
+  const total = guideIds.length;
+  let completed = 0;
+  if (total) {
+    const { rows } = await client.query(
+      `SELECT COUNT(*)::int AS n FROM user_guide_completions
+        WHERE user_id = $1 AND guide_id = ANY($2)`,
+      [userId, guideIds],
+    );
+    completed = rows[0]?.n || 0;
+  }
+  return { total, completed };
+}
+
+function publicProgram(row, progress) {
+  return {
+    slug: row.slug,
+    category: row.category,
+    totalGuides: progress.total,
+    completedGuides: progress.completed,
+    isActive: row.is_active === true,
+  };
+}
+
+async function listPrograms(req, res, next) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT slug, category, is_active FROM learn_programs WHERE is_active = TRUE ORDER BY slug`,
+    );
+    const userId = req.user?.id || null;
+    const programs = [];
+    for (const row of rows) {
+      const progress = userId ? await programProgress(pool, userId, row) : { total: (GUIDES_BY_CATEGORY[row.category] || []).length, completed: 0 };
+      programs.push(publicProgram(row, progress));
+    }
+    return res.json({ programs });
+  } catch (err) {
+    return next(new AppError('Failed to list programs', 500, 'list_programs_failed'));
+  }
+}
+
+async function enrollInProgram(req, res, next) {
+  try {
+    const slug = String(req.params.slug || '').slice(0, 80);
+    const { rows: programs } = await pool.query(
+      `SELECT id, slug, category, is_active FROM learn_programs WHERE slug = $1 AND is_active = TRUE`,
+      [slug],
+    );
+    if (!programs.length) return next(new AppError('Program not found', 404, 'program_not_found'));
+    const program = programs[0];
+    const { rows } = await pool.query(
+      `INSERT INTO learn_enrollments (user_id, program_id)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id, program_id) DO NOTHING
+       RETURNING *`,
+      [req.user.id, program.id],
+    );
+    let enrollment = rows[0] || null;
+    if (!enrollment) {
+      const existing = await pool.query(
+        `SELECT * FROM learn_enrollments WHERE user_id = $1 AND program_id = $2`,
+        [req.user.id, program.id],
+      );
+      enrollment = existing.rows[0];
+    }
+    const progress = await programProgress(pool, req.user.id, program);
+    // The workforce intent is consumed when the enrollment exists: the
+    // handoff from signup to a program is complete.
+    try {
+      const signupIntent = require('../services/access/signupIntent');
+      await signupIntent.consumeIntent(req.user.id, 'join_workforce');
+    } catch (_consumeErr) { /* consumption never fails enrollment */ }
+    return res.status(rows.length ? 201 : 200).json({
+      enrollment: {
+        id: String(enrollment.id),
+        programSlug: program.slug,
+        category: program.category,
+        status: enrollment.status,
+        enrolledAt: enrollment.enrolled_at,
+        completedAt: enrollment.completed_at,
+        totalGuides: progress.total,
+        completedGuides: progress.completed,
+      },
+    });
+  } catch (err) {
+    return next(new AppError('Failed to enroll', 500, 'enroll_failed'));
+  }
+}
+
+async function listMyEnrollments(req, res, next) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT e.*, p.slug, p.category
+         FROM learn_enrollments e
+         JOIN learn_programs p ON p.id = e.program_id
+        WHERE e.user_id = $1
+        ORDER BY e.enrolled_at DESC`,
+      [req.user.id],
+    );
+    const enrollments = [];
+    for (const row of rows) {
+      const progress = await programProgress(pool, req.user.id, { category: row.category });
+      enrollments.push({
+        id: String(row.id),
+        programSlug: row.slug,
+        category: row.category,
+        status: row.status,
+        enrolledAt: row.enrolled_at,
+        completedAt: row.completed_at,
+        totalGuides: progress.total,
+        completedGuides: progress.completed,
+      });
+    }
+    return res.json({ enrollments });
+  } catch (err) {
+    return next(new AppError('Failed to list enrollments', 500, 'list_enrollments_failed'));
+  }
+}
+
+// The program handlers are plain functions above; export them so the
+// learn router can mount them. (A missing export here throws at router
+// load time, which takes the whole /api/learn router down.)
+exports.listPrograms = listPrograms;
+exports.enrollInProgram = enrollInProgram;
+exports.listMyEnrollments = listMyEnrollments;
+
+// Completes every enrolled (not yet completed) enrollment whose program
+// category matches the just-completed guide, once all guides in that
+// category are complete. Runs inside recordCompletion's transaction.
+async function maybeCompleteEnrollments(client, userId, guideId) {
+  const category = GUIDE_CATEGORY[guideId];
+  if (!category) return;
+  const guideIds = GUIDES_BY_CATEGORY[category] || [];
+  if (!guideIds.length) return;
+  try {
+    await client.query('SAVEPOINT sp_program_complete');
+    const { rows: done } = await client.query(
+      `SELECT guide_id FROM user_guide_completions
+        WHERE user_id = $1 AND guide_id = ANY($2)`,
+      [userId, guideIds],
+    );
+    if (done.length >= guideIds.length) {
+      await client.query(
+        `UPDATE learn_enrollments e
+            SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+          WHERE e.user_id = $1 AND e.status = 'enrolled'
+            AND EXISTS (SELECT 1 FROM learn_programs p WHERE p.id = e.program_id AND p.category = $2)`,
+        [userId, category],
+      );
+    }
+    await client.query('RELEASE SAVEPOINT sp_program_complete');
+  } catch (_err) {
+    await client.query('ROLLBACK TO SAVEPOINT sp_program_complete').catch(() => {});
+  }
+}
+
 /**
  * POST /api/learn/completions
  * Body: { guide_id, difficulty }
@@ -271,6 +438,10 @@ exports.recordCompletion = async (req, res, next) => {
           }
         }
       }
+
+      // G-24: finishing the last guide in a program's category completes
+      // any open enrollment in that program (derived, never self-declared).
+      await maybeCompleteEnrollments(client, req.user.id, guide_id);
     }
 
     await client.query('COMMIT');

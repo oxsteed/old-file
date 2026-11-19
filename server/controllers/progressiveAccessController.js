@@ -47,9 +47,11 @@ function requireProjectionFlag(req, res, next) {
 // ── applicant ──────────────────────────────────────────────────────────────
 const getAccess = wrap('me.access', async (req, res) => {
   const projection = await access.getProjection(req.user.id);
-  const resume = await require('../services/access/signupIntent').pendingIntent(req.user.id);
+  const signupIntent = require('../services/access/signupIntent');
+  const resume = await signupIntent.pendingIntent(req.user.id);
+  const resumes = await signupIntent.pendingIntents(req.user.id);
   res.set('Cache-Control', 'private, no-store');
-  return res.json({ accountId: String(req.user.id), access: { ...projection, signupResume: resume }, flags: flags.clientFlags(req.user.id) });
+  return res.json({ accountId: String(req.user.id), access: { ...projection, signupResume: resume, signupResumes: resumes }, flags: flags.clientFlags(req.user.id) });
 });
 
 const getPolicy = wrap('me.policy', async (req, res) => {
@@ -71,6 +73,13 @@ const listMine = wrap('me.requests.list', async (req, res) => {
 const getMine = wrap('me.requests.get', async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   return res.json(await access.getMine(req.user.id, req.params.id));
+});
+
+// G-33: the applicant's own grants with their status and reason, so a
+// revocation is explained in-app instead of silently vanishing.
+const listMyGrants = wrap('me.grants.list', async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  return res.json({ grants: await access.listOwnGrants(req.user.id) });
 });
 
 const create = wrap('me.requests.create', async (req, res) => {
@@ -121,5 +130,6 @@ const userGrants = wrap('admin.access.userGrants', async (req, res) => {
 module.exports = {
   requireRequestsFlag, requireProjectionFlag,
   getAccess, getPolicy, listPolicies, listMine, getMine, create, transition,
+  listMyGrants,
   reviewList, reviewGet, reviewDecide, grantChange, userGrants,
 };

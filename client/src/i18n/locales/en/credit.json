@@ -5,7 +5,14 @@
     "fulfillmentMoveBackTitle": "Move card fulfillment back",
     "fulfillmentMoveBackConfirm": "Move this card back to {{status}}? Use this only to correct a step that was marked before it happened. A card that is already active cannot be moved back."
   },
+  "creditApplyCustomerNote": "This application is for a business owner or helper applying for their business or profile to accept Credit. A customer needs no enrollment to spend Credit.",
+  "creditApplyMyStatus": "Your applications",
+  "creditApplyStatusActive": "Application active",
+  "creditApplyStatusPending": "Application pending",
+  "creditApplyStatusRevoked": "Application revoked",
+  "creditApplyStatusSuspended": "Application suspended",
   "statementCenter": {
+    "delegatedReadPermission": "Read issued statements only",
     "title": "Statement center",
     "description": "Review your credit, settlement, earnings, and business statements in one place.",
     "eyebrow": "Financial records",
@@ -176,6 +183,10 @@
       "periodActivity": "Period activity",
       "searchAllRecords": "Search all records",
       "noAccountsYet": "No statement accounts are available yet. Accounts will appear here when available to you.",
+      "locationReportsTitle": "Store reports for your locations",
+      "locationReportsBody": "You can see sales and finance reports for your assigned stores: {{locations}}.",
+      "locationReportsSettlementNote": "Restaurant settlement statements cover the whole restaurant and are only visible to headquarters.",
+      "openLocationReports": "Open store reports",
       "partialLoadError": "Some accounts could not be loaded. Retry to check for missing accounts.",
       "accountUnavailable": "This account is no longer available. Choose an account below.",
       "adjusted": "Adjusted",
@@ -2362,7 +2373,22 @@
     "title": "Add money",
     "intro": "Add money to OxSteed Credit with a card. It is credited once the payment clears.",
     "credited": "Money added to your OxSteed Credit",
-    "invalidAmount": "Enter at least {{min}}."
+    "invalidAmount": "Enter at least {{min}}.",
+    "businessTitle": "Fund member Credit",
+    "businessIntro": "Add OxSteed Credit to a team member with the business payment method. You pay with your card; the member is credited once the payment clears.",
+    "businessMemberLabel": "Member to fund",
+    "businessMemberPlaceholder": "Choose a member",
+    "businessReasonLabel": "Why is the business funding this?",
+    "businessReasonPlaceholder": "For example: quarterly tools allowance.",
+    "businessMemberRequired": "Choose a member to fund.",
+    "businessReasonRequired": "A reason is required.",
+    "businessCredited": "Credit added to the member.",
+    "status": {
+      "pending": "Pending",
+      "completed": "Credited",
+      "failed": "Failed",
+      "requires_attention": "Needs attention"
+    }
   },
   "identityVerification": {
     "eyebrow": "Identity check",

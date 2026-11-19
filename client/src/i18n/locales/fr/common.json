@@ -1680,7 +1680,8 @@
     "help": "Aide",
     "compactTagline": "Aide locale, restauration et services aux entreprises.",
     "teamAccess": "Accès à l’équipe (Vortex)",
-    "creditTerms": "Conditions d’OxSteed Credit"
+    "creditTerms": "Conditions d’OxSteed Credit",
+    "yourAccess": "Votre OxSteed"
   },
   "nav": {
     "findHelp": "Trouver de l’aide",
@@ -1692,7 +1693,11 @@
     "foodOrders": "Commandes de repas",
     "myApplications": "Mes demandes",
     "account": "Compte",
-    "help": "Aide"
+    "help": "Aide",
+    "credit": "OxSteed Credit",
+    "partner": "Programme partenaire",
+    "learning": "Formation professionnelle",
+    "browseJobs": "Parcourir les offres"
   },
   "signupUpgrade": {
     "title": "Créez votre compte",
@@ -1708,9 +1713,39 @@
     "benefitBusiness": "Développez votre activité",
     "benefitBusinessText": "Trouvez des talents et touchez plus de personnes localement.",
     "modePrompt": "Comment utiliserez-vous OxSteed ?",
-    "switcherNote": "Vous pouvez changer de mode à tout moment depuis le sélecteur de l’application.",
-    "setupNote": "Certains modes nécessitent une configuration supplémentaire.",
-    "intentNote": "Tout le monde commence avec un accès client. Après avoir vérifié votre adresse e-mail, vous pourrez demander à proposer des services ou à gérer une entreprise.",
+    "setupNote": "Autres façons d’utiliser OxSteed",
+    "intentNote": "Tout le monde commence avec un accès client. Choisissez le parcours qui décrit vos besoins; l'admission commence après la vérification.",
+    "personas": {
+      "customer": { "title": "Trouver de l'aide locale", "description": "Publiez une demande, trouvez de l'aide et commandez à manger." },
+      "helper": { "title": "Proposer des services", "description": "Créez un profil, répondez aux opportunités et soyez payé." },
+      "businessOwner": { "title": "Gérer une entreprise", "description": "Créez votre présence et gérez votre activité." },
+      "businessTeam": { "title": "Rejoindre une équipe", "description": "Travaillez pour une entreprise invitée avec des outils limités." },
+      "restaurantOwner": { "title": "Gérer un restaurant", "description": "Configurez un restaurant et gérez ses opérations." },
+      "restaurantTeam": { "title": "Travailler dans un restaurant", "description": "Utilisez uniquement les outils de votre établissement." },
+      "logistics": { "title": "Transport et livraison", "description": "Coordonnez les expéditions, livraisons et dispatchs." },
+      "consultant": { "title": "Conseiller des clients", "description": "Partagez votre expertise dans des missions approuvées." },
+      "equipmentOwner": { "title": "Proposer du matériel", "description": "Proposez des outils et équipements à la location." },
+      "franchise": { "title": "Opérer une franchise", "description": "Suivez l'inscription du territoire et la préparation." },
+      "investorReporting": { "title": "Voir les rapports d'investissement", "description": "Demandez des rapports éligibles; cela n'autorise jamais l'investissement." },
+      "creditParticipant": { "title": "Participer à OxSteed Credit", "description": "Suivez l'inscription et l'éligibilité du programme." },
+      "partnerAffiliate": { "title": "Partenaire ou affilié", "description": "Rejoignez un programme partenaire approuvé." },
+      "workforceLearning": { "title": "Apprendre ou enseigner", "description": "Rejoignez un programme de travail ou d'apprentissage." },
+      "reviewer": { "title": "Examiner les demandes", "description": "Demandez l'accès interne nécessaire à ce travail." },
+      "supportAgent": { "title": "Aider les clients", "description": "Demandez l'accès interne d'agent support." },
+      "operationsStaff": { "title": "Gérer les opérations", "description": "Demandez un accès interne aux opérations." },
+      "deviceServiceAccount": { "title": "Connecter un appareil ou service", "description": "Utilisez des identifiants non humains fournis par un administrateur." }
+    },
+    "admission": {
+      "baseline": "L'accès client est disponible immédiatement.",
+      "platform_review": "Après vérification de l'e-mail, complétez l'examen de la plateforme. Les outils protégés restent verrouillés jusqu'à l'activation.",
+      "organization_invitation": "Ce parcours commence par une invitation ou une validation d'adhésion.",
+      "domain_enrollment": "Le programme responsable gère cette inscription; vous pouvez suivre son état sans outil protégé.",
+      "staff_provisioning": "L’accès interne du personnel est fourni par un administrateur OxSteed autorisé. Votre demande est enregistrée pour examen.",
+      "nonhuman_provisioning": "Demandez à votre administrateur de fournir des identifiants d’appareil ; cette inscription crée votre compte personnel pour la demande."
+    },
+    "intentConfirmed": "Votre compte est prêt pour ce parcours",
+    "intentConfirmationNote": "Aucun outil protégé n'a été activé. Continuez lorsque vous êtes invité ou éligible.",
+    "viewNextStep": "Voir l'étape suivante",
     "accountReady": "Votre compte est prêt",
     "applicationNext": "Envoyez votre demande à OxSteed pour examen. Vous pouvez utiliser votre compte pendant cet examen.",
     "applicationLoadFailed": "Votre compte est prêt, mais la demande n’a pas pu être chargée. Réessayez ou terminez-la plus tard dans Demandes.",
@@ -1735,7 +1770,7 @@
     "postalLabel": "Code postal",
     "optionalPostal": "Code postal (facultatif)",
     "errorSummary": "Veuillez vérifier les éléments suivants :",
-    "modeError": "Choisissez un mode de compte disponible.",
+    "modeError": "Choisissez l’une des options ci-dessous.",
     "firstNameError": "Saisissez un prénom valide (100 caractères maximum).",
     "lastNameError": "Saisissez un nom valide (100 caractères maximum).",
     "emailError": "Saisissez une adresse e-mail valide (254 caractères maximum).",
@@ -1761,7 +1796,22 @@
     "restart": "Recommencer l’inscription",
     "resendWait": "Réessayez dans {{seconds}} s",
     "verifying": "Vérification de votre code…",
-    "sending": "Envoi d’un nouveau code…"
+    "sending": "Envoi d’un nouveau code…",
+    "inviteAccept": "Accepter l'invitation",
+    "inviteAccepted": "Bienvenue dans l’équipe. Votre invitation est acceptée.",
+    "inviteDecline": "Refuser l'invitation",
+    "inviteDeclined": "Invitation refusée.",
+    "inviteFound": "Vous êtes invité à rejoindre {{business}} en tant que {{role}}.",
+    "inviteLoading": "Vérification de votre invitation…",
+    "inviteMissing": "Nous n’avons trouvé aucune invitation en attente pour ce lien. Elle a peut-être expiré ou déjà été traitée.",
+    "inviteOpenWorkspace": "Ouvrir l’espace de travail",
+    "inviteTitle": "Invitation à une équipe",
+    "resumeCode": "Code à 6 chiffres",
+    "resumeFailed": "Cet e-mail et ce code ne correspondent pas. Vérifiez-les et réessayez.",
+    "resumeHelp": "Commencé sur un autre appareil ? Saisissez l'e-mail et le code à 6 chiffres de cette inscription pour reprendre où vous vous étiez arrêté.",
+    "resumeRestored": "Vos informations d’inscription ont été restaurées. Saisissez votre mot de passe pour continuer.",
+    "resumeSubmit": "Continuer l'inscription",
+    "resumeTitle": "Reprendre une inscription commencée"
   },
   "actions": {
     "cancel": "Annuler",
@@ -6518,10 +6568,44 @@
     "retry": "Réessayer"
   },
   "progressiveAccess": {
+    "invitations": {
+      "accept": "Accepter",
+      "accepted": "Invitation acceptée.",
+      "decline": "Refuser",
+      "declined": "Invitation refusée.",
+      "empty": "Aucune invitation d’équipe en attente.",
+      "role": "Rôle : {{role}}",
+      "title": "Invitations d’équipe",
+      "vortexHint": "Vous avez un code d’équipe ?",
+      "vortexLink": "Utiliser un code"
+    },
     "pageTitle": "Demandes",
     "pageSubtitle": "Voyez ce que votre compte peut faire et demandez davantage.",
     "backToSettings": "Retour aux paramètres",
     "loading": "Chargement…",
+    "provisioning": {
+      "kinds": {
+        "device": "Appareil",
+        "partner_application": "Demande de partenariat",
+        "service_account": "Compte de service",
+        "staff_operations": "Opérations internes",
+        "staff_reviewer": "Réviseur interne",
+        "staff_support": "Agent de support interne"
+      },
+      "title": "Demandes d’approvisionnement"
+    },
+    "resumes": {
+      "creditStatus": {
+        "active": "Demande de crédit active",
+        "pending": "Demande de crédit en attente",
+        "revoked": "Demande de crédit révoquée",
+        "suspended": "Demande de crédit suspendue"
+      },
+      "partnerInviteOnly": "Les programmes d’affiliation sont sur invitation pour les aides. Vous pouvez demander l’accès partenaire.",
+      "partnerPending": "Accès partenaire demandé. Un réviseur décidera de votre demande.",
+      "partnerRequest": "Demander l’accès partenaire",
+      "partnerRequested": "Demande d’accès partenaire envoyée."
+    },
     "unavailable": "Les demandes ne sont pas encore disponibles sur votre compte.",
     "loadFailed": "Impossible de charger vos demandes.",
     "heldTitle": "Ce que vous pouvez faire maintenant",
@@ -6529,6 +6613,18 @@
     "requestsTitle": "Vos demandes",
     "noRequests": "Vous n'avez encore aucune demande.",
     "applyTitle": "Demander davantage",
+    "activationTitle": "Terminez la configuration pour utiliser cet accès",
+    "activationIntro": "L’approbation n’est que la première étape. Complétez les points ci-dessous pour commencer à utiliser cet accès.",
+    "activationRequirements": {
+      "identity_verified": "Vérifiez votre identité",
+      "helper_terms": "Acceptez les conditions pour les aidants",
+      "payout_setup": "Configurez les paiements",
+      "restaurant_activation": "Activez votre restaurant",
+      "territory_assignment": "Confirmez votre affectation de territoire",
+      "authority_verified": "Vérifiez votre autorité pour investir",
+      "eligibility_verified": "Terminez la vérification d’admissibilité",
+      "agreement_accepted": "Acceptez l’accord d’investissement"
+    },
     "editTitle": "Demande : {{capability}}",
     "reviewerAsked": "L'examinateur a demandé :",
     "choose": "Choisir…",
@@ -6670,6 +6766,11 @@
     "openApplications": "Ouvrir les demandes",
     "admin": {
       "nav": "Demandes d'accès",
+      "provisioning": {
+        "empty": "Aucune demande d’approvisionnement.",
+        "subtitle": "Demandes du personnel, d’appareil, de compte de service et de partenariat issues de l’inscription. Une décision enregistre qui a décidé ; elle n’accorde rien par elle-même.",
+        "title": "Demandes d’approvisionnement d’inscription"
+      },
       "title": "Demandes d'accès",
       "subtitle": "Examinez les demandes d'accès prestataire, entreprise et autres.",
       "status": "Statut",
@@ -6705,7 +6806,10 @@
     },
     "accessRequired": "Cela nécessite d'abord un accès approuvé.",
     "home": {
-      "workspaceUnavailable": "Cet espace de travail n’est plus disponible, vous consultez donc votre accueil personnel."
+      "workspaceUnavailable": "Cet espace de travail n’est plus disponible, vous consultez donc votre accueil personnel.",
+      "workspaceReady": "Votre espace de travail approuvé est prêt.",
+      "openWorkspace": "Ouvrir votre espace de travail",
+      "workspaceLinksUnavailable": "Liens de l’espace de travail indisponibles, nouvelle tentative en cours."
     },
     "accessUpdated": "Votre accès a été mis à jour.",
     "viewStatus": "Voir le statut",
@@ -6743,6 +6847,20 @@
     },
     "menu": {
       "storeScoped": "Le menu partagé est géré par les personnes ayant accès à tous les établissements. Utilisez le menu de votre établissement pour y modifier la disponibilité ou les prix."
+    },
+    "pastGrantsTitle": "Accès antérieurs",
+    "pastGrantsDescription": "Accès révoqués, suspendus ou expirés, avec la raison du changement.",
+    "grantStatus": {
+      "active": "Actif",
+      "suspended": "Suspendu",
+      "revoked": "Révoqué",
+      "expired": "Expiré"
+    },
+    "grantReasons": {
+      "account_deleted": "Compte supprimé.",
+      "review_complete": "Examen terminé.",
+      "territory_assigned": "Territoire attribué.",
+      "territory_assignment_ended": "Attribution du territoire terminée."
     }
   },
   "businessLaunchAttachments": {

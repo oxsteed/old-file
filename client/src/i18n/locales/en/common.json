@@ -1680,7 +1680,8 @@
     "help": "Help",
     "compactTagline": "Local help, food, and business services.",
     "teamAccess": "Team access (Vortex)",
-    "creditTerms": "OxSteed Credit terms"
+    "creditTerms": "OxSteed Credit terms",
+    "yourAccess": "Your OxSteed"
   },
   "nav": {
     "findHelp": "Find Help",
@@ -1692,7 +1693,11 @@
     "foodOrders": "Food Orders",
     "myApplications": "My applications",
     "account": "Account",
-    "help": "Help"
+    "help": "Help",
+    "credit": "OxSteed Credit",
+    "partner": "Partner program",
+    "learning": "Workforce learning",
+    "browseJobs": "Browse Jobs"
   },
   "signupUpgrade": {
     "title": "Create your account",
@@ -1708,9 +1713,39 @@
     "benefitBusiness": "Grow your business",
     "benefitBusinessText": "Find talent and reach more people locally.",
     "modePrompt": "How will you use OxSteed?",
-    "switcherNote": "You can change your mode at any time from the in-app switcher.",
-    "setupNote": "Some modes require additional setup.",
-    "intentNote": "Everyone starts with customer access. After you verify your email, you can apply to offer services or run a business.",
+    "setupNote": "Additional paths",
+    "intentNote": "Everyone starts with customer access. Choose the future path that best describes your needs; the owning admission process comes after verification.",
+    "personas": {
+      "customer": { "title": "Hire local help", "description": "Post a job, find trusted help, and order food." },
+      "helper": { "title": "Offer services", "description": "Build a service profile, respond to opportunities, and get paid." },
+      "businessOwner": { "title": "Run a business", "description": "Create a business presence and manage its work." },
+      "businessTeam": { "title": "Join a business team", "description": "Work for an invited business with scoped tools." },
+      "restaurantOwner": { "title": "Run a restaurant", "description": "Set up a restaurant and manage its operations." },
+      "restaurantTeam": { "title": "Work at a restaurant", "description": "Use only the tools assigned to your restaurant location." },
+      "logistics": { "title": "Move goods and deliveries", "description": "Coordinate shipping, delivery, or dispatch work." },
+      "consultant": { "title": "Consult for clients", "description": "Share expertise and accept approved paying engagements." },
+      "equipmentOwner": { "title": "List equipment", "description": "Offer tools and equipment for approved local use." },
+      "franchise": { "title": "Operate a franchise", "description": "Track franchise territory enrollment and operating setup." },
+      "investorReporting": { "title": "View investor reporting", "description": "Request reporting access for eligible entities. This never enables investing." },
+      "creditParticipant": { "title": "Participate in OxSteed Credit", "description": "Follow the Credit program enrollment and eligibility path." },
+      "partnerAffiliate": { "title": "Partner or refer", "description": "Join an approved partner or affiliate program." },
+      "workforceLearning": { "title": "Learn or teach", "description": "Join workforce, learning, or instructor programs." },
+      "reviewer": { "title": "Review applications", "description": "Request internal reviewer provisioning for authorized work." },
+      "supportAgent": { "title": "Support customers", "description": "Request internal support-agent provisioning." },
+      "operationsStaff": { "title": "Run operations", "description": "Request authorized internal operations access." },
+      "deviceServiceAccount": { "title": "Connect a device or service", "description": "Use administrator-provisioned nonhuman credentials, not a personal account." }
+    },
+    "admission": {
+      "baseline": "Customer access is available immediately.",
+      "platform_review": "After email verification, complete the platform review for this path. Protected tools remain locked until approval and activation.",
+      "organization_invitation": "This path starts with an invitation or membership approval from an organization.",
+      "domain_enrollment": "This path is enrolled by its owning program. Your account can track status without unlocking protected tools.",
+      "staff_provisioning": "Internal staff access is provisioned by an authorized OxSteed administrator. Your request is recorded for review.",
+      "nonhuman_provisioning": "Ask your administrator to provision device credentials; this signup creates your personal account for the request."
+    },
+    "intentConfirmed": "Your account is ready for this path",
+    "intentConfirmationNote": "No protected tools were enabled. Continue through the owning admission flow when invited or eligible.",
+    "viewNextStep": "View next step",
     "accountReady": "Your account is ready",
     "applicationNext": "Send your application to OxSteed for review. You can use your account while we review it.",
     "applicationLoadFailed": "Your account is ready, but we couldn’t load the application. Try again or finish later in Applications.",
@@ -1735,7 +1770,7 @@
     "postalLabel": "Postal code",
     "optionalPostal": "Postal code (optional)",
     "errorSummary": "Please review the following:",
-    "modeError": "Choose a supported account mode.",
+    "modeError": "Choose one of the options below.",
     "firstNameError": "Enter a valid first name (up to 100 characters).",
     "lastNameError": "Enter a valid last name (up to 100 characters).",
     "emailError": "Enter a valid email address (up to 254 characters).",
@@ -1761,7 +1796,22 @@
     "restart": "Restart signup",
     "resendWait": "Try again in {{seconds}}s",
     "verifying": "Verifying your code…",
-    "sending": "Sending a new code…"
+    "sending": "Sending a new code…",
+    "inviteAccept": "Accept invitation",
+    "inviteAccepted": "Welcome to the team. Your invitation is accepted.",
+    "inviteDecline": "Decline invitation",
+    "inviteDeclined": "Invitation declined.",
+    "inviteFound": "You are invited to join {{business}} as {{role}}.",
+    "inviteLoading": "Checking your invitation…",
+    "inviteMissing": "We could not find a pending invitation for this link. It may have expired or already been decided.",
+    "inviteOpenWorkspace": "Open workspace",
+    "inviteTitle": "Team invitation",
+    "resumeCode": "6-digit code",
+    "resumeFailed": "That email and code did not match. Check them and try again.",
+    "resumeHelp": "Started on another device? Enter the email and the 6-digit code from that signup to pick up where you left off.",
+    "resumeRestored": "Your signup details were restored. Enter your password to continue.",
+    "resumeSubmit": "Continue signup",
+    "resumeTitle": "Continue a signup you started"
   },
   "actions": {
     "cancel": "Cancel",
@@ -6518,10 +6568,44 @@
     "retry": "Retry"
   },
   "progressiveAccess": {
+    "invitations": {
+      "accept": "Accept",
+      "accepted": "Invitation accepted.",
+      "decline": "Decline",
+      "declined": "Invitation declined.",
+      "empty": "No pending team invitations.",
+      "role": "Role: {{role}}",
+      "title": "Team invitations",
+      "vortexHint": "Have a team code instead?",
+      "vortexLink": "Redeem a code"
+    },
     "pageTitle": "Applications",
     "pageSubtitle": "See what your account can do and apply for more.",
     "backToSettings": "Back to settings",
     "loading": "Loading…",
+    "provisioning": {
+      "kinds": {
+        "device": "Device",
+        "partner_application": "Partner application",
+        "service_account": "Service account",
+        "staff_operations": "Staff operations",
+        "staff_reviewer": "Staff reviewer",
+        "staff_support": "Staff support agent"
+      },
+      "title": "Provisioning requests"
+    },
+    "resumes": {
+      "creditStatus": {
+        "active": "Credit application active",
+        "pending": "Credit application pending",
+        "revoked": "Credit application revoked",
+        "suspended": "Credit application suspended"
+      },
+      "partnerInviteOnly": "Affiliate programs are by invitation for helpers. You can ask for partner access instead.",
+      "partnerPending": "Partner access requested. A reviewer will decide your request.",
+      "partnerRequest": "Request partner access",
+      "partnerRequested": "Partner access request sent."
+    },
     "unavailable": "Applications are not available on your account yet.",
     "loadFailed": "We couldn't load your applications.",
     "heldTitle": "What you can do now",
@@ -6529,6 +6613,18 @@
     "requestsTitle": "Your applications",
     "noRequests": "You have no applications yet.",
     "applyTitle": "Apply for more",
+    "activationTitle": "Finish setup to use this access",
+    "activationIntro": "Approval is only the first step. Complete the items below to start using this access.",
+    "activationRequirements": {
+      "identity_verified": "Verify your identity",
+      "helper_terms": "Accept the helper terms",
+      "payout_setup": "Set up payouts",
+      "restaurant_activation": "Activate your restaurant",
+      "territory_assignment": "Confirm your territory assignment",
+      "authority_verified": "Verify your authority to invest",
+      "eligibility_verified": "Complete the eligibility check",
+      "agreement_accepted": "Accept the investment agreement"
+    },
     "editTitle": "Application: {{capability}}",
     "reviewerAsked": "The reviewer asked:",
     "choose": "Choose…",
@@ -6670,6 +6766,11 @@
     "openApplications": "Open applications",
     "admin": {
       "nav": "Access applications",
+      "provisioning": {
+        "empty": "No provisioning requests.",
+        "subtitle": "Staff, device, service-account, and partner requests from signup. A decision records who decided; it grants nothing by itself.",
+        "title": "Signup provisioning requests"
+      },
       "title": "Access applications",
       "subtitle": "Review applications for helper, business and other access.",
       "status": "Status",
@@ -6705,7 +6806,10 @@
     },
     "accessRequired": "This needs approved access first.",
     "home": {
-      "workspaceUnavailable": "That workspace is no longer available, so you’re viewing Personal Home."
+      "workspaceUnavailable": "That workspace is no longer available, so you’re viewing Personal Home.",
+      "workspaceReady": "Your approved workspace is ready.",
+      "openWorkspace": "Open your workspace",
+      "workspaceLinksUnavailable": "Workspace links unavailable, retrying."
     },
     "accessUpdated": "Your access was updated.",
     "viewStatus": "View status",
@@ -6743,6 +6847,20 @@
     },
     "menu": {
       "storeScoped": "The shared menu is managed by people with access to every store. Use your store's menu to change availability or prices there."
+    },
+    "pastGrantsTitle": "Past access",
+    "pastGrantsDescription": "Access that was revoked, suspended, or expired, with the reason it changed.",
+    "grantStatus": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "revoked": "Revoked",
+      "expired": "Expired"
+    },
+    "grantReasons": {
+      "account_deleted": "Account deleted.",
+      "review_complete": "Review complete.",
+      "territory_assigned": "Territory assigned.",
+      "territory_assignment_ended": "Territory assignment ended."
     }
   },
   "businessLaunchAttachments": {

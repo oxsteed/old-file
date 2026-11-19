@@ -23,6 +23,7 @@ const MOVEMENT_TYPE_LABELS = {
   marketplace_refund: 'adminMoneyApprovals.typeMarketplaceRefund',
   dispute_refund: 'adminMoneyApprovals.typeDisputeRefund',
   restaurant_payout: 'adminMoneyApprovals.typeRestaurantPayout',
+  invest_distribution: 'adminMoneyApprovals.typeInvestDistribution',
   affiliate_payout: 'adminMoneyApprovals.typeAffiliatePayout',
   fee_config_change: 'adminMoneyApprovals.typeFeeConfig',
 };

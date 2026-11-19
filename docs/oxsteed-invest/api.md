@@ -57,14 +57,14 @@ never read as a participation gate.
   existing exemption pattern) and is still open; it is also recorded as
   an open item in the counsel brief.
 
-## Authority matrix (policy registry)
+## Authority matrix (policy registry + admin permissions)
 
-| Capability | Review permission | Legacy grants | Notes |
+| Capability / authority | Review permission | Legacy grants | Notes |
 |---|---|---|---|
-| `investor.participate` | `review_invest_participation` | none | Own reviewer pool; never reuse `review_investor_access`. `investor.reporting` is never a shortcut to participation. |
-| `investment_opportunity.publish` | `review_invest_opportunity_publish` | none | Publish requires status `approved`; reviewer cannot be the entity representative. |
-| `investment.close` | `review_invest_close` | none | Separate review + execution approvers; neither the entity representative. |
-| `investment.release_proceeds` | `review_invest_release_proceeds` | none | Separate authority from close; no single grant authorizes both. |
+| `investor.participate` | `review_invest_participation` | none | Own reviewer pool; never reuse `review_investor_access`. `investor.reporting` is never a shortcut to participation. Generic access requests cannot mint it (`applicantMayRequest: false`); participation comes only from the per-opportunity invest flow. |
+| Publish opportunity (admin permission, not a registry capability) | `review_invest_opportunity_publish` | none | Publish requires status `approved`; reviewer cannot be the entity representative. |
+| Close opportunity (admin permission, not a registry capability) | `review_invest_close` | none | Separate review + execution approvers; neither the entity representative. |
+| Release proceeds (admin permission, not a registry capability) | `review_invest_release_proceeds` | none | Separate authority from close; no single grant authorizes both. |
 
 Document access is explicit per investor x opportunity (live application,
 commitment, or position) with visibility `public` / `applicants` /

@@ -610,6 +610,10 @@ router.get('/support/ai-chat-metrics',                requireAdmin, requirePermi
 // E05: ticket list/detail are region-scoped server-side (fail closed).
 router.get('/support/tickets',                        requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.listTickets);
 router.get('/support/tickets/:ticketId',              requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.getTicketAdmin);
+// G-36: read-only booking detail for support. GET /api/bookings/:id stays
+// customer/provider only; this is the support path, payment internals
+// redacted in the controller.
+router.get('/support/bookings/:bookingId',             requireAdmin, requirePermission('manage_support'), supportCtrl.getSupportBooking);
 // ADM-094: ticket mutation endpoints are region-scoped server-side (fail
 // closed), same as the list/detail endpoints above.
 router.post('/support/tickets/:ticketId/claim',       requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.claimTicket);

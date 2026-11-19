@@ -31,6 +31,7 @@ const SHOW_NETWORK_BRANCH_SWITCHER = LAUNCH_VISIBILITY.networkBranchSwitcher;
 export default function Navbar() {
   const { user, logout, hasHelperAccess } = useAuth();
   const { t } = useTranslation();
+  const { t: accessT } = useTranslation('common');
   const location = useLocation();
   const { unreadCount: unreadNotifs } = useNotifications();
   const { unreadCount: unreadMsgs } = useUnreadMessages();
@@ -368,6 +369,27 @@ export default function Navbar() {
           </div>
         )}
       </div>
+
+      {/* G-41: while the access projection is loading or failed, the nav is
+          customer-only by design (fail closed). Say so transiently instead
+          of silently dropping every workspace link; the strip clears when
+          the projection resolves. */}
+      {navigation.projectionNotice && (
+        <div
+          role="status"
+          className="ox-nav-projection-notice"
+          style={{
+            padding: '0.375rem 1rem',
+            fontSize: 'var(--text-sm)',
+            textAlign: 'center',
+            color: 'var(--color-text)',
+            background: 'var(--color-surface-2)',
+            borderTop: '1px solid var(--color-border)',
+          }}
+        >
+          {accessT('progressiveAccess.home.workspaceLinksUnavailable')}
+        </div>
+      )}
 
       {/* Responsive hide/show via CSS */}
     </nav>

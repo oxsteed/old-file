@@ -32,6 +32,11 @@ function grantIsEffective(g, now) {
 
 function subjectMatches(grant, subject) {
   const type = (subject && subject.type) || 'self';
+  // G-26: a gate that only needs "holds franchise.operate somewhere"
+  // (the franchise workspace gate) passes subject { type: 'any' }; any
+  // grant of the capability matches. Per-territory checks pass the
+  // concrete application subject instead.
+  if (type === 'any') return true;
   if ((grant.subject_type || 'self') !== type) return false;
   if (type === 'self') return true;
   return grant.subject_id != null && subject.id != null && String(grant.subject_id) === String(subject.id);
@@ -53,7 +58,16 @@ function evaluate(facts, capability, subject = { type: 'self' }) {
   // Ownership of an existing business is canonical in businesses.user_id.
   if ((capability === 'business.own' || capability === 'restaurant.own') && subject && subject.type === 'business') {
     const b = (facts.businesses || []).find((row) => String(row.id) === String(subject.id) && row.role === 'owner');
-    if (b) return { allowed: true, reason: 'canonical_owner', source: { type: 'business_owner', id: String(b.id) }, policyVersion: cap.version };
+    if (b) {
+      // G-1: canonical ownership is authority, not activation. An owner
+      // whose payout setup is incomplete holds the capability but cannot
+      // use it until the declared requirements are met.
+      const activation = facts.activation && facts.activation[capability];
+      if (activation && activation.ready === false) {
+        return { allowed: false, reason: 'activation_incomplete', missing: activation.missing || [], source: { type: 'business_owner', id: String(b.id) }, policyVersion: cap.version };
+      }
+      return { allowed: true, reason: 'canonical_owner', source: { type: 'business_owner', id: String(b.id) }, policyVersion: cap.version };
+    }
   }
 
   const matches = (facts.grants || [])
@@ -61,6 +75,16 @@ function evaluate(facts, capability, subject = { type: 'self' }) {
     .sort((a, b) => String(a.id).localeCompare(String(b.id)));
   const active = matches.find((g) => grantIsEffective(g, now));
   if (active) {
+    // G-1: approval is not activation. A grant whose declared activation
+    // requirements are unmet stays HELD: the caller must complete setup
+    // (see activationFor) instead of discovering a bare 403 downstream.
+    // facts.activation is supplied by accessService.can / getProjection;
+    // a caller without activation facts keeps the previous grant-only
+    // behavior.
+    const activation = facts.activation && facts.activation[capability];
+    if (activation && activation.ready === false) {
+      return { allowed: false, reason: 'activation_incomplete', missing: activation.missing || [], source: { type: 'grant', id: String(active.id), provenance: active.provenance }, policyVersion: cap.version };
+    }
     return { allowed: true, reason: 'grant', source: { type: 'grant', id: String(active.id), provenance: active.provenance }, policyVersion: cap.version };
   }
   if (matches.some((g) => g.status === 'suspended')) return { allowed: false, reason: 'grant_suspended' };
@@ -75,6 +99,14 @@ function project(facts, { openRequestCount = 0, version = 0 } = {}) {
   const personal = new Set([CUSTOMER]);
   for (const g of facts.grants || []) {
     if ((g.subject_type || 'self') === 'self' && grantIsEffective(g, now) && getCapability(g.capability)) personal.add(g.capability);
+  }
+  // G-26: franchise.operate is granted per territory now, not per self.
+  // The franchise workspace gates on personal including this capability,
+  // so an active grant for any territory keeps it visible; losing the
+  // last territory drops it. No other capability is projected this way:
+  // business grants live under organizations, not personal.
+  if ((facts.grants || []).some((g) => g.capability === 'franchise.operate' && grantIsEffective(g, now))) {
+    personal.add('franchise.operate');
   }
   const organizations = (facts.businesses || []).map((b) => ({ type: 'business', id: String(b.id), name: b.name || null, role: b.role }));
   const locations = (facts.restaurantLocations || []).map((location) => ({

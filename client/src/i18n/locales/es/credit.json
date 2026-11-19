@@ -5,7 +5,14 @@
     "fulfillmentMoveBackTitle": "Retroceder la entrega de la tarjeta",
     "fulfillmentMoveBackConfirm": "¿Mover esta tarjeta de nuevo a {{status}}? Usa esto solo para corregir un paso que se marcó antes de que ocurriera. Una tarjeta que ya está activa no se puede mover hacia atrás."
   },
+  "creditApplyCustomerNote": "Esta solicitud es para un dueño de negocio o ayudante que solicita que su negocio o perfil acepte Crédito. Un cliente no necesita inscripción para gastar Crédito.",
+  "creditApplyMyStatus": "Tus solicitudes",
+  "creditApplyStatusActive": "Solicitud activa",
+  "creditApplyStatusPending": "Solicitud pendiente",
+  "creditApplyStatusRevoked": "Solicitud revocada",
+  "creditApplyStatusSuspended": "Solicitud suspendida",
   "statementCenter": {
+    "delegatedReadPermission": "Solo lectura de estados de cuenta emitidos",
     "title": "Centro de estados de cuenta",
     "description": "Revisa tus estados de crédito, liquidaciones, ingresos y negocio en un solo lugar.",
     "eyebrow": "Registros financieros",
@@ -176,6 +183,10 @@
       "periodActivity": "Actividad del período",
       "searchAllRecords": "Buscar en todos los registros",
       "noAccountsYet": "Aún no hay cuentas de estados disponibles. Aparecerán aquí cuando estén disponibles para ti.",
+      "locationReportsTitle": "Informes de tienda para tus ubicaciones",
+      "locationReportsBody": "Puedes ver los informes de ventas y finanzas de tus tiendas asignadas: {{locations}}.",
+      "locationReportsSettlementNote": "Los estados de liquidación del restaurante cubren todo el restaurante y solo los ve la sede central.",
+      "openLocationReports": "Abrir informes de tienda",
       "partialLoadError": "No se pudieron cargar algunas cuentas. Reintenta para comprobar las cuentas que faltan.",
       "accountUnavailable": "Esta cuenta ya no está disponible. Elige una cuenta abajo.",
       "adjusted": "Ajustado",
@@ -2362,7 +2373,22 @@
     "title": "Agregar dinero",
     "intro": "Agrega dinero a OxSteed Credit con tarjeta. Se acredita cuando se confirma el pago.",
     "credited": "Dinero agregado a tu OxSteed Credit",
-    "invalidAmount": "Ingresa al menos {{min}}."
+    "invalidAmount": "Ingresa al menos {{min}}.",
+    "businessTitle": "Financiar el Crédito de un miembro",
+    "businessIntro": "Agrega Crédito OxSteed a un miembro del equipo con el método de pago del negocio. Pagas con tu tarjeta; el miembro recibe el crédito cuando el pago se acredita.",
+    "businessMemberLabel": "Miembro a financiar",
+    "businessMemberPlaceholder": "Elige un miembro",
+    "businessReasonLabel": "¿Por qué el negocio financia esto?",
+    "businessReasonPlaceholder": "Por ejemplo: asignación trimestral de herramientas.",
+    "businessMemberRequired": "Elige un miembro a financiar.",
+    "businessReasonRequired": "Se requiere un motivo.",
+    "businessCredited": "Crédito agregado al miembro.",
+    "status": {
+      "pending": "Pendiente",
+      "completed": "Acreditado",
+      "failed": "Fallido",
+      "requires_attention": "Necesita atención"
+    }
   },
   "identityVerification": {
     "eyebrow": "Verificación de identidad",

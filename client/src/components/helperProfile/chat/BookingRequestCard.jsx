@@ -108,6 +108,13 @@ export default function BookingRequestCard({
     && !guestVerified
     && !guestAuthHeaders;
   const canRespond = canProviderAct || canCustomerAct;
+  // G-30: the customer (or verified guest) can withdraw their own request
+  // while it is pending, counter-proposed, or accepted — the states the
+  // signed-in cancel already covers.
+  const canCustomerCancel =
+    !readOnly && !isProvider
+    && ['pending', 'counter_proposed', 'accepted'].includes(status)
+    && (isAuthenticated || guestVerified || Boolean(guestAuthHeaders));
 
   const respond = async (action) => {
     if (readOnly || !bookingId) return;
@@ -122,7 +129,7 @@ export default function BookingRequestCard({
       if (isProvider) {
         endpoint = action === 'accept' ? 'accept' : 'decline';
       } else {
-        endpoint = action === 'accept' ? 'customer-accept' : 'customer-decline';
+        endpoint = action === 'accept' ? 'customer-accept' : action === 'cancel' ? 'customer-cancel' : 'customer-decline';
       }
       const { data } = await api.post(
         `/chat/booking-requests/${bookingId}/${endpoint}`,
@@ -134,7 +141,7 @@ export default function BookingRequestCard({
       );
       const next = data.booking || {
         ...booking,
-        status: action === 'accept' ? 'accepted' : 'declined',
+        status: action === 'accept' ? 'accepted' : action === 'cancel' ? 'cancelled' : 'declined',
       };
       setBooking(next);
       onStatusChange?.(next.status, data);
@@ -271,6 +278,20 @@ export default function BookingRequestCard({
             onClick={() => onRequestVerify?.()} data-track-private
           >
             {t('helperProfile.messenger.bookingVerifyToRespond')}
+          </button>
+        </div>
+      ) : null}
+
+      {canCustomerCancel ? (
+        <div className="messenger-booking-card__actions">
+          <button
+            type="button"
+            className="messenger-booking-card__btn messenger-booking-card__btn--ghost"
+            disabled={busy}
+            onClick={() => respond('cancel')} data-track-private
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <X className="w-3.5 h-3.5" aria-hidden />}
+            {t('helperProfile.messenger.bookingCancel')}
           </button>
         </div>
       ) : null}

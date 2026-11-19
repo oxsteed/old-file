@@ -29,6 +29,7 @@ beforeEach(() => resetMocks());
 describe('GET /api/invoices payer inbox', () => {
   test('returns received invoices matched by client email with total count', async () => {
     mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // caller has no business finance scopes
       .mockResolvedValueOnce({
         rows: [{
           source_id: 12,

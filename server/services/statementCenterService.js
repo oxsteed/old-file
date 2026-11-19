@@ -238,7 +238,7 @@ async function buildRestaurantSettlement(userId) {
   // Same finance-standing shape as the settlement archive
   // (assertMerchantFinanceStanding): the restaurant's recorded owner, the
   // business owner (businesses.user_id; owners are never stored in
-  // business_members), or an active manager member.
+  // business_members), or an active member with statement access.
   const { rows: candidateRestaurants } = await pool.query(
     `SELECT DISTINCT fr.id, fr.display_name, fr.business_id,
             (fr.owner_user_id = $1 OR b.user_id = $1) AS is_owner
@@ -246,28 +246,38 @@ async function buildRestaurantSettlement(userId) {
        LEFT JOIN businesses b ON b.id = fr.business_id
        LEFT JOIN business_members bm
          ON bm.business_id = fr.business_id AND bm.member_id = $1 AND bm.status = 'active'
-      WHERE fr.owner_user_id = $1 OR b.user_id = $1 OR bm.role = 'manager'
+      WHERE fr.owner_user_id = $1 OR b.user_id = $1 OR bm.member_id IS NOT NULL
       ORDER BY fr.display_name ASC`,
     [userId]);
-  // WP-073: managers also need finance read and no store boundary.
-  const { memberHasFinanceRead } = require('./access/financeStanding');
+  // Restaurant-wide statements require finance read with no store boundary.
+  const { memberFinanceReadStanding, memberLocationFinanceStanding } = require('./access/financeStanding');
   const restaurants = [];
   for (const row of candidateRestaurants) {
-    if (row.is_owner || await memberHasFinanceRead(pool, { businessId: row.business_id, userId, restaurantId: row.id })) {
-      restaurants.push(row);
-    }
+    const standing = row.is_owner ? 'finance' : await memberFinanceReadStanding(pool, {
+      businessId: row.business_id, userId, restaurantId: row.id, allowDelegated: true,
+    });
+    if (standing) { restaurants.push({ ...row, standing }); continue; }
+    // G-19: a location-scoped member sees no settlement numbers at all, but
+    // the restaurant still surfaces as a location-reports scope so they have
+    // a finance view (their stores' sales report) and an explicit note that
+    // settlement is HQ-only. No balance or document is attached below.
+    const location = await memberLocationFinanceStanding(pool, {
+      businessId: row.business_id, userId, restaurantId: row.id,
+    });
+    if (location) restaurants.push({ ...row, standing: 'location_reports', locationIds: location.locationIds, locationNames: location.locationNames });
   }
   const hasAccount = restaurants.length > 0;
   const setupState = hasAccount ? 'ready' : 'unavailable';
 
   const restaurantIds = restaurants.map((row) => Number(row.id));
+  const liveBalanceIds = restaurants.filter(row => row.standing === 'finance').map(row => Number(row.id));
   const balances = new Map();
-  if (restaurantIds.length) {
+  if (liveBalanceIds.length) {
     const { rows } = await pool.query(
       `SELECT restaurant_id, currency_code, balance_cents
          FROM oxsteed_credit_accounts
         WHERE account_type = 'restaurant_sub_bank' AND restaurant_id = ANY($1::bigint[])`,
-      [restaurantIds]);
+      [liveBalanceIds]);
     for (const row of rows) {
       const key = `${row.restaurant_id}:${row.currency_code}`;
       balances.set(key, row);
@@ -290,6 +300,24 @@ async function buildRestaurantSettlement(userId) {
 
   const scopes = [];
   for (const restaurant of restaurants) {
+    // G-19: location-scoped members get a reports-only scope: no currency,
+    // no document, no balance, no summary numbers.
+    if (restaurant.standing === 'location_reports') {
+      scopes.push({
+        scopeKey: `restaurant_settlement:${restaurant.id}:locations`,
+        businessId: restaurant.business_id == null ? null : String(restaurant.business_id),
+        label: String(restaurant.display_name || 'Restaurant'),
+        currency: null,
+        restaurantId: String(restaurant.id),
+        latestPeriod: null,
+        latestDocumentId: null,
+        statementStatus: 'location_reports',
+        locationIds: restaurant.locationIds || [],
+        locationNames: restaurant.locationNames || [],
+        summary: { outstanding: null, invoiced: null, collected: null, adjusted: null },
+      });
+      continue;
+    }
     const currencies = new Set([
       ...[...balances.keys()].filter((key) => key.startsWith(`${restaurant.id}:`)).map((key) => key.split(':')[1]),
       ...[...documents.keys()].filter((key) => key.startsWith(`${restaurant.id}:`)).map((key) => key.split(':')[1]),
@@ -417,22 +445,21 @@ async function buildHelperEarnings(userId) {
 }
 
 async function buildBusiness(userId) {
-  // Business owners always read statements. Managers must also hold the
-  // canonical payouts.view finance permission; ordinary membership is not a
-  // financial grant. This mirrors settlementStatementArchive standing.
+  // Mirror the archive: owners, managers with finance access, and explicit
+  // statement readers may see their respective business scopes.
   const { rows: candidates } = await pool.query(
     `SELECT DISTINCT b.id, b.business_name AS name
             , (b.user_id = $1) AS is_owner
        FROM businesses b
        LEFT JOIN business_members bm
          ON bm.business_id = b.id AND bm.member_id = $1 AND bm.status = 'active'
-      WHERE b.user_id = $1 OR bm.role = 'manager'
+      WHERE b.user_id = $1 OR bm.member_id IS NOT NULL
       ORDER BY b.business_name ASC`,
     [userId]);
   const { memberHasFinanceRead } = require('./access/financeStanding');
   const businesses = [];
   for (const candidate of candidates) {
-    if (candidate.is_owner !== false || await memberHasFinanceRead(pool, { businessId: candidate.id, userId })) {
+    if (candidate.is_owner === true || await memberHasFinanceRead(pool, { businessId: candidate.id, userId, allowDelegated: true })) {
       businesses.push(candidate);
     }
   }

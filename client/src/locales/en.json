@@ -17,6 +17,60 @@
     "fulfillmentMoveBackTitle": "Move card fulfillment back",
     "fulfillmentMoveBackConfirm": "Move this card back to {{status}}? Use this only to correct a step that was marked before it happened. A card that is already active cannot be moved back."
   },
+  "adminSupportBooking": {
+    "title": "Support booking",
+    "backToSupport": "Back to support",
+    "loading": "Loading booking...",
+    "loadFailed": "Could not load this booking.",
+    "notFound": "Booking not found.",
+    "booking": "Booking",
+    "appointment": "Appointment",
+    "payment": "Payment",
+    "status": "Status",
+    "service": "Service",
+    "requestedDate": "Requested date",
+    "time": "Time",
+    "location": "Location",
+    "description": "Description",
+    "customer": "Customer",
+    "helper": "Provider",
+    "unassigned": "Unassigned",
+    "bookedFor": "Booked for",
+    "siteContact": "Site contact",
+    "bookedBy": "Booked by",
+    "convertedJob": "Converted job",
+    "scheduled": "Scheduled",
+    "cancellationReason": "Cancellation reason",
+    "noAppointment": "No appointment yet.",
+    "paymentStatus": "Payment status",
+    "paymentRequirement": "Payment requirement",
+    "amount": "Amount",
+    "grossAmount": "Gross amount",
+    "promoDiscount": "Promo discount",
+    "refundedAt": "Refunded at",
+    "paymentNote": "Payment details are shown without card or account numbers."
+  },
+  "learnPrograms": {
+    "completed": "Completed",
+    "customer-service-essentials": {
+      "description": "How to serve customers well, handle problems, and earn repeat work.",
+      "title": "Customer service essentials"
+    },
+    "enroll": "Enroll",
+    "enrollFailed": "Could not enroll. Please try again.",
+    "enrolled": "Enrolled",
+    "helper-foundations": {
+      "description": "The basics of offering services: safety, communication, and doing great work.",
+      "title": "Helper foundations"
+    },
+    "progress": "{{completed}} of {{total}} guides complete",
+    "subtitle": "Enroll in a program to learn a trade step by step. Finish every guide in a program to complete it.",
+    "title": "Workforce programs",
+    "workforce-management": {
+      "description": "How to organize teams, schedules, and quality work at scale.",
+      "title": "Workforce management"
+    }
+  },
   "pwaExperience": {
     "serverUpdated": "Newer draft text was synced. Review the photos kept on this device.",
     "searchUnavailable": "Search could not load. Reconnect and try again.",
@@ -1623,6 +1677,11 @@
   "merchantFinance": {
     "walletPaused": "Wallet payouts are not enabled. You can review the balance and history; contact support before requesting a payout.",
     "refresh": "Refresh requests",
+    "draftAwaitingOwner": "Draft. Waiting for the restaurant owner to confirm before it goes to admin review.",
+    "draftCreated": "Draft saved. The restaurant owner must confirm it before it goes to admin review.",
+    "confirmDraft": "Confirm and send for review",
+    "draftConfirmed": "Payout confirmed and sent for admin review.",
+    "confirmDraftError": "Could not confirm the payout draft.",
     "eyebrow": "Restaurant finances",
     "title": "Payouts & credit",
     "description": "Manage how this restaurant gets paid, review customer credit requests, and track settlement activity.",
@@ -1860,6 +1919,21 @@
     }
   },
   "signupUpgrade": {
+    "inviteAccept": "Accept invitation",
+    "inviteAccepted": "Welcome to the team. Your invitation is accepted.",
+    "inviteDecline": "Decline invitation",
+    "inviteDeclined": "Invitation declined.",
+    "inviteFound": "You are invited to join {{business}} as {{role}}.",
+    "inviteLoading": "Checking your invitation…",
+    "inviteMissing": "We could not find a pending invitation for this link. It may have expired or already been decided.",
+    "inviteOpenWorkspace": "Open workspace",
+    "inviteTitle": "Team invitation",
+    "resumeCode": "6-digit code",
+    "resumeFailed": "That email and code did not match. Check them and try again.",
+    "resumeHelp": "Started on another device? Enter the email and the 6-digit code from that signup to pick up where you left off.",
+    "resumeRestored": "Your signup details were restored. Enter your password to continue.",
+    "resumeSubmit": "Continue signup",
+    "resumeTitle": "Continue a signup you started",
     "title": "Create your account",
     "subtitle": "One account. Your choice.",
     "headline": "Your next opportunity",
@@ -1873,9 +1947,39 @@
     "benefitBusiness": "Grow your business",
     "benefitBusinessText": "Find talent and reach more people locally.",
     "modePrompt": "How will you use OxSteed?",
-    "switcherNote": "You can change your mode at any time from the in-app switcher.",
-    "setupNote": "Some modes require additional setup.",
-    "intentNote": "Everyone starts with customer access. After you verify your email, you can apply to offer services or run a business.",
+    "setupNote": "Additional paths",
+    "intentNote": "Everyone starts with customer access. Choose the future path that best describes your needs; the owning admission process comes after verification.",
+    "personas": {
+      "customer": { "title": "Hire local help", "description": "Post a job, find trusted help, and order food." },
+      "helper": { "title": "Offer services", "description": "Build a service profile, respond to opportunities, and get paid." },
+      "businessOwner": { "title": "Run a business", "description": "Create a business presence and manage its work." },
+      "businessTeam": { "title": "Join a business team", "description": "Work for an invited business with scoped tools." },
+      "restaurantOwner": { "title": "Run a restaurant", "description": "Set up a restaurant and manage its operations." },
+      "restaurantTeam": { "title": "Work at a restaurant", "description": "Use only the tools assigned to your restaurant location." },
+      "logistics": { "title": "Move goods and deliveries", "description": "Coordinate shipping, delivery, or dispatch work." },
+      "consultant": { "title": "Consult for clients", "description": "Share expertise and accept approved paying engagements." },
+      "equipmentOwner": { "title": "List equipment", "description": "Offer tools and equipment for approved local use." },
+      "franchise": { "title": "Operate a franchise", "description": "Track franchise territory enrollment and operating setup." },
+      "investorReporting": { "title": "View investor reporting", "description": "Request reporting access for eligible entities. This never enables investing." },
+      "creditParticipant": { "title": "Participate in OxSteed Credit", "description": "Follow the Credit program enrollment and eligibility path." },
+      "partnerAffiliate": { "title": "Partner or refer", "description": "Join an approved partner or affiliate program." },
+      "workforceLearning": { "title": "Learn or teach", "description": "Join workforce, learning, or instructor programs." },
+      "reviewer": { "title": "Review applications", "description": "Request internal reviewer provisioning for authorized work." },
+      "supportAgent": { "title": "Support customers", "description": "Request internal support-agent provisioning." },
+      "operationsStaff": { "title": "Run operations", "description": "Request authorized internal operations access." },
+      "deviceServiceAccount": { "title": "Connect a device or service", "description": "Use administrator-provisioned nonhuman credentials, not a personal account." }
+    },
+    "admission": {
+      "baseline": "Customer access is available immediately.",
+      "platform_review": "After email verification, complete the platform review for this path. Protected tools remain locked until approval and activation.",
+      "organization_invitation": "This path starts with an invitation or membership approval from an organization.",
+      "domain_enrollment": "This path is enrolled by its owning program. Your account can track status without unlocking protected tools.",
+      "staff_provisioning": "Internal staff access is provisioned by an authorized OxSteed administrator. Your request is recorded for review.",
+      "nonhuman_provisioning": "Ask your administrator to provision device credentials; this signup creates your personal account for the request."
+    },
+    "intentConfirmed": "Your account is ready for this path",
+    "intentConfirmationNote": "No protected tools were enabled. Continue through the owning admission flow when invited or eligible.",
+    "viewNextStep": "View next step",
     "accountReady": "Your account is ready",
     "applicationNext": "Send your application to OxSteed for review. You can use your account while we review it.",
     "applicationLoadFailed": "Your account is ready, but we couldn’t load the application. Try again or finish later in Applications.",
@@ -1900,7 +2004,7 @@
     "postalLabel": "Postal code",
     "optionalPostal": "Postal code (optional)",
     "errorSummary": "Please review the following:",
-    "modeError": "Choose a supported account mode.",
+    "modeError": "Choose one of the options below.",
     "firstNameError": "Enter a valid first name (up to 100 characters).",
     "lastNameError": "Enter a valid last name (up to 100 characters).",
     "emailError": "Enter a valid email address (up to 254 characters).",
@@ -1929,6 +2033,7 @@
     "sending": "Sending a new code…"
   },
   "statementCenter": {
+    "delegatedReadPermission": "Read issued statements only",
     "accountsTitle": "Choose an account",
     "personalTitle": "Personal accounts",
     "personalDescription": "Your personal credit accounts and restaurant wallets.",
@@ -2295,6 +2400,7 @@
     "exploreInvestments": "Explore investments",
     "requestInvestorAccess": "Request investor access",
     "myInvestments": "My investments",
+    "investments": "Investments",
     "workspace": "Workspace",
     "businessWorkspace": "Business Workspace",
     "foodOrders": "Food Orders",
@@ -2331,7 +2437,45 @@
     "network": "OxSteed Network",
     "localFoodDirectory": "Local Food Directory",
     "logistics": "Logistics",
-    "mainNavigation": "Authentication navigation"
+    "mainNavigation": "Authentication navigation",
+    "credit": "OxSteed Credit",
+    "partner": "Partner program",
+    "learning": "Workforce learning"
+  },
+  "superModeApprovals": {
+    "allModes": "All modes",
+    "applicationData": "Application",
+    "approve": "Approve",
+    "decideFailed": "Could not record the decision.",
+    "decided": "Decision recorded.",
+    "empty": "No pending requests.",
+    "loadFailed": "Could not load approvals.",
+    "lookupButton": "Look up",
+    "lookupHelp": "The pending list only shows requested approvals. Look up an approved approval by ID to revoke it.",
+    "lookupLabel": "Approval ID",
+    "lookupNotFound": "No approval with that ID was found.",
+    "lookupPlaceholder": "e.g. 42",
+    "lookupTitle": "Look up one approval",
+    "modeFilter": "Mode",
+    "notes": "Notes",
+    "notesPlaceholder": "Optional note for the record",
+    "reasonRequired": "A rejection reason is required.",
+    "reject": "Reject",
+    "rejectionReason": "Rejection reason",
+    "rejectionReasonPlaceholder": "Required. The applicant sees this reason.",
+    "requestedOn": "Requested {{date}}",
+    "retry": "Retry",
+    "revoke": "Revoke",
+    "select": "Select a request to review it.",
+    "stateConflict": "This request was already decided. The list was refreshed.",
+    "status": {
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "requested": "Requested",
+      "revoked": "Revoked"
+    },
+    "subtitle": "Decide requests for gated actions inside a mode. Approvals, rejections, and revocations are recorded.",
+    "title": "Mode approvals"
   },
   "supportAgentPortal": {
     "title": "Support workspace",
@@ -3137,6 +3281,7 @@
   },
   "footer": {
     "explore": "Explore",
+    "joinTeamWithCode": "Join a team with a code",
     "services": "Services",
     "help": "Help",
     "compactTagline": "Local help, food, and business services.",
@@ -3168,6 +3313,7 @@
     "doNotSell": "Do Not Sell My Info",
     "accessibility": "Accessibility",
     "manageCookies": "Manage Cookies",
+    "yourAccess": "Your OxSteed",
     "vortex": "Vortex",
     "vortexTitle": "Vortex",
     "vortexTabCode": "Access code",
@@ -6666,10 +6812,50 @@
     "closeJob": "Close job",
     "openDispute": "Open a dispute",
     "disputeOpened": "Dispute opened. Our team and the other party have been notified.",
+    "refundTitle": "Request a refund",
+    "refundHelp": "Ask for a refund on this job. Your request goes to the OxSteed team for approval, and the money only moves once they approve it.",
+    "refundAmountLabel": "Amount (leave empty for a full refund)",
+    "refundAmountPlaceholder": "0.00",
+    "refundReasonLabel": "Reason",
+    "refundReasonPlaceholder": "Tell us why this job needs a refund.",
+    "refundReasonRequired": "A reason is required.",
+    "refundAmountInvalid": "Enter a valid amount greater than zero.",
+    "refundRequestQueued": "Refund request sent for approval.",
+    "refundRequestFailed": "Could not send the refund request.",
+    "refundSubmitting": "Sending request...",
+    "requestRefund": "Request refund",
+    "refundRequestsHeading": "Refund requests",
+    "refundNoBusiness": "No business is linked to this job, so a refund cannot be requested here.",
+    "refundStatus": {
+      "pending": "Waiting for approval",
+      "approved": "Approved",
+      "executed": "Refunded",
+      "rejected": "Rejected",
+      "failed": "Failed"
+    },
     "signWorkAgreement": "Review and sign the work agreement",
     "viewWorkAgreement": "View work agreement",
     "createWorkAgreement": "Create a work agreement",
-    "reviewsLoadFailed": "Reviews could not be loaded."
+    "reviewsLoadFailed": "Reviews could not be loaded.",
+    "markArrived": "Mark arrived",
+    "arrivedRecorded": "Arrival recorded.",
+    "arrivedAt": "Arrived at {{time}}",
+    "markNoShow": "Mark no-show",
+    "noShowReasonLabel": "Why did no one show up?",
+    "noShowReasonPlaceholder": "Brief reason for the no-show",
+    "noShowReasonRequired": "A reason is required to mark a no-show.",
+    "confirmNoShow": "Confirm no-show",
+    "noShowRecorded": "No-show recorded.",
+    "noShowNotice": "This job was marked as a no-show.",
+    "rebookJob": "Rebook",
+    "requestChanges": "Request changes",
+    "changesReasonLabel": "What needs to change?",
+    "changesReasonPlaceholder": "Describe the changes you need",
+    "changesReasonRequired": "A reason is required to request changes.",
+    "changesHint": "The job stays in progress and the auto-confirm clock pauses while the helper makes the changes.",
+    "sendChangesRequest": "Send changes request",
+    "changesRequested": "Changes requested.",
+    "changesRequestedNotice": "Changes were requested on this job."
   },
   "myJobs": {
     "cancelUndoNote": "You will have 5 seconds to undo after confirming.",
@@ -8322,6 +8508,13 @@
     "hiringHint": "Invite people you already know, or post a role so applicants move through screening, interview, offer, and hire. A hire joins this Team tab.",
     "tabOverviewLabel": "Overview",
     "tabInvoicesLabel": "Invoices",
+    "tabCreditLabel": "Member Credit",
+    "creditHistoryTitle": "Funded Credit",
+    "creditHistoryEmpty": "No member Credit funded yet.",
+    "creditHistoryMember": "Member",
+    "creditHistoryAmount": "Amount",
+    "creditHistoryStatus": "Status",
+    "creditHistoryReason": "Reason",
     "tabTaxLabel": "Tax",
     "tabGoalsLabel": "Goals",
     "tabServicesLabel": "Services",
@@ -8338,6 +8531,7 @@
     "tabServicePricingLabel": "Service Pricing",
     "tabProductPricingLabel": "Product Pricing",
     "loadingProfile": "Loading profile…",
+    "loading": "Loading…",
     "loadingAnalytics": "Loading analytics…",
     "loadingInvoices": "Loading invoices…",
     "loadingTax": "Loading tax estimates…",
@@ -9422,7 +9616,21 @@
       "toastUpdated": "Maintenance request updated",
       "toastUpdateFail": "Could not update maintenance request",
       "toastConverted": "Maintenance request converted to a job",
-      "toastConvertFail": "Could not convert request to job"
+      "toastConvertFail": "Could not convert request to job",
+      "addProperty": "Add property",
+      "allProperties": "All properties",
+      "propertiesDescription": "Group maintenance work by property.",
+      "propertiesTitle": "Properties",
+      "property": "Property",
+      "propertyAddress": "Property address",
+      "propertyAddressPlaceholder": "Street, city, state",
+      "propertyCreateFail": "Could not save the property.",
+      "propertyCreated": "Property added.",
+      "propertyFilter": "Filter by property",
+      "propertyName": "Property name",
+      "propertyNamePlaceholder": "Example: Main Street building",
+      "saveProperty": "Save property",
+      "toastLoadFail": "Could not load properties."
     },
     "toastHoursUpdated": "Hours updated",
     "toastHoursUpdateFail": "Failed to update hours",
@@ -11598,6 +11806,7 @@
     "messenger": {
       "agreementOpenRecords": "Open the signed work agreement for this job",
       "agreementCreateRecords": "Create a signed work agreement for this job",
+      "bookingCancel": "Cancel booking",
       "quoteFinishOnJob": "Finish hiring on the job page",
       "message": "Message",
       "messageName": "Message {{name}}",
@@ -11865,6 +12074,7 @@
       "evidenceTitle": "Evidence ({{count}})",
       "noEvidence": "No evidence submitted yet.",
       "submitEvidence": "Submit Evidence",
+      "businessReaderNote": "You are viewing this dispute for your business. Answer it by submitting evidence below; messages stay between the original parties and the admin.",
       "evidencePh": "Describe what happened, provide context, links, or any relevant information...",
       "attachFiles": "Attach files (images, videos, documents - max 5)",
       "submitting": "Submitting...",
@@ -12842,6 +13052,23 @@
     "moderationActionFailed": "Moderation action failed.",
     "moderationQueueLoadFailedMessage": "Could not load the moderation queue.",
     "moderationQueueLoadFailedTitle": "Failed to load moderation queue",
+    "moderationJobsTab": "Jobs",
+    "moderationFlagsTab": "Content flags",
+    "moderationFlagsTitle": "Content flags",
+    "moderationFlagsCount": "{{count}} flags in this status",
+    "moderationFlagsStatus": "Status",
+    "moderationFlagsEmpty": "No flags in this status.",
+    "moderationFlagsLoading": "Loading flags…",
+    "moderationFlagsReportedBy": "Reported by",
+    "moderationFlagsResolve": "Resolve",
+    "moderationFlagsDismiss": "Dismiss",
+    "moderationFlagsResolutionLabel": "Resolution note",
+    "moderationFlagsResolutionPlaceholder": "What was decided, for the record",
+    "moderationFlagsAlreadyDecided": "This flag was already decided by another admin.",
+    "moderationFlagsReviewFailed": "The flag review failed. Please try again.",
+    "moderationFlagsPage": "Page {{page}} of {{pages}}",
+    "moderationFlagsPrevious": "Previous",
+    "moderationFlagsNext": "Next",
     "performanceDetailsLoading": "Loading performance details…",
     "quoteRequestDetailLoadFailed": "Failed to load quote request",
     "quoteRequestUpdateFailed": "Failed to update quote request",
@@ -15250,7 +15477,18 @@
     "export": "Export",
     "cancelUnavailable": "This appointment can no longer be cancelled.",
     "appointmentUnavailableBody": "We could not load this appointment.",
-    "appointmentUnavailable": "Appointment unavailable"
+    "appointmentUnavailable": "Appointment unavailable",
+    "acceptedBookings": "Accepted Bookings",
+    "acceptedBookingsSub": "Hand an accepted booking to another provider instead of cancelling it.",
+    "bookingTransferred": "Booking transferred.",
+    "errorTransferringBooking": "Failed to transfer booking",
+    "transfer": "Transfer",
+    "transferBooking": "Transfer this booking to another provider",
+    "transferHint": "The booking, its deposit, and its appointment stay in place; only the provider changes.",
+    "transferProviderPlaceholder": "New provider user id",
+    "transferProviderRequired": "Enter the new provider’s user id.",
+    "transferReasonPlaceholder": "Reason (optional)",
+    "transferringBooking": "Transferring..."
   },
   "myBookings": {
     "unknownTool": "Unknown tool",
@@ -15426,7 +15664,36 @@
     "nextStepsTitle": "What's next",
     "nextStepOne": "Coordinate details by message if needed.",
     "nextStepTwo": "Your calendar will show the appointment once confirmed.",
-    "nextStepThree": "If plans change, cancel from your booking or calendar."
+    "nextStepThree": "If plans change, cancel from your booking or calendar.",
+    "bookForSomeoneElse": "Book for someone else",
+    "bookForSomeoneElseHint": "The booking is in your name and you pay the deposit. The work is for the person below.",
+    "recipientName": "Recipient name",
+    "recipientNamePlaceholder": "Who is the work for?",
+    "recipientPhone": "Recipient phone",
+    "recipientPhonePlaceholder": "Recipient phone number",
+    "siteContact": "Site contact",
+    "siteContactHint": "The person who will be on site when the work happens.",
+    "siteContactName": "Site contact name",
+    "siteContactNamePlaceholder": "Who will be on site?",
+    "siteContactPhone": "Site contact phone",
+    "siteContactPhonePlaceholder": "Site contact phone number",
+    "bookedFor": "Booked for",
+    "statusLink": "Status link",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "publicStatusTitle": "Booking status",
+    "publicStatusNotFound": "We could not find this booking.",
+    "publicStatusArrived": "Arrived at {{time}}",
+    "publicStatusFor": "For {{name}}",
+    "publicStatusNote": "This page shows the booking status and arrival window only.",
+    "publicStatus": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired",
+      "cancelled": "Cancelled",
+      "accepted_cancelled": "Cancelled after acceptance"
+    }
   },
   "verifyEmail": {
     "title": "Verify your email",
@@ -20665,7 +20932,8 @@
       "rangeNote": "Standard to rush service",
       "standardTotal": "Standard",
       "signInToBook": "Sign in to book",
-      "signInNote": "Sign in or create an account to book. Your estimate stays filled in."
+      "signInNote": "Sign in or create an account to book. Your estimate stays filled in.",
+      "unavailable": "Delivery estimates are unavailable right now."
     },
     "tabs": {
       "driving": "Driving"
@@ -21473,7 +21741,8 @@
       "earningsPending": "Pending",
       "earningsVoided": "Voided",
       "earningsEmpty": "No payouts yet.",
-      "helperModeHint": "Driver sign-up needs helper mode first. Switch to helper mode in settings, then come back here to register."
+      "helperModeHint": "Driver sign-up needs helper mode first. Switch to helper mode in settings, then come back here to register.",
+      "driverAccessHint": "Only approved delivery drivers can register here. Drivers sign up through the logistics application, or switch to helper mode in settings."
     }
   },
   "aboutPage": {
@@ -21953,7 +22222,8 @@
       "entryPreference": "Entry preference",
       "bestUpdateChannel": "Best update channel",
       "contactPhone": "Best phone number",
-      "billableParty": "Default bill to"
+      "billableParty": "Default bill to",
+      "property": "Property"
     },
     "placeholders": {
       "title": "Kitchen sink leaking under cabinet",
@@ -21966,7 +22236,8 @@
       "preferredWindows": "Weekdays after 4 PM, Saturday morning, etc.",
       "accessNotes": "Pets, gate code, parking, permission rules, or how to reach you.",
       "entryPreference": "Call first, manager key okay, text on arrival",
-      "contactPhone": "Optional"
+      "contactPhone": "Optional",
+      "selectProperty": "Select a property"
     },
     "issueCategories": [
       "Plumbing",
@@ -22227,6 +22498,10 @@
         "available": "Available"
       },
       "showingTop": "Showing top 20 of {{count}}"
+    },
+    "territory": {
+      "label": "Territory",
+      "newest": "Newest"
     }
   },
   "professionalIntakePage": {
@@ -22329,6 +22604,12 @@
   "affiliateDashboard": {
     "loading": "Loading affiliate dashboard…",
     "loadingAnalytics": "Loading analytics…",
+    "partner": {
+      "inviteOnly": "Affiliate programs are by invitation for helpers. Ask for partner access and a reviewer will decide your request.",
+      "pending": "Partner access requested. A reviewer will decide your request.",
+      "request": "Request partner access",
+      "requested": "Partner access request sent."
+    },
     "sparklineNoData": "No data yet",
     "pageTitle": "Affiliate Dashboard | OxSteed",
     "title": "Affiliate Dashboard",
@@ -22716,6 +22997,15 @@
     }
   },
   "invest": {
+    "workspace": {
+      "title": "Investments",
+      "intro": "One workspace for verified reports, eligible opportunities, and your contributions and statements.",
+      "reports": { "title": "Reports", "description": "Review verified entity performance, updates, and reporting records for the relationships you are authorized to view." },
+      "opportunities": { "title": "Investment opportunities", "description": "Explore published opportunities from eligible entities. Review the terms and eligibility before requesting participation." },
+      "contributions": { "title": "Contributions and statements", "description": "Review your OxSteed Credit contributions, allocations, agreements, statements, and immutable activity history." },
+      "actions": { "open": "Open", "setup": "Complete setup" },
+      "status": { "available": "Available", "readOnly": "Read-only", "setup": "Setup required" }
+    },
       "entity": {
         "raise": {
           "title": "Raise capital",
@@ -23020,7 +23310,9 @@
           "versionConflict": "This item changed since it was loaded. It has been reloaded; review the latest version and try again.",
           "proceedsBlocked": "Proceeds cannot release yet. The opportunity must be closed with approved closing conditions first.",
           "noAgreement": "This opportunity cannot be approved without an agreement version.",
-          "transitionInvalid": "This item cannot move to that state from where it is now."
+          "transitionInvalid": "This item cannot move to that state from where it is now.",
+          "reconfirmationPending": "Some investors have not reconfirmed this amendment yet. Wait for reconfirmation, or for the reconfirmation deadline to pass, before making it effective.",
+          "escrowNothingPending": "No pending escrow expectation for this commitment. It may already be confirmed."
         },
         "actions": {
           "approve": "Approve",
@@ -23079,7 +23371,8 @@
           "approveReview": "Approve review stage",
           "approveExecution": "Approve execution stage",
           "close": "Close opportunity",
-          "separateApprovers": "Review and execution need different approvers, and neither can be the entity representative. Only the approved execution approver can execute the close."
+          "separateApprovers": "Review and execution need different approvers, and neither can be the entity representative. Only the approved execution approver can execute the close.",
+          "currentVersionOnly": "Closing captures only commitments on the current agreement version. Commitments on an older version stay reserved and must be cancelled separately."
         },
         "proceeds": {
           "title": "Proceeds and distributions",
@@ -23090,6 +23383,7 @@
           "changes": "Proposed changes",
           "reconfirmationTitle": "Investor reconfirmation",
           "reconfirmation": "{{reconfirmed}} of {{total}} investors reconfirmed, {{pending}} still to reconfirm.",
+          "reconfirmationPendingUsers": "Awaiting reconfirmation (investor user ids):",
           "reconfirmationNone": "This amendment carries no new agreement version, so there is nothing to reconfirm.",
           "deadline": "Reconfirmation deadline: {{date}}",
           "note": "Review note",
@@ -23108,9 +23402,23 @@
           "position": "Position",
           "choosePosition": "Choose a position",
           "amount": "Distribution amount (USD)",
-          "submit": "Record distribution",
+          "submit": "Request distribution",
           "empty": "No positions exist for this opportunity yet.",
-          "required": "Choose a position and enter a valid amount."
+          "required": "Choose a position and enter a valid amount.",
+          "queued": "Distribution queued. A second admin must approve it in Money Approvals before any Credit moves.",
+          "dualApprovalNote": "Distributions need a second admin approval. Nothing is credited until then, and the total cannot exceed the opportunity proceeds."
+        },
+        "escrow": {
+          "title": "Partner escrow confirmation",
+          "copy": "Record the partner’s confirmation that the committed funds for a position are held in escrow. The close leaves this pending on purpose: only explicit partner input confirms it.",
+          "position": "Position",
+          "choosePosition": "Choose a position",
+          "partnerRefLabel": "Partner reference",
+          "partnerRefPlaceholder": "Partner confirmation reference",
+          "noteLabel": "Note",
+          "confirm": "Confirm escrow",
+          "confirmed": "Escrow confirmed for this commitment.",
+          "partnerRefRequired": "A partner reference is required."
         }
       },
     "application": {
@@ -23563,7 +23871,12 @@
       "helpers": "Helpers",
       "verifiedUsers": "Verified Users"
     },
-    "noData": "No data available yet"
+    "noData": "No data available yet",
+    "scope": {
+      "platformWide": "Platform-wide totals. These figures cover the whole platform, not just your positions.",
+      "position_one": "Scoped to your positions ({{count}} entity).",
+      "position_other": "Scoped to your positions ({{count}} entities)."
+    }
   },
   "healthAlertsDashboard": {
     "title": "Business Health",
@@ -25511,6 +25824,7 @@
         "minPayout": "Minimum payout: {{amount}}",
         "status": {
           "requested": "Requested",
+          "draft": "Draft",
           "approved": "Approved",
           "processing": "Processing",
           "completed": "Completed",
@@ -27408,6 +27722,13 @@
         "noAgreement": "No agreement",
         "royaltyBps": "Royalty {{bps}} bps",
         "marketingBps": "Marketing {{bps}} bps",
+        "accrualCol": "Accrual",
+        "accrualFailedCount": "{{count}} failed",
+        "accrualStatus": {
+          "accrued": "Accrued",
+          "failed": "Failed",
+          "pending": "Pending"
+        },
         "totalsSales": "Sales",
         "totalsRoyalty": "Royalty",
         "totalsMarketing": "Marketing",
@@ -33003,6 +33324,7 @@
   },
   "adminNav": {
     "investReviewQueue": "Invest reviews",
+    "modeApprovals": "Mode Approvals",
     "moneyApprovals": "Money approvals",
     "adminAccounts": "Admin Accounts",
     "auditLog": "Audit Log",
@@ -36717,6 +37039,7 @@
     "typeMarketplaceRefund": "Marketplace refund",
     "typeDisputeRefund": "Dispute refund",
     "typeRestaurantPayout": "Restaurant payout",
+    "typeInvestDistribution": "Invest distribution",
     "typeAffiliatePayout": "Affiliate payout",
     "subject": "Subject",
     "reason": "Reason",

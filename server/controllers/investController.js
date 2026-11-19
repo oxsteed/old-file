@@ -43,6 +43,7 @@ const {
   closeOpportunity: closeOpportunityService,
   releaseProceeds: releaseProceedsService,
   recordDistribution: recordDistributionService,
+  requestDistribution: requestDistributionService,
 } = require('../services/invest/settlementService');
 const {
   requireInvestEnabled,
@@ -430,7 +431,10 @@ const releaseProceeds = wrap(async (req, res) => {
 const recordDistribution = wrap(async (req, res) => {
   const key = requireIdemKey(req);
   const b = body(req);
-  const { distribution, replayed } = await recordDistributionService({
+  // R-1: a distribution never executes on the maker's call. It queues
+  // for a second admin in Money Approvals; the executor credits the
+  // investor only after that approval.
+  const { approval, replayed } = await requestDistributionService({
     opportunityId: req.params.id,
     positionId: b.positionId,
     userId: b.userId,
@@ -439,7 +443,7 @@ const recordDistribution = wrap(async (req, res) => {
     idempotencyKey: key,
     actorUserId: req.user.id,
   });
-  return res.status(replayed ? 200 : 201).json({ distribution, replayed });
+  return res.status(202).json({ queued: true, approval: { id: approval.id, status: approval.status }, replayed });
 });
 
 // ── Q and A, updates, amendments, documents ──────────────────────────────

@@ -210,6 +210,52 @@ function registerMoneyMovementExecutors() {
     return { payoutId: payload.payoutId, status: payout?.status || 'approved' };
   });
 
+  // ── invest_distribution: R-1 (PR #804). A single admin must not be
+  // able to mint arbitrary Credit through distributions: the maker
+  // queues (forceQueue) and only a different admin approves. The
+  // executor runs recordDistribution, which re-validates the position
+  // and the proceeds cap inside its own transaction; the journal load
+  // is attributed to the approver (migration 487 admin evidence).
+  // Idempotent: a retried approval replays the maker's key and returns
+  // the existing distribution, never a second credit.
+  registerMoneyMovementExecutor('invest_distribution', async ({ payload, approverId }) => {
+    const { recordDistribution } = require('./invest/settlementService');
+    const { distribution, replayed } = await recordDistribution({
+      opportunityId: payload.opportunityId,
+      positionId: payload.positionId,
+      userId: payload.userId,
+      amountCents: payload.amountCents,
+      currencyCode: payload.currencyCode || 'USD',
+      idempotencyKey: payload.idempotencyKey,
+      actorUserId: approverId,
+    });
+    try {
+      await logAdminAction({
+        adminId: approverId,
+        action: 'invest_distribution_dual_approved',
+        targetType: 'investment_opportunity',
+        targetId: String(payload.opportunityId),
+        description:
+          `Dual-approved Invest distribution ${payload.amountCents} cents to position ${payload.positionId} ` +
+          `(requested by ${payload.makerAdminId}, approved by ${approverId})`,
+        before: { status: 'pending_approval' },
+        after: {
+          status: distribution?.status || 'credited',
+          distribution_id: distribution?.id || null,
+          approved_by: approverId,
+          replayed: !!replayed,
+        },
+      });
+    } catch (e) {
+      logger.error('invest_distribution executor audit write failed AFTER distribution credited', {
+        opportunityId: payload.opportunityId,
+        approverId,
+        error: e.message,
+      });
+    }
+    return { distributionId: distribution?.id || null, amountCents: payload.amountCents, replayed: !!replayed };
+  });
+
   // ── affiliate_payout: affiliate Stripe Connect transfers
   registerMoneyMovementExecutor('affiliate_payout', async ({ approval, payload, approverId }) => {
     const affiliatePayoutsController = require('../controllers/affiliatePayoutsController');

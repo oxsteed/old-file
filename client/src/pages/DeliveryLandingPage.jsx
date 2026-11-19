@@ -121,7 +121,7 @@ export default function DeliveryLandingPage() {
                 {t('deliveryLanding.coverageNote')}
               </p>
               <div className="delivery-landing-hero__ctas">
-                <Link to="/join" className="delivery-landing-cta delivery-landing-cta--secondary">
+                <Link to="/join?mode=driver" className="delivery-landing-cta delivery-landing-cta--secondary">
                   {t('deliveryLanding.ctaDrive')}
                 </Link>
               </div>
@@ -224,7 +224,7 @@ export default function DeliveryLandingPage() {
               {t('deliveryLanding.ctaRequest')}
               <ArrowRight size={18} aria-hidden="true" />
             </Link>
-            <Link to="/join" className="delivery-landing-cta delivery-landing-cta--secondary">
+            <Link to="/join?mode=driver" className="delivery-landing-cta delivery-landing-cta--secondary">
               {t('deliveryLanding.ctaDrive')}
             </Link>
           </div>

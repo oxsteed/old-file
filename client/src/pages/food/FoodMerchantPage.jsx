@@ -2659,6 +2659,8 @@ export default function FoodMerchantPage() {
   const canViewSettings = hasRestaurantPermission(selected, ['settings.view', 'settings.manage', 'restaurant.manage']);
   const canManageDisplays = hasRestaurantPermission(selected, ['display.manage', 'restaurant.manage']);
   const canManagePayouts = selected?.effective_role === 'owner';
+  // G-18: restaurant managers read payout status/balance and draft requests.
+  const canReadPayouts = selected?.effective_role === 'owner' || selected?.effective_role === 'manager';
   const availableTabs = useMemo(() => {
     if (!selected) return [];
     const tabs = [];
@@ -2671,12 +2673,12 @@ export default function FoodMerchantPage() {
     if (canManageRestaurant) tabs.push('schedule');
     if (hasRestaurantPermission(selected, ['orders.view', 'orders.manage', 'kitchen.view', 'kitchen.update'])) tabs.push('orders');
     if (hasRestaurantPermission(selected, ['menu.view', 'menu.manage'])) tabs.push('menu');
-    if (canManagePayouts || canManageCredit) tabs.push('payouts');
+    if (canReadPayouts || canManageCredit) tabs.push('payouts');
     if (canViewSettings) tabs.push('settings');
     if (canManageDisplays || canManageRestaurant) tabs.push('operations');
     if (canManageDisplays || canManageRestaurant) tabs.push('displays');
     return tabs;
-  }, [canManageCredit, canManageDisplays, canManagePayouts, canManageRestaurant, canViewSettings, selected]);
+  }, [canManageCredit, canManageDisplays, canManagePayouts, canManageRestaurant, canReadPayouts, canViewSettings, selected]);
 
   const goToTab = useCallback((nextTab) => {
     if (!availableTabs.includes(nextTab)) return;
@@ -2884,7 +2886,7 @@ export default function FoodMerchantPage() {
             {selected && tab === 'menu' && <RestaurantMenuManager t={t} restaurant={selected} />}
             {selected && tab === 'payouts' && (
               <>
-                <RestaurantFinanceWorkspace key={selected.id} restaurant={selected} canManagePayouts={canManagePayouts} canManageCredit={canManageCredit} />
+                <RestaurantFinanceWorkspace key={selected.id} restaurant={selected} canManagePayouts={canManagePayouts} canReadPayouts={canReadPayouts} canManageCredit={canManageCredit} />
                 {canManageRestaurant && <RestaurantOfflineCardQueue key={`offline-${selected.id}`} restaurant={selected} />}
               </>
             )}

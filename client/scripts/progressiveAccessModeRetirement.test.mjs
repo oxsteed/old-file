@@ -66,7 +66,7 @@ test('WP-104 cutover 1.2: mode-router machinery, register redirects and the Join
   const join = await source('pages/JoinPage.jsx');
   // The ?mode= preset survives, but only as an intent preselect: it maps a
   // legacy mode to its signup intent and never mints a mode.
-  assert.match(join, /joinModeForLegacyMode/);
+  assert.match(join, /intentForLegacyMode/);
   assert.match(join, /signupIntent: presetIntent/);
   assert.doesNotMatch(join, /defaultMode/);
   assert.doesNotMatch(join, /postSignupRouteForMode/);

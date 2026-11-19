@@ -26,7 +26,7 @@ test('franchise application links follow the projected territory grant', { timeo
     plugins: [{ name: 'franchise-application-shell', setup(plugin) {
       const fixtures = {
         useAuth: `export const useAuth = () => ({ user: { id: 'franchise-user', role: 'customer', default_mode: 'customer' } });`,
-        useAccessProjection: `import { useState } from 'react'; export default () => { const [granted, setGranted] = useState(false); window.grantFranchise = () => setGranted(true); window.revokeFranchise = () => setGranted(false); return { access: { personal: granted ? ['customer', 'franchise.operate'] : ['customer'], organizations: [] }, flags: { accessProjection: true } }; };`,
+        useAccessProjection: `import { useState } from 'react'; export const ACCESS_CHANGED_EVENT = 'oxsteed:access-changed'; export default () => { const [granted, setGranted] = useState(false); window.grantFranchise = () => setGranted(true); window.revokeFranchise = () => setGranted(false); return { access: { personal: granted ? ['customer', 'franchise.operate'] : ['customer'], organizations: [] }, flags: { accessProjection: true } }; };`,
         Navbar: `import React from 'react'; export default () => React.createElement('nav', { 'data-testid': 'navbar' });`,
         Footer: `import React from 'react'; export default () => React.createElement('footer', { 'data-testid': 'footer' });`,
         DashboardQuickLinks: `import React from 'react'; export const DASHBOARD_QUICK_LINKS = { franchise: [{ to: '/franchise/status' }, { to: '/franchise/territory' }] }; export default ({ items = [] }) => React.createElement('nav', { 'data-testid': 'quick-links' }, items.map((item) => React.createElement('a', { key: item.to, href: item.to }, item.to)));`,

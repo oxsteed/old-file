@@ -5,7 +5,14 @@
     "fulfillmentMoveBackTitle": "Reculer la remise de la carte",
     "fulfillmentMoveBackConfirm": "Remettre cette carte à {{status}} ? Utilisez ceci uniquement pour corriger une étape marquée avant qu’elle ne se produise. Une carte déjà active ne peut pas être reculée."
   },
+  "creditApplyCustomerNote": "Cette demande concerne un propriétaire d’entreprise ou un aide qui demande que son entreprise ou son profil accepte le Crédit. Un client n’a besoin d’aucune inscription pour dépenser du Crédit.",
+  "creditApplyMyStatus": "Vos demandes",
+  "creditApplyStatusActive": "Demande active",
+  "creditApplyStatusPending": "Demande en attente",
+  "creditApplyStatusRevoked": "Demande révoquée",
+  "creditApplyStatusSuspended": "Demande suspendue",
   "statementCenter": {
+    "delegatedReadPermission": "Consulter uniquement les relevés émis",
     "title": "Centre des relevés",
     "description": "Consultez vos relevés de crédit, de règlement, de revenus et d’entreprise au même endroit.",
     "eyebrow": "Documents financiers",
@@ -176,6 +183,10 @@
       "periodActivity": "Opérations de la période",
       "searchAllRecords": "Rechercher dans tous les documents",
       "noAccountsYet": "Aucun compte de relevés disponible pour le moment. Les comptes apparaîtront ici dès qu’ils vous seront accessibles.",
+      "locationReportsTitle": "Rapports de magasin pour vos emplacements",
+      "locationReportsBody": "Vous pouvez consulter les rapports de ventes et de finances de vos magasins assignés : {{locations}}.",
+      "locationReportsSettlementNote": "Les relevés de règlement du restaurant couvrent tout le restaurant et ne sont visibles que par le siège.",
+      "openLocationReports": "Ouvrir les rapports de magasin",
       "partialLoadError": "Certains comptes n’ont pas pu être chargés. Réessayez pour vérifier les comptes manquants.",
       "accountUnavailable": "Ce compte n’est plus disponible. Choisissez un compte ci-dessous.",
       "adjusted": "Ajusté",
@@ -2362,7 +2373,22 @@
     "title": "Ajouter de l'argent",
     "intro": "Ajoutez de l'argent à OxSteed Credit par carte. Il est crédité une fois le paiement confirmé.",
     "credited": "Argent ajouté à votre OxSteed Credit",
-    "invalidAmount": "Saisissez au moins {{min}}."
+    "invalidAmount": "Saisissez au moins {{min}}.",
+    "businessTitle": "Financer le Crédit d’un membre",
+    "businessIntro": "Ajoutez du Crédit OxSteed à un membre de l’équipe avec le moyen de paiement de l’entreprise. Vous payez avec votre carte ; le membre est crédité une fois le paiement encaissé.",
+    "businessMemberLabel": "Membre à financer",
+    "businessMemberPlaceholder": "Choisissez un membre",
+    "businessReasonLabel": "Pourquoi l’entreprise finance-t-elle ceci ?",
+    "businessReasonPlaceholder": "Par exemple : allocation trimestrielle d’outils.",
+    "businessMemberRequired": "Choisissez un membre à financer.",
+    "businessReasonRequired": "Un motif est requis.",
+    "businessCredited": "Crédit ajouté au membre.",
+    "status": {
+      "pending": "En attente",
+      "completed": "Crédité",
+      "failed": "Échoué",
+      "requires_attention": "Nécessite une attention"
+    }
   },
   "identityVerification": {
     "eyebrow": "Vérification d'identité",

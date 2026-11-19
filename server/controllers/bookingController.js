@@ -1,4 +1,5 @@
 const pool = require('../db');
+const crypto = require('crypto');
 const { attributePromotionConversion } = require('../analytics/promotionAttribution');
 const bookingDeposits = require('../services/bookingDepositService');
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
@@ -80,6 +81,11 @@ function buildJobPrefillPayload(booking) {
     preferredHelperId: booking.helper_id,
     preferredHelperName: null,
     sourceBookingId: booking.id,
+    // G-7: carry the site contact onto the job post prefill.
+    siteContactName: booking.site_contact_name || null,
+    siteContactPhone: booking.site_contact_phone || null,
+    siteContactUserId: booking.site_contact_user_id || null,
+    statusToken: booking.status_token || null,
   };
 }
 
@@ -119,6 +125,15 @@ exports.createBookingRequest = async (req, res) => {
       guestSessionId,
       serviceId,
       timezone,
+      // G-6: book for another person. The booker stays customer_id (and the
+      // deposit payer); the recipient is who the work is for.
+      recipientUserId,
+      recipientName,
+      recipientPhone,
+      // G-7: site contact who coordinates arrival on site.
+      siteContactName,
+      siteContactPhone,
+      siteContactUserId,
       source,
     } = req.body;
 
@@ -172,6 +187,38 @@ exports.createBookingRequest = async (req, res) => {
     if (customerId === helperId) {
       return sendValidationError(res, { helperId: 'Cannot book with yourself' });
     }
+
+    // G-6: the recipient is a different person from the booker. A named
+    // recipient needs no account; an account recipient must exist.
+    const cleanRecipientName = String(recipientName || '').trim().slice(0, 200) || null;
+    const cleanRecipientPhone = String(recipientPhone || '').trim().slice(0, 40) || null;
+    const cleanSiteContactName = String(siteContactName || '').trim().slice(0, 200) || null;
+    const cleanSiteContactPhone = String(siteContactPhone || '').trim().slice(0, 40) || null;
+    let cleanRecipientUserId = recipientUserId ? String(recipientUserId) : null;
+    let cleanSiteContactUserId = siteContactUserId ? String(siteContactUserId) : null;
+    if (cleanRecipientUserId === customerId) {
+      return sendValidationError(res, { recipientUserId: 'The recipient must be someone other than the booker' });
+    }
+    if (cleanRecipientUserId || cleanSiteContactUserId) {
+      const usersRes = await pool.query(
+        'SELECT id FROM users WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL',
+        [[cleanRecipientUserId, cleanSiteContactUserId].filter(Boolean)]
+      );
+      const found = new Set(usersRes.rows.map((r) => String(r.id)));
+      if (cleanRecipientUserId && !found.has(cleanRecipientUserId)) {
+        return sendError(res, 404, 'Recipient not found', 'RECIPIENT_NOT_FOUND');
+      }
+      if (cleanSiteContactUserId && !found.has(cleanSiteContactUserId)) {
+        return sendError(res, 404, 'Site contact not found', 'SITE_CONTACT_NOT_FOUND');
+      }
+    }
+    if (cleanRecipientUserId && cleanRecipientUserId === helperId) {
+      return sendValidationError(res, { recipientUserId: 'The recipient cannot be the helper' });
+    }
+    // G-7: a site contact gets a single-booking signed status link at
+    // booking time (status + arrival window only, no amounts, no billing).
+    const hasSiteContact = Boolean(cleanSiteContactName || cleanSiteContactPhone || cleanSiteContactUserId);
+    const statusToken = hasSiteContact ? crypto.randomBytes(32).toString('hex') : null;
 
     if (!requestOnly && requestedStartTime >= requestedEndTime) {
       return sendValidationError(res, { requestedEndTime: 'End time must be after start time' });
@@ -275,8 +322,11 @@ const bookingId = uuidv4();
           requested_start_time, requested_end_time, service_location,
           description, expires_at, confirmation_hours,
           availability_mode, auto_post_on_expiry,
-          conversation_id, guest_session_id, source, service_id, timezone
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+          conversation_id, guest_session_id, source, service_id, timezone,
+          booked_by_user_id, recipient_user_id, recipient_name, recipient_phone,
+          site_contact_name, site_contact_phone, site_contact_user_id, status_token
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
+                  $20, $21, $22, $23, $24, $25, $26, $27)
          RETURNING *`,
         [
           bookingId,
@@ -298,6 +348,14 @@ const bookingId = uuidv4();
           source || (conversationId || guestSessionId ? 'messenger_picker' : 'calendar'),
           serviceId != null ? String(serviceId) : null,
           timezone || null,
+          customerId,
+          cleanRecipientUserId,
+          cleanRecipientName,
+          cleanRecipientPhone,
+          cleanSiteContactName,
+          cleanSiteContactPhone,
+          cleanSiteContactUserId,
+          statusToken,
         ]
       );
       await emitDomainEvent(client, 'booking.requested', serviceEventProps({ service_id: serviceId }), { userId: customerId, req });
@@ -346,8 +404,10 @@ exports.getBookingRequest = async (req, res) => {
     const booking = result.rows[0];
 
     const isCustomer = userId && String(userId) === String(booking.customer_id);
+    // G-6: the recipient the work is for can read the booking too.
+    const isRecipient = userId && booking.recipient_user_id && String(userId) === String(booking.recipient_user_id);
     const isProvider = userId && (await bookingLifecycle.isProviderForBooking(userId, booking));
-    if (userId && !isCustomer && !isProvider) {
+    if (userId && !isCustomer && !isRecipient && !isProvider) {
       return sendError(res, 403, 'Not authorized to view this booking');
     }
 
@@ -361,12 +421,54 @@ exports.getBookingRequest = async (req, res) => {
   }
 };
 
+/**
+ * G-7: single-booking signed-token status link for the site contact.
+ * Public, token-gated: status and arrival window only. No amounts, no
+ * billing, no customer/helper identity, no payment state. Reuses the
+ * public-token pattern (/quotes/view/:token, /invoice/p/:public_token).
+ */
+exports.getPublicBookingStatus = async (req, res) => {
+  try {
+    const token = String(req.params.token || '');
+    if (!/^[a-f0-9]{64}$/.test(token)) {
+      return sendError(res, 404, 'Booking status link not found');
+    }
+    const { rows } = await pool.query(
+      `SELECT b.id, b.service_name, b.status, b.requested_date,
+              b.requested_start_time, b.requested_end_time,
+              b.site_contact_name,
+              a.arrived_at
+         FROM booking_requests b
+         LEFT JOIN appointments a ON a.id = b.appointment_id
+        WHERE b.status_token = $1`,
+      [token]
+    );
+    if (!rows.length) return sendError(res, 404, 'Booking status link not found');
+    const row = rows[0];
+    return res.json({
+      success: true,
+      data: {
+        serviceName: row.service_name,
+        status: row.status,
+        requestedDate: row.requested_date,
+        requestedStartTime: row.requested_start_time,
+        requestedEndTime: row.requested_end_time,
+        arrivedAt: row.arrived_at,
+        siteContactName: row.site_contact_name || null,
+      },
+    });
+  } catch (err) {
+    logger.error('Error fetching public booking status', { error: err.message });
+    sendError(res, 500, 'Failed to fetch booking status');
+  }
+};
+
 exports.getMyBookingRequests = async (req, res) => {
   try {
     const customerId = req.user.id;
     const { status, helperId } = req.query;
 
-    let query = 'SELECT * FROM booking_requests WHERE customer_id = $1';
+    let query = 'SELECT * FROM booking_requests WHERE customer_id = $1 OR recipient_user_id = $1';
     const params = [customerId];
 
     if (status) {
@@ -433,8 +535,8 @@ exports.acceptBookingRequest = async (req, res) => {
     if (!booking) {
       return sendError(res, 404, 'Booking request not found');
     }
-    if (!(await bookingLifecycle.isProviderForBooking(actorId, booking))) {
-      return sendError(res, 403, 'Only the provider can accept this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can accept this booking', 'forbidden');
     }
 
     let result;
@@ -496,8 +598,8 @@ exports.declineBookingRequest = async (req, res) => {
     if (!booking) {
       return sendError(res, 404, 'Booking request not found');
     }
-    if (!(await bookingLifecycle.isProviderForBooking(actorId, booking))) {
-      return sendError(res, 403, 'Only the provider can decline this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can decline this booking', 'forbidden');
     }
 
     let result;
@@ -567,8 +669,12 @@ exports.cancelBookingRequest = async (req, res) => {
 
     const booking = result.rows[0];
 
-    if (booking.customer_id !== customerId) {
-      return sendError(res, 403, 'Only the customer can cancel this booking request');
+    // G-6: the booker or the recipient may cancel. The deposit settles
+    // against the booker (booking.customer_id) either way.
+    const isBooker = booking.customer_id === customerId;
+    const isRecipient = booking.recipient_user_id && String(booking.recipient_user_id) === String(customerId);
+    if (!isBooker && !isRecipient) {
+      return sendError(res, 403, 'Only the customer or the recipient can cancel this booking request');
     }
 
     if (booking.status === 'pending') {
@@ -658,8 +764,8 @@ exports.helperCancelAcceptedBooking = async (req, res) => {
 
     const booking = result.rows[0];
 
-    if (!(await bookingLifecycle.isProviderForBooking(helperId, booking))) {
-      return sendError(res, 403, 'Only the provider can cancel this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(helperId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can cancel this booking', 'forbidden');
     }
 
     if (booking.status !== 'accepted') {
@@ -716,6 +822,162 @@ exports.helperCancelAcceptedBooking = async (req, res) => {
   } catch (err) {
     logger.error('Error helper-cancelling booking', { error: err.message });
     sendError(res, 500, 'Failed to cancel booking');
+  }
+};
+
+/**
+ * G-37: transfer an accepted booking to another eligible provider.
+ * Preserves the booking (status stays accepted), its deposit (payment_*
+ * columns untouched), and its appointment (helper_id moves to the new
+ * provider). The linked two-party conversation moves with it so the new
+ * provider sees the thread and the old one loses it.
+ *
+ * The caller must be the current provider. The new provider must be
+ * eligible: for a business booking, an owner/active member of that
+ * business; for a helper-owned booking, an activated helper holding
+ * helper.offer_services (grant in enforce mode, legacy role otherwise).
+ * A transfer to a double-booked provider fails closed on the
+ * appointment overlap guard.
+ */
+exports.transferBookingRequest = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const actorId = req.user.id;
+    const { newHelperId, reason } = req.body || {};
+
+    if (typeof newHelperId !== 'string' || !/^[0-9a-f-]{36}$/i.test(newHelperId)) {
+      return sendError(res, 400, 'A valid new provider id is required', 'validation_failed');
+    }
+
+    const booking = await bookingLifecycle.loadBooking(bookingId);
+    if (!booking) {
+      return sendError(res, 404, 'Booking request not found');
+    }
+    if (!(await bookingLifecycle.isProviderForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider can transfer this booking', 'forbidden');
+    }
+    if (booking.status !== 'accepted') {
+      return sendError(res, 400, 'Only accepted bookings can be transferred');
+    }
+    if (String(newHelperId) === String(booking.helper_id)) {
+      return sendError(res, 400, 'Booking is already with this provider', 'validation_failed');
+    }
+    if (String(newHelperId) === String(booking.customer_id)) {
+      return sendError(res, 400, 'The customer cannot be the provider', 'validation_failed');
+    }
+
+    // ── Target eligibility ──────────────────────────────────────
+    const { rows: [target] } = await pool.query(
+      `SELECT id, role, is_active, deleted_at, onboarding_completed, onboarding_status
+         FROM users WHERE id = $1`,
+      [newHelperId]
+    );
+    if (!target || target.deleted_at || target.is_active === false) {
+      return sendError(res, 404, 'New provider not found');
+    }
+    if (booking.business_id) {
+      const { rows: [membership] } = await pool.query(
+        `SELECT 1 FROM businesses WHERE id = $1 AND user_id = $2 AND is_active = TRUE
+          UNION
+         SELECT 1 FROM business_members
+          WHERE business_id = $1 AND member_id = $2 AND status = 'active'`,
+        [booking.business_id, newHelperId]
+      );
+      if (!membership) {
+        return sendError(res, 400, 'New provider is not a member of this business', 'transfer_target_ineligible');
+      }
+    } else {
+      const access = require('../services/access/accessService');
+      const flags = require('../services/access/flags');
+      const decision = await access.can(newHelperId, 'helper.offer_services');
+      const legacyHelper = ['helper', 'helper_pro', 'broker'].includes(target.role);
+      const capabilityOk = decision.allowed || (flags.helperEnforcement() !== 'enforce' && legacyHelper);
+      const activated = target.onboarding_completed === true || target.onboarding_status === 'active';
+      if (!capabilityOk || !activated) {
+        return sendError(res, 400, 'New provider is not an activated helper', 'transfer_target_ineligible');
+      }
+    }
+
+    const previousHelperId = booking.helper_id;
+    const updatedResult = await withTransaction(pool, async (client) => {
+      const updated = await client.query(
+        `UPDATE booking_requests
+            SET helper_id = $2,
+                helper_response_reason = COALESCE($3, helper_response_reason),
+                updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1 AND status = 'accepted'
+          RETURNING *`,
+        [bookingId, newHelperId, reason || null]
+      );
+      if (!updated.rows.length) return updated;
+      // The appointment is preserved; only its provider moves. A
+      // double-booked target fails closed on the overlap guard.
+      if (booking.appointment_id) {
+        await client.query(
+          `UPDATE appointments SET helper_id = $2, updated_at = NOW()
+            WHERE id = $1 AND status <> 'cancelled'`,
+          [booking.appointment_id, newHelperId]
+        );
+      }
+      // The two-party thread moves to the new provider.
+      if (booking.conversation_id) {
+        await client.query(
+          'UPDATE conversations SET helper_id = $2, updated_at = NOW() WHERE id = $1',
+          [booking.conversation_id, newHelperId]
+        );
+      }
+      await emitDomainEvent(client, 'booking.transferred', serviceEventProps(updated.rows[0]), {
+        userId: actorId,
+        req,
+      });
+      return updated;
+    }, 'booking_provider_transfer_growth');
+
+    const updated = updatedResult.rows[0];
+    if (!updated) {
+      return sendError(res, 400, 'Booking cannot be transferred', 'booking_not_transferable');
+    }
+
+    await logBookingAudit(bookingId, 'provider_transfer', actorId, 'helper', 'accepted', 'accepted');
+    // The customer learns the provider changed; the new provider gets the
+    // booking in their inbox. The deposit is untouched by the transfer.
+    try {
+      await sendNotification({
+        userId: booking.customer_id,
+        type: 'booking_transferred',
+        body: `${booking.service_name}, ${booking.requested_date}${reason ? ` (${reason})` : ''}`,
+        data: { bookingId: booking.id, previousHelperId, newHelperId },
+        action_url: '/my-bookings',
+      });
+    } catch (e) {
+      logger.warn('Failed to notify customer of booking transfer', { error: e.message });
+    }
+    await notifyHelperOfBooking(newHelperId, updated);
+    if (updated.conversation_id || updated.guest_session_id) {
+      try {
+        const chatCtrl = require('./chatBookingRequestsController');
+        if (typeof chatCtrl.postStatusToThreadForLifecycle === 'function') {
+          const actorName = [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || 'Provider';
+          await chatCtrl.postStatusToThreadForLifecycle({
+            booking: updated,
+            event: 'transferred',
+            actorId,
+            actorName,
+          });
+        }
+      } catch (e) {
+        logger.warn('Transfer chat status post skipped', { error: e.message });
+      }
+    }
+
+    logger.info('Booking transferred', { bookingId, actorId, previousHelperId, newHelperId });
+    res.json({
+      success: true,
+      data: transformBooking(updated),
+    });
+  } catch (err) {
+    logger.error('Error transferring booking', { error: err.message });
+    sendError(res, 500, 'Failed to transfer booking');
   }
 };
 
@@ -1183,8 +1445,8 @@ exports.counterProposeBooking = async (req, res) => {
 
     const booking = await bookingLifecycle.loadBooking(bookingId);
     if (!booking) return sendError(res, 404, 'Booking request not found');
-    if (!(await bookingLifecycle.isProviderForBooking(helperId, booking))) {
-      return sendError(res, 403, 'Only the provider can propose a different time', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(helperId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can propose a different time', 'forbidden');
     }
 
     let result;
@@ -1489,6 +1751,24 @@ async function notifyCustomerOfBookingResponse(customerId, booking, response) {
     }
 
     await sendNotification({ userId: customerId, type, body, data: { bookingId: booking.id }, action_url });
+    // G-6: the recipient the work is for hears the accept/decline too.
+    if (booking.recipient_user_id && String(booking.recipient_user_id) !== String(customerId)) {
+      try {
+        broadcastToUser(booking.recipient_user_id, 'booking:updated', {
+          bookingId: booking.id,
+          status: booking.status,
+        });
+        await sendNotification({
+          userId: booking.recipient_user_id,
+          type,
+          body,
+          data: { bookingId: booking.id },
+          action_url,
+        });
+      } catch (recipientErr) {
+        logger.warn('Failed to notify booking recipient of response', { error: recipientErr.message });
+      }
+    }
   } catch (err) {
     logger.warn('Failed to notify customer of booking response', { error: err.message });
   }
@@ -1512,6 +1792,10 @@ async function notifyHelperOfBookingCancellation(helperId, booking) {
     logger.warn('Failed to notify helper of booking cancellation', { error: err.message });
   }
 }
+// G-30: the chat customer-cancel path reuses the same helper notification
+// as the signed-in cancel (lazy-required there to avoid a load-time cycle:
+// this controller lazily requires the chat controller inside handlers).
+exports.notifyHelperOfBookingCancellation = notifyHelperOfBookingCancellation;
 
 /**
  * Marketplace fallback for expired bookings. The DB work lives in

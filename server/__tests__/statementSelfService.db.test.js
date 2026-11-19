@@ -106,8 +106,12 @@ describeDatabase('R09/R10/R12 real self-service API integration', () => {
     businessId = await business(owner); restaurantId = await restaurant(businessId, owner);
     await member(businessId,owner,manager,'manager'); await member(businessId,owner,staff,'employee');
     storage = fakeStorage(); app = express(); app.use(express.json());
+    app.use('/api/businesses', require('../routes/businessTeam'));
+    app.use('/api/settlement-statements', require('../routes/settlementStatementArchive'));
+    app.use('/api/admin/restaurant-payouts', require('../routes/adminRestaurantPayouts'));
     app.use('/api/statement-archive', require('../routes/statementArchive')({ storage }));
     app.use('/api/statements', require('../routes/statementRenditions'));
+    app.use('/api', require('../routes/statementCenter'));
     app.use('/api', require('../routes/statementInvestigation'));
     app.get('/api/support/my-tickets/:ticketId', authenticate, supportController.getMyTicket);
     app.use((error,_req,res,_next) => res.status(error.statusCode || error.status || 500).json({ code: error.code, error: error.message }));
@@ -157,6 +161,53 @@ describeDatabase('R09/R10/R12 real self-service API integration', () => {
     const filtered = await request(app).get('/api/statement-archive/archive?product=business&currency=USD&year=2026&month=7').set(headers(owner)).expect(200);
     expect(filtered.body.total).toBe(1); expect(filtered.body.items[0].versionCount).toBe(2);
     expect(filtered.body.items[0].versions.map(version => version.id)).toEqual(versions);
+  });
+
+  test('delegated statement access is scoped, read-only, and revocable on saved links', async () => {
+    const accountant = await user();
+    await member(businessId, owner, accountant, 'employee');
+    const { rows: [membership] } = await pool.query(
+      'SELECT id FROM business_members WHERE business_id = $1 AND member_id = $2', [businessId, accountant.id]);
+    const overrideRoute = `/api/businesses/${businessId}/memberships/${membership.id}/overrides`;
+    const overrides = [{ permission_code: 'statements.view', effect: 'allow' }];
+    await request(app).put(overrideRoute).set(headers(accountant)).send({ overrides }).expect(403);
+    await request(app).put(overrideRoute).set(headers(owner)).send({ overrides }).expect(200);
+
+    for (const fixture of documents.slice(0, 2)) {
+      const product = fixture.document.product;
+      const scopes = await request(app).get('/api/statement-archive/scopes').query({ product }).set(headers(accountant)).expect(200);
+      expect(scopes.body.accounts).toHaveLength(1);
+      expect(String(scopes.body.accounts[0].accountId)).toBe(String(fixture.scope));
+      expect(scopes.body.accounts[0].readOnly).toBe(true);
+      const list = await request(app).get('/api/statement-archive/archive').query({ product }).set(headers(accountant)).expect(200);
+      expect(list.body.items.find(item => item.id === fixture.id)?.readOnly).toBe(true);
+      await request(app).get(`/api/statement-archive/archive/${fixture.id}/download`).set(headers(accountant)).expect(200);
+      await request(app).get(`/api/statement-archive/archive/${fixture.id}/link`).set(headers(accountant)).expect(404);
+      await request(app).get(`/api/statements/documents/${fixture.id}/renditions/en/html`).set(headers(accountant)).expect(200);
+      await request(app).get(`/api/statements/${fixture.id}/entries`).set(headers(accountant)).expect(404);
+    }
+
+    const center = await request(app).get('/api/statements/center').set(headers(accountant)).expect(200);
+    expect(center.body.products.business.scopes.map(scope => scope.businessId)).toContain(String(businessId));
+    expect(center.body.products.restaurantSettlement.scopes.map(scope => scope.restaurantId)).toContain(String(restaurantId));
+    await request(app).get('/api/settlement-statements/issue').query({ product: 'business', businessId }).set(headers(accountant)).expect(404);
+    await request(app).post('/api/admin/restaurant-payouts/1/approve').set(headers(accountant)).send({}).expect(403);
+
+    const otherBusinessId = await business(stranger);
+    const foreign = await original('business', otherBusinessId, stranger, storage);
+    await request(app).get(`/api/statement-archive/archive/${foreign.id}`).set(headers(accountant)).expect(404);
+    await request(app).get(`/api/statement-archive/archive/${versions[1]}`).set(headers(accountant)).expect(200);
+
+    await pool.query(`INSERT INTO restaurant_location_memberships (restaurant_id, location_id, membership_id, status)
+      SELECT restaurant_id, id, $2, 'active' FROM restaurant_locations WHERE restaurant_id = $1 AND is_primary`, [restaurantId, membership.id]);
+    await request(app).get(`/api/statement-archive/archive/${documents[1].id}`).set(headers(accountant)).expect(404);
+    await request(app).get(`/api/statement-archive/archive/${documents[0].id}`).set(headers(accountant)).expect(200);
+
+    await pool.query("UPDATE membership_permission_overrides SET expires_at = NOW() - INTERVAL '1 minute' WHERE membership_id = $1", [membership.id]);
+    await request(app).get(`/api/statement-archive/archive/${documents[0].id}/download`).set(headers(accountant)).expect(404);
+    await request(app).put(overrideRoute).set(headers(owner)).send({ overrides }).expect(200);
+    await pool.query("UPDATE business_members SET status = 'revoked' WHERE id = $1", [membership.id]);
+    await request(app).get(`/api/statement-archive/archive/${versions[1]}`).set(headers(accountant)).expect(404);
   });
 
   test('authenticated accessible HTML covers three settlement products and versions in five languages', async () => {

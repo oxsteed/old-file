@@ -48,6 +48,28 @@ test('Support workspace requires both a signed-in account and confirmed membersh
   assert.ok(!paths(footerNavigation({id:1})).flat().includes('/support/agent'));
   assert.deepEqual(paths(footerNavigation({id:1}, {showSupportWorkspace:true}))[3], ['/dashboard', '/post-job', '/support/agent']);
 });
+test('authenticated footer adds only verified contextual persona and workspace links', () => {
+  const user = { id: 1 };
+  const projection = {
+    flags: { accessProjection: true },
+    access: {
+      personal: ['customer', 'helper.offer_services', 'business.own'],
+      organizations: [{ id: 'b-7', name: 'Main business' }],
+      activation: { 'helper.offer_services': 'active', 'business.own': 'active' },
+    },
+  };
+  const groups = footerNavigation(user, { projection });
+  const contextual = groups.find(group => group.id === 'your-access');
+  assert.ok(contextual);
+  assert.deepEqual(contextual.links.map(item => item.to), ['/jobs', '/helper-dashboard', '/business-hub', '/business/b-7/workspace']);
+  assert.equal(groups.find(group => group.id === 'account').links.some(item => item.to === '/helper-dashboard'), false);
+});
+test('footer does not expose human persona links for nonhuman actors', () => {
+  const groups = footerNavigation({ id: 2 }, {
+    projection: { flags: { accessProjection: true }, access: { actorType: 'nonhuman', personal: ['helper.offer_services'] } },
+  });
+  assert.equal(groups.some(group => group.id === 'your-access'), false);
+});
 test('new footer labels have matching legacy and namespaced translations in all five languages', async () => {
   for (const language of ['en','es','fr','ht','ar']) {
     const legacy = JSON.parse(await readFile(new URL(`../src/locales/${language}.json`, import.meta.url)));

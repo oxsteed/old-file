@@ -8,7 +8,7 @@ import { hasProAccess, hasBusinessHubAccess } from '../src/utils/modeAccess.js';
 // primary links, whatever its role or default_mode; capabilities add account
 // shortcuts and the business switcher comes from projection organizations.
 const CUSTOMER_PRIMARY = [['findHelp', '/helpers'], ['myJobs', '/my-jobs'], ['orderFood', '/restaurants'], ['messages', '/messages'], ['postJob', '/post-job']];
-const CUSTOMER_ACCOUNT = ['dashboard', 'foodOrders', 'applications', 'settings', 'help', 'wallet', 'statements'];
+const CUSTOMER_ACCOUNT = ['dashboard', 'foodOrders', 'applications', 'credit', 'partner', 'learning', 'settings', 'help', 'wallet', 'statements'];
 
 for (const user of [
   { default_mode: 'customer', role: 'customer' },
@@ -193,8 +193,8 @@ test('mobile QR entry uses the same helper projection gate as desktop', async ()
   assert.match(navbar, /\{hasHelperAccess && \(/);
 });
 
-// OxSteed Invest (Track 3): invest entry points come from the access
-// projection only (projection.invest.investEnabled). They are additive:
+// OxSteed Invest: one unified workspace entry comes from the access
+// projection only (projection.invest.investEnabled). It is additive:
 // the customer primary links are untouched, and no role or mode is read.
 test('invest navigation appears only when the projection flag is on', () => {
   const on = (invest) => ({
@@ -211,9 +211,7 @@ test('invest navigation appears only when the projection flag is on', () => {
   assert.deepEqual(
     enabled.account.filter((item) => item.to.startsWith('/invest')).map(({ id, to, labelKey }) => [id, to, labelKey]),
     [
-      ['exploreInvestments', '/invest', 'nav.exploreInvestments'],
-      ['requestInvestorAccess', '/invest/apply', 'nav.requestInvestorAccess'],
-      ['myInvestments', '/invest/my-investments', 'nav.myInvestments'],
+      ['investments', '/investments', 'nav.investments'],
     ],
   );
   // Role and mode do not change the invest entries; applying never blocks
@@ -221,7 +219,7 @@ test('invest navigation appears only when the projection flag is on', () => {
   for (const user of [{ role: 'helper' }, { role: 'helper', default_mode: 'helper' }, { role: 'admin', default_mode: 'investor' }]) {
     const result = navbarNavigation(user, { projection: on({ investEnabled: true, investCommitmentsEnabled: false, investPilot: false }) });
     assert.deepEqual(result.account.filter((item) => item.to.startsWith('/invest')).map((item) => item.to),
-      ['/invest', '/invest/apply', '/invest/my-investments']);
+      ['/investments']);
     assert.deepEqual(result.primary.map(({ id, to }) => [id, to]), CUSTOMER_PRIMARY);
   }
 });

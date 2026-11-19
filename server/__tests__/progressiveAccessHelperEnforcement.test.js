@@ -230,7 +230,7 @@ describe('helper capability gate', () => {
     process.env.ACCESS_HELPER_ENFORCEMENT = 'ENFORCE-ish';
     const { nextCalled } = await run(requireHelperCapability, { user: user('customer') });
     expect(nextCalled).toBe(true);
-    expect(access.can).toHaveBeenCalledWith('u-1', 'helper.offer_services');
+    expect(access.can).toHaveBeenCalledWith('u-1', 'helper.offer_services', undefined);
   });
 
   test('conditional helper quote and product mutations are capability-gated', () => {

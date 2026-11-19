@@ -123,7 +123,7 @@ export default function StatementCenterPage() {
       {current.status === 'ready' && account && record && scope && <section className="statement-center-selected" aria-labelledby="statement-account-heading">
         <button type="button" className="statement-center-preview-btn" onClick={() => choose(null)}><ArrowLeft size={16} aria-hidden="true" />{text('changeAccount')}</button>
         <div className="statement-center-selected-heading"><h2 id="statement-account-heading" tabIndex={-1} ref={heading}><bdi>{accountLabel(account)}</bdi></h2>
-          <Link className="statement-center-secondary" to={`${fullPage.pathname}${fullPage.search}`}>{text('openFullPage')}<ArrowRight size={16} aria-hidden="true" /></Link>
+          {scope.statementStatus !== 'location_reports' && <Link className="statement-center-secondary" to={`${fullPage.pathname}${fullPage.search}`}>{text('openFullPage')}<ArrowRight size={16} aria-hidden="true" /></Link>}
         </div>
         <div className="statement-center-records" role="group" aria-label={text('recordType')}>
           {account.records.map(item => <button key={item.key} type="button" className="statement-center-preview-btn"
@@ -139,7 +139,13 @@ export default function StatementCenterPage() {
           <button type="button" className="statement-center-preview-btn" aria-pressed={archive} onClick={() => choose(account, record, scope, true)}>{text('archive')}</button>
         </div>}
         <Suspense fallback={<p role="status">{text('loading')}</p>}>
-          {archive ? <StatementArchivePage key={`${userId}/${record.key}/${scope.scopeKey}/archive`} embedded product={record.product}
+          {scope.statementStatus === 'location_reports' ? <div className="statement-center-location-reports" role="note">
+            <h3>{text('locationReportsTitle')}</h3>
+            <p>{text('locationReportsBody', { locations: (scope.locationNames || []).filter(Boolean).join(', ') })}</p>
+            <p>{text('locationReportsSettlementNote')}</p>
+            <Link className="statement-center-secondary" to={`/food/merchant?business=${scope.businessId}&tab=settings&ops=reports`}>{text('openLocationReports')}<ArrowRight size={16} aria-hidden="true" /></Link>
+          </div>
+            : archive ? <StatementArchivePage key={`${userId}/${record.key}/${scope.scopeKey}/archive`} embedded product={record.product}
             accountScope={{ accountId: statementScopeAccountId(record, scope, userId), restaurantId: scope.restaurantId, currency: scope.currency, name: scope.label }} />
             : <CreditStatementsPage key={`${userId}/${record.key}/${scope.scopeKey}`} embedded product={record.product} accountScope={scope} />}
         </Suspense>

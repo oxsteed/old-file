@@ -67,6 +67,9 @@ const {
   adminMoveVideoFlag,
   adminDeleteVideoFlag,
   getBadges,
+  listPrograms,
+  enrollInProgram,
+  listMyEnrollments,
   trackMarketplaceClick,
   adminListSubmissions,
   adminGetSubmission,
@@ -115,6 +118,15 @@ const videoSubmitLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many requests. Please try again later.', retryAfter: '1 hour' },
 });
+
+// ── Workforce programs (PR #804 G-24) ────────────────────────────
+// A program is a bundle of one guide category; enrollment is the record
+// the join_workforce intent links to. Listing is public; enrolling and
+// reading my enrollments need an account. Guide submission stays gated
+// on helper/consultant capabilities; enrollment grants no authority.
+router.get('/programs',              optionalAuth, listPrograms);
+router.post('/programs/:slug/enroll', authenticate, enrollInProgram);
+router.get('/enrollments/mine',      authenticate, listMyEnrollments);
 
 // ── Authenticated user routes ──────────────────────────────────
 router.get('/completions',           authenticate, getCompletions);

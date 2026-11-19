@@ -556,7 +556,9 @@ describeDatabase('invest routes', () => {
     expect(queue.status).toBe(200);
     const queued = queue.body.amendments.find((row) => row.id === amendmentId);
     expect(queued).toBeDefined();
-    expect(queued.reconfirmation).toEqual({ total: 1, reconfirmed: 0, pending: 1 });
+    expect(queued.reconfirmation).toMatchObject({ total: 1, reconfirmed: 0, pending: 1, pendingUserIds: [userId] });
+
+    await as(userId).post(`/api/invest/opportunities/${opportunity.id}/amendments/${amendmentId}/reconfirm`).expect(200);
 
     const effective = await as(reviewerId, 'super_admin').post(`/api/invest/amendments/${amendmentId}/effective`, {
       note: 'Terms reviewed.', expectedVersion: proposed.body.amendment.expectedVersion,
@@ -881,11 +883,11 @@ describeDatabase('invest routes', () => {
       .postKey(`/api/invest/opportunities/${opportunity.id}/distributions`, `invest-dist-${crypto.randomUUID()}`, {
         positionId, userId, amountCents: 500,
       });
-    expect(distributed.status).toBe(201);
-    expect(distributed.body.distribution.status).toBe('credited');
+    expect(distributed.status).toBe(202);
+    expect(distributed.body).toMatchObject({ queued: true, approval: { status: 'pending' } });
     const mine = await as(userId).get('/api/invest/me');
     expect(mine.body.completed).toHaveLength(1);
-    expect(mine.body.distributions).toHaveLength(1);
+    expect(mine.body.distributions).toHaveLength(0);
     expect(mine.body.positions).toHaveLength(1);
   });
 

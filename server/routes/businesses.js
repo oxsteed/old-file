@@ -125,12 +125,12 @@ router.get('/:id/analytics', authenticate, getBusinessAnalytics);
 // ── Invoices ──────────────────────────────────────────────────────────────────
 router.get('/:id/invoices',                     authenticate, listInvoices);
 router.get('/:id/invoices/:invoiceId',           authenticate, getInvoice);
-router.post('/:id/invoices',                    authenticate, bizIdAccess('manager'), createInvoice);
-router.put('/:id/invoices/:invoiceId',           authenticate, bizIdAccess('manager'), updateInvoice);
-router.post('/:id/invoices/:invoiceId/pay',     authenticate, bizIdAccess('manager'), markInvoicePaid);
-router.post('/:id/invoices/:invoiceId/send',    authenticate, bizIdAccess('manager'), sendInvoice);
-router.post('/:id/invoices/:invoiceId/void',    authenticate, bizIdAccess('manager'), voidInvoice);
-router.delete('/:id/invoices/:invoiceId',       authenticate, bizIdAccess('manager'), deleteInvoice);
+router.post('/:id/invoices',                    authenticate, bizIdAccess('any'), createInvoice);
+router.put('/:id/invoices/:invoiceId',           authenticate, bizIdAccess('any'), updateInvoice);
+router.post('/:id/invoices/:invoiceId/pay',     authenticate, bizIdAccess('any'), markInvoicePaid);
+router.post('/:id/invoices/:invoiceId/send',    authenticate, bizIdAccess('any'), sendInvoice);
+router.post('/:id/invoices/:invoiceId/void',    authenticate, bizIdAccess('any'), voidInvoice);
+router.delete('/:id/invoices/:invoiceId',       authenticate, bizIdAccess('any'), deleteInvoice);
 
 // ── Tax estimates ─────────────────────────────────────────────────────────────
 router.get('/:id/tax',                          authenticate, getBusinessTax);

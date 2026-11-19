@@ -134,10 +134,80 @@ function sortAndPage(rows, limit, offset) {
   };
 }
 
-async function listUserInvoices({ userId, userEmail, view = 'all', status = null, limit = 20, offset = 0 }) {
+// G-8: businesses whose invoices the caller may read as a finance reader
+// (not just the ones they personally issued): owned businesses, plus
+// businesses where the caller is an active member whose effective
+// permissions include invoices.view — by role default (owner/manager) or
+// by an unexpired allow override, and never when a deny override revokes
+// it. Mirrors permissionsService.getEffectivePermissions exactly.
+async function listFinanceReadableBusinessIds(userId) {
+  const { rows } = await pool.query(
+    `SELECT b.id FROM businesses b WHERE b.user_id = $1 AND b.is_active = TRUE
+      UNION
+     SELECT bm.business_id
+       FROM business_members bm
+       JOIN businesses b ON b.id = bm.business_id
+      WHERE bm.member_id = $1 AND bm.status = 'active' AND b.is_active = TRUE
+        AND (
+          EXISTS (
+            SELECT 1 FROM membership_permission_overrides mpo
+             JOIN team_permissions p ON p.id = mpo.permission_id
+            WHERE mpo.membership_id = bm.id AND p.code = 'invoices.view'
+              AND mpo.effect = 'allow'
+              AND (mpo.expires_at IS NULL OR mpo.expires_at > NOW())
+          )
+          OR (
+            EXISTS (
+              SELECT 1 FROM team_role_permissions rp
+               JOIN team_roles r ON r.id = rp.role_id
+               JOIN team_permissions p ON p.id = rp.permission_id
+              WHERE r.code = bm.role AND p.code = 'invoices.view' AND rp.allow = TRUE
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM membership_permission_overrides mpo
+               JOIN team_permissions p ON p.id = mpo.permission_id
+              WHERE mpo.membership_id = bm.id AND p.code = 'invoices.view'
+                AND mpo.effect = 'deny'
+                AND (mpo.expires_at IS NULL OR mpo.expires_at > NOW())
+            )
+          )
+        )`,
+    [userId]
+  );
+  return rows.map((r) => Number(r.id));
+}
+
+const BUSINESS_ISSUED_FOR_BUSINESSES_SQL = `
+  SELECT bi.id::bigint AS source_id,
+         'business'::text AS invoice_kind,
+         bi.invoice_number,
+         bi.client_name,
+         bi.client_email,
+         bi.status,
+         bi.issue_date AS issued_at,
+         bi.due_date AS due_at,
+         ROUND(bi.total * 100)::bigint AS amount_cents,
+         bi.total,
+         bi.amount_paid,
+         bi.sent_at,
+         bi.paid_at,
+         bi.created_at,
+         bi.public_token,
+         b.business_name AS counterparty_name,
+         'issued'::text AS perspective
+    FROM business_invoices bi
+    LEFT JOIN businesses b ON b.id = bi.business_id
+   WHERE bi.business_id = ANY($1::bigint[])`;
+
+async function listUserInvoices({ userId, userEmail, view = 'all', status = null, limit = 20, offset = 0, businessIds = null }) {
   const queries = [];
   if (view === 'issued' || view === 'all') {
     queries.push(pool.query(BUSINESS_ISSUED_SQL, [userId]));
+    // G-8: a finance reader sees invoices issued by their businesses,
+    // not only invoices they personally issued.
+    if (Array.isArray(businessIds) && businessIds.length) {
+      queries.push(pool.query(BUSINESS_ISSUED_FOR_BUSINESSES_SQL, [businessIds]));
+    }
     queries.push(pool.query(TOOL_RENTAL_ISSUED_SQL, [userId]));
   }
   if (view === 'received' || view === 'all') {
@@ -147,12 +217,21 @@ async function listUserInvoices({ userId, userEmail, view = 'all', status = null
 
   const results = await Promise.all(queries);
   const merged = results.flatMap((r) => r.rows);
-  const filtered = applyStatusFilter(merged, status);
+  // A personally-issued invoice for a finance-readable business arrives
+  // twice (personal scope + business scope); keep one copy.
+  const seen = new Set();
+  const deduped = merged.filter((row) => {
+    const key = `${row.invoice_kind}:${row.source_id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const filtered = applyStatusFilter(deduped, status);
   const { total, page } = sortAndPage(filtered, limit, offset);
   return { invoices: page, total };
 }
 
-async function getUserInvoiceById({ compositeId, userId, userEmail, role }) {
+async function getUserInvoiceById({ compositeId, userId, userEmail, role, businessIds = null }) {
   const isAdmin = ['admin', 'super_admin'].includes(role);
   if (String(compositeId).startsWith('tr-')) {
     const invoiceId = String(compositeId).slice(3);
@@ -208,8 +287,9 @@ async function getUserInvoiceById({ compositeId, userId, userEmail, role }) {
           $2
           OR bi.user_id = $3
           OR LOWER(TRIM(bi.client_email)) = LOWER(TRIM($4))
+          OR ($5::bigint[] IS NOT NULL AND bi.business_id = ANY($5::bigint[]))
         )`,
-    [compositeId, isAdmin, userId, userEmail || '']
+    [compositeId, isAdmin, userId, userEmail || '', Array.isArray(businessIds) && businessIds.length ? businessIds : null]
   );
   if (!rows[0]) return null;
   const inv = rows[0];
@@ -238,5 +318,6 @@ async function getUserInvoiceById({ compositeId, userId, userEmail, role }) {
 module.exports = {
   listUserInvoices,
   getUserInvoiceById,
+  listFinanceReadableBusinessIds,
   decorateInvoiceRow,
 };

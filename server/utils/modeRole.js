@@ -99,11 +99,13 @@ function roleForMode(mode, { currentRole } = {}) {
 }
 
 /**
- * Apply a mode switch transactionally. Updates default_mode + role together,
- * ensures a helper_profiles row exists when switching INTO a helper-class
- * mode (so the helper can start listing immediately), and invalidates every
- * existing session for the user so the new JWT role claim takes effect on
- * the next refresh.
+ * Apply a mode switch transactionally. Updates default_mode + role together
+ * and ensures a helper_profiles row exists when switching INTO a helper-class
+ * mode (so the helper can start listing immediately). It does NOT touch any
+ * session: the caller invalidates only the calling session
+ * (invalidateCurrentSession) so other devices keep theirs and pick up the
+ * new role/mode at refresh. A mode switch is a view change, not a security
+ * revocation.
  *
  * Caller is responsible for issuing fresh tokens AFTER this returns — this
  * function only mutates the DB.
@@ -193,8 +195,10 @@ async function applyModeSwitch(client, userId, newMode) {
 }
 
 /**
- * Invalidate all of a user's sessions. Call after applyModeSwitch when you
- * want the new role to take effect immediately on every device.
+ * Invalidate all of a user's sessions. Security revocations ONLY (password
+ * change, compromise, explicit logout-everywhere): a mode switch must never
+ * call this (see invalidateCurrentSession). Kept as the revocation primitive
+ * for those paths.
  */
 async function invalidateUserSessions(client, userId) {
   const { rows } = await client.query(
@@ -209,6 +213,37 @@ async function invalidateUserSessions(client, userId) {
   await Promise.all(rows.map((row) => tokenRevocationService.revokeAccessTokenId(row.access_token_hash)));
 }
 
+/**
+ * Invalidate ONLY the calling session on a mode switch (G-28). Mode is a
+ * view, not a credential: other devices keep their sessions and pick up the
+ * new role/mode at refresh, because refreshToken re-reads the users row
+ * before minting. Revoking every session turned a desktop mode switch into
+ * a phone logout.
+ *
+ * @param {Pool|PoolClient} client  pg client (must be a transactional client)
+ * @param {string}          userId
+ * @param {number|null}     sessionId  sessions.id of the calling session.
+ *   Null means the caller could not be identified: nothing is revoked
+ *   rather than everything. Other sessions are never touched here.
+ * @returns {Promise<number|null>} the invalidated session id, or null
+ */
+async function invalidateCurrentSession(client, userId, sessionId) {
+  if (sessionId == null) return null;
+  const { rows } = await client.query(
+    'SELECT access_token_hash FROM sessions WHERE id = $1 AND user_id::text = $2',
+    [sessionId, String(userId)],
+  );
+  if (!rows.length) return null;
+  await client.query(
+    'UPDATE sessions SET is_valid = false, is_revoked = true, revoked_at = NOW() WHERE id = $1 AND user_id::text = $2',
+    [sessionId, String(userId)],
+  );
+  if (rows[0].access_token_hash) {
+    await tokenRevocationService.revokeAccessTokenId(rows[0].access_token_hash);
+  }
+  return sessionId;
+}
+
 module.exports = {
   MODE_ROLE_MAP,
   SELF_SELECTABLE_MODES,
@@ -219,4 +254,5 @@ module.exports = {
   roleForMode,
   applyModeSwitch,
   invalidateUserSessions,
+  invalidateCurrentSession,
 };

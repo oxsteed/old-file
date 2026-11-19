@@ -157,6 +157,11 @@ export default function BookingFlow({ helperId, helperName, businessId, business
         availabilityMode: formData.availabilityMode || 'scheduled',
         autoPostOnExpiry: Boolean(formData.autoPostOnExpiry),
         serviceId: formData.serviceId || undefined,
+        // G-6/G-7: recipient and site contact, when the booker supplied them.
+        recipientName: formData.recipientName || undefined,
+        recipientPhone: formData.recipientPhone || undefined,
+        siteContactName: formData.siteContactName || undefined,
+        siteContactPhone: formData.siteContactPhone || undefined,
       });
 
       setBookingRequest(bookingRow);

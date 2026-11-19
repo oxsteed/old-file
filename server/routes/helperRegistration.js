@@ -6,7 +6,7 @@ const { authenticate } = require('../middleware/auth');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
 const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const { requireHelperStep } = require('../middleware/helperOnboardingMiddleware');
-const { requireHelperCapability } = require('../middleware/requireAccess');
+const { requireHelperSetupCapability } = require('../middleware/requireAccess');
 const { authLimiter } = require('../middleware/rateLimiter');
 
 const {
@@ -58,11 +58,11 @@ router.post('/tier',        authenticate, (_req, res) => res.status(410).json({
   code: 'endpoint_retired',
 }));
 router.post('/w9',          authenticate, saveW9);
-router.post('/accept-terms', authenticate, requireHelperCapability, acceptTerms);
+router.post('/accept-terms', authenticate, requireHelperSetupCapability, acceptTerms);
 // Review P2-477: records the signup checkbox against the pending registration
 // (version, time, hashed IP, user agent) before the account exists.
 router.post('/registration-terms', authLimiter, dedicatedRegistrationClosed, acceptPendingTerms);
-router.post('/finalize',    authenticate, requireHelperCapability, requireHelperStep('finalize'), finalizeRegistration);
+router.post('/finalize',    authenticate, requireHelperSetupCapability, requireHelperStep('finalize'), finalizeRegistration);
 // Review P2-2-F08/P2-7-F05: POST /payment was a no-op stub ("Payment step
 // recorded") with no client caller; removed. POST /profile and
 // POST /update-contact were the retired wizard's split profile/contact steps,
@@ -81,7 +81,7 @@ router.post('/profile-photo', authenticate, (_req, res) => res.status(410).json(
 // Review P2-7-F08: server-side terms gate (was client-side only).
 router.put('/onboarding/profile',
   authenticate,
-  requireHelperCapability,
+  requireHelperSetupCapability,
   requireEmailVerified,
   requireTermsAcceptance,
   requireHelperStep('profile'),
@@ -92,7 +92,7 @@ router.put('/onboarding/profile',
 // (/verify-identity + webhook). Removed.
 router.put('/onboarding/background-check',
   authenticate,
-  requireHelperCapability,
+  requireHelperSetupCapability,
   requireEmailVerified,
   requireTermsAcceptance,
   requireHelperStep('background'),
@@ -100,7 +100,7 @@ router.put('/onboarding/background-check',
 );
 router.get('/onboarding/status',
   authenticate,
-  requireHelperCapability,
+  requireHelperSetupCapability,
   getOnboardingStatus
 );
 

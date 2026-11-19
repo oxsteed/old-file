@@ -105,7 +105,6 @@ const REVIEWED = {
   'routes/privacy.js': CUSTOMER_OR_SELF,
   'routes/statementInvestigation.js': PLATFORM_ADMIN,
   'services/abandonedRecoveryWorker.js': SYSTEM_JOB,
-  'services/access/financeStanding.js': AGGREGATE_ONLY, // WP-073: denies store-scoped managers restaurant-wide finance
   'services/access/accessService.js': CUSTOMER_OR_SELF, // projection returns only the signed-in user's business/location scopes
   'services/bookingSlotEngine.js': AGGREGATE_ONLY,
   // Careers facts are computed from one worker's own records (keyed by user_id) across stores.

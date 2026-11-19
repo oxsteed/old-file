@@ -28,7 +28,7 @@ test('an approved customer-class investor can open only the projected reporting 
     plugins: [{ name: 'investor-dashboard-shell', setup(plugin) {
       const fixtures = {
         useAuth: `export const useAuth = () => ({ user: { id: 'applicant', role: 'customer', default_mode: 'customer' } });`,
-        useAccessProjection: `export default () => ({ access: { personal: ['customer', 'investor.reporting'], organizations: [], investorAudience: { audienceKey: 'quarterly board', datasets: ['overview', 'revenue'] } }, flags: { accessProjection: true } });`,
+        useAccessProjection: `export const ACCESS_CHANGED_EVENT = 'oxsteed:access-changed'; export default () => ({ access: { personal: ['customer', 'investor.reporting'], organizations: [], investorAudience: { audienceKey: 'quarterly board', datasets: ['overview', 'revenue'] } }, flags: { accessProjection: true } });`,
         PageShell: `export default ({ children }) => children;`,
         Navbar: `export default () => null;`,
         Footer: `export default () => null;`,

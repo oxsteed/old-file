@@ -1,9 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 import { getCsrfToken } from '../api/csrfToken';
+import api from '../api/axios';
 
 const SURFACE_OPTIONS = ['food_online', 'food_pos', 'chat', 'jobs', 'direct', 'qr', 'subscriptions', 'delivery', 'consulting', 'invoices', 'products', 'rentals'];
+
+// G-25: participant status labels, keyed by the server status. The keys
+// exist in the credit catalog; the lookup is dynamic so the static-key
+// gate skips it, but every value resolves.
+const STATUS_KEY = {
+  pending: 'creditApplyStatusPending',
+  active: 'creditApplyStatusActive',
+  suspended: 'creditApplyStatusSuspended',
+  revoked: 'creditApplyStatusRevoked',
+};
 
 /**
  * Credit Everywhere Phase 1 — self-serve participant apply.
@@ -20,6 +31,17 @@ export default function CreditApplyPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [participants, setParticipants] = useState([]);
+
+  // G-25: show the caller's real application status instead of a static
+  // "submitted". A pending or active participant has no form to re-file.
+  useEffect(() => {
+    api.get('/oxsteed-credit/participants/me')
+      .then((res) => setParticipants(res.data?.participants || []))
+      .catch(() => {});
+  }, []);
+
+  const hasOpenApplication = participants.some((p) => p.status === 'pending' || p.status === 'active');
 
   const toggleSurface = (surface) => {
     setSurfaces((current) =>
@@ -51,6 +73,9 @@ export default function CreditApplyPage() {
         throw new Error(data?.error || data?.message || t('creditApplyFailed'));
       }
       setDone(true);
+      api.get('/oxsteed-credit/participants/me')
+        .then((res) => setParticipants(res.data?.participants || []))
+        .catch(() => {});
     } catch (err) {
       setError(err.message || t('creditApplyFailed'));
     } finally {
@@ -64,7 +89,22 @@ export default function CreditApplyPage() {
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">{t('creditApplyEyebrow')}</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{t('creditApplyTitle')}</h1>
         <p className="mt-2 text-sm leading-6 text-gray-400">{t('creditApplyDescription')}</p>
+        <p className="mt-2 text-sm leading-6 text-gray-400">{t('creditApplyCustomerNote')}</p>
       </header>
+      {participants.length > 0 && (
+        <div className="space-y-2 rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-4">
+          <p className="text-sm font-semibold text-white">{t('creditApplyMyStatus')}</p>
+          <ul className="space-y-1">
+            {participants.map((participant) => (
+              <li key={participant.participantId} className="text-sm text-gray-300">
+                {t(participant.participantType === 'helper' ? 'adminParticipantTypeHelper' : 'adminParticipantTypeBusiness')}
+                {' · '}
+                {t(STATUS_KEY[participant.status] || 'creditApplyStatusPending')}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {done ? (
         <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-950/25 px-4 py-4 text-sm text-emerald-300">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
@@ -73,7 +113,7 @@ export default function CreditApplyPage() {
             <p className="mt-1 text-emerald-400/80">{t('creditApplySubmittedDetail')}</p>
           </div>
         </div>
-      ) : (
+      ) : hasOpenApplication ? null : (
         <form onSubmit={submit} className="space-y-5 rounded-2xl border border-gray-800 bg-gray-950/40 p-5">
           {error && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/25 px-4 py-3 text-sm text-red-300"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</div>}
           <div>

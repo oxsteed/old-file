@@ -350,6 +350,24 @@ async function enrollParticipant({ actorUserId, participantType, businessId, sub
   }, 'credit_participant_enroll');
 }
 
+/**
+ * G-25: applicant-side status. The caller's own participant rows: their
+ * helper/personal applications plus applications for businesses they own.
+ * Restaurant-linked rows are not included (no self-serve restaurant apply
+ * exists to resolve ownership from here).
+ */
+async function listMyParticipants(userId) {
+  await assertCreditParticipantsReady(pool);
+  const { rows } = await pool.query(
+    `SELECT cp.* FROM credit_participants cp
+      WHERE cp.user_id = $1::uuid
+         OR cp.business_id IN (SELECT id FROM businesses WHERE user_id = $1::uuid)
+      ORDER BY cp.created_at DESC`,
+    [userId],
+  );
+  return rows.map(formatParticipant);
+}
+
 async function getParticipant(participantId) {
   await assertCreditParticipantsReady(pool);
   const { rows } = await pool.query(
@@ -520,6 +538,7 @@ module.exports = {
   applyForCreditParticipation,
   enrollParticipant,
   getParticipant,
+  listMyParticipants,
   listParticipants,
   activateParticipant,
   activateParticipantInTransaction,

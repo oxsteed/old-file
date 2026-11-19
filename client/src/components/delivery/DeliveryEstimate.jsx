@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowRight, DollarSign, Loader2 } from 'lucide-react';
 import AddressAutocomplete from '../AddressAutocomplete';
 import TurnstileWidget from '../TurnstileWidget';
+import { useCapabilities } from '../../hooks/useCapabilities';
 import {
   estimateDelivery,
   getCustomerTrackingState,
@@ -153,12 +154,22 @@ export function EstimateCard({
   const captchaRef = useRef(null);
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaFailed, setCaptchaFailed] = useState(false);
+  // G-29: estimates price a live route through the geo provider. Without
+  // one every submit fails, so the form is disabled with an honest
+  // unavailable state instead of looking live. Driven by the existing
+  // geocoding capability flag; no provider keys are set here.
+  const { isAvailable, loading: capabilitiesLoading } = useCapabilities();
+  const estimatesUnavailable = !capabilitiesLoading && !isAvailable('geocoding');
   const standardCents = estimate ? (estimate.sizePrices?.[size]?.customerTotalCents ?? estimate.pricing.cents.customerTotal) : null;
   const money = (cents) => deliveryMoney(cents, i18n.language, estimate?.pricing?.currency);
 
   const getEstimate = async (event) => {
     event.preventDefault();
     setError('');
+    if (estimatesUnavailable) {
+      setError(t('delivery.estimate.unavailable'));
+      return;
+    }
     if (!stopsReadyForPricing(origin, destination)) {
       setError(t('delivery.customer.selectAddress'));
       return;
@@ -210,6 +221,11 @@ export function EstimateCard({
   return (
     <section className="delivery-estimate-card" ref={cardRef} aria-labelledby="delivery-estimate-title">
       <h2 id="delivery-estimate-title">{t('delivery.estimate.title')}</h2>
+      {estimatesUnavailable && (
+        <p className="delivery-alert delivery-alert--error" role="alert">
+          {t('delivery.estimate.unavailable')}
+        </p>
+      )}
       <form onSubmit={getEstimate} className="delivery-form">
         <label className="delivery-field">
           <span>{t('delivery.customer.pickup')}</span>
@@ -222,6 +238,7 @@ export function EstimateCard({
             inputClassName="delivery-input"
             selectFullAddress
             required
+            disabled={estimatesUnavailable}
           />
         </label>
         <label className="delivery-field">
@@ -235,11 +252,12 @@ export function EstimateCard({
             inputClassName="delivery-input"
             selectFullAddress
             required
+            disabled={estimatesUnavailable}
           />
         </label>
         <label className="delivery-field">
           <span>{t('delivery.estimate.itemSize')}</span>
-          <select className="delivery-input" value={size} onChange={(event) => { setSize(event.target.value); }}>
+          <select className="delivery-input" value={size} onChange={(event) => { setSize(event.target.value); }} disabled={estimatesUnavailable}>
             {PACKAGE_OPTIONS.map((option) => (
               <option key={option} value={option}>
                 {estimate?.sizePrices?.[option]
@@ -282,7 +300,7 @@ export function EstimateCard({
           </div>
         )}
         {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
-        <button type="submit" className="delivery-button delivery-button--primary delivery-button--wide" disabled={busy}>
+        <button type="submit" className="delivery-button delivery-button--primary delivery-button--wide" disabled={busy || estimatesUnavailable}>
           {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <DollarSign size={17} aria-hidden="true" />}
           {t('delivery.estimate.get')}
         </button>

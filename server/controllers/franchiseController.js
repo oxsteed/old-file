@@ -69,12 +69,15 @@ function normalizeCurrencyCode(value) {
 
 /**
  * Keep the progressive franchise entitlement aligned with the current
- * launched application. A self grant is intentionally issued only after a
- * linked business exists; the territory controller still resolves the exact
- * active application before returning data. Reassignment/revocation bumps the
- * browser projection so an open workspace loses access promptly.
+ * launched application. G-26: one franchisee, two territories. The grant
+ * is scoped per territory (subject_type 'franchise_application', the
+ * subject carrying the application id), so losing one territory never
+ * removes access to the other. A legacy self grant is revoked only when
+ * the user has no launched application left. Reassignment/revocation
+ * bumps the browser projection so an open workspace loses access promptly.
  */
 async function syncFranchiseGrant(client, {
+  applicationId = null,
   ownerUserId,
   status,
   linkedBusinessId,
@@ -85,29 +88,71 @@ async function syncFranchiseGrant(client, {
   const affected = new Set((revokeUserIds || []).filter(Boolean).map(String));
   if (currentEligible) affected.add(String(ownerUserId));
 
-  if (currentEligible) {
-    const { rows } = await client.query(
-      `INSERT INTO access_grants (
-         user_id, capability, subject_type, subject_key, status, provenance,
-         provenance_reason, policy_version, granted_by, status_changed_at,
-         status_changed_by, status_reason_code, version, updated_at
-       ) VALUES ($1, 'franchise.operate', 'self', 'self', 'active', 'admin',
-         'territory_assignment', $2, $3, NOW(), $3, 'territory_assigned', 1, NOW())
-       ON CONFLICT (user_id, capability, subject_key) DO UPDATE SET
-         status = 'active', provenance = 'admin',
-         provenance_reason = 'territory_assignment', policy_version = EXCLUDED.policy_version,
-         granted_by = EXCLUDED.granted_by, granted_at = NOW(),
-         status_changed_at = NOW(), status_changed_by = EXCLUDED.status_changed_by,
-         status_reason_code = 'territory_assigned', version = access_grants.version + 1,
-         updated_at = NOW()
-       RETURNING user_id, status, version`,
-      [ownerUserId, FRANCHISE_POLICY_VERSION, actorId],
-    );
-    if (rows.length) await access.bumpProjection(client, ownerUserId);
+  // Per-territory grant for this application.
+  if (applicationId && ownerUserId) {
+    if (currentEligible) {
+      const { rows } = await client.query(
+        `INSERT INTO access_grants (
+           user_id, capability, subject_type, subject_id, subject_key, status, provenance,
+           provenance_reason, policy_version, granted_by, status_changed_at,
+           status_changed_by, status_reason_code, version, updated_at
+         ) VALUES ($1, 'franchise.operate', 'franchise_application', $2, $3, 'active', 'admin',
+           'territory_assignment', $4, $5, NOW(), $5, 'territory_assigned', 1, NOW())
+         ON CONFLICT (user_id, capability, subject_key) DO UPDATE SET
+           status = 'active', provenance = 'admin',
+           provenance_reason = 'territory_assignment', policy_version = EXCLUDED.policy_version,
+           granted_by = EXCLUDED.granted_by, granted_at = NOW(),
+           status_changed_at = NOW(), status_changed_by = EXCLUDED.status_changed_by,
+           status_reason_code = 'territory_assigned', version = access_grants.version + 1,
+           updated_at = NOW()
+         RETURNING user_id, status, version`,
+        [ownerUserId, String(applicationId), `franchise_application:${applicationId}`, FRANCHISE_POLICY_VERSION, actorId],
+      );
+      if (rows.length) await access.bumpProjection(client, ownerUserId);
+    } else {
+      const { rows } = await client.query(
+        `UPDATE access_grants
+            SET status = 'revoked', status_changed_at = NOW(), status_changed_by = $2,
+                status_reason_code = 'territory_assignment_ended', version = version + 1,
+                updated_at = NOW()
+          WHERE user_id = $1 AND capability = 'franchise.operate'
+            AND subject_type = 'franchise_application' AND subject_id = $3
+            AND status IN ('active', 'suspended')
+          RETURNING user_id`,
+        [ownerUserId, actorId, String(applicationId)],
+      );
+      if (rows.length) await access.bumpProjection(client, ownerUserId);
+    }
   }
 
   for (const userId of affected) {
     if (currentEligible && String(userId) === String(ownerUserId)) continue;
+    // A previous owner loses this application's per-territory grant.
+    if (applicationId) {
+      const { rows } = await client.query(
+        `UPDATE access_grants
+            SET status = 'revoked', status_changed_at = NOW(), status_changed_by = $2,
+                status_reason_code = 'territory_assignment_ended', version = version + 1,
+                updated_at = NOW()
+          WHERE user_id = $1 AND capability = 'franchise.operate'
+            AND subject_type = 'franchise_application' AND subject_id = $3
+            AND status IN ('active', 'suspended')
+          RETURNING user_id`,
+        [userId, actorId, String(applicationId)],
+      );
+      if (rows.length) await access.bumpProjection(client, userId);
+    }
+    // Legacy self grant: revoke only when no launched application remains
+    // for this user, so a second territory keeps access.
+    const { rows: [remaining] } = await client.query(
+      `SELECT 1 FROM franchise_applications
+        WHERE (applicant_user_id = $1 OR owner_user_id = $1)
+          AND status = 'launched' AND linked_business_id IS NOT NULL
+          AND ($2::uuid IS NULL OR id <> $2)
+        LIMIT 1`,
+      [userId, applicationId || null],
+    );
+    if (remaining) continue;
     const { rows } = await client.query(
       `UPDATE access_grants
           SET status = 'revoked', status_changed_at = NOW(), status_changed_by = $2,
@@ -358,6 +403,13 @@ async function createFranchiseApplication(req, res) {
       );
 
       await client.query('COMMIT');
+
+      // G-2: filing a franchise application completes the franchise
+      // signup handoff (the owning page is /franchise/apply).
+      try {
+        const signupIntent = require('../services/access/signupIntent');
+        await signupIntent.consumeIntent(req.user?.id, 'franchise');
+      } catch (_consumeErr) { /* consumption never fails the application */ }
 
       const bundle = await fetchFranchiseApplicationBundle(applicationId);
       return res.status(201).json(bundle);
@@ -714,6 +766,7 @@ async function updateFranchiseApplication(req, res) {
       );
 
       await syncFranchiseGrant(client, {
+        applicationId,
         ownerUserId: updateResult.rows[0].owner_user_id,
         status: updateResult.rows[0].status,
         linkedBusinessId: updateResult.rows[0].linked_business_id,
@@ -1371,6 +1424,7 @@ async function activateFranchiseStore(req, res) {
       );
 
       await syncFranchiseGrant(client, {
+        applicationId,
         ownerUserId: application.owner_user_id,
         status: 'launched',
         linkedBusinessId: business.id,
@@ -1413,4 +1467,7 @@ module.exports = {
   signFranchiseAgreement,
   recordFranchiseFeeCollection,
   activateFranchiseStore,
+  // Exported for the legacy access backfill (R-4), which reuses the same
+  // territory-assignment grant shape instead of duplicating the insert.
+  syncFranchiseGrant,
 };

@@ -21,6 +21,7 @@ const { sendNotification } = require('../services/notificationService');
 const permissionsService = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 const { applyStaffOffboarding } = require('../services/staffOffboarding');
+const { bumpProjection } = require('../services/access/accessService');
 const { canActOnRole, resolveActorRole } = require('../utils/teamRanks');
 
 const VALID_ROLES = ['manager', 'representative', 'employee', 'support_agent'];
@@ -543,6 +544,13 @@ exports.redeemCode = async (req, res, next) => {
     // Invalidate any cached permissions for this user on this business
     permissionsService.invalidateCache(codeRow.business_id, req.user.id);
 
+    // G-2/G-3: redeeming a team code completes the team signup handoff.
+    try {
+      const signupIntent = require('../services/access/signupIntent');
+      await signupIntent.consumeIntent(req.user.id, 'join_business_team');
+      await signupIntent.consumeIntent(req.user.id, 'join_restaurant_team');
+    } catch (_consumeErr) { /* consumption never fails the redeem */ }
+
     res.status(200).json({
       data: {
         business_id: codeRow.business_id,
@@ -685,7 +693,7 @@ exports.removeMembership = async (req, res, next) => {
         `UPDATE business_members SET status = 'revoked' WHERE id = $1`,
         [mid]
       );
-      return applyStaffOffboarding(client, {
+      const result = await applyStaffOffboarding(client, {
         businessId: req.business.id,
         userId: rows[0].member_id,
         reason: 'Member removed from the team',
@@ -693,6 +701,11 @@ exports.removeMembership = async (req, res, next) => {
         removedBy: req.user.id,
         reassignToUserId: req.user.id,
       });
+      // G-27: the removed member's projection must drop the business in the
+      // same transaction, or their nav and switcher keep listing it until
+      // a remount while every click 404s server-side.
+      await bumpProjection(client, rows[0].member_id);
+      return result;
     });
     permissionsService.invalidateCache(req.business.id, rows[0].member_id);
     await logBusinessAction(req, {

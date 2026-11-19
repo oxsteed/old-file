@@ -17,7 +17,7 @@ import {
   getReviewQueue, getOpportunity, reviewApplication, reviewOpportunity,
   publishOpportunity, approveClosingConditions, recordClosingApproval,
   closeOpportunity, releaseProceeds, recordDistribution, reviewAmendment,
-  failCloseOpportunity,
+  failCloseOpportunity, recordPartnerEscrowConfirmation,
 } from '../../api/invest';
 import { investAccessFromProjection, formatInvestCents, fundingProgress, opportunityStatusLabel, applicationStatusLabel, amendmentStatusLabel, parseAmountToCents, reviewQueueTabLabel, opportunityDetailFieldLabel } from '../../utils/invest';
 
@@ -56,6 +56,8 @@ function errorKey(code) {
   if (code === 'invest_opportunity_transition_invalid') return 'invest.review.errors.transitionInvalid';
   if (code === 'invest_fail_close_status_invalid') return 'invest.review.errors.transitionInvalid';
   if (code === 'invest_amendment_review_invalid') return 'invest.review.errors.transitionInvalid';
+  if (code === 'invest_amendment_reconfirmation_pending') return 'invest.review.errors.reconfirmationPending';
+  if (code === 'invest_escrow_nothing_pending') return 'invest.review.errors.escrowNothingPending';
   return null;
 }
 
@@ -222,6 +224,16 @@ function AmendmentDetail({ t, item, onDecided }) {
         ) : (
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{t('invest.review.amendments.reconfirmationNone')}</p>
         )}
+        {reconfirmation?.pendingUserIds?.length > 0 ? (
+          <div className="mt-2">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('invest.review.amendments.reconfirmationPendingUsers')}</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-gray-600 dark:text-gray-300">
+              {reconfirmation.pendingUserIds.map((userId) => (
+                <li key={userId} className="break-all">{userId}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {item.reconfirmationDeadlineAt ? (
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
             {t('invest.review.amendments.deadline', { date: formatDate(item.reconfirmationDeadlineAt) || '' })}
@@ -252,6 +264,9 @@ function OpportunityDetail({ t, item, detail, gateOn, onDecided }) {
   const [closingNote, setClosingNote] = useState('');
   const [failCloseReason, setFailCloseReason] = useState('');
   const [distribution, setDistribution] = useState({ positionId: '', amount: '' });
+  const [distributionNotice, setDistributionNotice] = useState(null);
+  const [escrow, setEscrow] = useState({ positionId: '', partnerRef: '', note: '' });
+  const [escrowNotice, setEscrowNotice] = useState(null);
 
   const opportunity = detail?.opportunity || item;
   const funding = detail?.funding || {};
@@ -413,6 +428,7 @@ function OpportunityDetail({ t, item, detail, gateOn, onDecided }) {
             ) : null}
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">{t('invest.review.closing.separateApprovers')}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{t('invest.review.closing.currentVersionOnly')}</p>
         </section>
       ) : null}
 
@@ -463,7 +479,13 @@ function OpportunityDetail({ t, item, detail, gateOn, onDecided }) {
                   setError(t('invest.review.distributions.required'));
                   return;
                 }
-                act(() => recordDistribution(opportunity.id, { positionId: position.id, userId: position.userId, amountCents: cents }));
+                act(async () => {
+                  const result = await recordDistribution(opportunity.id, { positionId: position.id, userId: position.userId, amountCents: cents });
+                  if (result?.queued) {
+                    setDistributionNotice(t('invest.review.distributions.queued'));
+                    setDistribution((p) => ({ ...p, amount: '' }));
+                  }
+                }, { reload: false });
               }}
             >
               <label className="block text-sm text-gray-700 dark:text-gray-200">
@@ -486,10 +508,61 @@ function OpportunityDetail({ t, item, detail, gateOn, onDecided }) {
                   {t('invest.review.distributions.submit')}
                 </button>
               </div>
+              {distributionNotice ? <p className="text-sm text-emerald-700 dark:text-emerald-300" role="status">{distributionNotice}</p> : null}
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('invest.review.distributions.dualApprovalNote')}</p>
             </form>
           ) : (
             <p className="text-sm text-gray-600 dark:text-gray-300">{t('invest.review.distributions.empty')}</p>
           )}
+          {positions.length > 0 ? (
+            <form
+              className="flex flex-col gap-3 border-t border-gray-200 pt-3 dark:border-gray-700"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const position = positions.find((p) => p.id === escrow.positionId);
+                if (!position || !escrow.partnerRef.trim()) {
+                  setError(t('invest.review.escrow.partnerRefRequired'));
+                  return;
+                }
+                act(async () => {
+                  await recordPartnerEscrowConfirmation(position.commitmentId, {
+                    partnerRef: escrow.partnerRef.trim(),
+                    note: escrow.note.trim() || null,
+                  });
+                  setEscrowNotice(t('invest.review.escrow.confirmed'));
+                  setEscrow({ positionId: '', partnerRef: '', note: '' });
+                }, { reload: false });
+              }}
+            >
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{t('invest.review.escrow.title')}</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{t('invest.review.escrow.copy')}</p>
+              <label className="block text-sm text-gray-700 dark:text-gray-200">
+                {t('invest.review.escrow.position')}
+                <select className={selectCls} value={escrow.positionId} onChange={(e) => setEscrow((p) => ({ ...p, positionId: e.target.value }))}>
+                  <option value="">{t('invest.review.escrow.choosePosition')}</option>
+                  {positions.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {`${formatInvestCents(p.amountCents, p.currencyCode || 'USD')} · ${p.userId}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm text-gray-700 dark:text-gray-200">
+                {t('invest.review.escrow.partnerRefLabel')}
+                <input type="text" className={inputCls} value={escrow.partnerRef} maxLength={160} placeholder={t('invest.review.escrow.partnerRefPlaceholder')} onChange={(e) => setEscrow((p) => ({ ...p, partnerRef: e.target.value }))} />
+              </label>
+              <label className="block text-sm text-gray-700 dark:text-gray-200">
+                {t('invest.review.escrow.noteLabel')}
+                <input type="text" className={inputCls} value={escrow.note} maxLength={2000} onChange={(e) => setEscrow((p) => ({ ...p, note: e.target.value }))} />
+              </label>
+              <div>
+                <button type="submit" disabled={busy || !gateOn} className={secondaryBtn}>
+                  {t('invest.review.escrow.confirm')}
+                </button>
+              </div>
+              {escrowNotice ? <p className="text-sm text-emerald-700 dark:text-emerald-300" role="status">{escrowNotice}</p> : null}
+            </form>
+          ) : null}
         </section>
       ) : null}
     </div>

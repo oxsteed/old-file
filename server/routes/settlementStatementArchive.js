@@ -11,13 +11,10 @@
 // - helper_earnings: self-service only. The scope helper id must equal
 //   req.user.id. Nobody else (not team members, not business managers) can
 //   read another helper's earnings.
-// - restaurant_settlement: the restaurant's business owner
-//   (businesses.user_id or food_restaurants.owner_user_id) or an ACTIVE
-//   business_members row with role 'manager'. Representatives are denied:
-//   migration 062 gives them no financial-data access. Revoked/pending
-//   members are denied (membership is checked at request time, never
-//   cached), so removed members lose access immediately.
-// - business: the business owner or an ACTIVE manager of that business.
+// - restaurant_settlement and business: owner, active finance manager,
+//   or active member with explicit statements.view for issued reads only.
+//   Restaurant-wide scopes exclude members limited to specific locations.
+//   Membership is checked at request time.
 // - Parent/franchise/cross-entity: there is no ledger-level parent/child
 //   linkage between business entities, so there is no consolidation view.
 //   Default is no cross-entity visibility.
@@ -41,6 +38,7 @@ const logger = require('../utils/logger');
 const { authenticate } = require('../middleware/auth');
 const { creditExportLimiter } = require('../middleware/rateLimiter');
 const statements = require('../services/settlementStatementService');
+const { memberFinanceReadStanding } = require('../services/access/financeStanding');
 const { hashDocument } = statements;
 const { formatMinor } = require('../services/settlementFinancialHistory');
 
@@ -121,11 +119,8 @@ async function resolveLanguage(userId) {
   }
 }
 
-// Finance standing for a merchant scope: business owner (or the restaurant's
-// recorded owner) or an ACTIVE manager. Representatives, pending, and revoked
-// members are denied. Checked at request time so removed members lose access
-// immediately.
-async function assertMerchantFinanceStanding(userId, { product, restaurantId, businessId }) {
+// Check current owner or authorized member standing for a merchant scope.
+async function assertMerchantFinanceStanding(userId, { product, restaurantId, businessId, allowDelegated }) {
   let businessIdEff = businessId;
   let restaurantOwnerId = null;
   if (product === 'restaurant_settlement') {
@@ -149,25 +144,26 @@ async function assertMerchantFinanceStanding(userId, { product, restaurantId, bu
   const row = rows[0];
   const isOwner = row && (String(row.business_owner_id) === String(userId) || String(restaurantOwnerId) === String(userId));
   const role = isOwner ? 'owner' : row?.effective_role;
-  if (!row || (role !== 'owner' && role !== 'manager')) notFound();
-  // WP-073: a manager also needs finance read (payouts.view) and, for a
-  // restaurant statement, no store boundary. Owners are unaffected.
-  if (role !== 'owner' && !(await require('../services/access/financeStanding').memberHasFinanceRead(pool, {
+  if (!row || !role) notFound();
+  // Store-limited membership cannot read restaurant-wide statements.
+  const standing = isOwner ? 'finance' : await memberFinanceReadStanding(pool, {
     businessId: businessIdEff, userId, restaurantId: product === 'restaurant_settlement' ? restaurantId : null,
-  }))) notFound();
-  return { businessId: businessIdEff, role };
+    allowDelegated,
+  });
+  if (!standing) notFound();
+  return { businessId: businessIdEff, role, ...(standing === 'issued_statements' && { readOnly: true }) };
 }
 
-async function assertScopeStanding(userId, product, scopeId) {
+async function assertScopeStanding(userId, product, scopeId, { allowDelegated = true } = {}) {
   if (product === 'helper_earnings') {
     // Self-service only.
     if (String(scopeId).toLowerCase() !== String(userId).toLowerCase()) notFound();
     return { role: 'self' };
   }
   if (product === 'restaurant_settlement') {
-    return assertMerchantFinanceStanding(userId, { product, restaurantId: scopeId });
+    return assertMerchantFinanceStanding(userId, { product, restaurantId: scopeId, allowDelegated });
   }
-  return assertMerchantFinanceStanding(userId, { product, businessId: scopeId });
+  return assertMerchantFinanceStanding(userId, { product, businessId: scopeId, allowDelegated });
 }
 
 function scopeFilter(product, scopeId) {
@@ -190,7 +186,7 @@ router.get('/issue', creditExportLimiter, async (req, res, next) => {
     } else {
       scopeId = parseScopeId(product, req.query.businessId);
     }
-    await assertScopeStanding(userId, product, scopeId);
+    await assertScopeStanding(userId, product, scopeId, { allowDelegated: false });
     const options = {
       product,
       currencyCode: parseCurrency(req.query.currency),

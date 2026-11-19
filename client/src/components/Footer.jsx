@@ -9,6 +9,7 @@ import { useCookieConsentContext } from '../context/CookieConsentContext';
 import { useTranslation } from 'react-i18next';
 import { footerNavigation } from '../utils/footerNavigation';
 import { useSupportWorkspaceAccess } from '../hooks/useSupportWorkspaceAccess';
+import useAccessProjection from '../hooks/useAccessProjection';
 import './Footer.css';
 
 const OXSTEED_MAIN_PHONE = '+1 (937) 408-5169';
@@ -39,7 +40,8 @@ export default function Footer() {
   const { t } = useTranslation();
   const footerId = useId();
   const showSupportWorkspace = useSupportWorkspaceAccess(user);
-  const groups = footerNavigation(user, { showSupportWorkspace });
+  const accessProjection = useAccessProjection(user);
+  const groups = footerNavigation(user, { showSupportWorkspace, projection: accessProjection });
 
   return (
     <>
@@ -79,7 +81,15 @@ export default function Footer() {
             {groups.map(group => (
               <nav key={group.id} className="site-footer__group" aria-labelledby={`${footerId}-${group.id}`}>
                 <h2 id={`${footerId}-${group.id}`} className="site-footer__heading">{t(group.labelKey)}</h2>
-                {group.links.map(item => <FooterLink key={item.to} to={item.to}>{t(item.labelKey)}</FooterLink>)}
+                {group.links.map(item => (
+                  <FooterLink
+                    key={item.to}
+                    to={item.to}
+                    ariaLabel={group.id === 'your-access' ? `${t(item.labelKey)} — ${t(group.labelKey)}` : undefined}
+                  >
+                    {t(item.labelKey)}
+                  </FooterLink>
+                ))}
               </nav>
             ))}
           </div>
@@ -107,6 +117,16 @@ export default function Footer() {
 
         <div className="site-footer__bottom">
           <p className="site-footer__copyright">&copy; {year} OxSteed LLC</p>
+          {user && (
+            <button
+              type="button"
+              className="site-footer__link"
+              onClick={() => setVortexOpen(true)}
+              data-track="ui.footer.vortex_redeem"
+            >
+              {t('footer.joinTeamWithCode')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -126,8 +146,8 @@ export default function Footer() {
   );
 }
 
-function FooterLink({ to, children }) {
-  return <PrefetchLink className="site-footer__link" to={to}>{children}</PrefetchLink>;
+function FooterLink({ to, children, ariaLabel }) {
+  return <PrefetchLink className="site-footer__link" to={to} aria-label={ariaLabel}>{children}</PrefetchLink>;
 }
 
 function VortexModal({ onClose, initialToken = '' }) {

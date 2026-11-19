@@ -5,7 +5,14 @@
     "fulfillmentMoveBackTitle": "إرجاع تسليم البطاقة خطوة إلى الوراء",
     "fulfillmentMoveBackConfirm": "هل تريد إرجاع هذه البطاقة إلى {{status}}؟ استخدم هذا فقط لتصحيح خطوة تم وضع علامة عليها قبل حدوثها. لا يمكن إرجاع البطاقة المفعلة بالفعل."
   },
+  "creditApplyCustomerNote": "هذا الطلب لصاحب عمل أو مساعد يتقدّم ليقبل عمله أو ملفه الشخصي الائتمان. العميل لا يحتاج إلى أي تسجيل لإنفاق الائتمان.",
+  "creditApplyMyStatus": "طلباتك",
+  "creditApplyStatusActive": "الطلب نشط",
+  "creditApplyStatusPending": "الطلب معلّق",
+  "creditApplyStatusRevoked": "الطلب ملغى",
+  "creditApplyStatusSuspended": "الطلب موقوف",
   "statementCenter": {
+    "delegatedReadPermission": "قراءة الكشوفات الصادرة فقط",
     "title": "مركز الكشوفات",
     "description": "راجع كشوفات الائتمان والتسويات والأرباح والنشاط التجاري في مكان واحد.",
     "eyebrow": "السجلات المالية",
@@ -176,6 +183,10 @@
       "periodActivity": "حركة الفترة",
       "searchAllRecords": "البحث في جميع السجلات",
       "noAccountsYet": "لا توجد حسابات كشوفات متاحة بعد. ستظهر الحسابات هنا عندما تتاح لك.",
+      "locationReportsTitle": "تقارير المتاجر لمواقعك",
+      "locationReportsBody": "يمكنك الاطلاع على تقارير المبيعات والشؤون المالية لمتاجرك المخصصة: {{locations}}.",
+      "locationReportsSettlementNote": "كشوفات تسوية المطعم تغطي المطعم بأكمله ولا تظهر إلا للمقر الرئيسي.",
+      "openLocationReports": "فتح تقارير المتاجر",
       "partialLoadError": "تعذر تحميل بعض الحسابات. أعد المحاولة للتحقق من الحسابات المفقودة.",
       "accountUnavailable": "لم يعد هذا الحساب متاحًا. اختر حسابًا أدناه.",
       "adjusted": "مُعدَّل",
@@ -2362,7 +2373,22 @@
     "title": "إضافة رصيد",
     "intro": "أضف رصيدًا إلى OxSteed Credit بالبطاقة. تتم إضافته بعد تأكيد الدفع.",
     "credited": "تمت إضافة الرصيد إلى OxSteed Credit",
-    "invalidAmount": "أدخل {{min}} على الأقل."
+    "invalidAmount": "أدخل {{min}} على الأقل.",
+    "businessTitle": "تمويل رصيد عضو",
+    "businessIntro": "أضف رصيد OxSteed إلى عضو في الفريق باستخدام طريقة دفع النشاط التجاري. تدفع ببطاقتك؛ ويُضاف الرصيد إلى العضو بمجرد إتمام الدفع.",
+    "businessMemberLabel": "العضو المراد تمويله",
+    "businessMemberPlaceholder": "اختر عضوًا",
+    "businessReasonLabel": "لماذا يمول النشاط التجاري هذا؟",
+    "businessReasonPlaceholder": "على سبيل المثال: بدل أدوات ربع سنوي.",
+    "businessMemberRequired": "اختر عضوًا لتمويله.",
+    "businessReasonRequired": "السبب مطلوب.",
+    "businessCredited": "تمت إضافة الرصيد إلى العضو.",
+    "status": {
+      "pending": "قيد الانتظار",
+      "completed": "تم الإيداع",
+      "failed": "فشل",
+      "requires_attention": "يحتاج إلى انتباه"
+    }
   },
   "identityVerification": {
     "eyebrow": "التحقق من الهوية",

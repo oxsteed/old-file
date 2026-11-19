@@ -5,7 +5,14 @@
     "fulfillmentMoveBackTitle": "Deplase livrezon kat la tounen",
     "fulfillmentMoveBackConfirm": "Deplase kat sa a tounen nan {{status}}? Itilize sa a sèlman pou korije yon etap yo te make anvan li te rive. Yon kat ki deja aktive pa ka deplase tounen."
   },
+  "creditApplyCustomerNote": "Aplikasyon sa a se pou yon pwopriyetè biznis oswa yon edè k ap aplike pou biznis li oswa pwofil li aksepte Kredi. Yon kliyan pa bezwen okenn enskripsyon pou li depanse Kredi.",
+  "creditApplyMyStatus": "Aplikasyon ou yo",
+  "creditApplyStatusActive": "Aplikasyon aktif",
+  "creditApplyStatusPending": "Aplikasyon poko deside",
+  "creditApplyStatusRevoked": "Aplikasyon anile",
+  "creditApplyStatusSuspended": "Aplikasyon sispann",
   "statementCenter": {
+    "delegatedReadPermission": "Li deklarasyon ki deja pibliye sèlman",
     "title": "Sant deklarasyon",
     "description": "Revize deklarasyon kredi, règleman, revni ak biznis ou yo nan yon sèl kote.",
     "eyebrow": "Dosye finansye",
@@ -176,6 +183,10 @@
       "periodActivity": "Aktivite peryòd la",
       "searchAllRecords": "Chèche nan tout dosye yo",
       "noAccountsYet": "Pa gen kont releve ki disponib ankò. Kont yo ap parèt isit la lè yo disponib pou ou.",
+      "locationReportsTitle": "Rapò magazen pou kote ou yo",
+      "locationReportsBody": "Ou ka wè rapò lavant ak finans pou magazen yo ba ou yo: {{locations}}.",
+      "locationReportsSettlementNote": "Releve règleman restoran an kouvri tout restoran an epi se biwo santral sèlman ki ka wè li.",
+      "openLocationReports": "Louvri rapò magazen yo",
       "partialLoadError": "Nou pa t kapab chaje kèk kont. Eseye ankò pou verifye kont ki manke yo.",
       "accountUnavailable": "Kont sa a pa disponib ankò. Chwazi yon kont anba a.",
       "adjusted": "Ajiste",
@@ -2362,7 +2373,22 @@
     "title": "Ajoute lajan",
     "intro": "Ajoute lajan nan OxSteed Credit ak yon kat. Li antre lè peman an konfime.",
     "credited": "Lajan ajoute nan OxSteed Credit ou",
-    "invalidAmount": "Antre omwen {{min}}."
+    "invalidAmount": "Antre omwen {{min}}.",
+    "businessTitle": "Finanse Kredi yon manm",
+    "businessIntro": "Ajoute Kredi OxSteed pou yon manm ekip la ak metòd peman biznis la. Ou peye ak kat ou; manm lan resevwa kredi a lè peman an pase.",
+    "businessMemberLabel": "Manm pou finanse",
+    "businessMemberPlaceholder": "Chwazi yon manm",
+    "businessReasonLabel": "Poukisa biznis la ap finanse sa a?",
+    "businessReasonPlaceholder": "Pa egzanp: alokasyon trimès pou zouti.",
+    "businessMemberRequired": "Chwazi yon manm pou finanse.",
+    "businessReasonRequired": "Yo bezwen yon rezon.",
+    "businessCredited": "Kredi a ajoute pou manm lan.",
+    "status": {
+      "pending": "An atant",
+      "completed": "Kredite",
+      "failed": "Echwe",
+      "requires_attention": "Bezwen atansyon"
+    }
   },
   "identityVerification": {
     "eyebrow": "Verifikasyon idantite",

@@ -34,6 +34,20 @@ describe('D1 — every new person has customer access; signup choice is intent o
     expect(registry.normalizeSignupIntent('admin')).toBe('find_help');
     expect(registry.capabilityForIntent('super_admin')).toBeNull();
   });
+  test('catalog persona intents are known without granting non-application personas', () => {
+    const intents = [
+      'find_help', 'offer_services', 'run_business', 'join_business_team',
+      'run_restaurant', 'join_restaurant_team', 'ship_goods', 'consult',
+      'list_equipment', 'franchise', 'request_reporting', 'join_credit',
+      'join_partner', 'join_workforce', 'request_reviewer', 'request_support',
+      'request_operations', 'request_device',
+    ];
+    for (const intent of intents) expect(registry.normalizeSignupIntent(intent)).toBe(intent);
+    expect(registry.capabilityForIntent('join_business_team')).toBeNull();
+    expect(registry.capabilityForIntent('franchise')).toBeNull();
+    expect(registry.capabilityForIntent('request_reviewer')).toBeNull();
+    expect(registry.capabilityForIntent('request_reporting')).toBe('investor.reporting');
+  });
 });
 
 describe('D2 — Helper / Business Owner open an application reviewed by an authorized OxSteed reviewer', () => {

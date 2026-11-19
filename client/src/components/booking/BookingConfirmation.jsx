@@ -37,6 +37,13 @@ export default function BookingConfirmation({
   const locale = i18n.language || 'en';
   const [agreed, setAgreed] = useState(initialAgreed);
   const [confirmationHours, setConfirmationHours] = useState(24);
+  // G-6: book for another person (recipient name + phone, no account needed).
+  const [forSomeoneElse, setForSomeoneElse] = useState(false);
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
+  // G-7: site contact who coordinates arrival on site.
+  const [siteContactName, setSiteContactName] = useState('');
+  const [siteContactPhone, setSiteContactPhone] = useState('');
   const deadlineLimitHours = useMemo(
     () => getDeadlineLimitHours(bookingData.requestedDate, bookingData.requestedStartTime),
     [bookingData.requestedDate, bookingData.requestedStartTime],
@@ -66,6 +73,10 @@ export default function BookingConfirmation({
     onConfirm({
       ...bookingData,
       confirmationHours: effectiveConfirmationHours,
+      recipientName: forSomeoneElse ? recipientName.trim() || undefined : undefined,
+      recipientPhone: forSomeoneElse ? recipientPhone.trim() || undefined : undefined,
+      siteContactName: siteContactName.trim() || undefined,
+      siteContactPhone: siteContactPhone.trim() || undefined,
     });
   };
 
@@ -186,6 +197,73 @@ export default function BookingConfirmation({
           <p style={{ fontSize: '0.8rem', color: 'var(--muted-text)', marginTop: '0.35rem' }}>
             {t('booking.deadlineHint', { hours: deadlineLimitHours })}
           </p>
+        </div>
+
+        {/* G-6: book for another person. The booker pays; the recipient is
+            who the work is for and can view and cancel the booking. */}
+        <div className="booking-form-group" style={{ marginTop: '1rem' }}>
+          <label>
+            <input
+              type="checkbox"
+              checked={forSomeoneElse}
+              onChange={(e) => setForSomeoneElse(e.target.checked)} data-track="ui.98ea5ee9e6.4"
+            />
+            <span>{t('booking.bookForSomeoneElse')}</span>
+          </label>
+          {forSomeoneElse && (
+            <div style={{ marginTop: '0.5rem', display: 'grid', gap: '0.5rem' }}>
+              <input
+                type="text"
+                className="booking-input"
+                value={recipientName}
+                onChange={(e) => setRecipientName(e.target.value)}
+                placeholder={t('booking.recipientNamePlaceholder')}
+                aria-label={t('booking.recipientName')}
+                maxLength={200}
+              />
+              <input
+                type="tel"
+                className="booking-input"
+                value={recipientPhone}
+                onChange={(e) => setRecipientPhone(e.target.value)}
+                placeholder={t('booking.recipientPhonePlaceholder')}
+                aria-label={t('booking.recipientPhone')}
+                maxLength={40}
+              />
+              <p style={{ fontSize: '0.8rem', color: 'var(--muted-text)' }}>
+                {t('booking.bookForSomeoneElseHint')}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* G-7: site contact who lets the helper in and coordinates arrival.
+            They get a status link with no billing details. */}
+        <div className="booking-form-group" style={{ marginTop: '1rem' }}>
+          <label>{t('booking.siteContact')}</label>
+          <div style={{ display: 'grid', gap: '0.5rem' }}>
+            <input
+              type="text"
+              className="booking-input"
+              value={siteContactName}
+              onChange={(e) => setSiteContactName(e.target.value)}
+              placeholder={t('booking.siteContactNamePlaceholder')}
+              aria-label={t('booking.siteContactName')}
+              maxLength={200}
+            />
+            <input
+              type="tel"
+              className="booking-input"
+              value={siteContactPhone}
+              onChange={(e) => setSiteContactPhone(e.target.value)}
+              placeholder={t('booking.siteContactPhonePlaceholder')}
+              aria-label={t('booking.siteContactPhone')}
+              maxLength={40}
+            />
+            <p style={{ fontSize: '0.8rem', color: 'var(--muted-text)' }}>
+              {t('booking.siteContactHint')}
+            </p>
+          </div>
         </div>
 
         {/* Agreement Checkbox */}

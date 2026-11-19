@@ -17,6 +17,60 @@
     "fulfillmentMoveBackTitle": "Deplase livrezon kat la tounen",
     "fulfillmentMoveBackConfirm": "Deplase kat sa a tounen nan {{status}}? Itilize sa a sèlman pou korije yon etap yo te make anvan li te rive. Yon kat ki deja aktive pa ka deplase tounen."
   },
+  "adminSupportBooking": {
+    "title": "Rezèvasyon (sipò)",
+    "backToSupport": "Retounen nan sipò",
+    "loading": "Y ap chaje rezèvasyon an...",
+    "loadFailed": "Yo pa t reyisi chaje rezèvasyon sa a.",
+    "notFound": "Yo pa t jwenn rezèvasyon an.",
+    "booking": "Rezèvasyon",
+    "appointment": "Randevou",
+    "payment": "Peman",
+    "status": "Estati",
+    "service": "Sèvis",
+    "requestedDate": "Dat yo te mande",
+    "time": "Lè",
+    "location": "Kote",
+    "description": "Deskripsyon",
+    "customer": "Kliyan",
+    "helper": "Prestatè",
+    "unassigned": "Pa asiyen",
+    "bookedFor": "Rezève pou",
+    "siteContact": "Kontak sou plas",
+    "bookedBy": "Rezève pa",
+    "convertedJob": "Travay konvèti",
+    "scheduled": "Pwograme",
+    "cancellationReason": "Rezon anilasyon",
+    "noAppointment": "Pa gen randevou pou kounye a.",
+    "paymentStatus": "Estati peman an",
+    "paymentRequirement": "Egzijans peman",
+    "amount": "Montan",
+    "grossAmount": "Montan brit",
+    "promoDiscount": "Rabè pwomosyon",
+    "refundedAt": "Ranbouse nan",
+    "paymentNote": "Detay peman yo montre san nimewo kat oswa kont."
+  },
+  "learnPrograms": {
+    "completed": "Konplete",
+    "customer-service-essentials": {
+      "description": "Kijan pou sèvi kliyan byen, rezoud pwoblèm, epi fè yo tounen.",
+      "title": "Esansyèl sèvis kliyan"
+    },
+    "enroll": "Enskri",
+    "enrollFailed": "Pa t kapab enskri. Tanpri eseye ankò.",
+    "enrolled": "Enskri",
+    "helper-foundations": {
+      "description": "Baz pou ofri sèvis: sekirite, kominikasyon, ak bon travay.",
+      "title": "Baz pou edè yo"
+    },
+    "progress": "{{completed}} gid sou {{total}} konplete",
+    "subtitle": "Enskri nan yon pwogram pou aprann yon metye etap pa etap. Fini tout gid nan yon pwogram pou ou konplete li.",
+    "title": "Pwogram mendèv",
+    "workforce-management": {
+      "description": "Kijan pou òganize ekip, orè, ak travay kalite nan gwo echèl.",
+      "title": "Jesyon mendèv"
+    }
+  },
   "pwaExperience": {
     "serverUpdated": "Nou senkronize tèks bouyon ki pi resan an. Verifye foto ki sou aparèy sa a.",
     "searchUnavailable": "Rechèch la pa t ka chaje. Rekonekte epi eseye ankò.",
@@ -1623,6 +1677,11 @@
   "merchantFinance": {
     "walletPaused": "Vèsman bous yo pa aktive. Ou ka revize balans lan ak istorik la; kontakte sipò anvan ou mande yon vèsman.",
     "refresh": "Rafrechi demann yo",
+    "draftAwaitingOwner": "Bouyon. Y ap tann pwopriyetè restoran an konfime li anvan li ale nan revizyon.",
+    "draftCreated": "Bouyon an anrejistre. Pwopriyetè restoran an dwe konfime li anvan li ale nan revizyon.",
+    "confirmDraft": "Konfime epi voye pou revizyon",
+    "draftConfirmed": "Peman an konfime epi voye pou revizyon.",
+    "confirmDraftError": "Pa t kapab konfime bouyon peman an.",
     "eyebrow": "Finans restoran",
     "title": "Vèsman ak kredi",
     "description": "Jere fason restoran an resevwa lajan, revize demann kredi kliyan yo epi swiv règleman yo.",
@@ -1860,6 +1919,21 @@
     }
   },
   "signupUpgrade": {
+    "inviteAccept": "Aksepte envitasyon",
+    "inviteAccepted": "Byenvini nan ekip la. Envitasyon ou a aksepte.",
+    "inviteDecline": "Refize envitasyon",
+    "inviteDeclined": "Envitasyon refize.",
+    "inviteFound": "Yo envite ou pou ou rantre nan {{business}} kòm {{role}}.",
+    "inviteLoading": "N ap tcheke envitasyon ou a…",
+    "inviteMissing": "Nou pa t jwenn yon envitasyon ki poko deside pou lyen sa a. Li te ka ekspire oswa li te deja deside.",
+    "inviteOpenWorkspace": "Louvri espas travay",
+    "inviteTitle": "Envitasyon ekip",
+    "resumeCode": "Kòd 6 chif",
+    "resumeFailed": "Imèl sa a ak kòd sa a pa koresponn. Tcheke yo epi eseye ankò.",
+    "resumeHelp": "Ou te kòmanse sou yon lòt aparèy? Mete imèl la ak kòd 6 chif enskripsyon sa a pou ou kontinye kote ou te rete a.",
+    "resumeRestored": "Enfòmasyon enskripsyon ou yo te retabli. Mete modpas ou pou kontinye.",
+    "resumeSubmit": "Kontinye enskripsyon",
+    "resumeTitle": "Kontinye yon enskripsyon ou te kòmanse",
     "title": "Kreye kont ou",
     "subtitle": "Yon kont. Se ou ki chwazi.",
     "headline": "Pwochen opòtinite ou",
@@ -1873,9 +1947,39 @@
     "benefitBusiness": "Devlope biznis ou",
     "benefitBusinessText": "Jwenn talan epi rive jwenn plis moun toupre ou.",
     "modePrompt": "Kijan ou pral sèvi ak OxSteed?",
-    "switcherNote": "Ou ka chanje mòd ou nenpòt lè nan selektè ki nan aplikasyon an.",
-    "setupNote": "Kèk mòd mande lòt etap konfigirasyon.",
-    "intentNote": "Tout moun kòmanse ak aksè kliyan. Apre ou fin verifye imèl ou, ou ka mande aksè pou ofri sèvis oswa jere yon biznis.",
+    "setupNote": "Lòt fason pou itilize OxSteed",
+    "intentNote": "Tout moun kòmanse ak aksè kliyan. Chwazi chemen ki pi byen dekri bezwen ou; pwosesis admisyon an kòmanse apre verifikasyon.",
+    "personas": {
+      "customer": { "title": "Jwenn èd lokal", "description": "Pibliye yon travay, jwenn èd epi kòmande manje." },
+      "helper": { "title": "Ofri sèvis", "description": "Kreye pwofil sèvis, reponn opòtinite epi touche." },
+      "businessOwner": { "title": "Dirije yon biznis", "description": "Kreye prezans biznis ou epi jere travay li." },
+      "businessTeam": { "title": "Antre nan yon ekip biznis", "description": "Travay pou yon biznis ki envite w ak zouti limite." },
+      "restaurantOwner": { "title": "Dirije yon restoran", "description": "Mete restoran an kanpe epi jere operasyon li." },
+      "restaurantTeam": { "title": "Travay nan yon restoran", "description": "Sèvi sèlman ak zouti kote yo ba w aksè." },
+      "logistics": { "title": "Transpò ak livrezon", "description": "Kowòdone anbake, livrezon oswa dispatch." },
+      "consultant": { "title": "Konsilte kliyan", "description": "Pataje konesans ou nan travay ki apwouve." },
+      "equipmentOwner": { "title": "Lis ekipman", "description": "Ofri zouti ak ekipman pou itilizasyon lokal." },
+      "franchise": { "title": "Dirije yon franchiz", "description": "Swiv enskripsyon teritwa ak preparasyon." },
+      "investorReporting": { "title": "Wè rapò envestisè", "description": "Mande rapò pou antite ki elijib; sa pa pèmèt envestisman." },
+      "creditParticipant": { "title": "Patisipe nan OxSteed Credit", "description": "Swiv enskripsyon ak elijiblite pwogram Credit." },
+      "partnerAffiliate": { "title": "Patnè oswa afilye", "description": "Antre nan yon pwogram patnè ki apwouve." },
+      "workforceLearning": { "title": "Aprann oswa anseye", "description": "Antre nan pwogram travay oswa aprantisaj." },
+      "reviewer": { "title": "Revize aplikasyon", "description": "Mande aksè entèn pou travay otorize." },
+      "supportAgent": { "title": "Ede kliyan", "description": "Mande aksè entèn kòm ajan sipò." },
+      "operationsStaff": { "title": "Jere operasyon", "description": "Mande aksè operasyon entèn ki otorize." },
+      "deviceServiceAccount": { "title": "Konekte yon aparèy oswa sèvis", "description": "Sèvi ak kredansyèl ki pa moun yo bay pa administratè." }
+    },
+    "admission": {
+      "baseline": "Aksè kliyan disponib touswit.",
+      "platform_review": "Apre verifikasyon imèl, fini revizyon platfòm lan. Zouti pwoteje yo mande apwobasyon ak aktivasyon.",
+      "organization_invitation": "Chemen sa a kòmanse ak envitasyon oswa apwobasyon manm yon òganizasyon.",
+      "domain_enrollment": "Pwogram ki posede chemen an jere enskripsyon an; ou ka swiv estati san zouti pwoteje.",
+      "staff_provisioning": "Yon administratè OxSteed otorize bay aksè entèn anplwaye yo. Demann ou a anrejistre pou revizyon.",
+      "nonhuman_provisioning": "Mande administratè ou a pou li bay kredansyèl aparèy; enskripsyon sa a kreye kont pèsonèl ou pou demann lan."
+    },
+    "intentConfirmed": "Kont ou pare pou chemen sa a",
+    "intentConfirmationNote": "Pa gen zouti pwoteje ki aktive. Kontinye lè yo envite w oswa lè w elijib.",
+    "viewNextStep": "Wè pwochen etap la",
     "accountReady": "Kont ou pare",
     "applicationNext": "Voye demann ou bay OxSteed pou revizyon. Ou ka sèvi ak kont ou pandan n ap revize li.",
     "applicationLoadFailed": "Kont ou pare, men nou pa t ka chaje demann nan. Eseye ankò oswa fini pita nan Demann yo.",
@@ -1900,7 +2004,7 @@
     "postalLabel": "Kòd postal",
     "optionalPostal": "Kòd postal (opsyonèl)",
     "errorSummary": "Tanpri verifye sa ki annapre yo:",
-    "modeError": "Chwazi yon mòd kont ki disponib.",
+    "modeError": "Chwazi youn nan opsyon ki anba yo.",
     "firstNameError": "Antre yon prenon valab (jiska 100 karaktè).",
     "lastNameError": "Antre yon siyati valab (jiska 100 karaktè).",
     "emailError": "Antre yon imèl valab (jiska 254 karaktè).",
@@ -1929,6 +2033,7 @@
     "sending": "Ap voye yon nouvo kòd…"
   },
   "statementCenter": {
+    "delegatedReadPermission": "Li deklarasyon ki deja pibliye sèlman",
     "accountsTitle": "Chwazi yon kont",
     "personalTitle": "Kont pèsonèl",
     "personalDescription": "Kont kredi pèsonèl ou ak bous restoran ou yo.",
@@ -2295,6 +2400,7 @@
     "exploreInvestments": "Eksplore envestisman yo",
     "requestInvestorAccess": "Mande aksè envestisè",
     "myInvestments": "Envestisman mwen yo",
+    "investments": "Envestisman",
     "workspace": "Espas travay",
     "businessWorkspace": "Espas biznis",
     "foodOrders": "Kòmann manje",
@@ -2331,7 +2437,45 @@
     "network": "Rezo OxSteed",
     "localFoodDirectory": "Anyè Manje Lokal",
     "logistics": "Lojistik",
-    "mainNavigation": "Navigasyon otantifikasyon"
+    "mainNavigation": "Navigasyon otantifikasyon",
+    "credit": "OxSteed Credit",
+    "partner": "Pwogram patnè",
+    "learning": "Aprantisaj travay"
+  },
+  "superModeApprovals": {
+    "allModes": "Tout mòd yo",
+    "applicationData": "Aplikasyon",
+    "approve": "Apwouve",
+    "decideFailed": "Pa t kapab anrejistre desizyon an.",
+    "decided": "Desizyon anrejistre.",
+    "empty": "Pa gen demann ki poko deside.",
+    "loadFailed": "Pa t kapab chaje apwobasyon yo.",
+    "lookupButton": "Chèche",
+    "lookupHelp": "Lis la montre sèlman demann yo poko deside. Chèche yon apwobasyon yo te apwouve pa ID pou ou anile li.",
+    "lookupLabel": "ID apwobasyon",
+    "lookupNotFound": "Pa gen apwobasyon ak ID sa a.",
+    "lookupPlaceholder": "pa egzanp 42",
+    "lookupTitle": "Chèche yon apwobasyon",
+    "modeFilter": "Mòd",
+    "notes": "Nòt",
+    "notesPlaceholder": "Nòt si ou vle pou dosye a",
+    "reasonRequired": "Yon rezon refi obligatwa.",
+    "reject": "Refize",
+    "rejectionReason": "Rezon refi a",
+    "rejectionReasonPlaceholder": "Obligatwa. Moun ki fè demann lan ap wè rezon sa a.",
+    "requestedOn": "Yo te mande li {{date}}",
+    "retry": "Eseye ankò",
+    "revoke": "Anile",
+    "select": "Chwazi yon demann pou revize li.",
+    "stateConflict": "Demann sa a te deja deside. Lis la te mete ajou.",
+    "status": {
+      "approved": "Apwouve",
+      "rejected": "Refize",
+      "requested": "An atant",
+      "revoked": "Anile"
+    },
+    "subtitle": "Deside demann pou aksyon ki limite nan yon mòd. Apwobasyon, refi, ak anilasyon yo anrejistre.",
+    "title": "Apwobasyon mòd"
   },
   "supportAgentPortal": {
     "title": "Espa sipo",
@@ -3415,6 +3559,7 @@
   },
   "footer": {
     "explore": "Eksplore",
+    "joinTeamWithCode": "Rantre nan yon ekip ak yon kòd",
     "services": "Sèvis",
     "help": "Èd",
     "compactTagline": "Èd lokal, manje ak sèvis pou biznis.",
@@ -3445,6 +3590,7 @@
     "doNotSell": "Pa Vann Enfòmasyon Mwen",
     "accessibility": "Aksesibilite",
     "manageCookies": "Jere Bonbon",
+    "yourAccess": "OxSteed ou",
     "vortex": "Vortex",
     "vortexTitle": "Sistèm Vortex",
     "vortexDesc": "Platfòm jestyon biznis",
@@ -6944,10 +7090,50 @@
     "closeJob": "Fèmen travay la",
     "openDispute": "Louvri yon diskisyon",
     "disputeOpened": "Diskisyon an louvri. Nou avèti ekip nou an ak lòt pati a.",
+    "refundTitle": "Mande yon ranbousman",
+    "refundHelp": "Mande yon ranbousman pou travay sa a. Demann ou an ale bay ekip OxSteed pou apwobasyon, epi lajan an ap deplase sèlman lè yo apwouve li.",
+    "refundAmountLabel": "Montan (kite vid pou yon ranbousman konplè)",
+    "refundAmountPlaceholder": "0.00",
+    "refundReasonLabel": "Rezon",
+    "refundReasonPlaceholder": "Di nou poukisa travay sa a bezwen yon ranbousman.",
+    "refundReasonRequired": "Yo bezwen yon rezon.",
+    "refundAmountInvalid": "Antre yon montan valab ki pi gran pase zewo.",
+    "refundRequestQueued": "Demann ranbousman an voye pou apwobasyon.",
+    "refundRequestFailed": "Pa t kapab voye demann ranbousman an.",
+    "refundSubmitting": "Y ap voye demann lan...",
+    "requestRefund": "Mande yon ranbousman",
+    "refundRequestsHeading": "Demann ranbousman yo",
+    "refundNoBusiness": "Pa gen biznis ki lye ak travay sa a, kidonk ou pa ka mande yon ranbousman isit la.",
+    "refundStatus": {
+      "pending": "Y ap tann apwobasyon",
+      "approved": "Apwouve",
+      "executed": "Ranbouse",
+      "rejected": "Rejte",
+      "failed": "Echwe"
+    },
     "signWorkAgreement": "Revize epi siyen akò travay la",
     "viewWorkAgreement": "Gade akò travay la",
     "createWorkAgreement": "Kreye yon akò travay",
-    "reviewsLoadFailed": "Revizyon yo pa t chaje."
+    "reviewsLoadFailed": "Revizyon yo pa t chaje.",
+    "markArrived": "Make arive",
+    "arrivedRecorded": "Arive an anrejistre.",
+    "arrivedAt": "Rive nan {{time}}",
+    "markNoShow": "Make absan",
+    "noShowReasonLabel": "Poukisa pesonn pa t parèt?",
+    "noShowReasonPlaceholder": "Rezon kout pou absans lan",
+    "noShowReasonRequired": "Yo bezwen yon rezon pou make yon absans.",
+    "confirmNoShow": "Konfime absans lan",
+    "noShowRecorded": "Absans lan anrejistre.",
+    "noShowNotice": "Yo make travay sa a kòm yon absans.",
+    "rebookJob": "Rezève ankò",
+    "requestChanges": "Mande chanjman",
+    "changesReasonLabel": "Kisa ki dwe chanje?",
+    "changesReasonPlaceholder": "Dekri chanjman ou bezwen yo",
+    "changesReasonRequired": "Yo bezwen yon rezon pou mande chanjman.",
+    "changesHint": "Travay la rete an kou epi revèy konfimasyon otomatik la poz pandan prestatè a ap fè chanjman yo.",
+    "sendChangesRequest": "Voye demann chanjman an",
+    "changesRequested": "Chanjman yo mande.",
+    "changesRequestedNotice": "Yo te mande chanjman pou travay sa a."
   },
   "myJobs": {
     "cancelUndoNote": "W ap gen 5 segonn pou defèt li apre konfimasyon.",
@@ -9081,7 +9267,21 @@
       "toastUpdated": "Demann antretyen mete ajou",
       "toastUpdateFail": "Nou pa t kapab mete ajou demann antretyen an",
       "toastConverted": "Demann antretyen tounen yon travay",
-      "toastConvertFail": "Nou pa t kapab tounen demann lan an travay"
+      "toastConvertFail": "Nou pa t kapab tounen demann lan an travay",
+      "addProperty": "Ajoute pwopriyete",
+      "allProperties": "Tout pwopriyete yo",
+      "propertiesDescription": "Gwoup travay antretyen yo pa pwopriyete.",
+      "propertiesTitle": "Pwopriyete",
+      "property": "Pwopriyete",
+      "propertyAddress": "Adrès pwopriyete a",
+      "propertyAddressPlaceholder": "Lari, vil, eta",
+      "propertyCreateFail": "Yo pa t reyisi anrejistre pwopriyete a.",
+      "propertyCreated": "Pwopriyete a ajoute.",
+      "propertyFilter": "Filtre pa pwopriyete",
+      "propertyName": "Non pwopriyete a",
+      "propertyNamePlaceholder": "Egzanp: bilding Main Street la",
+      "saveProperty": "Anrejistre pwopriyete a",
+      "toastLoadFail": "Yo pa t reyisi chaje pwopriyete yo."
     },
     "title": "Sant Biznis",
     "tabOverview": "Apèsi",
@@ -9129,6 +9329,13 @@
     "hiringHint": "Envite moun ou deja konnen, oswa pibliye yon wòl pou kandida yo pase nan seleksyon, entèvyou, ofri, ak anbochaj. Yon anbochaj rantre nan onglet Ekip sa a.",
     "tabOverviewLabel": "Apèsi",
     "tabInvoicesLabel": "Bòdwo",
+    "tabCreditLabel": "Kredi Manm",
+    "creditHistoryTitle": "Kredi Finanse",
+    "creditHistoryEmpty": "Pa gen Kredi manm ki finanse ankò.",
+    "creditHistoryMember": "Manm",
+    "creditHistoryAmount": "Montan",
+    "creditHistoryStatus": "Estati",
+    "creditHistoryReason": "Rezon",
     "tabTaxLabel": "Taks",
     "tabGoalsLabel": "Objektif",
     "tabServicesLabel": "Sèvis",
@@ -9145,6 +9352,7 @@
     "tabServicePricingLabel": "Pri Sèvis",
     "tabProductPricingLabel": "Pri Pwodwi",
     "loadingProfile": "Ap chaje pwofil…",
+    "loading": "Ap chaje…",
     "loadingAnalytics": "Ap chaje analiz…",
     "loadingInvoices": "Ap chaje bòdwo…",
     "loadingTax": "Ap chaje estimasyon taks…",
@@ -11598,6 +11806,7 @@
     "messenger": {
       "agreementOpenRecords": "Louvri akò travay ki siyen pou travay sa a",
       "agreementCreateRecords": "Kreye yon akò travay siyen pou travay sa a",
+      "bookingCancel": "Anile rezervasyon",
       "quoteFinishOnJob": "Fini anboche a sou paj travay la",
       "message": "Mesaj",
       "messageName": "Voye mesaj bay {{name}}",
@@ -11859,6 +12068,7 @@
       "refund": "Ranbosman: ${{amount}}",
       "evidenceTitle": "Prèv ({{count}} fichye)",
       "submitEvidence": "Soumèt Prèv",
+      "businessReaderNote": "W ap gade diskisyon sa a pou biznis ou. Reponn li lè w soumèt prèv anba a; mesaj yo rete ant pati orijinal yo ak administratè a.",
       "submitting": "Ap soumèt...",
       "loading": "Ap chaje dispute...",
       "originalDescription": "Deskripsyon orijinal la",
@@ -12842,6 +13052,23 @@
     "moderationActionFailed": "Aksyon moderasyon an echwe.",
     "moderationQueueLoadFailedMessage": "Pa t ka chaje fil moderasyon an.",
     "moderationQueueLoadFailedTitle": "Chaje fil moderasyon an echwe",
+    "moderationJobsTab": "Travay",
+    "moderationFlagsTab": "Siynal kontni",
+    "moderationFlagsTitle": "Siynal kontni",
+    "moderationFlagsCount": "{{count}} siynal nan eta sa a",
+    "moderationFlagsStatus": "Estati",
+    "moderationFlagsEmpty": "Pa gen siynal nan eta sa a.",
+    "moderationFlagsLoading": "Chaje siynal yo…",
+    "moderationFlagsReportedBy": "Siynale pa",
+    "moderationFlagsResolve": "Rezoud",
+    "moderationFlagsDismiss": "Voye jete",
+    "moderationFlagsResolutionLabel": "Nòt rezolisyon",
+    "moderationFlagsResolutionPlaceholder": "Sa ki te deside, pou dosye a",
+    "moderationFlagsAlreadyDecided": "Siynal sa a te deja deside pa yon lòt administratè.",
+    "moderationFlagsReviewFailed": "Revizyon siynal la echwe. Tanpri eseye ankò.",
+    "moderationFlagsPage": "Paj {{page}} sou {{pages}}",
+    "moderationFlagsPrevious": "Anvan",
+    "moderationFlagsNext": "Apre",
     "performanceDetailsLoading": "Ap chaje detay pèfòmans lan…",
     "quoteRequestDetailLoadFailed": "Chaje demann pri a echwe",
     "quoteRequestUpdateFailed": "Mete ajou demann pri a echwe",
@@ -15250,7 +15477,18 @@
     "export": "Ekspòte",
     "cancelUnavailable": "Yo pa ka anile randevou sa a ankò.",
     "appointmentUnavailableBody": "Nou pa t kapab chaje randevou sa a.",
-    "appointmentUnavailable": "Randevou pa disponib"
+    "appointmentUnavailable": "Randevou pa disponib",
+    "acceptedBookings": "Rezèvasyon aksepte yo",
+    "acceptedBookingsSub": "Transfere yon rezèvasyon aksepte bay yon lòt prestatè olye ou anile li.",
+    "bookingTransferred": "Rezèvasyon an transfere.",
+    "errorTransferringBooking": "Yo pa t reyisi transfere rezèvasyon an",
+    "transfer": "Transfere",
+    "transferBooking": "Transfere rezèvasyon sa a bay yon lòt prestatè",
+    "transferHint": "Rezèvasyon an, depo li a ak randevou li rete an plas; se prestatè a sèlman ki chanje.",
+    "transferProviderPlaceholder": "ID itilizatè nouvo prestatè a",
+    "transferProviderRequired": "Antre ID itilizatè nouvo prestatè a.",
+    "transferReasonPlaceholder": "Rezon (si ou vle)",
+    "transferringBooking": "Y ap transfere..."
   },
   "verifyEmail": {
     "title": "Verifye imèl ou",
@@ -16137,7 +16375,36 @@
     "nextStepsTitle": "Sa ki pral swiv",
     "nextStepOne": "Koòdone detay nan mesaj si sa nesesè.",
     "nextStepTwo": "Kalandriye ou montre randevou a lè li konfime.",
-    "nextStepThree": "Si plan chanje, anile nan rezèvasyon ou oswa kalandriye a."
+    "nextStepThree": "Si plan chanje, anile nan rezèvasyon ou oswa kalandriye a.",
+    "bookForSomeoneElse": "Rezève pou yon lòt moun",
+    "bookForSomeoneElseHint": "Rezèvasyon an sou non ou epi ou peye depo a. Travay la se pou moun ki anba a.",
+    "recipientName": "Non moun k ap resevwa a",
+    "recipientNamePlaceholder": "Pou ki moun travay la ye?",
+    "recipientPhone": "Telefòn moun k ap resevwa a",
+    "recipientPhonePlaceholder": "Nimewo telefòn moun k ap resevwa a",
+    "siteContact": "Kontak sou plas",
+    "siteContactHint": "Moun ki pral sou plas la lè travay la ap fèt.",
+    "siteContactName": "Non kontak sou plas la",
+    "siteContactNamePlaceholder": "Ki moun ki pral sou plas la?",
+    "siteContactPhone": "Telefòn kontak sou plas la",
+    "siteContactPhonePlaceholder": "Nimewo telefòn kontak sou plas la",
+    "bookedFor": "Rezève pou",
+    "statusLink": "Lyen estati",
+    "copyLink": "Kopye lyen an",
+    "linkCopied": "Lyen an kopye",
+    "publicStatusTitle": "Estati rezèvasyon an",
+    "publicStatusNotFound": "Nou pa t jwenn rezèvasyon sa a.",
+    "publicStatusArrived": "Rive nan {{time}}",
+    "publicStatusFor": "Pou {{name}}",
+    "publicStatusNote": "Paj sa a montre estati rezèvasyon an ak lè rive a sèlman.",
+    "publicStatus": {
+      "pending": "An atant",
+      "accepted": "Aksepte",
+      "declined": "Refize",
+      "expired": "Ekspire",
+      "cancelled": "Anile",
+      "accepted_cancelled": "Anile apre akseptasyon"
+    }
   },
   "checkout": {
     "title": "Kesye",
@@ -20665,7 +20932,8 @@
       "rangeNote": "Soti nan sèvis estanda rive nan sèvis ijan",
       "standardTotal": "Estanda",
       "signInToBook": "Konekte pou rezève",
-      "signInNote": "Konekte oswa kreye yon kont pou rezève. Estimasyon ou an ap rete ranpli."
+      "signInNote": "Konekte oswa kreye yon kont pou rezève. Estimasyon ou an ap rete ranpli.",
+      "unavailable": "Estimasyon livrezon yo pa disponib kounye a."
     },
     "tabs": {
       "driving": "Kondwi"
@@ -21473,7 +21741,8 @@
       "earningsPending": "An atant",
       "earningsVoided": "Anile",
       "earningsEmpty": "Poko gen peman.",
-      "helperModeHint": "Pou w enskri kòm chofè, ou bezwen mòd èd la anvan. Chanje pou mòd èd nan paramèt yo, epi tounen isit la pou w enskri."
+      "helperModeHint": "Pou w enskri kòm chofè, ou bezwen mòd èd la anvan. Chanje pou mòd èd nan paramèt yo, epi tounen isit la pou w enskri.",
+      "driverAccessHint": "Se sèlman chofè livrezon yo apwouve ki ka enskri isit la. Chofè yo enskri atravè aplikasyon lojistik la, oswa yo chanje pou mòd prestatè nan paramèt yo."
     }
   },
   "aboutPage": {
@@ -21953,7 +22222,8 @@
       "entryPreference": "Preferans antre",
       "bestUpdateChannel": "Pi bon chanèl mizajou",
       "contactPhone": "Pi bon nimewo telefòn",
-      "billableParty": "Faktirasyon default"
+      "billableParty": "Faktirasyon default",
+      "property": "Pwopriyete"
     },
     "placeholders": {
       "title": "Kran nan kwizin nan ap koule anba kabinè a",
@@ -21966,7 +22236,8 @@
       "preferredWindows": "Apre 4è apremidi jou fèy, maten samdi elatriye",
       "accessNotes": "Bèt, kòd pòtay, pakin, règ otorizasyon, oswa fason pou kontakte w.",
       "entryPreference": "Rele an premye, kle jere a bon, voye tèks lè rive",
-      "contactPhone": "Opsyonèl"
+      "contactPhone": "Opsyonèl",
+      "selectProperty": "Chwazi yon pwopriyete"
     },
     "issueCategories": [
       "Plonbri",
@@ -22227,6 +22498,10 @@
         "available": "Disponib"
       },
       "showingTop": "Ap montre 20 premye nan {{count}}"
+    },
+    "territory": {
+      "label": "Teritwa",
+      "newest": "Pi resan"
     }
   },
   "professionalIntakePage": {
@@ -22329,6 +22604,12 @@
   "affiliateDashboard": {
     "loading": "Ap chaje tablo tablodbò afilye a…",
     "loadingAnalytics": "Ap chaje analiz yo…",
+    "partner": {
+      "inviteOnly": "Pwogram afilye yo se sou envitasyon pou edè yo. Mande aksè patnè epi yon revizè ap deside demann ou a.",
+      "pending": "Aksè patnè yo mande. Yon revizè ap deside demann ou a.",
+      "request": "Mande aksè patnè",
+      "requested": "Demann aksè patnè voye."
+    },
     "sparklineNoData": "Pa gen done ankò",
     "pageTitle": "Tablodbò afilye: OxSteed",
     "title": "Tablodbò afilye",
@@ -22716,6 +22997,15 @@
     }
   },
   "invest": {
+    "workspace": {
+      "title": "Envestisman",
+      "intro": "Yon sèl espas pou rapò verifye, opòtinite ki kalifye, ak kontribisyon ak relevè ou yo.",
+      "reports": { "title": "Rapò", "description": "Revize pèfòmans antite yo verifye, mizajou yo, ak rapò ou gen otorizasyon pou wè." },
+      "opportunities": { "title": "Opòtinite envestisman", "description": "Eksplore opòtinite antite ki kalifye pibliye epi revize kondisyon yo anvan ou mande pou patisipe." },
+      "contributions": { "title": "Kontribisyon ak relevè", "description": "Revize kontribisyon OxSteed Credit ou yo, alokasyon, akò, relevè, ak istwa aktivite ki pa ka chanje." },
+      "actions": { "open": "Louvri", "setup": "Fini konfigirasyon" },
+      "status": { "available": "Disponib", "readOnly": "Lekti sèlman", "setup": "Konfigirasyon nesesè" }
+    },
       "entity": {
         "raise": {
           "title": "Ranmase kapital",
@@ -23020,7 +23310,9 @@
           "versionConflict": "Eleman sa a chanje depi li te chaje. Li rechaje; revize dènye vèsyon an epi eseye ankò.",
           "proceedsBlocked": "Lajan an poko ka lage. Opòtinite a dwe fèmen ak kondisyon fèmti yo apwouve anvan.",
           "noAgreement": "Opòtinite sa a pa ka apwouve san yon vèsyon akò.",
-          "transitionInvalid": "Eleman sa a pa ka pase nan eta sa a depi kote li ye kounye a."
+          "transitionInvalid": "Eleman sa a pa ka pase nan eta sa a depi kote li ye kounye a.",
+          "reconfirmationPending": "Gen kèk envestisè ki poko rekonfime amannman sa a. Tann rekonfimasyon an, oswa dat limit rekonfimasyon an pase, anvan ou fè li vin efektif.",
+          "escrowNothingPending": "Pa gen okenn atant depo garanti an kou pou angajman sa a. Li ka deja konfime."
         },
         "actions": {
           "approve": "Apwouve",
@@ -23079,7 +23371,8 @@
           "approveReview": "Apwouve etap revizyon an",
           "approveExecution": "Apwouve etap egzekisyon an",
           "close": "Fèmen opòtinite a",
-          "separateApprovers": "Revizyon ak egzekisyon bezwen apwobatè diferan, epi okenn pa ka reprezantan antite a. Se sèlman apwobatè egzekisyon apwouve a ki ka egzekite fèmti a."
+          "separateApprovers": "Revizyon ak egzekisyon bezwen apwobatè diferan, epi okenn pa ka reprezantan antite a. Se sèlman apwobatè egzekisyon apwouve a ki ka egzekite fèmti a.",
+          "currentVersionOnly": "Fèmti a pran sèlman angajman ki sou vèsyon akò aktyèl la. Angajman ki sou yon ansyen vèsyon rete rezève epi yo dwe anile apa."
         },
         "proceeds": {
           "title": "Lajan ak distribisyon",
@@ -23090,6 +23383,7 @@
           "changes": "Chanjman yo pwopoze",
           "reconfirmationTitle": "Rekonfimasyon envestisè yo",
           "reconfirmation": "{{reconfirmed}} sou {{total}} envestisè te rekonfime, {{pending}} poko rekonfime.",
+          "reconfirmationPendingUsers": "An atant rekonfimasyon (id itilizatè envestisè yo):",
           "reconfirmationNone": "Amandman sa a pa gen nouvo vèsyon akò, kidonk pa gen anyen pou rekonfime.",
           "deadline": "Dat limit rekonfimasyon: {{date}}",
           "note": "Nòt revizyon",
@@ -23108,9 +23402,23 @@
           "position": "Pozisyon",
           "choosePosition": "Chwazi yon pozisyon",
           "amount": "Montan distribisyon (USD)",
-          "submit": "Anrejistre distribisyon",
+          "submit": "Mande distribisyon",
           "empty": "Poko gen pozisyon pou opòtinite sa a.",
-          "required": "Chwazi yon pozisyon epi antre yon montan valab."
+          "required": "Chwazi yon pozisyon epi antre yon montan valab.",
+          "queued": "Distribisyon an nan fil atant. Yon dezyèm administratè dwe apwouve li nan Apwobasyon Lajan anvan okenn Kredi deplase.",
+          "dualApprovalNote": "Distribisyon yo bezwen apwobasyon yon dezyèm administratè. Yo pa kredite anyen jouskaske sa, epi total la pa ka depase pwodwi opòtinite a."
+        },
+        "escrow": {
+          "title": "Konfimasyon depo garanti patnè a",
+          "copy": "Anrejistre konfimasyon patnè a ke lajan ki angaje pou yon pozisyon yo nan depo garanti. Fèmti a kite li an atant espre: se sèlman konfimasyon eksplisit patnè a ki konfime li.",
+          "position": "Pozisyon",
+          "choosePosition": "Chwazi yon pozisyon",
+          "partnerRefLabel": "Referans patnè a",
+          "partnerRefPlaceholder": "Referans konfimasyon patnè a",
+          "noteLabel": "Nòt",
+          "confirm": "Konfime depo garanti a",
+          "confirmed": "Depo garanti konfime pou angajman sa a.",
+          "partnerRefRequired": "Yo bezwen yon referans patnè."
         }
       },
     "application": {
@@ -23563,7 +23871,12 @@
       "helpers": "Èd",
       "verifiedUsers": "Itilizatè verifye"
     },
-    "noData": "Pa gen done kounye a"
+    "noData": "Pa gen done kounye a",
+    "scope": {
+      "platformWide": "Total pou tout platfòm nan. Chif sa yo kouvri tout platfòm nan, pa sèlman pozisyon ou yo.",
+      "position_one": "Limite ak pozisyon ou yo ({{count}} antite).",
+      "position_other": "Limite ak pozisyon ou yo ({{count}} antite)."
+    }
   },
   "healthAlertsDashboard": {
     "title": "Sante biznis",
@@ -25511,6 +25824,7 @@
         "minPayout": "Peman minimòm: {{amount}}",
         "status": {
           "requested": "Mande",
+          "draft": "Bouyon",
           "approved": "Apwouve",
           "processing": "N ap trete",
           "completed": "Fini",
@@ -26769,6 +27083,13 @@
         "noAgreement": "Pa gen akò",
         "royaltyBps": "Devwa {{bps}} pb",
         "marketingBps": "Maketing {{bps}} pb",
+        "accrualCol": "Akumulasyon",
+        "accrualFailedCount": "{{count}} echwe",
+        "accrualStatus": {
+          "accrued": "Akimile",
+          "failed": "Echwe",
+          "pending": "An atant"
+        },
         "totalsSales": "Vant",
         "totalsRoyalty": "Devwa",
         "totalsMarketing": "Maketing",
@@ -33003,6 +33324,7 @@
   },
   "adminNav": {
     "investReviewQueue": "Revizyon envestisman",
+    "modeApprovals": "Apwobasyon mòd",
     "moneyApprovals": "Apwobasyon lajan",
     "adminAccounts": "Kont admin",
     "auditLog": "Jounal odit",
@@ -36717,6 +37039,7 @@
     "typeMarketplaceRefund": "Ranbousman mache",
     "typeDisputeRefund": "Ranbousman dispit",
     "typeRestaurantPayout": "Peman restoran",
+    "typeInvestDistribution": "Distribisyon envestisman",
     "typeAffiliatePayout": "Peman afilye",
     "subject": "Sijè",
     "reason": "Rezon",

@@ -27,6 +27,9 @@ export const accessAPI = {
   getPolicy: (capability) => api.get(`/me/access-policies/${encodeURIComponent(capability)}`).then((r) => r.data),
   listRequests: (params = {}) => api.get('/me/access-requests', { params }).then((r) => r.data),
   getRequest: (id) => api.get(`/me/access-requests/${encodeURIComponent(id)}`).then((r) => r.data),
+  // G-33: the applicant's own grants, every status, with the reason a
+  // grant was suspended or revoked.
+  listMyGrants: () => api.get('/me/access-grants').then((r) => r.data?.grants || []),
   createRequest: (body, key) => api.post('/me/access-requests', body, withKey(key)).then((r) => r.data),
   updateRequest: (id, { expectedVersion, answers }, key) => api
     .patch(`/me/access-requests/${encodeURIComponent(id)}`, { expectedVersion, answers }, withKey(key)).then((r) => r.data),

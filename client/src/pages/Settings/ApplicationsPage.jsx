@@ -11,6 +11,9 @@ import Navbar from '../../components/Navbar';
 import RequestEditor from '../../components/registration/AccessRequestEditor';
 import Footer from '../../components/Footer';
 import { accessAPI } from '../../api/access';
+import api from '../../api/axios';
+import { listMyProvisioningRequests, createPartnerApplicationRequest } from '../../api/signupProvisioning';
+import { listMyInvitations, acceptInvitation, declineInvitation } from '../../api/businesses';
 import { currentAuthEpoch, isCurrentAuthEpoch } from '../../api/authSessionEpoch';
 import { useAuth } from '../../context/AuthContext';
 import { notifyAccessChanged, ACCESS_CHANGED_EVENT } from '../../hooks/useAccessProjection';
@@ -19,6 +22,7 @@ import { LAUNCH_VISIBILITY } from '../../utils/launchScope';
 const NS = 'common';
 const OPEN = ['draft', 'submitted', 'in_review', 'needs_information'];
 const EDITABLE = ['draft', 'needs_information'];
+const DOMAIN_SIGNUP_RESUME_PATHS = new Set(['/vortex', '/credit/apply', '/franchise/apply', '/affiliate', '/learn']);
 
 // AC-010: an approved application names where the capability is used day to
 // day, so the applicant can act on the grant immediately.
@@ -29,7 +33,7 @@ const USE_NOW_ROUTES = Object.freeze({
   'tool_owner.list_equipment': '/tool-rentals',
   'consultant.accept_paying_clients': '/consulting/contractor-dashboard',
   'logistics.ship': '/logistics',
-  'investor.reporting': '/investor/dashboard',
+  'investor.reporting': '/investments',
   'franchise.operate': '/franchise/territory',
 });
 
@@ -93,6 +97,14 @@ function AccountApplications({ accountId, epoch }) {
   const [access, setAccess] = useState(null);
   const [requests, setRequests] = useState([]);
   const [policies, setPolicies] = useState([]);
+  const [invitations, setInvitations] = useState([]);
+  const [invitationBusy, setInvitationBusy] = useState(null);
+  const [provisioningRequests, setProvisioningRequests] = useState([]);
+  const [creditParticipants, setCreditParticipants] = useState([]);
+  const [partnerRequestBusy, setPartnerRequestBusy] = useState(false);
+  // G-33: the account's own grants, every status, so a revocation is
+  // explained in-app instead of silently vanishing from the held list.
+  const [grants, setGrants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -115,7 +127,16 @@ function AccountApplications({ accountId, epoch }) {
     if (!silent) setLoading(true);
     setLoadError(false);
     try {
-      const [a, r, p] = await Promise.all([accessAPI.getAccess(accountId), accessAPI.listRequests({ limit: 50 }), accessAPI.listPolicies()]);
+      const [a, r, p, inv, prov, parts, g] = await Promise.all([
+        accessAPI.getAccess(accountId),
+        accessAPI.listRequests({ limit: 50 }),
+        accessAPI.listPolicies(),
+        listMyInvitations().catch(() => []),
+        listMyProvisioningRequests().then((d) => d.requests || []).catch(() => []),
+        api.get('/oxsteed-credit/participants/me').then((res) => res.data?.participants || []).catch(() => []),
+        // Grants are best-effort here: a failure must not blank the page.
+        accessAPI.listMyGrants().catch(() => []),
+      ]);
       if (!isCurrentAuthEpoch(epoch)) return;
       const heldNow = a.access?.personal || [];
       const version = a.access ? JSON.stringify([heldNow, (a.access.organizations || []).map((o) => [o.id, o.role])]) : null;
@@ -133,6 +154,10 @@ function AccountApplications({ accountId, epoch }) {
       setAccess(a.access);
       setRequests(r.requests || []);
       setPolicies(p.policies || []);
+      setInvitations(inv || []);
+      setProvisioningRequests(prov || []);
+      setCreditParticipants(parts || []);
+      setGrants(Array.isArray(g) ? g : []);
       setUnavailable(false);
       // AC-021: refresh the open request during silent reloads so a reviewer
       // change reaches the editor without remounting it (unsaved answers
@@ -186,10 +211,39 @@ function AccountApplications({ accountId, epoch }) {
   };
 
   const held = new Set(access?.personal || []);
+  // G-1: approval is not activation. The projection carries the activation
+  // state per held capability; surface the missing setup steps here so the
+  // user completes them instead of hitting a bare 403 on first use.
+  const activation = access?.activation || {};
+  const activationIncomplete = [...held].filter((c) => activation[c] && activation[c].ready === false);
+  const activationReadyFor = (capability) => !activation[capability] || activation[capability].ready !== false;
   const openCaps = new Set(requests.filter((r) => OPEN.includes(r.status)).map((r) => r.capability));
+  // G-33: grants that are no longer active, with the reason they changed.
+  // The held list above only ever shows active capabilities, so without
+  // this a revocation vanished with no explanation.
+  const pastGrants = grants.filter((g) => g.status && g.status !== 'active');
+  const grantReason = (grant) => {
+    const code = grant.status_reason_code;
+    if (!code) return null;
+    const key = `progressiveAccess.grantReasons.${code}`;
+    const text = t(key, { ns: NS });
+    return text === key ? code : text;
+  };
   const applyable = policies.filter((p) => p.applicantMayRequest && !held.has(p.capability) && !openCaps.has(p.capability));
   const policyFor = (capability) => policies.find((p) => p.capability === capability);
-  const resumeCapability = access?.signupResume?.requestId == null ? access?.signupResume?.capability : null;
+  const signupResume = access?.signupResume;
+  const signupResumes = access?.signupResumes || (signupResume ? [signupResume] : []);
+  const resumeCapability = signupResume?.requestId == null ? signupResume?.capability : null;
+  // G-2/G-32: every unconsumed intent gets its own card, not just the
+  // oldest one. Capability-backed intents resume through their access
+  // request (applyable section); domain enrollments render here.
+  const domainResumes = held.has('customer')
+    ? signupResumes.filter((r) => !r.capability && DOMAIN_SIGNUP_RESUME_PATHS.has(r.statusPath))
+    : [];
+  const canOfferServices = held.has('helper.offer_services');
+  const pendingPartnerRequest = provisioningRequests.find(
+    (req) => req.kind === 'partner_application' && req.status === 'pending',
+  );
 
   const startApplication = async (capability) => {
     setBusy(true);
@@ -218,6 +272,42 @@ function AccountApplications({ accountId, epoch }) {
       }
     } finally {
       setBusy(false);
+    }
+  };
+
+  // G-3: pending team invitations are decided here, not only in
+  // BusinessHub. Accepting changes membership, so the projection is
+  // refreshed for the nav and switcher.
+  const decideInvitation = async (invitation, action) => {
+    if (invitationBusy) return;
+    setInvitationBusy(invitation.id);
+    try {
+      if (action === 'accept') await acceptInvitation(invitation.id);
+      else await declineInvitation(invitation.id);
+      toast.success(t(action === 'accept' ? 'progressiveAccess.invitations.accepted' : 'progressiveAccess.invitations.declined', { ns: NS }));
+      await load(true);
+      notifyAccessChanged();
+    } catch {
+      toast.error(t('progressiveAccess.errors.generic', { ns: NS }));
+    } finally {
+      setInvitationBusy(null);
+    }
+  };
+
+  // G-23: a non-helper who picked the partner card asks for partner
+  // access. The request is recorded in the review queue; it is not a
+  // grant and it does not open the affiliate dashboard.
+  const requestPartnerAccess = async () => {
+    if (partnerRequestBusy) return;
+    setPartnerRequestBusy(true);
+    try {
+      await createPartnerApplicationRequest();
+      toast.success(t('progressiveAccess.resumes.partnerRequested', { ns: NS }));
+      await load(true);
+    } catch {
+      toast.error(t('progressiveAccess.errors.generic', { ns: NS }));
+    } finally {
+      setPartnerRequestBusy(false);
     }
   };
 
@@ -277,6 +367,90 @@ function AccountApplications({ accountId, epoch }) {
               </div>
             ) : (
               <div className="space-y-8">
+                {domainResumes.length > 0 && (
+                  <section aria-labelledby="access-signup-resume-title" className="space-y-3">
+                    <h2 id="access-signup-resume-title" className="text-lg font-semibold text-content">
+                      {t('signupUpgrade.intentConfirmed', { ns: NS })}
+                    </h2>
+                    {domainResumes.map((resume) => (
+                      <article key={resume.intent} className="rounded-xl border border-border p-4">
+                        <p className="mt-1 text-sm text-muted">{t(`signupUpgrade.admission.${resume.kind}`, { ns: NS })}</p>
+                        {resume.intent === 'join_partner' && !canOfferServices ? (
+                          <>
+                            <p className="mt-2 text-sm text-muted">{t('progressiveAccess.resumes.partnerInviteOnly', { ns: NS })}</p>
+                            {pendingPartnerRequest ? (
+                              <p className="mt-3 text-sm font-medium text-content">{t('progressiveAccess.resumes.partnerPending', { ns: NS })}</p>
+                            ) : (
+                              <button type="button" disabled={partnerRequestBusy} onClick={requestPartnerAccess} className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-on-solid hover:opacity-90 disabled:opacity-50" data-track="ui.access.applications.partner_request">
+                                {t('progressiveAccess.resumes.partnerRequest', { ns: NS })}
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {resume.intent === 'join_credit' && creditParticipants.length > 0 && (
+                              <ul className="mt-2 space-y-1">
+                                {creditParticipants.map((participant) => (
+                                  <li key={participant.participantId} className="text-sm text-muted">
+                                    {t(`progressiveAccess.resumes.creditStatus.${participant.status}`, { ns: NS })}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            <Link to={resume.statusPath} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline">
+                              {t('signupUpgrade.viewNextStep', { ns: NS })}
+                            </Link>
+                          </>
+                        )}
+                      </article>
+                    ))}
+                  </section>
+                )}
+                <section aria-labelledby="access-invitations-title">
+                  <h2 id="access-invitations-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.invitations.title', { ns: NS })}</h2>
+                  {invitations.length === 0 ? (
+                    <p className="text-sm text-muted">{t('progressiveAccess.invitations.empty', { ns: NS })}</p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {invitations.map((inv) => (
+                        <li key={inv.id} className="rounded-xl bg-surface-2/80 p-3">
+                          <p className="text-sm font-medium text-content">{inv.business_name}</p>
+                          <p className="text-xs text-muted">{t('progressiveAccess.invitations.role', { ns: NS, role: inv.role })}</p>
+                          <div className="mt-2 flex flex-wrap gap-3">
+                            <button type="button" disabled={invitationBusy === inv.id} onClick={() => decideInvitation(inv, 'accept')} className="text-sm font-medium text-primary hover:underline disabled:opacity-50" data-track="ui.access.applications.invitation_accept">
+                              {t('progressiveAccess.invitations.accept', { ns: NS })}
+                            </button>
+                            <button type="button" disabled={invitationBusy === inv.id} onClick={() => decideInvitation(inv, 'decline')} className="text-sm hover:underline disabled:opacity-50" style={{ color: 'var(--color-error)' }} data-track="ui.access.applications.invitation_decline">
+                              {t('progressiveAccess.invitations.decline', { ns: NS })}
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="mt-3 text-sm text-muted">
+                    {t('progressiveAccess.invitations.vortexHint', { ns: NS })}{' '}
+                    <Link to="/vortex" className="font-medium text-primary hover:underline" data-track="ui.access.applications.vortex_redeem">
+                      {t('progressiveAccess.invitations.vortexLink', { ns: NS })}
+                    </Link>
+                  </p>
+                </section>
+                {provisioningRequests.length > 0 && (
+                  <section aria-labelledby="access-provisioning-title">
+                    <h2 id="access-provisioning-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.provisioning.title', { ns: NS })}</h2>
+                    <ul className="space-y-3">
+                      {provisioningRequests.map((req) => (
+                        <li key={req.id} className="rounded-xl bg-surface-2/80 p-3">
+                          <p className="text-sm font-medium text-content">{t(`progressiveAccess.provisioning.kinds.${req.kind}`, { ns: NS })}</p>
+                          <p className="text-xs text-muted">{t(`progressiveAccess.status.${req.status}`, { ns: NS })}</p>
+                          {req.decisionNote && (
+                            <p className="mt-1 text-xs text-muted">{req.decisionNote}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
                 <section aria-labelledby="access-held-title">
                   <h2 id="access-held-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.heldTitle', { ns: NS })}</h2>
                   <ul className="flex flex-wrap gap-2">
@@ -290,6 +464,50 @@ function AccountApplications({ accountId, epoch }) {
                     <p className="mt-2 text-xs text-muted">{t('progressiveAccess.organizations', { ns: NS, count: access.organizations.length })}</p>
                   )}
                 </section>
+
+                {activationIncomplete.length > 0 && (
+                  <section aria-labelledby="access-activation-title">
+                    <h2 id="access-activation-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.activationTitle', { ns: NS })}</h2>
+                    <p className="mb-3 text-sm text-muted">{t('progressiveAccess.activationIntro', { ns: NS })}</p>
+                    <ul className="space-y-3">
+                      {activationIncomplete.map((c) => (
+                        <li key={c} className="rounded-xl border border-border p-3">
+                          <p className="text-sm font-medium text-content">{capabilityLabel(t, c)}</p>
+                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted">
+                            {(activation[c].missing || []).map((req) => (
+                              <li key={req}>{t(`progressiveAccess.activationRequirements.${req}`, { ns: NS })}</li>
+                            ))}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {pastGrants.length > 0 && (
+                  <section aria-labelledby="access-past-title">
+                    <h2 id="access-past-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.pastGrantsTitle', { ns: NS })}</h2>
+                    <p className="mb-3 text-sm text-muted">{t('progressiveAccess.pastGrantsDescription', { ns: NS })}</p>
+                    <ul className="space-y-3">
+                      {pastGrants.map((grant) => (
+                        <li key={grant.id} className="rounded-xl border border-border p-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-content">{capabilityLabel(t, grant.capability)}</span>
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${grant.status === 'revoked' ? 'bg-red-500/15 text-red-600' : 'bg-amber-500/15 text-amber-700'}`}>
+                              {t(`progressiveAccess.grantStatus.${grant.status}`, { ns: NS })}
+                            </span>
+                            {grant.status_changed_at && (
+                              <time dateTime={grant.status_changed_at} className="text-xs text-muted">{formatDate(grant.status_changed_at, language)}</time>
+                            )}
+                          </div>
+                          {grantReason(grant) && (
+                            <p className="mt-1 text-sm text-muted">{grantReason(grant)}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
 
                 <section aria-labelledby="access-requests-title">
                   <h2 id="access-requests-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.requestsTitle', { ns: NS })}</h2>
@@ -322,7 +540,7 @@ function AccountApplications({ accountId, epoch }) {
                             </p>
                           )}
                           <div className="mt-2 flex flex-wrap gap-3">
-                            {r.status === 'approved' && USE_NOW_ROUTES[r.capability] && (
+                            {r.status === 'approved' && USE_NOW_ROUTES[r.capability] && activationReadyFor(r.capability) && (
                               <Link
                                 to={USE_NOW_ROUTES[r.capability]}
                                 className="text-sm font-medium text-primary hover:underline"

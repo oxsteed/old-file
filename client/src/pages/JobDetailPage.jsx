@@ -34,6 +34,8 @@ import JobPaymentLayersPanel from '../components/paymentLayers/JobPaymentLayersP
 import JobRevisionHistory from '../components/JobRevisionHistory';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+import { listManagedBusinesses, requestJobRefund, listJobRefundRequests } from '../api/businesses';
+
 function formatBudget(job, t) {
   if (!job) return '-';
   if (job.budget_type === 'open' || (!job.budget_min && !job.budget_max)) return t('jobDetail.openToBids');
@@ -96,6 +98,99 @@ function daysUntil(dateStr) {
 // Statuses where work is agreed or done, so a dispute is meaningful.
 const DISPUTABLE_JOB_STATUSES = ['accepted', 'in_progress', 'pending_completion', 'completed', 'closed'];
 
+// G-20: business-initiated refund requests. The owner asks for a refund on
+// a paid job; the request always queues for platform-admin approval and the
+// requester can never execute it. The business is the owner's business
+// (jobs carry no business_id; the job belongs to the business via its client).
+function JobRefundRequestSection({ job, fieldId }) {
+  const { t } = useTranslation();
+  // Static keys only: verify-i18n cannot resolve a concatenated key, and the
+  // money-approval status domain is closed (pending/approved/rejected/
+  // executed/failed per migration 865), so the lookup is exhaustive.
+  const refundStatusLabels = {
+    pending: t('jobDetail.refundStatus.pending'),
+    approved: t('jobDetail.refundStatus.approved'),
+    rejected: t('jobDetail.refundStatus.rejected'),
+    executed: t('jobDetail.refundStatus.executed'),
+    failed: t('jobDetail.refundStatus.failed'),
+  };
+  const [businessId, setBusinessId] = useState(null);
+  const [requests, setRequests] = useState([]);
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let current = true;
+    listManagedBusinesses()
+      .then((businesses) => {
+        if (!current) return;
+        const owned = businesses.find((b) => b.role === 'owner')
+          || businesses.find((b) => (b.permissions || []).includes('refunds.request'));
+        if (owned) {
+          setBusinessId(owned.id);
+          listJobRefundRequests(owned.id, job.id).then((rows) => { if (current) setRequests(rows); }).catch(() => {});
+        }
+      })
+      .catch(() => {});
+    return () => { current = false; };
+  }, [job.id]);
+
+  const submit = async () => {
+    if (!businessId || submitting) return;
+    const cleanReason = reason.trim();
+    if (!cleanReason) { setError(t('jobDetail.refundReasonRequired')); return; }
+    const parsed = amount.trim() === '' ? null : Number(amount);
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) { setError(t('jobDetail.refundAmountInvalid')); return; }
+    setError(null);
+    setSubmitting(true);
+    try {
+      const payload = { reason: cleanReason, idempotencyKey: `job-refund-${job.id}-${Date.now()}` };
+      if (parsed === null) payload.fullRefund = true;
+      else payload.amount_cents = Math.round(parsed * 100);
+      await requestJobRefund(businessId, job.id, payload);
+      toast.success(t('jobDetail.refundRequestQueued'));
+      setAmount(''); setReason('');
+      listJobRefundRequests(businessId, job.id).then(setRequests).catch(() => {});
+    } catch (err) {
+      setError(err?.response?.data?.error || t('jobDetail.refundRequestFailed'));
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <section className="jdp-card" aria-labelledby={`${fieldId}-refund`}>
+      <h2 id={`${fieldId}-refund`} className="jdp-section-title">{t('jobDetail.refundTitle')}</h2>
+      <p className="jdp-count">{t('jobDetail.refundHelp')}</p>
+      {businessId ? <>
+        <label htmlFor={`${fieldId}-refund-amount`}>{t('jobDetail.refundAmountLabel')}</label>
+        <div className="jdp-input-prefix">
+          <span>{job.currency || 'USD'}</span>
+          <input id={`${fieldId}-refund-amount`} type="number" min="0" step="0.01" inputMode="decimal"
+            placeholder={t('jobDetail.refundAmountPlaceholder')} value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </div>
+        <label htmlFor={`${fieldId}-refund-reason`}>{t('jobDetail.refundReasonLabel')}</label>
+        <textarea id={`${fieldId}-refund-reason`} className="jdp-modal-textarea" rows={3}
+          placeholder={t('jobDetail.refundReasonPlaceholder')} value={reason} onChange={(e) => setReason(e.target.value)} />
+        {error && <p role="alert" className="jdp-error">{error}</p>}
+        <button type="button" className="jdp-btn-ghost" onClick={submit} disabled={submitting} data-track="ui.573dfef74b.18">
+          {submitting ? t('jobDetail.refundSubmitting') : t('jobDetail.requestRefund')}
+        </button>
+      </> : <p className="jdp-count">{t('jobDetail.refundNoBusiness')}</p>}
+      {requests.length > 0 && <div className="jdp-refund-list">
+        <h3 className="jdp-small-heading">{t('jobDetail.refundRequestsHeading')}</h3>
+        {requests.map((r) => (
+          <div key={r.id} className="jdp-refund-row">
+            <span>{formatMoney(r.amountCents / 100, { currency: r.currencyCode || 'USD' })}</span>
+            <span>{refundStatusLabels[r.status] || r.status}</span>
+            <span className="jdp-count">{r.reason}</span>
+          </div>
+        ))}
+      </div>}
+    </section>
+  );
+}
+
 export default function JobDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -143,6 +238,11 @@ function JobDetailContent() {
   const [mediaIndex, setMediaIndex] = useState(null); // lightbox index
   const [cancelReason, setCancelReason] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
+  // G-15/G-16: arrival, no-show, and rework prompts.
+  const [showNoShowPanel, setShowNoShowPanel] = useState(false);
+  const [noShowReason, setNoShowReason] = useState('');
+  const [showChangesPanel, setShowChangesPanel] = useState(false);
+  const [changesReason, setChangesReason] = useState('');
   const [showJobCancellationModal, setShowJobCancellationModal] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
@@ -365,6 +465,76 @@ function JobDetailContent() {
     } finally {
       setActionLoading(false);
     }
+  }
+
+  // G-15: the assigned helper marks arrival; the customer is notified.
+  async function handleArrive() {
+    setActionLoading(true);
+    try {
+      await api.post(`/jobs/${id}/arrive`);
+      fetchJob(id);
+      toast.success(t('jobDetail.arrivedRecorded'));
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // G-15: either party marks a no-show (terminal). A reason is required.
+  async function handleNoShow() {
+    if (!noShowReason.trim()) {
+      toast.error(t('jobDetail.noShowReasonRequired'));
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.post(`/jobs/${id}/no-show`, { reason: noShowReason.trim() });
+      setShowNoShowPanel(false);
+      setNoShowReason('');
+      fetchJob(id);
+      toast.success(t('jobDetail.noShowRecorded'));
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // G-16: the customer asks for changes on a completion request instead of
+  // opening a dispute. The job returns to in progress and the 72h
+  // auto-confirm clock pauses.
+  async function handleRequestChanges() {
+    if (!changesReason.trim()) {
+      toast.error(t('jobDetail.changesReasonRequired'));
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.post(`/jobs/${id}/request-changes`, { reason: changesReason.trim() });
+      setShowChangesPanel(false);
+      setChangesReason('');
+      fetchJob(id);
+      toast.success(t('jobDetail.changesRequested'));
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // G-15: rebook after a no-show by opening the post-job flow prefilled
+  // from this job.
+  function handleRebook() {
+    navigate('/post-job', {
+      state: {
+        bookingPrefill: {
+          serviceName: job?.title || '',
+          description: job?.description || '',
+          locationInput: job?.location_address || '',
+        },
+      },
+    });
   }
 
   async function handleCancel() {
@@ -621,6 +791,50 @@ function JobDetailContent() {
           {view.canHelperComplete && <div className="jdp-secondary-action jdp-helper-complete-action">
             <button type="button" className="jdp-btn-ghost" onClick={handleComplete} disabled={actionLoading || loading} data-track="ui.573dfef74b.8">{t('jobDetail.helperMarkDone')}</button>
           </div>}
+          {/* G-15: the assigned helper marks arrival; the customer sees it. */}
+          {isAssignedHelper && ['accepted', 'in_progress'].includes(job.status) && !job.arrived_at && <div className="jdp-secondary-action">
+            <button type="button" className="jdp-btn-ghost" onClick={handleArrive} disabled={actionLoading || loading} data-track="ui.573dfef74b.18">{t('jobDetail.markArrived')}</button>
+          </div>}
+          {job.arrived_at && <p role="status" className="jdp-completion-pending">
+            {t('jobDetail.arrivedAt', { time: new Date(job.arrived_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}
+          </p>}
+          {/* G-15: either party marks a no-show; the owner gets a rebook prompt. */}
+          {(isOwner || isAssignedHelper) && ['accepted', 'in_progress'].includes(job.status) && <div className="jdp-secondary-action">
+            <button type="button" className="jdp-btn-ghost" onClick={() => setShowNoShowPanel((v) => !v)} disabled={actionLoading || loading} data-track="ui.573dfef74b.19">{t('jobDetail.markNoShow')}</button>
+          </div>}
+          {showNoShowPanel && <div className="jdp-card" role="group" aria-label={t('jobDetail.markNoShow')}>
+            <label htmlFor={`${fieldId}-noshow-reason`}>{t('jobDetail.noShowReasonLabel')}</label>
+            <textarea id={`${fieldId}-noshow-reason`} rows={3} maxLength={500} value={noShowReason}
+              onChange={(e) => setNoShowReason(e.target.value)} placeholder={t('jobDetail.noShowReasonPlaceholder')} />
+            <div className="jdp-modal-actions">
+              <button type="button" className="jdp-btn-primary" onClick={handleNoShow} disabled={actionLoading} data-track="ui.573dfef74b.20">{t('jobDetail.confirmNoShow')}</button>
+              <button type="button" className="jdp-btn-ghost" onClick={() => setShowNoShowPanel(false)} data-track="ui.573dfef74b.21">{t('common.cancel')}</button>
+            </div>
+          </div>}
+          {job.status === 'no_show' && <p role="status" className="jdp-completion-pending">
+            {t('jobDetail.noShowNotice', { reason: job.no_show_reason || '' })}
+          </p>}
+          {isOwner && job.status === 'no_show' && <div className="jdp-secondary-action">
+            <button type="button" className="jdp-btn-primary" onClick={handleRebook} data-track="ui.573dfef74b.22">{t('jobDetail.rebookJob')}</button>
+          </div>}
+          {/* G-16: the customer asks for changes on a completion request
+              instead of opening a dispute. */}
+          {isOwner && job.status === 'in_progress' && job.completion_requested_at && <div className="jdp-secondary-action">
+            <button type="button" className="jdp-btn-ghost" onClick={() => setShowChangesPanel((v) => !v)} disabled={actionLoading || loading} data-track="ui.573dfef74b.23">{t('jobDetail.requestChanges')}</button>
+          </div>}
+          {showChangesPanel && <div className="jdp-card" role="group" aria-label={t('jobDetail.requestChanges')}>
+            <label htmlFor={`${fieldId}-changes-reason`}>{t('jobDetail.changesReasonLabel')}</label>
+            <textarea id={`${fieldId}-changes-reason`} rows={3} maxLength={2000} value={changesReason}
+              onChange={(e) => setChangesReason(e.target.value)} placeholder={t('jobDetail.changesReasonPlaceholder')} />
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>{t('jobDetail.changesHint')}</p>
+            <div className="jdp-modal-actions">
+              <button type="button" className="jdp-btn-primary" onClick={handleRequestChanges} disabled={actionLoading} data-track="ui.573dfef74b.24">{t('jobDetail.sendChangesRequest')}</button>
+              <button type="button" className="jdp-btn-ghost" onClick={() => setShowChangesPanel(false)} data-track="ui.573dfef74b.25">{t('common.cancel')}</button>
+            </div>
+          </div>}
+          {job.change_request_reason && job.status === 'in_progress' && <p role="status" className="jdp-completion-pending">
+            {t('jobDetail.changesRequestedNotice', { reason: job.change_request_reason })}
+          </p>}
           {view.canClose && <div className="jdp-secondary-action jdp-close-action">
             <button type="button" className="jdp-btn-ghost" onClick={handleClose} disabled={actionLoading || loading} data-track="ui.573dfef74b.9">{t('jobDetail.closeJob')}</button>
           </div>}
@@ -644,6 +858,7 @@ function JobDetailContent() {
             </div>
           </section>}
           {isOwner && bidsCard}
+          {isOwner && ['accepted', 'in_progress', 'completed', 'closed'].includes(job.status) && <JobRefundRequestSection job={job} fieldId={fieldId} />}
           {requirementsCard}
           {view.canSubmitBid && <section className="jdp-card jdp-bid-form-card" aria-labelledby={`${fieldId}-bid-form`}>
             <h2 id={`${fieldId}-bid-form`} className="jdp-section-title" tabIndex={-1}>{t('jobDetail.submitYourBid')}</h2>

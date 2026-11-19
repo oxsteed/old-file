@@ -106,6 +106,12 @@ function namespacedIdempotencyKey(movementType, supplied) {
  *
  * Returns { queued: false } when below threshold (caller executes directly),
  * or { queued: true, approval, replay } when queued.
+ *
+ * forceQueue: always queue, even below the threshold. Business-initiated
+ * refund requests (G-20) use this: the requester must never be able to
+ * execute the refund themselves, so the movement always waits for a
+ * platform-admin approval. Same by-design bypass as fee_config_change,
+ * which queues every change.
  */
 async function requestMoneyMovementApproval({
   movementType,
@@ -115,6 +121,7 @@ async function requestMoneyMovementApproval({
   requestedBy,
   idempotencyKey,
   payload = {},
+  forceQueue = false,
 }) {
   // Self-healing registration: the executors are registered at server
   // startup (routes/admin.js), but a rail reached without that wiring must
@@ -136,7 +143,7 @@ async function requestMoneyMovementApproval({
   }
   if (!requestedBy) throw new AppError('requestedBy is required', 400, 'money_movement_actor_required');
 
-  if (!(await movementRequiresDualApproval(amount))) {
+  if (!(await movementRequiresDualApproval(amount)) && !forceQueue) {
     return { queued: false };
   }
 
@@ -332,6 +339,18 @@ async function listPendingMoneyMovementApprovals({ limit = 50, offset = 0 } = {}
           [payload.caseId]
         );
         if (supportCase) { resolvedSubject = `${supportCase.restaurant_name || 'Restaurant'} - support case ${payload.caseId}`; subjectStatus = supportCase.status; }
+      } else if (row.movement_type === 'invest_distribution' && payload.opportunityId) {
+        const { rows: [opportunity] } = await pool.query(
+          `SELECT o.title, p.amount_cents AS position_cents
+             FROM investment_opportunities o
+             LEFT JOIN investment_positions p ON p.id = $2 AND p.opportunity_id = o.id
+            WHERE o.id = $1`,
+          [payload.opportunityId, payload.positionId || null]
+        );
+        if (opportunity) {
+          resolvedSubject = `${opportunity.title || 'Opportunity'} - distribution to position ${payload.positionId}`;
+          subjectStatus = opportunity.position_cents != null ? `position ${opportunity.position_cents} cents` : null;
+        }
       } else if (row.movement_type === 'fee_config_change') {
         // Item 12: no money amount and no subject row to resolve; the
         // payload itself is the subject, so the checker reviews the exact

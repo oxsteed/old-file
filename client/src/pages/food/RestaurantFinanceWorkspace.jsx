@@ -8,9 +8,12 @@ import RestaurantCreditManager from './RestaurantCreditManager';
 import OxsteedCreditPartnerManager from './OxsteedCreditPartnerManager';
 import './RestaurantFinanceWorkspace.css';
 
-export default function RestaurantFinanceWorkspace({ restaurant, canManagePayouts, canManageCredit }) {
+export default function RestaurantFinanceWorkspace({ restaurant, canManagePayouts, canReadPayouts, canManageCredit }) {
   const { t } = useTranslation('common');
   const id = useId();
+  // G-18: managers read payouts (balance, history, draft) but only owners
+  // manage the bank connection. The wallet card follows the read gate.
+  const canSeePayouts = canReadPayouts ?? canManagePayouts;
   const sections = [
     ...(canManagePayouts ? [{ key: 'bank', icon: Landmark }, { key: 'topups', icon: CreditCard }] : []),
     ...(canManageCredit ? [{ key: 'credit', icon: WalletCards }, { key: 'activity', icon: Receipt }] : []),
@@ -30,7 +33,7 @@ export default function RestaurantFinanceWorkspace({ restaurant, canManagePayout
         <section id={`${id}-bank`} tabIndex={-1} className="fd-finance-card" aria-label={t('merchantFinance.bank')}><RestaurantPayoutsPanel restaurant={restaurant} /></section>
         <section id={`${id}-topups`} tabIndex={-1} className="fd-finance-card" aria-label={t('merchantFinance.topups')}><RestaurantTopupEligibilityPanel restaurant={restaurant} onGoToPayouts={() => { const target = document.getElementById(`${id}-bank`); target?.focus(); target?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }} /></section>
       </div>}
-      {canManagePayouts && <div className="fd-finance-card fd-finance-wallet-card"><RestaurantWalletPayoutsPanel restaurantId={restaurant.id} /></div>}
+      {canSeePayouts && <div className="fd-finance-card fd-finance-wallet-card"><RestaurantWalletPayoutsPanel restaurantId={restaurant.id} isOwner={canManagePayouts} /></div>}
       {canManageCredit && <>
         <section id={`${id}-credit`} tabIndex={-1} className="fd-finance-card" aria-label={t('merchantFinance.credit')}><RestaurantCreditManager restaurant={restaurant} /></section>
         <section id={`${id}-activity`} tabIndex={-1} className="fd-finance-card" aria-label={t('merchantFinance.activity')}><OxsteedCreditPartnerManager restaurant={restaurant} /></section>

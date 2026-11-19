@@ -35,7 +35,7 @@ const { creditExportLimiter } = require('../middleware/rateLimiter');
 const { getDownloadStream, createSignedUrl } = require('../services/statementArtifactService');
 const { assertScopeStanding } = require('./settlementStatementArchive');
 const { hashDocument } = require('../services/creditStatementService');
-const { memberHasFinanceRead } = require('../services/access/financeStanding');
+const { memberFinanceReadStanding, memberHasFinanceRead } = require('../services/access/financeStanding');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SETTLEMENT_PRODUCTS = new Set(['restaurant_settlement', 'helper_earnings', 'business']);
@@ -399,7 +399,7 @@ async function nestedArchiveItem(document, artifacts, amendmentData) {
 // version. Version ownership derives from the original document: the same
 // customer predicate and restaurant-standing checks apply, and unknown ids
 // are indistinguishable from missing ones (404).
-async function resolveArchiveEntry(documentId, userId) {
+async function resolveArchiveEntry(documentId, userId, options) {
   const { rows: [original] } = await pool.query(
     `SELECT id, customer_id, product, account_id, currency_code,
             period_from, period_to, generated_at, document, content_hash
@@ -415,8 +415,8 @@ async function resolveArchiveEntry(documentId, userId) {
   const { rows: [settlement] } = await pool.query(
     'SELECT * FROM settlement_statement_documents WHERE id = $1', [documentId]);
   if (settlement) {
-    await assertScopeStanding(userId, settlement.product, settlementAccount(settlement));
-    return { kind: 'original', document: normalizeSettlementRow(verifyDocument(settlement)), version: null };
+    const { readOnly } = await assertScopeStanding(userId, settlement.product, settlementAccount(settlement), options);
+    return { kind: 'original', document: normalizeSettlementRow(verifyDocument(settlement)), version: null, readOnly };
   }
   const { rows: [version] } = await pool.query(
     `SELECT v.*, d.customer_id, d.product, d.account_id, d.currency_code,
@@ -433,9 +433,9 @@ async function resolveArchiveEntry(documentId, userId) {
        JOIN settlement_statement_documents d ON d.id = v.settlement_original_document_id
        WHERE v.id = $1`, [documentId]);
     if (!settlementVersion) throw new AppError('Statement document not found', 404, 'statement_document_not_found');
-    await assertScopeStanding(userId, settlementVersion.product, settlementAccount(settlementVersion));
+    const { readOnly } = await assertScopeStanding(userId, settlementVersion.product, settlementAccount(settlementVersion), options);
     const row = normalizeSettlementRow(verifyDocument(settlementVersion));
-    return { kind: 'amendment', document: row, version: row };
+    return { kind: 'amendment', document: row, version: row, readOnly };
   }
   if (version.product === 'restaurant') {
     await assertRestaurantAccountStanding(userId, version.account_id);
@@ -512,13 +512,38 @@ function downloadFilename(document, mediaType, version) {
   return `credit-statement-${document.product}${amendmentSuffix}-${from}-${to}.${extension}`;
 }
 
+async function merchantStatementScopes(userId, product) {
+  const restaurant = product === 'restaurant_settlement';
+  const { rows } = await pool.query(restaurant
+    ? `SELECT fr.id AS account_id, fr.display_name AS name, fr.currency_code,
+              fr.business_id, (fr.owner_user_id = $1 OR b.user_id = $1) AS is_owner
+         FROM food_restaurants fr JOIN businesses b ON b.id = fr.business_id
+        WHERE b.user_id = $1 OR fr.owner_user_id = $1 OR EXISTS (
+          SELECT 1 FROM business_members bm WHERE bm.business_id = b.id
+            AND bm.member_id = $1 AND bm.status = 'active')
+        ORDER BY fr.id`
+    : `SELECT b.id AS account_id, b.business_name AS name, b.currency_code,
+              b.id AS business_id, (b.user_id = $1) AS is_owner
+         FROM businesses b WHERE b.user_id = $1 OR EXISTS (
+           SELECT 1 FROM business_members bm WHERE bm.business_id = b.id
+             AND bm.member_id = $1 AND bm.status = 'active')
+        ORDER BY b.id`, [userId]);
+  const scopes = [];
+  for (const row of rows) {
+    const standing = row.is_owner ? 'finance' : await memberFinanceReadStanding(pool, {
+      businessId: row.business_id, userId, restaurantId: restaurant ? row.account_id : null, allowDelegated: true,
+    });
+    if (standing) scopes.push({ ...row, readOnly: standing === 'issued_statements' });
+  }
+  return scopes;
+}
+
 function createStatementArchiveRouter({ storage } = {}) {
   const router = express.Router();
 
   router.use(authenticate, noStoreArchiveResponse);
 
-  // Discovery uses the same current owner/active-manager finance standing as
-  // document access. Ordinary staff and former members receive no scopes.
+  // Discovery and pagination use the same standing as document access.
   router.get('/scopes', async (req, res, next) => {
     try {
       const product = String(req.query.product || '');
@@ -526,20 +551,10 @@ function createStatementArchiveRouter({ storage } = {}) {
       if (product === 'helper_earnings') {
         return res.json({ accounts: [{ accountId: req.user.id, currencyCode: null, name: null }] });
       }
-      const restaurant = product === 'restaurant_settlement';
-      const { rows } = await pool.query(restaurant
-        ? `SELECT fr.id AS account_id, fr.display_name AS name, fr.currency_code
-           FROM food_restaurants fr JOIN businesses b ON b.id = fr.business_id
-           WHERE b.user_id = $1 OR fr.owner_user_id = $1 OR EXISTS (
-             SELECT 1 FROM business_members bm WHERE bm.business_id = b.id
-             AND bm.member_id = $1 AND bm.status = 'active' AND bm.role = 'manager')
-           ORDER BY fr.id LIMIT 100`
-        : `SELECT b.id AS account_id, b.business_name AS name, b.currency_code
-           FROM businesses b WHERE b.user_id = $1 OR EXISTS (
-             SELECT 1 FROM business_members bm WHERE bm.business_id = b.id
-             AND bm.member_id = $1 AND bm.status = 'active' AND bm.role = 'manager')
-           ORDER BY b.id LIMIT 100`, [req.user.id]);
-      res.json({ accounts: rows.map(row => ({ accountId: row.account_id, name: row.name, currencyCode: row.currency_code })) });
+      const scopes = await merchantStatementScopes(req.user.id, product);
+      res.json({ accounts: scopes.slice(0, 100).map(row => ({
+        accountId: row.account_id, name: row.name, currencyCode: row.currency_code, readOnly: row.readOnly,
+      })) });
     } catch (error) { next(error); }
   });
 
@@ -550,17 +565,21 @@ function createStatementArchiveRouter({ storage } = {}) {
     try {
       const { product, accountId, currency, year, month } = req.query;
       if (SETTLEMENT_PRODUCTS.has(String(product))) {
-        const params = [String(product), req.user.id];
+        const params = [String(product)];
         const conditions = ['d.product = $1'];
-        if (product === 'helper_earnings') conditions.push('d.scope_helper_user_id = $2');
-        else if (product === 'business') conditions.push(`EXISTS (SELECT 1 FROM businesses b
-          WHERE b.id = d.scope_business_id AND (b.user_id = $2 OR EXISTS (
-            SELECT 1 FROM business_members bm WHERE bm.business_id = b.id AND bm.member_id = $2
-            AND bm.status = 'active' AND bm.role = 'manager')))`);
-        else conditions.push(`EXISTS (SELECT 1 FROM food_restaurants fr JOIN businesses b ON b.id = fr.business_id
-          WHERE fr.id = d.scope_restaurant_id AND (fr.owner_user_id = $2 OR b.user_id = $2 OR EXISTS (
-            SELECT 1 FROM business_members bm WHERE bm.business_id = b.id AND bm.member_id = $2
-            AND bm.status = 'active' AND bm.role = 'manager')))`);
+        const readOnlyScopes = new Set();
+        if (product === 'helper_earnings') {
+          params.push(req.user.id);
+          conditions.push('d.scope_helper_user_id = $2');
+        } else {
+          const column = product === 'business' ? 'scope_business_id' : 'scope_restaurant_id';
+          const scopes = await merchantStatementScopes(req.user.id, product);
+          params.push(scopes.map(row => row.account_id));
+          for (const scope of scopes) {
+            if (scope.readOnly) readOnlyScopes.add(String(scope.account_id));
+          }
+          conditions.push(`d.${column} = ANY($2::bigint[])`);
+        }
         if (accountId !== undefined) {
           if (product === 'helper_earnings' ? !UUID_PATTERN.test(String(accountId)) : !/^[1-9]\d*$/.test(String(accountId))) {
             throw new AppError('Invalid statement account', 400, 'statement_archive_invalid_account');
@@ -593,7 +612,8 @@ function createStatementArchiveRouter({ storage } = {}) {
         const amendments = await attachAmendmentVersions(documents.map(row => row.id));
         const items = [];
         for (const document of documents) {
-          items.push(await nestedArchiveItem(document, await listDocumentArtifacts(document.id), amendments));
+          const item = await nestedArchiveItem(document, await listDocumentArtifacts(document.id), amendments);
+          items.push({ ...item, readOnly: readOnlyScopes.has(String(document.account_id)) });
         }
         return res.json({ items, page, perPage, total, totalPages: Math.max(1, Math.ceil(total / perPage)), paginationUnit: 'originals' });
       }
@@ -712,28 +732,29 @@ function createStatementArchiveRouter({ storage } = {}) {
         const supersededCount = (amendmentData.versionsByOriginal.get(originalId) || [])
           .filter(version => Number(version.revision_number) > Number(entry.version.revision_number)).length;
         res.json({
-          document: shapeVersionItem(
+          document: { ...shapeVersionItem(
             entry.version,
             entry.version,
             amendmentData.artifactsByVersion.get(entry.version.id) || null,
             { adminNames: amendmentData.adminNames, superseded: supersededCount > 0 }),
+          readOnly: entry.readOnly === true },
         });
         return;
       }
       const artifacts = await listDocumentArtifacts(documentId);
       const amendmentData = await attachAmendmentVersions([documentId]);
       const item = await nestedArchiveItem(entry.document, artifacts, amendmentData);
-      res.json({ document: { ...shapeArchiveDetail(entry.document, artifacts), ...item } });
+      res.json({ document: { ...shapeArchiveDetail(entry.document, artifacts), ...item, readOnly: entry.readOnly === true } });
     } catch (error) { next(error); }
   });
 
-  async function resolveServableArtifact(req) {
+  async function resolveServableArtifact(req, options) {
     const documentId = documentIdOr404(req.params.documentId);
     const language = req.query.language === undefined ? 'en' : String(req.query.language);
     if (!LANGUAGES.includes(language)) {
       throw new AppError('Unsupported statement language', 400, 'statement_archive_invalid_language');
     }
-    const entry = await resolveArchiveEntry(documentId, req.user.id);
+    const entry = await resolveArchiveEntry(documentId, req.user.id, options);
     if (entry.kind === 'amendment') {
       // An amendment version serves its own published artifact directly;
       // incomplete artifacts are never served.
@@ -813,7 +834,7 @@ function createStatementArchiveRouter({ storage } = {}) {
   // must not be stored or shared.
   router.get('/archive/:documentId/link', creditExportLimiter, async (req, res, next) => {
     try {
-      const { artifact } = await resolveServableArtifact(req);
+      const { artifact } = await resolveServableArtifact(req, { allowDelegated: false });
       const requestedTtl = req.query.ttlSeconds === undefined ? undefined : Number(req.query.ttlSeconds);
       const signed = await createSignedUrl({
         artifactId: artifact.id,

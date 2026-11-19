@@ -59,11 +59,17 @@ test('built app recovers a cold outage and transient refresh without losing a pr
     assert.equal(await title.inputValue(), 'Private draft saved before an outage');
     // A later failure must retain the mounted form and its current edits.
     await title.fill('Private unsent edit during a refresh outage');
-    fixture.state.failures['/api/auth/me'] = 503;
-    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
-    await page.locator('.pwa-connection-offline').waitFor();
+    await page.bringToFront();
+    fixture.state.readOutage = true;
+    // Closing the sibling tab can trigger a successful focus refresh just
+    // before this outage. A single pageshow can fall inside its cooldown.
+    await page.waitForFunction(() => {
+      if (document.querySelector('.pwa-connection-offline')) return true;
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+      return false;
+    }, null, { polling: 250, timeout: 12000 });
     assert.equal(await title.inputValue(), 'Private unsent edit during a refresh outage');
-    delete fixture.state.failures['/api/auth/me'];
+    fixture.state.readOutage = false;
     await page.getByRole('button', { name: 'Retry', exact: true }).click();
     await page.locator('.pwa-connection').waitFor({ state: 'detached' });
     assert.equal(await title.inputValue(), 'Private unsent edit during a refresh outage');

@@ -3,13 +3,14 @@
 const crypto = require('crypto');
 const AppError = require('../utils/appError');
 const integrity = require('./localDeliveryIntegrity');
+// G-46: the claim gate admits logistics.ship holders, not only legacy helpers.
+const { canDriveMarketplace } = require('./deliveryDriverAdmission');
 
 // All writers lock the job before its resources. Resources are locked in sorted
 // order, including the previous assignment on reassignment. Exclusion constraints
 // remain the final guard against writers which do not use this protocol.
 const TERMINAL = new Set(['delivered', 'cancelled', 'returned']);
 const OPERATORS = new Set(['sourcing_operator', 'logistics_coordinator', 'warehouse_operator', 'admin', 'super_admin']);
-const HELPERS = new Set(['helper', 'helper_pro', 'business_owner', 'business_manager', 'business_representative', 'business_employee']);
 const fail = (message, code, status = 409) => new AppError(message, status, code);
 const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 const isOperator = (user) => ['admin', 'super_admin'].includes(user?.role) || OPERATORS.has(user?.logistics_role);
@@ -167,11 +168,14 @@ async function checkAssignment(client, job, assignment, window) {
 
 const recordActivity = integrity.recordActivity;
 
-function authorize(req, job, access) {
+async function authorize(req, job, access) {
   if (!req.user?.id) throw fail('Authentication required', 'auth_required', 401);
   if (access === 'operator' && !isOperator(req.user)) throw fail('Operations access required', 'delivery_operator_required', 403);
   if (access === 'participant' && !isOperator(req.user) && !isParticipant(job, req.user)) throw fail('Delivery job not found', 'delivery_not_found', 404);
-  if (access === 'helper' && !(HELPERS.has(req.user.default_mode) || req.user.role === 'helper')) throw fail('Helper access required', 'delivery_helper_required', 403);
+  // G-46: marketplace claiming admits a logistics.ship holder with no
+  // legacy helper state. The approved/active profile check still runs
+  // inside the claim operation itself.
+  if (access === 'helper' && !(await canDriveMarketplace(req.user))) throw fail('Helper access required', 'delivery_helper_required', 403);
   if (access === 'returnReviewer' && !isOperator(req.user)) {
     const assigned = [job.helper_user_id, job.internal_driver_user_id].some((id) => sameId(id, req.user.id));
     if (!assigned || !['in_transit', 'completed'].includes(req.body?.decision)) throw fail('Only operations may review returns; assigned drivers may report return progress', 'delivery_return_operator_required', 403);
@@ -201,7 +205,7 @@ function createActionRunner(deps = {}) {
       positiveId(jobId);
       const job = (await client.query('SELECT * FROM delivery_jobs WHERE id = $1 FOR UPDATE', [jobId])).rows[0];
       if (!job) throw fail('Delivery job not found', 'delivery_not_found', 404);
-      authorize(req, job, access);
+      await authorize(req, job, access);
       const { clientRequestId, idempotencyKey, ...body } = req.body || {};
       const input = { jobId: String(job.id), childId: childId || null, action, body };
       const prior = await integrity.actionReplay(client, job, req.user, action, key, input);

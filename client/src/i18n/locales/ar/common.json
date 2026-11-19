@@ -1680,7 +1680,8 @@
     "help": "المساعدة",
     "compactTagline": "مساعدة محلية وطعام وخدمات للأعمال.",
     "teamAccess": "دخول الفريق (Vortex)",
-    "creditTerms": "شروط OxSteed Credit"
+    "creditTerms": "شروط OxSteed Credit",
+    "yourAccess": "OxSteed الخاص بك"
   },
   "nav": {
     "findHelp": "العثور على مساعدة",
@@ -1692,7 +1693,11 @@
     "foodOrders": "طلبات الطعام",
     "myApplications": "طلباتي",
     "account": "الحساب",
-    "help": "المساعدة"
+    "help": "المساعدة",
+    "credit": "OxSteed Credit",
+    "partner": "برنامج الشركاء",
+    "learning": "التعلم المهني",
+    "browseJobs": "تصفح الوظائف"
   },
   "signupUpgrade": {
     "title": "أنشئ حسابك",
@@ -1708,9 +1713,39 @@
     "benefitBusiness": "نمِّ نشاطك التجاري",
     "benefitBusinessText": "اعثر على المواهب وتواصل مع مزيد من الأشخاص محليًا.",
     "modePrompt": "كيف ستستخدم OxSteed؟",
-    "switcherNote": "يمكنك تغيير وضعك في أي وقت من محدد الأوضاع داخل التطبيق.",
-    "setupNote": "تتطلب بعض الأوضاع إعدادًا إضافيًا.",
-    "intentNote": "يبدأ الجميع بصلاحيات العميل. بعد التحقق من بريدك الإلكتروني، يمكنك طلب صلاحية تقديم الخدمات أو إدارة نشاط تجاري.",
+    "setupNote": "طرق أخرى لاستخدام OxSteed",
+    "intentNote": "يبدأ الجميع بصلاحيات العميل. اختر المسار الذي يصف احتياجاتك؛ تبدأ عملية القبول بعد التحقق.",
+    "personas": {
+      "customer": { "title": "العثور على مساعدة محلية", "description": "انشر طلبًا واعثر على مساعدة واطلب الطعام." },
+      "helper": { "title": "تقديم الخدمات", "description": "أنشئ ملف خدمة واستجب للفرص واحصل على مستحقاتك." },
+      "businessOwner": { "title": "إدارة نشاط تجاري", "description": "أنشئ حضورًا تجاريًا وأدر أعماله." },
+      "businessTeam": { "title": "الانضمام إلى فريق أعمال", "description": "اعمل لدى نشاط دعاك بصلاحيات محددة." },
+      "restaurantOwner": { "title": "إدارة مطعم", "description": "أعد المطعم وأدر عملياته." },
+      "restaurantTeam": { "title": "العمل في مطعم", "description": "استخدم الأدوات المسموح بها لموقعك فقط." },
+      "logistics": { "title": "نقل السلع والتوصيل", "description": "نسّق الشحن والتوصيل والتوزيع." },
+      "consultant": { "title": "استشارة العملاء", "description": "شارك خبرتك في مهام مدفوعة معتمدة." },
+      "equipmentOwner": { "title": "إدراج المعدات", "description": "اعرض الأدوات والمعدات للاستخدام المحلي المعتمد." },
+      "franchise": { "title": "إدارة امتياز", "description": "تابع تسجيل المنطقة وتجهيز التشغيل." },
+      "investorReporting": { "title": "تقارير المستثمرين", "description": "اطلب تقارير للكيانات المؤهلة؛ لا يتيح ذلك الاستثمار." },
+      "creditParticipant": { "title": "المشاركة في OxSteed Credit", "description": "اتبع مسار التسجيل والأهلية في البرنامج." },
+      "partnerAffiliate": { "title": "شريك أو تابع", "description": "انضم إلى برنامج شركاء معتمد." },
+      "workforceLearning": { "title": "التعلم أو التعليم", "description": "انضم إلى برامج العمل والتعلم والتدريب." },
+      "reviewer": { "title": "مراجعة الطلبات", "description": "اطلب تفعيل المراجع الداخلي للعمل المصرح به." },
+      "supportAgent": { "title": "دعم العملاء", "description": "اطلب تفعيل وكيل الدعم الداخلي." },
+      "operationsStaff": { "title": "إدارة العمليات", "description": "اطلب صلاحية العمليات الداخلية المعتمدة." },
+      "deviceServiceAccount": { "title": "ربط جهاز أو خدمة", "description": "استخدم بيانات اعتماد غير بشرية يوفرها المسؤول، لا حسابًا شخصيًا." }
+    },
+    "admission": {
+      "baseline": "يتوفر وصول العميل فورًا.",
+      "platform_review": "بعد التحقق من البريد، أكمل مراجعة المنصة. تبقى الأدوات المحمية مقفلة حتى الموافقة والتفعيل.",
+      "organization_invitation": "يبدأ هذا المسار بدعوة أو موافقة عضوية من مؤسسة.",
+      "domain_enrollment": "يدير البرنامج المختص هذا التسجيل؛ يمكنك متابعة الحالة دون فتح أدوات محمية.",
+      "staff_provisioning": "يتم توفير وصول الموظفين الداخلي من قبل مسؤول OxSteed معتمد. تم تسجيل طلبك للمراجعة.",
+      "nonhuman_provisioning": "اطلب من المسؤول توفير بيانات اعتماد الجهاز؛ هذا التسجيل ينشئ حسابك الشخصي للطلب."
+    },
+    "intentConfirmed": "حسابك جاهز لهذا المسار",
+    "intentConfirmationNote": "لم يتم تفعيل أي أدوات محمية. تابع عند دعوتك أو تحقق أهليتك.",
+    "viewNextStep": "عرض الخطوة التالية",
     "accountReady": "حسابك جاهز",
     "applicationNext": "أرسل طلبك إلى OxSteed لمراجعته. يمكنك استخدام حسابك أثناء المراجعة.",
     "applicationLoadFailed": "حسابك جاهز، لكن تعذّر تحميل الطلب. حاول مجددًا أو أكمله لاحقًا في صفحة الطلبات.",
@@ -1735,7 +1770,7 @@
     "postalLabel": "الرمز البريدي",
     "optionalPostal": "الرمز البريدي (اختياري)",
     "errorSummary": "يرجى مراجعة ما يلي:",
-    "modeError": "اختر وضع حساب متاحًا.",
+    "modeError": "اختر أحد الخيارات أدناه.",
     "firstNameError": "أدخل اسمًا أول صالحًا (حتى 100 حرف).",
     "lastNameError": "أدخل اسم عائلة صالحًا (حتى 100 حرف).",
     "emailError": "أدخل بريدًا إلكترونيًا صالحًا (حتى 254 حرفًا).",
@@ -1761,7 +1796,22 @@
     "restart": "إعادة التسجيل",
     "resendWait": "حاول بعد {{seconds}} ثانية",
     "verifying": "جارٍ التحقق من الرمز…",
-    "sending": "جارٍ إرسال رمز جديد…"
+    "sending": "جارٍ إرسال رمز جديد…",
+    "inviteAccept": "قبول الدعوة",
+    "inviteAccepted": "مرحبًا بك في الفريق. تم قبول دعوتك.",
+    "inviteDecline": "رفض الدعوة",
+    "inviteDeclined": "تم رفض الدعوة.",
+    "inviteFound": "تمت دعوتك للانضمام إلى {{business}} بصفة {{role}}.",
+    "inviteLoading": "جارٍ التحقق من دعوتك…",
+    "inviteMissing": "تعذّر العثور على دعوة معلّقة لهذا الرابط. قد تكون منتهية الصلاحية أو تم البت فيها.",
+    "inviteOpenWorkspace": "فتح مساحة العمل",
+    "inviteTitle": "دعوة فريق",
+    "resumeCode": "رمز من 6 أرقام",
+    "resumeFailed": "هذا البريد الإلكتروني والرمز غير متطابقين. تحقق منهما وحاول مرة أخرى.",
+    "resumeHelp": "بدأت على جهاز آخر؟ أدخل البريد الإلكتروني ورمز الأرقام الستة من ذلك التسجيل لمتابعة ما تركته.",
+    "resumeRestored": "تمت استعادة بيانات تسجيلك. أدخل كلمة المرور للمتابعة.",
+    "resumeSubmit": "متابعة التسجيل",
+    "resumeTitle": "متابعة تسجيل بدأته"
   },
   "actions": {
     "cancel": "إلغاء",
@@ -6518,10 +6568,44 @@
     "retry": "إعادة المحاولة"
   },
   "progressiveAccess": {
+    "invitations": {
+      "accept": "قبول",
+      "accepted": "تم قبول الدعوة.",
+      "decline": "رفض",
+      "declined": "تم رفض الدعوة.",
+      "empty": "لا توجد دعوات فريق معلّقة.",
+      "role": "الدور: {{role}}",
+      "title": "دعوات الفريق",
+      "vortexHint": "هل لديك رمز فريق؟",
+      "vortexLink": "استخدام رمز"
+    },
     "pageTitle": "الطلبات",
     "pageSubtitle": "اطّلع على ما يمكن لحسابك فعله وقدّم طلبًا للمزيد.",
     "backToSettings": "العودة إلى الإعدادات",
     "loading": "جارٍ التحميل…",
+    "provisioning": {
+      "kinds": {
+        "device": "جهاز",
+        "partner_application": "طلب شريك",
+        "service_account": "حساب خدمة",
+        "staff_operations": "عمليات الموظفين",
+        "staff_reviewer": "مراجع موظفين",
+        "staff_support": "وكيل دعم موظفين"
+      },
+      "title": "طلبات التوفير"
+    },
+    "resumes": {
+      "creditStatus": {
+        "active": "طلب الائتمان نشط",
+        "pending": "طلب الائتمان معلّق",
+        "revoked": "طلب الائتمان ملغى",
+        "suspended": "طلب الائتمان موقوف"
+      },
+      "partnerInviteOnly": "برامج الشركاء بدعوة للمساعدين. يمكنك طلب الوصول كشريك.",
+      "partnerPending": "تم طلب الوصول كشريك. سيبتّ مراجع في طلبك.",
+      "partnerRequest": "طلب الوصول كشريك",
+      "partnerRequested": "تم إرسال طلب الوصول كشريك."
+    },
     "unavailable": "الطلبات غير متاحة لحسابك بعد.",
     "loadFailed": "تعذّر تحميل طلباتك.",
     "heldTitle": "ما يمكنك فعله الآن",
@@ -6529,6 +6613,18 @@
     "requestsTitle": "طلباتك",
     "noRequests": "ليس لديك أي طلبات بعد.",
     "applyTitle": "قدّم طلبًا للمزيد",
+    "activationTitle": "أكمل الإعداد لاستخدام هذا الوصول",
+    "activationIntro": "الموافقة هي الخطوة الأولى فقط. أكمل العناصر أدناه لبدء استخدام هذا الوصول.",
+    "activationRequirements": {
+      "identity_verified": "تحقق من هويتك",
+      "helper_terms": "اقبل شروط المساعد",
+      "payout_setup": "أعدّ المدفوعات",
+      "restaurant_activation": "فعّل مطعمك",
+      "territory_assignment": "أكّد تعيين منطقتك",
+      "authority_verified": "تحقق من صلاحيتك للاستثمار",
+      "eligibility_verified": "أكمل التحقق من الأهلية",
+      "agreement_accepted": "اقبل اتفاقية الاستثمار"
+    },
     "editTitle": "الطلب: {{capability}}",
     "reviewerAsked": "سأل المراجع:",
     "choose": "اختر…",
@@ -6670,6 +6766,11 @@
     "openApplications": "فتح الطلبات",
     "admin": {
       "nav": "طلبات الوصول",
+      "provisioning": {
+        "empty": "لا توجد طلبات توفير.",
+        "subtitle": "طلبات الموظفين والأجهزة وحسابات الخدمة والشركاء من التسجيل. القرار يسجّل من بتّ فيه؛ وهو لا يمنح شيئًا بمفرده.",
+        "title": "طلبات توفير التسجيل"
+      },
       "title": "طلبات الوصول",
       "subtitle": "راجع طلبات الوصول كمساعد أو نشاط تجاري وغير ذلك.",
       "status": "الحالة",
@@ -6705,7 +6806,10 @@
     },
     "accessRequired": "يتطلب هذا الحصول على وصول معتمد أولًا.",
     "home": {
-      "workspaceUnavailable": "لم تعد مساحة العمل هذه متاحة، لذا تعرض لك الصفحة الرئيسية الشخصية."
+      "workspaceUnavailable": "لم تعد مساحة العمل هذه متاحة، لذا تعرض لك الصفحة الرئيسية الشخصية.",
+      "workspaceReady": "مساحة العمل المعتمدة الخاصة بك جاهزة.",
+      "openWorkspace": "افتح مساحة العمل الخاصة بك",
+      "workspaceLinksUnavailable": "روابط مساحة العمل غير متاحة، جارٍ إعادة المحاولة."
     },
     "accessUpdated": "تم تحديث وصولك.",
     "viewStatus": "عرض الحالة",
@@ -6743,6 +6847,20 @@
     },
     "menu": {
       "storeScoped": "يدير القائمة المشتركة من لديهم وصول إلى كل الفروع. استخدم قائمة فرعك لتغيير التوفر أو الأسعار فيه."
+    },
+    "pastGrantsTitle": "الوصول السابق",
+    "pastGrantsDescription": "الوصول الذي تم إلغاؤه أو تعليقه أو انتهت صلاحيته، مع سبب التغيير.",
+    "grantStatus": {
+      "active": "نشط",
+      "suspended": "معلّق",
+      "revoked": "ملغى",
+      "expired": "منتهٍ"
+    },
+    "grantReasons": {
+      "account_deleted": "تم حذف الحساب.",
+      "review_complete": "اكتملت المراجعة.",
+      "territory_assigned": "تم إسناد المنطقة.",
+      "territory_assignment_ended": "انتهى إسناد المنطقة."
     }
   },
   "businessLaunchAttachments": {

@@ -13,6 +13,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import api from '../../api/axios';
+import toast from 'react-hot-toast';
 import './BookingRequestCard.css';
 
 function statusDescriptionKey(status) {
@@ -184,6 +185,44 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
               <span className="detail-label">{t('booking.confirmationWindowShort')}:</span>
               <span className="detail-value">
                 {t('booking.hoursCount', { count: live.confirmationHours })}
+              </span>
+            </div>
+          )}
+          {/* G-6: who the work is for, when the booker booked for someone else. */}
+          {(live.recipientName || live.recipientPhone) && (
+            <div className="detail-row">
+              <span className="detail-label">{t('booking.bookedFor')}:</span>
+              <span className="detail-value">
+                {[live.recipientName, live.recipientPhone].filter(Boolean).join(' · ')}
+              </span>
+            </div>
+          )}
+          {/* G-7: site contact + their status link (status and arrival window
+              only, no amounts, no billing). The booker shares this link. */}
+          {(live.siteContactName || live.siteContactPhone) && (
+            <div className="detail-row">
+              <span className="detail-label">{t('booking.siteContact')}:</span>
+              <span className="detail-value">
+                {[live.siteContactName, live.siteContactPhone].filter(Boolean).join(' · ')}
+              </span>
+            </div>
+          )}
+          {live.statusToken && (
+            <div className="detail-row">
+              <span className="detail-label">{t('booking.statusLink')}:</span>
+              <span className="detail-value" style={{ overflowWrap: 'anywhere' }}>
+                {`${window.location.origin}/bookings/status/${live.statusToken}`}
+                <button
+                  type="button"
+                  className="booking-btn-secondary"
+                  style={{ marginLeft: '0.5rem' }}
+                  onClick={() => {
+                    navigator.clipboard?.writeText(`${window.location.origin}/bookings/status/${live.statusToken}`);
+                    toast.success(t('booking.linkCopied'));
+                  }} data-track="ui.474702b501.5"
+                >
+                  {t('booking.copyLink')}
+                </button>
               </span>
             </div>
           )}

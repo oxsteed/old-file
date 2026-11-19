@@ -98,6 +98,7 @@ const {
   applyForCreditParticipation,
   enrollParticipant,
   getParticipant,
+  listMyParticipants,
   listParticipants,
 } = require('../services/oxsteedCreditParticipantService');
 const {
@@ -2096,9 +2097,30 @@ async function applyForCredit(req, res, next) {
       requestIp: req.ip || null,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
+    // G-2/G-25: filing the application completes the join_credit handoff.
+    try {
+      const signupIntent = require('../services/access/signupIntent');
+      await signupIntent.consumeIntent(req.user.id, 'join_credit');
+    } catch (_consumeErr) { /* consumption never fails the application */ }
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (error) {
     next(error);
+  }
+}
+
+/**
+ * GET /api/oxsteed-credit/participants/me (G-25)
+ * The caller's own participant applications with live status, so the
+ * apply page and ApplicationsPage can show a real status instead of a
+ * static "submitted". No customer enrollment is invented here: this is
+ * for business/helper applicants only, and the page says so.
+ */
+async function getMyParticipants(req, res, next) {
+  try {
+    const participants = await listMyParticipants(req.user.id);
+    return res.json({ participants });
+  } catch (error) {
+    return next(error);
   }
 }
 
@@ -2813,6 +2835,7 @@ module.exports = {
   getAdminParticipant,
   enrollAdminParticipant,
   applyForCredit,
+  getMyParticipants,
   createAdminAgreement,
   transitionAdminAgreement,
   upsertAdminEntitlement,

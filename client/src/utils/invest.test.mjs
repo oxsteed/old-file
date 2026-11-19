@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   investAccessFromProjection,
   investNavLinks,
+  investorWorkspaceSections,
   formatInvestCents,
   fundingProgress,
   provenanceLabelKey,
@@ -84,13 +85,37 @@ test('invest nav links appear only when the projection flag is on, and never rem
   assert.deepEqual(investNavLinks(null), []);
   assert.deepEqual(investNavLinks({ invest: { investEnabled: false } }), []);
   assert.deepEqual(investNavLinks({ invest: { investEnabled: true } }).map((l) => [l.id, l.to]), [
-    ['exploreInvestments', '/invest'],
-    ['requestInvestorAccess', '/invest/apply'],
-    ['myInvestments', '/invest/my-investments'],
+    ['investments', '/investments'],
   ]);
   // Role and mode do not change the links.
   const withRole = investNavLinks({ invest: { investEnabled: true }, access: { personal: [] } });
-  assert.equal(withRole.length, 3);
+  assert.equal(withRole.length, 1);
+});
+
+test('Investor workspace keeps reports, opportunities, and contributions independently scoped', () => {
+  const projection = {
+    flags: { accessProjection: true, investEnabled: true, investCommitmentsEnabled: false },
+    access: {
+      personal: ['customer', 'investor.reporting'],
+      investorAudience: { audienceKey: 'entity', datasets: ['overview'] },
+    },
+  };
+  const sections = investorWorkspaceSections(projection);
+  assert.deepEqual(sections.map(({ id, to, available }) => [id, to, available]), [
+    ['reports', '/investments', true],
+    ['opportunities', '/invest', true],
+    ['contributions', '/invest/apply', false],
+  ]);
+
+  const participant = investorWorkspaceSections({
+    ...projection,
+    access: { personal: ['customer', 'investor.participate'] },
+    flags: { accessProjection: true, investEnabled: true, investCommitmentsEnabled: false },
+  });
+  assert.equal(participant[0].available, false);
+  assert.equal(participant[1].available, true);
+  assert.equal(participant[2].to, '/invest/my-investments');
+  assert.equal(participant[2].readOnly, true);
 });
 
 test('funding progress labels reserved commitments as pending, never as completed funding', () => {

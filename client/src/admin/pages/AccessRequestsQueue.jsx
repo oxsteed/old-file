@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { accessAPI } from '../../api/access';
+import { adminListProvisioningRequests, adminDecideProvisioningRequest } from '../../api/signupProvisioning';
 
 const NS = 'common';
 const STATUSES = ['submitted', 'in_review', 'needs_information', 'approved', 'declined', 'withdrawn'];
@@ -175,6 +176,37 @@ export default function AccessRequestsQueue() {
   const [failed, setFailed] = useState(false);
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [provRequests, setProvRequests] = useState([]);
+  const [provStatus, setProvStatus] = useState('pending');
+  const [provFailed, setProvFailed] = useState(false);
+  const [provBusy, setProvBusy] = useState(null);
+  const [provNotes, setProvNotes] = useState({});
+
+  const loadProvisioning = useCallback(async () => {
+    setProvFailed(false);
+    try {
+      const d = await adminListProvisioningRequests({ status: provStatus, limit: 50 });
+      setProvRequests(d.requests || []);
+    } catch {
+      setProvFailed(true);
+    }
+  }, [provStatus]);
+
+  useEffect(() => { loadProvisioning(); }, [loadProvisioning]);
+
+  const decideProvisioning = async (request, decision) => {
+    setProvBusy(request.id);
+    try {
+      await adminDecideProvisioningRequest(request.id, decision === 'approved' ? 'approve' : 'decline', (provNotes[request.id] || '').trim() || undefined);
+      toast.success(t('progressiveAccess.admin.decided', { ns: NS }));
+      setProvNotes((current) => ({ ...current, [request.id]: '' }));
+      await loadProvisioning();
+    } catch {
+      toast.error(t('progressiveAccess.errors.generic', { ns: NS }));
+    } finally {
+      setProvBusy(null);
+    }
+  };
 
   const load = useCallback(async (after = null) => {
     setLoading(true);
@@ -269,6 +301,78 @@ export default function AccessRequestsQueue() {
           )}
         </div>
       </div>
+
+      {/* G-4/G-23/G-35: signup provisioning requests (staff, device /
+        service-account, partner) are decided here, in the same queue a
+        reviewer already reads. A decision records who decided; it grants
+        nothing by itself. */}
+      <section aria-labelledby="ar-provisioning-title" className="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700">
+        <h2 id="ar-provisioning-title" className="text-lg font-semibold text-gray-900 dark:text-white">{t('progressiveAccess.admin.provisioning.title', { ns: NS })}</h2>
+        <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">{t('progressiveAccess.admin.provisioning.subtitle', { ns: NS })}</p>
+        <label className="mb-3 block text-sm text-gray-700 dark:text-gray-200">
+          {t('progressiveAccess.admin.status', { ns: NS })}
+          <select className={`${selectCls} block`} value={provStatus} onChange={(e) => setProvStatus(e.target.value)}>
+            {['pending', 'approved', 'declined'].map((s) => <option key={s} value={s}>{t(`progressiveAccess.status.${s}`, { ns: NS })}</option>)}
+          </select>
+        </label>
+        {provFailed ? (
+          <p role="alert" className="text-sm text-gray-600 dark:text-gray-300">{t('progressiveAccess.loadFailed', { ns: NS })}</p>
+        ) : provRequests.length === 0 ? (
+          <p className="text-sm text-gray-600 dark:text-gray-300">{t('progressiveAccess.admin.provisioning.empty', { ns: NS })}</p>
+        ) : (
+          <ul className="space-y-3">
+            {provRequests.map((req) => (
+              <li key={req.id} className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{t(`progressiveAccess.provisioning.kinds.${req.kind}`, { ns: NS })}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-300">
+                  {req.applicantName || req.applicantEmail || req.userId}
+                  {req.applicantEmail && req.applicantName ? ` · ${req.applicantEmail}` : ''}
+                  {req.createdAt ? ` · ${new Date(req.createdAt).toLocaleDateString()}` : ''}
+                </p>
+                {req.note && <p className="mt-1 text-xs text-gray-600 dark:text-gray-300" dir="auto">{req.note}</p>}
+                {req.status === 'pending' ? (
+                  <div className="mt-3 space-y-2">
+                    <label className="block text-sm text-gray-700 dark:text-gray-200">
+                      {t('progressiveAccess.admin.note', { ns: NS })}
+                      <input
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                        value={provNotes[req.id] || ''}
+                        maxLength={2000}
+                        onChange={(e) => setProvNotes((current) => ({ ...current, [req.id]: e.target.value }))}
+                      />
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={provBusy === req.id}
+                        onClick={() => decideProvisioning(req, 'approved')}
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                        data-track="ui.admin.access_requests.provisioning_approve"
+                      >
+                        {t('progressiveAccess.admin.actions.approve', { ns: NS })}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={provBusy === req.id}
+                        onClick={() => decideProvisioning(req, 'declined')}
+                        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                        data-track="ui.admin.access_requests.provisioning_decline"
+                      >
+                        {t('progressiveAccess.admin.actions.decline', { ns: NS })}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                    {t(`progressiveAccess.status.${req.status}`, { ns: NS })}
+                    {req.decisionNote ? ` · ${req.decisionNote}` : ''}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

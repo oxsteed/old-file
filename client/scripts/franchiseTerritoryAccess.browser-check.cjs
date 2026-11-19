@@ -27,7 +27,7 @@ test('franchise territory data follows the projected grant', { timeout: 30_000 }
     plugins: [{ name: 'franchise-territory-shell', setup(plugin) {
       const fixtures = {
         useAuth: `export const useAuth = () => ({ user: { id: 'franchise-user', role: 'customer', default_mode: 'customer' } });`,
-        useAccessProjection: `import { useState } from 'react'; export default () => { const [granted, setGranted] = useState(false); window.grantFranchise = () => setGranted(true); window.revokeFranchise = () => setGranted(false); return { access: { personal: granted ? ['customer', 'franchise.operate'] : ['customer'], organizations: [] }, flags: { accessProjection: true } }; };`,
+        useAccessProjection: `import { useState } from 'react'; export const ACCESS_CHANGED_EVENT = 'oxsteed:access-changed'; export default () => { const [granted, setGranted] = useState(false); window.grantFranchise = () => setGranted(true); window.revokeFranchise = () => setGranted(false); return { access: { personal: granted ? ['customer', 'franchise.operate'] : ['customer'], organizations: [] }, flags: { accessProjection: true } }; };`,
         PageShell: `export default ({ children }) => children;`,
       };
       plugin.onResolve({ filter: /\/(useAuth|useAccessProjection|PageShell)$/ }, ({ path }) => ({ path, namespace: 'fixture' }));
@@ -63,7 +63,8 @@ test('franchise territory data follows the projected grant', { timeout: 30_000 }
 
     await page.evaluate(() => window.grantFranchise());
     await page.getByText(/Columbus, OH/).waitFor();
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
+    assert.ok(calls.includes('/api/franchise/my-applications'));
     assert.ok(calls.some((call) => call.startsWith('/api/franchise/territory-stats')));
     assert.ok(calls.includes('/api/franchise/territory-helpers'));
 

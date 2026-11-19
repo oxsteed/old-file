@@ -21,13 +21,13 @@ test('offline driver sees no open jobs', () => {
   // the availability flag existed carry no value.
   for (const available of [false, null, undefined]) {
     assert.deepEqual(
-      selectOpenJobs(jobs, { helperMode: true, available, userId: USER_ID }),
+      selectOpenJobs(jobs, { canDrive: true, available, userId: USER_ID }),
       [],
     );
   }
 });
 
-test('online helper sees posted, marketplace-available jobs from other customers', () => {
+test('online driver sees posted, marketplace-available jobs from other customers', () => {
   const jobs = [
     postedJob({ id: 1 }),
     postedJob({ id: 2, status: 'assigned' }),
@@ -35,15 +35,15 @@ test('online helper sees posted, marketplace-available jobs from other customers
     postedJob({ id: 4, customer_user_id: USER_ID }),
   ];
   assert.deepEqual(
-    selectOpenJobs(jobs, { helperMode: true, available: true, userId: USER_ID })
+    selectOpenJobs(jobs, { canDrive: true, available: true, userId: USER_ID })
       .map((job) => job.id),
     [1],
   );
 });
 
-test('non-helper sees no open jobs even when online', () => {
+test('non-driver sees no open jobs even when online', () => {
   assert.deepEqual(
-    selectOpenJobs([postedJob()], { helperMode: false, available: true, userId: USER_ID }),
+    selectOpenJobs([postedJob()], { canDrive: false, available: true, userId: USER_ID }),
     [],
   );
 });

@@ -59,7 +59,11 @@ describeDb('bid acceptance records the agreed price (P1-2-F11)', () => {
     await db.query(`CREATE TABLE ${schema}.users (
       id UUID PRIMARY KEY, role TEXT, is_active BOOLEAN,
       deleted_at TIMESTAMPTZ, is_suspended BOOLEAN,
-      suspended_until TIMESTAMPTZ, is_banned BOOLEAN)`);
+      suspended_until TIMESTAMPTZ, is_banned BOOLEAN,
+      id_verified BOOLEAN DEFAULT FALSE, identity_verified BOOLEAN DEFAULT FALSE,
+      didit_status TEXT, didit_verified_at TIMESTAMPTZ,
+      terms_accepted BOOLEAN DEFAULT FALSE, terms_accepted_at TIMESTAMPTZ,
+      terms_version TEXT, w9_completed BOOLEAN DEFAULT FALSE)`);
     await db.query(`CREATE TABLE ${schema}.jobs (
       id UUID PRIMARY KEY, client_id UUID, assigned_helper_id UUID, status TEXT,
       title TEXT, description TEXT, version INT DEFAULT 1, revision INT DEFAULT 1,
@@ -84,7 +88,12 @@ describeDb('bid acceptance records the agreed price (P1-2-F11)', () => {
       location_address TEXT, status TEXT, source TEXT, created_by_user_id UUID)`);
     await db.query(`CREATE UNIQUE INDEX appt_job_unique ON ${schema}.appointments(job_id) WHERE job_id IS NOT NULL`);
     for (const [userId, role] of [[ids.helper, 'helper'], [ids.customer, 'customer']]) {
-      await db.query('INSERT INTO users(id, role, is_active) VALUES($1, $2, TRUE)', [userId, role]);
+      await db.query(
+        `INSERT INTO users(id, role, is_active, id_verified, terms_accepted,
+                           terms_accepted_at, terms_version)
+         VALUES($1, $2, TRUE, $3, $4, CASE WHEN $4 THEN NOW() END, CASE WHEN $4 THEN 'test-v1' END)`,
+        [userId, role, role === 'helper', role === 'helper'],
+      );
     }
     // The grant is seeded schema-local: under this search_path the
     // unqualified access_grants lookup in loadFacts() resolves here, not to

@@ -24,7 +24,12 @@
  *   amendment process (notice + reconfirmation), never a direct edit.
  * - A suspended account keeps ownership, statements, and obligations:
  *   reads of the investor's own records stay available in restricted form
- *   and every write is refused (see investController suspension guard).
+ *   through the service layer only (see investController suspension guard)
+ *   and every write is refused. The live /api/invest read exemption is a
+ *   legal/counsel decision that is still open: authenticate 403s suspended
+ *   accounts on every /api/invest route before the guard runs, so the
+ *   restricted read is not reachable over HTTP today. Do not present it
+ *   as a live behavior.
  */
 
 const AppError = require('../../utils/appError');
@@ -474,7 +479,11 @@ async function submitOpportunityForReview(userId, opportunityId, dbPool = pool) 
  * Reviewer opportunity decision. claim moves submitted to under_review;
  * approve moves under_review to approved and records what was verified;
  * decline sends it back to submitted with a note. Publish is a separate
- * step under its own authority (investment_opportunity.publish).
+ * step under its own authority (admin permission
+ * review_invest_opportunity_publish, not a registry capability: the
+ * investment.* registry entries were removed as dead in the PR #804
+ * ecosystem-gap build because the invest routes never issued grants
+ * for them).
  */
 async function reviewOpportunity(input, dbPool = pool) {
   const { opportunityId, reviewerUserId, action, expectedVersion = null, note = null, verificationSummary = null } = input || {};
@@ -1119,6 +1128,27 @@ async function reviewAmendment(input, dbPool = pool) {
     if (['closed', 'cancelled', 'withdrawn', 'unsuccessful'].includes(amendment.opportunity_status)) {
       fail('A finished opportunity amendment cannot be decided', 'invest_amendment_opportunity_finished', 409);
     }
+    // Fail closed: an amendment that carries a new agreement version
+    // cannot become effective while investors with a live stake have
+    // not reconfirmed against it. The reconfirmation deadline is the
+    // deadlock escape: once it has passed, the reviewer may make the
+    // amendment effective anyway (the unreconfirmed commitments are
+    // then excluded at closing, never captured on the old version).
+    // Rejection is never blocked: it needs no reconfirmation.
+    if (decision === 'effective' && amendment.new_agreement_version_id) {
+      const state = await amendmentReconfirmationState(client, amendment);
+      const deadline = amendment.reconfirmation_deadline_at
+        ? new Date(amendment.reconfirmation_deadline_at)
+        : null;
+      const deadlinePassed = Boolean(deadline) && deadline < new Date();
+      if (state && state.pending > 0 && !deadlinePassed) {
+        fail(
+          `Amendment cannot become effective: ${state.pending} investor(s) have not reconfirmed the new agreement version`,
+          'invest_amendment_reconfirmation_pending',
+          409,
+        );
+      }
+    }
     let appliedFields = [];
     if (decision === 'effective') {
       const changes = amendment.changes || {};
@@ -1187,10 +1217,16 @@ async function amendmentReconfirmationState(client, amendment) {
     byUser.set(userId, (byUser.get(userId) || false) || reconfirmed);
   }
   const reconfirmed = [...byUser.values()].filter(Boolean).length;
+  // The reviewer must see exactly WHO has not reconfirmed, not just a
+  // count: the queue is admin-only, so user ids are safe to expose here.
+  const pendingUserIds = [...byUser.entries()]
+    .filter(([, isReconfirmed]) => !isReconfirmed)
+    .map(([userId]) => userId);
   return {
     total: byUser.size,
     reconfirmed,
     pending: byUser.size - reconfirmed,
+    pendingUserIds,
   };
 }
 

@@ -234,6 +234,9 @@ router.post('/booking-requests/:id/decline', chatLimiter, authenticate, rejectIm
 router.post('/booking-requests/:id/propose', chatLimiter, authenticate, rejectImpersonated, requireChatHelperProviderCapability, chatBookingRequests.proposeBookingTime);
 router.post('/booking-requests/:id/customer-accept', chatLimiter, optionalAuth, chatBookingRequests.customerAcceptBookingRequest);
 router.post('/booking-requests/:id/customer-decline', chatLimiter, optionalAuth, chatBookingRequests.customerDeclineBookingRequest);
+// G-30: a verified guest cancels their own booking request; signed-in
+// customers use the same endpoint (isCustomerForBooking covers both).
+router.post('/booking-requests/:id/customer-cancel', chatLimiter, optionalAuth, chatBookingRequests.customerCancelBookingRequest);
 
 // POST /api/chat/sessions/guest/booking-request — verified guest pending booking from messenger slot
 router.post('/sessions/guest/booking-request', chatLimiter, profileChatLimiter, optionalAuth, createMessengerGuestBooking);

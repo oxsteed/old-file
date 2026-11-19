@@ -69,9 +69,11 @@ describeDb('job edit foundation on real Postgres', () => {
     for (const [id, role] of [[customer, 'customer'], [helpers[0], 'helper'], [helpers[1], 'helper']]) {
       await pool.query(
         `INSERT INTO users (id, email, password_hash, first_name, last_name, role,
-                           is_active, email_verified, onboarding_completed)
-         VALUES ($1, $2, 'x', 'Job', 'Edit', $3, TRUE, TRUE, TRUE)`,
-        [id, `${id}@job-edit.test`, role]
+                           is_active, email_verified, onboarding_completed,
+                           id_verified, terms_accepted, terms_accepted_at, terms_version)
+         VALUES ($1, $2, 'x', 'Job', 'Edit', $3, TRUE, TRUE, TRUE,
+                 $4, $5, CASE WHEN $5 THEN NOW() END, CASE WHEN $5 THEN 'test-v1' END)`,
+        [id, `${id}@job-edit.test`, role, role === 'helper', role === 'helper']
       );
       await acceptCurrentConsents(pool, id);
       if (role === 'helper') {

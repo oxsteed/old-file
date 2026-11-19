@@ -21,6 +21,9 @@ router.post(
 
 router.get('/my', authenticate, controller.listMyRequests);
 router.get('/assigned', authenticate, controller.listAssignedRequests);
+// G-17: canonical properties for a business (label + address).
+router.get('/business/:businessId/properties', authenticate, requireBusinessAccess({ minRole: 'any', resolvePermissions: false }), controller.listProperties);
+router.post('/business/:businessId/properties', authenticate, requireBusinessAccess({ minRole: 'any', resolvePermissions: false }), controller.createProperty);
 router.get('/business/:businessId', authenticate, requireBusinessAccess({ minRole: 'any', resolvePermissions: false }), controller.listBusinessRequests);
 router.get('/:id', authenticate, controller.getRequest);
 router.patch('/:id', authenticate, controller.updateRequest);

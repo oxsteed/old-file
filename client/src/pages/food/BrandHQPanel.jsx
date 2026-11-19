@@ -816,6 +816,7 @@ export default function BrandHQPanel({ t, restaurant }) {
                     <th scope="col">{t('restaurants.ops.brandHq.franchise.royaltyCol')}</th>
                     <th scope="col">{t('restaurants.ops.brandHq.franchise.marketingCol')}</th>
                     <th scope="col">{t('restaurants.ops.brandHq.franchise.agreementCol')}</th>
+                    <th scope="col">{t('restaurants.ops.brandHq.franchise.accrualCol')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -833,6 +834,16 @@ export default function BrandHQPanel({ t, restaurant }) {
                           {store.noAgreement
                             ? t('restaurants.ops.brandHq.franchise.noAgreement')
                             : `${t('restaurants.ops.brandHq.franchise.royaltyBps', { bps: store.agreement.royaltyBps })} · ${t('restaurants.ops.brandHq.franchise.marketingBps', { bps: store.agreement.marketingFeeBps })}`}
+                        </td>
+                        <td>
+                          {store.noAgreement || !store.agreement?.accrualStatus ? '—' : (
+                            <>
+                              {t(`restaurants.ops.brandHq.franchise.accrualStatus.${store.agreement.accrualStatus}`)}
+                              {store.agreement.accrualStatus === 'failed' && store.agreement.failedAccrualCount > 0 && (
+                                <> · {t('restaurants.ops.brandHq.franchise.accrualFailedCount', { count: store.agreement.failedAccrualCount })}</>
+                              )}
+                            </>
+                          )}
                         </td>
                       </tr>
                     );

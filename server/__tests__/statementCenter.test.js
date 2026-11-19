@@ -162,7 +162,7 @@ describe('getStatementCenter service', () => {
     };
     mockQuery.mockImplementation(async (sql) => {
       if (sql.includes('FROM businesses b')) {
-        return { rows: [{ id: 42, name: 'Acme Co' }] };
+        return { rows: [{ id: 42, name: 'Acme Co', is_owner: true }] };
       }
       if (sql.includes("product = 'business'")) {
         return { rows: [{ scope_business_id: 42, currency_code: 'USD', period_to: '2026-09-30', id: 'doc-b', document }] };

@@ -21,6 +21,7 @@ const {
   toChatStatus,
 } = require('../services/chatBookingRequests');
 const bookingLifecycle = require('../services/bookingRequestLifecycle');
+const bookingDeposits = require('../services/bookingDepositService');
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
@@ -315,8 +316,8 @@ exports.acceptBookingRequest = async (req, res, next) => {
 
     const booking = await loadBooking(req.params.id);
     if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
-    if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
-      return bad(res, 403, 'Only the provider can accept this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(userId, booking))) {
+      return bad(res, 403, 'Only the provider or a business manager can accept this booking', 'forbidden');
     }
     if (booking.conversation_id) {
       await assertConversationParticipant(userId, booking.conversation_id, { writable: true });
@@ -368,8 +369,8 @@ exports.declineBookingRequest = async (req, res, next) => {
 
     const booking = await loadBooking(req.params.id);
     if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
-    if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
-      return bad(res, 403, 'Only the provider can decline this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(userId, booking))) {
+      return bad(res, 403, 'Only the provider or a business manager can decline this booking', 'forbidden');
     }
     if (booking.conversation_id) {
       await assertConversationParticipant(userId, booking.conversation_id, { writable: true });
@@ -520,6 +521,75 @@ exports.customerDeclineBookingRequest = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/chat/booking-requests/:id/customer-cancel
+ * Customer or verified guest cancels their own booking request (G-30).
+ * Reuses isCustomerForBooking (verified guest session), the lifecycle
+ * cancel transition, deposit settlement, and the helper notification —
+ * the same terminal path as the signed-in cancel.
+ */
+exports.customerCancelBookingRequest = async (req, res, next) => {
+  try {
+    const booking = await loadBooking(req.params.id);
+    if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
+
+    const authz = await isCustomerForBooking(req, booking);
+    if (!authz.ok) {
+      if (authz.reason === 'provider_cannot_customer_respond') {
+        return bad(res, 403, 'Provider cannot use customer-cancel', 'forbidden');
+      }
+      return bad(res, 403, 'Only the customer or verified guest can cancel this booking', 'forbidden');
+    }
+    if (authz.userId && booking.conversation_id) {
+      await assertConversationParticipant(authz.userId, booking.conversation_id, { writable: true });
+    }
+
+    const reason = String(req.body?.reason || req.body?.cancel_reason || '').trim().slice(0, 500) || null;
+    let result;
+    try {
+      result = await bookingLifecycle.customerCancelBookingRequest({
+        booking,
+        actorId: authz.userId || authz.guest?.id || null,
+        actorType: authz.via === 'guest' ? 'guest' : 'customer',
+        reason,
+      });
+    } catch (e) {
+      return bad(res, e.status || 409, e.message || `Cannot cancel: ${e.code}`, e.code || 'invalid_status');
+    }
+
+    const updated = result.booking;
+    const userId = authz.userId || null;
+    const actorName = authz.via === 'guest'
+      ? (authz.guest?.guest_name || authz.guest?.name || 'Guest')
+      : ([req.user?.first_name, req.user?.last_name].filter(Boolean).join(' ') || 'Customer');
+    await postStatusToThread({
+      booking: updated,
+      event: 'cancelled',
+      actorId: userId,
+      actorName,
+      reason: reason || '',
+      senderType: 'customer',
+    });
+    // Same terminal settlement + helper push notification as the signed-in
+    // cancel. The thread post above is the in-chat signal; this is the
+    // helper's booking:updated + booking_cancelled notification.
+    bookingDeposits.settleTerminalBookingSoon(updated.id, 'customer_cancelled');
+    try {
+      const { notifyHelperOfBookingCancellation } = require('./bookingController');
+      await notifyHelperOfBookingCancellation(updated.helper_id, updated);
+    } catch (e) {
+      logger.warn('[chatBookingRequests] helper cancel notification failed', { error: e.message });
+    }
+
+    return res.json({
+      success: true,
+      booking: toPublicBookingRequestCard(updated),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.proposeBookingTime = async (req, res, next) => {
   try {
     const userId = req.user?.id;
@@ -527,8 +597,8 @@ exports.proposeBookingTime = async (req, res, next) => {
 
     const booking = await loadBooking(req.params.id);
     if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
-    if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
-      return bad(res, 403, 'Only the provider can propose a different time', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(userId, booking))) {
+      return bad(res, 403, 'Only the provider or a business manager can propose a different time', 'forbidden');
     }
     if (booking.conversation_id) {
       await assertConversationParticipant(userId, booking.conversation_id, { writable: true });

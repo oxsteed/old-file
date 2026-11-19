@@ -130,7 +130,8 @@ hold investor funds and does not itself conduct the offering:
   or authorized representative of a business) creates a private draft
   raise, previews it as an investor would see it, and submits it for
   review. Submission does NOT publish. Publication is a separate
-  reviewer step (`investment_opportunity.publish`), and the entity
+  reviewer step (admin permission `review_invest_opportunity_publish`,
+  not a registry capability), and the entity
   representative cannot publish their own opportunity. Entity
   ownership alone cannot publish.
 - **Review and approval.** Platform reviewers hold separate review

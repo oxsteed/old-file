@@ -34,7 +34,7 @@ function fakeClient({ pageRows = [], total = 0 } = {}) {
     query: jest.fn(async (sql, params) => {
       calls.push({ sql, params });
       if (/COUNT\(\*\)/.test(sql)) return { rows: [{ total }] };
-      if (/FROM food_restaurants/.test(sql)) return { rows: [{ id: 9, display_name: 'Test', currency_code: 'USD' }] };
+      if (/FROM food_restaurants/.test(sql)) return { rows: [{ id: 9, display_name: 'Test', currency_code: 'USD', owner_id: 'u1' }] };
       return { rows: pageRows };
     }),
   };

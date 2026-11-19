@@ -184,6 +184,17 @@ exports.adminRollbackPolicy = async (req, res) => {
   }
 };
 
+exports.adminGetApproval = async (req, res) => {
+  try {
+    const approval = await svc.getApprovalById(req.params.id);
+    if (!approval) return res.status(404).json({ error: 'not_found' });
+    return res.json({ success: true, approval });
+  } catch (err) {
+    logger.error('adminGetApproval error', { err: err.message });
+    return res.status(500).json({ error: 'failed' });
+  }
+};
+
 exports.adminListApprovals = async (req, res) => {
   try {
     const { mode } = req.query;

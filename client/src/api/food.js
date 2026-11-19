@@ -708,6 +708,9 @@ export const requestWalletPayout = (restaurantId, payload, idempotencyKey) =>
     idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
   ).then((r) => r.data?.payout);
 
+export const confirmWalletPayoutDraft = (restaurantId, payoutId) =>
+  api.post(`/restaurants/${restaurantId}/wallet-payouts/${payoutId}/confirm`).then((r) => r.data?.payout);
+
 export const listWalletPayouts = (restaurantId, params = {}) =>
   api.get(`/restaurants/${restaurantId}/wallet-payouts`, { params }).then((r) => r.data?.payouts || []);
 

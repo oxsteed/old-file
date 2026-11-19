@@ -112,3 +112,13 @@ test('specialty intake paths still honor the specializedProfileTemplates flag', 
   }
   assert.equal(getLaunchRedirect('/jobs'), null);
 });
+
+// G-12: the business launch status page is a real route, not a redirect.
+// The launch gate used to bounce /business-launch-status to /business-hub
+// unconditionally, so BusinessLaunchStatusPage could never render.
+test('business launch status is reachable and not redirected to the hub', async () => {
+  assert.equal(getLaunchRedirect('/business-launch-status'), null);
+  assert.equal(getLaunchRedirect('/business-launch-status/'), null);
+  const app = await import('node:fs/promises').then((fs) => fs.readFile(new URL('../src/App.jsx', import.meta.url), 'utf8'));
+  assert.match(app, /path="\/business-launch-status"/);
+});

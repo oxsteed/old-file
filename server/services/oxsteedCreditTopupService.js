@@ -235,7 +235,7 @@ async function expireCreditTopups({ limit = 500, getStripe = defaultGetStripe, a
 // concurrent retries: the deterministic Stripe idempotency key makes every
 // attempt converge on the same Stripe object, and the UPDATE only fills in a
 // missing intent id.
-async function ensureStripeIntent({ topup, amount, currency, getStripe }) {
+async function ensureStripeIntent({ topup, amount, currency, getStripe, fundedBy = null }) {
   const stripe = getStripe();
   if (topup.stripe_payment_intent_id) {
     const existing = await stripe.paymentIntents.retrieve(topup.stripe_payment_intent_id);
@@ -251,7 +251,15 @@ async function ensureStripeIntent({ topup, amount, currency, getStripe }) {
       {
         amount,
         currency: currency.toLowerCase(),
-        metadata: { oxsteed_credit_topup_id: String(topup.id) },
+        // G-22: funding metadata only on business-funded top-ups; the
+        // self-service call stays byte-identical to before.
+        metadata: fundedBy
+          ? {
+            oxsteed_credit_topup_id: String(topup.id),
+            funded_by_business_id: String(fundedBy.businessId),
+            funded_by_user_id: String(fundedBy.userId),
+          }
+          : { oxsteed_credit_topup_id: String(topup.id) },
       },
       { idempotencyKey: `${STRIPE_INTENT_IDEMPOTENCY_PREFIX}${topup.id}` }
     );
@@ -277,11 +285,18 @@ async function ensureStripeIntent({ topup, amount, currency, getStripe }) {
   return intent.client_secret.trim();
 }
 
-async function createTopup({ customerId, amountCents, currencyCode, idempotencyKey, getStripe = defaultGetStripe }) {
+async function createTopup({ customerId, amountCents, currencyCode, idempotencyKey, getStripe = defaultGetStripe, fundedBy = null }) {
   if (!customerId) fail('Customer is required for a credit top-up', 'credit_topup_customer_required');
   const amount = validateTopupAmount(amountCents);
   const currency = assertSupportedCreditCurrency(currencyCode);
-  const normalizedKey = normalizeIdempotencyKey(idempotencyKey);
+  // G-22: business-funded top-ups live in their own idempotency namespace
+  // so a self-service key can never replay (or collide with) one, and the
+  // funding columns record who paid. Self-service callers pass no fundedBy
+  // and behave exactly as before.
+  const rawKey = fundedBy
+    ? `business-funded:${fundedBy.businessId}:${idempotencyKey}`
+    : idempotencyKey;
+  const normalizedKey = normalizeIdempotencyKey(rawKey);
 
   // The controller runs the fiat compliance gate first; the service still
   // asserts the rail kill switch itself before any persistent side effect.
@@ -289,13 +304,40 @@ async function createTopup({ customerId, amountCents, currencyCode, idempotencyK
     await assertCreditRailEnabled(client);
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_topups
-         (customer_id, amount_cents, currency_code, status, idempotency_key, expires_at)
-       VALUES ($1, $2, $3, 'pending', $4, NOW() + INTERVAL '30 minutes')
+         (customer_id, amount_cents, currency_code, status, idempotency_key, expires_at,
+          funded_by_user_id, funded_by_business_id, funding_reason)
+       VALUES ($1, $2, $3, 'pending', $4, NOW() + INTERVAL '30 minutes', $5, $6, $7)
        ON CONFLICT (idempotency_key) DO NOTHING
        RETURNING *`,
-      [customerId, amount, currency, normalizedKey]
+      [customerId, amount, currency, normalizedKey,
+        fundedBy ? fundedBy.userId : null,
+        fundedBy ? fundedBy.businessId : null,
+        fundedBy ? String(fundedBy.reason || '').slice(0, 500) : null]
     );
-    if (rows[0]) return { row: rows[0], created: true };
+    if (rows[0]) {
+      if (fundedBy) {
+        // Explicit authorization record: who funded whom, from which
+        // business, and why. Written in the same transaction as the row.
+        await client.query(
+          `INSERT INTO oxsteed_credit_audit_events
+             (action_type, actor_user_id, customer_id, resource_type, resource_id, reason, after_state)
+           VALUES ('credit.topup.business_funded', $1, $2, 'credit_topup', $3, $4, $5::jsonb)`,
+          [
+            fundedBy.userId,
+            customerId,
+            String(rows[0].id),
+            String(fundedBy.reason || '').slice(0, 500),
+            JSON.stringify({
+              amountCents: amount,
+              currencyCode: currency,
+              businessId: String(fundedBy.businessId),
+              fundedByUserId: String(fundedBy.userId),
+            }),
+          ]
+        );
+      }
+      return { row: rows[0], created: true };
+    }
     const { rows: existingRows } = await client.query(
       `SELECT * FROM oxsteed_credit_topups WHERE idempotency_key = $1`,
       [normalizedKey]
@@ -311,6 +353,9 @@ async function createTopup({ customerId, amountCents, currencyCode, idempotencyK
   // Fingerprint check: a reused idempotency key must carry identical semantics.
   if (Number(topup.amount_cents) !== amount || String(topup.currency_code) !== currency) {
     fail('Credit top-up idempotency key was already used with different parameters', 'credit_topup_idempotency_conflict', 409);
+  }
+  if (fundedBy && String(topup.funded_by_business_id || '') !== String(fundedBy.businessId)) {
+    fail('Credit top-up idempotency key was already used for a different funding business', 'credit_topup_idempotency_conflict', 409);
   }
 
   if (topup.status === 'completed') {
@@ -330,9 +375,32 @@ async function createTopup({ customerId, amountCents, currencyCode, idempotencyK
     if (revivedRows[0]) topup = revivedRows[0];
   }
 
-  const clientSecret = await ensureStripeIntent({ topup, amount, currency, getStripe });
+  const clientSecret = await ensureStripeIntent({ topup, amount, currency, getStripe, fundedBy });
   const canonical = (await getTopupById(topup.id)) || topup;
   return { topup: canonical, clientSecret, replayed: !created };
+}
+
+// G-22: business-funded top-up reads. The funder (owner/manager) reads the
+// top-ups their business funded; the recipient reads their own via
+// getCustomerTopup as before. Settlement still credits topup.customer_id.
+async function getBusinessTopup({ businessId, topupId }) {
+  if (!businessId || !topupId) return null;
+  const { rows } = await pool.query(
+    `SELECT * FROM oxsteed_credit_topups WHERE id = $1 AND funded_by_business_id = $2`,
+    [topupId, businessId]
+  );
+  return rows[0] || null;
+}
+
+async function listBusinessTopups({ businessId, limit = 20, offset = 0 }) {
+  const { rows } = await pool.query(
+    `SELECT * FROM oxsteed_credit_topups
+      WHERE funded_by_business_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3`,
+    [businessId, Math.min(Math.max(Number(limit) || 20, 1), 100), Math.max(Number(offset) || 0, 0)]
+  );
+  return rows;
 }
 
 async function getCustomerTopup({ customerId, topupId }) {
@@ -342,6 +410,41 @@ async function getCustomerTopup({ customerId, topupId }) {
     [topupId, customerId]
   );
   return rows[0] || null;
+}
+
+// R-3: resolve the actor for top-up settlement journal posts.
+// Migration 487's trigger rejects load/adjustment posts unless the
+// actor is an admin with a user id and a real reason. A Stripe webhook
+// has no human admin, so settlement posted as actorType 'system' and
+// fails on any database where 487 is applied: Stripe-paid top-ups
+// then never credit and the customer wallet stays empty.
+// When OXSTEED_CREDIT_SERVICE_ADMIN_ID names an existing admin user,
+// settlement posts as that admin with reason 'stripe top-up
+// settlement'. When it is unset, or names no admin user, the current
+// behavior is preserved exactly (system actor + a loud log), because
+// deployments where 487 is not applied still complete top-ups through
+// the system actor today. Emile must set the value in Coolify to the
+// id of a dedicated service-admin user (role admin) for any deployment
+// where 487 is applied. Whether 487 is applied in production is
+// UNVERIFIED (Emile's domain).
+async function resolveTopupSettlementActor(client) {
+  const serviceAdminId = String(process.env.OXSTEED_CREDIT_SERVICE_ADMIN_ID || '').trim();
+  if (!serviceAdminId) {
+    logger.warn('[credit-topup] OXSTEED_CREDIT_SERVICE_ADMIN_ID is not set; top-up settlement posts as actorType system and will fail on databases with migration 487 applied. Set it in Coolify to a dedicated service-admin user id.');
+    return { actorType: 'system', actorUserId: null, reason: 'Stripe top-up' };
+  }
+  const { rows } = await client.query(
+    `SELECT id, role FROM users WHERE id = $1 AND is_active = TRUE`,
+    [serviceAdminId]
+  );
+  const admin = rows[0];
+  // Migration 477 binds the admin actor label to an active user with
+  // role admin or super_admin; anything else is not attributable.
+  if (!admin || !['admin', 'super_admin'].includes(admin.role)) {
+    logger.error('[credit-topup] OXSTEED_CREDIT_SERVICE_ADMIN_ID does not name an admin user; falling back to the system actor (top-up settlement will fail on databases with migration 487 applied).');
+    return { actorType: 'system', actorUserId: null, reason: 'Stripe top-up' };
+  }
+  return { actorType: 'admin', actorUserId: admin.id, reason: 'stripe top-up settlement' };
 }
 
 // Webhook: the PaymentIntent succeeded. Credit the customer wallet with one
@@ -427,6 +530,9 @@ async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidenc
     });
 
     try {
+      // R-3: resolve the settlement actor before posting (see
+      // resolveTopupSettlementActor above).
+      const settlementActor = await resolveTopupSettlementActor(client);
       const { transaction } = await postJournalTransaction(client, {
         transactionType: 'load',
         debitAccountId: treasury.id,
@@ -435,8 +541,9 @@ async function completeCreditTopupFromWebhook({ paymentIntentId, providerEvidenc
         amountCents: amount,
         currencyCode: currency,
         idempotencyKey: `${JOURNAL_IDEMPOTENCY_PREFIX}${topup.id}`,
-        actorType: 'system',
-        reason: 'Stripe top-up',
+        actorType: settlementActor.actorType,
+        actorUserId: settlementActor.actorUserId,
+        reason: settlementActor.reason,
         description: 'Stripe top-up',
         referenceType: 'stripe_topup',
         referenceId: paymentIntentId,
@@ -667,6 +774,8 @@ module.exports = {
   createTopup,
   getTopupById,
   getCustomerTopup,
+  getBusinessTopup,
+  listBusinessTopups,
   completeCreditTopupFromWebhook,
   failCreditTopupFromWebhook,
   applyCreditTopupWebhookEvent,

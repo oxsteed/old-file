@@ -35,6 +35,13 @@ function normalizeClock(value) {
 }
 
 function normalizeDate(value) {
+  // pg parses DATE columns into JS Date objects (midnight UTC); a raw
+  // String(Date) is "Tue Nov 24 2026 ..." and fails the YYYY-MM-DD test,
+  // which made parseBookingSlot return null for every DB-loaded booking
+  // and accept fail with time_required (found by the G-37 transfer test).
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
   const s = String(value || '').slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
 }
@@ -194,6 +201,8 @@ function buildStatusMessage({ booking, event, reason = '' }) {
       : `Booking declined: ${title} · ${when}`;
   } else if (event === 'counter_proposed') {
     label = `Different time proposed: ${title} · ${when}`;
+  } else if (event === 'cancelled') {
+    label = `Booking cancelled: ${title} · ${when}`;
   } else if (event === 'requested') {
     label = `Booking requested: ${title} · ${when}`;
   }

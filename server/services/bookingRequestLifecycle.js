@@ -26,6 +26,7 @@ const {
   assertGuestInquiryAccess,
   assertBusinessAccess,
 } = require('./chatThreadAccess');
+const permissionsService = require('./permissionsService');
 
 const INBOX_STATUSES = ['pending', 'counter_proposed'];
 // Expired requests are never actionable: the read-side expiry (expireIfStale)
@@ -225,6 +226,16 @@ function toCalendarBooking(row) {
   return {
     id: row.id,
     customerId: row.customer_id,
+    // G-6: who booked vs who the work is for.
+    bookedByUserId: row.booked_by_user_id || row.customer_id,
+    recipientUserId: row.recipient_user_id || null,
+    recipientName: row.recipient_name || null,
+    recipientPhone: row.recipient_phone || null,
+    // G-7: site contact (name + phone, optionally a linked account).
+    siteContactName: row.site_contact_name || null,
+    siteContactPhone: row.site_contact_phone || null,
+    siteContactUserId: row.site_contact_user_id || null,
+    statusToken: row.status_token || null,
     helperId: row.helper_id,
     businessId: row.business_id || null,
     serviceName: row.service_name,
@@ -292,6 +303,52 @@ async function isProviderForBooking(userId, booking) {
 }
 
 /** Active business ids the user owns or is an active member of. */
+
+/**
+ * G-14: who may ACT on a booking (accept / decline / counter-propose /
+ * cancel). Read + message stay with isProviderForBooking (any active
+ * business member); mutations do not. A helper manages their own
+ * bookings. A business booking is managed by the business owner, a
+ * manager, or a member holding the bookings.manage permission (role
+ * default or membership override). A representative without the grant
+ * can read the booking and message about it, but cannot commit the
+ * calendar, trigger deposit obligations, or cancel accepted work.
+ */
+async function isBookingManagerForBooking(userId, booking) {
+  if (!userId || !booking) return false;
+  if (booking.helper_id && String(booking.helper_id) === String(userId)) return true;
+  let businessId = booking.business_id || null;
+  if (!businessId && booking.conversation_id) {
+    const { rows } = await pool.query(
+      'SELECT business_id, helper_id FROM conversations WHERE id = $1',
+      [booking.conversation_id],
+    ).catch(() => ({ rows: [] }));
+    if (rows[0]?.helper_id && String(rows[0].helper_id) === String(userId)) return true;
+    businessId = rows[0]?.business_id || null;
+  }
+  if (!businessId) return false;
+  const { rows } = await pool.query(
+    `SELECT b.user_id AS owner_id, bm.id AS membership_id, bm.role
+       FROM businesses b
+       LEFT JOIN business_members bm
+         ON bm.business_id = b.id AND bm.member_id = $2 AND bm.status = 'active'
+      WHERE b.id = $1 AND b.is_active = TRUE`,
+    [businessId, userId],
+  ).catch(() => ({ rows: [] }));
+  const row = rows[0];
+  if (!row) return false;
+  if (String(row.owner_id) === String(userId)) return true;
+  if (!row.membership_id) return false;
+  if (row.role === 'manager') return true;
+  try {
+    const { permissions } = await permissionsService.getEffectivePermissions({
+      businessId, userId, role: row.role, membershipId: row.membership_id,
+    });
+    return permissionsService.hasAny(permissions, ['bookings.manage']);
+  } catch (_) {
+    return false;
+  }
+}
 async function resolveProviderBusinessIds(userId) {
   if (!userId) return [];
   const { rows } = await pool
@@ -370,7 +427,14 @@ async function listIncomingForProvider(providerUserId, { status, statuses } = {}
     if (statusList && !statusList.includes(toChatStatus(maybeExpired.status))) {
       continue;
     }
-    out.push(toCalendarBooking({ ...row, ...maybeExpired }));
+    const mapped = toCalendarBooking({ ...row, ...maybeExpired });
+    // G-14: the inbox row's action buttons follow the mutation gate, not
+    // the read gate. A representative sees the booking but cannot act on
+    // it; the panel hides Confirm/Decline/Propose when canRespond is false.
+    if (mapped.canRespond && (mapped.businessId || maybeExpired.conversation_id)) {
+      mapped.canRespond = await isBookingManagerForBooking(providerUserId, maybeExpired);
+    }
+    out.push(mapped);
   }
   return out;
 }
@@ -573,6 +637,16 @@ async function confirmOrCreateHelperAppointment(booking, helperId, { source = 'b
   const duration = Math.max(15, Math.min(480, Math.round((slot.endDate - slot.startDate) / 60000) || 60));
   const customerId = booking.customer_id || '00000000-0000-4000-8000-000000000001';
 
+  // G-37 follow-on: the accept callers pass a provenance label
+  // ('calendar_accept', 'booking_accept', 'booking_customer_accept') as
+  // the appointment source, but chk_appointments_source (migration 167)
+  // only allows 'user' | 'ai_chat' | 'job', so every accept rolled the
+  // transaction back. The appointment is user-initiated; the accept
+  // provenance itself is already recorded in the booking audit log and
+  // the booking.confirmed domain event, so map unknown labels to 'user'
+  // instead of failing the accept.
+  const sourceValue = ['user', 'ai_chat', 'job'].includes(source) ? source : 'user';
+
   const { rows } = await db.query(
     `INSERT INTO appointments (
        customer_id, helper_id, job_id, service_description,
@@ -598,7 +672,7 @@ async function confirmOrCreateHelperAppointment(booking, helperId, { source = 'b
         .filter(Boolean)
         .join(' | '),
       helperId,
-      source,
+      sourceValue,
     ],
   );
   const appt = rows[0];
@@ -1487,6 +1561,62 @@ async function customerDeclineBookingRequest({ booking, actorId, actorType = 'cu
   return { booking: updated };
 }
 
+/**
+ * G-30: customer / verified guest cancels their own booking request.
+ * Mirrors the signed-in cancel in bookingController.cancelBookingRequest:
+ * pending | counter_proposed → cancelled, accepted → accepted_cancelled,
+ * with the linked appointment cancelled. Deposit settlement and the
+ * helper notification live in the chat controller, next to the other
+ * customer-side chat actions.
+ */
+async function customerCancelBookingRequest({ booking, actorId, actorType = 'customer', reason = null }) {
+  const status = toChatStatus(booking.status);
+  const cancellable = status === 'pending' || status === 'counter_proposed' || status === 'accepted';
+  if (!cancellable) {
+    const err = new Error(`Cannot cancel a ${booking.status} booking request`);
+    err.code = 'invalid_status';
+    err.status = 409;
+    throw err;
+  }
+  if (isStalePending(booking)) {
+    await expireIfStale(booking);
+    throw expiredError();
+  }
+  const oldStatus = booking.status;
+  const nextStatus = status === 'accepted' ? 'accepted_cancelled' : 'cancelled';
+  const note = reason ? String(reason).trim().slice(0, 500) : null;
+  const { rows } = await pool.query(
+    `UPDATE booking_requests
+        SET status = $2,
+            helper_response_reason = COALESCE($3, helper_response_reason),
+            updated_at = CURRENT_TIMESTAMP,
+            counter_status = CASE
+              WHEN counter_status = 'pending' THEN 'cancelled'
+              ELSE counter_status
+            END
+      WHERE id = $1 AND status = ANY($4::text[])
+      RETURNING *`,
+    [booking.id, nextStatus, note, ['pending', 'counter_proposed', 'accepted']],
+  );
+  if (!rows[0]) {
+    const err = new Error('Booking is no longer cancellable');
+    err.code = 'invalid_status';
+    err.status = 409;
+    throw err;
+  }
+  const updated = rows[0];
+  if (nextStatus === 'accepted_cancelled') {
+    try {
+      await cancelLinkedAppointment(updated, updated.helper_id);
+    } catch (e) {
+      logger.warn('[bookingLifecycle] customer-cancel appointment cancel failed', { error: e.message });
+    }
+  }
+  await logAudit(updated.id, nextStatus, actorId, actorType, oldStatus, nextStatus);
+  await emitBookingEvent({ booking: updated, event: 'cancelled', actorId });
+  return { booking: updated };
+}
+
 module.exports = {
   INBOX_STATUSES,
   PROVIDER_RESPOND_STATUSES,
@@ -1494,6 +1624,7 @@ module.exports = {
   expireIfStale,
   autoPostExpiredBooking,
   isProviderForBooking,
+  isBookingManagerForBooking,
   resolveProviderBusinessIds,
   listIncomingForProvider,
   toCalendarBooking,
@@ -1510,6 +1641,7 @@ module.exports = {
   proposeBookingTime,
   customerAcceptBookingRequest,
   customerDeclineBookingRequest,
+  customerCancelBookingRequest,
   logAudit,
   formatTimePart,
   buildStatusMessage,

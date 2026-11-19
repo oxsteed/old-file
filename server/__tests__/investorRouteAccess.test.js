@@ -54,7 +54,7 @@ describe('mounted investor reporting access', () => {
     const response = await request(mountedFixture()).get('/api/investor/kpis').set('x-test-role', 'customer');
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ reached: true });
-    expect(access.can).toHaveBeenCalledWith('investor-fixture', 'investor.reporting');
+    expect(access.can).toHaveBeenCalledWith('investor-fixture', 'investor.reporting', undefined);
     expect(access.getInvestorAudience).toHaveBeenCalledWith('investor-fixture');
   });
 

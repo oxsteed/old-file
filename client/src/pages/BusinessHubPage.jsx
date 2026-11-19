@@ -76,7 +76,9 @@ import {
 } from '../api/businesses';
 import {
   convertMaintenanceRequestToJob,
+  createBusinessProperty,
   listBusinessMaintenanceRequests,
+  listBusinessProperties,
   updateMaintenanceRequest,
 } from '../api/maintenanceRequests';
 import {
@@ -116,6 +118,61 @@ import {
 } from '../utils/businessProfileForm';
 import { normalizeWebsite, DESCRIPTION_MAX } from '../utils/businessProfileEditor';
 import '../styles/BusinessHubPage.css';
+import './food/OxsteedCreditPage.css';
+import OxsteedCreditTopupPanel from '../components/credit/OxsteedCreditTopupPanel';
+import { listBusinessCreditTopups } from '../api/businesses';
+
+// G-22: business-funded Credit tab content. The owner/manager names a
+// member, records why the business is funding them, and pays with their own
+// card; the member is credited once the payment clears. History below shows
+// every funded top-up with its reason (the audit record).
+function BusinessCreditFundingTab({ businessId, members, currency }) {
+  const { t } = useTranslation();
+  const { t: ct } = useTranslation('credit');
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const loadHistory = useCallback(() => {
+    setHistoryLoading(true);
+    listBusinessCreditTopups(businessId)
+      .then((rows) => setHistory(rows))
+      .catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false));
+  }, [businessId]);
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+  const memberName = (topup) => {
+    const m = (members || []).find((row) => String(row.user_id) === String(topup.recipientCustomerId));
+    return m ? [m.first_name, m.last_name].filter(Boolean).join(' ') || m.member_email : topup.recipientCustomerId;
+  };
+  return (
+    <div>
+      <OxsteedCreditTopupPanel
+        currency={currency || 'USD'}
+        businessFunding={{ businessId, members }}
+        onCredited={loadHistory}
+      />
+      <section className="bh-card" aria-labelledby="bh-credit-history">
+        <h2 id="bh-credit-history">{t('businessHub.creditHistoryTitle', { defaultValue: 'Funded Credit' })}</h2>
+        {historyLoading ? <p className="bh-loading">{t('businessHub.loading')}</p> : history.length === 0 ? (
+          <p>{t('businessHub.creditHistoryEmpty', { defaultValue: 'No member Credit funded yet.' })}</p>
+        ) : (
+          <table className="bh-table">
+            <thead><tr><th>{t('businessHub.creditHistoryMember', { defaultValue: 'Member' })}</th><th>{t('businessHub.creditHistoryAmount', { defaultValue: 'Amount' })}</th><th>{t('businessHub.creditHistoryStatus', { defaultValue: 'Status' })}</th><th>{t('businessHub.creditHistoryReason', { defaultValue: 'Reason' })}</th></tr></thead>
+            <tbody>
+              {history.map((row) => (
+                <tr key={row.id}>
+                  <td>{memberName(row)}</td>
+                  <td>{formatMoney(row.amountCents / 100, { currency: row.currencyCode || 'USD' })}</td>
+                  <td>{ct(`walletTopup.status.${row.status}`, { defaultValue: row.status })}</td>
+                  <td>{row.fundingReason || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </div>
+  );
+}
 
 // ── formatters ────────────────────────────────────────────────────────────────
 function fmt$(n, currency = 'USD') {
@@ -235,10 +292,13 @@ function BusinessHubInner() {
   const canEditBizProfile = ['owner', 'manager'].includes(currentRole) && hasPermission('business.edit_profile');
   const canAccessMessages = hasPermission('business.view') && (hasPermission('messages.view_all') || hasPermission('messages.view_assigned'));
   const canAccessCalendar = hasPermission('business.view') && (hasPermission('calendar.view_all') || hasPermission('calendar.view_self'));
-  // Review P2-3-F05: the server finance gate (canManageBusinessFinance)
-  // allows only owner/manager, so the tabs must match. Showing them to
-  // employee/support_agent only produced 404s.
-  const canViewFinanceHub = currentRole === 'owner' || currentRole === 'manager';
+  // G-8: the server finance gate is code-based now (invoices.view /
+  // payments.view / payouts.view), so the tabs follow the same codes.
+  // A representative with a finance-read override sees the tabs; a
+  // manager with every read code denied does not. Owners hold all codes.
+  const canViewFinanceHub = hasPermission('invoices.view')
+    || hasPermission('payments.view')
+    || hasPermission('payouts.view');
   const isRestaurantBusiness = currentBiz?.business_kind === 'restaurant'
     || (!currentBiz?.business_kind && currentBiz?.business_mode === 'food');
 
@@ -267,6 +327,7 @@ function BusinessHubInner() {
     'messages',
     'clients',
     'invoices',
+    'credit',
     'workflow',
     'profile',
     'media',
@@ -317,6 +378,8 @@ function BusinessHubInner() {
       if (tb === 'calendar' && !canAccessCalendar) return false;
       if (tb === 'analytics' && !hasPermission('analytics.view_financial')) return false;
       if (tb === 'invoices' && !hasPermission('invoices.view')) return false;
+      // G-22: funding member Credit is owner/manager only.
+      if (tb === 'credit' && !['owner', 'manager'].includes(currentRole)) return false;
       if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
       if (tb === 'loyalty' && !canEditBizProfile) return false;
       if (tb === 'hiring' && !canEditBizProfile) return false;
@@ -1526,6 +1589,7 @@ function BusinessHubInner() {
     if (tb === 'overview') return t('businessHub.tabOverviewLabel');
     if (tb === 'analytics') return t('businessAnalytics.title');
     if (tb === 'invoices') return t('businessHub.tabInvoicesLabel');
+    if (tb === 'credit') return t('businessHub.tabCreditLabel', { defaultValue: 'Member Credit' });
     if (tb === 'tax') return t('businessHub.tabTaxLabel');
     if (tb === 'goals') return t('businessHub.tabGoalsLabel');
     if (tb === 'maintenance') return t('businessHub.tabMaintenanceLabel', { defaultValue: 'Maintenance' });
@@ -2131,6 +2195,11 @@ function BusinessHubInner() {
                 onPay={inv => { setSelected(inv); setForm({ amount: inv.total || '' }); setFormErr(''); setModal('pay-inv'); }}
                 onDelete={handleDeleteInvoice}
               />
+            )}
+
+            {/* ── Member Credit tab (G-22) ───────────────────────────── */}
+            {tab === 'credit' && bizId && ['owner', 'manager'].includes(currentRole) && (
+              <BusinessCreditFundingTab businessId={bizId} members={members} currency={currency} />
             )}
 
             {/* ── Tax tab ──────────────────────────────────────────── */}
@@ -2967,6 +3036,52 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
   const requests = data?.requests || [];
   const stats = data?.stats || {};
   const [drafts, setDrafts] = useState({});
+  // G-17: property filter + property management for this business.
+  const [properties, setProperties] = useState([]);
+  const [propertyFilter, setPropertyFilter] = useState('');
+  const [filteredData, setFilteredData] = useState(null);
+  const [showPropertyForm, setShowPropertyForm] = useState(false);
+  const [propertyForm, setPropertyForm] = useState({ label: '', address: '' });
+
+  useEffect(() => {
+    let cancelled = false;
+    listBusinessProperties(businessId)
+      .then((rows) => { if (!cancelled) setProperties(rows); })
+      .catch(() => { if (!cancelled) setProperties([]); });
+    return () => { cancelled = true; };
+  }, [businessId]);
+
+  useEffect(() => { setFilteredData(null); }, [businessId]);
+
+  const visibleRequests = filteredData ? filteredData.requests : requests;
+  const visibleStats = filteredData ? filteredData.stats : stats;
+
+  async function applyPropertyFilter(nextFilter) {
+    setPropertyFilter(nextFilter);
+    if (!nextFilter) { setFilteredData(null); onRefresh(); return; }
+    try {
+      setFilteredData(await listBusinessMaintenanceRequests(businessId, { property_id: nextFilter }));
+    } catch {
+      toast.error(t('businessHub.maintenance.toastLoadFail'));
+    }
+  }
+
+  async function handleCreateProperty(event) {
+    event.preventDefault();
+    if (!propertyForm.label.trim()) return;
+    try {
+      const created = await createBusinessProperty(businessId, {
+        label: propertyForm.label.trim(),
+        address: propertyForm.address.trim() || undefined,
+      });
+      setProperties((current) => [...current, created]);
+      setPropertyForm({ label: '', address: '' });
+      setShowPropertyForm(false);
+      toast.success(t('businessHub.maintenance.propertyCreated'));
+    } catch {
+      toast.error(t('businessHub.maintenance.propertyCreateFail'));
+    }
+  }
 
   function getDraft(request) {
     return drafts[request.id] || {
@@ -2989,11 +3104,53 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
   return (
     <div>
       <div className="bh-kpi-grid">
-        <KPI label={t('businessHub.rooms.openRequests')} value={stats.open_count || 0} cls="warn" sub={t('businessHub.rooms.openRequestsHint')} />
-        <KPI label={t('businessHub.rooms.completed')} value={stats.completed_count || 0} cls="positive" sub={t('businessHub.rooms.completedHint')} />
-        <KPI label={t('businessHub.rooms.followUpsDue')} value={stats.follow_up_count || 0} cls="warn" sub={t('businessHub.rooms.followUpsDueHint')} />
-        <KPI label={t('businessHub.rooms.slaAtRisk')} value={stats.overdue_sla_count || 0} cls="danger" sub={t('businessHub.rooms.slaAtRiskHint')} />
-        <KPI label={t('businessHub.rooms.trackedCost')} value={fmt$(stats.actual_cost_total || 0, currency)} sub={t('businessHub.rooms.trackedCostHint')} />
+        <KPI label={t('businessHub.rooms.openRequests')} value={visibleStats.open_count || 0} cls="warn" sub={t('businessHub.rooms.openRequestsHint')} />
+        <KPI label={t('businessHub.rooms.completed')} value={visibleStats.completed_count || 0} cls="positive" sub={t('businessHub.rooms.completedHint')} />
+        <KPI label={t('businessHub.rooms.followUpsDue')} value={visibleStats.follow_up_count || 0} cls="warn" sub={t('businessHub.rooms.followUpsDueHint')} />
+        <KPI label={t('businessHub.rooms.slaAtRisk')} value={visibleStats.overdue_sla_count || 0} cls="danger" sub={t('businessHub.rooms.slaAtRiskHint')} />
+        <KPI label={t('businessHub.rooms.trackedCost')} value={fmt$(visibleStats.actual_cost_total || 0, currency)} sub={t('businessHub.rooms.trackedCostHint')} />
+      </div>
+
+      {/* G-17: separate work by property. */}
+      <div className="bh-card" style={{ marginBottom: '1rem' }}>
+        <div className="bh-card-header">
+          <div>
+            <h2>{t('businessHub.maintenance.propertiesTitle')}</h2>
+            <p>{t('businessHub.maintenance.propertiesDescription')}</p>
+          </div>
+          <div className="bh-header-actions">
+            <label>
+              {t('businessHub.maintenance.propertyFilter')}
+              <select value={propertyFilter} onChange={(e) => applyPropertyFilter(e.target.value)}>
+                <option value="">{t('businessHub.maintenance.allProperties')}</option>
+                {properties.map((property) => (
+                  <option key={property.id} value={property.id}>{property.label}</option>
+                ))}
+              </select>
+            </label>
+            <button className="bh-btn" onClick={() => setShowPropertyForm((v) => !v)} data-track="ui.83b215c0c9.110">{t('businessHub.maintenance.addProperty')}</button>
+          </div>
+        </div>
+        {showPropertyForm && (
+          <form onSubmit={handleCreateProperty} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', padding: '0 1rem 1rem' }} data-track="ui.83b215c0c9.111">
+            <input
+              value={propertyForm.label}
+              onChange={(e) => setPropertyForm((p) => ({ ...p, label: e.target.value }))}
+              placeholder={t('businessHub.maintenance.propertyNamePlaceholder')}
+              aria-label={t('businessHub.maintenance.propertyName')}
+              maxLength={200}
+              required
+            />
+            <input
+              value={propertyForm.address}
+              onChange={(e) => setPropertyForm((p) => ({ ...p, address: e.target.value }))}
+              placeholder={t('businessHub.maintenance.propertyAddressPlaceholder')}
+              aria-label={t('businessHub.maintenance.propertyAddress')}
+              maxLength={500}
+            />
+            <button className="bh-btn" type="submit" data-track="ui.83b215c0c9.112">{t('businessHub.maintenance.saveProperty')}</button>
+          </form>
+        )}
       </div>
 
       <div className="bh-card">
@@ -3010,14 +3167,14 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
           </div>
         </div>
 
-        {requests.length === 0 ? (
+        {visibleRequests.length === 0 ? (
           <div className="bh-empty">
             <p style={{ fontWeight: 700 }}>{t('businessHub.rooms.noMaintenanceRequests')}</p>
             <p>{t('businessHub.rooms.noMaintenanceRequestsDescription')}</p>
           </div>
         ) : (
           <div className="bh-maint-list">
-            {requests.map((request) => {
+            {visibleRequests.map((request) => {
               const draft = getDraft(request);
               return (
                 <article className="bh-maint-card" key={request.id}>
@@ -3047,6 +3204,7 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                   )}
 
                   <div className="bh-maint-details">
+                    {request.property_name && <p><strong>{t('businessHub.maintenance.property')}:</strong> {request.property_name}</p>}
                     {request.property_label && <p><strong>{t('businessHub.rooms.property')}:</strong> {request.property_label}</p>}
                     {request.preferred_times && <p><strong>{t('businessHub.rooms.preferredTimes')}:</strong> {request.preferred_times}</p>}
                     {request.access_notes && <p><strong>{t('businessHub.rooms.access')}:</strong> {request.access_notes}</p>}

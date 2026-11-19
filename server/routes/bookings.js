@@ -43,6 +43,7 @@ router.get('/', requireAuth, bookingController.getMyBookingRequests);
 router.get('/incoming', requireAuth, bookingController.getIncomingBookingRequests);
 
 /** Static paths must be registered before /:bookingId */
+router.get('/status/:token', bookingController.getPublicBookingStatus);
 router.get('/recurring', requireAuth, bookingController.listRecurringBookings);
 router.post('/recurring', requireAuth, bookingController.createRecurringBooking);
 router.post('/recurring/:id/cancel', requireAuth, bookingController.updateRecurringBookingStatus);
@@ -56,6 +57,10 @@ router.post('/:bookingId/accept', requireAuth, requireBookingProviderCapability,
 router.post('/:bookingId/decline', requireAuth, requireBookingProviderCapability, bookingController.declineBookingRequest);
 router.post('/:bookingId/cancel', requireAuth, bookingController.cancelBookingRequest);
 router.post('/:bookingId/helper-cancel', requireAuth, requireBookingProviderCapability, bookingController.helperCancelAcceptedBooking);
+// G-37: transfer an accepted booking to another eligible provider.
+// No activation gate for the caller: a revoked helper can still hand
+// existing work to someone who can do it, like decline/cancel.
+router.post('/:bookingId/transfer', requireAuth, requireBookingProviderCapability, bookingController.transferBookingRequest);
 router.post('/:bookingId/counter-propose', requireAuth, requireBookingProviderCapability, requireBookingProviderActivation, bookingController.counterProposeBooking);
 router.post('/:bookingId/counter-propose/respond', requireAuth, bookingController.respondToCounterPropose);
 router.post('/:bookingId/convert-to-job', requireAuth, bookingController.convertBookingToJob);

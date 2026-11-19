@@ -74,6 +74,23 @@ export const declineInvitation   = (id)           => api.post(`/businesses/invit
 // ── Businesses I manage as a representative / manager ─────────────────────────
 export const listManagedBusinesses = ()           => api.get('/businesses/managed').then(r => r.data?.businesses || []);
 
+// G-22: business-funded Credit top-ups.
+export const createBusinessCreditTopup = (businessId, payload, idempotencyKey) =>
+  api.post(`/businesses/${businessId}/credit-topups`, payload, { headers: { 'Idempotency-Key': idempotencyKey } }).then(r => r.data);
+export const getBusinessCreditTopup = (businessId, topupId) =>
+  api.get(`/businesses/${businessId}/credit-topups/${encodeURIComponent(topupId)}`).then(r => r.data);
+export const listBusinessCreditTopups = (businessId) =>
+  api.get(`/businesses/${businessId}/credit-topups`).then(r => r.data?.topups || []);
+
+// G-20: business-initiated refund requests. The request always queues for
+// platform-admin approval; the requester can never execute the refund.
+export const requestJobRefund = (businessId, jobId, payload) =>
+  api.post(`/businesses/${businessId}/jobs/${jobId}/refund-request`, payload, {
+    headers: { 'Idempotency-Key': payload?.idempotencyKey || `job-refund-${jobId}-${Date.now()}` },
+  }).then(r => r.data);
+export const listJobRefundRequests = (businessId, jobId) =>
+  api.get(`/businesses/${businessId}/jobs/${jobId}/refund-requests`).then(r => r.data?.requests || []);
+
 // ── Per-business calendar (events + linked appointments) ─────────────────────
 export const getBusinessCalendar        = (id, params = {}) =>
   api.get(`/businesses/${id}/calendar`, { params }).then(r => r.data?.data || r.data || {});

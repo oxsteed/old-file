@@ -517,7 +517,7 @@ exports.sendNotification = async ({
       'payout_destination_changed',
       // Direct booking notifications
       'booking_request_new', 'booking_accepted', 'booking_declined',
-      'booking_cancelled', 'booking_auto_released',
+      'booking_cancelled', 'booking_auto_released', 'booking_transferred',
       // Consulting: the assigned consultant learns a session was scheduled.
       'consulting_session_scheduled',
       // Agreement/job lifecycle notices respect the participant's email choices.

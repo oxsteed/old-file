@@ -616,6 +616,11 @@ app.use('/api/me',         meWorkspaceRoutes);
 // Progressive account access (docs/progressive-access): applicant + reviewer APIs, flag-gated.
 app.use('/api/me',         progressiveAccessRoutes.meRouter);
 app.use('/api/admin/access-requests', progressiveAccessRoutes.adminRouter);
+// Signup provisioning requests (PR #804 G-4/G-23/G-35): the visible record
+// for staff, device/service-account, and partner signup asks.
+const signupProvisioningRoutes = require('./routes/signupProvisioning');
+app.use('/api/me', signupProvisioningRoutes.meRouter);
+app.use('/api/admin/signup-provisioning-requests', signupProvisioningRoutes.adminRouter);
 app.use('/api/admin/corporate', corporateRolesRoutes);
 app.use('/api/internal/workspaces', internalWorkspaceRoutes);
 // OxSteed Logistics branch
@@ -772,6 +777,12 @@ app.post(
   authenticate,
   require('./middleware/rejectImpersonated').rejectImpersonated,
   require('./controllers/oxsteedCreditController').applyForCredit
+);
+// G-25: applicant-side status for the caller's own participant rows.
+app.get(
+  '/api/oxsteed-credit/participants/me',
+  authenticate,
+  require('./controllers/oxsteedCreditController').getMyParticipants
 );
 app.use('/api/media', launchGate(), require('./routes/media'));
 // Monthly statement operations: private archive, entry investigation, and

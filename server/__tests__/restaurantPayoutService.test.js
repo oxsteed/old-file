@@ -53,6 +53,7 @@ const RESTAURANT = {
   currency_code: 'USD',
   stripe_account_id: 'acct_test123',
   stripe_payouts_enabled: true,
+  owner_id: 'user-1',
 };
 
 function mockClient({ restaurant = RESTAURANT, balanceCents = 5000, payout = null } = {}) {

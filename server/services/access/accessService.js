@@ -159,6 +159,19 @@ async function getProjection(userId, db = pool) {
   );
   const version = await projectionVersion(userId, db);
   const projection = resolver.project(facts, { openRequestCount: rows[0].n, version });
+  // G-1: emit activation state per held capability so the client can show
+  // the missing setup steps (ApplicationsPage) and the nav can hold the
+  // protected links (activationReady) instead of the user discovering a
+  // bare 403. Capabilities with no declared requirements are ready.
+  {
+    const { activationFor } = require('./activation');
+    const activation = {};
+    for (const capability of projection.personal) {
+      if (capability === registry.CUSTOMER) continue;
+      activation[capability] = await activationFor(capability, userId, db);
+    }
+    projection.activation = activation;
+  }
   // OxSteed Invest (Track 2): the client renders participation surfaces
   // from this projection only. Granted invest capabilities already appear
   // in projection.personal through resolver.project (any effective grant).
@@ -175,6 +188,11 @@ async function getProjection(userId, db = pool) {
         audienceKey: audience.audience_key,
         datasets: Array.isArray(audience.datasets) ? audience.datasets : [],
         expiresAt: audience.expires_at,
+        // G-45: explicit position scope (empty when the investor holds no
+        // position yet). The franchise dataset filters by these ids; the
+        // platform-total datasets are labeled platform-wide instead.
+        entityIds: Array.isArray(audience.entity_ids) ? audience.entity_ids : [],
+        opportunityIds: Array.isArray(audience.opportunity_ids) ? audience.opportunity_ids : [],
       };
     }
   }
@@ -183,13 +201,22 @@ async function getProjection(userId, db = pool) {
 
 async function can(userId, capability, subject, db = pool) {
   const facts = await loadFacts(userId, db);
+  // G-1: approval is not activation. Resolve the capability's declared
+  // activation requirements against real evidence and let the resolver
+  // hold a granted-but-incomplete capability instead of authorizing it.
+  const { activationFor } = require('./activation');
+  facts.activation = { [capability]: await activationFor(capability, userId, db) };
   return resolver.evaluate(facts, capability, subject);
 }
 
 async function getInvestorAudience(userId, db = pool) {
-  try {
-    const { rows } = await db.query(
-      `SELECT a.id, a.audience_key, a.datasets, a.expires_at
+  // G-45: the audience row carries its explicit position scope
+  // (entity_ids / opportunity_ids, added by migration
+  // 20261119090000). Older deployments without those columns still return
+  // the audience with an empty scope instead of failing the gate.
+  const selectSql = (withScope) => `
+    SELECT a.id, a.audience_key, a.datasets, a.expires_at
+      ${withScope ? ', a.entity_ids, a.opportunity_ids' : ''}
          FROM investor_reporting_audiences a
          JOIN access_grants g ON g.id = a.grant_id
         WHERE a.user_id = $1
@@ -199,14 +226,61 @@ async function getInvestorAudience(userId, db = pool) {
           AND a.status = 'active'
           AND (a.expires_at IS NULL OR a.expires_at > NOW())
         ORDER BY a.created_at DESC, a.id DESC
-        LIMIT 1`,
-      [userId],
-    );
-    return rows[0] || null;
+        LIMIT 1`;
+  try {
+    const { rows } = await db.query(selectSql(true), [userId]);
+    if (!rows[0]) return null;
+    return {
+      ...rows[0],
+      // pg returns BIGINT[] as strings; normalize so the projection and
+      // the reporting scope filter agree on numbers.
+      entity_ids: (Array.isArray(rows[0].entity_ids) ? rows[0].entity_ids : []).map(Number).filter((n) => Number.isFinite(n)),
+      opportunity_ids: (Array.isArray(rows[0].opportunity_ids) ? rows[0].opportunity_ids : []).map(String),
+    };
   } catch (error) {
     // Older deployments may not have the audience table yet. The capability
     // projection remains usable until the additive migration is deployed.
     if (error && error.code === '42P01') return null;
+    if (error && error.code === '42703') {
+      const { rows } = await db.query(selectSql(false), [userId]);
+      if (!rows[0]) return null;
+      return { ...rows[0], entity_ids: [], opportunity_ids: [] };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Resolve an investor's position scope from live records (G-45): active
+ * positions, live (reserved/completed) commitments, and live participation
+ * applications, mapped to their opportunities and entities
+ * (investment_opportunities.business_id). This is the scope the audience
+ * row snapshots at approval and the franchise dataset filters by.
+ */
+async function resolveInvestorScope(userId, db = pool) {
+  const empty = { opportunityIds: [], entityIds: [] };
+  try {
+    const { rows } = await db.query(
+      `SELECT DISTINCT o.id::text AS opportunity_id, o.business_id AS entity_id
+         FROM investment_opportunities o
+        WHERE o.id IN (
+          SELECT opportunity_id FROM investment_positions
+           WHERE user_id = $1 AND status = 'active'
+          UNION
+          SELECT opportunity_id FROM investment_commitments
+           WHERE user_id = $1 AND status IN ('reserved', 'completed')
+          UNION
+          SELECT opportunity_id FROM investment_participation_applications
+           WHERE user_id = $1 AND status IN ('submitted', 'under_review', 'approved')
+        )`,
+      [userId],
+    );
+    return {
+      opportunityIds: rows.map((r) => r.opportunity_id),
+      entityIds: [...new Set(rows.map((r) => Number(r.entity_id)))],
+    };
+  } catch (error) {
+    if (error && error.code === '42P01') return empty;
     throw error;
   }
 }
@@ -446,6 +520,22 @@ async function applicantTransition(applicantId, id, action, { expectedVersion, a
     );
     if (toStatus === 'submitted') {
       await enqueue(client, { eventType: 'access_request.submitted', userId: applicantId, requestId: row.id, payload: { capability: row.capability }, dedupeKey: `submitted:${row.id}:${rows[0].version}` });
+      // G-2/G-32: the signup intent that opened this application is
+      // consumed now that the applicant submitted it, so the resume card
+      // stops offering a path already taken. The intent row stores the
+      // capability at finalize; a savepoint keeps a stamp failure from
+      // failing the submission itself.
+      try {
+        await client.query('SAVEPOINT sp_consume_signup_intent');
+        await client.query(
+          `UPDATE access_signup_intents SET consumed_at = NOW(), updated_at = NOW()
+            WHERE user_id = $1 AND capability = $2 AND consumed_at IS NULL`,
+          [applicantId, row.capability],
+        );
+        await client.query('RELEASE SAVEPOINT sp_consume_signup_intent');
+      } catch (_consumeErr) {
+        await client.query('ROLLBACK TO SAVEPOINT sp_consume_signup_intent').catch(() => {});
+      }
     }
     await bumpProjection(client, applicantId);
     return { status: 200, body: { request: toApplicantView(rows[0]) } };
@@ -495,6 +585,21 @@ async function getMine(applicantId, id) {
   };
 }
 
+// G-33: the applicant's own grants, every status, with the reason a grant
+// was suspended or revoked. The projection only lists active capabilities,
+// so without this a revoked grant just vanished from Settings with no
+// explanation in-app. Own rows only; the reviewer list stays separate.
+async function listOwnGrants(userId, db = pool) {
+  const { rows } = await db.query(
+    `SELECT id, capability, subject_type, subject_id, subject_key, status,
+            provenance, provenance_reason, granted_at, status_changed_at,
+            status_reason_code, version
+       FROM access_grants WHERE user_id = $1 ORDER BY status_changed_at DESC NULLS LAST, id DESC`,
+    [userId],
+  );
+  return rows.map((g) => ({ ...g, id: String(g.id) }));
+}
+
 module.exports = {
   // facts / projection
   loadFacts,
@@ -503,11 +608,13 @@ module.exports = {
   bumpProjection,
   can,
   getInvestorAudience,
+  resolveInvestorScope,
   // applicant
   createRequest,
   applicantTransition,
   listMine,
   getMine,
+  listOwnGrants,
   // shared internals for reviewer service / tests
   _internal: { tx, idempotent, writeDecision, enqueue, assertVersion, toApplicantView, toApplicantSummary, err, safeReturnTo, subjectKey },
   safeReturnTo,

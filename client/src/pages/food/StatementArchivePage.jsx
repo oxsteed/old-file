@@ -400,9 +400,9 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed',
         <button type="button" disabled={busy || artifact.state !== 'ready'} onClick={() => downloadItem(item, artifact)}>
           <Download size={15} aria-hidden="true" />{text(downloadState[key] === 'busy' ? 'downloading' : 'download')}
         </button>
-        <button type="button" disabled={busy || artifact.state !== 'ready'} onClick={() => copyLink(item, artifact)}>
+        {!item.readOnly && <button type="button" disabled={busy || artifact.state !== 'ready'} onClick={() => copyLink(item, artifact)}>
           <Link2 size={15} aria-hidden="true" />{text('copyLink')}
-        </button>
+        </button>}
       </div>
       {downloadState[key] === 'error' && <p className="sa-inline-error" role="alert">{text('downloadError')}</p>}
       {linkState[key] === 'error' && <p className="sa-inline-error" role="alert">{text('linkError')}</p>}
@@ -420,6 +420,7 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed',
         <button type="button" onClick={() => toggleDetails(item)}>{text('retry')}</button></div>;
     }
     const document = detail.document;
+    const readOnly = document.readOnly || item.readOnly;
     const artifacts = document.kind === 'amendment' ? [document.amendment?.artifact].filter(Boolean)
       : [...(document.artifacts?.originals || []), ...(document.artifacts?.renditions || [])];
     return <div className="sa-details">
@@ -438,17 +439,18 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed',
       {!artifacts.length ? <p>{text('downloadUnavailable')}</p> : <div className="sa-table-scroll" role="region" tabIndex={0}>
         <table><thead><tr>{['kind', 'label', 'language', 'state', 'size', 'actions'].map(key =>
           <th key={key} scope="col">{text(key)}</th>)}</tr></thead>
-          <tbody>{artifacts.map(artifact => renderArtifactRow(item, artifact))}</tbody></table>
+          <tbody>{artifacts.map(artifact => renderArtifactRow({ ...item, readOnly }, artifact))}</tbody></table>
       </div>}
-      {document.kind !== 'amendment' && renderEntries(item)}
-      <StatementReport product={product} documentId={item.id} />
-      {document.kind === 'amendment' && document.amendment?.correctionId && (
+      {!readOnly && document.kind !== 'amendment' && renderEntries(item)}
+      {!readOnly && <StatementReport product={product} documentId={item.id} />}
+      {!readOnly && document.kind === 'amendment' && document.amendment?.correctionId && (
         <CorrectionDiff product={product} documentId={item.id} correctionId={document.amendment.correctionId} />
       )}
     </div>;
   }
 
   const Content = embedded ? 'div' : 'main';
+  const exportAccounts = accounts.filter(account => !account.readOnly);
   return <div className={`statement-archive-shell${embedded ? ' statement-center-embedded' : ''}`} dir={i18n.dir(language)}>
     {!embedded && <PageMeta title={text('title')} description={text('description')} noIndex />}
     {!embedded && <Navbar />}
@@ -457,7 +459,9 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed',
       {!embedded && <header className="sa-header"><FileText size={30} aria-hidden="true" /><div><h1>{text('title')}</h1><p>{text('description')}</p></div></header>}
       <p className="sa-scope">{text(settlement ? 'settlementScopeNote' : 'scopeNote')}</p>
       {statementCorrectionNotice(product) && <p className="sa-scope" role="note">{text(statementCorrectionNotice(product))} <Link to="/support/escalation">{text('contactSupport')}</Link></p>}
-      <details className="sa-export-disclosure"><summary>{text('export')}</summary><StatementExportPanel product={product} accounts={accounts} /></details>
+      {(!settlement || exportAccounts.length > 0) && (
+        <details className="sa-export-disclosure"><summary>{text('export')}</summary><StatementExportPanel product={product} accounts={exportAccounts} /></details>
+      )}
 
       {accountsError && <div className="sa-state" role="alert">
         <p>{t('archive.accountsLoadError')}</p>

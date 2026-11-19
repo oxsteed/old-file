@@ -1680,7 +1680,8 @@
     "help": "Èd",
     "compactTagline": "Èd lokal, manje ak sèvis pou biznis.",
     "teamAccess": "Aksè ekip (Vortex)",
-    "creditTerms": "Kondisyon OxSteed Credit"
+    "creditTerms": "Kondisyon OxSteed Credit",
+    "yourAccess": "OxSteed ou"
   },
   "nav": {
     "findHelp": "Jwenn èd",
@@ -1692,7 +1693,11 @@
     "foodOrders": "Kòmann manje",
     "myApplications": "Aplikasyon mwen yo",
     "account": "Kont",
-    "help": "Èd"
+    "help": "Èd",
+    "credit": "OxSteed Credit",
+    "partner": "Pwogram patnè",
+    "learning": "Aprantisaj travay",
+    "browseJobs": "Chèche travay"
   },
   "signupUpgrade": {
     "title": "Kreye kont ou",
@@ -1708,9 +1713,39 @@
     "benefitBusiness": "Devlope biznis ou",
     "benefitBusinessText": "Jwenn talan epi rive jwenn plis moun toupre ou.",
     "modePrompt": "Kijan ou pral sèvi ak OxSteed?",
-    "switcherNote": "Ou ka chanje mòd ou nenpòt lè nan selektè ki nan aplikasyon an.",
-    "setupNote": "Kèk mòd mande lòt etap konfigirasyon.",
-    "intentNote": "Tout moun kòmanse ak aksè kliyan. Apre ou fin verifye imèl ou, ou ka mande aksè pou ofri sèvis oswa jere yon biznis.",
+    "setupNote": "Lòt fason pou itilize OxSteed",
+    "intentNote": "Tout moun kòmanse ak aksè kliyan. Chwazi chemen ki pi byen dekri bezwen ou; pwosesis admisyon an kòmanse apre verifikasyon.",
+    "personas": {
+      "customer": { "title": "Jwenn èd lokal", "description": "Pibliye yon travay, jwenn èd epi kòmande manje." },
+      "helper": { "title": "Ofri sèvis", "description": "Kreye pwofil sèvis, reponn opòtinite epi touche." },
+      "businessOwner": { "title": "Dirije yon biznis", "description": "Kreye prezans biznis ou epi jere travay li." },
+      "businessTeam": { "title": "Antre nan yon ekip biznis", "description": "Travay pou yon biznis ki envite w ak zouti limite." },
+      "restaurantOwner": { "title": "Dirije yon restoran", "description": "Mete restoran an kanpe epi jere operasyon li." },
+      "restaurantTeam": { "title": "Travay nan yon restoran", "description": "Sèvi sèlman ak zouti kote yo ba w aksè." },
+      "logistics": { "title": "Transpò ak livrezon", "description": "Kowòdone anbake, livrezon oswa dispatch." },
+      "consultant": { "title": "Konsilte kliyan", "description": "Pataje konesans ou nan travay ki apwouve." },
+      "equipmentOwner": { "title": "Lis ekipman", "description": "Ofri zouti ak ekipman pou itilizasyon lokal." },
+      "franchise": { "title": "Dirije yon franchiz", "description": "Swiv enskripsyon teritwa ak preparasyon." },
+      "investorReporting": { "title": "Wè rapò envestisè", "description": "Mande rapò pou antite ki elijib; sa pa pèmèt envestisman." },
+      "creditParticipant": { "title": "Patisipe nan OxSteed Credit", "description": "Swiv enskripsyon ak elijiblite pwogram Credit." },
+      "partnerAffiliate": { "title": "Patnè oswa afilye", "description": "Antre nan yon pwogram patnè ki apwouve." },
+      "workforceLearning": { "title": "Aprann oswa anseye", "description": "Antre nan pwogram travay oswa aprantisaj." },
+      "reviewer": { "title": "Revize aplikasyon", "description": "Mande aksè entèn pou travay otorize." },
+      "supportAgent": { "title": "Ede kliyan", "description": "Mande aksè entèn kòm ajan sipò." },
+      "operationsStaff": { "title": "Jere operasyon", "description": "Mande aksè operasyon entèn ki otorize." },
+      "deviceServiceAccount": { "title": "Konekte yon aparèy oswa sèvis", "description": "Sèvi ak kredansyèl ki pa moun yo bay pa administratè." }
+    },
+    "admission": {
+      "baseline": "Aksè kliyan disponib touswit.",
+      "platform_review": "Apre verifikasyon imèl, fini revizyon platfòm lan. Zouti pwoteje yo mande apwobasyon ak aktivasyon.",
+      "organization_invitation": "Chemen sa a kòmanse ak envitasyon oswa apwobasyon manm yon òganizasyon.",
+      "domain_enrollment": "Pwogram ki posede chemen an jere enskripsyon an; ou ka swiv estati san zouti pwoteje.",
+      "staff_provisioning": "Yon administratè OxSteed otorize bay aksè entèn anplwaye yo. Demann ou a anrejistre pou revizyon.",
+      "nonhuman_provisioning": "Mande administratè ou a pou li bay kredansyèl aparèy; enskripsyon sa a kreye kont pèsonèl ou pou demann lan."
+    },
+    "intentConfirmed": "Kont ou pare pou chemen sa a",
+    "intentConfirmationNote": "Pa gen zouti pwoteje ki aktive. Kontinye lè yo envite w oswa lè w elijib.",
+    "viewNextStep": "Wè pwochen etap la",
     "accountReady": "Kont ou pare",
     "applicationNext": "Voye demann ou bay OxSteed pou revizyon. Ou ka sèvi ak kont ou pandan n ap revize li.",
     "applicationLoadFailed": "Kont ou pare, men nou pa t ka chaje demann nan. Eseye ankò oswa fini pita nan Demann yo.",
@@ -1735,7 +1770,7 @@
     "postalLabel": "Kòd postal",
     "optionalPostal": "Kòd postal (opsyonèl)",
     "errorSummary": "Tanpri verifye sa ki annapre yo:",
-    "modeError": "Chwazi yon mòd kont ki disponib.",
+    "modeError": "Chwazi youn nan opsyon ki anba yo.",
     "firstNameError": "Antre yon prenon valab (jiska 100 karaktè).",
     "lastNameError": "Antre yon siyati valab (jiska 100 karaktè).",
     "emailError": "Antre yon imèl valab (jiska 254 karaktè).",
@@ -1761,7 +1796,22 @@
     "restart": "Rekòmanse enskripsyon",
     "resendWait": "Eseye ankò nan {{seconds}} s",
     "verifying": "Ap verifye kòd ou…",
-    "sending": "Ap voye yon nouvo kòd…"
+    "sending": "Ap voye yon nouvo kòd…",
+    "inviteAccept": "Aksepte envitasyon",
+    "inviteAccepted": "Byenvini nan ekip la. Envitasyon ou a aksepte.",
+    "inviteDecline": "Refize envitasyon",
+    "inviteDeclined": "Envitasyon refize.",
+    "inviteFound": "Yo envite ou pou ou rantre nan {{business}} kòm {{role}}.",
+    "inviteLoading": "N ap tcheke envitasyon ou a…",
+    "inviteMissing": "Nou pa t jwenn yon envitasyon ki poko deside pou lyen sa a. Li te ka ekspire oswa li te deja deside.",
+    "inviteOpenWorkspace": "Louvri espas travay",
+    "inviteTitle": "Envitasyon ekip",
+    "resumeCode": "Kòd 6 chif",
+    "resumeFailed": "Imèl sa a ak kòd sa a pa koresponn. Tcheke yo epi eseye ankò.",
+    "resumeHelp": "Ou te kòmanse sou yon lòt aparèy? Mete imèl la ak kòd 6 chif enskripsyon sa a pou ou kontinye kote ou te rete a.",
+    "resumeRestored": "Enfòmasyon enskripsyon ou yo te retabli. Mete modpas ou pou kontinye.",
+    "resumeSubmit": "Kontinye enskripsyon",
+    "resumeTitle": "Kontinye yon enskripsyon ou te kòmanse"
   },
   "actions": {
     "cancel": "Anile",
@@ -6518,10 +6568,44 @@
     "retry": "Eseye ankò"
   },
   "progressiveAccess": {
+    "invitations": {
+      "accept": "Aksepte",
+      "accepted": "Envitasyon aksepte.",
+      "decline": "Refize",
+      "declined": "Envitasyon refize.",
+      "empty": "Pa gen envitasyon ekip ki poko deside.",
+      "role": "Wòl: {{role}}",
+      "title": "Envitasyon ekip",
+      "vortexHint": "Ou gen yon kòd ekip?",
+      "vortexLink": "Sèvi ak yon kòd"
+    },
     "pageTitle": "Aplikasyon",
     "pageSubtitle": "Gade sa kont ou ka fè epi aplike pou plis.",
     "backToSettings": "Retounen nan paramèt yo",
     "loading": "Chajman…",
+    "provisioning": {
+      "kinds": {
+        "device": "Aparèy",
+        "partner_application": "Demann patnè",
+        "service_account": "Kont sèvis",
+        "staff_operations": "Operasyon anplwaye",
+        "staff_reviewer": "Revizè anplwaye",
+        "staff_support": "Ajan sipò anplwaye"
+      },
+      "title": "Demann pwovizyon"
+    },
+    "resumes": {
+      "creditStatus": {
+        "active": "Demann kredi aktif",
+        "pending": "Demann kredi poko deside",
+        "revoked": "Demann kredi anile",
+        "suspended": "Demann kredi sispann"
+      },
+      "partnerInviteOnly": "Pwogram afilye yo se sou envitasyon pou edè yo. Ou ka mande aksè patnè.",
+      "partnerPending": "Aksè patnè yo mande. Yon revizè ap deside demann ou a.",
+      "partnerRequest": "Mande aksè patnè",
+      "partnerRequested": "Demann aksè patnè voye."
+    },
     "unavailable": "Aplikasyon poko disponib sou kont ou.",
     "loadFailed": "Nou pa t kapab chaje aplikasyon ou yo.",
     "heldTitle": "Sa ou ka fè kounye a",
@@ -6529,6 +6613,18 @@
     "requestsTitle": "Aplikasyon ou yo",
     "noRequests": "Ou poko gen okenn aplikasyon.",
     "applyTitle": "Aplike pou plis",
+    "activationTitle": "Fini konfigirasyon an pou w ka itilize aksè sa a",
+    "activationIntro": "Apwobasyon an se sèlman premye etap la. Konplete pwen ki anba yo pou w ka kòmanse itilize aksè sa a.",
+    "activationRequirements": {
+      "identity_verified": "Verifye idantite w",
+      "helper_terms": "Aksepte kondisyon pou edan yo",
+      "payout_setup": "Mete peman yo sou pye",
+      "restaurant_activation": "Aktive restoran w lan",
+      "territory_assignment": "Konfime plas teritwa w la",
+      "authority_verified": "Verifye otorite w pou envesti",
+      "eligibility_verified": "Konplete verifikasyon elijiblite a",
+      "agreement_accepted": "Aksepte akò envestisman an"
+    },
     "editTitle": "Aplikasyon: {{capability}}",
     "reviewerAsked": "Revizè a mande:",
     "choose": "Chwazi…",
@@ -6670,6 +6766,11 @@
     "openApplications": "Louvri aplikasyon yo",
     "admin": {
       "nav": "Aplikasyon pou aksè",
+      "provisioning": {
+        "empty": "Pa gen demann pwovizyon.",
+        "subtitle": "Demann anplwaye, aparèy, kont sèvis, ak patnè ki soti nan enskripsyon. Yon desizyon anrejistre ki moun ki deside; li pa bay anyen poukont li.",
+        "title": "Demann pwovizyon enskripsyon"
+      },
       "title": "Aplikasyon pou aksè",
       "subtitle": "Revize aplikasyon pou aksè èd, biznis ak lòt aksè.",
       "status": "Estati",
@@ -6705,7 +6806,10 @@
     },
     "accessRequired": "Sa a mande yon aksè apwouve anvan.",
     "home": {
-      "workspaceUnavailable": "Espas travay sa a pa disponib ankò, kidonk w ap wè paj akèy pèsonèl ou."
+      "workspaceUnavailable": "Espas travay sa a pa disponib ankò, kidonk w ap wè paj akèy pèsonèl ou.",
+      "workspaceReady": "Espas travay ou ki apwouve a pare.",
+      "openWorkspace": "Louvri espas travay ou",
+      "workspaceLinksUnavailable": "Lyen espas travay yo pa disponib, n ap reeseye."
     },
     "accessUpdated": "Aksè ou mete ajou.",
     "viewStatus": "Gere estatou a",
@@ -6743,6 +6847,20 @@
     },
     "menu": {
       "storeScoped": "Se moun ki gen aksè nan tout magazen yo ki jere meni pataje a. Sèvi ak meni magazen pa w la pou chanje disponiblite oswa pri la."
+    },
+    "pastGrantsTitle": "Aksè anvan yo",
+    "pastGrantsDescription": "Aksè yo te revoke, sispann, oswa ki ekspire, ak rezon chanjman an.",
+    "grantStatus": {
+      "active": "Aktif",
+      "suspended": "Sispann",
+      "revoked": "Revoke",
+      "expired": "Ekspire"
+    },
+    "grantReasons": {
+      "account_deleted": "Kont lan efase.",
+      "review_complete": "Revizyon an fini.",
+      "territory_assigned": "Teritwa a asiyen.",
+      "territory_assignment_ended": "Asiyasyon teritwa a fini."
     }
   },
   "businessLaunchAttachments": {

@@ -56,7 +56,7 @@ test('projection navbar renders responsive priorities, accessible disclosures an
     './OxSteedNetworkSwitcher': `export default ()=>null;`,
     // The access projection is the navbar's only mode signal now; drive it
     // from window.fixtureProjection so configure() can swap scenarios.
-    '../hooks/useAccessProjection': `export default ()=>window.fixtureProjection ?? null;`,
+    '../hooks/useAccessProjection': `export const ACCESS_CHANGED_EVENT = 'oxsteed:access-changed'; export default ()=>window.fixtureProjection ?? null;`,
   };
   const bundle = await build({
     stdin: { contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
@@ -207,6 +207,19 @@ test('projection navbar renders responsive priorities, accessible disclosures an
     });
     const projectedSingle = page.locator('.ox-nav-desktop .ox-biz-switcher--single'); await projectedSingle.waitFor();
     assert.equal(await projectedSingle.getAttribute('aria-label'), longName, 'workspace list is filtered by the access projection');
+    await page.evaluate(options => window.configure(options), {
+      scenario: 'business', language: 'en', theme: 'dark', userId: 6, businesses: [businesses[1]],
+      projection: { flags: { accessProjection: true }, access: {
+        personal: ['customer'],
+        organizations: [{ type: 'business', id: 2, role: 'employee', name: 'Second Business' }],
+        locations: [{ type: 'restaurant_location', id: 1, businessId: 2, name: 'Downtown Restaurant' }],
+      } },
+    });
+    await account.click();
+    const scopedAccount = page.locator('.ox-nav-account-panel');
+    assert.equal(await scopedAccount.locator('a[href="/business/1/workspace"]').count(), 0);
+    await scopedAccount.getByRole('link', { name: 'Second Business', exact: true }).click();
+    await page.waitForURL('**/business/2/workspace');
     await page.setViewportSize({ width: 390, height: 850 });
     const mobileToggle = page.locator('.ox-nav-mobile-controls > button[aria-expanded]');
     await mobileToggle.click();

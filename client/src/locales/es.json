@@ -17,6 +17,60 @@
     "fulfillmentMoveBackTitle": "Retroceder la entrega de la tarjeta",
     "fulfillmentMoveBackConfirm": "¿Mover esta tarjeta de nuevo a {{status}}? Usa esto solo para corregir un paso que se marcó antes de que ocurriera. Una tarjeta que ya está activa no se puede mover hacia atrás."
   },
+  "adminSupportBooking": {
+    "title": "Reserva de soporte",
+    "backToSupport": "Volver a soporte",
+    "loading": "Cargando reserva...",
+    "loadFailed": "No se pudo cargar esta reserva.",
+    "notFound": "Reserva no encontrada.",
+    "booking": "Reserva",
+    "appointment": "Cita",
+    "payment": "Pago",
+    "status": "Estado",
+    "service": "Servicio",
+    "requestedDate": "Fecha solicitada",
+    "time": "Hora",
+    "location": "Ubicación",
+    "description": "Descripción",
+    "customer": "Cliente",
+    "helper": "Proveedor",
+    "unassigned": "Sin asignar",
+    "bookedFor": "Reservado para",
+    "siteContact": "Contacto en el lugar",
+    "bookedBy": "Reservado por",
+    "convertedJob": "Trabajo convertido",
+    "scheduled": "Programada",
+    "cancellationReason": "Motivo de cancelación",
+    "noAppointment": "Aún no hay cita.",
+    "paymentStatus": "Estado del pago",
+    "paymentRequirement": "Requisito de pago",
+    "amount": "Monto",
+    "grossAmount": "Monto bruto",
+    "promoDiscount": "Descuento promocional",
+    "refundedAt": "Reembolsado el",
+    "paymentNote": "Los detalles del pago se muestran sin números de tarjeta o cuenta."
+  },
+  "learnPrograms": {
+    "completed": "Completado",
+    "customer-service-essentials": {
+      "description": "Cómo atender bien a los clientes, resolver problemas y ganar trabajo repetido.",
+      "title": "Esenciales de atención al cliente"
+    },
+    "enroll": "Inscribirse",
+    "enrollFailed": "No se pudo completar la inscripción. Inténtalo de nuevo.",
+    "enrolled": "Inscrito",
+    "helper-foundations": {
+      "description": "Lo básico para ofrecer servicios: seguridad, comunicación y trabajo bien hecho.",
+      "title": "Fundamentos para ayudantes"
+    },
+    "progress": "{{completed}} de {{total}} guías completas",
+    "subtitle": "Inscríbete en un programa para aprender un oficio paso a paso. Completa todas las guías de un programa para terminarlo.",
+    "title": "Programas de fuerza laboral",
+    "workforce-management": {
+      "description": "Cómo organizar equipos, horarios y trabajo de calidad a gran escala.",
+      "title": "Gestión de fuerza laboral"
+    }
+  },
   "pwaExperience": {
     "serverUpdated": "Se sincronizó un texto más reciente. Revisa las fotos guardadas en este dispositivo.",
     "searchUnavailable": "No se pudo cargar la búsqueda. Reconecta e inténtalo de nuevo.",
@@ -1623,6 +1677,11 @@
   "merchantFinance": {
     "walletPaused": "Los pagos del monedero no están habilitados. Puedes consultar el saldo y el historial; contacta con soporte antes de solicitar un pago.",
     "refresh": "Actualizar solicitudes",
+    "draftAwaitingOwner": "Borrador. Esperando que el propietario del restaurante lo confirme antes de enviarlo a revisión.",
+    "draftCreated": "Borrador guardado. El propietario del restaurante debe confirmarlo antes de enviarlo a revisión.",
+    "confirmDraft": "Confirmar y enviar a revisión",
+    "draftConfirmed": "Pago confirmado y enviado a revisión.",
+    "confirmDraftError": "No se pudo confirmar el borrador del pago.",
     "eyebrow": "Finanzas del restaurante",
     "title": "Pagos y crédito",
     "description": "Gestiona cómo cobra este restaurante, revisa solicitudes de crédito y consulta liquidaciones.",
@@ -1860,6 +1919,21 @@
     }
   },
   "signupUpgrade": {
+    "inviteAccept": "Aceptar invitación",
+    "inviteAccepted": "Bienvenido al equipo. Tu invitación fue aceptada.",
+    "inviteDecline": "Rechazar invitación",
+    "inviteDeclined": "Invitación rechazada.",
+    "inviteFound": "Te invitaron a unirte a {{business}} como {{role}}.",
+    "inviteLoading": "Verificando tu invitación…",
+    "inviteMissing": "No encontramos una invitación pendiente para este enlace. Puede haber vencido o ya fue decidida.",
+    "inviteOpenWorkspace": "Abrir espacio de trabajo",
+    "inviteTitle": "Invitación a un equipo",
+    "resumeCode": "Código de 6 dígitos",
+    "resumeFailed": "Ese correo y código no coinciden. Revísalos e inténtalo de nuevo.",
+    "resumeHelp": "¿Empezaste en otro dispositivo? Ingresa el correo y el código de 6 dígitos de ese registro para continuar donde quedaste.",
+    "resumeRestored": "Tus datos de registro se restauraron. Ingresa tu contraseña para continuar.",
+    "resumeSubmit": "Continuar registro",
+    "resumeTitle": "Continúa un registro que empezaste",
     "title": "Crea tu cuenta",
     "subtitle": "Una cuenta. Tú eliges.",
     "headline": "Tu próxima oportunidad",
@@ -1873,9 +1947,39 @@
     "benefitBusiness": "Haz crecer tu negocio",
     "benefitBusinessText": "Encuentra talento y llega a más personas cerca de ti.",
     "modePrompt": "¿Cómo usarás OxSteed?",
-    "switcherNote": "Puedes cambiar de modo en cualquier momento desde el selector de la aplicación.",
-    "setupNote": "Algunos modos requieren configuración adicional.",
-    "intentNote": "Todas las personas comienzan con acceso de cliente. Tras verificar tu correo, puedes solicitar acceso para ofrecer servicios o gestionar un negocio.",
+    "setupNote": "Otras formas de usar OxSteed",
+    "intentNote": "Todas las personas comienzan con acceso de cliente. Elige el camino que describe tus necesidades; el proceso de admisión comienza después de verificarte.",
+    "personas": {
+      "customer": { "title": "Contratar ayuda local", "description": "Publica un trabajo, encuentra ayuda y pide comida." },
+      "helper": { "title": "Ofrecer servicios", "description": "Crea un perfil, responde a oportunidades y recibe pagos." },
+      "businessOwner": { "title": "Administrar un negocio", "description": "Crea una presencia comercial y gestiona su trabajo." },
+      "businessTeam": { "title": "Unirse a un equipo empresarial", "description": "Trabaja para un negocio invitado con herramientas delimitadas." },
+      "restaurantOwner": { "title": "Administrar un restaurante", "description": "Configura un restaurante y gestiona sus operaciones." },
+      "restaurantTeam": { "title": "Trabajar en un restaurante", "description": "Usa solo las herramientas de tu ubicación asignada." },
+      "logistics": { "title": "Mover mercancías y entregas", "description": "Coordina envíos, entregas o despachos." },
+      "consultant": { "title": "Asesorar clientes", "description": "Comparte experiencia y acepta trabajos aprobados." },
+      "equipmentOwner": { "title": "Publicar equipos", "description": "Ofrece herramientas y equipos para uso local aprobado." },
+      "franchise": { "title": "Operar una franquicia", "description": "Sigue la inscripción territorial y la preparación operativa." },
+      "investorReporting": { "title": "Ver informes de inversión", "description": "Solicita informes; no permite invertir." },
+      "creditParticipant": { "title": "Participar en OxSteed Credit", "description": "Sigue la inscripción y elegibilidad del programa." },
+      "partnerAffiliate": { "title": "Ser socio o afiliado", "description": "Únete a un programa aprobado de socios." },
+      "workforceLearning": { "title": "Aprender o enseñar", "description": "Únete a programas de trabajo o aprendizaje." },
+      "reviewer": { "title": "Revisar solicitudes", "description": "Solicita provisión interna para trabajo autorizado." },
+      "supportAgent": { "title": "Ayudar a clientes", "description": "Solicita provisión interna como agente de soporte." },
+      "operationsStaff": { "title": "Gestionar operaciones", "description": "Solicita acceso interno de operaciones." },
+      "deviceServiceAccount": { "title": "Conectar un dispositivo o servicio", "description": "Usa credenciales no humanas provistas por un administrador." }
+    },
+    "admission": {
+      "baseline": "El acceso de cliente está disponible de inmediato.",
+      "platform_review": "Tras verificar tu correo, completa la revisión de la plataforma. Las herramientas requieren aprobación y activación.",
+      "organization_invitation": "Este camino comienza con una invitación o aprobación de membresía.",
+      "domain_enrollment": "El programa responsable gestiona esta inscripción; puedes consultar el estado.",
+      "staff_provisioning": "El acceso interno del personal lo proporciona un administrador autorizado de OxSteed. Tu solicitud queda registrada para revisión.",
+      "nonhuman_provisioning": "Pide a tu administrador que proporcione credenciales de dispositivo; este registro crea tu cuenta personal para la solicitud."
+    },
+    "intentConfirmed": "Tu cuenta está lista para este camino",
+    "intentConfirmationNote": "No se activaron herramientas protegidas. Continúa cuando recibas una invitación o seas elegible.",
+    "viewNextStep": "Ver el siguiente paso",
     "accountReady": "Tu cuenta está lista",
     "applicationNext": "Envía tu solicitud a OxSteed para que la revise. Puedes usar tu cuenta mientras la revisamos.",
     "applicationLoadFailed": "Tu cuenta está lista, pero no pudimos cargar la solicitud. Inténtalo de nuevo o termínala más tarde en Solicitudes.",
@@ -1900,7 +2004,7 @@
     "postalLabel": "Código postal",
     "optionalPostal": "Código postal (opcional)",
     "errorSummary": "Revisa lo siguiente:",
-    "modeError": "Elige un modo de cuenta disponible.",
+    "modeError": "Elige una de las opciones siguientes.",
     "firstNameError": "Introduce un nombre válido (hasta 100 caracteres).",
     "lastNameError": "Introduce un apellido válido (hasta 100 caracteres).",
     "emailError": "Introduce un correo válido (hasta 254 caracteres).",
@@ -1929,6 +2033,7 @@
     "sending": "Enviando otro código…"
   },
   "statementCenter": {
+    "delegatedReadPermission": "Solo lectura de estados de cuenta emitidos",
     "accountsTitle": "Elige una cuenta",
     "personalTitle": "Cuentas personales",
     "personalDescription": "Tus cuentas de crédito personales y billeteras de restaurantes.",
@@ -2295,6 +2400,7 @@
     "exploreInvestments": "Explorar inversiones",
     "requestInvestorAccess": "Solicitar acceso como inversionista",
     "myInvestments": "Mis inversiones",
+    "investments": "Inversiones",
     "workspace": "Espacio de trabajo",
     "businessWorkspace": "Espacio del negocio",
     "foodOrders": "Pedidos de comida",
@@ -2331,7 +2437,45 @@
     "network": "Red OxSteed",
     "localFoodDirectory": "Directorio de comida local",
     "logistics": "Logística",
-    "mainNavigation": "Navegación de autenticación"
+    "mainNavigation": "Navegación de autenticación",
+    "credit": "OxSteed Credit",
+    "partner": "Programa de socios",
+    "learning": "Aprendizaje laboral"
+  },
+  "superModeApprovals": {
+    "allModes": "Todos los modos",
+    "applicationData": "Solicitud",
+    "approve": "Aprobar",
+    "decideFailed": "No se pudo registrar la decisión.",
+    "decided": "Decisión registrada.",
+    "empty": "No hay solicitudes pendientes.",
+    "loadFailed": "No se pudieron cargar las aprobaciones.",
+    "lookupButton": "Buscar",
+    "lookupHelp": "La lista de pendientes solo muestra solicitudes en espera. Busca una aprobación aprobada por ID para revocarla.",
+    "lookupLabel": "ID de aprobación",
+    "lookupNotFound": "No se encontró ninguna aprobación con ese ID.",
+    "lookupPlaceholder": "p. ej., 42",
+    "lookupTitle": "Buscar una aprobación",
+    "modeFilter": "Modo",
+    "notes": "Notas",
+    "notesPlaceholder": "Nota opcional para el registro",
+    "reasonRequired": "Se requiere un motivo de rechazo.",
+    "reject": "Rechazar",
+    "rejectionReason": "Motivo del rechazo",
+    "rejectionReasonPlaceholder": "Obligatorio. El solicitante verá este motivo.",
+    "requestedOn": "Solicitado el {{date}}",
+    "retry": "Reintentar",
+    "revoke": "Revocar",
+    "select": "Selecciona una solicitud para revisarla.",
+    "stateConflict": "Esta solicitud ya fue decidida. La lista se actualizó.",
+    "status": {
+      "approved": "Aprobada",
+      "rejected": "Rechazada",
+      "requested": "Solicitada",
+      "revoked": "Revocada"
+    },
+    "subtitle": "Decide solicitudes de acciones restringidas dentro de un modo. Las aprobaciones, rechazos y revocaciones quedan registrados.",
+    "title": "Aprobaciones de modo"
   },
   "supportAgentPortal": {
     "title": "Espacio de soporte",
@@ -3137,6 +3281,7 @@
   },
   "footer": {
     "explore": "Explorar",
+    "joinTeamWithCode": "Unirse a un equipo con un código",
     "services": "Servicios",
     "help": "Ayuda",
     "compactTagline": "Ayuda local, comida y servicios empresariales.",
@@ -3167,6 +3312,7 @@
     "doNotSell": "No vender mi información",
     "accessibility": "Accesibilidad",
     "manageCookies": "Gestionar cookies",
+    "yourAccess": "Tu OxSteed",
     "vortex": "Vórtice",
     "vortexTitle": "Sistemas de Vórtice",
     "vortexDesc": "Plataforma de gestión de negocios",
@@ -6666,10 +6812,50 @@
     "closeJob": "Cerrar trabajo",
     "openDispute": "Abrir una disputa",
     "disputeOpened": "Disputa abierta. Notificamos a nuestro equipo y a la otra parte.",
+    "refundTitle": "Solicitar un reembolso",
+    "refundHelp": "Solicita un reembolso por este trabajo. Tu solicitud va al equipo de OxSteed para su aprobación, y el dinero solo se mueve cuando la aprueban.",
+    "refundAmountLabel": "Monto (déjalo vacío para un reembolso completo)",
+    "refundAmountPlaceholder": "0.00",
+    "refundReasonLabel": "Motivo",
+    "refundReasonPlaceholder": "Cuéntanos por qué este trabajo necesita un reembolso.",
+    "refundReasonRequired": "Se requiere un motivo.",
+    "refundAmountInvalid": "Ingresa un monto válido mayor que cero.",
+    "refundRequestQueued": "Solicitud de reembolso enviada para aprobación.",
+    "refundRequestFailed": "No se pudo enviar la solicitud de reembolso.",
+    "refundSubmitting": "Enviando solicitud...",
+    "requestRefund": "Solicitar reembolso",
+    "refundRequestsHeading": "Solicitudes de reembolso",
+    "refundNoBusiness": "Ningún negocio está vinculado a este trabajo, por lo que no se puede solicitar un reembolso aquí.",
+    "refundStatus": {
+      "pending": "En espera de aprobación",
+      "approved": "Aprobado",
+      "executed": "Reembolsado",
+      "rejected": "Rechazado",
+      "failed": "Fallido"
+    },
     "signWorkAgreement": "Revisa y firma el acuerdo de trabajo",
     "viewWorkAgreement": "Ver acuerdo de trabajo",
     "createWorkAgreement": "Crear un acuerdo de trabajo",
-    "reviewsLoadFailed": "No se pudieron cargar las reseñas."
+    "reviewsLoadFailed": "No se pudieron cargar las reseñas.",
+    "markArrived": "Marcar llegada",
+    "arrivedRecorded": "Llegada registrada.",
+    "arrivedAt": "Llegada a las {{time}}",
+    "markNoShow": "Marcar ausencia",
+    "noShowReasonLabel": "¿Por qué nadie se presentó?",
+    "noShowReasonPlaceholder": "Motivo breve de la ausencia",
+    "noShowReasonRequired": "Se requiere un motivo para marcar una ausencia.",
+    "confirmNoShow": "Confirmar ausencia",
+    "noShowRecorded": "Ausencia registrada.",
+    "noShowNotice": "Este trabajo se marcó como ausencia.",
+    "rebookJob": "Volver a reservar",
+    "requestChanges": "Solicitar cambios",
+    "changesReasonLabel": "¿Qué debe cambiar?",
+    "changesReasonPlaceholder": "Describe los cambios que necesitas",
+    "changesReasonRequired": "Se requiere un motivo para solicitar cambios.",
+    "changesHint": "El trabajo sigue en curso y el reloj de confirmación automática se pausa mientras el ayudante realiza los cambios.",
+    "sendChangesRequest": "Enviar solicitud de cambios",
+    "changesRequested": "Cambios solicitados.",
+    "changesRequestedNotice": "Se solicitaron cambios en este trabajo."
   },
   "myJobs": {
     "cancelUndoNote": "Tendrás 5 segundos para deshacerlo después de confirmar.",
@@ -8803,7 +8989,21 @@
       "toastUpdated": "Solicitud de mantenimiento actualizada",
       "toastUpdateFail": "No se pudo actualizar la solicitud de mantenimiento",
       "toastConverted": "Solicitud convertida a trabajo",
-      "toastConvertFail": "No se pudo convertir la solicitud"
+      "toastConvertFail": "No se pudo convertir la solicitud",
+      "addProperty": "Agregar propiedad",
+      "allProperties": "Todas las propiedades",
+      "propertiesDescription": "Agrupa el trabajo de mantenimiento por propiedad.",
+      "propertiesTitle": "Propiedades",
+      "property": "Propiedad",
+      "propertyAddress": "Dirección de la propiedad",
+      "propertyAddressPlaceholder": "Calle, ciudad, estado",
+      "propertyCreateFail": "No se pudo guardar la propiedad.",
+      "propertyCreated": "Propiedad agregada.",
+      "propertyFilter": "Filtrar por propiedad",
+      "propertyName": "Nombre de la propiedad",
+      "propertyNamePlaceholder": "Ejemplo: Edificio de Main Street",
+      "saveProperty": "Guardar propiedad",
+      "toastLoadFail": "No se pudieron cargar las propiedades."
     },
     "title": "Centro de negocios",
     "tabOverview": "Resumen",
@@ -8851,6 +9051,13 @@
     "hiringHint": "Invita a personas que ya conoces, o publica un rol para que los postulantes pasen por selección, entrevista, oferta y contratación. Una contratación llega a esta pestaña de Equipo.",
     "tabOverviewLabel": "Resumen",
     "tabInvoicesLabel": "Facturas",
+    "tabCreditLabel": "Crédito de miembros",
+    "creditHistoryTitle": "Crédito financiado",
+    "creditHistoryEmpty": "Aún no se ha financiado Crédito de miembros.",
+    "creditHistoryMember": "Miembro",
+    "creditHistoryAmount": "Monto",
+    "creditHistoryStatus": "Estado",
+    "creditHistoryReason": "Motivo",
     "tabTaxLabel": "Impuestos",
     "tabGoalsLabel": "Objetivos",
     "tabServicesLabel": "Servicios",
@@ -8867,6 +9074,7 @@
     "tabServicePricingLabel": "Precios de Servicios",
     "tabProductPricingLabel": "Precios de Productos",
     "loadingProfile": "Cargando perfil…",
+    "loading": "Cargando…",
     "loadingAnalytics": "Cargando analíticas…",
     "loadingInvoices": "Cargando facturas…",
     "loadingTax": "Cargando estimaciones de impuestos…",
@@ -11598,6 +11806,7 @@
     "messenger": {
       "agreementOpenRecords": "Abrir el acuerdo de trabajo firmado de este trabajo",
       "agreementCreateRecords": "Crear un acuerdo de trabajo firmado para este trabajo",
+      "bookingCancel": "Cancelar reserva",
       "quoteFinishOnJob": "Termina la contratación en la página del trabajo",
       "message": "Mensaje",
       "messageName": "Mensaje a {{name}}",
@@ -11859,6 +12068,7 @@
       "refund": "Reembolso: ${{amount}}",
       "evidenceTitle": "Evidencia ({{count}} archivos)",
       "submitEvidence": "Enviar Evidencia",
+      "businessReaderNote": "Estás viendo esta disputa por tu negocio. Respóndela enviando evidencia abajo; los mensajes quedan entre las partes originales y el administrador.",
       "submitting": "Enviando...",
       "loading": "Cargando disputa...",
       "originalDescription": "Descripción original",
@@ -12842,6 +13052,23 @@
     "moderationActionFailed": "La acción de moderación falló.",
     "moderationQueueLoadFailedMessage": "No se pudo cargar la cola de moderación.",
     "moderationQueueLoadFailedTitle": "No se pudo cargar la cola de moderación",
+    "moderationJobsTab": "Trabajos",
+    "moderationFlagsTab": "Señales de contenido",
+    "moderationFlagsTitle": "Señales de contenido",
+    "moderationFlagsCount": "{{count}} señales en este estado",
+    "moderationFlagsStatus": "Estado",
+    "moderationFlagsEmpty": "No hay señales en este estado.",
+    "moderationFlagsLoading": "Cargando señales…",
+    "moderationFlagsReportedBy": "Reportado por",
+    "moderationFlagsResolve": "Resolver",
+    "moderationFlagsDismiss": "Descartar",
+    "moderationFlagsResolutionLabel": "Nota de resolución",
+    "moderationFlagsResolutionPlaceholder": "Qué se decidió, para constancia",
+    "moderationFlagsAlreadyDecided": "Esta señal ya fue decidida por otro administrador.",
+    "moderationFlagsReviewFailed": "La revisión de la señal falló. Inténtelo de nuevo.",
+    "moderationFlagsPage": "Página {{page}} de {{pages}}",
+    "moderationFlagsPrevious": "Anterior",
+    "moderationFlagsNext": "Siguiente",
     "performanceDetailsLoading": "Cargando detalles del rendimiento…",
     "quoteRequestDetailLoadFailed": "No se pudo cargar la solicitud de cotización",
     "quoteRequestUpdateFailed": "No se pudo actualizar la solicitud de cotización",
@@ -15250,7 +15477,18 @@
     "export": "Exportar",
     "cancelUnavailable": "Esta cita ya no se puede cancelar.",
     "appointmentUnavailableBody": "No pudimos cargar esta cita.",
-    "appointmentUnavailable": "Cita no disponible"
+    "appointmentUnavailable": "Cita no disponible",
+    "acceptedBookings": "Reservas aceptadas",
+    "acceptedBookingsSub": "Pasa una reserva aceptada a otro proveedor en lugar de cancelarla.",
+    "bookingTransferred": "Reserva transferida.",
+    "errorTransferringBooking": "No se pudo transferir la reserva",
+    "transfer": "Transferir",
+    "transferBooking": "Transferir esta reserva a otro proveedor",
+    "transferHint": "La reserva, su depósito y su cita se mantienen; solo cambia el proveedor.",
+    "transferProviderPlaceholder": "ID de usuario del nuevo proveedor",
+    "transferProviderRequired": "Ingresa el ID de usuario del nuevo proveedor.",
+    "transferReasonPlaceholder": "Motivo (opcional)",
+    "transferringBooking": "Transfiriendo..."
   },
   "verifyEmail": {
     "title": "Verifica tu correo",
@@ -16137,7 +16375,36 @@
     "nextStepsTitle": "Qué sigue",
     "nextStepOne": "Coordina detalles por mensaje si hace falta.",
     "nextStepTwo": "Tu calendario mostrará la cita cuando esté confirmada.",
-    "nextStepThree": "Si cambian los planes, cancela desde tu reserva o calendario."
+    "nextStepThree": "Si cambian los planes, cancela desde tu reserva o calendario.",
+    "bookForSomeoneElse": "Reservar para otra persona",
+    "bookForSomeoneElseHint": "La reserva queda a tu nombre y tú pagas el depósito. El trabajo es para la persona indicada abajo.",
+    "recipientName": "Nombre del destinatario",
+    "recipientNamePlaceholder": "¿Para quién es el trabajo?",
+    "recipientPhone": "Teléfono del destinatario",
+    "recipientPhonePlaceholder": "Número de teléfono del destinatario",
+    "siteContact": "Contacto en el lugar",
+    "siteContactHint": "La persona que estará en el lugar cuando se realice el trabajo.",
+    "siteContactName": "Nombre del contacto en el lugar",
+    "siteContactNamePlaceholder": "¿Quién estará en el lugar?",
+    "siteContactPhone": "Teléfono del contacto en el lugar",
+    "siteContactPhonePlaceholder": "Número de teléfono del contacto en el lugar",
+    "bookedFor": "Reservado para",
+    "statusLink": "Enlace de estado",
+    "copyLink": "Copiar enlace",
+    "linkCopied": "Enlace copiado",
+    "publicStatusTitle": "Estado de la reserva",
+    "publicStatusNotFound": "No pudimos encontrar esta reserva.",
+    "publicStatusArrived": "Llegada a las {{time}}",
+    "publicStatusFor": "Para {{name}}",
+    "publicStatusNote": "Esta página muestra solo el estado de la reserva y la hora de llegada.",
+    "publicStatus": {
+      "pending": "Pendiente",
+      "accepted": "Aceptada",
+      "declined": "Rechazada",
+      "expired": "Vencida",
+      "cancelled": "Cancelada",
+      "accepted_cancelled": "Cancelada tras la aceptación"
+    }
   },
   "checkout": {
     "title": "Verificar",
@@ -20665,7 +20932,8 @@
       "rangeNote": "De servicio estándar a urgente",
       "standardTotal": "Estándar",
       "signInToBook": "Inicia sesión para reservar",
-      "signInNote": "Inicia sesión o crea una cuenta para reservar. Tu estimación se mantiene completada."
+      "signInNote": "Inicia sesión o crea una cuenta para reservar. Tu estimación se mantiene completada.",
+      "unavailable": "Las estimaciones de entrega no están disponibles en este momento."
     },
     "tabs": {
       "driving": "Conduciendo"
@@ -21473,7 +21741,8 @@
       "earningsPending": "Pendiente",
       "earningsVoided": "Anulado",
       "earningsEmpty": "Aún no hay pagos.",
-      "helperModeHint": "Para registrarte como conductor primero necesitas el modo ayudante. Cambia al modo ayudante en ajustes y vuelve aquí para registrarte."
+      "helperModeHint": "Para registrarte como conductor primero necesitas el modo ayudante. Cambia al modo ayudante en ajustes y vuelve aquí para registrarte.",
+      "driverAccessHint": "Solo los conductores de entrega aprobados pueden registrarse aquí. Los conductores se registran a través de la solicitud de logística, o cambian al modo ayudante en ajustes."
     }
   },
   "aboutPage": {
@@ -21953,7 +22222,8 @@
       "entryPreference": "Preferencia de entrada",
       "bestUpdateChannel": "Mejor canal de actualización",
       "contactPhone": "Número de teléfono preferido",
-      "billableParty": "Facturar a"
+      "billableParty": "Facturar a",
+      "property": "Propiedad"
     },
     "placeholders": {
       "title": "Grifo de la cocina goteando bajo el gabinete",
@@ -21966,7 +22236,8 @@
       "preferredWindows": "Entre semana después de las 4 p. m., sábado por la mañana, etc.",
       "accessNotes": "Mascotas, código de portón, estacionamiento, reglas de permiso o cómo llegarte.",
       "entryPreference": "Llamar primero, llave de administrador disponible, mensaje al llegar",
-      "contactPhone": "Opcional"
+      "contactPhone": "Opcional",
+      "selectProperty": "Selecciona una propiedad"
     },
     "issueCategories": [
       "Fontanería",
@@ -22227,6 +22498,10 @@
         "available": "Disponible"
       },
       "showingTop": "Mostrando los 20 mejores de {{count}}"
+    },
+    "territory": {
+      "label": "Territorio",
+      "newest": "Más reciente"
     }
   },
   "professionalIntakePage": {
@@ -22329,6 +22604,12 @@
   "affiliateDashboard": {
     "loading": "Cargando el panel de afiliados…",
     "loadingAnalytics": "Cargando analíticas…",
+    "partner": {
+      "inviteOnly": "Los programas de afiliados son por invitación para ayudantes. Pide acceso de socio y un revisor decidirá tu solicitud.",
+      "pending": "Acceso de socio solicitado. Un revisor decidirá tu solicitud.",
+      "request": "Solicitar acceso de socio",
+      "requested": "Solicitud de acceso de socio enviada."
+    },
     "sparklineNoData": "Aún no hay datos",
     "pageTitle": "Panel de afiliados | OxSteed",
     "title": "Panel de afiliados",
@@ -22716,6 +22997,15 @@
     }
   },
   "invest": {
+    "workspace": {
+      "title": "Inversiones",
+      "intro": "Un espacio para informes verificados, oportunidades elegibles y tus contribuciones y estados de cuenta.",
+      "reports": { "title": "Informes", "description": "Consulta el rendimiento verificado de las entidades, sus actualizaciones y los informes que estás autorizado a ver." },
+      "opportunities": { "title": "Oportunidades de inversión", "description": "Explora oportunidades publicadas por entidades elegibles y revisa sus condiciones antes de solicitar participar." },
+      "contributions": { "title": "Contribuciones y estados de cuenta", "description": "Consulta tus contribuciones en OxSteed Credit, asignaciones, acuerdos, estados de cuenta y actividad inmutable." },
+      "actions": { "open": "Abrir", "setup": "Completar configuración" },
+      "status": { "available": "Disponible", "readOnly": "Solo lectura", "setup": "Configuración requerida" }
+    },
       "entity": {
         "raise": {
           "title": "Recaudar capital",
@@ -23020,7 +23310,9 @@
           "versionConflict": "Este elemento cambió desde que se cargó. Se ha recargado; revise la versión más reciente e inténtelo de nuevo.",
           "proceedsBlocked": "Los fondos aún no pueden liberarse. La oportunidad debe estar cerrada con las condiciones de cierre aprobadas primero.",
           "noAgreement": "Esta oportunidad no puede aprobarse sin una versión del acuerdo.",
-          "transitionInvalid": "Este elemento no puede pasar a ese estado desde donde está ahora."
+          "transitionInvalid": "Este elemento no puede pasar a ese estado desde donde está ahora.",
+          "reconfirmationPending": "Algunos inversores aún no han reconfirmado esta enmienda. Espere la reconfirmación o a que pase el plazo de reconfirmación antes de hacerla efectiva.",
+          "escrowNothingPending": "No hay ninguna expectativa de depósito pendiente para este compromiso. Es posible que ya esté confirmada."
         },
         "actions": {
           "approve": "Aprobar",
@@ -23079,7 +23371,8 @@
           "approveReview": "Aprobar etapa de revisión",
           "approveExecution": "Aprobar etapa de ejecución",
           "close": "Cerrar oportunidad",
-          "separateApprovers": "La revisión y la ejecución necesitan aprobadores distintos, y ninguno puede ser el representante de la entidad. Solo el aprobador de ejecución aprobado puede ejecutar el cierre."
+          "separateApprovers": "La revisión y la ejecución necesitan aprobadores distintos, y ninguno puede ser el representante de la entidad. Solo el aprobador de ejecución aprobado puede ejecutar el cierre.",
+          "currentVersionOnly": "El cierre solo captura los compromisos de la versión actual del acuerdo. Los compromisos de una versión anterior quedan reservados y deben cancelarse por separado."
         },
         "proceeds": {
           "title": "Fondos y distribuciones",
@@ -23090,6 +23383,7 @@
           "changes": "Cambios propuestos",
           "reconfirmationTitle": "Reconfirmación del inversor",
           "reconfirmation": "{{reconfirmed}} de {{total}} inversores reconfirmaron, {{pending}} aún pendientes.",
+          "reconfirmationPendingUsers": "Pendientes de reconfirmación (identificadores de usuario del inversor):",
           "reconfirmationNone": "Esta enmienda no incluye una nueva versión del acuerdo, así que no hay nada que reconfirmar.",
           "deadline": "Fecha límite de reconfirmación: {{date}}",
           "note": "Nota de revisión",
@@ -23108,9 +23402,23 @@
           "position": "Posición",
           "choosePosition": "Elija una posición",
           "amount": "Monto de la distribución (USD)",
-          "submit": "Registrar distribución",
+          "submit": "Solicitar distribución",
           "empty": "Aún no hay posiciones para esta oportunidad.",
-          "required": "Elija una posición e ingrese un monto válido."
+          "required": "Elija una posición e ingrese un monto válido.",
+          "queued": "Distribución en cola. Un segundo administrador debe aprobarla en Aprobaciones de dinero antes de que se mueva algún Crédito.",
+          "dualApprovalNote": "Las distribuciones necesitan la aprobación de un segundo administrador. No se acredita nada hasta entonces, y el total no puede superar los ingresos de la oportunidad."
+        },
+        "escrow": {
+          "title": "Confirmación de depósito en garantía del socio",
+          "copy": "Registre la confirmación del socio de que los fondos comprometidos de una posición están en depósito en garantía. El cierre lo deja pendiente a propósito: solo la confirmación explícita del socio lo confirma.",
+          "position": "Posición",
+          "choosePosition": "Elija una posición",
+          "partnerRefLabel": "Referencia del socio",
+          "partnerRefPlaceholder": "Referencia de confirmación del socio",
+          "noteLabel": "Nota",
+          "confirm": "Confirmar depósito",
+          "confirmed": "Depósito confirmado para este compromiso.",
+          "partnerRefRequired": "Se requiere una referencia del socio."
         }
       },
     "application": {
@@ -23563,7 +23871,12 @@
       "helpers": "Ayudantes",
       "verifiedUsers": "Usuarios verificados"
     },
-    "noData": "Aún no hay datos"
+    "noData": "Aún no hay datos",
+    "scope": {
+      "platformWide": "Totales de toda la plataforma. Estas cifras cubren toda la plataforma, no solo sus posiciones.",
+      "position_one": "Limitado a sus posiciones ({{count}} entidad).",
+      "position_other": "Limitado a sus posiciones ({{count}} entidades)."
+    }
   },
   "healthAlertsDashboard": {
     "title": "Salud del negocio",
@@ -25511,6 +25824,7 @@
         "minPayout": "Pago mínimo: {{amount}}",
         "status": {
           "requested": "Solicitado",
+          "draft": "Borrador",
           "approved": "Aprobado",
           "processing": "Procesando",
           "completed": "Completado",
@@ -26769,6 +27083,13 @@
         "noAgreement": "Sin acuerdo",
         "royaltyBps": "Regalía {{bps}} pb",
         "marketingBps": "Marketing {{bps}} pb",
+        "accrualCol": "Devengo",
+        "accrualFailedCount": "{{count}} fallidos",
+        "accrualStatus": {
+          "accrued": "Devengado",
+          "failed": "Fallido",
+          "pending": "Pendiente"
+        },
         "totalsSales": "Ventas",
         "totalsRoyalty": "Regalía",
         "totalsMarketing": "Marketing",
@@ -33003,6 +33324,7 @@
   },
   "adminNav": {
     "investReviewQueue": "Revisiones de inversión",
+    "modeApprovals": "Aprobaciones de modo",
     "moneyApprovals": "Aprobaciones de dinero",
     "adminAccounts": "Cuentas de administrador",
     "auditLog": "Registro de auditoría",
@@ -36717,6 +37039,7 @@
     "typeMarketplaceRefund": "Reembolso de marketplace",
     "typeDisputeRefund": "Reembolso de disputa",
     "typeRestaurantPayout": "Pago a restaurante",
+    "typeInvestDistribution": "Distribución de inversión",
     "typeAffiliatePayout": "Pago de afiliado",
     "subject": "Asunto",
     "reason": "Motivo",

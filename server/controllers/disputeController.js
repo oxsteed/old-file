@@ -1,4 +1,5 @@
-const { DISPUTE_VIEW_FROM, disputeViewSelect, partyPredicate, isDisputeParty } = require('../utils/disputeView');
+const { DISPUTE_VIEW_FROM, disputeViewSelect, partyPredicate, businessPartyPredicate, isDisputeParty } = require('../utils/disputeView');
+const { isBusinessDisputeParty } = require('../services/businessDisputeAccess');
 const db                    = require('../db');
 const { sendNotification }  = require('../services/notificationService');
 const { broadcastToUser }   = require('../services/socketService');
@@ -426,7 +427,9 @@ exports.getDispute = async (req, res, next) => {
     const dispute = rows[0];
 
     // P3-817: both parties (opener and accused) can see the dispute.
-    if (!isAdmin && !isDisputeParty(dispute, userId)) {
+    // G-21: the owning business's owner/manager can also read it.
+    if (!isAdmin && !isDisputeParty(dispute, userId)
+      && !(await isBusinessDisputeParty(userId, dispute.client_id))) {
       throw new AppError('Not authorized', 403, 'forbidden');
     }
 
@@ -466,9 +469,10 @@ exports.getMyDisputes = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
+    // G-21: the owning business's owner/manager also lists the dispute.
     const { rows } = await db.query(
       `SELECT ${disputeViewSelect()} ${DISPUTE_VIEW_FROM}
-        WHERE ${partyPredicate('$1')}
+        WHERE ${partyPredicate('$1')} OR ${businessPartyPredicate('$1')}
         ORDER BY d.created_at DESC`,
       [userId]
     );
@@ -521,7 +525,10 @@ exports.submitEvidence = async (req, res, next) => {
 
     const dispute = disputeRows[0];
 
-    if (!isAdmin && !isDisputeParty(dispute, userId)) {
+    // G-21: the owning business's owner/manager may submit evidence.
+    // Resolution stays admin-only; dispute messages stay party-only.
+    if (!isAdmin && !isDisputeParty(dispute, userId)
+      && !(await isBusinessDisputeParty(userId, dispute.client_id))) {
       throw new AppError('Not authorized', 403, 'forbidden');
     }
 

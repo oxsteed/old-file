@@ -11,11 +11,12 @@ imports its `TRANSITIONS`, and the client mirrors the open statuses in
 | published | matched, negotiating, accepted, cancelled | yes | yes | yes | yes |
 | matched | published, negotiating, accepted, cancelled | yes | yes | yes | yes |
 | negotiating | matched, accepted, cancelled | yes | yes | yes | yes |
-| accepted | in_progress, cancelled | no (change order) | non-financial fields only | no | no |
-| in_progress | completed, cancelled | no (change order) | non-financial fields only | no | no |
+| accepted | in_progress, cancelled, no_show | no (change order) | non-financial fields only | no | no |
+| in_progress | completed, cancelled, no_show | no (change order) | non-financial fields only | no | no |
 | completed | closed | no | no | no | no |
 | cancelled | (terminal) | no | no | no | no |
 | closed | (terminal) | no | no | no | no |
+| no_show | (terminal, PR #804 G-15) | no | no | no | no |
 
 Notes
 

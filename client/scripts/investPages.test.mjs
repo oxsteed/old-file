@@ -6,6 +6,7 @@ const root = new URL('../', import.meta.url);
 const read = (rel) => readFile(new URL(rel, root), 'utf8');
 
 const PAGES = [
+  'src/pages/InvestmentsWorkspacePage.jsx',
   'src/pages/invest/InvestDirectoryPage.jsx',
   'src/pages/invest/InvestOpportunityPage.jsx',
   'src/pages/invest/InvestApplicationPage.jsx',
@@ -19,11 +20,14 @@ const PAGES = [
 
 test('invest routes are registered in App.jsx', async () => {
   const app = await read('src/App.jsx');
-  for (const route of ['/invest"', '/invest/opportunities/:id"', '/invest/opportunities/:id/commit"', '/invest/apply"', '/invest/my-investments"']) {
+  for (const route of ['/investments"', '/invest"', '/invest/opportunities/:id"', '/invest/opportunities/:id/commit"', '/invest/apply"', '/invest/my-investments"']) {
     assert.match(app, new RegExp(`path="${route.replace(/"/g, '')}"`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), route);
   }
-  for (const page of ['InvestDirectoryPage', 'InvestOpportunityPage', 'InvestApplicationPage', 'InvestCommitPage', 'InvestMyInvestmentsPage']) {
-    assert.match(app, new RegExp(`import\\('./pages/invest/${page}'\\)`), page);
+  for (const page of ['InvestmentsWorkspacePage', 'InvestDirectoryPage', 'InvestOpportunityPage', 'InvestApplicationPage', 'InvestCommitPage', 'InvestMyInvestmentsPage']) {
+    const importPattern = page === 'InvestmentsWorkspacePage'
+      ? `import\\('./pages/${page}'\\)`
+      : `import\\('./pages/invest/${page}'\\)`;
+    assert.match(app, new RegExp(importPattern), page);
   }
 });
 
@@ -520,4 +524,23 @@ test('Track 6: review queue decides amendments and fail-closes; entity page show
     assert.doesNotMatch(JSON.stringify(catalog.invest.review.amendments), /—/, `${lang} amendments em dash`);
     assert.doesNotMatch(JSON.stringify(catalog.invest.review.failClose), /—/, `${lang} fail-close em dash`);
   }
+});
+
+// G-34: investor reporting has one canonical destination, /investments.
+// Persona nav, the workspace sections, and Applications "use now" must all
+// point there; /investor/dashboard is a legacy login landing, never a
+// reporting destination.
+test('investor reporting has one canonical destination: /investments', async () => {
+  const { investorWorkspaceSections } = await import('../src/utils/invest.js');
+  const reporting = { access: { personal: ['customer', 'investor.reporting'], investorAudience: { audienceKey: 'entity', datasets: ['overview'] } } };
+  const reports = investorWorkspaceSections(reporting).find((section) => section.id === 'reports');
+  assert.equal(reports.to, '/investments');
+  assert.equal(reports.available, true);
+  const noReporting = investorWorkspaceSections({ access: { personal: ['customer'] } });
+  assert.equal(noReporting.find((section) => section.id === 'reports').to, '/settings/applications');
+  const applications = await read('src/pages/Settings/ApplicationsPage.jsx');
+  assert.match(applications, /'investor\.reporting': '\/investments'/);
+  assert.doesNotMatch(applications, /'investor\.reporting': '\/investor\/dashboard'/);
+  const nav = await read('src/utils/personaNavigation.js');
+  assert.match(nav, /'investor-reporting': \[\{ id: 'persona-investments', to: '\/investments'/);
 });

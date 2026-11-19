@@ -9,6 +9,13 @@ export const createMaintenanceRequest = (businessId, formData) =>
 export const listBusinessMaintenanceRequests = (businessId, params = {}) =>
   api.get(`/maintenance-requests/business/${businessId}`, { params }).then((r) => r.data);
 
+// G-17: canonical properties for a business.
+export const listBusinessProperties = (businessId) =>
+  api.get(`/maintenance-requests/business/${businessId}/properties`).then((r) => r.data?.properties || []);
+
+export const createBusinessProperty = (businessId, payload) =>
+  api.post(`/maintenance-requests/business/${businessId}/properties`, payload).then((r) => r.data?.property);
+
 // Requests assigned to the signed-in helper (their work queue).
 export const listAssignedMaintenanceRequests = () =>
   api.get('/maintenance-requests/assigned').then((r) => r.data?.requests || []);

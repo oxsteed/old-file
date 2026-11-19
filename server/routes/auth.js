@@ -24,6 +24,7 @@ const {
   acceptTerms,
   verifyRegistrationOTP,
   resendRegistrationOTP,
+  resumeRegistration,
   // Settings & Profile
   getMe,
   updateProfile,
@@ -77,6 +78,8 @@ router.post('/register/start', authLimiter, startRegistration);
 router.post('/register/accept-terms', authLimiter, acceptTerms);
 router.post('/register/verify-otp', authLimiter, verifyRegistrationOTP);
 router.post('/register/resend-otp', authLimiter, resendRegistrationOTP);
+// G-31: resume a signup on a second device with the emailed OTP code.
+router.post('/register/resume', authLimiter, resumeRegistration);
 
 // Settings & Profile routes
 router.get('/me', authenticate, getMe);

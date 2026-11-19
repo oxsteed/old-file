@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { createRestaurantPayoutAccount, disconnectRestaurantPayoutAccount, formatFoodMoney, getRestaurantPayoutStatus, getWalletPayoutBalance, listWalletPayoutPage, requestWalletPayout } from '../../api/food';
+import { createRestaurantPayoutAccount, disconnectRestaurantPayoutAccount, confirmWalletPayoutDraft, formatFoodMoney, getRestaurantPayoutStatus, getWalletPayoutBalance, listWalletPayoutPage, requestWalletPayout } from '../../api/food';
 import { parseCreditMajorAmount } from '../../lib/creditCurrency';
 import { apiErrorMessage } from './foodShared';
 
@@ -10,7 +10,7 @@ function Pill({ ready, children }) { return <span className={`fd-status-pill fd-
 
 const PAYOUT_PAGE_SIZE = 20;
 
-function WalletPayoutsSection({ restaurantId, t, f }) {
+function WalletPayoutsSection({ restaurantId, t, f, isOwner = false }) {
   const [balance, setBalance] = useState(null);
   const [payouts, setPayouts] = useState([]);
   const [payoutsTotal, setPayoutsTotal] = useState(0);
@@ -19,6 +19,7 @@ function WalletPayoutsSection({ restaurantId, t, f }) {
   const [error, setError] = useState(false);
   const [amount, setAmount] = useState('');
   const [requesting, setRequesting] = useState(false);
+  const [confirmingId, setConfirmingId] = useState(null);
   const sequence = useRef(0);
   const submitLock = useRef(false);
   const load = useCallback(async (offset = 0) => {
@@ -50,12 +51,25 @@ function WalletPayoutsSection({ restaurantId, t, f }) {
       setRequesting(true);
       try {
         const key = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        await requestWalletPayout(restaurantId, { amountCents: cents }, key);
-        toast.success(t('food.merchant.payouts.requestSubmitted', 'Payout requested. An admin will review it.'));
+        const payout = await requestWalletPayout(restaurantId, { amountCents: cents }, key);
+        // G-18: a manager's request is a draft until the owner confirms it.
+        if (payout?.status === 'draft') toast.success(f('draftCreated'));
+        else toast.success(t('food.merchant.payouts.requestSubmitted', 'Payout requested. An admin will review it.'));
         setAmount(''); setPayoutsOffset(0); await load(0);
       } catch (err) { toast.error(apiErrorMessage(err, t('food.merchant.payouts.requestError', 'Could not request the payout.'))); }
       finally { setRequesting(false); }
     } finally { submitLock.current = false; }
+  };
+  // G-18: owner confirmation of a manager-drafted payout.
+  const confirmDraft = async (payoutId) => {
+    if (!payoutId || confirmingId) return;
+    setConfirmingId(payoutId);
+    try {
+      await confirmWalletPayoutDraft(restaurantId, payoutId);
+      toast.success(f('draftConfirmed'));
+      await load(payoutsOffset);
+    } catch (err) { toast.error(apiErrorMessage(err, f('confirmDraftError'))); }
+    finally { setConfirmingId(null); }
   };
   return <section className="fd-wallet-payouts" aria-label={t('food.merchant.payouts.walletTitle', 'Wallet earnings')}>
     <h3>{t('food.merchant.payouts.walletTitle', 'Wallet earnings')}</h3><p className="fd-card-meta">{f('walletHint')}</p>
@@ -67,7 +81,7 @@ function WalletPayoutsSection({ restaurantId, t, f }) {
         <div className="fd-row" style={{ gap: '.5rem', flexWrap: 'wrap' }}><input id={`wallet-payout-${restaurantId}`} inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} aria-describedby={`wallet-min-${restaurantId}`} disabled={requesting} /><button type="submit" className="fd-btn" disabled={requesting || !valid} data-track="ui.374063ed56.3">{requesting ? t('food.merchant.payouts.requesting', 'Requesting…') : t('food.merchant.payouts.requestPayout', 'Request payout')}</button></div>
         <p id={`wallet-min-${restaurantId}`} className="fd-card-meta">{t('food.merchant.payouts.minPayout', 'Minimum payout: {{amount}}', { amount: formatFoodMoney(balance.minPayoutCents, balance.currencyCode) })} · {f('availableLimit')}</p>
       </form>
-      <details className="fd-finance-advanced"><summary>{f('recentPayouts')}</summary>{payouts.length ? payouts.map(p => <div key={p.id} className="fd-payout-status-grid"><div className="fd-row fd-row-between"><span>{formatFoodMoney(p.amount_cents, p.currency_code)}</span><Pill ready={p.status === 'completed'}>{t(`food.merchant.payouts.status.${p.status}`, p.status)}</Pill></div></div>) : <p className="fd-card-meta">{f('noPayouts')}</p>}
+      <details className="fd-finance-advanced"><summary>{f('recentPayouts')}</summary>{payouts.length ? payouts.map(p => <div key={p.id} className="fd-payout-status-grid"><div className="fd-row fd-row-between"><span>{formatFoodMoney(p.amount_cents, p.currency_code)}</span><Pill ready={p.status === 'completed'}>{t(`food.merchant.payouts.status.${p.status}`, p.status)}</Pill></div>{p.status === 'draft' && <div className="fd-row fd-row-between"><span className="fd-card-meta">{f('draftAwaitingOwner')}</span>{isOwner && <button type="button" className="fd-btn fd-btn-sm" disabled={confirmingId === p.id} onClick={() => confirmDraft(p.id)} data-track="ui.374063ed56.10">{confirmingId === p.id ? t('food.common.loading', 'Loading') : f('confirmDraft')}</button>}</div>}</div>) : <p className="fd-card-meta">{f('noPayouts')}</p>}
       {payoutsTotal > 0 && <div className="fd-row fd-pager-row"><span className="fd-card-meta">{t('food.merchant.payouts.historyShowing', { from: payoutsTotal === 0 ? 0 : payoutsOffset + 1, to: Math.min(payoutsTotal, payoutsOffset + PAYOUT_PAGE_SIZE), total: payoutsTotal })}</span><button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payoutsOffset === 0} onClick={() => { const next = Math.max(0, payoutsOffset - PAYOUT_PAGE_SIZE); setPayoutsOffset(next); load(next); }} data-track="ui.374063ed56.8">{t('food.merchant.payouts.historyPrevious')}</button><button type="button" className="fd-btn fd-btn-sm fd-btn-secondary" disabled={payoutsOffset + PAYOUT_PAGE_SIZE >= payoutsTotal} onClick={() => { const next = payoutsOffset + PAYOUT_PAGE_SIZE; setPayoutsOffset(next); load(next); }} data-track="ui.374063ed56.9">{t('food.merchant.payouts.historyNext')}</button></div>}
       </details>
     </>}
@@ -140,8 +154,8 @@ export default function RestaurantPayoutsPanel({ t: tProp, restaurant, restauran
   </div>;
 }
 
-export function RestaurantWalletPayoutsPanel({ restaurantId }) {
+export function RestaurantWalletPayoutsPanel({ restaurantId, isOwner = false }) {
   const { t } = useTranslation();
   const { t: financeT } = useTranslation('common');
-  return <WalletPayoutsSection key={restaurantId} restaurantId={restaurantId} t={t} f={(key, options) => financeT(`merchantFinance.${key}`, options)} />;
+  return <WalletPayoutsSection key={restaurantId} restaurantId={restaurantId} isOwner={isOwner} t={t} f={(key, options) => financeT(`merchantFinance.${key}`, options)} />;
 }
