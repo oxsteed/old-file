@@ -535,8 +535,8 @@ exports.acceptBookingRequest = async (req, res) => {
     if (!booking) {
       return sendError(res, 404, 'Booking request not found');
     }
-    if (!(await bookingLifecycle.isProviderForBooking(actorId, booking))) {
-      return sendError(res, 403, 'Only the provider can accept this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can accept this booking', 'forbidden');
     }
 
     let result;
@@ -598,8 +598,8 @@ exports.declineBookingRequest = async (req, res) => {
     if (!booking) {
       return sendError(res, 404, 'Booking request not found');
     }
-    if (!(await bookingLifecycle.isProviderForBooking(actorId, booking))) {
-      return sendError(res, 403, 'Only the provider can decline this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can decline this booking', 'forbidden');
     }
 
     let result;
@@ -764,8 +764,8 @@ exports.helperCancelAcceptedBooking = async (req, res) => {
 
     const booking = result.rows[0];
 
-    if (!(await bookingLifecycle.isProviderForBooking(helperId, booking))) {
-      return sendError(res, 403, 'Only the provider can cancel this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(helperId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can cancel this booking', 'forbidden');
     }
 
     if (booking.status !== 'accepted') {
@@ -1445,8 +1445,8 @@ exports.counterProposeBooking = async (req, res) => {
 
     const booking = await bookingLifecycle.loadBooking(bookingId);
     if (!booking) return sendError(res, 404, 'Booking request not found');
-    if (!(await bookingLifecycle.isProviderForBooking(helperId, booking))) {
-      return sendError(res, 403, 'Only the provider can propose a different time', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(helperId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can propose a different time', 'forbidden');
     }
 
     let result;

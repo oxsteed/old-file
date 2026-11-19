@@ -237,10 +237,13 @@ function BusinessHubInner() {
   const canEditBizProfile = ['owner', 'manager'].includes(currentRole) && hasPermission('business.edit_profile');
   const canAccessMessages = hasPermission('business.view') && (hasPermission('messages.view_all') || hasPermission('messages.view_assigned'));
   const canAccessCalendar = hasPermission('business.view') && (hasPermission('calendar.view_all') || hasPermission('calendar.view_self'));
-  // Review P2-3-F05: the server finance gate (canManageBusinessFinance)
-  // allows only owner/manager, so the tabs must match. Showing them to
-  // employee/support_agent only produced 404s.
-  const canViewFinanceHub = currentRole === 'owner' || currentRole === 'manager';
+  // G-8: the server finance gate is code-based now (invoices.view /
+  // payments.view / payouts.view), so the tabs follow the same codes.
+  // A representative with a finance-read override sees the tabs; a
+  // manager with every read code denied does not. Owners hold all codes.
+  const canViewFinanceHub = hasPermission('invoices.view')
+    || hasPermission('payments.view')
+    || hasPermission('payouts.view');
   const isRestaurantBusiness = currentBiz?.business_kind === 'restaurant'
     || (!currentBiz?.business_kind && currentBiz?.business_mode === 'food');
 

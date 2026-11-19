@@ -26,6 +26,7 @@ const {
   assertGuestInquiryAccess,
   assertBusinessAccess,
 } = require('./chatThreadAccess');
+const permissionsService = require('./permissionsService');
 
 const INBOX_STATUSES = ['pending', 'counter_proposed'];
 // Expired requests are never actionable: the read-side expiry (expireIfStale)
@@ -302,6 +303,52 @@ async function isProviderForBooking(userId, booking) {
 }
 
 /** Active business ids the user owns or is an active member of. */
+
+/**
+ * G-14: who may ACT on a booking (accept / decline / counter-propose /
+ * cancel). Read + message stay with isProviderForBooking (any active
+ * business member); mutations do not. A helper manages their own
+ * bookings. A business booking is managed by the business owner, a
+ * manager, or a member holding the bookings.manage permission (role
+ * default or membership override). A representative without the grant
+ * can read the booking and message about it, but cannot commit the
+ * calendar, trigger deposit obligations, or cancel accepted work.
+ */
+async function isBookingManagerForBooking(userId, booking) {
+  if (!userId || !booking) return false;
+  if (booking.helper_id && String(booking.helper_id) === String(userId)) return true;
+  let businessId = booking.business_id || null;
+  if (!businessId && booking.conversation_id) {
+    const { rows } = await pool.query(
+      'SELECT business_id, helper_id FROM conversations WHERE id = $1',
+      [booking.conversation_id],
+    ).catch(() => ({ rows: [] }));
+    if (rows[0]?.helper_id && String(rows[0].helper_id) === String(userId)) return true;
+    businessId = rows[0]?.business_id || null;
+  }
+  if (!businessId) return false;
+  const { rows } = await pool.query(
+    `SELECT b.user_id AS owner_id, bm.id AS membership_id, bm.role
+       FROM businesses b
+       LEFT JOIN business_members bm
+         ON bm.business_id = b.id AND bm.member_id = $2 AND bm.status = 'active'
+      WHERE b.id = $1 AND b.is_active = TRUE`,
+    [businessId, userId],
+  ).catch(() => ({ rows: [] }));
+  const row = rows[0];
+  if (!row) return false;
+  if (String(row.owner_id) === String(userId)) return true;
+  if (!row.membership_id) return false;
+  if (row.role === 'manager') return true;
+  try {
+    const { permissions } = await permissionsService.getEffectivePermissions({
+      businessId, userId, role: row.role, membershipId: row.membership_id,
+    });
+    return permissionsService.hasAny(permissions, ['bookings.manage']);
+  } catch (_) {
+    return false;
+  }
+}
 async function resolveProviderBusinessIds(userId) {
   if (!userId) return [];
   const { rows } = await pool
@@ -1570,6 +1617,7 @@ module.exports = {
   expireIfStale,
   autoPostExpiredBooking,
   isProviderForBooking,
+  isBookingManagerForBooking,
   resolveProviderBusinessIds,
   listIncomingForProvider,
   toCalendarBooking,

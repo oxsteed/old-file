@@ -6,7 +6,7 @@
 const { randomUUID } = require('crypto');
 const pool   = require('../db');
 const logger = require('../utils/logger');
-const { canManageBusinessFinance } = require('../utils/businessOwnership');
+const { canReadBusinessFinance, canWriteBusinessFinance } = require('../utils/businessOwnership');
 const { sendBusinessInvoiceEmail } = require('../utils/businessInvoiceEmail');
 const { sendNotification } = require('../services/notificationService');
 const {
@@ -35,7 +35,7 @@ async function nextInvoiceNumber(client, bizId) {
 // GET /api/businesses/:id/invoices?status=sent&limit=50&offset=0
 async function listInvoices(req, res) {
   try {
-    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    const access = await canReadBusinessFinance(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { status, limit = 50, offset = 0, property_id: propertyId } = req.query;
@@ -86,7 +86,7 @@ async function listInvoices(req, res) {
 // ── Get single invoice (with full line items) ─────────────────────────────────
 async function getInvoice(req, res) {
   try {
-    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    const access = await canReadBusinessFinance(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { rows: [inv] } = await pool.query(
@@ -103,7 +103,7 @@ async function getInvoice(req, res) {
 
 // ── Create invoice ─────────────────────────────────────────────────────────────
 async function createInvoice(req, res) {
-  const access = await canManageBusinessFinance(req.user.id, req.params.id);
+  const access = await canWriteBusinessFinance(req.user.id, req.params.id);
   if (!access) return res.status(404).json({ error: 'Business not found' });
 
   const {
@@ -162,7 +162,7 @@ async function createInvoice(req, res) {
 // ── Update invoice ─────────────────────────────────────────────────────────────
 async function updateInvoice(req, res) {
   try {
-    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    const access = await canWriteBusinessFinance(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { rows: [existing] } = await pool.query(
@@ -228,7 +228,7 @@ async function updateInvoice(req, res) {
 // POST /api/businesses/:id/invoices/:invoiceId/pay
 async function markInvoicePaid(req, res) {
   try {
-    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    const access = await canWriteBusinessFinance(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { amount } = req.body;
@@ -272,7 +272,7 @@ async function markInvoicePaid(req, res) {
 // ── Delete invoice ─────────────────────────────────────────────────────────────
 async function deleteInvoice(req, res) {
   try {
-    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    const access = await canWriteBusinessFinance(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
     // Verify invoice exists and is in a deletable state (draft or cancelled only)
@@ -383,7 +383,7 @@ async function getPublicInvoice(req, res) {
 // ── Send invoice (dual-track: internal notifications + external public link) ──
 // POST /api/businesses/:id/invoices/:invoiceId/send
 async function sendInvoice(req, res) {
-  const access = await canManageBusinessFinance(req.user.id, req.params.id);
+  const access = await canWriteBusinessFinance(req.user.id, req.params.id);
   if (!access) return res.status(404).json({ error: 'Business not found' });
 
   const client = await pool.connect();
@@ -850,7 +850,7 @@ async function sendHelperInvoice(req, res) {
 // ── Helper invoice number generator (global, not per-business) ─────────────────
 async function voidInvoice(req, res) {
   try {
-    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    const access = await canWriteBusinessFinance(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { reason } = req.body;

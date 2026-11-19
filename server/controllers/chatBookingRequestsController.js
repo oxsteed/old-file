@@ -316,8 +316,8 @@ exports.acceptBookingRequest = async (req, res, next) => {
 
     const booking = await loadBooking(req.params.id);
     if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
-    if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
-      return bad(res, 403, 'Only the provider can accept this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(userId, booking))) {
+      return bad(res, 403, 'Only the provider or a business manager can accept this booking', 'forbidden');
     }
     if (booking.conversation_id) {
       await assertConversationParticipant(userId, booking.conversation_id, { writable: true });
@@ -369,8 +369,8 @@ exports.declineBookingRequest = async (req, res, next) => {
 
     const booking = await loadBooking(req.params.id);
     if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
-    if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
-      return bad(res, 403, 'Only the provider can decline this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(userId, booking))) {
+      return bad(res, 403, 'Only the provider or a business manager can decline this booking', 'forbidden');
     }
     if (booking.conversation_id) {
       await assertConversationParticipant(userId, booking.conversation_id, { writable: true });
@@ -597,8 +597,8 @@ exports.proposeBookingTime = async (req, res, next) => {
 
     const booking = await loadBooking(req.params.id);
     if (!booking) return bad(res, 404, 'Booking request not found', 'not_found');
-    if (!(await bookingLifecycle.isProviderForBooking(userId, booking))) {
-      return bad(res, 403, 'Only the provider can propose a different time', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(userId, booking))) {
+      return bad(res, 403, 'Only the provider or a business manager can propose a different time', 'forbidden');
     }
     if (booking.conversation_id) {
       await assertConversationParticipant(userId, booking.conversation_id, { writable: true });

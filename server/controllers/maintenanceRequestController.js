@@ -2,7 +2,7 @@ const pool = require('../db');
 const path = require('path');
 const { AppError } = require('../middleware/errorHandler');
 const jobSchema = require('../validation/jobSchema');
-const { canAccessBusinessTeam } = require('../utils/businessOwnership');
+const { canAccessBusinessTeam, canReadBusinessFinance } = require('../utils/businessOwnership');
 const { businessScopeSatisfies } = require('../middleware/scopeGates');
 const { toPrivatePhotoRef, withHydratedPhotos, withHydratedPhotosList, resolvePhotoKey } = require('../utils/intakeMedia');
 const { copyObject, deleteFile, getPublicUrl } = require('../utils/storage');
@@ -142,6 +142,14 @@ async function loadRequestForUser(requestId, userId) {
 function forTenant(row) {
   if (!row) return row;
   const { owner_notes: _ownerNotes, ...rest } = row;
+  return rest;
+}
+// G-8: cost fields are finance data, not team data. A business team member
+// without finance read (invoices.view / payments.view / payouts.view, or
+// owner) sees the request but not its costs; the list total is hidden too.
+function withoutCosts(row) {
+  if (!row) return row;
+  const { estimated_cost: _estimatedCost, actual_cost: _actualCost, ...rest } = row;
   return rest;
 }
 function tenantEvents(events) {
@@ -385,7 +393,17 @@ exports.listBusinessRequests = async (req, res, next) => {
       statsParams
     );
 
-    return res.json({ requests: await withHydratedPhotosList(rows), stats });
+    // G-8: cost totals are finance data; hide them from team members
+    // without finance read instead of returning them to any member.
+    const canReadFinance = await canReadBusinessFinance(req.user.id, businessId);
+    const requests = await withHydratedPhotosList(rows);
+    if (!canReadFinance) {
+      return res.json({
+        requests: requests.map(withoutCosts),
+        stats: { ...stats, actual_cost_total: null },
+      });
+    }
+    return res.json({ requests, stats });
   } catch (err) {
     next(err);
   }
@@ -456,7 +474,12 @@ exports.getRequest = async (req, res, next) => {
     if (tenantOnly) {
       return res.json({ request: forTenant(await withHydratedPhotos(request)), events: tenantEvents(events) });
     }
-    return res.json({ request: await withHydratedPhotos(request), events });
+    // G-8: a team member without finance read sees the request without
+    // its cost fields.
+    const hydrated = await withHydratedPhotos(request);
+    const canReadFinance = String(request.business_owner_id) === String(req.user.id)
+      || Boolean(await canReadBusinessFinance(req.user.id, request.business_id));
+    return res.json({ request: canReadFinance ? hydrated : withoutCosts(hydrated), events });
   } catch (err) {
     next(err);
   }

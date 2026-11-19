@@ -8,7 +8,7 @@ const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
 const { sendBusinessInvoiceEmail } = require('../utils/businessInvoiceEmail');
-const { listUserInvoices, getUserInvoiceById } = require('../services/userInvoicesService');
+const { listUserInvoices, getUserInvoiceById, listFinanceReadableBusinessIds } = require('../services/userInvoicesService');
 // P3-9-F03: the super-admin endpoints below used to bypass every guard the
 // business-side path enforces (immutability of paid/cancelled invoices,
 // legal status transitions, already-paid rejection). They now apply the same
@@ -30,6 +30,7 @@ router.get('/', authenticate, generalLimiter, async (req, res) => {
     const status = req.query.status ? String(req.query.status) : null;
     const view = String(req.query.view || 'all').toLowerCase();
 
+    const businessIds = await listFinanceReadableBusinessIds(req.user.id);
     const { invoices, total } = await listUserInvoices({
       userId: req.user.id,
       userEmail: req.user.email || '',
@@ -37,6 +38,7 @@ router.get('/', authenticate, generalLimiter, async (req, res) => {
       status,
       limit,
       offset,
+      businessIds,
     });
 
     res.json({
@@ -91,6 +93,7 @@ router.get('/:id', authenticate, generalLimiter, async (req, res) => {
       userId: req.user.id,
       userEmail: req.user.email,
       role: req.user.role,
+      businessIds: await listFinanceReadableBusinessIds(req.user.id),
     });
     if (!inv) return res.status(404).json({ error: 'Invoice not found' });
     res.json({ success: true, invoice: inv });
