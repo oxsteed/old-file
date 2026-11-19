@@ -215,13 +215,19 @@ async function decide(user, id, { action, expectedVersion, reasonCode = null, no
           .map((value) => String(value).trim().toLowerCase())
           .filter((value, index, values) => INVESTOR_DATASETS.has(value) && values.indexOf(value) === index);
         if (!datasets.length) throw err(409, 'policy_changed', 'The investor audience must request at least one supported report.');
+        // G-45: snapshot the applicant's position scope on the audience row
+        // (live positions, commitments, and participation applications).
+        // The franchise dataset filters by these ids; a re-approval
+        // refreshes the snapshot.
+        const scope = await access.resolveInvestorScope(row.applicant_id, client);
         await client.query(
-          `INSERT INTO investor_reporting_audiences (user_id, grant_id, audience_key, datasets)
-           VALUES ($1, $2, $3, $4)
+          `INSERT INTO investor_reporting_audiences (user_id, grant_id, audience_key, datasets, entity_ids, opportunity_ids)
+           VALUES ($1, $2, $3, $4, $5, $6)
            ON CONFLICT (grant_id) DO UPDATE
              SET user_id = EXCLUDED.user_id, audience_key = EXCLUDED.audience_key,
-                 datasets = EXCLUDED.datasets, status = 'active', revoked_at = NULL, updated_at = NOW()`,
-          [row.applicant_id, grantId, String(answers.audience || '').trim(), datasets],
+                 datasets = EXCLUDED.datasets, entity_ids = EXCLUDED.entity_ids,
+                 opportunity_ids = EXCLUDED.opportunity_ids, status = 'active', revoked_at = NULL, updated_at = NOW()`,
+          [row.applicant_id, grantId, String(answers.audience || '').trim(), datasets, scope.entityIds, scope.opportunityIds],
         );
       }
     }

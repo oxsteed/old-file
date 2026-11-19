@@ -23608,7 +23608,12 @@
       "helpers": "Intervenants",
       "verifiedUsers": "Utilisateurs vérifiés"
     },
-    "noData": "Aucune donnée disponible"
+    "noData": "Aucune donnée disponible",
+    "scope": {
+      "platformWide": "Totaux de toute la plateforme. Ces chiffres couvrent toute la plateforme, pas seulement vos positions.",
+      "position_one": "Limité à vos positions ({{count}} entité).",
+      "position_other": "Limité à vos positions ({{count}} entités)."
+    }
   },
   "healthAlertsDashboard": {
     "title": "État de l’activité",

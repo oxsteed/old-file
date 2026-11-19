@@ -23608,7 +23608,12 @@
       "helpers": "Èd",
       "verifiedUsers": "Itilizatè verifye"
     },
-    "noData": "Pa gen done kounye a"
+    "noData": "Pa gen done kounye a",
+    "scope": {
+      "platformWide": "Total pou tout platfòm nan. Chif sa yo kouvri tout platfòm nan, pa sèlman pozisyon ou yo.",
+      "position_one": "Limite ak pozisyon ou yo ({{count}} antite).",
+      "position_other": "Limite ak pozisyon ou yo ({{count}} antite)."
+    }
   },
   "healthAlertsDashboard": {
     "title": "Sante biznis",

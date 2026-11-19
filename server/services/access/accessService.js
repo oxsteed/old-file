@@ -188,6 +188,11 @@ async function getProjection(userId, db = pool) {
         audienceKey: audience.audience_key,
         datasets: Array.isArray(audience.datasets) ? audience.datasets : [],
         expiresAt: audience.expires_at,
+        // G-45: explicit position scope (empty when the investor holds no
+        // position yet). The franchise dataset filters by these ids; the
+        // platform-total datasets are labeled platform-wide instead.
+        entityIds: Array.isArray(audience.entity_ids) ? audience.entity_ids : [],
+        opportunityIds: Array.isArray(audience.opportunity_ids) ? audience.opportunity_ids : [],
       };
     }
   }
@@ -205,9 +210,13 @@ async function can(userId, capability, subject, db = pool) {
 }
 
 async function getInvestorAudience(userId, db = pool) {
-  try {
-    const { rows } = await db.query(
-      `SELECT a.id, a.audience_key, a.datasets, a.expires_at
+  // G-45: the audience row carries its explicit position scope
+  // (entity_ids / opportunity_ids, added by migration
+  // 20261119090000). Older deployments without those columns still return
+  // the audience with an empty scope instead of failing the gate.
+  const selectSql = (withScope) => `
+    SELECT a.id, a.audience_key, a.datasets, a.expires_at
+      ${withScope ? ', a.entity_ids, a.opportunity_ids' : ''}
          FROM investor_reporting_audiences a
          JOIN access_grants g ON g.id = a.grant_id
         WHERE a.user_id = $1
@@ -217,14 +226,61 @@ async function getInvestorAudience(userId, db = pool) {
           AND a.status = 'active'
           AND (a.expires_at IS NULL OR a.expires_at > NOW())
         ORDER BY a.created_at DESC, a.id DESC
-        LIMIT 1`,
-      [userId],
-    );
-    return rows[0] || null;
+        LIMIT 1`;
+  try {
+    const { rows } = await db.query(selectSql(true), [userId]);
+    if (!rows[0]) return null;
+    return {
+      ...rows[0],
+      // pg returns BIGINT[] as strings; normalize so the projection and
+      // the reporting scope filter agree on numbers.
+      entity_ids: (Array.isArray(rows[0].entity_ids) ? rows[0].entity_ids : []).map(Number).filter((n) => Number.isFinite(n)),
+      opportunity_ids: (Array.isArray(rows[0].opportunity_ids) ? rows[0].opportunity_ids : []).map(String),
+    };
   } catch (error) {
     // Older deployments may not have the audience table yet. The capability
     // projection remains usable until the additive migration is deployed.
     if (error && error.code === '42P01') return null;
+    if (error && error.code === '42703') {
+      const { rows } = await db.query(selectSql(false), [userId]);
+      if (!rows[0]) return null;
+      return { ...rows[0], entity_ids: [], opportunity_ids: [] };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Resolve an investor's position scope from live records (G-45): active
+ * positions, live (reserved/completed) commitments, and live participation
+ * applications, mapped to their opportunities and entities
+ * (investment_opportunities.business_id). This is the scope the audience
+ * row snapshots at approval and the franchise dataset filters by.
+ */
+async function resolveInvestorScope(userId, db = pool) {
+  const empty = { opportunityIds: [], entityIds: [] };
+  try {
+    const { rows } = await db.query(
+      `SELECT DISTINCT o.id::text AS opportunity_id, o.business_id AS entity_id
+         FROM investment_opportunities o
+        WHERE o.id IN (
+          SELECT opportunity_id FROM investment_positions
+           WHERE user_id = $1 AND status = 'active'
+          UNION
+          SELECT opportunity_id FROM investment_commitments
+           WHERE user_id = $1 AND status IN ('reserved', 'completed')
+          UNION
+          SELECT opportunity_id FROM investment_participation_applications
+           WHERE user_id = $1 AND status IN ('submitted', 'under_review', 'approved')
+        )`,
+      [userId],
+    );
+    return {
+      opportunityIds: rows.map((r) => r.opportunity_id),
+      entityIds: [...new Set(rows.map((r) => Number(r.entity_id)))],
+    };
+  } catch (error) {
+    if (error && error.code === '42P01') return empty;
     throw error;
   }
 }
@@ -521,6 +577,7 @@ module.exports = {
   bumpProjection,
   can,
   getInvestorAudience,
+  resolveInvestorScope,
   // applicant
   createRequest,
   applicantTransition,

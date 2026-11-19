@@ -237,6 +237,108 @@ ddescribe('PR #804 Track E', () => {
     });
   });
 
+  describe('G-45 investor reporting scope', () => {
+    async function makeOpportunity(businessId, userId) {
+      const { rows } = await pool.query(
+        `INSERT INTO investment_opportunities
+           (business_id, created_by, title, purpose, target_cents, minimum_cents, deadline_at, status, structure, country_code)
+         VALUES ($1, $2, 'Track E Opportunity', 'Track E scope test', 100000, 1000, NOW() + interval '30 days', 'published', 'revenue_share', 'US')
+         RETURNING id`,
+        [businessId, userId],
+      );
+      return rows[0].id;
+    }
+
+    async function makeFranchiseApplication(linkedBusinessId, status) {
+      await pool.query(
+        `INSERT INTO franchise_applications
+           (program_id, first_name, last_name, email, desired_country, linked_business_id, status)
+         VALUES (1, 'Track', 'E', 'track-e@example.invalid', 'US', $1, $2)`,
+        [linkedBusinessId, status],
+      );
+    }
+
+    test('resolveInvestorScope maps a live application to its opportunity and entity', async () => {
+      const userId = await makeUser();
+      const businessId = await makeBusiness(userId);
+      const opportunityId = await makeOpportunity(businessId, userId);
+      await pool.query(
+        `INSERT INTO investment_participation_applications (user_id, opportunity_id, status, idempotency_key)
+         VALUES ($1, $2, 'submitted', $3)`,
+        [userId, opportunityId, `track-e-${crypto.randomUUID()}`],
+      );
+      const scope = await accessService.resolveInvestorScope(userId, pool);
+      expect(scope.opportunityIds).toEqual([String(opportunityId)]);
+      expect(scope.entityIds).toEqual([businessId]);
+    });
+
+    test('the projection carries the audience scope on investor.reporting', async () => {
+      const userId = await makeUser();
+      const businessId = await makeBusiness(userId);
+      const opportunityId = await makeOpportunity(businessId, userId);
+      const grantId = await grant(userId, 'investor.reporting');
+      await pool.query(
+        `INSERT INTO investor_reporting_audiences (user_id, grant_id, audience_key, datasets, entity_ids, opportunity_ids)
+         VALUES ($1, $2, 'track-e', ARRAY['overview', 'franchise'], $3, $4)`,
+        [userId, grantId, [businessId], [opportunityId]],
+      );
+      const projection = await accessService.getProjection(userId, pool);
+      expect(projection.personal).toContain('investor.reporting');
+      expect(projection.investorAudience.entityIds).toEqual([businessId]);
+      expect(projection.investorAudience.opportunityIds).toEqual([String(opportunityId)]);
+    });
+
+    test('franchise pipeline filters to the caller positions; empty scope sees nothing', async () => {
+      const investorController = require('../controllers/investorController');
+      const userId = await makeUser();
+      const businessA = await makeBusiness(userId);
+      const businessB = await makeBusiness(userId);
+
+      const call = (audience) => new Promise((resolve, reject) => {
+        const req = { investorAudience: audience };
+        const res = {
+          json(body) { resolve(body); },
+          status(code) { this.code = code; return this; },
+        };
+        investorController.getFranchisePipeline(req, res).catch(reject);
+      });
+
+      // The suite shares one disposable database across runs, so measure
+      // the platform total before inserting rather than assuming it is 0.
+      const before = await call(undefined);
+      await makeFranchiseApplication(businessA, 'inquiry');
+      await makeFranchiseApplication(businessA, 'launched');
+      await makeFranchiseApplication(businessB, 'inquiry');
+
+      const scoped = await call({ entity_ids: [businessA], opportunity_ids: [] });
+      expect(scoped.scope.type).toBe('position');
+      expect(scoped.total).toBe(2);
+      expect(scoped.pipeline.map((r) => r.status).sort()).toEqual(['inquiry', 'launched']);
+
+      const noPosition = await call({ entity_ids: [], opportunity_ids: [] });
+      expect(noPosition.scope.type).toBe('position');
+      expect(noPosition.total).toBe(0);
+      expect(noPosition.pipeline).toEqual([]);
+
+      const platform = await call(undefined);
+      expect(platform.scope.type).toBe('platform_wide');
+      expect(platform.total).toBe(before.total + 3);
+    });
+
+    test('kpis carry the platform-wide scope label', async () => {
+      const investorController = require('../controllers/investorController');
+      const body = await new Promise((resolve, reject) => {
+        const req = { query: {}, investorAudience: { entity_ids: [1], opportunity_ids: [] } };
+        const res = {
+          json(b) { resolve(b); },
+          status(code) { this.code = code; return this; },
+        };
+        investorController.getKpis(req, res).catch(reject);
+      });
+      expect(body.scope).toEqual({ type: 'platform_wide' });
+    });
+  });
+
   describe('G-28 mode switch revokes only the calling session', () => {
     test('invalidateCurrentSession leaves every other session valid', async () => {
       const userId = await makeUser();

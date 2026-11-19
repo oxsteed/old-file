@@ -23608,7 +23608,12 @@
       "helpers": "Helpers",
       "verifiedUsers": "Verified Users"
     },
-    "noData": "No data available yet"
+    "noData": "No data available yet",
+    "scope": {
+      "platformWide": "Platform-wide totals. These figures cover the whole platform, not just your positions.",
+      "position_one": "Scoped to your positions ({{count}} entity).",
+      "position_other": "Scoped to your positions ({{count}} entities)."
+    }
   },
   "healthAlertsDashboard": {
     "title": "Business Health",

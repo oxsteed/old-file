@@ -23608,7 +23608,12 @@
       "helpers": "Ayudantes",
       "verifiedUsers": "Usuarios verificados"
     },
-    "noData": "Aún no hay datos"
+    "noData": "Aún no hay datos",
+    "scope": {
+      "platformWide": "Totales de toda la plataforma. Estas cifras cubren toda la plataforma, no solo sus posiciones.",
+      "position_one": "Limitado a sus posiciones ({{count}} entidad).",
+      "position_other": "Limitado a sus posiciones ({{count}} entidades)."
+    }
   },
   "healthAlertsDashboard": {
     "title": "Salud del negocio",

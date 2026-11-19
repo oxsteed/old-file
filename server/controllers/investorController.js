@@ -44,7 +44,26 @@ const tableExists = async (name) => {
   return rows.length > 0;
 };
 
-// ── GET /api/investor/kpis ───────────────────────────────────────────────
+// ── G-45: investor reporting scope ───────────────────────────────────────
+// The audience row carries explicit position scope (entity_ids /
+// opportunity_ids). The franchise dataset is the only one attributable to
+// an entity (franchise_applications.linked_business_id), so it is filtered
+// to the caller's positions. KPIs, revenue, supply/demand, and evidence are
+// platform aggregates with no per-entity attribution in the underlying
+// tables (platform_ledger / jobs), so they are returned as platform totals
+// and labeled platform-wide in the response instead of being presented as
+// position reporting. Admins and legacy investor roles reach these routes
+// without an audience (routes/investor.js allowInvestor); they see the
+// platform-wide picture, labeled as such.
+function reportingScope(req) {
+  const audience = req.investorAudience;
+  if (!audience) return { type: 'platform_wide' };
+  const entityIds = (Array.isArray(audience.entity_ids) ? audience.entity_ids : []).map(Number).filter((n) => Number.isFinite(n));
+  const opportunityIds = Array.isArray(audience.opportunity_ids) ? audience.opportunity_ids : [];
+  return { type: 'position', entityIds, opportunityIds };
+}
+
+const PLATFORM_WIDE_SCOPE = Object.freeze({ type: 'platform_wide' });
 exports.getKpis = async (req, res) => {
   try {
     const period = PERIODS[req.query.period] ? req.query.period : '30d';
@@ -214,6 +233,8 @@ exports.getKpis = async (req, res) => {
         gmv_cents,
         take_rate_pct,
       },
+      // G-45: platform totals with no per-entity attribution; labeled as such.
+      scope: PLATFORM_WIDE_SCOPE,
     });
   } catch (err) {
     logger.error('[investor] getKpis error', { err: err.message });
@@ -250,7 +271,8 @@ exports.getRevenueChart = async (req, res) => {
       refunds:      acc.refunds      + safeInt(r.refunds_cents),
     }), { job_fee: 0, subscription: 0, refunds: 0 });
 
-    res.json({ chart: rows, totals, period, currency });
+    // G-45: platform totals with no per-entity attribution; labeled as such.
+    res.json({ chart: rows, totals, period, currency, scope: PLATFORM_WIDE_SCOPE });
   } catch (err) {
     logger.error('[investor] getRevenueChart error', { err: err.message });
     res.status(500).json({ error: 'Failed to load revenue chart' });
@@ -263,6 +285,16 @@ exports.getFranchisePipeline = async (req, res) => {
     const hasTable = await tableExists('franchise_applications');
     if (!hasTable) return res.json({ pipeline: [], total: 0 });
 
+    // G-45: the franchise dataset IS attributable to an entity
+    // (franchise_applications.linked_business_id), so an audience holder
+    // sees only the pipeline for their own position entities. An investor
+    // with no positions sees an empty pipeline, not the platform's.
+    const scope = reportingScope(req);
+    if (scope.type === 'position' && !scope.entityIds.length) {
+      return res.json({ pipeline: [], total: 0, scope });
+    }
+    const where = scope.type === 'position' ? 'WHERE linked_business_id = ANY($1::bigint[])' : '';
+    const params = scope.type === 'position' ? [scope.entityIds] : [];
     const rows = await safeQuery(`
       SELECT
         status,
@@ -270,6 +302,7 @@ exports.getFranchisePipeline = async (req, res) => {
         MIN(created_at)                                             AS oldest,
         MAX(updated_at)                                             AS latest_activity
       FROM franchise_applications
+      ${where}
       GROUP BY status
       ORDER BY
         CASE status
@@ -284,10 +317,10 @@ exports.getFranchisePipeline = async (req, res) => {
           WHEN 'archived'           THEN 9
           ELSE 10
         END
-    `);
+    `, params);
 
     const total = rows.reduce((s, r) => s + safeInt(r.count), 0);
-    res.json({ pipeline: rows, total });
+    res.json({ pipeline: rows, total, scope });
   } catch (err) {
     logger.error('[investor] getFranchisePipeline error', { err: err.message });
     res.status(500).json({ error: 'Failed to load franchise pipeline' });
@@ -345,7 +378,8 @@ exports.getSupplyDemand = async (req, res) => {
       helpers_listed    = safeInt(hr?.listed);
     }
 
-    res.json({ weekly, categories, helpers_available, helpers_listed });
+    // G-45: platform totals with no per-entity attribution; labeled as such.
+  res.json({ weekly, categories, helpers_available, helpers_listed, scope: PLATFORM_WIDE_SCOPE });
   } catch (err) {
     logger.error('[investor] getSupplyDemand error', { err: err.message });
     res.status(500).json({ error: 'Failed to load supply/demand data' });
@@ -360,7 +394,8 @@ exports.getEvidence = async (req, res) => {
     res.set('Cache-Control', 'private, no-store');
     const period = PERIODS[req.query.period] ? req.query.period : '30d';
     const { investorEvidence } = require('../analytics/investorEvidence');
-    res.json(await investorEvidence(pool, String(req.params.metric || ''), period));
+  // G-45: evidence metrics are platform aggregates; labeled as such.
+    res.json({ ...(await investorEvidence(pool, String(req.params.metric || ''), period)), scope: PLATFORM_WIDE_SCOPE });
   } catch (err) {
     if (err.statusCode === 404 || err.status === 404) return res.status(404).json({ error: 'Unknown metric' });
     logger.error('[investor] getEvidence error', { err: err.message });

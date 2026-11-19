@@ -201,6 +201,7 @@ export default function InvestorDashboardPage() {
 
   const [period, setPeriod] = useState('30d');
   const [kpis, setKpis] = useState(null);
+  const [kpiScope, setKpiScope] = useState(null);
   const [chart, setChart] = useState([]);
   const [franchise, setFranchise] = useState(null);
   const [supDem, setSupDem] = useState(null);
@@ -247,6 +248,7 @@ export default function InvestorDashboardPage() {
       ]);
       if (k.error) throw new Error(k.error);
       setKpis(k.kpis);
+      setKpiScope(k.scope ?? null);
       setChart(c.chart ?? []);
       setFranchise(f);
       setSupDem(s);
@@ -336,6 +338,11 @@ export default function InvestorDashboardPage() {
             </div>
           )}
 
+          {/* G-45: KPIs are platform totals, not position reporting. */}
+          {!loading && kpiScope?.type === 'platform_wide' && (
+            <p className="text-xs text-gray-400">{t('investorDashboard.scope.platformWide')}</p>
+          )}
+
           {/* ── KPI grid ───────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
             <KpiCard icon={DollarSign} label={t('investorDashboard.kpis.revenuePeriod')} loading={loading}
@@ -396,6 +403,15 @@ export default function InvestorDashboardPage() {
                 <h2 className="font-semibold text-sm text-gray-200">{t('investorDashboard.pipeline.title')}</h2>
                 <GitBranch size={15} className="text-gray-500" />
               </div>
+              {/* G-45: franchise pipeline is scoped to the investor's positions. */}
+              {!loading && franchise?.scope?.type === 'position' && (
+                <p className="text-xs text-gray-400 mb-3">
+                  {t('investorDashboard.scope.position', { count: franchise.scope.entityIds?.length ?? 0 })}
+                </p>
+              )}
+              {!loading && franchise?.scope?.type === 'platform_wide' && (
+                <p className="text-xs text-gray-400 mb-3">{t('investorDashboard.scope.platformWide')}</p>
+              )}
               {loading
                 ? <div className="space-y-3">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-4" />)}</div>
                 : !datasetAllowed('franchise')
