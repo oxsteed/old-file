@@ -20,6 +20,8 @@ const { sendError } = require('../utils/apiError');
 const permissionsService = require('../services/permissionsService');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const { canActOnRole } = require('../utils/teamRanks');
+const { withTransaction } = require('../utils/transaction');
+const { bumpProjection } = require('../services/access/accessService');
 
 const VALID_ROLES = ['manager', 'representative', 'employee', 'support_agent'];
 
@@ -147,13 +149,21 @@ exports.changeMembershipRole = async (req, res, next) => {
       return res.json({ data: existing.rows[0] });
     }
 
-    const { rows } = await pool.query(
-      `UPDATE business_members
-          SET role = $1, role_updated_at = NOW(), role_updated_by = $2
-        WHERE id = $3 AND business_id = $4
-        RETURNING id, role, member_id, status`,
-      [newRole, req.user.id, mid, req.business.id]
-    );
+    // G-27: the role change and the member's projection bump commit
+    // together, so the member sees the new role instead of the old one.
+    const { rows } = await withTransaction(pool, async (client) => {
+      const updated = await client.query(
+        `UPDATE business_members
+            SET role = $1, role_updated_at = NOW(), role_updated_by = $2
+          WHERE id = $3 AND business_id = $4
+          RETURNING id, role, member_id, status`,
+        [newRole, req.user.id, mid, req.business.id]
+      );
+      if (updated.rows[0]?.member_id) {
+        await bumpProjection(client, updated.rows[0].member_id);
+      }
+      return updated;
+    }, 'business_member_role_change');
 
     if (rows[0].member_id) {
       permissionsService.invalidateCache(req.business.id, rows[0].member_id);

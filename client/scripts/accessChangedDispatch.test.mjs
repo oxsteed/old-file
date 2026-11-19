@@ -77,3 +77,16 @@ test('every applicant-side access write routes through a notifying path', async 
   assert.match(page, /await accessAPI\.transition\(withdrawTarget\.id, 'withdraw'/);
   assert.match(page, /await load\(\);\n    \} catch \(err\) \{\n      toast\.error\(errorCode\(err\) === 'request_version_conflict'/);
 });
+
+// G-27: the BusinessSwitcher list used to fetch on mount only, so a member
+// removed (or role-changed) elsewhere kept seeing the business until
+// remount while the projection hook already refreshed. It refetches on
+// focus and on the access-changed event, like useAccessProjection does.
+test('BusinessSwitcher refetches on focus and on the access-changed event', async () => {
+  const switcher = await src('components/BusinessSwitcher.jsx');
+  assert.match(switcher, /import \{ ACCESS_CHANGED_EVENT \} from '\.\.\/hooks\/useAccessProjection'/);
+  assert.match(switcher, /window\.addEventListener\('focus', refresh\)/);
+  assert.match(switcher, /window\.addEventListener\(ACCESS_CHANGED_EVENT, refresh\)/);
+  assert.match(switcher, /window\.removeEventListener\('focus', refresh\)/);
+  assert.match(switcher, /window\.removeEventListener\(ACCESS_CHANGED_EVENT, refresh\)/);
+});

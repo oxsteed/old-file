@@ -7,6 +7,7 @@ import { getMyBusinesses, setWorkspaceContext } from '../api/vortex';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { accountWorkspaceStorageKey, businessWorkspacePath } from '../utils/businessProfileForm';
 import { useNavDisclosure } from '../hooks/useNavDisclosure';
+import { ACCESS_CHANGED_EVENT } from '../hooks/useAccessProjection';
 
 /**
  * Global business switcher for the navbar.
@@ -51,11 +52,11 @@ export default function BusinessSwitcher({ compact = false, authorizedOrganizati
   const userId = user && user.id ? user.id : null;
   const storageKey = accountWorkspaceStorageKey(userId);
 
-  useEffect(() => {
+  const loadBusinesses = useCallback(() => {
     if (!userId) {
       setBusinesses([]);
       setLoading(false);
-      return;
+      return () => {};
     }
     let cancelled = false;
     setLoading(true);
@@ -109,6 +110,27 @@ export default function BusinessSwitcher({ compact = false, authorizedOrganizati
     })();
     return () => { cancelled = true; };
   }, [userId, authorizedOrganizations]);
+
+  useEffect(() => loadBusinesses(), [loadBusinesses]);
+
+  // G-27: the list used to fetch on mount only, so a member removed (or
+  // role-changed) elsewhere kept seeing the business until remount while
+  // the projection hook already refreshed. Refetch on focus and on the
+  // access-changed event, like useAccessProjection does.
+  useEffect(() => {
+    let cancelLatest = null;
+    const refresh = () => {
+      if (cancelLatest) cancelLatest();
+      cancelLatest = loadBusinesses();
+    };
+    window.addEventListener('focus', refresh);
+    window.addEventListener(ACCESS_CHANGED_EVENT, refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener(ACCESS_CHANGED_EVENT, refresh);
+      if (cancelLatest) cancelLatest();
+    };
+  }, [loadBusinesses]);
 
   const activeId = routeBusinessId
     || (storageKey ? localStorage.getItem(storageKey) : null)

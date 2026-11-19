@@ -7,6 +7,7 @@ const permissions = require('../services/permissionsService');
 const { attachScope, requireBrand } = require('../services/restaurantReviewScope');
 const { withTransaction } = require('../utils/transaction');
 const { logBusinessAction } = require('../services/businessAuditLog');
+const { bumpProjection } = require('../services/access/accessService');
 const { normalizeLocationIds, normalizeId, getLocationScope } = require('../services/restaurantLocationAccessService');
 
 // WP-061: a store-scoped operator administers only inside their own stores.
@@ -148,6 +149,9 @@ exports.replace = async (req, res, next) => {
           ORDER BY location_id ASC`,
         [restaurant.id, membershipId]
       );
+      // G-27: the member's projection must carry the new store scope in the
+      // same transaction as the assignment change.
+      await bumpProjection(client, member.member_id);
       await logBusinessAction(req, {
         business_id: restaurant.business_id,
         actor_role: restaurant.effective_role,
@@ -189,6 +193,9 @@ exports.clear = async (req, res, next) => {
        RETURNING lm.id`,
         [restaurant.id, membershipId, restaurant.business_id]
       );
+      // G-27: same-transaction projection bump as replace above. A pending
+      // invite row has no member user to bump.
+      if (member.member_id) await bumpProjection(client, member.member_id);
       await logBusinessAction(req, {
         client,
         business_id: restaurant.business_id,

@@ -21,6 +21,7 @@ const { sendNotification } = require('../services/notificationService');
 const permissionsService = require('../services/permissionsService');
 const { withTransaction } = require('../utils/transaction');
 const { applyStaffOffboarding } = require('../services/staffOffboarding');
+const { bumpProjection } = require('../services/access/accessService');
 const { canActOnRole, resolveActorRole } = require('../utils/teamRanks');
 
 const VALID_ROLES = ['manager', 'representative', 'employee', 'support_agent'];
@@ -685,7 +686,7 @@ exports.removeMembership = async (req, res, next) => {
         `UPDATE business_members SET status = 'revoked' WHERE id = $1`,
         [mid]
       );
-      return applyStaffOffboarding(client, {
+      const result = await applyStaffOffboarding(client, {
         businessId: req.business.id,
         userId: rows[0].member_id,
         reason: 'Member removed from the team',
@@ -693,6 +694,11 @@ exports.removeMembership = async (req, res, next) => {
         removedBy: req.user.id,
         reassignToUserId: req.user.id,
       });
+      // G-27: the removed member's projection must drop the business in the
+      // same transaction, or their nav and switcher keep listing it until
+      // a remount while every click 404s server-side.
+      await bumpProjection(client, rows[0].member_id);
+      return result;
     });
     permissionsService.invalidateCache(req.business.id, rows[0].member_id);
     await logBusinessAction(req, {
