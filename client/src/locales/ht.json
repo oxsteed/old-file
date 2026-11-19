@@ -7108,7 +7108,8 @@
       "pending": "Y ap tann apwobasyon",
       "approved": "Apwouve",
       "executed": "Ranbouse",
-      "rejected": "Rejte"
+      "rejected": "Rejte",
+      "failed": "Echwe"
     },
     "signWorkAgreement": "Revize epi siyen akò travay la",
     "viewWorkAgreement": "Gade akò travay la",
@@ -9351,6 +9352,7 @@
     "tabServicePricingLabel": "Pri Sèvis",
     "tabProductPricingLabel": "Pri Pwodwi",
     "loadingProfile": "Ap chaje pwofil…",
+    "loading": "Ap chaje…",
     "loadingAnalytics": "Ap chaje analiz…",
     "loadingInvoices": "Ap chaje bòdwo…",
     "loadingTax": "Ap chaje estimasyon taks…",

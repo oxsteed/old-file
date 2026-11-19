@@ -6830,7 +6830,8 @@
       "pending": "Waiting for approval",
       "approved": "Approved",
       "executed": "Refunded",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "failed": "Failed"
     },
     "signWorkAgreement": "Review and sign the work agreement",
     "viewWorkAgreement": "View work agreement",
@@ -8530,6 +8531,7 @@
     "tabServicePricingLabel": "Service Pricing",
     "tabProductPricingLabel": "Product Pricing",
     "loadingProfile": "Loading profile…",
+    "loading": "Loading…",
     "loadingAnalytics": "Loading analytics…",
     "loadingInvoices": "Loading invoices…",
     "loadingTax": "Loading tax estimates…",

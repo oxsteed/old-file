@@ -104,6 +104,16 @@ const DISPUTABLE_JOB_STATUSES = ['accepted', 'in_progress', 'pending_completion'
 // (jobs carry no business_id; the job belongs to the business via its client).
 function JobRefundRequestSection({ job, fieldId }) {
   const { t } = useTranslation();
+  // Static keys only: verify-i18n cannot resolve a concatenated key, and the
+  // money-approval status domain is closed (pending/approved/rejected/
+  // executed/failed per migration 865), so the lookup is exhaustive.
+  const refundStatusLabels = {
+    pending: t('jobDetail.refundStatus.pending'),
+    approved: t('jobDetail.refundStatus.approved'),
+    rejected: t('jobDetail.refundStatus.rejected'),
+    executed: t('jobDetail.refundStatus.executed'),
+    failed: t('jobDetail.refundStatus.failed'),
+  };
   const [businessId, setBusinessId] = useState(null);
   const [requests, setRequests] = useState([]);
   const [amount, setAmount] = useState('');
@@ -172,7 +182,7 @@ function JobRefundRequestSection({ job, fieldId }) {
         {requests.map((r) => (
           <div key={r.id} className="jdp-refund-row">
             <span>{formatMoney(r.amountCents / 100, { currency: r.currencyCode || 'USD' })}</span>
-            <span>{t('jobDetail.refundStatus.' + r.status, { defaultValue: r.status })}</span>
+            <span>{refundStatusLabels[r.status] || r.status}</span>
             <span className="jdp-count">{r.reason}</span>
           </div>
         ))}

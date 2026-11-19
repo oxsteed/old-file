@@ -6830,7 +6830,8 @@
       "pending": "بانتظار الموافقة",
       "approved": "تمت الموافقة",
       "executed": "تم الاسترداد",
-      "rejected": "مرفوض"
+      "rejected": "مرفوض",
+      "failed": "فشل"
     },
     "signWorkAgreement": "راجع اتفاقية العمل ووقّعها",
     "viewWorkAgreement": "عرض اتفاقية العمل",
@@ -8530,6 +8531,7 @@
     "tabServicePricingLabel": "تسعير الخدمة",
     "tabProductPricingLabel": "تسعير المنتج",
     "loadingProfile": "جارٍ تحميل الملف الشخصي…",
+    "loading": "جارٍ التحميل…",
     "loadingAnalytics": "جارٍ تحميل التحليلات...",
     "loadingInvoices": "جارٍ تحميل الفواتير…",
     "loadingTax": "جارٍ تحميل التقديرات الضريبية…",
@@ -23390,7 +23392,8 @@
         },
         "amendments": {
           "changes": "التغييرات المقترحة",
-          "reconfirmationTitle": "إعادة تأكيد المستثمر",
+          "reconfirmationPendingUsers": "بانتظار إعادة التأكيد (معرّفات مستخدمي المستثمرين):",
+      "reconfirmationTitle": "إعادة تأكيد المستثمر",
           "reconfirmation": "أعاد {{reconfirmed}} من أصل {{total}} مستثمرًا التأكيد، وما زال {{pending}} بانتظار التأكيد.",
           "reconfirmationNone": "لا يتضمن هذا التعديل نسخة جديدة من الاتفاقية، لذا لا يوجد ما يعاد تأكيده.",
           "deadline": "الموعد النهائي لإعادة التأكيد: {{date}}",

@@ -6830,7 +6830,8 @@
       "pending": "En attente d’approbation",
       "approved": "Approuvé",
       "executed": "Remboursé",
-      "rejected": "Rejeté"
+      "rejected": "Rejeté",
+      "failed": "Échoué"
     },
     "signWorkAgreement": "Relire et signer l’accord de travail",
     "viewWorkAgreement": "Voir l’accord de travail",
@@ -8530,6 +8531,7 @@
     "tabServicePricingLabel": "Tarification des Services",
     "tabProductPricingLabel": "Tarification des Produits",
     "loadingProfile": "Chargement du profil…",
+    "loading": "Chargement…",
     "loadingAnalytics": "Chargement des analyses…",
     "loadingInvoices": "Chargement des factures…",
     "loadingTax": "Chargement des estimations de taxes…",
