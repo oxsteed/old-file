@@ -19,6 +19,7 @@ import { LAUNCH_VISIBILITY } from '../../utils/launchScope';
 const NS = 'common';
 const OPEN = ['draft', 'submitted', 'in_review', 'needs_information'];
 const EDITABLE = ['draft', 'needs_information'];
+const DOMAIN_SIGNUP_RESUME_PATHS = new Set(['/vortex', '/credit/apply']);
 
 // AC-010: an approved application names where the capability is used day to
 // day, so the applicant can act on the grant immediately.
@@ -189,7 +190,10 @@ function AccountApplications({ accountId, epoch }) {
   const openCaps = new Set(requests.filter((r) => OPEN.includes(r.status)).map((r) => r.capability));
   const applyable = policies.filter((p) => p.applicantMayRequest && !held.has(p.capability) && !openCaps.has(p.capability));
   const policyFor = (capability) => policies.find((p) => p.capability === capability);
-  const resumeCapability = access?.signupResume?.requestId == null ? access?.signupResume?.capability : null;
+  const signupResume = access?.signupResume;
+  const resumeCapability = signupResume?.requestId == null ? signupResume?.capability : null;
+  const showDomainResume = held.has('customer') && signupResume && !signupResume.capability
+    && DOMAIN_SIGNUP_RESUME_PATHS.has(signupResume.statusPath);
 
   const startApplication = async (capability) => {
     setBusy(true);
@@ -277,6 +281,17 @@ function AccountApplications({ accountId, epoch }) {
               </div>
             ) : (
               <div className="space-y-8">
+                {showDomainResume && (
+                  <section aria-labelledby="access-signup-resume-title" className="rounded-xl border border-border p-4">
+                    <h2 id="access-signup-resume-title" className="text-lg font-semibold text-content">
+                      {t('signupUpgrade.intentConfirmed', { ns: NS })}
+                    </h2>
+                    <p className="mt-1 text-sm text-muted">{t(`signupUpgrade.admission.${signupResume.kind}`, { ns: NS })}</p>
+                    <Link to={signupResume.statusPath} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline">
+                      {t('signupUpgrade.viewNextStep', { ns: NS })}
+                    </Link>
+                  </section>
+                )}
                 <section aria-labelledby="access-held-title">
                   <h2 id="access-held-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.heldTitle', { ns: NS })}</h2>
                   <ul className="flex flex-wrap gap-2">

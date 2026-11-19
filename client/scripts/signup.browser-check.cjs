@@ -39,7 +39,8 @@ async function fixture() {
         const start=window.calls.find(c=>c.url.endsWith('/start'))?.payload;
         const capability={offer_services:'helper.offer_services',run_business:'business.own',run_restaurant:'restaurant.own',ship_goods:'logistics.ship',consult:'consultant.accept_paying_clients',list_equipment:'tool_owner.list_equipment',request_reporting:'investor.reporting'}[start?.signupIntent];
         const admission={join_business_team:'organization_invitation',join_restaurant_team:'organization_invitation',franchise:'domain_enrollment',join_credit:'domain_enrollment',join_partner:'domain_enrollment',join_workforce:'domain_enrollment',request_reviewer:'staff_provisioning',request_support:'staff_provisioning',request_operations:'staff_provisioning',request_device:'nonhuman_provisioning'}[start?.signupIntent];
-        const access=start?.signupIntent&&start.signupIntent!=='find_help'?{nextStep:capability?{type:'application',intent:start.signupIntent,capability,requestId:window.missingApplication?null:'application-1'}:{type:'none',intent:start.signupIntent,kind:admission,statusPath:'/settings/applications'}}:undefined;
+        const statusPath={join_business_team:'/vortex',join_restaurant_team:'/vortex',join_credit:'/credit/apply'}[start?.signupIntent] || '/settings/applications';
+        const access=start?.signupIntent&&start.signupIntent!=='find_help'?{nextStep:capability?{type:'application',intent:start.signupIntent,capability,requestId:window.missingApplication?null:'application-1'}:{type:'none',intent:start.signupIntent,kind:admission,statusPath}}:undefined;
         return {data:{user:{id:'synthetic',email_verified:true,role:'customer',default_mode:'customer'},access}};
       }
       return {data:{}};
@@ -178,16 +179,24 @@ test('non-application personas receive a safe admission handoff after verificati
   const app = await fixture();
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await open(page, `${app.url}/join?customerFirst`);
-    await page.getByText('Join a business team', { exact: true }).click();
-    await fill(page); await submit(page);
-    await page.evaluate(() => { window.failure = 'success'; });
-    await page.locator('[autocomplete="one-time-code"]').fill('123456');
-    await page.getByRole('heading', { name: 'Your account is ready for this path' }).waitFor();
-    assert.match(await page.locator('.signup-intent-confirmation').innerText(), /invitation|membership/i);
-    assert.equal(await page.getByRole('link', { name: 'View next step' }).getAttribute('href'), '/settings/applications');
-    await page.close();
+    for (const [choice, destination, admission] of [
+      ['Join a business team', '/vortex', /invitation|membership/i],
+      ['Work at a restaurant', '/vortex', /invitation|membership/i],
+      ['Participate in OxSteed Credit', '/credit/apply', /owning program/i],
+    ]) {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+      await open(page, `${app.url}/join?customerFirst`);
+      await page.getByText(choice, { exact: true }).click();
+      await fill(page); await submit(page);
+      await page.evaluate(() => { window.failure = 'success'; });
+      await page.locator('[autocomplete="one-time-code"]').fill('123456');
+      await page.getByRole('heading', { name: 'Your account is ready for this path' }).waitFor();
+      assert.equal(await page.evaluate(() => window.registeredUser.role), 'customer');
+      assert.match(await page.locator('.signup-intent-confirmation').innerText(), admission);
+      await page.getByRole('link', { name: 'View next step' }).click();
+      await page.waitForURL(`**${destination}`);
+      await page.close();
+    }
   } finally { await browser.close(); await app.close(); }
 });
 

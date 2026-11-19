@@ -28,6 +28,7 @@ import {
   setWorkspaceContext,
 } from '../api/vortex';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
+import { notifyAccessChanged } from '../hooks/useAccessProjection';
 
 function roleLabel(t, role) {
   if (!role) return '';
@@ -136,6 +137,7 @@ export default function VortexPage() {
         defaultValue: 'Welcome to {{name}}.',
         name: result.business_name,
       }));
+      notifyAccessChanged();
       // Refresh the list and route to workspace.
       try { setBizList(await getMyBusinesses()); } catch (_) {}
       await setWorkspaceContext(result.business_id).catch(() => {});

@@ -275,6 +275,7 @@ ddescribe('customer-first signup (real database)', () => {
   test.each([
     ['helper intent via legacy defaultMode', { defaultMode: 'helper' }, 'offer_services', 'helper.offer_services'],
     ['business intent via signupIntent', { signupIntent: 'run_business' }, 'run_business', 'business.own'],
+    ['logistics intent', { signupIntent: 'ship_goods' }, 'ship_goods', 'logistics.ship'],
     ['customer intent', { signupIntent: 'find_help' }, 'find_help', null],
   ])('%s creates a customer and keeps the intent (AC-002, AC-007)', async (_n, extra, intent, capability) => {
     const { token } = await signup({ ...extra, returnTo: '/jobs/42?x=1' });
@@ -303,6 +304,24 @@ ddescribe('customer-first signup (real database)', () => {
     const r = fakeRes();
     await ctrl.startRegistration(fakeReq({ email: `pa-forge-${crypto.randomUUID()}@example.invalid`, defaultMode: 'admin' }), r);
     expect(r.statusCode).toBe(400);
+  });
+
+  test.each([
+    ['join_business_team', 'organization_invitation', '/vortex'],
+    ['join_restaurant_team', 'organization_invitation', '/vortex'],
+    ['join_credit', 'domain_enrollment', '/credit/apply'],
+  ])('%s keeps the owning admission handoff without granting access', async (intent, kind, statusPath) => {
+    const { token } = await signup({ signupIntent: intent });
+    const res = await verify(token);
+    expect(res.statusCode).toBe(201);
+    expect(res.body.user).toMatchObject({ role: 'customer', default_mode: 'customer' });
+    expect(res.body.access.nextStep).toMatchObject({ type: 'none', intent, kind, statusPath });
+    const userId = res.body.user.id;
+    const resume = await require('../services/access/signupIntent').pendingIntent(userId);
+    expect(resume).toMatchObject({ intent, capability: null, requestId: null, kind, statusPath });
+    expect((await pool.query('SELECT 1 FROM access_grants WHERE user_id = $1', [userId])).rows).toHaveLength(0);
+    expect((await pool.query('SELECT 1 FROM access_requests WHERE applicant_id = $1', [userId])).rows).toHaveLength(0);
+    expect((await pool.query('SELECT 1 FROM business_members WHERE member_id = $1', [userId])).rows).toHaveLength(0);
   });
 
   test('two near-simultaneous OTP finalizations create exactly one account and at most one draft (WP-003)', async () => {
