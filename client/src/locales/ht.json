@@ -1873,7 +1873,6 @@
     "benefitBusiness": "Devlope biznis ou",
     "benefitBusinessText": "Jwenn talan epi rive jwenn plis moun toupre ou.",
     "modePrompt": "Kijan ou pral sèvi ak OxSteed?",
-    "switcherNote": "Ou ka chanje mòd ou nenpòt lè nan selektè ki nan aplikasyon an.",
     "setupNote": "Lòt fason pou itilize OxSteed",
     "intentNote": "Tout moun kòmanse ak aksè kliyan. Chwazi chemen ki pi byen dekri bezwen ou; pwosesis admisyon an kòmanse apre verifikasyon.",
     "personas": {
@@ -1931,7 +1930,7 @@
     "postalLabel": "Kòd postal",
     "optionalPostal": "Kòd postal (opsyonèl)",
     "errorSummary": "Tanpri verifye sa ki annapre yo:",
-    "modeError": "Chwazi yon mòd kont ki disponib.",
+    "modeError": "Chwazi youn nan opsyon ki anba yo.",
     "firstNameError": "Antre yon prenon valab (jiska 100 karaktè).",
     "lastNameError": "Antre yon siyati valab (jiska 100 karaktè).",
     "emailError": "Antre yon imèl valab (jiska 254 karaktè).",

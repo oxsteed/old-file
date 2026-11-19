@@ -1873,7 +1873,6 @@
     "benefitBusiness": "Développez votre activité",
     "benefitBusinessText": "Trouvez des talents et touchez plus de personnes localement.",
     "modePrompt": "Comment utiliserez-vous OxSteed ?",
-    "switcherNote": "Vous pouvez changer de mode à tout moment depuis le sélecteur de l’application.",
     "setupNote": "Autres façons d’utiliser OxSteed",
     "intentNote": "Tout le monde commence avec un accès client. Choisissez le parcours qui décrit vos besoins; l'admission commence après la vérification.",
     "personas": {
@@ -1931,7 +1930,7 @@
     "postalLabel": "Code postal",
     "optionalPostal": "Code postal (facultatif)",
     "errorSummary": "Veuillez vérifier les éléments suivants :",
-    "modeError": "Choisissez un mode de compte disponible.",
+    "modeError": "Choisissez l’une des options ci-dessous.",
     "firstNameError": "Saisissez un prénom valide (100 caractères maximum).",
     "lastNameError": "Saisissez un nom valide (100 caractères maximum).",
     "emailError": "Saisissez une adresse e-mail valide (254 caractères maximum).",

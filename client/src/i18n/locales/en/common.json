@@ -1713,7 +1713,6 @@
     "benefitBusiness": "Grow your business",
     "benefitBusinessText": "Find talent and reach more people locally.",
     "modePrompt": "How will you use OxSteed?",
-    "switcherNote": "You can change your mode at any time from the in-app switcher.",
     "setupNote": "Additional paths",
     "intentNote": "Everyone starts with customer access. Choose the future path that best describes your needs; the owning admission process comes after verification.",
     "personas": {
@@ -1771,7 +1770,7 @@
     "postalLabel": "Postal code",
     "optionalPostal": "Postal code (optional)",
     "errorSummary": "Please review the following:",
-    "modeError": "Choose a supported account mode.",
+    "modeError": "Choose one of the options below.",
     "firstNameError": "Enter a valid first name (up to 100 characters).",
     "lastNameError": "Enter a valid last name (up to 100 characters).",
     "emailError": "Enter a valid email address (up to 254 characters).",
