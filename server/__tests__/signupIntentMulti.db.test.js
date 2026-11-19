@@ -116,6 +116,45 @@ ddescribe('signup intents are keyed by (user_id, intent) (real database)', () =>
     expect(rows[0]).toMatchObject({ kind: 'staff_reviewer', status: 'pending' });
   });
 
+  test('G-2/G-3: every null-capability handoff intent lands on its owning page', async () => {
+    const user = await makeUser();
+    // [intent, statusPath, admission kind, provisioning kind or null]
+    const handoffs = [
+      ['join_business_team', '/vortex', 'organization_invitation', null],
+      ['join_restaurant_team', '/vortex', 'organization_invitation', null],
+      ['franchise', '/franchise/apply', 'domain_enrollment', null],
+      ['join_credit', '/credit/apply', 'domain_enrollment', null],
+      ['join_partner', '/affiliate', 'domain_enrollment', null],
+      ['join_workforce', '/learn', 'domain_enrollment', null],
+      ['request_reviewer', '/settings/applications', 'staff_provisioning', 'staff_reviewer'],
+      ['request_support', '/settings/applications', 'staff_provisioning', 'staff_support'],
+      ['request_operations', '/settings/applications', 'staff_provisioning', 'staff_operations'],
+      ['request_device', '/settings/applications', 'nonhuman_provisioning', 'service_account'],
+    ];
+    for (const [intent, statusPath, kind, provisioningKind] of handoffs) {
+      const finalized = await signupIntent.finalize(user.id, { signup_intent: intent, signup_return_to: null });
+      expect(finalized.nextStep.type).toBe('none');
+      expect(finalized.nextStep.statusPath).toBe(statusPath);
+      expect(finalized.nextStep.kind).toBe(kind);
+    }
+    const pending = await signupIntent.pendingIntents(user.id);
+    expect(pending.map((r) => r.intent).sort()).toEqual(handoffs.map(([intent]) => intent).sort());
+    for (const [intent, statusPath] of handoffs) {
+      expect(pending.find((r) => r.intent === intent).statusPath).toBe(statusPath);
+    }
+    // Staff/device intents also open a visible, decidable provisioning row.
+    const { rows } = await pool.query(
+      `SELECT kind, status FROM signup_provisioning_requests WHERE user_id = $1 ORDER BY kind`,
+      [user.id],
+    );
+    expect(rows).toEqual([
+      { kind: 'service_account', status: 'pending' },
+      { kind: 'staff_operations', status: 'pending' },
+      { kind: 'staff_reviewer', status: 'pending' },
+      { kind: 'staff_support', status: 'pending' },
+    ]);
+  });
+
   test('submitting the draft application consumes the capability intent', async () => {
     const user = await makeUser();
     const finalized = await signupIntent.finalize(user.id, { signup_intent: 'offer_services', signup_return_to: null });
