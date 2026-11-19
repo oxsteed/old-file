@@ -11,6 +11,7 @@ import Navbar from '../../components/Navbar';
 import RequestEditor from '../../components/registration/AccessRequestEditor';
 import Footer from '../../components/Footer';
 import { accessAPI } from '../../api/access';
+import { listMyInvitations, acceptInvitation, declineInvitation } from '../../api/businesses';
 import { currentAuthEpoch, isCurrentAuthEpoch } from '../../api/authSessionEpoch';
 import { useAuth } from '../../context/AuthContext';
 import { notifyAccessChanged, ACCESS_CHANGED_EVENT } from '../../hooks/useAccessProjection';
@@ -94,6 +95,8 @@ function AccountApplications({ accountId, epoch }) {
   const [access, setAccess] = useState(null);
   const [requests, setRequests] = useState([]);
   const [policies, setPolicies] = useState([]);
+  const [invitations, setInvitations] = useState([]);
+  const [invitationBusy, setInvitationBusy] = useState(null);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -116,7 +119,7 @@ function AccountApplications({ accountId, epoch }) {
     if (!silent) setLoading(true);
     setLoadError(false);
     try {
-      const [a, r, p] = await Promise.all([accessAPI.getAccess(accountId), accessAPI.listRequests({ limit: 50 }), accessAPI.listPolicies()]);
+      const [a, r, p, inv] = await Promise.all([accessAPI.getAccess(accountId), accessAPI.listRequests({ limit: 50 }), accessAPI.listPolicies(), listMyInvitations().catch(() => [])]);
       if (!isCurrentAuthEpoch(epoch)) return;
       const heldNow = a.access?.personal || [];
       const version = a.access ? JSON.stringify([heldNow, (a.access.organizations || []).map((o) => [o.id, o.role])]) : null;
@@ -134,6 +137,7 @@ function AccountApplications({ accountId, epoch }) {
       setAccess(a.access);
       setRequests(r.requests || []);
       setPolicies(p.policies || []);
+      setInvitations(inv || []);
       setUnavailable(false);
       // AC-021: refresh the open request during silent reloads so a reviewer
       // change reaches the editor without remounting it (unsaved answers
@@ -231,6 +235,25 @@ function AccountApplications({ accountId, epoch }) {
     }
   };
 
+  // G-3: pending team invitations are decided here, not only in
+  // BusinessHub. Accepting changes membership, so the projection is
+  // refreshed for the nav and switcher.
+  const decideInvitation = async (invitation, action) => {
+    if (invitationBusy) return;
+    setInvitationBusy(invitation.id);
+    try {
+      if (action === 'accept') await acceptInvitation(invitation.id);
+      else await declineInvitation(invitation.id);
+      toast.success(t(action === 'accept' ? 'progressiveAccess.invitations.accepted' : 'progressiveAccess.invitations.declined', { ns: NS }));
+      await load(true);
+      notifyAccessChanged();
+    } catch {
+      toast.error(t('progressiveAccess.errors.generic', { ns: NS }));
+    } finally {
+      setInvitationBusy(null);
+    }
+  };
+
   const confirmWithdraw = async () => {
     if (!withdrawTarget) return;
     setBusy(true);
@@ -298,6 +321,35 @@ function AccountApplications({ accountId, epoch }) {
                     </Link>
                   </section>
                 )}
+                <section aria-labelledby="access-invitations-title">
+                  <h2 id="access-invitations-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.invitations.title', { ns: NS })}</h2>
+                  {invitations.length === 0 ? (
+                    <p className="text-sm text-muted">{t('progressiveAccess.invitations.empty', { ns: NS })}</p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {invitations.map((inv) => (
+                        <li key={inv.id} className="rounded-xl bg-surface-2/80 p-3">
+                          <p className="text-sm font-medium text-content">{inv.business_name}</p>
+                          <p className="text-xs text-muted">{t('progressiveAccess.invitations.role', { ns: NS, role: inv.role })}</p>
+                          <div className="mt-2 flex flex-wrap gap-3">
+                            <button type="button" disabled={invitationBusy === inv.id} onClick={() => decideInvitation(inv, 'accept')} className="text-sm font-medium text-primary hover:underline disabled:opacity-50" data-track="ui.access.applications.invitation_accept">
+                              {t('progressiveAccess.invitations.accept', { ns: NS })}
+                            </button>
+                            <button type="button" disabled={invitationBusy === inv.id} onClick={() => decideInvitation(inv, 'decline')} className="text-sm hover:underline disabled:opacity-50" style={{ color: 'var(--color-error)' }} data-track="ui.access.applications.invitation_decline">
+                              {t('progressiveAccess.invitations.decline', { ns: NS })}
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="mt-3 text-sm text-muted">
+                    {t('progressiveAccess.invitations.vortexHint', { ns: NS })}{' '}
+                    <Link to="/vortex" className="font-medium text-primary hover:underline" data-track="ui.access.applications.vortex_redeem">
+                      {t('progressiveAccess.invitations.vortexLink', { ns: NS })}
+                    </Link>
+                  </p>
+                </section>
                 <section aria-labelledby="access-held-title">
                   <h2 id="access-held-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.heldTitle', { ns: NS })}</h2>
                   <ul className="flex flex-wrap gap-2">

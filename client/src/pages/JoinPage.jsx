@@ -18,11 +18,88 @@ import PostalCodeInput from '../components/PostalCodeInput';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import { detectCountryFromLocale, hasPostalCode, requiresPostalCode, hasRegions, getRegionLabel } from '../lib/countries';
 import { intentForLegacyMode } from '../utils/legacyDeepLinks';
+import { listMyInvitations, acceptInvitation, declineInvitation } from '../api/businesses';
 import { normalizeSignupRegion, validateSignup, SIGNUP_FIELD_KEYS } from '../utils/signupValidation';
 import { SIGNUP_PERSONAS, SIGNUP_INTENT_VALUES, signupPersonaForIntent } from '../utils/signupPersonas';
 import './JoinPage.css';
 
 const DRAFT_KEY = 'oxsteed:join-draft:v1';
+
+// G-3: an invitee who follows the team-invite email lands on /join with
+// ?invite=<id>. After verification this panel surfaces the pending
+// invitation (matched by id or invite email server-side) so joining works
+// from the email + signup alone, with no Vortex code and no trip to
+// BusinessHub. Invitations that are expired or already handled report
+// that instead of a dead end.
+function InvitationAcceptPanel({ inviteId }) {
+  const { t } = useTranslation();
+  const msg = (key, vars) => t(`signupUpgrade.${key}`, vars);
+  const [state, setState] = useState({ status: 'loading', invitation: null });
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    listMyInvitations()
+      .then((invitations) => {
+        if (cancelled) return;
+        const found = (invitations || []).find((inv) => String(inv.id) === String(inviteId));
+        setState(found ? { status: 'found', invitation: found } : { status: 'missing', invitation: null });
+      })
+      .catch(() => { if (!cancelled) setState({ status: 'error', invitation: null }); });
+    return () => { cancelled = true; };
+  }, [inviteId]);
+  const decide = async (action) => {
+    if (busy || !state.invitation) return;
+    setBusy(true);
+    try {
+      if (action === 'accept') await acceptInvitation(state.invitation.id);
+      else await declineInvitation(state.invitation.id);
+      setState({ status: action === 'accept' ? 'accepted' : 'declined', invitation: state.invitation });
+    } catch {
+      setState({ status: 'error', invitation: state.invitation });
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (state.status === 'loading') return <p role="status" className="signup-help">{msg('inviteLoading')}</p>;
+  if (state.status === 'missing' || state.status === 'error') {
+    return (
+      <section className="signup-intent-confirmation" aria-labelledby="signup-invite-title">
+        <h3 id="signup-invite-title">{msg('inviteTitle')}</h3>
+        <p>{msg('inviteMissing')}</p>
+        <Link className="signup-primary signup-primary-link" to="/settings/applications">{msg('viewNextStep')}</Link>
+      </section>
+    );
+  }
+  if (state.status === 'accepted') {
+    return (
+      <section className="signup-intent-confirmation" aria-labelledby="signup-invite-title">
+        <h3 id="signup-invite-title">{msg('inviteTitle')}</h3>
+        <p>{msg('inviteAccepted')}</p>
+        <Link className="signup-primary signup-primary-link" to="/business-hub">{msg('inviteOpenWorkspace')}</Link>
+      </section>
+    );
+  }
+  if (state.status === 'declined') {
+    return (
+      <section className="signup-intent-confirmation" aria-labelledby="signup-invite-title">
+        <h3 id="signup-invite-title">{msg('inviteTitle')}</h3>
+        <p>{msg('inviteDeclined')}</p>
+        <Link className="signup-primary signup-primary-link" to="/dashboard">{msg('continueToAccount')}</Link>
+      </section>
+    );
+  }
+  const inv = state.invitation;
+  return (
+    <section className="signup-intent-confirmation" aria-labelledby="signup-invite-title">
+      <h3 id="signup-invite-title">{msg('inviteTitle')}</h3>
+      <p>{msg('inviteFound', { business: inv.business_name || '', role: inv.role || '' })}</p>
+      <div className="signup-invite-actions">
+        <button type="button" className="signup-primary" disabled={busy} onClick={() => decide('accept')} data-track="ui.663f47c956.11">{msg('inviteAccept')}</button>
+        <button type="button" className="signup-secondary" disabled={busy} onClick={() => decide('decline')} data-track="ui.663f47c956.12">{msg('inviteDecline')}</button>
+      </div>
+    </section>
+  );
+}
 const ICONS = {
   customer: UserRound, helper: Users, business: Briefcase, team: Users, restaurant: Utensils,
   restaurantTeam: Store, logistics: Truck, consultant: GraduationCap, equipment: Wrench,
@@ -70,6 +147,11 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const referralRef = rawReferralRef && /^[A-Za-z0-9_-]{1,50}$/.test(rawReferralRef)
     ? rawReferralRef
     : null;
+  // G-3: team-invite email CTA (?invite=<id>). Only the invitation id is
+  // carried; it grants nothing until the signed-in accept call matches it
+  // to this account by member id or invite email.
+  const rawInvite = params.get('invite');
+  const inviteId = rawInvite && /^[A-Za-z0-9-]{1,64}$/.test(rawInvite) ? rawInvite : null;
   const [draft] = useState(loadDraft);
   const presetIntent = presetMode ? intentForLegacyMode(presetMode) : undefined;
   const [form, setForm] = useState(() => ({ ...EMPTY, country: detectCountryFromLocale(), ...draft?.form, password: '',
@@ -342,6 +424,9 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
             <p className="signup-help">{msg('intentConfirmationNote')}</p>
             <Link className="signup-primary signup-primary-link" to={continuation.step.statusPath || '/dashboard'}>{msg('viewNextStep')}</Link>
           </section>
+        )}
+        {continuation && isCurrentAuthEpoch(continuation.epoch) && continuation.step?.type === 'none' && inviteId && (
+          <InvitationAcceptPanel inviteId={inviteId} />
         )}
         {!continuation && (!otpSent ? <form ref={formRef} onSubmit={handleSubmit} noValidate aria-busy={busy === 'submit'} data-track="ui.663f47c956.1" data-track-private>
           {entries.length > 0 && <div className="signup-error-summary" role="alert"><p>{msg('errorSummary')}</p><ul>{entries.map(([field, value]) => <li key={field}>

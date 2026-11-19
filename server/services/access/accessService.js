@@ -520,6 +520,22 @@ async function applicantTransition(applicantId, id, action, { expectedVersion, a
     );
     if (toStatus === 'submitted') {
       await enqueue(client, { eventType: 'access_request.submitted', userId: applicantId, requestId: row.id, payload: { capability: row.capability }, dedupeKey: `submitted:${row.id}:${rows[0].version}` });
+      // G-2/G-32: the signup intent that opened this application is
+      // consumed now that the applicant submitted it, so the resume card
+      // stops offering a path already taken. The intent row stores the
+      // capability at finalize; a savepoint keeps a stamp failure from
+      // failing the submission itself.
+      try {
+        await client.query('SAVEPOINT sp_consume_signup_intent');
+        await client.query(
+          `UPDATE access_signup_intents SET consumed_at = NOW(), updated_at = NOW()
+            WHERE user_id = $1 AND capability = $2 AND consumed_at IS NULL`,
+          [applicantId, row.capability],
+        );
+        await client.query('RELEASE SAVEPOINT sp_consume_signup_intent');
+      } catch (_consumeErr) {
+        await client.query('ROLLBACK TO SAVEPOINT sp_consume_signup_intent').catch(() => {});
+      }
     }
     await bumpProjection(client, applicantId);
     return { status: 200, body: { request: toApplicantView(rows[0]) } };

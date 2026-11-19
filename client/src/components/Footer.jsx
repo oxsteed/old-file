@@ -117,6 +117,16 @@ export default function Footer() {
 
         <div className="site-footer__bottom">
           <p className="site-footer__copyright">&copy; {year} OxSteed LLC</p>
+          {user && (
+            <button
+              type="button"
+              className="site-footer__link"
+              onClick={() => setVortexOpen(true)}
+              data-track="ui.footer.vortex_redeem"
+            >
+              {t('footer.joinTeamWithCode')}
+            </button>
+          )}
         </div>
       </div>
 
