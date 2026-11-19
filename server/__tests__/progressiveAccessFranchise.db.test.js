@@ -101,8 +101,9 @@ ddescribe('franchise activation grants progressive territory access', () => {
     const grant = (await db.query(
       `SELECT user_id, capability, status, provenance_reason
          FROM access_grants
-        WHERE user_id = $1 AND capability = 'franchise.operate' AND subject_key = 'self'`,
-      [owner],
+        WHERE user_id = $1 AND capability = 'franchise.operate'
+          AND subject_type = 'franchise_application' AND subject_id = $2`,
+      [owner, applicationId],
     )).rows[0];
     expect(grant).toMatchObject({ user_id: owner, capability: 'franchise.operate', status: 'active', provenance_reason: 'territory_assignment' });
     expect((await db.query(
@@ -111,8 +112,9 @@ ddescribe('franchise activation grants progressive territory access', () => {
     )).rows).toHaveLength(0);
 
     process.env.ACCESS_FRANCHISE_ENFORCEMENT = 'enforce';
-    expect((await access.can(owner, 'franchise.operate')).allowed).toBe(true);
-    expect((await access.can(foreign, 'franchise.operate')).allowed).toBe(false);
+    const territory = { type: 'franchise_application', id: applicationId };
+    expect((await access.can(owner, 'franchise.operate', territory)).allowed).toBe(true);
+    expect((await access.can(foreign, 'franchise.operate', territory)).allowed).toBe(false);
 
     const revoked = captureResponse();
     await franchise.updateFranchiseApplication({
@@ -122,9 +124,10 @@ ddescribe('franchise activation grants progressive territory access', () => {
     }, revoked);
     expect(revoked.statusCode).toBe(200);
     expect((await db.query(
-      `SELECT status FROM access_grants WHERE user_id = $1 AND capability = 'franchise.operate' AND subject_key = 'self'`,
-      [owner],
+      `SELECT status FROM access_grants WHERE user_id = $1 AND capability = 'franchise.operate'
+        AND subject_type = 'franchise_application' AND subject_id = $2`,
+      [owner, applicationId],
     )).rows[0].status).toBe('revoked');
-    expect((await access.can(owner, 'franchise.operate')).allowed).toBe(false);
+    expect((await access.can(owner, 'franchise.operate', territory)).allowed).toBe(false);
   });
 });

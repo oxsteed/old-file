@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const { ownedBusiness, canAccessBusinessTeam } = require('../utils/businessOwnership');
 const { enrichBusinessesWithRestaurantFields } = require('../utils/businessListRestaurantEnrichment');
 const { withTransaction } = require('../utils/transaction');
+const { bumpProjection } = require('../services/access/accessService');
 const { logBusinessAction } = require('../services/businessAuditLog');
 const { applyStaffOffboarding } = require('../services/staffOffboarding');
 const { canActOnRole, resolveActorRole } = require('../utils/teamRanks');
@@ -772,18 +773,26 @@ async function listMyInvitations(req, res) {
 // ── POST /api/businesses/invitations/:id/accept ───────────────────────────────
 async function acceptInvitation(req, res) {
   try {
-    const { rows: [record] } = await pool.query(
-      `UPDATE business_members
-       SET status      = 'active',
-           member_id   = $1,
-           accepted_at = NOW()
-       WHERE id        = $2
-         AND (member_id = $1 OR invite_email = $3)
-         AND status    = 'pending'
-         AND (expires_at IS NULL OR expires_at > NOW())
-       RETURNING *`,
-      [req.user.id, req.params.id, req.user.email?.toLowerCase()]
-    );
+    const { rows: [record] } = await withTransaction(pool, async (client) => {
+      const accepted = await client.query(
+        `UPDATE business_members
+         SET status      = 'active',
+             member_id   = $1,
+             accepted_at = NOW()
+         WHERE id        = $2
+           AND (member_id = $1 OR invite_email = $3)
+           AND status    = 'pending'
+           AND (expires_at IS NULL OR expires_at > NOW())
+         RETURNING *`,
+        [req.user.id, req.params.id, req.user.email?.toLowerCase()]
+      );
+      if (accepted.rows[0]?.member_id) {
+        // Membership and the member's access projection version commit
+        // together so the new workspace appears without a stale-session gap.
+        await bumpProjection(client, accepted.rows[0].member_id);
+      }
+      return accepted;
+    }, 'business_invitation_accept');
 
     if (!record) {
       // Distinguish an expired invite (S-10) from one that never existed or

@@ -100,16 +100,16 @@ ddescribe('PR #804 Track E', () => {
       await grant(userId, 'helper.offer_services', 'helper-policy-1');
       const state = await activation.activationFor('helper.offer_services', userId, pool);
       expect(state.ready).toBe(false);
-      expect(state.missing).toEqual(expect.arrayContaining(['identity_verified', 'helper_terms', 'payout_setup']));
+      expect(state.missing).toEqual(expect.arrayContaining(['identity_verified', 'helper_terms']));
       const decision = await accessService.can(userId, 'helper.offer_services', undefined, pool);
       expect(decision.allowed).toBe(false);
       expect(decision.reason).toBe('activation_incomplete');
-      expect(decision.missing).toEqual(expect.arrayContaining(['identity_verified', 'helper_terms', 'payout_setup']));
+      expect(decision.missing).toEqual(expect.arrayContaining(['identity_verified', 'helper_terms']));
       const projection = await accessService.getProjection(userId, pool);
       expect(projection.personal).toContain('helper.offer_services');
       expect(projection.activation['helper.offer_services'].ready).toBe(false);
       expect(projection.activation['helper.offer_services'].missing).toEqual(
-        expect.arrayContaining(['identity_verified', 'helper_terms', 'payout_setup']),
+        expect.arrayContaining(['identity_verified', 'helper_terms']),
       );
     });
 
@@ -145,9 +145,9 @@ ddescribe('PR #804 Track E', () => {
       });
       await grant(userId, 'helper.offer_services', 'helper-policy-1');
       const decision = await accessService.can(userId, 'helper.offer_services', undefined, pool);
-      expect(decision.allowed).toBe(false);
-      expect(decision.reason).toBe('activation_incomplete');
-      expect(decision.missing).toEqual(['payout_setup']);
+      expect(decision.allowed).toBe(true);
+      const evidence = await activation.loadActivationEvidence(userId, pool);
+      expect(activation.requirementSatisfied('payout_setup', evidence, 'helper.offer_services')).toBe(false);
     });
 
     test('a stale Didit verification does not satisfy helper payout_setup', async () => {
@@ -165,8 +165,9 @@ ddescribe('PR #804 Track E', () => {
       await setConnectReady(userId);
       await grant(userId, 'helper.offer_services', 'helper-policy-1');
       const decision = await accessService.can(userId, 'helper.offer_services', undefined, pool);
-      expect(decision.allowed).toBe(false);
-      expect(decision.missing).toEqual(['payout_setup']);
+      expect(decision.allowed).toBe(true);
+      const evidence = await activation.loadActivationEvidence(userId, pool);
+      expect(activation.requirementSatisfied('payout_setup', evidence, 'helper.offer_services')).toBe(false);
     });
 
     test('restaurant_activation is satisfied by an active restaurant row, not by the grant', async () => {

@@ -485,6 +485,40 @@ jobs:
           npx jest __tests__/logisticsCreditPay.db.test.js __tests__/logisticsCreditCheckoutFixes.db.test.js __tests__/logisticsDashboardCounts.db.test.js --runInBand --json --outputFile=logistics-db-results.json
           node ../scripts/assert-logistics-db-tests.cjs logistics-db-results.json
 
+      - name: Create isolated PR #804 Track C and Track E databases
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
+        run: |
+          node - <<'NODE'
+          const { Client } = require('pg');
+          const url = new URL(process.env.DATABASE_URL);
+          url.pathname = '/postgres';
+          const db = new Client({ connectionString: url.toString() });
+          (async () => {
+            await db.connect();
+            try {
+              for (const name of ['credit_statement_test_pr804_c', 'credit_statement_test_pr804_e']) {
+                await db.query(`CREATE DATABASE ${name} TEMPLATE credit_statement_test`);
+              }
+            } finally { await db.end(); }
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
+
+      - name: PR #804 Track C database regressions
+        working-directory: server
+        env:
+          NODE_ENV: test
+          STATEMENT_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test_pr804_c?sslmode=disable
+        run: npx jest --runInBand __tests__/pr804TrackC*.db.test.js
+
+      - name: PR #804 Track E database regressions
+        working-directory: server
+        env:
+          NODE_ENV: test
+          STATEMENT_TEST_DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test_pr804_e?sslmode=disable
+        run: npx jest --runInBand __tests__/pr804TrackE.db.test.js
+
       - name: Server entry module smoke
         working-directory: server
         env:
@@ -511,7 +545,7 @@ jobs:
           MEDIA_PUBLIC_VIDEO_INTERIM: 'true'
         run: |
           # Invoke Jest directly: npm test adds --forceExit in package.json.
-          npx jest --runInBand --detectOpenHandles --json --outputFile=statement-test-results.json --testPathIgnorePatterns=statementExportJobs.millionRow
+          npx jest --runInBand --detectOpenHandles --json --outputFile=statement-test-results.json --testPathIgnorePatterns='statementExportJobs.millionRow|pr804Track[CE].*\.db\.test\.js'
           node ../scripts/assert-statement-db-tests.cjs statement-test-results.json
           node ../scripts/assert-media-db-tests.cjs statement-test-results.json
 

@@ -118,7 +118,8 @@ ddescribe('statement finance standing (WP-073, real database)', () => {
     await pool.query(`INSERT INTO restaurant_location_memberships (restaurant_id, location_id, membership_id, status) VALUES ($1, $2, $3, 'active')`, [r, storeA, storeMgrM]);
 
     const center = async (u) => (await request(app).get('/api/statements/center').set('x-test-user', u)).body;
-    const hasSettlement = (body) => JSON.stringify(body?.products?.restaurantSettlement?.scopes || []).includes(`"restaurantId":"${r}"`);
+    const hasSettlement = (body) => (body?.products?.restaurantSettlement?.scopes || [])
+      .some((scope) => scope.restaurantId === String(r) && scope.statementStatus !== 'location_reports');
     const archive = (u) => request(app).get(`/api/settlement-statements/archive?product=restaurant_settlement&restaurantId=${r}`).set('x-test-user', u);
 
     expect(hasSettlement(await center(owner))).toBe(true);

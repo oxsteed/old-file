@@ -39,6 +39,9 @@ const FACTS_SQL = `
            AS investor_audience,
          -- R-4: the newest launched application with a linked business is
          -- the territory assignment the franchise pipeline itself uses.
+         (SELECT fa.id FROM franchise_applications fa
+           WHERE fa.owner_user_id = u.id AND fa.status = 'launched' AND fa.linked_business_id IS NOT NULL
+           ORDER BY fa.updated_at DESC, fa.id DESC LIMIT 1) AS franchise_application_id,
          (SELECT fa.linked_business_id FROM franchise_applications fa
            WHERE fa.owner_user_id = u.id AND fa.status = 'launched' AND fa.linked_business_id IS NOT NULL
            ORDER BY fa.updated_at DESC, fa.id DESC LIMIT 1) AS franchise_business_id
@@ -99,11 +102,15 @@ async function runBackfill({ mode = 'dry_run', batchSize = 500, resumeRunId = nu
             // a revoked/suspended grant).
             if (g.capability === 'franchise.operate' && r.franchise_business_id != null) {
               const { rows: existing } = await client.query(
-                'SELECT 1 FROM access_grants WHERE user_id = $1 AND capability = $2 AND subject_key = $3 LIMIT 1',
-                [r.id, 'franchise.operate', 'self'],
+                `SELECT 1 FROM access_grants
+                  WHERE user_id = $1 AND capability = $2
+                    AND subject_type = 'franchise_application' AND subject_id = $3
+                  LIMIT 1`,
+                [r.id, 'franchise.operate', String(r.franchise_application_id)],
               );
               if (!existing.length) {
                 await syncFranchiseGrant(client, {
+                  applicationId: r.franchise_application_id,
                   ownerUserId: r.id, status: 'launched', linkedBusinessId: r.franchise_business_id,
                 });
                 bump(counts, 'inserted:franchise.operate');

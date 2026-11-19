@@ -40,7 +40,7 @@ function isHelperActor(req) {
   return LEGACY_HELPER_ROLES.includes(req.user.role);
 }
 
-function requireCapability(capability, { modeFn, audienceLoader = null, legacyAllowedFn = null, subject = null } = {}) {
+function requireCapability(capability, { modeFn, audienceLoader = null, legacyAllowedFn = null, subject = null, allowActivationIncomplete = false } = {}) {
   return async function accessCapabilityGate(req, res, next) {
     const mode = modeFn();
     if (mode === 'off' || !req.user) return next();
@@ -76,6 +76,14 @@ function requireCapability(capability, { modeFn, audienceLoader = null, legacyAl
       if (decision.allowed) {
         req.accessCapabilities = { ...(req.accessCapabilities || {}), [capability]: true };
       }
+      return next();
+    }
+    // Setup routes may require an approved grant while deliberately helping
+    // the user complete activation (for example, creating the payout account
+    // that satisfies payout_setup). The resolver reports this reason only
+    // when an effective grant exists; missing/revoked grants still fail shut.
+    if (allowActivationIncomplete && decision.reason === 'activation_incomplete') {
+      req.accessCapabilities = { ...(req.accessCapabilities || {}), [capability]: true };
       return next();
     }
     if (!decision.allowed) {
@@ -195,6 +203,10 @@ function requireAnyCapability(entries = []) {
 }
 
 const requireHelperCapability = requireCapability('helper.offer_services', { modeFn: flags.helperEnforcement });
+const requireHelperSetupCapability = requireCapability('helper.offer_services', {
+  modeFn: flags.helperEnforcement,
+  allowActivationIncomplete: true,
+});
 const requireInvestorCapability = requireCapability('investor.reporting', {
   modeFn: flags.investorEnforcement,
   audienceLoader: async (userId) => require('../services/access/accessService').getInvestorAudience(userId),
@@ -247,4 +259,4 @@ const toolOwnerCapabilityGate = async function toolOwnerCapabilityGate(req, res,
   }
 };
 
-module.exports = { requireCapability, requireAnyCapability, requireHelperCapability, requireInvestorCapability, requireFranchiseCapability, toolOwnerCapabilityGate, isHelperActor, hasCapability };
+module.exports = { requireCapability, requireAnyCapability, requireHelperCapability, requireHelperSetupCapability, requireInvestorCapability, requireFranchiseCapability, toolOwnerCapabilityGate, isHelperActor, hasCapability };

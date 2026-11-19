@@ -41,6 +41,7 @@ const MOCK_AUTH_USER = {
   city: null, state: null, zip_code: null,
   display_name_preference: 'first_name', business_name: null,
   didit_status: 'verified', didit_verified_at: new Date(), didit_enforcement_required: false,
+  identity_verified: true, terms_accepted_at: new Date(), terms_version: 'test-v1',
 };
 
 function buildApp() {
@@ -78,6 +79,9 @@ function mockGatedAuth(...extras) {
   mockQuery.mockResolvedValueOnce({ rows: [ACCESS_GRANT] }); // loadFacts access_grants
   mockQuery.mockResolvedValueOnce({ rows: [] }); // loadFacts businesses
   mockQuery.mockResolvedValueOnce({ rows: [] }); // loadFacts restaurant locations
+  mockQuery.mockResolvedValueOnce({ rows: [MOCK_AUTH_USER] }); // activation evidence
+  mockQuery.mockResolvedValueOnce({ rows: [] }); // active restaurants
+  mockQuery.mockResolvedValueOnce({ rows: [] }); // launched franchises
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
 }
 

@@ -26,6 +26,7 @@ const MOCK_HELPER = {
   onboarding_status: 'active', onboarding_completed: true,
   contact_completed: true, profile_completed: true,
   tier_selected: true, w9_completed: true, terms_accepted: true,
+  terms_accepted_at: new Date(), terms_version: 'test-v1',
   membership_tier: 'pro', id_verified: true, background_check_passed: true,
   city: 'Austin', state: 'TX', zip_code: '78701',
   display_name_preference: 'first_name', business_name: null,
@@ -59,6 +60,9 @@ function mockGrantFacts(user = MOCK_HELPER) {
   mockQuery.mockResolvedValueOnce({ rows: [ACCESS_GRANT] });
   mockQuery.mockResolvedValueOnce({ rows: [] });
   mockQuery.mockResolvedValueOnce({ rows: [] });
+  mockQuery.mockResolvedValueOnce({ rows: [user] }); // activation evidence
+  mockQuery.mockResolvedValueOnce({ rows: [] }); // active restaurants
+  mockQuery.mockResolvedValueOnce({ rows: [] }); // launched franchises
 }
 
 // Auth lookup + gate facts, then the handler's own mock sequence. Use for
@@ -76,6 +80,9 @@ const ACCESS_FACT_ROUTES = [
   [/FROM access_grants WHERE user_id = \$1/, { rows: [ACCESS_GRANT] }],
   [/FROM businesses b/, { rows: [] }],
   [/FROM restaurant_locations rl/, { rows: [] }],
+  [/FROM users u[\s\S]*LEFT JOIN connect_accounts ca/, { rows: [MOCK_HELPER] }],
+  [/FROM food_restaurants WHERE owner_user_id/, { rows: [] }],
+  [/FROM franchise_applications/, { rows: [] }],
 ];
 
 function mockAuth(...extras) {

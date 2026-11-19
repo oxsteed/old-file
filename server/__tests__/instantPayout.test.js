@@ -32,6 +32,7 @@ const HELPER = {
   id: 7, first_name: 'Rex', last_name: 'Helper', email: 'h@test.com',
   phone: null, role: 'helper', email_verified: true, is_verified: true, is_active: true,
   didit_status: 'verified', didit_verified_at: new Date(), didit_enforcement_required: false,
+  id_verified: true, terms_accepted: true, terms_accepted_at: new Date(), terms_version: 'test-v1',
   onboarding_completed: true, w9_completed: true,
 };
 const TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: 7, email: 'h@test.com', role: 'helper' }, process.env.JWT_SECRET);

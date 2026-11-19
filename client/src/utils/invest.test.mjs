@@ -102,7 +102,7 @@ test('Investor workspace keeps reports, opportunities, and contributions indepen
   };
   const sections = investorWorkspaceSections(projection);
   assert.deepEqual(sections.map(({ id, to, available }) => [id, to, available]), [
-    ['reports', '/investor/dashboard', true],
+    ['reports', '/investments', true],
     ['opportunities', '/invest', true],
     ['contributions', '/invest/apply', false],
   ]);

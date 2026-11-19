@@ -325,10 +325,18 @@ describe('POST /api/jobs/assign', () => {
     id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null,
     status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1,
   };
+  const HELPER_EVIDENCE = {
+    id: 2, role: 'helper', is_active: true, id_verified: true,
+    terms_accepted: true, terms_accepted_at: new Date(), terms_version: 'test-v1',
+  };
   const ACCESS_FACT_ROUTES = [
-    [/FROM users WHERE id = \$1/, { rows: [{ id: 2, role: 'helper', is_active: true }] }],
+    [/FROM users WHERE id = \$1/, { rows: [HELPER_EVIDENCE] }],
     [/FROM access_grants WHERE user_id = \$1/, { rows: [ACCESS_GRANT] }],
     [/FROM businesses b/, { rows: [] }],
+    [/FROM restaurant_locations rl/, { rows: [] }],
+    [/SELECT u\.id, u\.terms_accepted[\s\S]*LEFT JOIN connect_accounts ca/, { rows: [HELPER_EVIDENCE] }],
+    [/FROM food_restaurants WHERE owner_user_id/, { rows: [] }],
+    [/FROM franchise_applications/, { rows: [] }],
   ];
   const assignRoutes = ({ job = JOB, bid = PENDING_BID } = {}) => [
     ...ACCESS_FACT_ROUTES,

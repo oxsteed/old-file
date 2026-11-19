@@ -47,6 +47,7 @@ const MEMBER = '00000000-0000-4000-8000-0000000000a2';
 const BIZ = '00000000-0000-4000-8000-0000000000b1';
 const CUSTOMER = '00000000-0000-4000-8000-0000000000c1';
 const BOOKING_ID = '00000000-0000-4000-8000-0000000000d1';
+const FUTURE_DATE = new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10);
 
 function resMock() {
   return {
@@ -68,7 +69,7 @@ describe('calendar booking provider authz', () => {
       customer_id: CUSTOMER,
       status: 'pending',
       service_name: 'Cut',
-      requested_date: '2026-09-22',
+      requested_date: FUTURE_DATE,
       requested_start_time: '09:00:00',
       requested_end_time: '10:00:00',
       source: 'messenger',
@@ -88,8 +89,8 @@ describe('calendar booking provider authz', () => {
     pool.query.mockResolvedValueOnce({ rows: [pending] });
     // isProviderForBooking → assertBusinessAccess
     pool.query.mockResolvedValueOnce({
-      rows: [{ id: BIZ, user_id: OWNER, business_name: 'Salon' }],
-    });
+      rows: [{ owner_id: OWNER, membership_id: 'member-1', role: 'manager' }],
+    }); // manager-only mutation authorization
     // acceptBookingRequest (transactional, run inline by the test setup):
     pool.query
       .mockResolvedValueOnce({ rows: [] }) // advisory lock
@@ -130,7 +131,7 @@ describe('calendar booking provider authz', () => {
       customer_id: CUSTOMER,
       status: 'pending',
       service_name: 'Cut',
-      requested_date: '2026-09-22',
+      requested_date: FUTURE_DATE,
       requested_start_time: '09:00:00',
       requested_end_time: '10:00:00',
     };
@@ -159,7 +160,7 @@ describe('calendar booking provider authz', () => {
       customer_id: CUSTOMER,
       status: 'pending',
       service_name: 'Solo',
-      requested_date: '2026-09-22',
+      requested_date: FUTURE_DATE,
       requested_start_time: '09:00:00',
       requested_end_time: '10:00:00',
       conversation_id: null,

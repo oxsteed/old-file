@@ -64,7 +64,11 @@ const CAPABILITIES = Object.freeze({
     applicantMayRequest: true,
     legacyModes: Object.freeze(['helper']),
     legacyRoles: Object.freeze(['helper']),
-    activationRequirements: Object.freeze(['identity_verified', 'helper_terms', 'payout_setup']),
+    // Helpers can discover work and submit/accept service activity after
+    // identity and terms checks. Payout setup gates receiving money, not
+    // bidding; making it a capability-wide prerequisite creates a circular
+    // gate because the Connect onboarding route itself requires this grant.
+    activationRequirements: Object.freeze(['identity_verified', 'helper_terms']),
     form: Object.freeze({
       fields: Object.freeze([
         answerField('serviceCategories', 'string_list', { required: true, maxItems: 20, maxLength: 80 }),

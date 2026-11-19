@@ -24,7 +24,11 @@ const helperProfileRoutes = require('../routes/helperProfile');
 // helper.offer_services grant with the provenance the legacy backfill
 // writes (services/access/legacyMapping.js), so the gate passes and these
 // tests keep proving booking-buffer behaviour, not access.
-const HELPER_USER = { id: 'helper-1', role: 'helper', is_active: true };
+const HELPER_USER = {
+  id: 'helper-1', role: 'helper', is_active: true,
+  id_verified: true, terms_accepted: true,
+  terms_accepted_at: new Date(), terms_version: 'test-v1',
+};
 const ACCESS_GRANT = {
   id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null,
   status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1,
@@ -38,15 +42,19 @@ function mockGrantFacts() {
   mockQuery.mockResolvedValueOnce({ rows: [ACCESS_GRANT] });
   mockQuery.mockResolvedValueOnce({ rows: [] });
   mockQuery.mockResolvedValueOnce({ rows: [] });
+  mockQuery.mockResolvedValueOnce({ rows: [HELPER_USER] }); // activation evidence
+  mockQuery.mockResolvedValueOnce({ rows: [] }); // active restaurants
+  mockQuery.mockResolvedValueOnce({ rows: [] }); // launched franchises
 }
 
 // Route pool queries to the gate answers, falling back to `fallback` for
 // the handler's own queries.
 function mockGateThen(fallback) {
   mockQuery.mockImplementation(async (sql) => {
-    if (/FROM users WHERE id/.test(sql)) return { rows: [HELPER_USER] };
+    if (/FROM users(?: u)?/.test(sql)) return { rows: [HELPER_USER] };
     if (/FROM access_grants/.test(sql)) return { rows: [ACCESS_GRANT] };
     if (/FROM businesses b/.test(sql)) return { rows: [] };
+    if (/FROM food_restaurants|FROM franchise_applications/.test(sql)) return { rows: [] };
     return fallback;
   });
 }

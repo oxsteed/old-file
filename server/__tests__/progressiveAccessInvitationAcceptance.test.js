@@ -5,9 +5,15 @@
 jest.mock('../db', () => ({ query: jest.fn() }));
 jest.mock('../services/businessAuditLog', () => ({ logBusinessAction: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../services/permissionsService', () => ({ invalidateCache: jest.fn() }));
+jest.mock('../services/access/accessService', () => ({ bumpProjection: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../services/access/signupIntent', () => ({ consumeIntent: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../utils/transaction', () => ({
+  withTransaction: jest.fn(async (db, callback) => callback({ query: db.query })),
+}));
 
 const pool = require('../db');
 const { acceptInvitation } = require('../controllers/businessMembersController');
+const { bumpProjection } = require('../services/access/accessService');
 
 function response() {
   const res = {};
@@ -56,7 +62,7 @@ describe('invitation acceptance account binding', () => {
 
   test('the state transition is a single conditional update, so revoke/expiry races cannot double-accept', async () => {
     pool.query.mockResolvedValueOnce({
-      rows: [{ id: 42, business_id: 7, role: 'representative' }],
+      rows: [{ id: 42, business_id: 7, member_id: 'invitee', role: 'representative' }],
     });
     const res = response();
 
@@ -66,8 +72,11 @@ describe('invitation acceptance account binding', () => {
     }, res, jest.fn());
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+    // Acceptance uses one transactional UPDATE; the projection bump is part of
+    // the same transaction, not an extra pool-level query.
     expect(pool.query).toHaveBeenCalledTimes(1);
     expect(pool.query.mock.calls[0][0]).toContain("SET status      = 'active'");
     expect(pool.query.mock.calls[0][0]).toContain("status    = 'pending'");
+    expect(bumpProjection).toHaveBeenCalledWith(expect.objectContaining({ query: pool.query }), 'invitee');
   });
 });

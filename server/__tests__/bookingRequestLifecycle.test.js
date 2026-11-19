@@ -123,7 +123,8 @@ describe('bookingRequestLifecycle', () => {
   });
 
   test('listIncomingForProvider includes business-scoped rows for members', async () => {
-    const bizId = '00000000-0000-4000-8000-000000000b01';
+    const bizId = 101;
+    const futureDate = new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10);
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: bizId }] })
       .mockResolvedValueOnce({
@@ -134,7 +135,7 @@ describe('bookingRequestLifecycle', () => {
             business_id: bizId,
             customer_id: 'c1',
             service_name: 'Biz cut',
-            requested_date: '2026-09-22',
+            requested_date: futureDate,
             requested_start_time: '09:00',
             requested_end_time: '10:00',
             status: 'pending',
@@ -143,7 +144,8 @@ describe('bookingRequestLifecycle', () => {
             customer_name: 'Cara',
           },
         ],
-      });
+      })
+      .mockResolvedValueOnce({ rows: [{ owner_id: 'owner-h', membership_id: 'member-1', role: 'manager' }] });
 
     const rows = await lifecycle.listIncomingForProvider('member-1');
     expect(pool.query.mock.calls[1][1][0]).toBe('member-1');

@@ -21,7 +21,7 @@ const checkRestrictions = require('../middleware/checkRestrictions');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
 const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const { requireOnboardingStep, requireTaxIdentity } = require('../middleware/helperOnboardingMiddleware');
-const { requireHelperCapability } = require('../middleware/requireAccess');
+const { requireHelperCapability, requireHelperSetupCapability } = require('../middleware/requireAccess');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 
 const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMENTS_ENABLED');
@@ -30,7 +30,7 @@ const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMEN
 // Review P2-2-F01: creating a payout rail requires finished helper
 // onboarding; tax identity (W-9 + fresh Didit) is enforced at payout time,
 // not account creation, so helpers are never deadlocked out of onboarding.
-router.post('/connect', authenticate, requirePaymentsEnabled, requireHelperCapability, requireOnboardingStep('active'), connectAccountLimiter, createConnectAccount);
+router.post('/connect', authenticate, requirePaymentsEnabled, requireHelperSetupCapability, requireOnboardingStep('active'), connectAccountLimiter, createConnectAccount);
 router.get('/connect/status', authenticate, requirePaymentsEnabled, getConnectStatus);
 router.post('/connect/disconnect', authenticate, requirePaymentsEnabled, requireHelperCapability, connectAccountLimiter, disconnectConnectAccount);
 router.get('/payout/balance', authenticate, requirePaymentsEnabled, getPayoutBalance);

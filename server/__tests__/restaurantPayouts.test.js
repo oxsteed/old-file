@@ -231,12 +231,13 @@ describe('POST /api/restaurants/:id/payouts/connect', () => {
 
 // ── GET /api/restaurants/:id/payouts/status ──────────────────────────────────
 describe('GET /api/restaurants/:id/payouts/status', () => {
-  test('returns 403 for staff who are not the owner', async () => {
-    mockAuth(baseUser({ id: 2, email: 'staff@test.com' }), STAFF_ACCESS);
+  test('allows a restaurant manager to read payout status without owner-only connect controls', async () => {
+    mockAuth(baseUser({ id: 2, email: 'staff@test.com' }), STAFF_ACCESS, { rows: [] });
     const res = await request(buildApp())
       .get(`/api/restaurants/${RESTAURANT_ID}/payouts/status`)
       .set('Authorization', `Bearer ${STAFF_TOKEN}`);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ connected: false });
   });
 
   test('returns connected:false when no account exists', async () => {

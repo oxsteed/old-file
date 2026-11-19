@@ -108,6 +108,15 @@ describeDb('progressive consultant and business launch access', () => {
     return rows[0].id;
   }
 
+  async function enableConsultantPayouts(consultant) {
+    await db.query(
+      `INSERT INTO connect_accounts (user_id, stripe_account_id, charges_enabled, payouts_enabled, onboarding_complete)
+       VALUES ($1, $2, TRUE, TRUE, TRUE)
+       ON CONFLICT (user_id) DO UPDATE SET charges_enabled = TRUE, payouts_enabled = TRUE, onboarding_complete = TRUE`,
+      [consultant, `acct_consultant_${consultant.replace(/-/g, '').slice(0, 20)}`],
+    );
+  }
+
   const change = (user, id, status) => request(app)
     .patch(`/api/consulting/contractor/referrals/${id}`)
     .set('x-test-user', user)
@@ -115,6 +124,7 @@ describeDb('progressive consultant and business launch access', () => {
   const dashboard = (user) => request(app).get('/api/consulting/contractor/dashboard').set('x-test-user', user);
 
   async function approve(consultant, reviewerId) {
+    await enableConsultantPayouts(consultant);
     const access = require('../services/access/accessService');
     const review = require('../services/access/reviewService');
     const { body: { request: application } } = await access.createRequest(consultant, {
