@@ -1951,6 +1951,78 @@ async function resendRegistrationOTP(req, res) {
   }
 }
 
+// G-31: resume a signup on a second device. The pre-OTP draft is already
+// persisted server-side by register/start (pending_registrations holds every
+// typed field; only the token lived in sessionStorage on device 1). The
+// emailed OTP is the proof of ownership for the resume: the caller presents
+// the email + the code from their inbox, and gets back the token plus the
+// draft fields. The password is never returned (the hash stays server-side;
+// verification needs no password) and the OTP is not consumed here, so the
+// caller still completes verify-otp with the same code. Failed resumes
+// share verify-otp's attempt counter and lockout, and an unknown email
+// answers with the same generic code as a wrong code, so the endpoint does
+// not become an email-existence oracle.
+async function resumeRegistration(req, res) {
+  try {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const otp = typeof req.body?.otp === 'string' ? req.body.otp.trim() : '';
+    const invalid = () => res.status(400).json({ error: 'Invalid or expired code', code: 'otp_invalid' });
+    if (!email || !otp) return invalid();
+    const { rows } = await pool.query(
+      `SELECT * FROM pending_registrations WHERE email = $1 AND expires_at > NOW() ORDER BY updated_at DESC LIMIT 1`,
+      [email],
+    );
+    if (rows.length === 0) return invalid();
+    const pending = rows[0];
+    // Helper-flow rows never verify through the general endpoint.
+    if (pending.role === 'helper' && pending.default_mode == null) return invalid();
+    if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
+      return registrationLockResponse(res, pending.otp_locked_until, 'Too many attempts. Try again later.');
+    }
+    const hashedOTP = hashOtp(otp);
+    if (pending.otp_code !== hashedOTP || !pending.otp_expires_at || new Date(pending.otp_expires_at) <= new Date()) {
+      const expired = !pending.otp_expires_at || new Date(pending.otp_expires_at).getTime() < Date.now();
+      const newAttempts = (pending.otp_attempts || 0) + 1;
+      if (newAttempts >= 3) {
+        const { rows: lockRows } = await pool.query(
+          "UPDATE pending_registrations SET otp_attempts = $2, otp_locked_until = NOW() + interval '1 hour' WHERE token = $1 RETURNING id, otp_locked_until",
+          [pending.token, newAttempts],
+        );
+        if (lockRows.length > 0) {
+          return registrationLockResponse(res, lockRows[0].otp_locked_until || new Date(Date.now() + 3600000).toISOString(), 'Too many failed attempts. Locked for 1 hour.');
+        }
+      }
+      await pool.query(
+        'UPDATE pending_registrations SET otp_attempts = $2 WHERE token = $1 RETURNING id',
+        [pending.token, newAttempts],
+      );
+      return res.status(400).json({ error: 'Invalid or expired OTP', code: expired ? 'otp_expired' : 'otp_invalid',
+        attemptsRemaining: 3 - newAttempts, ...registrationMetadata(pending) });
+    }
+    // Deliberately no password and no OTP in the response.
+    return res.json({
+      token: pending.token,
+      otpSent: true,
+      draft: {
+        firstName: pending.first_name || '',
+        lastName: pending.last_name || '',
+        phone: pending.phone || '',
+        country: pending.country || '',
+        addressLine1: pending.address_line1 || '',
+        city: pending.city || '',
+        state: pending.state || '',
+        zipCode: pending.zip_code || '',
+        signupIntent: pending.signup_intent || 'find_help',
+        ageConfirmed: pending.age_confirmed === true,
+      },
+      ...registrationMetadata(pending),
+    });
+  } catch (err) {
+    logger.error('Resume registration error', { err });
+    res.status(500).json({ error: 'Failed to resume signup', code: 'resume_failed' });
+  }
+}
+
 // Password reset flow
 async function forgotPassword(req, res) {
   try {
@@ -2885,7 +2957,7 @@ async function switchRole(req, res) {
 module.exports = {
   login, loginWith2FA, requestOTP, verifyOTP, refreshToken, logout,
   checkEmail, checkZip, addToWaitlist,
-  startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP,
+  startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP, resumeRegistration,
   forgotPassword, resetPassword,
   getMe, updateProfile, changePassword, changeEmail, confirmEmailChange, getPublicProfile, resendVerification, issueEmailVerificationCode,
   switchRole,

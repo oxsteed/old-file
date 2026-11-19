@@ -165,6 +165,14 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const [otpError, setOtpError] = useState('');
   const [notice, setNotice] = useState('');
   const [expired, setExpired] = useState(false);
+  // G-31: resume a signup started on another device. The typed draft is
+  // already server-side (pending_registrations); the emailed OTP code is
+  // the proof that unlocks it here. The password is never restored.
+  const [showResume, setShowResume] = useState(false);
+  const [resumeEmail, setResumeEmail] = useState('');
+  const [resumeCode, setResumeCode] = useState('');
+  const [resumeError, setResumeError] = useState('');
+  const [resumeBusy, setResumeBusy] = useState(false);
   const [busy, setBusy] = useState('');
   const [now, setNow] = useState(Date.now);
   const operation = useRef(false);
@@ -361,6 +369,34 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
     } catch (error) { setOtpError(recoveryMessage(error)); }
     finally { operation.current = false; setBusy(''); }
   };
+  const handleResume = async (event) => {
+    event.preventDefault();
+    if (resumeBusy) return;
+    setResumeBusy(true);
+    setResumeError('');
+    try {
+      const { data } = await api.post('/auth/register/resume', {
+        email: resumeEmail.trim().toLowerCase(),
+        otp: resumeCode.trim(),
+      });
+      if (!data?.token || !data?.draft) throw new Error('Missing resume response');
+      // Restore typed fields only; the password is never restored from a
+      // draft and the code itself is not consumed, so the OTP screen below
+      // still verifies with the same code.
+      setForm((previous) => ({ ...previous, ...data.draft, password: '' }));
+      setRegistrationToken(data.token);
+      mergeMetadata(data);
+      setOtpSent(true);
+      setOtpDigits(Array(6).fill(''));
+      setShowResume(false);
+      setNotice(msg('resumeRestored'));
+    } catch (error) {
+      const code = error?.response?.data?.code;
+      setResumeError(code === 'otp_locked' ? msg('locked') : msg('resumeFailed'));
+    } finally {
+      setResumeBusy(false);
+    }
+  };
   const editDetails = () => {
     if (operation.current) return;
     setOtpSent(false); setOtpDigits(Array(6).fill('')); setOtpError(''); setErrors({}); setNotice('');
@@ -509,6 +545,30 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
               <button type="button" className="signup-text-button" onClick={editDetails} disabled={Boolean(busy)} data-track="ui.663f47c956.10">{t('join.editDetails')}</button></>}
         </section>)}
         {!continuation && <p className="signup-signin">{msg('alreadyMember')} <Link to="/login">{t('nav.signIn')}</Link></p>}
+        {!continuation && !otpSent && (
+          <section className="signup-resume" aria-labelledby="signup-resume-title">
+            <button type="button" className="signup-text-button" onClick={() => setShowResume((v) => !v)} data-track="ui.663f47c956.13">
+              {msg('resumeTitle')}
+            </button>
+            {showResume && (
+              <form onSubmit={handleResume} noValidate>
+                <p className="signup-help">{msg('resumeHelp')}</p>
+                <div className="signup-field">
+                  <label htmlFor="resumeEmail">{t('register.emailAddress')}</label>
+                  <input id="resumeEmail" name="resumeEmail" type="email" value={resumeEmail} onChange={(event) => setResumeEmail(event.target.value)} className="signup-input" required autoComplete="email" />
+                </div>
+                <div className="signup-field">
+                  <label htmlFor="resumeCode">{msg('resumeCode')}</label>
+                  <input id="resumeCode" name="resumeCode" type="text" inputMode="numeric" value={resumeCode} onChange={(event) => setResumeCode(event.target.value.replace(/[^0-9]/g, '').slice(0, 6))} className="signup-input" required autoComplete="one-time-code" />
+                </div>
+                {resumeError && <p className="signup-field-error" role="alert">{resumeError}</p>}
+                <button type="submit" className="signup-secondary" disabled={resumeBusy || resumeCode.length !== 6 || !resumeEmail.includes('@')} data-track="ui.663f47c956.14">
+                  {resumeBusy ? msg('verifying') : msg('resumeSubmit')}
+                </button>
+              </form>
+            )}
+          </section>
+        )}
       </section>
     </Layout>
     {!embedded && <Footer />}
