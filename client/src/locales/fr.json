@@ -27046,6 +27046,13 @@
         "noAgreement": "Aucun accord",
         "royaltyBps": "Redevance {{bps}} pb",
         "marketingBps": "Marketing {{bps}} pb",
+        "accrualCol": "Comptabilisation",
+        "accrualFailedCount": "{{count}} en échec",
+        "accrualStatus": {
+          "accrued": "Comptabilisé",
+          "failed": "En échec",
+          "pending": "En attente"
+        },
         "totalsSales": "Ventes",
         "totalsRoyalty": "Redevance",
         "totalsMarketing": "Marketing",

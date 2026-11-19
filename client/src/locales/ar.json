@@ -27061,6 +27061,13 @@
         "noAgreement": "لا توجد اتفاقية",
         "royaltyBps": "الرسوم {{bps}} نقطة أساس",
         "marketingBps": "التسويق {{bps}} نقطة أساس",
+        "accrualCol": "الاستحقاق",
+        "accrualFailedCount": "{{count}} فاشلة",
+        "accrualStatus": {
+          "accrued": "مستحق",
+          "failed": "فشل",
+          "pending": "قيد الانتظار"
+        },
         "totalsSales": "المبيعات",
         "totalsRoyalty": "الرسوم",
         "totalsMarketing": "التسويق",

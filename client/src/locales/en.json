@@ -27685,6 +27685,13 @@
         "noAgreement": "No agreement",
         "royaltyBps": "Royalty {{bps}} bps",
         "marketingBps": "Marketing {{bps}} bps",
+        "accrualCol": "Accrual",
+        "accrualFailedCount": "{{count}} failed",
+        "accrualStatus": {
+          "accrued": "Accrued",
+          "failed": "Failed",
+          "pending": "Pending"
+        },
         "totalsSales": "Sales",
         "totalsRoyalty": "Royalty",
         "totalsMarketing": "Marketing",

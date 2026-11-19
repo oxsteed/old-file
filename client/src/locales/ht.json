@@ -27046,6 +27046,13 @@
         "noAgreement": "Pa gen akò",
         "royaltyBps": "Devwa {{bps}} pb",
         "marketingBps": "Maketing {{bps}} pb",
+        "accrualCol": "Akumulasyon",
+        "accrualFailedCount": "{{count}} echwe",
+        "accrualStatus": {
+          "accrued": "Akimile",
+          "failed": "Echwe",
+          "pending": "An atant"
+        },
         "totalsSales": "Vant",
         "totalsRoyalty": "Devwa",
         "totalsMarketing": "Maketing",

@@ -27046,6 +27046,13 @@
         "noAgreement": "Sin acuerdo",
         "royaltyBps": "Regalía {{bps}} pb",
         "marketingBps": "Marketing {{bps}} pb",
+        "accrualCol": "Devengo",
+        "accrualFailedCount": "{{count}} fallidos",
+        "accrualStatus": {
+          "accrued": "Devengado",
+          "failed": "Fallido",
+          "pending": "Pendiente"
+        },
         "totalsSales": "Ventas",
         "totalsRoyalty": "Regalía",
         "totalsMarketing": "Marketing",

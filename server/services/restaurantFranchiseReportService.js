@@ -118,6 +118,10 @@ async function getFranchiseReport(client, {
   let convertedRoyaltyTotal = 0;
   let convertedMarketingTotal = 0;
   const agreementsSeen = new Map();
+  // G-38: computed royalty per agreement per currency, for the
+  // accrual-status comparison below (cents are never summed across
+  // currencies: a royalty in HTG is not comparable to one in USD).
+  const computedRoyaltyByAgreement = new Map();
 
   for (const restaurant of inScope) {
     const { rows: locations } = await client.query(
@@ -167,7 +171,14 @@ async function getFranchiseReport(client, {
           territoryRegion: agreement.territoryRegion,
         };
         if (!agreementsSeen.has(String(agreementOut.agreementId))) {
-          agreementsSeen.set(String(agreementOut.agreementId), agreementOut);
+          // G-38: the agreements list is part of the caller's view.
+          // A franchisee (or an outsider with no agreements) must not
+          // learn another franchisee's terms through it: only record
+          // agreements the caller is allowed to see. The store-level
+          // filter below drops the store itself; this drops the terms.
+          if (!franchiseeUserId || franchiseeAgreementIds.has(String(agreementOut.agreementId))) {
+            agreementsSeen.set(String(agreementOut.agreementId), agreementOut);
+          }
           const feeCurrency = agreementOut.currency;
           if (agreementOut.initialFeeCents != null) {
             perCurrencyInitialFees.set(
@@ -192,6 +203,18 @@ async function getFranchiseReport(client, {
             marketingCents,
           };
         });
+        // G-38: accumulate the period's computed royalty per
+        // agreement per currency for the accrual-status check.
+        if (!computedRoyaltyByAgreement.has(String(agreementOut.agreementId))) {
+          computedRoyaltyByAgreement.set(String(agreementOut.agreementId), new Map());
+        }
+        const computedForAgreement = computedRoyaltyByAgreement.get(String(agreementOut.agreementId));
+        for (const line of royaltyLines) {
+          computedForAgreement.set(
+            line.currencyCode,
+            (computedForAgreement.get(line.currencyCode) || 0) + line.royaltyCents
+          );
+        }
       }
       // Franchisee boundary: a franchisee sees only stores matching
       // their own agreements. HQ callers (franchiseeUserId null) see
@@ -246,6 +269,80 @@ async function getFranchiseReport(client, {
         });
       }
       stores.push(storeOut);
+    }
+  }
+
+  // ── G-38: per-agreement accrual status ─────────────────────────
+  // A franchisee sees a computed royalty but not whether it
+  // actually accrued. The status is derived from two records, both
+  // filtered to the agreements in this report (which, for the
+  // franchisee view, are already only the caller's agreements):
+  //   failed  — an unresolved franchise_royalty_failures row exists
+  //             for the agreement. Only the count, the most recent
+  //             failure time, and the failed amount are exposed;
+  //             error text and source ids stay on the super-admin
+  //             list (GET /super/franchise-royalty-failures).
+  //   accrued — every currency's computed royalty for the period is
+  //             covered by platform_ledger franchise_royalty rows
+  //             for the agreement created inside the report period,
+  //             or nothing was owed in the period and nothing failed.
+  //   pending — royalty was computed for the period but the ledger
+  //             covers less than the computed amount (including
+  //             zero: accrual runs on revenue events and may not
+  //             have run yet). The accrued figures are included so
+  //             partial accrual is visible.
+  // Limitation: franchiseRoyaltyService records accruals in the
+  // ledger without a currency, so they land in the ledger's default
+  // USD. A non-USD royalty may therefore read pending even when
+  // accrued; the failed path is unaffected.
+  const agreementIds = [...agreementsSeen.keys()];
+  if (agreementIds.length) {
+    const { rows: failures } = await client.query(
+      `SELECT agreement_id, COUNT(*)::int AS failed_count,
+              MAX(created_at) AS last_failed_at,
+              COALESCE(SUM(amount_cents), 0)::int AS failed_amount_cents
+         FROM franchise_royalty_failures
+        WHERE agreement_id = ANY($1::uuid[]) AND resolved_at IS NULL
+        GROUP BY agreement_id`,
+      [agreementIds]
+    );
+    const failureByAgreement = new Map(failures.map((row) => [String(row.agreement_id), row]));
+    const { rows: accruedRows } = await client.query(
+      `SELECT metadata->>'agreement_id' AS agreement_id, currency,
+              COALESCE(SUM(amount_cents), 0)::int AS accrued_cents
+         FROM platform_ledger
+        WHERE type = 'franchise_royalty'
+          AND metadata->>'agreement_id' = ANY($1::text[])
+          AND created_at >= $2::timestamptz
+          AND created_at < ($3::date + INTERVAL '1 day')::timestamptz
+        GROUP BY metadata->>'agreement_id', currency`,
+      [agreementIds, fromDate, toDate]
+    );
+    const accruedByAgreement = new Map();
+    for (const row of accruedRows) {
+      if (!accruedByAgreement.has(String(row.agreement_id))) accruedByAgreement.set(String(row.agreement_id), new Map());
+      // The ledger stores its default currency lowercase ('usd');
+      // sales currency codes are uppercase ('USD'). Compare in one
+      // case so a USD accrual is not missed.
+      accruedByAgreement.get(String(row.agreement_id)).set(String(row.currency || '').toUpperCase(), Number(row.accrued_cents || 0));
+    }
+    const asList = (map) => [...(map || new Map()).entries()].map(([currencyCode, amountCents]) => ({ currencyCode, amountCents }));
+    for (const [agreementId, agreement] of agreementsSeen) {
+      const computed = computedRoyaltyByAgreement.get(agreementId) || new Map();
+      const accrued = accruedByAgreement.get(agreementId) || new Map();
+      const failure = failureByAgreement.get(agreementId);
+      agreement.computedRoyaltyByCurrency = asList(computed);
+      agreement.accruedRoyaltyByCurrency = asList(accrued);
+      if (failure) {
+        agreement.accrualStatus = 'failed';
+        agreement.failedAccrualCount = Number(failure.failed_count || 0);
+        agreement.lastFailedAt = failure.last_failed_at ? new Date(failure.last_failed_at).toISOString() : null;
+        agreement.failedAmountCents = Number(failure.failed_amount_cents || 0);
+      } else if ([...computed.entries()].every(([currencyCode, cents]) => (accrued.get(currencyCode) || 0) >= cents)) {
+        agreement.accrualStatus = 'accrued';
+      } else {
+        agreement.accrualStatus = 'pending';
+      }
     }
   }
 
