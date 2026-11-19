@@ -18,6 +18,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/content-removals',
   '/admin/skills',
   '/admin/support',
+  '/admin/support/bookings/:bookingId',
   '/admin/support/chat',
   '/admin/quote-requests',
   '/admin/direct-service-areas',

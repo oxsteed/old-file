@@ -133,6 +133,7 @@ const SkillsManager = lazyWithRetry(() => import('./pages/SkillsManager'));
 const LicensesManager = lazyWithRetry(() => import('./pages/LicensesManager'));
 const ContentRemovals = lazyWithRetry(() => import('./pages/ContentRemovals'));
 const SupportTickets = lazyWithRetry(() => import('./pages/SupportTickets'));
+const SupportBookingDetail = lazyWithRetry(() => import('./pages/SupportBookingDetail'));
 const QuoteRequestsInbox = lazyWithRetry(() => import('./pages/QuoteRequestsInbox'));
 const MediaFlags = lazyWithRetry(() => import('./pages/MediaFlags'));
 const AccessRequestsQueue = lazyWithRetry(() => import('./pages/AccessRequestsQueue'));
@@ -310,6 +311,7 @@ export default function AdminApp() {
           <Route path={adminRoute('foodOrders').relative} element={<GrantGuard grant={adminRoute('foodOrders').grant}><AdminFoodOrders /></GrantGuard>} />
           <Route path={adminRoute('foodOrderDetail').relative} element={<GrantGuard grant={adminRoute('foodOrderDetail').grant}><AdminFoodOrderDetail /></GrantGuard>} />
           <Route path={adminRoute('support').relative} element={<GrantGuard grant={adminRoute('support').grant}><SupportTickets /></GrantGuard>} />
+          <Route path={adminRoute('supportBooking').relative} element={<GrantGuard grant={adminRoute('supportBooking').grant}><SupportBookingDetail /></GrantGuard>} />
           <Route path={adminRoute('supportChat').relative} element={<SupportAgentChat />} />
           <Route path={adminRoute('quoteRequests').relative} element={<GrantGuard grant={adminRoute('quoteRequests').grant}><QuoteRequestsInbox /></GrantGuard>} />
           <Route path={adminRoute('search').relative} element={<GrantGuard grant={adminRoute('search').grant}><AdminSearch /></GrantGuard>} />

@@ -1445,3 +1445,138 @@ exports.setMyAvailability = async (req, res) => {
     client?.release();
   }
 };
+
+/**
+ * G-36: read-only booking detail for support staff.
+ *
+ * Support could not open a booking to help: GET /api/bookings/:id is
+ * customer/provider only by design and is NOT widened here. This route is
+ * admin-gated (requireAdmin + manage_support in server/routes/admin.js)
+ * and returns the booking, its appointment, and payment status.
+ *
+ * Payment internals are redacted by construction: columns are selected
+ * explicitly and stripe_payment_intent_id / stripe_refund_id are never
+ * selected, so they cannot leak through a shape change. Amounts and
+ * payment status ARE shown: support needs them to answer "was I
+ * charged?" without opening the payments ledger.
+ */
+exports.getSupportBooking = async (req, res) => {
+  if (!['admin', 'super_admin'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Admin access required.' });
+  }
+  const bookingId = String(req.params.bookingId || '');
+  if (!/^[0-9a-f-]{36}$/i.test(bookingId)) {
+    return res.status(404).json({ error: 'Booking not found.' });
+  }
+  try {
+    const { rows: [booking] } = await db.query(
+      `SELECT b.id, b.status, b.service_name, b.description,
+              b.requested_date, b.requested_start_time, b.requested_end_time,
+              b.service_location, b.created_at, b.updated_at,
+              b.accepted_at, b.declined_at, b.helper_response_reason,
+              b.converted_to_job_id, b.appointment_id, b.source,
+              b.booked_by_user_id, b.customer_id, b.helper_id,
+              b.recipient_user_id, b.recipient_name, b.recipient_phone,
+              b.site_contact_name, b.site_contact_phone,
+              b.counter_proposed_at, b.counter_date, b.counter_start_time,
+              b.counter_end_time, b.counter_message, b.counter_status,
+              b.payment_requirement, b.payment_amount_cents,
+              b.gross_amount_cents, b.promo_discount_cents,
+              b.payment_status, b.refunded_at,
+              cu.first_name AS customer_first_name, cu.last_name AS customer_last_name,
+              cu.email AS customer_email,
+              hu.first_name AS helper_first_name, hu.last_name AS helper_last_name,
+              hu.email AS helper_email
+         FROM booking_requests b
+         LEFT JOIN users cu ON cu.id = b.customer_id
+         LEFT JOIN users hu ON hu.id = b.helper_id
+        WHERE b.id = $1`,
+      [bookingId]
+    );
+    if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+
+    let appointment = null;
+    if (booking.appointment_id) {
+      const { rows: [row] } = await db.query(
+        `SELECT id, status, scheduled_start_time, scheduled_end_time,
+                location_address, service_description,
+                cancellation_reason, cancelled_by, cancelled_at
+           FROM appointments WHERE id = $1`,
+        [booking.appointment_id]
+      );
+      appointment = row || null;
+    }
+
+    let job = null;
+    if (booking.converted_to_job_id) {
+      const { rows: [row] } = await db.query(
+        'SELECT id, status, title FROM jobs WHERE id = $1',
+        [booking.converted_to_job_id]
+      );
+      job = row || null;
+    }
+
+    return res.json({
+      booking: {
+        id: booking.id,
+        status: booking.status,
+        serviceName: booking.service_name,
+        description: booking.description,
+        requestedDate: booking.requested_date,
+        requestedStartTime: booking.requested_start_time,
+        requestedEndTime: booking.requested_end_time,
+        serviceLocation: booking.service_location,
+        createdAt: booking.created_at,
+        updatedAt: booking.updated_at,
+        acceptedAt: booking.accepted_at,
+        declinedAt: booking.declined_at,
+        helperResponseReason: booking.helper_response_reason,
+        convertedToJobId: booking.converted_to_job_id,
+        appointmentId: booking.appointment_id,
+        source: booking.source,
+        bookedByUserId: booking.booked_by_user_id,
+        counter: {
+          proposedAt: booking.counter_proposed_at,
+          date: booking.counter_date,
+          startTime: booking.counter_start_time,
+          endTime: booking.counter_end_time,
+          message: booking.counter_message,
+          status: booking.counter_status,
+        },
+        customer: {
+          id: booking.customer_id,
+          name: [booking.customer_first_name, booking.customer_last_name].filter(Boolean).join(' ') || null,
+          email: booking.customer_email || null,
+        },
+        helper: booking.helper_id ? {
+          id: booking.helper_id,
+          name: [booking.helper_first_name, booking.helper_last_name].filter(Boolean).join(' ') || null,
+          email: booking.helper_email || null,
+        } : null,
+        recipient: {
+          userId: booking.recipient_user_id,
+          name: booking.recipient_name,
+          phone: booking.recipient_phone,
+        },
+        siteContact: {
+          name: booking.site_contact_name,
+          phone: booking.site_contact_phone,
+        },
+      },
+      appointment,
+      // Payment status only. Stripe intent/refund ids are never selected.
+      payment: {
+        requirement: booking.payment_requirement,
+        amountCents: booking.payment_amount_cents,
+        grossAmountCents: booking.gross_amount_cents,
+        promoDiscountCents: booking.promo_discount_cents,
+        status: booking.payment_status,
+        refundedAt: booking.refunded_at,
+      },
+      job,
+    });
+  } catch (err) {
+    logger.error('getSupportBooking error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to load booking.' });
+  }
+};

@@ -77,6 +77,8 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   restaurantAnalytics: defineRoute('/admin/super/restaurant-analytics', { grant: 'view_financials' }),
   skills: defineRoute('/admin/skills', { grant: 'manage_operations' }),
   support: defineRoute('/admin/support', { grant: 'manage_support' }),
+  // G-36: read-only booking detail for support staff.
+  supportBooking: defineRoute('/admin/support/bookings/:bookingId', { grant: 'manage_support' }),
   supportChat: defineRoute('/admin/support/chat'),
   quoteRequests: defineRoute('/admin/quote-requests', { grant: 'manage_operations' }),
   // The /direct/admin root only; its 12 sub-routes are main-SPA surfaces,
