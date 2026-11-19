@@ -8,6 +8,10 @@
 
 ## Verdict table
 
+## Post-build update — Group 2: Household delegate (2026-11-19)
+
+Group 2 moved MOSTLY MISSING to EXISTS in the Group 2 build (commits `3d6953e99`, `2d394dca5`, `1a649ea1e`). Counts after that build: 3 EXISTS, 12 PARTIAL, 4 MOSTLY MISSING, 1 MISSING. All 50 items verified existing or built (delegate model on D-34/D-35/D-36/D-37/D-38/D-39: invite/accept/decline, scope preview, coordinator/substitute/handoff/acknowledgment, 90-day expiry, renewal, reminders, immediate revocation, closure receipt, re-invitation, activity log; shared calendar, visit prep, recurring templates, spending approvals, maintenance plans/triage/history, disruptions, documents vault, contacts, permission-aware export, delegate booking with ownership label). No item deferred. Decisions D-34 to D-39 in `persona-roadmap-decisions.md`.
+
 | # | Group | Items | 1898dcf03 | 8b5810e65 (deleted) | **861dc0373 (merged tip)** |
 |---|---|---|---|---|---|
 | 1 | Customer | 1-50 | PARTIAL | PARTIAL | **EXISTS** |
