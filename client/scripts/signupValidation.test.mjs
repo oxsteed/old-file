@@ -35,11 +35,18 @@ test('country-aware regions, postal rules, independent age and Terms', () => {
   assert.equal(validateSignup({ ...base, country:'US',phone:'9375550100' }, ['find_help']).state, 'stateError');
   assert.equal(normalizeSignupRegion('US', 'oh'), 'OH'); assert.equal(normalizeSignupRegion('FR', 'Île-de-France'), 'Île-de-France'); assert.equal(normalizeSignupRegion('GB', 'England'), 'England');
 });
+const flattenStringKeys = (value, prefix = '') => {
+  if (typeof value === 'string') return [prefix];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  return Object.entries(value).flatMap(([key, child]) => flattenStringKeys(child, prefix ? `${prefix}.${key}` : key));
+};
+
 test('all five locales contain identical new keys in both catalog structures', () => {
   const english = JSON.parse(fs.readFileSync('src/locales/en.json')).signupUpgrade;
+  const englishKeys = flattenStringKeys(english).sort();
   for (const lang of ['en','es','fr','ht','ar']) for (const file of [`src/locales/${lang}.json`, `src/i18n/locales/${lang}/common.json`]) {
     const catalog = JSON.parse(fs.readFileSync(file)).signupUpgrade;
-    assert.deepEqual(Object.keys(catalog).sort(), Object.keys(english).sort(), file);
-    assert.ok(Object.values(catalog).every(value => typeof value === 'string' && value.length), file);
+    assert.deepEqual(flattenStringKeys(catalog).sort(), englishKeys, file);
+    assert.ok(flattenStringKeys(catalog).every((key) => key.split('.').reduce((node, part) => node?.[part], catalog)?.length), file);
   }
 });
