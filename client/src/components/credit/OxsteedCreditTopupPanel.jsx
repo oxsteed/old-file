@@ -63,7 +63,7 @@ function CardStep({ clientSecret, amountCents, currency, onConfirmed }) {
   };
 
   return (
-    <form className="credit-form" onSubmit={submit}>
+    <form className="credit-form" onSubmit={submit} data-track-private>
       <label>
         <span>{t('restaurantTopups.cardDetails')}</span>
         <div className="ox-credit-card-element" style={{ direction: 'ltr' }}>
@@ -71,7 +71,7 @@ function CardStep({ clientSecret, amountCents, currency, onConfirmed }) {
         </div>
       </label>
       {cardError && <p role="alert" className="credit-field-error">{cardError}</p>}
-      <button type="submit" className="credit-primary" disabled={submitting || !stripe}>
+      <button type="submit" className="credit-primary" disabled={submitting || !stripe} data-track-private>
         {submitting ? t('restaurantTopups.processing') : t('restaurantTopups.pay', { amount: formatCreditMinorUnits(amountCents, currency) })}
       </button>
     </form>
@@ -219,7 +219,7 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
       </div>
       {message && <p role={message.tone === 'error' ? 'alert' : 'status'} className="credit-modal-subtitle">{message.text}</p>}
       {step === 'amount' && (
-        <form className="credit-form" onSubmit={submitAmount}>
+        <form className="credit-form" onSubmit={submitAmount} data-track-private>
           {businessFunding && <>
             <label>
               <span>{t('walletTopup.businessMemberLabel')}</span>
@@ -246,25 +246,25 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
           </label>
           <div className="credit-quick-amounts" role="group" aria-label={t('restaurantTopups.quickAmounts')}>
             {QUICK_AMOUNTS.map((quick) => (
-              <button key={quick} type="button" className="credit-chip" disabled={disabled} onClick={() => setAmount(String(quick))}>
+              <button key={quick} type="button" className="credit-chip" disabled={disabled} onClick={() => setAmount(String(quick))} data-track-private>
                 {formatCreditMinorUnits(quick * 100, currency)}
               </button>
             ))}
           </div>
-          <button type="submit" className="credit-primary" disabled={disabled || submitting}>
+          <button type="submit" className="credit-primary" disabled={disabled || submitting} data-track-private>
             {submitting ? t('restaurantTopups.processing') : t('restaurantTopups.continue')}
           </button>
         </form>
       )}
       {step === 'stepup' && (
-        <form className="credit-form" onSubmit={submitStepup}>
+        <form className="credit-form" onSubmit={submitStepup} data-track-private>
           <p className="credit-modal-subtitle"><strong>{t('restaurantTopups.stepupTitle')}</strong><br />{t('restaurantTopups.stepupCopy')}</p>
           <label>
             <span>{t('restaurantTopups.stepupCode')}</span>
             <input inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 12))} placeholder={t('restaurantTopups.stepupCodePlaceholder')} />
           </label>
-          <button type="submit" className="credit-primary" disabled={submitting}>{t('restaurantTopups.verifyAndContinue')}</button>
-          <button type="button" className="credit-secondary" onClick={reset}>{t('restaurantTopups.close')}</button>
+          <button type="submit" className="credit-primary" disabled={submitting} data-track-private>{t('restaurantTopups.verifyAndContinue')}</button>
+          <button type="button" className="credit-secondary" onClick={reset} data-track-private>{t('restaurantTopups.close')}</button>
         </form>
       )}
       {step === 'card' && intent?.clientSecret && (

@@ -551,7 +551,7 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
               {msg('resumeTitle')}
             </button>
             {showResume && (
-              <form onSubmit={handleResume} noValidate>
+              <form onSubmit={handleResume} noValidate data-track="ui.663f47c956.15">
                 <p className="signup-help">{msg('resumeHelp')}</p>
                 <div className="signup-field">
                   <label htmlFor="resumeEmail">{t('register.emailAddress')}</label>
