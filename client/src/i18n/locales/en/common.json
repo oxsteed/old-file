@@ -6740,7 +6740,9 @@
     },
     "accessRequired": "This needs approved access first.",
     "home": {
-      "workspaceUnavailable": "That workspace is no longer available, so you’re viewing Personal Home."
+      "workspaceUnavailable": "That workspace is no longer available, so you’re viewing Personal Home.",
+      "workspaceReady": "Your approved workspace is ready.",
+      "openWorkspace": "Open your workspace"
     },
     "accessUpdated": "Your access was updated.",
     "viewStatus": "View status",

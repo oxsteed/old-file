@@ -6740,7 +6740,9 @@
     },
     "accessRequired": "Sa a mande yon aksè apwouve anvan.",
     "home": {
-      "workspaceUnavailable": "Espas travay sa a pa disponib ankò, kidonk w ap wè paj akèy pèsonèl ou."
+      "workspaceUnavailable": "Espas travay sa a pa disponib ankò, kidonk w ap wè paj akèy pèsonèl ou.",
+      "workspaceReady": "Espas travay ou ki apwouve a pare.",
+      "openWorkspace": "Louvri espas travay ou"
     },
     "accessUpdated": "Aksè ou mete ajou.",
     "viewStatus": "Gere estatou a",

@@ -9,6 +9,7 @@ import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { dashboardKeyForMode } from '../utils/modeAccess';
 import { normalizeLaunchDashboardMode } from '../utils/launchScope';
 import useAccessProjection from '../hooks/useAccessProjection';
+import PersonaWorkspaceNotice from '../components/PersonaWorkspaceNotice';
 import OfferCard from '../growth/OfferCard';
 
 // Download only the active mode's dashboard. Other modes stay available
@@ -39,6 +40,7 @@ export default function SmartDashboard() {
   const effectiveMode = projection?.flags?.accessProjection === false
     ? normalizeLaunchDashboardMode(user?.default_mode || user?.role, user?.role)
     : 'customer';
+  const preferredMode = normalizeLaunchDashboardMode(user?.default_mode || user?.role, user?.role);
   const key = dashboardKeyForMode(effectiveMode);
 
   useEffect(() => {
@@ -86,6 +88,6 @@ export default function SmartDashboard() {
       // Effect above handles navigation; render spinner while it happens.
       return <Spinner />;
     case 'customer':
-    default:                    return withOffers(<Dashboard />);
+    default:                    return withOffers(<><PersonaWorkspaceNotice preferredMode={preferredMode} projection={projection} /><Dashboard /></>);
   }
 }

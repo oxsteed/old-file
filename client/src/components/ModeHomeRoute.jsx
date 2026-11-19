@@ -4,6 +4,7 @@ import { normalizeLaunchDashboardMode } from '../utils/launchScope';
 import { dashboardKeyForMode } from '../utils/modeAccess';
 import { projectionActive, resolveHomeMode, modeBackedByAccess } from '../utils/accessProjection';
 import useAccessProjection from '../hooks/useAccessProjection';
+import PersonaWorkspaceNotice from './PersonaWorkspaceNotice';
 import ProtectedRoute from './ProtectedRoute';
 import RouteErrorBoundary from './RouteErrorBoundary';
 
@@ -45,5 +46,13 @@ export default function ModeHomeRoute({ DiscoveryPage, DashboardPage, LoadingSta
       </>
     );
   }
-  return <DiscoveryPage />;
+  // G-13: customer-first landing is kept, but an approved workspace is now
+  // discoverable from it: a backed saved preference renders a notice plus
+  // working shortcuts above Discovery instead of being silently discarded.
+  return (
+    <>
+      <PersonaWorkspaceNotice preferredMode={preferred} projection={projection} />
+      <DiscoveryPage />
+    </>
+  );
 }

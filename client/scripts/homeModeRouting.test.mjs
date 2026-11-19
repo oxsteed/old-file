@@ -9,6 +9,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { normalizeLaunchDashboardMode } from '../src/utils/launchScope.js';
 import { dashboardKeyForMode } from '../src/utils/modeAccess.js';
 import * as accessProjection from '../src/utils/accessProjection.js';
+import * as personaNavigation from '../src/utils/personaNavigation.js';
 import { diditGateSatisfied } from '../src/utils/diditGate.js';
 import { isHelperOnboardingRedirectRequired } from '../src/utils/protectedRouteGates.js';
 
@@ -30,15 +31,18 @@ test('home selects the active mode without rendering the wrong landing page or b
     '../utils/launchScope': { normalizeLaunchDashboardMode },
     '../utils/modeAccess': { dashboardKeyForMode },
     '../utils/accessProjection': accessProjection,
+    '../utils/personaNavigation': personaNavigation,
     '../utils/diditGate': { diditGateSatisfied },
     '../utils/protectedRouteGates': { isHelperOnboardingRedirectRequired },
     '../hooks/useAccessProjection': { __esModule: true, default: () => projection },
     'react-i18next': { useTranslation: () => ({ t: key => key }) },
     './RouteErrorBoundary': { __esModule: true, default: ({ children }) => children },
     'react-router-dom': { useLocation: () => ({ pathname: '/' }),
+      Link: ({ to, children, ...props }) => React.createElement('a', { href: to, ...props }, children),
       Navigate: ({ to }) => React.createElement('i', { 'data-redirect': to }) },
   };
   imports['./ProtectedRoute'] = { __esModule: true, default: component('components/ProtectedRoute.jsx', imports) };
+  imports['./PersonaWorkspaceNotice'] = { __esModule: true, default: component('components/PersonaWorkspaceNotice.jsx', imports) };
   const Home = component('components/ModeHomeRoute.jsx', imports);
   const rendered = [];
   const page = name => () => { rendered.push(name); return React.createElement('h1', null, name); };
@@ -81,7 +85,12 @@ test('home selects the active mode without rendering the wrong landing page or b
   const on = (personal, organizations = []) => ({ flags: { accessProjection: true }, access: { personal, organizations } });
   auth.user = { ...base, default_mode: 'helper' };
   projection = on(['customer', 'helper.offer_services']);
-  render(); assert.deepEqual(rendered, ['discovery'], 'approved helper lands in the customer workspace');
+  const helperHtml = render(); assert.deepEqual(rendered, ['discovery'], 'approved helper lands in the customer workspace');
+  // G-13: customer-first landing is kept, but the approved workspace is now
+  // discoverable from it: a notice plus working shortcuts to the workspace.
+  assert.match(helperHtml, /role="status"[^>]*>progressiveAccess\.home\.workspaceReady/);
+  assert.match(helperHtml, /href="\/helper-dashboard"/, 'primary workspace shortcut is a working link');
+  assert.match(helperHtml, /href="\/jobs"/, 'capability shortcut is a working link');
   // A Didit-pending customer lands straight on the customer workspace with
   // the projection on: no identity interstitial before the dashboard.
   auth.user = { ...base, default_mode: 'customer', didit_status: 'pending' };
@@ -94,7 +103,25 @@ test('home selects the active mode without rendering the wrong landing page or b
   assert.match(html, /role="status"[^>]*>progressiveAccess\.home\.workspaceUnavailable/);
   auth.user = { ...base, default_mode: 'business_owner' };
   projection = on(['customer'], [{ type: 'business', id: '7', role: 'owner' }]);
-  render(); assert.deepEqual(rendered, ['discovery'], 'canonical owner lands in the customer workspace');
+  html = render(); assert.deepEqual(rendered, ['discovery'], 'canonical owner lands in the customer workspace');
+  assert.match(html, /role="status"[^>]*>progressiveAccess\.home\.workspaceReady/);
+  assert.match(html, /href="\/business-hub"/, 'owner primary shortcut is a working link');
+  // A franchise applicant resolves through the catalog primary too.
+  // (An 'investor' saved preference cannot survive
+  // normalizeLaunchDashboardMode: 'investor' is not a dashboard mode, so
+  // the investor-reporting primary is covered at the route-map level in
+  // adaptiveNavbar.test.mjs instead of here.)
+  auth.user = { ...base, default_mode: 'franchise_applicant' };
+  projection = on(['customer', 'franchise.operate']);
+  html = render(); assert.deepEqual(rendered, ['discovery'], 'franchise applicant lands in the customer workspace');
+  assert.match(html, /href="\/franchise\/territory"/);
+  // A backed preference whose workspace is not ready shows no workspace
+  // notice: the setup path in nav covers it, and no dead link ships.
+  auth.user = { ...base, default_mode: 'helper' };
+  projection = { flags: { accessProjection: true }, access: { personal: ['customer', 'helper.offer_services'], organizations: [], activation: { 'helper.offer_services': 'needs_setup' } } };
+  html = render(); assert.deepEqual(rendered, ['discovery'], 'activation-incomplete helper lands in the customer workspace');
+  assert.doesNotMatch(html, /workspaceReady/);
+  assert.doesNotMatch(html, /role="status"/);
   auth.user = { ...base, default_mode: 'customer' };
   projection = on(['customer', 'helper.offer_services']);
   html = render(); assert.deepEqual(rendered, ['discovery'], 'an approval never replaces the dashboard choice');

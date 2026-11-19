@@ -6740,7 +6740,9 @@
     },
     "accessRequired": "Cela nécessite d'abord un accès approuvé.",
     "home": {
-      "workspaceUnavailable": "Cet espace de travail n’est plus disponible, vous consultez donc votre accueil personnel."
+      "workspaceUnavailable": "Cet espace de travail n’est plus disponible, vous consultez donc votre accueil personnel.",
+      "workspaceReady": "Votre espace de travail approuvé est prêt.",
+      "openWorkspace": "Ouvrir votre espace de travail"
     },
     "accessUpdated": "Votre accès a été mis à jour.",
     "viewStatus": "Voir le statut",
