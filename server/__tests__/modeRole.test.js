@@ -162,8 +162,7 @@ describe('mode role policy', () => {
       .toBeLessThan(sqlCalls.findIndex((sql) => sql === 'COMMIT'));
   });
 
-  test('returns a useful conflict when Credit activity locks the customer role', async () => {
-    const req = {
+  test('returns a useful conflict when Credit activity locks the customer role', async () => {    const req = {
       body: { mode: 'helper' },
       user: { id: 'user-1', role: 'customer', default_mode: 'customer' },
     };
@@ -186,5 +185,50 @@ describe('mode role policy', () => {
       error: 'credit_customer_mode_locked',
       message: 'This account has OxSteed Credit activity and must remain in Customer mode.',
     });
+  });
+});
+
+describe('G-28 mode-switch session scoping', () => {
+  test('invalidateCurrentSession revokes only the named session', async () => {
+    require('../services/tokenRevocationService').revokeAccessTokenId = jest.fn().mockResolvedValue(undefined);
+    const client = { query: jest.fn() };
+    client.query
+      .mockResolvedValueOnce({ rows: [{ access_token_hash: 'hash-7' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const out = await modeRole.invalidateCurrentSession(client, 'user-1', 7);
+    expect(out).toBe(7);
+    expect(client.query).toHaveBeenCalledTimes(2);
+    expect(client.query.mock.calls[0][0]).toMatch(/FROM sessions WHERE id = \$1/);
+    expect(client.query.mock.calls[0][1]).toEqual([7, 'user-1']);
+    expect(client.query.mock.calls[1][0]).toMatch(/UPDATE sessions SET is_valid = false/);
+    expect(client.query.mock.calls[1][0]).toMatch(/WHERE id = \$1/);
+    expect(client.query.mock.calls[1][1]).toEqual([7, 'user-1']);
+    expect(require('../services/tokenRevocationService').revokeAccessTokenId)
+      .toHaveBeenCalledWith('hash-7');
+  });
+
+  test('invalidateCurrentSession with an unidentified caller revokes nothing', async () => {
+    const client = { query: jest.fn() };
+    expect(await modeRole.invalidateCurrentSession(client, 'user-1', null)).toBeNull();
+    expect(await modeRole.invalidateCurrentSession(client, 'user-1', undefined)).toBeNull();
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
+  test('invalidateCurrentSession for an unknown session id revokes nothing', async () => {
+    const client = { query: jest.fn().mockResolvedValueOnce({ rows: [] }) };
+    expect(await modeRole.invalidateCurrentSession(client, 'user-1', 999)).toBeNull();
+    expect(client.query).toHaveBeenCalledTimes(1);
+  });
+
+  test('invalidateUserSessions still revokes every session (security revocations)', async () => {
+    require('../services/tokenRevocationService').revokeAccessTokenId = jest.fn().mockResolvedValue(undefined);
+    const client = { query: jest.fn() };
+    client.query
+      .mockResolvedValueOnce({ rows: [{ access_token_hash: 'a' }, { access_token_hash: 'b' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    await modeRole.invalidateUserSessions(client, 'user-1');
+    expect(client.query.mock.calls[1][0]).toMatch(/WHERE user_id::text = \$1/);
+    expect(client.query.mock.calls[1][0]).not.toMatch(/id = \$/);
+    expect(require('../services/tokenRevocationService').revokeAccessTokenId).toHaveBeenCalledTimes(2);
   });
 });

@@ -173,6 +173,25 @@ async function currentSessionIdFromRequest(req) {
   return rows[0]?.id || null;
 }
 
+// G-28: identify the calling session for a mode switch so only it is
+// revoked. Prefer the access token's sid (parseAuthIdentity sets req.csrfSid
+// from it; it matches sessions.csrf_sid), fall back to the refresh token
+// the way changePassword already does. Returns null when the caller cannot
+// be identified: the switch then revokes nothing rather than every session.
+// Other devices keep their sessions and pick up the new role/mode at
+// refresh; security revocations (password change, compromise) still revoke
+// all sessions through their own paths.
+async function currentSessionIdForModeSwitch(req) {
+  if (req.csrfSid) {
+    const { rows } = await pool.query(
+      'SELECT id FROM sessions WHERE user_id = $1 AND csrf_sid = $2 AND is_valid = true',
+      [req.user.id, req.csrfSid],
+    );
+    if (rows[0]) return rows[0].id;
+  }
+  return currentSessionIdFromRequest(req);
+}
+
 function getRefreshTokenFromRequest(req) {
   return req.body?.refreshToken || parseCookies(req)[REFRESH_COOKIE_NAME] || null;
 }
@@ -526,7 +545,11 @@ async function login(req, res, next) {
           await client.query('ROLLBACK');
           throw new AppError('Mode changed during sign in. Please try again.', 409, 'state_conflict');
         }
-        await modeRoleUtil.invalidateUserSessions(client, user.id);
+        // G-28: no session is revoked here. This is a fresh sign-in with no
+        // calling session yet, and a mode choice at login must not log out
+        // the user's other devices; they pick up the new role/mode at
+        // refresh. Only the switch-role / profile paths revoke, and only
+        // the calling session.
         await client.query('COMMIT');
         user = updatedUser;
       } catch (modeErr) {
@@ -2202,8 +2225,9 @@ async function updateProfile(req, res) {
 
     // default_mode through updateProfile is a convenience for clients that
     // want to do everything in one PATCH. The actual switch goes through
-    // applyModeSwitch so role + default_mode + helper_profiles row + session
-    // invalidation all happen atomically — same code path as /switch-role.
+    // applyModeSwitch so role + default_mode + helper_profiles row +
+    // calling-session-only invalidation all happen atomically — same code
+    // path as /switch-role.
     let updatedUser = null;
     let didModeSwitch = false;
     let modeChangeIgnored = null;
@@ -2326,7 +2350,8 @@ async function updateProfile(req, res) {
     if (didModeSwitch) {
       const tokens = generateTokens(finalRow);
       const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
-      await modeRoleUtil.invalidateUserSessions(client, req.user.id);
+      // G-28: only the calling session is revoked; other devices keep theirs.
+      await modeRoleUtil.invalidateCurrentSession(client, req.user.id, await currentSessionIdForModeSwitch(req));
       await client.query(
         "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)",
         [finalRow.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), tokens.sid],
@@ -2795,6 +2820,9 @@ async function switchRole(req, res) {
       });
     }
 
+    // G-28: only the calling session is revoked on a mode switch. Other
+    // devices keep their sessions and pick up the new role/mode at refresh.
+    const modeSwitchSessionId = await currentSessionIdForModeSwitch(req);
     await client.query('BEGIN');
     const updatedUser = await modeRoleUtil.applyModeSwitch(client, userId, newMode);
     if (!updatedUser) {
@@ -2806,7 +2834,7 @@ async function switchRole(req, res) {
     // Create the replacement session before commit. This keeps the user mode
     // update and its fresh refresh token atomic instead of returning a 500
     // after the role has already changed.
-    await modeRoleUtil.invalidateUserSessions(client, userId);
+    await modeRoleUtil.invalidateCurrentSession(client, userId, modeSwitchSessionId);
     await client.query(
       "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, csrf_sid) VALUES ($1, $2, $3, NOW() + interval '7 days', $4)",
       [updatedUser.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), tokens.sid],
