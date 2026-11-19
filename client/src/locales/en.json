@@ -12065,6 +12065,7 @@
       "evidenceTitle": "Evidence ({{count}})",
       "noEvidence": "No evidence submitted yet.",
       "submitEvidence": "Submit Evidence",
+      "businessReaderNote": "You are viewing this dispute for your business. Answer it by submitting evidence below; messages stay between the original parties and the admin.",
       "evidencePh": "Describe what happened, provide context, links, or any relevant information...",
       "attachFiles": "Attach files (images, videos, documents - max 5)",
       "submitting": "Submitting...",

@@ -63,4 +63,22 @@ function isDisputeParty(row, userId) {
     .some((v) => v != null && String(v) === id);
 }
 
-module.exports = { DISPUTE_VIEW_FROM, disputeViewSelect, partyPredicate, isDisputeParty, evidenceWindowDays };
+/**
+ * SQL predicate: $n is an owner/manager of a business owned by the job's
+ * client (jobs carry no business_id; the business resolves via the client).
+ * G-21: the owning business's team may read the dispute and submit
+ * evidence. Resolution stays admin-only; dispute messages stay party-only.
+ * Used with the jobs join (alias j) from DISPUTE_VIEW_FROM.
+ */
+function businessPartyPredicate(param) {
+  return `EXISTS (
+    SELECT 1 FROM businesses b
+    JOIN business_members bm ON bm.business_id = b.id
+    WHERE b.user_id = j.client_id
+      AND bm.member_id = ${param}
+      AND bm.status = 'active'
+      AND bm.role IN ('manager', 'owner')
+  )`;
+}
+
+module.exports = { DISPUTE_VIEW_FROM, disputeViewSelect, partyPredicate, isDisputeParty, businessPartyPredicate, evidenceWindowDays };

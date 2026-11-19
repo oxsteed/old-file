@@ -12059,6 +12059,7 @@
       "refund": "Reembolso: ${{amount}}",
       "evidenceTitle": "Evidencia ({{count}} archivos)",
       "submitEvidence": "Enviar Evidencia",
+      "businessReaderNote": "Estás viendo esta disputa por tu negocio. Respóndela enviando evidencia abajo; los mensajes quedan entre las partes originales y el administrador.",
       "submitting": "Enviando...",
       "loading": "Cargando disputa...",
       "originalDescription": "Descripción original",

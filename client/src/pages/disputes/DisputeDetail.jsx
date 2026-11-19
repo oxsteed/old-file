@@ -146,6 +146,10 @@ export default function DisputeDetail() {
   );
 
   const isOpen    = ['open','under_review'].includes(dispute.status);
+  // G-21: a business manager reads the dispute and answers with evidence;
+  // dispute messages stay between the original parties and admin.
+  const isBusinessReader = Boolean(user && dispute && ![dispute.opened_by, dispute.against_user, dispute.client_id, dispute.assigned_helper_id]
+    .some((id) => id != null && String(id) === String(user.id)));
   const myRole    = dispute.client_id === user?.id ? 'client' : 'helper';
   const deadlinePassed = new Date(dispute.evidence_deadline) < new Date();
 
@@ -442,8 +446,8 @@ export default function DisputeDetail() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message input */}
-              {isOpen && (
+              {/* Message input: original parties and admin only (G-21). */}
+              {isOpen && !isBusinessReader && (
                 <form
                   onSubmit={handleSendMessage}
                   className="border-t border-gray-100 p-3 flex gap-2"
@@ -472,6 +476,9 @@ export default function DisputeDetail() {
                     </div>
                   )}
                 </form>
+              )}
+              {isOpen && isBusinessReader && (
+                <p className="border-t border-gray-100 p-3 text-xs text-gray-500">{t('disputes.detail.businessReaderNote')}</p>
               )}
             </div>
           </div>

@@ -12059,6 +12059,7 @@
       "refund": "Ranbosman: ${{amount}}",
       "evidenceTitle": "Prèv ({{count}} fichye)",
       "submitEvidence": "Soumèt Prèv",
+      "businessReaderNote": "W ap gade diskisyon sa a pou biznis ou. Reponn li lè w soumèt prèv anba a; mesaj yo rete ant pati orijinal yo ak administratè a.",
       "submitting": "Ap soumèt...",
       "loading": "Ap chaje dispute...",
       "originalDescription": "Deskripsyon orijinal la",

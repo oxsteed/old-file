@@ -12059,6 +12059,7 @@
       "refund": "Remboursement : {{amount}} $",
       "evidenceTitle": "Preuves ({{count}} fichiers)",
       "submitEvidence": "Soumettre des Preuves",
+      "businessReaderNote": "Vous consultez ce litige pour votre entreprise. Répondez en soumettant des preuves ci-dessous ; les messages restent entre les parties initiales et l’administrateur.",
       "submitting": "Envoi en cours...",
       "loading": "Chargement du litige...",
       "originalDescription": "Description originale",
