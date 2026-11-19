@@ -102,6 +102,9 @@ function AccountApplications({ accountId, epoch }) {
   const [provisioningRequests, setProvisioningRequests] = useState([]);
   const [creditParticipants, setCreditParticipants] = useState([]);
   const [partnerRequestBusy, setPartnerRequestBusy] = useState(false);
+  // G-33: the account's own grants, every status, so a revocation is
+  // explained in-app instead of silently vanishing from the held list.
+  const [grants, setGrants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -124,13 +127,15 @@ function AccountApplications({ accountId, epoch }) {
     if (!silent) setLoading(true);
     setLoadError(false);
     try {
-      const [a, r, p, inv, prov, parts] = await Promise.all([
+      const [a, r, p, inv, prov, parts, g] = await Promise.all([
         accessAPI.getAccess(accountId),
         accessAPI.listRequests({ limit: 50 }),
         accessAPI.listPolicies(),
         listMyInvitations().catch(() => []),
         listMyProvisioningRequests().then((d) => d.requests || []).catch(() => []),
         api.get('/oxsteed-credit/participants/me').then((res) => res.data?.participants || []).catch(() => []),
+        // Grants are best-effort here: a failure must not blank the page.
+        accessAPI.listMyGrants().catch(() => []),
       ]);
       if (!isCurrentAuthEpoch(epoch)) return;
       const heldNow = a.access?.personal || [];
@@ -152,6 +157,7 @@ function AccountApplications({ accountId, epoch }) {
       setInvitations(inv || []);
       setProvisioningRequests(prov || []);
       setCreditParticipants(parts || []);
+      setGrants(Array.isArray(g) ? g : []);
       setUnavailable(false);
       // AC-021: refresh the open request during silent reloads so a reviewer
       // change reaches the editor without remounting it (unsaved answers
@@ -212,6 +218,17 @@ function AccountApplications({ accountId, epoch }) {
   const activationIncomplete = [...held].filter((c) => activation[c] && activation[c].ready === false);
   const activationReadyFor = (capability) => !activation[capability] || activation[capability].ready !== false;
   const openCaps = new Set(requests.filter((r) => OPEN.includes(r.status)).map((r) => r.capability));
+  // G-33: grants that are no longer active, with the reason they changed.
+  // The held list above only ever shows active capabilities, so without
+  // this a revocation vanished with no explanation.
+  const pastGrants = grants.filter((g) => g.status && g.status !== 'active');
+  const grantReason = (grant) => {
+    const code = grant.status_reason_code;
+    if (!code) return null;
+    const key = `progressiveAccess.grantReasons.${code}`;
+    const text = t(key, { ns: NS });
+    return text === key ? code : text;
+  };
   const applyable = policies.filter((p) => p.applicantMayRequest && !held.has(p.capability) && !openCaps.has(p.capability));
   const policyFor = (capability) => policies.find((p) => p.capability === capability);
   const signupResume = access?.signupResume;
@@ -461,6 +478,31 @@ function AccountApplications({ accountId, epoch }) {
                               <li key={req}>{t(`progressiveAccess.activationRequirements.${req}`, { ns: NS })}</li>
                             ))}
                           </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {pastGrants.length > 0 && (
+                  <section aria-labelledby="access-past-title">
+                    <h2 id="access-past-title" className="mb-2 text-lg font-semibold text-content">{t('progressiveAccess.pastGrantsTitle', { ns: NS })}</h2>
+                    <p className="mb-3 text-sm text-muted">{t('progressiveAccess.pastGrantsDescription', { ns: NS })}</p>
+                    <ul className="space-y-3">
+                      {pastGrants.map((grant) => (
+                        <li key={grant.id} className="rounded-xl border border-border p-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-content">{capabilityLabel(t, grant.capability)}</span>
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${grant.status === 'revoked' ? 'bg-red-500/15 text-red-600' : 'bg-amber-500/15 text-amber-700'}`}>
+                              {t(`progressiveAccess.grantStatus.${grant.status}`, { ns: NS })}
+                            </span>
+                            {grant.status_changed_at && (
+                              <time dateTime={grant.status_changed_at} className="text-xs text-muted">{formatDate(grant.status_changed_at, language)}</time>
+                            )}
+                          </div>
+                          {grantReason(grant) && (
+                            <p className="mt-1 text-sm text-muted">{grantReason(grant)}</p>
+                          )}
                         </li>
                       ))}
                     </ul>

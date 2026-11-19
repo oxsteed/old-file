@@ -75,6 +75,13 @@ const getMine = wrap('me.requests.get', async (req, res) => {
   return res.json(await access.getMine(req.user.id, req.params.id));
 });
 
+// G-33: the applicant's own grants with their status and reason, so a
+// revocation is explained in-app instead of silently vanishing.
+const listMyGrants = wrap('me.grants.list', async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  return res.json({ grants: await access.listOwnGrants(req.user.id) });
+});
+
 const create = wrap('me.requests.create', async (req, res) => {
   const b = req.body || {};
   return send(res, await access.createRequest(req.user.id, {
@@ -123,5 +130,6 @@ const userGrants = wrap('admin.access.userGrants', async (req, res) => {
 module.exports = {
   requireRequestsFlag, requireProjectionFlag,
   getAccess, getPolicy, listPolicies, listMine, getMine, create, transition,
+  listMyGrants,
   reviewList, reviewGet, reviewDecide, grantChange, userGrants,
 };

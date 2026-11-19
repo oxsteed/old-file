@@ -585,6 +585,21 @@ async function getMine(applicantId, id) {
   };
 }
 
+// G-33: the applicant's own grants, every status, with the reason a grant
+// was suspended or revoked. The projection only lists active capabilities,
+// so without this a revoked grant just vanished from Settings with no
+// explanation in-app. Own rows only; the reviewer list stays separate.
+async function listOwnGrants(userId, db = pool) {
+  const { rows } = await db.query(
+    `SELECT id, capability, subject_type, subject_id, subject_key, status,
+            provenance, provenance_reason, granted_at, status_changed_at,
+            status_reason_code, version
+       FROM access_grants WHERE user_id = $1 ORDER BY status_changed_at DESC NULLS LAST, id DESC`,
+    [userId],
+  );
+  return rows.map((g) => ({ ...g, id: String(g.id) }));
+}
+
 module.exports = {
   // facts / projection
   loadFacts,
@@ -599,6 +614,7 @@ module.exports = {
   applicantTransition,
   listMine,
   getMine,
+  listOwnGrants,
   // shared internals for reviewer service / tests
   _internal: { tx, idempotent, writeDecision, enqueue, assertVersion, toApplicantView, toApplicantSummary, err, safeReturnTo, subjectKey },
   safeReturnTo,
