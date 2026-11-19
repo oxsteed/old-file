@@ -59,7 +59,11 @@ function mockRes() {
 }
 
 function tomorrow() {
-  const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  // Two days out, not one: createBookingRequest caps the confirmation
+  // deadline at the hours until the service start, so a tomorrow-10:00
+  // booking with confirmationHours 24 fails after 10:00 UTC. +2 days keeps
+  // the window above 24h at any time of day.
+  const d = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
   return d.toISOString().slice(0, 10);
 }
 

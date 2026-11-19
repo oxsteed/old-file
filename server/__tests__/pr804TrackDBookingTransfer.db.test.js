@@ -63,8 +63,12 @@ function mockRes() {
 }
 
 // The appointment overlap guard rejects two bookings for the same helper
-// on the same day; each booking gets its own day.
-let dayOffset = 0;
+// on the same day; each booking gets its own day. Days start at +2, not +1:
+// createBookingRequest caps the confirmation deadline at the hours until
+// the service start, so a tomorrow-10:00 booking with confirmationHours 24
+// fails after 10:00 UTC. +2 days keeps the window above 24h at any time
+// of day.
+let dayOffset = 1;
 function nextDate() {
   dayOffset += 1;
   const d = new Date(Date.now() + dayOffset * 24 * 60 * 60 * 1000);
@@ -98,6 +102,26 @@ ddescribe('G-37 provider transfer + offboarding reassignment', () => {
     );
   }
 
+  async function activateHelper(userId) {
+    // G-1 (PR #804 Track E): access.can() now enforces the registry's
+    // activation requirements, so a bare grant is HELD, not usable. The
+    // transfer target must be an ACTIVATED helper: verified identity,
+    // accepted helper terms, W-9 + fresh Didit, and Stripe Connect ready.
+    // Mirrors Track E's G-1 seeding exactly.
+    await pool.query(
+      `UPDATE users SET terms_accepted = TRUE, terms_accepted_at = NOW(), terms_version = '2026-01-01',
+         id_verified = TRUE, identity_verified = TRUE, didit_status = 'verified',
+         didit_verified_at = NOW(), w9_completed = TRUE WHERE id = $1`,
+      [userId],
+    );
+    await pool.query(
+      `INSERT INTO connect_accounts (user_id, stripe_account_id, charges_enabled, payouts_enabled, onboarding_complete)
+       VALUES ($1, $2, TRUE, TRUE, TRUE)
+       ON CONFLICT (user_id) DO UPDATE SET charges_enabled = TRUE, payouts_enabled = TRUE, onboarding_complete = TRUE`,
+      [userId, `acct_trackd_${String(userId).replace(/-/g, '').slice(0, 20)}`],
+    );
+  }
+
   beforeAll(async () => {
     customer = await makeUser('customer');
     helperA = await makeUser('helper', { onboardingCompleted: true });
@@ -106,6 +130,8 @@ ddescribe('G-37 provider transfer + offboarding reassignment', () => {
     stranger = await makeUser('customer');
     await grantHelperOfferServices(helperA);
     await grantHelperOfferServices(helperB);
+    await activateHelper(helperA);
+    await activateHelper(helperB);
     // noGrantHelper deliberately holds no grant.
   });
 
