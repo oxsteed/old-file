@@ -1796,7 +1796,22 @@
     "restart": "Recommencer l’inscription",
     "resendWait": "Réessayez dans {{seconds}} s",
     "verifying": "Vérification de votre code…",
-    "sending": "Envoi d’un nouveau code…"
+    "sending": "Envoi d’un nouveau code…",
+    "inviteAccept": "Accepter l'invitation",
+    "inviteAccepted": "Bienvenue dans l’équipe. Votre invitation est acceptée.",
+    "inviteDecline": "Refuser l'invitation",
+    "inviteDeclined": "Invitation refusée.",
+    "inviteFound": "Vous êtes invité à rejoindre {{business}} en tant que {{role}}.",
+    "inviteLoading": "Vérification de votre invitation…",
+    "inviteMissing": "Nous n’avons trouvé aucune invitation en attente pour ce lien. Elle a peut-être expiré ou déjà été traitée.",
+    "inviteOpenWorkspace": "Ouvrir l’espace de travail",
+    "inviteTitle": "Invitation à une équipe",
+    "resumeCode": "Code à 6 chiffres",
+    "resumeFailed": "Cet e-mail et ce code ne correspondent pas. Vérifiez-les et réessayez.",
+    "resumeHelp": "Commencé sur un autre appareil ? Saisissez l'e-mail et le code à 6 chiffres de cette inscription pour reprendre où vous vous étiez arrêté.",
+    "resumeRestored": "Vos informations d’inscription ont été restaurées. Saisissez votre mot de passe pour continuer.",
+    "resumeSubmit": "Continuer l'inscription",
+    "resumeTitle": "Reprendre une inscription commencée"
   },
   "actions": {
     "cancel": "Annuler",

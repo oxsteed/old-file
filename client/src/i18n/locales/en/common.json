@@ -1796,7 +1796,22 @@
     "restart": "Restart signup",
     "resendWait": "Try again in {{seconds}}s",
     "verifying": "Verifying your code…",
-    "sending": "Sending a new code…"
+    "sending": "Sending a new code…",
+    "inviteAccept": "Accept invitation",
+    "inviteAccepted": "Welcome to the team. Your invitation is accepted.",
+    "inviteDecline": "Decline invitation",
+    "inviteDeclined": "Invitation declined.",
+    "inviteFound": "You are invited to join {{business}} as {{role}}.",
+    "inviteLoading": "Checking your invitation…",
+    "inviteMissing": "We could not find a pending invitation for this link. It may have expired or already been decided.",
+    "inviteOpenWorkspace": "Open workspace",
+    "inviteTitle": "Team invitation",
+    "resumeCode": "6-digit code",
+    "resumeFailed": "That email and code did not match. Check them and try again.",
+    "resumeHelp": "Started on another device? Enter the email and the 6-digit code from that signup to pick up where you left off.",
+    "resumeRestored": "Your signup details were restored. Enter your password to continue.",
+    "resumeSubmit": "Continue signup",
+    "resumeTitle": "Continue a signup you started"
   },
   "actions": {
     "cancel": "Cancel",

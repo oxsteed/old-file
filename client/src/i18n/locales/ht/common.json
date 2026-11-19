@@ -1796,7 +1796,22 @@
     "restart": "Rekòmanse enskripsyon",
     "resendWait": "Eseye ankò nan {{seconds}} s",
     "verifying": "Ap verifye kòd ou…",
-    "sending": "Ap voye yon nouvo kòd…"
+    "sending": "Ap voye yon nouvo kòd…",
+    "inviteAccept": "Aksepte envitasyon",
+    "inviteAccepted": "Byenvini nan ekip la. Envitasyon ou a aksepte.",
+    "inviteDecline": "Refize envitasyon",
+    "inviteDeclined": "Envitasyon refize.",
+    "inviteFound": "Yo envite ou pou ou rantre nan {{business}} kòm {{role}}.",
+    "inviteLoading": "N ap tcheke envitasyon ou a…",
+    "inviteMissing": "Nou pa t jwenn yon envitasyon ki poko deside pou lyen sa a. Li te ka ekspire oswa li te deja deside.",
+    "inviteOpenWorkspace": "Louvri espas travay",
+    "inviteTitle": "Envitasyon ekip",
+    "resumeCode": "Kòd 6 chif",
+    "resumeFailed": "Imèl sa a ak kòd sa a pa koresponn. Tcheke yo epi eseye ankò.",
+    "resumeHelp": "Ou te kòmanse sou yon lòt aparèy? Mete imèl la ak kòd 6 chif enskripsyon sa a pou ou kontinye kote ou te rete a.",
+    "resumeRestored": "Enfòmasyon enskripsyon ou yo te retabli. Mete modpas ou pou kontinye.",
+    "resumeSubmit": "Kontinye enskripsyon",
+    "resumeTitle": "Kontinye yon enskripsyon ou te kòmanse"
   },
   "actions": {
     "cancel": "Anile",

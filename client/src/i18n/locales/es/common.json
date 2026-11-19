@@ -1796,7 +1796,22 @@
     "restart": "Reiniciar registro",
     "resendWait": "Inténtalo en {{seconds}} s",
     "verifying": "Verificando tu código…",
-    "sending": "Enviando otro código…"
+    "sending": "Enviando otro código…",
+    "inviteAccept": "Aceptar invitación",
+    "inviteAccepted": "Bienvenido al equipo. Tu invitación fue aceptada.",
+    "inviteDecline": "Rechazar invitación",
+    "inviteDeclined": "Invitación rechazada.",
+    "inviteFound": "Te invitaron a unirte a {{business}} como {{role}}.",
+    "inviteLoading": "Verificando tu invitación…",
+    "inviteMissing": "No encontramos una invitación pendiente para este enlace. Puede haber vencido o ya fue decidida.",
+    "inviteOpenWorkspace": "Abrir espacio de trabajo",
+    "inviteTitle": "Invitación a un equipo",
+    "resumeCode": "Código de 6 dígitos",
+    "resumeFailed": "Ese correo y código no coinciden. Revísalos e inténtalo de nuevo.",
+    "resumeHelp": "¿Empezaste en otro dispositivo? Ingresa el correo y el código de 6 dígitos de ese registro para continuar donde quedaste.",
+    "resumeRestored": "Tus datos de registro se restauraron. Ingresa tu contraseña para continuar.",
+    "resumeSubmit": "Continuar registro",
+    "resumeTitle": "Continúa un registro que empezaste"
   },
   "actions": {
     "cancel": "Cancelar",
