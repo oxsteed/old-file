@@ -190,6 +190,7 @@ const PublicBookingStatusPage = lazyWithRetry(() => import('./pages/PublicBookin
 const ToolRentalsBrowse = lazyWithRetry(() => import('./pages/ToolRentalsBrowse'));
 const DiscoverPage = lazyWithRetry(() => import('./pages/DiscoverPage'));
 const MyBookingsPage = lazyWithRetry(() => import('./pages/MyBookingsPage'));
+const MyQuotesPage = lazyWithRetry(() => import('./pages/MyQuotesPage'));
 const ToolRentalsAnalytics = lazyWithRetry(() => import('./pages/ToolRentalsAnalytics'));
 const QRCodeGeneratorPage = lazyWithRetry(routeLoaders.qrGenerator, { name: 'qrGenerator' });
 const WorkAgreementPage = lazyWithRetry(() => import('./pages/WorkAgreementPage'));
@@ -630,6 +631,7 @@ export default function App() {
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/tool-rentals/:toolId"    element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/my-bookings"             element={<Guarded><ProtectedRoute><MyBookingsPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/my-quotes"               element={<Guarded><ProtectedRoute><MyQuotesPage /></ProtectedRoute></Guarded>} />
                     <Route path="/tool-rentals/analytics"  element={<Guarded><ProtectedRoute><ToolRentalsAnalytics /></ProtectedRoute></Guarded>} />
                     <Route path="/invoice/p/:token"        element={<Guarded><PublicInvoiceView /></Guarded>} />
                     <Route path="/bookings/status/:token"   element={<Guarded><PublicBookingStatusPage /></Guarded>} />

@@ -290,6 +290,24 @@ exports.createQuoteRequest = async (req, res) => {
   const accessNotes = cleanText(req.body.access_notes || req.body.accessNotes, 5000) || null;
   const scheduledStartAt = normalizeTimestamp(req.body.scheduled_start_at || req.body.scheduledStartAt);
   const scheduledEndAt = normalizeTimestamp(req.body.scheduled_end_at || req.body.scheduledEndAt);
+  // Group 1, items 8/10: the customer may set a response deadline (when
+  // they need quotes back by). Advisory only: it never auto-closes the
+  // request. Bounded to the next 30 days so a stale deadline cannot sit
+  // on a request forever; a past or unparseable value is refused.
+  const responseDeadlineRaw = req.body.response_deadline || req.body.responseDeadline || null;
+  const responseDeadline = normalizeTimestamp(responseDeadlineRaw);
+  if (responseDeadlineRaw && !responseDeadline) {
+    return res.status(400).json({ error: 'response_deadline must be a valid date' });
+  }
+  if (responseDeadline) {
+    const deadlineMs = new Date(responseDeadline).getTime();
+    if (deadlineMs <= Date.now()) {
+      return res.status(400).json({ error: 'response_deadline must be in the future' });
+    }
+    if (deadlineMs > Date.now() + 30 * 24 * 60 * 60 * 1000) {
+      return res.status(400).json({ error: 'response_deadline must be within 30 days' });
+    }
+  }
   const paymentStatus = 'unpaid'; // forced server-side (audit finding #3)
   const paymentMethod = cleanText(req.body.payment_method || req.body.paymentMethod, 40) || null;
   const paymentReference = cleanText(req.body.payment_reference || req.body.paymentReference, 120) || null;
@@ -427,10 +445,10 @@ exports.createQuoteRequest = async (req, res) => {
         preferred_time_window, service_address, service_city, on_site_contact_name,
         on_site_contact_phone, access_notes, scheduled_start_at, scheduled_end_at,
         payment_status, payment_method, payment_reference, proof_attachment,
-        proof_link, proof_received_at, accepted_at, completed_at, closed_at)
+        proof_link, proof_received_at, accepted_at, completed_at, closed_at, response_deadline)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
                'new', $15::jsonb, $16, $17, $18, $19, $20, $21, $22, $23,
-               $24, $25, $26, $27, $28, $29, $30::jsonb, $31, $32, $33, $34, $35)
+               $24, $25, $26, $27, $28, $29, $30::jsonb, $31, $32, $33, $34, $35, $36)
        RETURNING *`,
       [
         req.user?.id || null,
@@ -468,6 +486,7 @@ exports.createQuoteRequest = async (req, res) => {
         acceptedAt,
         completedAt,
         closedAt,
+        responseDeadline,
       ]
     );
 
@@ -593,7 +612,31 @@ exports.getMyQuoteRequests = async (req, res) => {
       [req.user.id]
     );
 
-    return res.json({ requests: result.rows });
+    // Group 1, item 9: itemized comparison needs the service lines each
+    // request covers. One query for all rows, grouped by request.
+    const ids = result.rows.map((r) => r.id);
+    let servicesByRequest = new Map();
+    if (ids.length) {
+      const svc = await db.query(
+        `SELECT quote_request_id, service_id, service_name, category_slug
+           FROM quote_request_services
+          WHERE quote_request_id = ANY($1::bigint[])`,
+        [ids],
+      );
+      for (const row of svc.rows) {
+        const list = servicesByRequest.get(row.quote_request_id) || [];
+        list.push({ serviceId: row.service_id, serviceName: row.service_name, categorySlug: row.category_slug });
+        servicesByRequest.set(row.quote_request_id, list);
+      }
+    }
+    const now = Date.now();
+    const requests = result.rows.map((r) => ({
+      ...r,
+      services: servicesByRequest.get(r.id) || [],
+      deadline_passed: Boolean(r.response_deadline) && new Date(r.response_deadline).getTime() <= now,
+    }));
+
+    return res.json({ requests });
   } catch (err) {
     logger.error('Error fetching user quote requests', { error: err.message, userId: req.user?.id });
     return res.status(500).json({ error: 'Failed to fetch quote requests' });

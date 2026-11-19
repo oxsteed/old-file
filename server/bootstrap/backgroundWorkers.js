@@ -38,6 +38,7 @@ const { startRestaurantRetentionJob } = require('../jobs/restaurantRetentionJob'
 const { startFranchiseRoyaltyRedriveJob } = require('../jobs/franchiseRoyaltyRedriveJob'); // Background-jobs audit #45 royalty re-drive
 const { startCareersJobs } = require('../jobs/careersJobs');
 const { startChatQuoteExpiryJob } = require('../jobs/chatQuoteExpiryJob');
+const { startQuoteDeadlineNoticesJob } = require('../jobs/quoteDeadlineNotices');
 const { startSupportTicketSlaJob } = require('../jobs/supportTicketSlaJob');
 const { startHelperCompletionAutoConfirmJob } = require('../jobs/helperCompletionAutoConfirm');
 const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
@@ -211,6 +212,7 @@ class BackgroundWorkers {
       startFranchiseRoyaltyRedriveJob();
       startCareersJobs();
       startChatQuoteExpiryJob();
+      startQuoteDeadlineNoticesJob();
       startSupportTicketSlaJob();
       startHelperCompletionAutoConfirmJob();
       startWorkAgreementProposalTimeoutJob();
