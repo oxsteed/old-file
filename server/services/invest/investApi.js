@@ -24,7 +24,12 @@
  *   amendment process (notice + reconfirmation), never a direct edit.
  * - A suspended account keeps ownership, statements, and obligations:
  *   reads of the investor's own records stay available in restricted form
- *   and every write is refused (see investController suspension guard).
+ *   through the service layer only (see investController suspension guard)
+ *   and every write is refused. The live /api/invest read exemption is a
+ *   legal/counsel decision that is still open: authenticate 403s suspended
+ *   accounts on every /api/invest route before the guard runs, so the
+ *   restricted read is not reachable over HTTP today. Do not present it
+ *   as a live behavior.
  */
 
 const AppError = require('../../utils/appError');
