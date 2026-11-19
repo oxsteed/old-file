@@ -313,6 +313,13 @@ async function listMyEnrollments(req, res, next) {
   }
 }
 
+// The program handlers are plain functions above; export them so the
+// learn router can mount them. (A missing export here throws at router
+// load time, which takes the whole /api/learn router down.)
+exports.listPrograms = listPrograms;
+exports.enrollInProgram = enrollInProgram;
+exports.listMyEnrollments = listMyEnrollments;
+
 // Completes every enrolled (not yet completed) enrollment whose program
 // category matches the just-completed guide, once all guides in that
 // category are complete. Runs inside recordCompletion's transaction.
