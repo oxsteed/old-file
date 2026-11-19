@@ -735,7 +735,7 @@ exports.getSavedLocations = async (req, res) => {
     // Group 2, items 56-60: the address book. Archived rows (60) are
     // hidden unless explicitly asked for; the shared flag (56), entry
     // preset (57), and private notes (58) travel with the row.
-    const includeArchived = req.query.includeArchived === 'true';
+    const includeArchived = req.query && req.query.includeArchived === 'true';
     const { rows } = await db.query(`
       SELECT id, label, address, entry_instructions, entry_preset,
              private_notes, shared_with_household, is_archived,
