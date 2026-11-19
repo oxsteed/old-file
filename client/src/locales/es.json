@@ -23379,9 +23379,11 @@
           "position": "Posición",
           "choosePosition": "Elija una posición",
           "amount": "Monto de la distribución (USD)",
-          "submit": "Registrar distribución",
+          "submit": "Solicitar distribución",
           "empty": "Aún no hay posiciones para esta oportunidad.",
-          "required": "Elija una posición e ingrese un monto válido."
+          "required": "Elija una posición e ingrese un monto válido.",
+          "queued": "Distribución en cola. Un segundo administrador debe aprobarla en Aprobaciones de dinero antes de que se mueva algún Crédito.",
+          "dualApprovalNote": "Las distribuciones necesitan la aprobación de un segundo administrador. No se acredita nada hasta entonces, y el total no puede superar los ingresos de la oportunidad."
         }
       },
     "application": {
@@ -37002,6 +37004,7 @@
     "typeMarketplaceRefund": "Reembolso de marketplace",
     "typeDisputeRefund": "Reembolso de disputa",
     "typeRestaurantPayout": "Pago a restaurante",
+    "typeInvestDistribution": "Distribución de inversión",
     "typeAffiliatePayout": "Pago de afiliado",
     "subject": "Asunto",
     "reason": "Motivo",

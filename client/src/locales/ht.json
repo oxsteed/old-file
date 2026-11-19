@@ -23379,9 +23379,11 @@
           "position": "Pozisyon",
           "choosePosition": "Chwazi yon pozisyon",
           "amount": "Montan distribisyon (USD)",
-          "submit": "Anrejistre distribisyon",
+          "submit": "Mande distribisyon",
           "empty": "Poko gen pozisyon pou opòtinite sa a.",
-          "required": "Chwazi yon pozisyon epi antre yon montan valab."
+          "required": "Chwazi yon pozisyon epi antre yon montan valab.",
+          "queued": "Distribisyon an nan fil atant. Yon dezyèm administratè dwe apwouve li nan Apwobasyon Lajan anvan okenn Kredi deplase.",
+          "dualApprovalNote": "Distribisyon yo bezwen apwobasyon yon dezyèm administratè. Yo pa kredite anyen jouskaske sa, epi total la pa ka depase pwodwi opòtinite a."
         }
       },
     "application": {
@@ -37002,6 +37004,7 @@
     "typeMarketplaceRefund": "Ranbousman mache",
     "typeDisputeRefund": "Ranbousman dispit",
     "typeRestaurantPayout": "Peman restoran",
+    "typeInvestDistribution": "Distribisyon envestisman",
     "typeAffiliatePayout": "Peman afilye",
     "subject": "Sijè",
     "reason": "Rezon",

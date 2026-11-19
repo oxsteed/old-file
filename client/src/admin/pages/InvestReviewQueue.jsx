@@ -252,6 +252,7 @@ function OpportunityDetail({ t, item, detail, gateOn, onDecided }) {
   const [closingNote, setClosingNote] = useState('');
   const [failCloseReason, setFailCloseReason] = useState('');
   const [distribution, setDistribution] = useState({ positionId: '', amount: '' });
+  const [distributionNotice, setDistributionNotice] = useState(null);
 
   const opportunity = detail?.opportunity || item;
   const funding = detail?.funding || {};
@@ -463,7 +464,13 @@ function OpportunityDetail({ t, item, detail, gateOn, onDecided }) {
                   setError(t('invest.review.distributions.required'));
                   return;
                 }
-                act(() => recordDistribution(opportunity.id, { positionId: position.id, userId: position.userId, amountCents: cents }));
+                act(async () => {
+                  const result = await recordDistribution(opportunity.id, { positionId: position.id, userId: position.userId, amountCents: cents });
+                  if (result?.queued) {
+                    setDistributionNotice(t('invest.review.distributions.queued'));
+                    setDistribution((p) => ({ ...p, amount: '' }));
+                  }
+                }, { reload: false });
               }}
             >
               <label className="block text-sm text-gray-700 dark:text-gray-200">
@@ -486,6 +493,8 @@ function OpportunityDetail({ t, item, detail, gateOn, onDecided }) {
                   {t('invest.review.distributions.submit')}
                 </button>
               </div>
+              {distributionNotice ? <p className="text-sm text-emerald-700 dark:text-emerald-300" role="status">{distributionNotice}</p> : null}
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('invest.review.distributions.dualApprovalNote')}</p>
             </form>
           ) : (
             <p className="text-sm text-gray-600 dark:text-gray-300">{t('invest.review.distributions.empty')}</p>

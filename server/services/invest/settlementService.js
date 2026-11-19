@@ -997,6 +997,13 @@ async function recordDistribution(input, dbPool = pool) {
     const treasury = await ensureAccount(client, {
       accountType: 'platform_treasury', currencyCode,
     });
+    // R-1: the proceeds cap, enforced inside the execution transaction
+    // (race-safe). Total distributions for the opportunity must never
+    // exceed what the close captured.
+    const capacity = await getDistributionCapacity(client, { opportunityId, currencyCode });
+    if (amount > capacity.remainingCents) {
+      fail(`Distribution exceeds the remaining proceeds for this opportunity (${capacity.remainingCents} cents remain of ${capacity.proceedsCents})`, 'invest_distribution_exceeds_proceeds', 409);
+    }
 
     const { transaction } = await postJournalTransaction(client, {
       transactionType: 'load',
@@ -1058,6 +1065,102 @@ async function recordDistribution(input, dbPool = pool) {
   }, 'invest_record_distribution');
 }
 
+// ── R-1: distribution proceeds cap ────────────────────────────────────
+// A distribution credits an investor from the platform treasury, so the
+// total distributed for an opportunity must never exceed what the close
+// captured (the investment_proceeds row). The cap is per currency: the
+// proceeds rows are USD-denominated by the close, so a non-USD
+// distribution has no proceeds in its currency and is refused. The
+// check runs twice: read-only at queue time (immediate feedback) and
+// again inside recordDistribution's transaction (race-safe, authoritative).
+async function getDistributionCapacity(client, { opportunityId, currencyCode = 'USD' } = {}) {
+  const currency = String(currencyCode || 'USD').toUpperCase().slice(0, 3);
+  const { rows: proceedsRows } = await client.query(
+    `SELECT COALESCE(SUM(amount_cents), 0)::int AS total
+       FROM investment_proceeds WHERE opportunity_id = $1 AND currency_code = $2`,
+    [opportunityId, currency]
+  );
+  const { rows: distributedRows } = await client.query(
+    `SELECT COALESCE(SUM(amount_cents), 0)::int AS total
+       FROM investment_distributions
+      WHERE opportunity_id = $1 AND currency_code = $2 AND status = 'credited'`,
+    [opportunityId, currency]
+  );
+  const proceedsCents = Number(proceedsRows[0]?.total || 0);
+  const distributedCents = Number(distributedRows[0]?.total || 0);
+  return { proceedsCents, distributedCents, remainingCents: proceedsCents - distributedCents, currencyCode: currency };
+}
+
+// R-1: queue a distribution for dual approval. The maker can never
+// execute a distribution themselves: every request goes through the
+// money-movement approval queue (forceQueue) and only a DIFFERENT admin
+// with a fresh step-up challenge can approve it in Money Approvals.
+// The executor (moneyMovementExecutors 'invest_distribution') runs
+// recordDistribution, which re-validates everything including the cap.
+async function requestDistribution(input, dbPool = pool) {
+  const {
+    opportunityId, positionId, userId, amountCents, currencyCode = 'USD',
+    idempotencyKey, actorUserId = null,
+  } = input || {};
+  if (!opportunityId || !positionId || !userId) fail('opportunityId, positionId, and userId are required for a distribution', 'invest_distribution_refs_required');
+  if (!idempotencyKey) fail('idempotencyKey is required for a distribution', 'invest_distribution_idempotency_required');
+  if (!actorUserId) fail('actorUserId is required for a distribution: the request must be attributable to a staff actor', 'invest_distribution_actor_required');
+  const amount = Number(amountCents);
+  if (!Number.isSafeInteger(amount) || amount <= 0) fail('amountCents must be a positive integer number of cents', 'invest_distribution_amount_invalid');
+  requireInvestCommitmentsEnabled(actorUserId || userId);
+  const key = String(idempotencyKey).slice(0, 160);
+  const currency = String(currencyCode || 'USD').toUpperCase().slice(0, 3);
+  // Read-only validation: immediate feedback for a bad position or an
+  // over-proceeds amount, instead of queueing an approval that can
+  // never execute. Not the gate: recordDistribution re-checks inside
+  // its own transaction at execution time.
+  await withTransaction(dbPool, async (client) => {
+    const { rows: opportunityRows } = await client.query(
+      `SELECT status FROM investment_opportunities WHERE id = $1`, [opportunityId]
+    );
+    if (!opportunityRows[0]) fail('Opportunity not found', 'invest_opportunity_not_found', 404);
+    if (opportunityRows[0].status !== 'closed') {
+      fail('Distributions require a closed opportunity', 'invest_distribution_opportunity_not_closed', 409);
+    }
+    const { rows: positionRows } = await client.query(
+      `SELECT * FROM investment_positions WHERE id = $1`, [positionId]
+    );
+    const position = positionRows[0];
+    if (!position) fail('Investment position not found', 'invest_position_not_found', 404);
+    if (String(position.user_id) !== String(userId) || String(position.opportunity_id) !== String(opportunityId)) {
+      fail('Position does not belong to this investor and opportunity', 'invest_distribution_position_mismatch', 403);
+    }
+    if (position.status !== 'active') fail('Distributions require an active position', 'invest_distribution_position_inactive', 409);
+    const capacity = await getDistributionCapacity(client, { opportunityId, currencyCode: currency });
+    if (amount > capacity.remainingCents) {
+      fail(`Distribution exceeds the remaining proceeds for this opportunity (${capacity.remainingCents} cents remain of ${capacity.proceedsCents})`, 'invest_distribution_exceeds_proceeds', 409);
+    }
+  }, 'invest_request_distribution_validate');
+  const { requestMoneyMovementApproval } = require('../dualApprovalService');
+  const queued = await requestMoneyMovementApproval({
+    movementType: 'invest_distribution',
+    referenceKey: `opportunity:${opportunityId}`,
+    amountCents: amount,
+    currencyCode: currency,
+    requestedBy: actorUserId,
+    idempotencyKey: key,
+    payload: {
+      opportunityId: String(opportunityId),
+      positionId: String(positionId),
+      userId: String(userId),
+      amountCents: amount,
+      currencyCode: currency,
+      idempotencyKey: key,
+      makerAdminId: String(actorUserId),
+    },
+    forceQueue: true,
+  });
+  if (!queued.queued) {
+    throw new AppError('Distribution was not queued for dual approval', 500, 'invest_distribution_not_queued');
+  }
+  return { approval: queued.approval, replay: !!queued.replay, queued: true };
+}
+
 module.exports = {
   createCommitment,
   cancelCommitment,
@@ -1070,6 +1173,8 @@ module.exports = {
   closeOpportunity,
   releaseProceeds,
   recordDistribution,
+  requestDistribution,
+  getDistributionCapacity,
   formatCommitment,
   formatPosition,
 };

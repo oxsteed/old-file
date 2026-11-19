@@ -23379,9 +23379,11 @@
           "position": "Position",
           "choosePosition": "Choose a position",
           "amount": "Distribution amount (USD)",
-          "submit": "Record distribution",
+          "submit": "Request distribution",
           "empty": "No positions exist for this opportunity yet.",
-          "required": "Choose a position and enter a valid amount."
+          "required": "Choose a position and enter a valid amount.",
+          "queued": "Distribution queued. A second admin must approve it in Money Approvals before any Credit moves.",
+          "dualApprovalNote": "Distributions need a second admin approval. Nothing is credited until then, and the total cannot exceed the opportunity proceeds."
         }
       },
     "application": {
@@ -37002,6 +37004,7 @@
     "typeMarketplaceRefund": "Marketplace refund",
     "typeDisputeRefund": "Dispute refund",
     "typeRestaurantPayout": "Restaurant payout",
+    "typeInvestDistribution": "Invest distribution",
     "typeAffiliatePayout": "Affiliate payout",
     "subject": "Subject",
     "reason": "Reason",
