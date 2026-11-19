@@ -339,6 +339,126 @@ ddescribe('PR #804 Track E', () => {
     });
   });
 
+  describe('R-4 backfill covers investor.reporting and franchise.operate', () => {
+    const { mapLegacyUser } = require('../services/access/legacyMapping');
+    const { runBackfill } = require('../services/access/backfill');
+
+    const baseFacts = {
+      user: { id: '00000000-0000-0000-0000-000000000000', role: 'customer', default_mode: 'customer' },
+      helperProfile: false, modeApprovals: [], ownedBusinessCount: 0,
+      activeMembershipCount: 0, toolListingCount: 0,
+      investorAudience: false, franchiseTerritory: false,
+    };
+
+    test('mapLegacyUser grants investor.reporting from audience evidence, franchise.operate from territory', () => {
+      const out = mapLegacyUser({ ...baseFacts, investorAudience: true, franchiseTerritory: true });
+      expect(out.grants.map((g) => [g.capability, g.reason])).toEqual([
+        ['investor.reporting', 'investor_audience_record'],
+        ['franchise.operate', 'territory_assignment'],
+      ]);
+      expect(out.exceptions).toEqual([]);
+    });
+
+    test('mapLegacyUser still flags investor mode without any audience evidence', () => {
+      const out = mapLegacyUser({
+        ...baseFacts,
+        user: { ...baseFacts.user, default_mode: 'investor' },
+      });
+      expect(out.grants).toEqual([]);
+      expect(out.exceptions).toEqual([{ reason: 'investor_mode_without_audience' }]);
+    });
+
+    test('dry_run counts an investor.reporting grant for a user with a live application', async () => {
+      const userId = await makeUser();
+      const businessId = await makeBusiness(userId);
+      const { rows: [opp] } = await pool.query(
+        `INSERT INTO investment_opportunities
+           (business_id, created_by, title, purpose, target_cents, minimum_cents, deadline_at, status, structure, country_code)
+         VALUES ($1, $2, 'Track E Opportunity', 'Track E backfill test', 100000, 1000, NOW() + interval '30 days', 'published', 'revenue_share', 'US')
+         RETURNING id`,
+        [businessId, userId],
+      );
+      await pool.query(
+        `INSERT INTO investment_participation_applications (user_id, opportunity_id, status, idempotency_key)
+         VALUES ($1, $2, 'submitted', $3)`,
+        [userId, opp.id, `track-e-backfill-${crypto.randomUUID()}`],
+      );
+      const run = await runBackfill({ mode: 'dry_run' });
+      expect(run.status).toBe('completed');
+      expect(run.counts['grant:investor.reporting']).toBeGreaterThanOrEqual(1);
+      // Nothing was written by a dry run.
+      const { rows } = await pool.query(
+        "SELECT 1 FROM access_grants WHERE user_id = $1 AND capability = 'investor.reporting'",
+        [userId],
+      );
+      expect(rows).toEqual([]);
+    });
+
+    test('apply grants investor.reporting with an audience row, and franchise.operate from a launched application', async () => {
+      const investorId = await makeUser();
+      const investorBusinessId = await makeBusiness(investorId);
+      const { rows: [opp] } = await pool.query(
+        `INSERT INTO investment_opportunities
+           (business_id, created_by, title, purpose, target_cents, minimum_cents, deadline_at, status, structure, country_code)
+         VALUES ($1, $2, 'Track E Opportunity', 'Track E backfill test', 100000, 1000, NOW() + interval '30 days', 'published', 'revenue_share', 'US')
+         RETURNING id`,
+        [investorBusinessId, investorId],
+      );
+      await pool.query(
+        `INSERT INTO investment_participation_applications (user_id, opportunity_id, status, idempotency_key, identity_verified, authority_verified)
+         VALUES ($1, $2, 'approved', $3, TRUE, TRUE)`,
+        [investorId, opp.id, `track-e-backfill-${crypto.randomUUID()}`],
+      );
+
+      const franchiseId = await makeUser();
+      const franchiseBusinessId = await makeBusiness(franchiseId);
+      await pool.query(
+        `INSERT INTO franchise_applications
+           (program_id, first_name, last_name, email, desired_country, linked_business_id, status, owner_user_id)
+         VALUES (1, 'Track', 'E', 'track-e@example.invalid', 'US', $1, 'launched', $2)`,
+        [franchiseBusinessId, franchiseId],
+      );
+
+      const run = await runBackfill({ mode: 'apply' });
+      expect(run.status).toBe('completed');
+
+      const { rows: grants } = await pool.query(
+        `SELECT capability, status, provenance, provenance_reason FROM access_grants
+          WHERE user_id IN ($1, $2) AND capability IN ('investor.reporting', 'franchise.operate')`,
+        [investorId, franchiseId],
+      );
+      const byKey = Object.fromEntries(grants.map((g) => [`${g.capability}`, g]));
+      expect(byKey['investor.reporting'].status).toBe('active');
+      expect(byKey['investor.reporting'].provenance).toBe('legacy_backfill');
+      expect(byKey['franchise.operate'].status).toBe('active');
+      expect(byKey['franchise.operate'].provenance_reason).toBe('territory_assignment');
+
+      const { rows: audiences } = await pool.query(
+        `SELECT audience_key, datasets, entity_ids, opportunity_ids FROM investor_reporting_audiences
+          WHERE user_id = $1`,
+        [investorId],
+      );
+      expect(audiences).toHaveLength(1);
+      expect(audiences[0].audience_key).toBe('legacy-investor-mode');
+      expect(audiences[0].datasets).toEqual(['overview']);
+      expect(audiences[0].entity_ids.map(Number)).toEqual([investorBusinessId]);
+      expect(audiences[0].opportunity_ids.map(String)).toEqual([String(opp.id)]);
+
+      // A replay never reactivates a revoked grant.
+      await pool.query(
+        "UPDATE access_grants SET status = 'revoked' WHERE user_id = $1 AND capability = 'franchise.operate'",
+        [franchiseId],
+      );
+      const replay = await runBackfill({ mode: 'apply' });
+      expect(replay.counts['existing:franchise.operate']).toBeGreaterThanOrEqual(1);
+      const { rows: [after] } = await pool.query(
+        "SELECT status FROM access_grants WHERE user_id = $1 AND capability = 'franchise.operate'",
+        [franchiseId],
+      );
+      expect(after.status).toBe('revoked');
+    });
+  });
+
   describe('G-28 mode switch revokes only the calling session', () => {
     test('invalidateCurrentSession leaves every other session valid', async () => {
       const userId = await makeUser();

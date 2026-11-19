@@ -1413,4 +1413,7 @@ module.exports = {
   signFranchiseAgreement,
   recordFranchiseFeeCollection,
   activateFranchiseStore,
+  // Exported for the legacy access backfill (R-4), which reuses the same
+  // territory-assignment grant shape instead of duplicating the insert.
+  syncFranchiseGrant,
 };
