@@ -13050,6 +13050,23 @@
     "moderationActionFailed": "L'action de modération a échoué.",
     "moderationQueueLoadFailedMessage": "Impossible de charger la file de modération.",
     "moderationQueueLoadFailedTitle": "Échec du chargement de la file de modération",
+    "moderationJobsTab": "Offres",
+    "moderationFlagsTab": "Signalements de contenu",
+    "moderationFlagsTitle": "Signalements de contenu",
+    "moderationFlagsCount": "{{count}} signalements dans cet état",
+    "moderationFlagsStatus": "Statut",
+    "moderationFlagsEmpty": "Aucun signalement dans cet état.",
+    "moderationFlagsLoading": "Chargement des signalements…",
+    "moderationFlagsReportedBy": "Signalé par",
+    "moderationFlagsResolve": "Résoudre",
+    "moderationFlagsDismiss": "Rejeter",
+    "moderationFlagsResolutionLabel": "Note de résolution",
+    "moderationFlagsResolutionPlaceholder": "Ce qui a été décidé, pour mémoire",
+    "moderationFlagsAlreadyDecided": "Ce signalement a déjà été traité par un autre administrateur.",
+    "moderationFlagsReviewFailed": "L'examen du signalement a échoué. Veuillez réessayer.",
+    "moderationFlagsPage": "Page {{page}} sur {{pages}}",
+    "moderationFlagsPrevious": "Précédent",
+    "moderationFlagsNext": "Suivant",
     "performanceDetailsLoading": "Chargement des détails de performance…",
     "quoteRequestDetailLoadFailed": "Échec du chargement de la demande de devis",
     "quoteRequestUpdateFailed": "Échec de la mise à jour de la demande de devis",
@@ -23292,7 +23309,8 @@
           "proceedsBlocked": "Les fonds ne peuvent pas encore être libérés. L'opportunité doit d'abord être clôturée avec des conditions de clôture approuvées.",
           "noAgreement": "Cette opportunité ne peut pas être approuvée sans une version de l'accord.",
           "transitionInvalid": "Cet élément ne peut pas passer à cet état depuis sa position actuelle.",
-          "reconfirmationPending": "Certains investisseurs n'ont pas encore reconfirmé cet amendement. Attendez la reconfirmation, ou que le délai de reconfirmation soit écoulé, avant de le rendre effectif."
+          "reconfirmationPending": "Certains investisseurs n'ont pas encore reconfirmé cet amendement. Attendez la reconfirmation, ou que le délai de reconfirmation soit écoulé, avant de le rendre effectif.",
+          "escrowNothingPending": "Aucune attente de séquestre en cours pour cet engagement. Il est peut-être déjà confirmé."
         },
         "actions": {
           "approve": "Approuver",
@@ -23387,6 +23405,18 @@
           "required": "Choisissez une position et saisissez un montant valide.",
           "queued": "Distribution mise en file d’attente. Un deuxième administrateur doit l’approuver dans Approbations monétaires avant qu’aucun Crédit ne soit déplacé.",
           "dualApprovalNote": "Les distributions nécessitent l’approbation d’un deuxième administrateur. Rien n’est crédité avant cela, et le total ne peut pas dépasser les produits de l’opportunité."
+        },
+        "escrow": {
+          "title": "Confirmation de séquestre du partenaire",
+          "copy": "Enregistrez la confirmation du partenaire que les fonds engagés pour une position sont détenus en séquestre. La clôture le laisse en attente à dessein : seule une confirmation explicite du partenaire le confirme.",
+          "position": "Position",
+          "choosePosition": "Choisir une position",
+          "partnerRefLabel": "Référence du partenaire",
+          "partnerRefPlaceholder": "Référence de confirmation du partenaire",
+          "noteLabel": "Note",
+          "confirm": "Confirmer le séquestre",
+          "confirmed": "Séquestre confirmé pour cet engagement.",
+          "partnerRefRequired": "Une référence du partenaire est requise."
         }
       },
     "application": {

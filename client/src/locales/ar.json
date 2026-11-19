@@ -13050,6 +13050,23 @@
     "moderationActionFailed": "فشل إجراء الإشراف.",
     "moderationQueueLoadFailedMessage": "تعذر تحميل قائمة الإشراف.",
     "moderationQueueLoadFailedTitle": "تعذر تحميل قائمة الإشراف",
+    "moderationJobsTab": "الوظائف",
+    "moderationFlagsTab": "إبلاغات المحتوى",
+    "moderationFlagsTitle": "إبلاغات المحتوى",
+    "moderationFlagsCount": "{{count}} إبلاغات في هذه الحالة",
+    "moderationFlagsStatus": "الحالة",
+    "moderationFlagsEmpty": "لا توجد إبلاغات في هذه الحالة.",
+    "moderationFlagsLoading": "جارٍ تحميل الإبلاغات…",
+    "moderationFlagsReportedBy": "أبلغ عنه",
+    "moderationFlagsResolve": "حلّ",
+    "moderationFlagsDismiss": "تجاهل",
+    "moderationFlagsResolutionLabel": "ملاحظة القرار",
+    "moderationFlagsResolutionPlaceholder": "ما تم اتخاذه من قرار، للسجل",
+    "moderationFlagsAlreadyDecided": "تم البت في هذا الإبلاغ بالفعل من قبل مسؤول آخر.",
+    "moderationFlagsReviewFailed": "فشلت مراجعة الإبلاغ. يرجى المحاولة مرة أخرى.",
+    "moderationFlagsPage": "الصفحة {{page}} من {{pages}}",
+    "moderationFlagsPrevious": "السابق",
+    "moderationFlagsNext": "التالي",
     "performanceDetailsLoading": "جارٍ تحميل تفاصيل الأداء…",
     "quoteRequestDetailLoadFailed": "تعذر تحميل طلب عرض السعر",
     "quoteRequestUpdateFailed": "تعذر تحديث طلب عرض السعر",
@@ -23303,7 +23320,8 @@
           "proceedsBlocked": "لا يمكن إصدار العائدات بعد. يجب إغلاق الفرصة أولا مع الموافقة على شروط الإغلاق.",
           "noAgreement": "لا يمكن الموافقة على هذه الفرصة دون نسخة اتفاقية.",
           "transitionInvalid": "لا يمكن أن ينتقل هذا العنصر إلى تلك الحالة من موضعه الحالي.",
-          "reconfirmationPending": "لم يعيد بعض المستثمرين تأكيد هذا التعديل بعد. انتظر إعادة التأكيد أو انقضاء مهلة إعادة التأكيد قبل جعله نافذًا."
+          "reconfirmationPending": "لم يعيد بعض المستثمرين تأكيد هذا التعديل بعد. انتظر إعادة التأكيد أو انقضاء مهلة إعادة التأكيد قبل جعله نافذًا.",
+          "escrowNothingPending": "لا يوجد توقع ضمان معلق لهذا الالتزام. قد يكون مؤكدًا بالفعل."
         },
         "actions": {
           "approve": "موافقة",
@@ -23397,6 +23415,18 @@
           "required": "اختر مركزا وأدخل مبلغا صالحا.",
           "queued": "تم وضع التوزيع في قائمة الانتظار. يجب أن يوافق عليه مسؤول ثانٍ في «الموافقات المالية» قبل تحرك أي رصيد.",
           "dualApprovalNote": "تتطلب التوزيعات موافقة مسؤول ثانٍ. لا يُضاف أي مبلغ حتى ذلك الحين، ولا يمكن أن يتجاوز الإجمالي عائدات الفرصة."
+        },
+        "escrow": {
+          "title": "تأكيد الضمان من الشريك",
+          "copy": "سجّل تأكيد الشريك بأن الأموال الملتزم بها لمركز ما محفوظة في الضمان. يترك الإغلاق هذا معلقًا عن قصد: فقط إدخال صريح من الشريك يؤكده.",
+          "position": "مركز",
+          "choosePosition": "اختر مركزًا",
+          "partnerRefLabel": "مرجع الشريك",
+          "partnerRefPlaceholder": "مرجع تأكيد الشريك",
+          "noteLabel": "ملاحظة",
+          "confirm": "تأكيد الضمان",
+          "confirmed": "تم تأكيد الضمان لهذا الالتزام.",
+          "partnerRefRequired": "مرجع الشريك مطلوب."
         }
       },
     "application": {

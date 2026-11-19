@@ -13050,6 +13050,23 @@
     "moderationActionFailed": "Moderation action failed.",
     "moderationQueueLoadFailedMessage": "Could not load the moderation queue.",
     "moderationQueueLoadFailedTitle": "Failed to load moderation queue",
+    "moderationJobsTab": "Jobs",
+    "moderationFlagsTab": "Content flags",
+    "moderationFlagsTitle": "Content flags",
+    "moderationFlagsCount": "{{count}} flags in this status",
+    "moderationFlagsStatus": "Status",
+    "moderationFlagsEmpty": "No flags in this status.",
+    "moderationFlagsLoading": "Loading flags…",
+    "moderationFlagsReportedBy": "Reported by",
+    "moderationFlagsResolve": "Resolve",
+    "moderationFlagsDismiss": "Dismiss",
+    "moderationFlagsResolutionLabel": "Resolution note",
+    "moderationFlagsResolutionPlaceholder": "What was decided, for the record",
+    "moderationFlagsAlreadyDecided": "This flag was already decided by another admin.",
+    "moderationFlagsReviewFailed": "The flag review failed. Please try again.",
+    "moderationFlagsPage": "Page {{page}} of {{pages}}",
+    "moderationFlagsPrevious": "Previous",
+    "moderationFlagsNext": "Next",
     "performanceDetailsLoading": "Loading performance details…",
     "quoteRequestDetailLoadFailed": "Failed to load quote request",
     "quoteRequestUpdateFailed": "Failed to update quote request",
@@ -23292,7 +23309,8 @@
           "proceedsBlocked": "Proceeds cannot release yet. The opportunity must be closed with approved closing conditions first.",
           "noAgreement": "This opportunity cannot be approved without an agreement version.",
           "transitionInvalid": "This item cannot move to that state from where it is now.",
-          "reconfirmationPending": "Some investors have not reconfirmed this amendment yet. Wait for reconfirmation, or for the reconfirmation deadline to pass, before making it effective."
+          "reconfirmationPending": "Some investors have not reconfirmed this amendment yet. Wait for reconfirmation, or for the reconfirmation deadline to pass, before making it effective.",
+          "escrowNothingPending": "No pending escrow expectation for this commitment. It may already be confirmed."
         },
         "actions": {
           "approve": "Approve",
@@ -23387,6 +23405,18 @@
           "required": "Choose a position and enter a valid amount.",
           "queued": "Distribution queued. A second admin must approve it in Money Approvals before any Credit moves.",
           "dualApprovalNote": "Distributions need a second admin approval. Nothing is credited until then, and the total cannot exceed the opportunity proceeds."
+        },
+        "escrow": {
+          "title": "Partner escrow confirmation",
+          "copy": "Record the partner’s confirmation that the committed funds for a position are held in escrow. The close leaves this pending on purpose: only explicit partner input confirms it.",
+          "position": "Position",
+          "choosePosition": "Choose a position",
+          "partnerRefLabel": "Partner reference",
+          "partnerRefPlaceholder": "Partner confirmation reference",
+          "noteLabel": "Note",
+          "confirm": "Confirm escrow",
+          "confirmed": "Escrow confirmed for this commitment.",
+          "partnerRefRequired": "A partner reference is required."
         }
       },
     "application": {

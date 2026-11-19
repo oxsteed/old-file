@@ -13050,6 +13050,23 @@
     "moderationActionFailed": "La acción de moderación falló.",
     "moderationQueueLoadFailedMessage": "No se pudo cargar la cola de moderación.",
     "moderationQueueLoadFailedTitle": "No se pudo cargar la cola de moderación",
+    "moderationJobsTab": "Trabajos",
+    "moderationFlagsTab": "Señales de contenido",
+    "moderationFlagsTitle": "Señales de contenido",
+    "moderationFlagsCount": "{{count}} señales en este estado",
+    "moderationFlagsStatus": "Estado",
+    "moderationFlagsEmpty": "No hay señales en este estado.",
+    "moderationFlagsLoading": "Cargando señales…",
+    "moderationFlagsReportedBy": "Reportado por",
+    "moderationFlagsResolve": "Resolver",
+    "moderationFlagsDismiss": "Descartar",
+    "moderationFlagsResolutionLabel": "Nota de resolución",
+    "moderationFlagsResolutionPlaceholder": "Qué se decidió, para constancia",
+    "moderationFlagsAlreadyDecided": "Esta señal ya fue decidida por otro administrador.",
+    "moderationFlagsReviewFailed": "La revisión de la señal falló. Inténtelo de nuevo.",
+    "moderationFlagsPage": "Página {{page}} de {{pages}}",
+    "moderationFlagsPrevious": "Anterior",
+    "moderationFlagsNext": "Siguiente",
     "performanceDetailsLoading": "Cargando detalles del rendimiento…",
     "quoteRequestDetailLoadFailed": "No se pudo cargar la solicitud de cotización",
     "quoteRequestUpdateFailed": "No se pudo actualizar la solicitud de cotización",
@@ -23292,7 +23309,8 @@
           "proceedsBlocked": "Los fondos aún no pueden liberarse. La oportunidad debe estar cerrada con las condiciones de cierre aprobadas primero.",
           "noAgreement": "Esta oportunidad no puede aprobarse sin una versión del acuerdo.",
           "transitionInvalid": "Este elemento no puede pasar a ese estado desde donde está ahora.",
-          "reconfirmationPending": "Algunos inversores aún no han reconfirmado esta enmienda. Espere la reconfirmación o a que pase el plazo de reconfirmación antes de hacerla efectiva."
+          "reconfirmationPending": "Algunos inversores aún no han reconfirmado esta enmienda. Espere la reconfirmación o a que pase el plazo de reconfirmación antes de hacerla efectiva.",
+          "escrowNothingPending": "No hay ninguna expectativa de depósito pendiente para este compromiso. Es posible que ya esté confirmada."
         },
         "actions": {
           "approve": "Aprobar",
@@ -23387,6 +23405,18 @@
           "required": "Elija una posición e ingrese un monto válido.",
           "queued": "Distribución en cola. Un segundo administrador debe aprobarla en Aprobaciones de dinero antes de que se mueva algún Crédito.",
           "dualApprovalNote": "Las distribuciones necesitan la aprobación de un segundo administrador. No se acredita nada hasta entonces, y el total no puede superar los ingresos de la oportunidad."
+        },
+        "escrow": {
+          "title": "Confirmación de depósito en garantía del socio",
+          "copy": "Registre la confirmación del socio de que los fondos comprometidos de una posición están en depósito en garantía. El cierre lo deja pendiente a propósito: solo la confirmación explícita del socio lo confirma.",
+          "position": "Posición",
+          "choosePosition": "Elija una posición",
+          "partnerRefLabel": "Referencia del socio",
+          "partnerRefPlaceholder": "Referencia de confirmación del socio",
+          "noteLabel": "Nota",
+          "confirm": "Confirmar depósito",
+          "confirmed": "Depósito confirmado para este compromiso.",
+          "partnerRefRequired": "Se requiere una referencia del socio."
         }
       },
     "application": {

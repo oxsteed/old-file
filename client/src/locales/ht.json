@@ -13050,6 +13050,23 @@
     "moderationActionFailed": "Aksyon moderasyon an echwe.",
     "moderationQueueLoadFailedMessage": "Pa t ka chaje fil moderasyon an.",
     "moderationQueueLoadFailedTitle": "Chaje fil moderasyon an echwe",
+    "moderationJobsTab": "Travay",
+    "moderationFlagsTab": "Siynal kontni",
+    "moderationFlagsTitle": "Siynal kontni",
+    "moderationFlagsCount": "{{count}} siynal nan eta sa a",
+    "moderationFlagsStatus": "Estati",
+    "moderationFlagsEmpty": "Pa gen siynal nan eta sa a.",
+    "moderationFlagsLoading": "Chaje siynal yo…",
+    "moderationFlagsReportedBy": "Siynale pa",
+    "moderationFlagsResolve": "Rezoud",
+    "moderationFlagsDismiss": "Voye jete",
+    "moderationFlagsResolutionLabel": "Nòt rezolisyon",
+    "moderationFlagsResolutionPlaceholder": "Sa ki te deside, pou dosye a",
+    "moderationFlagsAlreadyDecided": "Siynal sa a te deja deside pa yon lòt administratè.",
+    "moderationFlagsReviewFailed": "Revizyon siynal la echwe. Tanpri eseye ankò.",
+    "moderationFlagsPage": "Paj {{page}} sou {{pages}}",
+    "moderationFlagsPrevious": "Anvan",
+    "moderationFlagsNext": "Apre",
     "performanceDetailsLoading": "Ap chaje detay pèfòmans lan…",
     "quoteRequestDetailLoadFailed": "Chaje demann pri a echwe",
     "quoteRequestUpdateFailed": "Mete ajou demann pri a echwe",
@@ -23292,7 +23309,8 @@
           "proceedsBlocked": "Lajan an poko ka lage. Opòtinite a dwe fèmen ak kondisyon fèmti yo apwouve anvan.",
           "noAgreement": "Opòtinite sa a pa ka apwouve san yon vèsyon akò.",
           "transitionInvalid": "Eleman sa a pa ka pase nan eta sa a depi kote li ye kounye a.",
-          "reconfirmationPending": "Gen kèk envestisè ki poko rekonfime amannman sa a. Tann rekonfimasyon an, oswa dat limit rekonfimasyon an pase, anvan ou fè li vin efektif."
+          "reconfirmationPending": "Gen kèk envestisè ki poko rekonfime amannman sa a. Tann rekonfimasyon an, oswa dat limit rekonfimasyon an pase, anvan ou fè li vin efektif.",
+          "escrowNothingPending": "Pa gen okenn atant depo garanti an kou pou angajman sa a. Li ka deja konfime."
         },
         "actions": {
           "approve": "Apwouve",
@@ -23387,6 +23405,18 @@
           "required": "Chwazi yon pozisyon epi antre yon montan valab.",
           "queued": "Distribisyon an nan fil atant. Yon dezyèm administratè dwe apwouve li nan Apwobasyon Lajan anvan okenn Kredi deplase.",
           "dualApprovalNote": "Distribisyon yo bezwen apwobasyon yon dezyèm administratè. Yo pa kredite anyen jouskaske sa, epi total la pa ka depase pwodwi opòtinite a."
+        },
+        "escrow": {
+          "title": "Konfimasyon depo garanti patnè a",
+          "copy": "Anrejistre konfimasyon patnè a ke lajan ki angaje pou yon pozisyon yo nan depo garanti. Fèmti a kite li an atant espre: se sèlman konfimasyon eksplisit patnè a ki konfime li.",
+          "position": "Pozisyon",
+          "choosePosition": "Chwazi yon pozisyon",
+          "partnerRefLabel": "Referans patnè a",
+          "partnerRefPlaceholder": "Referans konfimasyon patnè a",
+          "noteLabel": "Nòt",
+          "confirm": "Konfime depo garanti a",
+          "confirmed": "Depo garanti konfime pou angajman sa a.",
+          "partnerRefRequired": "Yo bezwen yon referans patnè."
         }
       },
     "application": {
