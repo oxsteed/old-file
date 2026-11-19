@@ -1740,8 +1740,8 @@
       "platform_review": "After email verification, complete the platform review for this path. Protected tools remain locked until approval and activation.",
       "organization_invitation": "This path starts with an invitation or membership approval from an organization.",
       "domain_enrollment": "This path is enrolled by its owning program. Your account can track status without unlocking protected tools.",
-      "staff_provisioning": "Internal staff access is provisioned by an authorized OxSteed administrator.",
-      "nonhuman_provisioning": "Device and service accounts use administrator-provisioned nonhuman credentials; do not use a personal account."
+      "staff_provisioning": "Internal staff access is provisioned by an authorized OxSteed administrator. Your request is recorded for review.",
+      "nonhuman_provisioning": "Ask your administrator to provision device credentials; this signup creates your personal account for the request."
     },
     "intentConfirmed": "Your account is ready for this path",
     "intentConfirmationNote": "No protected tools were enabled. Continue through the owning admission flow when invited or eligible.",
@@ -6553,10 +6553,44 @@
     "retry": "Retry"
   },
   "progressiveAccess": {
+    "invitations": {
+      "accept": "Accept",
+      "accepted": "Invitation accepted.",
+      "decline": "Decline",
+      "declined": "Invitation declined.",
+      "empty": "No pending team invitations.",
+      "role": "Role: {{role}}",
+      "title": "Team invitations",
+      "vortexHint": "Have a team code instead?",
+      "vortexLink": "Redeem a code"
+    },
     "pageTitle": "Applications",
     "pageSubtitle": "See what your account can do and apply for more.",
     "backToSettings": "Back to settings",
     "loading": "Loading…",
+    "provisioning": {
+      "kinds": {
+        "device": "Device",
+        "partner_application": "Partner application",
+        "service_account": "Service account",
+        "staff_operations": "Staff operations",
+        "staff_reviewer": "Staff reviewer",
+        "staff_support": "Staff support agent"
+      },
+      "title": "Provisioning requests"
+    },
+    "resumes": {
+      "creditStatus": {
+        "active": "Credit application active",
+        "pending": "Credit application pending",
+        "revoked": "Credit application revoked",
+        "suspended": "Credit application suspended"
+      },
+      "partnerInviteOnly": "Affiliate programs are by invitation for helpers. You can ask for partner access instead.",
+      "partnerPending": "Partner access requested. A reviewer will decide your request.",
+      "partnerRequest": "Request partner access",
+      "partnerRequested": "Partner access request sent."
+    },
     "unavailable": "Applications are not available on your account yet.",
     "loadFailed": "We couldn't load your applications.",
     "heldTitle": "What you can do now",
@@ -6717,6 +6751,11 @@
     "openApplications": "Open applications",
     "admin": {
       "nav": "Access applications",
+      "provisioning": {
+        "empty": "No provisioning requests.",
+        "subtitle": "Staff, device, service-account, and partner requests from signup. A decision records who decided; it grants nothing by itself.",
+        "title": "Signup provisioning requests"
+      },
       "title": "Access applications",
       "subtitle": "Review applications for helper, business and other access.",
       "status": "Status",

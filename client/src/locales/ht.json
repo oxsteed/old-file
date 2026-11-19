@@ -17,6 +17,27 @@
     "fulfillmentMoveBackTitle": "Deplase livrezon kat la tounen",
     "fulfillmentMoveBackConfirm": "Deplase kat sa a tounen nan {{status}}? Itilize sa a sèlman pou korije yon etap yo te make anvan li te rive. Yon kat ki deja aktive pa ka deplase tounen."
   },
+  "learnPrograms": {
+    "completed": "Konplete",
+    "customer-service-essentials": {
+      "description": "Kijan pou sèvi kliyan byen, rezoud pwoblèm, epi fè yo tounen.",
+      "title": "Esansyèl sèvis kliyan"
+    },
+    "enroll": "Enskri",
+    "enrollFailed": "Pa t kapab enskri. Tanpri eseye ankò.",
+    "enrolled": "Enskri",
+    "helper-foundations": {
+      "description": "Baz pou ofri sèvis: sekirite, kominikasyon, ak bon travay.",
+      "title": "Baz pou edè yo"
+    },
+    "progress": "{{completed}} gid sou {{total}} konplete",
+    "subtitle": "Enskri nan yon pwogram pou aprann yon metye etap pa etap. Fini tout gid nan yon pwogram pou ou konplete li.",
+    "title": "Pwogram mendèv",
+    "workforce-management": {
+      "description": "Kijan pou òganize ekip, orè, ak travay kalite nan gwo echèl.",
+      "title": "Jesyon mendèv"
+    }
+  },
   "pwaExperience": {
     "serverUpdated": "Nou senkronize tèks bouyon ki pi resan an. Verifye foto ki sou aparèy sa a.",
     "searchUnavailable": "Rechèch la pa t ka chaje. Rekonekte epi eseye ankò.",
@@ -1860,6 +1881,21 @@
     }
   },
   "signupUpgrade": {
+    "inviteAccept": "Aksepte envitasyon",
+    "inviteAccepted": "Byenvini nan ekip la. Envitasyon ou a aksepte.",
+    "inviteDecline": "Refize envitasyon",
+    "inviteDeclined": "Envitasyon refize.",
+    "inviteFound": "Yo envite ou pou ou rantre nan {{business}} kòm {{role}}.",
+    "inviteLoading": "N ap tcheke envitasyon ou a…",
+    "inviteMissing": "Nou pa t jwenn yon envitasyon ki poko deside pou lyen sa a. Li te ka ekspire oswa li te deja deside.",
+    "inviteOpenWorkspace": "Louvri espas travay",
+    "inviteTitle": "Envitasyon ekip",
+    "resumeCode": "Kòd 6 chif",
+    "resumeFailed": "Imèl sa a ak kòd sa a pa koresponn. Tcheke yo epi eseye ankò.",
+    "resumeHelp": "Ou te kòmanse sou yon lòt aparèy? Mete imèl la ak kòd 6 chif enskripsyon sa a pou ou kontinye kote ou te rete a.",
+    "resumeRestored": "Enfòmasyon enskripsyon ou yo te retabli. Mete modpas ou pou kontinye.",
+    "resumeSubmit": "Kontinye enskripsyon",
+    "resumeTitle": "Kontinye yon enskripsyon ou te kòmanse",
     "title": "Kreye kont ou",
     "subtitle": "Yon kont. Se ou ki chwazi.",
     "headline": "Pwochen opòtinite ou",
@@ -1900,8 +1936,8 @@
       "platform_review": "Apre verifikasyon imèl, fini revizyon platfòm lan. Zouti pwoteje yo mande apwobasyon ak aktivasyon.",
       "organization_invitation": "Chemen sa a kòmanse ak envitasyon oswa apwobasyon manm yon òganizasyon.",
       "domain_enrollment": "Pwogram ki posede chemen an jere enskripsyon an; ou ka swiv estati san zouti pwoteje.",
-      "staff_provisioning": "Yon administratè OxSteed otorize bay aksè pèsonèl entèn.",
-      "nonhuman_provisioning": "Aparèy ak sèvis sèvi ak kredansyèl ki pa moun; pa sèvi ak kont pèsonèl."
+      "staff_provisioning": "Yon administratè OxSteed otorize bay aksè entèn anplwaye yo. Demann ou a anrejistre pou revizyon.",
+      "nonhuman_provisioning": "Mande administratè ou a pou li bay kredansyèl aparèy; enskripsyon sa a kreye kont pèsonèl ou pou demann lan."
     },
     "intentConfirmed": "Kont ou pare pou chemen sa a",
     "intentConfirmationNote": "Pa gen zouti pwoteje ki aktive. Kontinye lè yo envite w oswa lè w elijib.",
@@ -2367,6 +2403,41 @@
     "credit": "OxSteed Credit",
     "partner": "Pwogram patnè",
     "learning": "Aprantisaj travay"
+  },
+  "superModeApprovals": {
+    "allModes": "Tout mòd yo",
+    "applicationData": "Aplikasyon",
+    "approve": "Apwouve",
+    "decideFailed": "Pa t kapab anrejistre desizyon an.",
+    "decided": "Desizyon anrejistre.",
+    "empty": "Pa gen demann ki poko deside.",
+    "loadFailed": "Pa t kapab chaje apwobasyon yo.",
+    "lookupButton": "Chèche",
+    "lookupHelp": "Lis la montre sèlman demann yo poko deside. Chèche yon apwobasyon yo te apwouve pa ID pou ou anile li.",
+    "lookupLabel": "ID apwobasyon",
+    "lookupNotFound": "Pa gen apwobasyon ak ID sa a.",
+    "lookupPlaceholder": "pa egzanp 42",
+    "lookupTitle": "Chèche yon apwobasyon",
+    "modeFilter": "Mòd",
+    "notes": "Nòt",
+    "notesPlaceholder": "Nòt si ou vle pou dosye a",
+    "reasonRequired": "Yon rezon refi obligatwa.",
+    "reject": "Refize",
+    "rejectionReason": "Rezon refi a",
+    "rejectionReasonPlaceholder": "Obligatwa. Moun ki fè demann lan ap wè rezon sa a.",
+    "requestedOn": "Yo te mande li {{date}}",
+    "retry": "Eseye ankò",
+    "revoke": "Anile",
+    "select": "Chwazi yon demann pou revize li.",
+    "stateConflict": "Demann sa a te deja deside. Lis la te mete ajou.",
+    "status": {
+      "approved": "Apwouve",
+      "rejected": "Refize",
+      "requested": "An atant",
+      "revoked": "Anile"
+    },
+    "subtitle": "Deside demann pou aksyon ki limite nan yon mòd. Apwobasyon, refi, ak anilasyon yo anrejistre.",
+    "title": "Apwobasyon mòd"
   },
   "supportAgentPortal": {
     "title": "Espa sipo",
@@ -3450,6 +3521,7 @@
   },
   "footer": {
     "explore": "Eksplore",
+    "joinTeamWithCode": "Rantre nan yon ekip ak yon kòd",
     "services": "Sèvis",
     "help": "Èd",
     "compactTagline": "Èd lokal, manje ak sèvis pou biznis.",
@@ -11634,6 +11706,7 @@
     "messenger": {
       "agreementOpenRecords": "Louvri akò travay ki siyen pou travay sa a",
       "agreementCreateRecords": "Kreye yon akò travay siyen pou travay sa a",
+      "bookingCancel": "Anile rezervasyon",
       "quoteFinishOnJob": "Fini anboche a sou paj travay la",
       "message": "Mesaj",
       "messageName": "Voye mesaj bay {{name}}",
@@ -22365,6 +22438,12 @@
   "affiliateDashboard": {
     "loading": "Ap chaje tablo tablodbò afilye a…",
     "loadingAnalytics": "Ap chaje analiz yo…",
+    "partner": {
+      "inviteOnly": "Pwogram afilye yo se sou envitasyon pou edè yo. Mande aksè patnè epi yon revizè ap deside demann ou a.",
+      "pending": "Aksè patnè yo mande. Yon revizè ap deside demann ou a.",
+      "request": "Mande aksè patnè",
+      "requested": "Demann aksè patnè voye."
+    },
     "sparklineNoData": "Pa gen done ankò",
     "pageTitle": "Tablodbò afilye: OxSteed",
     "title": "Tablodbò afilye",
@@ -33053,6 +33132,7 @@
   },
   "adminNav": {
     "investReviewQueue": "Revizyon envestisman",
+    "modeApprovals": "Apwobasyon mòd",
     "moneyApprovals": "Apwobasyon lajan",
     "adminAccounts": "Kont admin",
     "auditLog": "Jounal odit",

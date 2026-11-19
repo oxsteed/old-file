@@ -1740,8 +1740,8 @@
       "platform_review": "Apre verifikasyon imèl, fini revizyon platfòm lan. Zouti pwoteje yo mande apwobasyon ak aktivasyon.",
       "organization_invitation": "Chemen sa a kòmanse ak envitasyon oswa apwobasyon manm yon òganizasyon.",
       "domain_enrollment": "Pwogram ki posede chemen an jere enskripsyon an; ou ka swiv estati san zouti pwoteje.",
-      "staff_provisioning": "Yon administratè OxSteed otorize bay aksè pèsonèl entèn.",
-      "nonhuman_provisioning": "Aparèy ak sèvis sèvi ak kredansyèl ki pa moun; pa sèvi ak kont pèsonèl."
+      "staff_provisioning": "Yon administratè OxSteed otorize bay aksè entèn anplwaye yo. Demann ou a anrejistre pou revizyon.",
+      "nonhuman_provisioning": "Mande administratè ou a pou li bay kredansyèl aparèy; enskripsyon sa a kreye kont pèsonèl ou pou demann lan."
     },
     "intentConfirmed": "Kont ou pare pou chemen sa a",
     "intentConfirmationNote": "Pa gen zouti pwoteje ki aktive. Kontinye lè yo envite w oswa lè w elijib.",
@@ -6553,10 +6553,44 @@
     "retry": "Eseye ankò"
   },
   "progressiveAccess": {
+    "invitations": {
+      "accept": "Aksepte",
+      "accepted": "Envitasyon aksepte.",
+      "decline": "Refize",
+      "declined": "Envitasyon refize.",
+      "empty": "Pa gen envitasyon ekip ki poko deside.",
+      "role": "Wòl: {{role}}",
+      "title": "Envitasyon ekip",
+      "vortexHint": "Ou gen yon kòd ekip?",
+      "vortexLink": "Sèvi ak yon kòd"
+    },
     "pageTitle": "Aplikasyon",
     "pageSubtitle": "Gade sa kont ou ka fè epi aplike pou plis.",
     "backToSettings": "Retounen nan paramèt yo",
     "loading": "Chajman…",
+    "provisioning": {
+      "kinds": {
+        "device": "Aparèy",
+        "partner_application": "Demann patnè",
+        "service_account": "Kont sèvis",
+        "staff_operations": "Operasyon anplwaye",
+        "staff_reviewer": "Revizè anplwaye",
+        "staff_support": "Ajan sipò anplwaye"
+      },
+      "title": "Demann pwovizyon"
+    },
+    "resumes": {
+      "creditStatus": {
+        "active": "Demann kredi aktif",
+        "pending": "Demann kredi poko deside",
+        "revoked": "Demann kredi anile",
+        "suspended": "Demann kredi sispann"
+      },
+      "partnerInviteOnly": "Pwogram afilye yo se sou envitasyon pou edè yo. Ou ka mande aksè patnè.",
+      "partnerPending": "Aksè patnè yo mande. Yon revizè ap deside demann ou a.",
+      "partnerRequest": "Mande aksè patnè",
+      "partnerRequested": "Demann aksè patnè voye."
+    },
     "unavailable": "Aplikasyon poko disponib sou kont ou.",
     "loadFailed": "Nou pa t kapab chaje aplikasyon ou yo.",
     "heldTitle": "Sa ou ka fè kounye a",
@@ -6717,6 +6751,11 @@
     "openApplications": "Louvri aplikasyon yo",
     "admin": {
       "nav": "Aplikasyon pou aksè",
+      "provisioning": {
+        "empty": "Pa gen demann pwovizyon.",
+        "subtitle": "Demann anplwaye, aparèy, kont sèvis, ak patnè ki soti nan enskripsyon. Yon desizyon anrejistre ki moun ki deside; li pa bay anyen poukont li.",
+        "title": "Demann pwovizyon enskripsyon"
+      },
       "title": "Aplikasyon pou aksè",
       "subtitle": "Revize aplikasyon pou aksè èd, biznis ak lòt aksè.",
       "status": "Estati",

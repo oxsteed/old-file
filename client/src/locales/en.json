@@ -17,6 +17,27 @@
     "fulfillmentMoveBackTitle": "Move card fulfillment back",
     "fulfillmentMoveBackConfirm": "Move this card back to {{status}}? Use this only to correct a step that was marked before it happened. A card that is already active cannot be moved back."
   },
+  "learnPrograms": {
+    "completed": "Completed",
+    "customer-service-essentials": {
+      "description": "How to serve customers well, handle problems, and earn repeat work.",
+      "title": "Customer service essentials"
+    },
+    "enroll": "Enroll",
+    "enrollFailed": "Could not enroll. Please try again.",
+    "enrolled": "Enrolled",
+    "helper-foundations": {
+      "description": "The basics of offering services: safety, communication, and doing great work.",
+      "title": "Helper foundations"
+    },
+    "progress": "{{completed}} of {{total}} guides complete",
+    "subtitle": "Enroll in a program to learn a trade step by step. Finish every guide in a program to complete it.",
+    "title": "Workforce programs",
+    "workforce-management": {
+      "description": "How to organize teams, schedules, and quality work at scale.",
+      "title": "Workforce management"
+    }
+  },
   "pwaExperience": {
     "serverUpdated": "Newer draft text was synced. Review the photos kept on this device.",
     "searchUnavailable": "Search could not load. Reconnect and try again.",
@@ -1860,6 +1881,21 @@
     }
   },
   "signupUpgrade": {
+    "inviteAccept": "Accept invitation",
+    "inviteAccepted": "Welcome to the team. Your invitation is accepted.",
+    "inviteDecline": "Decline invitation",
+    "inviteDeclined": "Invitation declined.",
+    "inviteFound": "You are invited to join {{business}} as {{role}}.",
+    "inviteLoading": "Checking your invitation…",
+    "inviteMissing": "We could not find a pending invitation for this link. It may have expired or already been decided.",
+    "inviteOpenWorkspace": "Open workspace",
+    "inviteTitle": "Team invitation",
+    "resumeCode": "6-digit code",
+    "resumeFailed": "That email and code did not match. Check them and try again.",
+    "resumeHelp": "Started on another device? Enter the email and the 6-digit code from that signup to pick up where you left off.",
+    "resumeRestored": "Your signup details were restored. Enter your password to continue.",
+    "resumeSubmit": "Continue signup",
+    "resumeTitle": "Continue a signup you started",
     "title": "Create your account",
     "subtitle": "One account. Your choice.",
     "headline": "Your next opportunity",
@@ -1900,8 +1936,8 @@
       "platform_review": "After email verification, complete the platform review for this path. Protected tools remain locked until approval and activation.",
       "organization_invitation": "This path starts with an invitation or membership approval from an organization.",
       "domain_enrollment": "This path is enrolled by its owning program. Your account can track status without unlocking protected tools.",
-      "staff_provisioning": "Internal staff access is provisioned by an authorized OxSteed administrator.",
-      "nonhuman_provisioning": "Device and service accounts use administrator-provisioned nonhuman credentials; do not use a personal account."
+      "staff_provisioning": "Internal staff access is provisioned by an authorized OxSteed administrator. Your request is recorded for review.",
+      "nonhuman_provisioning": "Ask your administrator to provision device credentials; this signup creates your personal account for the request."
     },
     "intentConfirmed": "Your account is ready for this path",
     "intentConfirmationNote": "No protected tools were enabled. Continue through the owning admission flow when invited or eligible.",
@@ -2367,6 +2403,41 @@
     "credit": "OxSteed Credit",
     "partner": "Partner program",
     "learning": "Workforce learning"
+  },
+  "superModeApprovals": {
+    "allModes": "All modes",
+    "applicationData": "Application",
+    "approve": "Approve",
+    "decideFailed": "Could not record the decision.",
+    "decided": "Decision recorded.",
+    "empty": "No pending requests.",
+    "loadFailed": "Could not load approvals.",
+    "lookupButton": "Look up",
+    "lookupHelp": "The pending list only shows requested approvals. Look up an approved approval by ID to revoke it.",
+    "lookupLabel": "Approval ID",
+    "lookupNotFound": "No approval with that ID was found.",
+    "lookupPlaceholder": "e.g. 42",
+    "lookupTitle": "Look up one approval",
+    "modeFilter": "Mode",
+    "notes": "Notes",
+    "notesPlaceholder": "Optional note for the record",
+    "reasonRequired": "A rejection reason is required.",
+    "reject": "Reject",
+    "rejectionReason": "Rejection reason",
+    "rejectionReasonPlaceholder": "Required. The applicant sees this reason.",
+    "requestedOn": "Requested {{date}}",
+    "retry": "Retry",
+    "revoke": "Revoke",
+    "select": "Select a request to review it.",
+    "stateConflict": "This request was already decided. The list was refreshed.",
+    "status": {
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "requested": "Requested",
+      "revoked": "Revoked"
+    },
+    "subtitle": "Decide requests for gated actions inside a mode. Approvals, rejections, and revocations are recorded.",
+    "title": "Mode approvals"
   },
   "supportAgentPortal": {
     "title": "Support workspace",
@@ -3172,6 +3243,7 @@
   },
   "footer": {
     "explore": "Explore",
+    "joinTeamWithCode": "Join a team with a code",
     "services": "Services",
     "help": "Help",
     "compactTagline": "Local help, food, and business services.",
@@ -11634,6 +11706,7 @@
     "messenger": {
       "agreementOpenRecords": "Open the signed work agreement for this job",
       "agreementCreateRecords": "Create a signed work agreement for this job",
+      "bookingCancel": "Cancel booking",
       "quoteFinishOnJob": "Finish hiring on the job page",
       "message": "Message",
       "messageName": "Message {{name}}",
@@ -22365,6 +22438,12 @@
   "affiliateDashboard": {
     "loading": "Loading affiliate dashboard…",
     "loadingAnalytics": "Loading analytics…",
+    "partner": {
+      "inviteOnly": "Affiliate programs are by invitation for helpers. Ask for partner access and a reviewer will decide your request.",
+      "pending": "Partner access requested. A reviewer will decide your request.",
+      "request": "Request partner access",
+      "requested": "Partner access request sent."
+    },
     "sparklineNoData": "No data yet",
     "pageTitle": "Affiliate Dashboard | OxSteed",
     "title": "Affiliate Dashboard",
@@ -33053,6 +33132,7 @@
   },
   "adminNav": {
     "investReviewQueue": "Invest reviews",
+    "modeApprovals": "Mode Approvals",
     "moneyApprovals": "Money approvals",
     "adminAccounts": "Admin Accounts",
     "auditLog": "Audit Log",

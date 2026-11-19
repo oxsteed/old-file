@@ -1740,8 +1740,8 @@
       "platform_review": "Après vérification de l'e-mail, complétez l'examen de la plateforme. Les outils protégés restent verrouillés jusqu'à l'activation.",
       "organization_invitation": "Ce parcours commence par une invitation ou une validation d'adhésion.",
       "domain_enrollment": "Le programme responsable gère cette inscription; vous pouvez suivre son état sans outil protégé.",
-      "staff_provisioning": "L'accès du personnel est fourni par un administrateur OxSteed autorisé.",
-      "nonhuman_provisioning": "Les appareils utilisent des identifiants non humains; n'utilisez pas un compte personnel."
+      "staff_provisioning": "L’accès interne du personnel est fourni par un administrateur OxSteed autorisé. Votre demande est enregistrée pour examen.",
+      "nonhuman_provisioning": "Demandez à votre administrateur de fournir des identifiants d’appareil ; cette inscription crée votre compte personnel pour la demande."
     },
     "intentConfirmed": "Votre compte est prêt pour ce parcours",
     "intentConfirmationNote": "Aucun outil protégé n'a été activé. Continuez lorsque vous êtes invité ou éligible.",
@@ -6553,10 +6553,44 @@
     "retry": "Réessayer"
   },
   "progressiveAccess": {
+    "invitations": {
+      "accept": "Accepter",
+      "accepted": "Invitation acceptée.",
+      "decline": "Refuser",
+      "declined": "Invitation refusée.",
+      "empty": "Aucune invitation d’équipe en attente.",
+      "role": "Rôle : {{role}}",
+      "title": "Invitations d’équipe",
+      "vortexHint": "Vous avez un code d’équipe ?",
+      "vortexLink": "Utiliser un code"
+    },
     "pageTitle": "Demandes",
     "pageSubtitle": "Voyez ce que votre compte peut faire et demandez davantage.",
     "backToSettings": "Retour aux paramètres",
     "loading": "Chargement…",
+    "provisioning": {
+      "kinds": {
+        "device": "Appareil",
+        "partner_application": "Demande de partenariat",
+        "service_account": "Compte de service",
+        "staff_operations": "Opérations internes",
+        "staff_reviewer": "Réviseur interne",
+        "staff_support": "Agent de support interne"
+      },
+      "title": "Demandes d’approvisionnement"
+    },
+    "resumes": {
+      "creditStatus": {
+        "active": "Demande de crédit active",
+        "pending": "Demande de crédit en attente",
+        "revoked": "Demande de crédit révoquée",
+        "suspended": "Demande de crédit suspendue"
+      },
+      "partnerInviteOnly": "Les programmes d’affiliation sont sur invitation pour les aides. Vous pouvez demander l’accès partenaire.",
+      "partnerPending": "Accès partenaire demandé. Un réviseur décidera de votre demande.",
+      "partnerRequest": "Demander l’accès partenaire",
+      "partnerRequested": "Demande d’accès partenaire envoyée."
+    },
     "unavailable": "Les demandes ne sont pas encore disponibles sur votre compte.",
     "loadFailed": "Impossible de charger vos demandes.",
     "heldTitle": "Ce que vous pouvez faire maintenant",
@@ -6717,6 +6751,11 @@
     "openApplications": "Ouvrir les demandes",
     "admin": {
       "nav": "Demandes d'accès",
+      "provisioning": {
+        "empty": "Aucune demande d’approvisionnement.",
+        "subtitle": "Demandes du personnel, d’appareil, de compte de service et de partenariat issues de l’inscription. Une décision enregistre qui a décidé ; elle n’accorde rien par elle-même.",
+        "title": "Demandes d’approvisionnement d’inscription"
+      },
       "title": "Demandes d'accès",
       "subtitle": "Examinez les demandes d'accès prestataire, entreprise et autres.",
       "status": "Statut",

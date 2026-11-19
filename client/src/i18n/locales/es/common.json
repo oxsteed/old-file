@@ -1740,8 +1740,8 @@
       "platform_review": "Tras verificar tu correo, completa la revisión de la plataforma. Las herramientas requieren aprobación y activación.",
       "organization_invitation": "Este camino comienza con una invitación o aprobación de membresía.",
       "domain_enrollment": "El programa responsable gestiona esta inscripción; puedes consultar el estado.",
-      "staff_provisioning": "El acceso interno lo proporciona un administrador autorizado de OxSteed.",
-      "nonhuman_provisioning": "Las cuentas de dispositivos usan credenciales no humanas; no uses una cuenta personal."
+      "staff_provisioning": "El acceso interno del personal lo proporciona un administrador autorizado de OxSteed. Tu solicitud queda registrada para revisión.",
+      "nonhuman_provisioning": "Pide a tu administrador que proporcione credenciales de dispositivo; este registro crea tu cuenta personal para la solicitud."
     },
     "intentConfirmed": "Tu cuenta está lista para este camino",
     "intentConfirmationNote": "No se activaron herramientas protegidas. Continúa cuando recibas una invitación o seas elegible.",
@@ -6553,10 +6553,44 @@
     "retry": "Reintentar"
   },
   "progressiveAccess": {
+    "invitations": {
+      "accept": "Aceptar",
+      "accepted": "Invitación aceptada.",
+      "decline": "Rechazar",
+      "declined": "Invitación rechazada.",
+      "empty": "No hay invitaciones pendientes a equipos.",
+      "role": "Rol: {{role}}",
+      "title": "Invitaciones a equipos",
+      "vortexHint": "¿Tienes un código de equipo?",
+      "vortexLink": "Canjear un código"
+    },
     "pageTitle": "Solicitudes",
     "pageSubtitle": "Consulta lo que puede hacer tu cuenta y solicita más.",
     "backToSettings": "Volver a la configuración",
     "loading": "Cargando…",
+    "provisioning": {
+      "kinds": {
+        "device": "Dispositivo",
+        "partner_application": "Solicitud de socio",
+        "service_account": "Cuenta de servicio",
+        "staff_operations": "Operaciones internas",
+        "staff_reviewer": "Revisor interno",
+        "staff_support": "Agente de soporte interno"
+      },
+      "title": "Solicitudes de aprovisionamiento"
+    },
+    "resumes": {
+      "creditStatus": {
+        "active": "Solicitud de crédito activa",
+        "pending": "Solicitud de crédito pendiente",
+        "revoked": "Solicitud de crédito revocada",
+        "suspended": "Solicitud de crédito suspendida"
+      },
+      "partnerInviteOnly": "Los programas de afiliados son por invitación para ayudantes. Puedes pedir acceso de socio.",
+      "partnerPending": "Acceso de socio solicitado. Un revisor decidirá tu solicitud.",
+      "partnerRequest": "Solicitar acceso de socio",
+      "partnerRequested": "Solicitud de acceso de socio enviada."
+    },
     "unavailable": "Las solicitudes aún no están disponibles en tu cuenta.",
     "loadFailed": "No pudimos cargar tus solicitudes.",
     "heldTitle": "Lo que puedes hacer ahora",
@@ -6717,6 +6751,11 @@
     "openApplications": "Abrir solicitudes",
     "admin": {
       "nav": "Solicitudes de acceso",
+      "provisioning": {
+        "empty": "No hay solicitudes de aprovisionamiento.",
+        "subtitle": "Solicitudes de personal, dispositivo, cuenta de servicio y socio desde el registro. Una decisión registra quién decidió; no otorga nada por sí misma.",
+        "title": "Solicitudes de aprovisionamiento de registro"
+      },
       "title": "Solicitudes de acceso",
       "subtitle": "Revisa solicitudes de acceso como ayudante, negocio y más.",
       "status": "Estado",

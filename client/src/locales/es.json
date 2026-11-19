@@ -17,6 +17,27 @@
     "fulfillmentMoveBackTitle": "Retroceder la entrega de la tarjeta",
     "fulfillmentMoveBackConfirm": "¿Mover esta tarjeta de nuevo a {{status}}? Usa esto solo para corregir un paso que se marcó antes de que ocurriera. Una tarjeta que ya está activa no se puede mover hacia atrás."
   },
+  "learnPrograms": {
+    "completed": "Completado",
+    "customer-service-essentials": {
+      "description": "Cómo atender bien a los clientes, resolver problemas y ganar trabajo repetido.",
+      "title": "Esenciales de atención al cliente"
+    },
+    "enroll": "Inscribirse",
+    "enrollFailed": "No se pudo completar la inscripción. Inténtalo de nuevo.",
+    "enrolled": "Inscrito",
+    "helper-foundations": {
+      "description": "Lo básico para ofrecer servicios: seguridad, comunicación y trabajo bien hecho.",
+      "title": "Fundamentos para ayudantes"
+    },
+    "progress": "{{completed}} de {{total}} guías completas",
+    "subtitle": "Inscríbete en un programa para aprender un oficio paso a paso. Completa todas las guías de un programa para terminarlo.",
+    "title": "Programas de fuerza laboral",
+    "workforce-management": {
+      "description": "Cómo organizar equipos, horarios y trabajo de calidad a gran escala.",
+      "title": "Gestión de fuerza laboral"
+    }
+  },
   "pwaExperience": {
     "serverUpdated": "Se sincronizó un texto más reciente. Revisa las fotos guardadas en este dispositivo.",
     "searchUnavailable": "No se pudo cargar la búsqueda. Reconecta e inténtalo de nuevo.",
@@ -1860,6 +1881,21 @@
     }
   },
   "signupUpgrade": {
+    "inviteAccept": "Aceptar invitación",
+    "inviteAccepted": "Bienvenido al equipo. Tu invitación fue aceptada.",
+    "inviteDecline": "Rechazar invitación",
+    "inviteDeclined": "Invitación rechazada.",
+    "inviteFound": "Te invitaron a unirte a {{business}} como {{role}}.",
+    "inviteLoading": "Verificando tu invitación…",
+    "inviteMissing": "No encontramos una invitación pendiente para este enlace. Puede haber vencido o ya fue decidida.",
+    "inviteOpenWorkspace": "Abrir espacio de trabajo",
+    "inviteTitle": "Invitación a un equipo",
+    "resumeCode": "Código de 6 dígitos",
+    "resumeFailed": "Ese correo y código no coinciden. Revísalos e inténtalo de nuevo.",
+    "resumeHelp": "¿Empezaste en otro dispositivo? Ingresa el correo y el código de 6 dígitos de ese registro para continuar donde quedaste.",
+    "resumeRestored": "Tus datos de registro se restauraron. Ingresa tu contraseña para continuar.",
+    "resumeSubmit": "Continuar registro",
+    "resumeTitle": "Continúa un registro que empezaste",
     "title": "Crea tu cuenta",
     "subtitle": "Una cuenta. Tú eliges.",
     "headline": "Tu próxima oportunidad",
@@ -1900,8 +1936,8 @@
       "platform_review": "Tras verificar tu correo, completa la revisión de la plataforma. Las herramientas requieren aprobación y activación.",
       "organization_invitation": "Este camino comienza con una invitación o aprobación de membresía.",
       "domain_enrollment": "El programa responsable gestiona esta inscripción; puedes consultar el estado.",
-      "staff_provisioning": "El acceso interno lo proporciona un administrador autorizado de OxSteed.",
-      "nonhuman_provisioning": "Las cuentas de dispositivos usan credenciales no humanas; no uses una cuenta personal."
+      "staff_provisioning": "El acceso interno del personal lo proporciona un administrador autorizado de OxSteed. Tu solicitud queda registrada para revisión.",
+      "nonhuman_provisioning": "Pide a tu administrador que proporcione credenciales de dispositivo; este registro crea tu cuenta personal para la solicitud."
     },
     "intentConfirmed": "Tu cuenta está lista para este camino",
     "intentConfirmationNote": "No se activaron herramientas protegidas. Continúa cuando recibas una invitación o seas elegible.",
@@ -2367,6 +2403,41 @@
     "credit": "OxSteed Credit",
     "partner": "Programa de socios",
     "learning": "Aprendizaje laboral"
+  },
+  "superModeApprovals": {
+    "allModes": "Todos los modos",
+    "applicationData": "Solicitud",
+    "approve": "Aprobar",
+    "decideFailed": "No se pudo registrar la decisión.",
+    "decided": "Decisión registrada.",
+    "empty": "No hay solicitudes pendientes.",
+    "loadFailed": "No se pudieron cargar las aprobaciones.",
+    "lookupButton": "Buscar",
+    "lookupHelp": "La lista de pendientes solo muestra solicitudes en espera. Busca una aprobación aprobada por ID para revocarla.",
+    "lookupLabel": "ID de aprobación",
+    "lookupNotFound": "No se encontró ninguna aprobación con ese ID.",
+    "lookupPlaceholder": "p. ej., 42",
+    "lookupTitle": "Buscar una aprobación",
+    "modeFilter": "Modo",
+    "notes": "Notas",
+    "notesPlaceholder": "Nota opcional para el registro",
+    "reasonRequired": "Se requiere un motivo de rechazo.",
+    "reject": "Rechazar",
+    "rejectionReason": "Motivo del rechazo",
+    "rejectionReasonPlaceholder": "Obligatorio. El solicitante verá este motivo.",
+    "requestedOn": "Solicitado el {{date}}",
+    "retry": "Reintentar",
+    "revoke": "Revocar",
+    "select": "Selecciona una solicitud para revisarla.",
+    "stateConflict": "Esta solicitud ya fue decidida. La lista se actualizó.",
+    "status": {
+      "approved": "Aprobada",
+      "rejected": "Rechazada",
+      "requested": "Solicitada",
+      "revoked": "Revocada"
+    },
+    "subtitle": "Decide solicitudes de acciones restringidas dentro de un modo. Las aprobaciones, rechazos y revocaciones quedan registrados.",
+    "title": "Aprobaciones de modo"
   },
   "supportAgentPortal": {
     "title": "Espacio de soporte",
@@ -3172,6 +3243,7 @@
   },
   "footer": {
     "explore": "Explorar",
+    "joinTeamWithCode": "Unirse a un equipo con un código",
     "services": "Servicios",
     "help": "Ayuda",
     "compactTagline": "Ayuda local, comida y servicios empresariales.",
@@ -11634,6 +11706,7 @@
     "messenger": {
       "agreementOpenRecords": "Abrir el acuerdo de trabajo firmado de este trabajo",
       "agreementCreateRecords": "Crear un acuerdo de trabajo firmado para este trabajo",
+      "bookingCancel": "Cancelar reserva",
       "quoteFinishOnJob": "Termina la contratación en la página del trabajo",
       "message": "Mensaje",
       "messageName": "Mensaje a {{name}}",
@@ -22365,6 +22438,12 @@
   "affiliateDashboard": {
     "loading": "Cargando el panel de afiliados…",
     "loadingAnalytics": "Cargando analíticas…",
+    "partner": {
+      "inviteOnly": "Los programas de afiliados son por invitación para ayudantes. Pide acceso de socio y un revisor decidirá tu solicitud.",
+      "pending": "Acceso de socio solicitado. Un revisor decidirá tu solicitud.",
+      "request": "Solicitar acceso de socio",
+      "requested": "Solicitud de acceso de socio enviada."
+    },
     "sparklineNoData": "Aún no hay datos",
     "pageTitle": "Panel de afiliados | OxSteed",
     "title": "Panel de afiliados",
@@ -33053,6 +33132,7 @@
   },
   "adminNav": {
     "investReviewQueue": "Revisiones de inversión",
+    "modeApprovals": "Aprobaciones de modo",
     "moneyApprovals": "Aprobaciones de dinero",
     "adminAccounts": "Cuentas de administrador",
     "auditLog": "Registro de auditoría",

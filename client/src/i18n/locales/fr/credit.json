@@ -5,6 +5,12 @@
     "fulfillmentMoveBackTitle": "Reculer la remise de la carte",
     "fulfillmentMoveBackConfirm": "Remettre cette carte à {{status}} ? Utilisez ceci uniquement pour corriger une étape marquée avant qu’elle ne se produise. Une carte déjà active ne peut pas être reculée."
   },
+  "creditApplyCustomerNote": "Cette demande concerne un propriétaire d’entreprise ou un aide qui demande que son entreprise ou son profil accepte le Crédit. Un client n’a besoin d’aucune inscription pour dépenser du Crédit.",
+  "creditApplyMyStatus": "Vos demandes",
+  "creditApplyStatusActive": "Demande active",
+  "creditApplyStatusPending": "Demande en attente",
+  "creditApplyStatusRevoked": "Demande révoquée",
+  "creditApplyStatusSuspended": "Demande suspendue",
   "statementCenter": {
     "delegatedReadPermission": "Consulter uniquement les relevés émis",
     "title": "Centre des relevés",

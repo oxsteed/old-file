@@ -5,6 +5,12 @@
     "fulfillmentMoveBackTitle": "Deplase livrezon kat la tounen",
     "fulfillmentMoveBackConfirm": "Deplase kat sa a tounen nan {{status}}? Itilize sa a sèlman pou korije yon etap yo te make anvan li te rive. Yon kat ki deja aktive pa ka deplase tounen."
   },
+  "creditApplyCustomerNote": "Aplikasyon sa a se pou yon pwopriyetè biznis oswa yon edè k ap aplike pou biznis li oswa pwofil li aksepte Kredi. Yon kliyan pa bezwen okenn enskripsyon pou li depanse Kredi.",
+  "creditApplyMyStatus": "Aplikasyon ou yo",
+  "creditApplyStatusActive": "Aplikasyon aktif",
+  "creditApplyStatusPending": "Aplikasyon poko deside",
+  "creditApplyStatusRevoked": "Aplikasyon anile",
+  "creditApplyStatusSuspended": "Aplikasyon sispann",
   "statementCenter": {
     "delegatedReadPermission": "Li deklarasyon ki deja pibliye sèlman",
     "title": "Sant deklarasyon",

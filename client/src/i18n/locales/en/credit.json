@@ -5,6 +5,12 @@
     "fulfillmentMoveBackTitle": "Move card fulfillment back",
     "fulfillmentMoveBackConfirm": "Move this card back to {{status}}? Use this only to correct a step that was marked before it happened. A card that is already active cannot be moved back."
   },
+  "creditApplyCustomerNote": "This application is for a business owner or helper applying for their business or profile to accept Credit. A customer needs no enrollment to spend Credit.",
+  "creditApplyMyStatus": "Your applications",
+  "creditApplyStatusActive": "Application active",
+  "creditApplyStatusPending": "Application pending",
+  "creditApplyStatusRevoked": "Application revoked",
+  "creditApplyStatusSuspended": "Application suspended",
   "statementCenter": {
     "delegatedReadPermission": "Read issued statements only",
     "title": "Statement center",

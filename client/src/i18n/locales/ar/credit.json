@@ -5,6 +5,12 @@
     "fulfillmentMoveBackTitle": "إرجاع تسليم البطاقة خطوة إلى الوراء",
     "fulfillmentMoveBackConfirm": "هل تريد إرجاع هذه البطاقة إلى {{status}}؟ استخدم هذا فقط لتصحيح خطوة تم وضع علامة عليها قبل حدوثها. لا يمكن إرجاع البطاقة المفعلة بالفعل."
   },
+  "creditApplyCustomerNote": "هذا الطلب لصاحب عمل أو مساعد يتقدّم ليقبل عمله أو ملفه الشخصي الائتمان. العميل لا يحتاج إلى أي تسجيل لإنفاق الائتمان.",
+  "creditApplyMyStatus": "طلباتك",
+  "creditApplyStatusActive": "الطلب نشط",
+  "creditApplyStatusPending": "الطلب معلّق",
+  "creditApplyStatusRevoked": "الطلب ملغى",
+  "creditApplyStatusSuspended": "الطلب موقوف",
   "statementCenter": {
     "delegatedReadPermission": "قراءة الكشوفات الصادرة فقط",
     "title": "مركز الكشوفات",
