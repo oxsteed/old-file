@@ -1680,7 +1680,8 @@
     "help": "Èd",
     "compactTagline": "Èd lokal, manje ak sèvis pou biznis.",
     "teamAccess": "Aksè ekip (Vortex)",
-    "creditTerms": "Kondisyon OxSteed Credit"
+    "creditTerms": "Kondisyon OxSteed Credit",
+    "yourAccess": "OxSteed ou"
   },
   "nav": {
     "findHelp": "Jwenn èd",
@@ -1692,7 +1693,11 @@
     "foodOrders": "Kòmann manje",
     "myApplications": "Aplikasyon mwen yo",
     "account": "Kont",
-    "help": "Èd"
+    "help": "Èd",
+    "credit": "OxSteed Credit",
+    "partner": "Pwogram patnè",
+    "learning": "Aprantisaj travay",
+    "browseJobs": "Chèche travay"
   },
   "signupUpgrade": {
     "title": "Kreye kont ou",

@@ -2362,7 +2362,10 @@
     "network": "Rezo OxSteed",
     "localFoodDirectory": "Anyè Manje Lokal",
     "logistics": "Lojistik",
-    "mainNavigation": "Navigasyon otantifikasyon"
+    "mainNavigation": "Navigasyon otantifikasyon",
+    "credit": "OxSteed Credit",
+    "partner": "Pwogram patnè",
+    "learning": "Aprantisaj travay"
   },
   "supportAgentPortal": {
     "title": "Espa sipo",
@@ -3476,6 +3479,7 @@
     "doNotSell": "Pa Vann Enfòmasyon Mwen",
     "accessibility": "Aksesibilite",
     "manageCookies": "Jere Bonbon",
+    "yourAccess": "OxSteed ou",
     "vortex": "Vortex",
     "vortexTitle": "Sistèm Vortex",
     "vortexDesc": "Platfòm jestyon biznis",

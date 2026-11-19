@@ -1680,7 +1680,8 @@
     "help": "Help",
     "compactTagline": "Local help, food, and business services.",
     "teamAccess": "Team access (Vortex)",
-    "creditTerms": "OxSteed Credit terms"
+    "creditTerms": "OxSteed Credit terms",
+    "yourAccess": "Your OxSteed"
   },
   "nav": {
     "findHelp": "Find Help",
@@ -1692,7 +1693,11 @@
     "foodOrders": "Food Orders",
     "myApplications": "My applications",
     "account": "Account",
-    "help": "Help"
+    "help": "Help",
+    "credit": "OxSteed Credit",
+    "partner": "Partner program",
+    "learning": "Workforce learning",
+    "browseJobs": "Browse Jobs"
   },
   "signupUpgrade": {
     "title": "Create your account",

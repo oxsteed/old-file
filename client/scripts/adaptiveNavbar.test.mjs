@@ -81,12 +81,12 @@ test('investor reporting is read-only and never exposes investment participation
     ...projection(['customer', 'investor.reporting']),
     investorAudience: { audienceKey: 'entity', datasets: ['kpis'] },
   });
-  assert.ok(destinations(nav).includes('/investor'));
+  assert.ok(destinations(nav).includes('/investor/dashboard'));
   assert.ok(!destinations(nav).some((path) => /commit|participat/i.test(path)));
 });
 
 test('planned, unverified, and nonhuman actors fail closed', () => {
-  const planned = deriveAdaptiveNavigation(projection(['customer', 'credit.participate']));
+  const planned = deriveAdaptiveNavigation(projection(['customer', 'credit.participate'], [], { activation: { 'credit.participate': 'needs_setup' } }));
   assert.ok(!destinations(planned).some((path) => path.includes('credit')));
   const nonhuman = deriveAdaptiveNavigation(projection([], [], { actorType: 'nonhuman' }));
   assert.deepEqual(nonhuman.primary, []);

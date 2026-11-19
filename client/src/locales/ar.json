@@ -2362,7 +2362,10 @@
     "network": "شبكة أوكسستيد",
     "localFoodDirectory": "دليل الطعام المحلي",
     "logistics": "اللوجستيات",
-    "mainNavigation": "تنقل المصادقة"
+    "mainNavigation": "تنقل المصادقة",
+    "credit": "OxSteed Credit",
+    "partner": "برنامج الشركاء",
+    "learning": "التعلم المهني"
   },
   "supportAgentPortal": {
     "title": "منطقة الدعم",
@@ -3198,6 +3201,7 @@
     "doNotSell": "عدم بيع معلوماتي",
     "accessibility": "إمكانية الوصول",
     "manageCookies": "إدارة ملفات تعريف الارتباط",
+    "yourAccess": "OxSteed الخاص بك",
     "vortex": "دوامة",
     "vortexTitle": "دوامة",
     "vortexDesc": "أدخل رمز Vortex المكون من 64 حرفًا الذي شاركه مالك العمل للانضمام إلى فريقه.",

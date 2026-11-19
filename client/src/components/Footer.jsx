@@ -9,6 +9,7 @@ import { useCookieConsentContext } from '../context/CookieConsentContext';
 import { useTranslation } from 'react-i18next';
 import { footerNavigation } from '../utils/footerNavigation';
 import { useSupportWorkspaceAccess } from '../hooks/useSupportWorkspaceAccess';
+import useAccessProjection from '../hooks/useAccessProjection';
 import './Footer.css';
 
 const OXSTEED_MAIN_PHONE = '+1 (937) 408-5169';
@@ -39,7 +40,8 @@ export default function Footer() {
   const { t } = useTranslation();
   const footerId = useId();
   const showSupportWorkspace = useSupportWorkspaceAccess(user);
-  const groups = footerNavigation(user, { showSupportWorkspace });
+  const accessProjection = useAccessProjection(user);
+  const groups = footerNavigation(user, { showSupportWorkspace, projection: accessProjection });
 
   return (
     <>

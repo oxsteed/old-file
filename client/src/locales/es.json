@@ -2362,7 +2362,10 @@
     "network": "Red OxSteed",
     "localFoodDirectory": "Directorio de comida local",
     "logistics": "Logística",
-    "mainNavigation": "Navegación de autenticación"
+    "mainNavigation": "Navegación de autenticación",
+    "credit": "OxSteed Credit",
+    "partner": "Programa de socios",
+    "learning": "Aprendizaje laboral"
   },
   "supportAgentPortal": {
     "title": "Espacio de soporte",
@@ -3198,6 +3201,7 @@
     "doNotSell": "No vender mi información",
     "accessibility": "Accesibilidad",
     "manageCookies": "Gestionar cookies",
+    "yourAccess": "Tu OxSteed",
     "vortex": "Vórtice",
     "vortexTitle": "Sistemas de Vórtice",
     "vortexDesc": "Plataforma de gestión de negocios",

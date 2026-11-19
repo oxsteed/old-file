@@ -26,6 +26,25 @@ export const PERSONA_NAVIGATION_CATALOG = Object.freeze([
 
 const link = (id, to, labelKey, extra = {}) => ({ id, to, labelKey, primary: false, ...extra });
 const STAFF_CAPABILITIES = new Set(['staff.review', 'staff.support', 'admin.access', 'manage_operations']);
+const PERSONA_NAV_TARGETS = Object.freeze({
+  helper: [
+    { id: 'persona-helper-opportunities', to: '/jobs', labelKey: 'nav.browseJobs' },
+    { id: 'persona-helper-work', to: '/helper-dashboard', labelKey: 'nav.myWork' },
+  ],
+  'business-owner': [{ id: 'persona-business-workspace', to: '/business-hub', labelKey: 'nav.businessWorkspace' }],
+  'restaurant-owner': [{ id: 'persona-restaurant-workspace', to: '/restaurants/merchant', labelKey: 'progressiveAccess.capabilities.restaurant.own' }],
+  logistics: [
+    { id: 'persona-logistics-buyer', to: '/logistics/buyer', labelKey: 'logistics.nav.buyer' },
+    { id: 'persona-logistics-organizer', to: '/logistics/organizer', labelKey: 'logistics.nav.organizer' },
+  ],
+  consultant: [{ id: 'persona-consulting', to: '/consulting/contractor-dashboard', labelKey: 'consultantContractorDashboard.page.title' }],
+  'equipment-owner': [{ id: 'persona-equipment', to: '/tool-rentals/analytics', labelKey: 'progressiveAccess.capabilities.tool_owner.list_equipment' }],
+  franchise: [{ id: 'persona-franchise', to: '/franchise/territory', labelKey: 'progressiveAccess.capabilities.franchise.operate' }],
+  'investor-reporting': [{ id: 'persona-investor-reporting', to: '/investor/dashboard', labelKey: 'progressiveAccess.capabilities.investor.reporting', reportingOnly: true }],
+  'credit-participant': [{ id: 'persona-credit', to: '/oxsteed-credit', labelKey: 'nav.credit' }],
+  'partner-affiliate': [{ id: 'persona-partner', to: '/affiliate', labelKey: 'nav.partner' }],
+  'workforce-learning': [{ id: 'persona-learning', to: '/learn', labelKey: 'nav.learning' }],
+});
 
 function isProjectionReady(projection) {
   return !!(projection?.flags?.accessProjection && projection?.access);
@@ -53,6 +72,20 @@ function activationReady(projection, capability) {
 
 function addUnique(target, item) {
   if (!target.some((existing) => existing.id === item.id || existing.to === item.to)) target.push(item);
+}
+
+function addPersonaLinks(target, projection, approved) {
+  for (const family of PERSONA_NAVIGATION_CATALOG) {
+    if (!family.capability || !approved(family.capability)) continue;
+    if (family.id === 'investor-reporting' && !projection.investorAudience) continue;
+    for (const item of PERSONA_NAV_TARGETS[family.id] || []) {
+      addUnique(target, link(item.id, item.to, item.labelKey, {
+        protected: true,
+        persona: family.id,
+        ...(item.reportingOnly ? { reportingOnly: true } : {}),
+      }));
+    }
+  }
 }
 
 function organizationLinks(projection) {
@@ -116,7 +149,7 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
     addUnique(account, link('logisticsOrganizer', '/logistics/organizer', 'logistics.nav.organizer', { protected: true }));
   }
   if (approved('investor.reporting') && projection.investorAudience) {
-    addUnique(account, link('investorReporting', '/investor', 'nav.dashboard', { protected: true, reportingOnly: true }));
+    addUnique(account, link('investorReporting', '/investor/dashboard', 'progressiveAccess.capabilities.investor.reporting', { protected: true, reportingOnly: true }));
   }
   if (hasCapability(projection, 'business.own') && !activationReady(projection, 'business.own')) {
     addUnique(account, link('businessSetup', '/business-launch/status', 'nav.businessLaunchStatus'));
@@ -128,6 +161,11 @@ export function deriveAdaptiveNavigation(projection, { showSupportWorkspace = fa
     addUnique(account, link('workspace', '/business-hub', 'nav.businessWorkspace', { protected: true }));
     for (const workspace of workspaces) addUnique(account, workspace);
   }
+
+  // Every implemented catalog family gets its own contextual shortcut when
+  // the projection says its capability is effective and activation is ready.
+  // Families without a verified domain destination remain customer-only.
+  addPersonaLinks(account, projection, approved);
 
   const staffAccess = showSupportWorkspace || (access.personal || []).some((capability) => STAFF_CAPABILITIES.has(capability)) || ['admin', 'super_admin', 'support_agent', 'reviewer'].includes(access.staffRole);
   if (staffAccess) addUnique(account, link('support', '/support/agent', 'nav.supportWorkspace', { staffShell: true }));

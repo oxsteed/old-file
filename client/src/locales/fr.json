@@ -2362,7 +2362,10 @@
     "network": "Réseau OxSteed",
     "localFoodDirectory": "Annuaire alimentaire local",
     "logistics": "Logistique",
-    "mainNavigation": "Navigation d'authentification"
+    "mainNavigation": "Navigation d'authentification",
+    "credit": "OxSteed Credit",
+    "partner": "Programme partenaire",
+    "learning": "Formation professionnelle"
   },
   "supportAgentPortal": {
     "title": "Espace d’assistance",
@@ -3198,6 +3201,7 @@
     "doNotSell": "Ne pas vendre mes informations",
     "accessibility": "Accessibilité",
     "manageCookies": "Gérer les cookies",
+    "yourAccess": "Votre OxSteed",
     "vortex": "Vortex",
     "vortexTitle": "Systèmes Vortex",
     "vortexDesc": "Plateforme de gestion d'entreprise",

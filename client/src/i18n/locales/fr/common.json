@@ -1680,7 +1680,8 @@
     "help": "Aide",
     "compactTagline": "Aide locale, restauration et services aux entreprises.",
     "teamAccess": "Accès à l’équipe (Vortex)",
-    "creditTerms": "Conditions d’OxSteed Credit"
+    "creditTerms": "Conditions d’OxSteed Credit",
+    "yourAccess": "Votre OxSteed"
   },
   "nav": {
     "findHelp": "Trouver de l’aide",
@@ -1692,7 +1693,11 @@
     "foodOrders": "Commandes de repas",
     "myApplications": "Mes demandes",
     "account": "Compte",
-    "help": "Aide"
+    "help": "Aide",
+    "credit": "OxSteed Credit",
+    "partner": "Programme partenaire",
+    "learning": "Formation professionnelle",
+    "browseJobs": "Parcourir les offres"
   },
   "signupUpgrade": {
     "title": "Créez votre compte",
