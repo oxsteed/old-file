@@ -474,7 +474,11 @@ async function submitOpportunityForReview(userId, opportunityId, dbPool = pool) 
  * Reviewer opportunity decision. claim moves submitted to under_review;
  * approve moves under_review to approved and records what was verified;
  * decline sends it back to submitted with a note. Publish is a separate
- * step under its own authority (investment_opportunity.publish).
+ * step under its own authority (admin permission
+ * review_invest_opportunity_publish, not a registry capability: the
+ * investment.* registry entries were removed as dead in the PR #804
+ * ecosystem-gap build because the invest routes never issued grants
+ * for them).
  */
 async function reviewOpportunity(input, dbPool = pool) {
   const { opportunityId, reviewerUserId, action, expectedVersion = null, note = null, verificationSummary = null } = input || {};

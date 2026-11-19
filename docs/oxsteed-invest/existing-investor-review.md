@@ -75,15 +75,17 @@ New entries go in `server/services/access/policyRegistry.js` as siblings of
 - `investor.participate`: subjectType `self`; reviewerClass `platform`;
   reviewPermission a new admin grant code (do not reuse
   `review_investor_access`, which is the reporting reviewer pool);
-  `applicantMayRequest: true`; `legacyModes: []` and `legacyRoles: []`
+  `applicantMayRequest: false` (PR #804 ecosystem-gap build: the generic
+  access-request path must never mint participation; an empty form sailed
+  through validation, so the flag, not the form, closes the path);
   (nothing legacy grants participation); activationRequirements to be defined
   by Track 1 (identity/authority verification, eligibility, agreement
   acceptance are participation requirements, not access-request activation
   steps, and must be checked again at commit and closing).
-- `investment_opportunity.publish`: subjectType `business` (the entity);
-  reviewerClass `platform`; separate review permission; applicant flow is the
-  entity submission, not a self-service access request, so
-  `applicantMayRequest` needs a Track 1 decision.
+- Opportunity publication is NOT a registry capability: it is the admin
+  permission `review_invest_opportunity_publish`, held by a platform
+  reviewer who is not the entity representative; the applicant flow is the
+  entity submission, not a self-service access request.
 - Closing and proceeds release are NOT capabilities in this registry as
   drawn today: the brief requires them under separate authorities with no
   self-approval and separate review plus execution. If they are modeled as

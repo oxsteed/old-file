@@ -23,7 +23,19 @@ describe('invest authority matrix', () => {
     expect(cap.reviewPermission).not.toBe('review_investor_access');
     expect(cap.legacyModes).toEqual([]);
     expect(cap.legacyRoles).toEqual([]);
-    expect(cap.applicantMayRequest).toBe(true);
+    // G-10: the generic access-request path must never mint participation.
+    // Participation comes only from the per-opportunity invest flow, so the
+    // capability is not self-service requestable and the public policy list
+    // (which filters on applicantMayRequest) never offers it.
+    expect(cap.applicantMayRequest).toBe(false);
+    expect(registry.publicPolicy('investor.participate').applicantMayRequest).toBe(false);
+  });
+
+  test('the generic access-request path cannot file investor.participate', () => {
+    // createRequest enforces applicantMayRequest (accessService.js): a
+    // self-service request for a non-requestable capability 403s with
+    // access_request_not_available before any draft is created.
+    expect(registry.getCapability('investor.participate').applicantMayRequest).toBe(false);
   });
 
   test('investor.reporting is untouched and keeps its own reviewer pool', () => {
@@ -32,17 +44,22 @@ describe('invest authority matrix', () => {
     expect(cap.legacyModes).toEqual(['investor']);
   });
 
-  test('publish, close, and proceeds release are separate authorities', () => {
-    const publish = registry.getCapability('investment_opportunity.publish');
-    const close = registry.getCapability('investment.close');
-    const release = registry.getCapability('investment.release_proceeds');
-    expect(publish.reviewPermission).toBe('review_invest_opportunity_publish');
-    expect(close.reviewPermission).toBe('review_invest_close');
-    expect(release.reviewPermission).toBe('review_invest_release_proceeds');
-    expect(new Set([publish.reviewPermission, close.reviewPermission, release.reviewPermission]).size).toBe(3);
-    expect(publish.applicantMayRequest).toBe(false);
-    expect(close.applicantMayRequest).toBe(false);
-    expect(release.applicantMayRequest).toBe(false);
+  test('publish, close, and proceeds release are admin permissions, not registry capabilities', () => {
+    // G-39: the three investment.* registry entries were dead (zero issuers,
+    // zero consumers); the invest routes enforce admin permissions instead.
+    // The registry must no longer describe an authority model the product
+    // does not use.
+    expect(registry.getCapability('investment_opportunity.publish')).toBeNull();
+    expect(registry.getCapability('investment.close')).toBeNull();
+    expect(registry.getCapability('investment.release_proceeds')).toBeNull();
+    expect(registry.listCapabilities().map((c) => c.key)).not.toContain('investment_opportunity.publish');
+    // The real authority still exists, as admin permission codes: publish,
+    // close, and release remain three separate authorities, and no single
+    // code authorizes more than one step.
+    const { PERMISSION_SCOPES } = require('../controllers/adminPermissionController');
+    expect(PERMISSION_SCOPES.review_invest_opportunity_publish).toBe('Publish approved investment opportunities');
+    expect(PERMISSION_SCOPES.review_invest_close).toBe('Review and execute investment opportunity closings');
+    expect(PERMISSION_SCOPES.review_invest_release_proceeds).toBe('Release entity proceeds after an approved closing');
   });
 
   test('document access is not a blanket capability', () => {
@@ -62,7 +79,7 @@ describe('invest authority matrix', () => {
     expect(resolver.canReview({ id: 'rev-1', role: 'admin', permissions: ['review_investor_access'] }, request).allowed).toBe(false);
     expect(resolver.canReview({ id: 'applicant-1', role: 'admin', permissions: ['review_invest_participation'] }, request).allowed).toBe(false);
     expect(resolver.canReview({ id: 'rev-1', role: 'super_admin', permissions: [] }, request).allowed).toBe(true);
-    expect(resolver.canReview({ id: 'rev-1', role: 'admin', permissions: ['review_invest_opportunity_publish'] }, { applicant_id: 'a', capability: 'investment_opportunity.publish' }).allowed).toBe(true);
+    expect(resolver.canReview({ id: 'rev-1', role: 'admin', permissions: ['review_invest_opportunity_publish'] }, { applicant_id: 'a', capability: 'investment_opportunity.publish' }).allowed).toBe(false);
     expect(resolver.canReview({ id: 'rev-1', role: 'admin', permissions: ['review_invest_close'] }, { applicant_id: 'a', capability: 'investment.release_proceeds' }).allowed).toBe(false);
   });
 

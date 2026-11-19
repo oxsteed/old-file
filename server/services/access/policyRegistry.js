@@ -183,7 +183,11 @@ const CAPABILITIES = Object.freeze({
     reviewerClass: 'platform',
     // OWN reviewer pool: never reuse review_investor_access (reporting).
     reviewPermission: 'review_invest_participation',
-    applicantMayRequest: true,
+    // G-10: participation is per-opportunity through the invest routes only.
+    // The generic access-request path must never mint this grant: an empty
+    // form sailed through validation, so applicantMayRequest is false and
+    // createRequest 403s a generic investor.participate request.
+    applicantMayRequest: false,
     // EMPTY legacy mapping: no legacy mode or role grants participation.
     // A legacy `investor` mode or an investor.reporting grant grants nothing
     // here; participation needs its own per-opportunity application, identity
@@ -195,51 +199,9 @@ const CAPABILITIES = Object.freeze({
     activationRequirements: Object.freeze(['identity_verified', 'authority_verified', 'eligibility_verified', 'agreement_accepted']),
     // Participation applications are per-opportunity through the invest
     // routes (server/routes/invest.js), not through the generic access
-    // request form; the form stays empty so no generic request can stand
-    // in for the per-opportunity checks.
-    form: Object.freeze({ fields: Object.freeze([]) }),
-  }),
-  'investment_opportunity.publish': Object.freeze({
-    key: 'investment_opportunity.publish',
-    version: 'invest-publish-policy-1',
-    intent: 'publish_investment_opportunity',
-    subjectTypes: Object.freeze(['business']),
-    reviewerClass: 'platform',
-    reviewPermission: 'review_invest_opportunity_publish',
-    // The applicant flow is the entity submission, not a self-service
-    // access request: the entity submits, a platform reviewer publishes.
-    applicantMayRequest: false,
-    legacyModes: Object.freeze([]),
-    legacyRoles: Object.freeze([]),
-    activationRequirements: Object.freeze(['opportunity_approved']),
-    form: Object.freeze({ fields: Object.freeze([]) }),
-  }),
-  'investment.close': Object.freeze({
-    key: 'investment.close',
-    version: 'invest-close-policy-1',
-    intent: 'close_investment_opportunity',
-    subjectTypes: Object.freeze(['business']),
-    reviewerClass: 'platform',
-    reviewPermission: 'review_invest_close',
-    applicantMayRequest: false,
-    legacyModes: Object.freeze([]),
-    legacyRoles: Object.freeze([]),
-    activationRequirements: Object.freeze(['closing_conditions_approved', 'separate_review_and_execution']),
-    form: Object.freeze({ fields: Object.freeze([]) }),
-  }),
-  'investment.release_proceeds': Object.freeze({
-    key: 'investment.release_proceeds',
-    version: 'invest-release-proceeds-policy-1',
-    intent: 'release_investment_proceeds',
-    subjectTypes: Object.freeze(['business']),
-    reviewerClass: 'platform',
-    // SEPARATE authority from investment.close: no single grant may
-    // authorize both closing and proceeds release.
-    reviewPermission: 'review_invest_release_proceeds',
-    applicantMayRequest: false,
-    legacyModes: Object.freeze([]),
-    legacyRoles: Object.freeze([]),
-    activationRequirements: Object.freeze(['opportunity_closed', 'closing_conditions_approved']),
+    // request form. applicantMayRequest is false (see above), so no generic
+    // request can stand in for the per-opportunity checks; the empty form
+    // alone never prevented one.
     form: Object.freeze({ fields: Object.freeze([]) }),
   }),
   'franchise.operate': Object.freeze({
