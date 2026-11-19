@@ -100,16 +100,16 @@ ddescribe('PR #804 Track E', () => {
       await grant(userId, 'helper.offer_services', 'helper-policy-1');
       const state = await activation.activationFor('helper.offer_services', userId, pool);
       expect(state.ready).toBe(false);
-      expect(state.missing).toEqual(expect.arrayContaining(['identity_verified', 'helper_terms']));
+      expect(state.missing).toEqual(expect.arrayContaining(['identity_verified', 'helper_terms', 'payout_setup']));
       const decision = await accessService.can(userId, 'helper.offer_services', undefined, pool);
       expect(decision.allowed).toBe(false);
       expect(decision.reason).toBe('activation_incomplete');
-      expect(decision.missing).toEqual(expect.arrayContaining(['identity_verified', 'helper_terms']));
+      expect(decision.missing).toEqual(expect.arrayContaining(['identity_verified', 'helper_terms', 'payout_setup']));
       const projection = await accessService.getProjection(userId, pool);
       expect(projection.personal).toContain('helper.offer_services');
       expect(projection.activation['helper.offer_services'].ready).toBe(false);
       expect(projection.activation['helper.offer_services'].missing).toEqual(
-        expect.arrayContaining(['identity_verified', 'helper_terms']),
+        expect.arrayContaining(['identity_verified', 'helper_terms', 'payout_setup']),
       );
     });
 
@@ -133,6 +133,9 @@ ddescribe('PR #804 Track E', () => {
       expect(decision.reason).toBe('grant');
     });
 
+    // G-1: payout_setup is a helper activation requirement again, so a
+    // helper with identity + terms + W-9 + fresh Didit but no Connect
+    // account is HELD: no bidding, no accepting, no money.
     test('payout_setup fails closed without Stripe Connect, even with identity and terms', async () => {
       const userId = await makeUser({
         terms_accepted: true,
@@ -144,8 +147,12 @@ ddescribe('PR #804 Track E', () => {
         w9_completed: true,
       });
       await grant(userId, 'helper.offer_services', 'helper-policy-1');
+      const state = await activation.activationFor('helper.offer_services', userId, pool);
+      expect(state).toEqual({ ready: false, missing: ['payout_setup'] });
       const decision = await accessService.can(userId, 'helper.offer_services', undefined, pool);
-      expect(decision.allowed).toBe(true);
+      expect(decision.allowed).toBe(false);
+      expect(decision.reason).toBe('activation_incomplete');
+      expect(decision.missing).toEqual(['payout_setup']);
       const evidence = await activation.loadActivationEvidence(userId, pool);
       expect(activation.requirementSatisfied('payout_setup', evidence, 'helper.offer_services')).toBe(false);
     });
@@ -164,8 +171,12 @@ ddescribe('PR #804 Track E', () => {
       });
       await setConnectReady(userId);
       await grant(userId, 'helper.offer_services', 'helper-policy-1');
+      const state = await activation.activationFor('helper.offer_services', userId, pool);
+      expect(state).toEqual({ ready: false, missing: ['payout_setup'] });
       const decision = await accessService.can(userId, 'helper.offer_services', undefined, pool);
-      expect(decision.allowed).toBe(true);
+      expect(decision.allowed).toBe(false);
+      expect(decision.reason).toBe('activation_incomplete');
+      expect(decision.missing).toEqual(['payout_setup']);
       const evidence = await activation.loadActivationEvidence(userId, pool);
       expect(activation.requirementSatisfied('payout_setup', evidence, 'helper.offer_services')).toBe(false);
     });

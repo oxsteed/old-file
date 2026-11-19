@@ -64,11 +64,14 @@ const CAPABILITIES = Object.freeze({
     applicantMayRequest: true,
     legacyModes: Object.freeze(['helper']),
     legacyRoles: Object.freeze(['helper']),
-    // Helpers can discover work and submit/accept service activity after
-    // identity and terms checks. Payout setup gates receiving money, not
-    // bidding; making it a capability-wide prerequisite creates a circular
-    // gate because the Connect onboarding route itself requires this grant.
-    activationRequirements: Object.freeze(['identity_verified', 'helper_terms']),
+    // payout_setup gates receiving money: a helper must have Stripe
+    // Connect onboarding complete (charges + payouts), a W-9 on file, and
+    // a fresh Didit verification before bidding, accepting, or being paid.
+    // There is no circular gate: the routes that complete payout setup
+    // (Connect onboarding, W-9 save, terms, onboarding profile /
+    // background-check / status, Didit session + webhook) are carved out
+    // via requireHelperSetupCapability, which allows activation_incomplete.
+    activationRequirements: Object.freeze(['identity_verified', 'helper_terms', 'payout_setup']),
     form: Object.freeze({
       fields: Object.freeze([
         answerField('serviceCategories', 'string_list', { required: true, maxItems: 20, maxLength: 80 }),

@@ -90,11 +90,29 @@ describeDb('bid acceptance records the agreed price (P1-2-F11)', () => {
     for (const [userId, role] of [[ids.helper, 'helper'], [ids.customer, 'customer']]) {
       await db.query(
         `INSERT INTO users(id, role, is_active, id_verified, terms_accepted,
-                           terms_accepted_at, terms_version)
-         VALUES($1, $2, TRUE, $3, $4, CASE WHEN $4 THEN NOW() END, CASE WHEN $4 THEN 'test-v1' END)`,
+                           terms_accepted_at, terms_version, didit_status, didit_verified_at, w9_completed)
+         VALUES($1, $2, TRUE, $3, $4, CASE WHEN $4 THEN NOW() END, CASE WHEN $4 THEN 'test-v1' END,
+                CASE WHEN $2 = 'helper' THEN 'verified' END,
+                CASE WHEN $2 = 'helper' THEN NOW() END,
+                $2 = 'helper')`,
         [userId, role, role === 'helper', role === 'helper'],
       );
     }
+    // G-1: assertHelperCanBeHired requires the helper to be fully
+    // activated, so seed the Connect readiness the payout_setup check
+    // reads. Schema-local, like the users/grants tables above: the
+    // evidence join resolves connect_accounts here under this
+    // search_path, and a public row would need a mirror public.users
+    // row for its FK (see the grant comment above).
+    await db.query(`CREATE TABLE ${schema}.connect_accounts (
+      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      stripe_account_id TEXT, charges_enabled BOOLEAN DEFAULT FALSE,
+      payouts_enabled BOOLEAN DEFAULT FALSE, onboarding_complete BOOLEAN DEFAULT FALSE)`);
+    await db.query(
+      `INSERT INTO connect_accounts (user_id, stripe_account_id, charges_enabled, payouts_enabled, onboarding_complete)
+       VALUES ($1, $2, TRUE, TRUE, TRUE)`,
+      [ids.helper, `acct_bidaccept_${ids.helper.replace(/-/g, '').slice(0, 20)}`],
+    );
     // The grant is seeded schema-local: under this search_path the
     // unqualified access_grants lookup in loadFacts() resolves here, not to
     // public. (Seeding public.access_grants instead would need a mirror

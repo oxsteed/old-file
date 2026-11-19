@@ -328,18 +328,31 @@ describe('POST /api/jobs/assign', () => {
   const HELPER_EVIDENCE = {
     id: 2, role: 'helper', is_active: true, id_verified: true,
     terms_accepted: true, terms_accepted_at: new Date(), terms_version: 'test-v1',
+    // G-1: assignHelper calls assertHelperCanBeHired, which requires the
+    // helper to be fully activated (W-9 + fresh Didit + Connect), so the
+    // fixture helper must satisfy payout_setup for the success-path tests.
+    w9_completed: true, didit_status: 'verified', didit_verified_at: new Date(),
+    connect_charges_enabled: true, connect_payouts_enabled: true,
   };
-  const ACCESS_FACT_ROUTES = [
-    [/FROM users WHERE id = \$1/, { rows: [HELPER_EVIDENCE] }],
+  // G-1: identity + terms only, no payout_setup. Assigning to this helper
+  // must 409 with helper_access_inactive (the AC-025 hold at assign time).
+  const INCOMPLETE_HELPER_EVIDENCE = {
+    ...HELPER_EVIDENCE,
+    w9_completed: false,
+    connect_charges_enabled: false,
+    connect_payouts_enabled: false,
+  };
+  const ACCESS_FACT_ROUTES = (evidence = HELPER_EVIDENCE) => [
+    [/FROM users WHERE id = \$1/, { rows: [evidence] }],
     [/FROM access_grants WHERE user_id = \$1/, { rows: [ACCESS_GRANT] }],
     [/FROM businesses b/, { rows: [] }],
     [/FROM restaurant_locations rl/, { rows: [] }],
-    [/SELECT u\.id, u\.terms_accepted[\s\S]*LEFT JOIN connect_accounts ca/, { rows: [HELPER_EVIDENCE] }],
+    [/SELECT u\.id, u\.terms_accepted[\s\S]*LEFT JOIN connect_accounts ca/, { rows: [evidence] }],
     [/FROM food_restaurants WHERE owner_user_id/, { rows: [] }],
     [/FROM franchise_applications/, { rows: [] }],
   ];
-  const assignRoutes = ({ job = JOB, bid = PENDING_BID } = {}) => [
-    ...ACCESS_FACT_ROUTES,
+  const assignRoutes = ({ job = JOB, bid = PENDING_BID, evidence = HELPER_EVIDENCE } = {}) => [
+    ...ACCESS_FACT_ROUTES(evidence),
     [/FROM users u/, { rows: [MOCK_USER_CUSTOMER] }],
     [/FROM user_consents/, { rows: currentConsentRows() }],
     [/SELECT job_id FROM bids WHERE id = \$1/, { rows: [{ job_id: '10' }] }],
@@ -377,6 +390,16 @@ describe('POST /api/jobs/assign', () => {
     routeQueries(mockQuery, assignRoutes({ job: { ...JOB, status: 'negotiating' } }));
     const res = await auth(request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'off_platform' }));
     expect(res.status).toBe(200);
+  });
+
+  // G-1 (AC-025 hold): a customer cannot assign a job to a helper who has
+  // not completed payout_setup, even though the bid itself is pending and
+  // fine. assertHelperCanBeHired 409s with helper_access_inactive.
+  test('refuses to assign to a helper missing payout_setup', async () => {
+    routeQueries(mockQuery, assignRoutes({ evidence: INCOMPLETE_HELPER_EVIDENCE }));
+    const res = await auth(request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'off_platform' }));
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('helper_access_inactive');
   });
 
   test('refuses a bid that must be reconfirmed after a material edit', async () => {

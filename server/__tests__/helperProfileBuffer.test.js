@@ -28,6 +28,10 @@ const HELPER_USER = {
   id: 'helper-1', role: 'helper', is_active: true,
   id_verified: true, terms_accepted: true,
   terms_accepted_at: new Date(), terms_version: 'test-v1',
+  // G-1: helper-profile routes run the full gate, so the fixture must be
+  // fully activated: W-9 on file, fresh Didit, Connect charges + payouts.
+  w9_completed: true, didit_status: 'verified', didit_verified_at: new Date(),
+  connect_charges_enabled: true, connect_payouts_enabled: true,
 };
 const ACCESS_GRANT = {
   id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null,
@@ -50,8 +54,14 @@ function mockGrantFacts() {
 // Route pool queries to the gate answers, falling back to `fallback` for
 // the handler's own queries.
 function mockGateThen(fallback) {
+  mockGateThenAs(HELPER_USER, fallback);
+}
+
+// Same routing as mockGateThen but the gate evaluates `user`: used for the
+// G-1 activation_incomplete case.
+function mockGateThenAs(user, fallback) {
   mockQuery.mockImplementation(async (sql) => {
-    if (/FROM users(?: u)?/.test(sql)) return { rows: [HELPER_USER] };
+    if (/FROM users(?: u)?/.test(sql)) return { rows: [user] };
     if (/FROM access_grants/.test(sql)) return { rows: [ACCESS_GRANT] };
     if (/FROM businesses b/.test(sql)) return { rows: [] };
     if (/FROM food_restaurants|FROM franchise_applications/.test(sql)) return { rows: [] };
@@ -121,5 +131,24 @@ describe('helper profile booking buffer setting', () => {
     // old "no query at all" assertion cannot hold. What this test still
     // proves is unchanged: an invalid value never reaches a write.
     expect(mockQuery.mock.calls.some(([sql]) => /^\s*(UPDATE|INSERT|DELETE)/i.test(sql))).toBe(false);
+  });
+
+  // G-1 (D-9): profile routes are offering-services surface, not steps
+  // needed to complete payout setup, so they run the full gate. A helper
+  // with identity + terms but no payout_setup is held here.
+  test('GET /me returns 403 activation_incomplete when payout_setup is missing', async () => {
+    const incomplete = {
+      ...HELPER_USER,
+      w9_completed: false,
+      connect_charges_enabled: false,
+      connect_payouts_enabled: false,
+    };
+    mockGateThenAs(incomplete, { rows: [], rowCount: 0 });
+
+    const res = await request(buildApp()).get('/api/helper-profile/me');
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('activation_incomplete');
+    expect(res.body.missing).toEqual(['payout_setup']);
   });
 });

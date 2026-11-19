@@ -31,6 +31,7 @@ const MOCK_HELPER = {
   city: 'Austin', state: 'TX', zip_code: '78701',
   display_name_preference: 'first_name', business_name: null,
   didit_status: 'verified', didit_verified_at: new Date(), didit_enforcement_required: false,
+  connect_charges_enabled: true, connect_payouts_enabled: true,
 };
 
 function buildApp() {
@@ -74,6 +75,23 @@ function mockGatedAuth(...extras) {
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
 }
 
+// Same chain as mockGatedAuth but the gate evaluates `user`: used for the
+// G-1 activation_incomplete cases on PUT /:id and POST /:id/reconfirm.
+function mockGatedAuthAs(user, ...extras) {
+  mockQuery.mockResolvedValueOnce({ rows: [user] });
+  mockGrantFacts(user);
+  extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
+}
+
+// G-1: identity + terms satisfied, payout_setup missing (no W-9, no Connect
+// account). The helper holds the grant but is not activated.
+const INCOMPLETE_HELPER = {
+  ...MOCK_HELPER,
+  w9_completed: false,
+  connect_charges_enabled: false,
+  connect_payouts_enabled: false,
+};
+
 // Route-based equivalent of mockGrantFacts for routeQueries suites.
 const ACCESS_FACT_ROUTES = [
   [/FROM users WHERE id = \$1/, { rows: [MOCK_HELPER] }],
@@ -98,6 +116,15 @@ function mockBidAuth(...extras) {
   mockQuery.mockResolvedValueOnce({ rows: [MOCK_HELPER] });
   mockQuery.mockResolvedValueOnce({ rows: currentConsentRows() });
   mockGrantFacts();
+  extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
+}
+
+// Same chain as mockBidAuth but the gate evaluates `user` instead of the
+// fully-activated fixture: used for the G-1 activation_incomplete cases.
+function mockBidAuthAs(user, ...extras) {
+  mockQuery.mockResolvedValueOnce({ rows: [user] });
+  mockQuery.mockResolvedValueOnce({ rows: currentConsentRows() });
+  mockGrantFacts(user);
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
 }
 
@@ -194,6 +221,19 @@ describe('POST /api/bids', () => {
     ]);
     const res = await auth(request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 90, message: 'Happy to help' }));
     expect(res.status).toBe(201);
+  });
+
+  // G-1 (AC-025 hold): a helper with identity + terms but no payout_setup
+  // (no W-9, no Connect) holds the grant but is not activated, so bidding
+  // is held with 403 activation_incomplete naming the missing step.
+  test('returns 403 activation_incomplete when payout_setup is missing', async () => {
+    mockBidAuthAs(INCOMPLETE_HELPER);
+    const res = await auth(
+      request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 150, message: 'I can do this' })
+    );
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('activation_incomplete');
+    expect(res.body.missing).toEqual(['payout_setup']);
   });
 });
 
@@ -308,6 +348,16 @@ describe('PUT /api/bids/:id', () => {
     const update = calls.find((c) => /UPDATE bids/.test(c.sql));
     expect(update.params[4]).toBe(true);
     expect(update.params[6]).toBe(3);
+  });
+
+  // G-1 (AC-025 hold): bid updates are held the same way as bid creation
+  // while payout_setup is missing.
+  test('returns 403 activation_incomplete when payout_setup is missing', async () => {
+    mockGatedAuthAs(INCOMPLETE_HELPER);
+    const res = await auth(request(buildApp()).put('/api/bids/20').send({ amount: 200 }));
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('activation_incomplete');
+    expect(res.body.missing).toEqual(['payout_setup']);
   });
 });
 

@@ -58,13 +58,14 @@ function mockAuth(...extras) {
 }
 
 // Domain 6 enforce contract (ACCESS_HELPER_ENFORCEMENT=enforce): POST
-// /connect runs requireHelperCapability, which calls accessService.can() ->
-// loadFacts (users, access_grants, businesses) before the handler. The
-// fixture user holds an active helper.offer_services grant with the
-// provenance the legacy backfill writes (services/access/legacyMapping.js),
-// so the gate passes and these tests keep proving Connect onboarding, not
-// access. (The grant is capability-based: users.role is deliberately not
-// an input to the resolver, so a customer-role fixture user can hold it.)
+// /connect runs requireHelperSetupCapability, which calls
+// accessService.can() -> loadFacts (users, access_grants, businesses)
+// before the handler. The fixture user holds an active
+// helper.offer_services grant with the provenance the legacy backfill
+// writes (services/access/legacyMapping.js), so the gate passes and these
+// tests keep proving Connect onboarding, not access. (The grant is
+// capability-based: users.role is deliberately not an input to the resolver,
+// so a customer-role fixture user can hold it.)
 const ACCESS_GRANT = {
   id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null,
   status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1,
@@ -430,6 +431,24 @@ describe('GET /api/payments/connect/status', () => {
 });
 
 describe('POST /api/payments/connect', () => {
+  // G-1 carve-out: the fixture user is activation_incomplete (identity +
+  // terms satisfied, but no W-9 and no Connect account, so payout_setup is
+  // missing). The Connect onboarding route must still succeed, or the
+  // helper could never complete payout setup: no circular gate.
+  test('succeeds while activation is incomplete (no circular gate)', async () => {
+    stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_new' });
+    stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/onboard' });
+    mockGatedAuth(
+      { rows: [] }, // existing connect account lookup
+      { rows: [{ stripe_account_id: 'acct_new' }] }, // persisted account
+    );
+
+    const res = await auth(request(buildApp()).post('/api/payments/connect'));
+
+    expect(res.status).toBe(200);
+    expect(res.body.url).toBe('https://stripe.test/onboard');
+  });
+
   test('creates an onboarding link using APP_URL fallback when CLIENT_URL is absent', async () => {
     const prevAppUrl = process.env.APP_URL;
     const prevClientUrl = process.env.CLIENT_URL;
