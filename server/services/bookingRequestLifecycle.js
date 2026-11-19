@@ -427,7 +427,14 @@ async function listIncomingForProvider(providerUserId, { status, statuses } = {}
     if (statusList && !statusList.includes(toChatStatus(maybeExpired.status))) {
       continue;
     }
-    out.push(toCalendarBooking({ ...row, ...maybeExpired }));
+    const mapped = toCalendarBooking({ ...row, ...maybeExpired });
+    // G-14: the inbox row's action buttons follow the mutation gate, not
+    // the read gate. A representative sees the booking but cannot act on
+    // it; the panel hides Confirm/Decline/Propose when canRespond is false.
+    if (mapped.canRespond && (mapped.businessId || maybeExpired.conversation_id)) {
+      mapped.canRespond = await isBookingManagerForBooking(providerUserId, maybeExpired);
+    }
+    out.push(mapped);
   }
   return out;
 }
