@@ -43,6 +43,7 @@ router.get('/', requireAuth, bookingController.getMyBookingRequests);
 router.get('/incoming', requireAuth, bookingController.getIncomingBookingRequests);
 
 /** Static paths must be registered before /:bookingId */
+router.get('/status/:token', bookingController.getPublicBookingStatus);
 router.get('/recurring', requireAuth, bookingController.listRecurringBookings);
 router.post('/recurring', requireAuth, bookingController.createRecurringBooking);
 router.post('/recurring/:id/cancel', requireAuth, bookingController.updateRecurringBookingStatus);

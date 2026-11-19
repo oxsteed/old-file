@@ -186,6 +186,7 @@ const AccessGateRecoveryPage = lazyWithRetry(() => import('./pages/AccessGateRec
 const VerifyIdentityPage = lazyWithRetry(() => import('./pages/VerifyIdentityPage'));
 const VerifyEmailPage = lazyWithRetry(() => import('./pages/VerifyEmailPage'));
 const PublicInvoiceView = lazyWithRetry(() => import('./pages/PublicInvoiceView'));
+const PublicBookingStatusPage = lazyWithRetry(() => import('./pages/PublicBookingStatusPage'));
 const ToolRentalsBrowse = lazyWithRetry(() => import('./pages/ToolRentalsBrowse'));
 const DiscoverPage = lazyWithRetry(() => import('./pages/DiscoverPage'));
 const MyBookingsPage = lazyWithRetry(() => import('./pages/MyBookingsPage'));
@@ -631,6 +632,7 @@ export default function App() {
                     <Route path="/my-bookings"             element={<Guarded><ProtectedRoute><MyBookingsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/tool-rentals/analytics"  element={<Guarded><ProtectedRoute><ToolRentalsAnalytics /></ProtectedRoute></Guarded>} />
                     <Route path="/invoice/p/:token"        element={<Guarded><PublicInvoiceView /></Guarded>} />
+                    <Route path="/bookings/status/:token"   element={<Guarded><PublicBookingStatusPage /></Guarded>} />
 
                     {/* ── Product Marketplace ──────────────────────────────── */}
                     <Route path="/products"                element={<Guarded><ProductMarketplacePage /></Guarded>} />

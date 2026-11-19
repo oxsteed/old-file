@@ -1,4 +1,5 @@
 const pool = require('../db');
+const crypto = require('crypto');
 const { attributePromotionConversion } = require('../analytics/promotionAttribution');
 const bookingDeposits = require('../services/bookingDepositService');
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
@@ -80,6 +81,11 @@ function buildJobPrefillPayload(booking) {
     preferredHelperId: booking.helper_id,
     preferredHelperName: null,
     sourceBookingId: booking.id,
+    // G-7: carry the site contact onto the job post prefill.
+    siteContactName: booking.site_contact_name || null,
+    siteContactPhone: booking.site_contact_phone || null,
+    siteContactUserId: booking.site_contact_user_id || null,
+    statusToken: booking.status_token || null,
   };
 }
 
@@ -119,6 +125,15 @@ exports.createBookingRequest = async (req, res) => {
       guestSessionId,
       serviceId,
       timezone,
+      // G-6: book for another person. The booker stays customer_id (and the
+      // deposit payer); the recipient is who the work is for.
+      recipientUserId,
+      recipientName,
+      recipientPhone,
+      // G-7: site contact who coordinates arrival on site.
+      siteContactName,
+      siteContactPhone,
+      siteContactUserId,
       source,
     } = req.body;
 
@@ -172,6 +187,38 @@ exports.createBookingRequest = async (req, res) => {
     if (customerId === helperId) {
       return sendValidationError(res, { helperId: 'Cannot book with yourself' });
     }
+
+    // G-6: the recipient is a different person from the booker. A named
+    // recipient needs no account; an account recipient must exist.
+    const cleanRecipientName = String(recipientName || '').trim().slice(0, 200) || null;
+    const cleanRecipientPhone = String(recipientPhone || '').trim().slice(0, 40) || null;
+    const cleanSiteContactName = String(siteContactName || '').trim().slice(0, 200) || null;
+    const cleanSiteContactPhone = String(siteContactPhone || '').trim().slice(0, 40) || null;
+    let cleanRecipientUserId = recipientUserId ? String(recipientUserId) : null;
+    let cleanSiteContactUserId = siteContactUserId ? String(siteContactUserId) : null;
+    if (cleanRecipientUserId === customerId) {
+      return sendValidationError(res, { recipientUserId: 'The recipient must be someone other than the booker' });
+    }
+    if (cleanRecipientUserId || cleanSiteContactUserId) {
+      const usersRes = await pool.query(
+        'SELECT id FROM users WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL',
+        [[cleanRecipientUserId, cleanSiteContactUserId].filter(Boolean)]
+      );
+      const found = new Set(usersRes.rows.map((r) => String(r.id)));
+      if (cleanRecipientUserId && !found.has(cleanRecipientUserId)) {
+        return sendError(res, 404, 'Recipient not found', 'RECIPIENT_NOT_FOUND');
+      }
+      if (cleanSiteContactUserId && !found.has(cleanSiteContactUserId)) {
+        return sendError(res, 404, 'Site contact not found', 'SITE_CONTACT_NOT_FOUND');
+      }
+    }
+    if (cleanRecipientUserId && cleanRecipientUserId === helperId) {
+      return sendValidationError(res, { recipientUserId: 'The recipient cannot be the helper' });
+    }
+    // G-7: a site contact gets a single-booking signed status link at
+    // booking time (status + arrival window only, no amounts, no billing).
+    const hasSiteContact = Boolean(cleanSiteContactName || cleanSiteContactPhone || cleanSiteContactUserId);
+    const statusToken = hasSiteContact ? crypto.randomBytes(32).toString('hex') : null;
 
     if (!requestOnly && requestedStartTime >= requestedEndTime) {
       return sendValidationError(res, { requestedEndTime: 'End time must be after start time' });
@@ -275,8 +322,11 @@ const bookingId = uuidv4();
           requested_start_time, requested_end_time, service_location,
           description, expires_at, confirmation_hours,
           availability_mode, auto_post_on_expiry,
-          conversation_id, guest_session_id, source, service_id, timezone
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+          conversation_id, guest_session_id, source, service_id, timezone,
+          booked_by_user_id, recipient_user_id, recipient_name, recipient_phone,
+          site_contact_name, site_contact_phone, site_contact_user_id, status_token
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
+                  $20, $21, $22, $23, $24, $25, $26, $27)
          RETURNING *`,
         [
           bookingId,
@@ -298,6 +348,14 @@ const bookingId = uuidv4();
           source || (conversationId || guestSessionId ? 'messenger_picker' : 'calendar'),
           serviceId != null ? String(serviceId) : null,
           timezone || null,
+          customerId,
+          cleanRecipientUserId,
+          cleanRecipientName,
+          cleanRecipientPhone,
+          cleanSiteContactName,
+          cleanSiteContactPhone,
+          cleanSiteContactUserId,
+          statusToken,
         ]
       );
       await emitDomainEvent(client, 'booking.requested', serviceEventProps({ service_id: serviceId }), { userId: customerId, req });
@@ -346,8 +404,10 @@ exports.getBookingRequest = async (req, res) => {
     const booking = result.rows[0];
 
     const isCustomer = userId && String(userId) === String(booking.customer_id);
+    // G-6: the recipient the work is for can read the booking too.
+    const isRecipient = userId && booking.recipient_user_id && String(userId) === String(booking.recipient_user_id);
     const isProvider = userId && (await bookingLifecycle.isProviderForBooking(userId, booking));
-    if (userId && !isCustomer && !isProvider) {
+    if (userId && !isCustomer && !isRecipient && !isProvider) {
       return sendError(res, 403, 'Not authorized to view this booking');
     }
 
@@ -361,12 +421,54 @@ exports.getBookingRequest = async (req, res) => {
   }
 };
 
+/**
+ * G-7: single-booking signed-token status link for the site contact.
+ * Public, token-gated: status and arrival window only. No amounts, no
+ * billing, no customer/helper identity, no payment state. Reuses the
+ * public-token pattern (/quotes/view/:token, /invoice/p/:public_token).
+ */
+exports.getPublicBookingStatus = async (req, res) => {
+  try {
+    const token = String(req.params.token || '');
+    if (!/^[a-f0-9]{64}$/.test(token)) {
+      return sendError(res, 404, 'Booking status link not found');
+    }
+    const { rows } = await pool.query(
+      `SELECT b.id, b.service_name, b.status, b.requested_date,
+              b.requested_start_time, b.requested_end_time,
+              b.site_contact_name,
+              a.arrived_at
+         FROM booking_requests b
+         LEFT JOIN appointments a ON a.id = b.appointment_id
+        WHERE b.status_token = $1`,
+      [token]
+    );
+    if (!rows.length) return sendError(res, 404, 'Booking status link not found');
+    const row = rows[0];
+    return res.json({
+      success: true,
+      data: {
+        serviceName: row.service_name,
+        status: row.status,
+        requestedDate: row.requested_date,
+        requestedStartTime: row.requested_start_time,
+        requestedEndTime: row.requested_end_time,
+        arrivedAt: row.arrived_at,
+        siteContactName: row.site_contact_name || null,
+      },
+    });
+  } catch (err) {
+    logger.error('Error fetching public booking status', { error: err.message });
+    sendError(res, 500, 'Failed to fetch booking status');
+  }
+};
+
 exports.getMyBookingRequests = async (req, res) => {
   try {
     const customerId = req.user.id;
     const { status, helperId } = req.query;
 
-    let query = 'SELECT * FROM booking_requests WHERE customer_id = $1';
+    let query = 'SELECT * FROM booking_requests WHERE customer_id = $1 OR recipient_user_id = $1';
     const params = [customerId];
 
     if (status) {
@@ -567,8 +669,12 @@ exports.cancelBookingRequest = async (req, res) => {
 
     const booking = result.rows[0];
 
-    if (booking.customer_id !== customerId) {
-      return sendError(res, 403, 'Only the customer can cancel this booking request');
+    // G-6: the booker or the recipient may cancel. The deposit settles
+    // against the booker (booking.customer_id) either way.
+    const isBooker = booking.customer_id === customerId;
+    const isRecipient = booking.recipient_user_id && String(booking.recipient_user_id) === String(customerId);
+    if (!isBooker && !isRecipient) {
+      return sendError(res, 403, 'Only the customer or the recipient can cancel this booking request');
     }
 
     if (booking.status === 'pending') {
@@ -1489,6 +1595,24 @@ async function notifyCustomerOfBookingResponse(customerId, booking, response) {
     }
 
     await sendNotification({ userId: customerId, type, body, data: { bookingId: booking.id }, action_url });
+    // G-6: the recipient the work is for hears the accept/decline too.
+    if (booking.recipient_user_id && String(booking.recipient_user_id) !== String(customerId)) {
+      try {
+        broadcastToUser(booking.recipient_user_id, 'booking:updated', {
+          bookingId: booking.id,
+          status: booking.status,
+        });
+        await sendNotification({
+          userId: booking.recipient_user_id,
+          type,
+          body,
+          data: { bookingId: booking.id },
+          action_url,
+        });
+      } catch (recipientErr) {
+        logger.warn('Failed to notify booking recipient of response', { error: recipientErr.message });
+      }
+    }
   } catch (err) {
     logger.warn('Failed to notify customer of booking response', { error: err.message });
   }

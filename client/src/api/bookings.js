@@ -5,6 +5,11 @@ export async function createBookingRequest(payload) {
   return data?.data ?? data;
 }
 
+export async function getPublicBookingStatus(token) {
+  const { data } = await api.get(`/bookings/status/${encodeURIComponent(token)}`);
+  return data?.data ?? data;
+}
+
 export async function getBookingRequest(bookingId) {
   const { data } = await api.get(`/bookings/${bookingId}`);
   return data;

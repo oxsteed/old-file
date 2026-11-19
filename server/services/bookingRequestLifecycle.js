@@ -225,6 +225,16 @@ function toCalendarBooking(row) {
   return {
     id: row.id,
     customerId: row.customer_id,
+    // G-6: who booked vs who the work is for.
+    bookedByUserId: row.booked_by_user_id || row.customer_id,
+    recipientUserId: row.recipient_user_id || null,
+    recipientName: row.recipient_name || null,
+    recipientPhone: row.recipient_phone || null,
+    // G-7: site contact (name + phone, optionally a linked account).
+    siteContactName: row.site_contact_name || null,
+    siteContactPhone: row.site_contact_phone || null,
+    siteContactUserId: row.site_contact_user_id || null,
+    statusToken: row.status_token || null,
     helperId: row.helper_id,
     businessId: row.business_id || null,
     serviceName: row.service_name,
