@@ -203,6 +203,8 @@ test('standalone and native modal layouts, light/dark, RTL, zoom and focus',asyn
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`overflow ${embedded}/${width}/${dark}`);
       assert.equal(await page.locator('label[for="password"]').count(),1);
       assert.equal(await page.locator('input[type="radio"]').count(),18);
+      assert.equal(await page.locator('.signup-core-layer').count(),1);
+      assert.equal(await page.locator('.signup-additional-layer').count(),1);
       const font=await page.locator('#email').evaluate(el=>getComputedStyle(el).fontSize);assert.equal(font,'16px');
       if(width===390||width===1366)await page.screenshot({path:path.join(screenshots,`${embedded?'modal':'standalone'}-${width}-${dark?'dark':'light'}.png`),fullPage:true,animations:'disabled'});
       if(embedded){await page.locator('#firstName').focus();await page.keyboard.press('Escape');await page.locator('[role="dialog"]').waitFor({state:'hidden'});assert.equal(await page.locator('#trigger').evaluate(el=>el===document.activeElement),true);}

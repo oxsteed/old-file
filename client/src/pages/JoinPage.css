@@ -19,6 +19,15 @@
 .signup-section legend{font-size:18px;line-height:1.4;font-weight:700;padding-inline-end:12px}
 .signup-mode-section{border-top:0;padding-top:0}
 .signup-mode-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-height:640px;overflow:auto;padding:2px}
+.signup-layer-stack{display:grid;gap:12px}
+.signup-core-layer,.signup-additional-layer{border:1px solid var(--signup-border);border-radius:14px;padding:14px;background:color-mix(in srgb,var(--signup-card) 92%,var(--signup-soft))}
+.signup-core-layer{box-shadow:inset 0 0 0 1px var(--signup-action)}
+.signup-additional-layer{background:var(--signup-card)}
+.signup-layer-label{font-size:15px;line-height:1.4;font-weight:700}
+.signup-layer-copy{color:var(--signup-muted);font-size:13px;line-height:1.5;margin:4px 0 10px}
+.signup-layer-divider{display:grid;place-items:center;height:18px;color:var(--signup-action);font-weight:700;font-size:20px}
+.signup-layer-divider span{display:grid;place-items:center;width:28px;height:28px;border:1px solid var(--signup-action);border-radius:50%;background:var(--signup-bg)}
+.signup-core-grid{max-height:none;overflow:visible}
 .signup-mode-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:9px;border:1px solid var(--signup-border);border-radius:12px;padding:20px 8px 14px;cursor:pointer;text-align:center;min-width:0;overflow-wrap:anywhere}
 .signup-mode-card.selected{border-color:var(--signup-action);background:var(--signup-soft);box-shadow:inset 0 0 0 1px var(--signup-action)}
 .signup-mode-card>input{position:absolute;opacity:0;width:1px;height:1px}

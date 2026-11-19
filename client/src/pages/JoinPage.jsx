@@ -296,6 +296,17 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
       onChange={event => set(field, event.target.value)} maxLength={maxLength} autoComplete={autoComplete}
       className="signup-input" required {...aria(field)} />{fieldError(field)}
   </div>;
+  const personaCard = (persona, index) => {
+    const Icon = ICONS[persona.icon] || UserRound;
+    return <label className={'signup-mode-card' + (form.signupIntent === persona.intent ? ' selected' : '')} key={persona.intent}>
+      <input type="radio" id={index === 0 ? 'signupIntent' : 'intent-' + persona.intent} name="signupIntent" value={persona.intent}
+        checked={form.signupIntent === persona.intent} onChange={() => set('signupIntent', persona.intent)}
+        aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.signupIntent) || undefined} data-track="ui.663f47c956.4" />
+      <Icon size={27} aria-hidden="true" /><strong>{msg(`personas.${persona.copy}.title`)}</strong>
+      <span className="signup-mode-description">{msg(`personas.${persona.copy}.description`)}</span>
+      {form.signupIntent === persona.intent && <Check className="signup-mode-check" size={16} aria-hidden="true" />}
+    </label>;
+  };
   const entries = Object.entries(errors).filter(([, value]) => value);
   return <div className={'signup-page' + (embedded ? ' signup-embedded media-auth-content' : '')}>
     {!embedded && <><PageMeta title={msg('title')} description={msg('intro')} url="https://oxsteed.com/join" />
@@ -339,17 +350,19 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
           {registrationExpired && <button type="button" className="signup-secondary" onClick={editDetails} data-track="ui.663f47c956.3">{msg('restart')}</button>}
           {!capabilitiesLoading && <fieldset disabled={Boolean(busy)} className="signup-section signup-mode-section"><legend>{msg('modePrompt')}</legend>
             <p className="signup-help">{msg('intentNote')}</p>
-            <div className="signup-mode-grid">{SIGNUP_PERSONAS.map((persona, index) => {
-              const Icon = ICONS[persona.icon] || UserRound;
-              return <label className={'signup-mode-card' + (form.signupIntent === persona.intent ? ' selected' : '')} key={persona.intent}>
-                <input type="radio" id={index === 0 ? 'signupIntent' : 'intent-' + persona.intent} name="signupIntent" value={persona.intent}
-                  checked={form.signupIntent === persona.intent} onChange={() => set('signupIntent', persona.intent)}
-                  aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.signupIntent) || undefined} data-track="ui.663f47c956.4" />
-                <Icon size={27} aria-hidden="true" /><strong>{msg(`personas.${persona.copy}.title`)}</strong>
-                <span className="signup-mode-description">{msg(`personas.${persona.copy}.description`)}</span>
-                {form.signupIntent === persona.intent && <Check className="signup-mode-check" size={16} aria-hidden="true" />}
-              </label>;
-            })}</div>
+            <div className="signup-layer-stack">
+              <section className="signup-core-layer" aria-labelledby="signup-core-layer-title">
+                <div className="signup-layer-label" id="signup-core-layer-title">{msg('personas.customer.title')}</div>
+                <p className="signup-layer-copy">{msg('personas.customer.description')}</p>
+                <div className="signup-mode-grid signup-core-grid">{personaCard(SIGNUP_PERSONAS[0], 0)}</div>
+              </section>
+              <div className="signup-layer-divider" aria-hidden="true"><span>+</span></div>
+              <section className="signup-additional-layer" aria-labelledby="signup-additional-layer-title">
+                <div className="signup-layer-label" id="signup-additional-layer-title">{msg('setupNote')}</div>
+                <p className="signup-layer-copy">{msg('intentNote')}</p>
+                <div className="signup-mode-grid">{SIGNUP_PERSONAS.slice(1).map((persona, index) => personaCard(persona, index + 1))}</div>
+              </section>
+            </div>
             {(() => { const selected = signupPersonaForIntent(form.signupIntent); return <p id="signup-mode-help" className="signup-help signup-admission-help">{msg(`admission.${selected.admission}`)}</p>; })()}
             {fieldError('signupIntent')}
           </fieldset>}
