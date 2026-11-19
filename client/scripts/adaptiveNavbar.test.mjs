@@ -77,10 +77,9 @@ test('staff enters a separate shell while retaining Personal Home', () => {
 });
 
 test('investor reporting is read-only and never exposes investment participation', () => {
-  const nav = deriveAdaptiveNavigation({
-    ...projection(['customer', 'investor.reporting']),
+  const nav = deriveAdaptiveNavigation(projection(['customer', 'investor.reporting'], [], {
     investorAudience: { audienceKey: 'entity', datasets: ['kpis'] },
-  });
+  }));
   assert.ok(destinations(nav).includes('/investments'));
   assert.ok(!destinations(nav).some((path) => /commit|participat/i.test(path)));
 });
