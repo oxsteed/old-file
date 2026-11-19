@@ -76,7 +76,9 @@ import {
 } from '../api/businesses';
 import {
   convertMaintenanceRequestToJob,
+  createBusinessProperty,
   listBusinessMaintenanceRequests,
+  listBusinessProperties,
   updateMaintenanceRequest,
 } from '../api/maintenanceRequests';
 import {
@@ -2967,6 +2969,52 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
   const requests = data?.requests || [];
   const stats = data?.stats || {};
   const [drafts, setDrafts] = useState({});
+  // G-17: property filter + property management for this business.
+  const [properties, setProperties] = useState([]);
+  const [propertyFilter, setPropertyFilter] = useState('');
+  const [filteredData, setFilteredData] = useState(null);
+  const [showPropertyForm, setShowPropertyForm] = useState(false);
+  const [propertyForm, setPropertyForm] = useState({ label: '', address: '' });
+
+  useEffect(() => {
+    let cancelled = false;
+    listBusinessProperties(businessId)
+      .then((rows) => { if (!cancelled) setProperties(rows); })
+      .catch(() => { if (!cancelled) setProperties([]); });
+    return () => { cancelled = true; };
+  }, [businessId]);
+
+  useEffect(() => { setFilteredData(null); }, [businessId]);
+
+  const visibleRequests = filteredData ? filteredData.requests : requests;
+  const visibleStats = filteredData ? filteredData.stats : stats;
+
+  async function applyPropertyFilter(nextFilter) {
+    setPropertyFilter(nextFilter);
+    if (!nextFilter) { setFilteredData(null); onRefresh(); return; }
+    try {
+      setFilteredData(await listBusinessMaintenanceRequests(businessId, { property_id: nextFilter }));
+    } catch {
+      toast.error(t('businessHub.maintenance.toastLoadFail'));
+    }
+  }
+
+  async function handleCreateProperty(event) {
+    event.preventDefault();
+    if (!propertyForm.label.trim()) return;
+    try {
+      const created = await createBusinessProperty(businessId, {
+        label: propertyForm.label.trim(),
+        address: propertyForm.address.trim() || undefined,
+      });
+      setProperties((current) => [...current, created]);
+      setPropertyForm({ label: '', address: '' });
+      setShowPropertyForm(false);
+      toast.success(t('businessHub.maintenance.propertyCreated'));
+    } catch {
+      toast.error(t('businessHub.maintenance.propertyCreateFail'));
+    }
+  }
 
   function getDraft(request) {
     return drafts[request.id] || {
@@ -2989,11 +3037,53 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
   return (
     <div>
       <div className="bh-kpi-grid">
-        <KPI label={t('businessHub.rooms.openRequests')} value={stats.open_count || 0} cls="warn" sub={t('businessHub.rooms.openRequestsHint')} />
-        <KPI label={t('businessHub.rooms.completed')} value={stats.completed_count || 0} cls="positive" sub={t('businessHub.rooms.completedHint')} />
-        <KPI label={t('businessHub.rooms.followUpsDue')} value={stats.follow_up_count || 0} cls="warn" sub={t('businessHub.rooms.followUpsDueHint')} />
-        <KPI label={t('businessHub.rooms.slaAtRisk')} value={stats.overdue_sla_count || 0} cls="danger" sub={t('businessHub.rooms.slaAtRiskHint')} />
-        <KPI label={t('businessHub.rooms.trackedCost')} value={fmt$(stats.actual_cost_total || 0, currency)} sub={t('businessHub.rooms.trackedCostHint')} />
+        <KPI label={t('businessHub.rooms.openRequests')} value={visibleStats.open_count || 0} cls="warn" sub={t('businessHub.rooms.openRequestsHint')} />
+        <KPI label={t('businessHub.rooms.completed')} value={visibleStats.completed_count || 0} cls="positive" sub={t('businessHub.rooms.completedHint')} />
+        <KPI label={t('businessHub.rooms.followUpsDue')} value={visibleStats.follow_up_count || 0} cls="warn" sub={t('businessHub.rooms.followUpsDueHint')} />
+        <KPI label={t('businessHub.rooms.slaAtRisk')} value={visibleStats.overdue_sla_count || 0} cls="danger" sub={t('businessHub.rooms.slaAtRiskHint')} />
+        <KPI label={t('businessHub.rooms.trackedCost')} value={fmt$(visibleStats.actual_cost_total || 0, currency)} sub={t('businessHub.rooms.trackedCostHint')} />
+      </div>
+
+      {/* G-17: separate work by property. */}
+      <div className="bh-card" style={{ marginBottom: '1rem' }}>
+        <div className="bh-card-header">
+          <div>
+            <h2>{t('businessHub.maintenance.propertiesTitle')}</h2>
+            <p>{t('businessHub.maintenance.propertiesDescription')}</p>
+          </div>
+          <div className="bh-header-actions">
+            <label>
+              {t('businessHub.maintenance.propertyFilter')}
+              <select value={propertyFilter} onChange={(e) => applyPropertyFilter(e.target.value)}>
+                <option value="">{t('businessHub.maintenance.allProperties')}</option>
+                {properties.map((property) => (
+                  <option key={property.id} value={property.id}>{property.label}</option>
+                ))}
+              </select>
+            </label>
+            <button className="bh-btn" onClick={() => setShowPropertyForm((v) => !v)}>{t('businessHub.maintenance.addProperty')}</button>
+          </div>
+        </div>
+        {showPropertyForm && (
+          <form onSubmit={handleCreateProperty} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', padding: '0 1rem 1rem' }}>
+            <input
+              value={propertyForm.label}
+              onChange={(e) => setPropertyForm((p) => ({ ...p, label: e.target.value }))}
+              placeholder={t('businessHub.maintenance.propertyNamePlaceholder')}
+              aria-label={t('businessHub.maintenance.propertyName')}
+              maxLength={200}
+              required
+            />
+            <input
+              value={propertyForm.address}
+              onChange={(e) => setPropertyForm((p) => ({ ...p, address: e.target.value }))}
+              placeholder={t('businessHub.maintenance.propertyAddressPlaceholder')}
+              aria-label={t('businessHub.maintenance.propertyAddress')}
+              maxLength={500}
+            />
+            <button className="bh-btn" type="submit">{t('businessHub.maintenance.saveProperty')}</button>
+          </form>
+        )}
       </div>
 
       <div className="bh-card">
@@ -3010,14 +3100,14 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
           </div>
         </div>
 
-        {requests.length === 0 ? (
+        {visibleRequests.length === 0 ? (
           <div className="bh-empty">
             <p style={{ fontWeight: 700 }}>{t('businessHub.rooms.noMaintenanceRequests')}</p>
             <p>{t('businessHub.rooms.noMaintenanceRequestsDescription')}</p>
           </div>
         ) : (
           <div className="bh-maint-list">
-            {requests.map((request) => {
+            {visibleRequests.map((request) => {
               const draft = getDraft(request);
               return (
                 <article className="bh-maint-card" key={request.id}>
@@ -3047,6 +3137,7 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                   )}
 
                   <div className="bh-maint-details">
+                    {request.property_name && <p><strong>{t('businessHub.maintenance.property')}:</strong> {request.property_name}</p>}
                     {request.property_label && <p><strong>{t('businessHub.rooms.property')}:</strong> {request.property_label}</p>}
                     {request.preferred_times && <p><strong>{t('businessHub.rooms.preferredTimes')}:</strong> {request.preferred_times}</p>}
                     {request.access_notes && <p><strong>{t('businessHub.rooms.access')}:</strong> {request.access_notes}</p>}

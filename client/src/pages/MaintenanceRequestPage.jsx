@@ -24,6 +24,7 @@ const INITIAL_FORM = {
   title: '',
   description: '',
   urgency: 'normal',
+  property_id: '',
   property_label: '',
   unit_label: '',
   access_notes: '',
@@ -44,6 +45,7 @@ const INITIAL_FORM = {
 export default function MaintenanceRequestPage() {
   const { businessId } = useParams();
   const [business, setBusiness] = useState(null);
+  const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(null);
@@ -68,6 +70,7 @@ export default function MaintenanceRequestPage() {
       .then((data) => {
         if (!cancelled) {
           setBusiness({ ...data.business, propertyOperations: data.propertyOperations || null });
+          setProperties(Array.isArray(data.properties) ? data.properties : []);
           if (data.propertyOperations?.supported_issue_categories?.length) {
             setForm((current) => ({
               ...current,
@@ -255,6 +258,22 @@ export default function MaintenanceRequestPage() {
 
           <section className="mrq-panel">
             <h2><Clock size={18} /> {t('maintenanceRequestPage.sections.propertyAndAccess')}</h2>
+            {properties.length > 0 && (
+              <div className="mrq-field">
+                <label>{t('maintenanceRequestPage.fields.property')}</label>
+                <select
+                  value={form.property_id}
+                  onChange={(e) => updateField('property_id', e.target.value)}
+                >
+                  <option value="">{t('maintenanceRequestPage.placeholders.selectProperty')}</option>
+                  {properties.map((property) => (
+                    <option key={property.id} value={property.id}>
+                      {property.label}{property.address ? ` - ${property.address}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="mrq-two">
               <div className="mrq-field">
                 <label>{t('maintenanceRequestPage.fields.propertyLabel')}</label>

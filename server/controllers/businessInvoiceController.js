@@ -38,13 +38,20 @@ async function listInvoices(req, res) {
     const access = await canManageBusinessFinance(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
-    const { status, limit = 50, offset = 0 } = req.query;
+    const { status, limit = 50, offset = 0, property_id: propertyId } = req.query;
     const safeLim = Math.min(parseInt(limit) || 50, 100);
     const safeOff = Math.max(parseInt(offset) || 0, 0);
 
     const params = [access.id, safeLim, safeOff];
     const statusClause = status ? `AND status = $4` : '';
     if (status) params.push(status);
+    // G-17: filter invoices by property through the linked job. Invoices
+    // with no job link carry no property and are excluded by the filter.
+    let propertyClause = '';
+    if (typeof propertyId === 'string' && /^[0-9a-f-]{36}$/i.test(propertyId)) {
+      params.push(propertyId);
+      propertyClause = `AND EXISTS (SELECT 1 FROM jobs j WHERE j.id = business_invoices.job_id AND j.property_id = $${params.length})`;
+    }
 
     const { rows } = await pool.query(`
       SELECT id, invoice_number, client_name, client_email, client_company,
@@ -53,6 +60,7 @@ async function listInvoices(req, res) {
       FROM business_invoices
       WHERE business_id = $1
         ${statusClause}
+        ${propertyClause}
       ORDER BY created_at DESC
       LIMIT $2 OFFSET $3
     `, params);
