@@ -22,6 +22,9 @@ import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { formatCents, formatNumber } from '../lib/format';
+import { useAuth } from '../context/AuthContext';
+import useAccessProjection, { ACCESS_PROJECTION_STATES } from '../hooks/useAccessProjection';
+import { listMyProvisioningRequests, createPartnerApplicationRequest } from '../api/signupProvisioning';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -158,6 +161,8 @@ function Modal({ open, onClose, title, children }) {
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function AffiliateDashboardPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const accessProjection = useAccessProjection(user);
   const [stats, setStats]             = useState(null);
   const [programs, setPrograms]       = useState([]);
   const [selectedProgram, setSelected] = useState(null);
@@ -174,6 +179,38 @@ export default function AffiliateDashboardPage() {
   const [createForm, setCreateForm]   = useState({ program_type: 'amazon_affiliate', commission_rate: '' });
   const [creating, setCreating]       = useState(false);
   const [requestingPayout, setReqPayout] = useState(false);
+  const [partnerRequest, setPartnerRequest] = useState(null);
+  const [partnerRequestBusy, setPartnerRequestBusy] = useState(false);
+
+  // G-23: creating a program requires helper.offer_services (the server
+  // 403s otherwise). While the projection is still loading the button
+  // stays, so a helper is never stranded by a slow projection read; once
+  // it is ready and the capability is absent, the button is not offered
+  // and the invite-only path is shown instead. The server still enforces.
+  const projectionReady = accessProjection?.status === ACCESS_PROJECTION_STATES.ready;
+  const canCreateProgram = Boolean(
+    projectionReady && accessProjection.access?.personal?.includes('helper.offer_services'),
+  );
+
+  useEffect(() => {
+    listMyProvisioningRequests()
+      .then((d) => setPartnerRequest((d.requests || []).find((r) => r.kind === 'partner_application' && r.status === 'pending') || null))
+      .catch(() => {});
+  }, []);
+
+  const requestPartnerAccess = async () => {
+    if (partnerRequestBusy) return;
+    setPartnerRequestBusy(true);
+    try {
+      const { request } = await createPartnerApplicationRequest();
+      setPartnerRequest(request || null);
+      toast.success(t('affiliateDashboard.partner.requested'));
+    } catch {
+      toast.error(t('affiliateDashboard.errors.createProgram'));
+    } finally {
+      setPartnerRequestBusy(false);
+    }
+  };
 
   // ── Load overview ──────────────────────────────────────────────────────
   const loadOverview = useCallback(async () => {
@@ -189,7 +226,9 @@ export default function AffiliateDashboardPage() {
       setPayouts(payoutsRes.data.data || []);
       if (progsRes.data.data?.length) setSelected(progsRes.data.data[0]);
     } catch (err) {
-      toast.error(t('affiliateDashboard.errors.loadAffiliateData'));
+      // A non-helper 403s on every affiliate read: that is the invite-only
+      // state, not a load failure, so no error toast.
+      if (err?.response?.status !== 403) toast.error(t('affiliateDashboard.errors.loadAffiliateData'));
     } finally {
       setLoading(false);
     }
@@ -300,9 +339,11 @@ export default function AffiliateDashboardPage() {
               {programs.length > 0 && (
                 <Btn variant="secondary" onClick={() => setPayout(true)}>{t('affiliateDashboard.actions.requestPayout')}</Btn>
               )}
-              <Btn onClick={() => setCreate(true)}>
-                <span className="flex items-center gap-1.5"><IcoPlus size={14} cls="text-white" /> {t('affiliateDashboard.actions.newProgram')}</span>
-              </Btn>
+              {(!projectionReady || canCreateProgram) && (
+                <Btn onClick={() => setCreate(true)}>
+                  <span className="flex items-center gap-1.5"><IcoPlus size={14} cls="text-white" /> {t('affiliateDashboard.actions.newProgram')}</span>
+                </Btn>
+              )}
             </div>
           </div>
 
@@ -317,10 +358,21 @@ export default function AffiliateDashboardPage() {
               <p className="text-xs text-gray-500 mb-6">
                 {t('affiliateDashboard.empty.verification')}
               </p>
-              <div className="flex gap-3 justify-center">
-                <Link to="/verify-identity" className="text-xs font-semibold px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">{t('affiliateDashboard.empty.verifyIdentity')}</Link>
-                <Btn onClick={() => setCreate(true)}>{t('affiliateDashboard.empty.createProgram')}</Btn>
-              </div>
+              {projectionReady && !canCreateProgram ? (
+                <div className="max-w-md mx-auto">
+                  <p className="text-gray-400 text-sm mb-4">{t('affiliateDashboard.partner.inviteOnly')}</p>
+                  {partnerRequest ? (
+                    <p className="text-sm font-semibold text-white">{t('affiliateDashboard.partner.pending')}</p>
+                  ) : (
+                    <Btn onClick={requestPartnerAccess} disabled={partnerRequestBusy}>{t('affiliateDashboard.partner.request')}</Btn>
+                  )}
+                </div>
+              ) : (
+                <div className="flex gap-3 justify-center">
+                  <Link to="/verify-identity" className="text-xs font-semibold px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">{t('affiliateDashboard.empty.verifyIdentity')}</Link>
+                  <Btn onClick={() => setCreate(true)}>{t('affiliateDashboard.empty.createProgram')}</Btn>
+                </div>
+              )}
             </Card>
           )}
 
