@@ -30,7 +30,7 @@ const USE_NOW_ROUTES = Object.freeze({
   'tool_owner.list_equipment': '/tool-rentals',
   'consultant.accept_paying_clients': '/consulting/contractor-dashboard',
   'logistics.ship': '/logistics',
-  'investor.reporting': '/investor/dashboard',
+  'investor.reporting': '/investments',
   'franchise.operate': '/franchise/territory',
 });
 

@@ -57,7 +57,7 @@ export function investorWorkspaceSections(projection) {
       id: 'reports',
       titleKey: 'invest.workspace.reports.title',
       descriptionKey: 'invest.workspace.reports.description',
-      to: hasReporting ? '/investor/dashboard' : '/settings/applications',
+      to: hasReporting ? '/investments' : '/settings/applications',
       available: hasReporting,
       setupRequired: !hasReporting,
     },
