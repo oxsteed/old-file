@@ -114,7 +114,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
     const draft = transferDrafts[bookingId] || {};
     const newHelperId = String(draft.newHelperId || '').trim();
     if (!newHelperId) {
-      toast.error(t('calendar.transferProviderRequired',));
+      toast.error(t('calendar.transferProviderRequired'));
       return;
     }
     if (transferringId) return;
@@ -124,7 +124,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
         newHelperId,
         reason: String(draft.reason || '').trim() || undefined,
       });
-      toast.success(t('calendar.bookingTransferred',));
+      toast.success(t('calendar.bookingTransferred'));
       setTransferDrafts((current) => {
         const next = { ...current };
         delete next[bookingId];
@@ -133,7 +133,7 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
       loadBookingRequests();
       onBookingConfirmed?.();
     } catch (err) {
-      toast.error(err?.response?.data?.error || t('calendar.errorTransferringBooking',));
+      toast.error(err?.response?.data?.error || t('calendar.errorTransferringBooking'));
     } finally {
       setTransferringId(null);
     }
@@ -230,9 +230,9 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
         <>
           <div className="booking-requests-header">
             <div>
-              <h2>{t('calendar.acceptedBookings',)}</h2>
+              <h2>{t('calendar.acceptedBookings')}</h2>
               <p className="booking-requests-subtitle">
-                {t('calendar.acceptedBookingsSub',)}
+                {t('calendar.acceptedBookingsSub')}
               </p>
             </div>
             <div className="booking-count">{acceptedBookings.length}</div>
@@ -412,16 +412,16 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
             type="text"
             value={transferDraft?.newHelperId || ''}
             onChange={(e) => onTransferDraftChange?.({ newHelperId: e.target.value })}
-            placeholder={t('calendar.transferProviderPlaceholder',)}
-            aria-label={t('calendar.transferProviderPlaceholder',)}
+            placeholder={t('calendar.transferProviderPlaceholder')}
+            aria-label={t('calendar.transferProviderPlaceholder')}
             disabled={!!transferring}
           />
           <input
             type="text"
             value={transferDraft?.reason || ''}
             onChange={(e) => onTransferDraftChange?.({ reason: e.target.value })}
-            placeholder={t('calendar.transferReasonPlaceholder',)}
-            aria-label={t('calendar.transferReasonPlaceholder',)}
+            placeholder={t('calendar.transferReasonPlaceholder')}
+            aria-label={t('calendar.transferReasonPlaceholder')}
             disabled={!!transferring}
           />
           <button
@@ -429,14 +429,14 @@ function CalendarBookingRequestCard({ booking, acting, onConfirm, onDecline, onP
             className="btn-confirm"
             onClick={onTransfer}
             disabled={!!transferring || !(transferDraft?.newHelperId || '').trim()}
-            title={t('calendar.transferBooking',)}
+            title={t('calendar.transferBooking')} data-track="ui.79e8a0a062.4"
           >
             {transferring
-              ? t('calendar.transferringBooking',)
-              : t('calendar.transfer',)}
+              ? t('calendar.transferringBooking')
+              : t('calendar.transfer')}
           </button>
           <p className="booking-transfer-hint">
-            {t('calendar.transferHint',)}
+            {t('calendar.transferHint')}
           </p>
         </div>
       ) : canRespond ? (

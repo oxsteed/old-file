@@ -698,34 +698,34 @@ function JobDetailContent() {
           </div>}
           {/* G-15: the assigned helper marks arrival; the customer sees it. */}
           {isAssignedHelper && ['accepted', 'in_progress'].includes(job.status) && !job.arrived_at && <div className="jdp-secondary-action">
-            <button type="button" className="jdp-btn-ghost" onClick={handleArrive} disabled={actionLoading || loading}>{t('jobDetail.markArrived')}</button>
+            <button type="button" className="jdp-btn-ghost" onClick={handleArrive} disabled={actionLoading || loading} data-track="ui.573dfef74b.18">{t('jobDetail.markArrived')}</button>
           </div>}
           {job.arrived_at && <p role="status" className="jdp-completion-pending">
             {t('jobDetail.arrivedAt', { time: new Date(job.arrived_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}
           </p>}
           {/* G-15: either party marks a no-show; the owner gets a rebook prompt. */}
           {(isOwner || isAssignedHelper) && ['accepted', 'in_progress'].includes(job.status) && <div className="jdp-secondary-action">
-            <button type="button" className="jdp-btn-ghost" onClick={() => setShowNoShowPanel((v) => !v)} disabled={actionLoading || loading}>{t('jobDetail.markNoShow')}</button>
+            <button type="button" className="jdp-btn-ghost" onClick={() => setShowNoShowPanel((v) => !v)} disabled={actionLoading || loading} data-track="ui.573dfef74b.19">{t('jobDetail.markNoShow')}</button>
           </div>}
           {showNoShowPanel && <div className="jdp-card" role="group" aria-label={t('jobDetail.markNoShow')}>
             <label htmlFor={`${fieldId}-noshow-reason`}>{t('jobDetail.noShowReasonLabel')}</label>
             <textarea id={`${fieldId}-noshow-reason`} rows={3} maxLength={500} value={noShowReason}
               onChange={(e) => setNoShowReason(e.target.value)} placeholder={t('jobDetail.noShowReasonPlaceholder')} />
             <div className="jdp-modal-actions">
-              <button type="button" className="jdp-btn-primary" onClick={handleNoShow} disabled={actionLoading}>{t('jobDetail.confirmNoShow')}</button>
-              <button type="button" className="jdp-btn-ghost" onClick={() => setShowNoShowPanel(false)}>{t('common.cancel')}</button>
+              <button type="button" className="jdp-btn-primary" onClick={handleNoShow} disabled={actionLoading} data-track="ui.573dfef74b.20">{t('jobDetail.confirmNoShow')}</button>
+              <button type="button" className="jdp-btn-ghost" onClick={() => setShowNoShowPanel(false)} data-track="ui.573dfef74b.21">{t('common.cancel')}</button>
             </div>
           </div>}
           {job.status === 'no_show' && <p role="status" className="jdp-completion-pending">
             {t('jobDetail.noShowNotice', { reason: job.no_show_reason || '' })}
           </p>}
           {isOwner && job.status === 'no_show' && <div className="jdp-secondary-action">
-            <button type="button" className="jdp-btn-primary" onClick={handleRebook}>{t('jobDetail.rebookJob')}</button>
+            <button type="button" className="jdp-btn-primary" onClick={handleRebook} data-track="ui.573dfef74b.22">{t('jobDetail.rebookJob')}</button>
           </div>}
           {/* G-16: the customer asks for changes on a completion request
               instead of opening a dispute. */}
           {isOwner && job.status === 'in_progress' && job.completion_requested_at && <div className="jdp-secondary-action">
-            <button type="button" className="jdp-btn-ghost" onClick={() => setShowChangesPanel((v) => !v)} disabled={actionLoading || loading}>{t('jobDetail.requestChanges')}</button>
+            <button type="button" className="jdp-btn-ghost" onClick={() => setShowChangesPanel((v) => !v)} disabled={actionLoading || loading} data-track="ui.573dfef74b.23">{t('jobDetail.requestChanges')}</button>
           </div>}
           {showChangesPanel && <div className="jdp-card" role="group" aria-label={t('jobDetail.requestChanges')}>
             <label htmlFor={`${fieldId}-changes-reason`}>{t('jobDetail.changesReasonLabel')}</label>
@@ -733,8 +733,8 @@ function JobDetailContent() {
               onChange={(e) => setChangesReason(e.target.value)} placeholder={t('jobDetail.changesReasonPlaceholder')} />
             <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>{t('jobDetail.changesHint')}</p>
             <div className="jdp-modal-actions">
-              <button type="button" className="jdp-btn-primary" onClick={handleRequestChanges} disabled={actionLoading}>{t('jobDetail.sendChangesRequest')}</button>
-              <button type="button" className="jdp-btn-ghost" onClick={() => setShowChangesPanel(false)}>{t('common.cancel')}</button>
+              <button type="button" className="jdp-btn-primary" onClick={handleRequestChanges} disabled={actionLoading} data-track="ui.573dfef74b.24">{t('jobDetail.sendChangesRequest')}</button>
+              <button type="button" className="jdp-btn-ghost" onClick={() => setShowChangesPanel(false)} data-track="ui.573dfef74b.25">{t('common.cancel')}</button>
             </div>
           </div>}
           {job.change_request_reason && job.status === 'in_progress' && <p role="status" className="jdp-completion-pending">

@@ -206,7 +206,7 @@ export default function BookingConfirmation({
             <input
               type="checkbox"
               checked={forSomeoneElse}
-              onChange={(e) => setForSomeoneElse(e.target.checked)}
+              onChange={(e) => setForSomeoneElse(e.target.checked)} data-track="ui.98ea5ee9e6.4"
             />
             <span>{t('booking.bookForSomeoneElse')}</span>
           </label>

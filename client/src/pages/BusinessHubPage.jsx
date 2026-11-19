@@ -3061,11 +3061,11 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                 ))}
               </select>
             </label>
-            <button className="bh-btn" onClick={() => setShowPropertyForm((v) => !v)}>{t('businessHub.maintenance.addProperty')}</button>
+            <button className="bh-btn" onClick={() => setShowPropertyForm((v) => !v)} data-track="ui.83b215c0c9.110">{t('businessHub.maintenance.addProperty')}</button>
           </div>
         </div>
         {showPropertyForm && (
-          <form onSubmit={handleCreateProperty} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', padding: '0 1rem 1rem' }}>
+          <form onSubmit={handleCreateProperty} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', padding: '0 1rem 1rem' }} data-track="ui.83b215c0c9.111">
             <input
               value={propertyForm.label}
               onChange={(e) => setPropertyForm((p) => ({ ...p, label: e.target.value }))}
@@ -3081,7 +3081,7 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
               aria-label={t('businessHub.maintenance.propertyAddress')}
               maxLength={500}
             />
-            <button className="bh-btn" type="submit">{t('businessHub.maintenance.saveProperty')}</button>
+            <button className="bh-btn" type="submit" data-track="ui.83b215c0c9.112">{t('businessHub.maintenance.saveProperty')}</button>
           </form>
         )}
       </div>

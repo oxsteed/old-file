@@ -219,7 +219,7 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
                   onClick={() => {
                     navigator.clipboard?.writeText(`${window.location.origin}/bookings/status/${live.statusToken}`);
                     toast.success(t('booking.linkCopied'));
-                  }}
+                  }} data-track="ui.474702b501.5"
                 >
                   {t('booking.copyLink')}
                 </button>
