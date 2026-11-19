@@ -1,5 +1,6 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
+const { vehicleServiceReminders } = require('../services/vehicleServiceReminders');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const pulseCtrl = require('./lifePulseController');
 const houseCtrl = require('./houseController');
@@ -997,7 +998,11 @@ exports.getLifeVehicles = async (req, res) => {
       WHERE user_id = $1
       ORDER BY updated_at DESC, created_at DESC
     `, [req.user.id]);
-    res.json({ vehicles: rows });
+    // Group 1, item 27: same derived reminders as the garage endpoint.
+    res.json({ vehicles: rows.map((row) => ({
+      ...row,
+      service_reminders: vehicleServiceReminders(row),
+    })) });
   } catch (err) {
     logger.error('getLifeVehicles error', { message: err.message });
     res.status(500).json({ error: 'Failed to fetch vehicles.' });

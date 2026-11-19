@@ -35,6 +35,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import QuickAddTemplates from '../components/QuickAddTemplates';
+import SeasonalPacks from '../components/SeasonalPacks';
 import PlannedNeedHoldStatus from '../components/PlannedNeedHoldStatus';
 import PulseScoreSettings from '../components/PulseScoreSettings';
 import '../styles/PlannedNeedsPage.css';
@@ -1179,6 +1180,9 @@ export default function PlannedNeedsPage() {
                 ))}
               </div>
             </div>
+
+            {/* Group 1, item 29: seasonal task packs. */}
+            <SeasonalPacks onApplied={loadNeeds} />
 
             {inactiveNeeds.length > 0 && filter !== 'completed' && (
               <>

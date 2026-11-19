@@ -23,6 +23,10 @@ router.get('/projection',        authenticate, ctrl.getProjection);
 // Templates (Task 9) - no auth needed for reading
 router.get('/templates',     authenticate, ctrl.getTemplates);
 
+// Group 1, item 29: seasonal task packs (curated template bundles).
+router.get('/seasonal-packs',              authenticate, ctrl.getSeasonalPacks);
+router.post('/seasonal-packs/:season/apply', authenticate, ctrl.applySeasonalPack);
+
 // Helper offers (Task 3)
 router.get('/helper/offers',  authenticate, requireHelperCapability, ctrl.getHelperOffers);
 

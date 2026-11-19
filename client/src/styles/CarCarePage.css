@@ -420,3 +420,24 @@
   .cc-field { min-width: unset; }
   .cc-field-sm { flex: 1 1 auto; }
 }
+
+/* Group 1, item 27: service reminders on each vehicle card. */
+.cc-service-reminders {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.cc-service-reminder {
+  font-size: 0.85rem;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+}
+.cc-service-reminder.cc-service-due {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+}

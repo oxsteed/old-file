@@ -991,6 +991,93 @@ exports.getTemplates = async (req, res) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// GROUP 1, ITEM 29: SEASONAL TASK PACKS
+// Curated bundles of the seeded planned-need templates, one per season.
+// Applying a pack creates planned needs from the templates; a need whose
+// title the customer already has (open) is skipped, so re-applying a pack
+// never duplicates work. Due dates default to 30 days out, inside the
+// season. No new data model: packs are views over planned_need_templates.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SEASONAL_PACKS = {
+  spring: ['HVAC Service', 'Lawn Care', 'Oil Change'],
+  summer: ['Tire Rotation', 'Lawn Care', 'Dentist Visit'],
+  fall: ['HVAC Service', 'Brake Inspection', 'Oil Change'],
+  winter: ['Annual Checkup', 'Brake Inspection', 'Haircut'],
+};
+
+exports.getSeasonalPacks = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT * FROM planned_need_templates
+      WHERE is_active = true
+      ORDER BY sort_order ASC
+    `);
+    const byName = new Map(rows.map((r) => [r.name, r]));
+    const packs = Object.entries(SEASONAL_PACKS).map(([season, names]) => ({
+      season,
+      templates: names.map((name) => byName.get(name)).filter(Boolean),
+    }));
+    res.json({ packs });
+  } catch (err) {
+    logger.error('getSeasonalPacks error', { message: err.message });
+    res.status(500).json({ error: 'Failed to fetch seasonal packs.' });
+  }
+};
+
+exports.applySeasonalPack = async (req, res) => {
+  try {
+    const season = String(req.params.season || '').toLowerCase();
+    const names = SEASONAL_PACKS[season];
+    if (!names) return res.status(400).json({ error: 'Unknown season.' });
+    const userId = req.user.id;
+
+    const { rows: templates } = await db.query(`
+      SELECT * FROM planned_need_templates
+      WHERE is_active = true AND name = ANY($1)
+    `, [names]);
+    const { rows: existing } = await db.query(`
+      SELECT title FROM planned_needs
+      WHERE user_id = $1 AND status NOT IN ('cancelled', 'completed')
+    `, [userId]);
+    const existingTitles = new Set(existing.map((r) => r.title));
+
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 30);
+    const dueDateStr = dueDate.toISOString().slice(0, 10);
+
+    const created = [];
+    const skipped = [];
+    for (const tpl of templates) {
+      if (existingTitles.has(tpl.default_title)) {
+        skipped.push({ title: tpl.default_title, reason: 'already_planned' });
+        continue;
+      }
+      const status = deriveInitialStatus(
+        tpl.default_estimated_cost, dueDateStr, tpl.default_lead_time_days || 7,
+      );
+      const { rows } = await db.query(`
+        INSERT INTO planned_needs
+          (user_id, title, description, category, status, due_date, estimated_cost,
+           lead_time_days, recurrence_type, recurrence_interval_days)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        RETURNING *
+      `, [
+        userId, tpl.default_title, tpl.default_description || null, tpl.category, status,
+        dueDateStr, tpl.default_estimated_cost || null, tpl.default_lead_time_days || 7,
+        tpl.default_recurrence_type || 'none', tpl.default_recurrence_interval_days || null,
+      ]);
+      created.push(rows[0]);
+      existingTitles.add(tpl.default_title);
+    }
+    res.status(201).json({ season, created, skipped });
+  } catch (err) {
+    logger.error('applySeasonalPack error', { message: err.message });
+    res.status(500).json({ error: 'Failed to apply seasonal pack.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // TASK 12: HELPER PREFERRED-BY COUNT (social proof)
 // ═══════════════════════════════════════════════════════════════════════════
 exports.getPreferredByCount = async (req, res) => {

@@ -1,0 +1,28 @@
+/* Group 1, item 29: seasonal task packs. */
+.sp-wrap {
+  margin-top: 1.5rem;
+}
+
+.sp-hint {
+  text-align: left;
+  margin: 0 0 0.75rem;
+}
+
+.sp-card {
+  padding: 1rem;
+}
+
+.sp-list {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+}
+
+.sp-status {
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.sp-error {
+  color: #fca5a5;
+}
