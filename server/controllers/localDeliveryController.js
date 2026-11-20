@@ -1205,7 +1205,15 @@ exports.createVehicle = async (req, res, next) => {
     const vehicleType = text(req.body.vehicleType, 32);
     const maxPayloadLbs = positiveNumber(req.body.maxPayloadLbs);
     if (!label || !vehicleType || !maxPayloadLbs) throw new AppError('Vehicle label, type, and payload are required', 400, 'delivery_vehicle_invalid');
-    const { rows } = await pool.query('INSERT INTO delivery_vehicles (label, vehicle_type, max_payload_lbs, cargo_length_in, cargo_width_in, cargo_height_in, equipment, created_by_user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *', [label, vehicleType, maxPayloadLbs, positiveNumber(req.body.cargoLengthIn), positiveNumber(req.body.cargoWidthIn), positiveNumber(req.body.cargoHeightIn), JSON.stringify(normalizeHandling(req.body.equipment)), req.user.id]);
+    // Group 9 follow-up (items 482/483): the dispatch ResourceForm already
+    // sends maxPieces, fragile/perishable support, service area, insurance
+    // acknowledgement/expiry, and availability — but this INSERT used to
+    // persist none of them, so every ops-created vehicle defaulted to
+    // max_pieces=1 + insurance_acknowledged=false and capabilityFailures
+    // rejected it on every assignInternal with vehicle_pieces +
+    // vehicle_insurance. Persist the full form payload, mirroring
+    // upsertDriver.
+    const { rows } = await pool.query('INSERT INTO delivery_vehicles (label, vehicle_type, max_payload_lbs, cargo_length_in, cargo_width_in, cargo_height_in, equipment, max_pieces, fragile_supported, perishable_supported, service_area, insurance_acknowledged, insurance_expires_at, available_from, available_until, created_by_user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *', [label, vehicleType, maxPayloadLbs, positiveNumber(req.body.cargoLengthIn), positiveNumber(req.body.cargoWidthIn), positiveNumber(req.body.cargoHeightIn), JSON.stringify(normalizeHandling(req.body.equipment)), Math.max(1, nonNegativeInteger(req.body.maxPieces ?? req.body.max_pieces, 1)), req.body.fragileSupported === true || req.body.fragile_supported === true, req.body.perishableSupported === true || req.body.perishable_supported === true, JSON.stringify(normalizeServiceArea(req.body.serviceArea ?? req.body.service_area)), req.body.insuranceAcknowledged === true || req.body.insurance_acknowledged === true, isoDate(req.body.insuranceExpiresAt ?? req.body.insurance_expires_at, 'insuranceExpiresAt'), isoDate(req.body.availableFrom ?? req.body.available_from, 'availableFrom'), isoDate(req.body.availableUntil ?? req.body.available_until, 'availableUntil'), req.user.id]);
     res.status(201).json({ success: true, vehicle: rows[0] });
   } catch (error) {
     next(error);
