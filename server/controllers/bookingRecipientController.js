@@ -1661,6 +1661,265 @@ exports.getSponsorReceipt = async (req, res) => {
   }
 };
 
+// ─── token sponsor payments (D-40) ───────────────────────────────────────
+// The sponsor usually has no account: they arrive on the invite token in
+// the email. The account handlers above cannot serve them, so these six
+// mirror them exactly with loadTokenBooking instead of loadAccountBooking.
+// The money path is identical (same createIntentFor / confirmIntent, same
+// webhook settlement, same idempotency): only the credential differs.
+
+exports.createSponsorPaymentIntentByToken = async (req, res) => {
+  try {
+    const stripe = requireStripe(res);
+    if (!stripe) return;
+    const loaded = await loadTokenBooking(req, res, ['sponsor']);
+    if (!loaded) return;
+    const sponsorship = await refreshSponsorship(
+      await loadSponsorship(loaded.booking.id, loaded.party.sponsorshipId)
+    );
+    if (!sponsorship) return sendError(res, 404, 'Sponsorship not found');
+    if (sponsorship.status !== 'accepted') {
+      return sendError(res, 409, `This sponsorship cannot be paid while ${sponsorship.status}`, 'sponsorship_not_payable');
+    }
+    if (sponsorship.stripe_payment_intent_id) {
+      const existing = await loadLiveIntent(stripe, sponsorship.stripe_payment_intent_id);
+      if (existing && Number(existing.amount) === Number(sponsorship.amount_cents)
+        && !['succeeded', 'canceled'].includes(existing.status)) {
+        return res.json({
+          success: true,
+          data: {
+            sponsorshipId: sponsorship.id,
+            clientSecret: existing.client_secret,
+            paymentIntentId: existing.id,
+            amountCents: Number(sponsorship.amount_cents),
+            publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+          },
+        });
+      }
+      if (existing && existing.status === 'succeeded') {
+        return sendError(res, 409, 'This sponsorship is already paid', 'sponsorship_already_paid');
+      }
+    }
+    const intent = await createIntentFor({
+      booking: loaded.booking,
+      sponsorship,
+      payerEmail: sponsorship.sponsor_email,
+    });
+    await pool.query(
+      `UPDATE booking_sponsorships SET stripe_payment_intent_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [sponsorship.id, intent.id]
+    );
+    return res.json({
+      success: true,
+      data: {
+        sponsorshipId: sponsorship.id,
+        clientSecret: intent.client_secret,
+        paymentIntentId: intent.id,
+        amountCents: Number(sponsorship.amount_cents),
+        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      },
+    });
+  } catch (err) {
+    logger.error('Error creating sponsor PaymentIntent by token', { error: err.message });
+    sendError(res, 500, 'Failed to create sponsor payment');
+  }
+};
+
+exports.confirmSponsorPaymentByToken = async (req, res) => {
+  try {
+    const stripe = requireStripe(res);
+    if (!stripe) return;
+    const loaded = await loadTokenBooking(req, res, ['sponsor']);
+    if (!loaded) return;
+    const sponsorship = await loadSponsorship(loaded.booking.id, loaded.party.sponsorshipId);
+    if (!sponsorship) return sendError(res, 404, 'Sponsorship not found');
+    const paymentIntentId = String(req.body?.paymentIntentId || sponsorship.stripe_payment_intent_id || '');
+    if (!paymentIntentId) return sendValidationError(res, { paymentIntentId: 'Payment intent is required' });
+    const result = await confirmIntent({
+      stripe,
+      booking: loaded.booking,
+      row: sponsorship,
+      table: 'booking_sponsorships',
+      intentId: paymentIntentId,
+      amountCents: sponsorship.amount_cents,
+    });
+    if (!result.ok) return sendError(res, result.status, result.error, 'sponsor_payment_mismatch');
+    await logBookingAudit(loaded.booking.id, 'sponsorship_paid', loaded.party.userId || null, 'sponsor', loaded.booking.status, loaded.booking.status);
+    await notifySponsorUpdate(loaded.booking, result.row, 'The sponsor paid the sponsored amount');
+    return res.json({
+      success: true,
+      data: { ...sponsorshipShape(result.row, loaded.party), paidAt: result.row.paid_at },
+    });
+  } catch (err) {
+    logger.error('Error confirming sponsor payment by token', { error: err.message });
+    sendError(res, 500, 'Failed to confirm sponsor payment');
+  }
+};
+
+exports.getSponsorReceiptByToken = async (req, res) => {
+  try {
+    const loaded = await loadTokenBooking(req, res, ['sponsor']);
+    if (!loaded) return;
+    const sponsorship = await loadSponsorship(loaded.booking.id, loaded.party.sponsorshipId);
+    if (!sponsorship) return sendError(res, 404, 'Sponsorship not found');
+    return res.json({
+      success: true,
+      data: {
+        sponsorshipId: String(sponsorship.id),
+        serviceName: loaded.booking.service_name,
+        requestedDate: loaded.booking.requested_date,
+        sponsorName: sponsorship.sponsor_name || null,
+        amountCents: Number(sponsorship.amount_cents),
+        currency: 'USD',
+        status: sponsorship.status,
+        paidAt: sponsorship.paid_at || null,
+        refundedAt: sponsorship.refunded_at || null,
+        paymentIntentId: sponsorship.stripe_payment_intent_id || null,
+      },
+    });
+  } catch (err) {
+    logger.error('Error fetching sponsor receipt by token', { error: err.message });
+    sendError(res, 500, 'Failed to fetch sponsor receipt');
+  }
+};
+
+exports.respondToChargeByToken = async (req, res) => {
+  try {
+    const loaded = await loadTokenBooking(req, res, ['sponsor']);
+    if (!loaded) return;
+    const decision = String(req.body?.decision || '').trim().toLowerCase();
+    if (decision !== 'accepted' && decision !== 'declined') {
+      return sendValidationError(res, { decision: 'Decision must be accepted or declined' });
+    }
+    const { rows } = await pool.query(
+      'SELECT * FROM booking_sponsorship_charges WHERE id = $1 AND booking_id = $2',
+      [String(req.params.chargeId || ''), loaded.booking.id]
+    );
+    const charge = rows[0];
+    if (!charge) return sendError(res, 404, 'Additional charge not found');
+    if (charge.status !== 'requested') {
+      return sendError(res, 409, `This charge is already ${charge.status}`, 'charge_decided');
+    }
+    const sponsorship = await loadSponsorship(loaded.booking.id, charge.sponsorship_id);
+    if (loaded.party.sponsorshipId !== String(charge.sponsorship_id)) {
+      return sendError(res, 403, 'Only the sponsor can respond to this charge');
+    }
+    const { rows: updatedRows } = await pool.query(
+      `UPDATE booking_sponsorship_charges SET status = $2, decided_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND status = 'requested' RETURNING *`,
+      [charge.id, decision]
+    );
+    if (!updatedRows.length) return sendError(res, 409, 'This charge was already decided', 'charge_decided');
+    await logBookingAudit(loaded.booking.id, `sponsorship_charge_${decision}`, loaded.party.userId || null, 'sponsor', loaded.booking.status, loaded.booking.status);
+    await notifySponsorUpdate(loaded.booking, sponsorship, decision === 'accepted'
+      ? 'The sponsor accepted the additional charge'
+      : 'The sponsor declined the additional charge');
+    return res.json({ success: true, data: chargeShape(updatedRows[0], loaded.party) });
+  } catch (err) {
+    logger.error('Error responding to additional charge by token', { error: err.message });
+    sendError(res, 500, 'Failed to respond to additional charge');
+  }
+};
+
+exports.createChargePaymentIntentByToken = async (req, res) => {
+  try {
+    const stripe = requireStripe(res);
+    if (!stripe) return;
+    const loaded = await loadTokenBooking(req, res, ['sponsor']);
+    if (!loaded) return;
+    const { rows } = await pool.query(
+      'SELECT * FROM booking_sponsorship_charges WHERE id = $1 AND booking_id = $2',
+      [String(req.params.chargeId || ''), loaded.booking.id]
+    );
+    const charge = rows[0];
+    if (!charge) return sendError(res, 404, 'Additional charge not found');
+    if (charge.status !== 'accepted') {
+      return sendError(res, 409, `This charge cannot be paid while ${charge.status}`, 'charge_not_payable');
+    }
+    if (loaded.party.sponsorshipId !== String(charge.sponsorship_id)) {
+      return sendError(res, 403, 'Only the sponsor can pay this charge');
+    }
+    const sponsorship = await loadSponsorship(loaded.booking.id, charge.sponsorship_id);
+    if (charge.stripe_payment_intent_id) {
+      const existing = await loadLiveIntent(stripe, charge.stripe_payment_intent_id);
+      if (existing && Number(existing.amount) === Number(charge.amount_cents)
+        && !['succeeded', 'canceled'].includes(existing.status)) {
+        return res.json({
+          success: true,
+          data: {
+            chargeId: charge.id,
+            clientSecret: existing.client_secret,
+            paymentIntentId: existing.id,
+            amountCents: Number(charge.amount_cents),
+            publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+          },
+        });
+      }
+      if (existing && existing.status === 'succeeded') {
+        return sendError(res, 409, 'This charge is already paid', 'charge_already_paid');
+      }
+    }
+    const intent = await createIntentFor({
+      booking: loaded.booking,
+      sponsorship,
+      charge,
+      payerEmail: sponsorship?.sponsor_email,
+    });
+    await pool.query(
+      `UPDATE booking_sponsorship_charges SET stripe_payment_intent_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [charge.id, intent.id]
+    );
+    return res.json({
+      success: true,
+      data: {
+        chargeId: charge.id,
+        clientSecret: intent.client_secret,
+        paymentIntentId: intent.id,
+        amountCents: Number(charge.amount_cents),
+        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      },
+    });
+  } catch (err) {
+    logger.error('Error creating charge PaymentIntent by token', { error: err.message });
+    sendError(res, 500, 'Failed to create charge payment');
+  }
+};
+
+exports.confirmChargePaymentByToken = async (req, res) => {
+  try {
+    const stripe = requireStripe(res);
+    if (!stripe) return;
+    const loaded = await loadTokenBooking(req, res, ['sponsor']);
+    if (!loaded) return;
+    const { rows } = await pool.query(
+      'SELECT * FROM booking_sponsorship_charges WHERE id = $1 AND booking_id = $2',
+      [String(req.params.chargeId || ''), loaded.booking.id]
+    );
+    const charge = rows[0];
+    if (!charge) return sendError(res, 404, 'Additional charge not found');
+    if (loaded.party.sponsorshipId !== String(charge.sponsorship_id)) {
+      return sendError(res, 403, 'Only the sponsor can confirm this charge payment');
+    }
+    const paymentIntentId = String(req.body?.paymentIntentId || charge.stripe_payment_intent_id || '');
+    if (!paymentIntentId) return sendValidationError(res, { paymentIntentId: 'Payment intent is required' });
+    const result = await confirmIntent({
+      stripe,
+      booking: loaded.booking,
+      row: charge,
+      table: 'booking_sponsorship_charges',
+      intentId: paymentIntentId,
+      amountCents: charge.amount_cents,
+    });
+    if (!result.ok) return sendError(res, result.status, result.error, 'charge_payment_mismatch');
+    const sponsorship = await loadSponsorship(loaded.booking.id, charge.sponsorship_id);
+    await notifySponsorUpdate(loaded.booking, sponsorship, 'The sponsor paid the additional charge');
+    return res.json({ success: true, data: chargeShape(result.row, loaded.party) });
+  } catch (err) {
+    logger.error('Error confirming charge payment by token', { error: err.message });
+    sendError(res, 500, 'Failed to confirm charge payment');
+  }
+};
+
 // ─── additional charges (items 126-127) ───────────────────────────────────
 
 exports.requestAdditionalCharge = async (req, res) => {

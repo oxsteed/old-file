@@ -505,6 +505,60 @@ ddescribe('Group 3 recipient and sponsor', () => {
     expect(receipt.payload.data.status).toBe('paid');
   });
 
+  test('items 121/124/125: token sponsor accepts and pays with no account', async () => {
+    const booking = await createLinkedBooking();
+    const invite = await createSponsorshipFor(booking.id, 4000);
+    // Accept by token (no user object at all: the invite token is the credential).
+    const accepted = mockRes();
+    await recipientController.respondToSponsorshipByToken(
+      { params: { token: invite.inviteToken }, body: { decision: 'accepted' } },
+      accepted,
+    );
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.payload.data.status).toBe('accepted');
+
+    mockStripe.paymentIntents.create.mockResolvedValueOnce({
+      id: 'pi_tok_1', client_secret: 'sec_tok_1', amount: 4000, status: 'requires_payment', currency: 'usd',
+    });
+    const intentRes = mockRes();
+    await recipientController.createSponsorPaymentIntentByToken(
+      { params: { token: invite.inviteToken }, body: {} },
+      intentRes,
+    );
+    expect(intentRes.statusCode).toBe(200);
+    expect(intentRes.payload.data.paymentIntentId).toBe('pi_tok_1');
+
+    mockStripe.paymentIntents.retrieve.mockResolvedValueOnce({
+      id: 'pi_tok_1', status: 'succeeded', amount_received: 4000, amount: 4000, currency: 'usd',
+      metadata: { booking_request_id: booking.id, sponsorship_id: invite.id },
+    });
+    const confirmed = mockRes();
+    await recipientController.confirmSponsorPaymentByToken(
+      { params: { token: invite.inviteToken }, body: { paymentIntentId: 'pi_tok_1' } },
+      confirmed,
+    );
+    expect(confirmed.statusCode).toBe(200);
+    expect(confirmed.payload.data.status).toBe('paid');
+
+    const receipt = mockRes();
+    await recipientController.getSponsorReceiptByToken(
+      { params: { token: invite.inviteToken } },
+      receipt,
+    );
+    expect(receipt.statusCode).toBe(200);
+    expect(receipt.payload.data.amountCents).toBe(4000);
+    expect(receipt.payload.data.status).toBe('paid');
+
+    // A different token cannot pay this sponsorship.
+    const other = await createSponsorshipFor(booking.id, 1000);
+    const denied = mockRes();
+    await recipientController.createSponsorPaymentIntentByToken(
+      { params: { token: other.inviteToken }, body: {} },
+      denied,
+    );
+    expect(denied.statusCode).toBe(409);
+  });
+
   test('items 121-130: webhook settles a sponsorship; charges, breakdown, cap', async () => {
     const booking = await createLinkedBooking();
     const first = await createSponsorshipFor(booking.id, 5000);

@@ -408,6 +408,9 @@ ddescribe('Track C preference toggles (DB)', () => {
         // Group 2: household notifyHousehold fan-out; the four types are
         // the only ones its callers pass.
         { file: 'services/householdDelegationService.js', name: 'type', expansions: ['household_delegate_invite', 'household_delegation_update', 'household_spending_request', 'household_visit_update'] },
+        // Group 3: recipient/sponsor notifyAccountParty fan-out; the
+        // eleven types are the only ones its callers pass.
+        { file: 'services/bookingRecipientService.js', name: 'type', expansions: ['booking_visit_reminder', 'booking_provider_arrived', 'booking_visit_completed', 'booking_site_action', 'booking_care_instructions', 'booking_contact_removed', 'booking_link_renewal_requested', 'booking_recipient_invite', 'booking_site_contact_link', 'booking_sponsor_invite', 'booking_sponsor_update'] },
         { file: 'services/logisticsQuoteService.js', name: 'type', expansions: ['logistics:quote_published', 'logistics:quote_accepted'] },
         { file: 'services/logisticsRefundPorts.js', name: 'type', expansions: ['logistics:refund_proposed', 'logistics:refund_approved', 'logistics:refund_rejected', 'logistics:refund_processed', 'logistics:refund_pending', 'logistics:refund_failed', 'logistics:refund_expired'] },
         // sendBulkNotification fan-out: the type is the bulk caller's

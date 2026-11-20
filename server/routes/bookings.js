@@ -69,6 +69,14 @@ router.post('/status/:token/contact-correction', bookingRecipientController.subm
 router.post('/status/:token/relay-message', bookingRecipientController.relayTokenMessage);
 router.get('/status/:token/sponsor', bookingRecipientController.getSponsorPreviewByToken);
 router.post('/status/:token/sponsor/respond', bookingRecipientController.respondToSponsorshipByToken);
+// Group 3: the token sponsor pays with their own card, no account needed.
+// Same money path as the account handlers; only the credential differs.
+router.post('/status/:token/sponsor/payment-intent', bookingRecipientController.createSponsorPaymentIntentByToken);
+router.post('/status/:token/sponsor/confirm-payment', bookingRecipientController.confirmSponsorPaymentByToken);
+router.get('/status/:token/sponsor/receipt', bookingRecipientController.getSponsorReceiptByToken);
+router.post('/status/:token/sponsor/charges/:chargeId/respond', bookingRecipientController.respondToChargeByToken);
+router.post('/status/:token/sponsor/charges/:chargeId/payment-intent', bookingRecipientController.createChargePaymentIntentByToken);
+router.post('/status/:token/sponsor/charges/:chargeId/confirm-payment', bookingRecipientController.confirmChargePaymentByToken);
 router.get('/recurring', requireAuth, bookingController.listRecurringBookings);
 router.post('/recurring', requireAuth, bookingController.createRecurringBooking);
 router.post('/recurring/:id/cancel', requireAuth, bookingController.updateRecurringBookingStatus);
