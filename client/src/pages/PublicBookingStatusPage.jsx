@@ -468,12 +468,15 @@ export default function PublicBookingStatusPage() {
             <Section title={t('booking.token.summaryTitle')}>
               <p>{t('booking.token.visitFor', { name: summary.labels?.recipient || summary.labels?.siteContact || summary.serviceName })}</p>
               <p>{t('booking.token.yourRole', { role: t(`booking.sharingRole.${summary.viewerRole === 'site_contact' ? 'siteContact' : summary.viewerRole}`) })}</p>
-              {summary.labels?.ownershipLabel && <p>{summary.labels.ownershipLabel}</p>}
+              {summary.scope?.site && <p>{t('booking.token.scopeSite')}: {summary.scope.site}</p>}
+              {summary.description && <p>{t('booking.token.scopeDescription')}: {summary.description}</p>}
               {summary.helper?.doorName && <p>{t('booking.token.doorName', { name: summary.helper.doorName })}</p>}
               {summary.authority?.[summary.viewerRole] && (
                 <ul className="token-list">
-                  {summary.authority[summary.viewerRole].map((item) => (
-                    <li key={item}>{item}</li>
+                  {summary.authority[summary.viewerRole].map((item, index) => (
+                    <li key={item}>
+                      {t(`booking.token.authority.${summary.viewerRole === 'site_contact' ? 'siteContact' : summary.viewerRole}.${index}`)}
+                    </li>
                   ))}
                 </ul>
               )}

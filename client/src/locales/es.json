@@ -16746,8 +16746,48 @@
       "chargesTitle": "Cargos adicionales",
       "chargeAccepted": "Aceptó el cargo.",
       "chargeDeclined": "Rechazó el cargo.",
-      "chargeRespondFailed": "No se pudo enviar su respuesta."
-    }
+      "chargeRespondFailed": "No se pudo enviar su respuesta.",
+        "authority": {
+          "booker": {
+            "0": "Gestionar la reserva",
+            "1": "Invitar o reemplazar a un destinatario, contacto en el lugar o patrocinador",
+            "2": "Compartir recibo"
+          },
+          "recipient": {
+            "0": "Ver esta reserva",
+            "1": "Aceptar o rechazar la visita",
+            "2": "Cancelar la reserva",
+            "3": "Confirmar la finalización",
+            "4": "Compartir comentarios"
+          },
+          "siteContact": {
+            "0": "Ver el estado de la visita",
+            "1": "Coordinar el acceso al lugar",
+            "2": "Confirmar la entrega",
+            "3": "Enviar mensajes en el chat de la reserva"
+          },
+          "sponsor": {
+            "0": "Ver el monto patrocinado",
+            "1": "Aceptar o rechazar",
+            "2": "Pagar con tu propia tarjeta",
+            "3": "Aprobar o rechazar cargos adicionales"
+          }
+        },
+        "scopeSite": "Lugar",
+        "scopeDescription": "Detalles"
+    },
+    "breakdownPayerBooker": "Quien reserva",
+    "paymentStatusPaid": "Pagado",
+    "paymentStatusRequiresPayment": "Pago requerido",
+    "paymentStatusProcessing": "Procesando",
+    "paymentStatusRefunded": "Reembolsado",
+    "paymentStatusInvited": "Invitado",
+    "paymentStatusAccepted": "Aceptado",
+    "paymentStatusDeclined": "Rechazado",
+    "paymentStatusExpired": "Vencido",
+    "paymentStatusVoided": "Anulado",
+    "paymentStatusRequested": "Solicitado",
+  "additionalChargeSuffix": "(cargo adicional)"
   },
   "household": {
       "title": "Hogar",

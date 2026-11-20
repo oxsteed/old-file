@@ -16013,8 +16013,48 @@
       "chargesTitle": "Additional charges",
       "chargeAccepted": "You accepted the charge.",
       "chargeDeclined": "You declined the charge.",
-      "chargeRespondFailed": "Could not send your response."
-    }
+      "chargeRespondFailed": "Could not send your response.",
+        "authority": {
+          "booker": {
+            "0": "Manage the booking",
+            "1": "Invite or replace a recipient, site contact, or sponsor",
+            "2": "Share the receipt"
+          },
+          "recipient": {
+            "0": "Read this booking",
+            "1": "Accept or decline the visit",
+            "2": "Cancel the booking",
+            "3": "Acknowledge completion",
+            "4": "Share feedback"
+          },
+          "siteContact": {
+            "0": "Read the visit status",
+            "1": "Coordinate site access",
+            "2": "Confirm handoff",
+            "3": "Message in the booking chat"
+          },
+          "sponsor": {
+            "0": "Preview the sponsored amount",
+            "1": "Accept or decline",
+            "2": "Pay with your own card",
+            "3": "Approve or decline additional charges"
+          }
+        },
+        "scopeSite": "Site",
+        "scopeDescription": "Details"
+    },
+    "breakdownPayerBooker": "Booker",
+    "paymentStatusPaid": "Paid",
+    "paymentStatusRequiresPayment": "Payment required",
+    "paymentStatusProcessing": "Processing",
+    "paymentStatusRefunded": "Refunded",
+    "paymentStatusInvited": "Invited",
+    "paymentStatusAccepted": "Accepted",
+    "paymentStatusDeclined": "Declined",
+    "paymentStatusExpired": "Expired",
+    "paymentStatusVoided": "Voided",
+    "paymentStatusRequested": "Requested",
+  "additionalChargeSuffix": "(additional charge)"
   },
   "household": {
       "title": "Household",

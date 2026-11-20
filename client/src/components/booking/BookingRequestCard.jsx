@@ -108,6 +108,23 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
   };
 
   const money = (cents) => new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format((cents || 0) / 100);
+  // Payment/sponsorship statuses arrive from the server as codes; render the
+  // translated label, falling back to the raw code for anything unknown.
+  const paymentStatusLabel = (status) => {
+    switch (status) {
+      case 'paid': return t('booking.paymentStatusPaid');
+      case 'requires_payment': return t('booking.paymentStatusRequiresPayment');
+      case 'processing': return t('booking.paymentStatusProcessing');
+      case 'refunded': return t('booking.paymentStatusRefunded');
+      case 'invited': return t('booking.paymentStatusInvited');
+      case 'accepted': return t('booking.paymentStatusAccepted');
+      case 'declined': return t('booking.paymentStatusDeclined');
+      case 'expired': return t('booking.paymentStatusExpired');
+      case 'voided': return t('booking.paymentStatusVoided');
+      case 'requested': return t('booking.paymentStatusRequested');
+      default: return status;
+    }
+  };
   const dollarsToCents = (value) => {
     const n = Math.round(Number.parseFloat(value) * 100);
     return Number.isFinite(n) && n > 0 ? n : null;
@@ -405,11 +422,21 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
                   <p>{t('booking.breakdownRemaining')}: {money(participants.breakdown.remainingCents)}</p>
                 )}
                 <ul className="booking-participant-list">
-                  {(participants.breakdown.payments || []).map((p, i) => (
-                    <li key={`${p.payer}-${i}`}>
-                      {p.payerLabel} — {p.amountCents != null ? money(p.amountCents) : t('common.notProvided')} — {p.paymentStatus}
-                    </li>
-                  ))}
+                  {(participants.breakdown.payments || []).map((p, i) => {
+                    const sponsor = p.sponsorshipId
+                      ? (participants?.sponsorships || []).find((s) => String(s.id) === String(p.sponsorshipId))
+                      : null;
+                    const payerLabel = p.payer === 'booker'
+                      ? t('booking.breakdownPayerBooker')
+                      : p.chargeId && sponsor
+                        ? `${sponsor.sponsorName || sponsor.sponsorEmail} ${t('booking.additionalChargeSuffix')}`
+                        : p.payerLabel;
+                    return (
+                      <li key={`${p.payer}-${i}`}>
+                        {payerLabel} — {p.amountCents != null ? money(p.amountCents) : t('common.notProvided')} — {paymentStatusLabel(p.paymentStatus)}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
@@ -418,7 +445,7 @@ export default function BookingRequestCard({ booking, onConvertToJob }) {
               {(participants?.sponsorships || []).length === 0 && <p>{t('booking.noSponsors')}</p>}
               <ul className="booking-participant-list">
                 {(participants?.sponsorships || []).map((s) => (
-                  <li key={s.id}>{s.sponsorName || s.sponsorEmail} — {money(s.amountCents)} — {s.status}</li>
+                  <li key={s.id}>{s.sponsorName || s.sponsorEmail} — {money(s.amountCents)} — {paymentStatusLabel(s.status)}</li>
                 ))}
               </ul>
               <div className="booking-participant-form">

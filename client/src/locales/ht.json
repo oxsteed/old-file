@@ -16746,8 +16746,48 @@
       "chargesTitle": "Frè anplis yo",
       "chargeAccepted": "Ou te aksepte frè a.",
       "chargeDeclined": "Ou te refize frè a.",
-      "chargeRespondFailed": "Pa t ka voye repons ou a."
-    }
+      "chargeRespondFailed": "Pa t ka voye repons ou a.",
+        "authority": {
+          "booker": {
+            "0": "Jere rezervasyon an",
+            "1": "Envite oswa ranplase yon moun k ap resevwa, yon kontak sou plas, oswa yon sponsò",
+            "2": "Pataje resi a"
+          },
+          "recipient": {
+            "0": "Li rezervasyon sa a",
+            "1": "Aksepte oswa refize vizit la",
+            "2": "Anile rezervasyon an",
+            "3": "Konfime travay la fini",
+            "4": "Pataje fidbak"
+          },
+          "siteContact": {
+            "0": "Li estati vizit la",
+            "1": "Kowòdone aksè sou plas la",
+            "2": "Konfime remiz la",
+            "3": "Voye mesaj nan chat rezervasyon an"
+          },
+          "sponsor": {
+            "0": "Wè montan sponsò a",
+            "1": "Aksepte oswa refize",
+            "2": "Peye ak pwòp kat ou",
+            "3": "Apwouve oswa refize frè adisyonèl yo"
+          }
+        },
+        "scopeSite": "Kote",
+        "scopeDescription": "Detay"
+    },
+    "breakdownPayerBooker": "Moun ki rezève a",
+    "paymentStatusPaid": "Peye",
+    "paymentStatusRequiresPayment": "Peman obligatwa",
+    "paymentStatusProcessing": "Nan pwosesis",
+    "paymentStatusRefunded": "Ranbouse",
+    "paymentStatusInvited": "Envite",
+    "paymentStatusAccepted": "Aksepte",
+    "paymentStatusDeclined": "Refize",
+    "paymentStatusExpired": "Ekspire",
+    "paymentStatusVoided": "Anile",
+    "paymentStatusRequested": "Mande",
+  "additionalChargeSuffix": "(frè adisyonèl)"
   },
   "household": {
       "title": "Kay",

@@ -16746,8 +16746,48 @@
       "chargesTitle": "Frais supplémentaires",
       "chargeAccepted": "Vous avez accepté le frais.",
       "chargeDeclined": "Vous avez refusé le frais.",
-      "chargeRespondFailed": "Impossible d'envoyer votre réponse."
-    }
+      "chargeRespondFailed": "Impossible d'envoyer votre réponse.",
+        "authority": {
+          "booker": {
+            "0": "Gérer la réservation",
+            "1": "Inviter ou remplacer un destinataire, un contact sur place ou un parrain",
+            "2": "Partager le reçu"
+          },
+          "recipient": {
+            "0": "Lire cette réservation",
+            "1": "Accepter ou refuser la visite",
+            "2": "Annuler la réservation",
+            "3": "Confirmer l'achèvement",
+            "4": "Partager un avis"
+          },
+          "siteContact": {
+            "0": "Lire le statut de la visite",
+            "1": "Coordonner l'accès au site",
+            "2": "Confirmer la remise",
+            "3": "Envoyer un message dans le chat de la réservation"
+          },
+          "sponsor": {
+            "0": "Aperçu du montant parrainé",
+            "1": "Accepter ou refuser",
+            "2": "Payer avec votre propre carte",
+            "3": "Approuver ou refuser les frais supplémentaires"
+          }
+        },
+        "scopeSite": "Lieu",
+        "scopeDescription": "Détails"
+    },
+    "breakdownPayerBooker": "Personne qui réserve",
+    "paymentStatusPaid": "Payé",
+    "paymentStatusRequiresPayment": "Paiement requis",
+    "paymentStatusProcessing": "En cours",
+    "paymentStatusRefunded": "Remboursé",
+    "paymentStatusInvited": "Invité",
+    "paymentStatusAccepted": "Accepté",
+    "paymentStatusDeclined": "Refusé",
+    "paymentStatusExpired": "Expiré",
+    "paymentStatusVoided": "Annulé",
+    "paymentStatusRequested": "Demandé",
+  "additionalChargeSuffix": "(frais supplémentaires)"
   },
   "household": {
       "title": "Foyer",

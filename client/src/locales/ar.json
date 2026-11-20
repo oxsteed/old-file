@@ -16016,8 +16016,48 @@
       "chargesTitle": "رسوم إضافية",
       "chargeAccepted": "قبلت الرسوم.",
       "chargeDeclined": "رفضت الرسوم.",
-      "chargeRespondFailed": "تعذر إرسال ردك."
-    }
+      "chargeRespondFailed": "تعذر إرسال ردك.",
+        "authority": {
+          "booker": {
+            "0": "إدارة الحجز",
+            "1": "دعوة أو استبدال مستلم أو جهة اتصال في الموقع أو راع",
+            "2": "مشاركة الإيصال"
+          },
+          "recipient": {
+            "0": "قراءة هذا الحجز",
+            "1": "قبول الزيارة أو رفضها",
+            "2": "إلغاء الحجز",
+            "3": "تأكيد الإنجاز",
+            "4": "مشاركة الملاحظات"
+          },
+          "siteContact": {
+            "0": "قراءة حالة الزيارة",
+            "1": "تنسيق الوصول إلى الموقع",
+            "2": "تأكيد التسليم",
+            "3": "مراسلة في محادثة الحجز"
+          },
+          "sponsor": {
+            "0": "معاينة المبلغ المكفول",
+            "1": "قبول أو رفض",
+            "2": "الدفع ببطاقتك الخاصة",
+            "3": "الموافقة على الرسوم الإضافية أو رفضها"
+          }
+        },
+        "scopeSite": "الموقع",
+        "scopeDescription": "التفاصيل"
+    },
+    "breakdownPayerBooker": "صاحب الحجز",
+    "paymentStatusPaid": "مدفوع",
+    "paymentStatusRequiresPayment": "الدفع مطلوب",
+    "paymentStatusProcessing": "قيد المعالجة",
+    "paymentStatusRefunded": "مسترد",
+    "paymentStatusInvited": "مدعو",
+    "paymentStatusAccepted": "مقبول",
+    "paymentStatusDeclined": "مرفوض",
+    "paymentStatusExpired": "منتهي",
+    "paymentStatusVoided": "ملغى",
+    "paymentStatusRequested": "مطلوب",
+  "additionalChargeSuffix": "(رسوم إضافية)"
   },
   "household": {
       "title": "الأسرة",
