@@ -138,7 +138,10 @@ const NOTIFICATION_TYPES = [
   { type: 'delivery_offer_expired', group: 'orders' },
   { type: 'delivery_window_warning', group: 'orders' },
   { type: 'delivery:delivery_assigned', group: 'orders' },
+  // Group 9 Slice E: exceptions dispatch events (localDeliveryNotifications copy).
+  { type: 'delivery:delivery_assignment_replaced', group: 'orders' },
   { type: 'delivery:delivery_cancelled', group: 'orders' },
+  { type: 'delivery:delivery_delay_escalated', group: 'orders' },
   { type: 'delivery:delivery_delivered', group: 'orders' },
   { type: 'delivery:delivery_eta_updated', group: 'orders' },
   { type: 'delivery:delivery_exception_reported', group: 'orders' },
@@ -162,6 +165,8 @@ const NOTIFICATION_TYPES = [
   { type: 'delivery:delivery_return_requested', group: 'orders' },
   { type: 'delivery:delivery_returned', group: 'orders' },
   { type: 'delivery:tracking_stale', group: 'orders' },
+  // Group 9 (item 495): driver weekly delivery report ready notice.
+  { type: 'delivery:weekly_report_ready', group: 'orders' },
   { type: 'food_order_accepted', group: 'orders' },
   { type: 'food_order_preparing', group: 'orders' },
   { type: 'food_order_ready', group: 'orders' },
