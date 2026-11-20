@@ -6,8 +6,8 @@ The feature list is descriptive; all protected operations retain server authorit
 
 | Roadmap ID | Feature | Delivery |
 |---|---|---|
-| 163 | Distance preferences | Not started |
-| 165 | Work suitability preview | Not started |
+| 163 | Distance preferences | Implemented; saved cross-device radius drives nearby opportunities |
+| 165 | Work suitability preview | Implemented; advisory access, requirements and timezone-aware calendar preview |
 | 166 | Itemized bid builder | Implemented; local database/browser verification passed |
 | 167 | Materials templates | Implemented; create/edit/reuse/delete with scope and version checks |
 | 168 | Quote validity control | Implemented; server expiry denial and renewal as a new version |
@@ -15,7 +15,7 @@ The feature list is descriptive; all protected operations retain server authorit
 | 170 | Quote revision history | Implemented; immutable prior terms and previous/current comparison |
 | 174 | Daily job limits | Implemented; settings, slot filtering, concurrent write/reschedule enforcement |
 | 175 | Travel time blocks | Implemented; fixed user-selected gap around helper appointments |
-| 191 | Portfolio permission request | Not started |
+| 191 | Portfolio permission request | Implemented; private upload, customer decision, history, withdrawal and revocation |
 | 208 | Standard quote terms | Not started |
 | 209 | Business pricing templates | Not started |
 | 212 | Role templates | Not started |
@@ -91,3 +91,44 @@ The feature list is descriptive; all protected operations retain server authorit
 
 Rollback application code while retaining the additive data/schema. Do not
 rewrite an applied migration or delete saved quotes, counterproposals or limits.
+
+## Discovery and portfolio increment
+
+- A helper saves a 1–250 mile opportunity radius with optimistic concurrency.
+  Nearby Home opportunities use that radius with existing geographic search.
+  Missing coordinates retain the explicit same-city fallback. This is a search
+  preference, not a restriction or a grant; directory filters remain independent.
+- Suitability reads only open jobs or the helper's own assignment. It uses
+  effective helper access, current job status, requirements and the existing
+  availability service in the helper's timezone. Unknown schedule data stays
+  unknown. Skills need human confirmation; the preview never certifies them,
+  reserves work or bypasses submission checks. No customer private fields leave
+  this endpoint.
+- Portfolio upload is limited to the assigned effective helper after completion.
+  Existing upload validation, quotas and scanning apply; images are re-encoded
+  as JPEG with metadata removed and stored privately. Requests bind the exact
+  image and public caption. Only the job customer may approve/decline/revoke;
+  only the helper may withdraw. Retry keys, bounded collections, version checks
+  and job/decision locks prevent duplication and conflicting decisions.
+- Approval adds the existing gallery item. Its image URL streams through a
+  no-store endpoint that checks approval and effective helper access each time.
+  Withdrawal/revocation deletes that gallery row. Authenticated participants get
+  five-minute signed previews, not permanent public storage URLs. Already
+  downloaded copies or signed previews cannot be recalled before their expiry.
+- Changes are available by default, with all five legacy/namespaced locales.
+  Account/access changes discard obsolete responses and clear scoped content.
+- Database verification: 15 tests passed across discovery/portfolio and prior
+  work-record suites (5.58s), including actual transactions and public-image
+  HTTP denial after revocation. Storage was an in-memory test double; decoding
+  used real Sharp. Live storage/provider behavior remains unverified.
+- Browser verification: new discovery/consent journey and the affected JobDetail
+  matrix both passed (2 tests, 31.98s); includes saved radius applied to search,
+  stale draft retention, upload/request/approval/revocation, Arabic RTL, narrow
+  viewport and access-change clearing. Browser APIs were synthetic.
+- Client build: passed, 1238 emitted assets. Migrations applied successfully to
+  the same disposable PostGIS database; historical migration files unchanged.
+- Prior increment exact-head CI passed on
+  `2cbecb0ee37982567907f384aa3c090a6f1cfa03` in run `44712422233`.
+
+Retain additive schema and consent history on rollback. Do not turn private
+portfolio objects into public objects or weaken the live image consent check.

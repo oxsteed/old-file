@@ -43,6 +43,7 @@ router.get('/',              directoryLimiter, listHelpers);
 router.get('/list',          directoryLimiter, listHelpers);
 router.get('/skills',        generalLimiter, searchSkills);
 router.get('/licenses',      generalLimiter, searchLicenses);
+router.get('/portfolio/:requestId/image', generalLimiter, require('../controllers/helperPortfolioImage'));
 // Review P1-202: every public /:id route accepts the vanity profile_slug too
 // (the profile page is reached by slug, and its pricing/availability/slots/
 // status calls used to 404 on it).

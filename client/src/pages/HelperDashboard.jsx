@@ -20,6 +20,7 @@ import HelperAvailabilityEditor from '../components/HelperAvailabilityEditor';
 import HelperJobEarnings from '../components/HelperJobEarnings';
 import { useSocket } from '../hooks/useSocket';
 import useNearbyJobs from '../hooks/useNearbyJobs';
+import HelperDiscoverySettings from '../components/HelperDiscoverySettings';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 import ReviewsList from '../components/reviews/ReviewsList';
@@ -158,6 +159,7 @@ export default function HelperDashboard() {
     enabled: initialized && !!user && isOnboardingComplete,
     city: user?.city,
     state: user?.state,
+    accountId: user?.id,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -1544,6 +1546,7 @@ export default function HelperDashboard() {
           {/* Nearby jobs stay with the availability controls on desktop. */}
           {tab==='pulse'&&<Card className="helper-dashboard-overview-area__jobs mb-6">
             <CardHeader icon={IcoZap} title={t('helperDashboard.jobsNearYou')} right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">{t('common.viewAll')} →</Link>}/>
+            <HelperDiscoverySettings />
             {nearbyStatus==='loading'
               ? <p className="text-gray-500 text-sm text-center py-6" role="status">{t('helperDashboard.nearbyLoading')}</p>
               : nearbyStatus==='location-unavailable'

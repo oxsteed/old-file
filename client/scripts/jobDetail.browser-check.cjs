@@ -12,6 +12,8 @@ test('job details: viewer actions, asynchronous guards, dialogs, keyboard galler
       if(path.endsWith('/eligibility'))return {data:{eligible:config.reviewEligible===true}};
       if(path.startsWith('/helper-quotes/negotiations/jobs/'))return {data:{quotes:[],counters:[],customer:String(config.user?.id)==='1',currency_code:'USD',job_revision:1,open:true}};
       if(path.startsWith('/helpers/me/work-records/'))return {data:{work:{version:0,handover:'',aftercare:''},updates:[],writable:false}};
+      if(path.startsWith('/helpers/me/suitability/'))return {data:{can_bid_now:true,schedule:'unknown',requirements:[],required_skills:[],advisory:true}};
+      if(path.startsWith('/helpers/me/portfolio-requests/'))return {data:{requests:[],customer:String(config.user?.id)==='1',can_request:false}};
       if(path==='/support/agent/me')return {data:{data:[]}};
       if(path==='/helper-settings/policies'){if(config.policyError)throw new Error('Synthetic policy failure');return {data:{data:{custom_enabled:true}}};}
       return {data:{data:null}};
