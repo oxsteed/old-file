@@ -157,6 +157,9 @@ export const voidInternalDriverPayout = (payoutId, note) =>
 
 export const listInternalDeliveryQueue = () => api.get('/delivery/internal/queue').then((response) => response.data);
 export const getInternalDelivery = (id) => api.get(`/delivery/internal/jobs/${id}`).then((response) => response.data);
+// Group 9 Slice E (item 484): the handoff state record, per job and per driver.
+export const getInternalDeliveryHandoffs = (id) => api.get(`/delivery/internal/jobs/${id}/handoffs`).then((response) => response.data);
+export const listInternalDriverHandoffs = (driverUserId) => api.get('/delivery/internal/handoffs', { params: { driverUserId } }).then((response) => response.data);
 export const listDeliveryVehicles = () => api.get('/delivery/internal/vehicles').then((response) => response.data);
 export const createDeliveryVehicle = (payload) => mutate('post', '/delivery/internal/vehicles', payload);
 export const listDeliveryDrivers = () => api.get('/delivery/internal/drivers').then((response) => response.data);

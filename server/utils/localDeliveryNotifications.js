@@ -488,6 +488,57 @@ const copy = {
     ['Teslimat ödemesi alındı', 'Ek teslimat ücretinizin ödemesi alındı.'],
     ['ได้รับเงินค่าจัดส่งแล้ว', 'ได้รับเงินชำระค่าใช้จ่ายเพิ่มเติมสำหรับการจัดส่งของคุณแล้ว'],
   ],
+  // Group 9 Slice E (item 480): a replacement driver was assigned, or
+  // the job went back to the marketplace. The who-replaced-whom detail
+  // rides in the event payload (ops timeline); the copy stays generic
+  // and carries no pay details.
+  assignment_replaced: [
+    ['Delivery driver changed', 'A replacement driver has been assigned to your delivery.'],
+    ['Conductor de entrega cambiado', 'Se ha asignado un conductor de reemplazo a tu entrega.'],
+    ['Chauffeur de livraison remplacé', 'Un chauffeur de remplacement a été affecté à votre livraison.'],
+    ['Chofè livrezon an chanje', 'Yo asiyen yon chofè ranplasan pou livrezon ou an.'],
+    ['تم تغيير سائق التوصيل', 'تم تعيين سائق بديل لطلب التوصيل الخاص بك.'],
+    ['配送员已更换', '已为您的配送指派了一名替补配送员。'],
+    ['배송 기사 변경됨', '배송에 교체 기사가 배정되었습니다.'],
+    ['Dereva wa uwasilishaji amebadilishwa', 'Dereva mbadala ameteuliwa kwa uwasilishaji wako.'],
+    ['Motorista de entrega alterado', 'Um motorista substituto foi atribuído à sua entrega.'],
+    ['डिलीवरी ड्राइवर बदला गया', 'आपकी डिलीवरी के लिए एक प्रतिस्थापन ड्राइवर नियुक्त किया गया है।'],
+    ['Đã thay đổi tài xế giao hàng', 'Một tài xế thay thế đã được phân công cho đơn giao hàng của bạn.'],
+    ['Водитель доставки заменён', 'На вашу доставку назначен водитель на замену.'],
+    ['配送ドライバーが変更されました', '配送に交代のドライバーが割り当てられました。'],
+    ['Lieferfahrer gewechselt', 'Für Ihre Lieferung wurde ein Ersatzfahrer zugewiesen.'],
+    ['Pengemudi pengiriman diganti', 'Pengemudi pengganti telah ditetapkan untuk pengiriman Anda.'],
+    ['ڈیلیوری ڈرائیور تبدیل کر دیا گیا', 'آپ کی ڈیلیوری کے لیے متبادل ڈرائیور مقرر کر دیا گیا ہے۔'],
+    ['ডেলিভারি ড্রাইভার পরিবর্তন করা হয়েছে', 'আপনার ডেলিভারির জন্য একজন বিকল্প ড্রাইভার নিয়োগ করা হয়েছে।'],
+    ['Autista di consegna cambiato', 'Un autista sostitutivo è stato assegnato alla tua consegna.'],
+    ['Teslimat sürücüsü değiştirildi', 'Teslimatınıza yedek bir sürücü atandı.'],
+    ['เปลี่ยนคนขับรถจัดส่งแล้ว', 'ได้กำหนดคนขับสำรองสำหรับคำสั่งจัดส่งของคุณแล้ว'],
+  ],
+  // Group 9 Slice E (item 485): the automated delay sweep escalated a
+  // job that is past its ETA. Dispatch sees it on the board; the
+  // customer and driver hear it here.
+  delay_escalated: [
+    ['Delivery delayed', 'Your delivery is running behind its estimated arrival. Dispatch has been notified.'],
+    ['Entrega retrasada', 'Tu entrega va con retraso respecto a la hora estimada de llegada. Se ha avisado a despacho.'],
+    ['Livraison en retard', 'Votre livraison accuse du retard sur l’heure d’arrivée estimée. Le service de répartition a été prévenu.'],
+    ['Livrezon an an reta', 'Livrezon ou an ap pran reta sou lè arive yo te prevwa a. Yo avèti dispatch.'],
+    ['التوصيل متأخر', 'طلب التوصيل الخاص بك متأخر عن وقت الوصول المتوقع. تم إخطار مركز التنسيق.'],
+    ['配送延迟', '您的配送已晚于预计到达时间。调度中心已收到通知。'],
+    ['배송 지연됨', '배송이 예상 도착 시간보다 늦어지고 있습니다. 배차 담당자에게 알렸습니다.'],
+    ['Uwasilishaji umechelewa', 'Uwasilishaji wako unachelewa kuliko wakati uliotarajiwa wa kuwasili. Udhibiti umearifiwa.'],
+    ['Entrega atrasada', 'A sua entrega está atrasada em relação à chegada estimada. A central foi avisada.'],
+    ['डिलीवरी में देरी', 'आपकी डिलीवरी अनुमानित आगमन समय से पीछे चल रही है। डिस्पैच को सूचित कर दिया गया है।'],
+    ['Giao hàng bị chậm', 'Đơn giao hàng của bạn đang chậm so với thời gian đến dự kiến. Bộ phận điều phối đã được thông báo.'],
+    ['Доставка задерживается', 'Ваша доставка отстаёт от расчётного времени прибытия. Диспетчер уведомлён.'],
+    ['配送が遅れています', '配送が到着予定時刻より遅れています。配車担当に通知しました。'],
+    ['Lieferung verzögert', 'Ihre Lieferung liegt hinter der geschätzten Ankunftszeit. Die Disposition wurde informiert.'],
+    ['Pengiriman tertunda', 'Pengiriman Anda terlambat dari perkiraan waktu tiba. Dispatch telah diberitahu.'],
+    ['ڈیلیوری میں تاخیر', 'آپ کی ڈیلیوری متوقع پہنچنے کے وقت سے پیچھے ہے۔ ڈسپیچ کو مطلع کر دیا گیا ہے۔'],
+    ['ডেলিভারি বিলম্বিত', 'আপনার ডেলিভারি আনুমানিক আগমনের সময়ের চেয়ে পিছিয়ে রয়েছে। ডিসপ্যাচকে জানানো হয়েছে।'],
+    ['Consegna in ritardo', 'La tua consegna è in ritardo rispetto all’orario di arrivo stimato. La centrale è stata avvisata.'],
+    ['Teslimat gecikti', 'Teslimatınız tahmini varış saatinin gerisinde. Sevkiyat bilgilendirildi.'],
+    ['การจัดส่งล่าช้า', 'คำสั่งจัดส่งของคุณล่าช้ากว่าเวลาถึงโดยประมาณ ฝ่ายจัดส่งได้รับแจ้งแล้ว'],
+  ],
   eta_updated: [
     ['Delivery arrival estimate updated', 'Open your delivery for the latest available arrival estimate.'],
     ['Estimación de llegada actualizada', 'Abre tu entrega para ver la última estimación de llegada disponible.'],

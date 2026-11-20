@@ -21670,7 +21670,23 @@
         "missing_shipment": "Chajman manke",
         "customer_report": "Rapò kliyan",
         "wrong_item": "Atik ki pa bon",
-        "recipient_unavailable": "Moun k ap resevwa a pa disponib"
+        "recipient_unavailable": "Moun k ap resevwa a pa disponib",
+        "closed_site": "Sit la fèmen"
+      },
+      "closedSiteWhats": {
+        "gate": "Pòtay",
+        "building": "Bilding",
+        "reception": "Resepsyon",
+        "loading_dock": "Dok chajman",
+        "other": "Lòt"
+      },
+      "readinessReasons": {
+        "not_approved_or_active": "Pa apwouve oswa aktif",
+        "insurance": "Asirans pa konfime",
+        "insurance_expired": "Asirans ekspire",
+        "availability_not_started": "Disponibilite a poko kòmanse",
+        "availability_ended": "Disponibilite a fini",
+        "documents_expired": "Dokiman ekspire"
       },
       "unavailableReasons": {
         "no_answer": "Pa gen repons",
@@ -21831,6 +21847,12 @@
       "wrongItemReceived": "Sa yo te resevwa",
       "wrongItemExpected": "Sa yo te atann",
       "unavailableReason": "Poukisa moun k ap resevwa a pa t disponib?",
+      "closedWhat": "Kisa ki te fèmen",
+      "closedSiteNoticeSeen": "Te gen yon avi fèmti ki afiche",
+      "closedSiteContactAttempted": "Mwen te eseye kontakte yon moun sou plas",
+      "closedSiteNotice": "Avi afiche a te wè",
+      "closedSiteContact": "Yo te eseye kontakte",
+      "closedSiteFailedDropoff": "Kandida pou livrezon ki echwe — dispatch ka revize yon retou oswa yon chanjman orè.",
       "issueReceived": "Resevwa: {{value}}",
       "issueExpected": "Te atann: {{value}}"
     },
@@ -21856,7 +21878,9 @@
       "delivery_return_completed": "Retou fini",
       "delivery_extra_payment_started": "Peman sipleman kòmanse",
       "delivery_extra_payment_captured": "Peman sipleman pran",
-      "delivery_exception_resolved": "Pwoblèm livrezon rezoud"
+      "delivery_exception_resolved": "Pwoblèm livrezon rezoud",
+      "delivery_assignment_replaced": "Chofè ranplase",
+      "delivery_delay_escalated": "Reta a rapòte"
     },
     "extraCategories": {
       "waiting": "Tan datant",
@@ -21887,7 +21911,27 @@
       "reoffer": "Ofri bay chofè yo ankò",
       "offerDeadlineHours": "Dat limit òf la (è)",
       "offerExpired": "Òf la ekspire",
-      "offerExpiresAt": "Òf la ap ekspire {{date}}"
+      "offerExpiresAt": "Òf la ap ekspire {{date}}",
+      "delayed": "An reta — apre lè arive yo te prevwa a",
+      "capacityTitle": "Kapasite chofè yo",
+      "capacitySubtitle": "Kiyès ki ka pran travay kounye a. Li sèlman — yo asiyen sou tablo a anwo a.",
+      "capacityActiveJobs": "Livrezon aktif: {{count}}",
+      "capacityPieces": "Pakè: {{committed}} sou {{max}}",
+      "capacityPayload": "Chaj: {{committed}} lb sou {{max}} lb",
+      "capacityAvailability": "Disponibilite",
+      "capacityServiceArea": "Zòn sèvis",
+      "capacityReady": "Pare",
+      "capacityNotReady": "Pa pare",
+      "capacityEmpty": "Pa gen chofè ki anrejistre.",
+      "capacityNoWindow": "Pa gen orè",
+      "capacityNoArea": "Tout kote",
+      "handoffsTitle": "Dosye transfè yo",
+      "handoffsEmpty": "Pa gen dosye transfè pou chofè sa a oswa livrezon sa a pou kounye a.",
+      "handoffsView": "Wè transfè yo",
+      "handoffOpen": "Li toujou gen livrezon an",
+      "handoffReason": "Fini",
+      "handoffDevice": "Aparèy",
+      "handoffScans": "Eskan transfè yo"
     },
     "dispatchStates": {
       "internal_review": "Revizyon entèn",
@@ -24682,7 +24726,8 @@
       "allocation_ready": "Alokasyon pare",
       "distributed": "Pataje",
       "completed": "Fini",
-      "exception": "Eksepsyon"
+      "exception": "Eksepsyon",
+      "delayed": "An reta"
     },
     "milestones": {
       "planned": "Pwograme",

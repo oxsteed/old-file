@@ -21670,7 +21670,23 @@
         "missing_shipment": "Envoi manquant",
         "customer_report": "Signalement du client",
         "wrong_item": "Article erroné",
-        "recipient_unavailable": "Destinataire indisponible"
+        "recipient_unavailable": "Destinataire indisponible",
+        "closed_site": "Site fermé"
+      },
+      "closedSiteWhats": {
+        "gate": "Portail",
+        "building": "Bâtiment",
+        "reception": "Réception",
+        "loading_dock": "Quai de chargement",
+        "other": "Autre"
+      },
+      "readinessReasons": {
+        "not_approved_or_active": "Non approuvé ou actif",
+        "insurance": "Assurance non confirmée",
+        "insurance_expired": "Assurance expirée",
+        "availability_not_started": "Disponibilité pas encore commencée",
+        "availability_ended": "Disponibilité terminée",
+        "documents_expired": "Document expiré"
       },
       "unavailableReasons": {
         "no_answer": "Sans réponse",
@@ -21831,6 +21847,12 @@
       "wrongItemReceived": "Ce qui a été reçu",
       "wrongItemExpected": "Ce qui était attendu",
       "unavailableReason": "Pourquoi le destinataire était-il indisponible ?",
+      "closedWhat": "Qu’est-ce qui était fermé",
+      "closedSiteNoticeSeen": "Un avis de fermeture était affiché",
+      "closedSiteContactAttempted": "J’ai essayé de contacter quelqu’un sur place",
+      "closedSiteNotice": "Avis affiché vu",
+      "closedSiteContact": "Contact tenté",
+      "closedSiteFailedDropoff": "Candidate à une livraison manquée — la répartition peut examiner un retour ou un report.",
       "issueReceived": "Reçu : {{value}}",
       "issueExpected": "Attendu : {{value}}"
     },
@@ -21856,7 +21878,9 @@
       "delivery_return_completed": "Retour terminé",
       "delivery_extra_payment_started": "Paiement du supplément commencé",
       "delivery_extra_payment_captured": "Paiement du supplément capturé",
-      "delivery_exception_resolved": "Incident de livraison résolu"
+      "delivery_exception_resolved": "Incident de livraison résolu",
+      "delivery_assignment_replaced": "Chauffeur remplacé",
+      "delivery_delay_escalated": "Retard signalé"
     },
     "extraCategories": {
       "waiting": "Temps d’attente",
@@ -21887,7 +21911,27 @@
       "reoffer": "Proposer de nouveau aux chauffeurs",
       "offerDeadlineHours": "Date limite de l’offre (heures)",
       "offerExpired": "Offre expirée",
-      "offerExpiresAt": "L’offre expire le {{date}}"
+      "offerExpiresAt": "L’offre expire le {{date}}",
+      "delayed": "En retard — après l’heure d’arrivée estimée",
+      "capacityTitle": "Capacité des chauffeurs",
+      "capacitySubtitle": "Qui peut prendre du travail maintenant. Lecture seule — l’affectation reste sur le tableau.",
+      "capacityActiveJobs": "Livraisons actives : {{count}}",
+      "capacityPieces": "Colis : {{committed}} sur {{max}}",
+      "capacityPayload": "Charge : {{committed}} lb sur {{max}} lb",
+      "capacityAvailability": "Disponibilité",
+      "capacityServiceArea": "Zone de service",
+      "capacityReady": "Prêt",
+      "capacityNotReady": "Pas prêt",
+      "capacityEmpty": "Aucun chauffeur enregistré.",
+      "capacityNoWindow": "Aucun horaire",
+      "capacityNoArea": "Partout",
+      "handoffsTitle": "Registre des transferts",
+      "handoffsEmpty": "Aucun registre de transfert pour ce chauffeur ou cette livraison pour l’instant.",
+      "handoffsView": "Voir les transferts",
+      "handoffOpen": "Tient encore la livraison",
+      "handoffReason": "Terminé",
+      "handoffDevice": "Appareil",
+      "handoffScans": "Scans de transfert"
     },
     "dispatchStates": {
       "internal_review": "Révision interne",
@@ -24682,7 +24726,8 @@
       "allocation_ready": "Allocation prête",
       "distributed": "Distribué",
       "completed": "Terminé",
-      "exception": "Exception"
+      "exception": "Exception",
+      "delayed": "En retard"
     },
     "milestones": {
       "planned": "Planifié",

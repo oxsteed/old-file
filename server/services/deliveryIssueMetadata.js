@@ -14,6 +14,9 @@ const AppError = require('../utils/appError');
 
 const UNAVAILABLE_REASONS = new Set(['no_answer', 'refused', 'wrong_address', 'moved', 'other']);
 
+// Group 9 Slice E (item 476): what was closed at the drop-off site.
+const CLOSED_SITE_WHATS = new Set(['gate', 'building', 'reception', 'loading_dock', 'other']);
+
 function text(value, max = 500) {
   return String(value || '').trim().slice(0, max);
 }
@@ -39,7 +42,24 @@ function normalizeIssueMetadata(code, body = {}) {
     }
     return { unavailableReason };
   }
+  // Group 9 Slice E (item 476): a closed site needs what was closed
+  // (fixed set), plus whether the driver saw a posted notice and whether
+  // they tried to contact someone on site. Both flags default false;
+  // the description still carries the free-text detail.
+  if (code === 'closed_site') {
+    const closedWhat = text(body.closedWhat ?? nested.closedWhat, 32);
+    if (!CLOSED_SITE_WHATS.has(closedWhat)) {
+      throw new AppError('A closed-site report needs what was closed', 400, 'delivery_issue_invalid');
+    }
+    const noticeSeen = body.noticeSeen ?? nested.noticeSeen;
+    const contactAttempted = body.contactAttempted ?? nested.contactAttempted;
+    return {
+      closedWhat,
+      noticeSeen: noticeSeen === true,
+      contactAttempted: contactAttempted === true,
+    };
+  }
   return {};
 }
 
-module.exports = { UNAVAILABLE_REASONS, normalizeIssueMetadata };
+module.exports = { UNAVAILABLE_REASONS, CLOSED_SITE_WHATS, normalizeIssueMetadata };

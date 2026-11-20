@@ -191,6 +191,21 @@ async function checkAssignment(client, job, assignment, window) {
 
 const recordActivity = integrity.recordActivity;
 
+// Group 9 Slice E (item 480): a replacement-assignment notice. The
+// event carries who replaced whom (user ids only, no pay details); the
+// notification catalog holds the copy (delivery_assignment_replaced) and
+// the event worker fans it out to the customer, the new driver, and the
+// outgoing driver (who is no longer on the job row). Names are resolved
+// at read time (dispatch board driver list, handoff ledger), not stored
+// in the event payload.
+async function recordReplacement(activity, client, job, actorUserId, { previousDriverUserId, newDriverUserId, releasedToMarketplace }) {
+  await activity(client, job.id, actorUserId, 'delivery_assignment_replaced', {
+    previousDriverUserId: previousDriverUserId || null,
+    newDriverUserId: newDriverUserId || null,
+    releasedToMarketplace: releasedToMarketplace === true,
+  }, true);
+}
+
 async function authorize(req, job, access) {
   if (!req.user?.id) throw fail('Authentication required', 'auth_required', 401);
   if (access === 'operator' && !isOperator(req.user)) throw fail('Operations access required', 'delivery_operator_required', 403);
@@ -309,7 +324,16 @@ function createDispatchService(deps = {}) {
         helper_user_id = NULL, internal_driver_user_id = $1, vehicle_id = $2, assigned_by_user_id = $3,
         internal_assigned_at = NOW(), assigned_at = NOW(), updated_at = NOW() WHERE id = $4 RETURNING *`, [assignment.driverId, assignment.vehicleId, req.user.id, job.id])).rows[0];
       await client.query("INSERT INTO delivery_dispatch_attempts (delivery_job_id, source, driver_user_id, vehicle_id, action, actor_user_id) VALUES ($1,'internal',$2,$3,'assigned',$4)", [job.id, assignment.driverId, assignment.vehicleId, req.user.id]);
-      await activity(client, job.id, req.user.id, 'delivery_coordinated');
+      // Group 9 Slice E (item 480): reassigning an already-assigned job
+      // notifies with the replacement event (who replaced whom) instead
+      // of the plain assignment event; a first assignment keeps
+      // delivery_coordinated, which the worker maps to delivery_assigned.
+      const previousDriverUserId = job.internal_driver_user_id || null;
+      if (previousDriverUserId && !sameId(previousDriverUserId, assignment.driverId)) {
+        await recordReplacement(activity, client, job, req.user.id, { previousDriverUserId, newDriverUserId: assignment.driverId, releasedToMarketplace: false });
+      } else {
+        await activity(client, job.id, req.user.id, 'delivery_coordinated');
+      }
       return { success: true, job: updated };
     }),
     releaseMarketplace: (req) => run(req, { action: 'releaseMarketplace', access: 'operator' }, async ({ client, job, activity, now }) => {
@@ -360,6 +384,13 @@ function createDispatchService(deps = {}) {
         updated_at = NOW() WHERE id = $3 RETURNING *`, [reason, req.user.id, job.id, hours])).rows[0];
       await client.query("INSERT INTO delivery_dispatch_attempts (delivery_job_id, source, action, reason, actor_user_id) VALUES ($1,'marketplace','released',$2,$3)", [job.id, reason, req.user.id]);
       await activity(client, job.id, req.user.id, 'delivery_marketplace_released', { reason }, false);
+      // Group 9 Slice E (item 480): releasing an assigned job back to
+      // the marketplace is also a replacement (the marketplace replaces
+      // the outgoing driver). The audit event above stays private; this
+      // one fans out to the customer and the outgoing driver.
+      if (job.internal_driver_user_id) {
+        await recordReplacement(activity, client, job, req.user.id, { previousDriverUserId: job.internal_driver_user_id, newDriverUserId: null, releasedToMarketplace: true });
+      }
       return { success: true, job: updated };
     }),
     claim: (req) => run(req, { action: 'claim', access: 'helper', persistFailure: true }, async ({ client, job, activity, now }) => {

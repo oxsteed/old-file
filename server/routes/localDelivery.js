@@ -88,6 +88,11 @@ const requireOperationsWorkspace = requireInternalLogisticsWorkspace('operations
 router.post('/internal/payments/:paymentId/refund', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.refundPayment);
 router.get('/internal/queue', requireAuth, requireOperationsWorkspace, controller.internalQueue);
 router.get('/internal/jobs/:id', requireAuth, requireOperationsWorkspace, controller.getInternalJob);
+// Group 9 Slice E (item 484): the handoff state record, per job and per
+// driver. Same /delivery router as the other internal routes, not a
+// tenant route.
+router.get('/internal/jobs/:id/handoffs', requireAuth, requireOperationsWorkspace, controller.internalHandoffs);
+router.get('/internal/handoffs', requireAuth, requireOperationsWorkspace, controller.internalDriverHandoffs);
 router.get('/internal/vehicles', requireAuth, requireOperationsWorkspace, controller.internalVehicles);
 router.post('/internal/vehicles', requireAuth, requireOperationsWorkspace, controller.createVehicle);
 router.get('/internal/drivers', requireAuth, requireOperationsWorkspace, controller.internalDrivers);

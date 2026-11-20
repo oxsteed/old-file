@@ -29,8 +29,11 @@ const TERMINAL = ['delivered', 'cancelled', 'returned'];
 const EXTRA_CATEGORIES = ['waiting', 'parking_toll', 'difficult_access', 'loading_help', 'special_handling'];
 // Group 9 Slice D (items 470/475): the two new issue codes. The five
 // existing codes are unchanged.
-const ISSUE_CODES = ['delay', 'damage', 'access_problem', 'missing_shipment', 'customer_report', 'wrong_item', 'recipient_unavailable'];
+// Group 9 Slice E (item 476): closed_site, with structured capture of
+// what was closed, a posted notice, and any contact attempt.
+const ISSUE_CODES = ['delay', 'damage', 'access_problem', 'missing_shipment', 'customer_report', 'wrong_item', 'recipient_unavailable', 'closed_site'];
 const UNAVAILABLE_REASONS = ['no_answer', 'refused', 'wrong_address', 'moved', 'other'];
+const CLOSED_SITE_WHATS = ['gate', 'building', 'reception', 'loading_dock', 'other'];
 
 export default function DeliveryDetailPage() {
   const { t, i18n } = useTranslation();
@@ -56,6 +59,12 @@ export default function DeliveryDetailPage() {
   const [wrongItemReceived, setWrongItemReceived] = useState('');
   const [wrongItemExpected, setWrongItemExpected] = useState('');
   const [unavailableReason, setUnavailableReason] = useState('no_answer');
+  // Group 9 Slice E (item 476): the closed-site structure — what was
+  // closed, whether a notice was posted, whether anyone on site was
+  // contacted.
+  const [closedWhat, setClosedWhat] = useState('gate');
+  const [noticeSeen, setNoticeSeen] = useState(false);
+  const [contactAttempted, setContactAttempted] = useState(false);
   const [returnUnavailableReason, setReturnUnavailableReason] = useState('');
   const [proofValue, setProofValue] = useState('');
   const [recipientName, setRecipientName] = useState('');
@@ -368,14 +377,26 @@ export default function DeliveryDetailPage() {
             shown distinctly from the free-text description. */}
           {item.metadata?.received && <> · {t('delivery.detail.issueReceived', { value: item.metadata.received })} · {t('delivery.detail.issueExpected', { value: item.metadata.expected })}</>}
           {item.metadata?.unavailableReason && <> · {t(`delivery.ui.unavailableReasons.${item.metadata.unavailableReason}`)}</>}
+          {/* Group 9 Slice E (item 476): the closed-site structure, and
+            the failed drop-off flag — an open closed-site report is a
+            failed drop-off candidate for dispatch to review. */}
+          {item.metadata?.closedWhat && <> · {t(`delivery.ui.closedSiteWhats.${item.metadata.closedWhat}`)}{item.metadata.noticeSeen ? ` · ${t('delivery.detail.closedSiteNotice')}` : ''}{item.metadata.contactAttempted ? ` · ${t('delivery.detail.closedSiteContact')}` : ''}</>}
+          {item.code === 'closed_site' && item.status === 'open' && <> · {t('delivery.detail.closedSiteFailedDropoff')}</>}
         </p>)}
-        {participant && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await reportDeliveryIssue(id, { code: issueCode, description: issue, ...(issueCode === 'wrong_item' ? { received: wrongItemReceived, expected: wrongItemExpected } : {}), ...(issueCode === 'recipient_unavailable' ? { unavailableReason } : {}) }); setIssue(''); setWrongItemReceived(''); setWrongItemExpected(''); }, 'delivery.ui.saved', 'delivery.errors.issue'); }} data-track="ui.4c1e141977.22"><fieldset className="delivery-form-fields" disabled={busy}>
+        {participant && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await reportDeliveryIssue(id, { code: issueCode, description: issue, ...(issueCode === 'wrong_item' ? { received: wrongItemReceived, expected: wrongItemExpected } : {}), ...(issueCode === 'recipient_unavailable' ? { unavailableReason } : {}), ...(issueCode === 'closed_site' ? { closedWhat, noticeSeen, contactAttempted } : {}) }); setIssue(''); setWrongItemReceived(''); setWrongItemExpected(''); setNoticeSeen(false); setContactAttempted(false); }, 'delivery.ui.saved', 'delivery.errors.issue'); }} data-track="ui.4c1e141977.22"><fieldset className="delivery-form-fields" disabled={busy}>
           <label className="delivery-field">{t('delivery.ui.issueType')}<select className="delivery-input" value={issueCode} onChange={(event) => setIssueCode(event.target.value)}>{ISSUE_CODES.map((code) => <option key={code} value={code}>{label('ui.issueCodes', code)}</option>)}</select></label>
           {issueCode === 'wrong_item' && <>
             <label className="delivery-field">{t('delivery.detail.wrongItemReceived')}<input className="delivery-input" value={wrongItemReceived} onChange={(event) => setWrongItemReceived(event.target.value)} maxLength={500} required /></label>
             <label className="delivery-field">{t('delivery.detail.wrongItemExpected')}<input className="delivery-input" value={wrongItemExpected} onChange={(event) => setWrongItemExpected(event.target.value)} maxLength={500} required /></label>
           </>}
           {issueCode === 'recipient_unavailable' && <label className="delivery-field">{t('delivery.detail.unavailableReason')}<select className="delivery-input" value={unavailableReason} onChange={(event) => setUnavailableReason(event.target.value)}>{UNAVAILABLE_REASONS.map((reasonOption) => <option key={reasonOption} value={reasonOption}>{t(`delivery.ui.unavailableReasons.${reasonOption}`)}</option>)}</select></label>}
+          {issueCode === 'closed_site' && <>
+            <label className="delivery-field">{t('delivery.detail.closedWhat')}<select className="delivery-input" value={closedWhat} onChange={(event) => setClosedWhat(event.target.value)}>{CLOSED_SITE_WHATS.map((what) => <option key={what} value={what}>{t(`delivery.ui.closedSiteWhats.${what}`)}</option>)}</select></label>
+            <div className="delivery-checkbox-row">
+              <label><input type="checkbox" checked={noticeSeen} onChange={(event) => setNoticeSeen(event.target.checked)} data-track="ui.4c1e141977.24" /> {t('delivery.detail.closedSiteNoticeSeen')}</label>
+              <label><input type="checkbox" checked={contactAttempted} onChange={(event) => setContactAttempted(event.target.checked)} data-track="ui.4c1e141977.25" /> {t('delivery.detail.closedSiteContactAttempted')}</label>
+            </div>
+          </>}
           <label className="delivery-field">{t('delivery.detail.issuePlaceholder')}<textarea className="delivery-input" value={issue} onChange={(event) => setIssue(event.target.value)} maxLength={2000} required /></label>
           <button className="delivery-button delivery-button--secondary" data-track="ui.4c1e141977.23">{t('delivery.detail.report')}</button>
         </fieldset></form>}

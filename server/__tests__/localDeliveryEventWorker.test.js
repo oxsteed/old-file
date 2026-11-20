@@ -114,6 +114,49 @@ test.each(['delivery_marketplace_released', 'delivery_internal_assignment_failed
   },
 );
 
+// Group 9 Slice E (item 480): a replacement event reaches the outgoing
+// driver too, even though reassignment removed them from the job row.
+// The public payload never carries driver identity; the outgoing id
+// travels only as a recipient, taken from the event payload.
+test('replacement event notifies the outgoing driver as well as the customer and the new driver', async () => {
+  queueClaims([
+    eventRow({
+      event_type: 'delivery_assignment_replaced', status: 'assigned',
+      customer_user_id: 'customer', helper_user_id: null, internal_driver_user_id: 'new-driver',
+      actor_user_id: 'dispatcher',
+      payload: { previousDriverUserId: 'outgoing', newDriverUserId: 'new-driver', releasedToMarketplace: false },
+    }),
+    eventRow({
+      consumer: 'realtime', event_type: 'delivery_assignment_replaced', status: 'assigned',
+      customer_user_id: 'customer', helper_user_id: null, internal_driver_user_id: 'new-driver',
+      actor_user_id: 'dispatcher',
+      payload: { previousDriverUserId: 'outgoing', newDriverUserId: 'new-driver', releasedToMarketplace: false },
+    }),
+  ]);
+  await expect(processDeliveryEvents()).resolves.toMatchObject({ scanned: 2, delivered: 2 });
+  expect(sendNotification.mock.calls.map(([notification]) => notification.userId))
+    .toEqual(['customer', 'new-driver', 'outgoing']);
+  for (const [notification] of sendNotification.mock.calls) {
+    expect(notification.type).toBe('delivery:delivery_assignment_replaced');
+  }
+  expect(broadcastToUser.mock.calls.map(([userId]) => userId))
+    .toEqual(['customer', 'new-driver', 'outgoing']);
+  // The outgoing id travels only as a recipient, never inside the
+  // public event envelope.
+  for (const [, , event] of broadcastToUser.mock.calls) {
+    expect(JSON.stringify(event)).not.toMatch(/outgoing|new-driver/);
+  }
+});
+
+test('replacement and delay-escalation keys are public delivery events', async () => {
+  expect(DELIVERY_NOTIFICATION_EVENTS).toContain('delivery_assignment_replaced');
+  expect(DELIVERY_NOTIFICATION_EVENTS).toContain('delivery_delay_escalated');
+  expect(getPublicDeliveryEventType('delivery_assignment_replaced')).toBe('delivery_assignment_replaced');
+  expect(getPublicDeliveryEventType('delivery_delay_escalated')).toBe('delivery_delay_escalated');
+  expect(deliveryNotifications['delivery:delivery_assignment_replaced'].title.en).toBe('Delivery driver changed');
+  expect(deliveryNotifications['delivery:delivery_delay_escalated'].title.en).toBe('Delivery delayed');
+});
+
 test('respects explicit non-public visibility even for an allowed event', async () => {
   queueClaims([eventRow({ customer_visible: false }), eventRow({ payload: { customerVisible: false } })]);
   await processDeliveryEvents();

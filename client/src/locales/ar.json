@@ -21681,7 +21681,23 @@
         "missing_shipment": "شحنة مفقودة",
         "customer_report": "بلاغ العميل",
         "wrong_item": "عنصر خاطئ",
-        "recipient_unavailable": "المستلم غير متاح"
+        "recipient_unavailable": "المستلم غير متاح",
+        "closed_site": "الموقع مغلق"
+      },
+      "closedSiteWhats": {
+        "gate": "البوابة",
+        "building": "المبنى",
+        "reception": "الاستقبال",
+        "loading_dock": "رصيف التحميل",
+        "other": "أخرى"
+      },
+      "readinessReasons": {
+        "not_approved_or_active": "غير معتمد أو غير نشط",
+        "insurance": "التأمين غير مؤكد",
+        "insurance_expired": "التأمين منتهي",
+        "availability_not_started": "التوفر لم يبدأ بعد",
+        "availability_ended": "انتهى التوفر",
+        "documents_expired": "المستند منتهي"
       },
       "unavailableReasons": {
         "no_answer": "لا إجابة",
@@ -21842,6 +21858,12 @@
       "wrongItemReceived": "ما تم استلامه",
       "wrongItemExpected": "ما كان متوقعًا",
       "unavailableReason": "لماذا كان المستلم غير متاح؟",
+      "closedWhat": "ما الذي كان مغلقًا",
+      "closedSiteNoticeSeen": "كان هناك إشعار إغلاق معلق",
+      "closedSiteContactAttempted": "حاولت الاتصال بشخص ما في الموقع",
+      "closedSiteNotice": "تمت رؤية إشعار معلق",
+      "closedSiteContact": "تمت محاولة الاتصال",
+      "closedSiteFailedDropoff": "مرشحة لتسليم فاشل — يمكن للتنسيق مراجعة الإرجاع أو إعادة الجدولة.",
       "issueReceived": "تم الاستلام: {{value}}",
       "issueExpected": "المتوقع: {{value}}"
     },
@@ -21867,7 +21889,9 @@
       "delivery_return_completed": "اكتمل الإرجاع",
       "delivery_extra_payment_started": "بدأ دفع الإضافة",
       "delivery_extra_payment_captured": "تم تحصيل دفع الإضافة",
-      "delivery_exception_resolved": "تم حل مشكلة التوصيل"
+      "delivery_exception_resolved": "تم حل مشكلة التوصيل",
+      "delivery_assignment_replaced": "تم استبدال السائق",
+      "delivery_delay_escalated": "تم تصعيد التأخير"
     },
     "extraCategories": {
       "waiting": "وقت الانتظار",
@@ -21898,7 +21922,27 @@
       "reoffer": "إعادة العرض على السائقين",
       "offerDeadlineHours": "الموعد النهائي للعرض (بالساعات)",
       "offerExpired": "انتهى العرض",
-      "offerExpiresAt": "ينتهي العرض في {{date}}"
+      "offerExpiresAt": "ينتهي العرض في {{date}}",
+      "delayed": "متأخر — بعد وقت الوصول المتوقع",
+      "capacityTitle": "سعة السائقين",
+      "capacitySubtitle": "من يمكنه تولي العمل الآن. للعرض فقط — يبقى التعيين على اللوحة أعلاه.",
+      "capacityActiveJobs": "عمليات التوصيل النشطة: {{count}}",
+      "capacityPieces": "القطع: {{committed}} من {{max}}",
+      "capacityPayload": "الحمولة: {{committed}} رطل من {{max}} رطل",
+      "capacityAvailability": "التوفر",
+      "capacityServiceArea": "منطقة الخدمة",
+      "capacityReady": "جاهز",
+      "capacityNotReady": "غير جاهز",
+      "capacityEmpty": "لا يوجد سائقون مسجلون.",
+      "capacityNoWindow": "لا يوجد وقت محدد",
+      "capacityNoArea": "في كل مكان",
+      "handoffsTitle": "سجل التسليم",
+      "handoffsEmpty": "لا يوجد سجل تسليم لهذا السائق أو هذا التوصيل بعد.",
+      "handoffsView": "عرض عمليات التسليم",
+      "handoffOpen": "ما زال يحتفظ بالتوصيل",
+      "handoffReason": "انتهى",
+      "handoffDevice": "الجهاز",
+      "handoffScans": "عمليات مسح التسليم"
     },
     "dispatchStates": {
       "internal_review": "مراجعة داخلية",
@@ -24693,7 +24737,8 @@
       "allocation_ready": "التخصيص جاهز",
       "distributed": "موزع",
       "completed": "مكتمل",
-      "exception": "استثناء"
+      "exception": "استثناء",
+      "delayed": "متأخرة"
     },
     "milestones": {
       "planned": "مخطط",

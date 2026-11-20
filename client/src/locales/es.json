@@ -21670,7 +21670,23 @@
         "missing_shipment": "Envío faltante",
         "customer_report": "Reporte del cliente",
         "wrong_item": "Artículo equivocado",
-        "recipient_unavailable": "Destinatario no disponible"
+        "recipient_unavailable": "Destinatario no disponible",
+        "closed_site": "Sitio cerrado"
+      },
+      "closedSiteWhats": {
+        "gate": "Portón",
+        "building": "Edificio",
+        "reception": "Recepción",
+        "loading_dock": "Muelle de carga",
+        "other": "Otro"
+      },
+      "readinessReasons": {
+        "not_approved_or_active": "No aprobado o activo",
+        "insurance": "Seguro no confirmado",
+        "insurance_expired": "Seguro vencido",
+        "availability_not_started": "La disponibilidad aún no comienza",
+        "availability_ended": "Disponibilidad terminada",
+        "documents_expired": "Documento vencido"
       },
       "unavailableReasons": {
         "no_answer": "Sin respuesta",
@@ -21831,6 +21847,12 @@
       "wrongItemReceived": "Qué se recibió",
       "wrongItemExpected": "Qué se esperaba",
       "unavailableReason": "¿Por qué no estaba disponible el destinatario?",
+      "closedWhat": "Qué estaba cerrado",
+      "closedSiteNoticeSeen": "Había un aviso de cierre publicado",
+      "closedSiteContactAttempted": "Intenté contactar a alguien en el lugar",
+      "closedSiteNotice": "Aviso publicado visto",
+      "closedSiteContact": "Contacto intentado",
+      "closedSiteFailedDropoff": "Candidata a entrega fallida: despacho puede revisar una devolución o un cambio de horario.",
       "issueReceived": "Recibido: {{value}}",
       "issueExpected": "Esperado: {{value}}"
     },
@@ -21856,7 +21878,9 @@
       "delivery_return_completed": "Devolución completada",
       "delivery_extra_payment_started": "Pago del extra iniciado",
       "delivery_extra_payment_captured": "Pago del extra capturado",
-      "delivery_exception_resolved": "Problema de entrega resuelto"
+      "delivery_exception_resolved": "Problema de entrega resuelto",
+      "delivery_assignment_replaced": "Conductor reemplazado",
+      "delivery_delay_escalated": "Retraso escalado"
     },
     "extraCategories": {
       "waiting": "Tiempo de espera",
@@ -21887,7 +21911,27 @@
       "reoffer": "Volver a ofrecer a los conductores",
       "offerDeadlineHours": "Límite de la oferta (horas)",
       "offerExpired": "Oferta vencida",
-      "offerExpiresAt": "La oferta vence {{date}}"
+      "offerExpiresAt": "La oferta vence {{date}}",
+      "delayed": "Retrasada: pasada la hora estimada de llegada",
+      "capacityTitle": "Capacidad de conductores",
+      "capacitySubtitle": "Quién puede tomar trabajo ahora. Solo lectura: la asignación sigue en el tablero.",
+      "capacityActiveJobs": "Entregas activas: {{count}}",
+      "capacityPieces": "Piezas: {{committed}} de {{max}}",
+      "capacityPayload": "Carga: {{committed}} lb de {{max}} lb",
+      "capacityAvailability": "Disponibilidad",
+      "capacityServiceArea": "Zona de servicio",
+      "capacityReady": "Listo",
+      "capacityNotReady": "No listo",
+      "capacityEmpty": "No hay conductores registrados.",
+      "capacityNoWindow": "Sin horario",
+      "capacityNoArea": "Todas las zonas",
+      "handoffsTitle": "Registro de entregas",
+      "handoffsEmpty": "Aún no hay registro de entregas para este conductor o entrega.",
+      "handoffsView": "Ver entregas",
+      "handoffOpen": "Aún tiene la entrega",
+      "handoffReason": "Terminó",
+      "handoffDevice": "Dispositivo",
+      "handoffScans": "Escaneos de entrega"
     },
     "dispatchStates": {
       "internal_review": "Revisión interna",
@@ -24682,7 +24726,8 @@
       "allocation_ready": "Asignación lista",
       "distributed": "Distribuido",
       "completed": "Completado",
-      "exception": "Excepción"
+      "exception": "Excepción",
+      "delayed": "Retrasadas"
     },
     "milestones": {
       "planned": "Planificado",

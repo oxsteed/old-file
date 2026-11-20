@@ -330,7 +330,14 @@ async function resolveStopCoordinates(body = {}) {
 }
 
 function broadcastDelivery(job, eventType, actorUserId) {
-  if (['delivery_marketplace_released','delivery_assignment_failed'].includes(eventType)) return;
+  // Group 9 Slice E (item 480): delivery_marketplace_released is no
+  // longer skipped here — a release is a replacement, and the
+  // replacement event (delivery_assignment_replaced) fans out to the
+  // customer and the outgoing driver through the event worker. The
+  // private audit event itself (customerVisible false) still never
+  // reaches the worker. delivery_assignment_failed stays skipped: it
+  // is a failed-attempt audit record, not a customer event.
+  if (['delivery_assignment_failed'].includes(eventType)) return;
   const recipients = new Set([job.customer_user_id, job.helper_user_id, job.internal_driver_user_id].filter(Boolean));
   recipients.delete(actorUserId);
   for (const userId of recipients) {
@@ -1039,7 +1046,7 @@ exports.createIssue = async (req, res, next) => {
       email: req.user.email,
       subject: `Delivery ${job.reference}: ${code}`,
       category: 'delivery_exception',
-      priority: ['damage', 'missing_shipment', 'wrong_item'].includes(code) ? 'high' : 'normal',
+      priority: ['damage', 'missing_shipment', 'wrong_item', 'closed_site'].includes(code) ? 'high' : 'normal',
       source: 'escalation',
       metadata: { deliveryJobId: String(job.id), deliveryReference: job.reference, issueCode: code },
       initialMessage: description,
@@ -1136,6 +1143,7 @@ exports.internalQueue = async (_req, res, next) => {
       FROM delivery_jobs dj JOIN users u ON u.id = dj.customer_user_id
       WHERE dj.dispatch_state IN ('internal_review','internal_assigned','exception')
          OR (dj.status = 'posted' AND dj.dispatch_state = 'marketplace_posted' AND dj.offer_expired_at IS NOT NULL)
+         OR (dj.delay_escalated_at IS NOT NULL AND dj.status IN ('assigned','picked_up','in_transit'))
       ORDER BY dj.created_at ASC LIMIT 200`);
     res.json({ success: true, jobs: rows.map(operatorSafeJob) });
   } catch (error) {
@@ -1167,8 +1175,45 @@ exports.createVehicle = async (req, res, next) => {
 
 exports.internalDrivers = async (_req, res, next) => {
   try {
-    const { rows } = await pool.query(`SELECT dp.*, u.email, u.first_name, u.last_name FROM delivery_driver_profiles dp JOIN users u ON u.id = dp.user_id WHERE dp.active = TRUE ORDER BY u.last_name NULLS LAST, u.first_name NULLS LAST, u.email`);
-    res.json({ success: true, drivers: rows });
+    // Group 9 Slice E (item 483): the dispatcher capacity overview.
+    // Per driver, the load on active jobs (count, pieces and payload
+    // committed vs the profile capacity), the availability window and
+    // service area (on the profile row itself), a handoff-assignment
+    // count, and a profile-level readiness state. Readiness reuses the
+    // Slice A readiness gate without a job: approval/active, insurance
+    // acknowledged and unexpired, availability window vs now, and no
+    // expired documents. Job-scoped checks (pieces, payload, dimensions,
+    // service area vs a specific job) stay in capabilityFailures at
+    // assignment time; they cannot be evaluated without a job.
+    const { rows } = await pool.query(`SELECT dp.*, u.email, u.first_name, u.last_name,
+      (SELECT COUNT(*) FROM delivery_jobs j WHERE j.status IN ('assigned','picked_up','in_transit')
+        AND (j.helper_user_id = dp.user_id OR j.internal_driver_user_id = dp.user_id)) AS active_jobs,
+      (SELECT COALESCE(SUM(j.pieces), 0) FROM delivery_jobs j WHERE j.status IN ('assigned','picked_up','in_transit')
+        AND (j.helper_user_id = dp.user_id OR j.internal_driver_user_id = dp.user_id)) AS committed_pieces,
+      (SELECT COALESCE(SUM(j.weight_lbs), 0) FROM delivery_jobs j WHERE j.status IN ('assigned','picked_up','in_transit')
+        AND (j.helper_user_id = dp.user_id OR j.internal_driver_user_id = dp.user_id)) AS committed_payload_lbs,
+      (SELECT COUNT(*) FROM delivery_tracking_assignments a WHERE a.driver_user_id = dp.user_id) AS handoff_assignments,
+      (SELECT COUNT(*) FROM driver_documents d WHERE d.driver_user_id = dp.user_id AND d.expires_at IS NOT NULL AND d.expires_at < NOW()) AS expired_documents
+      FROM delivery_driver_profiles dp JOIN users u ON u.id = dp.user_id WHERE dp.active = TRUE ORDER BY u.last_name NULLS LAST, u.first_name NULLS LAST, u.email`);
+    const nowMs = Date.now();
+    const drivers = rows.map((row) => {
+      const reasons = [];
+      if (row.approved !== true || row.active !== true) reasons.push('not_approved_or_active');
+      if (row.insurance_acknowledged !== true) reasons.push('insurance');
+      if (row.insurance_expires_at && Number.isFinite(Date.parse(row.insurance_expires_at)) && Date.parse(row.insurance_expires_at) < nowMs) reasons.push('insurance_expired');
+      if (row.available_from && Number.isFinite(Date.parse(row.available_from)) && Date.parse(row.available_from) > nowMs) reasons.push('availability_not_started');
+      if (row.available_until && Number.isFinite(Date.parse(row.available_until)) && Date.parse(row.available_until) < nowMs) reasons.push('availability_ended');
+      if (Number(row.expired_documents) > 0) reasons.push('documents_expired');
+      return {
+        ...row,
+        activeJobs: Number(row.active_jobs),
+        committedPieces: Number(row.committed_pieces),
+        committedPayloadLbs: Number(row.committed_payload_lbs),
+        handoffAssignments: Number(row.handoff_assignments),
+        readiness: { state: reasons.length ? 'not_ready' : 'ready', reasons },
+      };
+    });
+    res.json({ success: true, drivers });
   } catch (error) {
     next(error);
   }
@@ -1816,6 +1861,54 @@ exports.getInternalJob = async (req, res, next) => {
     const reschedules = await pool.query('SELECT id,pickup_window_start,pickup_window_end,delivery_window_start,delivery_window_end,reason,status,reviewed_at,created_at FROM delivery_reschedule_requests WHERE delivery_job_id=$1 ORDER BY created_at DESC', [req.params.id]);
     const returns = await pool.query('SELECT id,reason,status,completed_at,created_at FROM delivery_returns WHERE delivery_job_id=$1 ORDER BY created_at DESC', [req.params.id]);
     res.json({ success: true, job: operatorSafeJob(rows[0]), activity: activity.rows, dispatchAttempts: attempts.rows, declines: declines.rows, issues: issues.rows, rescheduleRequests: reschedules.rows, returns: returns.rows });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Group 9 Slice E (item 484): the handoff state record. Read-only,
+// from the existing lifecycle records — no second assignment table.
+// Per job: every tracking assignment (start/end, ended_reason, device,
+// source policy) with the driver identity resolved, plus the handoff
+// scans for the job, so ops sees who held the job when.
+exports.internalHandoffs = async (req, res, next) => {
+  try {
+    const { rows: [job] } = await pool.query('SELECT id, reference, status, helper_user_id, internal_driver_user_id FROM delivery_jobs WHERE id = $1', [req.params.id]);
+    if (!job) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+    const assignments = await pool.query(
+      `SELECT a.*, u.email AS driver_email, u.first_name, u.last_name, d.device_label, d.kind AS device_kind
+         FROM delivery_tracking_assignments a
+         LEFT JOIN users u ON u.id = a.driver_user_id
+         LEFT JOIN delivery_tracking_devices d ON d.id = a.device_id
+        WHERE a.delivery_job_id = $1 ORDER BY a.started_at ASC, a.id ASC`,
+      [req.params.id],
+    );
+    const scans = await pool.query(
+      `SELECT s.*, u.email AS scanned_by_email, u.first_name, u.last_name
+         FROM delivery_scan_events s LEFT JOIN users u ON u.id = s.scanned_by_user_id
+        WHERE s.delivery_job_id = $1 AND s.scan_type = 'handoff' ORDER BY s.scanned_at ASC, s.id ASC`,
+      [req.params.id],
+    );
+    res.json({ success: true, job, assignments: assignments.rows, handoffScans: scans.rows });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Group 9 Slice E (item 484): the same ledger per driver — every
+// tracking assignment that driver has held, newest first, with the job
+// reference and status so dispatch can follow one driver across jobs.
+exports.internalDriverHandoffs = async (req, res, next) => {
+  try {
+    const driverId = text(req.query.driverUserId, 80);
+    if (!driverId) throw new AppError('Driver userId is required', 400, 'delivery_driver_invalid');
+    const { rows } = await pool.query(
+      `SELECT a.*, j.reference AS job_reference, j.status AS job_status, j.origin_city, j.destination_city
+         FROM delivery_tracking_assignments a JOIN delivery_jobs j ON j.id = a.delivery_job_id
+        WHERE a.driver_user_id = $1 ORDER BY a.started_at DESC, a.id DESC LIMIT 100`,
+      [driverId],
+    );
+    res.json({ success: true, driverUserId: driverId, assignments: rows });
   } catch (error) {
     next(error);
   }
