@@ -559,6 +559,63 @@ ddescribe('Group 3 recipient and sponsor', () => {
     expect(denied.statusCode).toBe(409);
   });
 
+  test('items 106/136/142/145: token lists show what the token party recorded; token sponsor can ask support', async () => {
+    const booking = await createLinkedBooking();
+    // Record a site action + feedback + photo by token, then list them back.
+    const action = mockRes();
+    await recipientController.recordTokenSiteAction(
+      { params: { token: booking.statusToken }, body: { actionType: 'confirm_handoff', details: { handedTo: 'Mom' } } },
+      action,
+    );
+    expect(action.statusCode).toBe(201);
+    const listed = mockRes();
+    await recipientController.listTokenSiteActions({ params: { token: booking.statusToken } }, listed);
+    expect(listed.statusCode).toBe(200);
+    expect(listed.payload.data.some((a) => a.actionType === 'confirm_handoff')).toBe(true);
+
+    const fb = mockRes();
+    await recipientController.submitTokenFeedback(
+      { params: { token: booking.statusToken }, body: { rating: 5, body: 'Great visit' } },
+      fb,
+    );
+    expect(fb.statusCode).toBe(201);
+    const fbList = mockRes();
+    await recipientController.listTokenFeedback({ params: { token: booking.statusToken } }, fbList);
+    expect(fbList.statusCode).toBe(200);
+    expect(fbList.payload.data.some((r) => r.body === 'Great visit')).toBe(true);
+
+    const photo = mockRes();
+    await recipientController.uploadTokenSitePhoto(
+      { params: { token: booking.statusToken }, file: { buffer: Buffer.from('x'), originalname: 'door.jpg', mimetype: 'image/jpeg' } },
+      photo,
+    );
+    expect(photo.statusCode).toBe(201);
+    const photoList = mockRes();
+    await recipientController.listTokenSitePhotos({ params: { token: booking.statusToken } }, photoList);
+    expect(photoList.statusCode).toBe(200);
+    expect(photoList.payload.data.length).toBe(1);
+
+    // Token sponsor support: invite + accept, then a payment-kind ticket by token.
+    const invite = await createSponsorshipFor(booking.id, 3000);
+    await acceptSponsorship(booking.id, invite.id, invite.inviteToken);
+    const ticket = mockRes();
+    await recipientController.submitTokenSupportIntake(
+      { params: { token: invite.inviteToken }, body: { kind: 'payment', message: 'My card was charged twice' } },
+      ticket,
+    );
+    expect(ticket.statusCode).toBe(201);
+    const timeline = mockRes();
+    await recipientController.listTokenSupportIntake({ params: { token: invite.inviteToken } }, timeline);
+    expect(timeline.statusCode).toBe(200);
+    expect(timeline.payload.data.some((t) => t.kind === 'payment')).toBe(true);
+
+    // Token sponsor charges list: none yet for this sponsorship.
+    const charges = mockRes();
+    await recipientController.listTokenSponsorshipCharges({ params: { token: invite.inviteToken } }, charges);
+    expect(charges.statusCode).toBe(200);
+    expect(charges.payload.data).toEqual([]);
+  });
+
   test('items 121-130: webhook settles a sponsorship; charges, breakdown, cap', async () => {
     const booking = await createLinkedBooking();
     const first = await createSponsorshipFor(booking.id, 5000);
