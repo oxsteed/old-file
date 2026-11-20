@@ -21683,7 +21683,10 @@
         "released": "Libere"
       },
       "onboardingRequired": "Konplete enskripsyon chofè a anba a pou w ka pran livrezon.",
-      "approvalPending": "Pwofil chofè w la ap tann apwobasyon operasyon yo. W ap ka pran livrezon lè li apwouve."
+      "approvalPending": "Pwofil chofè w la ap tann apwobasyon operasyon yo. W ap ka pran livrezon lè li apwouve.",
+      "cancel": "Anile",
+      "offerExpired": "Òf livrezon sa a ekspire.",
+      "declineUnavailable": "Livrezon sa a pa disponib pou pase ankò."
     },
     "packageTypes": {
       "small": "Ti · jiska 25 lb",
@@ -21852,7 +21855,14 @@
       "vehicle": "Veyikil",
       "chooseVehicle": "Chwazi yon veyikil",
       "assign": "Bay anndan",
-      "release": "Lage sou mache a"
+      "release": "Lage sou mache a",
+      "declinesTitle": "Chofè ki pase yo",
+      "declinesEmpty": "Okenn chofè pa pase livrezon sa a.",
+      "declinesCount": "Chofè ki pase: {{count}}",
+      "reoffer": "Ofri bay chofè yo ankò",
+      "offerDeadlineHours": "Dat limit òf la (è)",
+      "offerExpired": "Òf la ekspire",
+      "offerExpiresAt": "Òf la ap ekspire {{date}}"
     },
     "dispatchStates": {
       "internal_review": "Revizyon entèn",
@@ -22227,6 +22237,27 @@
       "pendingTitle": "Apwobasyon an atant",
       "pendingBody": "Pwofil chofè w la te voye. Operasyon yo pral verifye li byento, epi w ap ka pran livrezon lè li apwouve.",
       "workTitle": "Livrezon ou pran yo",
+      "offerExpiresHours": "Òf la ap ekspire nan {{hours}} è {{minutes}} min",
+      "offerExpiresMinutes": "Òf la ap ekspire nan {{minutes}} min",
+      "offerExpired": "Òf la ekspire",
+      "offerExpiredNote": "Òf sa a ekspire epi li retounen nan dispatch. Ou pa ka pran li ankò.",
+      "offerDeadline": "Dat limit òf la",
+      "decline": "Pase",
+      "declineTitle": "Pase livrezon sa a",
+      "declineReason": "Rezon",
+      "declineNote": "Nòt (opsyonèl)",
+      "declineNotePlaceholder": "Nenpòt bagay dispatch ta dwe konnen (opsyonèl)",
+      "declineSubmit": "Pase livrezon sa a",
+      "declineChange": "Chanje rezon an",
+      "declined": "Ou pase livrezon sa a",
+      "declineReasons": {
+        "too_far": "Twò lwen",
+        "schedule_conflict": "Konfli orè",
+        "capacity": "Pa gen kapasite",
+        "vehicle": "Machin nan pa apwopriye",
+        "pay": "Peman an pa ase",
+        "other": "Lòt"
+      },
       "workBody": "Livrezon ouvè ou ka pran yo, ak sa ou te deja pran yo.",
       "myClaimed": "Livrezon ou te pran yo",
       "availability": "Disponib pou livrezon",

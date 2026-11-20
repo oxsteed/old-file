@@ -27,6 +27,7 @@ import { canAccessOperationsWorkspace } from '../utils/logisticsWorkspaces';
 import { selectOpenJobs } from '../utils/deliveryDriverJobs';
 import {
   claimDeliveryJob,
+  declineDeliveryJob,
   createDelivery,
   listDeliveryJobs,
   quoteDelivery,
@@ -57,6 +58,9 @@ import {
   stopsReadyForPricing,
   takeEstimatePrefill,
 } from '../components/delivery/DeliveryEstimate';
+// Group 9 Slice B (items 457/458/460): the offer countdown, the driver
+// route preview, and the decline (pass) form, shared with the detail page.
+import { DeclineForm, OfferCountdown, hasRouteCoords, isOfferExpired } from '../components/delivery/DeliveryOffer';
 import '../styles/DeliveryPage.css';
 
 const SERVICE_OPTIONS = ['standard', 'same_day', 'rush'];
@@ -67,13 +71,25 @@ function statusLabel(status, t) {
   return t(`delivery.helper.status.${status}`, { defaultValue: String(status || '').replaceAll('_', ' ') });
 }
 
-function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
+function DeliveryCard({ job, helper, onClaim, onDecline, onStatus, busyId, t }) {
   const { i18n } = useTranslation();
-  const canClaim = helper && job.status === 'posted' && job.marketplace_available === true && job.is_assigned_operator !== true;
+  // Group 9 Slice B (item 457): the card re-renders every 30s so the
+  // claim button disappears the moment the offer deadline passes,
+  // without waiting for a reload or the hourly sweep.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+  const offerExpired = isOfferExpired(job, nowMs);
+  const isOffer = helper && job.status === 'posted' && job.marketplace_available === true;
+  const canClaim = helper && job.status === 'posted' && job.marketplace_available === true && job.is_assigned_operator !== true && !offerExpired;
+  const canDecline = isOffer && !offerExpired;
   const canUpdate = job.is_assigned_operator === true && ['assigned', 'picked_up', 'in_transit'].includes(job.status);
   const nextStatus = job.status === 'assigned' ? 'picked_up'
     : job.status === 'picked_up' ? 'in_transit' : null;
   const isBusy = busyId !== null;
+  const [declineOpen, setDeclineOpen] = useState(false);
 
   return (
     <article className="delivery-job-card">
@@ -86,6 +102,12 @@ function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
           {statusLabel(job.status, t)}
         </span>
       </div>
+      {isOffer && <OfferCountdown job={job} t={t} />}
+      {hasRouteCoords(job) && (
+        <div className="delivery-job-card__route-preview">
+          <RoutePreview job={job} t={t} />
+        </div>
+      )}
       <div className="delivery-job-card__route">
         <span><MapPin size={15} aria-hidden="true" />{[job.origin_city, job.origin_state].filter(Boolean).join(', ') || '—'}</span>
         <ArrowRight size={16} aria-hidden="true" />
@@ -97,6 +119,11 @@ function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
         <span><Clock3 size={15} aria-hidden="true" />{t(`delivery.serviceLevels.${job.service_level}`, { defaultValue: job.service_level })}</span>
       </div>
       {job.item_description && <p className="delivery-job-card__item">{job.item_description}</p>}
+      {job.my_decline && (
+        <p className="delivery-job-card__declined">
+          {t('delivery.driver.declined')} · {t(`delivery.driver.declineReasons.${job.my_decline.reason_code}`)}
+        </p>
+      )}
       <div className="delivery-job-card__footer">
         <div>
           <small>{helper ? t('delivery.helper.payout') : t('delivery.customer.total')}</small>
@@ -109,6 +136,11 @@ function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
             {t('delivery.helper.claim')}
           </button>
         )}
+        {canDecline && !declineOpen && (
+          <button type="button" className="delivery-button delivery-button--secondary" onClick={() => setDeclineOpen(true)} disabled={isBusy}>
+            {job.my_decline ? t('delivery.driver.declineChange') : t('delivery.driver.decline')}
+          </button>
+        )}
         {canUpdate && nextStatus && (
             <button type="button" className="delivery-button delivery-button--primary" onClick={() => onStatus(job.id, nextStatus)} disabled={isBusy}>
             {isBusy ? <Loader2 size={16} className="delivery-spin" aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
@@ -117,6 +149,15 @@ function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
         )}
         {canUpdate && job.status === 'in_transit' && <Link className="delivery-button delivery-button--primary" to={`/delivery/jobs/${job.id}`}>{t('delivery.detail.submitProof')}</Link>}
       </div>
+      {declineOpen && canDecline && (
+        <DeclineForm
+          job={job}
+          t={t}
+          busy={isBusy}
+          onSubmit={async (payload) => { setDeclineOpen(false); await onDecline(job.id, payload); }}
+          onCancel={() => setDeclineOpen(false)}
+        />
+      )}
     </article>
   );
 }
@@ -1116,6 +1157,14 @@ function HelperDelivery({ t }) {
     try { await updateDeliveryStatus(id, status, proof); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
   };
 
+  // Group 9 Slice B (item 460): passing on an offer records the reason
+  // for dispatch. It never blocks the driver: the job stays claimable.
+  const decline = async (id, payload) => {
+    setBusyId(String(id));
+    setError('');
+    try { await declineDeliveryJob(id, payload); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
+  };
+
   // Availability gates the open-jobs FEED only: an offline driver sees no
   // open jobs. Claiming itself stays ungated (canClaim and the server claim
   // path never read `available`).
@@ -1212,8 +1261,8 @@ function HelperDelivery({ t }) {
               <DriverDocumentsSection t={t} onChanged={loadDriverProfile} />
             </>
           )}
-          {canDrive && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
-          <section><div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
+          {canDrive && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
+          <section><div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
         </>
       )}
     </div>

@@ -41,6 +41,9 @@ router.get('/jobs/:id/item-photos', requireAuth, itemPhotoController.list);
 router.post('/jobs/:id/proof-pin', requireAuth, rejectImpersonated, proofController.rotatePin);
 router.get('/jobs/:id/proofs/:proofId', requireAuth, proofController.download);
 router.post('/jobs/:id/claim', requireAuth, rejectImpersonated, controller.claim);
+// Group 9 Slice B (item 460): a driver passes on a marketplace offer
+// with a reason code. Advisory only; it never blocks claiming.
+router.post('/jobs/:id/decline', requireAuth, rejectImpersonated, controller.decline);
 // P2-4-F10: self-serve driver onboarding (profile starts pending ops approval).
 router.post('/driver-profile', requireAuth, rejectImpersonated, controller.selfServeDriverOnboarding);
 router.patch('/driver-profile', requireAuth, rejectImpersonated, controller.updateOwnDriverProfile);

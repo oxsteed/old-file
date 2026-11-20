@@ -26,10 +26,19 @@ async function saveAction(client, job, user, action, key, body, response) {
   await client.query('INSERT INTO delivery_action_idempotency(delivery_job_id,actor_user_id,action,idempotency_key,request_hash,response_snapshot) VALUES($1,$2,$3,$4,$5,$6)', [typeof job === 'object' ? job.id : job, actorId(user), action, key, fingerprint(body), JSON.stringify(response)]);
 }
 function maskPhone(value) { return value ? `••••${String(value).slice(-4)}` : null; }
+// Group 9 Slice B (item 458): a marketplace offer shows the driver a
+// route preview before they claim, but the exact pickup/drop-off
+// addresses stay owner/assigned-only. Coordinates for a live marketplace
+// offer are rounded to 2 decimals (~1 km): enough to draw the route,
+// not enough to pinpoint the address (D-63).
+function roundCoord(value) {
+  if (value == null || value === '' || !Number.isFinite(Number(value))) return undefined;
+  return Math.round(Number(value) * 100) / 100;
+}
 function customerSafeJob(job, user) {
   const own = String(job.customer_user_id) === String(user.id);
   const assigned = [job.helper_user_id,job.internal_driver_user_id].some(id => id && String(id) === String(user.id));
-  const fields = ['id','reference','status','origin_city','origin_state','destination_city','destination_state','distance_miles','duration_minutes','package_type','weight_lbs','item_description','pieces','package_length_in','package_width_in','package_height_in','contents_category','fragile','perishable','service_level','proof_preference','handling_requirements','pickup_window_start','pickup_window_end','delivery_window_start','delivery_window_end','created_at','updated_at','assigned_at','picked_up_at','delivered_at','cancelled_at','returned_at','approaching_at'];
+  const fields = ['id','reference','status','origin_city','origin_state','destination_city','destination_state','distance_miles','duration_minutes','package_type','weight_lbs','item_description','pieces','package_length_in','package_width_in','package_height_in','contents_category','fragile','perishable','service_level','proof_preference','handling_requirements','pickup_window_start','pickup_window_end','delivery_window_start','delivery_window_end','created_at','updated_at','assigned_at','picked_up_at','delivered_at','cancelled_at','returned_at','approaching_at','offer_expires_at','offer_expired_at','offer_deadline_hours'];
   if (own) fields.push('customer_user_id','customer_total_cents','declared_value_cents','support_case_id');
   if (own || assigned) fields.push('origin_address','destination_address','origin_lat','origin_lng','destination_lat','destination_lng','origin_contact_name','destination_contact_name','origin_instructions','destination_instructions','notes');
   // Helpers need their offered compensation before claiming; never expose internal margins to customers.
@@ -41,6 +50,22 @@ function customerSafeJob(job, user) {
   }
   safe.is_assigned_operator = assigned;
   safe.marketplace_available = !own && job.status === 'posted' && job.dispatch_state === 'marketplace_posted' && !job.internal_driver_user_id && !job.helper_user_id;
+  // Group 9 Slice B (item 457): the offer is expired once the sweep
+  // stamped it, or the moment its deadline passes (the claim path
+  // enforces the same rule, so the flag never disagrees with it).
+  safe.offer_expired = Boolean(job.offer_expired_at)
+    || (job.offer_expires_at != null && Number.isFinite(Date.parse(job.offer_expires_at)) && Date.parse(job.offer_expires_at) <= Date.now());
+  if (safe.marketplace_available) {
+    // Rounded coordinates only: the route preview, not the address.
+    const originLat = roundCoord(job.origin_lat);
+    const originLng = roundCoord(job.origin_lng);
+    const destinationLat = roundCoord(job.destination_lat);
+    const destinationLng = roundCoord(job.destination_lng);
+    if (originLat !== undefined) safe.origin_lat = originLat;
+    if (originLng !== undefined) safe.origin_lng = originLng;
+    if (destinationLat !== undefined) safe.destination_lat = destinationLat;
+    if (destinationLng !== undefined) safe.destination_lng = destinationLng;
+  }
   safe.eta = { available: Boolean(job.estimated_arrival_at && job.eta_updated_at && Date.now()-new Date(job.eta_updated_at).getTime()<15*60000 && !['delivered','cancelled','returned'].includes(job.status)), estimatedArrivalAt: null, updatedAt: job.eta_updated_at || null };
   if (safe.eta.available) safe.eta.estimatedArrivalAt = job.estimated_arrival_at;
   return safe;

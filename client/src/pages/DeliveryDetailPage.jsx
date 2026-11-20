@@ -12,9 +12,13 @@ import {
   createDeliveryExtraCheckout, createDeliveryCheckout, getDelivery, reportDeliveryIssue, requestDeliveryExtra,
   requestDeliveryReschedule, requestDeliveryReturn, reviewDeliveryExtra,
   syncDeliveryExtraPayment, syncDeliveryPayment, updateDeliveryStatus, uploadDeliveryProof,
-  uploadDeliveryItemPhoto,
+  uploadDeliveryItemPhoto, claimDeliveryJob, declineDeliveryJob,
   obtainDeliveryPin, deliveryDate, deliveryMoney, deliveryUnit, deliveryError,
 } from '../api/delivery';
+import { RoutePreview } from '../components/delivery/DeliveryEstimate';
+// Group 9 Slice B (items 457/458/460): the offer countdown, the driver
+// route preview, and the decline (pass) form, shared with the inbox card.
+import { DeclineForm, OfferCountdown, isOfferExpired } from '../components/delivery/DeliveryOffer';
 import '../styles/DeliveryPage.css';
 
 const TERMINAL = ['delivered', 'cancelled', 'returned'];
@@ -45,6 +49,7 @@ export default function DeliveryDetailPage() {
   const [windowEnd, setWindowEnd] = useState('');
   const [windowType, setWindowType] = useState('deliveryWindow');
   const [reason, setReason] = useState('');
+  const [declineOpen, setDeclineOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [extra, setExtra] = useState({ category: 'waiting', amount: '', notes: '' });
   const uploaded = useRef(null);
@@ -76,7 +81,7 @@ export default function DeliveryDetailPage() {
   }, [id, t]);
 
   useEffect(() => {
-    setData(null); setPin(''); setProofValue(''); setReason(''); setNotice('');
+    setData(null); setPin(''); setProofValue(''); setReason(''); setNotice(''); setDeclineOpen(false);
     uploaded.current = null;
     load();
     return () => { requestSequence.current += 1; };
@@ -157,6 +162,11 @@ export default function DeliveryDetailPage() {
   const { activity = [], proofs = [], extras = [], issues = [], payments = [], rescheduleRequests = [], returns = [], itemPhotos = [] } = data;
   const eta = data.eta || job.eta;
   const trackable = ['assigned', 'picked_up', 'in_transit'].includes(job.status);
+  // Group 9 Slice B (items 457/458/460, D-65): a marketplace driver may
+  // open a posted offer read-only. They see the route preview, the
+  // countdown, and the claim / decline actions; the participant-only
+  // sections below stay hidden because isCustomer/isAssigned are false.
+  const isOffered = job.status === 'posted' && job.marketplace_available === true;
   const basePayment = payments.find((payment) => payment.delivery_extra_id == null);
   const nextStatus = job.status === 'assigned' ? 'picked_up' : job.status === 'picked_up' ? 'in_transit' : null;
   const canReturn = participant && ['picked_up', 'in_transit', 'failed'].includes(job.status);
@@ -181,7 +191,8 @@ export default function DeliveryDetailPage() {
           <dl className="delivery-breakdown">
             {['origin', 'destination'].map((stop) => <div key={stop}><dt>{t(stop === 'origin' ? 'delivery.customer.pickup' : 'delivery.customer.dropoff')}</dt>
               <dd>{[job[`${stop}_address`], job[`${stop}_city`], job[`${stop}_state`]].filter(Boolean).join(', ')}
-                <p>{job[`${stop}_contact_name`]} {job[`${stop}_contact_phone`]}</p><p>{job[`${stop}_instructions`]}</p></dd></div>)}
+                {job[`${stop}_contact_name`] && <p>{job[`${stop}_contact_name`]} {job[`${stop}_contact_phone`]}</p>}
+                {job[`${stop}_instructions`] && <p>{job[`${stop}_instructions`]}</p>}</dd></div>)}
             <div><dt>{t('delivery.customer.total')}</dt><dd>{money(job.customer_total_cents, job.currency)}</dd></div>
             <div><dt>{t('delivery.customer.package')}</dt><dd>{label('packageTypes', job.package_type)}</dd></div>
             {job.item_description && <div><dt>{t('delivery.detail.itemDescription')}</dt><dd>{job.item_description}</dd></div>}
@@ -192,6 +203,26 @@ export default function DeliveryDetailPage() {
               {eta?.available && eta.updatedAt && <small>{t('delivery.ui.updated', { date: date(eta.updatedAt) })}</small>}</dd></div>
             {['pickup', 'delivery'].map((kind) => job[`${kind}_window_start`] && <div key={kind}><dt>{t(kind === 'pickup' ? 'delivery.customer.pickup' : 'delivery.customer.dropoff')}</dt><dd>{date(job[`${kind}_window_start`])} – {date(job[`${kind}_window_end`])}</dd></div>)}
           </dl>
+          {/* Group 9 Slice B (item 458): the driver route preview. It
+            renders nothing when the job has no coordinates, so a job
+            without route data falls back to the addresses and distance
+            above instead of a broken map. */}
+          <RoutePreview job={job} t={t} />
+          {isOffered && (
+            <div className="delivery-offer-panel">
+              <OfferCountdown job={job} t={t} />
+              {job.my_decline && <p className="delivery-job-card__declined">{t('delivery.driver.declined')} · {t(`delivery.driver.declineReasons.${job.my_decline.reason_code}`)}</p>}
+              {!isOfferExpired(job) && (
+                <div className="delivery-dispatch-actions">
+                  <button type="button" className="delivery-button delivery-button--primary" disabled={busy} onClick={() => act(() => claimDeliveryJob(id), 'delivery.ui.saved', 'delivery.errors.claim')} data-track="ui.4c1e141977.26">{t('delivery.helper.claim')}</button>
+                  {!declineOpen && <button type="button" className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => setDeclineOpen(true)} data-track="ui.4c1e141977.27">{job.my_decline ? t('delivery.driver.declineChange') : t('delivery.driver.decline')}</button>}
+                </div>
+              )}
+              {declineOpen && !isOfferExpired(job) && (
+                <DeclineForm job={job} t={t} busy={busy} onSubmit={(payload) => { setDeclineOpen(false); act(() => declineDeliveryJob(id, payload)); }} onCancel={() => setDeclineOpen(false)} />
+              )}
+            </div>
+          )}
           {isAssigned && nextStatus && <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => act(() => updateDeliveryStatus(id, nextStatus))} data-track="ui.4c1e141977.4">{t('delivery.helper.moveTo', { status: label('helper.status', nextStatus) })}</button>}
           <div className="delivery-item-photos">
             <h3>{t('delivery.detail.itemPhoto')}</h3>

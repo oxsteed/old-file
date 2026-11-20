@@ -36,6 +36,9 @@ export const estimateDeliveryPublic = (payload) => api.post('/delivery/public/es
 export const createDelivery = (payload) => mutate('post', '/delivery/jobs', payload);
 export const listDeliveryJobs = () => api.get('/delivery/jobs').then((response) => response.data);
 export const claimDeliveryJob = (id) => mutate('post', `/delivery/jobs/${id}/claim`);
+// Group 9 Slice B (item 460): a driver passes on a marketplace offer
+// with a reason code and an optional note. Advisory only.
+export const declineDeliveryJob = (id, payload) => mutate('post', `/delivery/jobs/${id}/decline`, payload);
 export const updateDeliveryStatus = (id, status, details = {}) => mutate('patch', `/delivery/jobs/${id}/status`, { status, ...details });
 export const getDelivery = (id) => api.get(`/delivery/jobs/${id}`).then((response) => response.data);
 export const reportDeliveryIssue = (id, payload) => mutate('post', `/delivery/jobs/${id}/issues`, payload);
@@ -152,7 +155,7 @@ export const createDeliveryVehicle = (payload) => mutate('post', '/delivery/inte
 export const listDeliveryDrivers = () => api.get('/delivery/internal/drivers').then((response) => response.data);
 export const saveDeliveryDriver = (payload) => mutate('post', '/delivery/internal/drivers', payload);
 export const assignInternalDelivery = (id, payload) => mutate('post', `/delivery/internal/jobs/${id}/assign`, payload);
-export const releaseDeliveryToMarketplace = (id, reason) => mutate('post', `/delivery/internal/jobs/${id}/release-marketplace`, { reason });
+export const releaseDeliveryToMarketplace = (id, reason, offerDeadlineHours) => mutate('post', `/delivery/internal/jobs/${id}/release-marketplace`, { reason, offerDeadlineHours });
 
 export const reviewDeliveryReschedule = (id, decision) => mutate('patch', `/delivery/internal/reschedule-requests/${id}`, { decision });
 export const reviewDeliveryReturn = (id, decision, details = {}) => mutate('patch', `/delivery/internal/returns/${id}`, { decision, ...details });
@@ -196,6 +199,8 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     quoteRequired: ['delivery_quote_required'],
     permission: ['delivery_helper_required', 'delivery_operator_required', 'delivery_status_forbidden', 'delivery_self_claim'],
     capacityError: ['delivery_capacity_mismatch', 'delivery_schedule_conflict'],
+    offerExpired: ['delivery_offer_expired'],
+    declineUnavailable: ['delivery_decline_unavailable', 'delivery_decline_reason_invalid'],
     recoveryPending: ['delivery_recovery_pending', 'delivery_reschedule_pending', 'delivery_return_pending'],
     proofInvalid: ['delivery_proof_mismatch', 'delivery_proof_rejected', 'delivery_proof_upload_required', 'delivery_recipient_confirmation_required', 'delivery_return_proof_required', 'delivery_return_proof_unavailable'],
     pinInvalid: ['delivery_proof_pin_invalid'],

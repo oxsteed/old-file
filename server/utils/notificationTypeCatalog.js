@@ -135,6 +135,7 @@ const NOTIFICATION_TYPES = [
   { type: 'cart_recovery', group: 'orders' },
   { type: 'delivery:delivery_approaching', group: 'orders' },
   { type: 'driver_document_renewal', group: 'orders' },
+  { type: 'delivery_offer_expired', group: 'orders' },
   { type: 'delivery:delivery_assigned', group: 'orders' },
   { type: 'delivery:delivery_cancelled', group: 'orders' },
   { type: 'delivery:delivery_delivered', group: 'orders' },

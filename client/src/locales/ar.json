@@ -21694,7 +21694,10 @@
         "released": "تم التحرير"
       },
       "onboardingRequired": "أكمل تسجيل السائق أدناه لقبول عمليات التوصيل.",
-      "approvalPending": "ملف السائق الخاص بك بانتظار موافقة العمليات. يمكنك قبول عمليات التوصيل بعد الموافقة عليه."
+      "approvalPending": "ملف السائق الخاص بك بانتظار موافقة العمليات. يمكنك قبول عمليات التوصيل بعد الموافقة عليه.",
+      "cancel": "إلغاء",
+      "offerExpired": "انتهى عرض التوصيل هذا.",
+      "declineUnavailable": "لم يعد هذا التوصيل متاحًا للتمرير."
     },
     "packageTypes": {
       "small": "صغير · حتى 25 رطلاً",
@@ -21863,7 +21866,14 @@
       "vehicle": "المركبة",
       "chooseVehicle": "اختر مركبة",
       "assign": "تعيين داخلي",
-      "release": "طرح في السوق"
+      "release": "طرح في السوق",
+      "declinesTitle": "رفض السائقين",
+      "declinesEmpty": "لم يمرر أي سائق هذا التوصيل.",
+      "declinesCount": "السائقون الذين مرروا: {{count}}",
+      "reoffer": "إعادة العرض على السائقين",
+      "offerDeadlineHours": "الموعد النهائي للعرض (بالساعات)",
+      "offerExpired": "انتهى العرض",
+      "offerExpiresAt": "ينتهي العرض في {{date}}"
     },
     "dispatchStates": {
       "internal_review": "مراجعة داخلية",
@@ -22238,6 +22248,27 @@
       "pendingTitle": "الموافقة معلقة",
       "pendingBody": "تم إرسال ملف السائق الخاص بك. ستراجعه العمليات قريباً، ويمكنك قبول عمليات التوصيل بعد الموافقة عليه.",
       "workTitle": "عمليات التوصيل التي تقبلها",
+      "offerExpiresHours": "ينتهي هذا العرض خلال {{hours}} س {{minutes}} د",
+      "offerExpiresMinutes": "ينتهي هذا العرض خلال {{minutes}} د",
+      "offerExpired": "انتهى العرض",
+      "offerExpiredNote": "انتهى هذا العرض وعاد إلى الإرسال. لم يعد بإمكانك قبوله.",
+      "offerDeadline": "الموعد النهائي للعرض",
+      "decline": "تمرير",
+      "declineTitle": "تمرير هذا التوصيل",
+      "declineReason": "السبب",
+      "declineNote": "ملاحظة (اختياري)",
+      "declineNotePlaceholder": "أي شيء يجب أن يعرفه الإرسال (اختياري)",
+      "declineSubmit": "تمرير هذا التوصيل",
+      "declineChange": "تغيير السبب",
+      "declined": "لقد مررت هذا التوصيل",
+      "declineReasons": {
+        "too_far": "بعيد جدًا",
+        "schedule_conflict": "تعارض في الجدول",
+        "capacity": "لا توجد سعة",
+        "vehicle": "المركبة غير مناسبة",
+        "pay": "الأجر غير كافٍ",
+        "other": "أخرى"
+      },
       "workBody": "عمليات التوصيل المفتوحة التي يمكنك قبولها، والتي قبلتها بالفعل.",
       "myClaimed": "عمليات التوصيل التي قبلتها",
       "availability": "متاح للتوصيل",

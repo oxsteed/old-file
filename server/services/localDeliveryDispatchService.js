@@ -11,6 +11,24 @@ const { canDriveMarketplace } = require('./deliveryDriverAdmission');
 // remain the final guard against writers which do not use this protocol.
 const TERMINAL = new Set(['delivered', 'cancelled', 'returned']);
 const OPERATORS = new Set(['sourcing_operator', 'logistics_coordinator', 'warehouse_operator', 'admin', 'super_admin']);
+// Group 9 Slice B (item 460): the reason codes a driver may give when
+// passing on a marketplace offer. Declining is advisory only (D-62).
+const DECLINE_REASON_CODES = new Set(['too_far', 'schedule_conflict', 'capacity', 'vehicle', 'pay', 'other']);
+// Group 9 Slice B (item 457): the offer window, in hours, set when a job
+// is posted to the marketplace. Default 24h (D-61); ops may set 1-168h
+// per release or re-offer.
+const OFFER_DEADLINE_DEFAULT_HOURS = 24;
+const OFFER_DEADLINE_MIN_HOURS = 1;
+const OFFER_DEADLINE_MAX_HOURS = 168;
+function offerDeadlineHours(req) {
+  const raw = req.body?.offerDeadlineHours ?? req.body?.offer_deadline_hours;
+  if (raw === undefined || raw === null || raw === '') return OFFER_DEADLINE_DEFAULT_HOURS;
+  const hours = Number(raw);
+  if (!Number.isInteger(hours) || hours < OFFER_DEADLINE_MIN_HOURS || hours > OFFER_DEADLINE_MAX_HOURS) {
+    throw fail('Offer deadline must be between 1 and 168 hours', 'delivery_offer_deadline_invalid', 400);
+  }
+  return hours;
+}
 const fail = (message, code, status = 409) => new AppError(message, status, code);
 const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 const isOperator = (user) => ['admin', 'super_admin'].includes(user?.role) || OPERATORS.has(user?.logistics_role);
@@ -294,11 +312,32 @@ function createDispatchService(deps = {}) {
       await activity(client, job.id, req.user.id, 'delivery_coordinated');
       return { success: true, job: updated };
     }),
-    releaseMarketplace: (req) => run(req, { action: 'releaseMarketplace', access: 'operator' }, async ({ client, job, activity }) => {
+    releaseMarketplace: (req) => run(req, { action: 'releaseMarketplace', access: 'operator' }, async ({ client, job, activity, now }) => {
       const reason = cleanText(req.body?.reason, 1000);
       if (reason.length < 3) throw fail('An explicit release reason is required', 'delivery_release_reason_required', 400);
       if (!['posted', 'assigned'].includes(job.status) || pickedUp(job) || job.helper_user_id) throw fail('Delivery cannot be released', 'delivery_release_conflict');
       await ensureNoOpenRecovery(client, job);
+      // Group 9 Slice B (item 457): re-offering an expired marketplace
+      // offer. The job is still posted, but its deadline passed (stamped
+      // by the sweep, or simply past). A re-offer stamps a fresh deadline
+      // and clears the expired marker and the notice stamp; it never
+      // touches the job itself. A live offer re-released is a duplicate.
+      const offerExpired = job.offer_expired_at
+        || (job.offer_expires_at && new Date(job.offer_expires_at).getTime() <= now.getTime());
+      if (job.status === 'posted' && job.dispatch_state === 'marketplace_posted' && job.fulfillment_source === 'marketplace'
+        && !job.internal_driver_user_id && !job.vehicle_id && offerExpired) {
+        const hours = offerDeadlineHours(req);
+        const reoffered = (await client.query(
+          `UPDATE delivery_jobs SET offer_expires_at = NOW() + ($1::int * INTERVAL '1 hour'), offer_deadline_hours = $1,
+            offer_expired_at = NULL, offer_expiry_notice_sent_at = NULL,
+            marketplace_released_at = NOW(), marketplace_release_reason = $2, updated_at = NOW()
+           WHERE id = $3 RETURNING *`,
+          [hours, reason, job.id],
+        )).rows[0];
+        await client.query("INSERT INTO delivery_dispatch_attempts (delivery_job_id, source, action, reason, actor_user_id) VALUES ($1,'marketplace','reoffered',$2,$3)", [job.id, reason, req.user.id]);
+        await activity(client, job.id, req.user.id, 'delivery_offer_reposted', { reason, offerDeadlineHours: hours }, false);
+        return { success: true, job: reoffered };
+      }
       if (job.status === 'posted' && job.dispatch_state === 'marketplace_posted' && job.fulfillment_source === 'marketplace' && !job.internal_driver_user_id && !job.vehicle_id) return { success: true, duplicate: true, job };
       if (!['internal_review', 'internal_assignment_attempt', 'internal_assigned', 'exception'].includes(job.dispatch_state)) throw fail('Delivery cannot be released', 'delivery_release_conflict');
       await lockResources(client, assignmentOf(job));
@@ -309,9 +348,16 @@ function createDispatchService(deps = {}) {
         [job.id]
       );
       await client.query("UPDATE delivery_assignment_reservations SET status = 'released' WHERE delivery_job_id = $1 AND status = 'active'", [job.id]);
+      // Group 9 Slice B (item 457): releasing a job to the marketplace
+      // starts its offer clock. The deadline is configurable per release
+      // (default 24h, D-61); a fresh release clears any stale expiry
+      // marker and notice stamp.
+      const hours = offerDeadlineHours(req);
       const updated = (await client.query(`UPDATE delivery_jobs SET fulfillment_source = 'marketplace', dispatch_state = 'marketplace_posted', status = 'posted',
         helper_user_id = NULL, internal_driver_user_id = NULL, vehicle_id = NULL, assigned_by_user_id = NULL, assigned_at = NULL, internal_assigned_at = NULL,
-        marketplace_released_at = NOW(), marketplace_release_reason = $1, marketplace_released_by_user_id = $2, updated_at = NOW() WHERE id = $3 RETURNING *`, [reason, req.user.id, job.id])).rows[0];
+        marketplace_released_at = NOW(), marketplace_release_reason = $1, marketplace_released_by_user_id = $2,
+        offer_expires_at = NOW() + ($4::int * INTERVAL '1 hour'), offer_deadline_hours = $4, offer_expired_at = NULL, offer_expiry_notice_sent_at = NULL,
+        updated_at = NOW() WHERE id = $3 RETURNING *`, [reason, req.user.id, job.id, hours])).rows[0];
       await client.query("INSERT INTO delivery_dispatch_attempts (delivery_job_id, source, action, reason, actor_user_id) VALUES ($1,'marketplace','released',$2,$3)", [job.id, reason, req.user.id]);
       await activity(client, job.id, req.user.id, 'delivery_marketplace_released', { reason }, false);
       return { success: true, job: updated };
@@ -320,6 +366,14 @@ function createDispatchService(deps = {}) {
       if (sameId(job.customer_user_id, req.user.id)) throw fail('Customers cannot claim their own delivery', 'delivery_self_claim', 403);
       if (job.status !== 'posted' || pickedUp(job) || job.dispatch_state !== 'marketplace_posted' || job.fulfillment_source !== 'marketplace'
         || job.helper_user_id || job.internal_driver_user_id || job.vehicle_id) throw fail('Delivery is no longer available', 'delivery_unavailable');
+      // Group 9 Slice B (item 457): an offer past its response deadline
+      // is unclaimable the moment the deadline passes, even before the
+      // hourly sweep stamps it. The job stays posted for dispatch to
+      // re-offer; the driver is told the offer expired, not that the job
+      // vanished.
+      if (job.offer_expired_at || (job.offer_expires_at && new Date(job.offer_expires_at).getTime() <= now.getTime())) {
+        throw fail('This delivery offer has expired', 'delivery_offer_expired', 409);
+      }
       // Payment gate: cannot claim an unpaid job (unless COD).
       const { rows: payments } = await client.query(
         `SELECT captured_at, status FROM delivery_payments WHERE delivery_job_id=$1 AND delivery_extra_id IS NULL ORDER BY created_at DESC LIMIT 1`,
@@ -354,6 +408,31 @@ function createDispatchService(deps = {}) {
       await activity(client, job.id, req.user.id, 'delivery_assigned');
       return { success: true, job: updated };
     }),
+    // Group 9 Slice B (item 460): a driver passes on a marketplace offer
+    // with a reason code and an optional note. One record per driver per
+    // job; a second decline updates the first. Declining is advisory
+    // only (D-62): it never blocks the driver from claiming this job
+    // later or any other job, and it is visible to dispatch, not to the
+    // customer. An expired offer may still be declined: the driver saw
+    // the offer, and the signal is still useful to dispatch.
+    decline: (req) => run(req, { action: 'decline', access: 'helper', persistFailure: false }, async ({ client, job, activity }) => {
+      if (sameId(job.customer_user_id, req.user.id)) throw fail('Customers cannot decline their own delivery', 'delivery_self_claim', 403);
+      if (job.status !== 'posted' || job.dispatch_state !== 'marketplace_posted' || job.fulfillment_source !== 'marketplace'
+        || job.helper_user_id || job.internal_driver_user_id || job.vehicle_id) throw fail('Delivery is no longer available to decline', 'delivery_decline_unavailable');
+      const reasonCode = String(req.body?.reasonCode ?? req.body?.reason_code ?? '').trim();
+      if (!DECLINE_REASON_CODES.has(reasonCode)) throw fail('A valid decline reason is required', 'delivery_decline_reason_invalid', 400);
+      const note = cleanText(req.body?.note, 500);
+      const { rows: [decline] } = await client.query(
+        `INSERT INTO delivery_job_declines (delivery_job_id, driver_user_id, reason_code, note)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (delivery_job_id, driver_user_id) DO UPDATE
+             SET reason_code = EXCLUDED.reason_code, note = EXCLUDED.note, updated_at = NOW()
+           RETURNING *`,
+        [job.id, req.user.id, reasonCode, note || null],
+      );
+      await activity(client, job.id, req.user.id, 'delivery_offer_declined', { reasonCode }, false);
+      return { success: true, decline };
+    }),
   };
   return { actions, ...Object.fromEntries(Object.entries(actions).map(([name, operation]) => [name, handler(operation)])) };
 }
@@ -362,8 +441,9 @@ let defaults;
 module.exports = {
   createDispatchService, createActionRunner, handler, fingerprint, capabilityFailures, areaCovers, availableDuring,
   windowForJob, lockResources, assignmentOf, reserve, checkAssignment, recordActivity, ensureNoOpenRecovery,
+  DECLINE_REASON_CODES, OFFER_DEADLINE_DEFAULT_HOURS, offerDeadlineHours,
   TERMINAL, fail, sameId, isOperator, isParticipant, pickedUp, cleanText,
-  ...Object.fromEntries(['assignInternal', 'releaseMarketplace', 'claim'].map((name) => [name, (...args) => {
+  ...Object.fromEntries(['assignInternal', 'releaseMarketplace', 'claim', 'decline'].map((name) => [name, (...args) => {
     defaults ||= createDispatchService();
     return defaults[name](...args);
   }])),

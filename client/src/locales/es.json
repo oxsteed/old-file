@@ -21683,7 +21683,10 @@
         "released": "Liberado"
       },
       "onboardingRequired": "Completa el registro de conductor abajo para aceptar entregas.",
-      "approvalPending": "Tu perfil de conductor está pendiente de aprobación por operaciones. Podrás aceptar entregas cuando sea aprobado."
+      "approvalPending": "Tu perfil de conductor está pendiente de aprobación por operaciones. Podrás aceptar entregas cuando sea aprobado.",
+      "cancel": "Cancelar",
+      "offerExpired": "Esta oferta de entrega ha vencido.",
+      "declineUnavailable": "Esta entrega ya no está disponible para pasar."
     },
     "packageTypes": {
       "small": "Pequeño · hasta 25 lb",
@@ -21852,7 +21855,14 @@
       "vehicle": "Vehículo",
       "chooseVehicle": "Elegir vehículo",
       "assign": "Asignar internamente",
-      "release": "Publicar en el mercado"
+      "release": "Publicar en el mercado",
+      "declinesTitle": "Rechazos de conductores",
+      "declinesEmpty": "Ningún conductor ha pasado de esta entrega.",
+      "declinesCount": "Conductores que pasaron: {{count}}",
+      "reoffer": "Volver a ofrecer a los conductores",
+      "offerDeadlineHours": "Límite de la oferta (horas)",
+      "offerExpired": "Oferta vencida",
+      "offerExpiresAt": "La oferta vence {{date}}"
     },
     "dispatchStates": {
       "internal_review": "Revisión interna",
@@ -22227,6 +22237,27 @@
       "pendingTitle": "Aprobación pendiente",
       "pendingBody": "Tu perfil de conductor fue enviado. Operaciones lo revisará pronto y podrás aceptar entregas cuando sea aprobado.",
       "workTitle": "Entregas que aceptas",
+      "offerExpiresHours": "La oferta vence en {{hours}} h {{minutes}} min",
+      "offerExpiresMinutes": "La oferta vence en {{minutes}} min",
+      "offerExpired": "Oferta vencida",
+      "offerExpiredNote": "Esta oferta venció y volvió a despacho. Ya no puedes aceptarla.",
+      "offerDeadline": "Límite de la oferta",
+      "decline": "Pasar",
+      "declineTitle": "Pasar esta entrega",
+      "declineReason": "Motivo",
+      "declineNote": "Nota (opcional)",
+      "declineNotePlaceholder": "Algo que despacho debería saber (opcional)",
+      "declineSubmit": "Pasar esta entrega",
+      "declineChange": "Cambiar motivo",
+      "declined": "Pasaste esta entrega",
+      "declineReasons": {
+        "too_far": "Demasiado lejos",
+        "schedule_conflict": "Conflicto de horario",
+        "capacity": "Sin capacidad",
+        "vehicle": "Vehículo no adecuado",
+        "pay": "Pago insuficiente",
+        "other": "Otro"
+      },
       "workBody": "Entregas abiertas que puedes aceptar y las que ya aceptaste.",
       "myClaimed": "Entregas que aceptaste",
       "availability": "Disponible para entregas",

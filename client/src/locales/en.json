@@ -21683,7 +21683,10 @@
         "released": "Released"
       },
       "onboardingRequired": "Complete driver onboarding below to claim deliveries.",
-      "approvalPending": "Your driver profile is pending operations approval. You can claim deliveries once it is approved."
+      "approvalPending": "Your driver profile is pending operations approval. You can claim deliveries once it is approved.",
+      "cancel": "Cancel",
+      "offerExpired": "This delivery offer has expired.",
+      "declineUnavailable": "This delivery is no longer available to pass on."
     },
     "proofTypes": {
       "recipient_confirmation": "Recipient confirmation",
@@ -21852,7 +21855,14 @@
       "vehicle": "Vehicle",
       "chooseVehicle": "Choose a vehicle",
       "assign": "Assign internally",
-      "release": "Release to marketplace"
+      "release": "Release to marketplace",
+      "declinesTitle": "Driver declines",
+      "declinesEmpty": "No driver has passed on this job.",
+      "declinesCount": "Drivers passed: {{count}}",
+      "reoffer": "Re-offer to drivers",
+      "offerDeadlineHours": "Offer deadline (hours)",
+      "offerExpired": "Offer expired",
+      "offerExpiresAt": "Offer expires {{date}}"
     },
     "dispatchStates": {
       "internal_review": "Internal review",
@@ -22227,6 +22237,27 @@
       "pendingTitle": "Approval pending",
       "pendingBody": "Your driver profile was submitted. Operations will review it shortly, and you can claim deliveries once it is approved.",
       "workTitle": "Deliveries you claim",
+      "offerExpiresHours": "Offer expires in {{hours}}h {{minutes}}m",
+      "offerExpiresMinutes": "Offer expires in {{minutes}} min",
+      "offerExpired": "Offer expired",
+      "offerExpiredNote": "This offer expired and is back with dispatch. You can no longer claim it.",
+      "offerDeadline": "Offer deadline",
+      "decline": "Pass",
+      "declineTitle": "Pass on this delivery",
+      "declineReason": "Reason",
+      "declineNote": "Note (optional)",
+      "declineNotePlaceholder": "Anything dispatch should know (optional)",
+      "declineSubmit": "Pass on this delivery",
+      "declineChange": "Change reason",
+      "declined": "You passed on this job",
+      "declineReasons": {
+        "too_far": "Too far away",
+        "schedule_conflict": "Schedule conflict",
+        "capacity": "No capacity",
+        "vehicle": "Wrong vehicle",
+        "pay": "Pay too low",
+        "other": "Other"
+      },
       "workBody": "Open deliveries you can claim, and the ones you already claimed.",
       "myClaimed": "Deliveries you claimed",
       "availability": "Available for deliveries",

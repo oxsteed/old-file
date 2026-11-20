@@ -21683,7 +21683,10 @@
         "released": "Libéré"
       },
       "onboardingRequired": "Terminez votre inscription de conducteur ci-dessous pour accepter des livraisons.",
-      "approvalPending": "Votre profil de conducteur est en attente d'approbation par les opérations. Vous pourrez accepter des livraisons une fois approuvé."
+      "approvalPending": "Votre profil de conducteur est en attente d'approbation par les opérations. Vous pourrez accepter des livraisons une fois approuvé.",
+      "cancel": "Annuler",
+      "offerExpired": "Cette offre de livraison a expiré.",
+      "declineUnavailable": "Cette livraison ne peut plus être refusée."
     },
     "packageTypes": {
       "small": "Petit · jusqu’à 25 lb",
@@ -21852,7 +21855,14 @@
       "vehicle": "Véhicule",
       "chooseVehicle": "Choisir un véhicule",
       "assign": "Attribuer en interne",
-      "release": "Publier sur le marché"
+      "release": "Publier sur le marché",
+      "declinesTitle": "Refus des chauffeurs",
+      "declinesEmpty": "Aucun chauffeur n’a passé cette livraison.",
+      "declinesCount": "Chauffeurs ayant passé : {{count}}",
+      "reoffer": "Proposer de nouveau aux chauffeurs",
+      "offerDeadlineHours": "Date limite de l’offre (heures)",
+      "offerExpired": "Offre expirée",
+      "offerExpiresAt": "L’offre expire le {{date}}"
     },
     "dispatchStates": {
       "internal_review": "Révision interne",
@@ -22227,6 +22237,27 @@
       "pendingTitle": "Approbation en attente",
       "pendingBody": "Votre profil de conducteur a été envoyé. Les opérations l'examineront bientôt et vous pourrez accepter des livraisons une fois approuvé.",
       "workTitle": "Livraisons que vous prenez",
+      "offerExpiresHours": "L’offre expire dans {{hours}} h {{minutes}} min",
+      "offerExpiresMinutes": "L’offre expire dans {{minutes}} min",
+      "offerExpired": "Offre expirée",
+      "offerExpiredNote": "Cette offre a expiré et est retournée à la répartition. Vous ne pouvez plus l’accepter.",
+      "offerDeadline": "Date limite de l’offre",
+      "decline": "Passer",
+      "declineTitle": "Passer cette livraison",
+      "declineReason": "Motif",
+      "declineNote": "Note (facultatif)",
+      "declineNotePlaceholder": "Ce que la répartition devrait savoir (facultatif)",
+      "declineSubmit": "Passer cette livraison",
+      "declineChange": "Changer le motif",
+      "declined": "Vous avez passé cette livraison",
+      "declineReasons": {
+        "too_far": "Trop loin",
+        "schedule_conflict": "Conflit d’horaire",
+        "capacity": "Capacité insuffisante",
+        "vehicle": "Véhicule inadapté",
+        "pay": "Rémunération insuffisante",
+        "other": "Autre"
+      },
       "workBody": "Les livraisons ouvertes que vous pouvez prendre, et celles déjà prises.",
       "myClaimed": "Livraisons que vous avez prises",
       "availability": "Disponible pour les livraisons",

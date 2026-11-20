@@ -373,8 +373,20 @@ async function loadAuthorizedJob(jobId, user) {
       WHERE id = $1 AND (customer_user_id = $2 OR helper_user_id = $2 OR internal_driver_user_id = $2)`,
     [jobId, user.id],
   );
-  if (!rows[0]) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
-  return rows[0];
+  if (rows[0]) return rows[0];
+  // Group 9 Slice B (items 458/460, D-65): a driver admitted to the
+  // marketplace may open a posted offer read-only, so they can preview
+  // the full route and decline it from the detail page before claiming.
+  // The safe projection masks addresses, contacts, and totals; this
+  // only decides readability, never writability.
+  const { rows: offered } = await pool.query(
+    `SELECT * FROM delivery_jobs
+      WHERE id = $1 AND status = 'posted' AND dispatch_state = 'marketplace_posted'
+        AND fulfillment_source = 'marketplace' AND helper_user_id IS NULL AND internal_driver_user_id IS NULL`,
+    [jobId],
+  );
+  if (offered[0] && (await canDriveMarketplace(user))) return offered[0];
+  throw new AppError('Delivery job not found', 404, 'delivery_not_found');
 }
 
 exports.quote = async (req, res, next) => {
@@ -643,7 +655,18 @@ exports.list = async (req, res, next) => {
     const {rows} = await pool.query(`SELECT * FROM delivery_jobs WHERE customer_user_id=$1 OR helper_user_id=$1 OR internal_driver_user_id=$1
       OR ${marketplaceClause}
       ORDER BY created_at DESC LIMIT 100`, params);
-    res.json({success:true,jobs:rows.map(job=>customerSafeJob(job,req.user)),helper,internalDriver,canDrive});
+    // Group 9 Slice B (item 460): the driver's own decline on each job,
+    // so the inbox card can show the passed state persistently.
+    const jobIds = rows.map((job) => job.id);
+    let myDeclines = new Map();
+    if (jobIds.length) {
+      const { rows: declines } = await pool.query(
+        `SELECT * FROM delivery_job_declines WHERE delivery_job_id = ANY($1::bigint[]) AND driver_user_id = $2`,
+        [jobIds, req.user.id],
+      );
+      myDeclines = new Map(declines.map((decline) => [String(decline.delivery_job_id), decline]));
+    }
+    res.json({success:true,jobs:rows.map(job=>({...customerSafeJob(job,req.user), my_decline: myDeclines.get(String(job.id)) || null})),helper,internalDriver,canDrive});
   } catch(error) {next(error);}
 };
 
@@ -651,15 +674,23 @@ exports.get = async (req,res,next) => {
   try {
     const job=await loadAuthorizedJob(req.params.id,req.user);
     const own=String(job.customer_user_id)===String(req.user.id);
-    const [activity,proofs,extras,issues,payments,reschedules,returns,itemPhotoRows]=await Promise.all([
-      pool.query('SELECT id,event_type,payload,created_at FROM delivery_activity WHERE delivery_job_id=$1 AND customer_visible=TRUE ORDER BY created_at,id',[job.id]),
-      pool.query('SELECT id,proof_type,recipient_name,verification_status,verified_at,created_at FROM delivery_proofs WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]),
-      pool.query('SELECT id,category,amount_cents,notes,status,payment_status,approved_amount_cents,created_at FROM delivery_extras WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]),
-      pool.query('SELECT id,code,description,status,resolution,created_at,resolved_at,support_ticket_id FROM delivery_issues WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]),
-      own ? pool.query('SELECT id,delivery_extra_id,amount_cents,currency,status,receipt_url,refunded_amount_cents,created_at,updated_at FROM delivery_payments WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : Promise.resolve({rows:[]}),
-      pool.query('SELECT id,pickup_window_start,pickup_window_end,delivery_window_start,delivery_window_end,reason,status,reviewed_at,created_at FROM delivery_reschedule_requests WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]),
-      pool.query('SELECT id,reason,status,completed_at,created_at FROM delivery_returns WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]),
-      pool.query('SELECT id,object_key,content_type,size_bytes,created_at FROM delivery_job_item_photos WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]),
+    // Group 9 Slice B (D-65): a marketplace driver opening a posted
+    // offer is not a participant. They get the safe projection only:
+    // no activity, proofs, extras, issues, payments, reschedules,
+    // returns, or item photos (those carry participant details and
+    // signed URLs), just the offer itself plus their own decline.
+    const participant = own || [job.helper_user_id, job.internal_driver_user_id].some((id) => id && String(id) === String(req.user.id));
+    const empty = Promise.resolve({ rows: [] });
+    const [activity,proofs,extras,issues,payments,reschedules,returns,itemPhotoRows,myDecline]=await Promise.all([
+      participant ? pool.query('SELECT id,event_type,payload,created_at FROM delivery_activity WHERE delivery_job_id=$1 AND customer_visible=TRUE ORDER BY created_at,id',[job.id]) : empty,
+      participant ? pool.query('SELECT id,proof_type,recipient_name,verification_status,verified_at,created_at FROM delivery_proofs WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
+      participant ? pool.query('SELECT id,category,amount_cents,notes,status,payment_status,approved_amount_cents,created_at FROM delivery_extras WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
+      participant ? pool.query('SELECT id,code,description,status,resolution,created_at,resolved_at,support_ticket_id FROM delivery_issues WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
+      own ? pool.query('SELECT id,delivery_extra_id,amount_cents,currency,status,receipt_url,refunded_amount_cents,created_at,updated_at FROM delivery_payments WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
+      participant ? pool.query('SELECT id,pickup_window_start,pickup_window_end,delivery_window_start,delivery_window_end,reason,status,reviewed_at,created_at FROM delivery_reschedule_requests WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
+      participant ? pool.query('SELECT id,reason,status,completed_at,created_at FROM delivery_returns WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
+      participant ? pool.query('SELECT id,object_key,content_type,size_bytes,created_at FROM delivery_job_item_photos WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
+      pool.query('SELECT * FROM delivery_job_declines WHERE delivery_job_id=$1 AND driver_user_id=$2', [job.id, req.user.id]),
     ]);
     // Item photos are customer-uploaded pictures of the item, visible only
     // to the job participants (loadAuthorizedJob already enforced that).
@@ -672,7 +703,7 @@ exports.get = async (req,res,next) => {
       url: await getSignedDownloadUrl(photo.object_key, 3600).catch(() => null),
     })));
     res.set('Cache-Control','no-store');
-    res.json({success:true,job:customerSafeJob(job,req.user),activity:activity.rows,proofs:proofs.rows,extras:extras.rows,issues:issues.rows,payments:payments.rows,rescheduleRequests:reschedules.rows,returns:returns.rows,itemPhotos});
+    res.json({success:true,job:{...customerSafeJob(job,req.user), my_decline: myDecline.rows[0] || null},activity:activity.rows,proofs:proofs.rows,extras:extras.rows,issues:issues.rows,payments:payments.rows,rescheduleRequests:reschedules.rows,returns:returns.rows,itemPhotos});
   } catch(error) {next(error);}
 };
 
@@ -865,7 +896,16 @@ exports.reviewExtra = async (req, res, next) => {
 
 exports.internalQueue = async (_req, res, next) => {
   try {
-    const { rows } = await pool.query(`SELECT dj.*, u.email AS customer_email FROM delivery_jobs dj JOIN users u ON u.id = dj.customer_user_id WHERE dj.dispatch_state IN ('internal_review','internal_assigned','exception') ORDER BY dj.created_at ASC LIMIT 200`);
+    // Group 9 Slice B (item 457): expired marketplace offers come back
+    // to dispatch attention here (posted + expired marker), so an
+    // unclaimed offer is never stranded off the board. decline_count
+    // rides along so the board shows how many drivers passed per job.
+    const { rows } = await pool.query(`SELECT dj.*, u.email AS customer_email,
+      (SELECT COUNT(*) FROM delivery_job_declines d WHERE d.delivery_job_id = dj.id) AS decline_count
+      FROM delivery_jobs dj JOIN users u ON u.id = dj.customer_user_id
+      WHERE dj.dispatch_state IN ('internal_review','internal_assigned','exception')
+         OR (dj.status = 'posted' AND dj.dispatch_state = 'marketplace_posted' AND dj.offer_expired_at IS NOT NULL)
+      ORDER BY dj.created_at ASC LIMIT 200`);
     res.json({ success: true, jobs: rows.map(operatorSafeJob) });
   } catch (error) {
     next(error);
@@ -1527,7 +1567,15 @@ exports.getInternalJob = async (req, res, next) => {
     if (!rows[0]) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
     const activity = await pool.query('SELECT * FROM delivery_activity WHERE delivery_job_id = $1 ORDER BY created_at ASC', [req.params.id]);
     const attempts = await pool.query('SELECT * FROM delivery_dispatch_attempts WHERE delivery_job_id = $1 ORDER BY created_at DESC', [req.params.id]);
-    res.json({ success: true, job: operatorSafeJob(rows[0]), activity: activity.rows, dispatchAttempts: attempts.rows });
+    // Group 9 Slice B (item 460): the dispatcher-visible decline list
+    // for this job (driver identity + reason + note + time).
+    const declines = await pool.query(
+      `SELECT d.*, u.email AS driver_email, u.first_name, u.last_name
+         FROM delivery_job_declines d LEFT JOIN users u ON u.id = d.driver_user_id
+        WHERE d.delivery_job_id = $1 ORDER BY d.created_at DESC`,
+      [req.params.id],
+    );
+    res.json({ success: true, job: operatorSafeJob(rows[0]), activity: activity.rows, dispatchAttempts: attempts.rows, declines: declines.rows });
   } catch (error) {
     next(error);
   }
@@ -1536,7 +1584,7 @@ exports.getInternalJob = async (req, res, next) => {
 exports.isInternalOperator = isInternalOperator;
 
 Object.assign(exports, {
-  ...Object.fromEntries(['claim','assignInternal','releaseMarketplace'].map(name => [name, require('../services/localDeliveryDispatchService')[name]])),
+  ...Object.fromEntries(['claim','decline','assignInternal','releaseMarketplace'].map(name => [name, require('../services/localDeliveryDispatchService')[name]])),
   ...Object.fromEntries(['requestReschedule','reviewReschedule','requestReturn','reviewReturn','resolveIssue'].map(name => [name, require('../services/localDeliveryRecoveryService')[name]])),
 });
 const deliveryPayments = require('../services/localDeliveryPaymentService');
