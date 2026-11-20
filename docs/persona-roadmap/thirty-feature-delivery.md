@@ -18,10 +18,10 @@ The feature list is descriptive; all protected operations retain server authorit
 | 191 | Portfolio permission request | Implemented; private upload, customer decision, history, withdrawal and revocation |
 | 208 | Standard quote terms | Implemented; defaults snapshot across finance/chat/lead quote creation |
 | 209 | Business pricing templates | Implemented; business-scoped create/edit/apply/delete with versions |
-| 212 | Role templates | Not started |
-| 213 | Permission preview | Not started |
+| 212 | Role templates | Implemented; owner-only reusable business roles/overrides and application history |
+| 213 | Permission preview | Implemented; server-computed before/after and added/removed permissions, stale confirmation denial |
 | 214 | Membership expiry | Not started |
-| 215 | Offboarding dashboard | Not started |
+| 215 | Offboarding dashboard | Existing server workflow verified; frontend completion review pending |
 | 219 | Overdue task alerts | Not started |
 | 224 | Follow-up reminders | Not started |
 | 229 | Team onboarding guide | Not started |
@@ -162,3 +162,78 @@ portfolio objects into public objects or weaken the live image consent check.
   (1 test, 9.56s), using synthetic APIs. Client build passed with 1239 assets.
 
 Rollback retains quote snapshots and templates; sent terms remain immutable.
+
+## Role templates and permission preview increment
+
+- The existing Business Hub Team area has owner-only saved role templates.
+  Templates contain an existing business role and explicit allow/deny overrides.
+  They do not create a capability or change location assignments by themselves.
+- The server previews the target member's actual current role/permissions and
+  the saved template's resulting effective permissions, including added/removed
+  codes. Application requires current business ownership, explicit confirmation
+  and a reason. It replaces the stated business role and override set atomically.
+- Confirmation is bound to template version, membership version, current role
+  defaults and effective permission sets. Concurrent edits, old override APIs,
+  membership changes and competing confirmations invalidate stale previews.
+  Database triggers advance the membership version even through existing writers.
+- Role changes, overrides, immutable before/after application records and access
+  projection invalidation commit together. Existing permission/realtime cache
+  invalidation follows commit. Other business memberships and helper grants are
+  unchanged. A template cannot edit an owner's own membership or foreign scope.
+- Full template create/edit/delete, named member selection, preview, explicit
+  apply, reasons/history, five-language catalogs and RTL are implemented. Scoped
+  content clears on account/session/access changes. Loading is announced.
+- Database: role templates, quote standards, existing managed permissions and
+  existing offboarding regression suites are exercised. The first combined run
+  had 12 passing tests and skipped six offboarding tests because that suite uses
+  STATEMENT_TEST_DATABASE_URL; those six then passed with that variable set.
+  Final combined run with both variables set: all 18 tests passed across four
+  suites (2.80s), with no skipped tests.
+- Browser: the new role-template CRUD/preview/stale-confirm/apply/Arabic/revocation
+  journey passed (1 test, 5.13s). All three existing workspace-navigation browser
+  journeys passed, including delayed editors and cross-account draft isolation.
+  The first new browser fixture failed because it used the native window.history
+  name for test data; renaming the fixture state fixed it. Production code was
+  not weakened. Client build passed with 1240 emitted assets.
+- Migration history/append order, growth instrumentation and diff whitespace
+  checks passed. No merge, deployment or production acceptance was performed.
+
+## Checkpoint and next actions
+
+14 of the selected 30 features have new implementations with local verification.
+The remaining 16 are still in scope; they are not represented as complete.
+Continue on PR 805's fix/persona-roadmap-1000 branch from the latest pushed head.
+Use the isolated worktree /private/tmp/oxsteed-pr805-ci-repair. Preserve unrelated
+work in the main checkout and do not add the client/node_modules symlink.
+
+1. Membership expiry (214): existing business_members.expires_at is invitation
+   expiry, not effective employment expiry. Trace all authorization consumers
+   before adding time-bound active access. About 105 non-test server files refer
+   to business_members; changing only navbar or one middleware is insufficient.
+2. Offboarding (215): reuse staffOffboarding and current Team history/rehire UI.
+   Current database coverage confirms task reassignment, retention/history,
+   rehire and anonymized records. Reconcile the remaining user-facing dashboard
+   behavior rather than introducing a second removal system.
+3. Overdue tasks/follow-up (219/224): reconcile existing crew tasks, attention
+   adapters and reminder infrastructure before adding scoped alerts/reminders.
+4. Team onboarding/policy history (229/230): reuse existing staff/careers training
+   and onboarding where applicable. Client-facing business policies are a
+   different audience from internal team acknowledgments.
+5. Equipment (557/558/572/573/577/578/581/582/585/593): extend existing tool_rentals,
+   tool_rentals_bookings, ToolOwnerDashboard and MyBookingsPage. Owner rules and
+   agreement snapshots already exist. Preserve the peer-rental agreement,
+   invoice/deposit lifecycle, effective tool-owner access, customer ownership and
+   tool-rental advisory lock used by booking creation. Extensions must preserve
+   explicit date/price consent and existing payment records; condition reports
+   must not automatically levy damage or missing-accessory charges.
+
+Run focused checks per increment and push reviewable commits while GitHub CI is
+running. Do not treat a passing older commit as CI evidence for the new head.
+
+The disposable PostGIS container for continuation is oxsteed-pr805-quote-db
+(Colima context), port 32800, database credit_statement_test. It contains only
+synthetic fixtures and the applied additive migrations. Use the local test URL
+postgresql://postgres@127.0.0.1:32800/credit_statement_test?sslmode=disable for
+ACCESS_TEST_DATABASE_URL and STATEMENT_TEST_DATABASE_URL. Never substitute a
+production database. Remove this task container/volumes when its verification
+work is finished; do not remove other Docker resources.
