@@ -22,6 +22,13 @@ const recurring = require('../controllers/businessRecurringBillingController');
 const financeMember = requireBusinessAccess({ minRole: 'any' });
 const financeRead = requireFinanceRead();
 const financeWrite = requireFinanceWrite('invoices.create');
+const standards=require('../services/businessQuoteStandards');
+const standardHandler=fn=>async(req,res,next)=>{res.set('Cache-Control','no-store');try{await fn(req,res);}catch(error){next(error);}};
+router.get('/:businessId/quote-standards',requireAuth,financeMember,financeRead,standardHandler(async(req,res)=>res.json(await standards.read(req.business.id))));
+router.put('/:businessId/quote-standards',requireAuth,rejectImpersonated,financeMember,financeWrite,standardHandler(async(req,res)=>res.json({defaults:await standards.save(req.business.id,req.body)})));
+router.post('/:businessId/quote-templates',requireAuth,rejectImpersonated,financeMember,financeWrite,standardHandler(async(req,res)=>res.status(201).json({template:await standards.saveTemplate(req.business.id,req.body)})));
+router.put('/:businessId/quote-templates/:templateId',requireAuth,rejectImpersonated,financeMember,financeWrite,standardHandler(async(req,res)=>res.json({template:await standards.saveTemplate(req.business.id,req.body,req.params.templateId)})));
+router.delete('/:businessId/quote-templates/:templateId',requireAuth,rejectImpersonated,financeMember,financeWrite,standardHandler(async(req,res)=>{await standards.remove(req.business.id,req.params.templateId,req.body.expectedVersion);res.sendStatus(204);}));
 
 // G-20: business-initiated refund requests. Gated on refunds.request
 // (managers hold it by default; representatives only by explicit override).

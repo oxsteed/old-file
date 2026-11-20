@@ -16,8 +16,8 @@ The feature list is descriptive; all protected operations retain server authorit
 | 174 | Daily job limits | Implemented; settings, slot filtering, concurrent write/reschedule enforcement |
 | 175 | Travel time blocks | Implemented; fixed user-selected gap around helper appointments |
 | 191 | Portfolio permission request | Implemented; private upload, customer decision, history, withdrawal and revocation |
-| 208 | Standard quote terms | Not started |
-| 209 | Business pricing templates | Not started |
+| 208 | Standard quote terms | Implemented; defaults snapshot across finance/chat/lead quote creation |
+| 209 | Business pricing templates | Implemented; business-scoped create/edit/apply/delete with versions |
 | 212 | Role templates | Not started |
 | 213 | Permission preview | Not started |
 | 214 | Membership expiry | Not started |
@@ -132,3 +132,33 @@ rewrite an applied migration or delete saved quotes, counterproposals or limits.
 
 Retain additive schema and consent history on rollback. Do not turn private
 portfolio objects into public objects or weaken the live image consent check.
+
+## Business quote standards increment
+
+- Finance-authorized members maintain standard terms and reusable USD pricing
+  templates in the existing quote builder. Templates include exact minor-unit
+  prices, quantities, tax and terms. Read-only finance members cannot write;
+  foreign businesses and revoked memberships are rejected through current gates.
+- Database triggers snapshot defaults across every business quote insert path,
+  including chat and lead quotes. Terms on sent quotes cannot be rewritten.
+  Changing saved defaults never changes existing quotes. Conversion preserves
+  the agreed terms in invoice notes. Helpers' separate job quote flow is intact.
+- The existing copied `/quote/:token` destination had no application route.
+  It now renders the shared quote, frozen terms and explicit accept/decline.
+  Drafts are unavailable through this link; response is valid only for a sent,
+  unexpired quote and records a decision without charging a payment. The shared
+  link remains the existing bearer capability and exposes no client email.
+- Lead quote creation referenced nonexistent amount_cents/valid_until columns
+  and omitted required business_id. It now validates integer minor input and
+  writes actual amount/expires_at fields within the verified lead scope.
+- Five-language legacy/namespaced UI, RTL and private analytics boundaries are
+  maintained. The builder resets on account/session/business identity changes.
+- Disposable database and existing chat suites: 17 tests passed, four suites,
+  2.0s. Includes real HTTP authorization, default snapshots, stale versions,
+  foreign template denial, public quote handoff, immutable sent terms and a
+  second-decision rejection. Lead creation exercised against the actual schema.
+- Browser: pricing-template CRUD/apply, exact cents conversion, default terms,
+  stale draft preservation, keyboard customer acceptance and Arabic RTL passed
+  (1 test, 9.56s), using synthetic APIs. Client build passed with 1239 assets.
+
+Rollback retains quote snapshots and templates; sent terms remain immutable.

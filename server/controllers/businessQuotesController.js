@@ -78,12 +78,13 @@ exports.getQuote = async (req, res, next) => {
 
 exports.getQuoteByToken = async (req, res, next) => {
   const { token } = req.params;
+  res.set('Cache-Control','no-store');
   try {
     const row = await pool.query(
       `SELECT id, client_name, title, description, line_items, subtotal_cents,
-              tax_rate, total_cents, status, valid_until, created_at, updated_at
+              tax_rate, total_cents, status, valid_until, created_at, updated_at, standard_terms
          FROM business_quotes
-        WHERE token = $1`,
+        WHERE token = $1 AND status <> 'draft'`,
       [token]
     );
     if (!row.rows.length) return res.status(404).json({ error: 'Not found' });
@@ -99,6 +100,7 @@ exports.createQuote = async (req, res, next) => {
   }
 
   const normalizedItems = normalizeLineItems(line_items);
+  if (req.body.standard_terms !== undefined && (typeof req.body.standard_terms !== 'string' || req.body.standard_terms.length > 4000)) return res.status(400).json({error:'Invalid quote terms'});
   const taxRate = normalizeTaxRate(tax_rate ?? 0);
   if (normalizedItems.error || taxRate === null) {
     return res.status(400).json({ error: normalizedItems.error || 'Tax rate must be between 0 and 100' });
@@ -108,9 +110,9 @@ exports.createQuote = async (req, res, next) => {
     const { subtotal, tax, total } = calculateTotals(normalizedItems.items, taxRate);
     const token = crypto.randomBytes(16).toString('hex');
     const row = await pool.query(
-      `INSERT INTO business_quotes (business_id, client_name, client_email, title, line_items, subtotal_cents, tax_rate, total_cents, valid_until, token)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [businessId, client_name, client_email, title, JSON.stringify(normalizedItems.items), subtotal, taxRate, total, valid_until, token]
+      `INSERT INTO business_quotes (business_id, client_name, client_email, title, line_items, subtotal_cents, tax_rate, total_cents, valid_until, token,standard_terms)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [businessId, client_name, client_email, title, JSON.stringify(normalizedItems.items), subtotal, taxRate, total, valid_until, token,req.body.standard_terms??null]
     );
     res.status(201).json(row.rows[0]);
   } catch (err) { next(err); }
@@ -127,6 +129,8 @@ exports.updateQuote = async (req, res, next) => {
     );
     const existing = existingResult.rows[0];
     if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (req.body.standard_terms !== undefined && (typeof req.body.standard_terms !== 'string' || req.body.standard_terms.length > 4000)) return res.status(400).json({error:'Invalid quote terms'});
+    if (req.body.standard_terms !== undefined && req.body.standard_terms !== (existing.standard_terms||'') && existing.status !== 'draft') return res.status(409).json({error:'Sent quote terms cannot change',code:'quote_terms_locked'});
 
     const nextItemsResult = normalizeLineItems(line_items === undefined ? existing.line_items : line_items);
     const nextTaxRate = normalizeTaxRate(tax_rate === undefined ? existing.tax_rate : tax_rate);
@@ -142,13 +146,13 @@ exports.updateQuote = async (req, res, next) => {
     const row = await pool.query(
       `UPDATE business_quotes SET client_name=$1, client_email=$2, title=$3, line_items=$4,
        subtotal_cents=$5, tax_rate=$6, total_cents=$7, valid_until=$8, status=COALESCE($9,status), updated_at=NOW()
-       WHERE id=$10 AND business_id=$11 RETURNING *`,
+       ,standard_terms=COALESCE($12,standard_terms) WHERE id=$10 AND business_id=$11 RETURNING *`,
       [client_name === undefined ? existing.client_name : client_name,
         client_email === undefined ? existing.client_email : client_email,
         title === undefined ? existing.title : title,
         JSON.stringify(nextItems), subtotal, nextTaxRate,
         total, valid_until === undefined ? existing.valid_until : valid_until,
-        status, quoteId, businessId]
+        status, quoteId, businessId,req.body.standard_terms??null]
     );
     res.json(row.rows[0]);
   } catch (err) { next(err); }
@@ -169,6 +173,7 @@ exports.sendQuote = async (req, res, next) => {
 
 exports.respondToQuote = async (req, res, next) => {
   const { token } = req.params;
+  res.set('Cache-Control','no-store');
   const { response } = req.body; // 'approved' or 'declined'
   if (!['approved','declined'].includes(response)) {
     return res.status(400).json({ error: 'response must be approved or declined' });
@@ -181,7 +186,7 @@ exports.respondToQuote = async (req, res, next) => {
           AND status = 'sent'
           AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
         RETURNING id, client_name, title, description, line_items, subtotal_cents,
-                  tax_rate, total_cents, status, valid_until, created_at, updated_at`,
+                  tax_rate, total_cents, status, valid_until, created_at, updated_at, standard_terms`,
       [response, token]
     );
     if (!row.rows.length) return res.status(404).json({ error: 'Quote not found or already responded' });
@@ -258,7 +263,7 @@ exports.convertToInvoice = async (req, res, next) => {
         businessRow.rows[0].user_id, businessId, invoiceNumber,
         quote.client_name, quote.client_email, dueDate, subtotal,
         quote.tax_rate || 0, taxAmount, total, JSON.stringify(lineItems),
-        `Generated from quote ${quoteId}${quote.title ? `: ${quote.title}` : ''}`, publicToken,
+        `Generated from quote ${quoteId}${quote.title ? `: ${quote.title}` : ''}${quote.standard_terms ? `\n\n${quote.standard_terms}` : ''}`, publicToken,
       ]
     );
     await client.query(

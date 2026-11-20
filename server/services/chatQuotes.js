@@ -203,6 +203,7 @@ function toPublicQuoteCard(kind, row) {
     token: row.token || null,
     title: row.title || 'Quote',
     description: row.description || row.notes || null,
+    standard_terms: row.standard_terms || '',
     line_items: Array.isArray(row.line_items)
       ? row.line_items
       : typeof row.line_items === 'string'

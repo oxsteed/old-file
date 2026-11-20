@@ -3,12 +3,20 @@ import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Send, FileText, Copy, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import QuoteStandards from './QuoteStandards';
+import { useAuth } from '../../hooks/useAuth';
+import { currentAuthEpoch } from '../../api/authSessionEpoch';
 
 const STATUS_COLORS = { draft:'#94a3b8', sent:'#3b82f6', approved:'#10b981', declined:'#ef4444', expired:'#f59e0b', converted:'#8b5cf6' };
 
 const emptyLine = () => ({ description: '', quantity: 1, unit_price_cents: '' });
 
 export function QuoteBuilder({ businessId }) {
+  const { user } = useAuth();
+  return user?.id ? <QuoteBuilderContent key={`${user.id}:${currentAuthEpoch()}:${businessId}`} businessId={businessId}/> : null;
+}
+
+function QuoteBuilderContent({ businessId }) {
   const { t } = useTranslation();
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -90,6 +98,7 @@ export function QuoteBuilder({ businessId }) {
         ))}
       </div>
       <h4 style={{ margin: '1.5rem 0 0.75rem' }}>{t('businessQuotes.form.lineItems')}</h4>
+      <QuoteStandards businessId={businessId} form={form} setForm={setForm}/>
       {form.line_items.map((line, i) => (
         <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 120px 36px', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
           <input value={line.description} onChange={e => updateLine(i, 'description', e.target.value)} placeholder={t('businessQuotes.form.lineItemDesc')} style={{ padding: '0.5rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }} />
@@ -151,7 +160,7 @@ export function QuoteBuilder({ businessId }) {
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 {q.status === 'draft' && <button onClick={() => sendQuote(q.id)} title={t('businessQuotes.actions.send')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#3b82f6' }} data-track="ui.2ef93d209d.7"><Send size={16} /></button>}
                 {q.token && <button onClick={() => copyLink(q.token)} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }} data-track="ui.2ef93d209d.8">{copied === q.token ? <Check size={16} color="#10b981" /> : <Copy size={16} />}</button>}
-                <button onClick={() => { setEditing(q); const items = (q.line_items || []).map(l => ({ ...l, unit_price_cents: (l.unit_price_cents / 100).toFixed(2) })); setForm({ client_name: q.client_name, client_email: q.client_email || '', title: q.title, line_items: items.length ? items : [emptyLine()], tax_rate: q.tax_rate || 0, valid_until: q.valid_until?.split('T')[0] || '' }); setView('form'); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }} data-track="ui.2ef93d209d.9"><FileText size={16} /></button>
+                <button onClick={() => { setEditing(q); const items = (q.line_items || []).map(l => ({ ...l, unit_price_cents: (l.unit_price_cents / 100).toFixed(2) })); setForm({ client_name: q.client_name, client_email: q.client_email || '', title: q.title, line_items: items.length ? items : [emptyLine()], tax_rate: q.tax_rate || 0, valid_until: q.valid_until?.split('T')[0] || '', standard_terms: q.standard_terms || '' }); setView('form'); }} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-text)' }} data-track="ui.2ef93d209d.9"><FileText size={16} /></button>
                 <button onClick={() => deleteQuote(q.id)} title={t('businessQuotes.deleteConfirm')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.2ef93d209d.10"><Trash2 size={16} /></button>
               </div>
             </div>

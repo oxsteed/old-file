@@ -241,6 +241,7 @@ const LearnModePage = lazyWithRetry(() => import('./pages/LearnModePage'));
 const PromotePage = lazyWithRetry(() => import('./pages/PromotePage'));
 const DirectCatalogLanding = lazyWithRetry(routeLoaders.direct, { name: 'direct' });
 const DirectPortalPage = lazyWithRetry(() => import('./pages/DirectPortalPage'));
+const SharedBusinessQuotePage = lazyWithRetry(() => import('./pages/SharedBusinessQuotePage'));
 const DirectCatalogDirectoryPage = lazyWithRetry(() => import('./pages/DirectCatalogDirectoryPage'));
 const DirectBookSlotPage = lazyWithRetry(() => import('./pages/DirectBookSlotPage'));
 const DirectAdminPortalPage = lazyWithRetry(() => import('./pages/DirectAdminPortalPage'));
@@ -582,6 +583,7 @@ export default function App() {
                     <Route path="/media/messages"          element={<Guarded><ProtectedRoute><MediaLaunchGate><MediaShell><MediaMessagesPage /></MediaShell></MediaLaunchGate></ProtectedRoute></Guarded>} />
                     <Route path="/media/:handle"           element={<Guarded><MediaLaunchGate><MediaShell><MediaActorPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/direct/view-quote"       element={<Guarded><DirectPortalPage view="lookup" /></Guarded>} />
+                    <Route path="/quote/:token" element={<Guarded><SharedBusinessQuotePage /></Guarded>} />
                     <Route path="/direct/quotes/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="quote" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/direct/book-slot"       element={<Guarded><DirectBookSlotPage /></Guarded>} />
                     <Route path="/direct/book/:id"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="book" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

@@ -95,14 +95,14 @@ exports.createLeadQuote = async (req, res, next) => {
   const { businessId } = req.params;
   const id = req.params.leadId || req.params.id;
   const { description, amount_cents, valid_until } = req.body;
-  if (!amount_cents) return res.status(400).json({ error: 'amount_cents is required' });
+  if (!Number.isSafeInteger(amount_cents) || amount_cents <= 0 || amount_cents > 2000000000) return res.status(400).json({ error: 'A positive amount_cents integer is required' });
   try {
     // WP-052: the lead must belong to this business (no quotes on foreign leads).
     const owned = await pool.query('SELECT 1 FROM business_leads WHERE id=$1 AND business_id=$2', [id, businessId]);
     if (!owned.rows.length) return res.status(404).json({ error: 'Not found' });
     const row = await pool.query(
-      `INSERT INTO lead_quotes (lead_id, description, amount_cents, valid_until) VALUES ($1,$2,$3,$4) RETURNING *`,
-      [id, description, amount_cents, valid_until]
+      `INSERT INTO lead_quotes (lead_id, business_id, description, amount, expires_at) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [id, businessId, description, amount_cents / 100, valid_until]
     );
     res.status(201).json(row.rows[0]);
   } catch (err) { next(err); }
