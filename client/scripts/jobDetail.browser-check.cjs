@@ -10,6 +10,7 @@ test('job details: viewer actions, asynchronous guards, dialogs, keyboard galler
       if(/^\\/jobs\\/[^/]+$/.test(path)){await window.holdResponse('Job',config,path.split('/').at(-1));if(config.jobError)throw new Error('Synthetic job failure');return {data:{...window.baseJob,...config.job,id:path.split('/').at(-1)}};}
       if(path.startsWith('/bids/job/')){await window.holdResponse('Bid',config,path.split('/').at(-1));if(config.bidError)throw new Error('Synthetic bid failure');return {data:config.bids||[]};}
       if(path.endsWith('/eligibility'))return {data:{eligible:config.reviewEligible===true}};
+      if(path.startsWith('/helpers/me/work-records/'))return {data:{work:{version:0,handover:'',aftercare:''},updates:[],writable:false}};
       if(path==='/support/agent/me')return {data:{data:[]}};
       if(path==='/helper-settings/policies'){if(config.policyError)throw new Error('Synthetic policy failure');return {data:{data:{custom_enabled:true}}};}
       return {data:{data:null}};

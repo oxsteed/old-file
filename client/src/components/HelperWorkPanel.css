@@ -1,0 +1,15 @@
+.helper-work { color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 1rem; padding: 1.25rem; margin-block: 1rem; min-width: 0; overflow-wrap: anywhere; }
+.helper-work h2 { font-size: 1.3rem; font-weight: 700; }
+.helper-work h3, .helper-work legend { font-weight: 700; margin-block: 1rem .5rem; }
+.helper-work p { margin-block: .5rem; }
+.helper-work label { display: block; margin-block: .75rem; }
+.helper-work :is(input:not([type=checkbox]), textarea, select) { display:block; width:100%; max-width:100%; margin-block-start:.35rem; color:var(--color-text); background:var(--color-bg); border:1px solid var(--color-border); border-radius:.5rem; padding:.65rem; min-height:44px; }
+.helper-work input[type=checkbox] { width:1.25rem; height:1.25rem; margin-inline-end:.5rem; }
+.helper-work textarea { min-height:6rem; }
+.helper-work :is(button, a) { display:inline-flex; align-items:center; min-height:44px; padding:.5rem .75rem; color:var(--color-primary); border:1px solid var(--color-border); border-radius:.5rem; }
+.helper-work :is(button, a, input, textarea, select):focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
+.helper-work button:disabled { opacity:.5; }
+.helper-work fieldset { min-width:0; }
+.helper-work li { margin-block:.75rem; padding-block:.5rem; border-block-end:1px solid var(--color-border); }
+.helper-work__actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+.helper-work__text { white-space:pre-wrap; }

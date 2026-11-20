@@ -34,6 +34,9 @@ router.post('/invoices/:invoiceId/send',       authenticate, requireHelperCapabi
 router.post('/invoices/:invoiceId/void',       authenticate, requireHelperCapability, voidHelperInvoice);
 router.delete('/invoices/:invoiceId',          authenticate, requireHelperCapability, deleteHelperInvoice);
 
+// Assigned work is re-authorized against the live job and access projection.
+router.use('/me', require('./helperWork'));
+
 // ── Public directory endpoints ───────────────────────────────────────────────
 // SECURITY: Use directoryLimiter (stricter) to prevent bulk enumeration
 router.get('/',              directoryLimiter, listHelpers);

@@ -12,6 +12,7 @@ import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-do
 import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
+import HelperWorkPanel from '../components/HelperWorkPanel';
 import HelperOffersCard from '../components/HelperOffersCard';
 import EditProfileTab from '../components/EditProfileTab';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
@@ -71,6 +72,7 @@ const SHOW_HELPER_BACKGROUND_CHECKS = LAUNCH_VISIBILITY.backgroundChecks;
 const SHOW_HELPER_TOOL_RENTALS = LAUNCH_VISIBILITY.toolRentals;
 const FOCUSED_HELPER_DASHBOARD_TABS = new Set([
   'pulse',
+  'work',
   'editprofile',
   'availability',
   'quotes',
@@ -1254,6 +1256,7 @@ export default function HelperDashboard() {
   const tabs = [
     { id: 'pulse',        label: t('helperDashboard.tabs.overview', { defaultValue: 'Overview' }) },
     { id: 'editprofile',  label: t('helperDashboard.tabs.editProfile') },
+    { id: 'work', label: t('helperWork.boardTitle') },
     { id: 'availability', label: t('helperDashboard.tabs.availability', { defaultValue: 'Availability' }) },
     ...(SHOW_HELPER_AI_KNOWLEDGE ? [{ id: 'aiKnowledge', label: t('helperDashboard.tabs.aiKnowledge') }] : []),
     ...(SHOW_HELPER_EARNINGS ? [{ id: 'earnings', label: t('helperDashboard.tabs.earnings') }] : []),
@@ -1342,6 +1345,7 @@ export default function HelperDashboard() {
             </div>
           )}
 
+          {tab === 'work' && <HelperWorkPanel />}
           <HelperOffersCard />
 
           {SHOW_LEGACY_HELPER_RECOMMENDATIONS && <RecommendationFeed title={t('helperDashboard.nextAction')} />}

@@ -1,0 +1,16 @@
+'use strict';
+const router = require('express').Router();
+const { authenticate } = require('../middleware/auth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const { generalLimiter } = require('../middleware/rateLimiter');
+const service = require('../services/helperWorkService');
+router.use(authenticate, generalLimiter, (_req,res,next)=>{res.set('Cache-Control','no-store');next();});
+const handle = fn => async (req,res,next) => { try { await fn(req,res); } catch(error) { next(error); } };
+router.get('/work-board',handle(async(req,res)=>res.json({jobs:await service.board(req.user.id)})));
+router.get('/work-templates',handle(async(req,res)=>res.json({templates:await service.templates(req.user.id)})));
+router.post('/work-templates',rejectImpersonated,handle(async(req,res)=>res.status(201).json({template:await service.createTemplate(req.user.id,req.body)})));
+router.delete('/work-templates/:id',rejectImpersonated,handle(async(req,res)=>{await service.removeTemplate(req.user.id,req.params.id);res.sendStatus(204);}));
+router.get('/work-records/:jobId',handle(async(req,res)=>res.json(await service.read(req.params.jobId,req.user.id))));
+router.put('/work-records/:jobId',rejectImpersonated,handle(async(req,res)=>res.json(await service.save(req.params.jobId,req.user.id,req.body))));
+router.post('/work-records/:jobId/updates',rejectImpersonated,handle(async(req,res)=>res.status(201).json({update:await service.publish(req.params.jobId,req.user.id,req.body)})));
+module.exports = router;
