@@ -141,6 +141,25 @@ describeDb('job edit foundation on real Postgres', () => {
     await pool.end();
   }, 30000);
 
+  test('a daily capacity rejection rolls back hiring instead of silently dropping the appointment', async () => {
+    const { job, bid } = await makeJob();
+    await pool.query(`INSERT INTO helper_profiles(user_id,daily_job_limit) VALUES($1,1)
+      ON CONFLICT(user_id) DO UPDATE SET daily_job_limit=1`,[helpers[0]]);
+    const {rows:[existing]}=await pool.query(`INSERT INTO appointments(customer_id,helper_id,service_description,scheduled_start_time,scheduled_end_time,status,created_by_user_id)
+      VALUES($1,$2,'Existing visit','2030-08-12T09:00:00Z','2030-08-12T10:00:00Z','confirmed',$1) RETURNING id`,[customer,helpers[0]]);
+    try {
+      const result=await request(app).post('/api/jobs/assign').set('x-test-actor',customer)
+        .send({bid_id:bid.id,payment_method:'off_platform',scheduled_start:'2030-08-12T13:00:00Z',scheduled_end:'2030-08-12T14:00:00Z'});
+      expect(result.status).toBe(409);expect(result.body.code).toBe('helper_daily_capacity');
+      expect((await pool.query('SELECT status,assigned_helper_id FROM jobs WHERE id=$1',[job.id])).rows[0]).toMatchObject({status:'published',assigned_helper_id:null});
+      expect((await pool.query('SELECT status FROM bids WHERE id=$1',[bid.id])).rows[0].status).toBe('pending');
+      expect((await pool.query('SELECT id FROM appointments WHERE job_id=$1',[job.id])).rows).toEqual([]);
+    } finally {
+      await pool.query('DELETE FROM appointments WHERE id=$1',[existing.id]);
+      await pool.query('UPDATE helper_profiles SET daily_job_limit=NULL WHERE user_id=$1',[helpers[0]]);
+    }
+  });
+
   test('cents are canonical; dollars, schedule mirrors and search document follow', async () => {
     const { job } = await makeJob();
     expect(Number(job.budget_min)).toBe(200);

@@ -30,7 +30,9 @@ const errorHandler = (err, req, res, next) => {
   let message = 'Internal server error';
   let fields = {};
 
-  if (err instanceof AppError) {
+  if (err.code === '23514' && ['helper_daily_capacity','helper_travel_conflict'].includes(err.constraint)) {
+    status = 409; code = err.constraint; message = 'The helper capacity or travel buffer does not allow this booking.';
+  } else if (err instanceof AppError) {
     // Known application error
     status = err.status || 500;
     code = err.code || 'app_error';

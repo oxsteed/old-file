@@ -129,6 +129,7 @@ export default function QuoteCard({
           token: token || quote?.token,
           reason: action === 'request_changes' || action === 'decline' ? reason || undefined : undefined,
           clientRequestId,
+          expectedVersion: quote?.version,
         },
         { headers: guestAuthHeaders || undefined },
       );

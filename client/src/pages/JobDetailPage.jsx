@@ -31,6 +31,7 @@ import { JOB_STATUS_KEYS, jobDetailView, jobList, jobMediaType, matchingHelpersP
 import { bidNeedingReconfirm, canEditJob } from '../utils/jobEditModel';
 import PaymentReauthorizationBanner from '../components/PaymentReauthorizationBanner';
 import JobPaymentLayersPanel from '../components/paymentLayers/JobPaymentLayersPanel';
+import JobQuoteWorkspace from '../components/JobQuoteWorkspace';
 import { JobWorkRecord } from '../components/HelperWorkPanel';
 import JobRevisionHistory from '../components/JobRevisionHistory';
 
@@ -585,6 +586,8 @@ function JobDetailContent() {
 
   // Helper function to extract error message
   function getErrorMessage(err) {
+    const capacityCode = err.response?.data?.code;
+    if (['helper_daily_capacity','helper_travel_conflict'].includes(capacityCode)) return t(`helperCapacity.${capacityCode}`);
     if (err.code === 'NO_TOKEN') {
       return t('jobDetail.sessionExpired');
     }
@@ -881,6 +884,7 @@ function JobDetailContent() {
             </div>
           </section>}
           {isOwner && bidsCard}
+          <JobQuoteWorkspace jobId={id} isOwner={isOwner} />
           {isOwner && ['accepted', 'in_progress', 'completed', 'closed'].includes(job.status) && <JobRefundRequestSection job={job} fieldId={fieldId} />}
           {requirementsCard}
           {view.canSubmitBid && <section className="jdp-card jdp-bid-form-card" aria-labelledby={`${fieldId}-bid-form`}>

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
+import { createMessageRequestId } from '../lib/messageRequestId';
 import { useAuth } from '../hooks/useAuth';
 import { currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
 import { ACCESS_CHANGED_EVENT } from '../hooks/useAccessProjection';
@@ -71,7 +72,7 @@ function WorkRecord({ jobId, epoch }) {
   });
   const publish = () => run(async (valid) => {
     if (!update.trim()) return;
-    if (!retryKey.current || retryKey.current.body !== update.trim()) retryKey.current = { body: update.trim(), requestId: crypto.randomUUID() };
+    if (!retryKey.current || retryKey.current.body !== update.trim()) retryKey.current = { body: update.trim(), requestId: createMessageRequestId() };
     const { data } = await api.post(`/helpers/me/work-records/${jobId}/updates`, retryKey.current);
     if (valid()) {
       setState(value => ({ ...value, updates: [data.update, ...value.updates.filter(row => row.id !== data.update.id)] }));

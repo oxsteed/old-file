@@ -1126,6 +1126,9 @@ exports.assignHelper = async (req, res, next) => {
       } catch (apptErr) {
         // Non-fatal: log but never let appointment creation break bid acceptance
         await client.query('ROLLBACK TO SAVEPOINT assign_appointment').catch(() => {});
+        if (['helper_daily_capacity','helper_travel_conflict'].includes(apptErr?.constraint)) {
+          throw new AppError(apptErr.constraint,409,apptErr.constraint);
+        }
         logger.warn('Failed to auto-create calendar appointment for accepted job', {
           jobId: bid.job_id,
           helperId: bid.helper_id,

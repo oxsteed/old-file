@@ -444,29 +444,29 @@ async function getAppointmentsBusy(client, helperId, fromISO, toISO, bufferMin, 
   return byDate;
 }
 
-async function getBookedCounts(client, helperId, fromISO, toISO) {
+async function getBookedCounts(client, helperId, fromISO, toISO, timeZone = null) {
   const { rows } = await client.query(
-    `SELECT COALESCE(j.scheduled_date::date, j.scheduled_start_at::date, j.scheduled_time::date)::text AS day,
-            COUNT(*)::int AS count
-       FROM jobs j
-      WHERE j.assigned_helper_id = $1
-        AND j.status IN ('accepted','in_progress')
-        AND COALESCE(j.scheduled_date::date, j.scheduled_start_at::date, j.scheduled_time::date)
-            BETWEEN $2::date AND $3::date
-      GROUP BY 1`,
-    [helperId, fromISO, toISO]
+    `SELECT day::date::text AS day, COUNT(a.id)::int AS count, hp.daily_job_limit
+       FROM generate_series($2::date,$3::date,INTERVAL '1 day') day
+       LEFT JOIN helper_profiles hp ON hp.user_id=$1
+       LEFT JOIN appointments a ON a.helper_id=$1
+        AND a.status IN ('requested','confirmed','in_progress','completed')
+        AND (a.scheduled_start_time AT TIME ZONE $4)<day::date+1
+        AND (a.scheduled_end_time AT TIME ZONE $4)>day::date
+       GROUP BY day,hp.daily_job_limit`,
+    [helperId, fromISO, toISO, timeZone || 'UTC']
   );
-  const out = {};
-  for (const r of rows) out[r.day] = r.count;
+  const out = { limits: {} };
+  for (const row of rows) { out[row.day]=row.count; out.limits[row.day]=row.daily_job_limit; }
   return out;
 }
 
 async function getBookingBuffer(client, helperId) {
   const { rows } = await client.query(
-    'SELECT COALESCE(booking_buffer_minutes, 0)::int AS booking_buffer_minutes FROM helper_profiles WHERE user_id = $1',
+    'SELECT COALESCE(booking_buffer_minutes, 0)::int AS booking_buffer_minutes, COALESCE(travel_buffer_minutes,0)::int AS travel_buffer_minutes FROM helper_profiles WHERE user_id = $1',
     [helperId]
   );
-  return Math.max(0, Math.min(240, rows[0]?.booking_buffer_minutes || 0));
+  return Math.max(0,Math.min(240,rows[0]?.booking_buffer_minutes||0))+Math.max(0,Math.min(240,rows[0]?.travel_buffer_minutes||0));
 }
 
 // ─── Core computation ───────────────────────────────────────────────────────
@@ -540,7 +540,7 @@ async function computeAvailability(helperId, fromISO, toISO, client = pool, time
   ]);
   const [apptBusy, bookedCounts] = await Promise.all([
     getAppointmentsBusy(client, helperId, fromISO, toISO, bufferMin, tz),
-    getBookedCounts(client, helperId, fromISO, toISO),
+    getBookedCounts(client, helperId, fromISO, toISO, tz),
   ]);
 
   const blocksByDate = {};
@@ -551,16 +551,19 @@ async function computeAvailability(helperId, fromISO, toISO, client = pool, time
     }
   }
 
-  const days = eachDateISO(fromISO, toISO).map((dateISO) =>
-    computeDay(
+  const days = eachDateISO(fromISO, toISO).map((dateISO) => {
+    const day = computeDay(
       dateISO,
       template.byDay[utcDayOfWeek(dateISO)] || [],
       blocksByDate[dateISO] || [],
       apptBusy[dateISO] || [],
       bookedCounts[dateISO] || 0,
       template.hasTemplate
-    )
-  );
+    );
+    const limit=bookedCounts.limits?.[dateISO];
+    return limit != null && (bookedCounts[dateISO] || 0)>=limit
+      ? {...day,capacityReached:true,status:'blocked',windows:[],slotGrid:[],freeMinutes:0} : day;
+  });
 
   return {
     days,
@@ -612,7 +615,8 @@ async function isSlotFree(helperId, startISO, endISO, client = pool, timeZone = 
   // up with the plain-TIME weekly template.
   const fromISO = zonedDateStr(start, tz);
   const toISO = zonedDateStr(end, tz);
-  const { days, hasTemplate } = await computeAvailability(helperId, fromISO, toISO, client, tz);
+  const { days, hasTemplate, bookingBufferMinutes } = await computeAvailability(helperId, fromISO, toISO, client, tz);
+  if (days.some(day=>day.capacityReached)) return {free:false,reason:'daily_capacity'};
 
   // No template configured → fall back to blocks + appointments only
   // (preserves the historical permissiveness of the appointment guard).
@@ -627,8 +631,8 @@ async function isSlotFree(helperId, startISO, endISO, client = pool, timeZone = 
     const appts = await client.query(
       `SELECT 1 FROM appointments
         WHERE helper_id = $1 AND status IN ('requested','confirmed','in_progress')
-          AND scheduled_start_time < $3 AND scheduled_end_time > $2 LIMIT 1`,
-      [helperId, start.toISOString(), end.toISOString()]
+          AND scheduled_start_time < $3::timestamptz + ($4::int * INTERVAL '1 minute') AND scheduled_end_time > $2::timestamptz - ($4::int * INTERVAL '1 minute') LIMIT 1`,
+      [helperId, start.toISOString(), end.toISOString(),bookingBufferMinutes]
     );
     if (appts.rows.length > 0) return { free: false, reason: 'conflict' };
     const { loadCrossSurfaceBusy } = require('./crossSurfaceBusy');
