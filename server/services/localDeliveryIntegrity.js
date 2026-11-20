@@ -2,6 +2,43 @@
 
 const crypto = require('crypto');
 const AppError = require('../utils/appError');
+const { TERMINAL_STATUSES } = require('./localDeliveryState');
+
+// Group 9 Slice G (item 498, D-90): a driver's access to a job ends
+// 7 days after the job reaches a terminal state (delivered,
+// cancelled, returned). The terminal timestamp is the clock —
+// delivered_at / cancelled_at / returned_at, falling back to
+// updated_at when the stamp is missing — so the window is anchored
+// to the job, not to the last read. Ops and the shipper keep their
+// access per the existing rules; only the driver participant is
+// expired. Expiry never deletes anything: the driver's history
+// (job list), payout records, weekly reports, and receipts are
+// separate surfaces and stay readable (D-91).
+const DRIVER_ACCESS_EXPIRY_DAYS = 7;
+const DRIVER_TERMINAL_AT = { delivered: 'delivered_at', cancelled: 'cancelled_at', returned: 'returned_at' };
+
+function driverAccessExpiresAt(job) {
+  if (!job || !TERMINAL_STATUSES.has(job.status)) return null;
+  const stamp = job[DRIVER_TERMINAL_AT[job.status]] || job.updated_at;
+  if (!stamp || !Number.isFinite(Date.parse(stamp))) return null;
+  return new Date(Date.parse(stamp) + DRIVER_ACCESS_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+}
+
+function assertDriverJobAccess(job, user) {
+  if (!job || !user) return;
+  const isDriver = [job.helper_user_id, job.internal_driver_user_id]
+    .some((id) => id && String(id) === String(user.id));
+  if (!isDriver) return;
+  const expiresAt = driverAccessExpiresAt(job);
+  if (expiresAt && expiresAt.getTime() <= Date.now()) {
+    throw new AppError(
+      'Driver access to this job has expired',
+      410,
+      'delivery_access_expired',
+      { accessExpiredAt: expiresAt.toISOString(), reference: job.reference || null },
+    );
+  }
+}
 
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
@@ -123,4 +160,4 @@ function operatorSafeJob(job) {
   const { proof_pin_digest, proof_pin_consumed_at, ...safe } = job;
   return safe;
 }
-module.exports={stableValue,fingerprint,idempotencyKey,actionReplay,saveAction,customerSafeJob,operatorSafeJob,recordActivity,pinDigest,validateProof,recordProof,roundCoord};
+module.exports={stableValue,fingerprint,idempotencyKey,actionReplay,saveAction,customerSafeJob,operatorSafeJob,recordActivity,pinDigest,validateProof,recordProof,roundCoord,DRIVER_ACCESS_EXPIRY_DAYS,driverAccessExpiresAt,assertDriverJobAccess};

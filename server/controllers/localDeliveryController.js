@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const {stableValue,fingerprint,idempotencyKey,customerSafeJob,operatorSafeJob,recordActivity,pinDigest,validateProof,recordProof,actionReplay,saveAction}=require('../services/localDeliveryIntegrity');
+const {stableValue,fingerprint,idempotencyKey,customerSafeJob,operatorSafeJob,recordActivity,pinDigest,validateProof,recordProof,actionReplay,saveAction,assertDriverJobAccess}=require('../services/localDeliveryIntegrity');
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const { calculateLocalDeliveryQuote } = require('../services/localDeliveryService');
@@ -27,6 +27,8 @@ const { adjustPayout, listAdjustmentsForPayouts } = require('../services/deliver
 const { createDispute, resolveDispute } = require('../services/deliveryDisputeService');
 const { buildWeeklyReport, driverTimezone } = require('../services/deliveryWeeklyReportService');
 const { renderWeeklyReportPdf } = require('../services/deliveryWeeklyReportPdf');
+// Group 9 Slice G (item 500): driver shifts and shift closeout.
+const shiftService = require('../services/deliveryDriverShiftService');
 
 const HELPER_MODES = new Set([
   'helper', 'helper_pro', 'business_owner', 'business_manager',
@@ -392,7 +394,14 @@ async function loadAuthorizedJob(jobId, user) {
       WHERE id = $1 AND (customer_user_id = $2 OR helper_user_id = $2 OR internal_driver_user_id = $2)`,
     [jobId, user.id],
   );
-  if (rows[0]) return rows[0];
+  // Group 9 Slice G (item 498, D-90): a driver's access to a job
+  // ends 7 days after the job reaches a terminal state. Ops and the
+  // shipper are unaffected; the marketplace offer path below is a
+  // posted job, never terminal, so it cannot expire.
+  if (rows[0]) {
+    assertDriverJobAccess(rows[0], user);
+    return rows[0];
+  }
   // Group 9 Slice B (items 458/460, D-65): a driver admitted to the
   // marketplace may open a posted offer read-only, so they can preview
   // the full route and decline it from the detail page before claiming.
@@ -413,13 +422,19 @@ async function loadAuthorizedJob(jobId, user) {
 // read-only is NOT a participant: exceptions, documents, the receipt,
 // and disputes carry participant details and signed URLs, so the
 // offer preview gets none of them.
-async function loadParticipantJob(jobId, user) {
+// Group 9 Slice G (item 498, D-91): the same 7-day driver access
+// expiry applies here, EXCEPT the receipt download: a receipt is a
+// record surface, not the job detail, so downloadJobReceipt passes
+// skipAccessExpiry and a driver can still fetch the receipt for an
+// old completed job.
+async function loadParticipantJob(jobId, user, { skipAccessExpiry = false } = {}) {
   const { rows } = await pool.query(
     `SELECT * FROM delivery_jobs
       WHERE id = $1 AND (customer_user_id = $2 OR helper_user_id = $2 OR internal_driver_user_id = $2)`,
     [jobId, user.id],
   );
   if (!rows[0]) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+  if (!skipAccessExpiry) assertDriverJobAccess(rows[0], user);
   return rows[0];
 }
 
@@ -1938,7 +1953,10 @@ exports.listJobDocuments = async (req, res, next) => {
 // receipt link on the payment row is untouched; this is in addition.
 exports.downloadJobReceipt = async (req, res, next) => {
   try {
-    const job = await loadParticipantJob(req.params.id, req.user);
+    // Group 9 Slice G (item 498, D-91): the receipt stays available
+    // after driver job access expires — it is a record surface, not
+    // the job detail.
+    const job = await loadParticipantJob(req.params.id, req.user, { skipAccessExpiry: true });
     const data = await buildDeliveryReceiptData(pool, job.id);
     if (!data) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
     const pdf = await renderDeliveryReceiptPdf(data);
@@ -2136,6 +2154,72 @@ exports.downloadMyWeeklyReport = async (req, res, next) => {
     res.set('Content-Disposition', `attachment; filename="oxsteed-weekly-delivery-report-${report.week_start}.pdf"`);
     res.send(pdf);
   } catch (error) { next(error); }
+};// Group 9 Slice G (item 500): driver shifts and shift closeout.
+// Same admission gate as the weekly reports: an admitted driver
+// with an approved, active driver profile. Start 409s when a shift
+// is already open; closeout 409s with the blocking list while the
+// driver still has an active in-progress job, or with the open
+// issues when they have not been explicitly confirmed.
+async function requireDriverShiftAccess(user) {
+  if (!(await isAdmittedDriver(user))
+    || !(await hasApprovedActiveDriverProfile(user.id))) {
+    throw new AppError('Driver access required', 403, 'delivery_driver_required');
+  }
+}
+
+exports.startDriverShift = async (req, res, next) => {
+  try {
+    await requireDriverShiftAccess(req.user);
+    const shift = await shiftService.startShift(pool, req.user.id);
+    res.status(201).json({ success: true, shift });
+  } catch (error) { next(error); }
+};
+
+exports.getOpenDriverShift = async (req, res, next) => {
+  try {
+    await requireDriverShiftAccess(req.user);
+    const shift = await shiftService.getOpenShift(pool, req.user.id);
+    const summary = shift
+      ? await shiftService.buildShiftSummary(pool, req.user.id, shift.startedAt, new Date())
+      : null;
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, shift, summary });
+  } catch (error) { next(error); }
+};
+
+exports.listDriverShifts = async (req, res, next) => {
+  try {
+    await requireDriverShiftAccess(req.user);
+    const shifts = await shiftService.listShifts(pool, req.user.id);
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, shifts });
+  } catch (error) { next(error); }
+};
+
+exports.getDriverShift = async (req, res, next) => {
+  try {
+    await requireDriverShiftAccess(req.user);
+    const shift = await shiftService.getShift(pool, req.user.id, req.params.id);
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, shift });
+  } catch (error) { next(error); }
+};
+
+exports.closeDriverShift = async (req, res, next) => {
+  let client;
+  try {
+    await requireDriverShiftAccess(req.user);
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const shift = await shiftService.closeShift(client, req.user.id, req.params.id, {
+      confirmOpenIssues: req.body?.confirmOpenIssues === true,
+    });
+    await client.query('COMMIT');
+    res.json({ success: true, shift });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
 };
 
 

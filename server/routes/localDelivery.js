@@ -89,6 +89,13 @@ router.get('/driver-disputes', requireAuth, controller.listMyDisputes);
 router.get('/weekly-report', requireAuth, controller.listMyWeeklyReports);
 router.get('/weekly-report/:id', requireAuth, controller.getMyWeeklyReport);
 router.get('/weekly-report/:id/download', requireAuth, controller.downloadMyWeeklyReport);
+// Group 9 Slice G (item 500): driver shifts and shift closeout.
+// Same /delivery router as the weekly reports, not a tenant route.
+router.post('/driver-shifts', requireAuth, rejectImpersonated, controller.startDriverShift);
+router.get('/driver-shifts/open', requireAuth, controller.getOpenDriverShift);
+router.get('/driver-shifts', requireAuth, controller.listDriverShifts);
+router.get('/driver-shifts/:id', requireAuth, controller.getDriverShift);
+router.post('/driver-shifts/:id/closeout', requireAuth, rejectImpersonated, controller.closeDriverShift);
 router.patch('/jobs/:id/status', requireAuth, rejectImpersonated, controller.updateStatus);
 router.post('/jobs/:id/issues', requireAuth, rejectImpersonated, controller.createIssue);
 router.post('/jobs/:id/extras', requireAuth, rejectImpersonated, controller.createExtra);
@@ -154,6 +161,11 @@ router.get('/jobs/:id/tracking/scans', requireAuth, trackingController.listScans
 router.get('/jobs/:id/tracking/status', requireAuth, trackingController.getStatus);
 router.post('/tracking/devices', requireAuth, trackingController.registerDevice);
 router.get('/tracking/devices', requireAuth, trackingController.listDevices);
+// Group 9 Slice G (item 499): device-change recovery. The driver
+// registers a new phone from the driver screens; the server moves
+// the live tracking assignments and consent to it and revokes the
+// old device. Same /delivery router, not a tenant route.
+router.post('/tracking/devices/transfer', requireAuth, rejectImpersonated, trackingController.transferDevice);
 router.patch('/tracking/devices/:deviceId', requireAuth, trackingController.updateDevice);
 router.delete('/tracking/devices/:deviceId', requireAuth, trackingController.updateDevice);
 
