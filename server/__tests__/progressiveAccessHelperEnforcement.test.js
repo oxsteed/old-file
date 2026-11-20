@@ -226,26 +226,29 @@ describe('helper capability gate', () => {
     expect(access.can).not.toHaveBeenCalled();
   });
 
-  // G-1 (AC-025 hold): the strict gate holds an approved-but-incomplete
-  // helper (payout_setup missing) with 403 activation_incomplete, naming
-  // the missing step. Booking accept, bid writes, and payout routes all
-  // run this gate, so none of them can pay or commit an unactivated helper.
-  test('enforce: activation_incomplete is a 403 naming payout_setup', async () => {
+  // G-1 (Emile decision, 2026-11-19): the strict gate holds an
+  // approved-but-incomplete helper with 403 activation_incomplete, naming
+  // the missing step — now identity or terms, since payout_setup is no
+  // longer an activation requirement. Booking accept, bid writes, and
+  // payout routes all run this gate, so none of them can commit a helper
+  // who has not finished identity + terms. The Stripe payout itself
+  // still requires payout_setup at money time.
+  test('enforce: activation_incomplete is a 403 naming the missing step', async () => {
     process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
-    access.can.mockResolvedValue({ allowed: false, reason: 'activation_incomplete', missing: ['payout_setup'] });
+    access.can.mockResolvedValue({ allowed: false, reason: 'activation_incomplete', missing: ['identity_verified'] });
     const { res, nextCalled } = await run(requireHelperCapability, { user: user('helper') });
     expect(nextCalled).toBe(false);
     expect(res.statusCode).toBe(403);
     expect(res.body.code).toBe('activation_incomplete');
-    expect(res.body.missing).toEqual(['payout_setup']);
+    expect(res.body.missing).toEqual(['identity_verified']);
   });
 
   // G-1 carve-out: the setup gate lets the same incomplete helper through
-  // so the payout-setup routes (Connect onboarding, W-9, terms, onboarding
+  // so the activation routes (Connect onboarding, W-9, terms, onboarding
   // profile/background-check/status) can finish activation. No circular gate.
   test('enforce: setup gate lets activation_incomplete through', async () => {
     process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
-    access.can.mockResolvedValue({ allowed: false, reason: 'activation_incomplete', missing: ['payout_setup'] });
+    access.can.mockResolvedValue({ allowed: false, reason: 'activation_incomplete', missing: ['helper_terms'] });
     const req = { user: user('helper') };
     const { nextCalled } = await run(requireHelperSetupCapability, req);
     expect(nextCalled).toBe(true);

@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * G-1 carve-out: the routes a helper must use to complete payout setup stay
- * reachable while activation is incomplete. Without this, restoring
- * payout_setup to helper.offer_services would be a circular gate: the
+ * G-1 carve-out: the routes a helper must use to complete activation stay
+ * reachable while activation is incomplete. Without this, requiring
+ * identity + terms before offering services would be a circular gate: the
  * helper could never finish the very setup the gate demands.
  *
  * Carved out via requireHelperSetupCapability (allowActivationIncomplete):
@@ -13,6 +13,13 @@
  * (POST /payments/connect is covered in payment.test.js; the Didit
  * /api/didit/session + webhook routes are authenticate-only / unauthenticated
  * webhook and carry no capability gate.)
+ *
+ * G-1 (Emile decision, 2026-11-19): payout_setup is no longer an
+ * activation requirement — bidding is not blocked and the payout defaults
+ * to OxSteed Credit — so the carve-out fixture is incomplete on the
+ * remaining requirement instead (terms not accepted). The carve-out still
+ * proves the same property: setup routes stay reachable while activation
+ * is incomplete.
  */
 
 const express = require('express');
@@ -32,15 +39,18 @@ jest.mock('../middleware/rateLimiter', () => ({
 
 const helperRegistrationRoutes = require('../routes/helperRegistration');
 
-// Identity + terms satisfied, payout_setup missing: no W-9, no Connect
-// account. Holds the grant but is not activated.
+// Identity satisfied, terms NOT accepted, payout_setup missing: no W-9, no
+// Connect account. Holds the grant but is not activated (missing
+// helper_terms). payout_setup is no longer an activation requirement, so
+// the fixture is incomplete on terms — the remaining requirement the
+// carve-out must stay open for.
 const INCOMPLETE_HELPER = {
   id: 'helper-1', first_name: 'Ava', last_name: 'Agent', email: 'a@test.com',
   phone: null, role: 'helper', email_verified: true, is_verified: true, is_active: true,
   onboarding_status: 'pending', onboarding_completed: false,
   contact_completed: true, profile_completed: false,
-  tier_selected: false, w9_completed: false, terms_accepted: true,
-  terms_accepted_at: new Date(), terms_version: 'test-v1',
+  tier_selected: false, w9_completed: false, terms_accepted: false,
+  terms_accepted_at: null, terms_version: null,
   membership_tier: 'free', id_verified: true, background_check_passed: false,
   city: 'Austin', state: 'TX', zip_code: '78701',
   display_name_preference: 'first_name', business_name: null,

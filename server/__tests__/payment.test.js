@@ -75,12 +75,18 @@ const ACCESS_GRANT = {
 // gated routes only (POST /connect); the other payment routes have no
 // helper gate and keep plain mockAuth.
 function mockGatedAuth(...extras) {
-  mockQuery.mockResolvedValueOnce({ rows: [MOCK_AUTH_USER] });
-  mockQuery.mockResolvedValueOnce({ rows: [MOCK_AUTH_USER] }); // loadFacts users
+  mockGatedAuthAs(MOCK_AUTH_USER, ...extras);
+}
+
+// Same chain as mockGatedAuth but the gate evaluates `user`: used for the
+// G-1 carve-out test, where the fixture must be activation_incomplete.
+function mockGatedAuthAs(user, ...extras) {
+  mockQuery.mockResolvedValueOnce({ rows: [user] });
+  mockQuery.mockResolvedValueOnce({ rows: [user] }); // loadFacts users
   mockQuery.mockResolvedValueOnce({ rows: [ACCESS_GRANT] }); // loadFacts access_grants
   mockQuery.mockResolvedValueOnce({ rows: [] }); // loadFacts businesses
   mockQuery.mockResolvedValueOnce({ rows: [] }); // loadFacts restaurant locations
-  mockQuery.mockResolvedValueOnce({ rows: [MOCK_AUTH_USER] }); // activation evidence
+  mockQuery.mockResolvedValueOnce({ rows: [user] }); // activation evidence
   mockQuery.mockResolvedValueOnce({ rows: [] }); // active restaurants
   mockQuery.mockResolvedValueOnce({ rows: [] }); // launched franchises
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
@@ -431,14 +437,16 @@ describe('GET /api/payments/connect/status', () => {
 });
 
 describe('POST /api/payments/connect', () => {
-  // G-1 carve-out: the fixture user is activation_incomplete (identity +
-  // terms satisfied, but no W-9 and no Connect account, so payout_setup is
-  // missing). The Connect onboarding route must still succeed, or the
-  // helper could never complete payout setup: no circular gate.
+  // G-1 carve-out: the fixture user is activation_incomplete (identity
+  // not verified, so identity_verified is missing; terms are satisfied and
+  // payout_setup is no longer an activation requirement). The Connect
+  // onboarding route must still succeed, or the helper could never
+  // complete payout setup: no circular gate.
   test('succeeds while activation is incomplete (no circular gate)', async () => {
     stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_new' });
     stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/onboard' });
-    mockGatedAuth(
+    mockGatedAuthAs(
+      { ...MOCK_AUTH_USER, id_verified: false, identity_verified: false, didit_status: 'pending' },
       { rows: [] }, // existing connect account lookup
       { rows: [{ stripe_account_id: 'acct_new' }] }, // persisted account
     );

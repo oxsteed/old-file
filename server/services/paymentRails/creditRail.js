@@ -188,7 +188,11 @@ async function placePaymentHold(client, { job, bid, customer, amountMinor, settl
     isImpersonated,
     metadata: { bidId: String(bid.id), jobTitle: job.title, fxQuoteId: fxQuote ? String(fxQuote.id) : null },
   });
-  const holdId = hold.hold?.id || null;
+  const holdId = hold.hold?.hold?.id || null;
+  // Adapter hold shape: result.hold is the raw createCreditHold result
+  // { hold, replayed }, so the hold id lives at .hold.hold.id. Reading
+  // .hold.id (as this line used to) is always undefined and every
+  // Credit-rail hire failed with credit_hold_failed.
   if (!holdId) throw new AppError('Credit hold could not be placed', 409, 'credit_hold_failed');
   await client.query(
     `INSERT INTO job_credit_payments

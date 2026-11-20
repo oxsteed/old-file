@@ -148,7 +148,9 @@ describe('surface/mode matrix', () => {
   });
 
   test('pos hold routes to createCreditHoldInTransaction', async () => {
-    const client = legacyClient();
+    // Participant resolution (not the legacy restaurant lookup) so the
+    // resolved participant id is threaded into the hold.
+    const client = participantClient();
     const hold = { hold: { id: 'hold-1' }, replayed: false };
     const spy = jest.spyOn(creditService, 'createCreditHoldInTransaction').mockResolvedValue(hold);
     const railSpy = jest.spyOn(creditService, 'assertCreditRailEnabled').mockResolvedValue(undefined);
@@ -157,6 +159,9 @@ describe('surface/mode matrix', () => {
       expect(result.mode).toBe('hold');
       expect(result.hold).toBe(hold);
       expect(spy).toHaveBeenCalledTimes(1);
+      // G-1 Credit default: the hold resolves against the resolved
+      // participant and surface, not the restaurant-only join.
+      expect(spy).toHaveBeenCalledWith(client, expect.objectContaining({ participantId: 'cp-1', surface: 'pos' }));
     } finally {
       spy.mockRestore();
       railSpy.mockRestore();

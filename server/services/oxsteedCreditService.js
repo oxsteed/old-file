@@ -2817,7 +2817,7 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
   }, 'credit_update_customer_status');
 }
 
-async function createCreditHoldInTransaction(client, { customerId, partnerId, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, requestIp, expiresAt, metadata = {} }) {
+async function createCreditHoldInTransaction(client, { customerId, partnerId, participantId = null, surface = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, requestIp, expiresAt, metadata = {} }) {
   requireCustomerActor(actorUserId, customerId, 'The Credit hold owner must create the hold', 'credit_hold_actor_required');
   const amount = parseAmountCents(amountCents, 'amountCents', currencyCode);
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
@@ -2859,7 +2859,7 @@ async function createCreditHoldInTransaction(client, { customerId, partnerId, am
     }
     await assertCreditRailEnabled(client);
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit:${customerId}:${partnerId}`]);
-    const agreement = await findSpendAgreement(client, { customerId, partnerId, orderType, category, menuItemId, city, state, postalCode, country, amountCents: amount });
+    const agreement = await findSpendAgreement(client, { customerId, partnerId, participantId, surface: surface || 'food_online', orderType, category, menuItemId, city, state, postalCode, country, amountCents: amount });
     const settlementCurrency = assertSupportedCreditCurrency(agreement.settlement_currency_code);
     if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== settlementCurrency) {
       throw new AppError('Credit currency does not match the partner agreement', 409, 'credit_currency_mismatch');

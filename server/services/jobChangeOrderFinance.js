@@ -116,7 +116,9 @@ async function replaceCreditCollateral(client, { job, amountCents, reason, idemp
     isImpersonated,
     metadata: { ...metadata, replacesHoldId: String(oldHoldId) },
   });
-  const newHoldId = hold.hold?.id || null;
+  // Adapter hold shape: result.hold is the raw createCreditHold result
+  // { hold, replayed }, so the hold id lives at .hold.hold.id.
+  const newHoldId = hold.hold?.hold?.id || null;
   await client.query(
     `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb WHERE id = $1`,
     [job.id, JSON.stringify({ [spec.metaKey]: newHoldId, [spec.keyKey]: hold.idempotencyKey })]

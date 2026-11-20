@@ -1184,7 +1184,7 @@ exports.assignHelper = async (req, res, next) => {
         await client.query(
           `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
             WHERE id = $1`,
-          [bid.job_id, JSON.stringify({ creditCollateralHoldId: collateral.hold?.id || null,
+          [bid.job_id, JSON.stringify({ creditCollateralHoldId: collateral.hold?.hold?.id || null,
             creditCollateralKey: collateral.idempotencyKey })]
         );
       }

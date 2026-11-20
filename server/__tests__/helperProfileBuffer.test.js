@@ -28,8 +28,10 @@ const HELPER_USER = {
   id: 'helper-1', role: 'helper', is_active: true,
   id_verified: true, terms_accepted: true,
   terms_accepted_at: new Date(), terms_version: 'test-v1',
-  // G-1: helper-profile routes run the full gate, so the fixture must be
-  // fully activated: W-9 on file, fresh Didit, Connect charges + payouts.
+  // G-1 (Emile decision, 2026-11-19): helper-profile routes run the full
+  // gate, which now activates on identity + terms. The fixture keeps W-9,
+  // fresh Didit, and Connect as a fully-provisioned helper; payout_setup
+  // is no longer a gate requirement.
   w9_completed: true, didit_status: 'verified', didit_verified_at: new Date(),
   connect_charges_enabled: true, connect_payouts_enabled: true,
 };
@@ -133,22 +135,24 @@ describe('helper profile booking buffer setting', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /^\s*(UPDATE|INSERT|DELETE)/i.test(sql))).toBe(false);
   });
 
-  // G-1 (D-9): profile routes are offering-services surface, not steps
-  // needed to complete payout setup, so they run the full gate. A helper
-  // with identity + terms but no payout_setup is held here.
-  test('GET /me returns 403 activation_incomplete when payout_setup is missing', async () => {
+  // G-1 (Emile decision, 2026-11-19): profile routes are offering-services
+  // surface, not money movement, so they run the full gate — and the gate
+  // now activates on identity + terms. A helper with identity + terms but
+  // no payout_setup reads their own profile here; the payout for their
+  // work defaults to OxSteed Credit instead.
+  test('GET /me succeeds when payout_setup is missing (identity + terms activate)', async () => {
     const incomplete = {
       ...HELPER_USER,
       w9_completed: false,
       connect_charges_enabled: false,
       connect_payouts_enabled: false,
     };
-    mockGateThenAs(incomplete, { rows: [], rowCount: 0 });
+    mockGateThenAs(incomplete, { rows: [{ profile_headline: 'Fixer', booking_buffer_minutes: 30, is_listed: false }] });
 
     const res = await request(buildApp()).get('/api/helper-profile/me');
 
-    expect(res.status).toBe(403);
-    expect(res.body.code).toBe('activation_incomplete');
-    expect(res.body.missing).toEqual(['payout_setup']);
+    expect(res.status).toBe(200);
+    expect(res.body.profile_headline).toBe('Fixer');
+    expect(res.body.code).toBeUndefined();
   });
 });

@@ -243,9 +243,21 @@ async function spendWithCreditInTransaction(client, args) {
 
   if (normalizedMode === 'hold') {
     // POS / jobs: hold now, finalize later via finalizeCreditSpend().
+    // G-1 Credit default: the hold must resolve against the SAME
+    // participant the adapter already resolved (e.g. a helper payee),
+    // not the legacy restaurant-only join, and against the actual
+    // surface ('jobs'), not the food_online default. The debit path
+    // already threads both through; the hold path did not, so holds
+    // for non-restaurant payees failed with credit_partner_not_eligible
+    // and the jobs Credit rail could never place a hold. 'pos' holds
+    // still fail closed exactly as before: the adapter surface gate
+    // above rejects them for restaurant participants (no 'pos' in
+    // allowed_surfaces) before this branch is reached.
     const hold = await creditService.createCreditHoldInTransaction(client, {
       customerId: effectiveCustomerId,
       partnerId,
+      participantId: participant?.id || null,
+      surface: participantSurface,
       amountCents: amount,
       currencyCode,
       idempotencyKey: key,

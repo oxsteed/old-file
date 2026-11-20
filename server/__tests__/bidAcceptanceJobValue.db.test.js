@@ -98,9 +98,10 @@ describeDb('bid acceptance records the agreed price (P1-2-F11)', () => {
         [userId, role, role === 'helper', role === 'helper'],
       );
     }
-    // G-1: assertHelperCanBeHired requires the helper to be fully
-    // activated, so seed the Connect readiness the payout_setup check
-    // reads. Schema-local, like the users/grants tables above: the
+    // G-1 (Emile decision, 2026-11-19): assertHelperCanBeHired activates
+    // on identity + terms; payout_setup is no longer required. The Connect
+    // readiness seeded here is fixture realism for the escrow path, not a
+    // gate requirement. Schema-local, like the users/grants tables above: the
     // evidence join resolves connect_accounts here under this
     // search_path, and a public row would need a mirror public.users
     // row for its FK (see the grant comment above).

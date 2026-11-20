@@ -153,18 +153,16 @@ ddescribe('customer-first signup (real database)', () => {
       const status = await bearer(request(app).get('/api/helper-registration/onboarding/status'), helper.accessToken);
       expect(status.body).toMatchObject({ onboarding_step: 'active', canApplyToJobs: true });
 
-      // Approval and profile completion still cannot bypass payout activation.
-      const beforePayoutSetup = await bid();
-      expect(beforePayoutSetup.status).toBe(403);
-      expect(beforePayoutSetup.body).toMatchObject({ code: 'activation_incomplete', missing: expect.arrayContaining(['payout_setup']) });
-      await seedHelperPayoutReadiness(pool, helper.user.id);
-
-      const [firstBid, ownJob] = await Promise.all([
-        bid(),
-        bearer(request(app).post('/api/jobs'), helper.accessToken).send(jobBody),
-      ]);
+      // G-1 (Emile decision, 2026-11-19): bidding is not blocked for lack of
+      // payout_setup. OxSteed Credit is the default payout when Stripe
+      // payout setup is absent, so the first bid succeeds before any payout
+      // evidence is supplied. Payout setup remains completable afterwards.
+      const firstBid = await bid();
       expect(firstBid.status).toBe(201);
       expect(firstBid.body.helper_id).toBe(helper.user.id);
+      await seedHelperPayoutReadiness(pool, helper.user.id);
+
+      const ownJob = await bearer(request(app).post('/api/jobs'), helper.accessToken).send(jobBody);
       expect(ownJob.status).toBe(201);
       const ownJobId = ownJob.body.job?.id ?? ownJob.body.id;
       const selfBid = await bearer(request(app).post('/api/bids'), helper.accessToken)

@@ -69,9 +69,11 @@ describeDatabase('PUT /api/helper-profile/core against migrated PostgreSQL', () 
        VALUES ($1, 'helper.offer_services', 'self', 'self', 'active', 'legacy_backfill', 'helper-policy-1')`,
       [id],
     );
-    // G-1: helper-profile routes run the full gate, so the fixture helper
-    // must satisfy payout_setup (W-9 above, fresh Didit above, Connect
-    // charges + payouts here) for the success-path saves.
+    // G-1 (Emile decision, 2026-11-19): helper-profile routes run the
+    // full gate, which now activates on identity + terms. The fixture
+    // keeps a fully-provisioned helper (W-9 above, fresh Didit above,
+    // Connect charges + payouts here); payout_setup is no longer a gate
+    // requirement, but the success-path saves do not depend on it either.
     await pool.query(
       `INSERT INTO connect_accounts (user_id, stripe_account_id, charges_enabled, payouts_enabled, onboarding_complete)
        VALUES ($1, $2, TRUE, TRUE, TRUE)`,
