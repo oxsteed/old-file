@@ -101,7 +101,13 @@ function JobReview({ detail, busy, run, t, language }) {
       {item.status === 'approved' && decisions(item, ['in_transit'], reviewDeliveryReturn)}
       {['approved', 'in_transit'].includes(item.status) && <ReturnProof item={item} job={detail.job} busy={busy} run={run} t={t} />}
     </article>)}
-    {issues?.map((item) => <article key={item.id} className="delivery-review-item"><h4>{label('ui.issueCodes', item.code)} · {label('ui.requestStates', item.status)}</h4><p>{item.description}</p><p>{item.resolution}</p>
+    {issues?.map((item) => <article key={item.id} className="delivery-review-item"><h4>{label('ui.issueCodes', item.code)} · {label('ui.requestStates', item.status)}</h4><p>{item.description}</p>
+      {/* Group 9 Slice D (items 470/475): the structured metadata, so
+        dispatch sees the wrong-item pair and the unavailable reason
+        without parsing the free text. */}
+      {item.metadata?.received && <p>{t('delivery.detail.issueReceived', { value: item.metadata.received })} · {t('delivery.detail.issueExpected', { value: item.metadata.expected })}</p>}
+      {item.metadata?.unavailableReason && <p>{t(`delivery.ui.unavailableReasons.${item.metadata.unavailableReason}`)}</p>}
+      <p>{item.resolution}</p>
       {item.status === 'open' && <form onSubmit={(event) => { event.preventDefault(); run(() => resolveDeliveryIssue(item.id, resolution[item.id])); }} data-track="ui.49bdb74b31.6">
         <label className="delivery-field">{t('delivery.ui.resolution')}<textarea className="delivery-input" maxLength={2000} required disabled={busy} value={resolution[item.id] || ''} onChange={(event) => setResolution({ ...resolution, [item.id]: event.target.value })} /></label>
         <button className="delivery-button delivery-button--primary" disabled={busy || !resolution[item.id]?.trim()} data-track="ui.49bdb74b31.7">{t('delivery.ui.resolve')}</button>

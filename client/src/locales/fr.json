@@ -21668,7 +21668,16 @@
         "damage": "Dommage",
         "access_problem": "Problème d'accès",
         "missing_shipment": "Envoi manquant",
-        "customer_report": "Signalement du client"
+        "customer_report": "Signalement du client",
+        "wrong_item": "Article erroné",
+        "recipient_unavailable": "Destinataire indisponible"
+      },
+      "unavailableReasons": {
+        "no_answer": "Sans réponse",
+        "refused": "A refusé la livraison",
+        "wrong_address": "Mauvaise adresse",
+        "moved": "A déménagé",
+        "other": "Autre"
       },
       "proofInvalid": "La preuve n'a pas pu être envoyée. Vérifiez les détails et réessayez.",
       "paymentPending": "Redirection vers le paiement sécurisé…",
@@ -21810,7 +21819,20 @@
       "itemPhoto": "Photo de l’article",
       "itemPhotoUpload": "Ajouter une photo de l’article",
       "itemPhotoHint": "JPG, PNG ou WebP, jusqu’à 10 Mo. Visible par vous et le chauffeur assigné.",
-      "itemPhotosEmpty": "Aucune photo de l’article pour l’instant."
+      "itemPhotosEmpty": "Aucune photo de l’article pour l’instant.",
+      "pickupConfirmTitle": "Confirmer la collecte",
+      "pickupPieces": "Colis collectés",
+      "pickupPiecesHint": "Comptez les colis avant de partir. Un nombre différent de la réservation est signalé à l’expéditeur.",
+      "pickupCondition": "J’ai vérifié les articles par rapport aux photos du client et l’état correspond",
+      "pickupConditionNote": "Note sur l’état (facultatif)",
+      "pickupConfirmedPieces": "Colis confirmés à la collecte",
+      "pickupPiecesMismatch": "Nombre de colis différent : {{confirmed}} collectés, {{booked}} réservés",
+      "pickupConditionAcknowledged": "État confirmé à la collecte",
+      "wrongItemReceived": "Ce qui a été reçu",
+      "wrongItemExpected": "Ce qui était attendu",
+      "unavailableReason": "Pourquoi le destinataire était-il indisponible ?",
+      "issueReceived": "Reçu : {{value}}",
+      "issueExpected": "Attendu : {{value}}"
     },
     "events": {
       "delivery_posted": "Demande de livraison publiée",

@@ -21679,7 +21679,16 @@
         "damage": "تلف",
         "access_problem": "مشكلة وصول",
         "missing_shipment": "شحنة مفقودة",
-        "customer_report": "بلاغ العميل"
+        "customer_report": "بلاغ العميل",
+        "wrong_item": "عنصر خاطئ",
+        "recipient_unavailable": "المستلم غير متاح"
+      },
+      "unavailableReasons": {
+        "no_answer": "لا إجابة",
+        "refused": "رفض التسليم",
+        "wrong_address": "عنوان خاطئ",
+        "moved": "انتقل",
+        "other": "أخرى"
       },
       "proofInvalid": "تعذّر إرسال الإثبات. تحقق من التفاصيل وحاول مجددًا.",
       "paymentPending": "جارٍ التحويل إلى الدفع الآمن…",
@@ -21821,7 +21830,20 @@
       "itemPhoto": "صورة العنصر",
       "itemPhotoUpload": "أضف صورة للعنصر",
       "itemPhotoHint": "‏JPG أو PNG أو WebP، حتى 10 ميغابايت. مرئية لك وللسائق المعيّن.",
-      "itemPhotosEmpty": "لا توجد صورة للعنصر بعد."
+      "itemPhotosEmpty": "لا توجد صورة للعنصر بعد.",
+      "pickupConfirmTitle": "تأكيد الاستلام",
+      "pickupPieces": "الطرود المستلمة",
+      "pickupPiecesHint": "عُدّ الطرود قبل المغادرة. إذا اختلف العدد عن الحجز، يتم إشعار المُرسل.",
+      "pickupCondition": "تحققت من العناصر مقارنة بصور العميل والحالة مطابقة",
+      "pickupConditionNote": "ملاحظة عن الحالة (اختياري)",
+      "pickupConfirmedPieces": "الطرود المؤكدة عند الاستلام",
+      "pickupPiecesMismatch": "اختلاف في عدد الطرود: تم استلام {{confirmed}}، بينما تم حجز {{booked}}",
+      "pickupConditionAcknowledged": "تم الإقرار بالحالة عند الاستلام",
+      "wrongItemReceived": "ما تم استلامه",
+      "wrongItemExpected": "ما كان متوقعًا",
+      "unavailableReason": "لماذا كان المستلم غير متاح؟",
+      "issueReceived": "تم الاستلام: {{value}}",
+      "issueExpected": "المتوقع: {{value}}"
     },
     "events": {
       "delivery_posted": "تم نشر طلب التوصيل",

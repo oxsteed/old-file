@@ -21668,7 +21668,16 @@
         "damage": "Daño",
         "access_problem": "Problema de acceso",
         "missing_shipment": "Envío faltante",
-        "customer_report": "Reporte del cliente"
+        "customer_report": "Reporte del cliente",
+        "wrong_item": "Artículo equivocado",
+        "recipient_unavailable": "Destinatario no disponible"
+      },
+      "unavailableReasons": {
+        "no_answer": "Sin respuesta",
+        "refused": "Rechazó la entrega",
+        "wrong_address": "Dirección incorrecta",
+        "moved": "Se mudó",
+        "other": "Otro"
       },
       "proofInvalid": "No se pudo enviar la prueba. Revisa los datos e inténtalo de nuevo.",
       "paymentPending": "Redirigiendo al pago seguro…",
@@ -21810,7 +21819,20 @@
       "itemPhoto": "Foto del artículo",
       "itemPhotoUpload": "Añade una foto del artículo",
       "itemPhotoHint": "JPG, PNG o WebP, hasta 10 MB. Visible para ti y el conductor asignado.",
-      "itemPhotosEmpty": "Aún no hay foto del artículo."
+      "itemPhotosEmpty": "Aún no hay foto del artículo.",
+      "pickupConfirmTitle": "Confirmar la recogida",
+      "pickupPieces": "Paquetes recogidos",
+      "pickupPiecesHint": "Cuenta los paquetes antes de salir. Si la cantidad difiere de la reserva, se avisa al remitente.",
+      "pickupCondition": "Revisé los artículos con las fotos del cliente y la condición coincide",
+      "pickupConditionNote": "Nota sobre la condición (opcional)",
+      "pickupConfirmedPieces": "Paquetes confirmados en la recogida",
+      "pickupPiecesMismatch": "Diferencia en la cantidad: {{confirmed}} recogidos, {{booked}} reservados",
+      "pickupConditionAcknowledged": "Condición confirmada en la recogida",
+      "wrongItemReceived": "Qué se recibió",
+      "wrongItemExpected": "Qué se esperaba",
+      "unavailableReason": "¿Por qué no estaba disponible el destinatario?",
+      "issueReceived": "Recibido: {{value}}",
+      "issueExpected": "Esperado: {{value}}"
     },
     "events": {
       "delivery_posted": "Solicitud de entrega publicada",

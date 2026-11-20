@@ -27,6 +27,10 @@ import '../styles/DeliveryPage.css';
 
 const TERMINAL = ['delivered', 'cancelled', 'returned'];
 const EXTRA_CATEGORIES = ['waiting', 'parking_toll', 'difficult_access', 'loading_help', 'special_handling'];
+// Group 9 Slice D (items 470/475): the two new issue codes. The five
+// existing codes are unchanged.
+const ISSUE_CODES = ['delay', 'damage', 'access_problem', 'missing_shipment', 'customer_report', 'wrong_item', 'recipient_unavailable'];
+const UNAVAILABLE_REASONS = ['no_answer', 'refused', 'wrong_address', 'moved', 'other'];
 
 export default function DeliveryDetailPage() {
   const { t, i18n } = useTranslation();
@@ -42,6 +46,17 @@ export default function DeliveryDetailPage() {
   const [notice, setNotice] = useState('');
   const [issue, setIssue] = useState('');
   const [issueCode, setIssueCode] = useState('delay');
+  // Group 9 Slice D (items 467/468/470/475): the pickup confirmation
+  // (piece count + condition acknowledgment), the wrong-item pair, the
+  // recipient-unavailable reason, and the reason carried into a failed
+  // drop-off return.
+  const [pickupPieces, setPickupPieces] = useState('');
+  const [conditionAck, setConditionAck] = useState(false);
+  const [conditionNote, setConditionNote] = useState('');
+  const [wrongItemReceived, setWrongItemReceived] = useState('');
+  const [wrongItemExpected, setWrongItemExpected] = useState('');
+  const [unavailableReason, setUnavailableReason] = useState('no_answer');
+  const [returnUnavailableReason, setReturnUnavailableReason] = useState('');
   const [proofValue, setProofValue] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [recipientContact, setRecipientContact] = useState('');
@@ -193,6 +208,9 @@ export default function DeliveryDetailPage() {
       </header>
       {error && <div className="delivery-alert delivery-alert--error" role="alert">{error}<button className="delivery-button delivery-button--secondary" disabled={loading || busy} onClick={load} data-track="ui.4c1e141977.3">{t('delivery.helper.refresh')}</button></div>}
       {notice && <p className="delivery-alert delivery-alert--success" role="status">{notice}</p>}
+      {/* Group 9 Slice D (item 467): a mismatched pickup count is
+        flagged to everyone on the job, never silently passed. */}
+      {job.pickup_pieces_mismatch && <p className="delivery-alert delivery-alert--error" role="alert">{t('delivery.detail.pickupPiecesMismatch', { confirmed: job.pickup_confirmed_pieces, booked: job.pieces })}</p>}
       {trackable && <DeliveryTrackingCard jobId={id} />}
       <div className="delivery-detail-grid">
         <section className="delivery-panel"><h2>{t('delivery.detail.route')}</h2>
@@ -207,6 +225,11 @@ export default function DeliveryDetailPage() {
             {job.notes && <div><dt>{t('delivery.customer.notes')}</dt><dd>{job.notes}</dd></div>}
             <div><dt>{t('delivery.customer.weight')}</dt><dd>{deliveryUnit(job.weight_lbs, 'pound', i18n.language)}</dd></div>
             <div><dt>{t('delivery.operations.pieces')}</dt><dd>{new Intl.NumberFormat(i18n.language === 'ht' ? 'fr-HT' : i18n.language).format(job.pieces || 1)}</dd></div>
+            {/* Group 9 Slice D (items 467/468): the confirmed pickup
+              count and the condition acknowledgment, shown to the
+              shipper, the customer, and the driver. */}
+            {job.pickup_confirmed_pieces != null && <div><dt>{t('delivery.detail.pickupConfirmedPieces')}</dt><dd>{new Intl.NumberFormat(i18n.language === 'ht' ? 'fr-HT' : i18n.language).format(job.pickup_confirmed_pieces)}</dd></div>}
+            {job.pickup_condition_acknowledged && <div><dt>{t('delivery.detail.pickupConditionAcknowledged')}</dt><dd>{job.pickup_condition_note || t('delivery.detail.pickupCondition')}</dd></div>}
             <div><dt>{t('delivery.ui.eta')}</dt><dd>{eta?.available && eta.estimatedArrivalAt ? date(eta.estimatedArrivalAt) : t('delivery.ui.etaUnavailable')}
               {eta?.available && eta.updatedAt && <small>{t('delivery.ui.updated', { date: date(eta.updatedAt) })}</small>}</dd></div>
             {['pickup', 'delivery'].map((kind) => job[`${kind}_window_start`] && <div key={kind}><dt>{t(kind === 'pickup' ? 'delivery.customer.pickup' : 'delivery.customer.dropoff')}</dt><dd>{date(job[`${kind}_window_start`])} – {date(job[`${kind}_window_end`])}</dd></div>)}
@@ -242,7 +265,18 @@ export default function DeliveryDetailPage() {
               )}
             </div>
           )}
-          {isAssigned && nextStatus && <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => act(() => updateDeliveryStatus(id, nextStatus))} data-track="ui.4c1e141977.4">{t('delivery.helper.moveTo', { status: label('helper.status', nextStatus) })}</button>}
+          {/* Group 9 Slice D (items 467/468): pickup is a confirmation
+            step, not a bare button. The driver confirms the collected
+            piece count and acknowledges the item condition before the
+            pickup can complete; the server 400s without either. */}
+          {isAssigned && nextStatus === 'picked_up' && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await updateDeliveryStatus(id, 'picked_up', { pickupConfirmedPieces: Number(pickupPieces === '' ? job.pieces : pickupPieces), conditionAcknowledged: conditionAck, conditionNote }); setPickupPieces(''); setConditionAck(false); setConditionNote(''); }, 'delivery.ui.saved', 'delivery.errors.status'); }} data-track="ui.4c1e141977.28"><fieldset className="delivery-form-fields" disabled={busy}>
+            <h3>{t('delivery.detail.pickupConfirmTitle')}</h3><p>{t('delivery.detail.pickupPiecesHint')}</p>
+            <label className="delivery-field">{t('delivery.detail.pickupPieces')}<input className="delivery-input" type="number" min="1" max="9999" required value={pickupPieces === '' ? (job.pieces ?? 1) : pickupPieces} onChange={(event) => setPickupPieces(event.target.value)} /></label>
+            <label><input type="checkbox" checked={conditionAck} onChange={(event) => setConditionAck(event.target.checked)} required data-track="ui.4c1e141977.29" /> {t('delivery.detail.pickupCondition')}</label>
+            <label className="delivery-field">{t('delivery.detail.pickupConditionNote')}<input className="delivery-input" value={conditionNote} onChange={(event) => setConditionNote(event.target.value)} maxLength={500} /></label>
+            <button className="delivery-button delivery-button--primary" data-track="ui.4c1e141977.30">{t('delivery.helper.moveTo', { status: label('helper.status', nextStatus) })}</button>
+          </fieldset></form>}
+          {isAssigned && nextStatus === 'in_transit' && <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => act(() => updateDeliveryStatus(id, nextStatus))} data-track="ui.4c1e141977.4">{t('delivery.helper.moveTo', { status: label('helper.status', nextStatus) })}</button>}
           <div className="delivery-item-photos">
             <h3>{t('delivery.detail.itemPhoto')}</h3>
             {itemPhotos.filter((photo) => photo.url).length ? (
@@ -317,16 +351,31 @@ export default function DeliveryDetailPage() {
             <label className="delivery-field">{t('delivery.ui.windowEnd')}<input className="delivery-input" type="datetime-local" min={windowStart || undefined} value={windowEnd} onChange={(event) => setWindowEnd(event.target.value)} required /></label>
           </div>
           <button className="delivery-button delivery-button--secondary" data-track="ui.4c1e141977.18">{t('delivery.detail.requestReschedule')}</button>
-          {canReturn && <button type="button" className="delivery-button delivery-button--secondary" disabled={!reason.trim() || returns.some((item) => ['requested', 'approved', 'in_transit'].includes(item.status))} onClick={() => act(() => requestDeliveryReturn(id, { reason }), 'delivery.detail.returnSent', 'delivery.errors.return')} data-track="ui.4c1e141977.19">{t('delivery.detail.requestReturn')}</button>}
+          {/* Group 9 Slice D (item 475): when the return is a failed
+            drop-off because the recipient was unavailable, the reason
+            travels with the return request so the structured
+            recipient_unavailable issue is recorded with it. */}
+          {canReturn && <label className="delivery-field">{t('delivery.detail.unavailableReason')}<select className="delivery-input" value={returnUnavailableReason} onChange={(event) => setReturnUnavailableReason(event.target.value)}><option value="">{t('delivery.ui.unknown')}</option>{UNAVAILABLE_REASONS.map((reasonOption) => <option key={reasonOption} value={reasonOption}>{t(`delivery.ui.unavailableReasons.${reasonOption}`)}</option>)}</select></label>}
+          {canReturn && <button type="button" className="delivery-button delivery-button--secondary" disabled={!reason.trim() || returns.some((item) => ['requested', 'approved', 'in_transit'].includes(item.status))} onClick={() => act(() => requestDeliveryReturn(id, { reason, ...(returnUnavailableReason ? { unavailableReason: returnUnavailableReason } : {}) }), 'delivery.detail.returnSent', 'delivery.errors.return')} data-track="ui.4c1e141977.19">{t('delivery.detail.requestReturn')}</button>}
           {canCancel && <button type="button" className="delivery-button delivery-button--secondary" onClick={() => setCancelOpen(!cancelOpen)} data-track="ui.4c1e141977.20">{t('delivery.ui.cancelDelivery')}</button>}
           {cancelOpen && canCancel && <div role="group" aria-label={t('delivery.ui.cancelDelivery')}><p>{t('delivery.ui.cancelHint')}</p><button type="button" className="delivery-button delivery-button--danger" disabled={!reason.trim()} onClick={() => act(async () => { await updateDeliveryStatus(id, 'cancelled', { reason }); setCancelOpen(false); })} data-track="ui.4c1e141977.21">{t('delivery.ui.confirmCancel')}</button></div>}
         </fieldset></form>
       </section>}
       {(rescheduleRequests.length > 0 || returns.length > 0) && <section className="delivery-panel"><h2>{t('delivery.ui.requests')}</h2>{rescheduleRequests.map((item) => <p key={item.id}>{t('delivery.detail.requestReschedule')} · {label('ui.requestStates', item.status)} · {date(item.delivery_window_start || item.pickup_window_start)} · {item.reason}</p>)}{returns.map((item) => <p key={item.id}>{t('delivery.detail.requestReturn')} · {label('ui.requestStates', item.status)} · {item.reason}</p>)}</section>}
       <section className="delivery-panel"><h2>{t('delivery.detail.supportTitle')}</h2><p>{t('delivery.detail.supportHint')}</p>
-        {issues.map((item) => <p key={item.id}>{label('ui.issueCodes', item.code)} · {item.description} · {label('ui.requestStates', item.status)} {item.resolution}</p>)}
-        {participant && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await reportDeliveryIssue(id, { code: issueCode, description: issue }); setIssue(''); }, 'delivery.ui.saved', 'delivery.errors.issue'); }} data-track="ui.4c1e141977.22"><fieldset className="delivery-form-fields" disabled={busy}>
-          <label className="delivery-field">{t('delivery.ui.issueType')}<select className="delivery-input" value={issueCode} onChange={(event) => setIssueCode(event.target.value)}>{['delay', 'damage', 'access_problem', 'missing_shipment', 'customer_report'].map((code) => <option key={code} value={code}>{label('ui.issueCodes', code)}</option>)}</select></label>
+        {issues.map((item) => <p key={item.id}>{label('ui.issueCodes', item.code)} · {item.description} · {label('ui.requestStates', item.status)} {item.resolution}
+          {/* Group 9 Slice D (items 470/475): the structured metadata,
+            shown distinctly from the free-text description. */}
+          {item.metadata?.received && <> · {t('delivery.detail.issueReceived', { value: item.metadata.received })} · {t('delivery.detail.issueExpected', { value: item.metadata.expected })}</>}
+          {item.metadata?.unavailableReason && <> · {t(`delivery.ui.unavailableReasons.${item.metadata.unavailableReason}`)}</>}
+        </p>)}
+        {participant && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await reportDeliveryIssue(id, { code: issueCode, description: issue, ...(issueCode === 'wrong_item' ? { received: wrongItemReceived, expected: wrongItemExpected } : {}), ...(issueCode === 'recipient_unavailable' ? { unavailableReason } : {}) }); setIssue(''); setWrongItemReceived(''); setWrongItemExpected(''); }, 'delivery.ui.saved', 'delivery.errors.issue'); }} data-track="ui.4c1e141977.22"><fieldset className="delivery-form-fields" disabled={busy}>
+          <label className="delivery-field">{t('delivery.ui.issueType')}<select className="delivery-input" value={issueCode} onChange={(event) => setIssueCode(event.target.value)}>{ISSUE_CODES.map((code) => <option key={code} value={code}>{label('ui.issueCodes', code)}</option>)}</select></label>
+          {issueCode === 'wrong_item' && <>
+            <label className="delivery-field">{t('delivery.detail.wrongItemReceived')}<input className="delivery-input" value={wrongItemReceived} onChange={(event) => setWrongItemReceived(event.target.value)} maxLength={500} required /></label>
+            <label className="delivery-field">{t('delivery.detail.wrongItemExpected')}<input className="delivery-input" value={wrongItemExpected} onChange={(event) => setWrongItemExpected(event.target.value)} maxLength={500} required /></label>
+          </>}
+          {issueCode === 'recipient_unavailable' && <label className="delivery-field">{t('delivery.detail.unavailableReason')}<select className="delivery-input" value={unavailableReason} onChange={(event) => setUnavailableReason(event.target.value)}>{UNAVAILABLE_REASONS.map((reasonOption) => <option key={reasonOption} value={reasonOption}>{t(`delivery.ui.unavailableReasons.${reasonOption}`)}</option>)}</select></label>}
           <label className="delivery-field">{t('delivery.detail.issuePlaceholder')}<textarea className="delivery-input" value={issue} onChange={(event) => setIssue(event.target.value)} maxLength={2000} required /></label>
           <button className="delivery-button delivery-button--secondary" data-track="ui.4c1e141977.23">{t('delivery.detail.report')}</button>
         </fieldset></form>}

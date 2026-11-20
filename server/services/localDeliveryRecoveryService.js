@@ -1,6 +1,7 @@
 'use strict';
 
 const integrity = require('./localDeliveryIntegrity');
+const { normalizeIssueMetadata } = require('./deliveryIssueMetadata');
 const {
   createActionRunner, handler, TERMINAL, fail, pickedUp, cleanText,
   lockResources, assignmentOf, windowForJob, checkAssignment, reserve,
@@ -115,6 +116,22 @@ function createRecoveryService(deps = {}) {
       const reason = cleanText(req.body?.reason, 1000);
       if (reason.length < 3) throw fail('A return reason is required', 'delivery_return_reason_required', 400);
       const request = (await client.query('INSERT INTO delivery_returns (delivery_job_id, requested_by_user_id, reason, previous_status) VALUES ($1,$2,$3,$4) RETURNING *', [job.id, req.user.id, reason, job.status])).rows[0];
+      // Group 9 Slice D (item 475): a failed drop-off because the
+      // recipient was unavailable records the structured reason as a
+      // recipient_unavailable issue on the same job, in the same
+      // transaction as the return. It does not duplicate the return flow:
+      // the return still goes through request/review, and the return
+      // notification is the one that reaches the shipper/customer. The
+      // reason is optional here; a return with no reason stays exactly
+      // as before, and an invalid reason 400s instead of being stored.
+      if (req.body?.unavailableReason !== undefined && req.body?.unavailableReason !== null && req.body?.unavailableReason !== '') {
+        const metadata = normalizeIssueMetadata('recipient_unavailable', req.body);
+        await client.query(
+          `INSERT INTO delivery_issues (delivery_job_id, code, description, evidence_url, reported_by_user_id, metadata)
+           VALUES ($1, 'recipient_unavailable', $2, NULL, $3, $4::jsonb)`,
+          [job.id, reason, req.user.id, JSON.stringify(metadata)],
+        );
+      }
       await client.query("UPDATE delivery_jobs SET status = 'failed', dispatch_state = 'exception', exception_code = 'return_requested', return_reason = $2, updated_at = NOW() WHERE id = $1", [job.id, reason]);
       await client.query("UPDATE delivery_reschedule_requests SET status = 'cancelled' WHERE delivery_job_id = $1 AND status = 'pending'", [job.id]);
       await activity(client, job.id, req.user.id, 'delivery_return_requested', { returnId: request.id });

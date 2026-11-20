@@ -14,6 +14,9 @@ const { canStatusTransition, canInternalAssign, canReleaseToMarketplace } = requ
 const { accrueDriverPayout, approvePayout, markPayoutPaid, voidPayout, getPayout } = require('../services/deliveryDriverPayoutService');
 // Group 9 Slice C (items 462/463): multi-stop sequence + window warnings.
 const { loadJobStops, ensureJobStops, safeStops, normalizeStopInput, computeWindowWarnings, TERMINAL_STATUSES: STOP_TERMINAL_STATUSES } = require('../services/deliveryJobStopsService');
+// Group 9 Slice D (items 470/475): structured metadata for the wrong-item
+// and recipient-unavailable issue codes.
+const { normalizeIssueMetadata } = require('../services/deliveryIssueMetadata');
 const { canDriveMarketplace, isAdmittedDriver, hasApprovedActiveDriverProfile } = require('../services/deliveryDriverAdmission');
 
 const HELPER_MODES = new Set([
@@ -689,7 +692,7 @@ exports.get = async (req,res,next) => {
       participant ? pool.query('SELECT id,event_type,payload,created_at FROM delivery_activity WHERE delivery_job_id=$1 AND customer_visible=TRUE ORDER BY created_at,id',[job.id]) : empty,
       participant ? pool.query('SELECT id,proof_type,recipient_name,verification_status,verified_at,created_at FROM delivery_proofs WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
       participant ? pool.query('SELECT id,category,amount_cents,notes,status,payment_status,approved_amount_cents,created_at FROM delivery_extras WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
-      participant ? pool.query('SELECT id,code,description,status,resolution,created_at,resolved_at,support_ticket_id FROM delivery_issues WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
+      participant ? pool.query('SELECT id,code,description,metadata,status,resolution,created_at,resolved_at,support_ticket_id FROM delivery_issues WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
       own ? pool.query('SELECT id,delivery_extra_id,amount_cents,currency,status,receipt_url,refunded_amount_cents,created_at,updated_at FROM delivery_payments WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
       participant ? pool.query('SELECT id,pickup_window_start,pickup_window_end,delivery_window_start,delivery_window_end,reason,status,reviewed_at,created_at FROM delivery_reschedule_requests WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
       participant ? pool.query('SELECT id,reason,status,completed_at,created_at FROM delivery_returns WHERE delivery_job_id=$1 ORDER BY created_at DESC',[job.id]) : empty,
@@ -847,6 +850,34 @@ exports.completeStop = async (req, res, next) => {
   } finally { client?.release(); }
 };
 
+// ── Group 9 Slice D (items 467/468): pickup package-count confirmation
+// + condition acknowledgment ──────────────────────────────────────────
+// Marking picked_up requires both: the driver confirms how many pieces
+// they actually collected (an integer >= 1) and acknowledges the item
+// condition against the customer-uploaded photos (checkbox + optional
+// note). A count that differs from the booked pieces is not an error —
+// the pickup still completes, because the driver already has custody —
+// but it is flagged on the job and the origin stop and surfaced to the
+// shipper/customer, never silently passed. There is no per-item
+// acknowledgment: the item-photo model has no per-item condition record,
+// so one acknowledgment covers the job.
+function normalizePickupConfirmation(body, job) {
+  const confirmed = Number(body.pickupConfirmedPieces);
+  if (!Number.isInteger(confirmed) || confirmed < 1 || confirmed > 9999) {
+    throw new AppError('Confirm how many packages were collected at pickup', 400, 'delivery_pickup_confirmation_required');
+  }
+  if (body.conditionAcknowledged !== true) {
+    throw new AppError('Acknowledge the item condition before completing pickup', 400, 'delivery_pickup_confirmation_required');
+  }
+  const booked = Number(job.pieces || 1);
+  return {
+    confirmedPieces: confirmed,
+    bookedPieces: booked,
+    piecesMismatch: confirmed !== booked,
+    conditionNote: text(body.conditionNote, 500) || null,
+  };
+}
+
 exports.updateStatus = async (req,res,next) => {
   let client;
   try {
@@ -874,6 +905,12 @@ exports.updateStatus = async (req,res,next) => {
       await client.query('COMMIT');return res.json(response);
     }
     let proof;
+    // Group 9 Slice D (items 467/468): pickup needs the package-count
+    // confirmation and the condition acknowledgment, validated after the
+    // transition check (a job that cannot move to picked_up 409s first)
+    // and before the payment gate.
+    let pickupConfirmation = null;
+    if (requested === 'picked_up') pickupConfirmation = normalizePickupConfirmation(req.body, job);
     if(requested==='picked_up' || requested==='delivered') {
       // Payment gate: cannot pick up or deliver an unpaid job (unless COD).
       const {rows: payments} = await client.query(
@@ -898,8 +935,32 @@ exports.updateStatus = async (req,res,next) => {
     const {rows:[updated]}=await client.query(`UPDATE delivery_jobs SET status=$1::local_delivery_status,dispatch_state=$2,${timestamp?`${timestamp}=NOW(),`:''}
       proof_verified_at=CASE WHEN $1='delivered' THEN NOW() ELSE proof_verified_at END,
       proof_verified_by_user_id=CASE WHEN $1='delivered' THEN $5 ELSE proof_verified_by_user_id END,
+      pickup_confirmed_pieces=CASE WHEN $1='picked_up' THEN $6 ELSE pickup_confirmed_pieces END,
+      pickup_pieces_mismatch=CASE WHEN $1='picked_up' THEN $7 ELSE pickup_pieces_mismatch END,
+      pickup_confirmed_at=CASE WHEN $1='picked_up' THEN NOW() ELSE pickup_confirmed_at END,
+      pickup_confirmed_by_user_id=CASE WHEN $1='picked_up' THEN $5 ELSE pickup_confirmed_by_user_id END,
+      pickup_condition_acknowledged=CASE WHEN $1='picked_up' THEN $8 ELSE pickup_condition_acknowledged END,
+      pickup_condition_acknowledged_at=CASE WHEN $1='picked_up' THEN NOW() ELSE pickup_condition_acknowledged_at END,
+      pickup_condition_acknowledged_by_user_id=CASE WHEN $1='picked_up' THEN $5 ELSE pickup_condition_acknowledged_by_user_id END,
+      pickup_condition_note=CASE WHEN $1='picked_up' THEN $9 ELSE pickup_condition_note END,
       cancellation_reason=CASE WHEN $1::text='cancelled' THEN $3 ELSE cancellation_reason END,updated_at=NOW() WHERE id=$4 RETURNING *`,
-      [approaching?job.status:requested,dispatch,text(req.body.reason,500)||null,job.id,req.user.id]);
+      [approaching?job.status:requested,dispatch,text(req.body.reason,500)||null,job.id,req.user.id,
+        pickupConfirmation?.confirmedPieces ?? null, pickupConfirmation?.piecesMismatch ?? false,
+        pickupConfirmation ? true : false, pickupConfirmation?.conditionNote ?? null]);
+    if (requested === 'picked_up' && pickupConfirmation) {
+      // The confirmation lives on the job and on the origin pickup stop,
+      // kept consistent in the same transaction. Materialize the stops
+      // first: a job with no stored stops still reads its two legacy
+      // stops, and the confirmation needs a stored row to land on.
+      await ensureJobStops(client, updated);
+      await client.query(
+        `UPDATE delivery_job_stops SET confirmed_pieces=$2, pieces_mismatch=$3, condition_acknowledged=$4,
+           condition_note=$5, condition_acknowledged_at=NOW(), condition_acknowledged_by_user_id=$6, updated_at=NOW()
+         WHERE id = (SELECT id FROM delivery_job_stops WHERE delivery_job_id=$1 AND stop_type='pickup' ORDER BY stop_order ASC, id ASC LIMIT 1)`,
+        [job.id, pickupConfirmation.confirmedPieces, pickupConfirmation.piecesMismatch, true,
+          pickupConfirmation.conditionNote, req.user.id],
+      );
+    }
     if(requested==='in_transit') {
       // Start-of-route estimate only; stale estimates become unavailable after 15 minutes.
       const route=job.price_snapshot?.route;
@@ -914,7 +975,14 @@ exports.updateStatus = async (req,res,next) => {
       await client.query("UPDATE delivery_reschedule_requests SET status='cancelled' WHERE delivery_job_id=$1 AND status='pending'",[job.id]);
       await client.query("UPDATE delivery_extras SET status='voided' WHERE delivery_job_id=$1 AND status='pending'",[job.id]);
     }
-    await recordActivity(client,job.id,req.user.id,'delivery_'+requested,{proofType:proof?.proofType||null});
+    // Group 9 Slice D (item 467): a mismatched pickup count rides in the
+    // delivery_picked_up activity payload, so the existing picked_up
+    // notification to the shipper/customer carries the flag and the
+    // detail page can show it; the job row itself is the record.
+    await recordActivity(client,job.id,req.user.id,'delivery_'+requested,{proofType:proof?.proofType||null,
+      ...(requested==='picked_up' && pickupConfirmation ? { piecesConfirmed: pickupConfirmation.confirmedPieces,
+        piecesBooked: pickupConfirmation.bookedPieces, piecesMismatch: pickupConfirmation.piecesMismatch,
+        conditionAcknowledged: true } : {})});
     const response={success:true,job:customerSafeJob(updated,req.user)};
     await saveAction(client,job,req.user,'status:'+requested,key,actionBody,response);
     await client.query('COMMIT');res.json(response);
@@ -937,8 +1005,12 @@ exports.createIssue = async (req, res, next) => {
     const code = text(req.body.code, 64);
     const description = text(req.body.description, 2000);
     if (!code || !description) throw new AppError('Issue code and description are required', 400, 'delivery_issue_invalid');
+    // Group 9 Slice D (items 470/475): wrong_item needs received vs
+    // expected; recipient_unavailable needs a fixed reason code. Both
+    // are stored as structured metadata on the issue row.
+    const metadata = normalizeIssueMetadata(code, req.body);
     const actionKey = idempotencyKey(req);
-    const actionHash = crypto.createHash('sha256').update(JSON.stringify(stableValue({ code, description }))).digest('hex');
+    const actionHash = crypto.createHash('sha256').update(JSON.stringify(stableValue({ code, description, metadata }))).digest('hex');
     if (actionKey) {
       const prior = await client.query('SELECT request_hash, response_snapshot FROM delivery_action_idempotency WHERE delivery_job_id = $1 AND actor_user_id = $2 AND action = $3 AND idempotency_key = $4', [job.id, req.user.id, 'issue:create', actionKey]);
       if (prior.rows[0]) {
@@ -947,23 +1019,43 @@ exports.createIssue = async (req, res, next) => {
         return res.json({ ...(prior.rows[0].response_snapshot || { success: true }), duplicate: true });
       }
     }
-    const { rows } = await client.query('INSERT INTO delivery_issues (delivery_job_id, code, description, evidence_url, reported_by_user_id) VALUES ($1,$2,$3,$4,$5) RETURNING *', [job.id, code, description, text(req.body.evidenceUrl, 1000) || null, req.user.id]);
+    const { rows } = await client.query('INSERT INTO delivery_issues (delivery_job_id, code, description, evidence_url, reported_by_user_id, metadata) VALUES ($1,$2,$3,$4,$5,$6::jsonb) RETURNING *', [job.id, code, description, text(req.body.evidenceUrl, 1000) || null, req.user.id, JSON.stringify(metadata)]);
     await client.query("UPDATE delivery_jobs SET dispatch_state = 'exception', exception_code = $2, updated_at = NOW() WHERE id = $1 AND status NOT IN ('delivered','cancelled')", [job.id, code]);
+    // Group 9 Slice D (item 470): support_tickets.client_request_id and
+    // support_messages.client_message_id are UUID columns, but the old
+    // code passed `delivery-issue:<jobId>:<key>` — not a UUID — so every
+    // issue report died at the ticket insert and the whole transaction
+    // rolled back. No DB test had ever exercised createIssue end to end
+    // before this slice. Derive a deterministic UUID from the same
+    // string, so a retry of the same issue still dedups to the same
+    // ticket instead of opening a second one.
+    const ticketRequestId = actionKey
+      ? (() => { const hash = crypto.createHash('sha256').update(`delivery-issue:${job.id}:${actionKey}`).digest('hex');
+        return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`; })()
+      : null;
     const ticket = await createLinkedSupportTicket(client, {
       userId: req.user.id,
       name: [req.user.first_name, req.user.last_name].filter(Boolean).join(' ') || req.user.email,
       email: req.user.email,
       subject: `Delivery ${job.reference}: ${code}`,
       category: 'delivery_exception',
-      priority: ['damage', 'missing_shipment'].includes(code) ? 'high' : 'normal',
+      priority: ['damage', 'missing_shipment', 'wrong_item'].includes(code) ? 'high' : 'normal',
       source: 'escalation',
       metadata: { deliveryJobId: String(job.id), deliveryReference: job.reference, issueCode: code },
       initialMessage: description,
-      clientRequestId: actionKey ? `delivery-issue:${job.id}:${actionKey}` : null,
+      clientRequestId: ticketRequestId,
     });
-    await client.query('UPDATE delivery_jobs SET support_ticket_id = $2 WHERE id = $1', [job.id, ticket.id]);
+    // delivery_jobs.support_ticket_id is a BIGINT (migration 571) while
+    // support_tickets.id is a UUID, so the old `ticket.id` write failed
+    // here too. The job row keeps the human-readable ticket number; the
+    // issue row itself (delivery_issues.support_ticket_id, UUID,
+    // migration 572) carries the real ticket link, which the old code
+    // never set.
+    await client.query('UPDATE delivery_jobs SET support_ticket_id = $2 WHERE id = $1', [job.id, ticket.ticket_number]);
+    await client.query('UPDATE delivery_issues SET support_ticket_id = $2 WHERE id = $1', [rows[0].id, ticket.id]);
     await recordActivity(client, job.id, req.user.id, 'delivery_exception_reported', { code, supportTicketId: ticket.id });
-    const responseSnapshot = { success: true, issue: rows[0], supportTicket: ticket };
+    const { rows: [issue] } = await client.query('SELECT * FROM delivery_issues WHERE id = $1', [rows[0].id]);
+    const responseSnapshot = { success: true, issue, supportTicket: ticket };
     if (actionKey) await client.query('INSERT INTO delivery_action_idempotency (delivery_job_id, actor_user_id, action, idempotency_key, request_hash, response_snapshot) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', [job.id, req.user.id, 'issue:create', actionKey, actionHash, JSON.stringify(responseSnapshot)]);
     await client.query('COMMIT');
     res.status(201).json(responseSnapshot);
@@ -1714,7 +1806,16 @@ exports.getInternalJob = async (req, res, next) => {
         WHERE d.delivery_job_id = $1 ORDER BY d.created_at DESC`,
       [req.params.id],
     );
-    res.json({ success: true, job: operatorSafeJob(rows[0]), activity: activity.rows, dispatchAttempts: attempts.rows, declines: declines.rows });
+    // Group 9 Slice D (items 470/475): the review panel renders the
+    // issue list (with structured metadata), the reschedule requests,
+    // and the returns — but this endpoint never returned any of them,
+    // so the panel always showed "review unavailable" instead. The
+    // selects mirror the participant detail read; dispatch is an
+    // operator surface, so no participant masking applies.
+    const issues = await pool.query('SELECT id,code,description,metadata,status,resolution,created_at,resolved_at,support_ticket_id FROM delivery_issues WHERE delivery_job_id=$1 ORDER BY created_at DESC', [req.params.id]);
+    const reschedules = await pool.query('SELECT id,pickup_window_start,pickup_window_end,delivery_window_start,delivery_window_end,reason,status,reviewed_at,created_at FROM delivery_reschedule_requests WHERE delivery_job_id=$1 ORDER BY created_at DESC', [req.params.id]);
+    const returns = await pool.query('SELECT id,reason,status,completed_at,created_at FROM delivery_returns WHERE delivery_job_id=$1 ORDER BY created_at DESC', [req.params.id]);
+    res.json({ success: true, job: operatorSafeJob(rows[0]), activity: activity.rows, dispatchAttempts: attempts.rows, declines: declines.rows, issues: issues.rows, rescheduleRequests: reschedules.rows, returns: returns.rows });
   } catch (error) {
     next(error);
   }

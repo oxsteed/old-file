@@ -21668,7 +21668,16 @@
         "damage": "Damage",
         "access_problem": "Access problem",
         "missing_shipment": "Missing shipment",
-        "customer_report": "Customer report"
+        "customer_report": "Customer report",
+        "wrong_item": "Wrong item",
+        "recipient_unavailable": "Recipient unavailable"
+      },
+      "unavailableReasons": {
+        "no_answer": "No answer",
+        "refused": "Refused the delivery",
+        "wrong_address": "Wrong address",
+        "moved": "Moved away",
+        "other": "Other"
       },
       "proofInvalid": "Proof could not be submitted. Check the details and try again.",
       "paymentPending": "Redirecting to secure checkout…",
@@ -21810,7 +21819,20 @@
       "itemPhoto": "Item photo",
       "itemPhotoUpload": "Add a photo of the item",
       "itemPhotoHint": "JPG, PNG, or WebP, up to 10 MB. Visible to you and the assigned driver.",
-      "itemPhotosEmpty": "No item photo yet."
+      "itemPhotosEmpty": "No item photo yet.",
+      "pickupConfirmTitle": "Confirm pickup",
+      "pickupPieces": "Packages collected",
+      "pickupPiecesHint": "Count the packages before you leave. A count that differs from the booking is flagged to the shipper.",
+      "pickupCondition": "I checked the items against the customer photos and the condition matches",
+      "pickupConditionNote": "Condition note (optional)",
+      "pickupConfirmedPieces": "Packages confirmed at pickup",
+      "pickupPiecesMismatch": "Package count mismatch: {{confirmed}} collected, {{booked}} booked",
+      "pickupConditionAcknowledged": "Condition acknowledged at pickup",
+      "wrongItemReceived": "What was received",
+      "wrongItemExpected": "What was expected",
+      "unavailableReason": "Why was the recipient unavailable?",
+      "issueReceived": "Received: {{value}}",
+      "issueExpected": "Expected: {{value}}"
     },
     "events": {
       "delivery_posted": "Delivery request posted",

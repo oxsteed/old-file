@@ -21668,7 +21668,16 @@
         "damage": "Dega",
         "access_problem": "Pwoblèm aksè",
         "missing_shipment": "Chajman manke",
-        "customer_report": "Rapò kliyan"
+        "customer_report": "Rapò kliyan",
+        "wrong_item": "Atik ki pa bon",
+        "recipient_unavailable": "Moun k ap resevwa a pa disponib"
+      },
+      "unavailableReasons": {
+        "no_answer": "Pa gen repons",
+        "refused": "Li te refize livrezon an",
+        "wrong_address": "Move adrès",
+        "moved": "Li te demenaje",
+        "other": "Lòt"
       },
       "proofInvalid": "Prèv la pa t ka voye. Tcheke detay yo epi eseye ankò.",
       "paymentPending": "N ap voye w nan peman sekirize a…",
@@ -21810,7 +21819,20 @@
       "itemPhoto": "Foto atik la",
       "itemPhotoUpload": "Ajoute yon foto atik la",
       "itemPhotoHint": "JPG, PNG, oswa WebP, jiska 10 MB. Ou menm ak chofè yo asiyen an ka wè l.",
-      "itemPhotosEmpty": "Poko gen foto atik."
+      "itemPhotosEmpty": "Poko gen foto atik.",
+      "pickupConfirmTitle": "Konfime ou pran pakè a",
+      "pickupPieces": "Pakè yo te pran",
+      "pickupPiecesHint": "Konte pakè yo anvan ou ale. Si kantite a diferan de rezèvasyon an, y ap avèti moun ki voye a.",
+      "pickupCondition": "Mwen tcheke atik yo ak foto kliyan an, kondisyon an koresponn",
+      "pickupConditionNote": "Nòt sou kondisyon an (si ou vle)",
+      "pickupConfirmedPieces": "Pakè yo te konfime lè yo te pran yo",
+      "pickupPiecesMismatch": "Kantite pakè pa koresponn: {{confirmed}} te pran, {{booked}} te rezève",
+      "pickupConditionAcknowledged": "Kondisyon an te konfime lè yo te pran pakè a",
+      "wrongItemReceived": "Sa yo te resevwa",
+      "wrongItemExpected": "Sa yo te atann",
+      "unavailableReason": "Poukisa moun k ap resevwa a pa t disponib?",
+      "issueReceived": "Resevwa: {{value}}",
+      "issueExpected": "Te atann: {{value}}"
     },
     "events": {
       "delivery_posted": "Demann livrezon poste",
