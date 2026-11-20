@@ -41,6 +41,15 @@ router.get('/jobs/:id/item-photos', requireAuth, itemPhotoController.list);
 router.post('/jobs/:id/proof-pin', requireAuth, rejectImpersonated, proofController.rotatePin);
 router.get('/jobs/:id/proofs/:proofId', requireAuth, proofController.download);
 router.post('/jobs/:id/claim', requireAuth, rejectImpersonated, controller.claim);
+// Group 9 Slice F (items 488-490/494): the per-shipment exception
+// summary, the authorized document list, the OxSteed delivery
+// receipt, and the driver dispute flow. Same /delivery router as the
+// other job routes, not a tenant route.
+router.get('/jobs/:id/exceptions', requireAuth, controller.getJobExceptions);
+router.get('/jobs/:id/documents', requireAuth, controller.listJobDocuments);
+router.get('/jobs/:id/receipt', requireAuth, controller.downloadJobReceipt);
+router.post('/jobs/:id/disputes', requireAuth, rejectImpersonated, controller.createDispute);
+router.get('/jobs/:id/disputes', requireAuth, controller.listJobDisputes);
 // Group 9 Slice C (item 462): the multi-stop sequence. List is readable
 // by any authorized reader (marketplace drivers get the masked
 // projection); adding is the shipper before pickup, reordering and
@@ -74,6 +83,12 @@ router.patch('/driver-documents/:documentId', requireAuth, rejectImpersonated, c
 router.delete('/driver-documents/:documentId', requireAuth, rejectImpersonated, controller.deleteDriverDocument);
 // P2-4-F04: driver payout lifecycle (accrue on delivery; ops approves/pays).
 router.get('/driver-payouts', requireAuth, controller.listDriverPayouts);
+// Group 9 Slice F (items 494/495): the driver's own disputes and
+// weekly work reports. Same /delivery router, not a tenant route.
+router.get('/driver-disputes', requireAuth, controller.listMyDisputes);
+router.get('/weekly-report', requireAuth, controller.listMyWeeklyReports);
+router.get('/weekly-report/:id', requireAuth, controller.getMyWeeklyReport);
+router.get('/weekly-report/:id/download', requireAuth, controller.downloadMyWeeklyReport);
 router.patch('/jobs/:id/status', requireAuth, rejectImpersonated, controller.updateStatus);
 router.post('/jobs/:id/issues', requireAuth, rejectImpersonated, controller.createIssue);
 router.post('/jobs/:id/extras', requireAuth, rejectImpersonated, controller.createExtra);
@@ -103,6 +118,13 @@ router.get('/internal/driver-payouts', requireAuth, requireOperationsWorkspace, 
 router.post('/internal/driver-payouts/:payoutId/approve', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.approveDriverPayout);
 router.post('/internal/driver-payouts/:payoutId/mark-paid', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.markDriverPayoutPaid);
 router.post('/internal/driver-payouts/:payoutId/void', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.voidDriverPayout);
+// Group 9 Slice F (items 488/493/494): ops adjusts a payout amount
+// with a persisted reason, reviews disputes, and sees the aggregate
+// exceptions view. Same /delivery router, not a tenant route.
+router.post('/internal/driver-payouts/:payoutId/adjust', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.adjustDriverPayout);
+router.get('/internal/disputes', requireAuth, requireOperationsWorkspace, controller.listInternalDisputes);
+router.patch('/internal/disputes/:disputeId', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.resolveDispute);
+router.get('/internal/exceptions', requireAuth, requireOperationsWorkspace, controller.getInternalExceptions);
 router.post('/internal/jobs/:id/assign', requireAuth, requireOperationsWorkspace, controller.assignInternal);
 router.post('/internal/jobs/:id/release-marketplace', requireAuth, requireOperationsWorkspace, controller.releaseMarketplace);
 router.patch('/internal/reschedule-requests/:requestId', requireAuth, requireOperationsWorkspace, controller.reviewReschedule);

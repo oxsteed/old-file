@@ -138,6 +138,8 @@ const LogisticsHomePage = lazyWithRetry(routeLoaders.logistics, { name: 'logisti
 const DeliveryPage = lazyWithRetry(() => import('./pages/DeliveryPage'));
 const DeliveryDetailPage = lazyWithRetry(() => import('./pages/DeliveryDetailPage'));
 const DriverPayoutHistoryPage = lazyWithRetry(() => import('./pages/DriverPayoutHistoryPage'));
+// Group 9 Slice F (item 495): the driver's weekly work report page.
+const DriverWeeklyReportPage = lazyWithRetry(() => import('./pages/DriverWeeklyReportPage'));
 const DeliveryDispatchPage = lazyWithRetry(() => import('./pages/DeliveryDispatchPage'));
 const DeliveryTrackingOpsPage = lazyWithRetry(() => import('./pages/DeliveryTrackingOpsPage'));
 const PublicTrackingPage = lazyWithRetry(() => import('./pages/PublicTrackingPage'));
@@ -831,6 +833,8 @@ export default function App() {
                     <Route path="/delivery/jobs/:id"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><DeliveryDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Weekly self-audit 2026-11-04 item 9: driver payout history. Read-only; the endpoint scopes to the signed-in driver. */}
                     <Route path="/delivery/payouts"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverPayoutHistoryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Group 9 Slice F (item 495): the driver's weekly work report. Read-only; the endpoint scopes to the signed-in driver. */}
+                    <Route path="/delivery/weekly-report"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverWeeklyReportPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Public delivery tracking: signed token, no login required */}
                     <Route path="/t/:token"                    element={<Guarded><RouteErrorBoundary><PublicTrackingPage /></RouteErrorBoundary></Guarded>} />
                     {/* Public scan-to-pay: payment QR link, no login required */}

@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { deliveryMoney, listMyDriverPayouts } from '../api/delivery';
+import { deliveryMoney, listMyDriverPayouts, downloadDeliveryReceipt } from '../api/delivery';
 import '../styles/DeliveryPage.css';
 
 const STATUSES = ['all', 'accrued', 'approved', 'paid', 'voided'];
@@ -23,6 +23,10 @@ export default function DriverPayoutHistoryPage() {
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Group 9 Slice F (item 493): the dedicated adjustments view is a
+  // filter over this same history — only payouts with a persisted
+  // adjustment explanation.
+  const [adjustmentsOnly, setAdjustmentsOnly] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,12 +62,23 @@ export default function DriverPayoutHistoryPage() {
   const filterLabel = (value) => (value === 'all'
     ? t('logistics.operations.driverPayouts.filterAll')
     : t(`logistics.operations.driverPayouts.filter${value[0].toUpperCase()}${value.slice(1)}`));
+  // Group 9 Slice F (items 493/494/495): adjustments are the persisted
+  // explanation rows (what changed, why, by whom, before/after);
+  // disputes ride on the payout's job.
+  const shown = adjustmentsOnly ? payouts.filter((payout) => (payout.adjustments || []).length > 0) : payouts;
+  const adjustmentLabel = (adjustment) => t('delivery.driverPayoutHistory.adjustment', {
+    from: money(adjustment.previous_payout_cents),
+    to: money(adjustment.new_payout_cents),
+    reason: adjustment.reason,
+    by: [adjustment.first_name, adjustment.last_name].filter(Boolean).join(' ') || adjustment.adjusted_by_email || t('delivery.ui.unknown'),
+  });
 
   return (
     <main className="delivery-page">
       <section className="delivery-panel">
         <h1>{t('delivery.driverPayoutHistory.title')}</h1>
         <p>{t('delivery.driverPayoutHistory.subtitle')}</p>
+        <p><Link to="/delivery/weekly-report">{t('delivery.weeklyReport.link')}</Link></p>
         <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', margin: '1rem 0' }}>
           <div>
             <strong>{money(totals.paid)}</strong>
@@ -81,15 +96,24 @@ export default function DriverPayoutHistoryPage() {
               type="button"
               className={status === value ? 'delivery-button delivery-button--primary' : 'delivery-button delivery-button--secondary'}
               onClick={() => setStatus(value)}
+              data-track={`ui.fdc4d46ef9.${1 + STATUSES.indexOf(value)}`}
             >
               {filterLabel(value)}
             </button>
           ))}
+          <button
+            type="button"
+            className={adjustmentsOnly ? 'delivery-button delivery-button--primary' : 'delivery-button delivery-button--secondary'}
+            onClick={() => setAdjustmentsOnly(!adjustmentsOnly)}
+            data-track="ui.fdc4d46ef9.6"
+          >
+            {t('delivery.driverPayoutHistory.adjustmentsOnly')}
+          </button>
         </div>
         {loading && <p role="status">{t('logistics.operations.driverPayouts.loading')}</p>}
         {error && <p role="alert">{error}</p>}
-        {!loading && !error && payouts.length === 0 && <p>{t('logistics.operations.driverPayouts.empty')}</p>}
-        {!loading && !error && payouts.length > 0 && (
+        {!loading && !error && shown.length === 0 && <p>{adjustmentsOnly ? t('delivery.driverPayoutHistory.adjustmentsEmpty') : t('logistics.operations.driverPayouts.empty')}</p>}
+        {!loading && !error && shown.length > 0 && (
           <table className="delivery-table">
             <thead>
               <tr>
@@ -98,10 +122,13 @@ export default function DriverPayoutHistoryPage() {
                 <th>{t('delivery.driverPayoutHistory.statusHeader')}</th>
                 <th>{t('delivery.driverPayoutHistory.referenceHeader')}</th>
                 <th>{t('delivery.driverPayoutHistory.dateHeader')}</th>
+                <th>{t('delivery.driverPayoutHistory.adjustmentsHeader')}</th>
+                <th>{t('delivery.driverPayoutHistory.disputesHeader')}</th>
+                <th>{t('delivery.driverPayoutHistory.receiptHeader')}</th>
               </tr>
             </thead>
             <tbody>
-              {payouts.map((payout) => (
+              {shown.map((payout) => (
                 <tr key={payout.id}>
                   <td>
                     {payout.delivery_job_id
@@ -115,6 +142,21 @@ export default function DriverPayoutHistoryPage() {
                     {payout.status === 'paid' && payout.paid_at
                       ? `${t('delivery.driverPayoutHistory.paidOn')} ${new Date(payout.paid_at).toLocaleDateString()}`
                       : new Date(payout.created_at).toLocaleDateString()}
+                  </td>
+                  <td>
+                    {(payout.adjustments || []).length
+                      ? payout.adjustments.map((adjustment) => <p key={adjustment.id}>{adjustmentLabel(adjustment)}</p>)
+                      : '—'}
+                  </td>
+                  <td>
+                    {(payout.disputes || []).length
+                      ? payout.disputes.map((dispute) => <p key={dispute.id}>{t(`delivery.detail.disputeSubjects.${dispute.subject}`)} · {t(`delivery.detail.disputeStatuses.${dispute.status}`)}</p>)
+                      : '—'}
+                  </td>
+                  <td>
+                    {payout.delivery_job_id
+                      ? <button type="button" className="delivery-button delivery-button--secondary" onClick={() => downloadDeliveryReceipt(payout.delivery_job_id, payout.job_reference)} data-track="ui.fdc4d46ef9.7">{t('delivery.detail.receiptDownload')}</button>
+                      : '—'}
                   </td>
                 </tr>
               ))}

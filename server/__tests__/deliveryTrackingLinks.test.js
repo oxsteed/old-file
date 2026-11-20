@@ -268,7 +268,9 @@ describe('public tracking endpoint', () => {
       .mockResolvedValueOnce({ rows: [{ latitude: '40.712776', longitude: '-74.005974', recorded_at: nowIso() }] }) // eta point
       .mockResolvedValueOnce({ rows: [] }) // geofence observations
       .mockResolvedValueOnce({ rows: [] }) // scans
-      .mockResolvedValueOnce({ rows: [{ latitude: '40.712776', longitude: '-74.005974', recorded_at: nowIso() }] }); // latest point
+      .mockResolvedValueOnce({ rows: [{ latitude: '40.712776', longitude: '-74.005974', recorded_at: nowIso() }] }) // latest point
+      .mockResolvedValueOnce({ rows: [] }) // Group 9 Slice F (item 489): verified proofs
+      .mockResolvedValueOnce({ rows: [] }); // Group 9 Slice F (item 489): item photos
   }
 
   test('returns only the allowlisted public shape', async () => {
@@ -284,6 +286,7 @@ describe('public tracking endpoint', () => {
     const body = res.json.mock.calls[0][0];
     expect(Object.keys(body).sort()).toEqual([
       'approximateArea',
+      'documents',
       'eta',
       'maskedDropoff',
       'maskedPickup',
@@ -292,6 +295,7 @@ describe('public tracking endpoint', () => {
       'status',
       'supportContact',
     ]);
+    expect(body.documents).toEqual([]);
     expect(Object.keys(body.eta).sort()).toEqual(['at', 'freshness']);
     expect(body.reference).toBe('DLV-2026-ABC123');
     expect(body.status).toBe('On the way');

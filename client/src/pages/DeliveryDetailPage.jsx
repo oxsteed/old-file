@@ -15,6 +15,8 @@ import {
   uploadDeliveryItemPhoto, claimDeliveryJob, declineDeliveryJob,
   addDeliveryStop, reorderDeliveryStops, completeDeliveryStop,
   obtainDeliveryPin, deliveryDate, deliveryMoney, deliveryUnit, deliveryError,
+  getJobExceptions, listJobDocuments, downloadDeliveryReceipt,
+  createDeliveryDispute, listJobDisputes,
 } from '../api/delivery';
 import { RoutePreview } from '../components/delivery/DeliveryEstimate';
 // Group 9 Slice C (items 462/463/465): the multi-stop sequence, the
@@ -34,6 +36,9 @@ const EXTRA_CATEGORIES = ['waiting', 'parking_toll', 'difficult_access', 'loadin
 const ISSUE_CODES = ['delay', 'damage', 'access_problem', 'missing_shipment', 'customer_report', 'wrong_item', 'recipient_unavailable', 'closed_site'];
 const UNAVAILABLE_REASONS = ['no_answer', 'refused', 'wrong_address', 'moved', 'other'];
 const CLOSED_SITE_WHATS = ['gate', 'building', 'reception', 'loading_dock', 'other'];
+// Group 9 Slice F (item 494): the dispute subjects. A dispute is a
+// filing on a completed assignment, distinct from a generic issue.
+const DISPUTE_SUBJECTS = ['payout_amount', 'assignment_facts', 'rating'];
 
 export default function DeliveryDetailPage() {
   const { t, i18n } = useTranslation();
@@ -79,6 +84,17 @@ export default function DeliveryDetailPage() {
   const [reason, setReason] = useState('');
   const [declineOpen, setDeclineOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  // Group 9 Slice F (items 488/489/494): the exception summary, the
+  // authorized document list, and the disputes for this job. Each
+  // read is participant-only server-side; a marketplace driver
+  // previewing an offer gets none of them, so failures resolve to
+  // empty and the sections stay hidden.
+  const [exceptions, setExceptions] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [disputes, setDisputes] = useState([]);
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeSubject, setDisputeSubject] = useState('payout_amount');
+  const [disputeDescription, setDisputeDescription] = useState('');
   const [extra, setExtra] = useState({ category: 'waiting', amount: '', notes: '' });
   const uploaded = useRef(null);
   const requestSequence = useRef(0);
@@ -99,6 +115,15 @@ export default function DeliveryDetailPage() {
       const response = await getDelivery(id);
       if (sequence !== requestSequence.current) return;
       setData(response); setDenied(false); setError('');
+      const [exceptionResponse, documentResponse, disputeResponse] = await Promise.all([
+        getJobExceptions(id).catch(() => null),
+        listJobDocuments(id).catch(() => null),
+        listJobDisputes(id).catch(() => null),
+      ]);
+      if (sequence !== requestSequence.current) return;
+      setExceptions(exceptionResponse);
+      setDocuments(Array.isArray(documentResponse?.documents) ? documentResponse.documents : []);
+      setDisputes(Array.isArray(disputeResponse?.disputes) ? disputeResponse.disputes : []);
     } catch (failure) {
       if (sequence !== requestSequence.current) return;
       setError(deliveryError(failure, t, 'delivery.errors.detail'));
@@ -325,6 +350,41 @@ export default function DeliveryDetailPage() {
       {isAssigned && (
         <section className="delivery-panel">
           <Link to="/delivery/payouts">{t('delivery.driverPayoutHistory.viewHistory')}</Link>
+          {' · '}
+          <Link to="/delivery/weekly-report">{t('delivery.weeklyReport.link')}</Link>
+          <p><button type="button" className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(async () => { await downloadDeliveryReceipt(id, job.reference); }, 'delivery.detail.receiptDownloaded', 'delivery.errors.detail')} data-track="ui.4c1e141977.32">{t('delivery.detail.receiptDownload')}</button></p>
+        </section>
+      )}
+      {/* Group 9 Slice F (item 488): the per-shipment exception
+        summary — every issue, delay, failed attempt, and return for
+        this shipment in one timeline, read from the existing stores. */}
+      {participant && exceptions && (
+        <section className="delivery-panel"><h2>{t('delivery.detail.exceptionsTitle')}</h2>
+          <p>{t('delivery.detail.exceptionsOpenCount', { count: exceptions.openCount || 0 })}</p>
+          {!exceptions.events?.length && <p>{t('delivery.detail.exceptionsEmpty')}</p>}
+          <ol className="delivery-timeline">{(exceptions.events || []).map((event) => <li key={event.id}><span className="delivery-timeline__dot" /><div>
+            <strong>{t(`delivery.detail.exceptionKinds.${event.kind}`)}{event.code ? ` · ${label('ui.issueCodes', event.code)}` : ''}</strong>
+            {event.at && <time dateTime={event.at}>{date(event.at)}</time>}
+            {event.description && <p>{event.description}</p>}
+            {event.reason && <p>{event.reason}</p>}
+            {event.status && <p>{label('ui.requestStates', event.status)}{event.resolution ? ` · ${event.resolution}` : ''}</p>}
+          </div></li>)}</ol>
+        </section>
+      )}
+      {/* Group 9 Slice F (item 489): the authorized document list —
+        verified proofs of delivery and item photos, each downloading
+        through its existing signed URL. A proof with no stored file
+        (PIN or recipient confirmation) is named, not linked. */}
+      {participant && (
+        <section className="delivery-panel"><h2>{t('delivery.detail.documentsTitle')}</h2>
+          {!documents.length && <p>{t('delivery.detail.documentsEmpty')}</p>}
+          <div className="delivery-extra-list">{documents.map((document) => <div key={`${document.kind}-${document.id}`}>
+            <span>{document.kind === 'proof' ? t('delivery.detail.documentProof', { type: label('proofTypes', document.proofType) }) : t('delivery.detail.documentItemPhoto')}</span>
+            <small>{date(document.createdAt)}{document.verificationStatus ? ` · ${label('ui.proofStates', document.verificationStatus)}` : ''}</small>
+            {document.url
+              ? <a href={document.url} target="_blank" rel="noreferrer" data-track="ui.4c1e141977.33">{t('delivery.detail.documentDownload')}</a>
+              : <small>{t('delivery.detail.documentNoDownload')}</small>}
+          </div>)}</div>
         </section>
       )}
       <section className="delivery-panel"><h2>{t('delivery.ui.extras')}</h2>
@@ -343,6 +403,10 @@ export default function DeliveryDetailPage() {
       </section>
       {isCustomer && <section className="delivery-panel"><h2>{t('delivery.detail.payments')}</h2>
         {!payments.length && <p>{t('delivery.ui.noPayments')}</p>}
+        {/* Group 9 Slice F (item 490): the OxSteed delivery receipt,
+          generated from the job record. The Stripe receipt link on
+          each payment below is untouched; this is in addition. */}
+        {payments.length > 0 && <p><button type="button" className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(async () => { await downloadDeliveryReceipt(id, job.reference); }, 'delivery.detail.receiptDownloaded', 'delivery.errors.detail')} data-track="ui.4c1e141977.31">{t('delivery.detail.receiptDownload')}</button></p>}
         {!['cancelled', 'returned'].includes(job.status) && !['paid', 'captured', 'refunded'].includes(basePayment?.status) && <button className="delivery-button delivery-button--primary" disabled={busy} onClick={() => checkout()} data-track="ui.4c1e141977.14">{t('delivery.ui.payDelivery')}</button>}
         <div className="delivery-extra-list">{payments.map((payment) => <div key={payment.id}><span>{t(payment.delivery_extra_id == null ? 'delivery.ui.basePayment' : 'delivery.ui.extraPayment')}</span><strong>{money(payment.amount_cents, payment.currency)}</strong><span>{label('ui.paymentStates', payment.status)}</span>
           {Number(payment.refunded_amount_cents) > 0 && <span>{t('delivery.ui.refundedAmount', { amount: money(payment.refunded_amount_cents, payment.currency) })}</span>}
@@ -401,6 +465,23 @@ export default function DeliveryDetailPage() {
           <button className="delivery-button delivery-button--secondary" data-track="ui.4c1e141977.23">{t('delivery.detail.report')}</button>
         </fieldset></form>}
       </section>
+      {/* Group 9 Slice F (item 494): disputes on a completed
+        assignment. Distinct from a generic issue: the driver files
+        about the payout amount, the assignment facts, or a rating,
+        and follows the dispute status here. Resolving a dispute never
+        moves money by itself. */}
+      {participant && (disputes.length > 0 || (isAssigned && ['delivered', 'returned'].includes(job.status))) && (
+        <section className="delivery-panel"><h2>{t('delivery.detail.disputeTitle')}</h2><p>{t('delivery.detail.disputeSubtitle')}</p>
+          {disputes.map((dispute) => <p key={dispute.id}>{t(`delivery.detail.disputeSubjects.${dispute.subject}`)} · {t(`delivery.detail.disputeStatuses.${dispute.status}`)} · {dispute.description}{dispute.resolution ? ` · ${dispute.resolution}` : ''}</p>)}
+          {!disputes.length && <p>{t('delivery.detail.disputeEmpty')}</p>}
+          {isAssigned && ['delivered', 'returned'].includes(job.status) && !disputeOpen && <button type="button" className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => setDisputeOpen(true)} data-track="ui.4c1e141977.34">{t('delivery.detail.disputeSubmit')}</button>}
+          {isAssigned && ['delivered', 'returned'].includes(job.status) && disputeOpen && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await createDeliveryDispute(id, { subject: disputeSubject, description: disputeDescription }); setDisputeDescription(''); setDisputeOpen(false); }, 'delivery.detail.disputeSubmitted', 'delivery.errors.issue'); }} data-track="ui.4c1e141977.35"><fieldset className="delivery-form-fields" disabled={busy}>
+            <label className="delivery-field">{t('delivery.detail.disputeSubject')}<select className="delivery-input" value={disputeSubject} onChange={(event) => setDisputeSubject(event.target.value)}>{DISPUTE_SUBJECTS.map((subject) => <option key={subject} value={subject}>{t(`delivery.detail.disputeSubjects.${subject}`)}</option>)}</select></label>
+            <label className="delivery-field">{t('delivery.detail.disputeDescription')}<textarea className="delivery-input" value={disputeDescription} onChange={(event) => setDisputeDescription(event.target.value)} maxLength={2000} required /></label>
+            <button className="delivery-button delivery-button--secondary" data-track="ui.4c1e141977.36">{t('delivery.detail.disputeSubmit')}</button>
+          </fieldset></form>}
+        </section>
+      )}
     </div>
   </PageShell>;
 }

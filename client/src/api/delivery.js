@@ -146,6 +146,48 @@ export const listInternalDriverPayouts = (status, { limit, offset } = {}) => {
   return api.get(`/delivery/internal/driver-payouts${query}`).then((response) => response.data);
 };
 
+// Group 9 Slice F (items 488-495): exception summary, documents,
+// receipt, disputes, payout adjustments, aggregate exceptions, and
+// weekly work reports.
+export const getJobExceptions = (id) => api.get(`/delivery/jobs/${id}/exceptions`).then((response) => response.data);
+export const listJobDocuments = (id) => api.get(`/delivery/jobs/${id}/documents`).then((response) => response.data);
+export const listInternalExceptions = () => api.get('/delivery/internal/exceptions').then((response) => response.data);
+export const createDeliveryDispute = (id, payload) => mutate('post', `/delivery/jobs/${id}/disputes`, payload);
+export const listJobDisputes = (id) => api.get(`/delivery/jobs/${id}/disputes`).then((response) => response.data);
+export const listMyDisputes = (status) => {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return api.get(`/delivery/driver-disputes${query}`).then((response) => response.data);
+};
+export const listInternalDisputes = (status) => {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return api.get(`/delivery/internal/disputes${query}`).then((response) => response.data);
+};
+export const resolveInternalDispute = (disputeId, payload) => mutate('patch', `/delivery/internal/disputes/${disputeId}`, payload);
+export const adjustInternalDriverPayout = (payoutId, payload) => mutate('post', `/delivery/internal/driver-payouts/${payoutId}/adjust`, payload);
+export const listMyWeeklyReports = () => api.get('/delivery/weekly-report').then((response) => response.data);
+export const getMyWeeklyReport = (id) => api.get(`/delivery/weekly-report/${id}`).then((response) => response.data);
+
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export const downloadDeliveryReceipt = async (id, reference) => {
+  const response = await api.get(`/delivery/jobs/${id}/receipt`, { responseType: 'blob' });
+  saveBlob(response.data, `oxsteed-delivery-receipt-${reference || id}.pdf`);
+};
+
+export const downloadMyWeeklyReport = async (id, weekStart) => {
+  const response = await api.get(`/delivery/weekly-report/${id}/download`, { responseType: 'blob' });
+  saveBlob(response.data, `oxsteed-weekly-delivery-report-${weekStart || id}.pdf`);
+};
+
 export const approveInternalDriverPayout = (payoutId, note) =>
   api.post(`/delivery/internal/driver-payouts/${payoutId}/approve`, { note }).then((response) => response.data);
 

@@ -11,6 +11,8 @@ import {
   createDeliveryVehicle, saveDeliveryDriver,
   reviewDeliveryReschedule, reviewDeliveryReturn, resolveDeliveryIssue,
   refundDeliveryPayment, uploadDeliveryProof, deliveryDate, deliveryUnit, deliveryError, deliveryMoney,
+  listInternalExceptions, listInternalDisputes, resolveInternalDispute,
+  listInternalDriverPayouts, adjustInternalDriverPayout,
 } from '../api/delivery';
 import '../styles/DeliveryPage.css';
 
@@ -231,6 +233,100 @@ function CapacityOverview({ drivers, t, language }) {
   </section>;
 }
 
+// Group 9 Slice F (item 488): the aggregate exceptions view — open
+// exceptions by type and age, each linked to its job review. Read-only
+// over the existing issue store.
+function ExceptionsOverview({ t, language, busy, onReview }) {
+  const [summary, setSummary] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    listInternalExceptions()
+      .then((data) => { if (!cancelled) setSummary(data); })
+      .catch(() => { if (!cancelled) setSummary({ byCode: [], jobs: [], delayedActiveCount: 0 }); });
+    return () => { cancelled = true; };
+  }, []);
+  const label = (group, value) => t(`delivery.${group}.${value}`, { defaultValue: t('delivery.ui.unknown') });
+  return <section className="delivery-panel"><h2>{t('delivery.dispatch.exceptionsTitle')}</h2><p>{t('delivery.dispatch.exceptionsSubtitle')}</p>
+    {!summary && <p role="status">{t('delivery.helper.loading')}</p>}
+    {summary && summary.byCode.length === 0 && summary.jobs.length === 0 && <p>{t('delivery.dispatch.exceptionsEmpty')}</p>}
+    {summary && summary.byCode.length > 0 && <div className="delivery-extra-list">{summary.byCode.map((entry) => <div key={entry.code}>
+      <span>{label('ui.issueCodes', entry.code)}</span>
+      <strong>{t('delivery.dispatch.exceptionsOpenCount', { count: entry.openCount })}</strong>
+      <small>{t('delivery.dispatch.exceptionsOldest', { date: deliveryDate(entry.oldestOpenAt, language) })}</small>
+    </div>)}</div>}
+    {summary && summary.delayedActiveCount > 0 && <p>{t('delivery.dispatch.exceptionsDelayed', { count: summary.delayedActiveCount })}</p>}
+    {(summary?.jobs || []).map((job) => <article key={job.id} className="delivery-review-item">
+      <h4>{job.reference} · {label('helper.status', job.status)}</h4>
+      <p>{job.latestOpenIssueCode ? label('ui.issueCodes', job.latestOpenIssueCode) : ''}{job.openIssueCount ? ` · ${t('delivery.dispatch.exceptionsOpenCount', { count: job.openIssueCount })}` : ''}{job.oldestOpenIssueAt ? ` · ${deliveryDate(job.oldestOpenIssueAt, language)}` : ''}</p>
+      <button type="button" className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => onReview(job.id)} data-track="ui.49bdb74b31.23">{t('delivery.ui.review')}</button>
+    </article>)}
+  </section>;
+}
+
+// Group 9 Slice F (item 494): the ops dispute queue. Resolving
+// records the outcome; it never adjusts the payout — that stays on
+// the adjustment form below, with its own reason.
+function DisputesQueue({ t, language, busy, run }) {
+  const [disputes, setDisputes] = useState(null);
+  const [form, setForm] = useState({});
+  const load = useCallback(async () => {
+    try { setDisputes(await listInternalDisputes()); } catch { setDisputes({ disputes: [] }); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const open = (disputes?.disputes || []).filter((dispute) => dispute.status !== 'resolved');
+  const set = (id, key, value) => setForm((previous) => ({ ...previous, [id]: { ...previous[id], [key]: value } }));
+  return <section className="delivery-panel"><h2>{t('delivery.dispatch.disputesTitle')}</h2><p>{t('delivery.dispatch.disputesSubtitle')}</p>
+    {!disputes && <p role="status">{t('delivery.helper.loading')}</p>}
+    {disputes && open.length === 0 && <p>{t('delivery.dispatch.disputesEmpty')}</p>}
+    {open.map((dispute) => {
+      const entry = form[dispute.id] || {};
+      const name = [dispute.first_name, dispute.last_name].filter(Boolean).join(' ') || dispute.driver_email || dispute.driver_user_id;
+      return <article key={dispute.id} className="delivery-review-item">
+        <h4>{dispute.job_reference} · {t(`delivery.detail.disputeSubjects.${dispute.subject}`)} · {t(`delivery.detail.disputeStatuses.${dispute.status}`)}</h4>
+        <p>{name} · {deliveryDate(dispute.created_at, language)}</p>
+        <p>{dispute.description}</p>
+        <form onSubmit={(event) => { event.preventDefault(); run(async () => { await resolveInternalDispute(dispute.id, { status: entry.status || 'under_review', resolution: entry.resolution || '' }); await load(); }); }} data-track="ui.49bdb74b31.24"><fieldset className="delivery-form-fields" disabled={busy}>
+          <label className="delivery-field">{t('delivery.dispatch.disputeStatus')}<select className="delivery-input" value={entry.status || 'under_review'} onChange={(event) => set(dispute.id, 'status', event.target.value)}><option value="under_review">{t('delivery.detail.disputeStatuses.under_review')}</option><option value="resolved">{t('delivery.detail.disputeStatuses.resolved')}</option></select></label>
+          <label className="delivery-field">{t('delivery.dispatch.disputeResolution')}<textarea className="delivery-input" maxLength={2000} value={entry.resolution || ''} onChange={(event) => set(dispute.id, 'resolution', event.target.value)} placeholder={t('delivery.dispatch.disputeResolutionHint')} /></label>
+          <button className="delivery-button delivery-button--primary" data-track="ui.49bdb74b31.25">{t('delivery.ui.resolve')}</button>
+        </fieldset></form>
+      </article>;
+    })}
+  </section>;
+}
+
+// Group 9 Slice F (item 493): the ops payout adjustment form. The
+// reason is persisted with the before/after amounts, and the driver
+// sees the explanation on the payout history. Paid and voided payouts
+// cannot be adjusted — the server 409s, and the form is not offered.
+function PayoutAdjustments({ t, language, busy, run }) {
+  const [rows, setRows] = useState(null);
+  const [form, setForm] = useState({});
+  const load = useCallback(async () => {
+    try { setRows(await listInternalDriverPayouts(null, { limit: 50 })); } catch { setRows({ payouts: [] }); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const payouts = rows?.payouts || [];
+  const set = (id, key, value) => setForm((previous) => ({ ...previous, [id]: { ...previous[id], [key]: value } }));
+  return <section className="delivery-panel"><h2>{t('delivery.dispatch.payoutAdjustTitle')}</h2><p>{t('delivery.dispatch.payoutAdjustSubtitle')}</p>
+    {!rows && <p role="status">{t('delivery.helper.loading')}</p>}
+    {rows && payouts.length === 0 && <p>{t('delivery.dispatch.payoutAdjustEmpty')}</p>}
+    {payouts.map((payout) => {
+      const entry = form[payout.id] || {};
+      const adjustable = ['accrued', 'approved'].includes(payout.status);
+      return <article key={payout.id} className="delivery-review-item">
+        <h4>{payout.job_reference || payout.delivery_job_id} · {deliveryMoney(payout.payout_cents, language, 'USD')} · {payout.status}</h4>
+        {(payout.adjustments || []).map((adjustment) => <p key={adjustment.id}>{deliveryMoney(adjustment.previous_payout_cents, language, 'USD')} → {deliveryMoney(adjustment.new_payout_cents, language, 'USD')} · {adjustment.reason}</p>)}
+        {adjustable && <form onSubmit={(event) => { event.preventDefault(); run(async () => { await adjustInternalDriverPayout(payout.id, { newPayoutCents: Math.round(Number(entry.amount) * 100), reason: entry.reason }); await load(); }); }} data-track="ui.49bdb74b31.26"><fieldset className="delivery-form-fields" disabled={busy}>
+          <label className="delivery-field">{t('delivery.dispatch.payoutAdjustAmount')}<input className="delivery-input" type="number" min="0.01" step="0.01" required value={entry.amount || ''} onChange={(event) => set(payout.id, 'amount', event.target.value)} /></label>
+          <label className="delivery-field">{t('delivery.dispatch.payoutAdjustReason')}<input className="delivery-input" required maxLength={1000} minLength={10} value={entry.reason || ''} onChange={(event) => set(payout.id, 'reason', event.target.value)} /></label>
+          <button className="delivery-button delivery-button--primary" data-track="ui.49bdb74b31.27">{t('delivery.dispatch.payoutAdjustSubmit')}</button>
+        </fieldset></form>}
+      </article>;
+    })}
+  </section>;
+}
+
 export default function DeliveryDispatchPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -331,9 +427,16 @@ export default function DeliveryDispatchPage() {
         </article>;
       })}</div>
       {detail && <JobReview key={detail.job.id} detail={detail} handoffs={handoffs} busy={busy} run={run} t={t} language={i18n.language} />}
-      {/* Group 9 Slice E (item 483): the dispatcher capacity overview —
+      {/* Group 9 Slice F (item 483): the dispatcher capacity overview —
         read-only; assignment stays on the board cards above. */}
       <CapacityOverview drivers={drivers} t={t} language={i18n.language} />
+      {/* Group 9 Slice F (items 488/493/494): the aggregate exceptions
+        view, the driver dispute queue, and the payout adjustment form.
+        All three read the stores the board already used; none creates
+        a second issue or payout system. */}
+      <ExceptionsOverview t={t} language={i18n.language} busy={busy} onReview={openReview} />
+      <DisputesQueue t={t} language={i18n.language} busy={busy} run={run} />
+      <PayoutAdjustments t={t} language={i18n.language} busy={busy} run={run} />
       <section className="delivery-panel"><h2>{t('delivery.ui.resources')}</h2><p>{t('delivery.ui.resourceHint')}</p>
         <div className="delivery-detail-grid"><ResourceForm kind="driver" drivers={drivers} busy={busy} run={run} t={t} /><ResourceForm kind="vehicle" drivers={drivers} busy={busy} run={run} t={t} /></div>
         <h3>{t('delivery.ui.vehicles')}</h3><ul>{vehicles.map((item) => <li key={item.id}>{item.label} · {deliveryUnit(item.max_payload_lbs, 'pound', i18n.language)}</li>)}</ul>

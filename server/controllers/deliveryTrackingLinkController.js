@@ -12,6 +12,10 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const linkService = require('../services/deliveryTrackingLinkService');
+// Group 9 Slice F (item 489, D-82): the tracking token authorizes
+// that shipment's documents, so the public page lists them with the
+// same signed URLs as the participant list.
+const { listJobDocuments } = require('../services/deliveryDocumentService');
 
 const INTERNAL_ROLES = new Set([
   'sourcing_operator',
@@ -161,6 +165,7 @@ exports.publicTrack = async (req, res, next) => {
     }
 
     const state = await linkService.getCustomerTrackingState(resolved.deliveryJobId);
+    const documents = await listJobDocuments(pool, resolved.deliveryJobId);
     return res.json({
       reference: state.reference,
       status: state.statusLabel,
@@ -170,6 +175,7 @@ exports.publicTrack = async (req, res, next) => {
       maskedPickup: state.maskedPickup,
       maskedDropoff: state.maskedDropoff,
       supportContact: SUPPORT_CONTACT,
+      documents,
     });
   } catch (error) {
     next(error);

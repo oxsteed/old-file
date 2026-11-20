@@ -18,6 +18,15 @@ const { loadJobStops, ensureJobStops, safeStops, normalizeStopInput, computeWind
 // and recipient-unavailable issue codes.
 const { normalizeIssueMetadata } = require('../services/deliveryIssueMetadata');
 const { canDriveMarketplace, isAdmittedDriver, hasApprovedActiveDriverProfile } = require('../services/deliveryDriverAdmission');
+// Group 9 Slice F (items 488-495): exception summary, documents,
+// receipt, payout adjustments, disputes, weekly reports.
+const { getJobExceptionSummary, getOpsExceptionSummary } = require('../services/deliveryExceptionSummaryService');
+const { listJobDocuments } = require('../services/deliveryDocumentService');
+const { buildDeliveryReceiptData, renderDeliveryReceiptPdf } = require('../services/deliveryReceiptPdf');
+const { adjustPayout, listAdjustmentsForPayouts } = require('../services/deliveryPayoutAdjustmentService');
+const { createDispute, resolveDispute } = require('../services/deliveryDisputeService');
+const { buildWeeklyReport, driverTimezone } = require('../services/deliveryWeeklyReportService');
+const { renderWeeklyReportPdf } = require('../services/deliveryWeeklyReportPdf');
 
 const HELPER_MODES = new Set([
   'helper', 'helper_pro', 'business_owner', 'business_manager',
@@ -397,6 +406,21 @@ async function loadAuthorizedJob(jobId, user) {
   );
   if (offered[0] && (await canDriveMarketplace(user))) return offered[0];
   throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+}
+
+// Group 9 Slice F (items 488-494): participant-only job load. Unlike
+// loadAuthorizedJob, a marketplace driver opening a posted offer
+// read-only is NOT a participant: exceptions, documents, the receipt,
+// and disputes carry participant details and signed URLs, so the
+// offer preview gets none of them.
+async function loadParticipantJob(jobId, user) {
+  const { rows } = await pool.query(
+    `SELECT * FROM delivery_jobs
+      WHERE id = $1 AND (customer_user_id = $2 OR helper_user_id = $2 OR internal_driver_user_id = $2)`,
+    [jobId, user.id],
+  );
+  if (!rows[0]) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+  return rows[0];
 }
 
 exports.quote = async (req, res, next) => {
@@ -1754,7 +1778,36 @@ exports.listDriverPayouts = async (req, res, next) => {
         LIMIT 100`,
       params
     );
-    res.json({ success: true, payouts: rows });
+    // Group 9 Slice F (items 493/494): the explanation for any payout
+    // adjustment (what changed, why, by whom, before/after) and any
+    // dispute on the payout's job, so the history table is the
+    // driver's single view of both.
+    const adjustments = await listAdjustmentsForPayouts(pool, rows.map((row) => row.id));
+    const jobIds = rows.map((row) => row.delivery_job_id).filter(Boolean);
+    let disputesByJob = new Map();
+    if (jobIds.length) {
+      const { rows: disputes } = await pool.query(
+        `SELECT d.*, j.reference AS job_reference
+           FROM delivery_driver_disputes d
+           JOIN delivery_jobs j ON j.id = d.delivery_job_id
+          WHERE d.delivery_job_id = ANY($1::bigint[]) AND d.driver_user_id = $2
+          ORDER BY d.created_at DESC, d.id DESC`,
+        [jobIds, req.user.id],
+      );
+      disputesByJob = new Map();
+      for (const dispute of disputes) {
+        if (!disputesByJob.has(String(dispute.delivery_job_id))) disputesByJob.set(String(dispute.delivery_job_id), []);
+        disputesByJob.get(String(dispute.delivery_job_id)).push(dispute);
+      }
+    }
+    res.json({
+      success: true,
+      payouts: rows.map((row) => ({
+        ...row,
+        adjustments: adjustments.get(String(row.id)) || [],
+        disputes: disputesByJob.get(String(row.delivery_job_id)) || [],
+      })),
+    });
   } catch (error) {
     next(error);
   }
@@ -1786,7 +1839,14 @@ exports.listAllDriverPayouts = async (req, res, next) => {
       `SELECT COUNT(*)::int AS total FROM delivery_driver_payouts p${filter}`,
       params
     );
-    res.json({ success: true, payouts: rows, total: Number(count.rows[0]?.total || 0), limit, offset });
+    // Group 9 Slice F (item 493): ops sees the same adjustment
+    // explanation the driver sees, on the same rows.
+    const adjustments = await listAdjustmentsForPayouts(pool, rows.map((row) => row.id));
+    res.json({
+      success: true,
+      payouts: rows.map((row) => ({ ...row, adjustments: adjustments.get(String(row.id)) || [] })),
+      total: Number(count.rows[0]?.total || 0), limit, offset,
+    });
   } catch (error) {
     next(error);
   }
@@ -1832,6 +1892,250 @@ exports.voidDriverPayout = async (req, res, next) => {
     if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
     next(error);
   } finally { client?.release(); }
+};
+
+// ── Group 9 Slice F (items 488-495) ──────────────────────────────────
+
+// 488: the per-shipment exception summary — one timeline over the
+// existing issue, return, reschedule, failed-attempt, delay-escalation,
+// and pickup-mismatch records. Participant-only.
+exports.getJobExceptions = async (req, res, next) => {
+  try {
+    await loadParticipantJob(req.params.id, req.user);
+    const summary = await getJobExceptionSummary(pool, req.params.id);
+    if (!summary) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, ...summary });
+  } catch (error) { next(error); }
+};
+
+// 488: the aggregate exceptions view for ops — open exceptions by
+// type/age, linked to their jobs. Operations workspace enforced by
+// the route middleware.
+exports.getInternalExceptions = async (_req, res, next) => {
+  try {
+    const summary = await getOpsExceptionSummary(pool);
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, ...summary });
+  } catch (error) { next(error); }
+};
+
+// 489: the authorized document list — verified proofs of delivery and
+// item photos, each with its existing signed-URL download path and
+// TTL. Participant-only; the URLs are minted at read time, so
+// revocation and expiry behave exactly as the single-download paths.
+exports.listJobDocuments = async (req, res, next) => {
+  try {
+    await loadParticipantJob(req.params.id, req.user);
+    const documents = await listJobDocuments(pool, req.params.id);
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, documents });
+  } catch (error) { next(error); }
+};
+
+// 490: the OxSteed delivery receipt as a PDF, generated from the job
+// record. Participant-only (customer/shipper and driver). The Stripe
+// receipt link on the payment row is untouched; this is in addition.
+exports.downloadJobReceipt = async (req, res, next) => {
+  try {
+    const job = await loadParticipantJob(req.params.id, req.user);
+    const data = await buildDeliveryReceiptData(pool, job.id);
+    if (!data) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+    const pdf = await renderDeliveryReceiptPdf(data);
+    res.set('Cache-Control', 'no-store');
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `attachment; filename="oxsteed-delivery-receipt-${job.reference}.pdf"`);
+    res.send(pdf);
+  } catch (error) { next(error); }
+};
+
+// 493: ops adjusts a payout amount with a persisted reason. The
+// adjustment row and the payout rewrite land in one transaction, so
+// the driver-facing explanation can never drift from the amount.
+exports.adjustDriverPayout = async (req, res, next) => {
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { payout, adjustment } = await adjustPayout(
+      client, req.params.payoutId, req.user.id,
+      req.body.newPayoutCents ?? req.body.new_payout_cents, req.body.reason,
+    );
+    await client.query('COMMIT');
+    res.json({ success: true, payout, adjustment });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+// 494: the driver files a dispute on a completed assignment. The
+// dispute is distinct from a generic issue: its own subject and
+// status, its own linked support ticket, and it never moves money by
+// itself.
+exports.createDispute = async (req, res, next) => {
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: [job] } = await client.query(
+      `SELECT * FROM delivery_jobs WHERE id = $1 AND (helper_user_id = $2 OR internal_driver_user_id = $2) FOR UPDATE`,
+      [req.params.id, req.user.id],
+    );
+    if (!job) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+    const { rows: [driver] } = await client.query(
+      'SELECT id, email, first_name, last_name FROM users WHERE id = $1', [req.user.id],
+    );
+    const { dispute, supportTicket } = await createDispute(client, {
+      job, driver, subject: req.body.subject, description: req.body.description,
+    });
+    await client.query('COMMIT');
+    res.status(201).json({ success: true, dispute, supportTicket });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+// 494: disputes on one job, for the participants (driver, shipper,
+// ops sees them through the internal list).
+exports.listJobDisputes = async (req, res, next) => {
+  try {
+    await loadParticipantJob(req.params.id, req.user);
+    const { rows } = await pool.query(
+      `SELECT d.*, u.email AS driver_email, u.first_name, u.last_name
+         FROM delivery_driver_disputes d
+         LEFT JOIN users u ON u.id = d.driver_user_id
+        WHERE d.delivery_job_id = $1 ORDER BY d.created_at DESC, d.id DESC`,
+      [req.params.id],
+    );
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, disputes: rows });
+  } catch (error) { next(error); }
+};
+
+// 494: the signed-in driver's own disputes, newest first.
+exports.listMyDisputes = async (req, res, next) => {
+  try {
+    const status = text(req.query.status, 24);
+    const params = [req.user.id];
+    let filter = '';
+    if (status) { params.push(status); filter = ' AND d.status = $2'; }
+    const { rows } = await pool.query(
+      `SELECT d.*, j.reference AS job_reference, j.status AS job_status
+         FROM delivery_driver_disputes d
+         JOIN delivery_jobs j ON j.id = d.delivery_job_id
+        WHERE d.driver_user_id = $1${filter}
+        ORDER BY d.created_at DESC, d.id DESC LIMIT 100`,
+      params,
+    );
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, disputes: rows });
+  } catch (error) { next(error); }
+};
+
+// 494: ops dispute queue. Operations workspace enforced by the route
+// middleware.
+exports.listInternalDisputes = async (req, res, next) => {
+  try {
+    const status = text(req.query.status, 24);
+    const params = [];
+    let filter = '';
+    if (status) { params.push(status); filter = ' WHERE d.status = $1'; }
+    const { rows } = await pool.query(
+      `SELECT d.*, j.reference AS job_reference, j.status AS job_status,
+              u.email AS driver_email, u.first_name, u.last_name
+         FROM delivery_driver_disputes d
+         JOIN delivery_jobs j ON j.id = d.delivery_job_id
+         LEFT JOIN users u ON u.id = d.driver_user_id
+        ${filter}
+        ORDER BY d.created_at DESC, d.id DESC LIMIT 100`,
+      params,
+    );
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, disputes: rows });
+  } catch (error) { next(error); }
+};
+
+// 494: ops moves a dispute to under_review or resolved. Resolving
+// records the outcome; it never adjusts the payout — that stays on
+// the adjustment path with its own reason.
+exports.resolveDispute = async (req, res, next) => {
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const dispute = await resolveDispute(client, req.params.disputeId, req.user.id, {
+      status: req.body.status, resolution: req.body.resolution,
+    });
+    await client.query('COMMIT');
+    res.json({ success: true, dispute });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+// 495: the signed-in driver's weekly reports, newest week first.
+// The driver gate is the same admission + approved/active profile
+// gate as the payout history: a report is driver work product.
+exports.listMyWeeklyReports = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))
+      || !(await hasApprovedActiveDriverProfile(req.user.id))) {
+      throw new AppError('Driver access required', 403, 'delivery_driver_required');
+    }
+    const { rows } = await pool.query(
+      `SELECT id, driver_user_id, week_start, week_end, timezone,
+              jobs_completed, jobs_cancelled, distance_miles, pieces,
+              earnings_accrued_cents, earnings_paid_cents,
+              adjustments_count, exceptions_count, worked_minutes,
+              generated_at
+         FROM delivery_driver_weekly_reports
+        WHERE driver_user_id = $1
+        ORDER BY week_start DESC LIMIT 52`,
+      [req.user.id],
+    );
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, reports: rows });
+  } catch (error) { next(error); }
+};
+
+// 495: one weekly report, with its per-job payload.
+exports.getMyWeeklyReport = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))
+      || !(await hasApprovedActiveDriverProfile(req.user.id))) {
+      throw new AppError('Driver access required', 403, 'delivery_driver_required');
+    }
+    const { rows: [report] } = await pool.query(
+      'SELECT * FROM delivery_driver_weekly_reports WHERE id = $1 AND driver_user_id = $2',
+      [req.params.id, req.user.id],
+    );
+    if (!report) throw new AppError('Weekly report not found', 404, 'delivery_weekly_report_not_found');
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, report });
+  } catch (error) { next(error); }
+};
+
+// 495: one weekly report as a downloadable PDF.
+exports.downloadMyWeeklyReport = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))
+      || !(await hasApprovedActiveDriverProfile(req.user.id))) {
+      throw new AppError('Driver access required', 403, 'delivery_driver_required');
+    }
+    const { rows: [report] } = await pool.query(
+      'SELECT * FROM delivery_driver_weekly_reports WHERE id = $1 AND driver_user_id = $2',
+      [req.params.id, req.user.id],
+    );
+    if (!report) throw new AppError('Weekly report not found', 404, 'delivery_weekly_report_not_found');
+    const pdf = await renderWeeklyReportPdf(report);
+    res.set('Cache-Control', 'no-store');
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `attachment; filename="oxsteed-weekly-delivery-report-${report.week_start}.pdf"`);
+    res.send(pdf);
+  } catch (error) { next(error); }
 };
 
 
