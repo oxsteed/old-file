@@ -38,11 +38,15 @@ process.env.FEATURE_PAYMENTS_ENABLED = 'true';
 
 jest.unmock('pg');
 jest.unmock('../utils/transaction');
-jest.mock('../middleware/auth', () => ({
-  authenticate: (req, _res, next) => { req.user = { id: req.headers['x-test-actor'], role: req.headers['x-test-role'] || 'customer' }; next(); },
-  optionalAuth: (_req, _res, next) => next(),
-  requireRole: () => (_req, _res, next) => next(),
-}));
+jest.mock('../middleware/auth', () => {
+  const authenticate = (req, _res, next) => { req.user = { id: req.headers['x-test-actor'], role: req.headers['x-test-role'] || 'customer', email_verified: true, onboarding_completed: true }; next(); };
+  return {
+    authenticate,
+    requireAuth: authenticate,
+    optionalAuth: (_req, _res, next) => next(),
+    requireRole: () => (_req, _res, next) => next(),
+  };
+});
 jest.mock('../middleware/requireEmailVerified', () => (_req, _res, next) => next());
 jest.mock('../middleware/helperOnboardingMiddleware', () => ({
   requireOnboardingStep: () => (_req, _res, next) => next(),
@@ -64,6 +68,9 @@ describeDb('G-1 Credit-default payout (real Postgres)', () => {
   const helper = crypto.randomUUID();
   const helperReady = crypto.randomUUID();
   const jobIds = [];
+  const bookingIds = [];
+  const appointmentIds = [];
+  const extraFundedCustomers = [];
   const userIds = [customer, helper, helperReady];
   const partnerIds = [];
   let savedUsPolicy;
@@ -71,12 +78,12 @@ describeDb('G-1 Credit-default payout (real Postgres)', () => {
   let savedIssuanceCap;
   let railAdminId;
 
-  async function makeJob() {
+  async function makeJob(clientId = customer) {
     const { rows: [job] } = await pool.query(
       `INSERT INTO jobs (client_id, title, description, status, budget_type, budget_min_cents, budget_max_cents,
                          location_city, location_country, location_country_code, currency_code)
        VALUES ($1, 'Fix the garden fence', $2, 'published', 'fixed', 20000, 20000, 'Town', 'US', 'US', 'USD') RETURNING *`,
-      [customer, 'Two coats of exterior paint. '.repeat(4)]
+      [clientId, 'Two coats of exterior paint. '.repeat(4)]
     );
     jobIds.push(job.id);
     return job;
@@ -154,6 +161,13 @@ describeDb('G-1 Credit-default payout (real Postgres)', () => {
     app.use(express.json());
     app.use('/api/jobs', require('../routes/jobs'));
     app.use('/api/bids', require('../routes/bids'));
+    // Group 2 delegate leg: the bookings router carries the helper
+    // capability + activation gates the accept must pass under the new
+    // G-1 rule. The mocked auth above supplies the JWT fields its
+    // email/terms/onboarding gates read (email_verified,
+    // onboarding_completed); the G-1 decision itself is enforced by the
+    // real requireHelperCapability, which is not mocked.
+    app.use('/api/bookings', require('../routes/bookings'));
 
     process.env.FEATURE_PAYMENT_RAILS = 'true';
     process.env.FEATURE_RAIL_CREDIT = 'true';
@@ -264,6 +278,15 @@ describeDb('G-1 Credit-default payout (real Postgres)', () => {
     }
     await pool.query('DELETE FROM job_credit_payments WHERE job_id = ANY($1::uuid[])', [jobIds]).catch(() => {});
     await pool.query(`DELETE FROM credit_participants WHERE partner_id = ANY($1::uuid[])`, [partnerIds]).catch(() => {});
+    // Group 2 delegate leg: remove the booking, its appointment and audit
+    // trail before the user rows go (booking_requests references them).
+    await pool.query('DELETE FROM booking_request_audit_log WHERE booking_request_id = ANY($1::uuid[])', [bookingIds]).catch(() => {});
+    await pool.query('DELETE FROM appointments WHERE id = ANY($1::uuid[])', [appointmentIds]).catch(() => {});
+    await pool.query('DELETE FROM booking_requests WHERE id = ANY($1::uuid[])', [bookingIds]).catch(() => {});
+    for (const extraCustomer of extraFundedCustomers) {
+      await pool.query('DELETE FROM oxsteed_credit_transactions WHERE customer_id = $1', [extraCustomer]).catch(() => {});
+      await pool.query('DELETE FROM oxsteed_credit_accounts WHERE customer_id = $1', [extraCustomer]).catch(() => {});
+    }
     await pool.query(`DELETE FROM oxsteed_credit_partner_agreements WHERE partner_id = ANY($1::uuid[])`, [partnerIds]).catch(() => {});
     await pool.query(`DELETE FROM oxsteed_credit_partners WHERE id = ANY($1::uuid[])`, [partnerIds]).catch(() => {});
     await pool.query(`DELETE FROM oxsteed_credit_transactions WHERE customer_id = $1`, [customer]).catch(() => {});
@@ -313,6 +336,101 @@ describeDb('G-1 Credit-default payout (real Postgres)', () => {
     );
     expect(hold).toBeDefined();
     // No Stripe payout was attempted for this job: no Stripe payment row.
+    const { rows: [stripePayment] } = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM payments WHERE job_id = $1`, [job.id]
+    );
+    expect(stripePayment.n).toBe(0);
+  });
+
+  test('(c) delegate-booked work: delegate books for the owner, helper without payout_setup accepts, payout defaults to Credit', async () => {
+    // Group 2 (item 51) under the NEW G-1 gate: the delegate books on the
+    // owner's behalf targeting the helper with no payout_setup, and the
+    // helper accepts through the real /api/bookings accept route, whose
+    // requireHelperCapability gate reads helper.offer_services activation.
+    // Under the old gate (payout_setup required) the accept 403d with
+    // activation_incomplete; now identity + terms suffice and the payout
+    // for the same work resolves to OxSteed Credit via the jobs leg.
+    const owner2 = crypto.randomUUID();
+    const delegate2 = crypto.randomUUID();
+    await makeUser(owner2, 'customer');
+    await makeUser(delegate2, 'customer');
+    userIds.push(owner2, delegate2);
+    await pool.query(
+      `INSERT INTO household_delegations
+         (owner_id, delegate_user_id, delegate_email, scopes, status, invite_token, expires_at, accepted_at)
+       VALUES ($1, $2, $3, '["book"]'::jsonb, 'accepted', $4, NOW() + INTERVAL '90 days', NOW())`,
+      [owner2, delegate2, `${delegate2}@g1-credit-default.test`, `g1-delegate-${crypto.randomBytes(8).toString('hex')}`],
+    );
+    // Fund the owner so the Credit hold can be placed at hire time.
+    const funder2 = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, is_active)
+       VALUES ($1, $2, 'x', 'G1', 'Funder', 'admin', TRUE)`,
+      [funder2, `g1-funder-${funder2}@example.invalid`]
+    );
+    userIds.push(funder2);
+    extraFundedCustomers.push(owner2);
+    await creditService.adjustCustomerCredit({
+      customerId: owner2,
+      amountCents: 200000,
+      currencyCode: 'USD',
+      direction: 'credit',
+      idempotencyKey: `g1-fund-${crypto.randomBytes(6).toString('hex')}`,
+      actorType: 'admin',
+      actorUserId: funder2,
+      reason: 'g1 delegate test funding',
+      referenceId: `g1-fund-${crypto.randomBytes(6).toString('hex')}`,
+    });
+
+    const date = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const booked = await request(app).post('/api/bookings').set('x-test-actor', delegate2).set('x-test-role', 'customer')
+      .send({
+        helperId: helper,
+        serviceName: 'Fix the sink',
+        requestedDate: date,
+        requestedStartTime: '10:00',
+        requestedEndTime: '11:00',
+        serviceLocation: '12 Main St',
+        description: 'Leaky tap',
+        confirmationHours: 24,
+        onBehalfOfOwnerId: owner2,
+        recipientName: 'Rita Relative',
+      });
+    expect(booked.status).toBe(201);
+    const booking = booked.body.data;
+    expect(booking.customerId).toBe(owner2);
+    expect(booking.bookedByDelegate).toBe(true);
+    expect(booking.ownershipLabel).toMatch(/booked by a household delegate/);
+    bookingIds.push(booking.id);
+
+    const accepted = await request(app).post(`/api/bookings/${booking.id}/accept`)
+      .set('x-test-actor', helper).set('x-test-role', 'helper').send({});
+    expect(accepted.status).toBe(200);
+    expect(accepted.body.data.status).toBe('accepted');
+    if (accepted.body.appointmentId) appointmentIds.push(accepted.body.appointmentId);
+
+    // The payout leg for the same delegate-booked work: the owner posts
+    // the job, the helper bids, the owner hires with payment_method
+    // 'oxsteed' and no explicit rail. The rail must resolve to Credit.
+    const job = await makeJob(owner2);
+    const bidRes = await request(app).post('/api/bids').set('x-test-actor', helper).set('x-test-role', 'helper')
+      .send({ job_id: job.id, amount: 150, message: 'I can fix this sink this week.' });
+    expect(bidRes.status).toBe(201);
+    const res = await request(app).post('/api/jobs/assign').set('x-test-actor', owner2)
+      .send({ bid_id: bidRes.body.id, payment_method: 'oxsteed' });
+    expect(res.status).toBe(200);
+    expect(res.body.job.status).toBe('accepted');
+    const { rows: [after] } = await pool.query(
+      'SELECT payment_rail FROM jobs WHERE id = $1', [job.id]
+    );
+    expect(after.payment_rail).toBe('credit');
+    const { rows: [creditPayment] } = await pool.query(
+      `SELECT * FROM job_credit_payments WHERE job_id = $1`, [job.id]
+    );
+    expect(creditPayment).toBeDefined();
+    expect(creditPayment.status).toBe('held');
+    expect(String(creditPayment.helper_id)).toBe(helper);
+    expect(Number(creditPayment.amount_minor)).toBe(15000);
     const { rows: [stripePayment] } = await pool.query(
       `SELECT COUNT(*)::int AS n FROM payments WHERE job_id = $1`, [job.id]
     );
