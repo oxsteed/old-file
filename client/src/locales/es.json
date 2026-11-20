@@ -21686,7 +21686,10 @@
       "approvalPending": "Tu perfil de conductor está pendiente de aprobación por operaciones. Podrás aceptar entregas cuando sea aprobado.",
       "cancel": "Cancelar",
       "offerExpired": "Esta oferta de entrega ha vencido.",
-      "declineUnavailable": "Esta entrega ya no está disponible para pasar."
+      "declineUnavailable": "Esta entrega ya no está disponible para pasar.",
+      "stopInvalid": "Revisa los datos de la parada e inténtalo de nuevo.",
+      "stopForbidden": "No puedes cambiar las paradas de esta entrega.",
+      "stopUnavailable": "Las paradas no se pueden cambiar en esta entrega ahora mismo."
     },
     "packageTypes": {
       "small": "Pequeño · hasta 25 lb",
@@ -22258,6 +22261,32 @@
         "pay": "Pago insuficiente",
         "other": "Otro"
       },
+      "stopsTitle": "Paradas",
+      "stopTypes": {
+        "pickup": "Recogida",
+        "dropoff": "Entrega"
+      },
+      "stopComplete": "Marcar como completada",
+      "stopCompleted": "Completada",
+      "stopMoveUp": "Mover parada hacia arriba",
+      "stopMoveDown": "Mover parada hacia abajo",
+      "stopAdd": "Agregar una parada",
+      "stopAddSubmit": "Agregar parada",
+      "stopType": "Tipo de parada",
+      "stopAddress": "Dirección",
+      "stopCity": "Ciudad",
+      "stopState": "Estado",
+      "stopContact": "Nombre de contacto",
+      "navigate": "Navegar",
+      "navigateApps": {
+        "google": "Google Maps",
+        "apple": "Apple Maps",
+        "geo": "App de mapas"
+      },
+      "windowClosing": "La ventana de la parada {{stop}} ({{type}}) cierra en {{minutes}} minutos ({{when}}).",
+      "windowExpired": "La ventana de la parada {{stop}} ({{type}}) pasó hace {{minutes}} minutos ({{when}}). El trabajo no cambió.",
+      "windowClosingShort": "La ventana cierra en {{minutes}} minutos.",
+      "windowExpiredShort": "La ventana pasó hace {{minutes}} minutos.",
       "workBody": "Entregas abiertas que puedes aceptar y las que ya aceptaste.",
       "myClaimed": "Entregas que aceptaste",
       "availability": "Disponible para entregas",

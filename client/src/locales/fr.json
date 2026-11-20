@@ -21686,7 +21686,10 @@
       "approvalPending": "Votre profil de conducteur est en attente d'approbation par les opérations. Vous pourrez accepter des livraisons une fois approuvé.",
       "cancel": "Annuler",
       "offerExpired": "Cette offre de livraison a expiré.",
-      "declineUnavailable": "Cette livraison ne peut plus être refusée."
+      "declineUnavailable": "Cette livraison ne peut plus être refusée.",
+      "stopInvalid": "Vérifiez les détails de l'arrêt et réessayez.",
+      "stopForbidden": "Vous ne pouvez pas modifier les arrêts de cette livraison.",
+      "stopUnavailable": "Les arrêts ne peuvent pas être modifiés pour cette livraison pour le moment."
     },
     "packageTypes": {
       "small": "Petit · jusqu’à 25 lb",
@@ -22258,6 +22261,32 @@
         "pay": "Rémunération insuffisante",
         "other": "Autre"
       },
+      "stopsTitle": "Arrêts",
+      "stopTypes": {
+        "pickup": "Ramassage",
+        "dropoff": "Dépôt"
+      },
+      "stopComplete": "Marquer comme terminée",
+      "stopCompleted": "Terminée",
+      "stopMoveUp": "Déplacer l'arrêt vers le haut",
+      "stopMoveDown": "Déplacer l'arrêt vers le bas",
+      "stopAdd": "Ajouter un arrêt",
+      "stopAddSubmit": "Ajouter l'arrêt",
+      "stopType": "Type d'arrêt",
+      "stopAddress": "Adresse",
+      "stopCity": "Ville",
+      "stopState": "État",
+      "stopContact": "Nom du contact",
+      "navigate": "Naviguer",
+      "navigateApps": {
+        "google": "Google Maps",
+        "apple": "Apple Maps",
+        "geo": "Appli Plans"
+      },
+      "windowClosing": "La fenêtre de l'arrêt {{stop}} ({{type}}) se ferme dans {{minutes}} minutes ({{when}}).",
+      "windowExpired": "La fenêtre de l'arrêt {{stop}} ({{type}}) est passée il y a {{minutes}} minutes ({{when}}). La livraison n'a pas changé.",
+      "windowClosingShort": "La fenêtre se ferme dans {{minutes}} minutes.",
+      "windowExpiredShort": "La fenêtre est passée il y a {{minutes}} minutes.",
       "workBody": "Les livraisons ouvertes que vous pouvez prendre, et celles déjà prises.",
       "myClaimed": "Livraisons que vous avez prises",
       "availability": "Disponible pour les livraisons",

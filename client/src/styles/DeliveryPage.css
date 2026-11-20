@@ -469,3 +469,22 @@
 [data-theme='light'] .delivery-offer-countdown--expired { color: #b91c1c; }
 [data-theme='light'] .delivery-job-card__declined { color: #64748b; }
 [data-theme='light'] .delivery-decline-form, [data-theme='light'] .delivery-offer-panel { border-top-color: rgba(15, 23, 42, .12); }
+
+/* Group 9 Slice C (items 462/463/465): the multi-stop sequence, the
+   per-stop window warnings, and the navigation-app handoff links. */
+.delivery-stops { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(148, 163, 184, .16); }
+.delivery-stops h3 { margin: 0; font-size: .95rem; }
+.delivery-stops__list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.delivery-stops__stop { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid rgba(148, 163, 184, .16); border-radius: 14px; }
+.delivery-stops__stop > div { display: grid; gap: 2px; min-width: 0; font-size: .86rem; }
+.delivery-stops__stop > div p { margin: 0; color: var(--text-secondary, #94a3b8); }
+.delivery-stops__stop--done { opacity: .75; }
+.delivery-stops__warning { font-weight: 700; color: #fcd34d; }
+.delivery-stops__actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+.delivery-nav-links { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.delivery-nav-links a { color: #93c5fd; }
+[data-theme='light'] .delivery-stops { border-top-color: rgba(15, 23, 42, .12); }
+[data-theme='light'] .delivery-stops__stop { border-color: rgba(15, 23, 42, .12); background: rgba(255, 255, 255, .9); }
+[data-theme='light'] .delivery-stops__stop > div p { color: #64748b; }
+[data-theme='light'] .delivery-stops__warning { color: #a16207; }
+[data-theme='light'] .delivery-nav-links a { color: #1d4ed8; }

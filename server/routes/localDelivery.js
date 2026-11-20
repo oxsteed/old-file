@@ -41,6 +41,15 @@ router.get('/jobs/:id/item-photos', requireAuth, itemPhotoController.list);
 router.post('/jobs/:id/proof-pin', requireAuth, rejectImpersonated, proofController.rotatePin);
 router.get('/jobs/:id/proofs/:proofId', requireAuth, proofController.download);
 router.post('/jobs/:id/claim', requireAuth, rejectImpersonated, controller.claim);
+// Group 9 Slice C (item 462): the multi-stop sequence. List is readable
+// by any authorized reader (marketplace drivers get the masked
+// projection); adding is the shipper before pickup, reordering and
+// completing are the assigned driver. Same /delivery router as the
+// other job routes, not a tenant route.
+router.get('/jobs/:id/stops', requireAuth, controller.listStops);
+router.post('/jobs/:id/stops', requireAuth, rejectImpersonated, controller.addStop);
+router.post('/jobs/:id/stops/reorder', requireAuth, rejectImpersonated, controller.reorderStops);
+router.post('/jobs/:id/stops/:stopId/complete', requireAuth, rejectImpersonated, controller.completeStop);
 // Group 9 Slice B (item 460): a driver passes on a marketplace offer
 // with a reason code. Advisory only; it never blocks claiming.
 router.post('/jobs/:id/decline', requireAuth, rejectImpersonated, controller.decline);

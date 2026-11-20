@@ -21686,7 +21686,10 @@
       "approvalPending": "Pwofil chofè w la ap tann apwobasyon operasyon yo. W ap ka pran livrezon lè li apwouve.",
       "cancel": "Anile",
       "offerExpired": "Òf livrezon sa a ekspire.",
-      "declineUnavailable": "Livrezon sa a pa disponib pou pase ankò."
+      "declineUnavailable": "Livrezon sa a pa disponib pou pase ankò.",
+      "stopInvalid": "Tcheke detay arè a epi eseye ankò.",
+      "stopForbidden": "Ou pa ka chanje arè livrezon sa a.",
+      "stopUnavailable": "Arè yo pa ka chanje pou livrezon sa a kounye a."
     },
     "packageTypes": {
       "small": "Ti · jiska 25 lb",
@@ -22258,6 +22261,32 @@
         "pay": "Peman an pa ase",
         "other": "Lòt"
       },
+      "stopsTitle": "Arè",
+      "stopTypes": {
+        "pickup": "Ramase",
+        "dropoff": "Depo"
+      },
+      "stopComplete": "Make konplè",
+      "stopCompleted": "Konplè",
+      "stopMoveUp": "Deplase arè a monte",
+      "stopMoveDown": "Deplase arè a desann",
+      "stopAdd": "Ajoute yon arè",
+      "stopAddSubmit": "Ajoute arè a",
+      "stopType": "Kalite arè",
+      "stopAddress": "Adrès",
+      "stopCity": "Vil",
+      "stopState": "Eta",
+      "stopContact": "Non kontak",
+      "navigate": "Navige",
+      "navigateApps": {
+        "google": "Google Maps",
+        "apple": "Apple Maps",
+        "geo": "Aplikasyon kat"
+      },
+      "windowClosing": "Fenèt arè {{stop}} ({{type}}) ap fèmen nan {{minutes}} minit ({{when}}).",
+      "windowExpired": "Fenèt arè {{stop}} ({{type}}) te pase depi {{minutes}} minit ({{when}}). Travay la pa t chanje.",
+      "windowClosingShort": "Fenèt la ap fèmen nan {{minutes}} minit.",
+      "windowExpiredShort": "Fenèt la te pase depi {{minutes}} minit.",
       "workBody": "Livrezon ouvè ou ka pran yo, ak sa ou te deja pran yo.",
       "myClaimed": "Livrezon ou te pran yo",
       "availability": "Disponib pou livrezon",

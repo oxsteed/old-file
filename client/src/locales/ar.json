@@ -21697,7 +21697,10 @@
       "approvalPending": "ملف السائق الخاص بك بانتظار موافقة العمليات. يمكنك قبول عمليات التوصيل بعد الموافقة عليه.",
       "cancel": "إلغاء",
       "offerExpired": "انتهى عرض التوصيل هذا.",
-      "declineUnavailable": "لم يعد هذا التوصيل متاحًا للتمرير."
+      "declineUnavailable": "لم يعد هذا التوصيل متاحًا للتمرير.",
+      "stopInvalid": "تحقق من تفاصيل المحطة وحاول مرة أخرى.",
+      "stopForbidden": "لا يمكنك تغيير محطات هذا التسليم.",
+      "stopUnavailable": "لا يمكن تغيير المحطات لهذا التسليم الآن."
     },
     "packageTypes": {
       "small": "صغير · حتى 25 رطلاً",
@@ -22269,6 +22272,32 @@
         "pay": "الأجر غير كافٍ",
         "other": "أخرى"
       },
+      "stopsTitle": "محطات",
+      "stopTypes": {
+        "pickup": "استلام",
+        "dropoff": "تسليم"
+      },
+      "stopComplete": "وضع علامة مكتمل",
+      "stopCompleted": "مكتمل",
+      "stopMoveUp": "نقل المحطة لأعلى",
+      "stopMoveDown": "نقل المحطة لأسفل",
+      "stopAdd": "إضافة محطة",
+      "stopAddSubmit": "إضافة المحطة",
+      "stopType": "نوع المحطة",
+      "stopAddress": "العنوان",
+      "stopCity": "المدينة",
+      "stopState": "الولاية",
+      "stopContact": "اسم جهة الاتصال",
+      "navigate": "التنقل",
+      "navigateApps": {
+        "google": "Google Maps",
+        "apple": "Apple Maps",
+        "geo": "تطبيق الخرائط"
+      },
+      "windowClosing": "نافذة المحطة {{stop}} ({{type}}) تُغلق خلال {{minutes}} دقيقة ({{when}}).",
+      "windowExpired": "نافذة المحطة {{stop}} ({{type}}) انتهت منذ {{minutes}} دقيقة ({{when}}). لم يتغير العمل.",
+      "windowClosingShort": "تُغلق النافذة خلال {{minutes}} دقيقة.",
+      "windowExpiredShort": "انتهت النافذة منذ {{minutes}} دقيقة.",
       "workBody": "عمليات التوصيل المفتوحة التي يمكنك قبولها، والتي قبلتها بالفعل.",
       "myClaimed": "عمليات التوصيل التي قبلتها",
       "availability": "متاح للتوصيل",

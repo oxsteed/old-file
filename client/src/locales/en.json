@@ -21686,7 +21686,10 @@
       "approvalPending": "Your driver profile is pending operations approval. You can claim deliveries once it is approved.",
       "cancel": "Cancel",
       "offerExpired": "This delivery offer has expired.",
-      "declineUnavailable": "This delivery is no longer available to pass on."
+      "declineUnavailable": "This delivery is no longer available to pass on.",
+      "stopInvalid": "Check the stop details and try again.",
+      "stopForbidden": "You cannot change stops on this delivery.",
+      "stopUnavailable": "Stops cannot be changed on this delivery right now."
     },
     "proofTypes": {
       "recipient_confirmation": "Recipient confirmation",
@@ -22258,6 +22261,32 @@
         "pay": "Pay too low",
         "other": "Other"
       },
+      "stopsTitle": "Stops",
+      "stopTypes": {
+        "pickup": "Pickup",
+        "dropoff": "Drop-off"
+      },
+      "stopComplete": "Mark complete",
+      "stopCompleted": "Completed",
+      "stopMoveUp": "Move stop up",
+      "stopMoveDown": "Move stop down",
+      "stopAdd": "Add a stop",
+      "stopAddSubmit": "Add stop",
+      "stopType": "Stop type",
+      "stopAddress": "Address",
+      "stopCity": "City",
+      "stopState": "State",
+      "stopContact": "Contact name",
+      "navigate": "Navigate",
+      "navigateApps": {
+        "google": "Google Maps",
+        "apple": "Apple Maps",
+        "geo": "Maps app"
+      },
+      "windowClosing": "Stop {{stop}} ({{type}}) window closes in {{minutes}} minutes ({{when}}).",
+      "windowExpired": "Stop {{stop}} ({{type}}) window passed {{minutes}} minutes ago ({{when}}). The job was not changed.",
+      "windowClosingShort": "Window closes in {{minutes}} minutes.",
+      "windowExpiredShort": "Window passed {{minutes}} minutes ago.",
       "workBody": "Open deliveries you can claim, and the ones you already claimed.",
       "myClaimed": "Deliveries you claimed",
       "availability": "Available for deliveries",

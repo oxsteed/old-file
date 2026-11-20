@@ -123,4 +123,4 @@ function operatorSafeJob(job) {
   const { proof_pin_digest, proof_pin_consumed_at, ...safe } = job;
   return safe;
 }
-module.exports={stableValue,fingerprint,idempotencyKey,actionReplay,saveAction,customerSafeJob,operatorSafeJob,recordActivity,pinDigest,validateProof,recordProof};
+module.exports={stableValue,fingerprint,idempotencyKey,actionReplay,saveAction,customerSafeJob,operatorSafeJob,recordActivity,pinDigest,validateProof,recordProof,roundCoord};

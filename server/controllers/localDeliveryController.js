@@ -12,8 +12,8 @@ const { broadcastToUser } = require('../services/socketService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { canStatusTransition, canInternalAssign, canReleaseToMarketplace } = require('../services/localDeliveryState');
 const { accrueDriverPayout, approvePayout, markPayoutPaid, voidPayout, getPayout } = require('../services/deliveryDriverPayoutService');
-// G-46: driver admission on the progressive contract (logistics.ship grant
-// admits drivers who hold no legacy helper state).
+// Group 9 Slice C (items 462/463): multi-stop sequence + window warnings.
+const { loadJobStops, ensureJobStops, safeStops, normalizeStopInput, computeWindowWarnings, TERMINAL_STATUSES: STOP_TERMINAL_STATUSES } = require('../services/deliveryJobStopsService');
 const { canDriveMarketplace, isAdmittedDriver, hasApprovedActiveDriverProfile } = require('../services/deliveryDriverAdmission');
 
 const HELPER_MODES = new Set([
@@ -612,6 +612,10 @@ exports.create = async (req, res, next) => {
       ],
     );
     await recordActivity(client, rows[0].id, req.user.id, 'delivery_posted', { reference: jobReference });
+    // Group 9 Slice C (item 462): a new job starts as its two legacy
+    // stops (origin pickup, destination dropoff), in the same transaction
+    // as the job row, so the stop sequence always exists.
+    await ensureJobStops(client, rows[0]);
     await client.query('UPDATE delivery_jobs SET quote_accepted_at=NOW(),quote_accepted_by_user_id=$2 WHERE id=$1',[rows[0].id,req.user.id]);
     await client.query('UPDATE delivery_quotes SET delivery_job_id = $1, accepted_at = NOW(), accepted_by_user_id = $2 WHERE id = $3', [rows[0].id, req.user.id, quoteId]);
     if (requestId) await client.query('UPDATE delivery_request_idempotency SET delivery_job_id = $1, response_snapshot = $2 WHERE customer_user_id = $3 AND idempotency_key = $4', [rows[0].id, JSON.stringify(customerSafeJob(rows[0],req.user)), req.user.id, requestId]);
@@ -702,11 +706,146 @@ exports.get = async (req,res,next) => {
       createdAt: photo.created_at,
       url: await getSignedDownloadUrl(photo.object_key, 3600).catch(() => null),
     })));
+    // Group 9 Slice C (items 462/463): the stop sequence for this job
+    // (stored rows, or the two legacy stops when the job has none) and
+    // the current window warnings, computed on read. A marketplace driver
+    // opening a posted offer read-only gets the masked projection (D-65):
+    // rounded coordinates, no addresses, contacts, or instructions.
+    const stops = await loadJobStops(pool, job);
+    const windowWarnings = computeWindowWarnings(stops);
     res.set('Cache-Control','no-store');
-    res.json({success:true,job:{...customerSafeJob(job,req.user), my_decline: myDecline.rows[0] || null},activity:activity.rows,proofs:proofs.rows,extras:extras.rows,issues:issues.rows,payments:payments.rows,rescheduleRequests:reschedules.rows,returns:returns.rows,itemPhotos});
+    res.json({success:true,job:{...customerSafeJob(job,req.user), my_decline: myDecline.rows[0] || null},stops:safeStops(job,req.user,stops),windowWarnings,activity:activity.rows,proofs:proofs.rows,extras:extras.rows,issues:issues.rows,payments:payments.rows,rescheduleRequests:reschedules.rows,returns:returns.rows,itemPhotos});
   } catch(error) {next(error);}
 };
 
+
+// ── Group 9 Slice C (item 462): multi-stop sequence ──────────────────
+// The stop sequence is the driver's working order for a job. The job's
+// price and ETA stay whole-job; stops never price anything. Completing a
+// stop is advisory: it never changes the job status, payout, or proof
+// requirements (D-67). Adding a stop is the shipper's call and only
+// before pickup (D-68); reordering and completing are the assigned
+// driver's, while the job is active.
+function stopAssigned(job, user) {
+  return [job.helper_user_id, job.internal_driver_user_id].some((id) => id && String(id) === String(user.id));
+}
+
+async function loadStoredStops(client, job) {
+  await ensureJobStops(client, job);
+  return loadJobStops(client, job);
+}
+
+exports.listStops = async (req, res, next) => {
+  try {
+    const job = await loadAuthorizedJob(req.params.id, req.user);
+    const stops = await loadJobStops(pool, job);
+    res.json({ success: true, stops: safeStops(job, req.user, stops) });
+  } catch (error) { next(error); }
+};
+
+exports.addStop = async (req, res, next) => {
+  let client;
+  try {
+    const job = await loadAuthorizedJob(req.params.id, req.user);
+    const own = String(job.customer_user_id) === String(req.user.id);
+    if (!own) throw new AppError('Only the shipper can add a stop', 403, 'delivery_stop_forbidden');
+    if (!['posted', 'assigned'].includes(job.status)) throw new AppError('Stops can only be added before pickup', 409, 'delivery_stop_unavailable');
+    const stop = normalizeStopInput(req.body || {});
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: [locked] } = await client.query('SELECT status FROM delivery_jobs WHERE id = $1 FOR UPDATE', [job.id]);
+    if (!locked || !['posted', 'assigned'].includes(locked.status)) throw new AppError('Stops can only be added before pickup', 409, 'delivery_stop_unavailable');
+    const stops = await loadStoredStops(client, job);
+    const order = Math.max(...stops.map((entry) => Number(entry.stop_order) || 0)) + 1;
+    const { rows: [created] } = await client.query(
+      `INSERT INTO delivery_job_stops
+         (delivery_job_id, stop_order, stop_type, address, city, state, country, lat, lng,
+          contact_name, contact_phone, instructions, window_start, window_end)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [job.id, order, stop.stopType, stop.address, stop.city, stop.state, stop.country,
+        stop.lat, stop.lng, stop.contactName, stop.contactPhone, stop.instructions,
+        stop.windowStart, stop.windowEnd],
+    );
+    await client.query('COMMIT');
+    res.status(201).json({ success: true, stop: created });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+exports.reorderStops = async (req, res, next) => {
+  let client;
+  try {
+    const job = await loadAuthorizedJob(req.params.id, req.user);
+    if (!stopAssigned(job, req.user)) throw new AppError('Only the assigned driver can reorder stops', 403, 'delivery_stop_forbidden');
+    if (STOP_TERMINAL_STATUSES.has(job.status)) throw new AppError('Stops cannot be reordered on a finished job', 409, 'delivery_stop_unavailable');
+    const stopIds = req.body?.stopIds;
+    if (!Array.isArray(stopIds) || !stopIds.length) throw new AppError('Stop order is required', 400, 'delivery_stop_order_invalid');
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: [locked] } = await client.query('SELECT status FROM delivery_jobs WHERE id = $1 FOR UPDATE', [job.id]);
+    if (!locked || STOP_TERMINAL_STATUSES.has(locked.status)) throw new AppError('Stops cannot be reordered on a finished job', 409, 'delivery_stop_unavailable');
+    const stops = await loadStoredStops(client, job);
+    const storedIds = stops.map((stop) => String(stop.id)).sort();
+    const requestedIds = stopIds.map((id) => String(id)).sort();
+    if (storedIds.length !== requestedIds.length || storedIds.some((id, index) => id !== requestedIds[index])) {
+      throw new AppError('Stop order must list every stop exactly once', 400, 'delivery_stop_order_invalid');
+    }
+    // Two passes: park every stop on a large temporary order first, or
+    // the UNIQUE (delivery_job_id, stop_order) constraint fires mid-swap
+    // when a stop takes an order another stop still holds. (Negative
+    // orders are out: the stop_order >= 1 CHECK would reject them.)
+    for (let index = 0; index < stopIds.length; index += 1) {
+      await client.query(
+        'UPDATE delivery_job_stops SET stop_order = $1, updated_at = NOW() WHERE id = $2 AND delivery_job_id = $3',
+        [10000 + index + 1, stopIds[index], job.id],
+      );
+    }
+    for (let index = 0; index < stopIds.length; index += 1) {
+      await client.query(
+        'UPDATE delivery_job_stops SET stop_order = $1, updated_at = NOW() WHERE id = $2 AND delivery_job_id = $3',
+        [index + 1, stopIds[index], job.id],
+      );
+    }
+    const reordered = await loadJobStops(client, job);
+    await client.query('COMMIT');
+    res.json({ success: true, stops: reordered });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+exports.completeStop = async (req, res, next) => {
+  let client;
+  try {
+    const job = await loadAuthorizedJob(req.params.id, req.user);
+    if (!stopAssigned(job, req.user)) throw new AppError('Only the assigned driver can complete a stop', 403, 'delivery_stop_forbidden');
+    if (STOP_TERMINAL_STATUSES.has(job.status)) throw new AppError('Stops cannot be completed on a finished job', 409, 'delivery_stop_unavailable');
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: [locked] } = await client.query('SELECT status FROM delivery_jobs WHERE id = $1 FOR UPDATE', [job.id]);
+    if (!locked || STOP_TERMINAL_STATUSES.has(locked.status)) throw new AppError('Stops cannot be completed on a finished job', 409, 'delivery_stop_unavailable');
+    const { rows: [stop] } = await client.query(
+      'SELECT * FROM delivery_job_stops WHERE id = $1 AND delivery_job_id = $2 FOR UPDATE',
+      [req.params.stopId, job.id],
+    );
+    if (!stop) throw new AppError('Delivery stop not found', 404, 'delivery_stop_not_found');
+    if (stop.status !== 'pending') throw new AppError('This stop is already done', 409, 'delivery_stop_conflict');
+    const { rows: [completed] } = await client.query(
+      `UPDATE delivery_job_stops
+          SET status = 'completed', completed_at = NOW(), completed_by_user_id = $2, updated_at = NOW()
+        WHERE id = $1 RETURNING *`,
+      [stop.id, req.user.id],
+    );
+    await client.query('COMMIT');
+    res.json({ success: true, stop: completed });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
 
 exports.updateStatus = async (req,res,next) => {
   let client;

@@ -13,9 +13,13 @@ import {
   requestDeliveryReschedule, requestDeliveryReturn, reviewDeliveryExtra,
   syncDeliveryExtraPayment, syncDeliveryPayment, updateDeliveryStatus, uploadDeliveryProof,
   uploadDeliveryItemPhoto, claimDeliveryJob, declineDeliveryJob,
+  addDeliveryStop, reorderDeliveryStops, completeDeliveryStop,
   obtainDeliveryPin, deliveryDate, deliveryMoney, deliveryUnit, deliveryError,
 } from '../api/delivery';
 import { RoutePreview } from '../components/delivery/DeliveryEstimate';
+// Group 9 Slice C (items 462/463/465): the multi-stop sequence, the
+// window-warning banner, and the per-stop navigation handoff.
+import DeliveryStops, { WindowWarningBanner } from '../components/delivery/DeliveryStops';
 // Group 9 Slice B (items 457/458/460): the offer countdown, the driver
 // route preview, and the decline (pass) form, shared with the inbox card.
 import { DeclineForm, OfferCountdown, isOfferExpired } from '../components/delivery/DeliveryOffer';
@@ -160,6 +164,10 @@ export default function DeliveryDetailPage() {
   </div></PageShell>;
 
   const { activity = [], proofs = [], extras = [], issues = [], payments = [], rescheduleRequests = [], returns = [], itemPhotos = [] } = data;
+  // Group 9 Slice C (items 462/463): the stop sequence and the current
+  // window warnings, both from the detail read.
+  const stops = data.stops || [];
+  const windowWarnings = data.windowWarnings || [];
   const eta = data.eta || job.eta;
   const trackable = ['assigned', 'picked_up', 'in_transit'].includes(job.status);
   // Group 9 Slice B (items 457/458/460, D-65): a marketplace driver may
@@ -208,6 +216,17 @@ export default function DeliveryDetailPage() {
             without route data falls back to the addresses and distance
             above instead of a broken map. */}
           <RoutePreview job={job} t={t} />
+          {/* Group 9 Slice C (items 462/463/465): the stop sequence with
+            per-stop completion, reordering, and navigation handoff, plus
+            the window-warning banner for the assigned driver. Single-leg
+            jobs read as their two legacy stops (origin pickup,
+            destination dropoff), so the route section is unchanged for
+            them apart from the Navigate links. */}
+          {isAssigned && windowWarnings.length > 0 && <WindowWarningBanner warnings={windowWarnings} t={t} date={date} />}
+          <DeliveryStops job={job} stops={stops} warnings={windowWarnings} isAssigned={isAssigned} isOwner={isCustomer} t={t} date={date} busy={busy}
+            onComplete={(stopId) => act(() => completeDeliveryStop(id, stopId))}
+            onMove={(stopIds) => act(() => reorderDeliveryStops(id, stopIds))}
+            onAdd={(payload) => act(() => addDeliveryStop(id, payload))} />
           {isOffered && (
             <div className="delivery-offer-panel">
               <OfferCountdown job={job} t={t} />

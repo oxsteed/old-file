@@ -39,6 +39,13 @@ export const claimDeliveryJob = (id) => mutate('post', `/delivery/jobs/${id}/cla
 // Group 9 Slice B (item 460): a driver passes on a marketplace offer
 // with a reason code and an optional note. Advisory only.
 export const declineDeliveryJob = (id, payload) => mutate('post', `/delivery/jobs/${id}/decline`, payload);
+// Group 9 Slice C (item 462): the multi-stop sequence. Listing is a
+// read; adding is the shipper before pickup; reordering and completing
+// are the assigned driver.
+export const listDeliveryStops = (id) => api.get(`/delivery/jobs/${id}/stops`).then((response) => response.data);
+export const addDeliveryStop = (id, payload) => mutate('post', `/delivery/jobs/${id}/stops`, payload);
+export const reorderDeliveryStops = (id, stopIds) => mutate('post', `/delivery/jobs/${id}/stops/reorder`, { stopIds });
+export const completeDeliveryStop = (id, stopId) => mutate('post', `/delivery/jobs/${id}/stops/${stopId}/complete`);
 export const updateDeliveryStatus = (id, status, details = {}) => mutate('patch', `/delivery/jobs/${id}/status`, { status, ...details });
 export const getDelivery = (id) => api.get(`/delivery/jobs/${id}`).then((response) => response.data);
 export const reportDeliveryIssue = (id, payload) => mutate('post', `/delivery/jobs/${id}/issues`, payload);
@@ -201,6 +208,9 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     capacityError: ['delivery_capacity_mismatch', 'delivery_schedule_conflict'],
     offerExpired: ['delivery_offer_expired'],
     declineUnavailable: ['delivery_decline_unavailable', 'delivery_decline_reason_invalid'],
+    stopInvalid: ['delivery_stop_type_invalid', 'delivery_stop_address_required', 'delivery_stop_order_invalid', 'delivery_stop_not_found'],
+    stopForbidden: ['delivery_stop_forbidden'],
+    stopUnavailable: ['delivery_stop_unavailable', 'delivery_stop_conflict'],
     recoveryPending: ['delivery_recovery_pending', 'delivery_reschedule_pending', 'delivery_return_pending'],
     proofInvalid: ['delivery_proof_mismatch', 'delivery_proof_rejected', 'delivery_proof_upload_required', 'delivery_recipient_confirmation_required', 'delivery_return_proof_required', 'delivery_return_proof_unavailable'],
     pinInvalid: ['delivery_proof_pin_invalid'],
