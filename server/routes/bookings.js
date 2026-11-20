@@ -55,6 +55,7 @@ router.post('/status/:token/respond', optionalAuth, bookingController.respondToR
 router.get('/status/:token/summary', bookingRecipientController.getTokenParticipantSummary);
 router.get('/status/:token/checklist', bookingRecipientController.getTokenChecklist);
 router.get('/status/:token/receipt', bookingRecipientController.getTokenReceipt);
+router.get('/status/:token/site-actions', bookingRecipientController.listTokenSiteActions);
 router.get('/status/:token/support', bookingRecipientController.listTokenSupportIntake);
 router.post('/status/:token/site-actions', bookingRecipientController.recordTokenSiteAction);
 router.post('/status/:token/renewal-request', bookingRecipientController.requestTokenLinkRenewal);
@@ -65,6 +66,8 @@ router.post('/status/:token/archive', bookingRecipientController.archiveTokenVis
 router.post('/status/:token/support', bookingRecipientController.submitTokenSupportIntake);
 router.post('/status/:token/feedback', bookingRecipientController.submitTokenFeedback);
 router.post('/status/:token/photos', upload.single('file'), validateFileUpload, bookingRecipientController.uploadTokenSitePhoto);
+router.get('/status/:token/photos', bookingRecipientController.listTokenSitePhotos);
+router.get('/status/:token/feedback', bookingRecipientController.listTokenFeedback);
 router.post('/status/:token/contact-correction', bookingRecipientController.submitTokenContactCorrection);
 router.post('/status/:token/relay-message', bookingRecipientController.relayTokenMessage);
 router.get('/status/:token/sponsor', bookingRecipientController.getSponsorPreviewByToken);
@@ -74,6 +77,7 @@ router.post('/status/:token/sponsor/respond', bookingRecipientController.respond
 router.post('/status/:token/sponsor/payment-intent', bookingRecipientController.createSponsorPaymentIntentByToken);
 router.post('/status/:token/sponsor/confirm-payment', bookingRecipientController.confirmSponsorPaymentByToken);
 router.get('/status/:token/sponsor/receipt', bookingRecipientController.getSponsorReceiptByToken);
+router.get('/status/:token/sponsor/charges', bookingRecipientController.listTokenSponsorshipCharges);
 router.post('/status/:token/sponsor/charges/:chargeId/respond', bookingRecipientController.respondToChargeByToken);
 router.post('/status/:token/sponsor/charges/:chargeId/payment-intent', bookingRecipientController.createChargePaymentIntentByToken);
 router.post('/status/:token/sponsor/charges/:chargeId/confirm-payment', bookingRecipientController.confirmChargePaymentByToken);

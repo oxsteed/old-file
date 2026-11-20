@@ -190,8 +190,8 @@ export default function BookingFlow({ helperId, helperName, businessId, business
     if (step !== 'status' || !bookingRequest?.id) return;
     // Keep polling while the request is still actionable (pending or
     // counter-proposed). Stop at terminal states: accepted, declined,
-    // expired, cancelled.
-    const terminal = ['accepted', 'declined', 'expired', 'cancelled'];
+    // expired, cancelled, completed (D-53).
+    const terminal = ['accepted', 'declined', 'expired', 'cancelled', 'completed'];
     if (terminal.includes(bookingRequest.status)) return;
 
     const id = bookingRequest.id;
@@ -332,6 +332,12 @@ export default function BookingFlow({ helperId, helperName, businessId, business
             initialAgreed={calendarDraft.agreementAccepted}
             onAgreementChange={(agreed) => setCalendarDraft((prev) => ({ ...prev, agreementAccepted: agreed }))}
           />
+        )}
+        {/* Group 3 (item 116): what the recipient and site contact will
+            see, stated before the booker confirms. They see the service,
+            date, and site, never amounts or the booker's payment method. */}
+        {step === 'confirmation' && (
+          <p className="booking-sharing-explainer">{t('booking.sharingExplainer')}</p>
         )}
 
         {step === 'status' && bookingRequest && (

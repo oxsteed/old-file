@@ -488,6 +488,21 @@ exports.listSiteActions = async (req, res) => {
   }
 };
 
+exports.listTokenSiteActions = async (req, res) => {
+  try {
+    const loaded = await loadTokenBooking(req, res, ['recipient', 'site_contact']);
+    if (!loaded) return;
+    const { rows } = await pool.query(
+      `SELECT * FROM booking_site_actions WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 100`,
+      [loaded.booking.id]
+    );
+    return res.json({ success: true, data: rows.map(siteActionShape) });
+  } catch (err) {
+    logger.error('Error listing token site actions', { error: err.message });
+    sendError(res, 500, 'Failed to list site actions');
+  }
+};
+
 // ─── arrival (item 103) ───────────────────────────────────────────────────
 
 /**
@@ -1970,6 +1985,22 @@ exports.listAdditionalCharges = async (req, res) => {
   }
 };
 
+exports.listTokenSponsorshipCharges = async (req, res) => {
+  try {
+    const loaded = await loadTokenBooking(req, res, ['sponsor']);
+    if (!loaded) return;
+    const { rows } = await pool.query(
+      `SELECT * FROM booking_sponsorship_charges
+        WHERE booking_id = $1 AND sponsorship_id = $2 ORDER BY created_at ASC`,
+      [loaded.booking.id, loaded.party.sponsorshipId]
+    );
+    return res.json({ success: true, data: rows.map((r) => chargeShape(r, loaded.party)) });
+  } catch (err) {
+    logger.error('Error listing token additional charges', { error: err.message });
+    sendError(res, 500, 'Failed to list additional charges');
+  }
+};
+
 exports.respondToCharge = async (req, res) => {
   try {
     const loaded = await loadAccountBooking(req, res, ['sponsor']);
@@ -2313,7 +2344,7 @@ exports.submitSupportIntake = async (req, res) => {
 
 exports.submitTokenSupportIntake = async (req, res) => {
   try {
-    const loaded = await loadTokenBooking(req, res, ['recipient', 'site_contact']);
+    const loaded = await loadTokenBooking(req, res, ['recipient', 'site_contact', 'sponsor']);
     if (!loaded) return;
     const result = await doSupportIntake(loaded.booking, loaded.party, req.body || {});
     if (result.error === 'kind') return sendValidationError(res, { kind: 'Unknown support kind' });
@@ -2386,7 +2417,7 @@ exports.listSupportIntake = async (req, res) => {
 
 exports.listTokenSupportIntake = async (req, res) => {
   try {
-    const loaded = await loadTokenBooking(req, res, ['recipient', 'site_contact']);
+    const loaded = await loadTokenBooking(req, res, ['recipient', 'site_contact', 'sponsor']);
     if (!loaded) return;
     return res.json({ success: true, data: await listScopedTickets(loaded.booking, loaded.party) });
   } catch (err) {
@@ -2574,5 +2605,64 @@ exports.listSitePhotos = async (req, res) => {
   } catch (err) {
     logger.error('Error listing site photos', { error: err.message });
     sendError(res, 500, 'Failed to list photos');
+  }
+};
+
+// ─── token list endpoints (Group 3 UI) ────────────────────────────────────
+// The token page submits feedback and photos; without a list leg the
+// contributor could never see what they sent. Both mirror the account
+// lists with loadTokenBooking. Token feedback shows only the caller's own
+// rows (token parties have no user id, so rows they authored anonymously
+// are theirs: author_user_id IS NULL and author_type matches the party).
+exports.listTokenSitePhotos = async (req, res) => {
+  try {
+    const loaded = await loadTokenBooking(req, res, ['recipient', 'site_contact']);
+    if (!loaded) return;
+    const { rows } = await pool.query(
+      `SELECT * FROM booking_site_photos WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 50`,
+      [loaded.booking.id]
+    );
+    const photos = [];
+    for (const row of rows) {
+      const url = await getSignedDownloadUrl(row.storage_key, 3600).catch(() => null);
+      photos.push({
+        id: String(row.id),
+        contributorType: row.contributor_type,
+        key: row.storage_key,
+        url: url || null,
+        createdAt: row.created_at,
+      });
+    }
+    return res.json({ success: true, data: photos });
+  } catch (err) {
+    logger.error('Error listing token site photos', { error: err.message });
+    sendError(res, 500, 'Failed to list photos');
+  }
+};
+
+exports.listTokenFeedback = async (req, res) => {
+  try {
+    const loaded = await loadTokenBooking(req, res, ['recipient', 'site_contact']);
+    if (!loaded) return;
+    const { rows } = await pool.query(
+      `SELECT * FROM booking_recipient_feedback WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 50`,
+      [loaded.booking.id]
+    );
+    const visible = rows.filter(
+      (r) => r.author_user_id == null && r.author_type === loaded.party.role
+    );
+    return res.json({
+      success: true,
+      data: visible.map((r) => ({
+        id: String(r.id),
+        authorType: r.author_type,
+        rating: r.rating,
+        body: r.body,
+        createdAt: r.created_at,
+      })),
+    });
+  } catch (err) {
+    logger.error('Error listing token visit feedback', { error: err.message });
+    sendError(res, 500, 'Failed to list feedback');
   }
 };
