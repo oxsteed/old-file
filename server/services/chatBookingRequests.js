@@ -13,6 +13,9 @@ const STATUSES = new Set([
   'cancelled',
   'accepted_cancelled',
   'counter_proposed',
+  // D-53: 'completed' is a real booking status (sweeper-delivered); a
+  // completed booking's in-chat marker must still parse.
+  'completed',
 ]);
 
 function encodeName(name) {

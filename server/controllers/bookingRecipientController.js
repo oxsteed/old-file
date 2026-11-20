@@ -269,10 +269,11 @@ async function summaryFor(booking, party) {
     bookerPays: true,
     sponsoredCents: isBooker ? paidSponsored : null,
     // Declared amount is the gross the booker named; the intent itself
-    // carries the net (gross minus promo minus sponsorships).
+    // carries the net (gross minus promo minus sponsorships). A fresh
+    // booking carries no declared amount (NULL or 0) until payment starts.
     declaredCents: isBooker
-      ? (booking.gross_amount_cents != null ? Number(booking.gross_amount_cents)
-        : (booking.payment_amount_cents != null ? Number(booking.payment_amount_cents) : null))
+      ? (Number(booking.gross_amount_cents || 0) > 0 ? Number(booking.gross_amount_cents)
+        : (Number(booking.payment_amount_cents || 0) > 0 ? Number(booking.payment_amount_cents) : null))
       : null,
     promoDiscountCents: isBooker ? Number(booking.promo_discount_cents || 0) : null,
     remainingCents: null,
@@ -1288,9 +1289,10 @@ exports.createSponsorship = async (req, res) => {
       return sendValidationError(res, { amountCents: 'Amount must be between $0.50 and $50,000' });
     }
     const totals = await recipientSvc.sponsorshipTotals(booking.id);
-    const cap = booking.payment_amount_cents != null
-      ? Number(booking.payment_amount_cents)
-      : MAX_SPONSORSHIP_CENTS;
+    // A fresh booking carries no declared amount (NULL or 0 until the
+    // booker starts payment): the cap is the intent maximum, not zero.
+    const declaredAmount = Number(booking.payment_amount_cents || 0);
+    const cap = declaredAmount > 0 ? declaredAmount : MAX_SPONSORSHIP_CENTS;
     if (totals.live + amountCents > cap) {
       return sendValidationError(res, { amountCents: 'Live sponsorships already cover the booking amount' });
     }
@@ -1907,9 +1909,9 @@ exports.getPaymentBreakdown = async (req, res) => {
           : null,
       });
     }
-    const declaredCents = booking.gross_amount_cents != null
+    const declaredCents = Number(booking.gross_amount_cents || 0) > 0
       ? Number(booking.gross_amount_cents)
-      : (booking.payment_amount_cents != null ? Number(booking.payment_amount_cents) : null);
+      : (Number(booking.payment_amount_cents || 0) > 0 ? Number(booking.payment_amount_cents) : null);
     const promoDiscountCents = Number(booking.promo_discount_cents || 0);
     return res.json({
       success: true,
