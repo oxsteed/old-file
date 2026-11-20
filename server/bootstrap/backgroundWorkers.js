@@ -40,6 +40,7 @@ const { startFranchiseRoyaltyRedriveJob } = require('../jobs/franchiseRoyaltyRed
 const { startCareersJobs } = require('../jobs/careersJobs');
 const { startChatQuoteExpiryJob } = require('../jobs/chatQuoteExpiryJob');
 const { startQuoteDeadlineNoticesJob } = require('../jobs/quoteDeadlineNotices');
+const { startDriverDocumentRenewalNoticesJob } = require('../jobs/driverDocumentRenewalNotices'); // Group 9 Slice A (453)
 const { startSupportTicketSlaJob } = require('../jobs/supportTicketSlaJob');
 const { startHelperCompletionAutoConfirmJob } = require('../jobs/helperCompletionAutoConfirm');
 const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
@@ -214,6 +215,7 @@ class BackgroundWorkers {
       startCareersJobs();
       startChatQuoteExpiryJob();
       startQuoteDeadlineNoticesJob();
+      startDriverDocumentRenewalNoticesJob();
       startSupportTicketSlaJob();
       startHelperCompletionAutoConfirmJob();
       startWorkAgreementProposalTimeoutJob();

@@ -109,13 +109,88 @@ function normalizeWindow(input = {}, prefix) {
   return { start, end };
 }
 
+const HANDLING_KEYS = ['stairs', 'loadingHelp', 'dolly', 'liftgate', 'parkingRequired', 'temperatureControl'];
+// Group 9 Slice A (item 452): the self-serve onboarding form used to send
+// equipment as free text, and normalizeHandling threw 400 on any non-empty
+// string, so typing equipment failed onboarding outright. A string is now
+// parsed as a comma-separated list of the allowed equipment names
+// ("dolly, liftgate"); tokens that match no allowed key are ignored rather
+// than failing the whole submission. An object keeps the strict behavior:
+// unknown keys or non-boolean values are still rejected.
 function normalizeHandling(input = {}) {
-  const allowed = ['stairs', 'loadingHelp', 'dolly', 'liftgate', 'parkingRequired', 'temperatureControl'];
+  if (typeof input === 'string') {
+    const aliases = {
+      stairs: 'stairs',
+      loadinghelp: 'loadingHelp',
+      'loading help': 'loadingHelp',
+      dolly: 'dolly',
+      liftgate: 'liftgate',
+      'lift gate': 'liftgate',
+      parkingrequired: 'parkingRequired',
+      'parking required': 'parkingRequired',
+      temperaturecontrol: 'temperatureControl',
+      'temperature control': 'temperatureControl',
+    };
+    const result = {};
+    for (const token of input.split(',')) {
+      const key = aliases[token.trim().toLowerCase()];
+      if (key) result[key] = true;
+    }
+    return result;
+  }
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new AppError('Unsupported handling requirement', 400, 'delivery_handling_unsupported');
+  }
+  const allowed = HANDLING_KEYS;
   if (Object.keys(input).some(key=>!allowed.includes(key) || typeof input[key]!=='boolean')) throw new AppError('Unsupported handling requirement',400,'delivery_handling_unsupported');
   return allowed.reduce((result, key) => {
     if (input[key] === true) result[key] = true;
     return result;
   }, {});
+}
+
+// Group 9 Slice A (item 454): self-serve onboarding used to store the
+// free-text service area as a JSON string, and areaCovers returns false
+// for non-objects, so every self-serve profile failed the service-area
+// gate. A service area is a structured object
+// {states:[...], cities:[...], postalCodes:[...], center:{lat,lng},
+// radiusMiles}; an empty object means everywhere. A bare string is
+// coerced, never stored: valid JSON that parses to an object is used,
+// anything else becomes {} (everywhere). Stored string areas (pre-fix
+// rows the migration did not catch) are coerced to {} on read.
+function normalizeServiceArea(input) {
+  if (input == null) return {};
+  if (typeof input === 'string') {
+    const trimmed = input.trim();
+    if (!trimmed) return {};
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return normalizeServiceArea(parsed);
+    } catch (_) { /* bare free text: no usable area, fall through to {} */ }
+    return {};
+  }
+  if (typeof input !== 'object' || Array.isArray(input)) return {};
+  const area = {};
+  for (const key of ['states', 'cities', 'postalCodes']) {
+    if (input[key] === undefined) continue;
+    const values = (Array.isArray(input[key]) ? input[key] : String(input[key]).split(','))
+      .map((value) => String(value).trim()).filter(Boolean);
+    if (values.length) area[key] = values;
+  }
+  if (input.center && Number.isFinite(Number(input.center.lat)) && Number.isFinite(Number(input.center.lng))) {
+    area.center = { lat: Number(input.center.lat), lng: Number(input.center.lng) };
+  }
+  if (input.radiusMiles !== undefined && input.radiusMiles !== null && input.radiusMiles !== '') {
+    const radius = Number(input.radiusMiles);
+    if (Number.isFinite(radius) && radius > 0) area.radiusMiles = radius;
+  }
+  return area;
+}
+
+function coerceStoredServiceArea(value) {
+  if (typeof value === 'string') return {};
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  return {};
 }
 
 function normalizeOperational(body = {}) {
@@ -832,7 +907,12 @@ exports.upsertDriver = async (req, res, next) => {
   try {
     const driverId = text(req.body.userId, 80);
     if (!driverId) throw new AppError('Driver userId is required', 400, 'delivery_driver_invalid');
-    const { rows } = await pool.query(`INSERT INTO delivery_driver_profiles (user_id, approved, active, vehicle_type, max_payload_lbs, cargo_length_in, cargo_width_in, cargo_height_in, equipment, insurance_acknowledged, updated_by_user_id) VALUES ($1, TRUE, TRUE, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (user_id) DO UPDATE SET approved = TRUE, active = TRUE, vehicle_type = EXCLUDED.vehicle_type, max_payload_lbs = EXCLUDED.max_payload_lbs, cargo_length_in = EXCLUDED.cargo_length_in, cargo_width_in = EXCLUDED.cargo_width_in, cargo_height_in = EXCLUDED.cargo_height_in, equipment = EXCLUDED.equipment, insurance_acknowledged = EXCLUDED.insurance_acknowledged, updated_by_user_id = EXCLUDED.updated_by_user_id, updated_at = NOW() RETURNING *`, [driverId, text(req.body.vehicleType, 32) || null, positiveNumber(req.body.maxPayloadLbs), positiveNumber(req.body.cargoLengthIn), positiveNumber(req.body.cargoWidthIn), positiveNumber(req.body.cargoHeightIn), JSON.stringify(normalizeHandling(req.body.equipment)), req.body.insuranceAcknowledged === true, req.user.id]);
+    // Group 9 Slice A (item 454b): the dispatch ResourceForm collects
+    // serviceArea, maxPieces, fragile/perishable support, insurance
+    // expiry and the availability window, but upsertDriver persisted
+    // none of them; the columns exist (migration 572) and the values
+    // were silently dropped. They are written now.
+    const { rows } = await pool.query(`INSERT INTO delivery_driver_profiles (user_id, approved, active, vehicle_type, max_payload_lbs, cargo_length_in, cargo_width_in, cargo_height_in, equipment, service_area, max_pieces, fragile_supported, perishable_supported, insurance_expires_at, available_from, available_until, insurance_acknowledged, updated_by_user_id) VALUES ($1, TRUE, TRUE, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) ON CONFLICT (user_id) DO UPDATE SET approved = TRUE, active = TRUE, vehicle_type = EXCLUDED.vehicle_type, max_payload_lbs = EXCLUDED.max_payload_lbs, cargo_length_in = EXCLUDED.cargo_length_in, cargo_width_in = EXCLUDED.cargo_width_in, cargo_height_in = EXCLUDED.cargo_height_in, equipment = EXCLUDED.equipment, service_area = EXCLUDED.service_area, max_pieces = EXCLUDED.max_pieces, fragile_supported = EXCLUDED.fragile_supported, perishable_supported = EXCLUDED.perishable_supported, insurance_expires_at = EXCLUDED.insurance_expires_at, available_from = EXCLUDED.available_from, available_until = EXCLUDED.available_until, insurance_acknowledged = EXCLUDED.insurance_acknowledged, updated_by_user_id = EXCLUDED.updated_by_user_id, updated_at = NOW() RETURNING *`, [driverId, text(req.body.vehicleType, 32) || null, positiveNumber(req.body.maxPayloadLbs), positiveNumber(req.body.cargoLengthIn), positiveNumber(req.body.cargoWidthIn), positiveNumber(req.body.cargoHeightIn), JSON.stringify(normalizeHandling(req.body.equipment)), JSON.stringify(normalizeServiceArea(req.body.serviceArea ?? req.body.service_area)), Math.max(1, nonNegativeInteger(req.body.maxPieces ?? req.body.max_pieces, 1)), req.body.fragileSupported === true || req.body.fragile_supported === true, req.body.perishableSupported === true || req.body.perishable_supported === true, isoDate(req.body.insuranceExpiresAt ?? req.body.insurance_expires_at, 'insuranceExpiresAt'), isoDate(req.body.availableFrom ?? req.body.available_from, 'availableFrom'), isoDate(req.body.availableUntil ?? req.body.available_until, 'availableUntil'), req.body.insuranceAcknowledged === true, req.user.id]);
     res.status(201).json({ success: true, driver: rows[0] });
   } catch (error) {
     next(error);
@@ -859,8 +939,10 @@ exports.selfServeDriverOnboarding = async (req, res, next) => {
       `INSERT INTO delivery_driver_profiles
          (user_id, approved, active, vehicle_type, max_payload_lbs,
           cargo_length_in, cargo_width_in, cargo_height_in, equipment,
-          service_area, insurance_acknowledged, updated_by_user_id)
-       VALUES ($1, FALSE, TRUE, $2, $3, $4, $5, $6, $7, $8, TRUE, $1)
+          service_area, max_pieces, fragile_supported, perishable_supported,
+          insurance_expires_at, available_from, available_until,
+          insurance_acknowledged, updated_by_user_id)
+       VALUES ($1, FALSE, TRUE, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, TRUE, $1)
        ON CONFLICT (user_id) DO UPDATE SET
          vehicle_type = EXCLUDED.vehicle_type,
          max_payload_lbs = EXCLUDED.max_payload_lbs,
@@ -869,6 +951,12 @@ exports.selfServeDriverOnboarding = async (req, res, next) => {
          cargo_height_in = EXCLUDED.cargo_height_in,
          equipment = EXCLUDED.equipment,
          service_area = EXCLUDED.service_area,
+         max_pieces = EXCLUDED.max_pieces,
+         fragile_supported = EXCLUDED.fragile_supported,
+         perishable_supported = EXCLUDED.perishable_supported,
+         insurance_expires_at = EXCLUDED.insurance_expires_at,
+         available_from = EXCLUDED.available_from,
+         available_until = EXCLUDED.available_until,
          insurance_acknowledged = TRUE,
          updated_by_user_id = EXCLUDED.updated_by_user_id,
          updated_at = NOW()
@@ -881,7 +969,16 @@ exports.selfServeDriverOnboarding = async (req, res, next) => {
         positiveNumber(req.body.cargoWidthIn ?? req.body.cargo_width_in),
         positiveNumber(req.body.cargoHeightIn ?? req.body.cargo_height_in),
         JSON.stringify(normalizeHandling(req.body.equipment)),
-        JSON.stringify(req.body.serviceArea ?? req.body.service_area ?? {}),
+        // Group 9 Slice A (item 454a): a structured service-area object,
+        // never a bare string. normalizeServiceArea coerces free text
+        // (or a JSON string of an object) into that shape.
+        JSON.stringify(normalizeServiceArea(req.body.serviceArea ?? req.body.service_area)),
+        Math.max(1, nonNegativeInteger(req.body.maxPieces ?? req.body.max_pieces, 1)),
+        req.body.fragileSupported === true || req.body.fragile_supported === true,
+        req.body.perishableSupported === true || req.body.perishable_supported === true,
+        isoDate(req.body.insuranceExpiresAt ?? req.body.insurance_expires_at, 'insuranceExpiresAt'),
+        isoDate(req.body.availableFrom ?? req.body.available_from, 'availableFrom'),
+        isoDate(req.body.availableUntil ?? req.body.available_until, 'availableUntil'),
       ]
     );
     res.status(201).json({ success: true, profile, pendingApproval: profile.approved !== true });
@@ -890,10 +987,80 @@ exports.selfServeDriverOnboarding = async (req, res, next) => {
   }
 };
 
+// Group 9 Slice A (items 454/455): the driver updates their own profile
+// (service area, capacity, insurance expiry, availability window) after
+// approval. Only the fields sent are changed; approval and active state
+// are never touched here, and re-posting onboarding is not the edit path
+// (it would null fields the driver did not resend).
+exports.updateOwnDriverProfile = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))) throw new AppError('Helper access required', 403, 'delivery_helper_required');
+    const { rows: [existing] } = await pool.query('SELECT * FROM delivery_driver_profiles WHERE user_id = $1', [req.user.id]);
+    if (!existing) throw new AppError('Driver profile not found', 404, 'delivery_not_found');
+    const pickNumber = (value, fallback) => (value === undefined ? fallback : positiveNumber(value));
+    const pickBool = (value, fallback) => (value === undefined ? fallback : value === true);
+    const pickDate = (value, fallback, field) => (value === undefined ? fallback : isoDate(value, field));
+    const nextServiceArea = (req.body.serviceArea ?? req.body.service_area) === undefined
+      ? existing.service_area : JSON.stringify(normalizeServiceArea(req.body.serviceArea ?? req.body.service_area));
+    const nextMaxPieces = (req.body.maxPieces ?? req.body.max_pieces) === undefined
+      ? existing.max_pieces : Math.max(1, nonNegativeInteger(req.body.maxPieces ?? req.body.max_pieces, 1));
+    const nextVehicleType = (req.body.vehicleType ?? req.body.vehicle_type) === undefined
+      ? existing.vehicle_type : (text(req.body.vehicleType ?? req.body.vehicle_type, 32) || null);
+    const { rows } = await pool.query(
+      `UPDATE delivery_driver_profiles SET
+         vehicle_type = $2, max_payload_lbs = $3,
+         cargo_length_in = $4, cargo_width_in = $5, cargo_height_in = $6,
+         equipment = $7, service_area = $8, max_pieces = $9,
+         fragile_supported = $10, perishable_supported = $11,
+         insurance_expires_at = $12, available_from = $13, available_until = $14,
+         updated_at = NOW()
+       WHERE user_id = $1 RETURNING *`,
+      [req.user.id,
+        nextVehicleType,
+        pickNumber(req.body.maxPayloadLbs ?? req.body.max_payload_lbs, existing.max_payload_lbs),
+        pickNumber(req.body.cargoLengthIn ?? req.body.cargo_length_in, existing.cargo_length_in),
+        pickNumber(req.body.cargoWidthIn ?? req.body.cargo_width_in, existing.cargo_width_in),
+        pickNumber(req.body.cargoHeightIn ?? req.body.cargo_height_in, existing.cargo_height_in),
+        req.body.equipment !== undefined ? JSON.stringify(normalizeHandling(req.body.equipment)) : existing.equipment,
+        nextServiceArea, nextMaxPieces,
+        pickBool(req.body.fragileSupported ?? req.body.fragile_supported, existing.fragile_supported),
+        pickBool(req.body.perishableSupported ?? req.body.perishable_supported, existing.perishable_supported),
+        pickDate(req.body.insuranceExpiresAt ?? req.body.insurance_expires_at, existing.insurance_expires_at, 'insuranceExpiresAt'),
+        pickDate(req.body.availableFrom ?? req.body.available_from, existing.available_from, 'availableFrom'),
+        pickDate(req.body.availableUntil ?? req.body.available_until, existing.available_until, 'availableUntil')],
+    );
+    res.json({ success: true, profile: { ...rows[0], service_area: coerceStoredServiceArea(rows[0].service_area) } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getDriverProfile = async (req, res, next) => {
   try {
     const { rows: [profile] } = await pool.query('SELECT * FROM delivery_driver_profiles WHERE user_id = $1', [req.user.id]);
-    res.json({ success: true, profile: profile || null });
+    if (!profile) return res.json({ success: true, profile: null, vehicles: [], activeVehicle: null, documents: [] });
+    // Group 9 Slice A (items 452-454): the profile read carries the
+    // driver's own vehicles (with the active one flagged), their
+    // documents with days-to-expiry, and a service area coerced out of
+    // any pre-fix bare-string shape, so the profile page can show the
+    // active vehicle and expiring documents without extra round trips.
+    const [vehicles, documents] = await Promise.all([
+      pool.query('SELECT * FROM delivery_vehicles WHERE owner_user_id = $1 AND active = TRUE ORDER BY created_at ASC', [req.user.id]),
+      pool.query('SELECT * FROM driver_documents WHERE driver_user_id = $1 ORDER BY expires_at ASC NULLS LAST, created_at ASC', [req.user.id]),
+    ]);
+    const now = Date.now();
+    const withExpiry = documents.rows.map((doc) => ({
+      ...doc,
+      days_until_expiry: doc.expires_at == null ? null : Math.ceil((new Date(doc.expires_at).getTime() - now) / 86400000),
+    }));
+    const activeVehicle = vehicles.rows.find((vehicle) => String(vehicle.id) === String(profile.active_vehicle_id)) || null;
+    res.json({
+      success: true,
+      profile: { ...profile, service_area: coerceStoredServiceArea(profile.service_area) },
+      vehicles: vehicles.rows,
+      activeVehicle,
+      documents: withExpiry,
+    });
   } catch (error) {
     next(error);
   }
@@ -914,6 +1081,332 @@ exports.setDriverAvailability = async (req, res, next) => {
     );
     if (!profile) throw new AppError('Driver profile not found', 404, 'delivery_not_found');
     res.json({ success: true, profile });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── Group 9 Slice A: driver-owned vehicles (452), driver documents (453),
+// assignment readiness checklist (455) ──
+
+const DRIVER_VEHICLE_TYPES = new Set(['car', 'van', 'pickup', 'box_truck', 'cargo_bike']);
+const DRIVER_DOCUMENT_TYPES = new Set(['license', 'insurance', 'registration', 'vehicle_registration', 'other']);
+
+function driverVehicleYear(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const year = Number(value);
+  if (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear() + 1) {
+    throw new AppError('Vehicle year is invalid', 400, 'delivery_vehicle_invalid');
+  }
+  return year;
+}
+
+async function loadOwnedVehicle(userId, vehicleId) {
+  const id = Number(vehicleId);
+  if (!Number.isInteger(id) || id <= 0) throw new AppError('Vehicle not found', 404, 'delivery_not_found');
+  const { rows: [vehicle] } = await pool.query(
+    'SELECT * FROM delivery_vehicles WHERE id = $1 AND owner_user_id = $2 AND active = TRUE',
+    [id, userId],
+  );
+  if (!vehicle) throw new AppError('Vehicle not found', 404, 'delivery_not_found');
+  return vehicle;
+}
+
+// 452: a driver manages their own vehicles. Driver-owned rows carry
+// owner_user_id; ops fleet rows (owner NULL) are untouched by these
+// endpoints, and a driver can only see or change their own rows.
+exports.listDriverVehicles = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))) throw new AppError('Helper access required', 403, 'delivery_helper_required');
+    const { rows } = await pool.query('SELECT * FROM delivery_vehicles WHERE owner_user_id = $1 AND active = TRUE ORDER BY created_at ASC', [req.user.id]);
+    const { rows: [profile] } = await pool.query('SELECT active_vehicle_id FROM delivery_driver_profiles WHERE user_id = $1', [req.user.id]);
+    res.json({ success: true, vehicles: rows, activeVehicleId: profile?.active_vehicle_id || null });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.createDriverVehicle = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))) throw new AppError('Helper access required', 403, 'delivery_helper_required');
+    const vehicleType = text(req.body.vehicleType ?? req.body.vehicle_type, 32);
+    const maxPayloadLbs = positiveNumber(req.body.maxPayloadLbs ?? req.body.max_payload_lbs);
+    if (!DRIVER_VEHICLE_TYPES.has(vehicleType) || !maxPayloadLbs) {
+      throw new AppError('Vehicle type and payload are required', 400, 'delivery_vehicle_invalid');
+    }
+    const label = text(req.body.label, 120)
+      || [text(req.body.make, 80), text(req.body.model, 80), text(req.body.plate, 32)].filter(Boolean).join(' ')
+      || vehicleType;
+    const { rows } = await pool.query(
+      `INSERT INTO delivery_vehicles
+         (label, vehicle_type, max_payload_lbs, cargo_length_in, cargo_width_in, cargo_height_in,
+          equipment, max_pieces, fragile_supported, perishable_supported,
+          owner_user_id, plate, make, model, year, created_by_user_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+      [label, vehicleType, maxPayloadLbs,
+        positiveNumber(req.body.cargoLengthIn ?? req.body.cargo_length_in),
+        positiveNumber(req.body.cargoWidthIn ?? req.body.cargo_width_in),
+        positiveNumber(req.body.cargoHeightIn ?? req.body.cargo_height_in),
+        JSON.stringify(normalizeHandling(req.body.equipment)),
+        Math.max(1, nonNegativeInteger(req.body.maxPieces ?? req.body.max_pieces, 1)),
+        req.body.fragileSupported === true || req.body.fragile_supported === true,
+        req.body.perishableSupported === true || req.body.perishable_supported === true,
+        req.user.id, text(req.body.plate, 32) || null, text(req.body.make, 80) || null,
+        text(req.body.model, 80) || null, driverVehicleYear(req.body.year), req.user.id],
+    );
+    res.status(201).json({ success: true, vehicle: rows[0] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateDriverVehicle = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))) throw new AppError('Helper access required', 403, 'delivery_helper_required');
+    const vehicle = await loadOwnedVehicle(req.user.id, req.params.vehicleId);
+    const vehicleType = req.body.vehicleType ?? req.body.vehicle_type;
+    if (vehicleType !== undefined && !DRIVER_VEHICLE_TYPES.has(text(vehicleType, 32))) {
+      throw new AppError('Vehicle type is invalid', 400, 'delivery_vehicle_invalid');
+    }
+    const pickNumber = (value, fallback) => (value === undefined ? fallback : positiveNumber(value));
+    const pickBool = (value, fallback) => (value === undefined ? fallback : value === true);
+    const nextMaxPayload = pickNumber(req.body.maxPayloadLbs ?? req.body.max_payload_lbs, vehicle.max_payload_lbs);
+    const nextCargoLength = pickNumber(req.body.cargoLengthIn ?? req.body.cargo_length_in, vehicle.cargo_length_in);
+    const nextCargoWidth = pickNumber(req.body.cargoWidthIn ?? req.body.cargo_width_in, vehicle.cargo_width_in);
+    const nextCargoHeight = pickNumber(req.body.cargoHeightIn ?? req.body.cargo_height_in, vehicle.cargo_height_in);
+    const nextMaxPieces = (req.body.maxPieces ?? req.body.max_pieces) === undefined
+      ? vehicle.max_pieces : Math.max(1, nonNegativeInteger(req.body.maxPieces ?? req.body.max_pieces, 1));
+    const { rows } = await pool.query(
+      `UPDATE delivery_vehicles SET
+         label = $2, vehicle_type = $3, max_payload_lbs = $4,
+         cargo_length_in = $5, cargo_width_in = $6, cargo_height_in = $7,
+         equipment = $8, max_pieces = $9, fragile_supported = $10, perishable_supported = $11,
+         plate = $12, make = $13, model = $14, year = $15, updated_at = NOW()
+       WHERE id = $1 RETURNING *`,
+      [vehicle.id,
+        text(req.body.label, 120) || vehicle.label,
+        vehicleType !== undefined ? text(vehicleType, 32) : vehicle.vehicle_type,
+        nextMaxPayload, nextCargoLength, nextCargoWidth, nextCargoHeight,
+        req.body.equipment !== undefined ? JSON.stringify(normalizeHandling(req.body.equipment)) : vehicle.equipment,
+        nextMaxPieces,
+        pickBool(req.body.fragileSupported ?? req.body.fragile_supported, vehicle.fragile_supported),
+        pickBool(req.body.perishableSupported ?? req.body.perishable_supported, vehicle.perishable_supported),
+        req.body.plate !== undefined ? (text(req.body.plate, 32) || null) : vehicle.plate,
+        req.body.make !== undefined ? (text(req.body.make, 80) || null) : vehicle.make,
+        req.body.model !== undefined ? (text(req.body.model, 80) || null) : vehicle.model,
+        req.body.year !== undefined ? driverVehicleYear(req.body.year) : vehicle.year],
+    );
+    res.json({ success: true, vehicle: rows[0] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteDriverVehicle = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))) throw new AppError('Helper access required', 403, 'delivery_helper_required');
+    const vehicle = await loadOwnedVehicle(req.user.id, req.params.vehicleId);
+    await pool.query('UPDATE delivery_vehicles SET active = FALSE, updated_at = NOW() WHERE id = $1', [vehicle.id]);
+    await pool.query('UPDATE delivery_driver_profiles SET active_vehicle_id = NULL, updated_at = NOW() WHERE user_id = $1 AND active_vehicle_id = $2', [req.user.id, vehicle.id]);
+    res.json({ success: true, vehicleId: vehicle.id });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.activateDriverVehicle = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))) throw new AppError('Helper access required', 403, 'delivery_helper_required');
+    const vehicle = await loadOwnedVehicle(req.user.id, req.params.vehicleId);
+    const { rows: [profile] } = await pool.query(
+      'UPDATE delivery_driver_profiles SET active_vehicle_id = $1, updated_at = NOW() WHERE user_id = $2 RETURNING *',
+      [vehicle.id, req.user.id],
+    );
+    if (!profile) throw new AppError('Driver profile not found', 404, 'delivery_not_found');
+    res.json({ success: true, profile, activeVehicle: vehicle });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 453: driver documents are records with expiry dates, nothing more.
+// There is no verification workflow here by design (D-56): the driver
+// records what they hold, the profile surfaces what is expiring, and the
+// renewal-reminder job notifies them. Ops verification is an open call.
+exports.listDriverDocuments = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))) throw new AppError('Helper access required', 403, 'delivery_helper_required');
+    const { rows } = await pool.query('SELECT * FROM driver_documents WHERE driver_user_id = $1 ORDER BY expires_at ASC NULLS LAST, created_at ASC', [req.user.id]);
+    const now = Date.now();
+    res.json({
+      success: true,
+      documents: rows.map((doc) => ({
+        ...doc,
+        days_until_expiry: doc.expires_at == null ? null : Math.ceil((new Date(doc.expires_at).getTime() - now) / 86400000),
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.createDriverDocument = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))) throw new AppError('Helper access required', 403, 'delivery_helper_required');
+    const documentType = text(req.body.documentType ?? req.body.document_type, 32);
+    const title = text(req.body.title, 160);
+    if (!DRIVER_DOCUMENT_TYPES.has(documentType) || !title) {
+      throw new AppError('Document type and title are required', 400, 'delivery_document_invalid');
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO driver_documents (driver_user_id, document_type, title, expires_at, notes)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [req.user.id, documentType, title,
+        isoDate(req.body.expiresAt ?? req.body.expires_at, 'expiresAt'),
+        text(req.body.notes, 2000) || null],
+    );
+    res.status(201).json({ success: true, document: rows[0] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateDriverDocument = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))) throw new AppError('Helper access required', 403, 'delivery_helper_required');
+    const id = Number(req.params.documentId);
+    if (!Number.isInteger(id) || id <= 0) throw new AppError('Document not found', 404, 'delivery_not_found');
+    const { rows: [existing] } = await pool.query('SELECT * FROM driver_documents WHERE id = $1 AND driver_user_id = $2', [id, req.user.id]);
+    if (!existing) throw new AppError('Document not found', 404, 'delivery_not_found');
+    const documentType = req.body.documentType ?? req.body.document_type;
+    if (documentType !== undefined && !DRIVER_DOCUMENT_TYPES.has(text(documentType, 32))) {
+      throw new AppError('Document type is invalid', 400, 'delivery_document_invalid');
+    }
+    const nextExpiresAt = (req.body.expiresAt ?? req.body.expires_at) === undefined
+      ? existing.expires_at : isoDate(req.body.expiresAt ?? req.body.expires_at, 'expiresAt');
+    const { rows } = await pool.query(
+      `UPDATE driver_documents SET
+         document_type = $2, title = $3, expires_at = $4, notes = $5, updated_at = NOW()
+       WHERE id = $1 RETURNING *`,
+      [id,
+        documentType !== undefined ? text(documentType, 32) : existing.document_type,
+        req.body.title !== undefined ? (text(req.body.title, 160) || existing.title) : existing.title,
+        nextExpiresAt,
+        req.body.notes !== undefined ? (text(req.body.notes, 2000) || null) : existing.notes],
+    );
+    res.json({ success: true, document: rows[0] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteDriverDocument = async (req, res, next) => {
+  try {
+    if (!(await isAdmittedDriver(req.user))) throw new AppError('Helper access required', 403, 'delivery_helper_required');
+    const id = Number(req.params.documentId);
+    if (!Number.isInteger(id) || id <= 0) throw new AppError('Document not found', 404, 'delivery_not_found');
+    const { rowCount } = await pool.query('DELETE FROM driver_documents WHERE id = $1 AND driver_user_id = $2', [id, req.user.id]);
+    if (!rowCount) throw new AppError('Document not found', 404, 'delivery_not_found');
+    res.json({ success: true, documentId: id });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 455: driver-facing readiness checklist. Reuses the server readiness gate
+// (capabilityFailures) that already decides claim/assign, and renders each
+// requirement as pass/fail/warn/na with a fix target the UI can scroll to.
+// Advisory only: it changes no gate and no claim behavior (D-58). With a
+// ?jobId it checks against that job; without one it checks the profile
+// itself (capacity recorded, insurance, documents, active vehicle).
+exports.getDriverReadiness = async (req, res, next) => {
+  try {
+    const { capabilityFailures } = require('../services/localDeliveryDispatchService');
+    const { rows: [profile] } = await pool.query('SELECT * FROM delivery_driver_profiles WHERE user_id = $1', [req.user.id]);
+    const { rows: documents } = await pool.query('SELECT * FROM driver_documents WHERE driver_user_id = $1', [req.user.id]);
+    const { rows: [activeVehicle] } = profile?.active_vehicle_id
+      ? await pool.query('SELECT * FROM delivery_vehicles WHERE id = $1 AND owner_user_id = $2 AND active = TRUE', [profile.active_vehicle_id, req.user.id])
+      : { rows: [null] };
+    let job = null;
+    let window = null;
+    if (req.query.jobId !== undefined && req.query.jobId !== null && req.query.jobId !== '') {
+      const jobId = Number(req.query.jobId);
+      if (!Number.isInteger(jobId) || jobId <= 0) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+      const { rows: [found] } = await pool.query('SELECT * FROM delivery_jobs WHERE id = $1', [jobId]);
+      if (!found) throw new AppError('Delivery job not found', 404, 'delivery_not_found');
+      job = found;
+      if (job.pickup_window_start && job.delivery_window_end) {
+        window = { start: new Date(job.pickup_window_start).toISOString(), end: new Date(job.delivery_window_end).toISOString() };
+      }
+    }
+    const REASON_TO_CHECK = {
+      not_approved_or_active: 'approval', insurance: 'insurance', insurance_expired: 'insuranceExpiry',
+      pieces: 'pieces', payload: 'payload', dimension_length: 'dimensions', dimension_width: 'dimensions',
+      dimension_height: 'dimensions', fragile: 'fragile', perishable: 'perishable', hazmat: 'hazmat',
+      service_area: 'serviceArea', availability: 'availability',
+      available_from: 'availableFrom', available_until: 'availableUntil',
+    };
+    const CHECK_KEYS = ['approval', 'insurance', 'insuranceExpiry', 'pieces', 'payload', 'dimensions',
+      'fragile', 'perishable', 'hazmat', 'equipment', 'serviceArea', 'availability',
+      'availableFrom', 'availableUntil', 'documents', 'vehicle'];
+    const FIX_TARGET = {
+      approval: 'profile', insurance: 'profile', insuranceExpiry: 'documents', pieces: 'profile',
+      payload: 'profile', dimensions: 'profile', fragile: 'profile', perishable: 'profile',
+      hazmat: 'profile', equipment: 'profile', serviceArea: 'service-area', availability: 'profile',
+      availableFrom: 'profile', availableUntil: 'profile', documents: 'documents', vehicle: 'vehicles',
+    };
+    const checklist = {};
+    for (const key of CHECK_KEYS) checklist[key] = { key, status: 'pass', detail: null, fix: FIX_TARGET[key] };
+    if (!profile) {
+      for (const key of CHECK_KEYS) checklist[key] = { key, status: 'fail', detail: 'missing_profile', fix: FIX_TARGET[key] };
+      return res.json({ success: true, profile: null, jobId: job?.id || null, checklist: CHECK_KEYS.map((key) => checklist[key]) });
+    }
+    const reasons = capabilityFailures(
+      { ...profile, service_area: coerceStoredServiceArea(profile.service_area) },
+      job || { pieces: 1, weight_lbs: 0, handling_requirements: {} },
+      { driver: true, window },
+    );
+    for (const reason of reasons) {
+      if (reason.startsWith('equipment_')) { checklist.equipment = { key: 'equipment', status: 'fail', detail: reason, fix: 'profile' }; continue; }
+      const key = REASON_TO_CHECK[reason];
+      if (key) checklist[key] = { key, status: 'fail', detail: reason, fix: FIX_TARGET[key] };
+    }
+    if (!job) {
+      // No job to check against: job-dependent requirements are not
+      // applicable, and missing capacity data is a warning, not a failure.
+      for (const key of ['fragile', 'perishable', 'hazmat', 'equipment', 'availability', 'availableFrom', 'availableUntil']) {
+        checklist[key] = { key, status: 'na', detail: null, fix: FIX_TARGET[key] };
+      }
+      if (!profile.max_payload_lbs) checklist.payload = { key: 'payload', status: 'warn', detail: 'no_payload_recorded', fix: 'profile' };
+      if (!profile.cargo_length_in || !profile.cargo_width_in || !profile.cargo_height_in) {
+        checklist.dimensions = { key: 'dimensions', status: 'warn', detail: 'no_dimensions_recorded', fix: 'profile' };
+      }
+      if (!profile.insurance_expires_at) checklist.insuranceExpiry = { key: 'insuranceExpiry', status: 'warn', detail: 'no_expiry_recorded', fix: 'documents' };
+    }
+    // Documents: an expired document fails readiness; one expiring within
+    // 30 days warns. No documents at all warns (nothing on file to renew).
+    const now = Date.now();
+    const expired = documents.filter((doc) => doc.expires_at && new Date(doc.expires_at).getTime() < now);
+    const expiring = documents.filter((doc) => {
+      if (!doc.expires_at) return false;
+      const days = Math.ceil((new Date(doc.expires_at).getTime() - now) / 86400000);
+      return days >= 0 && days <= 30;
+    });
+    if (expired.length) checklist.documents = { key: 'documents', status: 'fail', detail: 'document_expired', fix: 'documents' };
+    else if (expiring.length) checklist.documents = { key: 'documents', status: 'warn', detail: 'document_expiring', fix: 'documents' };
+    else if (!documents.length) checklist.documents = { key: 'documents', status: 'warn', detail: 'no_documents', fix: 'documents' };
+    // Active vehicle: advisory (marketplace claims carry no vehicle), so a
+    // missing active vehicle warns; a set one is also checked against the
+    // job's capacity when a job is given.
+    if (!activeVehicle) {
+      checklist.vehicle = { key: 'vehicle', status: 'warn', detail: 'no_active_vehicle', fix: 'vehicles' };
+    } else if (job) {
+      const vehicleReasons = capabilityFailures(activeVehicle, job, { window });
+      if (vehicleReasons.length) {
+        checklist.vehicle = { key: 'vehicle', status: 'fail', detail: `vehicle_${vehicleReasons[0]}`, fix: 'vehicles' };
+      }
+    }
+    res.json({ success: true, profile, jobId: job?.id || null, checklist: CHECK_KEYS.map((key) => checklist[key]) });
   } catch (error) {
     next(error);
   }

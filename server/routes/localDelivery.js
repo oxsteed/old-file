@@ -43,9 +43,23 @@ router.get('/jobs/:id/proofs/:proofId', requireAuth, proofController.download);
 router.post('/jobs/:id/claim', requireAuth, rejectImpersonated, controller.claim);
 // P2-4-F10: self-serve driver onboarding (profile starts pending ops approval).
 router.post('/driver-profile', requireAuth, rejectImpersonated, controller.selfServeDriverOnboarding);
+router.patch('/driver-profile', requireAuth, rejectImpersonated, controller.updateOwnDriverProfile);
 router.get('/driver-profile', requireAuth, controller.getDriverProfile);
 // Item 12: the driver toggles their own availability flag.
 router.patch('/driver-profile/availability', requireAuth, rejectImpersonated, controller.setDriverAvailability);
+// Group 9 Slice A: assignment readiness checklist (455) reuses the server
+// readiness gate read-only; no jobId checks the profile itself.
+router.get('/driver-profile/readiness', requireAuth, controller.getDriverReadiness);
+// Group 9 Slice A: driver-owned vehicles (452) and documents (453).
+router.get('/driver-vehicles', requireAuth, controller.listDriverVehicles);
+router.post('/driver-vehicles', requireAuth, rejectImpersonated, controller.createDriverVehicle);
+router.patch('/driver-vehicles/:vehicleId', requireAuth, rejectImpersonated, controller.updateDriverVehicle);
+router.delete('/driver-vehicles/:vehicleId', requireAuth, rejectImpersonated, controller.deleteDriverVehicle);
+router.post('/driver-vehicles/:vehicleId/activate', requireAuth, rejectImpersonated, controller.activateDriverVehicle);
+router.get('/driver-documents', requireAuth, controller.listDriverDocuments);
+router.post('/driver-documents', requireAuth, rejectImpersonated, controller.createDriverDocument);
+router.patch('/driver-documents/:documentId', requireAuth, rejectImpersonated, controller.updateDriverDocument);
+router.delete('/driver-documents/:documentId', requireAuth, rejectImpersonated, controller.deleteDriverDocument);
 // P2-4-F04: driver payout lifecycle (accrue on delivery; ops approves/pays).
 router.get('/driver-payouts', requireAuth, controller.listDriverPayouts);
 router.patch('/jobs/:id/status', requireAuth, rejectImpersonated, controller.updateStatus);

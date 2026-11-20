@@ -77,6 +77,20 @@ export const registerTrackingDevice = (payload) => mutate('post', '/delivery/tra
 export const getDriverProfile = () => api.get('/delivery/driver-profile').then((response) => response.data);
 export const setDriverAvailability = (available) => api.patch('/delivery/driver-profile/availability', { available }).then((response) => response.data);
 export const registerDriverProfile = (payload) => mutate('post', '/delivery/driver-profile', payload);
+export const updateDriverProfile = (payload) => mutate('patch', '/delivery/driver-profile', payload);
+// Group 9 Slice A: assignment readiness checklist (455).
+export const getDriverReadiness = (jobId) => api.get('/delivery/driver-profile/readiness', jobId ? { params: { jobId } } : undefined).then((response) => response.data);
+// Group 9 Slice A: driver-owned vehicles (452).
+export const listDriverVehicles = () => api.get('/delivery/driver-vehicles').then((response) => response.data);
+export const createDriverVehicle = (payload) => mutate('post', '/delivery/driver-vehicles', payload);
+export const updateDriverVehicle = (id, payload) => mutate('patch', `/delivery/driver-vehicles/${id}`, payload);
+export const deleteDriverVehicle = (id) => api.delete(`/delivery/driver-vehicles/${id}`).then((response) => response.data);
+export const activateDriverVehicle = (id) => mutate('post', `/delivery/driver-vehicles/${id}/activate`);
+// Group 9 Slice A: driver documents with expiry dates (453).
+export const listDriverDocuments = () => api.get('/delivery/driver-documents').then((response) => response.data);
+export const createDriverDocument = (payload) => mutate('post', '/delivery/driver-documents', payload);
+export const updateDriverDocument = (id, payload) => mutate('patch', `/delivery/driver-documents/${id}`, payload);
+export const deleteDriverDocument = (id) => api.delete(`/delivery/driver-documents/${id}`).then((response) => response.data);
 export const grantTrackingConsent = (id, payload) => mutate('post', `/delivery/jobs/${id}/tracking/consent`, payload);
 export const revokeTrackingConsent = (id, reason = null) => api.delete(`/delivery/jobs/${id}/tracking/consent`, { data: { reason } }).then((response) => response.data);
 export const startTracking = (id, payload) => mutate('post', `/delivery/jobs/${id}/tracking/start`, payload);

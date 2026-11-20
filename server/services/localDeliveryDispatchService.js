@@ -106,7 +106,12 @@ function capabilityFailures(capacity, job, { driver = false, window } = {}) {
   for (const [key, required] of Object.entries(job.handling_requirements || {})) {
     if (required === true && equipment[key] !== true) reasons.push(`equipment_${key}`);
   }
-  if (!areaCovers(capacity.service_area, job)) reasons.push('service_area');
+  // Group 9 Slice A (item 454): a pre-fix profile may still carry its
+  // service area as a bare JSON string; areaCovers rejects non-objects,
+  // so treat a stored string as {} (everywhere) instead of failing the
+  // driver on every assignment.
+  const serviceArea = typeof capacity.service_area === 'string' ? {} : capacity.service_area;
+  if (!areaCovers(serviceArea, job)) reasons.push('service_area');
   if (window && !availableDuring(capacity.availability, window)) reasons.push('availability');
   if (window && capacity.available_from && (!Number.isFinite(Date.parse(capacity.available_from)) || Date.parse(capacity.available_from) > Date.parse(window.start))) reasons.push('available_from');
   if (window && capacity.available_until && (!Number.isFinite(Date.parse(capacity.available_until)) || Date.parse(capacity.available_until) < Date.parse(window.end))) reasons.push('available_until');
