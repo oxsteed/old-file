@@ -9,6 +9,7 @@ const { startBroadcastDelivery } = require('../jobs/broadcastDelivery');
 const { startRestaurantScreenSync } = require('../jobs/restaurantScreenSync');
 const logger = require('../utils/logger');
 const bookingController = require('../controllers/bookingController');
+const bookingRecipientService = require('../services/bookingRecipientService');
 const cleanupOldMessagesJob = require('../jobs/cleanupOldMessages');
 const guestChatRetention = require('../jobs/guestChatRetentionCleanup');
 const { cleanupExpiredSupportMessages } = require('../jobs/supportConversationRetentionCleanup');
@@ -315,6 +316,13 @@ class BackgroundWorkers {
           await bookingController.releaseStaleAcceptedBookings();
         } catch (err) {
           this.log.warn('Booking maintenance job failed', { error: err.message });
+        }
+        // Group 3 (item 102): visit reminders to linked recipient and
+        // site-contact accounts when the visit is tomorrow, once per party.
+        try {
+          await bookingRecipientService.sendVisitReminders();
+        } catch (err) {
+          this.log.warn('Visit reminder job failed', { error: err.message });
         }
         try {
           await cancelAbandonedPayNowOrders();

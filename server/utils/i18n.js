@@ -768,6 +768,152 @@ const T = {
       ar: 'ردّ المستلم على الحجز.',
     },
   },
+  // Group 3 (Recipient and sponsor): visit reminders, arrival, completion,
+  // site actions, sponsorship, link renewal, contact removal, care notes.
+  booking_visit_reminder: {
+    title: {
+      en: 'Visit Tomorrow',
+      fr: 'Visite demain',
+      es: 'Visita mañana',
+      ht: 'Vizit demen',
+      ar: 'زيارة غداً',
+    },
+    body: {
+      en: 'Your visit is tomorrow. Review the time and site details.',
+      fr: 'Votre visite a lieu demain. Vérifiez l’heure et les détails du lieu.',
+      es: 'Tu visita es mañana. Revisa la hora y los detalles del lugar.',
+      ht: 'Vizit ou a se demen. Verifye lè a ak detay kote a.',
+      ar: 'زيارتك غداً. راجع الوقت وتفاصيل الموقع.',
+    },
+  },
+  booking_visit_completed: {
+    title: {
+      en: 'Visit Complete',
+      fr: 'Visite terminée',
+      es: 'Visita completada',
+      ht: 'Vizit la fini',
+      ar: 'اكتملت الزيارة',
+    },
+    body: {
+      en: 'The visit is complete.',
+      fr: 'La visite est terminée.',
+      es: 'La visita está completada.',
+      ht: 'Vizit la fini.',
+      ar: 'اكتملت الزيارة.',
+    },
+  },
+  booking_provider_arrived: {
+    title: {
+      en: 'Provider Arrived',
+      fr: 'Prestataire arrivé',
+      es: 'El proveedor llegó',
+      ht: 'Pwofesyonèl la rive',
+      ar: 'وصل مقدم الخدمة',
+    },
+    body: {
+      en: 'The provider has arrived for the visit.',
+      fr: 'Le prestataire est arrivé pour la visite.',
+      es: 'El proveedor llegó para la visita.',
+      ht: 'Pwofesyonèl la rive pou vizit la.',
+      ar: 'وصل مقدم الخدمة للزيارة.',
+    },
+  },
+  booking_site_action: {
+    title: {
+      en: 'Visit Update',
+      fr: 'Mise à jour de la visite',
+      es: 'Actualización de la visita',
+      ht: 'Mizajou vizit la',
+      ar: 'تحديث الزيارة',
+    },
+    body: {
+      en: 'There is an update on the visit.',
+      fr: 'Il y a une mise à jour de la visite.',
+      es: 'Hay una actualización de la visita.',
+      ht: 'Gen yon mizajou sou vizit la.',
+      ar: 'يوجد تحديث على الزيارة.',
+    },
+  },
+  booking_sponsor_invite: {
+    title: {
+      en: 'Sponsor a Visit',
+      fr: 'Parrainer une visite',
+      es: 'Patrocina una visita',
+      ht: 'Patwone yon vizit',
+      ar: 'رعاية زيارة',
+    },
+    body: {
+      en: 'You are invited to sponsor a visit. Review the amount and deadline.',
+      fr: 'Vous êtes invité à parrainer une visite. Vérifiez le montant et la date limite.',
+      es: 'Te invitaron a patrocinar una visita. Revisa el monto y la fecha límite.',
+      ht: 'Yo envite ou pou patwone yon vizit. Verifye montan an ak dat limit la.',
+      ar: 'أنت مدعو لرعاية زيارة. راجع المبلغ والموعد النهائي.',
+    },
+  },
+  booking_sponsor_update: {
+    title: {
+      en: 'Sponsorship Update',
+      fr: 'Mise à jour du parrainage',
+      es: 'Actualización del patrocinio',
+      ht: 'Mizajou patwonaj la',
+      ar: 'تحديث الرعاية',
+    },
+    body: {
+      en: 'There is an update on the sponsorship.',
+      fr: 'Il y a une mise à jour du parrainage.',
+      es: 'Hay una actualización del patrocinio.',
+      ht: 'Gen yon mizajou sou patwonaj la.',
+      ar: 'يوجد تحديث على الرعاية.',
+    },
+  },
+  booking_link_renewal_requested: {
+    title: {
+      en: 'Link Renewal Requested',
+      fr: 'Renouvellement de lien demandé',
+      es: 'Renovación de enlace solicitada',
+      ht: 'Yo mande pou renouvle lyen an',
+      ar: 'طُلب تجديد الرابط',
+    },
+    body: {
+      en: 'Someone asked to renew the visit status link.',
+      fr: 'Quelqu’un a demandé le renouvellement du lien de suivi de visite.',
+      es: 'Alguien pidió renovar el enlace de estado de la visita.',
+      ht: 'Yon moun mande pou renouvle lyen pou swiv vizit la.',
+      ar: 'طلب شخص ما تجديد رابط حالة الزيارة.',
+    },
+  },
+  booking_contact_removed: {
+    title: {
+      en: 'Visit Access Removed',
+      fr: 'Accès à la visite retiré',
+      es: 'Acceso a la visita eliminado',
+      ht: 'Yo retire aksè vizit ou',
+      ar: 'تمت إزالة الوصول إلى الزيارة',
+    },
+    body: {
+      en: 'Your access to the visit was removed by the booker.',
+      fr: 'Votre accès à la visite a été retiré par le demandeur.',
+      es: 'El solicitante eliminó tu acceso a la visita.',
+      ht: 'Moun ki fè rezervasyon an retire aksè ou nan vizit la.',
+      ar: 'أزال صاحب الحجز وصولك إلى الزيارة.',
+    },
+  },
+  booking_care_instructions: {
+    title: {
+      en: 'Care Instructions',
+      fr: 'Consignes d’entretien',
+      es: 'Instrucciones de cuidado',
+      ht: 'Enstriksyon pou swen',
+      ar: 'تعليمات العناية',
+    },
+    body: {
+      en: 'Care instructions were shared for the visit.',
+      fr: 'Des consignes d’entretien ont été partagées pour la visite.',
+      es: 'Se compartieron instrucciones de cuidado para la visita.',
+      ht: 'Yo pataje enstriksyon pou swen pou vizit la.',
+      ar: 'تمت مشاركة تعليمات العناية للزيارة.',
+    },
+  },
   // Group 2: household delegate invite, delegation updates, spending
   // requests, and visit updates (reminders, replacement, unavailability,
   // emergency fallback, document forwarding).

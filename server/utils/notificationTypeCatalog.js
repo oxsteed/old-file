@@ -45,6 +45,17 @@ const NOTIFICATION_TYPES = [
   // G-6/G-7: recipient invite, recipient response notice, site-contact link.
   { type: 'booking_recipient_invite', group: 'work' },
   { type: 'booking_recipient_response', group: 'work' },
+  // Group 3 (Recipient and sponsor): visit reminders, arrival, completion,
+  // site actions, sponsorship, link renewal, contact removal, care notes.
+  { type: 'booking_visit_reminder', group: 'work' },
+  { type: 'booking_visit_completed', group: 'work' },
+  { type: 'booking_provider_arrived', group: 'work' },
+  { type: 'booking_site_action', group: 'work' },
+  { type: 'booking_sponsor_invite', group: 'work' },
+  { type: 'booking_sponsor_update', group: 'work' },
+  { type: 'booking_link_renewal_requested', group: 'work' },
+  { type: 'booking_contact_removed', group: 'work' },
+  { type: 'booking_care_instructions', group: 'work' },
   // Group 2: household delegate invite, delegation updates, spending
   // requests, visit updates.
   { type: 'household_delegate_invite', group: 'work' },

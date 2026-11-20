@@ -717,7 +717,48 @@ exports.createBookingPaymentIntent = async (req, res, next) => {
         }
       }
       const promoDiscountCents = promo ? promo.discountCents : 0;
-      const chargeCents = amountCents - promoDiscountCents;
+      // Group 3 (D-40): the booker's charge is reduced by what sponsors
+      // already paid. A fully sponsored booking needs no intent at all
+      // (unless the booker already holds a live intent, which the
+      // stability block below refuses to replace).
+      const { rows: [sponsoredRow] } = await client.query(
+        `SELECT COALESCE((SELECT SUM(amount_cents) FROM booking_sponsorships WHERE booking_id = $1 AND status = 'paid'), 0)
+              + COALESCE((SELECT SUM(amount_cents) FROM booking_sponsorship_charges WHERE booking_id = $1 AND status = 'paid'), 0) AS cents`,
+        [booking.id]
+      );
+      const sponsoredCents = Number(sponsoredRow?.cents || 0);
+      const chargeCents = Math.max(0, amountCents - promoDiscountCents - sponsoredCents);
+      if (chargeCents > 0 && chargeCents < 50) {
+        throw new AppError('Amount remaining after sponsorships is below the $0.50 minimum', 400, 'validation_failed', {
+          amountCents: 'Too small after sponsorships',
+        });
+      }
+      if (chargeCents === 0 && !locked.stripe_payment_intent_id) {
+        if (promo) {
+          await promoRedemption.reversePromo(client, { surface: 'booking', referenceId: booking.id, reason: 'fully_sponsored' });
+        }
+        await client.query(
+          `UPDATE booking_requests
+              SET payment_status = 'paid', paid_at = COALESCE(paid_at, NOW()),
+                  gross_amount_cents = $2, promo_discount_cents = $3, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1`,
+          [booking.id, amountCents, promoDiscountCents]
+        );
+        await client.query('COMMIT');
+        committed = true;
+        return res.json({
+          success: true,
+          data: {
+            bookingId: booking.id,
+            fullySponsored: true,
+            amountCents: 0,
+            grossAmountCents: amountCents,
+            promoDiscountCents,
+            sponsoredCents,
+            paymentRequirement,
+          },
+        });
+      }
 
       // Keep an active intent stable so retries cannot replace the amount or
       // leave an older client holding a second payable intent.

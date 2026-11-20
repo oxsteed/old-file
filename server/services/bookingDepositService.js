@@ -45,6 +45,14 @@ function isBookingIntent(pi) {
 async function applyBookingIntentWebhook(eventType, pi) {
   if (!isBookingIntent(pi)) return false;
   const bookingId = String(pi.metadata.booking_request_id);
+  // Group 3 (D-40): a sponsor's own intent settles the sponsorship row,
+  // never the booking's payment state. Same source, separate ledger.
+  if (pi.metadata?.sponsorship_charge_id) {
+    return applySponsorshipPaymentWebhook(eventType, pi, 'booking_sponsorship_charges', pi.metadata.sponsorship_charge_id);
+  }
+  if (pi.metadata?.sponsorship_id) {
+    return applySponsorshipPaymentWebhook(eventType, pi, 'booking_sponsorships', pi.metadata.sponsorship_id);
+  }
   if (eventType === 'payment_intent.succeeded') {
     const { rows: [candidate] } = await db.query(
       `SELECT id, payment_status, payment_amount_cents, stripe_payment_intent_id
@@ -119,6 +127,188 @@ async function deliveredAppointment(runner, booking) {
   return rows[0]?.status === 'completed';
 }
 
+// ─── Group 3 sponsorship payments (D-40) ─────────────────────────────────
+// A sponsor pays with their own card through a per-sponsorship (or
+// per-charge) PaymentIntent. The webhook settles that row only; the
+// booking's payment_status is untouched. Refunds return each payer's money
+// to their own intent, idempotency-keyed per row.
+
+async function findPaidSponsorshipPayments(bookingId) {
+  const entries = [];
+  const { rows: sponsorships } = await db.query(
+    `SELECT * FROM booking_sponsorships WHERE booking_id = $1 AND status = 'paid'`,
+    [bookingId]
+  );
+  for (const row of sponsorships) entries.push({ table: 'booking_sponsorships', row });
+  const { rows: charges } = await db.query(
+    `SELECT * FROM booking_sponsorship_charges WHERE booking_id = $1 AND status = 'paid'`,
+    [bookingId]
+  );
+  for (const row of charges) entries.push({ table: 'booking_sponsorship_charges', row });
+  return entries;
+}
+
+async function refundOneSponsorshipPayment(stripe, entry, bookingId, reason) {
+  const { table, row } = entry;
+  if (!row.stripe_payment_intent_id) return false;
+  try {
+    const refund = await stripe.refunds.create(
+      { payment_intent: row.stripe_payment_intent_id, metadata: { booking_request_id: String(bookingId), reason } },
+      { idempotencyKey: `booking-${table}:${row.id}:refund` }
+    );
+    if (!refund || typeof refund.id !== 'string' || !refund.id.trim()) {
+      throw new Error('Stripe sponsorship refund did not return a refund id');
+    }
+    const providerAmount = Number(refund.amount);
+    const providerCurrency = typeof refund.currency === 'string' ? refund.currency.toLowerCase() : '';
+    const providerPaymentIntentId = typeof refund.payment_intent === 'string'
+      ? refund.payment_intent
+      : refund.payment_intent?.id || null;
+    if (!Number.isSafeInteger(providerAmount)
+        || providerAmount !== Number(row.amount_cents)
+        || providerCurrency !== 'usd'
+        || providerPaymentIntentId !== row.stripe_payment_intent_id) {
+      throw new Error('Stripe sponsorship refund did not match the stored payment');
+    }
+    await db.query(
+      `UPDATE ${table}
+          SET status = 'refunded', refunded_at = COALESCE(refunded_at, NOW()),
+              stripe_refund_id = $2, updated_at = NOW()
+        WHERE id = $1 AND status = 'paid'`,
+      [row.id, refund.id || null]
+    );
+    logger.info('Booking sponsorship payment refunded', { bookingId, table, rowId: row.id, refundId: refund.id, reason });
+    return true;
+  } catch (err) {
+    logger.error('Booking sponsorship refund failed', { bookingId, table, rowId: row.id, error: err.message });
+    await recordException({
+      domain: 'payment_refund',
+      referenceId: String(bookingId),
+      severity: 'critical',
+      summary: `Sponsorship refund failed for booking ${bookingId} (${table} ${row.id})`,
+      details: { bookingId: String(bookingId), table, rowId: String(row.id), lastError: String(err.message || '').slice(0, 500) },
+    });
+    return false;
+  }
+}
+
+/** Refund every paid sponsorship/charge on a terminal booking. Best-effort per row. */
+async function refundSponsorshipPayments(booking, entries, reason) {
+  if (!entries.length) return false;
+  const stripe = stripeClient();
+  let refunded = false;
+  for (const entry of entries) {
+    const ok = await refundOneSponsorshipPayment(stripe, entry, booking.id, reason);
+    refunded = refunded || ok;
+    if (ok) {
+      try {
+        // eslint-disable-next-line global-require
+        const recipientSvc = require('./bookingRecipientService');
+        const { rows: [fresh] } = await db.query(
+          `SELECT * FROM booking_requests WHERE id = $1`, [booking.id]
+        );
+        const sponsorship = entry.table === 'booking_sponsorships'
+          ? entry.row
+          : (await db.query('SELECT * FROM booking_sponsorships WHERE id = $1', [entry.row.sponsorship_id])).rows[0];
+        if (fresh && sponsorship) {
+          await recipientSvc.notifyAccountParty({
+            booking: fresh,
+            userId: sponsorship.sponsor_user_id,
+            type: 'booking_sponsor_update',
+            body: `${fresh.service_name}: the sponsored payment was refunded to the original payment method`,
+            data: { sponsorshipId: sponsorship.id },
+            actionUrl: '/my-bookings',
+            idempotencyKey: `booking-sponsor-refunded:${sponsorship.id}`,
+          });
+        }
+      } catch (notifyErr) {
+        logger.warn('Failed to notify sponsor of refund', { error: notifyErr.message });
+      }
+    }
+  }
+  return refunded;
+}
+
+/**
+ * Settle one sponsorship (or charge) intent from the Stripe webhook.
+ * Verifies the intent against the stored row exactly like the booker leg:
+ * same intent id, same amount, USD. A payment that lands after the
+ * booking already ended is refunded straight away.
+ */
+async function applySponsorshipPaymentWebhook(eventType, pi, table, rowId) {
+  const { rows: [row] } = await db.query(
+    `SELECT * FROM ${table} WHERE id = $1 AND stripe_payment_intent_id = $2 FOR UPDATE`,
+    [rowId, pi.id]
+  );
+  if (!row) return true;
+  if (eventType === 'payment_intent.succeeded') {
+    const providerAmount = Number(pi.amount_received ?? pi.amount);
+    const expectedAmount = Number(row.amount_cents);
+    const providerCurrency = typeof pi.currency === 'string' ? pi.currency.toLowerCase() : '';
+    if (!Number.isSafeInteger(providerAmount)
+        || providerAmount <= 0
+        || !Number.isSafeInteger(expectedAmount)
+        || expectedAmount <= 0
+        || providerAmount !== expectedAmount
+        || providerCurrency !== 'usd') {
+      throw new AppError(
+        'Stripe sponsorship payment does not match the stored sponsorship amount or currency',
+        409,
+        'sponsorship_payment_verification_failed',
+      );
+    }
+    const { rows: [paid] } = await db.query(
+      `UPDATE ${table}
+          SET status = 'paid', paid_at = COALESCE(paid_at, NOW()), updated_at = NOW()
+        WHERE id = $1 AND status = 'accepted' RETURNING *`,
+      [row.id]
+    );
+    if (!paid) return true;
+    const { rows: [booking] } = await db.query(
+      'SELECT * FROM booking_requests WHERE id = $1', [row.booking_id]
+    );
+    if (booking && TERMINAL_STATUSES.includes(booking.status)) {
+      await refundOneSponsorshipPayment(stripeClient(), { table, row: paid }, booking.id, 'paid_after_terminal');
+      return true;
+    }
+    if (booking) {
+      try {
+        // eslint-disable-next-line global-require
+        const recipientSvc = require('./bookingRecipientService');
+        const sponsorship = table === 'booking_sponsorships'
+          ? paid
+          : (await db.query('SELECT * FROM booking_sponsorships WHERE id = $1', [paid.sponsorship_id])).rows[0];
+        if (sponsorship) {
+          await recipientSvc.notifyAccountParty({
+            booking,
+            userId: booking.customer_id,
+            type: 'booking_sponsor_update',
+            body: `${booking.service_name}: the sponsor paid the sponsored amount`,
+            data: { sponsorshipId: sponsorship.id },
+            actionUrl: '/my-bookings',
+            idempotencyKey: `booking-sponsor-paid:${sponsorship.id}`,
+          });
+          await recipientSvc.notifyAccountParty({
+            booking,
+            userId: sponsorship.sponsor_user_id,
+            type: 'booking_sponsor_update',
+            body: `${booking.service_name}: your sponsored payment was received`,
+            data: { sponsorshipId: sponsorship.id },
+            actionUrl: '/my-bookings',
+            idempotencyKey: `booking-sponsor-paid:${sponsorship.id}:sponsor`,
+          });
+        }
+      } catch (notifyErr) {
+        logger.warn('Failed to notify sponsorship payment', { error: notifyErr.message });
+      }
+    }
+    return true;
+  }
+  // Failed/canceled/processing: the sponsorship stays 'accepted' so the
+  // sponsor can retry with a fresh intent; nothing is settled here.
+  return true;
+}
+
 /**
  * Refund (or void) the payment of a booking that has ended. Safe to call
  * from any terminal path and repeatedly. Returns a short outcome string.
@@ -127,12 +317,33 @@ async function settleTerminalBooking(bookingId, reason = 'booking_ended') {
   const { rows: [booking] } = await db.query('SELECT * FROM booking_requests WHERE id = $1', [bookingId]);
   if (!booking) return 'not_found';
   if (!TERMINAL_STATUSES.includes(booking.status)) return 'not_terminal';
-  if (!booking.stripe_payment_intent_id) return 'no_payment';
-  if (!['paid', 'requires_payment', 'processing'].includes(booking.payment_status)) return 'nothing_to_settle';
+  // Group 3 (D-40): a fully sponsored booking has no booker intent, but its
+  // sponsor payments still need refunding. A booking with neither is
+  // untouched, exactly as before.
+  const sponsorPayments = await findPaidSponsorshipPayments(booking.id);
+  if (!booking.stripe_payment_intent_id && sponsorPayments.length === 0) return 'no_payment';
+  if (!['paid', 'requires_payment', 'processing'].includes(booking.payment_status) && sponsorPayments.length === 0) return 'nothing_to_settle';
   // A booking flagged accepted_cancelled after the service was delivered is
   // not a cancellation of the work: keep the payment.
   if (booking.status === 'accepted_cancelled' && await deliveredAppointment(db, booking)) return 'service_delivered';
 
+  let bookerOutcome = null;
+  if (booking.stripe_payment_intent_id
+    && ['paid', 'requires_payment', 'processing'].includes(booking.payment_status)) {
+    bookerOutcome = await settleBookerTerminalIntent(booking, reason);
+  }
+  const sponsorRefunded = await refundSponsorshipPayments(booking, sponsorPayments, reason);
+  if (bookerOutcome) return bookerOutcome;
+  return sponsorRefunded ? 'refunded' : 'nothing_to_settle';
+}
+
+/**
+ * The booker's own intent leg of a terminal settlement, extracted
+ * unchanged from settleTerminalBooking: Group 3 split the sponsor legs
+ * out, the booker leg keeps its exact behavior, including throwing on
+ * failure so the sweeper retries.
+ */
+async function settleBookerTerminalIntent(booking, reason) {
   const stripe = stripeClient();
   try {
     if (booking.payment_status === 'paid') {
@@ -264,8 +475,13 @@ async function findUnsettledTerminalBookings(limit = 50) {
     `SELECT id FROM booking_requests
       WHERE status = ANY($1::text[])
         AND payment_status IN ('paid', 'requires_payment', 'processing')
-        AND stripe_payment_intent_id IS NOT NULL
-        AND refund_attempts < $2
+        AND (
+          (stripe_payment_intent_id IS NOT NULL AND refund_attempts < $2)
+          OR (stripe_payment_intent_id IS NULL AND (
+            EXISTS (SELECT 1 FROM booking_sponsorships s WHERE s.booking_id = booking_requests.id AND s.status = 'paid')
+            OR EXISTS (SELECT 1 FROM booking_sponsorship_charges c WHERE c.booking_id = booking_requests.id AND c.status = 'paid')
+          ))
+        )
       ORDER BY updated_at ASC
       LIMIT $3`,
     [TERMINAL_STATUSES, MAX_REFUND_ATTEMPTS, Math.min(200, Math.max(1, Number(limit) || 50))]
