@@ -83,6 +83,18 @@ export const getPublicDeliveryTracking = (token) =>
 // ── Driver GPS tracking (driver-facing; restored for DriverTrackingControls) ──
 export const listTrackingDevices = () => api.get('/delivery/tracking/devices').then((response) => response.data);
 export const registerTrackingDevice = (payload) => mutate('post', '/delivery/tracking/devices', payload);
+// Group 9 Slice G (item 499): device-change recovery. The driver
+// registers a new phone from the driver screens; the server moves
+// the live tracking assignments and consent to it and revokes the
+// old device. Buffered unsynced points stay on the old device (D-92).
+export const transferTrackingDevice = (payload) => mutate('post', '/delivery/tracking/devices/transfer', payload);
+export const revokeTrackingDevice = (id) => api.delete(`/delivery/tracking/devices/${id}`).then((response) => response.data);
+// Group 9 Slice G (item 500): driver shifts and shift closeout.
+export const startDriverShift = () => mutate('post', '/delivery/driver-shifts');
+export const getOpenDriverShift = () => api.get('/delivery/driver-shifts/open').then((response) => response.data);
+export const listDriverShifts = () => api.get('/delivery/driver-shifts').then((response) => response.data);
+export const getDriverShift = (id) => api.get(`/delivery/driver-shifts/${id}`).then((response) => response.data);
+export const closeDriverShift = (id, payload = {}) => mutate('post', `/delivery/driver-shifts/${id}/closeout`, payload);
 // ── P2-4-F10: self-serve driver onboarding (profile starts pending ops approval) ──
 export const getDriverProfile = () => api.get('/delivery/driver-profile').then((response) => response.data);
 export const setDriverAvailability = (available) => api.patch('/delivery/driver-profile/availability', { available }).then((response) => response.data);
@@ -267,6 +279,14 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     conflict: ['delivery_idempotency_conflict'],
     onboardingRequired: ['delivery_driver_onboarding_required'],
     approvalPending: ['delivery_driver_pending_approval'],
+    // Group 9 Slice G (item 498): the driver's job access expired
+    // 7 days after the job reached a terminal state (D-90).
+    accessExpired: ['delivery_access_expired'],
+    // Group 9 Slice G (item 500): shift closeout guards.
+    shiftAlreadyOpen: ['delivery_shift_already_open'],
+    shiftActiveJob: ['delivery_shift_active_job'],
+    shiftOpenIssues: ['delivery_shift_open_issues'],
+    shiftNotFound: ['delivery_shift_not_found', 'delivery_shift_already_closed'],
   };
   const match = Object.entries(mappings).find(([, codes]) => codes.includes(code));
   if (match) {

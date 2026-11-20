@@ -1250,6 +1250,15 @@ function HelperDelivery({ t }) {
                     <div><dt>{t('delivery.driver.earningsVoided')}</dt><dd>{deliveryMoney(payoutTotals.voided, i18n.language)}</dd></div>
                   </dl>
                 )}
+                {/* Group 9 Slice G (item 500): the driver's record
+                  surfaces — payouts, weekly reports, shifts. */}
+                <p>
+                  <Link to="/delivery/payouts">{t('delivery.driverPayoutHistory.viewHistory')}</Link>
+                  {' · '}
+                  <Link to="/delivery/weekly-report">{t('delivery.weeklyReport.link')}</Link>
+                  {' · '}
+                  <Link to="/delivery/shifts">{t('delivery.shift.link')}</Link>
+                </p>
               </section>
             </>
           )}

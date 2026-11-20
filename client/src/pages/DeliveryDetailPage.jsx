@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, Truck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,12 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import DeliveryTrackingCard from '../components/delivery/DeliveryTrackingCard';
 import DriverTrackingControls from '../components/delivery/DriverTrackingControls';
+// Group 9 Slice G (items 496/497): the offline task checklist with
+// its queued-action outbox, and the explicit connection-recovery
+// flow (visible connection state + reconnect and resync).
+import DriverOfflineChecklist from '../components/delivery/DriverOfflineChecklist';
+import DriverConnectionRecovery from '../components/delivery/DriverConnectionRecovery';
+import { buildOutboxExecutors } from '../components/delivery/driverOfflineOutbox';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import {
@@ -49,6 +55,11 @@ export default function DeliveryDetailPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [denied, setDenied] = useState(false);
+  // Group 9 Slice G (item 498): a driver's job access expires 7
+  // days after the job reaches a terminal state. The detail read
+  // 410s, and the page shows the expired-access state with links to
+  // the surfaces that stay open (history, payouts, reports, shifts).
+  const [expired, setExpired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -99,6 +110,13 @@ export default function DeliveryDetailPage() {
   const uploaded = useRef(null);
   const requestSequence = useRef(0);
   const actionLock = useRef(false);
+  // Group 9 Slice G (item 496): the offline outbox executors for
+  // this job, built once from the delivery API. The checklist and
+  // the connection-recovery flow share them, so a queued action
+  // replays the same way from either surface.
+  const outboxExecutors = useMemo(() => buildOutboxExecutors(id, {
+    updateDeliveryStatus, reportDeliveryIssue, completeDeliveryStop, uploadDeliveryProof,
+  }), [id]);
   const job = data?.job;
   const isCustomer = Boolean(user?.id) && String(job?.customer_user_id) === String(user.id);
   const isAssigned = job?.is_assigned_operator === true;
@@ -111,25 +129,33 @@ export default function DeliveryDetailPage() {
   const load = useCallback(async () => {
     const sequence = ++requestSequence.current;
     setLoading(true);
+    setExpired(false);
     try {
       const response = await getDelivery(id);
-      if (sequence !== requestSequence.current) return;
+      if (sequence !== requestSequence.current) return null;
       setData(response); setDenied(false); setError('');
       const [exceptionResponse, documentResponse, disputeResponse] = await Promise.all([
         getJobExceptions(id).catch(() => null),
         listJobDocuments(id).catch(() => null),
         listJobDisputes(id).catch(() => null),
       ]);
-      if (sequence !== requestSequence.current) return;
+      if (sequence !== requestSequence.current) return null;
       setExceptions(exceptionResponse);
       setDocuments(Array.isArray(documentResponse?.documents) ? documentResponse.documents : []);
       setDisputes(Array.isArray(disputeResponse?.disputes) ? disputeResponse.disputes : []);
+      return response.job || null;
     } catch (failure) {
-      if (sequence !== requestSequence.current) return;
+      if (sequence !== requestSequence.current) return null;
       setError(deliveryError(failure, t, 'delivery.errors.detail'));
+      // Group 9 Slice G (item 498): 410 is the expired-access
+      // state, not a generic failure. The job stays out of reach;
+      // the driver's history, payouts, reports, and receipts are
+      // separate surfaces and stay open.
+      if (failure?.response?.status === 410) setExpired(true);
       if ([401, 403, 404].includes(failure?.response?.status)) {
         setData(null); setDenied([401, 403].includes(failure.response.status));
       }
+      return null;
     } finally { if (sequence === requestSequence.current) setLoading(false); }
   }, [id, t]);
 
@@ -209,6 +235,22 @@ export default function DeliveryDetailPage() {
     {loading ? <p role="status">{t('delivery.detail.loading')}</p> : <p className="delivery-alert delivery-alert--error" role="alert">{error || t('delivery.errors.detail')}</p>}
     {!loading && <button className="delivery-button delivery-button--secondary" onClick={load} data-track="ui.4c1e141977.1">{t('delivery.ui.retry')}</button>}
     {denied && <p>{t('delivery.ui.permissionHint')}</p>}
+    {/* Group 9 Slice G (item 498): the expired-access state. The
+      job detail is closed, but the driver's own record surfaces
+      stay open: history, payouts, weekly reports, shifts, receipts. */}
+    {expired && <div className="delivery-alert delivery-alert--warning" role="alert">
+      <p>{t('delivery.ui.accessExpired')}</p>
+      <p>{t('delivery.ui.accessExpiredHint')}</p>
+      <p>
+        <Link to="/delivery">{t('delivery.ui.historyLink')}</Link>
+        {' · '}
+        <Link to="/delivery/payouts">{t('delivery.driverPayoutHistory.viewHistory')}</Link>
+        {' · '}
+        <Link to="/delivery/weekly-report">{t('delivery.weeklyReport.link')}</Link>
+        {' · '}
+        <Link to="/delivery/shifts">{t('delivery.shift.link')}</Link>
+      </p>
+    </div>}
     <Link className="delivery-button delivery-button--secondary" to="/delivery">{t('delivery.detail.back')}</Link>
   </div></PageShell>;
 
@@ -347,11 +389,18 @@ export default function DeliveryDetailPage() {
         <section className="delivery-panel"><h2>{t('delivery.detail.timeline')}</h2><ol className="delivery-timeline">{activity.map((event) => <li key={event.id}><span className="delivery-timeline__dot" /><div><strong>{label('events', event.event_type)}</strong><time dateTime={event.created_at}>{date(event.created_at)}</time></div></li>)}</ol>{!activity.length && <p>{t('delivery.ui.noActivity')}</p>}</section>
       </div>
       {isAssigned && <DriverTrackingControls job={job} userId={user?.id} />}
+      {/* Group 9 Slice G (items 496/497): the offline task checklist
+        with its queued-action outbox, and the explicit connection
+        recovery flow, for the assigned driver on an active job. */}
+      {isAssigned && active && <DriverConnectionRecovery job={job} executors={outboxExecutors} onResync={load} />}
+      {isAssigned && active && <DriverOfflineChecklist job={job} stops={stops} executors={outboxExecutors} onChanged={load} />}
       {isAssigned && (
         <section className="delivery-panel">
           <Link to="/delivery/payouts">{t('delivery.driverPayoutHistory.viewHistory')}</Link>
           {' · '}
           <Link to="/delivery/weekly-report">{t('delivery.weeklyReport.link')}</Link>
+          {' · '}
+          <Link to="/delivery/shifts">{t('delivery.shift.link')}</Link>
           <p><button type="button" className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => act(async () => { await downloadDeliveryReceipt(id, job.reference); }, 'delivery.detail.receiptDownloaded', 'delivery.errors.detail')} data-track="ui.4c1e141977.32">{t('delivery.detail.receiptDownload')}</button></p>
         </section>
       )}

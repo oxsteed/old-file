@@ -11,8 +11,10 @@ import {
   registerTrackingDevice,
   resumeTracking,
   revokeTrackingConsent,
+  revokeTrackingDevice,
   startTracking,
   stopTracking,
+  transferTrackingDevice,
 } from '../../api/delivery';
 
 const CONSENT_VERSION = 'v1';
@@ -60,6 +62,11 @@ export default function DriverTrackingControls({ job, userId }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  // Group 9 Slice G (item 499): device-change recovery. The current
+  // device and the transfer notice (the old device's unsynced points
+  // stay on the old device until it reconnects, D-92).
+  const [devices, setDevices] = useState([]);
+  const [transferNotice, setTransferNotice] = useState('');
   const lastAction = useRef(null);
   const watchId = useRef(null);
   const intervalId = useRef(null);
@@ -185,9 +192,10 @@ export default function DriverTrackingControls({ job, userId }) {
     (async () => {
       try {
         const stored = localStorage.getItem(deviceKey(userId));
-        const { devices = [] } = await listTrackingDevices();
-        const phone = devices.find((d) => d.kind === 'driver_phone' && String(d.id) === String(stored))
-          || devices.find((d) => d.kind === 'driver_phone');
+        const { devices: owned = [] } = await listTrackingDevices();
+        setDevices(owned);
+        const phone = owned.find((d) => d.kind === 'driver_phone' && String(d.id) === String(stored))
+          || owned.find((d) => d.kind === 'driver_phone');
         let resolved = phone?.id || null;
         if (!resolved) {
           const { device } = await registerTrackingDevice({
@@ -312,6 +320,42 @@ export default function DriverTrackingControls({ job, userId }) {
     setStopReason('');
     flush();
   }, 'delivery.tracking.stopped');
+
+  // Group 9 Slice G (item 499): device-change recovery. Registering
+  // this browser as the new device moves the live tracking
+  // assignments and consent to it and revokes the old device, so the
+  // job keeps tracking without a restart. The old device's buffered,
+  // unsynced points cannot move — they stay on the old device until
+  // it reconnects — and the notice says so plainly (D-92).
+  const handleTransferDevice = () => act(async () => {
+    const result = await transferTrackingDevice({
+      oldDeviceId: deviceId,
+      deviceLabel: t('delivery.tracking.deviceLabel'),
+      platform: navigator.platform || null,
+    });
+    const nextId = result?.device?.id || null;
+    if (nextId) {
+      setDeviceId(nextId);
+      localStorage.setItem(deviceKey(userId), String(nextId));
+    }
+    setDevices(result?.device ? [...devices.filter((d) => String(d.id) !== String(deviceId)), result.device] : devices);
+    setTransferNotice(t('delivery.tracking.transferUnsyncedNotice', { count: result?.transferredAssignments?.length || 0 }));
+    await refreshStatus();
+  }, 'delivery.tracking.transferred');
+
+  // Mark the old device lost/transferred: revoke it so it can no
+  // longer ingest. Its local queue is untouched by the revoke — the
+  // points stay on the old device until it reconnects.
+  const handleMarkDeviceLost = () => act(async () => {
+    clearCapture();
+    await revokeTrackingDevice(deviceId);
+    localStorage.removeItem(deviceKey(userId));
+    setDeviceId(null);
+    setDevices(devices.filter((d) => String(d.id) !== String(deviceId)));
+    setTrackingState('none');
+    setTransferNotice(t('delivery.tracking.deviceLostNotice'));
+    await refreshStatus();
+  }, 'delivery.tracking.deviceLost');
 
   const handleScan = (scanType) => {
     const codeValue = window.prompt(t('delivery.tracking.scanCodePrompt'));
@@ -458,6 +502,22 @@ export default function DriverTrackingControls({ job, userId }) {
           <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={handleRevokeConsent} data-track="ui.5f4e3d8edc.9">
             {t('delivery.tracking.consentRevoke')}
           </button>
+
+          {/* Group 9 Slice G (item 499): device-change recovery. */}
+          <div className="delivery-tracking-devices">
+            <h3>{t('delivery.tracking.devicesTitle')}</h3>
+            <p>{t('delivery.tracking.deviceCurrent', { label: devices.find((d) => String(d.id) === String(deviceId))?.device_label || deviceId || t('delivery.tracking.noDevice') })}</p>
+            {transferNotice && <p className="delivery-alert delivery-alert--warning" role="status">{transferNotice}</p>}
+            <div className="delivery-tracking-controls">
+              <button className="delivery-button delivery-button--secondary" disabled={busy || !deviceId} onClick={handleTransferDevice} data-track="ui.5f4e3d8edc.10">
+                {t('delivery.tracking.transferDevice')}
+              </button>
+              <button className="delivery-button delivery-button--secondary" disabled={busy || !deviceId} onClick={handleMarkDeviceLost} data-track="ui.5f4e3d8edc.11">
+                {t('delivery.tracking.markDeviceLost')}
+              </button>
+            </div>
+            <p>{t('delivery.tracking.transferHint')}</p>
+          </div>
         </>
       )}
     </section>

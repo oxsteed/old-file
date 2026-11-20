@@ -140,6 +140,8 @@ const DeliveryDetailPage = lazyWithRetry(() => import('./pages/DeliveryDetailPag
 const DriverPayoutHistoryPage = lazyWithRetry(() => import('./pages/DriverPayoutHistoryPage'));
 // Group 9 Slice F (item 495): the driver's weekly work report page.
 const DriverWeeklyReportPage = lazyWithRetry(() => import('./pages/DriverWeeklyReportPage'));
+// Group 9 Slice G (item 500): the driver's shift and closeout page.
+const DriverShiftPage = lazyWithRetry(() => import('./pages/DriverShiftPage'));
 const DeliveryDispatchPage = lazyWithRetry(() => import('./pages/DeliveryDispatchPage'));
 const DeliveryTrackingOpsPage = lazyWithRetry(() => import('./pages/DeliveryTrackingOpsPage'));
 const PublicTrackingPage = lazyWithRetry(() => import('./pages/PublicTrackingPage'));
@@ -835,6 +837,8 @@ export default function App() {
                     <Route path="/delivery/payouts"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverPayoutHistoryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Group 9 Slice F (item 495): the driver's weekly work report. Read-only; the endpoint scopes to the signed-in driver. */}
                     <Route path="/delivery/weekly-report"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverWeeklyReportPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Group 9 Slice G (item 500): the driver's shifts and closeout. The endpoint scopes to the signed-in driver. */}
+                    <Route path="/delivery/shifts"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverShiftPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Public delivery tracking: signed token, no login required */}
                     <Route path="/t/:token"                    element={<Guarded><RouteErrorBoundary><PublicTrackingPage /></RouteErrorBoundary></Guarded>} />
                     {/* Public scan-to-pay: payment QR link, no login required */}
