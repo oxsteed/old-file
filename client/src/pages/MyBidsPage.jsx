@@ -6,6 +6,8 @@ import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
+import BidDeadlineNotice from '../components/BidDeadlineNotice';
+import '../components/HelperWorkPanel.css';
 import EditBidModal from '../components/jobs/EditBidModal';
 
 const BID_STATUS_FILTERS = ['all', 'pending', 'accepted', 'rejected', 'withdrawn'];
@@ -279,6 +281,8 @@ export default function MyBidsPage() {
                           "{bid.message}"
                         </p>
                       )}
+
+                      <BidDeadlineNotice bid={bid} />
 
                       {/* Bid date */}
                       <p className="text-[11px] text-gray-600 mt-1.5">

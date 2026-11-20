@@ -404,6 +404,7 @@ exports.shareQuote = async (req, res, next) => {
     if (quoteId) {
       quote = await loadQuote(kind, quoteId);
       if (!quote) return bad(res, 404, 'Quote not found', 'not_found');
+      if (kind === 'helper' && quote.negotiation_managed) return bad(res,409,'Open the job quote workspace for these terms','use_job_quote_workspace');
       if (kind === 'business' && String(quote.business_id) !== String(body.businessId ?? businessId)) {
         return bad(res, 403, 'Quote does not belong to this business', 'forbidden');
       }
@@ -726,6 +727,15 @@ exports.respondQuote = async (req, res, next) => {
       return bad(res, 403, 'Not allowed to respond to this quote', 'forbidden');
     }
 
+    if (kind === 'helper' && quote.negotiation_managed) {
+      if (!userId || !['accept','decline'].includes(action)) return bad(res,409,'Open the job quote workspace to negotiate these terms','use_job_quote_workspace');
+      const updated = await require('../services/helperQuoteNegotiation').respond(quote.id,userId,{
+        status:action==='accept'?'accepted':'declined',expectedVersion:req.body?.expectedVersion,
+      });
+      return res.json({quote:toPublicQuoteCard(kind,updated),action,openAvailability:false,
+        jobBid:updated.bid_id?{bidId:updated.bid_id,jobId:updated.job_id}:null});
+    }
+
     let replayed = false;
     if (clientRequestId && String(quote.response_client_request_id || '') === String(clientRequestId)) {
       if (String(quote.response_action || '') !== action) {
@@ -866,6 +876,8 @@ exports.reviseQuote = async (req, res, next) => {
 
     const parent = await loadQuote(kind, req.params.id);
     if (!parent) return bad(res, 404, 'Quote not found', 'not_found');
+
+    if (kind === 'helper' && parent.negotiation_managed) return bad(res,409,'Revise these terms in the job quote workspace','use_job_quote_workspace');
 
     const businessId = kind === 'business' ? parent.business_id : null;
     const access = await assertProviderAccess(userId, {

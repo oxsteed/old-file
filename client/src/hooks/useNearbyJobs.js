@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../api/axios';
 import { getSharedBrowserLocation } from '../utils/browserLocation';
+import { currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
+import { ACCESS_CHANGED_EVENT } from './useAccessProjection';
 
 function validCoordinates(candidate) {
   const lat = Number(candidate?.lat);
@@ -32,13 +34,20 @@ async function reverseLocation(coordinates) {
 }
 
 /** Use a distance radius, with a same-city fallback for jobs lacking coordinates. */
-export default function useNearbyJobs({ enabled, city, state }) {
+export default function useNearbyJobs({ enabled, city, state, accountId }) {
   const [jobs, setJobs] = useState([]);
   const [status, setStatus] = useState(enabled ? 'loading' : 'setup');
   const [locationSource, setLocationSource] = useState(null);
   const [refreshToken, setRefreshToken] = useState(0);
 
   const retry = useCallback(() => setRefreshToken((value) => value + 1), []);
+
+  useEffect(() => {
+    const refresh = () => { setJobs([]); setRefreshToken(value => value + 1); };
+    window.addEventListener('oxsteed:discovery-changed', refresh);
+    window.addEventListener(ACCESS_CHANGED_EVENT, refresh);
+    return () => { window.removeEventListener('oxsteed:discovery-changed', refresh); window.removeEventListener(ACCESS_CHANGED_EVENT, refresh); };
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
@@ -48,16 +57,25 @@ export default function useNearbyJobs({ enabled, city, state }) {
     }
 
     let active = true;
+    const epoch = currentAuthEpoch();
+    const current = () => active && isCurrentAuthEpoch(epoch);
     setStatus('loading');
     setJobs([]);
 
     (async () => {
+      let radius;
+      try {
+        const { data } = await api.get('/helpers/me/discovery');
+        radius = data?.preferences?.opportunity_radius_miles;
+        if (!Number.isInteger(radius) || radius < 1 || radius > 250) throw new Error('Invalid distance preference');
+      } catch { if (current()) setStatus('error'); return; }
+      if (!current()) return;
       const browser = await getSharedBrowserLocation(refreshToken > 0);
       const fromBrowser = validCoordinates(browser);
       const coordinates = fromBrowser ? browser : await profileLocation(city, state);
       const profileCity = typeof city === 'string' ? city.trim() : '';
       const profileState = typeof state === 'string' ? state.trim() : '';
-      if (!active) return;
+      if (!current()) return;
       if (!coordinates && !profileCity) {
         setLocationSource(null);
         setStatus('location-unavailable');
@@ -67,27 +85,27 @@ export default function useNearbyJobs({ enabled, city, state }) {
       setLocationSource(fromBrowser ? 'browser' : 'profile');
       try {
         const namedLocation = fromBrowser ? await reverseLocation(coordinates) : coordinates;
-        if (!active) return;
+        if (!current()) return;
         const { data } = await api.get('/jobs', {
           params: coordinates
             ? {
-                lat: coordinates.lat, lng: coordinates.lng, radius: 25, sort: 'nearest', limit: 5,
+                lat: coordinates.lat, lng: coordinates.lng, radius, sort: 'nearest', limit: 5,
                 ...(namedLocation.city && namedLocation.state
                   ? { fallback_city: namedLocation.city, fallback_state: namedLocation.state }
                   : {}),
               }
             : { city: profileCity, ...(profileState ? { state: profileState } : {}), sort: 'newest', limit: 5 },
         });
-        if (!active) return;
+        if (!current()) return;
         setJobs(Array.isArray(data?.jobs) ? data.jobs : []);
         setStatus('ready');
       } catch {
-        if (active) setStatus('error');
+        if (current()) setStatus('error');
       }
     })();
 
     return () => { active = false; };
-  }, [enabled, city, state, refreshToken]);
+  }, [enabled, city, state, accountId, refreshToken]);
 
   return { jobs, status, locationSource, retry };
 }

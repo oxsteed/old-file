@@ -130,3 +130,16 @@ Verified first: G-6/G-7 (commit 632b1ba25) already closed link delivery, accepta
 - **D-51. Channel choice rides existing toggles for accounts, email for token parties (item 118).** Account recipients, site contacts, and sponsors choose channels with the existing per-type notification toggles (all Group 3 types are cataloged, so each has a toggle). A token party with no account registers an email on the status page for visit updates (reminder, arrival, completion), sent by email; removing the email ends them (146 covers the account opt-out; token email removal is the token equivalent). Flip: add SMS as a channel (needs a provider).
 - **D-52. No item deferred.** Item 103 was the only partial: the window existed, live arrival did not, and this group adds the booking-level arrival check-in plus the arrival notice to the recipient and site contact.
 - **D-53. Booking requests gain a real `completed` status (item 105; sweeper fix).** Migration 602 locked the booking state graph from an observed subset and missed the delivered branch of `releaseStaleAcceptedBookings`, which moves an accepted booking to `completed` once its linked appointment is completed; the public status page also gates the helper door name and care instructions on `completed`, and the deposit service's `deliveredAppointment` helper assumes the same. The `valid_status` CHECK did not list `completed` either, so the delivered UPDATE threw on every sweep; the catch swallowed it and returned 0, aborting the stale-release branch too, so genuinely stale bookings were never released while any delivered booking existed. Migration `20261120020000` widens the CHECK and the trigger function: accepted may move to `completed` as well as to `accepted_cancelled`, and `completed` is terminal. `completed` is deliberately NOT added to the deposit service's `TERMINAL_STATUSES`: a completed booking's payment is earned, never refunded; the `service_delivered` carve-out stays for the manual accepted_cancelled-after-delivery path. Flip: keep `completed` out of the machine and mark delivery some other way (would leave three code sites assuming a status that cannot exist).
+
+### Group 4: Helper work execution slice (items 151-200, partial)
+
+- Work board, private checklist/templates/notes, shared progress, handover and
+  aftercare are real job-scoped records. Reassignment never transfers private
+  notes. Customers receive only shared fields; recipients/site contacts receive
+  no new access. Every helper operation checks effective access and assignment.
+- Handover is documentation and never auto-completes a job. Payment and completion
+  stay in existing domain actions. Bid deadline notices are visible UI reminders,
+  not a new scheduled notification program. Checklist templates carry no pricing.
+- New functionality ships available by default to authorized users. See
+  `docs/persona-roadmap/helper-work-execution.md` for delivered items, tests and
+  remaining work; this slice does not mark all helper backlog entries complete.

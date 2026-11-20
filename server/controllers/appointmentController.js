@@ -429,6 +429,9 @@ exports.createAppointment = async (req, res, next) => {
     if (err instanceof AppError) {
       return next(err);
     }
+    if (['helper_daily_capacity','helper_travel_conflict'].includes(err.constraint)) {
+      return sendError(res,409,'Helper capacity or travel buffer does not allow this booking',err.constraint);
+    }
     if (err.code === 'SCHEDULING_CONFLICT') {
       return sendError(res, 409, 'Helper has a conflicting appointment', 'SCHEDULING_CONFLICT');
     }

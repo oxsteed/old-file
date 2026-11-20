@@ -34,7 +34,7 @@ test('admin English fallback reassembles split shards instead of a monolithic ca
   const adminSource = read('src/admin/main.jsx');
   assert.match(i18nSource, /export function initializeEnglishFallback/);
   const fallbackFn = i18nSource.slice(i18nSource.indexOf('export function initializeEnglishFallback'));
-  for (const shard of ['en-0', 'en-1', 'en-2']) {
+  for (const shard of ['en-0', 'en-1', 'en-2', 'en-3']) {
     assert.match(fallbackFn, new RegExp(`locales/generated/${shard}\\.json`));
   }
   assert.doesNotMatch(i18nSource, /locales\/en\.json/);
