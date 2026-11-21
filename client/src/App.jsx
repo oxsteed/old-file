@@ -210,6 +210,7 @@ const ConsultingFullPortal = lazyWithRetry(() => import('./pages/ConsultingFullP
 const ConsultingPortalPage = lazyWithRetry(() => import('./pages/ConsultingPortalPage'));
 const ConsultantAvailabilityPage = lazyWithRetry(() => import('./pages/ConsultantAvailabilityPage'));
 const ConsultantContractorDashboard = lazyWithRetry(() => import('./pages/ConsultantContractorDashboard'));
+const ConsultantPublicProfilePage = lazyWithRetry(() => import('./pages/ConsultantPublicProfilePage'));
 const InvoicesPage = lazyWithRetry(() => import('./pages/InvoicesPage'));
 const CalendarPage = lazyWithRetry(() => import('./pages/CalendarPage'));
 const CalendarAppointmentDetailPage = lazyWithRetry(() => import('./pages/CalendarAppointmentDetailPage'));
@@ -740,6 +741,7 @@ export default function App() {
                     <Route path="/helper/payouts" element={<Guarded><ProtectedRoute requireOnboarded><RouteErrorBoundary><HelperPayoutsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/invoices"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvoicesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/consultant-availability" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantAvailabilityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/consultants/:userId" element={<Guarded><RouteErrorBoundary><ConsultantPublicProfilePage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/consulting/contractor-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantContractorDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Redirect tool-rentals listing CTA to the dashboard skills tab */}
                     <Route path="/profile/tool-rentals" element={<Navigate to="/dashboard?tab=skills" replace />} />

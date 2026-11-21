@@ -61,8 +61,9 @@ export const schedulingApi = {
     });
   },
 
-  // Book a time slot for a consulting session
-  bookTimeSlot: (sessionId, consultantId, date, startTime, durationMinutes = 120, meetingLink = null, timezone = 'America/New_York') => {
+  // Book a time slot for a consulting session. meetingType is the Group 10
+  // item 507 engagement format (zoom, google_meet, phone, in_person).
+  bookTimeSlot: (sessionId, consultantId, date, startTime, durationMinutes = 120, meetingLink = null, timezone = 'America/New_York', meetingType = 'zoom') => {
     return api.post(`/scheduling/sessions/${sessionId}/book-slot`, {
       consultantId,
       date,
@@ -70,6 +71,7 @@ export const schedulingApi = {
       durationMinutes,
       meetingLink,
       timezone,
+      meetingType,
     });
   },
 };

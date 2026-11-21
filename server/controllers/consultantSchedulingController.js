@@ -406,6 +406,15 @@ exports.bookTimeSlot = async (req, res) => {
     const { sessionId } = req.params;
     const { consultantId, date, startTime, meetingLink, timezone } = req.body;
     const durationMinutes = parseInt(req.body.durationMinutes, 10) || 120;
+    // Group 10 item 507: the client scheduling UI picks the engagement
+    // format; it is stored on the scheduled row (meeting_type CHECK in
+    // migration 103). Defaults to zoom; an unknown value is a 400, never a
+    // silent fallback, so the booked format is always the chosen one.
+    const meetingType = req.body.meetingType || req.body.meeting_type || 'zoom';
+    const MEETING_TYPES = ['zoom', 'google_meet', 'phone', 'in_person'];
+    if (!MEETING_TYPES.includes(meetingType)) {
+      return res.status(400).json({ error: 'Invalid meeting format' });
+    }
 
     if (!date || !startTime || !consultantId) {
       return res.status(400).json({ error: 'consultantId, date, and start time required' });
@@ -522,10 +531,11 @@ exports.bookTimeSlot = async (req, res) => {
            meeting_link = $4,
            timezone = $5,
            consultant_assigned_id = $6,
+           meeting_type = $10,
            status = 'confirmed',
            updated_at = NOW()
        WHERE css_target.id = $7
-         ${enforce ? "AND css_target.status = 'pending_confirmation' AND ($10::boolean OR css_target.consultant_assigned_id IS NULL OR css_target.consultant_assigned_id = $6)" : ''}
+         ${enforce ? "AND css_target.status = 'pending_confirmation' AND ($11::boolean OR css_target.consultant_assigned_id IS NULL OR css_target.consultant_assigned_id = $6)" : ''}
          AND NOT EXISTS (
            SELECT 1 FROM consulting_sessions_scheduled other
            WHERE other.consultant_assigned_id = $6
@@ -538,7 +548,7 @@ exports.bookTimeSlot = async (req, res) => {
        RETURNING *`,
       [date, startTime, durationMinutes, meetingLink || null,
        timezone || 'America/New_York', consultantId, sessionId,
-       startTime, endTime, ...(enforce ? [isAdmin] : [])]
+       startTime, endTime, meetingType, ...(enforce ? [isAdmin] : [])]
     );
     let outcome;
     if (enforce) {

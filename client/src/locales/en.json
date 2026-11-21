@@ -15062,6 +15062,14 @@
     "time": "Time",
     "minutes": "minutes",
     "meetingLink": "Meeting Link (Optional)",
+    "meetingFormat": "Meeting format",
+    "meetingTypes": {
+      "zoom": "Zoom video call",
+      "googleMeet": "Google Meet video call",
+      "phone": "Phone call",
+      "inPerson": "In person"
+    },
+    "inPersonHint": "In-person sessions meet at the location you agree with your consultant.",
     "timezone": "Timezone",
     "confirmBooking": "Confirm Booking",
     "sessionConfirmed": "Session scheduled successfully!",
@@ -25020,7 +25028,105 @@
       "deliveries": "No delivery orders available."
     }
   },
+  "consultantPublicProfile": {
+    "page": {
+      "title": "{{name}} | Consultant",
+      "fallbackTitle": "Consultant profile",
+      "fallbackDescription": "View this OxSteed consultant's specialties, portfolio, and pricing."
+    },
+    "eyebrow": "OxSteed consultant",
+    "loading": "Loading consultant profile…",
+    "notFound": {
+      "title": "Consultant not found",
+      "body": "This consultant profile is not available. It may not be approved yet or may have been removed.",
+      "intakeLink": "Start a consulting intake instead"
+    },
+    "notAccepting": "This consultant is not accepting new referrals right now.",
+    "sections": {
+      "about": "About",
+      "specialties": "Specialties and coverage",
+      "pricing": "Pricing",
+      "portfolio": "Portfolio",
+      "availability": "Availability"
+    },
+    "fields": {
+      "coverage": "Coverage",
+      "languages": "Languages",
+      "experience": "Experience",
+      "basedIn": "Based in",
+      "virtual": "Virtual consulting"
+    },
+    "experienceYears": "{{count}} years of experience",
+    "virtualYes": "Available for virtual consulting",
+    "pricing": {
+      "minimum": "Minimum package price: {{amount}}",
+      "note": "The final price depends on the package and scope you agree with the consultant."
+    },
+    "portfolio": {
+      "viewWork": "View work"
+    },
+    "empty": {
+      "specialties": "No specialties listed yet.",
+      "coverage": "Not listed",
+      "languages": "Not listed",
+      "portfolio": "No public work samples yet.",
+      "availability": "No upcoming availability listed."
+    },
+    "bookLink": "Start a consulting intake with this consultant",
+    "errors": {
+      "load": "Consultant profile could not be loaded."
+    }
+  },
   "consultantContractorDashboard": {
+    "readiness": {
+      "label": "Engagement readiness",
+      "title": "Ready to take engagements?",
+      "ready": "Ready",
+      "notReady": "Not ready yet",
+      "pendingApproval": "Your profile is waiting for admin approval. You will appear in matching and on your public profile once it is approved.",
+      "declined": "Your profile was declined. Reviewer note: {{note}}",
+      "hint": "Complete every item to become visible to clients and eligible for matching.",
+      "items": {
+        "profileComplete": "Profile complete: headline, bio, specialties, coverage, and languages",
+        "specialtiesDeclared": "At least one specialty declared",
+        "availabilitySet": "Availability set for at least one day",
+        "pricingSet": "Minimum package price set",
+        "profileApproved": "Profile approved by an admin"
+      }
+    },
+    "pricing": {
+      "label": "Your pricing",
+      "minimum": "Minimum package price: {{amount}}",
+      "cut": "OxSteed referral cut: {{percent}}%",
+      "limit": "Active referral limit: {{count}}",
+      "viewPublic": "View your public profile"
+    },
+    "portfolio": {
+      "label": "Portfolio",
+      "title": "Work samples",
+      "description": "Add work samples to your profile. Public items appear on your public specialty profile; hidden items stay in this workspace.",
+      "loading": "Loading portfolio…",
+      "loadError": "Portfolio could not be loaded.",
+      "saveError": "Portfolio item could not be saved.",
+      "removeError": "Portfolio item could not be removed.",
+      "empty": "No portfolio items yet. Add a work sample below.",
+      "visiblePublic": "Public",
+      "hidden": "Hidden",
+      "edit": "Edit",
+      "remove": "Remove",
+      "editTitle": "Edit portfolio item",
+      "addTitle": "Add a portfolio item",
+      "add": "Add item",
+      "saveChanges": "Save changes",
+      "fields": {
+        "title": "Title",
+        "description": "Description",
+        "link": "Link to the work (https://…)",
+        "image": "Image URL (https://…)",
+        "visibility": "Visibility",
+        "order": "Order"
+      }
+    },
     "page": {
       "title": "Consultant Contractor Dashboard",
       "description": "Manage local OxSteed business-launch referrals, coverage markets, and negotiated referral economics.",
@@ -35657,6 +35763,26 @@
     "type.optOut": "Opt-Out"
   },
   "adminConsultingDashboard": {
+    "profileApprovals": {
+      "title": "Consultant profile approvals",
+      "description": "New consultant profiles wait here until an admin approves them. Approved consultants appear in matching and on public profiles; declined consultants stay hidden.",
+      "filterLabel": "Filter by approval status",
+      "pending": "Pending",
+      "approvedFilter": "Approved",
+      "declinedFilter": "Declined",
+      "all": "All",
+      "empty": "No consultant profiles in this state.",
+      "loadError": "Consultant profiles could not be loaded.",
+      "decideFailed": "The decision could not be saved.",
+      "approved": "Profile approved.",
+      "declined": "Profile declined.",
+      "approve": "Approve",
+      "decline": "Decline",
+      "specialties": "Specialties",
+      "experience": "{{count}} years of experience",
+      "note": "Reviewer note",
+      "notePlaceholder": "Note for the consultant (optional)"
+    },
     "areas.acquisitionPreparation": "acquisition preparation",
     "areas.branding": "branding",
     "areas.exitStrategy": "exit strategy",

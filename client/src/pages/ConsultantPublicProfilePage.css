@@ -1,0 +1,154 @@
+/* Public consultant profile (Group 10 item 506). Theme tokens follow the
+   admin pages: var(--color-*) so light and dark both render. */
+
+.cpp-main {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.cpp-eyebrow {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.cpp-name {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0;
+}
+
+.cpp-headline {
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+  color: var(--color-text);
+}
+
+.cpp-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.cpp-notice {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.cpp-section {
+  margin-top: 1.5rem;
+}
+
+.cpp-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.cpp-bio {
+  margin-top: 0.5rem;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.cpp-body-muted {
+  margin-top: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.cpp-muted {
+  color: var(--color-text-muted);
+}
+
+.cpp-error {
+  color: var(--color-error);
+}
+
+.cpp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin-top: 0.5rem;
+}
+
+.cpp-chip {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 0.85rem;
+}
+
+.cpp-date {
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 0.85rem;
+}
+
+.cpp-facts {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.cpp-facts dt {
+  font-weight: 600;
+}
+
+.cpp-facts dd {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.cpp-price {
+  margin-top: 0.5rem;
+}
+
+.cpp-note {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.cpp-portfolio {
+  list-style: none;
+  padding: 0;
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cpp-portfolio-item {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 1rem;
+  background: var(--color-surface);
+}
+
+.cpp-portfolio-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.cpp-portfolio-desc {
+  margin-top: 0.5rem;
+  color: var(--color-text-muted);
+}
+
+.cpp-link-row {
+  margin-top: 1rem;
+}
+
+.cpp-link {
+  color: var(--color-primary);
+}

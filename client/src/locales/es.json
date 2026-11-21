@@ -15062,6 +15062,14 @@
     "time": "Hora",
     "minutes": "minutos",
     "meetingLink": "Enlace de Reunión (Opcional)",
+    "meetingFormat": "Formato de reunión",
+    "meetingTypes": {
+      "zoom": "Videollamada de Zoom",
+      "googleMeet": "Videollamada de Google Meet",
+      "phone": "Llamada telefónica",
+      "inPerson": "En persona"
+    },
+    "inPersonHint": "Las sesiones presenciales se realizan en el lugar que acuerdes con tu consultor.",
     "timezone": "Zona Horaria",
     "confirmBooking": "Confirmar Reserva",
     "sessionConfirmed": "¡Sesión programada exitosamente!",
@@ -25020,7 +25028,105 @@
       "deliveries": "No hay órdenes de entrega disponibles."
     }
   },
+  "consultantPublicProfile": {
+    "page": {
+      "title": "{{name}} | Consultor",
+      "fallbackTitle": "Perfil de consultor",
+      "fallbackDescription": "Consulta las especialidades, el portafolio y los precios de este consultor de OxSteed."
+    },
+    "eyebrow": "Consultor de OxSteed",
+    "loading": "Cargando perfil del consultor…",
+    "notFound": {
+      "title": "Consultor no encontrado",
+      "body": "Este perfil de consultor no está disponible. Es posible que aún no esté aprobado o que haya sido eliminado.",
+      "intakeLink": "Iniciar una solicitud de consultoría"
+    },
+    "notAccepting": "Este consultor no acepta nuevas referencias por ahora.",
+    "sections": {
+      "about": "Acerca de",
+      "specialties": "Especialidades y cobertura",
+      "pricing": "Precios",
+      "portfolio": "Portafolio",
+      "availability": "Disponibilidad"
+    },
+    "fields": {
+      "coverage": "Cobertura",
+      "languages": "Idiomas",
+      "experience": "Experiencia",
+      "basedIn": "Ubicación",
+      "virtual": "Consultoría virtual"
+    },
+    "experienceYears": "{{count}} años de experiencia",
+    "virtualYes": "Disponible para consultoría virtual",
+    "pricing": {
+      "minimum": "Precio mínimo de paquete: {{amount}}",
+      "note": "El precio final depende del paquete y del alcance que acuerdes con el consultor."
+    },
+    "portfolio": {
+      "viewWork": "Ver trabajo"
+    },
+    "empty": {
+      "specialties": "Aún no hay especialidades.",
+      "coverage": "No indicada",
+      "languages": "No indicados",
+      "portfolio": "Aún no hay muestras públicas de trabajo.",
+      "availability": "No hay disponibilidad próxima."
+    },
+    "bookLink": "Iniciar una solicitud de consultoría con este consultor",
+    "errors": {
+      "load": "No se pudo cargar el perfil del consultor."
+    }
+  },
   "consultantContractorDashboard": {
+    "readiness": {
+      "label": "Preparación para encargos",
+      "title": "¿Listo para aceptar encargos?",
+      "ready": "Listo",
+      "notReady": "Aún no está listo",
+      "pendingApproval": "Tu perfil está esperando la aprobación del administrador. Aparecerás en las coincidencias y en tu perfil público una vez aprobado.",
+      "declined": "Tu perfil fue rechazado. Nota del revisor: {{note}}",
+      "hint": "Completa todos los puntos para ser visible para los clientes y elegible para las coincidencias.",
+      "items": {
+        "profileComplete": "Perfil completo: titular, biografía, especialidades, cobertura e idiomas",
+        "specialtiesDeclared": "Al menos una especialidad declarada",
+        "availabilitySet": "Disponibilidad definida para al menos un día",
+        "pricingSet": "Precio mínimo de paquete definido",
+        "profileApproved": "Perfil aprobado por un administrador"
+      }
+    },
+    "pricing": {
+      "label": "Tus precios",
+      "minimum": "Precio mínimo de paquete: {{amount}}",
+      "cut": "Comisión de referencia de OxSteed: {{percent}}%",
+      "limit": "Límite de referencias activas: {{count}}",
+      "viewPublic": "Ver tu perfil público"
+    },
+    "portfolio": {
+      "label": "Portafolio",
+      "title": "Muestras de trabajo",
+      "description": "Añade muestras de trabajo a tu perfil. Los elementos públicos aparecen en tu perfil público de especialidad; los ocultos permanecen en este espacio.",
+      "loading": "Cargando portafolio…",
+      "loadError": "No se pudo cargar el portafolio.",
+      "saveError": "No se pudo guardar el elemento del portafolio.",
+      "removeError": "No se pudo eliminar el elemento del portafolio.",
+      "empty": "Aún no hay elementos en el portafolio. Añade una muestra de trabajo abajo.",
+      "visiblePublic": "Público",
+      "hidden": "Oculto",
+      "edit": "Editar",
+      "remove": "Eliminar",
+      "editTitle": "Editar elemento del portafolio",
+      "addTitle": "Añadir un elemento al portafolio",
+      "add": "Añadir elemento",
+      "saveChanges": "Guardar cambios",
+      "fields": {
+        "title": "Título",
+        "description": "Descripción",
+        "link": "Enlace al trabajo (https://…)",
+        "image": "URL de la imagen (https://…)",
+        "visibility": "Visibilidad",
+        "order": "Orden"
+      }
+    },
     "page": {
       "title": "Panel de consultor contratado",
       "description": "Administra las referencias de lanzamiento local, los mercados de cobertura y la economía de comisiones negociadas.",
@@ -35657,6 +35763,26 @@
     "type.optOut": "Exclusión voluntaria"
   },
   "adminConsultingDashboard": {
+    "profileApprovals": {
+      "title": "Aprobaciones de perfiles de consultores",
+      "description": "Los perfiles nuevos de consultores esperan aquí hasta que un administrador los apruebe. Los consultores aprobados aparecen en las coincidencias y en los perfiles públicos; los rechazados permanecen ocultos.",
+      "filterLabel": "Filtrar por estado de aprobación",
+      "pending": "Pendientes",
+      "approvedFilter": "Aprobados",
+      "declinedFilter": "Rechazados",
+      "all": "Todos",
+      "empty": "No hay perfiles de consultores en este estado.",
+      "loadError": "No se pudieron cargar los perfiles de consultores.",
+      "decideFailed": "No se pudo guardar la decisión.",
+      "approved": "Perfil aprobado.",
+      "declined": "Perfil rechazado.",
+      "approve": "Aprobar",
+      "decline": "Rechazar",
+      "specialties": "Especialidades",
+      "experience": "{{count}} años de experiencia",
+      "note": "Nota del revisor",
+      "notePlaceholder": "Nota para el consultor (opcional)"
+    },
     "areas.acquisitionPreparation": "preparación para la adquisición",
     "areas.branding": "marca",
     "areas.exitStrategy": "estrategia de salida",

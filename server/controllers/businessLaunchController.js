@@ -445,6 +445,7 @@ async function getMatchedConsultants(req, res) {
        JOIN users u ON u.id = p.user_id
        LEFT JOIN consulting_requests cr ON cr.consultant_assigned_id = p.user_id
        WHERE p.is_active = TRUE
+         AND p.approval_status = 'approved'
          AND p.accepts_new_referrals = TRUE
          ${enforce ? `
          AND u.is_active = TRUE AND u.deleted_at IS NULL AND NOT COALESCE(u.is_banned, FALSE)

@@ -101,6 +101,151 @@ function centsToFriendly(cents) {
   }).format(n);
 }
 
+// Group 10 item 509: portfolio manager on the contractor dashboard. The
+// consultant adds, edits, hides, and removes portfolio items; public items
+// appear on the public specialty profile (506), hidden ones never leave
+// this workspace.
+function PortfolioManager() {
+  const { t } = useTranslation();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({ title: '', description: '', link_url: '', image_url: '', visibility: 'public', sort_order: '0' });
+  const [editingId, setEditingId] = useState(null);
+
+  async function load() {
+    try {
+      setLoading(true);
+      const { data } = await api.get('/consulting/contractor/portfolio');
+      setItems(data?.portfolio || []);
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantContractorDashboard.portfolio.loadError'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setForm({
+      title: item.title || '',
+      description: item.description || '',
+      link_url: item.link_url || '',
+      image_url: item.image_url || '',
+      visibility: item.visibility || 'public',
+      sort_order: String(item.sort_order ?? 0),
+    });
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setForm({ title: '', description: '', link_url: '', image_url: '', visibility: 'public', sort_order: '0' });
+  }
+
+  async function save(event) {
+    event.preventDefault();
+    if (!form.title.trim()) return;
+    setBusy(true);
+    setError('');
+    try {
+      if (editingId) await api.put(`/consulting/contractor/portfolio/${editingId}`, form);
+      else await api.post('/consulting/contractor/portfolio', form);
+      resetForm();
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantContractorDashboard.portfolio.saveError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(item) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.delete(`/consulting/contractor/portfolio/${item.id}`);
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantContractorDashboard.portfolio.removeError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const inputClass = 'w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500';
+
+  return (
+    <div>
+      {error ? <p role="alert" className="mb-3 text-sm text-red-200">{error}</p> : null}
+      {loading ? (
+        <p className="text-sm text-gray-400">{t('consultantContractorDashboard.portfolio.loading')}</p>
+      ) : items.length ? (
+        <ul className="space-y-3">
+          {items.map((item) => (
+            <li key={item.id} className="rounded-2xl border border-gray-800 bg-[#111318] px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-white">{item.title}</p>
+                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${item.visibility === 'public' ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-gray-700 bg-gray-900/70 text-gray-400'}`}>
+                  {item.visibility === 'public' ? t('consultantContractorDashboard.portfolio.visiblePublic') : t('consultantContractorDashboard.portfolio.hidden')}
+                </span>
+              </div>
+              {item.description ? <p className="mt-1 text-sm text-gray-400">{item.description}</p> : null}
+              {item.link_url ? (
+                <a href={item.link_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-sm text-indigo-300 hover:text-indigo-200">{item.link_url}</a>
+              ) : null}
+              <div className="mt-2 flex gap-3">
+                <button type="button" onClick={() => startEdit(item)} className="text-xs font-semibold text-orange-300 hover:text-orange-200" data-track="ui.c62ffb2364.7">
+                  {t('consultantContractorDashboard.portfolio.edit')}
+                </button>
+                <button type="button" disabled={busy} onClick={() => remove(item)} className="text-xs font-semibold text-red-300 hover:text-red-200 disabled:opacity-50" data-track="ui.c62ffb2364.8">
+                  {t('consultantContractorDashboard.portfolio.remove')}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-gray-400">{t('consultantContractorDashboard.portfolio.empty')}</p>
+      )}
+
+      <form onSubmit={save} className="mt-4 grid gap-3 rounded-2xl border border-gray-800 bg-[#111318] p-4">
+        <p className="text-sm font-semibold text-white">{editingId ? t('consultantContractorDashboard.portfolio.editTitle') : t('consultantContractorDashboard.portfolio.addTitle')}</p>
+        <input value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} placeholder={t('consultantContractorDashboard.portfolio.fields.title')} className={inputClass} required maxLength={180} />
+        <textarea value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} placeholder={t('consultantContractorDashboard.portfolio.fields.description')} className={`${inputClass} min-h-[80px]`} maxLength={2000} />
+        <input value={form.link_url} onChange={(e) => setForm((prev) => ({ ...prev, link_url: e.target.value }))} placeholder={t('consultantContractorDashboard.portfolio.fields.link')} className={inputClass} inputMode="url" maxLength={500} />
+        <input value={form.image_url} onChange={(e) => setForm((prev) => ({ ...prev, image_url: e.target.value }))} placeholder={t('consultantContractorDashboard.portfolio.fields.image')} className={inputClass} inputMode="url" maxLength={500} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+            {t('consultantContractorDashboard.portfolio.fields.visibility')}
+            <select value={form.visibility} onChange={(e) => setForm((prev) => ({ ...prev, visibility: e.target.value }))} className={`${inputClass} mt-2 normal-case tracking-normal`}>
+              <option value="public">{t('consultantContractorDashboard.portfolio.visiblePublic')}</option>
+              <option value="hidden">{t('consultantContractorDashboard.portfolio.hidden')}</option>
+            </select>
+          </label>
+          <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+            {t('consultantContractorDashboard.portfolio.fields.order')}
+            <input type="number" min="0" max="1000" value={form.sort_order} onChange={(e) => setForm((prev) => ({ ...prev, sort_order: e.target.value }))} className={`${inputClass} mt-2`} />
+          </label>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <button type="submit" disabled={busy || !form.title.trim()} className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.9">
+            {busy ? t('consultantContractorDashboard.actions.saving') : editingId ? t('consultantContractorDashboard.portfolio.saveChanges') : t('consultantContractorDashboard.portfolio.add')}
+          </button>
+          {editingId && (
+            <button type="button" onClick={resetForm} className="rounded-2xl border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm font-semibold text-gray-200" data-track="ui.c62ffb2364.10">
+              {t('common.cancel')}
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function ReferralAttachments({ referral, userId, tx }) {
   const { t } = useTranslation();
   const [attachments, setAttachments] = useState([]);
@@ -441,6 +586,13 @@ export default function ConsultantContractorDashboard() {
   const payingReferralAccess = dashboard?.payingReferralAccess;
   const profile = dashboard?.profile || {};
   const hasCoverage = (profile.coverage_countries || []).length > 0;
+  const READINESS_LABELS = {
+    profile_complete: 'consultantContractorDashboard.readiness.items.profileComplete',
+    specialties_declared: 'consultantContractorDashboard.readiness.items.specialtiesDeclared',
+    availability_set: 'consultantContractorDashboard.readiness.items.availabilitySet',
+    pricing_set: 'consultantContractorDashboard.readiness.items.pricingSet',
+    profile_approved: 'consultantContractorDashboard.readiness.items.profileApproved',
+  };
 
   const referralPipelineCount = useMemo(
     () => referrals.filter((referral) => !['lost', 'completed'].includes(referral.consultant_assignment_status)).length,
@@ -522,6 +674,43 @@ export default function ConsultantContractorDashboard() {
               hint={tx('consultantContractorDashboard.summary.coveredCountriesHint', 'Markets where you are currently available for local or virtual referrals.')}
             />
           </section>
+
+          {/* Group 10 item 505: engagement readiness checklist, computed
+              server-side. Item 504: the approval state is shown here too. */}
+          {dashboard?.readiness && (
+            <section className="mt-6 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('consultantContractorDashboard.readiness.label')}</p>
+                  <h2 className="text-2xl font-semibold text-white">{t('consultantContractorDashboard.readiness.title')}</h2>
+                </div>
+                <span className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] ${dashboard.readiness.ready ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/25 bg-amber-500/10 text-amber-200'}`}>
+                  {dashboard.readiness.ready ? t('consultantContractorDashboard.readiness.ready') : t('consultantContractorDashboard.readiness.notReady')}
+                </span>
+              </div>
+              {profile.approval_status === 'pending' && (
+                <p role="status" className="mb-4 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                  {t('consultantContractorDashboard.readiness.pendingApproval')}
+                </p>
+              )}
+              {profile.approval_status === 'declined' && (
+                <p role="status" className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  {t('consultantContractorDashboard.readiness.declined', { note: profile.approval_note || '' })}
+                </p>
+              )}
+              <ul className="grid gap-2 md:grid-cols-2">
+                {dashboard.readiness.items.map((item) => (
+                  <li key={item.key} className="flex items-center gap-3 rounded-2xl border border-gray-800 bg-[#111318] px-4 py-3 text-sm text-white">
+                    {item.met
+                      ? <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
+                      : <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-600 text-xs text-gray-400">•</span>}
+                    <span>{t(READINESS_LABELS[item.key] || 'consultantContractorDashboard.readiness.items.profileComplete')}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-gray-500">{t('consultantContractorDashboard.readiness.hint')}</p>
+            </section>
+          )}
 
           <div className="mt-6 grid gap-5 xl:grid-cols-[1.05fr_1.35fr]">
             <section className="rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
@@ -610,6 +799,21 @@ export default function ConsultantContractorDashboard() {
                   {tx('consultantContractorDashboard.actions.manageAvailability', 'Manage availability')}
                 </a>
               </div>
+
+              {/* Group 10 item 510: the consultant's own pricing summary. */}
+              {dashboard?.pricingSummary && (
+                <div className="mt-5 rounded-2xl border border-gray-800 bg-[#111318] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('consultantContractorDashboard.pricing.label')}</p>
+                  <p className="mt-2 text-sm text-gray-200">{t('consultantContractorDashboard.pricing.minimum', { amount: centsToFriendly(dashboard.pricingSummary.minimum_package_price_cents) })}</p>
+                  <p className="mt-1 text-sm text-gray-400">{t('consultantContractorDashboard.pricing.cut', { percent: ((dashboard.pricingSummary.default_oxsteed_cut_bps || 0) / 100).toFixed(2) })}</p>
+                  <p className="mt-1 text-sm text-gray-400">{t('consultantContractorDashboard.pricing.limit', { count: dashboard.pricingSummary.active_referral_limit })}</p>
+                  {profile.approval_status === 'approved' && user?.id && (
+                    <a href={`/consultants/${user.id}`} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200" data-track="ui.c62ffb2364.11">
+                      {t('consultantContractorDashboard.pricing.viewPublic')}
+                    </a>
+                  )}
+                </div>
+              )}
             </section>
 
             <section className="rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
@@ -665,6 +869,21 @@ export default function ConsultantContractorDashboard() {
               )}
             </section>
           </div>
+
+          {/* Group 10 item 509: portfolio manager. */}
+          <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/80">
+                <Briefcase className="h-5 w-5 text-gray-300" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('consultantContractorDashboard.portfolio.label')}</p>
+                <h2 className="text-2xl font-semibold text-white">{t('consultantContractorDashboard.portfolio.title')}</h2>
+              </div>
+            </div>
+            <p className="mb-4 text-sm leading-6 text-gray-400">{t('consultantContractorDashboard.portfolio.description')}</p>
+            <PortfolioManager />
+          </section>
 
           <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
             <div className="mb-5 flex items-center gap-3">

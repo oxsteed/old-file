@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { schedulingApi } from '../api/scheduling';
 import logger from '../utils/logger';
+import './ConsultantScheduleSelector.css';
 
 // Restored replacement for the deleted ConsultantScheduleSelector (3 steps:
 // selectDate -> selectTime -> confirm), wired to the schedulingApi wrapper
@@ -38,6 +39,9 @@ export default function ConsultantScheduleSelector({
   const [loading, setLoading] = useState(false);
   const [meetingLink, setMeetingLink] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
+  // Group 10 item 507: engagement format picker. Defaults to zoom; the
+  // chosen format is plumbed through book-slot and stored on the row.
+  const [meetingType, setMeetingType] = useState('zoom');
 
   // Load next available dates on mount (and when the duration changes).
   useEffect(() => {
@@ -103,6 +107,7 @@ export default function ConsultantScheduleSelector({
         durationMinutes,
         meetingLink || null,
         timezone,
+        meetingType,
       );
       toast.success(t('scheduling.sessionConfirmed'));
       if (onScheduleConfirmed) onScheduleConfirmed(response.data);
@@ -141,6 +146,12 @@ export default function ConsultantScheduleSelector({
     { value: 'America/Los_Angeles', label: t('scheduling.timezones.pacific') },
     { value: 'Europe/London', label: t('scheduling.timezones.london') },
     { value: 'Europe/Paris', label: t('scheduling.timezones.paris') },
+  ];
+  const meetingTypeOptions = [
+    { value: 'zoom', label: t('scheduling.meetingTypes.zoom') },
+    { value: 'google_meet', label: t('scheduling.meetingTypes.googleMeet') },
+    { value: 'phone', label: t('scheduling.meetingTypes.phone') },
+    { value: 'in_person', label: t('scheduling.meetingTypes.inPerson') },
   ];
   const dateLocale = i18n.language || 'en';
 
@@ -259,6 +270,25 @@ export default function ConsultantScheduleSelector({
             <p style={{ margin: '0.5rem 0', color: 'var(--color-text-muted)' }}>
               <strong>{t('scheduling.duration')}:</strong> {durationMinutes} {t('scheduling.minutes')}
             </p>
+            <p className="css-review-line">
+              <strong>{t('scheduling.meetingFormat')}:</strong>{' '}
+              {(meetingTypeOptions.find((option) => option.value === meetingType) || {}).label || meetingType}
+            </p>
+          </div>
+          <div className="css-field">
+            <label className="css-label">
+              {t('scheduling.meetingFormat')}
+            </label>
+            <select value={meetingType} onChange={(e) => setMeetingType(e.target.value)} className="css-input">
+              {meetingTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            {meetingType === 'in_person' && (
+              <p className="mt-1 text-xs text-gray-500">
+                {t('scheduling.inPersonHint')}
+              </p>
+            )}
           </div>
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>

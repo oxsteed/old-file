@@ -15062,6 +15062,14 @@
     "time": "Tan",
     "minutes": "minit",
     "meetingLink": "Lyen Rankontr (Opsyonal)",
+    "meetingFormat": "Fòma rankontr",
+    "meetingTypes": {
+      "zoom": "Apèl videyo Zoom",
+      "googleMeet": "Apèl videyo Google Meet",
+      "phone": "Apèl telefòn",
+      "inPerson": "An pèsòn"
+    },
+    "inPersonHint": "Sesyon an pèsòn yo fèt nan kote ou dakò ak konsiltan ou a.",
     "timezone": "Tan Zòn",
     "confirmBooking": "Konfime Rezèvasyon",
     "sessionConfirmed": "Sesyon orè avèk siksè!",
@@ -25020,7 +25028,105 @@
       "deliveries": "Pa gen lòd livrezon ki disponib."
     }
   },
+  "consultantPublicProfile": {
+    "page": {
+      "title": "{{name}} | Konsiltan",
+      "fallbackTitle": "Pwofil konsiltan",
+      "fallbackDescription": "Gade espesyalite, pòtfèy ak pri konsiltan OxSteed sa a."
+    },
+    "eyebrow": "Konsiltan OxSteed",
+    "loading": "Ap chaje pwofil konsiltan an…",
+    "notFound": {
+      "title": "Konsiltan pa jwenn",
+      "body": "Pwofil konsiltan sa a pa disponib. Li ka poko apwouve oswa li te retire.",
+      "intakeLink": "Kòmanse yon demann konsiltasyon"
+    },
+    "notAccepting": "Konsiltan sa a pa ap aksepte nouvo referans pou kounye a.",
+    "sections": {
+      "about": "Sou li",
+      "specialties": "Espesyalite ak kouvèti",
+      "pricing": "Pri",
+      "portfolio": "Pòtfèy",
+      "availability": "Disponibilite"
+    },
+    "fields": {
+      "coverage": "Kouvèti",
+      "languages": "Lang",
+      "experience": "Eksperyans",
+      "basedIn": "Li baze nan",
+      "virtual": "Konsiltasyon vityèl"
+    },
+    "experienceYears": "{{count}} ane eksperyans",
+    "virtualYes": "Disponib pou konsiltasyon vityèl",
+    "pricing": {
+      "minimum": "Pri minimòm pakè a: {{amount}}",
+      "note": "Pri final la depann de pakè a ak dimansyon ou dakò ak konsiltan an."
+    },
+    "portfolio": {
+      "viewWork": "Wè travay la"
+    },
+    "empty": {
+      "specialties": "Pa gen espesyalite pou kounye a.",
+      "coverage": "Pa endike",
+      "languages": "Pa endike",
+      "portfolio": "Pa gen egzanp travay piblik pou kounye a.",
+      "availability": "Pa gen disponibilite k ap vini."
+    },
+    "bookLink": "Kòmanse yon demann konsiltasyon ak konsiltan sa a",
+    "errors": {
+      "load": "Pwofil konsiltan an pa t ka chaje."
+    }
+  },
   "consultantContractorDashboard": {
+    "readiness": {
+      "label": "Preparasyon pou misyon",
+      "title": "Ou pare pou pran misyon?",
+      "ready": "Pare",
+      "notReady": "Ou poko pare",
+      "pendingApproval": "Pwofil ou a ap tann apwobasyon yon administratè. W ap parèt nan rechèch yo ak sou pwofil piblik ou yon fwa li apwouve.",
+      "declined": "Pwofil ou a te refize. Nòt revizè a: {{note}}",
+      "hint": "Konplete chak pwen pou kliyan yo ka wè ou epi pou ou kalifye pou rechèch yo.",
+      "items": {
+        "profileComplete": "Pwofil konplè: tit, byografi, espesyalite, kouvèti ak lang",
+        "specialtiesDeclared": "Omwen yon espesyalite deklare",
+        "availabilitySet": "Disponibilite defini pou omwen yon jou",
+        "pricingSet": "Pri minimòm pakè a defini",
+        "profileApproved": "Pwofil apwouve pa yon administratè"
+      }
+    },
+    "pricing": {
+      "label": "Pri ou yo",
+      "minimum": "Pri minimòm pakè a: {{amount}}",
+      "cut": "Komisyon referans OxSteed: {{percent}}%",
+      "limit": "Limit referans aktif: {{count}}",
+      "viewPublic": "Wè pwofil piblik ou"
+    },
+    "portfolio": {
+      "label": "Pòtfèy",
+      "title": "Egzanp travay",
+      "description": "Ajoute egzanp travay nan pwofil ou. Eleman piblik yo parèt sou pwofil espesyalite piblik ou; eleman kache yo rete nan espas sa a.",
+      "loading": "Ap chaje pòtfèy la…",
+      "loadError": "Pòtfèy la pa t ka chaje.",
+      "saveError": "Eleman pòtfèy la pa t ka anrejistre.",
+      "removeError": "Eleman pòtfèy la pa t ka retire.",
+      "empty": "Pa gen eleman nan pòtfèy la pou kounye a. Ajoute yon egzanp travay anba a.",
+      "visiblePublic": "Piblik",
+      "hidden": "Kache",
+      "edit": "Modifye",
+      "remove": "Retire",
+      "editTitle": "Modifye eleman pòtfèy la",
+      "addTitle": "Ajoute yon eleman nan pòtfèy la",
+      "add": "Ajoute eleman",
+      "saveChanges": "Anrejistre chanjman yo",
+      "fields": {
+        "title": "Tit",
+        "description": "Deskripsyon",
+        "link": "Lyen travay la (https://…)",
+        "image": "URL imaj la (https://…)",
+        "visibility": "Vizibilite",
+        "order": "Lòd"
+      }
+    },
     "page": {
       "title": "Tablo konsiltan kontra",
       "description": "Jere referans ouvèti biznis lokal, mache kouvèti, ak pati peman ou negosye sou OxSteed.",
@@ -35657,6 +35763,26 @@
     "type.optOut": "Retire"
   },
   "adminConsultingDashboard": {
+    "profileApprovals": {
+      "title": "Apwobasyon pwofil konsiltan",
+      "description": "Nouvo pwofil konsiltan yo tann isit la jiskaske yon administratè apwouve yo. Konsiltan yo apwouve parèt nan rechèch yo ak sou pwofil piblik yo; sa yo refize yo rete kache.",
+      "filterLabel": "Filtre pa estati apwobasyon",
+      "pending": "An atant",
+      "approvedFilter": "Apwouve",
+      "declinedFilter": "Refize",
+      "all": "Tout",
+      "empty": "Pa gen pwofil konsiltan nan eta sa a.",
+      "loadError": "Pwofil konsiltan yo pa t ka chaje.",
+      "decideFailed": "Desizyon an pa t ka anrejistre.",
+      "approved": "Pwofil apwouve.",
+      "declined": "Pwofil refize.",
+      "approve": "Apwouve",
+      "decline": "Refize",
+      "specialties": "Espesyalite",
+      "experience": "{{count}} ane eksperyans",
+      "note": "Nòt revizè a",
+      "notePlaceholder": "Nòt pou konsiltan an (opsyonèl)"
+    },
     "areas.acquisitionPreparation": "preparasyon akizisyon",
     "areas.branding": "kreyasyon mak",
     "areas.exitStrategy": "estrateji sòti",
