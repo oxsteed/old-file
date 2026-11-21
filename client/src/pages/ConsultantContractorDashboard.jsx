@@ -495,7 +495,7 @@ function ReferralScreening({ referralId, tx }) {
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         className="flex w-full items-center justify-between text-left text-sm font-semibold text-white"
-        aria-expanded={open}
+        aria-expanded={open} data-track="ui.c62ffb2364.14"
       >
         <span>{tx('consultantContractorDashboard.screening.title', 'Screen this inquiry')}</span>
         <span className="text-xs font-normal text-gray-400">{open ? tx('consultantContractorDashboard.screening.hide', 'Hide') : tx('consultantContractorDashboard.screening.show', 'Show')}</span>
@@ -535,7 +535,7 @@ function ReferralScreening({ referralId, tx }) {
                   <label className={labelClass} htmlFor={`${referralId}-fit-notes`}>{tx('consultantContractorDashboard.screening.fitNotes', 'Notes')}</label>
                   <textarea id={`${referralId}-fit-notes`} value={fit.notes} onChange={(event) => setFit((prev) => ({ ...prev, notes: event.target.value }))} className="min-h-[80px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500" placeholder={tx('consultantContractorDashboard.screening.fitNotesPlaceholder', 'Why this is or is not a fit.')} />
                 </div>
-                <button type="button" onClick={saveFit} disabled={savingFit} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                <button type="button" onClick={saveFit} disabled={savingFit} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.15">
                   {savingFit ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {tx('consultantContractorDashboard.screening.fitSave', 'Save fit assessment')}
                 </button>
@@ -549,14 +549,14 @@ function ReferralScreening({ referralId, tx }) {
                   </p>
                 )}
                 <label className="flex items-start gap-2 text-sm text-gray-300">
-                  <input type="checkbox" checked={conflict.has_conflict} onChange={(event) => setConflict((prev) => ({ ...prev, has_conflict: event.target.checked }))} className="mt-1 h-4 w-4 accent-orange-500" />
+                  <input type="checkbox" checked={conflict.has_conflict} onChange={(event) => setConflict((prev) => ({ ...prev, has_conflict: event.target.checked }))} className="mt-1 h-4 w-4 accent-orange-500" data-track="ui.c62ffb2364.16" />
                   {tx('consultantContractorDashboard.screening.conflictHas', 'I have a conflict of interest with this inquiry')}
                 </label>
                 <div className="mt-3">
                   <label className={labelClass} htmlFor={`${referralId}-conflict-desc`}>{tx('consultantContractorDashboard.screening.conflictDescription', 'Description')}</label>
                   <textarea id={`${referralId}-conflict-desc`} value={conflict.description} onChange={(event) => setConflict((prev) => ({ ...prev, description: event.target.value }))} className="min-h-[80px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500" placeholder={tx('consultantContractorDashboard.screening.conflictDescriptionPlaceholder', 'Describe the conflict, for example a competing client or a personal relationship.')} />
                 </div>
-                <button type="button" onClick={saveConflict} disabled={savingConflict} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                <button type="button" onClick={saveConflict} disabled={savingConflict} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.17">
                   {savingConflict ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {tx('consultantContractorDashboard.screening.conflictSave', 'Save declaration')}
                 </button>
@@ -581,7 +581,7 @@ function ReferralScreening({ referralId, tx }) {
                   <label className={labelClass} htmlFor={`${referralId}-reply-body`}>{tx('consultantContractorDashboard.screening.replyBody', 'Message')}</label>
                   <textarea id={`${referralId}-reply-body`} value={replyBody} onChange={(event) => setReplyBody(event.target.value)} className="min-h-[110px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500" />
                 </div>
-                <button type="button" onClick={sendReply} disabled={sendingReply || !replySubject.trim() || !replyBody.trim()} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                <button type="button" onClick={sendReply} disabled={sendingReply || !replySubject.trim() || !replyBody.trim()} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.18">
                   {sendingReply ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {tx('consultantContractorDashboard.screening.replySend', 'Send reply')}
                 </button>
@@ -742,7 +742,7 @@ function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId })
             type="button"
             onClick={() => onSave(referral.id, { ...draft, consultant_assignment_status: 'intro_pending' })}
             disabled={savingId === referral.id}
-            className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50" data-track="ui.c62ffb2364.19"
           >
             <CheckCircle2 className="h-4 w-4" />
             {tx('consultantContractorDashboard.referral.acceptButton', 'Accept referral')}
@@ -758,7 +758,7 @@ function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId })
               }
             }}
             disabled={savingId === referral.id}
-            className="inline-flex items-center gap-2 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50" data-track="ui.c62ffb2364.20"
           >
             {confirmingDecline
               ? tx('consultantContractorDashboard.referral.confirmDeclineButton', 'Click again to decline')
@@ -768,7 +768,7 @@ function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId })
             <button
               type="button"
               onClick={() => setConfirmingDecline(false)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-gray-800"
+              className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-gray-800" data-track="ui.c62ffb2364.21"
             >
               {tx('consultantContractorDashboard.referral.cancelDeclineButton', 'Keep referral')}
             </button>
