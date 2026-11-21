@@ -101,7 +101,7 @@ async function loadFacts(userId, db = pool) {
             CASE WHEN b.user_id = $1 THEN 'owner' ELSE bm.role END AS role
        FROM businesses b
        LEFT JOIN business_members bm
-              ON bm.business_id = b.id AND bm.member_id = $1 AND bm.status = 'active'
+              ON bm.business_id = b.id AND bm.member_id = $1 AND bm.status = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
       WHERE b.deleted_at IS NULL AND (b.user_id = $1 OR bm.id IS NOT NULL)
       ORDER BY b.id`,
     [userId],
@@ -118,7 +118,7 @@ async function loadFacts(userId, db = pool) {
          JOIN food_restaurants fr ON fr.id = rl.restaurant_id
          JOIN businesses b ON b.id = fr.business_id AND b.deleted_at IS NULL
          LEFT JOIN business_members bm
-                ON bm.business_id = b.id AND bm.member_id = $1 AND bm.status = 'active'
+                ON bm.business_id = b.id AND bm.member_id = $1 AND bm.status = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
          LEFT JOIN restaurant_location_memberships rlm
                 ON rlm.restaurant_id = rl.restaurant_id
                AND rlm.location_id = rl.id

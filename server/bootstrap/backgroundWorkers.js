@@ -212,6 +212,10 @@ class BackgroundWorkers {
       startAcceptedJobExpiryJob();
       startRestaurantTrainingOverdueJob();
       startStaffInviteExpiryJob();
+      this.scheduleFencedCron('* * * * *','business-membership-access-expiry',async()=>{
+        try{await require('../services/businessMembershipExpiry').sweep();}
+        catch(error){this.log.warn('Business membership expiry failed',{error:error.message});}
+      },{ttlSeconds:55});
       startRestaurantPunchCloseoutJob();
       startRestaurantScheduledReportsJob();
       startRestaurantRetentionJob();

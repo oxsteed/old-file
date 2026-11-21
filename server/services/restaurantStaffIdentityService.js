@@ -303,7 +303,7 @@ async function validateStaffPinForRestaurant({ restaurantId, pin, deviceId = nul
               WHERE b.id = $1 AND b.user_id = $2
              UNION ALL
              SELECT 1 FROM business_members bm
-              WHERE bm.business_id = $1 AND bm.member_id = $2 AND bm.status = 'active'
+              WHERE bm.business_id = $1 AND bm.member_id = $2 AND bm.status = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
              LIMIT 1`,
             [restaurantRow.business_id, pinRow.staff_user_id]
           );
@@ -477,7 +477,7 @@ async function resolveStaffSession(req, restaurantId) {
              WHERE b.id = $1 AND b.user_id = $2
             UNION ALL
             SELECT 1 FROM business_members bm
-             WHERE bm.business_id = $1 AND bm.member_id = $2 AND bm.status = 'active'
+             WHERE bm.business_id = $1 AND bm.member_id = $2 AND bm.status = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
             LIMIT 1`,
           [restaurantRow.business_id, session.staff_user_id]
         );

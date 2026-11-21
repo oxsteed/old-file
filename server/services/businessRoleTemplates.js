@@ -21,7 +21,7 @@ async function normalize(db,body){
 async function list(businessId,userId){
  await owner(pool,businessId,userId);
  const {rows:templates}=await pool.query('SELECT * FROM business_role_templates WHERE business_id=$1 ORDER BY name,id LIMIT 50',[businessId]);
- const {rows:members}=await pool.query(`SELECT bm.id,bm.role,bm.permission_version,u.first_name,u.last_name FROM business_members bm JOIN users u ON u.id=bm.member_id WHERE bm.business_id=$1 AND bm.status='active' AND bm.member_id<>$2 ORDER BY bm.id LIMIT 200`,[businessId,userId]);
+ const {rows:members}=await pool.query(`SELECT bm.id,bm.role,bm.permission_version,u.first_name,u.last_name FROM business_members bm JOIN users u ON u.id=bm.member_id WHERE bm.business_id=$1 AND bm.status='active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW()) AND bm.member_id<>$2 ORDER BY bm.id LIMIT 200`,[businessId,userId]);
  const {rows:history}=await pool.query('SELECT id,template_name,reason,membership_id,created_at FROM business_role_template_history WHERE business_id=$1 ORDER BY id DESC LIMIT 50',[businessId]);
  return {templates,members,history,catalog:await permissions.getCatalog()};
 }
@@ -39,7 +39,7 @@ async function save(businessId,userId,body,id=null){
  },'business_role_template_save');
 }
 async function snapshot(db,businessId,userId,templateId,memberId){
- const {rows:[member]}=await db.query("SELECT * FROM business_members WHERE id=$1 AND business_id=$2 AND status='active' FOR UPDATE",[memberId,businessId]);
+ const {rows:[member]}=await db.query("SELECT * FROM business_members WHERE id=$1 AND business_id=$2 AND status='active' AND (access_valid_until IS NULL OR access_valid_until>NOW()) FOR UPDATE",[memberId,businessId]);
  if(!member||!member.member_id||String(member.member_id)===String(userId))fail(404,'not_found');
  const {rows:[template]}=await db.query('SELECT * FROM business_role_templates WHERE id=$1 AND business_id=$2 FOR SHARE',[templateId,businessId]);if(!template)fail(404,'not_found');
  const {rows:defaults}=await db.query('SELECT r.code AS role,p.code,rp.allow FROM team_role_permissions rp JOIN team_roles r ON r.id=rp.role_id JOIN team_permissions p ON p.id=rp.permission_id WHERE r.code=ANY($1::text[])',[[member.role,template.role]]);

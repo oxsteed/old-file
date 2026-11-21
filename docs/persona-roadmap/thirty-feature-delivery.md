@@ -4,6 +4,12 @@ Requested implementation set: the 30 features selected from the user-supplied
 persona roadmap. Baseline: PR 805 at `1305b1817a36ca20ac9616f133847ae30cc3bb8f`.
 The feature list is descriptive; all protected operations retain server authority.
 
+Current source status: all 30 selected features have implementations and focused
+local verification. The final six business-team features are detailed below.
+Exact-head GitHub CI and non-production operational acceptance are separate
+from this source-completion status. Paid rental extensions are out of scope;
+the delivered extension flow requires explicit no-additional-charge consent.
+
 | Roadmap ID | Feature | Delivery |
 |---|---|---|
 | 163 | Distance preferences | Implemented; saved cross-device radius drives nearby opportunities |
@@ -20,12 +26,12 @@ The feature list is descriptive; all protected operations retain server authorit
 | 209 | Business pricing templates | Implemented; business-scoped create/edit/apply/delete with versions |
 | 212 | Role templates | Implemented; owner-only reusable business roles/overrides and application history |
 | 213 | Permission preview | Implemented; server-computed before/after and added/removed permissions, stale confirmation denial |
-| 214 | Membership expiry | Not started |
-| 215 | Offboarding dashboard | Existing server workflow verified; frontend completion review pending |
-| 219 | Overdue task alerts | Not started |
-| 224 | Follow-up reminders | Not started |
-| 229 | Team onboarding guide | Not started |
-| 230 | Policy acknowledgment history | Not started |
+| 214 | Membership expiry | Implemented; database and browser verified |
+| 215 | Offboarding dashboard | Implemented; database and browser verified |
+| 219 | Overdue task alerts | Implemented; database and browser verified |
+| 224 | Follow-up reminders | Implemented; database and browser verified |
+| 229 | Team onboarding guide | Implemented; database and browser verified |
+| 230 | Policy acknowledgment history | Implemented; database and browser verified |
 | 557 | Accessory inventory | Implemented; database and browser verified |
 | 558 | Usage restrictions | Implemented; database and browser verified |
 | 572 | Condition checklist | Implemented; database and browser verified |
@@ -198,46 +204,6 @@ Rollback retains quote snapshots and templates; sent terms remain immutable.
 - Migration history/append order, growth instrumentation and diff whitespace
   checks passed. No merge, deployment or production acceptance was performed.
 
-## Checkpoint and next actions
-
-14 of the selected 30 features have new implementations with local verification.
-The remaining 16 are still in scope; they are not represented as complete.
-Continue on PR 805's fix/persona-roadmap-1000 branch from the latest pushed head.
-Use the isolated worktree /private/tmp/oxsteed-pr805-ci-repair. Preserve unrelated
-work in the main checkout and do not add the client/node_modules symlink.
-
-1. Membership expiry (214): existing business_members.expires_at is invitation
-   expiry, not effective employment expiry. Trace all authorization consumers
-   before adding time-bound active access. About 105 non-test server files refer
-   to business_members; changing only navbar or one middleware is insufficient.
-2. Offboarding (215): reuse staffOffboarding and current Team history/rehire UI.
-   Current database coverage confirms task reassignment, retention/history,
-   rehire and anonymized records. Reconcile the remaining user-facing dashboard
-   behavior rather than introducing a second removal system.
-3. Overdue tasks/follow-up (219/224): reconcile existing crew tasks, attention
-   adapters and reminder infrastructure before adding scoped alerts/reminders.
-4. Team onboarding/policy history (229/230): reuse existing staff/careers training
-   and onboarding where applicable. Client-facing business policies are a
-   different audience from internal team acknowledgments.
-5. Equipment (557/558/572/573/577/578/581/582/585/593): extend existing tool_rentals,
-   tool_rentals_bookings, ToolOwnerDashboard and MyBookingsPage. Owner rules and
-   agreement snapshots already exist. Preserve the peer-rental agreement,
-   invoice/deposit lifecycle, effective tool-owner access, customer ownership and
-   tool-rental advisory lock used by booking creation. Extensions must preserve
-   explicit date/price consent and existing payment records; condition reports
-   must not automatically levy damage or missing-accessory charges.
-
-Run focused checks per increment and push reviewable commits while GitHub CI is
-running. Do not treat a passing older commit as CI evidence for the new head.
-
-The disposable PostGIS container for continuation is oxsteed-pr805-quote-db
-(Colima context), port 32800, database credit_statement_test. It contains only
-synthetic fixtures and the applied additive migrations. Use the local test URL
-postgresql://postgres@127.0.0.1:32800/credit_statement_test?sslmode=disable for
-ACCESS_TEST_DATABASE_URL and STATEMENT_TEST_DATABASE_URL. Never substitute a
-production database. Remove this task container/volumes when its verification
-work is finished; do not remove other Docker resources.
-
 ## Equipment operations increment
 
 Inspected integration: f6934cd2a6fa3c10c9dc7965b404649b1a2c63bd, PR 805.
@@ -292,3 +258,122 @@ This increment implements the ten selected equipment features (557, 558, 572,
 The six remaining items are business membership expiry (214), offboarding
 completion review (215), overdue task alerts (219), follow-up reminders (224),
 team onboarding guide (229), and policy acknowledgment history (230).
+
+## Final business-team increment
+
+Completes 214, 215, 219, 224, 229 and 230 against the equipment increment
+9b26b2f28da4e6a40ca9cb44bee10dd7b75af38e.
+
+- A shared Team guide and work panel in the existing business workspace shows
+  owner-published onboarding guides and policies. Versions append; acknowledgments
+  bind the exact document/version read, are retry-safe, and remain in history.
+  Publishing a revision never acknowledges it for someone else. Staff can read
+  only within current standing; the owner can see the team's acknowledgment
+  history. These records do not create grants or replace domain activation.
+- Owners assign tasks to active team members; members can create their own
+  follow-up reminders. Due/overdue state is computed on the server, with exact
+  counts and a bounded list. The panel refreshes once per minute and on focus.
+  Reminders are persistent in-app records, not email/push promises. Completion
+  and reopening require current scope, assignee/owner authority and a version.
+  Request keys and serialized creates prevent duplicates on retries.
+- Existing offboarding/rehire machinery is reused. Open team tasks are reassigned
+  atomically to the existing handoff target; completed work remains historical.
+  The dashboard shows removal reasons, reassignment counts, flagged cash drawers
+  and retention dates, linking back to the existing Team management/rehire flow.
+  Team acknowledgment/task foreign keys preserve anonymized history instead of
+  newly blocking account deletion. Owners cannot see another organization's data.
+- Active membership expiry is a separate nullable access_valid_until field;
+  existing invitation expires_at semantics are unchanged. Only the current owner
+  can schedule/clear a future end time with an expected membership version.
+  Already-expired access cannot be revived by clearing the date: existing
+  invitation/rehire admission applies. Owner and member views show the deadline.
+- Canonical business/restaurant/finance/PIN-session guards and access projection
+  exclude elapsed memberships before cleanup. Authenticated and optional-auth
+  user requests settle due expiry before downstream operations, including older
+  raw membership consumers. A fenced minutely worker also settles due records.
+  Cleanup, reassignment, scoped staff session/PIN removal, history and projection
+  invalidation commit together. Failed cleanup rolls back and fails closed with
+  retryable 503; the timestamp-based canonical scopes still deny access.
+- Expiry cleanup deliberately preserves account refresh sessions and unrelated
+  memberships/helper grants. Existing manual offboarding keeps its previous
+  session-revocation behavior. The expiry test uses a real signed access token:
+  an old business link is rejected while another business and helper capacity
+  remain available, and the account session remains valid. Real restaurant
+  scope/projection denial is verified before cleanup. Competing expiry checks
+  produce one history/offboarding record. No instantaneous UI or socket-room
+  invalidation is promised: normal refresh and worker backlog apply, and an
+  already-authorized in-flight operation may finish.
+- Available by default under existing business standing and business.view.
+  Owner mutations use current ownership. All five legacy/namespaced catalogs,
+  keyboard controls, live status messages, RTL, account/scope resets and private
+  analytics boundaries are covered. No persona label or client preference
+  establishes authority.
+
+## Final verification evidence
+
+Source baseline: f6934cd2a6fa3c10c9dc7965b404649b1a2c63bd (latest PR pulled before
+this continuation). Equipment package pushed as 9b26b2f28da4e6a40ca9cb44bee10dd7b75af38e.
+The final business-team package's exact commit is the commit containing this
+record; GitHub PR 805 records the exact pushed head/run. Commands ran from the
+isolated /private/tmp/oxsteed-pr805-ci-repair worktree.
+
+- Disposable PostgreSQL/PostGIS migrations: applied successfully, including the
+  three business-team/expiry migrations. Historical files remained unchanged.
+- ACCESS_TEST_DATABASE_URL and STATEMENT_TEST_DATABASE_URL targeted only
+  127.0.0.1:32800/credit_statement_test. Focused team/access/expiry/auth/offboarding/
+  restaurant scope/crew/role/calendar/message regression run: 83 tests passed,
+  ten suites, 5.08s; no skipped tests. Includes deliberate cleanup failure and
+  rollback, overlapping grants, stale versions, old links, and real HTTP auth.
+- Dedicated POS/staff-session verification used st_t3, cloned from that disposable
+  database in the same task-only container. restaurantStaffIdentity.db,
+  staffOffboardingSessions.db and backgroundWorkers: 27 tests passed, three
+  suites, 10.10s. No production or external payment service was used.
+- Equipment regression package: 26 tests passed across seven suites, 3.87s.
+- Team/expiry browser journey and all three existing workspace-navigation
+  journeys passed: four tests, including owner/member separation, exact guide
+  acknowledgment, due task completion, expiry stale-version preservation,
+  schedule/clear controls, offboarding visibility, Arabic RTL/narrow viewport,
+  keyboard use and scoped-data clearing. Browser APIs were synthetic; database
+  and authenticated API checks were separate.
+- Equipment browser journey passed (7.92s); build passed with 1246 assets.
+- Final client npm run build:ci passed with 1247 emitted assets. Migration
+  history/append order, frontend references, locale parity, instrumentation
+  (1033 eligible files, 100% named interactions), assets and git diff --check
+  passed. Automated checks are not human screen-reader or production acceptance.
+
+## Deployment, rollback and remaining acceptance
+
+No selected source feature remains unimplemented. This does not close the
+entire persona roadmap or establish production readiness. Exact-head GitHub CI
+is required after the final push. No merge, deployment or production activation
+was performed. Validate representative owner/member/renter accounts in approved
+non-production and measure refresh/worker behavior before production acceptance.
+
+Apply all additive migrations before the new API/worker code. Every serving
+API/POS/socket reader must understand expiry before configured deadlines are
+used. After deadlines are configured, retain expiry enforcement and cleanup
+when rolling back UI changes; blindly reverting to pre-expiry server code could
+restore time-expired standing. Keep all document, acknowledgment, condition,
+repair, discrepancy, extension and offboarding records. Do not drop data or
+rewrite applied migrations during rollback.
+
+The task-only Colima container oxsteed-pr805-quote-db remains available on port
+32800 for continuation/acceptance, containing credit_statement_test and the
+st_t3 and credit_statement_test_pr804_c verification clones. Remove this task container/volumes after acceptance
+work is finished; preserve all unrelated databases, Docker resources, worktrees
+and the untracked client/node_modules development symlink.
+
+Additional final guard verification: the finance-specific location/HQ settlement
+and read-only statement suites initially refused the generic test database name,
+as designed. After creating the dedicated credit_statement_test_pr804_c clone,
+all 19 finance/expiry tests passed (four suites, 19.63s). Expiry is checked on
+business_members; restaurant_location_memberships retains its own assignment
+status semantics. A valid HQ finance read remains available before expiry and
+is denied after its parent membership deadline. No live balances were changed.
+
+Final shared-control browser run after adding visible summary focus and 44px
+summary/checkbox targets: all three team/expiry, equipment and role-template
+journeys passed (19.36s). The three existing workspace-navigation journeys also
+passed. Final build: 1247 assets. The existing service worker uses network-only
+for /api/ requests and never intercepts ordinary writes; authenticated responses
+are also no-store, so offline state is not used as access authority.
