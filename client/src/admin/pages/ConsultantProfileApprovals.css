@@ -1,0 +1,141 @@
+/* Consultant profile approvals (Group 10 item 504), on the admin
+   Consulting dashboard. Uses the same var(--color-*) tokens as the rest of
+   the admin pages; no inline styles, per the CSP style migration gate. */
+
+.cpa-section {
+  margin-bottom: 2.5rem;
+}
+
+.cpa-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.cpa-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.cpa-input {
+  padding: 0.55rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+
+.cpa-note-input {
+  flex: 1 1 220px;
+}
+
+.cpa-description {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.cpa-muted {
+  color: var(--color-text-muted);
+}
+
+.cpa-error {
+  color: var(--color-error);
+}
+
+.cpa-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cpa-card {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 1rem;
+  background: var(--color-surface);
+}
+
+.cpa-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.cpa-name {
+  margin: 0;
+  font-weight: 700;
+}
+
+.cpa-email {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.cpa-headline {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+}
+
+.cpa-meta {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.cpa-badge {
+  align-self: flex-start;
+  color: white;
+  padding: 0.2rem 0.65rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.cpa-badge--pending {
+  background: #ffa500;
+}
+
+.cpa-badge--approved {
+  background: #10b981;
+}
+
+.cpa-badge--declined {
+  background: #ef4444;
+}
+
+.cpa-decide {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cpa-btn {
+  padding: 0.55rem 1.1rem;
+  border-radius: 6px;
+  border: none;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cpa-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cpa-btn--approve {
+  background: #10b981;
+}
+
+.cpa-btn--decline {
+  background: #ef4444;
+}

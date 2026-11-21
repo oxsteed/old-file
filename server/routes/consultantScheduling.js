@@ -22,4 +22,18 @@ router.post('/sessions', authenticate, consultantSchedulingController.createSche
 // Book a time slot for a session
 router.post('/sessions/:sessionId/book-slot', authenticate, consultantSchedulingController.bookTimeSlot);
 
+// Group 10 Slice C (518-520): session detail, reschedule proposals,
+// cancellation, attendance. The by-consulting route must precede the
+// :sessionId route so "by-consulting" is not captured as an id.
+router.get('/sessions/by-consulting/:consultingSessionId', authenticate, consultantSchedulingController.getScheduledSessionDetailByConsulting);
+router.get('/sessions/:sessionId', authenticate, consultantSchedulingController.getScheduledSessionDetail);
+router.post('/sessions/:sessionId/reschedules', authenticate, consultantSchedulingController.proposeReschedule);
+router.get('/sessions/:sessionId/reschedules', authenticate, consultantSchedulingController.listReschedules);
+router.post('/sessions/:sessionId/reschedules/:proposalId/accept', authenticate, consultantSchedulingController.acceptReschedule);
+router.post('/sessions/:sessionId/reschedules/:proposalId/decline', authenticate, consultantSchedulingController.declineReschedule);
+router.post('/sessions/:sessionId/reschedules/:proposalId/withdraw', authenticate, consultantSchedulingController.withdrawReschedule);
+router.post('/sessions/:sessionId/cancel', authenticate, consultantSchedulingController.cancelScheduledSession);
+router.post('/sessions/:sessionId/attendance', authenticate, consultantSchedulingController.confirmAttendance);
+router.get('/sessions/:sessionId/attendance', authenticate, consultantSchedulingController.listAttendance);
+
 module.exports = router;

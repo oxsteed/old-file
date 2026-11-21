@@ -63,8 +63,11 @@ async function newUser() {
 }
 
 let accountSeq = 410000;
+const testRunIds = [];
 async function newRun(product = 'oxsteed') {
-  return service.createRun({ product, periodFrom: PERIOD.from, periodTo: PERIOD.to });
+  const run = await service.createRun({ product, periodFrom: PERIOD.from, periodTo: PERIOD.to });
+  testRunIds.push(run.id);
+  return run;
 }
 
 function accountFor(customerId, overrides = {}) {
@@ -91,25 +94,20 @@ async function jobState(jobId) {
   return job;
 }
 
-// Claims are global across runs, so each behavior test starts by draining any
-// claimable leftovers from earlier tests into dead_letter (their assertions
-// already ran; per-run stats are unaffected).
-async function drainClaimableJobs() {
-  for (let i = 0; i < 200; i += 1) {
-    const job = await service.claimNextAccountJob('test-drain');
-    if (!job) return;
-    if (job.state === 'leased') {
-      await service.failJob(job.id, 'test-drain', job.fencing_token, 'test drain', false);
-    }
-  }
-  throw new Error('test drain did not converge');
-}
-
-beforeEach(async () => {
-  if (CAN_RUN_DB) await drainClaimableJobs();
-});
-
+// The disposable database is shared by statement suites. Every account-job
+// claim below targets its own run: unrelated retries and expired leases must
+// remain available to their owning tests, rather than being globally drained.
 beforeAll(async () => { if (CAN_RUN_DB) await assertMigratedSchema(pool); });
+
+afterEach(async () => {
+  if (!CAN_RUN_DB || !testRunIds.length) return;
+  // Retire only this test's runs so its unfinished fixtures cannot be picked
+  // up by later suites. Never drain or rewrite another suite's account jobs.
+  await pool.query(
+    `UPDATE statement_issuance_runs SET state = 'paused', updated_at = transaction_timestamp()
+     WHERE id = ANY($1::uuid[]) AND state IN ('discovering', 'running')`,
+    [testRunIds.splice(0)]);
+});
 
 ddescribe('migration 683 rehearsal (idempotent re-apply on the disposable DB)', () => {
   test('683 SQL applies cleanly and creates the expected objects', async () => {
@@ -146,8 +144,8 @@ ddescribe('claim exclusivity', () => {
       [accountFor(customer), accountFor(customer)]);
     expect(inserted).toBe(2);
     const [first, second] = await Promise.all([
-      service.claimNextAccountJob('worker-a'),
-      service.claimNextAccountJob('worker-b'),
+      service.claimNextAccountJob('worker-a', 120, { runId: run.id }),
+      service.claimNextAccountJob('worker-b', 120, { runId: run.id }),
     ]);
     expect(first).not.toBeNull();
     expect(second).not.toBeNull();
@@ -159,11 +157,11 @@ ddescribe('claim exclusivity', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer)]);
-    const first = await service.claimNextAccountJob('worker-a');
+    const first = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     expect(first).not.toBeNull();
     expect(first.state).toBe('leased');
     expect(String(first.fencing_token)).toBe('1');
-    const second = await service.claimNextAccountJob('worker-b');
+    const second = await service.claimNextAccountJob('worker-b', 120, { runId: run.id });
     expect(second).toBeNull();
   });
 });
@@ -173,10 +171,10 @@ ddescribe('lease expiry and fencing', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer)]);
-    const claimed = await service.claimNextAccountJob('worker-a', 120);
+    const claimed = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     await expireLease(claimed.id);
 
-    const reclaimed = await service.claimNextAccountJob('worker-b', 120);
+    const reclaimed = await service.claimNextAccountJob('worker-b', 120, { runId: run.id });
     expect(reclaimed).not.toBeNull();
     expect(reclaimed.id).toBe(claimed.id);
     expect(reclaimed.lease_owner).toBe('worker-b');
@@ -202,7 +200,7 @@ ddescribe('lease expiry and fencing', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer)]);
-    const claimed = await service.claimNextAccountJob('worker-a', 120);
+    const claimed = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     await expect(service.renewLease(claimed.id, 'worker-a', 999, 120))
       .rejects.toMatchObject({ code: 'statement_lease_stale', statusCode: 409 });
   });
@@ -211,7 +209,7 @@ ddescribe('lease expiry and fencing', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer)]);
-    let job = await service.claimNextAccountJob('worker-a', 120);
+    let job = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     const fencingToken = job.fencing_token;
 
     for (const state of ['leased', 'snapshotted', 'artifact_ready', 'notified']) {
@@ -235,7 +233,7 @@ ddescribe('lease expiry and fencing', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer)]);
-    const claimed = await service.claimNextAccountJob('worker-a', 120);
+    const claimed = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     await expireLease(claimed.id);
 
     await expect(service.renewLease(claimed.id, 'worker-a', 1, 120))
@@ -341,11 +339,25 @@ ddescribe('backoff is bounded and attempts exhaust to dead_letter', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer, { maxAttempts: 1 })]);
-    const claimed = await service.claimNextAccountJob('worker-a');
+    const claimed = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     const dead = await service.failJob(claimed.id, 'worker-a', 1, 'still broken', true);
     expect(dead.state).toBe('dead_letter');
     expect(dead.next_retry_at).toBeNull();
-    expect(await service.claimNextAccountJob('worker-b')).toBeNull();
+
+    // Another run's backoff can expire at any time on a shared CI database.
+    // Make that state deterministic instead of assuming the global queue is empty.
+    const otherRun = await newRun();
+    await service.discoverAccountJobs(otherRun.id, [accountFor(customer)]);
+    const other = await service.claimNextAccountJob('worker-other', 120, { runId: otherRun.id });
+    await service.failJob(other.id, 'worker-other', other.fencing_token, 'retry later', true);
+    await pool.query(
+      `UPDATE statement_account_jobs SET next_retry_at = transaction_timestamp() - interval '1 second'
+       WHERE id = $1`, [other.id]);
+
+    expect(await service.claimNextAccountJob('worker-b', 120, { runId: run.id })).toBeNull();
+    expect(await jobState(other.id)).toMatchObject({ state: 'failed', attempt_count: 1 });
+    const otherRetry = await service.claimNextAccountJob('worker-other', 120, { runId: otherRun.id });
+    expect(otherRetry).toMatchObject({ id: other.id, state: 'leased', attempt_count: 2 });
     const stats = await service.getRunStats(run.id);
     expect(stats).toMatchObject({ expected: 1, failed: 0, deadLetter: 1 });
   });
@@ -354,7 +366,7 @@ ddescribe('backoff is bounded and attempts exhaust to dead_letter', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer, { maxAttempts: 8 })]);
-    const claimed = await service.claimNextAccountJob('worker-a');
+    const claimed = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     const dead = await service.failJob(claimed.id, 'worker-a', 1, 'corrupt ledger snapshot', false);
     expect(dead.state).toBe('dead_letter');
   });
@@ -363,9 +375,9 @@ ddescribe('backoff is bounded and attempts exhaust to dead_letter', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer, { maxAttempts: 1 })]);
-    const claimed = await service.claimNextAccountJob('worker-a');
+    const claimed = await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     await expireLease(claimed.id); // worker-a died without reporting
-    const result = await service.claimNextAccountJob('worker-b');
+    const result = await service.claimNextAccountJob('worker-b', 120, { runId: run.id });
     expect(result).not.toBeNull();
     expect(result.id).toBe(claimed.id);
     expect(result.state).toBe('dead_letter');
@@ -487,7 +499,7 @@ ddescribe('run lifecycle validation', () => {
     const run = await newRun();
     const customer = await newUser();
     await service.discoverAccountJobs(run.id, [accountFor(customer), accountFor(customer)]);
-    await service.claimNextAccountJob('worker-a');
+    await service.claimNextAccountJob('worker-a', 120, { runId: run.id });
     const stats = await service.getRunStats(run.id);
     expect(stats.expected).toBe(2);
     expect(stats.activeLeases).toBe(1);

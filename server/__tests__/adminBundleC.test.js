@@ -257,6 +257,7 @@ describe('ADM-012/ADM-013: complete/no-show update consulting_sessions.status', 
   test('completeSession sets consulting_sessions.status = completed without a scheduled row', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 11, status: 'scheduled' }] }) // session exists
+      .mockResolvedValueOnce({ rows: [] }) // no scheduled row (Slice C guard lookup)
       .mockResolvedValueOnce({ rows: [{ id: 11, status: 'completed' }] }) // main update
       .mockResolvedValueOnce({ rows: [] }); // mirror update (no scheduled row)
 
@@ -266,7 +267,9 @@ describe('ADM-012/ADM-013: complete/no-show update consulting_sessions.status', 
       res
     );
 
-    const updateSql = mockQuery.mock.calls[1][0];
+    const updateSql = mockQuery.mock.calls
+      .map((call) => call[0])
+      .find((sql) => /UPDATE\s+consulting_sessions\b/.test(sql));
     expect(updateSql).toMatch(/UPDATE\s+consulting_sessions\b/);
     expect(updateSql).toContain("'completed'");
     expect(res.json).toHaveBeenCalledWith(

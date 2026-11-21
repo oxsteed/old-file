@@ -14466,6 +14466,8 @@
         "failedSubmit": "Échec de la soumission de votre demande. Veuillez réessayer."
       },
       "formSuccess": "Votre demande a été soumise avec succès! Vérifiez votre email pour la confirmation.",
+      "addressedTo": "Votre demande est adressée directement à {{name}}. Il ou elle l'examinera et répondra depuis son tableau de bord.",
+      "addressedUnavailable": "Le consultant sélectionné n'est pas disponible pour le moment. Votre demande sera transmise à notre équipe.",
       "buttons": {
         "back": "Retour",
         "cancel": "Annuler",
@@ -15062,6 +15064,14 @@
     "time": "Heure",
     "minutes": "minutes",
     "meetingLink": "Lien de réunion (Optionnel)",
+    "meetingFormat": "Format de réunion",
+    "meetingTypes": {
+      "zoom": "Appel vidéo Zoom",
+      "googleMeet": "Appel vidéo Google Meet",
+      "phone": "Appel téléphonique",
+      "inPerson": "En personne"
+    },
+    "inPersonHint": "Les sessions en personne ont lieu à l'endroit convenu avec votre consultant.",
     "timezone": "Fuseau horaire",
     "confirmBooking": "Confirmer la réservation",
     "sessionConfirmed": "Session programmée avec succès !",
@@ -15095,6 +15105,35 @@
     "blockedDateAdded": "Date bloquée ajoutée",
     "blockedDateRemoved": "Date bloquée supprimée",
     "dateRequired": "Veuillez sélectionner une date"
+  ,
+  "yourTime": "Votre heure",
+  "rescheduleProposed": "Report proposé",
+  "rescheduleAccepted": "Report accepté",
+  "rescheduleDeclined": "Report refusé",
+  "rescheduleWithdrawn": "Report retiré",
+  "rescheduleTitle": "Proposer un nouvel horaire",
+  "rescheduleCurrent": "Rendez-vous actuel : {{date}} à {{time}}",
+  "pickDate": "Choisir une date",
+  "pickTime": "Choisir une heure",
+  "rescheduleReason": "Motif (facultatif)",
+  "rescheduleReasonPlaceholder": "Pourquoi proposez-vous un nouvel horaire ?",
+  "rescheduleCanonicalNote": "Les heures sont affichées dans votre fuseau horaire ; la réservation reste dans celui du consultant ({{zone}}).",
+  "proposeNewTime": "Proposer un nouvel horaire",
+  "cancelTitle": "Annuler ce rendez-vous",
+  "cancelReason": "Motif",
+  "cancelReasonPlaceholder": "Pourquoi ce rendez-vous est-il annulé ?",
+  "requestRefund": "Demander un remboursement pour ce rendez-vous",
+  "cancelNote": "Vous et le consultant serez informés. Les remboursements sont traités séparément par un administrateur.",
+  "cancelled": "Rendez-vous annulé",
+  "cancelSession": "Annuler le rendez-vous",
+  "confirmAttendance": "Confirmer la présence",
+  "attendanceConfirmed": "Présence confirmée",
+  "attendanceConfirmedByYou": "Vous avez confirmé votre présence",
+  "attendanceConfirmedByClient": "Le client a confirmé sa présence",
+  "attendanceConfirmedByConsultant": "Le consultant a confirmé sa présence",
+  "accept": "Accepter",
+  "decline": "Refuser",
+  "withdraw": "Retirer"
   },
   "regionForm": {
     "boundaryTypes": {
@@ -18629,6 +18668,12 @@
     "emptyStat1Label": "Commence avec clarté",
     "emptyPreviewTitle": "Ce que ce portail devient après l'achat",
     "emptyEyebrow": "Conseil en lancement d'entreprise"
+  ,
+  "schedulePanelTitle": "Votre rendez-vous",
+  "pendingProposals": "Report proposé",
+  "proposedByYou": "Proposé par vous",
+  "proposedByConsultant": "Proposé par votre consultant",
+  "proposedByOxsteed": "Proposé par OxSteed"
   },
   "logistics": {
     "forms": {
@@ -21135,6 +21180,8 @@
     "confirm": {
       "complete": "Marquer cette session comme terminée ? Un e-mail de suivi sera envoyé au client avec des actions à réaliser.",
       "noShow": "Marquer cette session comme absence ? Un e-mail de suivi sera envoyé au client pour proposer un report."
+    ,
+    "cancel": "Annuler cette séance ? Le rendez-vous et la séance seront annulés ensemble et les deux parties seront informées."
     },
     "toast": {
       "loadConsultantsFailed": "Impossible de charger les consultants",
@@ -21150,7 +21197,14 @@
       "noteRequired": "Veuillez saisir une note",
       "notesSaved": "Notes enregistrées avec succès",
       "saveNotesFailed": "Impossible d’enregistrer les notes"
+    ,
+    "sessionNotStarted": "Cette séance n’a pas encore commencé, elle ne peut donc pas être marquée comme terminée.",
+    "cancelled": "Séance annulée.",
+    "cancelFailed": "Impossible d’annuler la séance."
     }
+  ,
+  "cancelSession": "Annuler la séance",
+  "cancelHint": "Annule le rendez-vous et la séance ensemble, et informe les deux parties. Les remboursements restent gérés séparément."
   },
   "adminConsultingScheduler": {
     "loading": "Chargement des sessions…",
@@ -25020,7 +25074,105 @@
       "deliveries": "Aucune commande de livraison disponible."
     }
   },
+  "consultantPublicProfile": {
+    "page": {
+      "title": "{{name}} | Consultant",
+      "fallbackTitle": "Profil de consultant",
+      "fallbackDescription": "Consultez les spécialités, le portfolio et les tarifs de ce consultant OxSteed."
+    },
+    "eyebrow": "Consultant OxSteed",
+    "loading": "Chargement du profil du consultant…",
+    "notFound": {
+      "title": "Consultant introuvable",
+      "body": "Ce profil de consultant n'est pas disponible. Il n'est peut-être pas encore approuvé ou a été supprimé.",
+      "intakeLink": "Démarrer une demande de consultation"
+    },
+    "notAccepting": "Ce consultant n'accepte pas de nouvelles recommandations pour le moment.",
+    "sections": {
+      "about": "À propos",
+      "specialties": "Spécialités et couverture",
+      "pricing": "Tarifs",
+      "portfolio": "Portfolio",
+      "availability": "Disponibilité"
+    },
+    "fields": {
+      "coverage": "Couverture",
+      "languages": "Langues",
+      "experience": "Expérience",
+      "basedIn": "Basé à",
+      "virtual": "Consultation virtuelle"
+    },
+    "experienceYears": "{{count}} ans d'expérience",
+    "virtualYes": "Disponible pour la consultation virtuelle",
+    "pricing": {
+      "minimum": "Prix minimum du forfait : {{amount}}",
+      "note": "Le prix final dépend du forfait et du périmètre convenus avec le consultant."
+    },
+    "portfolio": {
+      "viewWork": "Voir le travail"
+    },
+    "empty": {
+      "specialties": "Aucune spécialité indiquée pour le moment.",
+      "coverage": "Non indiquée",
+      "languages": "Non indiquées",
+      "portfolio": "Aucun exemple public de travail pour le moment.",
+      "availability": "Aucune disponibilité à venir indiquée."
+    },
+    "bookLink": "Démarrer une demande de consultation avec ce consultant",
+    "errors": {
+      "load": "Le profil du consultant n'a pas pu être chargé."
+    }
+  },
   "consultantContractorDashboard": {
+    "readiness": {
+      "label": "Préparation aux missions",
+      "title": "Prêt à accepter des missions ?",
+      "ready": "Prêt",
+      "notReady": "Pas encore prêt",
+      "pendingApproval": "Votre profil attend l'approbation d'un administrateur. Vous apparaîtrez dans les correspondances et sur votre profil public une fois approuvé.",
+      "declined": "Votre profil a été refusé. Note du réviseur : {{note}}",
+      "hint": "Complétez chaque point pour être visible par les clients et éligible aux correspondances.",
+      "items": {
+        "profileComplete": "Profil complet : titre, biographie, spécialités, couverture et langues",
+        "specialtiesDeclared": "Au moins une spécialité déclarée",
+        "availabilitySet": "Disponibilité définie pour au moins un jour",
+        "pricingSet": "Prix minimum du forfait défini",
+        "profileApproved": "Profil approuvé par un administrateur"
+      }
+    },
+    "pricing": {
+      "label": "Vos tarifs",
+      "minimum": "Prix minimum du forfait : {{amount}}",
+      "cut": "Commission de recommandation OxSteed : {{percent}} %",
+      "limit": "Limite de recommandations actives : {{count}}",
+      "viewPublic": "Voir votre profil public"
+    },
+    "portfolio": {
+      "label": "Portfolio",
+      "title": "Exemples de travaux",
+      "description": "Ajoutez des exemples de travaux à votre profil. Les éléments publics apparaissent sur votre profil public de spécialité ; les éléments masqués restent dans cet espace.",
+      "loading": "Chargement du portfolio…",
+      "loadError": "Le portfolio n'a pas pu être chargé.",
+      "saveError": "L'élément du portfolio n'a pas pu être enregistré.",
+      "removeError": "L'élément du portfolio n'a pas pu être supprimé.",
+      "empty": "Aucun élément de portfolio pour le moment. Ajoutez un exemple de travail ci-dessous.",
+      "visiblePublic": "Public",
+      "hidden": "Masqué",
+      "edit": "Modifier",
+      "remove": "Supprimer",
+      "editTitle": "Modifier l'élément du portfolio",
+      "addTitle": "Ajouter un élément au portfolio",
+      "add": "Ajouter un élément",
+      "saveChanges": "Enregistrer les modifications",
+      "fields": {
+        "title": "Titre",
+        "description": "Description",
+        "link": "Lien vers le travail (https://…)",
+        "image": "URL de l'image (https://…)",
+        "visibility": "Visibilité",
+        "order": "Ordre"
+      }
+    },
     "page": {
       "title": "Tableau de bord consultant-conseiller",
       "description": "Gérez les leads de lancement d’activité local, les marchés couverts et l’économie des commissions négociées.",
@@ -25064,7 +25216,11 @@
       "notesLabel": "Notes pour ce lead",
       "notesPlaceholder": "Consignez vos notes de découverte, le contexte local et les prochaines étapes, ainsi que toute information utile à OxSteed.",
       "targetMarketLabel": "Marché cible",
-      "targetMarketMissing": "Non fourni"
+      "targetMarketMissing": "Non fourni",
+      "acceptButton": "Accepter la référence",
+      "declineButton": "Refuser la référence",
+      "confirmDeclineButton": "Cliquez à nouveau pour refuser",
+      "cancelDeclineButton": "Garder la référence"
     },
     "referralStatus": {
       "assigned": "Assigné",
@@ -25076,7 +25232,48 @@
       "won": "Gagné",
       "lost": "Perdu",
       "completed": "Terminé",
-      "paused": "En pause"
+      "paused": "En pause",
+      "declined": "Refusée"
+    },
+    "screening": {
+      "title": "Examiner cette demande",
+      "show": "Afficher",
+      "hide": "Masquer",
+      "loading": "Chargement…",
+      "loadError": "Impossible de charger l'examen.",
+      "saveError": "Échec de l'enregistrement.",
+      "fitTitle": "Évaluation de l'adéquation",
+      "fitHint": "À titre indicatif uniquement. Une évaluation de l'adéquation ne bloque jamais la planification ni l'acceptation de la référence.",
+      "fitBudget": "Adéquation du budget",
+      "fitScope": "Adéquation du périmètre",
+      "fitTiming": "Adéquation du calendrier",
+      "fitOverall": "Adéquation globale",
+      "fitDecision": "Décision",
+      "fitDecisionFit": "Bonne adéquation",
+      "fitDecisionNoFit": "Pas adapté",
+      "fitDecisionNeedsInfo": "Besoin de plus d'informations",
+      "fitNotes": "Notes",
+      "fitNotesPlaceholder": "Pourquoi c'est adapté ou non.",
+      "fitSave": "Enregistrer l'évaluation",
+      "fitSaved": "Évaluation enregistrée.",
+      "conflictTitle": "Conflit d'intérêts",
+      "conflictBlocks": "Un conflit ouvert bloque l'avancement de cette référence jusqu'à ce que vous le leviez ou refusiez la référence.",
+      "conflictHas": "J'ai un conflit d'intérêts avec cette demande",
+      "conflictDescription": "Description",
+      "conflictDescriptionPlaceholder": "Décrivez le conflit, par exemple un client concurrent ou une relation personnelle.",
+      "conflictSave": "Enregistrer la déclaration",
+      "conflictSaved": "Déclaration enregistrée.",
+      "replyTitle": "Répondre à la demande",
+      "replyTemplate": "Modèle",
+      "replyTemplateCustom": "Message personnalisé",
+      "replySubject": "Objet",
+      "replyBody": "Message",
+      "replySend": "Envoyer la réponse",
+      "replySent": "Réponse envoyée.",
+      "messagesTitle": "Historique des messages",
+      "messagesEmpty": "Aucun message pour le moment.",
+      "messageFromConsultant": "De vous",
+      "messageFromTeam": "De l'équipe OxSteed"
     },
     "profile": {
       "fields": {
@@ -25129,6 +25326,101 @@
       "step3Title": "3. Exécution du pipeline",
       "step3Body": "Utilisez votre tableau de bord pour faire passer les leads de l’introduction à la découverte, la proposition, l’engagement puis la finalisation tout en gardant OxSteed en boucle."
     }
+  ,
+  "sessions": {
+    "label": "Rendez-vous",
+    "title": "Vos séances",
+    "description": "Rendez-vous confirmés avec les clients, y compris les reports proposés, la présence et l’annulation.",
+    "loading": "Chargement des séances…",
+    "emptyTitle": "Aucune séance pour le moment",
+    "emptyDescription": "Quand un client réservera une séance avec vous, elle apparaîtra ici avec son horaire, ses propositions et sa présence.",
+    "clientFallback": "Client",
+    "pendingProposals": "Report proposé",
+    "proposedBy": "Proposé par {{role}}",
+    "status": {
+      "pending_confirmation": "En attente de confirmation",
+      "confirmed": "Confirmé",
+      "completed": "Terminée",
+      "no_show": "Absent",
+      "cancelled": "Annulé"
+    }
+  }
+  },
+  "consultantProposal": {
+    "title": "Proposition de mission",
+    "show": "Afficher",
+    "hide": "Masquer",
+    "loading": "Chargement\u2026",
+    "loadError": "Impossible de charger les propositions.",
+    "saveError": "Impossible d'enregistrer le brouillon.",
+    "draftSaved": "Brouillon enregistr\u00e9.",
+    "sent": "Proposition envoy\u00e9e au client.",
+    "withdrawn": "Proposition retir\u00e9e.",
+    "sentVersion": "Version {{version}} envoy\u00e9e",
+    "draftVersion": "Brouillon version {{version}}",
+    "newTitle": "Nouvelle version de proposition",
+    "editTitle": "Modifier le brouillon",
+    "formHint": "Une proposition envoy\u00e9e ne peut pas \u00eatre modifi\u00e9e. Envoyez une nouvelle version ; elle remplace celle que le client a d\u00e9j\u00e0.",
+    "fieldTitle": "Titre",
+    "titlePlaceholder": "Mission de lancement d'entreprise",
+    "fieldScope": "R\u00e9sum\u00e9 du p\u00e9rim\u00e8tre",
+    "scopePlaceholder": "Ce que couvre la mission, en langage simple.",
+    "fieldPrice": "Prix (USD)",
+    "deliverablesTitle": "Livrables",
+    "addDeliverable": "Ajouter un livrable",
+    "removeDeliverable": "Retirer le livrable",
+    "deliverableTitlePlaceholder": "Titre du livrable",
+    "deliverableType": "Type",
+    "deliverableDue": "Date limite",
+    "deliverableDescriptionPlaceholder": "Ce que le client re\u00e7oit.",
+    "deliverableTypes": {
+      "sop": "Proc\u00e9dure",
+      "contract": "Contrat",
+      "financial_tracker": "Suivi financier",
+      "marketing_plan": "Plan marketing",
+      "team_structure": "Structure d'\u00e9quipe",
+      "operational_manual": "Manuel op\u00e9rationnel",
+      "other": "Autre"
+    },
+    "exclusionsTitle": "Exclusions du p\u00e9rim\u00e8tre",
+    "exclusionsHint": "Indiquez ce qui n'est pas inclus, pour que le client ne le suppose jamais.",
+    "addExclusion": "Ajouter une exclusion",
+    "removeExclusion": "Retirer l'exclusion",
+    "exclusionPlaceholder": "Non inclus : \u2026",
+    "saveDraft": "Enregistrer le brouillon",
+    "cancelEdit": "Annuler",
+    "newVersion": "R\u00e9diger une nouvelle version de proposition",
+    "historyTitle": "Historique des versions",
+    "historyEmpty": "Aucune proposition pour l'instant. R\u00e9digez la premi\u00e8re version pour mettre la mission par \u00e9crit.",
+    "versionLabel": "Version {{version}}",
+    "versionMeta": "{{count}} livrables",
+    "decidedOn": "d\u00e9cid\u00e9 le {{date}}",
+    "dueLabel": "pour le {{date}}",
+    "editDraft": "Modifier le brouillon",
+    "send": "Envoyer au client",
+    "withdraw": "Retirer",
+    "confirmWithdraw": "Retirer cette proposition",
+    "keepProposal": "La laisser envoy\u00e9e",
+    "status": {
+      "draft": "Brouillon",
+      "sent": "Envoy\u00e9e",
+      "approved": "Approuv\u00e9e",
+      "rejected": "Rejet\u00e9e",
+      "withdrawn": "Retir\u00e9e",
+      "superseded": "Remplac\u00e9e"
+    },
+    "clientOnly": "Les propositions sont visibles par le demandeur.",
+    "clientEmpty": "Aucune proposition pour l'instant. Votre consultant en enverra une ici une fois le p\u00e9rim\u00e8tre convenu.",
+    "approved": "Proposition approuv\u00e9e. La mission est convenue.",
+    "rejected": "Proposition rejet\u00e9e. Votre consultant peut envoyer une version r\u00e9vis\u00e9e.",
+    "approve": "Approuver la proposition",
+    "reject": "Demander des modifications",
+    "rejectConfirm": "Envoyer le refus",
+    "rejectReasonLabel": "Que faut-il changer ?",
+    "rejectReasonPlaceholder": "Dites \u00e0 votre consultant ce qu'il faut changer, pour que la prochaine version soit la bonne.",
+    "rejectReasonRequired": "Dites au consultant ce qu'il faut changer (au moins 10 caract\u00e8res).",
+    "decisionReason": "Note de d\u00e9cision : {{reason}}",
+    "adminEmpty": "Aucune proposition pour cette demande."
   },
   "learn": {
     "page": {
@@ -35657,6 +35949,26 @@
     "type.optOut": "Refus de consentement"
   },
   "adminConsultingDashboard": {
+    "profileApprovals": {
+      "title": "Approbations des profils de consultants",
+      "description": "Les nouveaux profils de consultants attendent ici l'approbation d'un administrateur. Les consultants approuvés apparaissent dans les correspondances et sur les profils publics ; les refusés restent masqués.",
+      "filterLabel": "Filtrer par statut d'approbation",
+      "pending": "En attente",
+      "approvedFilter": "Approuvés",
+      "declinedFilter": "Refusés",
+      "all": "Tous",
+      "empty": "Aucun profil de consultant dans cet état.",
+      "loadError": "Les profils de consultants n'ont pas pu être chargés.",
+      "decideFailed": "La décision n'a pas pu être enregistrée.",
+      "approved": "Profil approuvé.",
+      "declined": "Profil refusé.",
+      "approve": "Approuver",
+      "decline": "Refuser",
+      "specialties": "Spécialités",
+      "experience": "{{count}} ans d'expérience",
+      "note": "Note du réviseur",
+      "notePlaceholder": "Note pour le consultant (facultatif)"
+    },
     "areas.acquisitionPreparation": "préparation à l'acquisition",
     "areas.branding": "image de marque",
     "areas.exitStrategy": "stratégie de sortie",
@@ -36746,6 +37058,7 @@
     "sectionMessageHistory": "Historique des messages",
     "emptyMessages": "Aucun message envoyé pour l'instant",
     "messageErrorLine": "Erreur : {{error}}",
+      "consultantReply": "Réponse du consultant",
     "closeButton": "Fermer"
   },
   "adminAdminAccounts": {

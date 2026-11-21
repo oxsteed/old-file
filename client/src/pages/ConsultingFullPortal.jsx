@@ -28,6 +28,8 @@ import api from '../api/axios';
 import { schedulingApi } from '../api/scheduling';
 import { useAuth } from '../context/AuthContext';
 import ConsultantScheduleSelector from '../components/ConsultantScheduleSelector';
+import ConsultantRescheduleDialog from '../components/ConsultantRescheduleDialog';
+import ConsultantCancelSessionDialog from '../components/ConsultantCancelSessionDialog';
 import ConsultingPaymentModal from '../components/ConsultingPaymentModal';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -277,6 +279,147 @@ function ActiveSessionHero({ session, t, onBookReschedule, onScheduleSession, sc
   );
 }
 
+// ── session schedule panel (Group 10 Slice C, 518-520) ────────────────────
+// Pending reschedule proposals for one appointment, the client's own
+// attendance confirmation once the start has passed, and cancellation.
+// Rendered under the hero for the active session; returns null when there
+// is nothing to act on.
+function SchedulePanel({ session, detail, t, onChanged, onReschedule, onCancel }) {
+  const [busy, setBusy] = useState('');
+  if (!session?.scheduled_id || !detail) return null;
+  const scheduled = detail.scheduled || {};
+  const proposals = (detail.proposals || []).filter((p) => p.status === 'proposed');
+  const attendance = detail.attendance || [];
+  const clientConfirmed = attendance.some((a) => a.role === 'client');
+  const consultantConfirmed = attendance.some((a) => a.role === 'consultant');
+  const startPassed = scheduled.scheduled_date
+    ? new Date(`${scheduled.scheduled_date}T${scheduled.scheduled_time || '00:00'}`).getTime() <= Date.now()
+    : false;
+  const cancellable = ['confirmed', 'pending_confirmation'].includes(scheduled.status);
+  const canConfirmAttendance = startPassed && !clientConfirmed && ['confirmed', 'completed'].includes(scheduled.status);
+  if (proposals.length === 0 && !canConfirmAttendance && !cancellable && !clientConfirmed && !consultantConfirmed) return null;
+
+  const runAction = async (key, fn, successKey) => {
+    setBusy(key);
+    try {
+      await fn();
+      if (successKey) toast.success(t(successKey));
+      onChanged?.();
+    } catch (err) {
+      toast.error(err.response?.data?.message || t('common.errorUpdating'));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  return (
+    <Card>
+      <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
+        <CalendarClock size={16} className="text-orange-500" />
+        {t('consultingPortal.schedulePanelTitle')}
+      </h3>
+
+      {proposals.length > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wider mb-2 text-amber-300">
+            {t('consultingPortal.pendingProposals')}
+          </div>
+          <ul className="flex flex-col gap-2">
+            {proposals.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="text-xs">
+                  <span className="font-semibold">
+                    {fmtDate(`${p.proposed_date}T${p.proposed_time}`)}
+                  </span>
+                  {' · '}
+                  {p.proposed_by_role === 'client'
+                    ? t('consultingPortal.proposedByYou')
+                    : p.proposed_by_role === 'consultant'
+                      ? t('consultingPortal.proposedByConsultant')
+                      : t('consultingPortal.proposedByOxsteed')}
+                  {p.reason ? ` · ${p.reason}` : ''}
+                </div>
+                <div className="flex gap-1.5">
+                  {p.proposed_by_role === 'client' ? (
+                    <button
+                      type="button"
+                      disabled={busy === `withdraw-${p.id}`}
+                      onClick={() => runAction(`withdraw-${p.id}`, () => schedulingApi.withdrawReschedule(session.scheduled_id, p.id), 'scheduling.rescheduleWithdrawn')}
+                      className="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-gray-700 disabled:opacity-60" data-track="ui.719d896ad2.5"
+                    >
+                      {t('scheduling.withdraw')}
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={busy === `accept-${p.id}`}
+                        onClick={() => runAction(`accept-${p.id}`, () => schedulingApi.acceptReschedule(session.scheduled_id, p.id), 'scheduling.rescheduleAccepted')}
+                        className="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60" data-track="ui.719d896ad2.6"
+                      >
+                        {t('scheduling.accept')}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy === `decline-${p.id}`}
+                        onClick={() => runAction(`decline-${p.id}`, () => schedulingApi.declineReschedule(session.scheduled_id, p.id), 'scheduling.rescheduleDeclined')}
+                        className="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-gray-700 disabled:opacity-60" data-track="ui.719d896ad2.7"
+                      >
+                        {t('scheduling.decline')}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {canConfirmAttendance && (
+          <button
+            type="button"
+            disabled={busy === 'attend'}
+            onClick={() => runAction('attend', () => schedulingApi.confirmAttendance(session.scheduled_id), 'scheduling.attendanceConfirmed')}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60" data-track="ui.719d896ad2.8"
+          >
+            <CheckCircle2 size={12} /> {t('scheduling.confirmAttendance')}
+          </button>
+        )}
+        {clientConfirmed && (
+          <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+            <CheckCircle2 size={12} /> {t('scheduling.attendanceConfirmedByYou')}
+          </span>
+        )}
+        {consultantConfirmed && (
+          <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+            <CheckCircle2 size={12} /> {t('scheduling.attendanceConfirmedByConsultant')}
+          </span>
+        )}
+        {cancellable && (
+          <>
+            <button
+              type="button"
+              onClick={onReschedule}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white" data-track="ui.719d896ad2.9"
+            >
+              <CalendarClock size={12} /> {t('scheduling.proposeNewTime')}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md border border-red-700 text-red-300 hover:bg-red-600/10" data-track="ui.719d896ad2.10"
+            >
+              {t('scheduling.cancelSession')}
+            </button>
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 // ── consultant card ─────────────────────────────────────────────────────────
 
 function ConsultantCard({ session, t }) {
@@ -363,6 +506,11 @@ export default function ConsultingFullPortal() {
   const [paymentSession, setPaymentSession] = useState(null); // session open in the payment modal
   const [paymentReturnsToWidget, setPaymentReturnsToWidget] = useState(false);
   const [creatingSchedule, setCreatingSchedule] = useState(false);
+  // Group 10 Slice C (518-520): per-appointment detail (proposals +
+  // attendance) keyed by scheduled_id, plus the open dialogs.
+  const [sessionDetails, setSessionDetails] = useState({});
+  const [rescheduleSession, setRescheduleSession] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
   const [loaded, setLoaded] = useState(false);
 
   // 1. Load dashboard + packages in parallel.
@@ -458,14 +606,46 @@ export default function ConsultingFullPortal() {
     else toast(t('consultingPortal.consultantPending'));
   };
 
+  // Slice C wiring: load each appointment's proposals and attendance once
+  // the dashboard sessions are known, and refresh them after any schedule
+  // action (proposal answer, attendance, cancellation).
+  const loadSessionDetails = async (list) => {
+    const withRows = (list || []).filter((s) => s.scheduled_id);
+    if (!withRows.length) return;
+    const entries = await Promise.all(
+      withRows.map((s) =>
+        schedulingApi.getSessionDetail(s.scheduled_id)
+          .then((r) => [s.scheduled_id, r.data])
+          .catch(() => null),
+      ),
+    );
+    setSessionDetails((prev) => {
+      const next = { ...prev };
+      for (const entry of entries) if (entry) next[entry[0]] = entry[1];
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (sessions.length) loadSessionDetails(sessions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions]);
+
+  const refreshSchedule = async () => {
+    const fresh = await fetchDashboardSessions();
+    await loadSessionDetails(fresh);
+  };
+
   // Open booking for any session row: create the row first when missing,
   // open the widget when a consultant is assigned, otherwise explain why
-  // booking cannot start yet.
+  // booking cannot start yet. A confirmed appointment opens the
+  // reschedule dialog instead: the booking widget 409s on confirmed rows.
   const openBookingFor = (session) => {
     if (!session) return;
     if (!session.scheduled_id) { handleScheduleSession(session); return; }
-    if (session.consultant_assigned_id) setSchedulingSession(session);
-    else toast(t('consultingPortal.consultantPending'));
+    if (!session.consultant_assigned_id) { toast(t('consultingPortal.consultantPending')); return; }
+    if (session.scheduled_status === 'confirmed') { setRescheduleSession(session); return; }
+    setSchedulingSession(session);
   };
 
   const activeSession = useMemo(
@@ -668,6 +848,19 @@ export default function ConsultingFullPortal() {
           />
         )}
 
+        {/* Group 10 Slice C (518-520): proposals, attendance, cancellation
+            for the active appointment. */}
+        {activeSession?.scheduled_id && (
+          <SchedulePanel
+            session={activeSession}
+            detail={sessionDetails[activeSession.scheduled_id]}
+            t={t}
+            onChanged={refreshSchedule}
+            onReschedule={() => setRescheduleSession(activeSession)}
+            onCancel={() => setCancelTarget(activeSession)}
+          />
+        )}
+
         {/* Stats strip */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Card padding={4}>
@@ -784,14 +977,27 @@ export default function ConsultingFullPortal() {
                         </div>
                       </div>
                       {/* Was a dead link to /consulting/:id (no such route):
-                          it now opens booking for that session in place. */}
-                      <button
-                        type="button"
-                        onClick={() => openBookingFor(s)}
-                        className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 flex-shrink-0" data-track="ui.719d896ad2.4"
-                      >
-                        {t('consultingPortal.reschedule')} <ArrowRight size={11} />
-                      </button>
+                          it now opens booking for that session in place. A
+                          confirmed appointment opens the reschedule dialog;
+                          cancellation has its own dialog (Slice C). */}
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        {['confirmed', 'pending_confirmation'].includes(s.scheduled_status) && (
+                          <button
+                            type="button"
+                            onClick={() => setCancelTarget(s)}
+                            className="text-xs text-red-400 hover:text-red-300 inline-flex items-center gap-1" data-track="ui.719d896ad2.11"
+                          >
+                            {t('scheduling.cancelSession')}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => openBookingFor(s)}
+                          className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 flex-shrink-0" data-track="ui.719d896ad2.4"
+                        >
+                          {t('consultingPortal.reschedule')} <ArrowRight size={11} />
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -898,6 +1104,24 @@ export default function ConsultingFullPortal() {
             />
           </div>
         </div>
+      )}
+
+      {/* Group 10 Slice C (518-519): reschedule and cancel dialogs. */}
+      {rescheduleSession && (
+        <ConsultantRescheduleDialog
+          consultantId={rescheduleSession.consultant_assigned_id}
+          scheduledSession={rescheduleSession}
+          onClose={() => setRescheduleSession(null)}
+          onDone={() => { setRescheduleSession(null); refreshSchedule(); }}
+        />
+      )}
+      {cancelTarget && (
+        <ConsultantCancelSessionDialog
+          scheduledSession={cancelTarget}
+          canRequestRefund
+          onClose={() => setCancelTarget(null)}
+          onDone={() => { setCancelTarget(null); refreshSchedule(); }}
+        />
       )}
 
       {/* Existing payment modal: on 402 from the widget, and after a

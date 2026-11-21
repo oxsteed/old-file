@@ -1,0 +1,45 @@
+.blr-proposal-section {
+  margin-bottom: 2rem;
+}
+
+.blr-proposal-section-title {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.blr-proposal-note {
+  color: var(--color-text-muted);
+}
+
+.blr-proposal-card {
+  margin-bottom: 0.75rem;
+  padding: 1rem;
+  border-left: 4px solid var(--color-primary);
+  border-radius: 6px;
+  background: var(--color-bg);
+}
+
+.blr-proposal-card-title {
+  margin: 0 0 0.35rem;
+}
+
+.blr-proposal-card-meta {
+  margin: 0.2rem 0;
+  color: var(--color-text-muted);
+}
+
+.blr-proposal-card-text {
+  margin: 0.35rem 0;
+  white-space: pre-wrap;
+}
+
+.blr-proposal-card-list {
+  margin: 0.35rem 0;
+  padding-left: 1.2rem;
+}
+
+.blr-proposal-card-muted {
+  margin: 0.35rem 0;
+  color: var(--color-text-muted);
+}

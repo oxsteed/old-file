@@ -182,11 +182,32 @@ const SKILL_OPTIONS = [
 
 export default function ConsultingIntakePage() {
   const navigate = useNavigate();
-  const { state } = useLocation();
+  const location = useLocation();
+  const { state } = location;
   const { user } = useAuth();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+  // Group 10 Slice B (511): an intake addressed to a consultant from their
+  // public profile (?consultant=<userId>). The profile must be approved and
+  // active; anything else leaves the intake unaddressed rather than
+  // mis-addressing it.
+  const [addressedConsultant, setAddressedConsultant] = useState(null);
+  const [addressedConsultantUnavailable, setAddressedConsultantUnavailable] = useState(false);
+
+  useEffect(() => {
+    const consultantId = new URLSearchParams(location.search).get('consultant');
+    if (!consultantId) return;
+    let cancelled = false;
+    api.get(`/consulting/contractor/public/${encodeURIComponent(consultantId)}`)
+      .then(({ data }) => {
+        if (!cancelled && data?.profile) setAddressedConsultant(data.profile);
+      })
+      .catch(() => {
+        if (!cancelled) setAddressedConsultantUnavailable(true);
+      });
+    return () => { cancelled = true; };
+  }, [location.search]);
 
   // Build localized business phases
   const businessPhases = BUSINESS_PHASES.map(phase => ({
@@ -403,6 +424,7 @@ export default function ConsultingIntakePage() {
         package_selected: form.package_selected,
         package_price: packagePrice,
         ...(accessRequestId && { access_request_id: accessRequestId }),
+        ...(addressedConsultant?.user_id && { consultant_id: addressedConsultant.user_id }),
       });
 
       if (!isCurrentAuthEpoch(epoch)) return;
@@ -481,6 +503,28 @@ export default function ConsultingIntakePage() {
               {step === 4 && t('consulting.intake.step4Subtitle')}
               {step === 5 && t('consulting.intake.step5Subtitle')}
             </p>
+
+            {/* Group 10 Slice B (511): addressed-consultant banner */}
+            {addressedConsultant && (
+              <div role="status" style={{
+                margin: '0 0 2rem', padding: '0.9rem 1.1rem', borderRadius: '12px',
+                background: 'var(--color-success-bg, #ecfdf5)', border: '1px solid var(--color-success-border, #a7f3d0)',
+                color: 'var(--color-text)', fontSize: '0.95rem', lineHeight: 1.5,
+              }}>
+                {t('consulting.intake.addressedTo', {
+                  name: `${addressedConsultant.first_name || ''} ${addressedConsultant.last_name || ''}`.trim(),
+                })}
+              </div>
+            )}
+            {addressedConsultantUnavailable && (
+              <div role="status" style={{
+                margin: '0 0 2rem', padding: '0.9rem 1.1rem', borderRadius: '12px',
+                background: 'var(--color-warning-bg, #fffbeb)', border: '1px solid var(--color-warning-border, #fde68a)',
+                color: 'var(--color-text)', fontSize: '0.95rem', lineHeight: 1.5,
+              }}>
+                {t('consulting.intake.addressedUnavailable')}
+              </div>
+            )}
 
             {/* STEP 1: CONTACT */}
             {step === 1 && <Step1Contact form={form} handleInputChange={handleInputChange} t={t} />}

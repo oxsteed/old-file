@@ -150,6 +150,12 @@ const CAPABILITIES = Object.freeze({
         answerField('bio', 'text', { required: true, minLength: 80, maxLength: 2000 }),
         answerField('yearsExperience', 'integer', { required: true, min: 0, max: 60 }),
         answerField('areasOfExpertise', 'string_list', { required: true, maxItems: 20, maxLength: 120 }),
+        // Group 10 item 501: consultant-specific application fields, collected
+        // at apply time and shown to the reviewer alongside bio/experience.
+        // Optional so applications drafted under the earlier form stay
+        // submittable; the required core (bio, years, expertise) is unchanged.
+        answerField('qualifications', 'text', { maxLength: 2000 }),
+        answerField('credentials', 'string_list', { maxItems: 20, maxLength: 120 }),
         answerField('sampleWorkUrl', 'url', { maxLength: 500 }),
       ]),
     }),

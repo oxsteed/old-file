@@ -69,6 +69,23 @@ const NOTIFICATION_TYPES = [
   { type: 'booking_reschedule_proposed', group: 'work' },
   { type: 'booking_site_contact_link', group: 'work' },
   { type: 'consulting_session_scheduled', group: 'work' },
+  // Group 10 Slice B (511/514): inquiry addressed to a consultant, and
+  // a consultant declining a referral handoff.
+  { type: 'consulting_inquiry_assigned', group: 'work' },
+  { type: 'consulting_referral_declined', group: 'work' },
+  // Group 10 Slice C (518-520): reschedule proposals, cancellation, and
+  // attendance confirmation for confirmed appointments.
+  { type: 'consulting_session_reschedule_proposed', group: 'work' },
+  { type: 'consulting_session_reschedule_accepted', group: 'work' },
+  { type: 'consulting_session_reschedule_declined', group: 'work' },
+  { type: 'consulting_session_cancelled', group: 'work' },
+  { type: 'consulting_session_attendance_confirmed', group: 'work' },
+  // Group 10 Slice D (521-525): engagement proposals sent, approved,
+  // rejected, and withdrawn on a referral.
+  { type: 'consulting_proposal_sent', group: 'work' },
+  { type: 'consulting_proposal_approved', group: 'work' },
+  { type: 'consulting_proposal_rejected', group: 'work' },
+  { type: 'consulting_proposal_withdrawn', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
   { type: 'crew_shift_published', group: 'work' },
   { type: 'crew_task_assigned', group: 'work' },

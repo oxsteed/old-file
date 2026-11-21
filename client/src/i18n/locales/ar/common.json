@@ -6720,6 +6720,8 @@
       "areasOfExpertise": "مجالات الخبرة",
       "bio": "نبذة مهنية",
       "sampleWorkUrl": "رابط لنموذج من أعمالك",
+      "qualifications": "المؤهلات",
+      "credentials": "الشهادات",
       "yearsExperience": "سنوات الخبرة",
       "area": {
         "country": "رمز الدولة (حرفان)",

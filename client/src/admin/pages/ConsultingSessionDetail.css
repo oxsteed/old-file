@@ -1,0 +1,29 @@
+/* Cancel action styles for the admin consulting session detail page
+   (Group 10 Slice C, item 519). Classes, not inline styles, per the CSP
+   style migration gate (no new style={} occurrences). */
+
+.csd-admin-cancel-wrap {
+  margin-top: 1rem;
+}
+
+.csd-admin-cancel-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid #EF4444;
+  color: #F87171;
+  cursor: pointer;
+  font-weight: 600;
+  width: 100%;
+}
+
+.csd-admin-cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.csd-admin-cancel-hint {
+  color: var(--color-text-muted);
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}

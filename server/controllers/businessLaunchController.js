@@ -39,6 +39,7 @@ async function submitBusinessLaunchRequest(req, res) {
     package_selected,
     package_price,
     access_request_id,
+    consultant_id,
   } = req.body;
 
   // Validation
@@ -74,6 +75,35 @@ async function submitBusinessLaunchRequest(req, res) {
         }
       }
 
+      // Group 10 Slice B (511, D-104): the intake may address a consultant
+      // directly (from their public profile). Only an approved, active
+      // consultant can be addressed; the access grant is not required at
+      // intake because no money moves yet. The consultant's default cut
+      // prices the referral the same way admin assignment does.
+      let addressedConsultantId = null;
+      let assignedCut = null;
+      if (consultant_id !== undefined && consultant_id !== null && consultant_id !== '') {
+        const { rows: [profile] } = await client.query(
+          `SELECT user_id, default_oxsteed_cut_bps FROM consultant_contractor_profiles
+            WHERE user_id = $1 AND approval_status = 'approved' AND is_active = TRUE`,
+          [consultant_id],
+        );
+        if (!profile) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'The selected consultant is not available.' });
+        }
+        addressedConsultantId = profile.user_id;
+        const oxsteedCutBps = Math.max(0, Math.min(10000, parseInt(profile.default_oxsteed_cut_bps ?? 0, 10) || 0));
+        const totalPriceCents = Math.round(Number(package_price || 0) * 100);
+        assignedCut = {
+          oxsteed_cut_bps: oxsteedCutBps,
+          consultant_cut_bps: Math.max(0, 10000 - oxsteedCutBps),
+          total_price_cents: totalPriceCents,
+          oxsteed_share_cents: Math.round(totalPriceCents * (oxsteedCutBps / 10000)),
+          consultant_share_cents: Math.max(0, totalPriceCents - Math.round(totalPriceCents * (oxsteedCutBps / 10000))),
+        };
+      }
+
       // Insert the consulting request
       const result = await client.query(
         `INSERT INTO consulting_requests (
@@ -81,10 +111,16 @@ async function submitBusinessLaunchRequest(req, res) {
           skill_description, target_market, has_revenue, business_name_decided,
           business_name, operating_country, operating_state, setup_items_selected, select_all_chosen,
           current_phase, additional_notes, urgency, package_selected, package_price,
-          status, access_request_id
+          status, access_request_id,
+          consultant_assigned_id, consultant_assignment_status, consultant_assigned_at,
+          assigned_oxsteed_cut_bps, assigned_consultant_cut_bps,
+          estimated_total_price_cents, estimated_oxsteed_share_cents, estimated_consultant_share_cents
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'pending', $21
+          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'pending', $21,
+          $22, CASE WHEN $22::uuid IS NULL THEN 'unassigned' ELSE 'assigned' END,
+          CASE WHEN $22::uuid IS NULL THEN NULL ELSE NOW() END,
+          $23, $24, $25, $26, $27
         ) RETURNING id, created_at`,
         [
           req.user?.id || null,
@@ -108,6 +144,12 @@ async function submitBusinessLaunchRequest(req, res) {
           package_selected,
           package_price,
           applicationId,
+          addressedConsultantId,
+          assignedCut?.oxsteed_cut_bps ?? 0,
+          assignedCut?.consultant_cut_bps ?? 10000,
+          assignedCut?.total_price_cents ?? null,
+          assignedCut?.oxsteed_share_cents ?? null,
+          assignedCut?.consultant_share_cents ?? null,
         ]
       );
 
@@ -115,6 +157,25 @@ async function submitBusinessLaunchRequest(req, res) {
       const createdAt = result.rows[0].created_at;
 
       await client.query('COMMIT');
+
+      // Group 10 Slice B (511): tell the addressed consultant an inquiry
+      // arrived for them. Fire-and-forget: the request is already saved.
+      if (addressedConsultantId) {
+        const { sendNotification } = require('../services/notificationService');
+        try {
+          await sendNotification({
+            userId: addressedConsultantId,
+            type: 'consulting_inquiry_assigned',
+            title: 'New consulting inquiry for you',
+            body: `${first_name.trim()} ${last_name.trim()} sent you a business-launch inquiry.`,
+            data: { requestId },
+            action_url: '/consulting/contractor-dashboard',
+            idempotencyKey: `consulting-inquiry-request-${requestId}`,
+          });
+        } catch (e) {
+          logger.warn('Failed to notify addressed consultant of inquiry', { requestId, error: e.message });
+        }
+      }
 
       // Send confirmation email to client (non-blocking)
       sendClientConfirmationEmail(
@@ -152,6 +213,7 @@ async function submitBusinessLaunchRequest(req, res) {
       return res.status(201).json({
         success: true,
         requestId,
+        consultant_assigned_id: addressedConsultantId,
         message: 'Your request has been submitted. Check your email for confirmation.',
       });
     } catch (err) {
@@ -433,7 +495,7 @@ async function getMatchedConsultants(req, res) {
          p.timezone,
          COUNT(cr.id) FILTER (
            WHERE cr.consultant_assigned_id = p.user_id
-             AND cr.consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')
+             AND cr.consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed', 'declined')
          ) AS active_referrals,
          CASE
            WHEN $1::text IS NOT NULL AND $1 = ANY(p.coverage_countries) AND $2::text <> '' AND $2 = ANY(p.coverage_regions) THEN 3
@@ -445,6 +507,7 @@ async function getMatchedConsultants(req, res) {
        JOIN users u ON u.id = p.user_id
        LEFT JOIN consulting_requests cr ON cr.consultant_assigned_id = p.user_id
        WHERE p.is_active = TRUE
+         AND p.approval_status = 'approved'
          AND p.accepts_new_referrals = TRUE
          ${enforce ? `
          AND u.is_active = TRUE AND u.deleted_at IS NULL AND NOT COALESCE(u.is_banned, FALSE)
@@ -465,7 +528,7 @@ async function getMatchedConsultants(req, res) {
        GROUP BY p.user_id, u.id
        HAVING p.active_referral_limit < 0 OR COUNT(cr.id) FILTER (
          WHERE cr.consultant_assigned_id = p.user_id
-           AND cr.consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')
+           AND cr.consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed', 'declined')
        ) < p.active_referral_limit
        ORDER BY match_score DESC, active_referrals ASC, p.updated_at DESC
        LIMIT 40`,
@@ -542,7 +605,7 @@ async function assignConsultant(req, res) {
          FROM consulting_requests
          WHERE consultant_assigned_id = $1
            AND id <> $2
-           AND consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')`,
+           AND consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed', 'declined')`,
         [consultant_user_id, id]
       );
 

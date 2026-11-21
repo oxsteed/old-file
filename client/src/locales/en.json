@@ -14466,6 +14466,8 @@
         "failedSubmit": "Failed to submit your request. Please try again."
       },
       "formSuccess": "Your request has been submitted! Check your email for confirmation.",
+      "addressedTo": "Your inquiry goes directly to {{name}}. They will review it and reply from their dashboard.",
+      "addressedUnavailable": "The consultant you selected is not available right now. Your inquiry will go to our team instead.",
       "buttons": {
         "back": "Back",
         "cancel": "Cancel",
@@ -15062,6 +15064,14 @@
     "time": "Time",
     "minutes": "minutes",
     "meetingLink": "Meeting Link (Optional)",
+    "meetingFormat": "Meeting format",
+    "meetingTypes": {
+      "zoom": "Zoom video call",
+      "googleMeet": "Google Meet video call",
+      "phone": "Phone call",
+      "inPerson": "In person"
+    },
+    "inPersonHint": "In-person sessions meet at the location you agree with your consultant.",
     "timezone": "Timezone",
     "confirmBooking": "Confirm Booking",
     "sessionConfirmed": "Session scheduled successfully!",
@@ -15095,6 +15105,35 @@
     "blockedDateAdded": "Blocked date added",
     "blockedDateRemoved": "Blocked date removed",
     "dateRequired": "Please select a date"
+  ,
+  "yourTime": "Your time",
+  "rescheduleProposed": "Reschedule proposed",
+  "rescheduleAccepted": "Reschedule accepted",
+  "rescheduleDeclined": "Reschedule declined",
+  "rescheduleWithdrawn": "Reschedule withdrawn",
+  "rescheduleTitle": "Propose a new time",
+  "rescheduleCurrent": "Current appointment: {{date}} at {{time}}",
+  "pickDate": "Pick a date",
+  "pickTime": "Pick a time",
+  "rescheduleReason": "Reason (optional)",
+  "rescheduleReasonPlaceholder": "Why are you proposing a new time?",
+  "rescheduleCanonicalNote": "Times are shown in your time zone; the booking is kept in the consultant's zone ({{zone}}).",
+  "proposeNewTime": "Propose new time",
+  "cancelTitle": "Cancel this appointment",
+  "cancelReason": "Reason",
+  "cancelReasonPlaceholder": "Why is this appointment being cancelled?",
+  "requestRefund": "Request a refund for this appointment",
+  "cancelNote": "Both you and the consultant will be notified. Refunds are handled separately by an administrator.",
+  "cancelled": "Appointment cancelled",
+  "cancelSession": "Cancel appointment",
+  "confirmAttendance": "Confirm attendance",
+  "attendanceConfirmed": "Attendance confirmed",
+  "attendanceConfirmedByYou": "You confirmed attendance",
+  "attendanceConfirmedByClient": "Client confirmed attendance",
+  "attendanceConfirmedByConsultant": "Consultant confirmed attendance",
+  "accept": "Accept",
+  "decline": "Decline",
+  "withdraw": "Withdraw"
   },
   "regionForm": {
     "boundaryTypes": {
@@ -18629,6 +18668,12 @@
     "emptyStat1Label": "Starts with clarity",
     "emptyPreviewTitle": "What this portal becomes after purchase",
     "emptyEyebrow": "Business launch consulting"
+  ,
+  "schedulePanelTitle": "Your appointment",
+  "pendingProposals": "Reschedule proposed",
+  "proposedByYou": "Proposed by you",
+  "proposedByConsultant": "Proposed by your consultant",
+  "proposedByOxsteed": "Proposed by OxSteed"
   },
   "logistics": {
     "forms": {
@@ -21135,6 +21180,8 @@
     "confirm": {
       "complete": "Mark this session as completed? A follow-up email will be sent to the customer with action items.",
       "noShow": "Mark this session as a no-show? A follow-up email will be sent to the customer offering to reschedule."
+    ,
+    "cancel": "Cancel this session? The appointment and the session will be cancelled together and both parties notified."
     },
     "toast": {
       "loadConsultantsFailed": "Failed to load consultants",
@@ -21150,7 +21197,14 @@
       "noteRequired": "Please enter a note",
       "notesSaved": "Notes saved successfully",
       "saveNotesFailed": "Failed to save notes"
+    ,
+    "sessionNotStarted": "This session has not started yet, so it cannot be marked complete.",
+    "cancelled": "Session cancelled.",
+    "cancelFailed": "Could not cancel the session."
     }
+  ,
+  "cancelSession": "Cancel session",
+  "cancelHint": "Cancels the appointment and the session together, and notifies both parties. Refunds stay on the refund endpoint."
   },
   "adminConsultingScheduler": {
     "loading": "Loading sessions...",
@@ -25020,7 +25074,105 @@
       "deliveries": "No delivery orders available."
     }
   },
+  "consultantPublicProfile": {
+    "page": {
+      "title": "{{name}} | Consultant",
+      "fallbackTitle": "Consultant profile",
+      "fallbackDescription": "View this OxSteed consultant's specialties, portfolio, and pricing."
+    },
+    "eyebrow": "OxSteed consultant",
+    "loading": "Loading consultant profile…",
+    "notFound": {
+      "title": "Consultant not found",
+      "body": "This consultant profile is not available. It may not be approved yet or may have been removed.",
+      "intakeLink": "Start a consulting intake instead"
+    },
+    "notAccepting": "This consultant is not accepting new referrals right now.",
+    "sections": {
+      "about": "About",
+      "specialties": "Specialties and coverage",
+      "pricing": "Pricing",
+      "portfolio": "Portfolio",
+      "availability": "Availability"
+    },
+    "fields": {
+      "coverage": "Coverage",
+      "languages": "Languages",
+      "experience": "Experience",
+      "basedIn": "Based in",
+      "virtual": "Virtual consulting"
+    },
+    "experienceYears": "{{count}} years of experience",
+    "virtualYes": "Available for virtual consulting",
+    "pricing": {
+      "minimum": "Minimum package price: {{amount}}",
+      "note": "The final price depends on the package and scope you agree with the consultant."
+    },
+    "portfolio": {
+      "viewWork": "View work"
+    },
+    "empty": {
+      "specialties": "No specialties listed yet.",
+      "coverage": "Not listed",
+      "languages": "Not listed",
+      "portfolio": "No public work samples yet.",
+      "availability": "No upcoming availability listed."
+    },
+    "bookLink": "Start a consulting intake with this consultant",
+    "errors": {
+      "load": "Consultant profile could not be loaded."
+    }
+  },
   "consultantContractorDashboard": {
+    "readiness": {
+      "label": "Engagement readiness",
+      "title": "Ready to take engagements?",
+      "ready": "Ready",
+      "notReady": "Not ready yet",
+      "pendingApproval": "Your profile is waiting for admin approval. You will appear in matching and on your public profile once it is approved.",
+      "declined": "Your profile was declined. Reviewer note: {{note}}",
+      "hint": "Complete every item to become visible to clients and eligible for matching.",
+      "items": {
+        "profileComplete": "Profile complete: headline, bio, specialties, coverage, and languages",
+        "specialtiesDeclared": "At least one specialty declared",
+        "availabilitySet": "Availability set for at least one day",
+        "pricingSet": "Minimum package price set",
+        "profileApproved": "Profile approved by an admin"
+      }
+    },
+    "pricing": {
+      "label": "Your pricing",
+      "minimum": "Minimum package price: {{amount}}",
+      "cut": "OxSteed referral cut: {{percent}}%",
+      "limit": "Active referral limit: {{count}}",
+      "viewPublic": "View your public profile"
+    },
+    "portfolio": {
+      "label": "Portfolio",
+      "title": "Work samples",
+      "description": "Add work samples to your profile. Public items appear on your public specialty profile; hidden items stay in this workspace.",
+      "loading": "Loading portfolio…",
+      "loadError": "Portfolio could not be loaded.",
+      "saveError": "Portfolio item could not be saved.",
+      "removeError": "Portfolio item could not be removed.",
+      "empty": "No portfolio items yet. Add a work sample below.",
+      "visiblePublic": "Public",
+      "hidden": "Hidden",
+      "edit": "Edit",
+      "remove": "Remove",
+      "editTitle": "Edit portfolio item",
+      "addTitle": "Add a portfolio item",
+      "add": "Add item",
+      "saveChanges": "Save changes",
+      "fields": {
+        "title": "Title",
+        "description": "Description",
+        "link": "Link to the work (https://…)",
+        "image": "Image URL (https://…)",
+        "visibility": "Visibility",
+        "order": "Order"
+      }
+    },
     "page": {
       "title": "Consultant Contractor Dashboard",
       "description": "Manage local OxSteed business-launch referrals, coverage markets, and negotiated referral economics.",
@@ -25064,7 +25216,11 @@
       "notesLabel": "Notes for this referral",
       "notesPlaceholder": "Capture discovery notes, local market context, next steps, and anything OxSteed should know.",
       "targetMarketLabel": "Target market",
-      "targetMarketMissing": "Not provided"
+      "targetMarketMissing": "Not provided",
+      "acceptButton": "Accept referral",
+      "declineButton": "Decline referral",
+      "confirmDeclineButton": "Click again to decline",
+      "cancelDeclineButton": "Keep referral"
     },
     "referralStatus": {
       "assigned": "Assigned",
@@ -25076,7 +25232,48 @@
       "won": "Won",
       "lost": "Lost",
       "completed": "Completed",
-      "paused": "Paused"
+      "paused": "Paused",
+      "declined": "Declined"
+    },
+    "screening": {
+      "title": "Screen this inquiry",
+      "show": "Show",
+      "hide": "Hide",
+      "loading": "Loading…",
+      "loadError": "Failed to load screening.",
+      "saveError": "Failed to save.",
+      "fitTitle": "Fit assessment",
+      "fitHint": "Advisory only. A fit assessment never blocks scheduling or accepting the referral.",
+      "fitBudget": "Budget fit",
+      "fitScope": "Scope fit",
+      "fitTiming": "Timing fit",
+      "fitOverall": "Overall fit",
+      "fitDecision": "Decision",
+      "fitDecisionFit": "Good fit",
+      "fitDecisionNoFit": "Not a fit",
+      "fitDecisionNeedsInfo": "Needs more info",
+      "fitNotes": "Notes",
+      "fitNotesPlaceholder": "Why this is or is not a fit.",
+      "fitSave": "Save fit assessment",
+      "fitSaved": "Fit assessment saved.",
+      "conflictTitle": "Conflict of interest",
+      "conflictBlocks": "An open conflict blocks moving this referral forward until you clear it or decline the referral.",
+      "conflictHas": "I have a conflict of interest with this inquiry",
+      "conflictDescription": "Description",
+      "conflictDescriptionPlaceholder": "Describe the conflict, for example a competing client or a personal relationship.",
+      "conflictSave": "Save declaration",
+      "conflictSaved": "Conflict declaration saved.",
+      "replyTitle": "Reply to the inquiry",
+      "replyTemplate": "Template",
+      "replyTemplateCustom": "Custom message",
+      "replySubject": "Subject",
+      "replyBody": "Message",
+      "replySend": "Send reply",
+      "replySent": "Reply sent.",
+      "messagesTitle": "Message history",
+      "messagesEmpty": "No messages yet.",
+      "messageFromConsultant": "From you",
+      "messageFromTeam": "From the OxSteed team"
     },
     "profile": {
       "fields": {
@@ -25129,6 +25326,101 @@
       "step3Title": "3. Pipeline execution",
       "step3Body": "Use your dashboard to move leads from intro to discovery, proposal, engagement, and completion while keeping OxSteed in the loop."
     }
+  ,
+  "sessions": {
+    "label": "Appointments",
+    "title": "Your sessions",
+    "description": "Confirmed appointments with clients, including reschedule proposals, attendance, and cancellation.",
+    "loading": "Loading sessions…",
+    "emptyTitle": "No sessions yet",
+    "emptyDescription": "Once a client books a session with you, it will appear here with its time, proposals, and attendance.",
+    "clientFallback": "Client",
+    "pendingProposals": "Reschedule proposed",
+    "proposedBy": "Proposed by {{role}}",
+    "status": {
+      "pending_confirmation": "Awaiting confirmation",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "no_show": "No-show",
+      "cancelled": "Cancelled"
+    }
+  }
+  },
+  "consultantProposal": {
+    "title": "Engagement proposal",
+    "show": "Show",
+    "hide": "Hide",
+    "loading": "Loading\u2026",
+    "loadError": "Failed to load proposals.",
+    "saveError": "Failed to save the draft.",
+    "draftSaved": "Draft saved.",
+    "sent": "Proposal sent to the client.",
+    "withdrawn": "Proposal withdrawn.",
+    "sentVersion": "Version {{version}} sent",
+    "draftVersion": "Draft version {{version}}",
+    "newTitle": "New proposal version",
+    "editTitle": "Edit draft",
+    "formHint": "A sent proposal cannot be edited. Send a new version instead; it supersedes the one the client already has.",
+    "fieldTitle": "Title",
+    "titlePlaceholder": "Business launch engagement",
+    "fieldScope": "Scope summary",
+    "scopePlaceholder": "What the engagement covers, in plain language.",
+    "fieldPrice": "Price (USD)",
+    "deliverablesTitle": "Deliverables",
+    "addDeliverable": "Add deliverable",
+    "removeDeliverable": "Remove deliverable",
+    "deliverableTitlePlaceholder": "Deliverable title",
+    "deliverableType": "Type",
+    "deliverableDue": "Due date",
+    "deliverableDescriptionPlaceholder": "What the client receives.",
+    "deliverableTypes": {
+      "sop": "SOP",
+      "contract": "Contract",
+      "financial_tracker": "Financial tracker",
+      "marketing_plan": "Marketing plan",
+      "team_structure": "Team structure",
+      "operational_manual": "Operational manual",
+      "other": "Other"
+    },
+    "exclusionsTitle": "Scope exclusions",
+    "exclusionsHint": "Name what is not included, so the client never assumes it is.",
+    "addExclusion": "Add exclusion",
+    "removeExclusion": "Remove exclusion",
+    "exclusionPlaceholder": "Not included: \u2026",
+    "saveDraft": "Save draft",
+    "cancelEdit": "Cancel",
+    "newVersion": "Draft a new proposal version",
+    "historyTitle": "Version history",
+    "historyEmpty": "No proposals yet. Draft the first version to put the engagement in writing.",
+    "versionLabel": "Version {{version}}",
+    "versionMeta": "{{count}} deliverables",
+    "decidedOn": "decided {{date}}",
+    "dueLabel": "due {{date}}",
+    "editDraft": "Edit draft",
+    "send": "Send to client",
+    "withdraw": "Withdraw",
+    "confirmWithdraw": "Withdraw this proposal",
+    "keepProposal": "Keep it sent",
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "withdrawn": "Withdrawn",
+      "superseded": "Superseded"
+    },
+    "clientOnly": "Proposals are visible to the request owner.",
+    "clientEmpty": "No proposal yet. Your consultant will send one here once the scope is agreed.",
+    "approved": "Proposal approved. The engagement is agreed.",
+    "rejected": "Proposal rejected. Your consultant can send a revised version.",
+    "approve": "Approve proposal",
+    "reject": "Ask for changes",
+    "rejectConfirm": "Send rejection",
+    "rejectReasonLabel": "What should change?",
+    "rejectReasonPlaceholder": "Tell your consultant what to change, so the next version gets it right.",
+    "rejectReasonRequired": "Tell the consultant what to change (at least 10 characters).",
+    "decisionReason": "Decision note: {{reason}}",
+    "adminEmpty": "No proposal yet for this request."
   },
   "learn": {
     "page": {
@@ -35657,6 +35949,26 @@
     "type.optOut": "Opt-Out"
   },
   "adminConsultingDashboard": {
+    "profileApprovals": {
+      "title": "Consultant profile approvals",
+      "description": "New consultant profiles wait here until an admin approves them. Approved consultants appear in matching and on public profiles; declined consultants stay hidden.",
+      "filterLabel": "Filter by approval status",
+      "pending": "Pending",
+      "approvedFilter": "Approved",
+      "declinedFilter": "Declined",
+      "all": "All",
+      "empty": "No consultant profiles in this state.",
+      "loadError": "Consultant profiles could not be loaded.",
+      "decideFailed": "The decision could not be saved.",
+      "approved": "Profile approved.",
+      "declined": "Profile declined.",
+      "approve": "Approve",
+      "decline": "Decline",
+      "specialties": "Specialties",
+      "experience": "{{count}} years of experience",
+      "note": "Reviewer note",
+      "notePlaceholder": "Note for the consultant (optional)"
+    },
     "areas.acquisitionPreparation": "acquisition preparation",
     "areas.branding": "branding",
     "areas.exitStrategy": "exit strategy",
@@ -36746,6 +37058,7 @@
     "sectionMessageHistory": "Message History",
     "emptyMessages": "No messages sent yet",
     "messageErrorLine": "Error: {{error}}",
+      "consultantReply": "Consultant reply",
     "closeButton": "Close"
   },
   "adminAdminAccounts": {

@@ -393,6 +393,219 @@ function DetailField({ icon: Icon, label, value }) {
   );
 }
 
+function fmtProposalPrice(priceCents, currency) {
+  if (priceCents === null || priceCents === undefined) return '—';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(priceCents / 100);
+}
+
+// Group 10 Slice D (521-525): the client reviews the sent proposal and
+// approves or rejects it here, on their launch status page. Approval
+// moves the referral to engaged; rejection needs a reason so the
+// consultant knows what to change. Earlier versions stay visible as
+// history; only the sent version can be decided.
+function ProposalReview({ requestId }) {
+  const { t } = useTranslation();
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [forbidden, setForbidden] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
+  const [showReject, setShowReject] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setForbidden(false);
+      const { data } = await api.get(`/consulting/business-launch/requests/${encodeURIComponent(requestId)}/proposals`);
+      setProposals(data.proposals || []);
+    } catch (err) {
+      if (err.response?.status === 403) setForbidden(true);
+      else setError(err.response?.data?.error || t('consultantProposal.loadError', { defaultValue: 'Proposals could not be loaded.' }));
+    } finally {
+      setLoading(false);
+    }
+  }, [requestId, t]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const sent = proposals.find((proposal) => proposal.status === 'sent') || null;
+  const latest = proposals[0] || null;
+
+  async function decide(action) {
+    if (!sent) return;
+    if (action === 'reject' && rejectReason.trim().length < 10) {
+      setError(t('consultantProposal.rejectReasonRequired', { defaultValue: 'Tell the consultant what to change (at least 10 characters).' }));
+      return;
+    }
+    try {
+      setBusy(true);
+      setError('');
+      setNotice('');
+      await api.post(
+        `/consulting/business-launch/requests/${encodeURIComponent(requestId)}/proposals/${sent.id}/${action}`,
+        action === 'reject' ? { reason: rejectReason.trim() } : {},
+      );
+      setNotice(action === 'approve'
+        ? t('consultantProposal.approved', { defaultValue: 'Proposal approved. The engagement is agreed.' })
+        : t('consultantProposal.rejected', { defaultValue: 'Proposal rejected. Your consultant can send a revised version.' }));
+      setShowReject(false);
+      setRejectReason('');
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantProposal.saveError', { defaultValue: 'Could not record your decision.' }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="bl-proposal">
+      <h3 className="bl-proposal__title">
+        {t('consultantProposal.title', { defaultValue: 'Engagement proposal' })}
+      </h3>
+      {loading ? (
+        <p className="bl-proposal__note">{t('common.loading', { defaultValue: 'Loading…' })}</p>
+      ) : forbidden ? (
+        <p className="bl-proposal__note">
+          {t('consultantProposal.clientOnly', { defaultValue: 'Proposals are visible to the request owner.' })}
+        </p>
+      ) : !proposals.length ? (
+        <p className="bl-proposal__note">
+          {t('consultantProposal.clientEmpty', { defaultValue: 'No proposal yet. Your consultant will send one here once the scope is agreed.' })}
+        </p>
+      ) : (
+        <div className="bl-proposal__stack">
+          {error && <p role="alert" className="bl-proposal__error">{error}</p>}
+          {notice && <p role="status" className="bl-proposal__notice">{notice}</p>}
+          {latest && (
+            <div className={`bl-proposal__card bl-proposal__card--${latest.status}`}>
+              <div className="bl-proposal__card-head">
+                <div>
+                  <div className="bl-proposal__card-title">
+                    {t('consultantProposal.versionLabel', { defaultValue: 'Version {{version}}', version: latest.version })} • {latest.title}
+                  </div>
+                  <div className="bl-proposal__card-meta">
+                    {fmtProposalPrice(latest.price_cents, latest.currency)}
+                    {' • '}
+                    {t(`consultantProposal.status.${latest.status}`, { defaultValue: latest.status.replace(/_/g, ' ') })}
+                  </div>
+                </div>
+              </div>
+              {latest.scope_summary && (
+                <p className="bl-proposal__scope">{latest.scope_summary}</p>
+              )}
+              {(latest.deliverables || []).length > 0 && (
+                <div className="bl-proposal__group">
+                  <div className="bl-proposal__group-label">
+                    {t('consultantProposal.deliverablesTitle', { defaultValue: 'Deliverables' })}
+                  </div>
+                  <ul className="bl-proposal__list">
+                    {latest.deliverables.map((item) => (
+                      <li key={item.id}>
+                        {item.title}
+                        {item.due_date ? ` • ${t('consultantProposal.dueLabel', { defaultValue: 'due {{date}}', date: String(item.due_date).slice(0, 10) })}` : ''}
+                        {item.description ? <span className="bl-proposal__item-desc">{item.description}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {(latest.exclusions || []).length > 0 && (
+                <div className="bl-proposal__group">
+                  <div className="bl-proposal__group-label">
+                    {t('consultantProposal.exclusionsTitle', { defaultValue: 'Scope exclusions' })}
+                  </div>
+                  <ul className="bl-proposal__list">
+                    {latest.exclusions.map((item) => (
+                      <li key={item.id}>{item.exclusion_text}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {latest.decision_reason && (
+                <p className="bl-proposal__reason">
+                  {t('consultantProposal.decisionReason', { defaultValue: 'Decision note: {{reason}}', reason: latest.decision_reason })}
+                </p>
+              )}
+              {sent && (
+                <div className="bl-proposal__actions">
+                  <div className="bl-proposal__action-row">
+                    <button
+                      type="button"
+                      onClick={() => decide('approve')}
+                      disabled={busy}
+                      className="bl-proposal__btn-approve" data-track="ui.478f2e3593.10"
+                    >
+                      {t('consultantProposal.approve', { defaultValue: 'Approve proposal' })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowReject((prev) => !prev)}
+                      disabled={busy}
+                      className="bl-proposal__btn-reject" data-track="ui.478f2e3593.11"
+                    >
+                      {t('consultantProposal.reject', { defaultValue: 'Ask for changes' })}
+                    </button>
+                  </div>
+                  {showReject && (
+                    <div className="bl-proposal__reject-form">
+                      <label className="bl-proposal__reject-label">
+                        {t('consultantProposal.rejectReasonLabel', { defaultValue: 'What should change?' })}
+                      </label>
+                      <textarea
+                        value={rejectReason}
+                        onChange={(event) => setRejectReason(event.target.value)}
+                        rows={3}
+                        className="bl-proposal__reject-text"
+                        placeholder={t('consultantProposal.rejectReasonPlaceholder', { defaultValue: 'Tell your consultant what to change, so the next version gets it right.' })}
+                      />
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => decide('reject')}
+                          disabled={busy || rejectReason.trim().length < 10}
+                          className="bl-proposal__btn-confirm" data-track="ui.478f2e3593.12"
+                        >
+                          {t('consultantProposal.rejectConfirm', { defaultValue: 'Send rejection' })}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {proposals.length > 1 && (
+            <div>
+              <div className="bl-proposal__history-label">
+                {t('consultantProposal.historyTitle', { defaultValue: 'Version history' })}
+              </div>
+              <ul className="bl-proposal__history-list">
+                {proposals.slice(1).map((proposal) => (
+                  <li key={proposal.id} className="bl-proposal__history-item">
+                    <button type="button" onClick={() => setExpandedId((prev) => (prev === proposal.id ? null : proposal.id))} className="bl-proposal__history-button" data-track="ui.478f2e3593.13">
+                      {t('consultantProposal.versionLabel', { defaultValue: 'Version {{version}}', version: proposal.version })} • {proposal.title} • {fmtProposalPrice(proposal.price_cents, proposal.currency)} • {t(`consultantProposal.status.${proposal.status}`, { defaultValue: proposal.status.replace(/_/g, ' ') })}
+                    </button>
+                    {expandedId === proposal.id && proposal.decision_reason && (
+                      <p className="bl-proposal__history-reason">{proposal.decision_reason}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function DetailModal({ request, onClose }) {
   const { t } = useTranslation();
   const items = safeItems(request.setup_items_selected);
@@ -604,6 +817,7 @@ function DetailModal({ request, onClose }) {
                 </label>
               </div>
             </section>
+            <ProposalReview requestId={request.id} />
             <section
               style={{
                 border: '1px solid rgba(148,163,184,0.14)',

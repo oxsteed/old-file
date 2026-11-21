@@ -6720,6 +6720,8 @@
       "areasOfExpertise": "Areas of expertise",
       "bio": "Professional bio",
       "sampleWorkUrl": "Link to sample work",
+      "qualifications": "Qualifications",
+      "credentials": "Credentials",
       "yearsExperience": "Years of experience",
       "area": {
         "country": "Country code (2 letters)",

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
@@ -8,6 +8,7 @@ import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
 import '../lib/suggestDropdownAdmin.css';
+import './ConsultantProfileApprovals.css';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -82,6 +83,138 @@ function Badge({ status }) {
     }}>
       {i18nKey ? t(`adminConsultingDashboard.${i18nKey}`) : status}
     </span>
+  );
+}
+
+// Group 10 item 504: admin approval workflow for consultant contractor
+// profiles. Pending profiles are hidden from matching and the public
+// profile until an admin approves them; declining records a note the
+// consultant sees on their dashboard.
+function ProfileApprovals() {
+  const { t } = useTranslation();
+  const [status, setStatus] = useState('pending');
+  const [profiles, setProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [note, setNote] = useState('');
+  const [deciding, setDeciding] = useState(null);
+  const [refresh, setRefresh] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoading(true);
+        setError('');
+        const { data } = await axios.get('/consulting/contractor/admin/profiles', { params: { status } });
+        if (!cancelled) setProfiles(data?.profiles || []);
+      } catch (err) {
+        if (!cancelled) setError(err.response?.data?.error || t('adminConsultingDashboard.profileApprovals.loadError'));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [status, refresh, t]);
+
+  async function decide(userId, action) {
+    setDeciding(`${userId}:${action}`);
+    try {
+      await axios.post(`/consulting/contractor/admin/profiles/${userId}/decision`, { action, note: note.trim() || null });
+      toast.success(t(action === 'approve' ? 'adminConsultingDashboard.profileApprovals.approved' : 'adminConsultingDashboard.profileApprovals.declined'));
+      setNote('');
+      setRefresh((value) => value + 1);
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('adminConsultingDashboard.profileApprovals.decideFailed'));
+    } finally {
+      setDeciding(null);
+    }
+  }
+
+  return (
+    <section className="cpa-section" aria-labelledby="consultant-profile-approvals-title">
+      <div className="cpa-header">
+        <h2 id="consultant-profile-approvals-title" className="cpa-title">
+          {t('adminConsultingDashboard.profileApprovals.title')}
+        </h2>
+        <select className="cpa-input" value={status} onChange={(e) => setStatus(e.target.value)} aria-label={t('adminConsultingDashboard.profileApprovals.filterLabel')}>
+          <option value="pending">{t('adminConsultingDashboard.profileApprovals.pending')}</option>
+          <option value="approved">{t('adminConsultingDashboard.profileApprovals.approvedFilter')}</option>
+          <option value="declined">{t('adminConsultingDashboard.profileApprovals.declinedFilter')}</option>
+          <option value="all">{t('adminConsultingDashboard.profileApprovals.all')}</option>
+        </select>
+      </div>
+      <p className="cpa-description">
+        {t('adminConsultingDashboard.profileApprovals.description')}
+      </p>
+      {loading ? (
+        <p className="cpa-muted">{t('adminConsultingDashboard.loading')}</p>
+      ) : error ? (
+        <p role="alert" className="cpa-error">{error}</p>
+      ) : profiles.length === 0 ? (
+        <p className="cpa-muted">{t('adminConsultingDashboard.profileApprovals.empty')}</p>
+      ) : (
+        <div className="cpa-list">
+          {profiles.map((profile) => (
+            <div key={profile.user_id} className="cpa-card">
+              <div className="cpa-card-top">
+                <div>
+                  <p className="cpa-name">{profile.first_name} {profile.last_name}</p>
+                  <p className="cpa-email">{profile.email}</p>
+                  {profile.headline && <p className="cpa-headline">{profile.headline}</p>}
+                  {(profile.specialties || []).length > 0 && (
+                    <p className="cpa-meta">
+                      {t('adminConsultingDashboard.profileApprovals.specialties')}: {(profile.specialties || []).join(', ')}
+                    </p>
+                  )}
+                  {profile.years_experience != null && (
+                    <p className="cpa-meta">
+                      {t('adminConsultingDashboard.profileApprovals.experience', { count: profile.years_experience })}
+                    </p>
+                  )}
+                  {profile.approval_note && (
+                    <p className="cpa-meta">
+                      {t('adminConsultingDashboard.profileApprovals.note')}: {profile.approval_note}
+                    </p>
+                  )}
+                </div>
+                <span className={`cpa-badge cpa-badge--${profile.approval_status}`}>
+                  {profile.approval_status}
+                </span>
+              </div>
+              {profile.approval_status === 'pending' && (
+                <div className="cpa-decide">
+                  <input
+                    className="cpa-input cpa-note-input"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder={t('adminConsultingDashboard.profileApprovals.notePlaceholder')}
+                    maxLength={1000}
+                  />
+                  <button
+                    type="button"
+                    disabled={Boolean(deciding)}
+                    onClick={() => decide(profile.user_id, 'approve')}
+                    className="cpa-btn cpa-btn--approve"
+                  >
+                    {t('adminConsultingDashboard.profileApprovals.approve')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={Boolean(deciding)}
+                    onClick={() => decide(profile.user_id, 'decline')}
+                    className="cpa-btn cpa-btn--decline"
+                  >
+                    {t('adminConsultingDashboard.profileApprovals.decline')}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -488,6 +621,9 @@ export default function ConsultingDashboard() {
         <StatCard label={t('adminConsultingDashboard.stats.cancellationRate')} value={stats?.cancellation_rate ? `${stats.cancellation_rate}%` : 'N/A'} color="#EF4444" />
         <StatCard label={t('adminConsultingDashboard.stats.conversionRate')} value={conversionRate} color="#8B5CF6" sub={t('adminConsultingDashboard.stats.conversionSub')} />
       </div>
+
+      {/* Group 10 item 504: consultant profile approvals */}
+      <ProfileApprovals />
 
       {/* Requests Table */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>

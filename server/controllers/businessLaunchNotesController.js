@@ -205,7 +205,17 @@ async function getMessages(req, res) {
  * GET /api/consulting/business-launch/message-templates
  */
 async function getMessageTemplates(req, res) {
+  // Group 10 Slice B (515): the inquiry-response templates are shared with
+  // the consultant screening flow so both surfaces send the same copy.
+  const { INQUIRY_TEMPLATES } = require('./consultantScreeningController');
+  const inquiryTemplates = INQUIRY_TEMPLATES.map((template) => ({
+    id: template.id,
+    name: template.name,
+    subject: template.subject,
+    body: template.body_plain,
+  }));
   const templates = [
+    ...inquiryTemplates,
     {
       id: 'kickoff-prep',
       name: 'Kickoff Preparation',
