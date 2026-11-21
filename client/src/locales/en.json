@@ -1,4 +1,19 @@
 {
+  "reservationRequest": {
+    "eyebrow": "Plan your visit",
+    "steps": "Reservation request steps",
+    "visit": "Your visit",
+    "contact": "Contact details",
+    "arrival": "Arrival date & time",
+    "departure": "Departure date & time",
+    "editVisit": "Edit visit details",
+    "contactHint": "Add a phone number or email so the restaurant can reply.",
+    "contactRequired": "Add a phone number or email to continue.",
+    "addNote": "Add a note (optional)",
+    "notePlaceholder": "Accessibility needs, a special occasion, or anything else…",
+    "continue": "Continue",
+    "invalidWindow": "Choose a departure time after your arrival."
+  },
   "adminOpsAudit": {
     "bulkFailed": "Failed user IDs: {{ids}}. These users remain selected for retry.",
     "fulfillmentTitle": "Confirm card fulfillment",
