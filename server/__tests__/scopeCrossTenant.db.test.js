@@ -43,7 +43,7 @@ async function run(mw, user, params) {
   beforeAll(async () => {
     await db.query(`CREATE SCHEMA ${schema};
       CREATE TABLE businesses(id INT PRIMARY KEY, business_name TEXT, is_primary BOOLEAN, tax_rate NUMERIC, user_id UUID, is_active BOOLEAN DEFAULT TRUE, deleted_at TIMESTAMPTZ);
-      CREATE TABLE business_members(id BIGSERIAL PRIMARY KEY, business_id INT, member_id UUID, role TEXT, status TEXT);
+      CREATE TABLE business_members(id BIGSERIAL PRIMARY KEY, business_id INT, member_id UUID, role TEXT, status TEXT, access_valid_until TIMESTAMPTZ);
       CREATE TABLE food_restaurants(id INT PRIMARY KEY, business_id INT, owner_user_id UUID, name TEXT);
       CREATE TABLE support_employers(id INT PRIMARY KEY, kind TEXT, business_id INT, helper_user_id UUID);
       CREATE TABLE support_agents(id SERIAL PRIMARY KEY, user_id UUID, employer_id INT, status TEXT, created_at TIMESTAMPTZ DEFAULT NOW());`);

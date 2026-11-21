@@ -16,7 +16,7 @@ const owner = '11111111-1111-4111-8111-111111111111', member = '22222222-2222-42
 (url ? describe : describe.skip)('business scope convergence preserves domain policies', () => {
   beforeAll(async () => {
     await db.query(`CREATE SCHEMA ${schema}; CREATE TABLE businesses(id BIGINT PRIMARY KEY,business_name TEXT,is_primary BOOLEAN,tax_rate NUMERIC,user_id UUID,is_active BOOLEAN,deleted_at TIMESTAMPTZ);
-      CREATE TABLE business_members(id BIGSERIAL PRIMARY KEY,business_id BIGINT,member_id UUID,role TEXT,status TEXT)`);
+      CREATE TABLE business_members(id BIGSERIAL PRIMARY KEY,business_id BIGINT,member_id UUID,role TEXT,status TEXT,access_valid_until TIMESTAMPTZ)`);
   });
   afterAll(async () => { await db.query(`DROP SCHEMA ${schema} CASCADE`);await db.end(); });
   beforeEach(async () => {await db.query(`TRUNCATE businesses,business_members; INSERT INTO businesses VALUES(1,'Synthetic business',true,5,'${owner}',true,NULL)`);});
