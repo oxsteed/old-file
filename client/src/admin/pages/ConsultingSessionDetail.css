@@ -27,3 +27,48 @@
   margin-top: 0.5rem;
   font-size: 0.9rem;
 }
+
+/* Milestone board (Group 10 Slice E, items 526-530): read-only
+   deliverables on the admin session detail. Classes, not inline styles,
+   per the CSP style migration gate (no new style={} occurrences). */
+
+.csd-deliverables-section {
+  margin-bottom: 2rem;
+}
+
+.csd-deliverables-title {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.csd-deliverables-note {
+  color: var(--color-text-muted);
+}
+
+.csd-deliverable-card {
+  margin-bottom: 0.75rem;
+  padding: 1rem;
+  border-left: 4px solid var(--color-primary);
+  border-radius: 6px;
+  background: var(--color-bg);
+}
+
+.csd-deliverable-name {
+  margin: 0 0 0.35rem;
+}
+
+.csd-deliverable-meta {
+  margin: 0.2rem 0;
+  color: var(--color-text-muted);
+}
+
+.csd-deliverable-text {
+  margin: 0.35rem 0;
+  white-space: pre-wrap;
+}
+
+.csd-deliverable-docs {
+  margin: 0.35rem 0;
+  padding-left: 1.2rem;
+}

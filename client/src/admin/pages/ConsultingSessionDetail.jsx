@@ -29,6 +29,9 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
   // so the Cancel button can hit the unified cancel endpoint. Null when
   // the session has no appointment yet.
   const [scheduledDetail, setScheduledDetail] = useState(null);
+  // Group 10 Slice E (526-530): the milestone board, read-only for admin.
+  const [deliverables, setDeliverables] = useState([]);
+  const [deliverablesLoading, setDeliverablesLoading] = useState(true);
 
   // Refetch and reset per-session state whenever the viewed session changes,
   // so consultants and notes never bleed across sessions.
@@ -52,6 +55,18 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
     axios.get(`/scheduling/sessions/by-consulting/${session.id}`)
       .then((r) => { if (!cancelled) setScheduledDetail(r.data); })
       .catch(() => { if (!cancelled) setScheduledDetail(null); });
+    return () => { cancelled = true; };
+  }, [session.id]);
+
+  // Load the milestone board (Slice E) for this session.
+  useEffect(() => {
+    let cancelled = false;
+    setDeliverables([]);
+    setDeliverablesLoading(true);
+    axios.get(`/consulting/admin/sessions/${session.id}/deliverables`)
+      .then((r) => { if (!cancelled) setDeliverables(Array.isArray(r.data?.deliverables) ? r.data.deliverables : []); })
+      .catch(() => { if (!cancelled) setDeliverables([]); })
+      .finally(() => { if (!cancelled) setDeliverablesLoading(false); });
     return () => { cancelled = true; };
   }, [session.id]);
 
@@ -343,6 +358,46 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
             <p style={{ fontStyle: 'italic', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
               {session.description || 'No description provided'}
             </p>
+          </div>
+
+          <div className="csd-deliverables-section">
+            <div className="csd-deliverables-title">{t('consultantDeliverable.title', { defaultValue: 'Milestone board' })}</div>
+            {deliverablesLoading ? (
+              <p className="csd-deliverables-note">{t('common.loading', { defaultValue: 'Loading…' })}</p>
+            ) : deliverables.length === 0 ? (
+              <p className="csd-deliverables-note">{t('consultantDeliverable.adminEmpty', { defaultValue: 'No milestones on this engagement yet.' })}</p>
+            ) : (
+              deliverables.map((item) => (
+                <div key={item.id} className="csd-deliverable-card">
+                  <p className="csd-deliverable-name">
+                    <strong>{item.name}</strong>
+                  </p>
+                  <p className="csd-deliverable-meta">
+                    {t(`consultantDeliverable.status.${item.status}`, { defaultValue: item.status.replace(/_/g, ' ') })}
+                    {item.due_date ? ` • ${t('consultantDeliverable.dueLabel', { defaultValue: 'due {{date}}', date: String(item.due_date).slice(0, 10) })}` : ''}
+                    {item.accepted_at ? ` • ${t('consultantDeliverable.acceptedOn', { defaultValue: 'accepted {{date}}', date: new Date(item.accepted_at).toLocaleDateString() })}` : ''}
+                  </p>
+                  {item.description && <p className="csd-deliverable-text">{item.description}</p>}
+                  {item.draft_note && (
+                    <p className="csd-deliverable-text">
+                      {t('consultantDeliverable.draftNote', { defaultValue: 'Draft note: {{note}}', note: item.draft_note })}
+                    </p>
+                  )}
+                  {(item.documents || []).length > 0 && (
+                    <ul className="csd-deliverable-docs">
+                      {item.documents.map((doc) => (
+                        <li key={doc.id}>{doc.originalName} • {doc.visibility}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {item.feedback_count > 0 && (
+                    <p className="csd-deliverable-meta">
+                      {t('consultantDeliverable.feedbackCount', { defaultValue: '{{count}} feedback notes', count: item.feedback_count })}
+                    </p>
+                  )}
+                </div>
+              ))
+            )}
           </div>
 
           <div style={sectionStyle}>

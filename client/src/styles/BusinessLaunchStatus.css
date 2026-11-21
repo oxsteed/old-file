@@ -317,3 +317,179 @@
   font-size: 0.88rem;
   line-height: 1.6;
 }
+
+.bl-milestone {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 22px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.bl-milestone__title {
+  margin: 0 0 0.9rem;
+  color: var(--muted-text);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.bl-milestone__note {
+  margin: 0;
+  color: var(--muted-text);
+  line-height: 1.6;
+}
+
+.bl-milestone__stack {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.bl-milestone__error {
+  margin: 0;
+  color: #fca5a5;
+}
+
+.bl-milestone__notice {
+  margin: 0;
+  color: #6ee7b7;
+}
+
+.bl-milestone__card {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.bl-milestone__card-title {
+  color: var(--app-text);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.bl-milestone__card-meta {
+  margin-top: 0.25rem;
+  color: var(--muted-text);
+  font-size: 0.85rem;
+}
+
+.bl-milestone__draft {
+  margin: 0.8rem 0 0;
+  color: var(--app-text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.bl-milestone__list {
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.bl-milestone__doc-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--app-text);
+  font-size: 0.88rem;
+}
+
+.bl-milestone__doc-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bl-milestone__doc-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: #a5b4fc;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bl-milestone__upload {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.8rem;
+  color: var(--muted-text);
+  font-size: 0.8rem;
+}
+
+.bl-milestone__select {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 0.45rem;
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+.bl-milestone__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.bl-milestone__btn-accept {
+  border: none;
+  border-radius: 16px;
+  padding: 0.8rem 1.1rem;
+  background: #059669;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bl-milestone__btn-accept:disabled {
+  cursor: wait;
+}
+
+.bl-milestone__feedback-form {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.bl-milestone__feedback-label {
+  color: var(--muted-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.bl-milestone__feedback-text {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 14px;
+  padding: 0.7rem 0.85rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--app-text);
+  font-size: 0.95rem;
+}
+
+.bl-milestone__btn-feedback {
+  border: none;
+  border-radius: 14px;
+  padding: 0.7rem 1rem;
+  background: #059669;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bl-milestone__btn-feedback:disabled {
+  cursor: wait;
+}
+
+.bl-milestone__accepted {
+  margin-top: 1rem;
+  color: #6ee7b7;
+  font-size: 0.9rem;
+  font-weight: 700;
+}

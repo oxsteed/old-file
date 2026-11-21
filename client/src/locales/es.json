@@ -25344,7 +25344,12 @@
       "no_show": "No asistió",
       "cancelled": "Cancelada"
     }
-  }
+  },
+    "engagements": {
+      "label": "Compromisos",
+      "title": "Tablero de hitos",
+      "description": "Trabajo en curso con tus clientes: hitos, borradores y documentos."
+    }
   },
   "consultantProposal": {
     "title": "Propuesta de trabajo",
@@ -25421,6 +25426,72 @@
     "rejectReasonRequired": "Dile al consultor qu\u00e9 cambiar (al menos 10 caracteres).",
     "decisionReason": "Nota de decisi\u00f3n: {{reason}}",
     "adminEmpty": "A\u00fan no hay propuesta para esta solicitud."
+  },
+  "consultantDeliverable": {
+    "title": "Tablero de hitos",
+    "empty": "Aún no hay compromisos iniciados. Inicia un compromiso desde una propuesta aprobada y sus hitos aparecerán aquí.",
+    "noMilestones": "Aún no hay hitos en este compromiso.",
+    "acceptedCount": "{{accepted}} de {{total}} hitos aceptados",
+    "sessionStatus": {
+      "pending": "pendiente",
+      "contacted": "contactado",
+      "scheduled": "programado",
+      "in_progress": "en curso",
+      "completed": "completado",
+      "cancelled": "cancelado",
+      "no_show": "ausente",
+      "archived": "archivado"
+    },
+    "status": {
+      "pending": "pendiente",
+      "in_progress": "en curso",
+      "draft_delivered": "borrador entregado",
+      "completed": "completado",
+      "accepted": "aceptado",
+      "overdue": "vencido"
+    },
+    "dueLabel": "vence el {{date}}",
+    "draftNote": "Nota del borrador: {{note}}",
+    "draftNotePlaceholder": "Nota del borrador para el cliente…",
+    "feedbackCount": "{{count}} notas de comentarios",
+    "latestRating": "última calificación {{rating}}/5",
+    "download": "Descargar",
+    "attachDocument": "Adjuntar un documento",
+    "visibility": "Quién puede ver el documento",
+    "visibilityShared": "Compartido con el cliente",
+    "visibilityConsultantOnly": "Solo el consultor",
+    "visibilityClientOnly": "Solo yo",
+    "startWork": "Comenzar el trabajo",
+    "deliverDraft": "Entregar borrador",
+    "markComplete": "Marcar como completo",
+    "revise": "Volver a en curso",
+    "accepted": "Aceptado por el cliente",
+    "acceptedNotice": "Hito aceptado. Gracias.",
+    "acceptError": "No se pudo aceptar el hito.",
+    "acceptedOn": "aceptado el {{date}}",
+    "moved": "Hito actualizado.",
+    "draftDelivered": "Borrador entregado al cliente.",
+    "documentUploaded": "Documento adjuntado.",
+    "uploadError": "No se pudo adjuntar el documento.",
+    "downloadError": "No se pudo preparar la descarga.",
+    "loadError": "No se pudo cargar el tablero de hitos.",
+    "notStarted": "El compromiso está acordado. Tu consultor lo iniciará y los hitos aparecerán aquí.",
+    "accept": "Aceptar hito",
+    "feedbackLabel": "¿Cómo estuvo este hito?",
+    "ratingOption": "{{rating}} de 5",
+    "feedbackPlaceholder": "Cuéntale a tu consultor qué funcionó y qué podría mejorar.",
+    "sendFeedback": "Enviar comentarios",
+    "feedbackSent": "Comentarios enviados. Gracias.",
+    "feedbackError": "No se pudieron enviar los comentarios.",
+    "feedbackGiven": "Comentarios enviados para este hito.",
+    "startTitle": "Iniciar el compromiso",
+    "startDescription": "Crea la sesión de trabajo y carga el tablero de hitos desde la propuesta aprobada.",
+    "startError": "No se pudo iniciar el compromiso.",
+    "started": "Compromiso iniciado. Los hitos están en tu tablero abajo.",
+    "starting": "Iniciando…",
+    "startButton": "Iniciar compromiso",
+    "overdue": "vencido",
+    "adminEmpty": "Aún no hay hitos en este compromiso."
   },
   "learn": {
     "page": {

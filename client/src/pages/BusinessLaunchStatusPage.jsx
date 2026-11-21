@@ -21,6 +21,7 @@ import {
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
+import { deliverablesApi } from '../api/consultantDeliverables';
 import '../styles/BusinessLaunchStatus.css';
 
 const STATUS_PROGRESS = {
@@ -606,6 +607,259 @@ function ProposalReview({ requestId }) {
   );
 }
 
+// Group 10 Slice E (526-530): the client's milestone board. Loads the
+// engagement session behind an engaged referral, shows each milestone
+// with its documents, lets the client accept a delivered milestone and
+// leave feedback on it, and exchange documents both ways.
+function MilestoneBoard({ request }) {
+  const { t } = useTranslation();
+  const [session, setSession] = useState(null);
+  const [deliverables, setDeliverables] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [notStarted, setNotStarted] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState('');
+  const [feedback, setFeedback] = useState({});
+  const [feedbackSent, setFeedbackSent] = useState({});
+  const [uploadVisibility, setUploadVisibility] = useState({});
+  const [uploadBusy, setUploadBusy] = useState('');
+
+  const engaged = request.consultant_assignment_status === 'engaged';
+
+  const load = useCallback(async () => {
+    if (!engaged) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError('');
+      const { data } = await deliverablesApi.getEngagementSession(request.id);
+      setSession(data.session || null);
+      setDeliverables(Array.isArray(data.deliverables) ? data.deliverables : []);
+      setNotStarted(false);
+    } catch (err) {
+      if (err.response?.data?.code === 'session_not_started') {
+        setNotStarted(true);
+      } else {
+        setError(err.response?.data?.error || t('consultantDeliverable.loadError', { defaultValue: 'Could not load the milestone board.' }));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [engaged, request.id, t]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (!engaged) return null;
+
+  const isOverdue = (item) => {
+    if (!item.due_date || !['pending', 'in_progress'].includes(item.status)) return false;
+    return String(item.due_date).slice(0, 10) < new Date().toISOString().slice(0, 10);
+  };
+
+  const accept = async (item) => {
+    if (!session) return;
+    try {
+      setBusy(`accept-${item.id}`);
+      setError('');
+      setNotice('');
+      await deliverablesApi.acceptDeliverable(session.id, item.id);
+      setNotice(t('consultantDeliverable.acceptedNotice', { defaultValue: 'Milestone accepted. Thank you.' }));
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantDeliverable.acceptError', { defaultValue: 'Could not accept the milestone.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const sendFeedback = async (item) => {
+    if (!session) return;
+    const form = feedback[item.id] || {};
+    const rating = Number(form.rating || 5);
+    try {
+      setBusy(`feedback-${item.id}`);
+      setError('');
+      await deliverablesApi.submitFeedback(session.id, {
+        rating, feedback_text: (form.text || '').trim(), deliverable_id: item.id,
+      });
+      setFeedbackSent((prev) => ({ ...prev, [item.id]: true }));
+      setNotice(t('consultantDeliverable.feedbackSent', { defaultValue: 'Feedback sent. Thank you.' }));
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantDeliverable.feedbackError', { defaultValue: 'Could not send feedback.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const uploadDocument = async (event, item) => {
+    const file = event.target.files?.[0];
+    if (!file || !session) return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('visibility', uploadVisibility[item.id] || 'shared');
+    try {
+      setUploadBusy(`upload-${item.id}`);
+      setError('');
+      await deliverablesApi.attachClientDocument(session.id, item.id, form);
+      setNotice(t('consultantDeliverable.documentUploaded', { defaultValue: 'Document attached.' }));
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantDeliverable.uploadError', { defaultValue: 'Could not attach the document.' }));
+    } finally {
+      setUploadBusy('');
+      event.target.value = '';
+    }
+  };
+
+  const downloadDocument = async (doc) => {
+    try {
+      const { data } = await deliverablesApi.downloadClientDocument(doc.id);
+      if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch {
+      setError(t('consultantDeliverable.downloadError', { defaultValue: 'Could not prepare the download.' }));
+    }
+  };
+
+  const feedbackOpen = (item) => ['draft_delivered', 'completed', 'accepted'].includes(item.status);
+  const acceptOpen = (item) => ['draft_delivered', 'completed'].includes(item.status);
+
+  return (
+    <section className="bl-milestone">
+      <h3 className="bl-milestone__title">
+        {t('consultantDeliverable.title', { defaultValue: 'Milestone board' })}
+      </h3>
+      {loading ? (
+        <p className="bl-milestone__note">{t('common.loading', { defaultValue: 'Loading…' })}</p>
+      ) : notStarted ? (
+        <p className="bl-milestone__note">
+          {t('consultantDeliverable.notStarted', { defaultValue: 'The engagement is agreed. Your consultant will start it and the milestones will appear here.' })}
+        </p>
+      ) : (
+        <div className="bl-milestone__stack">
+          {error && <p role="alert" className="bl-milestone__error">{error}</p>}
+          {notice && <p role="status" className="bl-milestone__notice">{notice}</p>}
+          {!deliverables.length && (
+            <p className="bl-milestone__note">
+              {t('consultantDeliverable.noMilestones', { defaultValue: 'No milestones on this engagement yet.' })}
+            </p>
+          )}
+          {deliverables.map((item) => {
+            const form = feedback[item.id] || {};
+            return (
+              <div key={item.id} className="bl-milestone__card">
+                <div className="bl-milestone__card-title">{item.name}</div>
+                <div className="bl-milestone__card-meta">
+                  {t(`consultantProposal.deliverableTypes.${item.deliverable_type}`, { defaultValue: (item.deliverable_type || 'other').replace(/_/g, ' ') })}
+                  {' • '}
+                  {t('consultantDeliverable.dueLabel', { defaultValue: 'due {{date}}', date: item.due_date ? String(item.due_date).slice(0, 10) : '-' })}
+                  {' • '}
+                  {isOverdue(item)
+                    ? t('consultantDeliverable.overdue', { defaultValue: 'overdue' })
+                    : t(`consultantDeliverable.status.${item.status}`, { defaultValue: item.status.replace(/_/g, ' ') })}
+                </div>
+                {item.description && <p className="bl-milestone__draft">{item.description}</p>}
+                {item.draft_note && (
+                  <p className="bl-milestone__draft">
+                    {t('consultantDeliverable.draftNote', { defaultValue: 'Draft note: {{note}}', note: item.draft_note })}
+                  </p>
+                )}
+                {(item.documents || []).length > 0 && (
+                  <ul className="bl-milestone__list">
+                    {item.documents.map((doc) => (
+                      <li key={doc.id} className="bl-milestone__doc-row">
+                        <span className="bl-milestone__doc-name">{doc.originalName}</span>
+                        <button type="button" onClick={() => downloadDocument(doc)} className="bl-milestone__doc-button" data-track="ui.478f2e3593.16">
+                          {t('consultantDeliverable.download', { defaultValue: 'Download' })}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <label className="bl-milestone__upload">
+                  <span>{t('consultantDeliverable.attachDocument', { defaultValue: 'Attach a document' })}</span>
+                  <select
+                    value={uploadVisibility[item.id] || 'shared'}
+                    onChange={(event) => setUploadVisibility((prev) => ({ ...prev, [item.id]: event.target.value }))}
+                    disabled={uploadBusy === `upload-${item.id}`}
+                    className="bl-milestone__select"
+                  >
+                    <option value="shared">{t('consultantDeliverable.visibilityShared', { defaultValue: 'Shared with consultant' })}</option>
+                    <option value="client_only">{t('consultantDeliverable.visibilityClientOnly', { defaultValue: 'Only me' })}</option>
+                  </select>
+                  <input type="file" onChange={(event) => uploadDocument(event, item)} disabled={uploadBusy === `upload-${item.id}`} accept="image/*,application/pdf,.doc,.docx" />
+                </label>
+                <div className="bl-milestone__actions">
+                  {acceptOpen(item) && (
+                    <button
+                      type="button"
+                      onClick={() => accept(item)}
+                      disabled={busy === `accept-${item.id}`}
+                      className="bl-milestone__btn-accept" data-track="ui.478f2e3593.14"
+                    >
+                      {t('consultantDeliverable.accept', { defaultValue: 'Accept milestone' })}
+                    </button>
+                  )}
+                  {item.status === 'accepted' && (
+                    <p className="bl-milestone__accepted">
+                      {t('consultantDeliverable.accepted', { defaultValue: 'Accepted by you' })}
+                      {item.accepted_at ? ` • ${new Date(item.accepted_at).toLocaleDateString()}` : ''}
+                    </p>
+                  )}
+                </div>
+                {feedbackOpen(item) && !feedbackSent[item.id] && item.feedback_count === 0 && (
+                  <div className="bl-milestone__feedback-form">
+                    <label className="bl-milestone__feedback-label" htmlFor={`feedback-rating-${item.id}`}>
+                      {t('consultantDeliverable.feedbackLabel', { defaultValue: 'How was this milestone?' })}
+                    </label>
+                    <select
+                      id={`feedback-rating-${item.id}`}
+                      value={form.rating || '5'}
+                      onChange={(event) => setFeedback((prev) => ({ ...prev, [item.id]: { ...form, rating: event.target.value } }))}
+                      className="bl-milestone__select"
+                    >
+                      {[5, 4, 3, 2, 1].map((value) => (
+                        <option key={value} value={value}>
+                          {t('consultantDeliverable.ratingOption', { defaultValue: '{{rating}} out of 5', rating: value })}
+                        </option>
+                      ))}
+                    </select>
+                    <textarea
+                      value={form.text || ''}
+                      onChange={(event) => setFeedback((prev) => ({ ...prev, [item.id]: { ...form, text: event.target.value } }))}
+                      rows={3}
+                      className="bl-milestone__feedback-text"
+                      placeholder={t('consultantDeliverable.feedbackPlaceholder', { defaultValue: 'Tell your consultant what worked and what could be better.' })}
+                    />
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => sendFeedback(item)}
+                        disabled={busy === `feedback-${item.id}`}
+                        className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.15"
+                      >
+                        {t('consultantDeliverable.sendFeedback', { defaultValue: 'Send feedback' })}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {item.feedback_count > 0 && (
+                  <p className="bl-milestone__card-meta">
+                    {t('consultantDeliverable.feedbackGiven', { defaultValue: 'Feedback sent for this milestone.' })}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function DetailModal({ request, onClose }) {
   const { t } = useTranslation();
   const items = safeItems(request.setup_items_selected);
@@ -818,6 +1072,7 @@ function DetailModal({ request, onClose }) {
               </div>
             </section>
             <ProposalReview requestId={request.id} />
+            <MilestoneBoard request={request} />
             <section
               style={{
                 border: '1px solid rgba(148,163,184,0.14)',

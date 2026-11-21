@@ -6,6 +6,9 @@ const controller = require('../controllers/consultantNetworkController');
 const screeningController = require('../controllers/consultantScreeningController');
 const schedulingController = require('../controllers/consultantSchedulingController');
 const proposalController = require('../controllers/consultantProposalController');
+const deliverableController = require('../controllers/consultantDeliverableController');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 
 router.get('/profile', authenticate, controller.getMyConsultantProfile);
 router.put('/profile', authenticate, controller.upsertMyConsultantProfile);
@@ -40,6 +43,18 @@ router.get('/referrals/:requestId/proposals/:proposalId', authenticate, proposal
 router.put('/referrals/:requestId/proposals/:proposalId', authenticate, proposalController.updateProposal);
 router.post('/referrals/:requestId/proposals/:proposalId/send', authenticate, proposalController.sendProposal);
 router.post('/referrals/:requestId/proposals/:proposalId/withdraw', authenticate, proposalController.withdrawProposal);
+// Group 10 Slice E (526-530): deliver work. The milestone board runs on
+// consulting_deliverables: start-engagement seeds it from the approved
+// proposal, the consultant moves milestones and delivers drafts, and
+// documents exchange on a milestone with visibility + signed URLs.
+router.post('/referrals/:requestId/start-engagement', authenticate, deliverableController.startEngagement);
+router.get('/engagements', authenticate, deliverableController.listMyEngagements);
+router.get('/sessions/:sessionId/deliverables', authenticate, deliverableController.listDeliverables);
+router.patch('/sessions/:sessionId/deliverables/:deliverableId/status', authenticate, deliverableController.updateDeliverableStatus);
+router.post('/sessions/:sessionId/deliverables/:deliverableId/deliver-draft', authenticate, deliverableController.deliverDraft);
+router.post('/sessions/:sessionId/deliverables/:deliverableId/documents', authenticate, upload.single('file'), validateFileUpload, deliverableController.attachDocument);
+router.get('/sessions/:sessionId/deliverables/:deliverableId/documents', authenticate, deliverableController.listDocuments);
+router.get('/documents/:documentId/download', authenticate, deliverableController.downloadDocument);
 
 // Public specialty profile (506). No auth: only approved, active profiles
 // are ever returned; anything else 404s.

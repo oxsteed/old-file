@@ -25344,7 +25344,12 @@
       "no_show": "Absent",
       "cancelled": "Annulé"
     }
-  }
+  },
+    "engagements": {
+      "label": "Missions",
+      "title": "Tableau des jalons",
+      "description": "Travail en cours avec vos clients : jalons, brouillons et documents."
+    }
   },
   "consultantProposal": {
     "title": "Proposition de mission",
@@ -25421,6 +25426,72 @@
     "rejectReasonRequired": "Dites au consultant ce qu'il faut changer (au moins 10 caract\u00e8res).",
     "decisionReason": "Note de d\u00e9cision : {{reason}}",
     "adminEmpty": "Aucune proposition pour cette demande."
+  },
+  "consultantDeliverable": {
+    "title": "Tableau des jalons",
+    "empty": "Aucune mission démarrée pour l'instant. Démarrez une mission depuis une proposition approuvée et ses jalons apparaîtront ici.",
+    "noMilestones": "Aucun jalon pour cette mission pour l’instant.",
+    "acceptedCount": "{{accepted}} jalons acceptés sur {{total}}",
+    "sessionStatus": {
+      "pending": "en attente",
+      "contacted": "contacté",
+      "scheduled": "planifié",
+      "in_progress": "en cours",
+      "completed": "terminé",
+      "cancelled": "annulé",
+      "no_show": "absent",
+      "archived": "archivé"
+    },
+    "status": {
+      "pending": "en attente",
+      "in_progress": "en cours",
+      "draft_delivered": "brouillon livré",
+      "completed": "terminé",
+      "accepted": "accepté",
+      "overdue": "en retard"
+    },
+    "dueLabel": "pour le {{date}}",
+    "draftNote": "Note du brouillon : {{note}}",
+    "draftNotePlaceholder": "Note du brouillon pour le client…",
+    "feedbackCount": "{{count}} retours",
+    "latestRating": "dernière note {{rating}}/5",
+    "download": "Télécharger",
+    "attachDocument": "Joindre un document",
+    "visibility": "Qui peut voir le document",
+    "visibilityShared": "Partagé avec le client",
+    "visibilityConsultantOnly": "Consultant uniquement",
+    "visibilityClientOnly": "Moi uniquement",
+    "startWork": "Commencer le travail",
+    "deliverDraft": "Livrer le brouillon",
+    "markComplete": "Marquer comme terminé",
+    "revise": "Reprendre le travail",
+    "accepted": "Accepté par le client",
+    "acceptedNotice": "Jalon accepté. Merci.",
+    "acceptError": "Impossible d'accepter le jalon.",
+    "acceptedOn": "accepté le {{date}}",
+    "moved": "Jalon mis à jour.",
+    "draftDelivered": "Brouillon livré au client.",
+    "documentUploaded": "Document joint.",
+    "uploadError": "Impossible de joindre le document.",
+    "downloadError": "Impossible de préparer le téléchargement.",
+    "loadError": "Impossible de charger le tableau des jalons.",
+    "notStarted": "La mission est convenue. Votre consultant la démarrera et les jalons apparaîtront ici.",
+    "accept": "Accepter le jalon",
+    "feedbackLabel": "Comment s'est passé ce jalon ?",
+    "ratingOption": "{{rating}} sur 5",
+    "feedbackPlaceholder": "Dites à votre consultant ce qui a bien fonctionné et ce qui pourrait être amélioré.",
+    "sendFeedback": "Envoyer le retour",
+    "feedbackSent": "Retour envoyé. Merci.",
+    "feedbackError": "Impossible d'envoyer le retour.",
+    "feedbackGiven": "Retour envoyé pour ce jalon.",
+    "startTitle": "Démarrer la mission",
+    "startDescription": "Crée la session de travail et charge le tableau des jalons depuis la proposition approuvée.",
+    "startError": "Impossible de démarrer la mission.",
+    "started": "Mission démarrée. Les jalons sont sur votre tableau ci-dessous.",
+    "starting": "Démarrage…",
+    "startButton": "Démarrer la mission",
+    "overdue": "en retard",
+    "adminEmpty": "Aucun jalon pour cette mission pour l’instant."
   },
   "learn": {
     "page": {

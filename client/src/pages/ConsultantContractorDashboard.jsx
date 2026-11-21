@@ -6,6 +6,7 @@ import {
   Building2,
   CalendarClock,
   CheckCircle2,
+  ClipboardList,
   Globe2,
   Loader2,
   MapPinned,
@@ -22,6 +23,8 @@ import { useTranslation } from 'react-i18next';
 import { formatCents, formatNumber } from '../lib/format';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import ConsultantSessionsSection from '../components/ConsultantSessionsSection';
+import ConsultantEngagementsSection from '../components/ConsultantEngagementsSection';
+import { deliverablesApi } from '../api/consultantDeliverables';
 
 const STATUS_OPTIONS = [
   ['assigned', 'consultantContractorDashboard.referralStatus.assigned', 'Assigned'],
@@ -1010,6 +1013,57 @@ function ReferralProposal({ referralId, tx, onProposalChanged }) {
   );
 }
 
+// Group 10 Slice E (526-530): start the engagement from an engaged
+// referral. The approved proposal seeds the milestone board; a second
+// start 409s with session_exists and the card shows the started state.
+function EngagementStart({ referral, tx, onProposalChanged }) {
+  const [starting, setStarting] = useState(false);
+  const [started, setStarted] = useState(false);
+  const [error, setError] = useState('');
+  if (referral.consultant_assignment_status !== 'engaged') return null;
+  const start = async () => {
+    try {
+      setStarting(true);
+      setError('');
+      await deliverablesApi.startEngagement(referral.id);
+      setStarted(true);
+      if (onProposalChanged) await onProposalChanged();
+    } catch (err) {
+      if (err.response?.data?.code === 'session_exists') {
+        setStarted(true);
+      } else {
+        setError(err.response?.data?.error || tx('consultantDeliverable.startError', 'Could not start the engagement.'));
+      }
+    } finally {
+      setStarting(false);
+    }
+  };
+  return (
+    <div className="mt-5 rounded-2xl border border-gray-800 bg-[#111318] p-4">
+      <h4 className="text-sm font-semibold text-white">{tx('consultantDeliverable.startTitle', 'Start the engagement')}</h4>
+      <p className="mt-1 text-xs leading-5 text-gray-400">
+        {tx('consultantDeliverable.startDescription', 'Creates the working session and seeds the milestone board from the approved proposal.')}
+      </p>
+      {error && <p role="alert" className="mt-2 text-xs text-red-300">{error}</p>}
+      {started ? (
+        <p className="mt-3 text-sm font-semibold text-emerald-300">{tx('consultantDeliverable.started', 'Engagement started. The milestones are on your board below.')}</p>
+      ) : (
+        <button
+          type="button"
+          onClick={start}
+          disabled={starting}
+          className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+          data-track="ui.c62ffb2364.36"
+        >
+          {starting
+            ? tx('consultantDeliverable.starting', 'Starting…')
+            : tx('consultantDeliverable.startButton', 'Start engagement')}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId, onProposalChanged }) {
   const [draft, setDraft] = useState({
     consultant_assignment_status: referral.consultant_assignment_status || 'assigned',
@@ -1174,6 +1228,7 @@ function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId, o
       <ReferralAttachments referral={referral} userId={userId} tx={tx} />
       <ReferralScreening referralId={referral.id} tx={tx} />
       <ReferralProposal referralId={referral.id} tx={tx} onProposalChanged={onProposalChanged} />
+      <EngagementStart referral={referral} tx={tx} onProposalChanged={onProposalChanged} />
     </article>
   );
 }
@@ -1585,6 +1640,23 @@ export default function ConsultantContractorDashboard() {
             </div>
             <p className="mb-4 text-sm leading-6 text-gray-400">{t('consultantContractorDashboard.sessions.description')}</p>
             <ConsultantSessionsSection />
+          </section>
+
+          {/* Group 10 Slice E (526-530): the milestone board. Engagements
+              started from approved proposals, with deliverable status,
+              draft delivery, and document exchange. */}
+          <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/80">
+                <ClipboardList className="h-5 w-5 text-gray-300" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('consultantContractorDashboard.engagements.label')}</p>
+                <h2 className="text-2xl font-semibold text-white">{t('consultantContractorDashboard.engagements.title')}</h2>
+              </div>
+            </div>
+            <p className="mb-4 text-sm leading-6 text-gray-400">{t('consultantContractorDashboard.engagements.description')}</p>
+            <ConsultantEngagementsSection />
           </section>
 
           {/* Group 10 item 509: portfolio manager. */}

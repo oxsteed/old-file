@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminConsultingController = require('../controllers/adminConsultingController');
+const deliverableController = require('../controllers/consultantDeliverableController');
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 
@@ -41,6 +42,8 @@ router.get('/sessions/:id', ...auth, adminConsultingController.getSessionDetail)
 router.patch('/sessions/:id', ...writeAuth, adminConsultingController.updateSessionDetails);
 router.patch('/sessions/:sessionId/complete', ...writeAuth, adminConsultingController.completeSession);
 router.patch('/sessions/:sessionId/no-show', ...writeAuth, adminConsultingController.markNoShow);
+// Group 10 Slice E (526-530): admin read of the milestone board.
+router.get('/sessions/:sessionId/deliverables', ...auth, deliverableController.listDeliverables);
 router.post('/sessions/:id/send-reminder', ...writeAuth, adminConsultingController.sendSessionReminder);
 router.post('/sessions/:id/send-followup', ...writeAuth, adminConsultingController.sendSessionFollowUp);
 router.post('/sessions/:id/send-invite', ...writeAuth, adminConsultingController.sendSessionReminder);

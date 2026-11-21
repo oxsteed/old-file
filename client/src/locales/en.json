@@ -25344,7 +25344,12 @@
       "no_show": "No-show",
       "cancelled": "Cancelled"
     }
-  }
+  },
+    "engagements": {
+      "label": "Engagements",
+      "title": "Milestone board",
+      "description": "Work in progress with your clients: milestones, drafts, and documents."
+    }
   },
   "consultantProposal": {
     "title": "Engagement proposal",
@@ -25421,6 +25426,72 @@
     "rejectReasonRequired": "Tell the consultant what to change (at least 10 characters).",
     "decisionReason": "Decision note: {{reason}}",
     "adminEmpty": "No proposal yet for this request."
+  },
+  "consultantDeliverable": {
+    "title": "Milestone board",
+    "empty": "No engagements started yet. Start an engagement from an approved proposal and its milestones will appear here.",
+    "noMilestones": "No milestones on this engagement yet.",
+    "acceptedCount": "{{accepted}} of {{total}} milestones accepted",
+    "sessionStatus": {
+      "pending": "pending",
+      "contacted": "contacted",
+      "scheduled": "scheduled",
+      "in_progress": "in progress",
+      "completed": "completed",
+      "cancelled": "cancelled",
+      "no_show": "no show",
+      "archived": "archived"
+    },
+    "status": {
+      "pending": "pending",
+      "in_progress": "in progress",
+      "draft_delivered": "draft delivered",
+      "completed": "completed",
+      "accepted": "accepted",
+      "overdue": "overdue"
+    },
+    "dueLabel": "due {{date}}",
+    "draftNote": "Draft note: {{note}}",
+    "draftNotePlaceholder": "Draft note for the client…",
+    "feedbackCount": "{{count}} feedback notes",
+    "latestRating": "latest rating {{rating}}/5",
+    "download": "Download",
+    "attachDocument": "Attach a document",
+    "visibility": "Who can see the document",
+    "visibilityShared": "Shared with client",
+    "visibilityConsultantOnly": "Consultant only",
+    "visibilityClientOnly": "Only me",
+    "startWork": "Start work",
+    "deliverDraft": "Deliver draft",
+    "markComplete": "Mark complete",
+    "revise": "Back to in progress",
+    "accepted": "Accepted by the client",
+    "acceptedNotice": "Milestone accepted. Thank you.",
+    "acceptError": "Could not accept the milestone.",
+    "acceptedOn": "accepted {{date}}",
+    "moved": "Milestone updated.",
+    "draftDelivered": "Draft delivered to the client.",
+    "documentUploaded": "Document attached.",
+    "uploadError": "Could not attach the document.",
+    "downloadError": "Could not prepare the download.",
+    "loadError": "Could not load the milestone board.",
+    "notStarted": "The engagement is agreed. Your consultant will start it and the milestones will appear here.",
+    "accept": "Accept milestone",
+    "feedbackLabel": "How was this milestone?",
+    "ratingOption": "{{rating}} out of 5",
+    "feedbackPlaceholder": "Tell your consultant what worked and what could be better.",
+    "sendFeedback": "Send feedback",
+    "feedbackSent": "Feedback sent. Thank you.",
+    "feedbackError": "Could not send feedback.",
+    "feedbackGiven": "Feedback sent for this milestone.",
+    "startTitle": "Start the engagement",
+    "startDescription": "Creates the working session and seeds the milestone board from the approved proposal.",
+    "startError": "Could not start the engagement.",
+    "started": "Engagement started. The milestones are on your board below.",
+    "starting": "Starting…",
+    "startButton": "Start engagement",
+    "overdue": "overdue",
+    "adminEmpty": "No milestones on this engagement yet."
   },
   "learn": {
     "page": {

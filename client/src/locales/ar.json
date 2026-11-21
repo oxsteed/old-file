@@ -25355,7 +25355,12 @@
       "no_show": "لم يحضر",
       "cancelled": "ملغى"
     }
-  }
+  },
+    "engagements": {
+      "label": "المهام",
+      "title": "لوحة المراحل",
+      "description": "العمل الجاري مع عملائك: المراحل والمسودات والمستندات."
+    }
   },
   "consultantProposal": {
     "title": "\u0639\u0631\u0636 \u0627\u0644\u0639\u0645\u0644",
@@ -25432,6 +25437,72 @@
     "rejectReasonRequired": "\u0623\u062e\u0628\u0631 \u0627\u0644\u0645\u0633\u062a\u0634\u0627\u0631 \u0628\u0645\u0627 \u064a\u062c\u0628 \u062a\u063a\u064a\u064a\u0631\u0647 (10 \u0623\u062d\u0631\u0641 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644).",
     "decisionReason": "\u0645\u0644\u0627\u062d\u0638\u0629 \u0627\u0644\u0642\u0631\u0627\u0631: {{reason}}",
     "adminEmpty": "\u0644\u0627 \u0639\u0631\u0636 \u0628\u0639\u062f \u0644\u0647\u0630\u0627 \u0627\u0644\u0637\u0644\u0628."
+  },
+  "consultantDeliverable": {
+    "title": "لوحة المراحل",
+    "empty": "لا توجد مهام بدأت بعد. ابدأ مهمة من عرض معتمد وستظهر مراحلها هنا.",
+    "noMilestones": "لا توجد مراحل في هذه المهمة بعد.",
+    "acceptedCount": "تم قبول {{accepted}} من أصل {{total}} مراحل",
+    "sessionStatus": {
+      "pending": "قيد الانتظار",
+      "contacted": "تم التواصل",
+      "scheduled": "مجدولة",
+      "in_progress": "قيد التنفيذ",
+      "completed": "مكتملة",
+      "cancelled": "ملغاة",
+      "no_show": "لم يحضر",
+      "archived": "مؤرشفة"
+    },
+    "status": {
+      "pending": "قيد الانتظار",
+      "in_progress": "قيد التنفيذ",
+      "draft_delivered": "تم تسليم المسودة",
+      "completed": "مكتملة",
+      "accepted": "مقبولة",
+      "overdue": "متأخرة"
+    },
+    "dueLabel": "بحلول {{date}}",
+    "draftNote": "ملاحظة المسودة: {{note}}",
+    "draftNotePlaceholder": "ملاحظة المسودة للعميل…",
+    "feedbackCount": "{{count}} ملاحظات",
+    "latestRating": "آخر تقييم {{rating}}/5",
+    "download": "تنزيل",
+    "attachDocument": "إرفاق مستند",
+    "visibility": "من يمكنه رؤية المستند",
+    "visibilityShared": "مشترك مع العميل",
+    "visibilityConsultantOnly": "المستشار فقط",
+    "visibilityClientOnly": "أنا فقط",
+    "startWork": "بدء العمل",
+    "deliverDraft": "تسليم المسودة",
+    "markComplete": "وضع علامة مكتمل",
+    "revise": "العودة إلى قيد التنفيذ",
+    "accepted": "قبلها العميل",
+    "acceptedNotice": "تم قبول المرحلة. شكرًا.",
+    "acceptError": "تعذّر قبول المرحلة.",
+    "acceptedOn": "قُبلت في {{date}}",
+    "moved": "تم تحديث المرحلة.",
+    "draftDelivered": "تم تسليم المسودة إلى العميل.",
+    "documentUploaded": "تم إرفاق المستند.",
+    "uploadError": "تعذّر إرفاق المستند.",
+    "downloadError": "تعذّر تجهيز التنزيل.",
+    "loadError": "تعذّر تحميل لوحة المراحل.",
+    "notStarted": "تم الاتفاق على المهمة. سيبدأ مستشارك العمل وستظهر المراحل هنا.",
+    "accept": "قبول المرحلة",
+    "feedbackLabel": "كيف كانت هذه المرحلة؟",
+    "ratingOption": "{{rating}} من 5",
+    "feedbackPlaceholder": "أخبر مستشارك بما نجح وما يمكن تحسينه.",
+    "sendFeedback": "إرسال الملاحظات",
+    "feedbackSent": "تم إرسال الملاحظات. شكرًا.",
+    "feedbackError": "تعذّر إرسال الملاحظات.",
+    "feedbackGiven": "تم إرسال الملاحظات لهذه المرحلة.",
+    "startTitle": "بدء المهمة",
+    "startDescription": "ينشئ جلسة العمل ويحمّل لوحة المراحل من العرض المعتمد.",
+    "startError": "تعذّر بدء المهمة.",
+    "started": "بدأت المهمة. المراحل على لوحتك أدناه.",
+    "starting": "جارٍ البدء…",
+    "startButton": "بدء المهمة",
+    "overdue": "متأخرة",
+    "adminEmpty": "لا توجد مراحل في هذه المهمة بعد."
   },
   "learn": {
     "page": {

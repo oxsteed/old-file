@@ -25344,7 +25344,12 @@
       "no_show": "Pa t vini",
       "cancelled": "Anile"
     }
-  }
+  },
+    "engagements": {
+      "label": "Angajman",
+      "title": "Tablo etap yo",
+      "description": "Travay an kou ak kliyan ou yo: etap, bouyon ak dokiman."
+    }
   },
   "consultantProposal": {
     "title": "Pwopozisyon travay",
@@ -25421,6 +25426,72 @@
     "rejectReasonRequired": "Di konsiltan an kisa pou l chanje (omwen 10 karakt\u00e8).",
     "decisionReason": "N\u00f2t desizyon: {{reason}}",
     "adminEmpty": "Pa gen pwopozisyon pou demann sa a."
+  },
+  "consultantDeliverable": {
+    "title": "Tablo etap yo",
+    "empty": "Pa gen okenn angajman ki kòmanse ankò. Kòmanse yon angajman apati yon pwopozisyon ki apwouve epi etap li yo ap parèt isit la.",
+    "noMilestones": "Pa gen okenn etap nan angajman sa a ankò.",
+    "acceptedCount": "{{accepted}} nan {{total}} etap yo aksepte",
+    "sessionStatus": {
+      "pending": "an atant",
+      "contacted": "kontakte",
+      "scheduled": "pwograme",
+      "in_progress": "an kou",
+      "completed": "konplete",
+      "cancelled": "anile",
+      "no_show": "absan",
+      "archived": "achive"
+    },
+    "status": {
+      "pending": "an atant",
+      "in_progress": "an kou",
+      "draft_delivered": "bouyon livre",
+      "completed": "konplete",
+      "accepted": "aksepte",
+      "overdue": "an reta"
+    },
+    "dueLabel": "pou {{date}}",
+    "draftNote": "Nòt bouyon an: {{note}}",
+    "draftNotePlaceholder": "Nòt bouyon pou kliyan an…",
+    "feedbackCount": "{{count}} fidbak",
+    "latestRating": "dènye nòt {{rating}}/5",
+    "download": "Telechaje",
+    "attachDocument": "Tache yon dokiman",
+    "visibility": "Ki moun ki ka wè dokiman an",
+    "visibilityShared": "Pataje ak kliyan an",
+    "visibilityConsultantOnly": "Konsiltan an sèlman",
+    "visibilityClientOnly": "Mwen sèlman",
+    "startWork": "Kòmanse travay la",
+    "deliverDraft": "Livre bouyon an",
+    "markComplete": "Make konplete",
+    "revise": "Retounen an kou",
+    "accepted": "Kliyan an aksepte l",
+    "acceptedNotice": "Etap la aksepte. Mèsi.",
+    "acceptError": "Pa t kapab aksepte etap la.",
+    "acceptedOn": "aksepte {{date}}",
+    "moved": "Etap la mete ajou.",
+    "draftDelivered": "Bouyon an livre bay kliyan an.",
+    "documentUploaded": "Dokiman an tache.",
+    "uploadError": "Pa t kapab tache dokiman an.",
+    "downloadError": "Pa t kapab prepare telechajman an.",
+    "loadError": "Pa t kapab chaje tablo etap yo.",
+    "notStarted": "Angajman an dakò. Konsiltan ou a ap kòmanse l epi etap yo ap parèt isit la.",
+    "accept": "Aksepte etap la",
+    "feedbackLabel": "Kijan etap sa a te ye?",
+    "ratingOption": "{{rating}} sou 5",
+    "feedbackPlaceholder": "Di konsiltan ou sa ki te mache byen ak sa ki ta ka pi bon.",
+    "sendFeedback": "Voye fidbak la",
+    "feedbackSent": "Fidbak la voye. Mèsi.",
+    "feedbackError": "Pa t kapab voye fidbak la.",
+    "feedbackGiven": "Fidbak yo voye pou etap sa a.",
+    "startTitle": "Kòmanse angajman an",
+    "startDescription": "Li kreye sesyon travay la epi li chaje tablo etap yo apati pwopozisyon ki apwouve a.",
+    "startError": "Pa t kapab kòmanse angajman an.",
+    "started": "Angajman an kòmanse. Etap yo sou tablo ou a anba a.",
+    "starting": "Ap kòmanse…",
+    "startButton": "Kòmanse angajman an",
+    "overdue": "an reta",
+    "adminEmpty": "Pa gen okenn etap nan angajman sa a ankò."
   },
   "learn": {
     "page": {

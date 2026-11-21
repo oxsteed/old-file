@@ -26,6 +26,7 @@ const {
   getMessageTemplates,
 } = require('../controllers/businessLaunchNotesController');
 const proposalController = require('../controllers/consultantProposalController');
+const deliverableController = require('../controllers/consultantDeliverableController');
 
 // Public route: Submit a new Business Launch request
 router.post(
@@ -120,6 +121,47 @@ router.post(
   '/requests/:id/proposals/:proposalId/reject',
   authenticate,
   proposalController.rejectProposal
+);
+
+// Group 10 Slice E (526-530): deliver work. The client reads the
+// milestone board for their engagement session, exchanges documents on
+// a milestone, leaves feedback, and accepts milestones.
+router.get(
+  '/requests/:id/session',
+  authenticate,
+  deliverableController.getEngagementSession
+);
+router.get(
+  '/sessions/:sessionId/deliverables',
+  authenticate,
+  deliverableController.listDeliverables
+);
+router.post(
+  '/sessions/:sessionId/deliverables/:deliverableId/documents',
+  authenticate,
+  upload.single('file'),
+  validateFileUpload,
+  deliverableController.attachDocument
+);
+router.get(
+  '/sessions/:sessionId/deliverables/:deliverableId/documents',
+  authenticate,
+  deliverableController.listDocuments
+);
+router.get(
+  '/documents/:documentId/download',
+  authenticate,
+  deliverableController.downloadDocument
+);
+router.post(
+  '/sessions/:sessionId/feedback',
+  authenticate,
+  deliverableController.submitFeedback
+);
+router.post(
+  '/sessions/:sessionId/deliverables/:deliverableId/accept',
+  authenticate,
+  deliverableController.acceptDeliverable
 );
 
 router.post('/requests/:id/attachments', authenticate, generalLimiter, upload.single('file'), validateFileUpload, attachmentController.uploadAttachment);
