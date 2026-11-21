@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const adminConsultingController = require('../controllers/adminConsultingController');
 const deliverableController = require('../controllers/consultantDeliverableController');
+const changeController = require('../controllers/consultantChangeController');
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 
@@ -44,6 +45,16 @@ router.patch('/sessions/:sessionId/complete', ...writeAuth, adminConsultingContr
 router.patch('/sessions/:sessionId/no-show', ...writeAuth, adminConsultingController.markNoShow);
 // Group 10 Slice E (526-530): admin read of the milestone board.
 router.get('/sessions/:sessionId/deliverables', ...auth, deliverableController.listDeliverables);
+// Group 10 Slice F (531-535): admin read of change requests and history,
+// and admin pause/resume (deciding stays with the parties; an admin
+// decides only when the client is the decider).
+router.get('/sessions/:sessionId/change-requests', ...auth, changeController.listChangeRequests);
+router.post('/sessions/:sessionId/change-requests/:requestId/approve', ...writeAuth, changeController.decideChangeRequest('approved'));
+router.post('/sessions/:sessionId/change-requests/:requestId/reject', ...writeAuth, changeController.decideChangeRequest('rejected'));
+router.post('/sessions/:sessionId/change-requests/:requestId/withdraw', ...writeAuth, changeController.withdrawChangeRequest);
+router.get('/sessions/:sessionId/history', ...auth, changeController.getEngagementHistory);
+router.post('/sessions/:sessionId/pause', ...writeAuth, changeController.pauseEngagement);
+router.post('/sessions/:sessionId/resume', ...writeAuth, changeController.resumeEngagement);
 router.post('/sessions/:id/send-reminder', ...writeAuth, adminConsultingController.sendSessionReminder);
 router.post('/sessions/:id/send-followup', ...writeAuth, adminConsultingController.sendSessionFollowUp);
 router.post('/sessions/:id/send-invite', ...writeAuth, adminConsultingController.sendSessionReminder);

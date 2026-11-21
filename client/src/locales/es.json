@@ -25493,6 +25493,54 @@
     "overdue": "vencido",
     "adminEmpty": "Aún no hay hitos en este compromiso."
   },
+  "consultantChange": {
+    "title": "Cambios",
+    "requestChange": "Solicitar un cambio",
+    "resume": "Reanudar el trabajo",
+    "pause": "Pausar el trabajo",
+    "paused": "Trabajo pausado.",
+    "resumed": "Trabajo reanudado.",
+    "pausedNotice": "Este trabajo est\u00e1 en pausa. El trabajo de hitos y la aprobaci\u00f3n de cambios est\u00e1n en espera hasta que se reanude.",
+    "pauseReasonPlaceholder": "\u00bfPor qu\u00e9 pausar? (al menos 10 caracteres)",
+    "requestType": "Tipo de cambio",
+    "types": {
+      "scope_revision": "Revisi\u00f3n de alcance",
+      "deadline_adjustment": "Ajuste de plazo",
+      "additional_fee": "Tarifa adicional"
+    },
+    "milestone": "Hito",
+    "wholeEngagement": "Todo el trabajo",
+    "newTitlePlaceholder": "Nuevo t\u00edtulo del hito (opcional)",
+    "newDescriptionPlaceholder": "Nuevo alcance o descripci\u00f3n",
+    "newDueDate": "Nueva fecha l\u00edmite",
+    "amountPlaceholder": "Tarifa adicional en d\u00f3lares",
+    "reasonPlaceholder": "\u00bfPor qu\u00e9 es necesario este cambio? (al menos 10 caracteres)",
+    "submitRequest": "Enviar solicitud de cambio",
+    "requested": "Solicitud de cambio enviada.",
+    "approved": "Solicitud de cambio aprobada.",
+    "rejected": "Solicitud de cambio rechazada.",
+    "withdrawn": "Solicitud de cambio retirada.",
+    "empty": "A\u00fan no hay cambios.",
+    "status": {
+      "pending": "pendiente",
+      "approved": "aprobada",
+      "rejected": "rechazada",
+      "withdrawn": "retirada"
+    },
+    "requestedBy": "Solicitado por {{role}}",
+    "roles": {
+      "consultant": "consultor",
+      "client": "cliente"
+    },
+    "decisionReason": "Decisi\u00f3n: {{reason}}",
+    "rejectReasonPlaceholder": "Motivo del rechazo (obligatorio)",
+    "approve": "Aprobar",
+    "reject": "Rechazar",
+    "withdraw": "Retirar solicitud",
+    "history": "Historial de cambios",
+    "loadError": "No se pudieron cargar los cambios.",
+    "reasonRequired": "Se requiere un motivo de al menos 10 caracteres."
+  },
   "learn": {
     "page": {
       "videoTitle": "Video: {{title}}",

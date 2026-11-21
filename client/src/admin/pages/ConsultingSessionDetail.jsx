@@ -32,6 +32,13 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
   // Group 10 Slice E (526-530): the milestone board, read-only for admin.
   const [deliverables, setDeliverables] = useState([]);
   const [deliverablesLoading, setDeliverablesLoading] = useState(true);
+  // Group 10 Slice F (531-535): change requests and history, read-only
+  // for admin, plus admin pause/resume.
+  const [changeRequests, setChangeRequests] = useState([]);
+  const [changeEvents, setChangeEvents] = useState([]);
+  const [changesLoading, setChangesLoading] = useState(true);
+  const [pauseReason, setPauseReason] = useState('');
+  const [pauseBusy, setPauseBusy] = useState(false);
 
   // Refetch and reset per-session state whenever the viewed session changes,
   // so consultants and notes never bleed across sessions.
@@ -69,6 +76,55 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
       .finally(() => { if (!cancelled) setDeliverablesLoading(false); });
     return () => { cancelled = true; };
   }, [session.id]);
+
+  // Load change requests and history (Slice F) for this session.
+  const loadChanges = () => {
+    setChangesLoading(true);
+    return Promise.all([
+      axios.get(`/consulting/admin/sessions/${session.id}/change-requests`),
+      axios.get(`/consulting/admin/sessions/${session.id}/history`),
+    ])
+      .then(([reqRes, histRes]) => {
+        setChangeRequests(Array.isArray(reqRes.data?.changeRequests) ? reqRes.data.changeRequests : []);
+        setChangeEvents(Array.isArray(histRes.data?.events) ? histRes.data.events : []);
+      })
+      .catch(() => { setChangeRequests([]); setChangeEvents([]); })
+      .finally(() => setChangesLoading(false));
+  };
+  useEffect(() => { loadChanges(); }, [session.id]);
+
+  async function pauseEngagement() {
+    if (pauseReason.trim().length < 10) {
+      toast.error(t('consultantChange.reasonRequired', { defaultValue: 'A reason of at least 10 characters is required.' }));
+      return;
+    }
+    try {
+      setPauseBusy(true);
+      await axios.post(`/consulting/admin/sessions/${session.id}/pause`, { reason: pauseReason.trim() });
+      toast.success(t('consultantChange.paused', { defaultValue: 'Engagement paused.' }));
+      setPauseReason('');
+      await loadChanges();
+      onStatusUpdate();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setPauseBusy(false);
+    }
+  }
+
+  async function resumeEngagement() {
+    try {
+      setPauseBusy(true);
+      await axios.post(`/consulting/admin/sessions/${session.id}/resume`);
+      toast.success(t('consultantChange.resumed', { defaultValue: 'Engagement resumed.' }));
+      await loadChanges();
+      onStatusUpdate();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setPauseBusy(false);
+    }
+  }
 
   async function assignConsultant() {
     if (!selectedConsultant) {
@@ -397,6 +453,73 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
                   )}
                 </div>
               ))
+            )}
+          </div>
+
+          <div className="csd-deliverables-section">
+            <div className="csd-deliverables-title">{t('consultantChange.title', { defaultValue: 'Changes' })}</div>
+            {session.status === 'paused' ? (
+              <button type="button" onClick={resumeEngagement} disabled={pauseBusy} className="csd-changes-button">
+                {t('consultantChange.resume', { defaultValue: 'Resume engagement' })}
+              </button>
+            ) : (
+              <div className="csd-changes-pause-row">
+                <input
+                  type="text"
+                  value={pauseReason}
+                  onChange={(event) => setPauseReason(event.target.value)}
+                  placeholder={t('consultantChange.pauseReasonPlaceholder', { defaultValue: 'Why pause? (at least 10 characters)' })}
+                  className="csd-changes-input"
+                />
+                <button type="button" onClick={pauseEngagement} disabled={pauseBusy || pauseReason.trim().length < 10} className="csd-changes-button">
+                  {t('consultantChange.pause', { defaultValue: 'Pause engagement' })}
+                </button>
+              </div>
+            )}
+            {changesLoading ? (
+              <p className="csd-deliverables-note">{t('common.loading', { defaultValue: 'Loading…' })}</p>
+            ) : changeRequests.length === 0 && changeEvents.length === 0 ? (
+              <p className="csd-deliverables-note">{t('consultantChange.empty', { defaultValue: 'No changes yet.' })}</p>
+            ) : (
+              <>
+                {changeRequests.map((request) => (
+                  <div key={request.id} className="csd-deliverable-card">
+                    <p className="csd-deliverable-name">
+                      <strong>
+                        {t(`consultantChange.types.${request.requestType}`, { defaultValue: request.requestType.replace(/_/g, ' ') })}
+                        {request.deliverableName ? ` • ${request.deliverableName}` : ''}
+                      </strong>
+                    </p>
+                    <p className="csd-deliverable-meta">
+                      {t(`consultantChange.status.${request.status}`, { defaultValue: request.status })}
+                      {' • '}
+                      {t('consultantChange.requestedBy', { defaultValue: 'Requested by {{role}}', role: t(`consultantChange.roles.${request.requestedByRole}`, { defaultValue: request.requestedByRole }) })}
+                      {request.amountCents != null ? ` • $${(request.amountCents / 100).toFixed(2)}` : ''}
+                      {request.newDueDate ? ` • ${t('consultantDeliverable.dueLabel', { defaultValue: 'due {{date}}', date: request.newDueDate })}` : ''}
+                    </p>
+                    {request.reason && <p className="csd-deliverable-text">{request.reason}</p>}
+                    {request.decisionReason && (
+                      <p className="csd-deliverable-text">
+                        {t('consultantChange.decisionReason', { defaultValue: 'Decision: {{reason}}', reason: request.decisionReason })}
+                      </p>
+                    )}
+                  </div>
+                ))}
+                {changeEvents.length > 0 && (
+                  <>
+                    <div className="csd-deliverables-title">{t('consultantChange.history', { defaultValue: 'Change history' })}</div>
+                    <ul className="csd-deliverable-docs">
+                      {changeEvents.map((event) => (
+                        <li key={event.id}>
+                          {event.summary}
+                          {' • '}
+                          {event.createdAt ? String(event.createdAt).slice(0, 10) : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </>
             )}
           </div>
 

@@ -22,6 +22,7 @@ import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import { deliverablesApi } from '../api/consultantDeliverables';
+import { changesApi } from '../api/consultantChanges';
 import '../styles/BusinessLaunchStatus.css';
 
 const STATUS_PROGRESS = {
@@ -854,9 +855,293 @@ function MilestoneBoard({ request }) {
               </div>
             );
           })}
+          {session && (
+            <MilestoneChanges session={session} deliverables={deliverables} onChanged={load} />
+          )}
         </div>
       )}
     </section>
+  );
+}
+
+// Group 10 Slice F (531-535): the client's change-request, history, and
+// pause UI on the milestone board. The client files requests, decides
+// the consultant's requests, and pauses/resumes the engagement.
+function MilestoneChanges({ session, deliverables, onChanged }) {
+  const { t } = useTranslation();
+  const [requests, setRequests] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [formType, setFormType] = useState('scope_revision');
+  const [formDeliverable, setFormDeliverable] = useState('');
+  const [formTitle, setFormTitle] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formDueDate, setFormDueDate] = useState('');
+  const [formAmount, setFormAmount] = useState('');
+  const [formReason, setFormReason] = useState('');
+  const [rejectReasons, setRejectReasons] = useState({});
+  const [pauseReason, setPauseReason] = useState('');
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const loadChanges = useCallback(async () => {
+    try {
+      const [reqRes, histRes] = await Promise.all([
+        changesApi.listClientChangeRequests(session.id),
+        changesApi.getClientHistory(session.id),
+      ]);
+      setRequests(Array.isArray(reqRes.data?.changeRequests) ? reqRes.data.changeRequests : []);
+      setEvents(Array.isArray(histRes.data?.events) ? histRes.data.events : []);
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantChange.loadError', { defaultValue: 'Could not load the changes.' }));
+    }
+  }, [session.id, t]);
+
+  useEffect(() => { loadChanges(); }, [loadChanges]);
+
+  const runAction = async (key, fn, successKey, successDefault) => {
+    setBusy(key);
+    setError('');
+    setNotice('');
+    try {
+      await fn();
+      if (successKey) setNotice(t(successKey, { defaultValue: successDefault || successKey }));
+      await loadChanges();
+      if (onChanged) await onChanged();
+    } catch (err) {
+      setError(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const submitRequest = () => runAction('submit-request', () => changesApi.createClientChangeRequest(session.id, {
+    request_type: formType,
+    deliverable_id: formDeliverable || null,
+    title: null,
+    reason: formReason.trim(),
+    new_title: formTitle.trim() || null,
+    new_description: formDescription.trim() || null,
+    new_due_date: formDueDate || null,
+    amount_cents: formType === 'additional_fee' ? Math.round(Number(formAmount) * 100) : null,
+    currency: 'USD',
+  }), 'consultantChange.requested', 'Change request sent.').then(() => {
+    setShowForm(false);
+    setFormTitle('');
+    setFormDescription('');
+    setFormDueDate('');
+    setFormAmount('');
+    setFormReason('');
+  });
+
+  const paused = session.status === 'paused';
+
+  return (
+    <div className="bl-milestone__changes">
+      <h4 className="bl-milestone__changes-title">
+        {t('consultantChange.title', { defaultValue: 'Changes' })}
+      </h4>
+      {error && <p role="alert" className="bl-milestone__error">{error}</p>}
+      {notice && <p role="status" className="bl-milestone__notice">{notice}</p>}
+      {paused && (
+        <p className="bl-milestone__paused">
+          {t('consultantChange.pausedNotice', { defaultValue: 'This engagement is paused. Milestone work and change approvals are on hold until it resumes.' })}
+        </p>
+      )}
+      <div className="bl-milestone__actions">
+        <button
+          type="button"
+          onClick={() => setShowForm((prev) => !prev)}
+          className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.23"
+        >
+          {t('consultantChange.requestChange', { defaultValue: 'Request a change' })}
+        </button>
+        {paused ? (
+          <button
+            type="button"
+            onClick={() => runAction('resume', () => changesApi.resumeClientEngagement(session.id), 'consultantChange.resumed', 'Engagement resumed.')}
+            disabled={busy === 'resume'}
+            className="bl-milestone__btn-accept" data-track="ui.478f2e3593.22"
+          >
+            {t('consultantChange.resume', { defaultValue: 'Resume engagement' })}
+          </button>
+        ) : (
+          <>
+            <input
+              type="text"
+              value={pauseReason}
+              onChange={(event) => setPauseReason(event.target.value)}
+              placeholder={t('consultantChange.pauseReasonPlaceholder', { defaultValue: 'Why pause? (at least 10 characters)' })}
+              className="bl-milestone__feedback-text"
+            />
+            <button
+              type="button"
+              onClick={() => runAction('pause', () => changesApi.pauseClientEngagement(session.id, pauseReason.trim()), 'consultantChange.paused', 'Engagement paused.')}
+              disabled={busy === 'pause' || pauseReason.trim().length < 10}
+              className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.21"
+            >
+              {t('consultantChange.pause', { defaultValue: 'Pause engagement' })}
+            </button>
+          </>
+        )}
+      </div>
+      {showForm && (
+        <div className="bl-milestone__feedback-form">
+          <select
+            value={formType}
+            onChange={(event) => setFormType(event.target.value)}
+            className="bl-milestone__select"
+            aria-label={t('consultantChange.requestType', { defaultValue: 'Change type' })}
+          >
+            <option value="scope_revision">{t('consultantChange.types.scope_revision', { defaultValue: 'Scope revision' })}</option>
+            <option value="deadline_adjustment">{t('consultantChange.types.deadline_adjustment', { defaultValue: 'Deadline adjustment' })}</option>
+            <option value="additional_fee">{t('consultantChange.types.additional_fee', { defaultValue: 'Additional fee' })}</option>
+          </select>
+          {formType !== 'additional_fee' && (
+            <select
+              value={formDeliverable}
+              onChange={(event) => setFormDeliverable(event.target.value)}
+              className="bl-milestone__select"
+              aria-label={t('consultantChange.milestone', { defaultValue: 'Milestone' })}
+            >
+              <option value="">{t('consultantChange.wholeEngagement', { defaultValue: 'Whole engagement' })}</option>
+              {(deliverables || []).map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          )}
+          {formType === 'scope_revision' && (
+            <>
+              <input
+                type="text"
+                value={formTitle}
+                onChange={(event) => setFormTitle(event.target.value)}
+                placeholder={t('consultantChange.newTitlePlaceholder', { defaultValue: 'New milestone title (optional)' })}
+                className="bl-milestone__feedback-text"
+              />
+              <textarea
+                value={formDescription}
+                onChange={(event) => setFormDescription(event.target.value)}
+                placeholder={t('consultantChange.newDescriptionPlaceholder', { defaultValue: 'New scope or description' })}
+                rows={2}
+                className="bl-milestone__feedback-text"
+              />
+            </>
+          )}
+          {formType === 'deadline_adjustment' && (
+            <input
+              type="date"
+              value={formDueDate}
+              onChange={(event) => setFormDueDate(event.target.value)}
+              className="bl-milestone__feedback-text"
+              aria-label={t('consultantChange.newDueDate', { defaultValue: 'New due date' })}
+            />
+          )}
+          {formType === 'additional_fee' && (
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formAmount}
+              onChange={(event) => setFormAmount(event.target.value)}
+              placeholder={t('consultantChange.amountPlaceholder', { defaultValue: 'Additional fee in dollars' })}
+              className="bl-milestone__feedback-text"
+            />
+          )}
+          <textarea
+            value={formReason}
+            onChange={(event) => setFormReason(event.target.value)}
+            placeholder={t('consultantChange.reasonPlaceholder', { defaultValue: 'Why is this change needed? (at least 10 characters)' })}
+            rows={2}
+            className="bl-milestone__feedback-text"
+          />
+          <button
+            type="button"
+            onClick={submitRequest}
+            disabled={busy === 'submit-request' || formReason.trim().length < 10}
+            className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.17"
+          >
+            {t('consultantChange.submitRequest', { defaultValue: 'Send change request' })}
+          </button>
+        </div>
+      )}
+      {requests.length === 0 && events.length === 0 && (
+        <p className="bl-milestone__note">{t('consultantChange.empty', { defaultValue: 'No changes yet.' })}</p>
+      )}
+      {requests.map((request) => (
+        <div key={request.id} className="bl-milestone__card">
+          <div className="bl-milestone__card-title">
+            {t(`consultantChange.types.${request.requestType}`, { defaultValue: request.requestType.replace(/_/g, ' ') })}
+            {request.deliverableName ? ` • ${request.deliverableName}` : ''}
+          </div>
+          <div className="bl-milestone__card-meta">
+            {t(`consultantChange.status.${request.status}`, { defaultValue: request.status })}
+            {' • '}
+            {t('consultantChange.requestedBy', { defaultValue: 'Requested by {{role}}', role: t(`consultantChange.roles.${request.requestedByRole}`, { defaultValue: request.requestedByRole }) })}
+            {request.amountCents != null ? ` • $${(request.amountCents / 100).toFixed(2)}` : ''}
+            {request.newDueDate ? ` • ${t('consultantDeliverable.dueLabel', { defaultValue: 'due {{date}}', date: request.newDueDate })}` : ''}
+          </div>
+          {request.reason && <p className="bl-milestone__draft">{request.reason}</p>}
+          {request.decisionReason && (
+            <p className="bl-milestone__draft">
+              {t('consultantChange.decisionReason', { defaultValue: 'Decision: {{reason}}', reason: request.decisionReason })}
+            </p>
+          )}
+          {request.status === 'pending' && request.requestedByRole === 'consultant' && (
+            <div className="bl-milestone__actions">
+              <button
+                type="button"
+                onClick={() => runAction(`approve-${request.id}`, () => changesApi.approveClientChangeRequest(session.id, request.id), 'consultantChange.approved', 'Change request approved.')}
+                disabled={busy === `approve-${request.id}`}
+                className="bl-milestone__btn-accept" data-track="ui.478f2e3593.18"
+              >
+                {t('consultantChange.approve', { defaultValue: 'Approve' })}
+              </button>
+              <input
+                type="text"
+                value={rejectReasons[request.id] || ''}
+                onChange={(event) => setRejectReasons((prev) => ({ ...prev, [request.id]: event.target.value }))}
+                placeholder={t('consultantChange.rejectReasonPlaceholder', { defaultValue: 'Reason for declining (required)' })}
+                className="bl-milestone__feedback-text"
+              />
+              <button
+                type="button"
+                onClick={() => runAction(`reject-${request.id}`, () => changesApi.rejectClientChangeRequest(session.id, request.id, (rejectReasons[request.id] || '').trim()), 'consultantChange.rejected', 'Change request declined.')}
+                disabled={busy === `reject-${request.id}` || (rejectReasons[request.id] || '').trim().length < 10}
+                className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.19"
+              >
+                {t('consultantChange.reject', { defaultValue: 'Decline' })}
+              </button>
+            </div>
+          )}
+          {request.status === 'pending' && request.requestedByRole === 'client' && (
+            <button
+              type="button"
+              onClick={() => runAction(`withdraw-${request.id}`, () => changesApi.withdrawClientChangeRequest(session.id, request.id), 'consultantChange.withdrawn', 'Change request withdrawn.')}
+              disabled={busy === `withdraw-${request.id}`}
+              className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.20"
+            >
+              {t('consultantChange.withdraw', { defaultValue: 'Withdraw request' })}
+            </button>
+          )}
+        </div>
+      ))}
+      {events.length > 0 && (
+        <div>
+          <h5 className="bl-milestone__changes-title">{t('consultantChange.history', { defaultValue: 'Change history' })}</h5>
+          <ul className="bl-milestone__list">
+            {events.map((event) => (
+              <li key={event.id} className="bl-milestone__card-meta">
+                {event.summary}
+                {' • '}
+                {event.createdAt ? String(event.createdAt).slice(0, 10) : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 

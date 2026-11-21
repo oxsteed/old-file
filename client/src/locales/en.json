@@ -25493,6 +25493,54 @@
     "overdue": "overdue",
     "adminEmpty": "No milestones on this engagement yet."
   },
+  "consultantChange": {
+    "title": "Changes",
+    "requestChange": "Request a change",
+    "resume": "Resume engagement",
+    "pause": "Pause engagement",
+    "paused": "Engagement paused.",
+    "resumed": "Engagement resumed.",
+    "pausedNotice": "This engagement is paused. Milestone work and change approvals are on hold until it resumes.",
+    "pauseReasonPlaceholder": "Why pause? (at least 10 characters)",
+    "requestType": "Change type",
+    "types": {
+      "scope_revision": "Scope revision",
+      "deadline_adjustment": "Deadline adjustment",
+      "additional_fee": "Additional fee"
+    },
+    "milestone": "Milestone",
+    "wholeEngagement": "Whole engagement",
+    "newTitlePlaceholder": "New milestone title (optional)",
+    "newDescriptionPlaceholder": "New scope or description",
+    "newDueDate": "New due date",
+    "amountPlaceholder": "Additional fee in dollars",
+    "reasonPlaceholder": "Why is this change needed? (at least 10 characters)",
+    "submitRequest": "Send change request",
+    "requested": "Change request sent.",
+    "approved": "Change request approved.",
+    "rejected": "Change request declined.",
+    "withdrawn": "Change request withdrawn.",
+    "empty": "No changes yet.",
+    "status": {
+      "pending": "pending",
+      "approved": "approved",
+      "rejected": "declined",
+      "withdrawn": "withdrawn"
+    },
+    "requestedBy": "Requested by {{role}}",
+    "roles": {
+      "consultant": "consultant",
+      "client": "client"
+    },
+    "decisionReason": "Decision: {{reason}}",
+    "rejectReasonPlaceholder": "Reason for declining (required)",
+    "approve": "Approve",
+    "reject": "Decline",
+    "withdraw": "Withdraw request",
+    "history": "Change history",
+    "loadError": "Could not load the changes.",
+    "reasonRequired": "A reason of at least 10 characters is required."
+  },
   "learn": {
     "page": {
       "videoTitle": "Video: {{title}}",

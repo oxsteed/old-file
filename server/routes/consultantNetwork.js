@@ -7,6 +7,7 @@ const screeningController = require('../controllers/consultantScreeningControlle
 const schedulingController = require('../controllers/consultantSchedulingController');
 const proposalController = require('../controllers/consultantProposalController');
 const deliverableController = require('../controllers/consultantDeliverableController');
+const changeController = require('../controllers/consultantChangeController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 
@@ -55,6 +56,16 @@ router.post('/sessions/:sessionId/deliverables/:deliverableId/deliver-draft', au
 router.post('/sessions/:sessionId/deliverables/:deliverableId/documents', authenticate, upload.single('file'), validateFileUpload, deliverableController.attachDocument);
 router.get('/sessions/:sessionId/deliverables/:deliverableId/documents', authenticate, deliverableController.listDocuments);
 router.get('/documents/:documentId/download', authenticate, deliverableController.downloadDocument);
+// Group 10 Slice F (531-535): handle changes. Change requests (scope,
+// deadline, fee) with approval and history, plus engagement pause/resume.
+router.post('/sessions/:sessionId/change-requests', authenticate, changeController.createChangeRequest);
+router.get('/sessions/:sessionId/change-requests', authenticate, changeController.listChangeRequests);
+router.post('/sessions/:sessionId/change-requests/:requestId/approve', authenticate, changeController.decideChangeRequest('approved'));
+router.post('/sessions/:sessionId/change-requests/:requestId/reject', authenticate, changeController.decideChangeRequest('rejected'));
+router.post('/sessions/:sessionId/change-requests/:requestId/withdraw', authenticate, changeController.withdrawChangeRequest);
+router.get('/sessions/:sessionId/history', authenticate, changeController.getEngagementHistory);
+router.post('/sessions/:sessionId/pause', authenticate, changeController.pauseEngagement);
+router.post('/sessions/:sessionId/resume', authenticate, changeController.resumeEngagement);
 
 // Public specialty profile (506). No auth: only approved, active profiles
 // are ever returned; anything else 404s.

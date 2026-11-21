@@ -27,6 +27,7 @@ const {
 } = require('../controllers/businessLaunchNotesController');
 const proposalController = require('../controllers/consultantProposalController');
 const deliverableController = require('../controllers/consultantDeliverableController');
+const changeController = require('../controllers/consultantChangeController');
 
 // Public route: Submit a new Business Launch request
 router.post(
@@ -162,6 +163,50 @@ router.post(
   '/sessions/:sessionId/deliverables/:deliverableId/accept',
   authenticate,
   deliverableController.acceptDeliverable
+);
+
+// Group 10 Slice F (531-535): handle changes. The client files change
+// requests, decides the consultant's requests, and pauses/resumes the
+// engagement; the change history shows requests and events together.
+router.post(
+  '/sessions/:sessionId/change-requests',
+  authenticate,
+  changeController.createChangeRequest
+);
+router.get(
+  '/sessions/:sessionId/change-requests',
+  authenticate,
+  changeController.listChangeRequests
+);
+router.post(
+  '/sessions/:sessionId/change-requests/:requestId/approve',
+  authenticate,
+  changeController.decideChangeRequest('approved')
+);
+router.post(
+  '/sessions/:sessionId/change-requests/:requestId/reject',
+  authenticate,
+  changeController.decideChangeRequest('rejected')
+);
+router.post(
+  '/sessions/:sessionId/change-requests/:requestId/withdraw',
+  authenticate,
+  changeController.withdrawChangeRequest
+);
+router.get(
+  '/sessions/:sessionId/history',
+  authenticate,
+  changeController.getEngagementHistory
+);
+router.post(
+  '/sessions/:sessionId/pause',
+  authenticate,
+  changeController.pauseEngagement
+);
+router.post(
+  '/sessions/:sessionId/resume',
+  authenticate,
+  changeController.resumeEngagement
 );
 
 router.post('/requests/:id/attachments', authenticate, generalLimiter, upload.single('file'), validateFileUpload, attachmentController.uploadAttachment);

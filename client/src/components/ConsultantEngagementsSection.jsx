@@ -3,6 +3,295 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { ClipboardList, FileText, Download } from 'lucide-react';
 import { deliverablesApi } from '../api/consultantDeliverables';
+import { changesApi } from '../api/consultantChanges';
+
+// Group 10 Slice F (531-535): the change-request, history, and pause
+// UI for one engagement. Either party files a request; the other party
+// decides it. Approval applies the change (scope text, due date, or a
+// draft invoice for an additional fee) and re-opens an accepted
+// milestone when its scope or deadline changes.
+function EngagementChanges({ sessionId, deliverables, sessionStatus, onChanged }) {
+  const { t } = useTranslation();
+  const tx = (key, fallback, options) => t(key, { defaultValue: fallback, ...options });
+  const [requests, setRequests] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [formType, setFormType] = useState('scope_revision');
+  const [formDeliverable, setFormDeliverable] = useState('');
+  const [formTitle, setFormTitle] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formDueDate, setFormDueDate] = useState('');
+  const [formAmount, setFormAmount] = useState('');
+  const [formReason, setFormReason] = useState('');
+  const [rejectReasons, setRejectReasons] = useState({});
+  const [pauseReason, setPauseReason] = useState('');
+  const [busy, setBusy] = useState('');
+
+  const load = async () => {
+    try {
+      const [reqRes, histRes] = await Promise.all([
+        changesApi.listContractorChangeRequests(sessionId),
+        changesApi.getContractorHistory(sessionId),
+      ]);
+      setRequests(Array.isArray(reqRes.data?.changeRequests) ? reqRes.data.changeRequests : []);
+      setEvents(Array.isArray(histRes.data?.events) ? histRes.data.events : []);
+    } catch {
+      toast.error(t('common.errorLoading'));
+    }
+  };
+
+  useEffect(() => { load(); }, [sessionId]);
+
+  const runAction = async (key, fn, successKey) => {
+    setBusy(key);
+    try {
+      await fn();
+      if (successKey) toast.success(t(successKey));
+      await load();
+      if (onChanged) await onChanged();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating'));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const submitRequest = () => {
+    const payload = {
+      request_type: formType,
+      deliverable_id: formDeliverable || null,
+      title: null,
+      reason: formReason.trim(),
+      new_title: formTitle.trim() || null,
+      new_description: formDescription.trim() || null,
+      new_due_date: formDueDate || null,
+      amount_cents: formType === 'additional_fee' ? Math.round(Number(formAmount) * 100) : null,
+      currency: 'USD',
+    };
+    return runAction('submit-request', () => changesApi.createContractorChangeRequest(sessionId, payload), 'consultantChange.requested').then(() => {
+      setShowForm(false);
+      setFormTitle('');
+      setFormDescription('');
+      setFormDueDate('');
+      setFormAmount('');
+      setFormReason('');
+    });
+  };
+
+  const paused = sessionStatus === 'paused';
+
+  return (
+    <div className="mt-3 space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold text-white">{tx('consultantChange.title', 'Changes')}</h4>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowForm((prev) => !prev)}
+            className="rounded-xl border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-white/5" data-track="ui.d91e4e0189.13"
+          >
+            {tx('consultantChange.requestChange', 'Request a change')}
+          </button>
+          {paused ? (
+            <button
+              type="button"
+              onClick={() => runAction('resume', () => changesApi.resumeContractorEngagement(sessionId), 'consultantChange.resumed')}
+              disabled={busy === 'resume'}
+              className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+              data-track="ui.d91e4e0189.12"
+            >
+              {tx('consultantChange.resume', 'Resume engagement')}
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-2">
+              <input
+                type="text"
+                value={pauseReason}
+                onChange={(event) => setPauseReason(event.target.value)}
+                placeholder={tx('consultantChange.pauseReasonPlaceholder', 'Why pause? (at least 10 characters)')}
+                aria-label={tx('consultantChange.pauseReasonPlaceholder', 'Why pause? (at least 10 characters)')}
+                className="w-[220px] rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white outline-none focus:border-orange-500"
+              />
+              <button
+                type="button"
+                onClick={() => runAction('pause', () => changesApi.pauseContractorEngagement(sessionId, pauseReason.trim()), 'consultantChange.paused')}
+                disabled={busy === 'pause' || pauseReason.trim().length < 10}
+                className="rounded-xl border border-amber-600 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-600/10 disabled:opacity-60"
+                data-track="ui.d91e4e0189.11"
+              >
+                {tx('consultantChange.pause', 'Pause engagement')}
+              </button>
+            </span>
+          )}
+        </div>
+      </div>
+      {paused && (
+        <p className="rounded-lg bg-amber-600/10 px-3 py-2 text-xs text-amber-300">
+          {tx('consultantChange.pausedNotice', 'This engagement is paused. Milestone work and change approvals are on hold until it resumes.')}
+        </p>
+      )}
+      {showForm && (
+        <div className="space-y-2 rounded-xl border border-gray-800 p-3">
+          <select
+            value={formType}
+            onChange={(event) => setFormType(event.target.value)}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-2 py-2 text-xs text-gray-200"
+            aria-label={tx('consultantChange.requestType', 'Change type')}
+          >
+            <option value="scope_revision">{tx('consultantChange.types.scope_revision', 'Scope revision')}</option>
+            <option value="deadline_adjustment">{tx('consultantChange.types.deadline_adjustment', 'Deadline adjustment')}</option>
+            <option value="additional_fee">{tx('consultantChange.types.additional_fee', 'Additional fee')}</option>
+          </select>
+          {formType !== 'additional_fee' && (
+            <select
+              value={formDeliverable}
+              onChange={(event) => setFormDeliverable(event.target.value)}
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-2 py-2 text-xs text-gray-200"
+              aria-label={tx('consultantChange.milestone', 'Milestone')}
+            >
+              <option value="">{tx('consultantChange.wholeEngagement', 'Whole engagement')}</option>
+              {(deliverables || []).map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          )}
+          {formType === 'scope_revision' && (
+            <>
+              <input
+                type="text"
+                value={formTitle}
+                onChange={(event) => setFormTitle(event.target.value)}
+                placeholder={tx('consultantChange.newTitlePlaceholder', 'New milestone title (optional)')}
+                className="w-full rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white outline-none focus:border-orange-500"
+              />
+              <textarea
+                value={formDescription}
+                onChange={(event) => setFormDescription(event.target.value)}
+                placeholder={tx('consultantChange.newDescriptionPlaceholder', 'New scope or description')}
+                rows={2}
+                className="w-full rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white outline-none focus:border-orange-500"
+              />
+            </>
+          )}
+          {formType === 'deadline_adjustment' && (
+            <input
+              type="date"
+              value={formDueDate}
+              onChange={(event) => setFormDueDate(event.target.value)}
+              className="w-full rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white outline-none focus:border-orange-500"
+              aria-label={tx('consultantChange.newDueDate', 'New due date')}
+            />
+          )}
+          {formType === 'additional_fee' && (
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formAmount}
+              onChange={(event) => setFormAmount(event.target.value)}
+              placeholder={tx('consultantChange.amountPlaceholder', 'Additional fee in dollars')}
+              className="w-full rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white outline-none focus:border-orange-500"
+            />
+          )}
+          <textarea
+            value={formReason}
+            onChange={(event) => setFormReason(event.target.value)}
+            placeholder={tx('consultantChange.reasonPlaceholder', 'Why is this change needed? (at least 10 characters)')}
+            rows={2}
+            className="w-full rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white outline-none focus:border-orange-500"
+          />
+          <button
+            type="button"
+            onClick={submitRequest}
+            disabled={busy === 'submit-request' || formReason.trim().length < 10}
+            className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+            data-track="ui.d91e4e0189.7"
+          >
+            {tx('consultantChange.submitRequest', 'Send change request')}
+          </button>
+        </div>
+      )}
+      {requests.length === 0 && events.length === 0 && (
+        <p className="text-xs text-gray-400">{tx('consultantChange.empty', 'No changes yet.')}</p>
+      )}
+      {requests.map((request) => (
+        <div key={request.id} className="rounded-xl border border-gray-800 p-3">
+          <p className="text-sm font-semibold text-white">
+            {tx(`consultantChange.types.${request.requestType}`, request.requestType.replace(/_/g, ' '))}
+            {request.deliverableName ? ` • ${request.deliverableName}` : ''}
+          </p>
+          <p className="mt-0.5 text-xs text-gray-400">
+            {tx(`consultantChange.status.${request.status}`, request.status)}
+            {' • '}
+            {tx('consultantChange.requestedBy', 'Requested by {{role}}', { role: tx(`consultantChange.roles.${request.requestedByRole}`, request.requestedByRole) })}
+            {request.amountCents != null ? ` • $${(request.amountCents / 100).toFixed(2)}` : ''}
+            {request.newDueDate ? ` • ${tx('consultantDeliverable.dueLabel', 'due {{date}}', { date: request.newDueDate })}` : ''}
+          </p>
+          {request.reason && <p className="mt-1 text-xs leading-5 text-gray-400">{request.reason}</p>}
+          {request.decisionReason && (
+            <p className="mt-1 text-xs leading-5 text-gray-400">
+              {tx('consultantChange.decisionReason', 'Decision: {{reason}}', { reason: request.decisionReason })}
+            </p>
+          )}
+          {request.status === 'pending' && request.requestedByRole === 'client' && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => runAction(`approve-${request.id}`, () => changesApi.approveContractorChangeRequest(sessionId, request.id), 'consultantChange.approved')}
+                disabled={busy === `approve-${request.id}`}
+                className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                data-track="ui.d91e4e0189.8"
+              >
+                {tx('consultantChange.approve', 'Approve')}
+              </button>
+              <input
+                type="text"
+                value={rejectReasons[request.id] || ''}
+                onChange={(event) => setRejectReasons((prev) => ({ ...prev, [request.id]: event.target.value }))}
+                placeholder={tx('consultantChange.rejectReasonPlaceholder', 'Reason for declining (required)')}
+                className="min-w-[200px] flex-1 rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white outline-none focus:border-orange-500"
+              />
+              <button
+                type="button"
+                onClick={() => runAction(`reject-${request.id}`, () => changesApi.rejectContractorChangeRequest(sessionId, request.id, (rejectReasons[request.id] || '').trim()), 'consultantChange.rejected')}
+                disabled={busy === `reject-${request.id}` || (rejectReasons[request.id] || '').trim().length < 10}
+                className="rounded-xl border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-white/5 disabled:opacity-60"
+                data-track="ui.d91e4e0189.9"
+              >
+                {tx('consultantChange.reject', 'Decline')}
+              </button>
+            </div>
+          )}
+          {request.status === 'pending' && request.requestedByRole === 'consultant' && (
+            <button
+              type="button"
+              onClick={() => runAction(`withdraw-${request.id}`, () => changesApi.withdrawContractorChangeRequest(sessionId, request.id), 'consultantChange.withdrawn')}
+              disabled={busy === `withdraw-${request.id}`}
+              className="mt-2 rounded-xl border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-white/5 disabled:opacity-60"
+              data-track="ui.d91e4e0189.10"
+            >
+              {tx('consultantChange.withdraw', 'Withdraw request')}
+            </button>
+          )}
+        </div>
+      ))}
+      {events.length > 0 && (
+        <div>
+          <h5 className="text-xs font-semibold text-gray-300">{tx('consultantChange.history', 'Change history')}</h5>
+          <ul className="mt-1 space-y-1">
+            {events.map((event) => (
+              <li key={event.id} className="text-xs text-gray-400">
+                {event.summary}
+                {' • '}
+                {event.createdAt ? String(event.createdAt).slice(0, 10) : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Group 10 Slice E (526-530): the consultant's milestone board. Each
 // engagement session shows the deliverables seeded from the approved
@@ -287,6 +576,12 @@ export default function ConsultantEngagementsSection() {
                     </div>
                   </div>
                 ))}
+                <EngagementChanges
+                  sessionId={sessionId}
+                  deliverables={board}
+                  sessionStatus={engagement.status}
+                  onChanged={async () => { await load(); if (expandedId) await loadBoard(expandedId); }}
+                />
               </div>
             )}
           </div>

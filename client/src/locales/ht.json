@@ -25493,6 +25493,54 @@
     "overdue": "an reta",
     "adminEmpty": "Pa gen okenn etap nan angajman sa a ankò."
   },
+  "consultantChange": {
+    "title": "Chanjman",
+    "requestChange": "Mande yon chanjman",
+    "resume": "Reprann travay la",
+    "pause": "Pran yon poz nan travay la",
+    "paused": "Travay la an poz.",
+    "resumed": "Travay la reprann.",
+    "pausedNotice": "Travay sa a an poz. Travay etap yo ak apwobasyon chanjman yo an atant jiskaske li reprann.",
+    "pauseReasonPlaceholder": "Poukisa ou pran poz? (omwen 10 karakt\u00e8)",
+    "requestType": "Kalite chanjman",
+    "types": {
+      "scope_revision": "Revizyon dimansyon",
+      "deadline_adjustment": "Ajisteman dat limit",
+      "additional_fee": "Fr\u00e8 anplis"
+    },
+    "milestone": "Etap",
+    "wholeEngagement": "Tout travay la",
+    "newTitlePlaceholder": "Nouvo tit etap la (si ou vle)",
+    "newDescriptionPlaceholder": "Nouvo dimansyon oswa deskripsyon",
+    "newDueDate": "Nouvo dat limit",
+    "amountPlaceholder": "Fr\u00e8 anplis an dola",
+    "reasonPlaceholder": "Poukisa chanjman sa a neses\u00e8? (omwen 10 karakt\u00e8)",
+    "submitRequest": "Voye demann chanjman an",
+    "requested": "Demann chanjman an voye.",
+    "approved": "Demann chanjman an apwouve.",
+    "rejected": "Demann chanjman an refize.",
+    "withdrawn": "Demann chanjman an retire.",
+    "empty": "Pa gen chanjman pou kounye a.",
+    "status": {
+      "pending": "an atant",
+      "approved": "apwouve",
+      "rejected": "refize",
+      "withdrawn": "retire"
+    },
+    "requestedBy": "Moun ki te mande l: {{role}}",
+    "roles": {
+      "consultant": "konsiltan",
+      "client": "kliyan"
+    },
+    "decisionReason": "Desizyon: {{reason}}",
+    "rejectReasonPlaceholder": "Rezon pou refize (obligatwa)",
+    "approve": "Apwouve",
+    "reject": "Refize",
+    "withdraw": "Retire demann lan",
+    "history": "Istorik chanjman yo",
+    "loadError": "Pa t kapab chaje chanjman yo.",
+    "reasonRequired": "Ou dwe bay yon rezon ki gen omwen 10 karakt\u00e8."
+  },
   "learn": {
     "page": {
       "videoTitle": "Videyo: {{title}}",

@@ -479,6 +479,12 @@ exports.completeSession = async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
+    // Group 10 item 535: a paused engagement cannot be completed without
+    // resuming first; resume restores the pre-pause status.
+    if (existing.rows[0].status === 'paused') {
+      return res.status(409).json({ error: 'engagement_paused', message: 'The engagement is paused. Resume it before completing.' });
+    }
+
     // Group 10 item 520: an admin cannot complete a session whose
     // scheduled start is still in the future. A session with no scheduled
     // row keeps the previous behavior, and the pending_confirmation
@@ -548,6 +554,12 @@ exports.markNoShow = async (req, res) => {
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Group 10 item 535: a paused engagement cannot be marked no-show
+    // without resuming first.
+    if (existing.rows[0].status === 'paused') {
+      return res.status(409).json({ error: 'engagement_paused', message: 'The engagement is paused. Resume it before marking a no-show.' });
     }
 
     // Mark session as no-show

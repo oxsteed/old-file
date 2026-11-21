@@ -88,7 +88,8 @@ async function loadSession(client, sessionId) {
   const { rows: [session] } = await client.query(
     `SELECT id, user_id, email, first_name, last_name, business_name,
             consultant_assigned_id, status, current_phase, referral_id,
-            created_at, updated_at
+            description, paused_at, paused_by, pause_reason,
+            status_before_pause, created_at, updated_at
        FROM consulting_sessions WHERE id = $1`,
     [sessionId],
   );
@@ -336,6 +337,10 @@ async function updateDeliverableStatus(req, res) {
     if (type !== 'consultant') {
       return res.status(403).json({ error: 'Only the assigned consultant can move milestones' });
     }
+    // Slice F (535): a paused engagement takes no milestone moves.
+    if (session.status === 'paused') {
+      return res.status(409).json({ error: 'The engagement is paused', code: 'engagement_paused' });
+    }
     const deliverable = await loadDeliverable(db, sessionId, deliverableId);
     if (!deliverable) return res.status(404).json({ error: 'Deliverable not found' });
     const allowed = STATUS_TRANSITIONS[deliverable.status] || [];
@@ -373,6 +378,8 @@ async function deliverDraft(req, res) {
       if (!session) return { status: 404, body: { error: 'Session not found' } };
       const type = actorForSession(req, session);
       if (type !== 'consultant') return { status: 403, body: { error: 'Only the assigned consultant can deliver a draft' } };
+      // Slice F (535): a paused engagement takes no draft deliveries.
+      if (session.status === 'paused') return { status: 409, body: { error: 'The engagement is paused', code: 'engagement_paused' } };
       const deliverable = await loadDeliverable(client, sessionId, deliverableId);
       if (!deliverable) return { status: 404, body: { error: 'Deliverable not found' } };
       if (!['in_progress', 'draft_delivered'].includes(deliverable.status)) {
@@ -599,6 +606,8 @@ async function acceptDeliverable(req, res) {
       if (!session) return { status: 404, body: { error: 'Session not found' } };
       const type = actorForSession(req, session);
       if (type !== 'client') return { status: 403, body: { error: 'Only the session client can accept a milestone' } };
+      // Slice F (535): a paused engagement takes no acceptances.
+      if (session.status === 'paused') return { status: 409, body: { error: 'The engagement is paused', code: 'engagement_paused' } };
       const deliverable = await loadDeliverable(client, sessionId, deliverableId);
       if (!deliverable) return { status: 404, body: { error: 'Deliverable not found' } };
       if (!ACCEPTABLE_FROM.has(deliverable.status)) {
@@ -647,4 +656,9 @@ module.exports = {
   downloadDocument,
   submitFeedback,
   acceptDeliverable,
+  // Shared by the Slice F change controller (same session actor rules).
+  loadSession,
+  actorForSession,
+  isClientOwner,
+  notifyUser,
 };
