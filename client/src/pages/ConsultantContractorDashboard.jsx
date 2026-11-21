@@ -195,7 +195,7 @@ function PortfolioManager() {
               </div>
               {item.description ? <p className="mt-1 text-sm text-gray-400">{item.description}</p> : null}
               {item.link_url ? (
-                <a href={item.link_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-sm text-indigo-300 hover:text-indigo-200">{item.link_url}</a>
+                <a href={item.link_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-sm text-indigo-300 hover:text-indigo-200" data-track="ui.c62ffb2364.12">{item.link_url}</a>
               ) : null}
               <div className="mt-2 flex gap-3">
                 <button type="button" onClick={() => startEdit(item)} className="text-xs font-semibold text-orange-300 hover:text-orange-200" data-track="ui.c62ffb2364.7">
@@ -212,7 +212,7 @@ function PortfolioManager() {
         <p className="text-sm text-gray-400">{t('consultantContractorDashboard.portfolio.empty')}</p>
       )}
 
-      <form onSubmit={save} className="mt-4 grid gap-3 rounded-2xl border border-gray-800 bg-[#111318] p-4">
+      <form onSubmit={save} className="mt-4 grid gap-3 rounded-2xl border border-gray-800 bg-[#111318] p-4" data-track="ui.c62ffb2364.13">
         <p className="text-sm font-semibold text-white">{editingId ? t('consultantContractorDashboard.portfolio.editTitle') : t('consultantContractorDashboard.portfolio.addTitle')}</p>
         <input value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} placeholder={t('consultantContractorDashboard.portfolio.fields.title')} className={inputClass} required maxLength={180} />
         <textarea value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} placeholder={t('consultantContractorDashboard.portfolio.fields.description')} className={`${inputClass} min-h-[80px]`} maxLength={2000} />
