@@ -26,16 +26,16 @@ The feature list is descriptive; all protected operations retain server authorit
 | 224 | Follow-up reminders | Not started |
 | 229 | Team onboarding guide | Not started |
 | 230 | Policy acknowledgment history | Not started |
-| 557 | Accessory inventory | Not started |
-| 558 | Usage restrictions | Not started |
-| 572 | Condition checklist | Not started |
-| 573 | Accessory count | Not started |
-| 577 | Return condition report | Not started |
-| 578 | Missing accessory record | Not started |
-| 581 | Extension request | Not started |
-| 582 | Schedule conflict alert | Not started |
-| 585 | Late-return follow-up | Not started |
-| 593 | Repair record | Not started |
+| 557 | Accessory inventory | Implemented; database and browser verified |
+| 558 | Usage restrictions | Implemented; database and browser verified |
+| 572 | Condition checklist | Implemented; database and browser verified |
+| 573 | Accessory count | Implemented; database and browser verified |
+| 577 | Return condition report | Implemented; database and browser verified |
+| 578 | Missing accessory record | Implemented; database and browser verified |
+| 581 | Extension request | Implemented; database and browser verified |
+| 582 | Schedule conflict alert | Implemented; database and browser verified |
+| 585 | Late-return follow-up | Implemented; database and browser verified |
+| 593 | Repair record | Implemented; database and browser verified |
 
 ## Quote and capacity increment
 
@@ -237,3 +237,58 @@ postgresql://postgres@127.0.0.1:32800/credit_statement_test?sslmode=disable for
 ACCESS_TEST_DATABASE_URL and STATEMENT_TEST_DATABASE_URL. Never substitute a
 production database. Remove this task container/volumes when its verification
 work is finished; do not remove other Docker resources.
+
+## Equipment operations increment
+
+Inspected integration: f6934cd2a6fa3c10c9dc7965b404649b1a2c63bd, PR 805.
+This increment implements the ten selected equipment features (557, 558, 572,
+573, 577, 578, 581, 582, 585, 593) in existing owner/renter workspaces.
+
+- Equipment owners maintain a versioned accessory inventory, condition checklist
+  and usage rules in ToolOwnerDashboard. Booking confirmation displays those
+  terms and rejects stale configured inventory. Each booking freezes a separate
+  inventory/rules snapshot. Later listing edits do not rewrite that agreement.
+- Both booking parties can submit their own pickup/return reports with exact
+  observed counts, checklist results and notes. Amendments append versions and
+  preserve old observations. Missing accessories compare against the owner's
+  pickup record when present, otherwise the booking snapshot. Owners resolve
+  discrepancies with a shared explanation; reports do not assess charges.
+- Renters request extensions and owners explicitly approve or decline them.
+  This delivery supports no-additional-charge extensions with both parties'
+  explicit agreement. Existing invoices, total price and deposit records stay
+  unchanged. Paid extensions are outside this increment and require separate
+  billing/consent work; no financial transaction is fabricated.
+- Calendar conflicts are rejected under the existing per-tool lock, including
+  older booking writes via a database trigger. Owner approval checks live dates;
+  a conflict leaves the request pending. Request retry IDs prevent duplicates.
+  Row/advisory lock order matches existing status writers.
+- Owners see late rentals and record follow-up notes shared in the renter's
+  booking workspace. These are persistent in-app follow-ups, not email/push or
+  automated debt collection. Owner-only repair history records completed work.
+- Effective tool-owner access and exact ownership are rechecked for owner
+  operations. Renters retain their own booking history when owner access ends.
+  Foreign accounts cannot read or mutate these records. Account/session changes
+  reset both existing parent pages and the equipment panels; access changes
+  discard obsolete reads and clear the panel. All authenticated reads are
+  no-store, all five catalogs are updated, and private form data is excluded
+  from analytics. Existing peer-rental, invoice and deposit flows remain in use.
+- Real booking creation previously selected an ambiguous unqualified id from a
+  users join. The selected tool fields are now qualified; the real database
+  test exercises creation and both agreement/inventory snapshots.
+- Verification: disposable PostGIS migrations passed; 26 tests passed across
+  seven suites (3.87s), covering inventory CAS, scope, real booking creation,
+  report versions, discrepancy resolution, concurrent calendar writes, rejected
+  extensions, explicit consent, unchanged pricing, follow-ups, repairs and
+  revoked old-link denial. Existing rental/deposit/date/error suites passed.
+- Browser verification: inventory and repair editing, owner pickup, renter
+  return counts, missing accessory resolution, extension consent/conflict,
+  Arabic RTL/narrow viewport and access-change clearing passed (1 test, 7.92s).
+  Browser APIs were synthetic; real database paths were tested separately.
+- Initial client build passed (1246 emitted assets). Final validation and exact
+  GitHub head are recorded when pushed. Migration history, growth registry and
+  whitespace checks passed. No production acceptance, merge or deployment.
+
+24 of the selected 30 features now have implementations with local verification.
+The six remaining items are business membership expiry (214), offboarding
+completion review (215), overdue task alerts (219), follow-up reminders (224),
+team onboarding guide (229), and policy acknowledgment history (230).

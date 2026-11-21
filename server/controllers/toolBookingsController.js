@@ -18,6 +18,8 @@ function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPri
     ],
     tool: {
       id: tool.id,
+      accessories: tool.accessories || [],
+      conditionChecklist: tool.condition_checklist || [],
       name: tool.name,
       category: tool.category,
       brand: tool.brand,
@@ -67,10 +69,10 @@ const createBooking = async (req, res, next) => {
 
     // Get tool and owner info
     const toolResult = await client.query(
-      `SELECT id, user_id AS owner_id, name, category, brand, model, condition,
-              daily_rate, deposit_amount, requires_deposit, owner_rules,
-              owner_custom_terms, owner_custom_terms_hash, replacement_value,
-              is_available, moderation_hold
+      `SELECT tr.id, tr.user_id AS owner_id, tr.name, tr.category, tr.brand, tr.model, tr.condition,
+              tr.daily_rate, tr.deposit_amount, tr.requires_deposit, tr.owner_rules,
+              tr.owner_custom_terms, tr.owner_custom_terms_hash, tr.replacement_value,
+              tr.is_available, tr.moderation_hold,tr.accessories,tr.condition_checklist,tr.equipment_version
          FROM tool_rentals tr
          JOIN users owner
            ON owner.id = tr.user_id
@@ -111,6 +113,9 @@ const createBooking = async (req, res, next) => {
     // check ran before BEGIN, allowing concurrent requests to both pass.
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`tool-rental:${toolId}`]);
+    const currentTool=await client.query('SELECT equipment_version,is_available,moderation_hold FROM tool_rentals WHERE id=$1 FOR SHARE',[toolId]);
+    if(!currentTool.rows[0]||currentTool.rows[0].is_available===false||currentTool.rows[0].moderation_hold)throw new AppError('Tool unavailable',409,'state_conflict');
+    if(Number(currentTool.rows[0].equipment_version)>1 && (req.body.equipmentVersion!==currentTool.rows[0].equipment_version || listedTool.equipment_version!==currentTool.rows[0].equipment_version))throw new AppError('Review the current equipment rules before booking',409,'equipment_changed');
 
     // Check for calendar conflicts (overlapping confirmed/pending bookings)
     const conflictResult = await client.query(

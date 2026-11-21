@@ -15,6 +15,9 @@ interface BookingModalProps {
     requires_deposit?: boolean;
     replacement_value?: number;
     owner_rules?: string;
+    accessories?: Array<{name:string;quantity:number}>;
+    condition_checklist?: string[];
+    equipment_version?: number;
     owner_custom_terms?: string;
     condition?: string;
     brand?: string;
@@ -107,12 +110,14 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
 
     setLoading(true);
     try {
-      await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice, agreementAccepted);
+      await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice, agreementAccepted, tool.equipment_version);
 
       toast.success(t('toolRentals.bookingConfirmed'));
       onClose();
     } catch (err: any) {
-      if (err.response?.status === 409) {
+      if (err.response?.data?.code === 'equipment_changed') {
+        toast.error(t('equipmentOperations.changed'));
+      } else if (err.response?.status === 409) {
         toast.error(t('toolRentals.dateConflict'));
       } else {
         toast.error(t('toolRentals.bookingFailed'));
@@ -197,6 +202,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
             )}
 
             <div className="booking-peer-agreement">
+              {!!tool.accessories?.length && <><h3>{t('equipmentOperations.accessories')}</h3><ul>{tool.accessories.map(item=><li key={item.name}>{item.name} × {item.quantity}</li>)}</ul></>}
+              {!!tool.condition_checklist?.length && <><h3>{t('equipmentOperations.checklist')}</h3><ul>{tool.condition_checklist.map(label=><li key={label}>{label}</li>)}</ul></>}
               <div className="booking-peer-agreement-title">
                 <ShieldAlert className="w-4 h-4" />
                 <span>{t('toolRentals.peerAgreementTitle')}</span>

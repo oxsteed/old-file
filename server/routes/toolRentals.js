@@ -45,7 +45,7 @@ const TOOL_FIELDS_BASE = `
   t.location_city, t.location_state,
   t.owner_rules, t.owner_custom_terms, t.owner_custom_terms_hash,
   t.replacement_value, t.owner_attested_at, t.owner_attestation_version,
-  t.created_at, t.updated_at
+  t.created_at, t.updated_at,t.accessories,t.condition_checklist,t.equipment_version
 `;
 
 // Resolved lazily on first request — checks which optional columns exist so the
@@ -312,6 +312,7 @@ function normalizeToolPayload(body, { partial = false } = {}) {
 }
 
 // GET /api/tool-rentals/categories?q=pow&limit=20
+router.use('/operations',require('./equipmentOperations'));
 // Public - returns merged list of seeded + DB categories for autocomplete
 router.get('/categories', async (req, res) => {
   try {

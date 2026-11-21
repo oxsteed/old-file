@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { currentAuthEpoch } from '../api/authSessionEpoch';
+import { EquipmentBookingPanel } from '../components/EquipmentOperations';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
@@ -73,7 +75,7 @@ interface Booking {
   deposit_resolution_note?: string | null;
 }
 
-const MyBookingsPage = () => {
+const MyBookingsPageContent = () => {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || 'en';
   const navigate = useNavigate();
@@ -265,6 +267,7 @@ const MyBookingsPage = () => {
 
   const renderBookingCard = (booking: Booking, isOwner: boolean = false) => (
     <div key={booking.id} className="booking-card">
+      <EquipmentBookingPanel bookingId={booking.id}/>
       <div className="booking-card-header">
         <div className="booking-card-info">
           <h3 className="booking-card-title">{booking.name || t('myBookings.unknownTool')}</h3>
@@ -729,4 +732,5 @@ const MyBookingsPage = () => {
   );
 };
 
+const MyBookingsPage=()=>{const {user}=useAuth();return user?.id?<MyBookingsPageContent key={`${user.id}:${currentAuthEpoch()}`}/>:null;};
 export default MyBookingsPage;
