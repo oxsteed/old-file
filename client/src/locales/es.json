@@ -1949,6 +1949,10 @@
     "modePrompt": "¿Cómo usarás OxSteed?",
     "setupNote": "Otras formas de usar OxSteed",
     "intentNote": "Todas las personas comienzan con acceso de cliente. Elige el camino que describe tus necesidades; el proceso de admisión comienza después de verificarte.",
+    "moreWays": "Más formas de usar OxSteed",
+    "changeGoal": "Cambiar objetivo",
+    "invitedGoal": "Únete al equipo que te invitó",
+    "invitedGoalHelp": "Crea tu cuenta de cliente y verifica tu correo electrónico. Después revisa y responde a tu invitación.",
     "personas": {
       "customer": { "title": "Contratar ayuda local", "description": "Publica un trabajo, encuentra ayuda y pide comida." },
       "helper": { "title": "Ofrecer servicios", "description": "Crea un perfil, responde a oportunidades y recibe pagos." },

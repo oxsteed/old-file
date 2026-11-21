@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { PERSONA_NAVIGATION_CATALOG } from '../src/utils/personaNavigation.js';
-import { SIGNUP_PERSONAS, SIGNUP_INTENT_VALUES, signupPersonaForIntent } from '../src/utils/signupPersonas.js';
+import { SIGNUP_PERSONAS, SIGNUP_INTENT_VALUES, signupPersonaForIntent, COMMON_SIGNUP_PERSONAS, MORE_SIGNUP_PERSONAS, signupEntryForParams } from '../src/utils/signupPersonas.js';
 
 test('signup covers every catalog persona family exactly once', () => {
   assert.equal(SIGNUP_PERSONAS.length, PERSONA_NAVIGATION_CATALOG.length);
@@ -47,4 +47,28 @@ test('goal-picker copy never uses mode or switcher language', () => {
     }
     assert.ok(catalog.signupUpgrade.modeError, `${relative} keeps a modeError string`);
   }
+});
+
+test('common goals and specialized choices partition all 18 paths without changing admission', () => {
+  assert.deepEqual(COMMON_SIGNUP_PERSONAS.map(({id}) => id), ['customer', 'helper', 'business-owner']);
+  assert.equal(MORE_SIGNUP_PERSONAS.length, 15);
+  assert.deepEqual([...COMMON_SIGNUP_PERSONAS, ...MORE_SIGNUP_PERSONAS].map(({id}) => id).sort(), SIGNUP_PERSONAS.map(({id}) => id).sort());
+  for (const persona of SIGNUP_PERSONAS) {
+    for (const key of ['goal', 'intent']) {
+      for (const value of [persona.id, persona.intent]) {
+        assert.equal(signupEntryForParams(new URLSearchParams({ [key]: value })).intent, persona.intent);
+      }
+    }
+  }
+});
+
+test('entry routing treats links as hints and gives a valid invitation priority', () => {
+  const entry = (query) => signupEntryForParams(new URLSearchParams(query));
+  assert.deepEqual(entry('goal=admin&mode=admin&approved=true'), {inviteId:null, intent:null});
+  assert.equal(entry('mode=driver').intent, 'ship_goods');
+  assert.equal(entry('goal=unknown&intent=consult').intent, 'consult');
+  assert.equal(entry('goal=consultant&mode=helper').intent, 'consult');
+  assert.deepEqual(entry('invite=123&goal=business-owner'), {inviteId:'123', intent:'join_business_team'});
+  assert.deepEqual(entry('invite=123&goal=restaurant-team'), {inviteId:'123', intent:'join_restaurant_team'});
+  assert.deepEqual(entry('invite=%3Cscript%3E&goal=consultant'), {inviteId:null, intent:'consult'});
 });

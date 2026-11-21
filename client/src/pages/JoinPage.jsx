@@ -17,10 +17,9 @@ import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import { detectCountryFromLocale, hasPostalCode, requiresPostalCode, hasRegions, getRegionLabel } from '../lib/countries';
-import { intentForLegacyMode } from '../utils/legacyDeepLinks';
 import { listMyInvitations, acceptInvitation, declineInvitation } from '../api/businesses';
 import { normalizeSignupRegion, validateSignup, SIGNUP_FIELD_KEYS } from '../utils/signupValidation';
-import { SIGNUP_PERSONAS, SIGNUP_INTENT_VALUES, signupPersonaForIntent } from '../utils/signupPersonas';
+import { COMMON_SIGNUP_PERSONAS, MORE_SIGNUP_PERSONAS, SIGNUP_INTENT_VALUES, signupPersonaForIntent, signupEntryForParams } from '../utils/signupPersonas';
 import './JoinPage.css';
 
 const DRAFT_KEY = 'oxsteed:join-draft:v1';
@@ -106,11 +105,8 @@ const ICONS = {
   franchise: Factory, investor: BarChart3, credit: Users, partner: Users,
   learning: GraduationCap, staff: ShieldCheck, device: Smartphone,
 };
-// The intent cards are the signup choice now: the account is always created
-// as a customer and the intent becomes an application on the progressive
-// path. A legacy ?mode= value still preselects the matching intent card
-// (intentForLegacyMode maps it to an intent); unsupported or privileged modes
-// fall back to the draft or the customer-first default.
+// Goals describe intent; every account is created as a customer. Supported
+// deep links bypass discovery, while admission and access remain server-owned.
 const SignupApplication = lazy(() => import('../components/registration/SignupApplication'));
 const EMPTY = { firstName: '', lastName: '', email: '', phone: '', country: '', addressLine1: '',
   city: '', state: '', zipCode: '', signupIntent: 'find_help', ageConfirmed: false, termsAccepted: false, password: '' };
@@ -139,7 +135,6 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const navigate = useNavigate();
   const [pageParams] = useSearchParams();
   const params = embedded ? new URLSearchParams(embeddedSearch) : pageParams;
-  const presetMode = params.get('mode');
   // Carry only the referral identifier understood by the signup API. Other
   // query parameters (including forged approval-style flags) never become
   // signup authority or application state.
@@ -150,17 +145,18 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   // G-3: team-invite email CTA (?invite=<id>). Only the invitation id is
   // carried; it grants nothing until the signed-in accept call matches it
   // to this account by member id or invite email.
-  const rawInvite = params.get('invite');
-  const inviteId = rawInvite && /^[A-Za-z0-9-]{1,64}$/.test(rawInvite) ? rawInvite : null;
+  const { inviteId, intent: presetIntent } = signupEntryForParams(params);
   const [draft] = useState(loadDraft);
-  const presetIntent = presetMode ? intentForLegacyMode(presetMode) : undefined;
-  const [form, setForm] = useState(() => ({ ...EMPTY, country: detectCountryFromLocale(), ...draft?.form, password: '',
-    signupIntent: presetIntent || (SIGNUP_INTENT_VALUES.includes(draft?.form?.signupIntent) ? draft.form.signupIntent : 'find_help') }));
+  const initialIntent = presetIntent || (SIGNUP_INTENT_VALUES.includes(draft?.form?.signupIntent) ? draft.form.signupIntent : 'find_help');
+  const [form, setForm] = useState(() => ({ ...EMPTY, country: detectCountryFromLocale(), ...draft?.form, password: '', signupIntent: initialIntent }));
+  const [choosingGoal, setChoosingGoal] = useState(!presetIntent);
+  const [moreGoalsOpen, setMoreGoalsOpen] = useState(() => MORE_SIGNUP_PERSONAS.some(({ intent }) => intent === initialIntent));
   const [errors, setErrors] = useState({});
-  const [registrationToken, setRegistrationToken] = useState(draft?.registrationToken || '');
-  const [otpSent, setOtpSent] = useState(Boolean(draft?.otpSent && draft?.registrationToken));
+  const draftMatchesGoal = !presetIntent || draft?.form?.signupIntent === presetIntent;
+  const [registrationToken, setRegistrationToken] = useState(draftMatchesGoal ? draft?.registrationToken || '' : '');
+  const [otpSent, setOtpSent] = useState(Boolean(draftMatchesGoal && draft?.otpSent && draft?.registrationToken));
   const [continuation, setContinuation] = useState(null);
-  const [metadata, setMetadata] = useState(draft?.metadata || {});
+  const [metadata, setMetadata] = useState(draftMatchesGoal ? draft?.metadata || {} : {});
   const [otpDigits, setOtpDigits] = useState(Array(6).fill(''));
   const [otpError, setOtpError] = useState('');
   const [notice, setNotice] = useState('');
@@ -189,13 +185,13 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
     } catch { /* Tab-scoped recovery is optional when storage is unavailable. */ }
   }, [form, registrationToken, otpSent, metadata]);
   useEffect(() => {
-    if (user?.email_verified && (!completed.current || (continuation && !isCurrentAuthEpoch(continuation.epoch)))) {
+    if (user?.email_verified && !inviteId && (!completed.current || (continuation && !isCurrentAuthEpoch(continuation.epoch)))) {
       // WP-104: every account lands in the customer workspace; the intent
       // application (if any) is handled by the continuation panel, not by a
       // mode-specific landing route.
       navigate('/dashboard', { replace: true });
     }
-  }, [user, navigate, continuation]);
+  }, [user, navigate, continuation, inviteId]);
   useEffect(() => {
     if (!registrationToken) return undefined;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -345,6 +341,10 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
       // Progressive access (WP-001..003): with customer-first signup the server
       // returns access.nextStep; an owner/helper intent continues as an
       // application on the customer account instead of a role switch.
+      if (inviteId) {
+        setContinuation({ step: { type: 'invitation' }, accountId: data.user.id, epoch: currentAuthEpoch() });
+        return;
+      }
       const nextStep = data.access?.nextStep;
       if (nextStep?.type === 'application') {
         setContinuation({ step: nextStep, accountId: data.user.id, epoch: currentAuthEpoch() });
@@ -414,10 +414,10 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
       onChange={event => set(field, event.target.value)} maxLength={maxLength} autoComplete={autoComplete}
       className="signup-input" required {...aria(field)} />{fieldError(field)}
   </div>;
-  const personaCard = (persona, index) => {
+  const personaCard = (persona) => {
     const Icon = ICONS[persona.icon] || UserRound;
     return <label className={'signup-mode-card' + (form.signupIntent === persona.intent ? ' selected' : '')} key={persona.intent}>
-      <input type="radio" id={index === 0 ? 'signupIntent' : 'intent-' + persona.intent} name="signupIntent" value={persona.intent}
+      <input type="radio" id={persona.intent === 'find_help' ? 'signupIntent' : 'intent-' + persona.intent} name="signupIntent" value={persona.intent}
         checked={form.signupIntent === persona.intent} onChange={() => set('signupIntent', persona.intent)}
         aria-describedby="signup-mode-help" aria-invalid={Boolean(errors.signupIntent) || undefined} data-track="ui.663f47c956.4" />
       <Icon size={27} aria-hidden="true" /><strong>{msg(`personas.${persona.copy}.title`)}</strong>
@@ -461,30 +461,30 @@ export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
             <Link className="signup-primary signup-primary-link" to={continuation.step.statusPath || '/dashboard'}>{msg('viewNextStep')}</Link>
           </section>
         )}
-        {continuation && isCurrentAuthEpoch(continuation.epoch) && continuation.step?.type === 'none' && inviteId && (
-          <InvitationAcceptPanel inviteId={inviteId} />
+        {inviteId && (user?.email_verified || (continuation && isCurrentAuthEpoch(continuation.epoch))) && (
+          <InvitationAcceptPanel key={`${user?.id || continuation?.accountId}:${currentAuthEpoch()}:${inviteId}`} inviteId={inviteId} />
         )}
-        {!continuation && (!otpSent ? <form ref={formRef} onSubmit={handleSubmit} noValidate aria-busy={busy === 'submit'} data-track="ui.663f47c956.1" data-track-private>
+        {!continuation && !user?.email_verified && (!otpSent ? <form ref={formRef} onSubmit={handleSubmit} noValidate aria-busy={busy === 'submit'} data-track="ui.663f47c956.1" data-track-private>
           {entries.length > 0 && <div className="signup-error-summary" role="alert"><p>{msg('errorSummary')}</p><ul>{entries.map(([field, value]) => <li key={field}>
             {field === 'general' ? value : <button type="button" onClick={() => focusField(field)} data-track="ui.663f47c956.2">{value}</button>}
           </li>)}</ul>{errors.email === msg('emailTaken') && <Link to="/login">{t('nav.signIn')}</Link>}</div>}
           {registrationExpired && <button type="button" className="signup-secondary" onClick={editDetails} data-track="ui.663f47c956.3">{msg('restart')}</button>}
           {!capabilitiesLoading && <fieldset disabled={Boolean(busy)} className="signup-section signup-mode-section"><legend>{msg('modePrompt')}</legend>
             <p className="signup-help">{msg('intentNote')}</p>
-            <div className="signup-layer-stack">
-              <section className="signup-core-layer" aria-labelledby="signup-core-layer-title">
-                <div className="signup-layer-label" id="signup-core-layer-title">{msg('personas.customer.title')}</div>
-                <p className="signup-layer-copy">{msg('personas.customer.description')}</p>
-                <div className="signup-mode-grid signup-core-grid">{personaCard(SIGNUP_PERSONAS[0], 0)}</div>
-              </section>
-              <div className="signup-layer-divider" aria-hidden="true"><span>+</span></div>
-              <section className="signup-additional-layer" aria-labelledby="signup-additional-layer-title">
-                <div className="signup-layer-label" id="signup-additional-layer-title">{msg('setupNote')}</div>
-                <p className="signup-layer-copy">{msg('intentNote')}</p>
-                <div className="signup-mode-grid">{SIGNUP_PERSONAS.slice(1).map((persona, index) => personaCard(persona, index + 1))}</div>
-              </section>
-            </div>
-            {(() => { const selected = signupPersonaForIntent(form.signupIntent); return <p id="signup-mode-help" className="signup-help signup-admission-help">{msg(`admission.${selected.admission}`)}</p>; })()}
+            {(!choosingGoal || inviteId) ? <div className="signup-selected-goal">
+              <strong>{msg(inviteId ? 'invitedGoal' : `personas.${signupPersonaForIntent(form.signupIntent).copy}.title`)}</strong>
+              <p className="signup-help">{msg(inviteId ? 'invitedGoalHelp' : `personas.${signupPersonaForIntent(form.signupIntent).copy}.description`)}</p>
+              {!inviteId && <button type="button" id="signupIntent" className="signup-text-button"
+                onClick={() => { setMoreGoalsOpen(MORE_SIGNUP_PERSONAS.some(({ intent }) => intent === form.signupIntent)); setChoosingGoal(true);
+                  requestAnimationFrame(() => formRef.current?.querySelector(`input[value="${form.signupIntent}"]`)?.focus()); }}>{msg('changeGoal')}</button>}
+            </div> : <div id="signup-goal-choices">
+              <div className="signup-mode-grid signup-common-goals">{COMMON_SIGNUP_PERSONAS.map(personaCard)}</div>
+              <details className="signup-more-goals" open={moreGoalsOpen} onToggle={event => setMoreGoalsOpen(event.currentTarget.open)}>
+                <summary>{msg('moreWays')}</summary>
+                <div className="signup-mode-grid">{MORE_SIGNUP_PERSONAS.map(personaCard)}</div>
+              </details>
+            </div>}
+            {(() => { const selected = signupPersonaForIntent(form.signupIntent); return <p id="signup-mode-help" aria-live="polite" className="signup-help signup-admission-help">{msg(`admission.${selected.admission}`)}</p>; })()}
             {fieldError('signupIntent')}
           </fieldset>}
           <fieldset disabled={Boolean(busy)} className="signup-section"><legend>{msg('personalTitle')}</legend>

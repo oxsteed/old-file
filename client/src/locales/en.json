@@ -1949,6 +1949,10 @@
     "modePrompt": "How will you use OxSteed?",
     "setupNote": "Additional paths",
     "intentNote": "Everyone starts with customer access. Choose the future path that best describes your needs; the owning admission process comes after verification.",
+    "moreWays": "More ways to use OxSteed",
+    "changeGoal": "Change goal",
+    "invitedGoal": "Join your invited team",
+    "invitedGoalHelp": "Create your customer account and verify your email. Then review and respond to your invitation.",
     "personas": {
       "customer": { "title": "Hire local help", "description": "Post a job, find trusted help, and order food." },
       "helper": { "title": "Offer services", "description": "Build a service profile, respond to opportunities, and get paid." },

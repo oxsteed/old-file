@@ -1949,6 +1949,10 @@
     "modePrompt": "Kijan ou pral sèvi ak OxSteed?",
     "setupNote": "Lòt fason pou itilize OxSteed",
     "intentNote": "Tout moun kòmanse ak aksè kliyan. Chwazi chemen ki pi byen dekri bezwen ou; pwosesis admisyon an kòmanse apre verifikasyon.",
+    "moreWays": "Plis fason pou itilize OxSteed",
+    "changeGoal": "Chanje objektif",
+    "invitedGoal": "Antre nan ekip ki envite ou a",
+    "invitedGoalHelp": "Kreye kont kliyan ou epi verifye imèl ou. Apre sa, li envitasyon ou epi reponn li.",
     "personas": {
       "customer": { "title": "Jwenn èd lokal", "description": "Pibliye yon travay, jwenn èd epi kòmande manje." },
       "helper": { "title": "Ofri sèvis", "description": "Kreye pwofil sèvis, reponn opòtinite epi touche." },

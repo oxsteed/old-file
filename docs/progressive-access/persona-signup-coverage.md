@@ -40,3 +40,49 @@ The original database constraint only stored the first four intents.
 intent identifiers. The policy registry still controls which values signup
 accepts and whether the next step opens a platform application.
 
+
+## Goal-first entry (PR #805 follow-up)
+
+The default signup chooser emphasizes Hire local help, Offer services, and Run
+a business. “More ways to use OxSteed” expands the other 15 catalog paths.
+All 18 catalog families retain their original admission mechanisms. This is a
+display grouping; neither the grouping nor a URL hint creates authority.
+
+Supported `goal` or `intent` values can identify a catalog family ID or its
+signup intent. Recognized legacy `mode` links still work. A valid preselection
+shows the selected goal immediately above personal details, with Change goal
+available; changing it focuses the selected choice and expands specialized
+choices when needed. Unknown or privileged legacy hints cannot select new
+access. A specialized saved draft reopens the relevant group. A different
+explicit goal preserves typed contact details but discards an incompatible
+pending registration token and verification state.
+
+An `invite` link takes priority over unrelated goals. It starts the customer
+account and then opens invitation review after email verification, without
+asking the user to select a team again. Existing verified users enter that
+review directly. The client carries only the invitation ID; the existing
+server invitation API checks account match, expiry, scope, and acceptance.
+Missing or unavailable invitations offer Applications recovery and no accept
+button. Signup and selecting a goal never accept an invitation automatically.
+
+The same chooser is used by standalone and embedded signup. New strings are
+present in both catalog structures for en/es/fr/ht/ar. Native disclosure,
+keyboard operation, selected-choice focus, admission status announcements, and
+visible descriptions are retained on narrow and RTL layouts.
+
+Verification is recorded against the commit containing this section. Local
+synthetic browser coverage exercises all 18 direct goals, specialized discovery,
+saved drafts, legacy and explicit intent links, new-account invitation review,
+and existing-account invitation review. Server authority and production
+invitation delivery are not established by synthetic browser fixtures. No
+production change or deployment is part of this follow-up.
+
+Local verification for the goal-first follow-up:
+
+- From `client/`, `node --test scripts/signupPersonas.test.mjs scripts/signupValidation.test.mjs`: 9 passed (0.97s).
+- `npm run build:ci`: passed, 1,247 emitted assets validated; production bundling 1m33s.
+- `node --test client/scripts/signup.browser-check.cjs`: six journeys passed; the new all-catalog journey timed out on a fixture click targeting the visually hidden radio. Corrected the test to activate the visible card.
+- `node --test --test-name-pattern='goal-first|invitation entry' client/scripts/signup.browser-check.cjs`: both passed (24.23s), including all 18 direct goals, incompatible-draft recovery, new/existing-account invitations, and invalid invitation recovery. The entire browser file was not repeated after that test-only click correction.
+- Desktop/mobile/embedded light/dark screenshots and Arabic RTL were inspected. These are synthetic-browser checks, not a human screen-reader or production acceptance pass.
+- Growth instrumentation check: 1,033 eligible files, 3,085 named interactions, full coverage. `git diff --check` passed.
+- Reconciled remote CI-fixture commit `5bc1409993ff300ae00c0dacc68d74d5a4d35b0d` with a fast-forward before delivery; it changes server tests only. Those suites were not rerun for this client-only follow-up.

@@ -11,8 +11,12 @@ const screenshots = fs.mkdtempSync('/tmp/oxsteed-signup-design-');
 async function fixture() {
   const mocks = {
     'react-i18next': `export const useTranslation = () => ({ t:window.translate, i18n:{language:window.language} }); export const Trans = ({children}) => children; export const initReactI18next = { type: '3rdParty', init: () => {} };`,
-    '../context/AuthContext': `import React from 'react'; export const AuthContext = React.createContext(null); export const useAuth=()=>({user:null,setUser:user=>{window.registeredUser=user;}});`,
+    '../context/AuthContext': `import React from 'react'; export const AuthContext = React.createContext(null); export const useAuth=()=>({user:window.signedIn?{id:"existing",email_verified:true}:null,setUser:user=>{window.registeredUser=user;}});`,
     '../hooks/useAuth': `export {useAuth} from '../context/AuthContext'; import {useAuth as ua} from '../context/AuthContext'; export default ua;`,
+    'unused-modal-page': `export default ()=>null;`,
+    '../api/businesses': `export const listMyInvitations=async()=>window.missingInvite?[]:[{id:'invite-123',business_name:'Synthetic team',role:'employee'}];
+      export const acceptInvitation=async(id)=>{window.calls.push({url:'accept-invitation',id});};
+      export const declineInvitation=async(id)=>{window.calls.push({url:'decline-invitation',id});};`,
     '../api/auth': `export const persistSessionPayload=()=>{}; export const authAPI = { post: async () => ({}) }; export const clearStoredSession = () => {}; export default { get: async () => ({ data: {} }), post: async () => ({ data: {} }), put: async () => ({ data: {} }) };`,
     '../components/PageMeta': `export default ()=>null;`,
     '../components/Footer': `import React from 'react';export default ()=> <footer data-footer>© OxSteed</footer>;`,
@@ -79,7 +83,10 @@ async function fixture() {
       {window.embedded?<><button id="trigger" onClick={()=>setOpen(true)}>Open signup</button>{open&&<Modal url={'/join'+location.search} onClose={()=>setOpen(false)}/>}</>:<Join/>}</>}
     createRoot(document.getElementById('root')).render(<BrowserRouter><Harness/></BrowserRouter>);`},
     bundle:true,write:false,outfile:'app.js',jsx:'automatic',define:{'import.meta.env':'{}'},
-    plugins:[{name:'signup-fixture',setup(plugin){plugin.onResolve({filter:/.*/},args=>mocks[args.path]?{path:args.path,namespace:'fixture'}:undefined);
+    plugins:[{name:'signup-fixture',setup(plugin){plugin.onResolve({filter:/.*/},args=>{
+        if(args.importer.endsWith('/media/MediaLinkModal.jsx')&&['../Login','../ForgotPassword','../PublicProfile','../SmartDashboard','../SettingsPage','../Settings/Notifications','../SupportEscalationPage','../DiscoverPage'].includes(args.path))return {path:'unused-modal-page',namespace:'fixture'};
+        if(args.path==='../api/businesses'&&!args.importer.endsWith('/pages/JoinPage.jsx'))return undefined;
+        return mocks[args.path]?{path:args.path,namespace:'fixture'}:undefined;});
       plugin.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:mocks[args.path],loader:'jsx',resolveDir:root}));}}] });
   const server=http.createServer((req,res)=>{
     if(req.url==='/app.js'||req.url==='/app.css'){res.setHeader('Content-Type',req.url.endsWith('css')?'text/css':'text/javascript');res.end(bundle.outputFiles.find(f=>f.path.endsWith(req.url.endsWith('css')?'.css':'.js')).contents);return;}
@@ -99,7 +106,7 @@ async function fixture() {
       nav>div{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:16px;gap:10px}nav a{display:inline-flex;align-items:center;gap:8px;color:var(--color-text);text-decoration:none}nav>div>div{display:flex;gap:10px;align-items:center}nav button{min-height:44px}
       [data-footer]{padding:24px;text-align:center;color:var(--color-text-muted)}
     </style></head><body><div id="root"></div><script>
-      window.embedded=${params.has('embedded')};window.customerFirst=${params.has('customerFirst')};window.missingApplication=${params.has('missingApplication')};window.calls=[];window.language=${JSON.stringify(lang)};window.failure='';
+      window.signedIn=${params.has('signedIn')};window.missingInvite=${params.has('missingInvite')};window.embedded=${params.has('embedded')};window.customerFirst=${params.has('customerFirst')};window.missingApplication=${params.has('missingApplication')};window.calls=[];window.language=${JSON.stringify(lang)};window.failure='';
       window.catalog=${JSON.stringify(catalog).replace(/</g,'\\u003c')};window.common=${JSON.stringify(common).replace(/</g,'\\u003c')};
       window.translate=(key,options={})=>{const read=c=>key.split('.').reduce((v,k)=>v?.[k],c);const value=read(window.catalog)??read(window.common);return(typeof value==='string'?value:options.defaultValue||key).replace(/\\{\\{(\\w+)\\}\\}/g,(_,k)=>String(options[k]??''));};
     </script><script src="/app.js"></script></body></html>`);
@@ -186,6 +193,7 @@ test('non-application personas receive a safe admission handoff after verificati
     ]) {
       const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
       await open(page, `${app.url}/join?customerFirst`);
+      await page.getByText('More ways to use OxSteed', { exact: true }).click();
       await page.getByText(choice, { exact: true }).click();
       await fill(page); await submit(page);
       await page.evaluate(() => { window.failure = 'success'; });
@@ -212,8 +220,9 @@ test('standalone and native modal layouts, light/dark, RTL, zoom and focus',asyn
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`overflow ${embedded}/${width}/${dark}`);
       assert.equal(await page.locator('label[for="password"]').count(),1);
       assert.equal(await page.locator('input[type="radio"]').count(),18);
-      assert.equal(await page.locator('.signup-core-layer').count(),1);
-      assert.equal(await page.locator('.signup-additional-layer').count(),1);
+      assert.equal(await page.locator('.signup-common-goals input').count(),3);
+      assert.equal(await page.locator('.signup-more-goals').getAttribute('open'),null);
+      assert.equal(await page.locator('input[type=radio]:visible').count(),3);
       const font=await page.locator('#email').evaluate(el=>getComputedStyle(el).fontSize);assert.equal(font,'16px');
       if(width===390||width===1366)await page.screenshot({path:path.join(screenshots,`${embedded?'modal':'standalone'}-${width}-${dark?'dark':'light'}.png`),fullPage:true,animations:'disabled'});
       if(embedded){await page.locator('#firstName').focus();await page.keyboard.press('Escape');await page.locator('[role="dialog"]').waitFor({state:'hidden'});assert.equal(await page.locator('#trigger').evaluate(el=>el===document.activeElement),true);}
@@ -290,5 +299,73 @@ test('legacy drafts restore without passwords/implicit age and resend stays sing
     await page.clock.fastForward(61000);await page.evaluate(()=>window.failure='cooldown');await page.locator('.signup-secondary').click();await page.clock.runFor(200);
     await page.locator('#signup-otp-error').waitFor();assert.equal(await page.locator('.signup-secondary').isDisabled(),true);
     await page.close();
+  }finally{await browser.close();await app.close();}
+});
+
+test('goal-first discovery keeps every catalog path and direct links skip discovery', {timeout:90_000}, async()=>{
+  const app=await fixture();const browser=await chromium.launch({channel:'chrome',headless:true});
+  try {
+    const page=await browser.newPage({viewport:{width:390,height:844}});
+    await open(page, app.url+'/join');
+    const more=page.getByText('More ways to use OxSteed',{exact:true});
+    await more.focus();await page.keyboard.press('Enter');
+    assert.equal(await page.locator('input[type=radio]:visible').count(),18);
+    await page.getByText('Consult for clients',{exact:true}).click();
+    await page.reload();await page.locator('#email').waitFor();
+    assert.equal(await page.locator('input[value=consult]').isVisible(),true,'specialized draft stays discoverable');
+    assert.equal(await page.locator('input[value=consult]').isChecked(),true);
+    await page.close();
+    const drafted=await browser.newPage();
+    await drafted.addInitScript(()=>sessionStorage.setItem('oxsteed:join-draft:v1',JSON.stringify({
+      form:{signupIntent:'offer_services',email:'draft@example.test'},registrationToken:'old-pending',otpSent:true,
+    })));
+    await open(drafted,app.url+'/join?goal=equipment-owner');
+    assert.equal(await drafted.locator('[autocomplete="one-time-code"]').count(),0,'a different goal cannot reuse the old registration');
+    assert.equal(await drafted.locator('#email').inputValue(),'draft@example.test');
+    await drafted.close();
+    const {SIGNUP_PERSONAS}=await import('../src/utils/signupPersonas.js');
+    for(const persona of SIGNUP_PERSONAS){
+      const direct=await browser.newPage({viewport:{width:390,height:844}});
+      await open(direct, app.url+'/join?goal='+encodeURIComponent(persona.id));
+      assert.equal(await direct.locator('.signup-selected-goal').count(),1,persona.id);
+      assert.equal(await direct.locator('input[type=radio]:visible').count(),0,persona.id);
+      await direct.getByRole('button',{name:'Change goal',exact:true}).click();
+      assert.equal(await direct.locator(`input[value="${persona.intent}"]`).isChecked(),true,persona.id);
+      assert.equal(await direct.locator(`input[value="${persona.intent}"]`).isVisible(),true,persona.id);
+      assert.equal(await direct.locator(`input[value="${persona.intent}"]`).evaluate(el=>el===document.activeElement),true);
+      await direct.close();
+    }
+    for(const query of ['mode=driver','intent=consult']){
+      const direct=await browser.newPage();await open(direct,app.url+'/join?'+query);
+      assert.equal(await direct.locator('.signup-selected-goal').count(),1);
+      await fill(direct);await submit(direct);
+      assert.equal(await direct.evaluate(()=>window.calls.find(c=>c.url.endsWith('/start')).payload.signupIntent),query.includes('driver')?'ship_goods':'consult');
+      await direct.close();
+    }
+  }finally{await browser.close();await app.close();}
+});
+
+test('invitation entry goes straight to verified acceptance without choosing a goal', async()=>{
+  const app=await fixture();const browser=await chromium.launch({channel:'chrome',headless:true});
+  try{
+    const page=await browser.newPage();await open(page,app.url+'/join?invite=invite-123&goal=business-owner');
+    await page.getByText('Join your invited team',{exact:true}).waitFor();
+    assert.equal(await page.locator('input[type=radio]').count(),0);
+    await fill(page);await submit(page);
+    assert.equal(await page.evaluate(()=>window.calls.find(c=>c.url.endsWith('/start')).payload.signupIntent),'join_business_team');
+    await page.evaluate(()=>{window.failure='success';});await page.locator('[autocomplete="one-time-code"]').fill('123456');
+    await page.getByRole('button',{name:'Accept invitation',exact:true}).click();
+    assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.url==='accept-invitation').length),1);
+    assert.equal(await page.evaluate(()=>window.registeredUser.role),'customer');
+    await page.close();
+    const existing=await browser.newPage();await existing.goto(app.url+'/join?invite=invite-123&signedIn');
+    await existing.getByRole('button',{name:'Accept invitation',exact:true}).waitFor();
+    assert.equal(await existing.locator('#email').count(),0);
+    await existing.close();
+    const missing=await browser.newPage();await missing.goto(app.url+'/join?invite=invite-123&signedIn&missingInvite');
+    await missing.locator('#signup-invite-title').waitFor();
+    assert.equal(await missing.getByRole('button',{name:'Accept invitation',exact:true}).count(),0);
+    assert.equal(await missing.locator('.signup-intent-confirmation a').getAttribute('href'),'/settings/applications');
+    await missing.close();
   }finally{await browser.close();await app.close();}
 });
