@@ -86,3 +86,22 @@ Local verification for the goal-first follow-up:
 - Desktop/mobile/embedded light/dark screenshots and Arabic RTL were inspected. These are synthetic-browser checks, not a human screen-reader or production acceptance pass.
 - Growth instrumentation check: 1,033 eligible files, 3,085 named interactions, full coverage. `git diff --check` passed.
 - Reconciled remote CI-fixture commit `5bc1409993ff300ae00c0dacc68d74d5a4d35b0d` with a fast-forward before delivery; it changes server tests only. Those suites were not rerun for this client-only follow-up.
+
+## Signup CI regression repair
+
+At `b58b7e7155f8aef8c2c72948529bddbf856c7852`, GitHub run
+`44853005375` failed the client smoke job in
+`progressiveAccessModeRetirement.test.mjs`. The source assertion expected
+`intentForLegacyMode` and inline preset initialization in JoinPage even though
+that logic now belongs to `signupEntryForParams`. The repaired test checks that
+JoinPage uses the shared entry resolver, exercises legacy customer/helper/owner/
+driver/investor intent mapping, and rejects self-selection of privileged or
+unknown legacy values. Existing no-role-switch and intent-only payload guards
+remain. No application runtime or authorization behavior changes in this fix.
+
+Focused retirement and persona tests: 10 passed (0.58s). Full CI smoke command
+and result are recorded below. A production build is not repeated for this
+test-only change; the application build at `b58b7e715` passed both locally and
+in GitHub CI. Remote CI for the repair commit remains separate evidence.
+
+From `client/`, `node --test scripts/*.test.mjs`: all 943 passed, no skips or cancellations (19.27s). `git diff --check` passed.
