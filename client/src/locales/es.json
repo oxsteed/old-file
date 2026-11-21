@@ -1,4 +1,19 @@
 {
+  "reservationRequest": {
+    "eyebrow": "Planea tu visita",
+    "steps": "Pasos para solicitar una reserva",
+    "visit": "Tu visita",
+    "contact": "Datos de contacto",
+    "arrival": "Fecha y hora de llegada",
+    "departure": "Fecha y hora de salida",
+    "editVisit": "Editar la visita",
+    "contactHint": "Añade un teléfono o correo para que el restaurante pueda responder.",
+    "contactRequired": "Añade un teléfono o correo para continuar.",
+    "addNote": "Añadir una nota (opcional)",
+    "notePlaceholder": "Necesidades de accesibilidad, una ocasión especial u otra información…",
+    "continue": "Continuar",
+    "invalidWindow": "Elige una hora de salida posterior a tu llegada."
+  },
   "adminOpsAudit": {
     "bulkFailed": "IDs de usuarios con errores: {{ids}}. Siguen seleccionados para reintentar.",
     "fulfillmentTitle": "Confirmar entrega de tarjeta",
