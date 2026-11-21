@@ -37,3 +37,30 @@ npm --prefix server test -- \
 Final result: 5 suites / 94 tests passed, no skips (12.94 seconds).
 `git diff --check` passed. Full server CI was not rerun locally. Client build
 was not repeated for this test-only repair. Nothing merged or deployed.
+
+## Media scanner startup follow-up
+
+Run [44891768004](https://github.com/oxsteed/old-file/actions/runs/44891768004)
+at `8e178b2a6091c09675f57066540dbd9feb00b42f` failed its disposable Media
+harness before any upload verification: `su` rejected the expired `clamav`
+service account, FreshClam never downloaded signatures, and clamd exited with
+no database. Client browser and smoke checks passed in that run; server CI was
+still running when this follow-up was prepared.
+
+The CI entrypoint now calls `freshclam --stdout --user=clamav` directly.
+[FreshClam's documented privilege dropping](https://docs.clamav.net/faq/faq-freshclam)
+handles the database owner without invoking a PAM login. The existing cached-
+signature fallback and clamd failure propagation remain; scanning is not
+bypassed. Shell behavior tests run in the existing CI harness regression file.
+
+Validation:
+
+- `node --test scripts/media-credit-isolated.test.cjs scripts/credit-isolated-seed.test.cjs scripts/pull-ci-redis.test.cjs`: 11 passed (1.26s).
+- With the explicit loopback disposable statement database opt-in, `npm --prefix server test -- __tests__/fileScanService.test.js __tests__/mediaPublishUpload.test.js __tests__/mediaPublishSafety.test.js`: 27 passed, no skips (3.26s).
+- Built the actual `.github/ci/clamav.Dockerfile` locally on ARM64/Colima. Launched a task-only scanner container with the service account deliberately expired. FreshClam downloaded real signatures, and clamd ran with all UID fields set to the `clamav` UID.
+- The real application scanning service accepted a clean buffer and rejected gzip-compressed EICAR with `provider: clamav` (compression prevents the static EICAR check from satisfying that assertion). An initial scan during engine startup returned a closed connection; both scans passed after the engine finished initialization. No startup-health behavior was changed in this repair.
+- `git diff --check` passed. The local task-only scanner container was removed after verification. Existing containers and volumes were preserved.
+
+These checks do not substitute for the full GitHub Linux/AMD64 Media harness
+or production acceptance. No production settings, deployments, or permissions
+were changed.
