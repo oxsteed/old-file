@@ -108,12 +108,12 @@ async function createTip({ jobId, user, amountMinor, idempotencyKey, isImpersona
         idempotencyKey: `credit-spend:jobs:job_tip:${tip.id}`, isImpersonated, metadata: { jobId: String(job.id) },
       });
       await spend.finalizeCreditSpendInTransaction(client, {
-        holdId: hold.hold?.id, finalAmountCents: amount, currencyCode: currency, idempotencyKey: `credit-finalize:job_tip:${tip.id}`,
+        holdId: hold.hold?.hold?.id, finalAmountCents: amount, currencyCode: currency, idempotencyKey: `credit-finalize:job_tip:${tip.id}`,
         actorUserId: user.id, actorType: 'customer', referenceType: 'job_tip', referenceId: String(tip.id), description: 'Job tip',
       });
       const { rows: done } = await client.query(
         `UPDATE job_tips SET status = 'succeeded', credit_hold_id = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
-        [tip.id, hold.hold?.id || null]
+        [tip.id, hold.hold?.hold?.id || null]
       );
       return { tip: done[0], job, rail, settled: true };
     }

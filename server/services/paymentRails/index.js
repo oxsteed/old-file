@@ -59,11 +59,37 @@ async function loadParties(client, { customerId, helperId }) {
 }
 
 /**
+ * Is this helper ready to receive a Stripe payout? Reuses the canonical
+ * `payout_setup` evidence (activation.js): Stripe Connect charges + payouts
+ * enabled, W-9 on file, fresh Didit verification. Anything less means no
+ * Stripe payout can move to this helper.
+ */
+async function helperStripePayoutReady(client, helperId) {
+  const { loadActivationEvidence, requirementSatisfied } = require('../access/activation');
+  const evidence = await loadActivationEvidence(helperId, client);
+  return requirementSatisfied('payout_setup', evidence, 'helper.offer_services');
+}
+
+/**
  * Inside assignHelper's transaction, after the job row moved to accepted.
  * Returns { rail, currency, skipLegacyFinancials, skipLegacyCollateral }.
+ *
+ * G-1 (Emile decision, 2026-11-19): OxSteed Credit is the default payout
+ * method when Stripe payout setup is absent. When the customer did not
+ * explicitly choose a rail and the hire would otherwise default to the
+ * Stripe rail, a helper with no Stripe payout setup is paid in OxSteed
+ * Credit instead: the rail resolves to `credit` (payment mode) and the
+ * existing Credit hold machinery pays the helper's Credit partner ledger
+ * at completion (creditRail). An explicit `payment_rail: 'stripe'` choice
+ * is left alone — the Stripe payout attempt then fails closed at money
+ * time with no Connect account to pay into. The default only applies
+ * where the rail engine resolves the payout method: with the engine off
+ * (legacy mode) the recorded rail mirrors the customer's payment_method
+ * and there is no Credit-payment hold machinery at accept time, so the
+ * legacy rail is recorded unchanged.
  */
 async function applyAcceptance(client, { job, bid, customerId, paymentMethod, requestedRail = null, body = {}, isImpersonated = false }) {
-  const rail = requestedRail || legacyRailFor(paymentMethod);
+  let rail = requestedRail || legacyRailFor(paymentMethod);
   if (!flags.isEnabled('PAYMENT_RAILS')) {
     await client.query('UPDATE jobs SET payment_rail = $2 WHERE id = $1', [job.id, rail]);
     return { rail, currency: 'USD', skipLegacyFinancials: false, skipLegacyCollateral: false, legacy: true };
@@ -74,6 +100,22 @@ async function applyAcceptance(client, { job, bid, customerId, paymentMethod, re
   }
   const parties = await loadParties(client, { customerId, helperId: bid.helper_id });
   const options = await railPolicy.railOptions(client, { job, amountMinor, ...parties });
+  // G-1 Credit default: no explicit rail was chosen, the hire would ride
+  // the Stripe rail, and the helper has no Stripe payout setup. Pay in
+  // OxSteed Credit when the credit rail is available as a payment (not
+  // collateral — collateral mode still moves the money by Stripe, so it
+  // is not a payout default). Otherwise keep the Stripe rail: the Stripe
+  // payout attempt fails closed at money time, never silently.
+  if (!requestedRail && rail === 'stripe') {
+    const creditEntry = options.rails.find((r) => r.rail === 'credit');
+    if (creditEntry && creditEntry.available && creditEntry.mode === 'payment'
+      && !(await helperStripePayoutReady(client, bid.helper_id))) {
+      rail = 'credit';
+      logger.info('payment_rails.payout_defaulted_to_credit', {
+        jobId: job.id, helperId: bid.helper_id, requested: 'stripe', currency: options.settlement_currency,
+      });
+    }
+  }
   const entry = railPolicy.assertRailAvailable(options, rail);
   const currency = options.settlement_currency;
   if (bid.currency_code && String(bid.currency_code).trim().toUpperCase() !== currency) {
@@ -171,6 +213,7 @@ module.exports = {
   railOf,
   paymentMethodForRequest,
   applyAcceptance,
+  helperStripePayoutReady,
   assertCompletable,
   onComplete,
   onCancelled,

@@ -12,6 +12,7 @@ import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-do
 import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
+import HelperWorkPanel from '../components/HelperWorkPanel';
 import HelperOffersCard from '../components/HelperOffersCard';
 import EditProfileTab from '../components/EditProfileTab';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
@@ -19,6 +20,7 @@ import HelperAvailabilityEditor from '../components/HelperAvailabilityEditor';
 import HelperJobEarnings from '../components/HelperJobEarnings';
 import { useSocket } from '../hooks/useSocket';
 import useNearbyJobs from '../hooks/useNearbyJobs';
+import HelperDiscoverySettings from '../components/HelperDiscoverySettings';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 import ReviewsList from '../components/reviews/ReviewsList';
@@ -71,6 +73,7 @@ const SHOW_HELPER_BACKGROUND_CHECKS = LAUNCH_VISIBILITY.backgroundChecks;
 const SHOW_HELPER_TOOL_RENTALS = LAUNCH_VISIBILITY.toolRentals;
 const FOCUSED_HELPER_DASHBOARD_TABS = new Set([
   'pulse',
+  'work',
   'editprofile',
   'availability',
   'quotes',
@@ -156,6 +159,7 @@ export default function HelperDashboard() {
     enabled: initialized && !!user && isOnboardingComplete,
     city: user?.city,
     state: user?.state,
+    accountId: user?.id,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -1254,6 +1258,7 @@ export default function HelperDashboard() {
   const tabs = [
     { id: 'pulse',        label: t('helperDashboard.tabs.overview', { defaultValue: 'Overview' }) },
     { id: 'editprofile',  label: t('helperDashboard.tabs.editProfile') },
+    { id: 'work', label: t('helperWork.boardTitle') },
     { id: 'availability', label: t('helperDashboard.tabs.availability', { defaultValue: 'Availability' }) },
     ...(SHOW_HELPER_AI_KNOWLEDGE ? [{ id: 'aiKnowledge', label: t('helperDashboard.tabs.aiKnowledge') }] : []),
     ...(SHOW_HELPER_EARNINGS ? [{ id: 'earnings', label: t('helperDashboard.tabs.earnings') }] : []),
@@ -1342,6 +1347,7 @@ export default function HelperDashboard() {
             </div>
           )}
 
+          {tab === 'work' && <HelperWorkPanel />}
           <HelperOffersCard />
 
           {SHOW_LEGACY_HELPER_RECOMMENDATIONS && <RecommendationFeed title={t('helperDashboard.nextAction')} />}
@@ -1540,6 +1546,7 @@ export default function HelperDashboard() {
           {/* Nearby jobs stay with the availability controls on desktop. */}
           {tab==='pulse'&&<Card className="helper-dashboard-overview-area__jobs mb-6">
             <CardHeader icon={IcoZap} title={t('helperDashboard.jobsNearYou')} right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">{t('common.viewAll')} →</Link>}/>
+            <HelperDiscoverySettings />
             {nearbyStatus==='loading'
               ? <p className="text-gray-500 text-sm text-center py-6" role="status">{t('helperDashboard.nearbyLoading')}</p>
               : nearbyStatus==='location-unavailable'

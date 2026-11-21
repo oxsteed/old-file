@@ -64,10 +64,16 @@ const CAPABILITIES = Object.freeze({
     applicantMayRequest: true,
     legacyModes: Object.freeze(['helper']),
     legacyRoles: Object.freeze(['helper']),
-    // Helpers can discover work and submit/accept service activity after
-    // identity and terms checks. Payout setup gates receiving money, not
-    // bidding; making it a capability-wide prerequisite creates a circular
-    // gate because the Connect onboarding route itself requires this grant.
+    // G-1 (Emile decision, 2026-11-19 — supersedes the delegated restore):
+    // OxSteed Credit is the default payout method when Stripe payout setup
+    // is absent, and bidding must not be blocked for lack of payout_setup.
+    // Offering services is not receiving money: identity + terms activate
+    // the capability. The Stripe path still requires payout_setup at money
+    // time (Connect charges + payouts, W-9, fresh Didit — see
+    // activation.js `payout_setup` evidence, requireTaxIdentity, and the
+    // rail engine's Credit default): no Stripe payout moves without it.
+    // The setup routes stay carved out via requireHelperSetupCapability so
+    // a helper missing identity or terms can still finish activation.
     activationRequirements: Object.freeze(['identity_verified', 'helper_terms']),
     form: Object.freeze({
       fields: Object.freeze([
@@ -87,7 +93,14 @@ const CAPABILITIES = Object.freeze({
     applicantMayRequest: true,
     legacyModes: Object.freeze(['business_owner']),
     legacyRoles: Object.freeze([]),
-    activationRequirements: Object.freeze(['payout_setup']),
+    // G-1 (Emile decision, 2026-11-19): publishing a business is an
+    // offering action, not a money move, so it is not gated on Stripe
+    // payout setup. Receiving money still is: creating a scan-to-pay code
+    // (routes/qrPayments.js) has its own Connect check, card payments on
+    // business invoices assert a Connect destination
+    // (businessInvoiceStripeConnectService), and Credit invoice payments
+    // settle in OxSteed Credit (businessInvoiceCreditPayService).
+    activationRequirements: Object.freeze([]),
     form: Object.freeze({
       fields: Object.freeze([
         answerField('businessName', 'string', { required: true, maxLength: 255 }),
@@ -126,7 +139,12 @@ const CAPABILITIES = Object.freeze({
     applicantMayRequest: true,
     legacyModes: Object.freeze(['consultant']),
     legacyRoles: Object.freeze([]),
-    activationRequirements: Object.freeze(['payout_setup']),
+    // G-1 (Emile decision, 2026-11-19): accepting a paying client is the
+    // offering/booking action, analogous to a helper accepting a job, so
+    // it is not gated on Stripe payout setup. The payout for the work
+    // defaults to OxSteed Credit; any Stripe move at payment time still
+    // requires a Connect destination (invoice card payments assert it).
+    activationRequirements: Object.freeze([]),
     form: Object.freeze({
       fields: Object.freeze([
         answerField('bio', 'text', { required: true, minLength: 80, maxLength: 2000 }),
@@ -146,7 +164,11 @@ const CAPABILITIES = Object.freeze({
     applicantMayRequest: true,
     legacyModes: Object.freeze(['tool_owner']),
     legacyRoles: Object.freeze([]),
-    activationRequirements: Object.freeze(['payout_setup']),
+    // G-1 (Emile decision, 2026-11-19): listing equipment is an offering
+    // action, so it is not gated on Stripe payout setup. Rental payment
+    // settlement still goes through the rental payment path, which moves
+    // no Stripe money without a payout-ready account.
+    activationRequirements: Object.freeze([]),
     form: Object.freeze({ fields: Object.freeze([answerField('serviceArea', 'service_area', { required: true })]) }),
   }),
   'logistics.ship': Object.freeze({

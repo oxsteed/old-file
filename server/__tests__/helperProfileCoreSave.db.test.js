@@ -55,8 +55,10 @@ describeDatabase('PUT /api/helper-profile/core against migrated PostgreSQL', () 
     const id = crypto.randomUUID();
     created.push(id);
     await pool.query(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, didit_verified_at, didit_status, created_at)
-       VALUES ($1, $2, 'synthetic-unusable', 'Synthetic', 'Helper', 'helper', TRUE, TRUE, NOW(), 'verified', NOW())`,
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, didit_verified_at, didit_status, created_at,
+         terms_accepted, terms_accepted_at, terms_version, w9_completed)
+       VALUES ($1, $2, 'synthetic-unusable', 'Synthetic', 'Helper', 'helper', TRUE, TRUE, NOW(), 'verified', NOW(),
+         TRUE, NOW(), 'v1', TRUE)`,
       [id, `${id}@example.invalid`],
     );
     // Domain 6 enforce contract: the access gate 403s a legacy helper with
@@ -66,6 +68,16 @@ describeDatabase('PUT /api/helper-profile/core against migrated PostgreSQL', () 
       `INSERT INTO access_grants (user_id, capability, subject_type, subject_key, status, provenance, policy_version)
        VALUES ($1, 'helper.offer_services', 'self', 'self', 'active', 'legacy_backfill', 'helper-policy-1')`,
       [id],
+    );
+    // G-1 (Emile decision, 2026-11-19): helper-profile routes run the
+    // full gate, which now activates on identity + terms. The fixture
+    // keeps a fully-provisioned helper (W-9 above, fresh Didit above,
+    // Connect charges + payouts here); payout_setup is no longer a gate
+    // requirement, but the success-path saves do not depend on it either.
+    await pool.query(
+      `INSERT INTO connect_accounts (user_id, stripe_account_id, charges_enabled, payouts_enabled, onboarding_complete)
+       VALUES ($1, $2, TRUE, TRUE, TRUE)`,
+      [id, `acct_profile_${id.replace(/-/g, '').slice(0, 20)}`],
     );
     if (withProfile) {
       await pool.query(

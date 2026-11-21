@@ -16,6 +16,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
+import HelperCapacitySettings from './HelperCapacitySettings';
 import { toast } from 'sonner';
 import '../styles/HelperAvailabilityEditor.css';
 
@@ -175,6 +176,7 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
 
   return (
     <div className="hae-root">
+      <HelperCapacitySettings />
       {/* Header */}
       <div className="hae-header">
         <div>

@@ -9,6 +9,7 @@ const { startBroadcastDelivery } = require('../jobs/broadcastDelivery');
 const { startRestaurantScreenSync } = require('../jobs/restaurantScreenSync');
 const logger = require('../utils/logger');
 const bookingController = require('../controllers/bookingController');
+const bookingRecipientService = require('../services/bookingRecipientService');
 const cleanupOldMessagesJob = require('../jobs/cleanupOldMessages');
 const guestChatRetention = require('../jobs/guestChatRetentionCleanup');
 const { cleanupExpiredSupportMessages } = require('../jobs/supportConversationRetentionCleanup');
@@ -38,6 +39,12 @@ const { startRestaurantRetentionJob } = require('../jobs/restaurantRetentionJob'
 const { startFranchiseRoyaltyRedriveJob } = require('../jobs/franchiseRoyaltyRedriveJob'); // Background-jobs audit #45 royalty re-drive
 const { startCareersJobs } = require('../jobs/careersJobs');
 const { startChatQuoteExpiryJob } = require('../jobs/chatQuoteExpiryJob');
+const { startQuoteDeadlineNoticesJob } = require('../jobs/quoteDeadlineNotices');
+const { startDriverDocumentRenewalNoticesJob } = require('../jobs/driverDocumentRenewalNotices'); // Group 9 Slice A (453)
+const { startDeliveryOfferExpiryJob } = require('../jobs/deliveryOfferExpiryNotices'); // Group 9 Slice B (457)
+const { startDeliveryWindowWarningsJob } = require('../jobs/deliveryWindowWarnings'); // Group 9 Slice C (463)
+const { startDeliveryDelayEscalationJob } = require('../jobs/deliveryDelayEscalation'); // Group 9 Slice E (485)
+const { startDeliveryWeeklyReportJob } = require('../jobs/deliveryWeeklyReport'); // Group 9 Slice F (495)
 const { startSupportTicketSlaJob } = require('../jobs/supportTicketSlaJob');
 const { startHelperCompletionAutoConfirmJob } = require('../jobs/helperCompletionAutoConfirm');
 const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
@@ -205,12 +212,22 @@ class BackgroundWorkers {
       startAcceptedJobExpiryJob();
       startRestaurantTrainingOverdueJob();
       startStaffInviteExpiryJob();
+      this.scheduleFencedCron('* * * * *','business-membership-access-expiry',async()=>{
+        try{await require('../services/businessMembershipExpiry').sweep();}
+        catch(error){this.log.warn('Business membership expiry failed',{error:error.message});}
+      },{ttlSeconds:55});
       startRestaurantPunchCloseoutJob();
       startRestaurantScheduledReportsJob();
       startRestaurantRetentionJob();
       startFranchiseRoyaltyRedriveJob();
       startCareersJobs();
       startChatQuoteExpiryJob();
+      startQuoteDeadlineNoticesJob();
+      startDriverDocumentRenewalNoticesJob();
+      startDeliveryOfferExpiryJob();
+      startDeliveryWindowWarningsJob();
+      startDeliveryDelayEscalationJob();
+      startDeliveryWeeklyReportJob();
       startSupportTicketSlaJob();
       startHelperCompletionAutoConfirmJob();
       startWorkAgreementProposalTimeoutJob();
@@ -313,6 +330,13 @@ class BackgroundWorkers {
           await bookingController.releaseStaleAcceptedBookings();
         } catch (err) {
           this.log.warn('Booking maintenance job failed', { error: err.message });
+        }
+        // Group 3 (item 102): visit reminders to linked recipient and
+        // site-contact accounts when the visit is tomorrow, once per party.
+        try {
+          await bookingRecipientService.sendVisitReminders();
+        } catch (err) {
+          this.log.warn('Visit reminder job failed', { error: err.message });
         }
         try {
           await cancelAbandonedPayNowOrders();

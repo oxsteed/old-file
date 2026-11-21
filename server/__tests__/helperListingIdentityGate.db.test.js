@@ -66,12 +66,23 @@ describeDatabase('helper listing identity gate against migrated PostgreSQL', () 
       `INSERT INTO users (id, email, password_hash, first_name, last_name, role,
          email_verified, is_active, terms_accepted, terms_accepted_at, terms_version,
          profile_completed, contact_completed, onboarding_completed,
-         id_verified, identity_verified, didit_status, didit_verified_at, created_at)
+         id_verified, identity_verified, didit_status, didit_verified_at, w9_completed, created_at)
        VALUES ($1, $2, 'synthetic-unusable', 'Synthetic', 'Helper', 'helper',
          TRUE, TRUE, TRUE, NOW(), 'v1',
          TRUE, TRUE, TRUE,
-         $3, $4, $5, ${didit.at}, NOW())`,
+         $3, $4, $5, ${didit.at}, TRUE, NOW())`,
       [id, `${id}@example.invalid`, identity === 'verified', identity === 'verified', didit.status],
+    );
+    // G-1 (Emile decision, 2026-11-19): the /api/helpers/me/listing route
+    // runs the full gate, which now activates on identity + terms. The
+    // fixture keeps a fully-provisioned helper (W-9, fresh Didit for the
+    // verified case, Connect charges + payouts); payout_setup is no longer
+    // a gate requirement. Unverified helpers still 403 at the gate on
+    // identity_verified, as before.
+    await pool.query(
+      `INSERT INTO connect_accounts (user_id, stripe_account_id, charges_enabled, payouts_enabled, onboarding_complete)
+       VALUES ($1, $2, TRUE, TRUE, TRUE)`,
+      [id, `acct_listing_${id.replace(/-/g, '').slice(0, 20)}`],
     );
     await pool.query(
       'INSERT INTO helper_profiles (user_id, is_listed) VALUES ($1, FALSE)',

@@ -113,10 +113,13 @@ describe('buildKitFromTemplate', () => {
     expect(result.items[0].unitPriceCents).toBe(749);
     expect(result.items[1].unitPriceCents).toBe(999);
     expect(result.items[1].quantity).toBe(2);
-    // Missing and inactive SKUs are omitted and reported, never invented
+    // Missing and inactive SKUs are omitted and reported, never invented.
+    // Omitted entries carry the quantity and product identity so the UI can
+    // offer substitution suggestions (Group 1, item 34); substitutes is an
+    // empty list here because the mocked pool has no catalog rows.
     expect(result.omitted).toEqual([
-      { sku: 'PLB-GONE', reason: 'not_found' },
-      { sku: 'PLB-OLD', reason: 'unavailable', productName: 'Old Part' },
+      { sku: 'PLB-GONE', reason: 'not_found', quantity: 1, substitutes: [] },
+      { sku: 'PLB-OLD', reason: 'unavailable', productName: 'Old Part', productId: 'prod-c', quantity: 1, substitutes: [] },
     ]);
 
     // The item INSERTs carried the DB prices, not anything caller-supplied

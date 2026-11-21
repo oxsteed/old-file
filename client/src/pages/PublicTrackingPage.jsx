@@ -129,6 +129,26 @@ export default function PublicTrackingPage() {
           </ol>
         </section>
 
+        {/* Group 9 Slice F (item 489, D-82): the tracking token
+          authorizes this shipment's documents, so the link holder
+          sees the same proof and item-photo list as a participant,
+          with the same signed download URLs. */}
+        <section className="delivery-panel">
+          <h2>{t('delivery.tracking.public.documentsTitle')}</h2>
+          {!(data.documents || []).length && <p>{t('delivery.tracking.public.documentsEmpty')}</p>}
+          {(data.documents || []).map((document) => (
+            <p key={`${document.kind}-${document.id}`}>
+              {document.kind === 'proof'
+                ? t('delivery.detail.documentProof', { type: document.proofType || '' })
+                : t('delivery.detail.documentItemPhoto')}
+              {' · '}
+              {document.url
+                ? <a href={document.url} target="_blank" rel="noreferrer" data-track="ui.3a05735646.2">{t('delivery.detail.documentDownload')}</a>
+                : t('delivery.detail.documentNoDownload')}
+            </p>
+          ))}
+        </section>
+
         <section className="delivery-panel">
           <h2>{t('delivery.tracking.public.supportTitle')}</h2>
           <p>{t('delivery.tracking.public.supportHint')}</p>

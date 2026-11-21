@@ -7,6 +7,7 @@ const contactMasking = require('../services/contactMaskingService');
 const { uploadFile, getSignedDownloadUrl, normalizeStorageKey, deleteFile } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
+const { bookingSiteContactClause } = require('../services/chatThreadAccess');
 const { AppError } = require('../middleware/errorHandler');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { enqueueMessageNotifications } = require('../services/messageNotificationService');
@@ -381,6 +382,7 @@ const getConversations = async (req, res) => {
            SELECT 1 FROM business_members bm
            WHERE bm.business_id = c.business_id AND bm.member_id = $1 AND bm.status = 'active'
          ))
+         ${bookingSiteContactClause('c.id', '$1')}
        )${bizFilter}${statusFilter}
        ORDER BY c.last_message_at DESC NULLS LAST
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -560,6 +562,7 @@ const getMessages = async (req, res, next) => {
            SELECT 1 FROM business_members bm
            WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
          ))
+         ${bookingSiteContactClause('$1', '$2')}
        )`,
       [conversationId, userId]
     );
@@ -647,6 +650,7 @@ const getConversationMeta = async (req, res) => {
            SELECT 1 FROM business_members bm
            WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
          ))
+         ${bookingSiteContactClause('$1', '$2')}
        )`,
       [conversationId, userId]
     );
@@ -794,6 +798,7 @@ const sendMessage = async (req, res, next) => {
              SELECT 1 FROM business_members bm
              WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
            ))
+           ${bookingSiteContactClause('$1', '$2')}
          )`,
         [conversationId, userId]
       );

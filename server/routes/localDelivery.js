@@ -41,13 +41,61 @@ router.get('/jobs/:id/item-photos', requireAuth, itemPhotoController.list);
 router.post('/jobs/:id/proof-pin', requireAuth, rejectImpersonated, proofController.rotatePin);
 router.get('/jobs/:id/proofs/:proofId', requireAuth, proofController.download);
 router.post('/jobs/:id/claim', requireAuth, rejectImpersonated, controller.claim);
+// Group 9 Slice F (items 488-490/494): the per-shipment exception
+// summary, the authorized document list, the OxSteed delivery
+// receipt, and the driver dispute flow. Same /delivery router as the
+// other job routes, not a tenant route.
+router.get('/jobs/:id/exceptions', requireAuth, controller.getJobExceptions);
+router.get('/jobs/:id/documents', requireAuth, controller.listJobDocuments);
+router.get('/jobs/:id/receipt', requireAuth, controller.downloadJobReceipt);
+router.post('/jobs/:id/disputes', requireAuth, rejectImpersonated, controller.createDispute);
+router.get('/jobs/:id/disputes', requireAuth, controller.listJobDisputes);
+// Group 9 Slice C (item 462): the multi-stop sequence. List is readable
+// by any authorized reader (marketplace drivers get the masked
+// projection); adding is the shipper before pickup, reordering and
+// completing are the assigned driver. Same /delivery router as the
+// other job routes, not a tenant route.
+router.get('/jobs/:id/stops', requireAuth, controller.listStops);
+router.post('/jobs/:id/stops', requireAuth, rejectImpersonated, controller.addStop);
+router.post('/jobs/:id/stops/reorder', requireAuth, rejectImpersonated, controller.reorderStops);
+router.post('/jobs/:id/stops/:stopId/complete', requireAuth, rejectImpersonated, controller.completeStop);
+// Group 9 Slice B (item 460): a driver passes on a marketplace offer
+// with a reason code. Advisory only; it never blocks claiming.
+router.post('/jobs/:id/decline', requireAuth, rejectImpersonated, controller.decline);
 // P2-4-F10: self-serve driver onboarding (profile starts pending ops approval).
 router.post('/driver-profile', requireAuth, rejectImpersonated, controller.selfServeDriverOnboarding);
+router.patch('/driver-profile', requireAuth, rejectImpersonated, controller.updateOwnDriverProfile);
 router.get('/driver-profile', requireAuth, controller.getDriverProfile);
 // Item 12: the driver toggles their own availability flag.
 router.patch('/driver-profile/availability', requireAuth, rejectImpersonated, controller.setDriverAvailability);
+// Group 9 Slice A: assignment readiness checklist (455) reuses the server
+// readiness gate read-only; no jobId checks the profile itself.
+router.get('/driver-profile/readiness', requireAuth, controller.getDriverReadiness);
+// Group 9 Slice A: driver-owned vehicles (452) and documents (453).
+router.get('/driver-vehicles', requireAuth, controller.listDriverVehicles);
+router.post('/driver-vehicles', requireAuth, rejectImpersonated, controller.createDriverVehicle);
+router.patch('/driver-vehicles/:vehicleId', requireAuth, rejectImpersonated, controller.updateDriverVehicle);
+router.delete('/driver-vehicles/:vehicleId', requireAuth, rejectImpersonated, controller.deleteDriverVehicle);
+router.post('/driver-vehicles/:vehicleId/activate', requireAuth, rejectImpersonated, controller.activateDriverVehicle);
+router.get('/driver-documents', requireAuth, controller.listDriverDocuments);
+router.post('/driver-documents', requireAuth, rejectImpersonated, controller.createDriverDocument);
+router.patch('/driver-documents/:documentId', requireAuth, rejectImpersonated, controller.updateDriverDocument);
+router.delete('/driver-documents/:documentId', requireAuth, rejectImpersonated, controller.deleteDriverDocument);
 // P2-4-F04: driver payout lifecycle (accrue on delivery; ops approves/pays).
 router.get('/driver-payouts', requireAuth, controller.listDriverPayouts);
+// Group 9 Slice F (items 494/495): the driver's own disputes and
+// weekly work reports. Same /delivery router, not a tenant route.
+router.get('/driver-disputes', requireAuth, controller.listMyDisputes);
+router.get('/weekly-report', requireAuth, controller.listMyWeeklyReports);
+router.get('/weekly-report/:id', requireAuth, controller.getMyWeeklyReport);
+router.get('/weekly-report/:id/download', requireAuth, controller.downloadMyWeeklyReport);
+// Group 9 Slice G (item 500): driver shifts and shift closeout.
+// Same /delivery router as the weekly reports, not a tenant route.
+router.post('/driver-shifts', requireAuth, rejectImpersonated, controller.startDriverShift);
+router.get('/driver-shifts/open', requireAuth, controller.getOpenDriverShift);
+router.get('/driver-shifts', requireAuth, controller.listDriverShifts);
+router.get('/driver-shifts/:id', requireAuth, controller.getDriverShift);
+router.post('/driver-shifts/:id/closeout', requireAuth, rejectImpersonated, controller.closeDriverShift);
 router.patch('/jobs/:id/status', requireAuth, rejectImpersonated, controller.updateStatus);
 router.post('/jobs/:id/issues', requireAuth, rejectImpersonated, controller.createIssue);
 router.post('/jobs/:id/extras', requireAuth, rejectImpersonated, controller.createExtra);
@@ -62,6 +110,11 @@ const requireOperationsWorkspace = requireInternalLogisticsWorkspace('operations
 router.post('/internal/payments/:paymentId/refund', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.refundPayment);
 router.get('/internal/queue', requireAuth, requireOperationsWorkspace, controller.internalQueue);
 router.get('/internal/jobs/:id', requireAuth, requireOperationsWorkspace, controller.getInternalJob);
+// Group 9 Slice E (item 484): the handoff state record, per job and per
+// driver. Same /delivery router as the other internal routes, not a
+// tenant route.
+router.get('/internal/jobs/:id/handoffs', requireAuth, requireOperationsWorkspace, controller.internalHandoffs);
+router.get('/internal/handoffs', requireAuth, requireOperationsWorkspace, controller.internalDriverHandoffs);
 router.get('/internal/vehicles', requireAuth, requireOperationsWorkspace, controller.internalVehicles);
 router.post('/internal/vehicles', requireAuth, requireOperationsWorkspace, controller.createVehicle);
 router.get('/internal/drivers', requireAuth, requireOperationsWorkspace, controller.internalDrivers);
@@ -72,6 +125,13 @@ router.get('/internal/driver-payouts', requireAuth, requireOperationsWorkspace, 
 router.post('/internal/driver-payouts/:payoutId/approve', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.approveDriverPayout);
 router.post('/internal/driver-payouts/:payoutId/mark-paid', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.markDriverPayoutPaid);
 router.post('/internal/driver-payouts/:payoutId/void', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.voidDriverPayout);
+// Group 9 Slice F (items 488/493/494): ops adjusts a payout amount
+// with a persisted reason, reviews disputes, and sees the aggregate
+// exceptions view. Same /delivery router, not a tenant route.
+router.post('/internal/driver-payouts/:payoutId/adjust', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.adjustDriverPayout);
+router.get('/internal/disputes', requireAuth, requireOperationsWorkspace, controller.listInternalDisputes);
+router.patch('/internal/disputes/:disputeId', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.resolveDispute);
+router.get('/internal/exceptions', requireAuth, requireOperationsWorkspace, controller.getInternalExceptions);
 router.post('/internal/jobs/:id/assign', requireAuth, requireOperationsWorkspace, controller.assignInternal);
 router.post('/internal/jobs/:id/release-marketplace', requireAuth, requireOperationsWorkspace, controller.releaseMarketplace);
 router.patch('/internal/reschedule-requests/:requestId', requireAuth, requireOperationsWorkspace, controller.reviewReschedule);
@@ -101,6 +161,11 @@ router.get('/jobs/:id/tracking/scans', requireAuth, trackingController.listScans
 router.get('/jobs/:id/tracking/status', requireAuth, trackingController.getStatus);
 router.post('/tracking/devices', requireAuth, trackingController.registerDevice);
 router.get('/tracking/devices', requireAuth, trackingController.listDevices);
+// Group 9 Slice G (item 499): device-change recovery. The driver
+// registers a new phone from the driver screens; the server moves
+// the live tracking assignments and consent to it and revokes the
+// old device. Same /delivery router, not a tenant route.
+router.post('/tracking/devices/transfer', requireAuth, rejectImpersonated, trackingController.transferDevice);
 router.patch('/tracking/devices/:deviceId', requireAuth, trackingController.updateDevice);
 router.delete('/tracking/devices/:deviceId', requireAuth, trackingController.updateDevice);
 

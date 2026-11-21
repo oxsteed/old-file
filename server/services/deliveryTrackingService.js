@@ -802,6 +802,112 @@ async function setDeviceStatus({ deviceId, actorUserId, status, allowOperations 
   }, 'set_tracking_device_status');
 }
 
+/**
+ * Group 9 Slice G (item 499): device-change recovery. The driver
+ * registers a new phone from the driver screens and the server moves
+ * the live tracking state to it: every active/paused assignment bound
+ * to the old device is re-pointed at the new device (status kept, so
+ * a live job keeps tracking without a restart), the active consent
+ * rows move their device pointer, and the old device is revoked so
+ * it can no longer ingest. The transfer is one transaction: the new
+ * device, the moved assignments, and the revoke land together, or
+ * none of them does.
+ *
+ * What this deliberately does NOT move: the old device's buffered,
+ * unsynced GPS points. Those live in the old device's localStorage
+ * (DriverTrackingControls) and there is no server-side store for
+ * unsynced client points, so they cannot be transferred. The client
+ * surfaces that as a notice (D-92) and the old device keeps its
+ * queue until it reconnects — revoking the device does not delete
+ * its local queue, it only stops new ingestion from it.
+ */
+async function transferTrackingDevice({ driverUserId, oldDeviceId, deviceLabel = null, platform = null }) {
+  if (!driverUserId || !oldDeviceId) {
+    throw trackingError('tracking_device_transfer_invalid', 'A driver and an old device are required');
+  }
+
+  return withTransaction(pool, async (client) => {
+    const { rows: oldRows } = await client.query(
+      `SELECT id, kind, driver_user_id, vehicle_id, device_label, platform,
+              app_version, status, last_seen_at, created_at
+         FROM delivery_tracking_devices
+        WHERE id = $1
+        FOR UPDATE`,
+      [oldDeviceId]
+    );
+    const oldDevice = oldRows[0];
+    if (!oldDevice) {
+      throw trackingError('tracking_device_not_found', 'Tracking device not found', 404);
+    }
+    if (oldDevice.kind !== 'driver_phone'
+      || String(oldDevice.driver_user_id || '') !== String(driverUserId || '')) {
+      throw trackingError('tracking_forbidden', 'Only the device owner may transfer it', 403);
+    }
+    if (oldDevice.status === 'revoked') {
+      throw trackingError('tracking_device_revoked', 'This device was already revoked', 409);
+    }
+
+    const { rows: [device] } = await client.query(
+      `INSERT INTO delivery_tracking_devices
+         (kind, driver_user_id, device_label, platform, status)
+       VALUES ('driver_phone', $1, $2, $3, 'active')
+       RETURNING id, kind, driver_user_id, vehicle_id, device_label, platform,
+                 app_version, status, last_seen_at, created_at`,
+      [driverUserId, deviceLabel, platform]
+    );
+
+    const { rows: assignments } = await client.query(
+      `SELECT * FROM delivery_tracking_assignments
+          WHERE device_id = $1 AND status IN ('active', 'paused')
+          FOR UPDATE`,
+      [oldDeviceId]
+    );
+    for (const assignment of assignments) {
+      await client.query(
+        `UPDATE delivery_tracking_assignments
+            SET device_id = $2, updated_at = NOW()
+          WHERE id = $1`,
+        [assignment.id, device.id]
+      );
+      // 'tracking_reconnected' is the closest event in the
+      // delivery_tracking_events check: the session resumed on a new
+      // device. The payload names the transfer so the ledger reads
+      // as a move, not a fresh start.
+      await insertTrackingEvent(client, {
+        deliveryJobId: assignment.delivery_job_id,
+        assignmentId: assignment.id,
+        eventType: 'tracking_reconnected',
+        actorUserId: driverUserId,
+        payload: { reason: 'device_transferred', old_device_id: oldDeviceId, new_device_id: device.id },
+      });
+    }
+
+    await client.query(
+      `UPDATE delivery_tracking_consent
+          SET device_id = $2, updated_at = NOW()
+        WHERE driver_user_id = $1 AND device_id = $3 AND revoked_at IS NULL`,
+      [driverUserId, device.id, oldDeviceId]
+    );
+
+    await client.query(
+      `UPDATE delivery_tracking_devices
+          SET status = 'revoked', updated_at = NOW()
+        WHERE id = $1`,
+      [oldDeviceId]
+    );
+
+    return {
+      device,
+      oldDevice: { ...oldDevice, status: 'revoked' },
+      transferredAssignments: assignments.map((assignment) => ({
+        id: assignment.id,
+        deliveryJobId: assignment.delivery_job_id,
+        status: assignment.status,
+      })),
+    };
+  }, 'transfer_tracking_device');
+}
+
 module.exports = {
   grantConsent,
   revokeConsent,
@@ -814,6 +920,7 @@ module.exports = {
   recordScan,
   getAssignmentStatus,
   setDeviceStatus,
+  transferTrackingDevice,
   // exported for testing
   _validatePoint: validatePoint,
   _haversineMeters: haversineMeters,

@@ -412,11 +412,13 @@ async function authenticate(req, res, next) {
       });
     }
 
+    await require('../services/businessMembershipExpiry').expireForUser(user.id);
     req.user = user;
     req.isAdmin = ['admin', 'super_admin'].includes(user.role);
     req.isSuperAdmin = user.role === 'super_admin';
     next();
   } catch (err) {
+    if (err?.code === 'membership_expiry_unavailable') return res.status(503).json({error:'Access checks temporarily unavailable',code:err.code,retryable:true});
     if (err?.code === 'token_revocation_unavailable') {
       logger.error('Authentication unavailable: token revocation check failed', { error: err.message });
       return res.status(503).json({
@@ -589,6 +591,7 @@ async function resolveOptionalIdentity(req, token) {
   const optionalPath = `${req.baseUrl || ''}${req.path || ''}` || req.originalUrl?.split('?')[0] || '';
   const restrictionExempt = optionalPath.startsWith('/api/auth/') || optionalPath.startsWith('/api/support/');
   if (user.is_restricted && !restrictionExempt) return null;
+  await require('../services/businessMembershipExpiry').expireForUser(user.id);
   user.internal_access_route = decoded.internalAccessRoute || null;
   user.internal_access_id = decoded.internalAccessId || null;
   return { user, decoded, impersonation };

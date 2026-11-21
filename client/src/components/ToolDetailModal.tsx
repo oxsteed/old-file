@@ -18,6 +18,9 @@ interface ToolDetailModalProps {
     requires_deposit?: boolean;
     replacement_value?: number;
     owner_rules?: string;
+    accessories?: Array<{name:string;quantity:number}>;
+    condition_checklist?: string[];
+    equipment_version?: number;
     owner_custom_terms?: string;
     weekly_rate?: number;
     monthly_rate?: number;

@@ -20,7 +20,7 @@ const DELEGATED_STATEMENT_READ = 'statements.view';
 async function memberFinanceReadStanding(queryable, { businessId, userId, restaurantId = null, allowDelegated = false }) {
   const { rows: [member] } = await queryable.query(
     `SELECT id, role FROM business_members
-      WHERE business_id = $1 AND member_id::text = $2::text AND status = 'active'
+      WHERE business_id = $1 AND member_id::text = $2::text AND status = 'active' AND (access_valid_until IS NULL OR access_valid_until>NOW())
       ORDER BY id LIMIT 1`,
     [businessId, String(userId)]);
   if (!member) return null;
@@ -71,7 +71,7 @@ async function memberFinanceReadStanding(queryable, { businessId, userId, restau
 async function memberLocationFinanceStanding(queryable, { businessId, userId, restaurantId }) {
   const { rows: [member] } = await queryable.query(
     `SELECT id FROM business_members
-      WHERE business_id = $1 AND member_id::text = $2::text AND status = 'active'
+      WHERE business_id = $1 AND member_id::text = $2::text AND status = 'active' AND (access_valid_until IS NULL OR access_valid_until>NOW())
       ORDER BY id LIMIT 1`,
     [businessId, String(userId)]);
   if (!member) return null;

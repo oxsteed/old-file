@@ -227,3 +227,16 @@
     margin-top: 0.1rem;
   }
 }
+
+/* Group 1, item 44: frequency select in the email preferences panel. */
+.notification-settings__select {
+  background: var(--color-surface, #111827);
+  color: var(--color-text, #f3f4f6);
+  border: 1px solid var(--color-border, #1f2937);
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.875rem;
+}
+.notification-settings__select:disabled {
+  opacity: 0.5;
+}

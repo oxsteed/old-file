@@ -16,6 +16,8 @@ const { authenticate } = require('../middleware/auth');
 const { requireHelperCapability } = require('../middleware/requireAccess');
 const { assertCanQuoteJob, bidFromAcceptedQuote } = require('../services/jobQuoteBridge');
 
+router.use('/negotiations', require('./helperQuoteNegotiations'));
+
 // ── Create / send a quote ────────────────────────────────────────────────────
 router.post('/', authenticate, requireHelperCapability, async (req, res, next) => {
   const helperId = req.user.id;
@@ -171,7 +173,7 @@ router.patch('/:id/status', authenticate, async (req, res, next) => {
   try {
     // Ensure requester is the job's client
     const check = await pool.query(`
-      SELECT hq.id FROM helper_quotes hq
+      SELECT hq.id, hq.negotiation_managed FROM helper_quotes hq
       JOIN jobs j ON j.id = hq.job_id
       JOIN users helper ON helper.id = hq.helper_id
                        AND helper.is_active = TRUE
@@ -181,6 +183,11 @@ router.patch('/:id/status', authenticate, async (req, res, next) => {
 
     if (!check.rows[0])
       return res.status(403).json({ error: 'Cannot update this quote' });
+
+    if (check.rows[0].negotiation_managed) {
+      const updated = await require('../services/helperQuoteNegotiation').respond(req.params.id,userId,req.body);
+      return res.json({...updated,next_step:updated.bid_id?'accept_bid':null});
+    }
 
     const updated = await pool.query(`
       UPDATE helper_quotes SET status = $1, updated_at = NOW()

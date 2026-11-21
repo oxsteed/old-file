@@ -85,6 +85,8 @@ const SessionsSetup = lazyWithRetry(() => import('./pages/Settings/SessionsSetup
 const ApplicationsPage = lazyWithRetry(() => import('./pages/Settings/ApplicationsPage'));
 const YourData = lazyWithRetry(() => import('./pages/Settings/YourData'));
 const NotificationSettings = lazyWithRetry(() => import('./pages/Settings/Notifications'));
+const SavedLocations = lazyWithRetry(() => import('./pages/Settings/SavedLocations'));
+const HouseholdPage = lazyWithRetry(() => import('./pages/HouseholdPage'));
 const CountrySettings = lazyWithRetry(() => import('./pages/Settings/Country'));
 const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'));
 const HelperCancellationSettings = lazyWithRetry(() => import('./pages/HelperCancellationSettings'));
@@ -136,6 +138,10 @@ const LogisticsHomePage = lazyWithRetry(routeLoaders.logistics, { name: 'logisti
 const DeliveryPage = lazyWithRetry(() => import('./pages/DeliveryPage'));
 const DeliveryDetailPage = lazyWithRetry(() => import('./pages/DeliveryDetailPage'));
 const DriverPayoutHistoryPage = lazyWithRetry(() => import('./pages/DriverPayoutHistoryPage'));
+// Group 9 Slice F (item 495): the driver's weekly work report page.
+const DriverWeeklyReportPage = lazyWithRetry(() => import('./pages/DriverWeeklyReportPage'));
+// Group 9 Slice G (item 500): the driver's shift and closeout page.
+const DriverShiftPage = lazyWithRetry(() => import('./pages/DriverShiftPage'));
 const DeliveryDispatchPage = lazyWithRetry(() => import('./pages/DeliveryDispatchPage'));
 const DeliveryTrackingOpsPage = lazyWithRetry(() => import('./pages/DeliveryTrackingOpsPage'));
 const PublicTrackingPage = lazyWithRetry(() => import('./pages/PublicTrackingPage'));
@@ -190,6 +196,7 @@ const PublicBookingStatusPage = lazyWithRetry(() => import('./pages/PublicBookin
 const ToolRentalsBrowse = lazyWithRetry(() => import('./pages/ToolRentalsBrowse'));
 const DiscoverPage = lazyWithRetry(() => import('./pages/DiscoverPage'));
 const MyBookingsPage = lazyWithRetry(() => import('./pages/MyBookingsPage'));
+const MyQuotesPage = lazyWithRetry(() => import('./pages/MyQuotesPage'));
 const ToolRentalsAnalytics = lazyWithRetry(() => import('./pages/ToolRentalsAnalytics'));
 const QRCodeGeneratorPage = lazyWithRetry(routeLoaders.qrGenerator, { name: 'qrGenerator' });
 const WorkAgreementPage = lazyWithRetry(() => import('./pages/WorkAgreementPage'));
@@ -238,6 +245,7 @@ const LearnModePage = lazyWithRetry(() => import('./pages/LearnModePage'));
 const PromotePage = lazyWithRetry(() => import('./pages/PromotePage'));
 const DirectCatalogLanding = lazyWithRetry(routeLoaders.direct, { name: 'direct' });
 const DirectPortalPage = lazyWithRetry(() => import('./pages/DirectPortalPage'));
+const SharedBusinessQuotePage = lazyWithRetry(() => import('./pages/SharedBusinessQuotePage'));
 const DirectCatalogDirectoryPage = lazyWithRetry(() => import('./pages/DirectCatalogDirectoryPage'));
 const DirectBookSlotPage = lazyWithRetry(() => import('./pages/DirectBookSlotPage'));
 const DirectAdminPortalPage = lazyWithRetry(() => import('./pages/DirectAdminPortalPage'));
@@ -579,6 +587,7 @@ export default function App() {
                     <Route path="/media/messages"          element={<Guarded><ProtectedRoute><MediaLaunchGate><MediaShell><MediaMessagesPage /></MediaShell></MediaLaunchGate></ProtectedRoute></Guarded>} />
                     <Route path="/media/:handle"           element={<Guarded><MediaLaunchGate><MediaShell><MediaActorPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/direct/view-quote"       element={<Guarded><DirectPortalPage view="lookup" /></Guarded>} />
+                    <Route path="/quote/:token" element={<Guarded><SharedBusinessQuotePage /></Guarded>} />
                     <Route path="/direct/quotes/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="quote" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/direct/book-slot"       element={<Guarded><DirectBookSlotPage /></Guarded>} />
                     <Route path="/direct/book/:id"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><DirectPortalPage view="book" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
@@ -630,6 +639,7 @@ export default function App() {
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/tool-rentals/:toolId"    element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/my-bookings"             element={<Guarded><ProtectedRoute><MyBookingsPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/my-quotes"               element={<Guarded><ProtectedRoute><MyQuotesPage /></ProtectedRoute></Guarded>} />
                     <Route path="/tool-rentals/analytics"  element={<Guarded><ProtectedRoute><ToolRentalsAnalytics /></ProtectedRoute></Guarded>} />
                     <Route path="/invoice/p/:token"        element={<Guarded><PublicInvoiceView /></Guarded>} />
                     <Route path="/bookings/status/:token"   element={<Guarded><PublicBookingStatusPage /></Guarded>} />
@@ -740,6 +750,9 @@ export default function App() {
                     <Route path="/settings/applications" element={<Guarded><ProtectedRoute><ApplicationsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/your-data" element={<Guarded><ProtectedRoute><YourData /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
+                    <Route path="/settings/locations" element={<Guarded><ProtectedRoute><SavedLocations /></ProtectedRoute></Guarded>} />
+                    {/* Group 2: household delegates — invites, shared calendar, prep, tasks, approvals, documents. */}
+                    <Route path="/household" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HouseholdPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Weekly self-audit 2026-11-04 item 11: every sibling settings route wraps in ProtectedRoute; this one did not. */}
                     <Route path="/settings/country" element={<Guarded><ProtectedRoute><CountrySettings /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />
@@ -822,6 +835,10 @@ export default function App() {
                     <Route path="/delivery/jobs/:id"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><DeliveryDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Weekly self-audit 2026-11-04 item 9: driver payout history. Read-only; the endpoint scopes to the signed-in driver. */}
                     <Route path="/delivery/payouts"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverPayoutHistoryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Group 9 Slice F (item 495): the driver's weekly work report. Read-only; the endpoint scopes to the signed-in driver. */}
+                    <Route path="/delivery/weekly-report"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverWeeklyReportPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Group 9 Slice G (item 500): the driver's shifts and closeout. The endpoint scopes to the signed-in driver. */}
+                    <Route path="/delivery/shifts"              element={<Guarded><ProtectedRoute><RouteErrorBoundary><DriverShiftPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Public delivery tracking: signed token, no login required */}
                     <Route path="/t/:token"                    element={<Guarded><RouteErrorBoundary><PublicTrackingPage /></RouteErrorBoundary></Guarded>} />
                     {/* Public scan-to-pay: payment QR link, no login required */}

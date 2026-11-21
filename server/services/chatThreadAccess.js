@@ -27,7 +27,29 @@ async function assertConversationParticipant(userId, conversationId, { writable 
       )`,
     [conversationId, userId],
   );
-  const conversation = rows[0] || null;
+  let conversation = rows[0] || null;
+  if (!conversation) {
+    // G-7: the site contact of a booking is admitted to that booking's
+    // thread only (message access, no billing, no booking mutation).
+    // The row returned still names the booker/helper as the parties, so
+    // the role checks layered on top of thread membership
+    // (isProviderOnConversation / isCustomerOnConversation /
+    // assertMembershipForCustomerPay) all stay false for the contact:
+    // admission here never grants agreement, payment, or booking powers.
+    const { rows: linked } = await pool.query(
+      `SELECT c.id, c.customer_id, c.helper_id, c.business_id, c.job_id,
+              c.status, c.archived_at
+         FROM conversations c
+        WHERE c.id = $1
+          AND EXISTS (
+            SELECT 1 FROM booking_requests br
+             WHERE br.conversation_id = c.id
+               AND br.site_contact_user_id = $2
+          )`,
+      [conversationId, userId],
+    );
+    conversation = linked[0] || null;
+  }
   if (writable && conversation && (conversation.status === 'archived' || conversation.archived_at)) {
     const error = new Error('Conversation is archived');
     error.status = 409;
@@ -36,6 +58,21 @@ async function assertConversationParticipant(userId, conversationId, { writable 
     throw error;
   }
   return conversation;
+}
+
+/**
+ * G-7: SQL fragment admitting a booking's site contact to its thread, for
+ * the inline participant checks in messageController (which do not go
+ * through assertConversationParticipant). `conversationRef` is the SQL
+ * expression for the conversation id (e.g. `c.id` or `$1`) and `userParam`
+ * the placeholder for the user id (e.g. `$2`).
+ */
+function bookingSiteContactClause(conversationRef, userParam) {
+  return `OR EXISTS (
+    SELECT 1 FROM booking_requests br
+     WHERE br.conversation_id = ${conversationRef}
+       AND br.site_contact_user_id = ${userParam}
+  )`;
 }
 
 async function assertGuestInquiryAccess(userId, guestSessionId) {
@@ -119,6 +156,7 @@ function normalizeBreakGlassReason(raw) {
 
 module.exports = {
   assertConversationParticipant,
+  bookingSiteContactClause,
   assertGuestInquiryAccess,
   assertBusinessAccess,
   resolveGuestFromRequest,

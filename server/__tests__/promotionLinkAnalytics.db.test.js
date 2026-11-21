@@ -36,7 +36,7 @@ const {
     await db.query(`CREATE TABLE users(id UUID PRIMARY KEY, is_banned BOOLEAN DEFAULT false)`);
     await db.query(`CREATE TABLE businesses(id SERIAL PRIMARY KEY, user_id UUID, business_name TEXT, is_primary BOOLEAN,
       tax_rate NUMERIC, is_active BOOLEAN DEFAULT true, deleted_at TIMESTAMPTZ)`);
-    await db.query(`CREATE TABLE business_members(id SERIAL PRIMARY KEY, business_id INTEGER, member_id UUID, role TEXT, status TEXT)`);
+    await db.query(`CREATE TABLE business_members(id SERIAL PRIMARY KEY, business_id INTEGER, member_id UUID, role TEXT, status TEXT, access_valid_until TIMESTAMPTZ)`);
     await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '900_promotion_link_events.sql'), 'utf8'));
     await db.query(fs.readFileSync(path.join(__dirname, '..', 'migrations', '909_promotion_conversions.sql'), 'utf8'));
     // Source tables in the test schema so migration 910's triggers attach here, not to public.

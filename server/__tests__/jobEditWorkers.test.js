@@ -7,7 +7,9 @@ jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn(
 jest.mock('../services/socketService', () => ({ broadcastToUser: jest.fn() }));
 jest.mock('../models/jobModel', () => ({ ...jest.requireActual('../models/jobModel'), setFinancials: jest.fn().mockResolvedValue({}) }));
 jest.mock('../services/creditSpendAdapter', () => ({
-  spendWithCredit: jest.fn().mockResolvedValue({ hold: { id: 77 }, idempotencyKey: 'k' }),
+  // Real adapter hold shape: result.hold is the raw createCreditHold result
+  // { hold, replayed }, so the hold id lives at .hold.hold.id (see G-1 fix).
+  spendWithCredit: jest.fn().mockResolvedValue({ hold: { hold: { id: 77 }, replayed: false }, idempotencyKey: 'k' }),
 }));
 
 const { sendNotification } = require('../services/notificationService');

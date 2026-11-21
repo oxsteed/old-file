@@ -1,5 +1,6 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
+const { vehicleServiceReminders } = require('../services/vehicleServiceReminders');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const pulseCtrl = require('./lifePulseController');
 const houseCtrl = require('./houseController');
@@ -723,6 +724,147 @@ exports.removeSavedHelper = async (req, res) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// GROUP 1, ITEM 43: SAVED SERVICE LOCATIONS
+// The customer's own addresses (home, office, a property) with optional
+// entry instructions, so booking does not retype the address every time.
+// Owner-scoped; the address is the customer's private data.
+// ═══════════════════════════════════════════════════════════════════════════
+
+exports.getSavedLocations = async (req, res) => {
+  try {
+    // Group 2, items 56-60: the address book. Archived rows (60) are
+    // hidden unless explicitly asked for; the shared flag (56), entry
+    // preset (57), and private notes (58) travel with the row.
+    const includeArchived = req.query && req.query.includeArchived === 'true';
+    const { rows } = await db.query(`
+      SELECT id, label, address, entry_instructions, entry_preset,
+             private_notes, shared_with_household, is_archived,
+             is_default, created_at, updated_at
+        FROM customer_saved_locations
+       WHERE user_id = $1 ${includeArchived ? '' : 'AND is_archived = FALSE'}
+       ORDER BY is_default DESC, created_at ASC
+    `, [req.user.id]);
+    res.json({ saved_locations: rows });
+  } catch (err) {
+    logger.error('getSavedLocations error', { message: err.message });
+    res.status(500).json({ error: 'Failed to fetch saved locations.' });
+  }
+};
+
+const ENTRY_PRESETS = ['gate_code', 'parking', 'pets', 'stairs', 'key_location', 'none'];
+
+exports.createSavedLocation = async (req, res) => {
+  try {
+    const { label, address, entry_instructions, is_default,
+      entry_preset, private_notes, shared_with_household } = req.body || {};
+    if (!label || !String(label).trim() || !address || !String(address).trim()) {
+      return res.status(400).json({ error: 'Label and address are required.' });
+    }
+    if (String(label).length > 80 || String(address).length > 500
+      || (entry_instructions && String(entry_instructions).length > 1000)
+      || (private_notes && String(private_notes).length > 2000)) {
+      return res.status(400).json({ error: 'Location fields are too long.' });
+    }
+    if (entry_preset && !ENTRY_PRESETS.includes(String(entry_preset))) {
+      return res.status(400).json({ error: 'Unknown entry preset.' });
+    }
+    const { rows } = await db.query(`
+      INSERT INTO customer_saved_locations
+        (user_id, label, address, entry_instructions, is_default,
+         entry_preset, private_notes, shared_with_household)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id, label, address, entry_instructions, entry_preset,
+        private_notes, shared_with_household, is_archived,
+        is_default, created_at, updated_at
+    `, [
+      req.user.id,
+      String(label).trim(),
+      String(address).trim(),
+      entry_instructions ? String(entry_instructions).trim() : null,
+      is_default === true,
+      entry_preset || null,
+      private_notes ? String(private_notes).trim() : null,
+      shared_with_household === true,
+    ]);
+    // A new default unsets the previous default, so only one is default.
+    if (is_default === true) {
+      await db.query(`
+        UPDATE customer_saved_locations SET is_default = false
+        WHERE user_id = $1 AND id <> $2
+      `, [req.user.id, rows[0].id]);
+    }
+    res.status(201).json({ saved_location: rows[0] });
+  } catch (err) {
+    logger.error('createSavedLocation error', { message: err.message });
+    res.status(500).json({ error: 'Failed to save location.' });
+  }
+};
+
+exports.updateSavedLocation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { label, address, entry_instructions, is_default,
+      entry_preset, private_notes, shared_with_household, is_archived } = req.body || {};
+    if (entry_preset !== undefined && entry_preset !== null && !ENTRY_PRESETS.includes(String(entry_preset))) {
+      return res.status(400).json({ error: 'Unknown entry preset.' });
+    }
+    const { rows } = await db.query(`
+      UPDATE customer_saved_locations
+         SET label = COALESCE($2, label),
+             address = COALESCE($3, address),
+             entry_instructions = COALESCE($4, entry_instructions),
+             is_default = COALESCE($5, is_default),
+             entry_preset = COALESCE($6, entry_preset),
+             private_notes = COALESCE($7, private_notes),
+             shared_with_household = COALESCE($8, shared_with_household),
+             is_archived = COALESCE($9, is_archived),
+             updated_at = NOW()
+       WHERE id = $1 AND user_id = $10
+       RETURNING id, label, address, entry_instructions, entry_preset,
+         private_notes, shared_with_household, is_archived,
+         is_default, created_at, updated_at
+    `, [
+      id,
+      label ? String(label).trim().slice(0, 80) : null,
+      address ? String(address).trim().slice(0, 500) : null,
+      entry_instructions !== undefined ? String(entry_instructions).trim().slice(0, 1000) : null,
+      is_default === undefined ? null : is_default === true,
+      entry_preset || null,
+      private_notes !== undefined ? String(private_notes).trim().slice(0, 2000) : null,
+      shared_with_household === undefined ? null : shared_with_household === true,
+      is_archived === undefined ? null : is_archived === true,
+      req.user.id,
+    ]);
+    if (!rows.length) return res.status(404).json({ error: 'Saved location not found.' });
+    if (is_default === true) {
+      await db.query(`
+        UPDATE customer_saved_locations SET is_default = false
+        WHERE user_id = $1 AND id <> $2
+      `, [req.user.id, rows[0].id]);
+    }
+    res.json({ saved_location: rows[0] });
+  } catch (err) {
+    logger.error('updateSavedLocation error', { message: err.message });
+    res.status(500).json({ error: 'Failed to update location.' });
+  }
+};
+
+exports.deleteSavedLocation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await db.query(
+      'DELETE FROM customer_saved_locations WHERE id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Saved location not found.' });
+    res.json({ message: 'Saved location removed.' });
+  } catch (err) {
+    logger.error('deleteSavedLocation error', { message: err.message });
+    res.status(500).json({ error: 'Failed to remove location.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // HOME TASKS
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -997,7 +1139,11 @@ exports.getLifeVehicles = async (req, res) => {
       WHERE user_id = $1
       ORDER BY updated_at DESC, created_at DESC
     `, [req.user.id]);
-    res.json({ vehicles: rows });
+    // Group 1, item 27: same derived reminders as the garage endpoint.
+    res.json({ vehicles: rows.map((row) => ({
+      ...row,
+      service_reminders: vehicleServiceReminders(row),
+    })) });
   } catch (err) {
     logger.error('getLifeVehicles error', { message: err.message });
     res.status(500).json({ error: 'Failed to fetch vehicles.' });

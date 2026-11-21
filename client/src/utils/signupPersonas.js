@@ -1,3 +1,4 @@
+import { intentForLegacyMode, joinModeForLegacyMode } from './legacyDeepLinks.js';
 import { PERSONA_NAVIGATION_CATALOG } from './personaNavigation.js';
 
 // Signup is an admission-intent chooser, not a role selector. These intents
@@ -36,3 +37,26 @@ export function signupPersonaForIntent(intent) {
   return SIGNUP_PERSONAS.find((persona) => persona.intent === intent) || SIGNUP_PERSONAS[0];
 }
 
+// Display grouping only: every catalog path retains the same admission policy.
+export const COMMON_SIGNUP_PERSONAS = Object.freeze(SIGNUP_PERSONAS.filter(({ id }) =>
+  ['customer', 'helper', 'business-owner'].includes(id)));
+export const MORE_SIGNUP_PERSONAS = Object.freeze(SIGNUP_PERSONAS.filter((persona) =>
+  !COMMON_SIGNUP_PERSONAS.includes(persona)));
+
+export function signupEntryForParams(params) {
+  const rawInvite = params.get('invite');
+  const inviteId = rawInvite && /^[A-Za-z0-9-]{1,64}$/.test(rawInvite) ? rawInvite : null;
+  const requested = [params.get('goal'), params.get('intent')]
+    .map((value) => SIGNUP_PERSONAS.find(({ id, intent }) => value === id || value === intent))
+    .find(Boolean);
+  const mode = joinModeForLegacyMode(params.get('mode'));
+  const presetIntent = requested?.intent || (mode ? intentForLegacyMode(mode) : null);
+  // An invitation always leads to its server-validated handoff. A URL goal
+  // cannot turn it into a professional application or an ownership grant.
+  return {
+    inviteId,
+    intent: inviteId
+      ? (presetIntent === 'join_restaurant_team' ? presetIntent : 'join_business_team')
+      : presetIntent,
+  };
+}

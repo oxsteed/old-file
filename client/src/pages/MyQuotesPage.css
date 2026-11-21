@@ -1,0 +1,9 @@
+/* Group 1, items 8/9/10: My quotes page. */
+.mq-page {
+  background: var(--color-bg, #030712);
+  color: var(--color-text, #f3f4f6);
+}
+
+.mq-row {
+  border-bottom: 1px solid var(--color-border, #1f2937);
+}

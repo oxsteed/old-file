@@ -305,7 +305,9 @@ exports.submitSupportRequest = async (req, res, next) => {
     const allowedPriority = ['low', 'normal', 'high', 'urgent'];
     const safePriority = allowedPriority.includes(priority) ? priority : 'normal';
 
-    const allowedCategory = ['general', 'billing', 'technical', 'account', 'dispute', 'verification', 'other', 'chat_escalation'];
+    // Group 1, item 40: accessibility assistance requests are a first-class
+    // category, not silently downgraded to 'general'.
+    const allowedCategory = ['general', 'billing', 'technical', 'account', 'dispute', 'verification', 'other', 'chat_escalation', 'accessibility'];
     const safeCategory = allowedCategory.includes(category?.toLowerCase?.()) ? category.toLowerCase() : 'general';
 
     // Review P1-3-F08 / P1-17-F01: complaint barrier, support-ticket entry.
@@ -375,7 +377,7 @@ exports.submitSupportRequest = async (req, res, next) => {
       `INSERT INTO support_tickets
          (user_id, name, email, subject, category, priority, status, source, client_request_id, metadata, sla_due_at)
        VALUES ($1, $2, $3, $4, $5, $6, 'open', 'widget', $7, $8::jsonb,
-               NOW() + (CASE $6
+               NOW() + (CASE $6::varchar
                  WHEN 'urgent' THEN INTERVAL '1 hour'
                  WHEN 'high'   THEN INTERVAL '4 hours'
                  WHEN 'low'    THEN INTERVAL '72 hours'

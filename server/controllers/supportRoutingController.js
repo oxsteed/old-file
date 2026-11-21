@@ -372,7 +372,7 @@ exports.createConversation = async (req, res) => {
     if (clientRequestId === false) {
       return sendValidationError(res, { clientRequestId: 'Must be a valid UUID' });
     }
-    const validCategories = new Set(['billing', 'technical', 'sales', 'account', 'general', 'support_request', 'escalation']);
+    const validCategories = new Set(['billing', 'technical', 'sales', 'account', 'general', 'support_request', 'escalation', 'accessibility']);
     const validPriorities = new Set(['low', 'normal', 'high', 'urgent']);
 
     // Validate input

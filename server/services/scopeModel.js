@@ -155,7 +155,7 @@ const EFFECTIVE_ROLE_CASE = `CASE
                   FROM business_members bm
                  WHERE bm.business_id = fr.business_id
                    AND bm.member_id = $2
-                   AND bm.status = 'active'
+                   AND bm.status = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
                  LIMIT 1
               )
             END`;
@@ -165,7 +165,7 @@ const EFFECTIVE_MEMBERSHIP_ID_SUBQUERY = `(
                 FROM business_members bm
                WHERE bm.business_id = fr.business_id
                  AND bm.member_id = $2
-                 AND bm.status = 'active'
+                 AND bm.status = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
                LIMIT 1
             )`;
 
@@ -332,7 +332,7 @@ async function resolveBusinessAccess(userId, businessId, { includeDeleted = fals
                 FROM business_members bm
                 WHERE bm.business_id = b.id
                   AND bm.member_id   = $2
-                  AND bm.status      = 'active'
+                  AND bm.status      = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
                 LIMIT 1
               )
             END AS effective_role,
@@ -343,7 +343,7 @@ async function resolveBusinessAccess(userId, businessId, { includeDeleted = fals
                 FROM business_members bm
                 WHERE bm.business_id = b.id
                   AND bm.member_id   = $2
-                  AND bm.status      = 'active'
+                  AND bm.status      = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
                 LIMIT 1
               )
             END AS membership_id
@@ -427,7 +427,7 @@ async function resolveScope(user, context = {}) {
                   FROM business_members bm
                  WHERE bm.business_id = b.id
                    AND bm.member_id = $1
-                   AND bm.status = 'active'
+                   AND bm.status = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
                  LIMIT 1
               )
             END AS role
@@ -440,7 +440,7 @@ async function resolveScope(user, context = {}) {
               FROM business_members bm
              WHERE bm.business_id = b.id
                AND bm.member_id = $1
-               AND bm.status = 'active'
+               AND bm.status = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
           )
         )`,
     [userId]
@@ -460,7 +460,7 @@ async function resolveScope(user, context = {}) {
                   FROM business_members bm
                  WHERE bm.business_id = fr.business_id
                    AND bm.member_id = $1
-                   AND bm.status = 'active'
+                   AND bm.status = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
                  LIMIT 1
               )
             END AS role
@@ -473,7 +473,7 @@ async function resolveScope(user, context = {}) {
              FROM business_members bm
             WHERE bm.business_id = fr.business_id
               AND bm.member_id = $1
-              AND bm.status = 'active'
+              AND bm.status = 'active' AND (bm.access_valid_until IS NULL OR bm.access_valid_until>NOW())
          )`,
     [userId]
   );

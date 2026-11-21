@@ -75,6 +75,7 @@ async function applyStaffOffboarding(client, {
   membershipId = null,
   removedBy = null,
   reassignToUserId = null,
+  revokeAccountSessions = true,
 } = {}) {
   const empty = {
     pinsDeactivated: 0,
@@ -137,6 +138,7 @@ async function applyStaffOffboarding(client, {
 
   // S-11: open work is reassigned to a manager, never orphaned to NULL.
   const reassignTo = await resolveReassignTarget(client, businessId, reassignToUserId);
+  const teamTasks=await client.query("UPDATE business_team_tasks SET assignee_id=$3,version=version+1 WHERE business_id=$1 AND assignee_id=$2 AND status='open' RETURNING id",[businessId,userId,reassignTo]);
 
   const crewTasks = await client.query(
     `UPDATE restaurant_crew_tasks t
@@ -219,18 +221,19 @@ async function applyStaffOffboarding(client, {
   // new access tokens. Any failure rolls the offboarding back (fail closed).
   // NOTE: refresh tokens live in the `sessions` table (migration 027 dropped
   // the legacy refresh_tokens table; authController uses sessions).
-  const refreshTokens = await client.query(
+  const refreshTokens = revokeAccountSessions ? await client.query(
     `UPDATE sessions SET is_valid = FALSE, revoked_at = NOW()
       WHERE user_id = $1 AND is_valid = TRUE
       RETURNING id`,
     [userId]
-  );
+  ) : {rowCount:0};
 
   const counts = {
     pinsDeactivated: pins.rowCount || 0,
     sessionsEnded: sessions.rowCount || 0,
     drawersFlagged: drawers.rowCount || 0,
     crewTasksReassigned: crewTasks.rowCount || 0,
+    teamTasksReassigned: teamTasks.rowCount || 0,
     correctiveActionsReassigned: correctiveActions.rowCount || 0,
     bookingsReassigned: bookings.rowCount || 0,
     appointmentsReassigned,
@@ -246,9 +249,9 @@ async function applyStaffOffboarding(client, {
         pins_deactivated, sessions_ended, drawers_flagged,
         crew_tasks_reassigned, corrective_actions_reassigned,
         bookings_reassigned, appointments_reassigned,
-        reassigned_to_user_id, retain_until)
+        reassigned_to_user_id, retain_until, team_tasks_reassigned)
      SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-            (CURRENT_DATE + (COALESCE(b.staff_record_retention_years, 7) * INTERVAL '1 year'))::date
+            (CURRENT_DATE + (COALESCE(b.staff_record_retention_years, 7) * INTERVAL '1 year'))::date,$14
        FROM businesses b
       WHERE b.id = $1
      RETURNING *`,
@@ -258,6 +261,7 @@ async function applyStaffOffboarding(client, {
       counts.crewTasksReassigned, counts.correctiveActionsReassigned,
       counts.bookingsReassigned, counts.appointmentsReassigned,
       reassignTo,
+      counts.teamTasksReassigned,
     ]
   );
 

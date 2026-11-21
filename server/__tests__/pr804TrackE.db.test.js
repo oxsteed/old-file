@@ -101,10 +101,12 @@ ddescribe('PR #804 Track E', () => {
       const state = await activation.activationFor('helper.offer_services', userId, pool);
       expect(state.ready).toBe(false);
       expect(state.missing).toEqual(expect.arrayContaining(['identity_verified', 'helper_terms']));
+      expect(state.missing).not.toContain('payout_setup');
       const decision = await accessService.can(userId, 'helper.offer_services', undefined, pool);
       expect(decision.allowed).toBe(false);
       expect(decision.reason).toBe('activation_incomplete');
       expect(decision.missing).toEqual(expect.arrayContaining(['identity_verified', 'helper_terms']));
+      expect(decision.missing).not.toContain('payout_setup');
       const projection = await accessService.getProjection(userId, pool);
       expect(projection.personal).toContain('helper.offer_services');
       expect(projection.activation['helper.offer_services'].ready).toBe(false);
@@ -133,7 +135,13 @@ ddescribe('PR #804 Track E', () => {
       expect(decision.reason).toBe('grant');
     });
 
-    test('payout_setup fails closed without Stripe Connect, even with identity and terms', async () => {
+    // G-1 (Emile decision, 2026-11-19): payout_setup is no longer a helper
+    // activation requirement, so a helper with identity + terms + W-9 +
+    // fresh Didit but no Connect account is USABLE: they can bid and be
+    // hired, and the payout defaults to OxSteed Credit. The Stripe path
+    // still requires payout_setup: the evidence check below stays false,
+    // so no Stripe payout moves to this helper.
+    test('identity + terms activate without Stripe Connect; payout_setup evidence stays false', async () => {
       const userId = await makeUser({
         terms_accepted: true,
         terms_accepted_at: new Date(),
@@ -144,8 +152,11 @@ ddescribe('PR #804 Track E', () => {
         w9_completed: true,
       });
       await grant(userId, 'helper.offer_services', 'helper-policy-1');
+      const state = await activation.activationFor('helper.offer_services', userId, pool);
+      expect(state).toEqual({ ready: true, missing: [] });
       const decision = await accessService.can(userId, 'helper.offer_services', undefined, pool);
       expect(decision.allowed).toBe(true);
+      expect(decision.reason).toBe('grant');
       const evidence = await activation.loadActivationEvidence(userId, pool);
       expect(activation.requirementSatisfied('payout_setup', evidence, 'helper.offer_services')).toBe(false);
     });
@@ -164,8 +175,16 @@ ddescribe('PR #804 Track E', () => {
       });
       await setConnectReady(userId);
       await grant(userId, 'helper.offer_services', 'helper-policy-1');
+      // G-1 (Emile decision, 2026-11-19): identity is satisfied by the
+      // verified Didit status regardless of freshness, and payout_setup is
+      // no longer an activation requirement, so the helper is usable even
+      // with a stale verification. The payout_setup EVIDENCE stays false:
+      // the Stripe path still requires a fresh verification.
+      const state = await activation.activationFor('helper.offer_services', userId, pool);
+      expect(state).toEqual({ ready: true, missing: [] });
       const decision = await accessService.can(userId, 'helper.offer_services', undefined, pool);
       expect(decision.allowed).toBe(true);
+      expect(decision.reason).toBe('grant');
       const evidence = await activation.loadActivationEvidence(userId, pool);
       expect(activation.requirementSatisfied('payout_setup', evidence, 'helper.offer_services')).toBe(false);
     });

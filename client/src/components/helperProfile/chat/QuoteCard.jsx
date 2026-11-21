@@ -129,6 +129,7 @@ export default function QuoteCard({
           token: token || quote?.token,
           reason: action === 'request_changes' || action === 'decline' ? reason || undefined : undefined,
           clientRequestId,
+          expectedVersion: quote?.version,
         },
         { headers: guestAuthHeaders || undefined },
       );
@@ -204,6 +205,7 @@ export default function QuoteCard({
           </Link>
         </p>
       ) : null}
+      {quote?.standard_terms && <div className="messenger-quote-card__note"><strong>{t('businessStandards.terms')}</strong><p style={{whiteSpace:'pre-wrap'}}>{quote.standard_terms}</p></div>}
 
       {lineItems.length > 0 && (
         <ul className="messenger-quote-card__lines">

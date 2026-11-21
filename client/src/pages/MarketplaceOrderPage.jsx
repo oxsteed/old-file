@@ -10,8 +10,10 @@ function fmtCents(cents) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(cents) / 100);
 }
 
-// Read-only buyer view of one marketplace order. No pay, refund, cancel,
-// or edit actions live here; the fetch is buyer-scoped on the server.
+// Read-only buyer view of one marketplace order. No pay, refund, or
+// edit actions live here; the fetch is buyer-scoped on the server.
+// Group 1, item 35: the customer can open a return request here. A return
+// request records the request only; it never issues a refund.
 export default function MarketplaceOrderPage() {
   const { t } = useTranslation();
   const { orderId } = useParams();
@@ -22,6 +24,46 @@ export default function MarketplaceOrderPage() {
   const [failed, setFailed] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [returnRequests, setReturnRequests] = useState([]);
+  const [showReturnForm, setShowReturnForm] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const [returnError, setReturnError] = useState('');
+  const [returnSaving, setReturnSaving] = useState(false);
+
+  const loadReturns = () => {
+    api.get(`/orders/${orderId}/return`)
+      .then((r) => setReturnRequests(Array.isArray(r.data?.data) ? r.data.data : []))
+      .catch(() => setReturnRequests([]));
+  };
+
+  async function submitReturn() {
+    if (!returnReason.trim()) {
+      setReturnError(t('lifePages.order.returnReasonRequired'));
+      return;
+    }
+    setReturnSaving(true);
+    setReturnError('');
+    try {
+      await api.post(`/orders/${orderId}/return`, { reason: returnReason.trim() });
+      setReturnReason('');
+      setShowReturnForm(false);
+      loadReturns();
+    } catch (err) {
+      setReturnError(err?.response?.data?.error || err?.response?.data?.message || t('lifePages.order.returnFailed'));
+    } finally {
+      setReturnSaving(false);
+    }
+  }
+
+  async function cancelReturn(returnId) {
+    try {
+      await api.post(`/orders/${orderId}/return/${returnId}/cancel`);
+      loadReturns();
+    } catch {
+      // The request list refreshes below; a stale cancel surfaces there.
+      loadReturns();
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +76,7 @@ export default function MarketplaceOrderPage() {
         setOrder(r.data?.data?.order || null);
         setItems(Array.isArray(r.data?.data?.items) ? r.data.data.items : []);
         setPayment(r.data?.data?.payment || null);
+        loadReturns();
       })
       .catch((err) => {
         if (cancelled) return;
@@ -70,7 +113,7 @@ export default function MarketplaceOrderPage() {
               </p>
             </div>
 
-            <section className="rounded-xl border p-5" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+            <section className="rounded-xl border border-border p-5">
               <h2 className="text-lg font-semibold mb-3">{t('lifePages.order.items')}</h2>
               {items.length === 0 ? (
                 <p className="text-sm" style={{ color: 'var(--color-text-muted, #9ca3af)' }}>{t('lifePages.order.noItems')}</p>
@@ -102,7 +145,7 @@ export default function MarketplaceOrderPage() {
               </div>
             </section>
 
-            <section className="rounded-xl border p-5" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+            <section className="rounded-xl border border-border p-5">
               <h2 className="text-lg font-semibold mb-3">{t('lifePages.order.payment')}</h2>
               {payment ? (
                 <div className="text-sm space-y-1">
@@ -112,6 +155,83 @@ export default function MarketplaceOrderPage() {
                 </div>
               ) : (
                 <p className="text-sm" style={{ color: 'var(--color-text-muted, #9ca3af)' }}>{t('lifePages.order.noPayment')}</p>
+              )}
+            </section>
+
+            {/* Group 1, item 35: return requests. A request records the
+                return; it never issues a refund. */}
+            <section className="rounded-xl border border-border p-5">
+              <h2 className="text-lg font-semibold mb-3">{t('lifePages.order.returnsTitle')}</h2>
+              {returnRequests.length > 0 && (
+                <ul className="space-y-2 mb-3">
+                  {returnRequests.map((rr) => (
+                    <li key={rr.id} className="text-sm flex items-start justify-between gap-3">
+                      <span>
+                        {t('lifePages.order.returnStatus', { status: rr.status })}
+                        {rr.reason ? ` · ${rr.reason}` : ''}
+                        {rr.admin_note ? ` · ${rr.admin_note}` : ''}
+                      </span>
+                      {rr.status === 'requested' && (
+                        <button type="button" onClick={() => cancelReturn(rr.id)} className="shrink-0 text-sm text-orange-400 underline">
+                          {t('common.cancel')}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {['paid', 'processing', 'completed'].includes(order.status)
+                && !returnRequests.some((rr) => ['requested', 'approved'].includes(rr.status)) && (
+                <>
+                  {!showReturnForm ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowReturnForm(true)}
+                      className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
+                    >
+                      {t('lifePages.order.requestReturn')}
+                    </button>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="return-reason" className="text-sm font-medium">{t('lifePages.order.returnReasonLabel')}</label>
+                      <textarea
+                        id="return-reason"
+                        rows={3}
+                        maxLength={1000}
+                        value={returnReason}
+                        onChange={(e) => setReturnReason(e.target.value)}
+                        placeholder={t('lifePages.order.returnReasonPlaceholder')}
+                        className="rounded-lg border border-border p-2 text-sm bg-transparent"
+                      />
+                      <p className="text-xs text-muted">
+                        {t('lifePages.order.returnNoRefundNote')}
+                      </p>
+                      {returnError && <p role="alert" className="text-sm text-red-300">{returnError}</p>}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={submitReturn}
+                          disabled={returnSaving}
+                          className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-50"
+                        >
+                          {t('lifePages.order.submitReturn')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowReturnForm(false); setReturnError(''); }}
+                          className="px-4 py-2 rounded-xl border border-border text-sm"
+                        >
+                          {t('common.cancel')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+              {!['paid', 'processing', 'completed'].includes(order.status) && returnRequests.length === 0 && (
+                <p className="text-sm text-muted">
+                  {t('lifePages.order.returnNotAvailable')}
+                </p>
               )}
             </section>
           </>

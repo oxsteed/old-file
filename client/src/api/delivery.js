@@ -36,6 +36,16 @@ export const estimateDeliveryPublic = (payload) => api.post('/delivery/public/es
 export const createDelivery = (payload) => mutate('post', '/delivery/jobs', payload);
 export const listDeliveryJobs = () => api.get('/delivery/jobs').then((response) => response.data);
 export const claimDeliveryJob = (id) => mutate('post', `/delivery/jobs/${id}/claim`);
+// Group 9 Slice B (item 460): a driver passes on a marketplace offer
+// with a reason code and an optional note. Advisory only.
+export const declineDeliveryJob = (id, payload) => mutate('post', `/delivery/jobs/${id}/decline`, payload);
+// Group 9 Slice C (item 462): the multi-stop sequence. Listing is a
+// read; adding is the shipper before pickup; reordering and completing
+// are the assigned driver.
+export const listDeliveryStops = (id) => api.get(`/delivery/jobs/${id}/stops`).then((response) => response.data);
+export const addDeliveryStop = (id, payload) => mutate('post', `/delivery/jobs/${id}/stops`, payload);
+export const reorderDeliveryStops = (id, stopIds) => mutate('post', `/delivery/jobs/${id}/stops/reorder`, { stopIds });
+export const completeDeliveryStop = (id, stopId) => mutate('post', `/delivery/jobs/${id}/stops/${stopId}/complete`);
 export const updateDeliveryStatus = (id, status, details = {}) => mutate('patch', `/delivery/jobs/${id}/status`, { status, ...details });
 export const getDelivery = (id) => api.get(`/delivery/jobs/${id}`).then((response) => response.data);
 export const reportDeliveryIssue = (id, payload) => mutate('post', `/delivery/jobs/${id}/issues`, payload);
@@ -73,10 +83,36 @@ export const getPublicDeliveryTracking = (token) =>
 // ── Driver GPS tracking (driver-facing; restored for DriverTrackingControls) ──
 export const listTrackingDevices = () => api.get('/delivery/tracking/devices').then((response) => response.data);
 export const registerTrackingDevice = (payload) => mutate('post', '/delivery/tracking/devices', payload);
+// Group 9 Slice G (item 499): device-change recovery. The driver
+// registers a new phone from the driver screens; the server moves
+// the live tracking assignments and consent to it and revokes the
+// old device. Buffered unsynced points stay on the old device (D-92).
+export const transferTrackingDevice = (payload) => mutate('post', '/delivery/tracking/devices/transfer', payload);
+export const revokeTrackingDevice = (id) => api.delete(`/delivery/tracking/devices/${id}`).then((response) => response.data);
+// Group 9 Slice G (item 500): driver shifts and shift closeout.
+export const startDriverShift = () => mutate('post', '/delivery/driver-shifts');
+export const getOpenDriverShift = () => api.get('/delivery/driver-shifts/open').then((response) => response.data);
+export const listDriverShifts = () => api.get('/delivery/driver-shifts').then((response) => response.data);
+export const getDriverShift = (id) => api.get(`/delivery/driver-shifts/${id}`).then((response) => response.data);
+export const closeDriverShift = (id, payload = {}) => mutate('post', `/delivery/driver-shifts/${id}/closeout`, payload);
 // ── P2-4-F10: self-serve driver onboarding (profile starts pending ops approval) ──
 export const getDriverProfile = () => api.get('/delivery/driver-profile').then((response) => response.data);
 export const setDriverAvailability = (available) => api.patch('/delivery/driver-profile/availability', { available }).then((response) => response.data);
 export const registerDriverProfile = (payload) => mutate('post', '/delivery/driver-profile', payload);
+export const updateDriverProfile = (payload) => mutate('patch', '/delivery/driver-profile', payload);
+// Group 9 Slice A: assignment readiness checklist (455).
+export const getDriverReadiness = (jobId) => api.get('/delivery/driver-profile/readiness', jobId ? { params: { jobId } } : undefined).then((response) => response.data);
+// Group 9 Slice A: driver-owned vehicles (452).
+export const listDriverVehicles = () => api.get('/delivery/driver-vehicles').then((response) => response.data);
+export const createDriverVehicle = (payload) => mutate('post', '/delivery/driver-vehicles', payload);
+export const updateDriverVehicle = (id, payload) => mutate('patch', `/delivery/driver-vehicles/${id}`, payload);
+export const deleteDriverVehicle = (id) => api.delete(`/delivery/driver-vehicles/${id}`).then((response) => response.data);
+export const activateDriverVehicle = (id) => mutate('post', `/delivery/driver-vehicles/${id}/activate`);
+// Group 9 Slice A: driver documents with expiry dates (453).
+export const listDriverDocuments = () => api.get('/delivery/driver-documents').then((response) => response.data);
+export const createDriverDocument = (payload) => mutate('post', '/delivery/driver-documents', payload);
+export const updateDriverDocument = (id, payload) => mutate('patch', `/delivery/driver-documents/${id}`, payload);
+export const deleteDriverDocument = (id) => api.delete(`/delivery/driver-documents/${id}`).then((response) => response.data);
 export const grantTrackingConsent = (id, payload) => mutate('post', `/delivery/jobs/${id}/tracking/consent`, payload);
 export const revokeTrackingConsent = (id, reason = null) => api.delete(`/delivery/jobs/${id}/tracking/consent`, { data: { reason } }).then((response) => response.data);
 export const startTracking = (id, payload) => mutate('post', `/delivery/jobs/${id}/tracking/start`, payload);
@@ -122,6 +158,48 @@ export const listInternalDriverPayouts = (status, { limit, offset } = {}) => {
   return api.get(`/delivery/internal/driver-payouts${query}`).then((response) => response.data);
 };
 
+// Group 9 Slice F (items 488-495): exception summary, documents,
+// receipt, disputes, payout adjustments, aggregate exceptions, and
+// weekly work reports.
+export const getJobExceptions = (id) => api.get(`/delivery/jobs/${id}/exceptions`).then((response) => response.data);
+export const listJobDocuments = (id) => api.get(`/delivery/jobs/${id}/documents`).then((response) => response.data);
+export const listInternalExceptions = () => api.get('/delivery/internal/exceptions').then((response) => response.data);
+export const createDeliveryDispute = (id, payload) => mutate('post', `/delivery/jobs/${id}/disputes`, payload);
+export const listJobDisputes = (id) => api.get(`/delivery/jobs/${id}/disputes`).then((response) => response.data);
+export const listMyDisputes = (status) => {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return api.get(`/delivery/driver-disputes${query}`).then((response) => response.data);
+};
+export const listInternalDisputes = (status) => {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return api.get(`/delivery/internal/disputes${query}`).then((response) => response.data);
+};
+export const resolveInternalDispute = (disputeId, payload) => mutate('patch', `/delivery/internal/disputes/${disputeId}`, payload);
+export const adjustInternalDriverPayout = (payoutId, payload) => mutate('post', `/delivery/internal/driver-payouts/${payoutId}/adjust`, payload);
+export const listMyWeeklyReports = () => api.get('/delivery/weekly-report').then((response) => response.data);
+export const getMyWeeklyReport = (id) => api.get(`/delivery/weekly-report/${id}`).then((response) => response.data);
+
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export const downloadDeliveryReceipt = async (id, reference) => {
+  const response = await api.get(`/delivery/jobs/${id}/receipt`, { responseType: 'blob' });
+  saveBlob(response.data, `oxsteed-delivery-receipt-${reference || id}.pdf`);
+};
+
+export const downloadMyWeeklyReport = async (id, weekStart) => {
+  const response = await api.get(`/delivery/weekly-report/${id}/download`, { responseType: 'blob' });
+  saveBlob(response.data, `oxsteed-weekly-delivery-report-${weekStart || id}.pdf`);
+};
+
 export const approveInternalDriverPayout = (payoutId, note) =>
   api.post(`/delivery/internal/driver-payouts/${payoutId}/approve`, { note }).then((response) => response.data);
 
@@ -133,12 +211,15 @@ export const voidInternalDriverPayout = (payoutId, note) =>
 
 export const listInternalDeliveryQueue = () => api.get('/delivery/internal/queue').then((response) => response.data);
 export const getInternalDelivery = (id) => api.get(`/delivery/internal/jobs/${id}`).then((response) => response.data);
+// Group 9 Slice E (item 484): the handoff state record, per job and per driver.
+export const getInternalDeliveryHandoffs = (id) => api.get(`/delivery/internal/jobs/${id}/handoffs`).then((response) => response.data);
+export const listInternalDriverHandoffs = (driverUserId) => api.get('/delivery/internal/handoffs', { params: { driverUserId } }).then((response) => response.data);
 export const listDeliveryVehicles = () => api.get('/delivery/internal/vehicles').then((response) => response.data);
 export const createDeliveryVehicle = (payload) => mutate('post', '/delivery/internal/vehicles', payload);
 export const listDeliveryDrivers = () => api.get('/delivery/internal/drivers').then((response) => response.data);
 export const saveDeliveryDriver = (payload) => mutate('post', '/delivery/internal/drivers', payload);
 export const assignInternalDelivery = (id, payload) => mutate('post', `/delivery/internal/jobs/${id}/assign`, payload);
-export const releaseDeliveryToMarketplace = (id, reason) => mutate('post', `/delivery/internal/jobs/${id}/release-marketplace`, { reason });
+export const releaseDeliveryToMarketplace = (id, reason, offerDeadlineHours) => mutate('post', `/delivery/internal/jobs/${id}/release-marketplace`, { reason, offerDeadlineHours });
 
 export const reviewDeliveryReschedule = (id, decision) => mutate('patch', `/delivery/internal/reschedule-requests/${id}`, { decision });
 export const reviewDeliveryReturn = (id, decision, details = {}) => mutate('patch', `/delivery/internal/returns/${id}`, { decision, ...details });
@@ -182,6 +263,11 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     quoteRequired: ['delivery_quote_required'],
     permission: ['delivery_helper_required', 'delivery_operator_required', 'delivery_status_forbidden', 'delivery_self_claim'],
     capacityError: ['delivery_capacity_mismatch', 'delivery_schedule_conflict'],
+    offerExpired: ['delivery_offer_expired'],
+    declineUnavailable: ['delivery_decline_unavailable', 'delivery_decline_reason_invalid'],
+    stopInvalid: ['delivery_stop_type_invalid', 'delivery_stop_address_required', 'delivery_stop_order_invalid', 'delivery_stop_not_found'],
+    stopForbidden: ['delivery_stop_forbidden'],
+    stopUnavailable: ['delivery_stop_unavailable', 'delivery_stop_conflict'],
     recoveryPending: ['delivery_recovery_pending', 'delivery_reschedule_pending', 'delivery_return_pending'],
     proofInvalid: ['delivery_proof_mismatch', 'delivery_proof_rejected', 'delivery_proof_upload_required', 'delivery_recipient_confirmation_required', 'delivery_return_proof_required', 'delivery_return_proof_unavailable'],
     pinInvalid: ['delivery_proof_pin_invalid'],
@@ -193,6 +279,14 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     conflict: ['delivery_idempotency_conflict'],
     onboardingRequired: ['delivery_driver_onboarding_required'],
     approvalPending: ['delivery_driver_pending_approval'],
+    // Group 9 Slice G (item 498): the driver's job access expired
+    // 7 days after the job reached a terminal state (D-90).
+    accessExpired: ['delivery_access_expired'],
+    // Group 9 Slice G (item 500): shift closeout guards.
+    shiftAlreadyOpen: ['delivery_shift_already_open'],
+    shiftActiveJob: ['delivery_shift_active_job'],
+    shiftOpenIssues: ['delivery_shift_open_issues'],
+    shiftNotFound: ['delivery_shift_not_found', 'delivery_shift_already_closed'],
   };
   const match = Object.entries(mappings).find(([, codes]) => codes.includes(code));
   if (match) {

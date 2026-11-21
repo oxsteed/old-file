@@ -7,9 +7,12 @@ import { useAuth } from '../context/AuthContext';
 import { canAccessOperationsWorkspace } from '../utils/logisticsWorkspaces';
 import {
   assignInternalDelivery, listDeliveryDrivers, listDeliveryVehicles, listInternalDeliveryQueue,
-  releaseDeliveryToMarketplace, getInternalDelivery, createDeliveryVehicle, saveDeliveryDriver,
+  releaseDeliveryToMarketplace, getInternalDelivery, getInternalDeliveryHandoffs, listInternalDriverHandoffs,
+  createDeliveryVehicle, saveDeliveryDriver,
   reviewDeliveryReschedule, reviewDeliveryReturn, resolveDeliveryIssue,
   refundDeliveryPayment, uploadDeliveryProof, deliveryDate, deliveryUnit, deliveryError, deliveryMoney,
+  listInternalExceptions, listInternalDisputes, resolveInternalDispute,
+  listInternalDriverPayouts, adjustInternalDriverPayout,
 } from '../api/delivery';
 import '../styles/DeliveryPage.css';
 
@@ -79,7 +82,7 @@ function ResourceForm({ kind, drivers, busy, run, t }) {
   </fieldset></form>;
 }
 
-function JobReview({ detail, busy, run, t, language }) {
+function JobReview({ detail, handoffs, busy, run, t, language }) {
   const [resolution, setResolution] = useState({});
   const [refund, setRefund] = useState({});
   const label = (group, value) => t(`delivery.${group}.${value}`, { defaultValue: t('delivery.ui.unknown') });
@@ -101,7 +104,18 @@ function JobReview({ detail, busy, run, t, language }) {
       {item.status === 'approved' && decisions(item, ['in_transit'], reviewDeliveryReturn)}
       {['approved', 'in_transit'].includes(item.status) && <ReturnProof item={item} job={detail.job} busy={busy} run={run} t={t} />}
     </article>)}
-    {issues?.map((item) => <article key={item.id} className="delivery-review-item"><h4>{label('ui.issueCodes', item.code)} · {label('ui.requestStates', item.status)}</h4><p>{item.description}</p><p>{item.resolution}</p>
+    {issues?.map((item) => <article key={item.id} className="delivery-review-item"><h4>{label('ui.issueCodes', item.code)} · {label('ui.requestStates', item.status)}</h4><p>{item.description}</p>
+      {/* Group 9 Slice D (items 470/475): the structured metadata, so
+        dispatch sees the wrong-item pair and the unavailable reason
+        without parsing the free text. */}
+      {item.metadata?.received && <p>{t('delivery.detail.issueReceived', { value: item.metadata.received })} · {t('delivery.detail.issueExpected', { value: item.metadata.expected })}</p>}
+      {item.metadata?.unavailableReason && <p>{t(`delivery.ui.unavailableReasons.${item.metadata.unavailableReason}`)}</p>}
+      {/* Group 9 Slice E (item 476): the closed-site structure, and the
+        failed drop-off flag — an open closed-site report is a failed
+        drop-off candidate for dispatch to review (return/reschedule). */}
+      {item.metadata?.closedWhat && <p>{t(`delivery.ui.closedSiteWhats.${item.metadata.closedWhat}`)}{item.metadata.noticeSeen ? ` · ${t('delivery.detail.closedSiteNotice')}` : ''}{item.metadata.contactAttempted ? ` · ${t('delivery.detail.closedSiteContact')}` : ''}</p>}
+      {item.code === 'closed_site' && item.status === 'open' && <p>{t('delivery.detail.closedSiteFailedDropoff')}</p>}
+      <p>{item.resolution}</p>
       {item.status === 'open' && <form onSubmit={(event) => { event.preventDefault(); run(() => resolveDeliveryIssue(item.id, resolution[item.id])); }} data-track="ui.49bdb74b31.6">
         <label className="delivery-field">{t('delivery.ui.resolution')}<textarea className="delivery-input" maxLength={2000} required disabled={busy} value={resolution[item.id] || ''} onChange={(event) => setResolution({ ...resolution, [item.id]: event.target.value })} /></label>
         <button className="delivery-button delivery-button--primary" disabled={busy || !resolution[item.id]?.trim()} data-track="ui.49bdb74b31.7">{t('delivery.ui.resolve')}</button>
@@ -113,6 +127,25 @@ function JobReview({ detail, busy, run, t, language }) {
     <h3>{t('delivery.ui.attempts')}</h3>
     {(detail.dispatchAttempts || []).map((attempt) => <p key={attempt.id}>{label('ui.attemptActions', attempt.action)} · {date(attempt.created_at)} {attempt.reason || ''}</p>)}
     {!detail.activity?.length && !detail.dispatchAttempts?.length && <p>{t('delivery.ui.noActivity')}</p>}
+    <h3>{t('delivery.dispatch.declinesTitle')}</h3>
+    {detail.job.offer_expired_at && <p>{t('delivery.dispatch.offerExpired')}</p>}
+    {detail.job.offer_expires_at && !detail.job.offer_expired_at && <p>{t('delivery.dispatch.offerExpiresAt', { date: date(detail.job.offer_expires_at) })}</p>}
+    {(detail.declines || []).map((decline) => <p key={decline.id}>{[decline.first_name, decline.last_name].filter(Boolean).join(' ') || decline.driver_email || decline.driver_user_id} · {t(`delivery.driver.declineReasons.${decline.reason_code}`)} · {date(decline.created_at)}{decline.note ? ` · ${decline.note}` : ''}</p>)}
+    {(!detail.declines || detail.declines.length === 0) && <p>{t('delivery.dispatch.declinesEmpty')}</p>}
+    {/* Group 9 Slice E (item 484): the handoff state record — every
+      tracking assignment for this job (who held it, when, how it ended)
+      plus the handoff scans. Read from the existing lifecycle records;
+      there is no second assignment table. */}
+    <h3>{t('delivery.dispatch.handoffsTitle')}</h3>
+    {!handoffs && <p role="status">{t('delivery.helper.loading')}</p>}
+    {handoffs && handoffs.assignments?.length === 0 && handoffs.handoffScans?.length === 0 && <p>{t('delivery.dispatch.handoffsEmpty')}</p>}
+    {(handoffs?.assignments || []).map((assignment) => <article key={assignment.id} className="delivery-review-item">
+      <h4>{[assignment.first_name, assignment.last_name].filter(Boolean).join(' ') || assignment.driver_email || assignment.driver_user_id}</h4>
+      <p>{assignment.status} · {date(assignment.started_at)}{assignment.ended_at ? ` – ${date(assignment.ended_at)}` : ` · ${t('delivery.dispatch.handoffOpen')}`}</p>
+      {assignment.ended_reason && <p>{t('delivery.dispatch.handoffReason')}: {assignment.ended_reason}</p>}
+      {assignment.device_label && <p>{t('delivery.dispatch.handoffDevice')}: {assignment.device_label}</p>}
+    </article>)}
+    {(handoffs?.handoffScans || []).map((scan) => <p key={`scan-${scan.id}`}>{t('delivery.dispatch.handoffScans')}: {date(scan.scanned_at)} · {[scan.first_name, scan.last_name].filter(Boolean).join(' ') || scan.scanned_by_email || scan.scanned_by_user_id}</p>)}
     <h3>{t('delivery.detail.payments')}</h3>
     {(detail.payments || []).map((payment) => <article key={payment.id} className="delivery-review-item">
       <p>{deliveryMoney(payment.amount_cents, language, payment.currency)} · {label('ui.paymentStates', payment.status)}</p>
@@ -156,6 +189,144 @@ function ReturnProof({ item, job, busy, run, t }) {
   </fieldset></form>;
 }
 
+// Group 9 Slice E (item 483): the dispatcher capacity overview.
+// Read-only: per driver, active jobs, pieces/payload committed vs
+// capacity, availability window, service area, and the profile-level
+// readiness state from GET /delivery/internal/drivers. Assignment stays
+// on the board cards above; this table only shows who can take work.
+// Each driver row can open that driver's handoff ledger (item 484).
+function CapacityOverview({ drivers, t, language }) {
+  const [driverId, setDriverId] = useState('');
+  const [ledger, setLedger] = useState(null);
+  const loadLedger = async (id) => {
+    setDriverId(id); setLedger(null);
+    if (!id) return;
+    try { setLedger(await listInternalDriverHandoffs(id)); } catch { setLedger({ assignments: [] }); }
+  };
+  const area = (driver) => {
+    const serviceArea = driver.service_area || {};
+    return [...(serviceArea.states || []), ...(serviceArea.cities || []), ...(serviceArea.postalCodes || [])].join(', ') || t('delivery.dispatch.capacityNoArea');
+  };
+  const availability = (driver) => (driver.available_from || driver.available_until)
+    ? `${driver.available_from ? deliveryDate(driver.available_from, language) : '…'} – ${driver.available_until ? deliveryDate(driver.available_until, language) : '…'}`
+    : t('delivery.dispatch.capacityNoWindow');
+  return <section className="delivery-panel"><h2>{t('delivery.dispatch.capacityTitle')}</h2><p>{t('delivery.dispatch.capacitySubtitle')}</p>
+    {!drivers.length && <p>{t('delivery.dispatch.capacityEmpty')}</p>}
+    {drivers.map((driver) => {
+      const name = [driver.first_name, driver.last_name].filter(Boolean).join(' ') || driver.email || driver.user_id;
+      const readiness = driver.readiness || { state: 'not_ready', reasons: [] };
+      return <article key={driver.user_id} className="delivery-review-item">
+        <h4>{name} · {readiness.state === 'ready' ? t('delivery.dispatch.capacityReady') : t('delivery.dispatch.capacityNotReady')}</h4>
+        <p>{t('delivery.dispatch.capacityActiveJobs', { count: driver.activeJobs ?? 0 })} · {t('delivery.dispatch.capacityPieces', { committed: driver.committedPieces ?? 0, max: driver.max_pieces ?? 0 })} · {t('delivery.dispatch.capacityPayload', { committed: driver.committedPayloadLbs ?? 0, max: driver.max_payload_lbs ?? 0 })}</p>
+        <p>{t('delivery.dispatch.capacityAvailability')}: {availability(driver)}</p>
+        <p>{t('delivery.dispatch.capacityServiceArea')}: {area(driver)}</p>
+        {readiness.reasons?.length > 0 && <p>{readiness.reasons.map((reason) => t(`delivery.ui.readinessReasons.${reason}`)).join(' · ')}</p>}
+        <button className="delivery-button delivery-button--secondary" onClick={() => loadLedger(driver.user_id)} data-track="ui.49bdb74b31.22">{t('delivery.dispatch.handoffsView')}</button>
+      </article>;
+    })}
+    {driverId && <div>
+      <h3>{t('delivery.dispatch.handoffsTitle')}</h3>
+      {!ledger && <p role="status">{t('delivery.helper.loading')}</p>}
+      {ledger && (!ledger.assignments || ledger.assignments.length === 0) && <p>{t('delivery.dispatch.handoffsEmpty')}</p>}
+      {(ledger?.assignments || []).map((assignment) => <p key={assignment.id}>{assignment.job_reference} · {assignment.job_status} · {assignment.status} · {deliveryDate(assignment.started_at, language)}{assignment.ended_at ? ` – ${deliveryDate(assignment.ended_at, language)}` : ''}{assignment.ended_reason ? ` · ${assignment.ended_reason}` : ''}</p>)}
+    </div>}
+  </section>;
+}
+
+// Group 9 Slice F (item 488): the aggregate exceptions view — open
+// exceptions by type and age, each linked to its job review. Read-only
+// over the existing issue store.
+function ExceptionsOverview({ t, language, busy, onReview }) {
+  const [summary, setSummary] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    listInternalExceptions()
+      .then((data) => { if (!cancelled) setSummary(data); })
+      .catch(() => { if (!cancelled) setSummary({ byCode: [], jobs: [], delayedActiveCount: 0 }); });
+    return () => { cancelled = true; };
+  }, []);
+  const label = (group, value) => t(`delivery.${group}.${value}`, { defaultValue: t('delivery.ui.unknown') });
+  return <section className="delivery-panel"><h2>{t('delivery.dispatch.exceptionsTitle')}</h2><p>{t('delivery.dispatch.exceptionsSubtitle')}</p>
+    {!summary && <p role="status">{t('delivery.helper.loading')}</p>}
+    {summary && summary.byCode.length === 0 && summary.jobs.length === 0 && <p>{t('delivery.dispatch.exceptionsEmpty')}</p>}
+    {summary && summary.byCode.length > 0 && <div className="delivery-extra-list">{summary.byCode.map((entry) => <div key={entry.code}>
+      <span>{label('ui.issueCodes', entry.code)}</span>
+      <strong>{t('delivery.dispatch.exceptionsOpenCount', { count: entry.openCount })}</strong>
+      <small>{t('delivery.dispatch.exceptionsOldest', { date: deliveryDate(entry.oldestOpenAt, language) })}</small>
+    </div>)}</div>}
+    {summary && summary.delayedActiveCount > 0 && <p>{t('delivery.dispatch.exceptionsDelayed', { count: summary.delayedActiveCount })}</p>}
+    {(summary?.jobs || []).map((job) => <article key={job.id} className="delivery-review-item">
+      <h4>{job.reference} · {label('helper.status', job.status)}</h4>
+      <p>{job.latestOpenIssueCode ? label('ui.issueCodes', job.latestOpenIssueCode) : ''}{job.openIssueCount ? ` · ${t('delivery.dispatch.exceptionsOpenCount', { count: job.openIssueCount })}` : ''}{job.oldestOpenIssueAt ? ` · ${deliveryDate(job.oldestOpenIssueAt, language)}` : ''}</p>
+      <button type="button" className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => onReview(job.id)} data-track="ui.49bdb74b31.23">{t('delivery.ui.review')}</button>
+    </article>)}
+  </section>;
+}
+
+// Group 9 Slice F (item 494): the ops dispute queue. Resolving
+// records the outcome; it never adjusts the payout — that stays on
+// the adjustment form below, with its own reason.
+function DisputesQueue({ t, language, busy, run }) {
+  const [disputes, setDisputes] = useState(null);
+  const [form, setForm] = useState({});
+  const load = useCallback(async () => {
+    try { setDisputes(await listInternalDisputes()); } catch { setDisputes({ disputes: [] }); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const open = (disputes?.disputes || []).filter((dispute) => dispute.status !== 'resolved');
+  const set = (id, key, value) => setForm((previous) => ({ ...previous, [id]: { ...previous[id], [key]: value } }));
+  return <section className="delivery-panel"><h2>{t('delivery.dispatch.disputesTitle')}</h2><p>{t('delivery.dispatch.disputesSubtitle')}</p>
+    {!disputes && <p role="status">{t('delivery.helper.loading')}</p>}
+    {disputes && open.length === 0 && <p>{t('delivery.dispatch.disputesEmpty')}</p>}
+    {open.map((dispute) => {
+      const entry = form[dispute.id] || {};
+      const name = [dispute.first_name, dispute.last_name].filter(Boolean).join(' ') || dispute.driver_email || dispute.driver_user_id;
+      return <article key={dispute.id} className="delivery-review-item">
+        <h4>{dispute.job_reference} · {t(`delivery.detail.disputeSubjects.${dispute.subject}`)} · {t(`delivery.detail.disputeStatuses.${dispute.status}`)}</h4>
+        <p>{name} · {deliveryDate(dispute.created_at, language)}</p>
+        <p>{dispute.description}</p>
+        <form onSubmit={(event) => { event.preventDefault(); run(async () => { await resolveInternalDispute(dispute.id, { status: entry.status || 'under_review', resolution: entry.resolution || '' }); await load(); }); }} data-track="ui.49bdb74b31.24"><fieldset className="delivery-form-fields" disabled={busy}>
+          <label className="delivery-field">{t('delivery.dispatch.disputeStatus')}<select className="delivery-input" value={entry.status || 'under_review'} onChange={(event) => set(dispute.id, 'status', event.target.value)}><option value="under_review">{t('delivery.detail.disputeStatuses.under_review')}</option><option value="resolved">{t('delivery.detail.disputeStatuses.resolved')}</option></select></label>
+          <label className="delivery-field">{t('delivery.dispatch.disputeResolution')}<textarea className="delivery-input" maxLength={2000} value={entry.resolution || ''} onChange={(event) => set(dispute.id, 'resolution', event.target.value)} placeholder={t('delivery.dispatch.disputeResolutionHint')} /></label>
+          <button className="delivery-button delivery-button--primary" data-track="ui.49bdb74b31.25">{t('delivery.ui.resolve')}</button>
+        </fieldset></form>
+      </article>;
+    })}
+  </section>;
+}
+
+// Group 9 Slice F (item 493): the ops payout adjustment form. The
+// reason is persisted with the before/after amounts, and the driver
+// sees the explanation on the payout history. Paid and voided payouts
+// cannot be adjusted — the server 409s, and the form is not offered.
+function PayoutAdjustments({ t, language, busy, run }) {
+  const [rows, setRows] = useState(null);
+  const [form, setForm] = useState({});
+  const load = useCallback(async () => {
+    try { setRows(await listInternalDriverPayouts(null, { limit: 50 })); } catch { setRows({ payouts: [] }); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const payouts = rows?.payouts || [];
+  const set = (id, key, value) => setForm((previous) => ({ ...previous, [id]: { ...previous[id], [key]: value } }));
+  return <section className="delivery-panel"><h2>{t('delivery.dispatch.payoutAdjustTitle')}</h2><p>{t('delivery.dispatch.payoutAdjustSubtitle')}</p>
+    {!rows && <p role="status">{t('delivery.helper.loading')}</p>}
+    {rows && payouts.length === 0 && <p>{t('delivery.dispatch.payoutAdjustEmpty')}</p>}
+    {payouts.map((payout) => {
+      const entry = form[payout.id] || {};
+      const adjustable = ['accrued', 'approved'].includes(payout.status);
+      return <article key={payout.id} className="delivery-review-item">
+        <h4>{payout.job_reference || payout.delivery_job_id} · {deliveryMoney(payout.payout_cents, language, 'USD')} · {payout.status}</h4>
+        {(payout.adjustments || []).map((adjustment) => <p key={adjustment.id}>{deliveryMoney(adjustment.previous_payout_cents, language, 'USD')} → {deliveryMoney(adjustment.new_payout_cents, language, 'USD')} · {adjustment.reason}</p>)}
+        {adjustable && <form onSubmit={(event) => { event.preventDefault(); run(async () => { await adjustInternalDriverPayout(payout.id, { newPayoutCents: Math.round(Number(entry.amount) * 100), reason: entry.reason }); await load(); }); }} data-track="ui.49bdb74b31.26"><fieldset className="delivery-form-fields" disabled={busy}>
+          <label className="delivery-field">{t('delivery.dispatch.payoutAdjustAmount')}<input className="delivery-input" type="number" min="0.01" step="0.01" required value={entry.amount || ''} onChange={(event) => set(payout.id, 'amount', event.target.value)} /></label>
+          <label className="delivery-field">{t('delivery.dispatch.payoutAdjustReason')}<input className="delivery-input" required maxLength={1000} minLength={10} value={entry.reason || ''} onChange={(event) => set(payout.id, 'reason', event.target.value)} /></label>
+          <button className="delivery-button delivery-button--primary" data-track="ui.49bdb74b31.27">{t('delivery.dispatch.payoutAdjustSubmit')}</button>
+        </fieldset></form>}
+      </article>;
+    })}
+  </section>;
+}
+
 export default function DeliveryDispatchPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -165,6 +336,7 @@ export default function DeliveryDispatchPage() {
   const [vehicles, setVehicles] = useState([]);
   const [selection, setSelection] = useState({});
   const [detail, setDetail] = useState(null);
+  const [handoffs, setHandoffs] = useState(null);
   const [lookup, setLookup] = useState('');
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -182,15 +354,18 @@ export default function DeliveryDispatchPage() {
       setJobs(queue.jobs || []); setDrivers(driverList.drivers || []); setVehicles(vehicleList.vehicles || []); setError('');
     } catch (failure) {
       setError(deliveryError(failure, t, 'delivery.dispatch.loadError'));
-      if ([401, 403].includes(failure?.response?.status)) { setJobs([]); setDrivers([]); setVehicles([]); setDetail(null); }
+      if ([401, 403].includes(failure?.response?.status)) { setJobs([]); setDrivers([]); setVehicles([]); setDetail(null); setHandoffs(null); }
     } finally { setLoading(false); }
   }, [allowed, t]);
   useEffect(() => { load(); }, [load]);
 
   const openReview = async (id) => {
     const sequence = ++reviewSequence.current;
-    setBusy(true); setError(''); setDetail(null);
-    try { const response = await getInternalDelivery(id); if (sequence === reviewSequence.current) setDetail(response); }
+    setBusy(true); setError(''); setDetail(null); setHandoffs(null);
+    try {
+      const [response, handoffResponse] = await Promise.all([getInternalDelivery(id), getInternalDeliveryHandoffs(id)]);
+      if (sequence === reviewSequence.current) { setDetail(response); setHandoffs(handoffResponse); }
+    }
     catch (failure) { if (sequence === reviewSequence.current) setError(deliveryError(failure, t, 'delivery.errors.detail')); }
     finally { if (sequence === reviewSequence.current) setBusy(false); }
   };
@@ -200,13 +375,13 @@ export default function DeliveryDispatchPage() {
     lock.current = true; setBusy(true); setError(''); setNotice('');
     try {
       await operation(); setNotice(t('delivery.ui.saved'));
-      if (detail?.job?.id) setDetail(await getInternalDelivery(detail.job.id));
+      if (detail?.job?.id) { setDetail(await getInternalDelivery(detail.job.id)); setHandoffs(await getInternalDeliveryHandoffs(detail.job.id)); }
       await load();
     } catch (failure) { setError(deliveryError(failure, t)); }
     finally { lock.current = false; setBusy(false); }
   };
   const choiceFor = (id, key, value) => setSelection((previous) => ({ ...previous, [id]: { ...previous[id], [key]: value } }));
-  const shown = jobs.filter((job) => filter === 'all' || (filter === 'exception' ? job.dispatch_state === 'exception' : ['posted', 'assigned'].includes(job.status)));
+  const shown = jobs.filter((job) => filter === 'all' || (filter === 'exception' ? job.dispatch_state === 'exception' : filter === 'delayed' ? Boolean(job.delay_escalated_at) && ['assigned', 'picked_up', 'in_transit'].includes(job.status) : ['posted', 'assigned'].includes(job.status)));
   const label = (group, value) => t(`delivery.${group}.${value}`, { defaultValue: t('delivery.ui.unknown') });
 
   if (!allowed) return <PageShell><div className="delivery-page" dir={i18n.dir()}><h1>{t('delivery.ui.permission')}</h1><p>{t('delivery.ui.permissionHint')}</p><Link className="delivery-button delivery-button--primary" to="/logistics/login?mode=operations&next=%2Fdelivery%2Foperations">{t('delivery.ui.operationsLogin')}</Link><Link to="/delivery">{t('delivery.detail.back')}</Link></div></PageShell>;
@@ -217,7 +392,7 @@ export default function DeliveryDispatchPage() {
       {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
       {notice && <p className="delivery-alert delivery-alert--success" role="status">{notice}</p>}
       <section className="delivery-panel"><div className="delivery-stop-grid">
-        <label className="delivery-field">{t('delivery.ui.queueFilter')}<select className="delivery-input" value={filter} onChange={(event) => setFilter(event.target.value)}>{['all', 'exception', 'dispatch'].map((value) => <option key={value} value={value}>{t(`delivery.ui.filters.${value}`)}</option>)}</select></label>
+        <label className="delivery-field">{t('delivery.ui.queueFilter')}<select className="delivery-input" value={filter} onChange={(event) => setFilter(event.target.value)}>{['all', 'exception', 'dispatch', 'delayed'].map((value) => <option key={value} value={value}>{t(`delivery.ui.filters.${value}`)}</option>)}</select></label>
         <form className="delivery-form" onSubmit={(event) => { event.preventDefault(); openReview(lookup); }} data-track="ui.49bdb74b31.14"><label className="delivery-field">{t('delivery.ui.lookup')}<input className="delivery-input" value={lookup} onChange={(event) => setLookup(event.target.value)} required pattern="[1-9][0-9]*" /></label><button className="delivery-button delivery-button--secondary" disabled={busy} data-track="ui.49bdb74b31.15">{t('delivery.ui.review')}</button></form>
       </div></section>
       {loading && <p role="status">{t('delivery.helper.loading')}</p>}
@@ -229,20 +404,39 @@ export default function DeliveryDispatchPage() {
           <div className="delivery-job-card__topline"><h2>{job.reference}</h2><span className="delivery-status">{label('dispatchStates', job.dispatch_state)}</span></div>
           <p>{job.origin_city} → {job.destination_city}</p><p>{deliveryUnit(job.weight_lbs, 'pound', i18n.language)} · {deliveryUnit(job.distance_miles, 'mile', i18n.language)}</p>
           <p>{deliveryDate(job.pickup_window_start, i18n.language)} – {deliveryDate(job.delivery_window_end, i18n.language)}</p>
+          {job.offer_expired_at && <p>{t('delivery.dispatch.offerExpired')}</p>}
+          {/* Group 9 Slice E (item 485): the automated delay escalation
+            flag — the job is past its ETA and dispatch has the issue. */}
+          {job.delay_escalated_at && <p>{t('delivery.dispatch.delayed')}</p>}
+          {Number(job.decline_count) > 0 && <p>{t('delivery.dispatch.declinesCount', { count: Number(job.decline_count) })}</p>}
           {dispatchable && <fieldset className="delivery-form-fields" disabled={busy || loading}>
             <div className="delivery-stop-grid"><label className="delivery-field">{t('delivery.dispatch.driver')}<select className="delivery-input" value={choice.driverUserId || ''} onChange={(event) => choiceFor(job.id, 'driverUserId', event.target.value)}><option value="">{t('delivery.dispatch.chooseDriver')}</option>{drivers.filter((item) => item.active !== false && item.approved !== false).map((item) => <option key={item.user_id} value={item.user_id}>{[item.first_name, item.last_name].filter(Boolean).join(' ') || item.email || item.user_id}</option>)}</select></label>
               <label className="delivery-field">{t('delivery.dispatch.vehicle')}<select className="delivery-input" value={choice.vehicleId || ''} onChange={(event) => choiceFor(job.id, 'vehicleId', event.target.value)}><option value="">{t('delivery.dispatch.chooseVehicle')}</option>{vehicles.filter((item) => item.active !== false).map((item) => <option key={item.id} value={item.id}>{item.label} · {deliveryUnit(item.max_payload_lbs, 'pound', i18n.language)}</option>)}</select></label></div>
             <p>{t('delivery.ui.capacityHint')}</p>
             <button className="delivery-button delivery-button--primary" disabled={!choice.driverUserId || !choice.vehicleId} onClick={() => run(() => assignInternalDelivery(job.id, { driverUserId: choice.driverUserId, vehicleId: choice.vehicleId }))} data-track="ui.49bdb74b31.16">{t('delivery.dispatch.assign')}</button>
-            {!job.helper_user_id && <form onSubmit={(event) => { event.preventDefault(); run(() => releaseDeliveryToMarketplace(job.id, choice.reason)); }} data-track="ui.49bdb74b31.17"><label className="delivery-field">{t('delivery.ui.releaseReason')}<input className="delivery-input" required maxLength={500} value={choice.reason || ''} onChange={(event) => choiceFor(job.id, 'reason', event.target.value)} /></label><button className="delivery-button delivery-button--secondary" data-track="ui.49bdb74b31.18">{t('delivery.dispatch.release')}</button></form>}
+            {!job.helper_user_id && <form onSubmit={(event) => { event.preventDefault(); run(() => releaseDeliveryToMarketplace(job.id, choice.reason, choice.offerDeadlineHours ? Number(choice.offerDeadlineHours) : undefined)); }} data-track="ui.49bdb74b31.17"><label className="delivery-field">{t('delivery.ui.releaseReason')}<input className="delivery-input" required maxLength={500} value={choice.reason || ''} onChange={(event) => choiceFor(job.id, 'reason', event.target.value)} /></label><label className="delivery-field">{t('delivery.dispatch.offerDeadlineHours')}<input className="delivery-input" type="number" min="1" max="168" step="1" value={choice.offerDeadlineHours || '24'} onChange={(event) => choiceFor(job.id, 'offerDeadlineHours', event.target.value)} /></label><button className="delivery-button delivery-button--secondary" data-track="ui.49bdb74b31.18">{t('delivery.dispatch.release')}</button></form>}
           </fieldset>}
+          {/* Group 9 Slice B (item 457): an expired offer is back with
+            dispatch. Re-offering stamps a fresh deadline (default 24h)
+            and clears the expired marker; the job itself is untouched. */}
+          {job.offer_expired_at && <form onSubmit={(event) => { event.preventDefault(); run(() => releaseDeliveryToMarketplace(job.id, choice.reason, choice.offerDeadlineHours ? Number(choice.offerDeadlineHours) : undefined)); }} data-track="ui.49bdb74b31.20"><label className="delivery-field">{t('delivery.ui.releaseReason')}<input className="delivery-input" required maxLength={500} value={choice.reason || ''} onChange={(event) => choiceFor(job.id, 'reason', event.target.value)} /></label><label className="delivery-field">{t('delivery.dispatch.offerDeadlineHours')}<input className="delivery-input" type="number" min="1" max="168" step="1" value={choice.offerDeadlineHours || '24'} onChange={(event) => choiceFor(job.id, 'offerDeadlineHours', event.target.value)} /></label><button className="delivery-button delivery-button--secondary" data-track="ui.49bdb74b31.21">{t('delivery.dispatch.reoffer')}</button></form>}
           <div className="delivery-dispatch-actions">
             <button className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => openReview(job.id)} data-track="ui.49bdb74b31.19">{t('delivery.ui.review')}</button>
             <Link className="delivery-button delivery-button--secondary" to={`/delivery/operations/tracking/${job.id}`}>{t('delivery.tracking.ops.openTracking')}</Link>
           </div>
         </article>;
       })}</div>
-      {detail && <JobReview key={detail.job.id} detail={detail} busy={busy} run={run} t={t} language={i18n.language} />}
+      {detail && <JobReview key={detail.job.id} detail={detail} handoffs={handoffs} busy={busy} run={run} t={t} language={i18n.language} />}
+      {/* Group 9 Slice F (item 483): the dispatcher capacity overview —
+        read-only; assignment stays on the board cards above. */}
+      <CapacityOverview drivers={drivers} t={t} language={i18n.language} />
+      {/* Group 9 Slice F (items 488/493/494): the aggregate exceptions
+        view, the driver dispute queue, and the payout adjustment form.
+        All three read the stores the board already used; none creates
+        a second issue or payout system. */}
+      <ExceptionsOverview t={t} language={i18n.language} busy={busy} onReview={openReview} />
+      <DisputesQueue t={t} language={i18n.language} busy={busy} run={run} />
+      <PayoutAdjustments t={t} language={i18n.language} busy={busy} run={run} />
       <section className="delivery-panel"><h2>{t('delivery.ui.resources')}</h2><p>{t('delivery.ui.resourceHint')}</p>
         <div className="delivery-detail-grid"><ResourceForm kind="driver" drivers={drivers} busy={busy} run={run} t={t} /><ResourceForm kind="vehicle" drivers={drivers} busy={busy} run={run} t={t} /></div>
         <h3>{t('delivery.ui.vehicles')}</h3><ul>{vehicles.map((item) => <li key={item.id}>{item.label} · {deliveryUnit(item.max_payload_lbs, 'pound', i18n.language)}</li>)}</ul>

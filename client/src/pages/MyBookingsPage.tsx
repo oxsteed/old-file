@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { currentAuthEpoch } from '../api/authSessionEpoch';
+import { EquipmentBookingPanel } from '../components/EquipmentOperations';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
@@ -7,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { toolRentalsApi } from '../api/toolRentals';
 import api from '../api/axios';
 import { cancelBookingRequest, fetchBookingPrefillForJob } from '../api/bookings';
+import BookingRescheduleBox from '../components/calendar/BookingRescheduleBox';
 import { prefillBookingDraft } from '../components/booking/BookingFlow';
 import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle, Briefcase, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -38,6 +41,16 @@ interface HelperBooking {
   declinedAt?: string | null;
   helperResponseReason?: string | null;
   createdAt: string;
+  pendingRescheduleProposal?: {
+    id: string;
+    proposedBy: string;
+    proposedByRole: string;
+    proposedDate: string;
+    proposedStartTime: string;
+    proposedEndTime: string;
+    message?: string | null;
+    status: string;
+  } | null;
 }
 
 interface Booking {
@@ -62,7 +75,7 @@ interface Booking {
   deposit_resolution_note?: string | null;
 }
 
-const MyBookingsPage = () => {
+const MyBookingsPageContent = () => {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || 'en';
   const navigate = useNavigate();
@@ -254,6 +267,7 @@ const MyBookingsPage = () => {
 
   const renderBookingCard = (booking: Booking, isOwner: boolean = false) => (
     <div key={booking.id} className="booking-card">
+      <EquipmentBookingPanel bookingId={booking.id}/>
       <div className="booking-card-header">
         <div className="booking-card-info">
           <h3 className="booking-card-title">{booking.name || t('myBookings.unknownTool')}</h3>
@@ -449,6 +463,14 @@ const MyBookingsPage = () => {
         )}
         {b.helperResponseReason && (
           <p className="hb-reason">{b.helperResponseReason}</p>
+        )}
+        {b.status === 'accepted' && (
+          <BookingRescheduleBox
+            bookingId={b.id}
+            proposal={b.pendingRescheduleProposal || null}
+            currentUserId={user?.id}
+            onDone={loadBookings}
+          />
         )}
         <div className="booking-card-actions">
           <button
@@ -710,4 +732,5 @@ const MyBookingsPage = () => {
   );
 };
 
+const MyBookingsPage=()=>{const {user}=useAuth();return user?.id?<MyBookingsPageContent key={`${user.id}:${currentAuthEpoch()}`}/>:null;};
 export default MyBookingsPage;

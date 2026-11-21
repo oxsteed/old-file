@@ -111,8 +111,13 @@ describe('affiliatePayouts router gate (real router)', () => {
       // as the backfill writes), so the test keeps proving the
       // AFFILIATE_ENABLED router gate, not access.
       mockQuery.mockImplementation(async (sql) => {
-        if (/FROM users u/.test(sql)) return { rows: [{ id: 'user-123', is_active: true, id_verified: true, terms_accepted: true, terms_accepted_at: new Date(), terms_version: 'test-v1' }] };
-        if (/FROM users WHERE id/.test(sql)) return { rows: [{ id: 'user-123', is_active: true, id_verified: true, terms_accepted: true, terms_accepted_at: new Date(), terms_version: 'test-v1' }] };
+        // G-1 (Emile decision, 2026-11-19): the gate now activates on
+        // identity + terms. The stub helper keeps W-9, fresh Didit, and
+        // Connect charges + payouts as a fully-provisioned helper;
+        // payout_setup is no longer a gate requirement.
+        const stubUser = { id: 'user-123', is_active: true, id_verified: true, terms_accepted: true, terms_accepted_at: new Date(), terms_version: 'test-v1', w9_completed: true, didit_status: 'verified', didit_verified_at: new Date(), connect_charges_enabled: true, connect_payouts_enabled: true };
+        if (/FROM users u/.test(sql)) return { rows: [stubUser] };
+        if (/FROM users WHERE id/.test(sql)) return { rows: [stubUser] };
         if (/FROM access_grants/.test(sql)) {
           return { rows: [{ id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null, status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1 }] };
         }

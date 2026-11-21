@@ -34,6 +34,8 @@ const CustomerLoyaltyManager = lazyNamed(() => import('../components/businessHub
 const BusinessIntegrations = lazyNamed(() => import('../components/businessHub/BusinessIntegrations'), 'BusinessIntegrations');
 const ExpenseTracker = lazyNamed(() => import('../components/businessHub/ExpenseTracker'), 'ExpenseTracker');
 const QuoteBuilder = lazyNamed(() => import('../components/businessHub/QuoteBuilder'), 'QuoteBuilder');
+const RoleTemplates = lazyDefault(() => import('../components/businessHub/RoleTemplates'));
+const TeamReadiness = lazyDefault(() => import('../components/businessHub/TeamReadiness'));
 const RecurringBillingManager = lazyNamed(() => import('../components/businessHub/RecurringBillingManager'), 'RecurringBillingManager');
 const StaffScheduler = lazyNamed(() => import('../components/businessHub/StaffScheduler'), 'StaffScheduler');
 const ReviewManager = lazyNamed(() => import('../components/businessHub/ReviewManager'), 'ReviewManager');
@@ -1649,6 +1651,7 @@ function BusinessHubInner() {
         </div>
 
         {/* Business switcher */}
+        {currentBiz?.id && <Suspense fallback={null}><TeamReadiness businessId={currentBiz.id}/></Suspense>}
         {loadingBiz ? (
           <p className="bh-loading">{t('businessHub.loadingBusinesses')}</p>
         ) : workspaceMissing ? (
@@ -3333,6 +3336,7 @@ function TeamTab({
 
   return (
     <div className="bh-team">
+      {isOwner && businessId && <Suspense fallback={null}><RoleTemplates businessId={businessId}/></Suspense>}
 
       {/* ── Pending invitations received by the logged-in user ─────────── */}
       {invitations.length > 0 && (

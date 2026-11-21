@@ -1,0 +1,1 @@
+ALTER TABLE helper_material_templates ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;

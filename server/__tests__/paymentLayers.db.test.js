@@ -1,5 +1,7 @@
 'use strict';
 
+const { seedHelperPayoutReadiness } = require('./helpers/helperPayoutReadiness');
+
 /**
  * Real-Postgres checks for the payment layers (migrations 762-764): currency
  * exponent / bid-currency / timezone triggers, the country tax gate, rail
@@ -89,6 +91,7 @@ describeDb('payment layers on real Postgres', () => {
       );
       await acceptCurrentConsents(pool, id);
       if (role === 'helper') {
+        await seedHelperPayoutReadiness(pool, id);
         await pool.query(
           `UPDATE users
               SET id_verified = TRUE, identity_verified = TRUE,

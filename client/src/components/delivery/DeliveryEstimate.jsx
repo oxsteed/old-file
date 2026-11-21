@@ -226,7 +226,7 @@ export function EstimateCard({
           {t('delivery.estimate.unavailable')}
         </p>
       )}
-      <form onSubmit={getEstimate} className="delivery-form">
+      <form onSubmit={getEstimate} className="delivery-form" data-track="ui.2b39ea124a.1">
         <label className="delivery-field">
           <span>{t('delivery.customer.pickup')}</span>
           <AddressAutocomplete
@@ -300,7 +300,7 @@ export function EstimateCard({
           </div>
         )}
         {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
-        <button type="submit" className="delivery-button delivery-button--primary delivery-button--wide" disabled={busy || estimatesUnavailable}>
+        <button type="submit" className="delivery-button delivery-button--primary delivery-button--wide" disabled={busy || estimatesUnavailable} data-track="ui.2b39ea124a.2">
           {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <DollarSign size={17} aria-hidden="true" />}
           {t('delivery.estimate.get')}
         </button>
@@ -308,7 +308,7 @@ export function EstimateCard({
           <button
             type="button"
             className="delivery-button delivery-button--secondary delivery-button--wide"
-            onClick={() => onContinue({ origin, destination, originText, destinationText, packageType: size, weightLbs: String(SIZE_DEFAULT_WEIGHT_LBS[size]) })}
+            onClick={() => onContinue({ origin, destination, originText, destinationText, packageType: size, weightLbs: String(SIZE_DEFAULT_WEIGHT_LBS[size]) })} data-track="ui.2b39ea124a.3"
           >
             {continueLabel || t('delivery.estimate.continue')}
             <ArrowRight size={16} aria-hidden="true" className="delivery-flip-rtl" />

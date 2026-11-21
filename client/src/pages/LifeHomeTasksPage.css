@@ -1,0 +1,10 @@
+/* Group 1, item 26: home care calendar day cells. */
+.ht-cal-day {
+  border-color: var(--color-border, #1f2937);
+  background: transparent;
+}
+
+.ht-cal-day-today {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.08);
+}

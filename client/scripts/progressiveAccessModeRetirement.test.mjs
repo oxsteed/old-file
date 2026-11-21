@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { signupEntryForParams } from '../src/utils/signupPersonas.js';
 
 const source = async (file) => readFile(new URL(`../src/${file}`, import.meta.url), 'utf8');
 
@@ -66,8 +67,18 @@ test('WP-104 cutover 1.2: mode-router machinery, register redirects and the Join
   const join = await source('pages/JoinPage.jsx');
   // The ?mode= preset survives, but only as an intent preselect: it maps a
   // legacy mode to its signup intent and never mints a mode.
-  assert.match(join, /intentForLegacyMode/);
-  assert.match(join, /signupIntent: presetIntent/);
+  assert.match(join, /signupEntryForParams\(params\)/);
+  for (const [mode, intent] of [
+    ['customer', 'find_help'], ['helper', 'offer_services'],
+    ['business_owner', 'run_business'], ['restaurant_owner', 'run_restaurant'],
+    ['driver', 'ship_goods'], ['investor', 'request_reporting'],
+  ]) {
+    assert.equal(signupEntryForParams(new URLSearchParams({ mode })).intent, intent);
+  }
+  for (const mode of ['admin', 'business_manager', 'unknown']) {
+    assert.equal(signupEntryForParams(new URLSearchParams({ mode })).intent, null,
+      'unknown or provisioned authority cannot be self-selected');
+  }
   assert.doesNotMatch(join, /defaultMode/);
   assert.doesNotMatch(join, /postSignupRouteForMode/);
   assert.match(join, /signupIntent: form\.signupIntent/);

@@ -17,6 +17,8 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
+import { currentAuthEpoch } from '../api/authSessionEpoch';
+import { EquipmentOwnerWorkspace } from '../components/EquipmentOperations';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
@@ -51,6 +53,10 @@ function StatTile({ icon, label, value, hint, accent = false }) {
 }
 
 export default function ToolOwnerDashboard() {
+  const {user}=useAuth();
+  return user?.id ? <ToolOwnerDashboardContent key={`${user.id}:${currentAuthEpoch()}`}/> : null;
+}
+function ToolOwnerDashboardContent() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const currency = user?.preferred_currency || 'USD';
@@ -86,6 +92,7 @@ export default function ToolOwnerDashboard() {
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg, #030712)', color: 'var(--color-text, #f3f4f6)' }}>
       <Navbar />
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
+        <EquipmentOwnerWorkspace tools={listings}/>
         <section className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">

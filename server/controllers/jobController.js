@@ -605,6 +605,8 @@ exports.getJob = async (req, res, next) => {
         j.version, j.revision, j.material_edit_count, j.last_material_edit_at,
         j.requirements, j.media_urls, j.bid_count, j.assigned_helper_id,
         j.preferred_helper_id, j.preferred_helper_name,
+        j.recipient_user_id, j.recipient_name, j.recipient_phone,
+        j.site_contact_user_id, j.site_contact_name, j.site_contact_phone,
         j.created_at, j.updated_at, j.expires_at,
         j.started_at, j.completed_at, j.cancelled_at, j.cancellation_reason,
         j.escrow_status, j.accepted_at, j.completion_requested_at,
@@ -1124,6 +1126,9 @@ exports.assignHelper = async (req, res, next) => {
       } catch (apptErr) {
         // Non-fatal: log but never let appointment creation break bid acceptance
         await client.query('ROLLBACK TO SAVEPOINT assign_appointment').catch(() => {});
+        if (['helper_daily_capacity','helper_travel_conflict'].includes(apptErr?.constraint)) {
+          throw new AppError(apptErr.constraint,409,apptErr.constraint);
+        }
         logger.warn('Failed to auto-create calendar appointment for accepted job', {
           jobId: bid.job_id,
           helperId: bid.helper_id,
@@ -1182,7 +1187,7 @@ exports.assignHelper = async (req, res, next) => {
         await client.query(
           `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
             WHERE id = $1`,
-          [bid.job_id, JSON.stringify({ creditCollateralHoldId: collateral.hold?.id || null,
+          [bid.job_id, JSON.stringify({ creditCollateralHoldId: collateral.hold?.hold?.id || null,
             creditCollateralKey: collateral.idempotencyKey })]
         );
       }
@@ -1599,10 +1604,17 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null, req =
     // leaves a job with no price at all unpriced (NULL), not zero-filled.
     // All right-hand sides read the pre-update row, so the decimal mirror
     // below is consistent with the stamped cents value.
+    // Group 1, item 20: aftercare instructions the helper leaves with the
+    // completed work. Informational only; never moves money or changes
+    // pricing, escrow, or cancellation. Stored with the completion stamp.
+    const aftercareInstructions = typeof req?.body?.aftercare_instructions === 'string'
+      ? req.body.aftercare_instructions.trim().slice(0, 2000) || null
+      : null;
     const { rows } = await client.query(`
       UPDATE jobs SET
         status = 'completed',
         completed_at = now(),
+        aftercare_instructions = COALESCE($2, aftercare_instructions),
         final_price_cents = COALESCE(final_price_cents, ROUND(final_price * 100)::int, job_value_cents),
         final_price = COALESCE(final_price, final_price_cents / 100.0, job_value_cents / 100.0),
         updated_at = now()
@@ -1610,7 +1622,7 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null, req =
         -- A change order approved meanwhile still needs re-authorization.
         AND NOT (COALESCE(metadata, '{}'::jsonb) ?| ARRAY['paymentAdjustmentRequired', 'creditAdjustmentRequired'])
       RETURNING *
-    `, [jobId]);
+    `, [jobId, aftercareInstructions]);
 
     if (!rows.length) {
       throw new AppError('Job state changed during completion', 409, 'state_conflict');
@@ -1769,7 +1781,12 @@ exports.completeJob = async (req, res, next) => {
       const { rows: authorized } = await pool.query(
         `SELECT id FROM payments WHERE job_id = $1 AND status = 'authorized' LIMIT 1`, [id]);
       if (authorized.length) {
-        const requested = await requestHelperCompletion({ job, helperId: req.user.id });
+        // Group 1, item 20: aftercare rides with the completion request so
+        // it is on the job when the customer confirms (or it auto-confirms).
+        const aftercareInstructions = typeof req.body?.aftercare_instructions === 'string'
+          ? req.body.aftercare_instructions.trim().slice(0, 2000) || null
+          : null;
+        const requested = await requestHelperCompletion({ job, helperId: req.user.id, aftercareInstructions });
         return res.status(202).json({
           message: 'Completion requested',
           pending_confirmation: true,
@@ -1788,15 +1805,16 @@ exports.completeJob = async (req, res, next) => {
 };
 
 
-async function requestHelperCompletion({ job, helperId }) {
+async function requestHelperCompletion({ job, helperId, aftercareInstructions = null }) {
   const { rows } = await pool.query(
     `UPDATE jobs
         SET completion_requested_at = COALESCE(completion_requested_at, NOW()),
             completion_requested_by = COALESCE(completion_requested_by, $2),
+            aftercare_instructions = COALESCE($4, aftercare_instructions),
             updated_at = NOW()
       WHERE id = $1 AND status = 'in_progress' AND assigned_helper_id = $2
       RETURNING *, completion_requested_at + make_interval(hours => $3) AS completion_auto_confirm_at`,
-    [job.id, helperId, HELPER_COMPLETION_CONFIRM_HOURS]
+    [job.id, helperId, HELPER_COMPLETION_CONFIRM_HOURS, aftercareInstructions]
   );
   if (!rows.length) throw new AppError('Job state changed', 409, 'state_conflict');
   try {
@@ -1935,8 +1953,13 @@ exports.getMyJobs = async (req, res, next) => {
     // dashboard list so customers don't see ghost rows. Pass ?include_deleted=1
     // for archive views.
     // Review P2-479: ?role=helper lists jobs assigned to the caller.
+    // G-6/G-7: the client list also carries jobs the caller is the
+    // recipient or the site contact of (same scoped read as the booking
+    // lists; the job serializer strips money/private fields for them).
     const asHelper = req.query.role === 'helper';
-    let where = asHelper ? 'WHERE assigned_helper_id = $1' : 'WHERE client_id = $1';
+    let where = asHelper
+      ? 'WHERE assigned_helper_id = $1'
+      : 'WHERE (client_id = $1 OR recipient_user_id = $1 OR site_contact_user_id = $1)';
     if (!include_deleted) where += ' AND deleted_at IS NULL';
     if (status) {
       params.push(status);
@@ -1955,6 +1978,8 @@ exports.getMyJobs = async (req, res, next) => {
         location_approx_lat, location_approx_lng,
         requirements, media_urls, bid_count,
         assigned_helper_id, preferred_helper_id, preferred_helper_name,
+        recipient_user_id, recipient_name, recipient_phone,
+        site_contact_user_id, site_contact_name, site_contact_phone,
         scheduled_date, scheduled_time, recurrence,
         scheduled_start_at, scheduled_precision,
         budget_min_cents, budget_max_cents, currency_code,
@@ -1968,6 +1993,15 @@ exports.getMyJobs = async (req, res, next) => {
       ORDER BY created_at DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
+
+    // G-6/G-7: a recipient / site contact sees their linked jobs with the
+    // same scoped read as the booking lists: the booker's private notes
+    // are not theirs. (Budget stays: the public feed already shows it.)
+    if (!asHelper) {
+      for (const row of rows) {
+        if (String(row.client_id) !== String(req.user.id)) row.private_notes = null;
+      }
+    }
 
     const translatedRows = await translateRecordsForRequest(rows, req, {
       fields: ['title', 'description', 'category_name'],

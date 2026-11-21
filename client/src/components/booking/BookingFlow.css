@@ -61,6 +61,13 @@
   background-color: var(--border-color);
 }
 
+/* Group 3 sharing explainer on the confirmation step. */
+.booking-sharing-explainer {
+  font-size: 0.85rem;
+  color: var(--muted-text);
+  margin: 1rem 0 0;
+}
+
 .booking-flow-body {
   flex: 1;
   overflow-y: auto;

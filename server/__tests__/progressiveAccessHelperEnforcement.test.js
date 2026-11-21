@@ -13,7 +13,7 @@ jest.mock('../services/access/accessService', () => ({ can: jest.fn() }));
 const access = require('../services/access/accessService');
 const logger = require('../utils/logger');
 const flags = require('../services/access/flags');
-const { requireHelperCapability, requireInvestorCapability, requireFranchiseCapability, isHelperActor } = require('../middleware/requireAccess');
+const { requireHelperCapability, requireHelperSetupCapability, requireInvestorCapability, requireFranchiseCapability, isHelperActor } = require('../middleware/requireAccess');
 const { requireHelperWorkEligible, requireHelperStep, requireTaxIdentity } = require('../middleware/helperOnboardingMiddleware');
 const requireRole = require('../middleware/requireRole');
 
@@ -226,8 +226,41 @@ describe('helper capability gate', () => {
     expect(access.can).not.toHaveBeenCalled();
   });
 
+  // G-1 (Emile decision, 2026-11-19): the strict gate holds an
+  // approved-but-incomplete helper with 403 activation_incomplete, naming
+  // the missing step — now identity or terms, since payout_setup is no
+  // longer an activation requirement. Booking accept, bid writes, and
+  // payout routes all run this gate, so none of them can commit a helper
+  // who has not finished identity + terms. The Stripe payout itself
+  // still requires payout_setup at money time.
+  test('enforce: activation_incomplete is a 403 naming the missing step', async () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+    access.can.mockResolvedValue({ allowed: false, reason: 'activation_incomplete', missing: ['identity_verified'] });
+    const { res, nextCalled } = await run(requireHelperCapability, { user: user('helper') });
+    expect(nextCalled).toBe(false);
+    expect(res.statusCode).toBe(403);
+    expect(res.body.code).toBe('activation_incomplete');
+    expect(res.body.missing).toEqual(['identity_verified']);
+  });
+
+  // G-1 carve-out: the setup gate lets the same incomplete helper through
+  // so the activation routes (Connect onboarding, W-9, terms, onboarding
+  // profile/background-check/status) can finish activation. No circular gate.
+  test('enforce: setup gate lets activation_incomplete through', async () => {
+    process.env.ACCESS_HELPER_ENFORCEMENT = 'enforce';
+    access.can.mockResolvedValue({ allowed: false, reason: 'activation_incomplete', missing: ['helper_terms'] });
+    const req = { user: user('helper') };
+    const { nextCalled } = await run(requireHelperSetupCapability, req);
+    expect(nextCalled).toBe(true);
+    expect(req.accessCapabilities).toEqual({ 'helper.offer_services': true });
+  });
+
   test('unknown enforcement values fail closed to the default-on gate', async () => {
     process.env.ACCESS_HELPER_ENFORCEMENT = 'ENFORCE-ish';
+    // Set the decision explicitly: this test proves the gate consults the
+    // resolver (instead of passing through like 'off'), not what an
+    // earlier test's leaked mock happened to resolve.
+    access.can.mockResolvedValue({ allowed: true, reason: 'grant' });
     const { nextCalled } = await run(requireHelperCapability, { user: user('customer') });
     expect(nextCalled).toBe(true);
     expect(access.can).toHaveBeenCalledWith('u-1', 'helper.offer_services', undefined);

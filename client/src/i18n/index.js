@@ -41,6 +41,7 @@ const localeLoaders = {
     import('../locales/generated/en-0.json'),
     import('../locales/generated/en-1.json'),
     import('../locales/generated/en-2.json'),
+    import('../locales/generated/en-3.json'),
     optionalLocaleModule(import('./locales/en/common.json')),
     optionalLocaleModule(import('./locales/en/translator.json')),
     optionalLocaleModule(import('./locales/en/credit.json')),
@@ -73,6 +74,7 @@ const localeLoaders = {
     import('../locales/generated/ht-0.json'),
     import('../locales/generated/ht-1.json'),
     import('../locales/generated/ht-2.json'),
+    import('../locales/generated/ht-3.json'),
     optionalLocaleModule(import('./locales/ht/common.json')),
     optionalLocaleModule(import('./locales/ht/translator.json')),
     optionalLocaleModule(import('./locales/ht/credit.json')),
@@ -255,7 +257,7 @@ const localeLoaders = {
   ]),
 };
 
-const localeLegacyShardCounts = { es: 4, fr: 4, ar: 5, hi: 5, vi: 4, ru: 5, ja: 4, ur: 4, bn: 6, th: 5 };
+const localeLegacyShardCounts = { en: 4, es: 4, fr: 4, ht: 4, ar: 5, hi: 5, vi: 4, ru: 5, ja: 4, ur: 4, bn: 6, th: 5 };
 
 const legalLocaleLoaders = {
   en: () => Promise.all([
@@ -482,13 +484,14 @@ export function initializeEnglishFallback() {
     optionalLocaleModule(import('../locales/generated/en-0.json')),
     optionalLocaleModule(import('../locales/generated/en-1.json')),
     optionalLocaleModule(import('../locales/generated/en-2.json')),
+    optionalLocaleModule(import('../locales/generated/en-3.json')),
     optionalLocaleModule(import('./locales/en/common.json')),
     optionalLocaleModule(import('./locales/en/translator.json')),
     optionalLocaleModule(import('./locales/en/credit.json')),
     optionalLocaleModule(import('./locales/en/attention.json')),
     optionalLocaleModule(import('./locales/en/statements.json')),
   ]).then((modules) => {
-    const resources = getLocaleResources(modules);
+    const resources = getLocaleResources(modules, localeLegacyShardCounts.en || 3);
     if (!resources.support.workspace || !resources.adminQuoteRequests.statusNew) {
       throw new Error('English fallback resources unavailable');
     }

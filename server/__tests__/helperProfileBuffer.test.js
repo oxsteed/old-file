@@ -28,6 +28,12 @@ const HELPER_USER = {
   id: 'helper-1', role: 'helper', is_active: true,
   id_verified: true, terms_accepted: true,
   terms_accepted_at: new Date(), terms_version: 'test-v1',
+  // G-1 (Emile decision, 2026-11-19): helper-profile routes run the full
+  // gate, which now activates on identity + terms. The fixture keeps W-9,
+  // fresh Didit, and Connect as a fully-provisioned helper; payout_setup
+  // is no longer a gate requirement.
+  w9_completed: true, didit_status: 'verified', didit_verified_at: new Date(),
+  connect_charges_enabled: true, connect_payouts_enabled: true,
 };
 const ACCESS_GRANT = {
   id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null,
@@ -50,8 +56,14 @@ function mockGrantFacts() {
 // Route pool queries to the gate answers, falling back to `fallback` for
 // the handler's own queries.
 function mockGateThen(fallback) {
+  mockGateThenAs(HELPER_USER, fallback);
+}
+
+// Same routing as mockGateThen but the gate evaluates `user`: used for the
+// G-1 activation_incomplete case.
+function mockGateThenAs(user, fallback) {
   mockQuery.mockImplementation(async (sql) => {
-    if (/FROM users(?: u)?/.test(sql)) return { rows: [HELPER_USER] };
+    if (/FROM users(?: u)?/.test(sql)) return { rows: [user] };
     if (/FROM access_grants/.test(sql)) return { rows: [ACCESS_GRANT] };
     if (/FROM businesses b/.test(sql)) return { rows: [] };
     if (/FROM food_restaurants|FROM franchise_applications/.test(sql)) return { rows: [] };
@@ -121,5 +133,26 @@ describe('helper profile booking buffer setting', () => {
     // old "no query at all" assertion cannot hold. What this test still
     // proves is unchanged: an invalid value never reaches a write.
     expect(mockQuery.mock.calls.some(([sql]) => /^\s*(UPDATE|INSERT|DELETE)/i.test(sql))).toBe(false);
+  });
+
+  // G-1 (Emile decision, 2026-11-19): profile routes are offering-services
+  // surface, not money movement, so they run the full gate — and the gate
+  // now activates on identity + terms. A helper with identity + terms but
+  // no payout_setup reads their own profile here; the payout for their
+  // work defaults to OxSteed Credit instead.
+  test('GET /me succeeds when payout_setup is missing (identity + terms activate)', async () => {
+    const incomplete = {
+      ...HELPER_USER,
+      w9_completed: false,
+      connect_charges_enabled: false,
+      connect_payouts_enabled: false,
+    };
+    mockGateThenAs(incomplete, { rows: [{ profile_headline: 'Fixer', booking_buffer_minutes: 30, is_listed: false }] });
+
+    const res = await request(buildApp()).get('/api/helper-profile/me');
+
+    expect(res.status).toBe(200);
+    expect(res.body.profile_headline).toBe('Fixer');
+    expect(res.body.code).toBeUndefined();
   });
 });

@@ -7,7 +7,7 @@ const multer     = require('multer');
 const pool       = require('../db');
 const { authenticate } = require('../middleware/auth');
 const requireRole      = require('../middleware/requireRole');
-const { requireHelperSetupCapability } = require('../middleware/requireAccess');
+const { requireHelperCapability } = require('../middleware/requireAccess');
 const { requireListingEligible } = require('../middleware/helperOnboardingMiddleware');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const validateFileUpload = require('../middleware/validateFileUpload');
@@ -19,7 +19,7 @@ const helperProfileImageController = require('../controllers/helperProfileImageC
 const { validateMediaUrl } = require('../utils/mediaUrlValidation');
 const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 
-const helperOnly = [authenticate, requireHelperSetupCapability, requireRole('helper', 'helper_pro', 'broker')];
+const helperOnly = [authenticate, requireHelperCapability, requireRole('helper', 'helper_pro', 'broker')];
 const BUFFER_MINUTES_MIN = 0;
 const BUFFER_MINUTES_MAX = 240;
 

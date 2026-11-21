@@ -650,6 +650,337 @@ const T = {
       ar: 'تم قبول طلبك.',
     },
   },
+  // Group 1, item 14: booking-level reschedule proposals. The body
+  // carries the proposed window; the booking itself moves only on accept.
+  booking_reschedule_proposed: {
+    title: {
+      en: 'Reschedule Proposed',
+      fr: 'Nouvel horaire proposé',
+      es: 'Cambio de horario propuesto',
+      ht: 'Yo pwopoze yon lòt lè',
+      ar: 'اقتراح موعد جديد',
+    },
+    body: {
+      en: 'A new time was proposed for your booking. Review it and accept or decline.',
+      fr: 'Un nouvel horaire a été proposé pour votre réservation. Examinez-le et acceptez ou refusez.',
+      es: 'Se propuso una nueva hora para tu reserva. Revísala y acepta o rechaza.',
+      ht: 'Yo pwopoze yon lòt lè pou rezervasyon ou an. Gade li epi aksepte oswa refize li.',
+      ar: 'تم اقتراح موعد جديد لحجزك. راجعه واقبل أو ارفض.',
+    },
+  },
+  booking_reschedule_accepted: {
+    title: {
+      en: 'Reschedule Accepted',
+      fr: 'Nouvel horaire accepté',
+      es: 'Cambio de horario aceptado',
+      ht: 'Yo aksepte lòt lè a',
+      ar: 'تم قبول الموعد الجديد',
+    },
+    body: {
+      en: 'The rescheduled time was accepted. Your booking has moved to the new time.',
+      fr: 'Le nouvel horaire a été accepté. Votre réservation a été déplacée.',
+      es: 'El nuevo horario fue aceptado. Tu reserva se movió a la nueva hora.',
+      ht: 'Yo aksepte lòt lè a. Rezèvasyon ou an deplase nan nouvo lè a.',
+      ar: 'تم قبول الموعد الجديد. تم نقل حجزك إلى الموعد الجديد.',
+    },
+  },
+  booking_reschedule_declined: {
+    title: {
+      en: 'Reschedule Declined',
+      fr: 'Nouvel horaire refusé',
+      es: 'Cambio de horario rechazado',
+      ht: 'Yo refize lòt lè a',
+      ar: 'تم رفض الموعد الجديد',
+    },
+    body: {
+      en: 'The proposed new time was declined. Your booking stays at its original time.',
+      fr: 'Le nouvel horaire proposé a été refusé. Votre réservation reste à son horaire initial.',
+      es: 'La nueva hora propuesta fue rechazada. Tu reserva se mantiene en su hora original.',
+      ht: 'Yo refize lòt lè yo te pwopoze a. Rezèvasyon ou an rete nan lè orijinal li.',
+      ar: 'تم رفض الموعد الجديد المقترح. يبقى حجزك في موعده الأصلي.',
+    },
+  },
+  // Group 1, item 10: the customer set a response deadline and it passed
+  // with the request still unquoted.
+  quote_deadline_passed: {
+    title: {
+      en: 'Quote Deadline Passed',
+      fr: 'Délai de devis dépassé',
+      es: 'Plazo de cotización vencido',
+      ht: 'Dat limit pou devis la pase',
+      ar: 'انتهت مهلة عرض السعر',
+    },
+    body: {
+      en: 'The response deadline on your quote request has passed with no quote yet.',
+      fr: 'Le délai de réponse de votre demande de devis est dépassé sans devis reçu.',
+      es: 'El plazo de respuesta de tu solicitud de cotización venció sin recibir cotización.',
+      ht: 'Dat limit pou repons demann devis ou an pase san ou pa resevwa devis.',
+      ar: 'انتهت مهلة الرد على طلب عرض السعر الخاص بك دون تلقي عرض سعر بعد.',
+    },
+  },
+  // G-6/G-7: book-for-another invite, site-contact status link, and the
+  // booker's notice that the recipient responded.
+  booking_recipient_invite: {
+    title: {
+      en: 'Booking for You',
+      fr: 'Réservation pour vous',
+      es: 'Reserva para ti',
+      ht: 'Rezèvasyon pou ou',
+      ar: 'حجز لك',
+    },
+    body: {
+      en: 'A booking was made for you. Review it and accept or decline.',
+      fr: 'Une réservation a été faite pour vous. Examinez-la et acceptez ou refusez.',
+      es: 'Se hizo una reserva para ti. Revísala y acepta o rechaza.',
+      ht: 'Yo fè yon rezervasyon pou ou. Gade li epi aksepte oswa refize li.',
+      ar: 'تم إجراء حجز لك. راجعه واقبل أو ارفض.',
+    },
+  },
+  booking_site_contact_link: {
+    title: {
+      en: 'Booking Status Link',
+      fr: 'Lien de suivi de réservation',
+      es: 'Enlace de estado de reserva',
+      ht: 'Lyen pou swiv rezervasyon an',
+      ar: 'رابط حالة الحجز',
+    },
+    body: {
+      en: 'You are the site contact for a booking. Follow the link for status and arrival time.',
+      fr: 'Vous êtes le contact sur place pour une réservation. Suivez le lien pour le statut et l’heure d’arrivée.',
+      es: 'Eres el contacto en el lugar de una reserva. Sigue el enlace para ver el estado y la hora de llegada.',
+      ht: 'Ou se kontak sou plas pou yon rezervasyon. Swiv lyen an pou wè estati a ak lè yo pral rive.',
+      ar: 'أنت جهة الاتصال في الموقع لحجز ما. اتبع الرابط لمعرفة الحالة ووقت الوصول.',
+    },
+  },
+  booking_recipient_response: {
+    title: {
+      en: 'Recipient Responded',
+      fr: 'Réponse du destinataire',
+      es: 'El destinatario respondió',
+      ht: 'Moun k ap resevwa a te reponn',
+      ar: 'ردّ المستلم',
+    },
+    body: {
+      en: 'The recipient responded to the booking.',
+      fr: 'Le destinataire a répondu à la réservation.',
+      es: 'El destinatario respondió a la reserva.',
+      ht: 'Moun k ap resevwa a te reponn rezervasyon an.',
+      ar: 'ردّ المستلم على الحجز.',
+    },
+  },
+  // Group 3 (Recipient and sponsor): visit reminders, arrival, completion,
+  // site actions, sponsorship, link renewal, contact removal, care notes.
+  booking_visit_reminder: {
+    title: {
+      en: 'Visit Tomorrow',
+      fr: 'Visite demain',
+      es: 'Visita mañana',
+      ht: 'Vizit demen',
+      ar: 'زيارة غداً',
+    },
+    body: {
+      en: 'Your visit is tomorrow. Review the time and site details.',
+      fr: 'Votre visite a lieu demain. Vérifiez l’heure et les détails du lieu.',
+      es: 'Tu visita es mañana. Revisa la hora y los detalles del lugar.',
+      ht: 'Vizit ou a se demen. Verifye lè a ak detay kote a.',
+      ar: 'زيارتك غداً. راجع الوقت وتفاصيل الموقع.',
+    },
+  },
+  booking_visit_completed: {
+    title: {
+      en: 'Visit Complete',
+      fr: 'Visite terminée',
+      es: 'Visita completada',
+      ht: 'Vizit la fini',
+      ar: 'اكتملت الزيارة',
+    },
+    body: {
+      en: 'The visit is complete.',
+      fr: 'La visite est terminée.',
+      es: 'La visita está completada.',
+      ht: 'Vizit la fini.',
+      ar: 'اكتملت الزيارة.',
+    },
+  },
+  booking_provider_arrived: {
+    title: {
+      en: 'Provider Arrived',
+      fr: 'Prestataire arrivé',
+      es: 'El proveedor llegó',
+      ht: 'Pwofesyonèl la rive',
+      ar: 'وصل مقدم الخدمة',
+    },
+    body: {
+      en: 'The provider has arrived for the visit.',
+      fr: 'Le prestataire est arrivé pour la visite.',
+      es: 'El proveedor llegó para la visita.',
+      ht: 'Pwofesyonèl la rive pou vizit la.',
+      ar: 'وصل مقدم الخدمة للزيارة.',
+    },
+  },
+  booking_site_action: {
+    title: {
+      en: 'Visit Update',
+      fr: 'Mise à jour de la visite',
+      es: 'Actualización de la visita',
+      ht: 'Mizajou vizit la',
+      ar: 'تحديث الزيارة',
+    },
+    body: {
+      en: 'There is an update on the visit.',
+      fr: 'Il y a une mise à jour de la visite.',
+      es: 'Hay una actualización de la visita.',
+      ht: 'Gen yon mizajou sou vizit la.',
+      ar: 'يوجد تحديث على الزيارة.',
+    },
+  },
+  booking_sponsor_invite: {
+    title: {
+      en: 'Sponsor a Visit',
+      fr: 'Parrainer une visite',
+      es: 'Patrocina una visita',
+      ht: 'Patwone yon vizit',
+      ar: 'رعاية زيارة',
+    },
+    body: {
+      en: 'You are invited to sponsor a visit. Review the amount and deadline.',
+      fr: 'Vous êtes invité à parrainer une visite. Vérifiez le montant et la date limite.',
+      es: 'Te invitaron a patrocinar una visita. Revisa el monto y la fecha límite.',
+      ht: 'Yo envite ou pou patwone yon vizit. Verifye montan an ak dat limit la.',
+      ar: 'أنت مدعو لرعاية زيارة. راجع المبلغ والموعد النهائي.',
+    },
+  },
+  booking_sponsor_update: {
+    title: {
+      en: 'Sponsorship Update',
+      fr: 'Mise à jour du parrainage',
+      es: 'Actualización del patrocinio',
+      ht: 'Mizajou patwonaj la',
+      ar: 'تحديث الرعاية',
+    },
+    body: {
+      en: 'There is an update on the sponsorship.',
+      fr: 'Il y a une mise à jour du parrainage.',
+      es: 'Hay una actualización del patrocinio.',
+      ht: 'Gen yon mizajou sou patwonaj la.',
+      ar: 'يوجد تحديث على الرعاية.',
+    },
+  },
+  booking_link_renewal_requested: {
+    title: {
+      en: 'Link Renewal Requested',
+      fr: 'Renouvellement de lien demandé',
+      es: 'Renovación de enlace solicitada',
+      ht: 'Yo mande pou renouvle lyen an',
+      ar: 'طُلب تجديد الرابط',
+    },
+    body: {
+      en: 'Someone asked to renew the visit status link.',
+      fr: 'Quelqu’un a demandé le renouvellement du lien de suivi de visite.',
+      es: 'Alguien pidió renovar el enlace de estado de la visita.',
+      ht: 'Yon moun mande pou renouvle lyen pou swiv vizit la.',
+      ar: 'طلب شخص ما تجديد رابط حالة الزيارة.',
+    },
+  },
+  booking_contact_removed: {
+    title: {
+      en: 'Visit Access Removed',
+      fr: 'Accès à la visite retiré',
+      es: 'Acceso a la visita eliminado',
+      ht: 'Yo retire aksè vizit ou',
+      ar: 'تمت إزالة الوصول إلى الزيارة',
+    },
+    body: {
+      en: 'Your access to the visit was removed by the booker.',
+      fr: 'Votre accès à la visite a été retiré par le demandeur.',
+      es: 'El solicitante eliminó tu acceso a la visita.',
+      ht: 'Moun ki fè rezervasyon an retire aksè ou nan vizit la.',
+      ar: 'أزال صاحب الحجز وصولك إلى الزيارة.',
+    },
+  },
+  booking_care_instructions: {
+    title: {
+      en: 'Care Instructions',
+      fr: 'Consignes d’entretien',
+      es: 'Instrucciones de cuidado',
+      ht: 'Enstriksyon pou swen',
+      ar: 'تعليمات العناية',
+    },
+    body: {
+      en: 'Care instructions were shared for the visit.',
+      fr: 'Des consignes d’entretien ont été partagées pour la visite.',
+      es: 'Se compartieron instrucciones de cuidado para la visita.',
+      ht: 'Yo pataje enstriksyon pou swen pou vizit la.',
+      ar: 'تمت مشاركة تعليمات العناية للزيارة.',
+    },
+  },
+  // Group 2: household delegate invite, delegation updates, spending
+  // requests, and visit updates (reminders, replacement, unavailability,
+  // emergency fallback, document forwarding).
+  household_delegate_invite: {
+    title: {
+      en: 'Household Delegate Invite',
+      fr: 'Invitation de délégué du foyer',
+      es: 'Invitación de delegado del hogar',
+      ht: 'Envitasyon pou delege kay la',
+      ar: 'دعوة مندوب الأسرة',
+    },
+    body: {
+      en: 'You were invited to help manage a household. Review the scope and accept or decline.',
+      fr: 'Vous êtes invité à aider à gérer un foyer. Examinez le périmètre puis acceptez ou refusez.',
+      es: 'Te invitaron a ayudar a gestionar un hogar. Revisa el alcance y acepta o rechaza.',
+      ht: 'Yo envite ou pou ede jere yon kay. Gade sa ou ka fè epi aksepte oswa refize.',
+      ar: 'تمت دعوتك للمساعدة في إدارة أسرة. راجع النطاق واقبل أو ارفض.',
+    },
+  },
+  household_delegation_update: {
+    title: {
+      en: 'Household Delegation Update',
+      fr: 'Mise à jour de la délégation du foyer',
+      es: 'Actualización de delegación del hogar',
+      ht: 'Mizajou sou delegasyon kay la',
+      ar: 'تحديث تفويض الأسرة',
+    },
+    body: {
+      en: 'A household delegation changed. Open the household page for details.',
+      fr: 'Une délégation du foyer a changé. Ouvrez la page du foyer pour plus de détails.',
+      es: 'Una delegación del hogar cambió. Abre la página del hogar para ver los detalles.',
+      ht: 'Yon delegasyon kay la chanje. Louvri paj kay la pou detay yo.',
+      ar: 'تغيّر تفويض أسرة. افتح صفحة الأسرة للتفاصيل.',
+    },
+  },
+  household_spending_request: {
+    title: {
+      en: 'Spending Approval Request',
+      fr: 'Demande d’approbation de dépense',
+      es: 'Solicitud de aprobación de gasto',
+      ht: 'Demann apwobasyon pou depans',
+      ar: 'طلب الموافقة على الإنفاق',
+    },
+    body: {
+      en: 'A household spending request needs a decision.',
+      fr: 'Une demande de dépense du foyer attend une décision.',
+      es: 'Una solicitud de gasto del hogar necesita una decisión.',
+      ht: 'Yon demann depans kay la bezwen yon desizyon.',
+      ar: 'طلب إنفاق أسرة يحتاج إلى قرار.',
+    },
+  },
+  household_visit_update: {
+    title: {
+      en: 'Household Visit Update',
+      fr: 'Mise à jour de visite du foyer',
+      es: 'Actualización de visita del hogar',
+      ht: 'Mizajou sou vizit kay la',
+      ar: 'تحديث زيارة الأسرة',
+    },
+    body: {
+      en: 'Something changed about a household visit. Open the household page for details.',
+      fr: 'Quelque chose a changé pour une visite du foyer. Ouvrez la page du foyer pour plus de détails.',
+      es: 'Algo cambió en una visita del hogar. Abre la página del hogar para ver los detalles.',
+      ht: 'Gen yon bagay ki chanje pou yon vizit kay la. Louvri paj kay la pou detay yo.',
+      ar: 'تغيّر شيء ما بشأن زيارة أسرة. افتح صفحة الأسرة للتفاصيل.',
+    },
+  },
   booking_approved: {
     title: {
       en: 'Booking Approved',
@@ -1180,6 +1511,55 @@ const EMAIL_TEMPLATES = {
       es: 'Ver solicitud de reserva',
       ht: 'Gade demann rezèvasyon an',
       ar: 'عرض طلب الحجز',
+    },
+    booking_recipient_invite: {
+      en: 'View Booking',
+      fr: 'Voir la réservation',
+      es: 'Ver reserva',
+      ht: 'Gade rezervasyon an',
+      ar: 'عرض الحجز',
+    },
+    booking_site_contact_link: {
+      en: 'View Booking Status',
+      fr: 'Voir le statut de la réservation',
+      es: 'Ver estado de la reserva',
+      ht: 'Gade estati rezervasyon an',
+      ar: 'عرض حالة الحجز',
+    },
+    booking_recipient_response: {
+      en: 'View Bookings',
+      fr: 'Voir les réservations',
+      es: 'Ver reservas',
+      ht: 'Gade rezervasyon yo',
+      ar: 'عرض الحجوزات',
+    },
+    household_delegate_invite: {
+      en: 'View Household',
+      fr: 'Voir le foyer',
+      es: 'Ver hogar',
+      ht: 'Gade kay la',
+      ar: 'عرض الأسرة',
+    },
+    household_delegation_update: {
+      en: 'View Household',
+      fr: 'Voir le foyer',
+      es: 'Ver hogar',
+      ht: 'Gade kay la',
+      ar: 'عرض الأسرة',
+    },
+    household_spending_request: {
+      en: 'View Household',
+      fr: 'Voir le foyer',
+      es: 'Ver hogar',
+      ht: 'Gade kay la',
+      ar: 'عرض الأسرة',
+    },
+    household_visit_update: {
+      en: 'View Household',
+      fr: 'Voir le foyer',
+      es: 'Ver hogar',
+      ht: 'Gade kay la',
+      ar: 'عرض الأسرة',
     },
     booking_accepted: {
       en: 'View Calendar',

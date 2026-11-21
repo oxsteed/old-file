@@ -114,8 +114,8 @@ export default function useJobs() {
     return withTokenValidation(() => api.post(`/jobs/${id}/start`).then(r => r.data));
   };
 
-  const completeJob = async (id) => {
-    return withTokenValidation(() => api.post(`/jobs/${id}/complete`).then(r => r.data));
+  const completeJob = async (id, body) => {
+    return withTokenValidation(() => api.post(`/jobs/${id}/complete`, body ?? {}).then(r => r.data));
   };
 
   // Bids

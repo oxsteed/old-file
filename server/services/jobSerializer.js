@@ -31,6 +31,10 @@ function viewerRole(job, user) {
   if (isAdminUser(user)) return 'admin';
   if (job.client_id != null && String(job.client_id) === String(user.id)) return 'owner';
   if (job.assigned_helper_id != null && String(job.assigned_helper_id) === String(user.id)) return 'helper';
+  // G-6/G-7: the recipient the work is for and the site contact see the
+  // job they are attached to, scoped (address yes, money no).
+  if (job.recipient_user_id != null && String(job.recipient_user_id) === String(user.id)) return 'linked';
+  if (job.site_contact_user_id != null && String(job.site_contact_user_id) === String(user.id)) return 'linked';
   return 'public';
 }
 
@@ -42,7 +46,7 @@ function toIso(value) {
 
 /**
  * @param {object} row  jobs row (any subset of columns)
- * @param {{ user?: object, role?: 'owner'|'helper'|'admin'|'public' }} [options]
+ * @param {{ user?: object, role?: 'owner'|'helper'|'admin'|'public'|'linked' }} [options]
  */
 function serializeJob(row, { user = null, role = null } = {}) {
   if (!row || typeof row !== 'object') return row;
@@ -53,6 +57,14 @@ function serializeJob(row, { user = null, role = null } = {}) {
     for (const key of PARTY_ONLY) delete out[key];
   } else if (viewer === 'helper') {
     for (const key of OWNER_ONLY) delete out[key];
+  } else if (viewer === 'linked') {
+    // G-6/G-7: a linked recipient/site contact sees the site (address)
+    // and who posted it, but no escrow, payment bookkeeping, fees, or
+    // private notes. Budget stays: the public feed already shows it.
+    for (const key of PARTY_ONLY) {
+      if (key === 'location_address' || key === 'client_id') continue;
+      delete out[key];
+    }
   }
   if (out.metadata && typeof out.metadata === 'object' && viewer !== 'admin') {
     // Internal credit/escrow keys are not part of the client contract.

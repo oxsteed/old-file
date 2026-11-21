@@ -34,6 +34,12 @@ const HELPER = {
   didit_status: 'verified', didit_verified_at: new Date(), didit_enforcement_required: false,
   id_verified: true, terms_accepted: true, terms_accepted_at: new Date(), terms_version: 'test-v1',
   onboarding_completed: true, w9_completed: true,
+  // G-1 (Emile decision, 2026-11-19): the instant-payout routes run the
+  // full gate, which now activates on identity + terms. The fixture keeps
+  // Connect charges + payouts as well as W-9/Didit because instant payout
+  // itself is a Stripe move and still requires them (requireTaxIdentity +
+  // payouts_enabled); payout_setup is no longer an activation requirement.
+  connect_charges_enabled: true, connect_payouts_enabled: true,
 };
 const TOKEN = jwt.sign({ typ: 'access', sid: 'test-session',  id: 7, email: 'h@test.com', role: 'helper' }, process.env.JWT_SECRET);
 const auth = r => r.set('Authorization', `Bearer ${TOKEN}`);
@@ -105,6 +111,14 @@ function routeInstantPayoutQueries({ onInsert, onUpdate, existingRow = null, ins
 }
 
 describe('POST /api/payments/payout/instant', () => {
+  // G-1 (Emile decision, 2026-11-19): the activation gate no longer
+  // includes payout_setup, so a missing W-9 passes the capability gate
+  // and fails at requireTaxIdentity instead (code tax_identity_required):
+  // instant payout is a Stripe money move, and the tax-identity gate
+  // still guards it. A stale Didit verification never reaches the gate:
+  // authenticate itself 403s with DIDIT_REQUIRED first (middleware/auth.js).
+  // Onboarding-incomplete still reaches its own check because it does not
+  // affect activation evidence. The money path stays fail-closed either way.
   test.each([
     [{ onboarding_completed: false }, 'Onboarding incomplete'],
     [{ w9_completed: false }, 'tax_identity_required'],

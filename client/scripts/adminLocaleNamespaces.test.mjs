@@ -208,7 +208,9 @@ test('English recovery rejects when all legacy shards are unavailable', async ()
 
 for (const namespace of ['support', 'adminQuoteRequests']) {
   test(`English recovery rejects a partial catalog missing ${namespace}`, async () => {
-    const shard = [0, 1, 2].find((index) => JSON.parse(read(`src/locales/generated/en-${index}.json`))[namespace]);
+    const shard = fs.readdirSync(path.join(root, 'src/locales/generated'))
+      .map(name => /^en-(\d+)\.json$/.exec(name)).filter(Boolean).map(match => Number(match[1]))
+      .find((index) => JSON.parse(read(`src/locales/generated/en-${index}.json`))[namespace]);
     assert.notEqual(shard, undefined);
     const app = await bootstrap('en', (asset) => asset === `src/locales/generated/en-${shard}.json`);
     try {

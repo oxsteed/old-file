@@ -542,6 +542,25 @@ async function updateDevice(req, res) {
   }
 }
 
+// Group 9 Slice G (item 499): device-change recovery. The driver
+// registers a new phone from the driver screens; the server moves
+// the live tracking assignments and consent to it and revokes the
+// old device. Buffered unsynced points stay on the old device (no
+// server-side store for them); the client says so plainly (D-92).
+async function transferDevice(req, res) {
+  try {
+    const result = await trackingService.transferTrackingDevice({
+      driverUserId: req.user.id,
+      oldDeviceId: req.body?.oldDeviceId,
+      deviceLabel: req.body?.deviceLabel || null,
+      platform: req.body?.platform || null,
+    });
+    res.status(201).json({ success: true, ...result });
+  } catch (err) {
+    sendServiceError(res, err);
+  }
+}
+
 module.exports = {
   assertDriverAccess,
   grantConsent,
@@ -557,4 +576,5 @@ module.exports = {
   registerDevice,
   listDevices,
   updateDevice,
+  transferDevice,
 };

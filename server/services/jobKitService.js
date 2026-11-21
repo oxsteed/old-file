@@ -46,9 +46,9 @@ async function resolveKitItems(jobType) {
   const omitted = [];
   for (const row of rows) {
     if (!row.product_id) {
-      omitted.push({ sku: row.sku, reason: 'not_found' });
+      omitted.push({ sku: row.sku, reason: 'not_found', quantity: row.quantity });
     } else if (!row.is_active || !row.is_available || row.price_cents == null) {
-      omitted.push({ sku: row.sku, reason: 'unavailable', productName: row.product_name });
+      omitted.push({ sku: row.sku, reason: 'unavailable', productId: row.product_id, productName: row.product_name, quantity: row.quantity });
     } else {
       resolved.push({
         productId: row.product_id,
@@ -66,9 +66,83 @@ async function resolveKitItems(jobType) {
 }
 
 /**
- * List curated kits with live resolution stats so the UI can show which
- * kits are buildable right now and their estimated totals.
+ * Group 1, item 34: substitution suggestions for omitted kit items.
+ * An omitted item whose product exists in the catalog but is unavailable
+ * gets up to 3 available products from the same category, cheapest first.
+ * A SKU with no catalog row at all has no category to match on, so it gets
+ * no substitutes (never guessed). Products already in the kit are never
+ * suggested as substitutes for each other. Substitutes are suggestions
+ * only: the customer chooses, nothing is auto-swapped into a cart.
  */
+async function attachSubstitutes(omitted, excludeProductIds = []) {
+  const out = [];
+  for (const entry of omitted) {
+    if (!entry.productId) {
+      out.push({ ...entry, substitutes: [] });
+      continue;
+    }
+    const { rows: catRows } = await pool.query(
+      `SELECT category FROM marketplace_products WHERE id = $1`,
+      [entry.productId]
+    );
+    const category = catRows[0]?.category;
+    if (!category) {
+      out.push({ ...entry, substitutes: [] });
+      continue;
+    }
+    // An empty exclusion list cannot be sent as a typed array parameter,
+    // so the clause is only added when there is something to exclude.
+    const excludeClause = excludeProductIds.length ? 'AND NOT (id = ANY($3))' : '';
+    const { rows: subs } = await pool.query(
+      `SELECT id, name, price_cents, currency, product_image_url
+         FROM marketplace_products
+        WHERE category = $1
+          AND is_active = TRUE AND is_available = TRUE
+          AND price_cents IS NOT NULL
+          AND id <> $2
+          ${excludeClause}
+        ORDER BY price_cents ASC
+        LIMIT 3`,
+      excludeProductIds.length
+        ? [category, entry.productId, excludeProductIds]
+        : [category, entry.productId]
+    );
+    out.push({
+      ...entry,
+      substitutes: subs.map((s) => ({
+        productId: s.id,
+        name: s.name,
+        unitPriceCents: s.price_cents,
+        currency: s.currency || 'USD',
+        imageUrl: s.product_image_url,
+      })),
+    });
+  }
+  return out;
+}
+
+/**
+ * Preview a kit before building: what resolves, what is omitted, and the
+ * substitution suggestions for each omitted item.
+ */
+async function previewKit(jobType) {
+  if (!jobType || typeof jobType !== 'string') {
+    throw new AppError('jobType is required', 400, 'validation_failed');
+  }
+  const { resolved, omitted } = await resolveKitItems(jobType.trim());
+  if (resolved.length === 0 && omitted.length === 0) {
+    throw new AppError('Unknown job kit', 404, 'not_found');
+  }
+  const kitProductIds = [
+    ...resolved.map((r) => r.productId),
+    ...omitted.map((o) => o.productId).filter(Boolean),
+  ];
+  return {
+    jobType: jobType.trim(),
+    resolved,
+    omitted: await attachSubstitutes(omitted, kitProductIds),
+  };
+}
 async function listJobKits() {
   const { rows } = await pool.query(
     `SELECT d.job_type,
@@ -242,11 +316,18 @@ async function buildKitFromTemplate({ jobType, helperId, name = null, jobId = nu
     description: `Curated kit: ${jobType.trim()}`,
     items: resolved.map((r) => ({ productId: r.productId, quantity: r.quantity, notes: r.notes })),
   });
-  return { ...cart, jobType: jobType.trim(), omitted };
+  // Group 1, item 34: the build response carries substitution suggestions
+  // for omitted items, so the customer can add a replacement themselves.
+  const kitProductIds = [
+    ...resolved.map((r) => r.productId),
+    ...omitted.map((o) => o.productId).filter(Boolean),
+  ];
+  return { ...cart, jobType: jobType.trim(), omitted: await attachSubstitutes(omitted, kitProductIds) };
 }
 
 module.exports = {
   listJobKits,
   buildKitFromTemplate,
   buildCartFromItems,
+  previewKit,
 };

@@ -58,13 +58,14 @@ function mockAuth(...extras) {
 }
 
 // Domain 6 enforce contract (ACCESS_HELPER_ENFORCEMENT=enforce): POST
-// /connect runs requireHelperCapability, which calls accessService.can() ->
-// loadFacts (users, access_grants, businesses) before the handler. The
-// fixture user holds an active helper.offer_services grant with the
-// provenance the legacy backfill writes (services/access/legacyMapping.js),
-// so the gate passes and these tests keep proving Connect onboarding, not
-// access. (The grant is capability-based: users.role is deliberately not
-// an input to the resolver, so a customer-role fixture user can hold it.)
+// /connect runs requireHelperSetupCapability, which calls
+// accessService.can() -> loadFacts (users, access_grants, businesses)
+// before the handler. The fixture user holds an active
+// helper.offer_services grant with the provenance the legacy backfill
+// writes (services/access/legacyMapping.js), so the gate passes and these
+// tests keep proving Connect onboarding, not access. (The grant is
+// capability-based: users.role is deliberately not an input to the resolver,
+// so a customer-role fixture user can hold it.)
 const ACCESS_GRANT = {
   id: 1, capability: 'helper.offer_services', subject_type: 'self', subject_id: null,
   status: 'active', expires_at: null, provenance: 'legacy_backfill', version: 1,
@@ -74,12 +75,18 @@ const ACCESS_GRANT = {
 // gated routes only (POST /connect); the other payment routes have no
 // helper gate and keep plain mockAuth.
 function mockGatedAuth(...extras) {
-  mockQuery.mockResolvedValueOnce({ rows: [MOCK_AUTH_USER] });
-  mockQuery.mockResolvedValueOnce({ rows: [MOCK_AUTH_USER] }); // loadFacts users
+  mockGatedAuthAs(MOCK_AUTH_USER, ...extras);
+}
+
+// Same chain as mockGatedAuth but the gate evaluates `user`: used for the
+// G-1 carve-out test, where the fixture must be activation_incomplete.
+function mockGatedAuthAs(user, ...extras) {
+  mockQuery.mockResolvedValueOnce({ rows: [user] });
+  mockQuery.mockResolvedValueOnce({ rows: [user] }); // loadFacts users
   mockQuery.mockResolvedValueOnce({ rows: [ACCESS_GRANT] }); // loadFacts access_grants
   mockQuery.mockResolvedValueOnce({ rows: [] }); // loadFacts businesses
   mockQuery.mockResolvedValueOnce({ rows: [] }); // loadFacts restaurant locations
-  mockQuery.mockResolvedValueOnce({ rows: [MOCK_AUTH_USER] }); // activation evidence
+  mockQuery.mockResolvedValueOnce({ rows: [user] }); // activation evidence
   mockQuery.mockResolvedValueOnce({ rows: [] }); // active restaurants
   mockQuery.mockResolvedValueOnce({ rows: [] }); // launched franchises
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
@@ -430,6 +437,26 @@ describe('GET /api/payments/connect/status', () => {
 });
 
 describe('POST /api/payments/connect', () => {
+  // G-1 carve-out: the fixture user is activation_incomplete (identity
+  // not verified, so identity_verified is missing; terms are satisfied and
+  // payout_setup is no longer an activation requirement). The Connect
+  // onboarding route must still succeed, or the helper could never
+  // complete payout setup: no circular gate.
+  test('succeeds while activation is incomplete (no circular gate)', async () => {
+    stripe.accounts.create.mockResolvedValueOnce({ id: 'acct_new' });
+    stripe.accountLinks.create.mockResolvedValueOnce({ url: 'https://stripe.test/onboard' });
+    mockGatedAuthAs(
+      { ...MOCK_AUTH_USER, id_verified: false, identity_verified: false, didit_status: 'pending' },
+      { rows: [] }, // existing connect account lookup
+      { rows: [{ stripe_account_id: 'acct_new' }] }, // persisted account
+    );
+
+    const res = await auth(request(buildApp()).post('/api/payments/connect'));
+
+    expect(res.status).toBe(200);
+    expect(res.body.url).toBe('https://stripe.test/onboard');
+  });
+
   test('creates an onboarding link using APP_URL fallback when CLIENT_URL is absent', async () => {
     const prevAppUrl = process.env.APP_URL;
     const prevClientUrl = process.env.CLIENT_URL;

@@ -104,6 +104,14 @@ async function deliverEvent(row) {
   }
   const recipients = new Set([row.customer_user_id, row.helper_user_id, row.internal_driver_user_id]
     .filter(Boolean).map(String));
+  // Group 9 Slice E (item 480): a replacement event must also reach the
+  // outgoing driver, who is no longer on the job row once the job was
+  // reassigned or released. The payload carries only their user id (the
+  // public event body never spreads stored payloads), so no driver
+  // identity leaks into the broadcast itself.
+  if (event.eventType === 'delivery_assignment_replaced' && row.payload?.previousDriverUserId) {
+    recipients.add(String(row.payload.previousDriverUserId));
+  }
   // The actor's other devices need invalidation, but not a push for their own
   // action. Stable eventId lets clients deduplicate at-least-once replay.
   if (row.consumer === 'notifications') recipients.delete(String(row.actor_user_id));

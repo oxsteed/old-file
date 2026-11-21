@@ -28,6 +28,9 @@ process.env.FEATURE_PAYMENTS_ENABLED = 'true';
 process.env.LOG_LEVEL       = 'error'; // suppress info/debug noise in tests
 process.env.OXSTEED_MEDIA_LAUNCHED = 'true';
 process.env.MEDIA_PUBLIC_VIDEO_INTERIM = 'true';
+// Auth unit fixtures isolate the DB-clock side effect. The membership expiry
+// database suite explicitly unmocks it and tests real authenticated requests.
+jest.mock('../services/businessMembershipExpiry',()=>({expireForUser:jest.fn().mockResolvedValue(0),schedule:jest.fn(),sweep:jest.fn()}));
 
 // ── Mock pg pool ─────────────────────────────────────────────────────────────
 // We expose a jest mock so individual tests can override query responses.

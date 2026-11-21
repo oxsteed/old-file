@@ -258,7 +258,7 @@ describeDb('analytics query builder', () => {
     await db.query(`CREATE TABLE ${schema}.businesses (
       id BIGSERIAL PRIMARY KEY, business_name TEXT, user_id UUID, deleted_at TIMESTAMPTZ)`);
     await db.query(`CREATE TABLE ${schema}.business_members (
-      id BIGSERIAL PRIMARY KEY, business_id BIGINT, member_id UUID, role TEXT, status TEXT)`);
+      id BIGSERIAL PRIMARY KEY, business_id BIGINT, member_id UUID, role TEXT, status TEXT, access_valid_until TIMESTAMPTZ)`);
     await db.query(`CREATE TABLE ${schema}.food_restaurants (
       id BIGSERIAL PRIMARY KEY, business_id BIGINT, owner_user_id UUID, display_name TEXT)`);
     await db.query(`CREATE TABLE ${schema}.admin_permission_grants (

@@ -427,3 +427,64 @@
 [data-theme='light'] .delivery-info__block { border-color: rgba(15, 23, 42, .12); background: rgba(255, 255, 255, .9); box-shadow: 0 18px 45px rgba(15, 23, 42, .08); }
 [data-theme='light'] .delivery-info__block h2, [data-theme='light'] .delivery-info__steps strong, [data-theme='light'] .delivery-info__faq dt { color: #172033; }
 [data-theme='light'] .delivery-info__block p, [data-theme='light'] .delivery-info__block ul, [data-theme='light'] .delivery-info__steps span, [data-theme='light'] .delivery-info__faq dd { color: #475569; }
+
+/* Group 9 Slice A: driver readiness checklist, vehicles and documents. */
+.delivery-checklist { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.delivery-checklist__row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid rgba(148, 163, 184, .16); border-radius: 12px; }
+.delivery-checklist__row--pass .delivery-checklist__icon { color: #86efac; }
+.delivery-checklist__row--fail .delivery-checklist__icon { color: #fca5a5; }
+.delivery-checklist__row--warn .delivery-checklist__icon { color: #fcd34d; }
+.delivery-checklist__row--na .delivery-checklist__icon { color: #94a3b8; }
+.delivery-checklist__icon { flex: 0 0 auto; display: grid; place-items: center; padding-top: 2px; }
+.delivery-checklist__text { display: grid; gap: 2px; min-width: 0; flex: 1; font-size: .86rem; }
+.delivery-checklist__text span { color: var(--text-secondary, #94a3b8); }
+.delivery-checklist__fix { flex: 0 0 auto; color: #fb923c; font-size: .8rem; font-weight: 800; white-space: nowrap; }
+.delivery-mini-list { display: grid; gap: 10px; margin: 0 0 18px; padding: 0; list-style: none; }
+.delivery-mini-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid rgba(148, 163, 184, .16); border-radius: 14px; }
+.delivery-mini-row > span:first-child { display: grid; gap: 2px; min-width: 0; font-size: .86rem; }
+.delivery-mini-row > span:first-child span { color: var(--text-secondary, #94a3b8); }
+.delivery-mini-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+[data-theme='light'] .delivery-checklist__row, [data-theme='light'] .delivery-mini-row { border-color: rgba(15, 23, 42, .12); background: rgba(255, 255, 255, .9); }
+[data-theme='light'] .delivery-checklist__row--pass .delivery-checklist__icon { color: #15803d; }
+[data-theme='light'] .delivery-checklist__row--fail .delivery-checklist__icon { color: #b91c1c; }
+[data-theme='light'] .delivery-checklist__row--warn .delivery-checklist__icon { color: #a16207; }
+[data-theme='light'] .delivery-checklist__text span, [data-theme='light'] .delivery-mini-row > span:first-child span { color: #64748b; }
+
+/* Group 9 Slice B (items 457/458/460): the offer countdown, the compact
+   route preview on the inbox card, the decline form, and the offer panel
+   on the detail page. */
+.delivery-job-card__route-preview { margin: 12px 0 4px; }
+.delivery-job-card__route-preview .delivery-route-preview { border-radius: 14px; }
+.delivery-offer-countdown { margin: 10px 0 0; font-size: .86rem; font-weight: 700; color: #93c5fd; }
+.delivery-offer-countdown--urgent { color: #fcd34d; }
+.delivery-offer-countdown--expired { color: #fca5a5; }
+.delivery-job-card__declined { margin: 10px 0 0; font-size: .86rem; color: var(--text-secondary, #94a3b8); }
+.delivery-decline-form { display: grid; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(148, 163, 184, .16); }
+.delivery-decline-form h4 { margin: 0; font-size: .95rem; }
+.delivery-offer-panel { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(148, 163, 184, .16); }
+.delivery-offer-panel .delivery-offer-countdown { margin: 0; }
+.delivery-offer-panel .delivery-job-card__declined { margin: 0; }
+[data-theme='light'] .delivery-offer-countdown { color: #1d4ed8; }
+[data-theme='light'] .delivery-offer-countdown--urgent { color: #a16207; }
+[data-theme='light'] .delivery-offer-countdown--expired { color: #b91c1c; }
+[data-theme='light'] .delivery-job-card__declined { color: #64748b; }
+[data-theme='light'] .delivery-decline-form, [data-theme='light'] .delivery-offer-panel { border-top-color: rgba(15, 23, 42, .12); }
+
+/* Group 9 Slice C (items 462/463/465): the multi-stop sequence, the
+   per-stop window warnings, and the navigation-app handoff links. */
+.delivery-stops { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(148, 163, 184, .16); }
+.delivery-stops h3 { margin: 0; font-size: .95rem; }
+.delivery-stops__list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.delivery-stops__stop { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid rgba(148, 163, 184, .16); border-radius: 14px; }
+.delivery-stops__stop > div { display: grid; gap: 2px; min-width: 0; font-size: .86rem; }
+.delivery-stops__stop > div p { margin: 0; color: var(--text-secondary, #94a3b8); }
+.delivery-stops__stop--done { opacity: .75; }
+.delivery-stops__warning { font-weight: 700; color: #fcd34d; }
+.delivery-stops__actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+.delivery-nav-links { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.delivery-nav-links a { color: #93c5fd; }
+[data-theme='light'] .delivery-stops { border-top-color: rgba(15, 23, 42, .12); }
+[data-theme='light'] .delivery-stops__stop { border-color: rgba(15, 23, 42, .12); background: rgba(255, 255, 255, .9); }
+[data-theme='light'] .delivery-stops__stop > div p { color: #64748b; }
+[data-theme='light'] .delivery-stops__warning { color: #a16207; }
+[data-theme='light'] .delivery-nav-links a { color: #1d4ed8; }

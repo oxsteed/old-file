@@ -14,10 +14,11 @@
 // so it must keep bypassing the fenced path. A test below pins that.
 //
 // NOTE: the audit counted 11 inline crons (8 original + 3 new). The
-// file actually holds 14 non-translation inline crons: the audit's 11
+// file actually holds 15 non-translation inline crons: the audit's 11
 // plus the support-message cleanup, guest-chat retention, and support
 // conversation retention crons, which are the same bare-cron class in
-// the same file. All 14 are fenced here.
+// the same file, plus the business-membership access-expiry sweep added
+// with scoped access expiry. All 15 are fenced here.
 
 jest.mock('node-cron', () => {
   const scheduled = [];
@@ -70,6 +71,7 @@ const { BackgroundWorkers } = require('../bootstrap/backgroundWorkers');
 // 900s for the slow retention cleanups. The two cronExpression entries
 // resolve to '0 2 * * *' (support messages) and '25 2 * * *' (guest chat).
 const EXPECTED_CRONS = [
+  { expression: '* * * * *', jobName: 'business-membership-access-expiry', ttlSeconds: 55 },
   { expression: '0 17 3 * * *', jobName: 'promotion-link-prune', ttlSeconds: 300, timezone: 'UTC' },
   { expression: '0 41 * * * *', jobName: 'promotion-account-link-expiry', ttlSeconds: 300, timezone: 'UTC' },
   { expression: '*/10 * * * * *', jobName: 'support-waiting', ttlSeconds: 60 },
@@ -137,7 +139,7 @@ describe('Background-jobs audit, Oct 30 item 18: inline crons are fenced', () =>
     }
   });
 
-  test('all 14 inline crons register through the fenced path with distinct lock names', () => {
+  test('all 15 inline crons register through the fenced path with distinct lock names', () => {
     ({ workers } = startWorkers());
 
     expect(scheduleSpy).toHaveBeenCalledTimes(EXPECTED_CRONS.length);

@@ -31,6 +31,7 @@ const MOCK_HELPER = {
   city: 'Austin', state: 'TX', zip_code: '78701',
   display_name_preference: 'first_name', business_name: null,
   didit_status: 'verified', didit_verified_at: new Date(), didit_enforcement_required: false,
+  connect_charges_enabled: true, connect_payouts_enabled: true,
 };
 
 function buildApp() {
@@ -74,6 +75,17 @@ function mockGatedAuth(...extras) {
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
 }
 
+// G-1 (Emile decision, 2026-11-19): identity + terms satisfied,
+// payout_setup missing (no W-9, no Connect account). The helper holds the
+// grant and IS activated on identity + terms: bidding is not blocked, and
+// the payout defaults to OxSteed Credit.
+const INCOMPLETE_HELPER = {
+  ...MOCK_HELPER,
+  w9_completed: false,
+  connect_charges_enabled: false,
+  connect_payouts_enabled: false,
+};
+
 // Route-based equivalent of mockGrantFacts for routeQueries suites.
 const ACCESS_FACT_ROUTES = [
   [/FROM users WHERE id = \$1/, { rows: [MOCK_HELPER] }],
@@ -84,6 +96,14 @@ const ACCESS_FACT_ROUTES = [
   [/FROM food_restaurants WHERE owner_user_id/, { rows: [] }],
   [/FROM franchise_applications/, { rows: [] }],
 ];
+
+// Route-based equivalent of mockGrantFacts for routeQueries suites, with
+// the gate evaluating the INCOMPLETE_HELPER (identity + terms, no
+// payout_setup): the gate passes under the G-1 Credit-default decision.
+const INCOMPLETE_FACT_ROUTES = ACCESS_FACT_ROUTES.map(([pattern, result]) => [
+  pattern,
+  result && result.rows && result.rows[0] === MOCK_HELPER ? { rows: [INCOMPLETE_HELPER] } : result,
+]);
 
 function mockAuth(...extras) {
   mockQuery.mockResolvedValueOnce({ rows: [MOCK_HELPER] });
@@ -195,6 +215,29 @@ describe('POST /api/bids', () => {
     const res = await auth(request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 90, message: 'Happy to help' }));
     expect(res.status).toBe(201);
   });
+
+  // G-1 (Emile decision, 2026-11-19): a helper with identity + terms but
+  // no payout_setup (no W-9, no Connect) is activated, so bidding is not
+  // blocked — the gate passes and the bid is created. The payout for the
+  // work defaults to OxSteed Credit (proven end to end in
+  // g1CreditDefaultPayout.db.test.js).
+  test('creates a bid when payout_setup is missing (payout defaults to Credit)', async () => {
+    const calls = routeQueries(mockQuery, [
+      ...INCOMPLETE_FACT_ROUTES,
+      [/FROM users u/, { rows: [INCOMPLETE_HELPER] }],
+      [/FROM user_consents/, { rows: currentConsentRows() }],
+      [/SELECT id, client_id, status, deleted_at FROM jobs/, { rows: [JOB] }],
+      [/SELECT \* FROM jobs WHERE id = \$1 FOR SHARE/, { rows: [JOB] }],
+      [/INSERT INTO bids/, (sql, params) => ({ rows: [{ id: 21, job_id: 10, helper_id: HELPER_ID, amount: params[2], amount_cents: params[3], status: 'pending', job_revision: params[7] }] })],
+    ]);
+    const res = await auth(
+      request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 150, message: 'I can do this' })
+    );
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveProperty('id', 21);
+    expect(res.body.amount_cents).toBe(15000);
+    expect(calls.some((c) => /INSERT INTO bids/.test(c.sql))).toBe(true);
+  });
 });
 
 // ── GET /api/bids/me ──────────────────────────────────────────────────────────
@@ -266,9 +309,9 @@ describe('PUT /api/bids/:id', () => {
   });
 
   const JOB = { id: '10', client_id: 1, status: 'published', version: 5, revision: 3, title: 'Fix the fence', description: 'y'.repeat(60) };
-  const bidRoutesFor = (bid, extra = []) => [
-    ...ACCESS_FACT_ROUTES,
-    [/FROM users u/, { rows: [MOCK_HELPER] }],
+  const bidRoutesFor = (bid, extra = [], facts = ACCESS_FACT_ROUTES, user = MOCK_HELPER) => [
+    ...facts,
+    [/FROM users u/, { rows: [user] }],
     [/SELECT job_id FROM bids WHERE id = \$1/, { rows: [{ job_id: '10' }] }],
     [/SELECT \* FROM jobs WHERE id = \$1 FOR SHARE/, { rows: [JOB] }],
     [/FROM bids WHERE id = \$1 FOR UPDATE/, { rows: [bid] }],
@@ -308,6 +351,20 @@ describe('PUT /api/bids/:id', () => {
     const update = calls.find((c) => /UPDATE bids/.test(c.sql));
     expect(update.params[4]).toBe(true);
     expect(update.params[6]).toBe(3);
+  });
+
+  // G-1 (Emile decision, 2026-11-19): bid updates are no longer held
+  // while payout_setup is missing. The helper is activated on identity +
+  // terms, so the update goes through like any other bid edit.
+  test('updates a bid when payout_setup is missing', async () => {
+    const calls = routeQueries(mockQuery, bidRoutesFor({ id: 20, helper_id: HELPER_ID, status: 'pending', job_revision: 3 }, [
+      [/UPDATE bids/, (sql, params) => ({ rows: [{ id: 20, amount: 200, amount_cents: params[0], status: 'pending', needs_reconfirm: false }] })],
+    ], INCOMPLETE_FACT_ROUTES, INCOMPLETE_HELPER));
+    const res = await auth(request(buildApp()).put('/api/bids/20').send({ amount: 200 }));
+    expect(res.status).toBe(200);
+    expect(res.body.amount_cents).toBe(20000);
+    const update = calls.find((c) => /UPDATE bids/.test(c.sql));
+    expect(update.params[4]).toBe(false); // not a reconfirmation
   });
 });
 

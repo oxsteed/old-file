@@ -11,6 +11,7 @@
 const axios  = require('axios');
 const db     = require('../db');
 const logger = require('../utils/logger');
+const { vehicleServiceReminders } = require('../services/vehicleServiceReminders');
 
 const NHTSA_BASE = 'https://vpic.nhtsa.dot.gov/api/vehicles';
 const CACHE_TTL  = 24 * 60 * 60 * 1000; // 24 h - NHTSA data rarely changes
@@ -104,13 +105,19 @@ exports.getModels = async (req, res) => {
 exports.listMyVehicles = async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT id, make_id, make_name, model_id, model_name, year, nickname, notes, created_at
+      `SELECT id, make_id, make_name, model_id, model_name, year, nickname, notes,
+              mileage, last_oil_change_mile, last_service_date, created_at
          FROM user_vehicles
         WHERE user_id = $1
         ORDER BY created_at DESC`,
       [req.user.id]
     );
-    return res.json(rows);
+    // Group 1, item 27: service reminders derived from the mileage and
+    // service dates the customer recorded. Advisory only.
+    return res.json(rows.map((row) => ({
+      ...row,
+      service_reminders: vehicleServiceReminders(row),
+    })));
   } catch (err) {
     logger.error('listMyVehicles error', { message: err.message });
     return res.status(500).json({ error: 'Failed to load your vehicles' });
@@ -165,31 +172,52 @@ exports.addVehicle = async (req, res) => {
 
 /**
  * PATCH /api/vehicles/my/:id
- * Update nickname, year, or notes on a saved vehicle.
+ * Update nickname, year, notes, or service-mileage fields on a saved vehicle.
+ * Group 1, item 27: mileage and service dates are what the reminders are
+ * derived from, so the customer records them here.
  */
 exports.updateVehicle = async (req, res) => {
   try {
     const { id } = req.params;
-    const { year, nickname, notes } = req.body;
+    const { year, nickname, notes, mileage, last_oil_change_mile, last_service_date } = req.body;
+
+    const mileageInt = mileage === undefined || mileage === '' ? null
+      : (Number.isInteger(Number(mileage)) && Number(mileage) >= 0 ? parseInt(mileage, 10) : undefined);
+    const oilMileInt = last_oil_change_mile === undefined || last_oil_change_mile === '' ? null
+      : (Number.isInteger(Number(last_oil_change_mile)) && Number(last_oil_change_mile) >= 0
+        ? parseInt(last_oil_change_mile, 10) : undefined);
+    const serviceDate = last_service_date === undefined || last_service_date === '' ? null
+      : (Number.isNaN(new Date(last_service_date).getTime()) ? undefined
+        : new Date(last_service_date).toISOString().slice(0, 10));
+    if (mileageInt === undefined || oilMileInt === undefined || serviceDate === undefined) {
+      return res.status(400).json({ error: 'Invalid mileage or service date' });
+    }
 
     const { rows } = await db.query(
       `UPDATE user_vehicles
           SET year     = COALESCE($1, year),
               nickname = COALESCE($2, nickname),
-              notes    = COALESCE($3, notes)
+              notes    = COALESCE($3, notes),
+              mileage  = COALESCE($6, mileage),
+              last_oil_change_mile = COALESCE($7, last_oil_change_mile),
+              last_service_date = COALESCE($8, last_service_date)
         WHERE id = $4 AND user_id = $5
-       RETURNING id, make_id, make_name, model_id, model_name, year, nickname, notes`,
+       RETURNING id, make_id, make_name, model_id, model_name, year, nickname, notes,
+                 mileage, last_oil_change_mile, last_service_date`,
       [
         year     ? parseInt(year, 10)                         : null,
         nickname ? String(nickname).trim().substring(0, 80)   : null,
         notes    ? String(notes).trim().substring(0, 500)     : null,
         parseInt(id, 10),
         req.user.id,
+        mileageInt,
+        oilMileInt,
+        serviceDate,
       ]
     );
 
     if (!rows.length) return res.status(404).json({ error: 'Vehicle not found' });
-    return res.json(rows[0]);
+    return res.json({ ...rows[0], service_reminders: vehicleServiceReminders(rows[0]) });
   } catch (err) {
     logger.error('updateVehicle error', { message: err.message });
     return res.status(500).json({ error: 'Failed to update vehicle' });

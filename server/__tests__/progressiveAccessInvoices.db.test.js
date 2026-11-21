@@ -1,5 +1,7 @@
 'use strict';
 
+const { seedHelperPayoutReadiness } = require('./helpers/helperPayoutReadiness');
+
 /**
  * WP-054 invoices, quotes and recurring billing — PostgreSQL evidence with one
  * identity issuing a personal (helper) invoice and, as a manager, a business
@@ -92,6 +94,7 @@ ddescribe('personal and business invoices from one identity (WP-054, real databa
        VALUES ($1, 'helper.offer_services', 'self', 'self', 'active', 'legacy_backfill', 'helper-policy-1')`,
       [id],
     );
+    await seedHelperPayoutReadiness(pool, id);
     mockUsers.set(id, { id, role: 'helper', email });
     return id;
   }

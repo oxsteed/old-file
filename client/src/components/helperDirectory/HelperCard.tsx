@@ -12,6 +12,8 @@ import {
   MessageCircle,
   CalendarCheck, Building2,
   BadgeCheck,
+  Heart,
+  GitCompare,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { HelperCardData } from '../../types/helperDirectory';
@@ -30,13 +32,19 @@ interface HelperCardProps {
   onMessage?: (id: string) => void;
   /** When set, highlights the matching category on this card */
   highlightCategory?: string;
+  /** Group 1, item 4: the customer saved this provider to their shortlist */
+  saved?: boolean;
+  onToggleSave?: (id: string) => void;
+  /** Group 1, item 5: this provider is in the side-by-side comparison */
+  comparing?: boolean;
+  onToggleCompare?: (id: string) => void;
 }
 
 function memberYear(iso: string): string {
   return String(new Date(iso).getFullYear());
 }
 
-const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCategory }) => {
+const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCategory, saved, onToggleSave, comparing, onToggleCompare }) => {
   const { t } = useTranslation();
   const isBusiness    = helper.type === 'business';
   const isExactMatch  = !!(highlightCategory && helper.categories.includes(highlightCategory));
@@ -341,6 +349,41 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
             {isBusiness ? <Building2 className="w-3.5 h-3.5" aria-hidden="true" /> : <CalendarCheck className="w-3.5 h-3.5" aria-hidden="true" />}
             {isBusiness ? t('helpersDir.viewBusiness') : t('helpersDir.viewAndBook')}
           </Link>
+        </div>
+
+        {/* Group 1, items 4-5: shortlist + comparison. Saving is helper-only
+            (the saved-helpers API stores helper users); comparison is local. */}
+        <div className="flex gap-2 pt-1">
+          {!isBusiness && onToggleSave && (
+            <button
+              type="button"
+              onClick={() => onToggleSave(helper.id)}
+              aria-pressed={!!saved}
+              className={`flex items-center justify-center gap-1.5 flex-1 py-2 rounded-xl border text-xs font-medium transition-colors ${
+                saved
+                  ? 'border-rose-500 bg-rose-950/50 text-rose-300'
+                  : 'border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white'
+              }`} data-track="ui.4f6ace4fb4.2"
+            >
+              <Heart className="w-3.5 h-3.5" aria-hidden="true" fill={saved ? 'currentColor' : 'none'} />
+              {saved ? t('helpersDir.saved') : t('helpersDir.saveToShortlist')}
+            </button>
+          )}
+          {onToggleCompare && (
+            <button
+              type="button"
+              onClick={() => onToggleCompare(helper.id)}
+              aria-pressed={!!comparing}
+              className={`flex items-center justify-center gap-1.5 flex-1 py-2 rounded-xl border text-xs font-medium transition-colors ${
+                comparing
+                  ? 'border-brand-500 bg-brand-950/50 text-brand-300'
+                  : 'border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white'
+              }`} data-track="ui.4f6ace4fb4.3"
+            >
+              <GitCompare className="w-3.5 h-3.5" aria-hidden="true" />
+              {comparing ? t('helpersDir.inComparison') : t('helpersDir.compare')}
+            </button>
+          )}
         </div>
       </div>
     </article>

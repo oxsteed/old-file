@@ -28,6 +28,22 @@ const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', t
 
 const access = require('../controllers/businessAccessCodesController');
 const team   = require('../controllers/businessTeamController');
+const templates=require('../services/businessRoleTemplates');
+const readiness=require('../services/businessTeamReadiness');
+const membershipExpiry=require('../services/businessMembershipExpiry');
+const templateHandler=fn=>async(req,res,next)=>{res.set('Cache-Control','no-store');try{await fn(req,res);}catch(error){next(error);}};
+router.get('/:businessId/team/readiness',authenticate,requireBusinessAccess({minRole:'any'}),requirePermission('business.view'),templateHandler(async(req,res)=>res.json(await readiness.read(req.business.id,req.user.id))));
+router.put('/:businessId/memberships/:membershipId/access-expiry',authenticate,rejectImpersonated,requireBusinessAccess({minRole:'owner'}),templateHandler(async(req,res)=>res.json(await membershipExpiry.schedule(req.business.id,req.user.id,req.params.membershipId,req.body))));
+router.post('/:businessId/team/documents',authenticate,rejectImpersonated,requireBusinessAccess({minRole:'owner'}),templateHandler(async(req,res)=>res.status(201).json(await readiness.publish(req.business.id,req.user.id,req.body))));
+router.post('/:businessId/team/documents/:documentId/acknowledge',authenticate,rejectImpersonated,requireBusinessAccess({minRole:'any'}),requirePermission('business.view'),templateHandler(async(req,res)=>res.json(await readiness.acknowledge(req.business.id,req.user.id,req.params.documentId))));
+router.post('/:businessId/team/tasks',authenticate,rejectImpersonated,requireBusinessAccess({minRole:'any'}),requirePermission('business.view'),templateHandler(async(req,res)=>res.status(201).json(await readiness.createTask(req.business.id,req.user.id,req.body))));
+router.put('/:businessId/team/tasks/:taskId',authenticate,rejectImpersonated,requireBusinessAccess({minRole:'any'}),requirePermission('business.view'),templateHandler(async(req,res)=>res.json(await readiness.completeTask(req.business.id,req.user.id,req.params.taskId,req.body))));
+router.get('/:businessId/team/role-templates',authenticate,requireBusinessAccess({ minRole: 'any' }),templateHandler(async(req,res)=>res.json(await templates.list(req.params.businessId,req.user.id))));
+router.post('/:businessId/team/role-templates',authenticate,rejectImpersonated,requireBusinessAccess({ minRole: 'any' }),templateHandler(async(req,res)=>res.status(201).json({template:await templates.save(req.params.businessId,req.user.id,req.body)})));
+router.put('/:businessId/team/role-templates/:templateId',authenticate,rejectImpersonated,requireBusinessAccess({ minRole: 'any' }),templateHandler(async(req,res)=>res.json({template:await templates.save(req.params.businessId,req.user.id,req.body,req.params.templateId)})));
+router.delete('/:businessId/team/role-templates/:templateId',authenticate,rejectImpersonated,requireBusinessAccess({ minRole: 'any' }),templateHandler(async(req,res)=>{await templates.remove(req.params.businessId,req.user.id,req.params.templateId,req.body.expectedVersion);res.sendStatus(204);}));
+router.get('/:businessId/team/role-templates/:templateId/preview/:memberId',authenticate,requireBusinessAccess({ minRole: 'any' }),templateHandler(async(req,res)=>res.json(await templates.preview(req.params.businessId,req.user.id,req.params.templateId,req.params.memberId))));
+router.post('/:businessId/team/role-templates/:templateId/apply',authenticate,rejectImpersonated,requireBusinessAccess({ minRole: 'any' }),templateHandler(async(req,res)=>res.json(await templates.apply(req.params.businessId,req.user.id,req.params.templateId,req.body))));
 
 // ── Membership view + edit ──────────────────────────────────────────────────
 router.get(

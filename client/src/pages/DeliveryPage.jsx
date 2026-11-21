@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
+  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Clock3,
   DollarSign,
+  FileText,
   LifeBuoy,
   Loader2,
   MapPin,
@@ -15,6 +17,7 @@ import {
   ShieldCheck,
   Truck,
   Upload,
+  XCircle,
 } from 'lucide-react';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import PageMeta from '../components/PageMeta';
@@ -24,14 +27,25 @@ import { canAccessOperationsWorkspace } from '../utils/logisticsWorkspaces';
 import { selectOpenJobs } from '../utils/deliveryDriverJobs';
 import {
   claimDeliveryJob,
+  declineDeliveryJob,
   createDelivery,
   listDeliveryJobs,
   quoteDelivery,
   updateDeliveryStatus,
   getDriverProfile,
   registerDriverProfile,
+  updateDriverProfile,
   listMyDriverPayouts,
   setDriverAvailability,
+  getDriverReadiness,
+  listDriverVehicles,
+  createDriverVehicle,
+  deleteDriverVehicle,
+  activateDriverVehicle,
+  listDriverDocuments,
+  createDriverDocument,
+  deleteDriverDocument,
+  deliveryDate,
   deliveryMoney, deliveryUnit, deliveryError,
 } from '../api/delivery';
 import {
@@ -44,6 +58,9 @@ import {
   stopsReadyForPricing,
   takeEstimatePrefill,
 } from '../components/delivery/DeliveryEstimate';
+// Group 9 Slice B (items 457/458/460): the offer countdown, the driver
+// route preview, and the decline (pass) form, shared with the detail page.
+import { DeclineForm, OfferCountdown, hasRouteCoords, isOfferExpired } from '../components/delivery/DeliveryOffer';
 import '../styles/DeliveryPage.css';
 
 const SERVICE_OPTIONS = ['standard', 'same_day', 'rush'];
@@ -54,13 +71,25 @@ function statusLabel(status, t) {
   return t(`delivery.helper.status.${status}`, { defaultValue: String(status || '').replaceAll('_', ' ') });
 }
 
-function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
+function DeliveryCard({ job, helper, onClaim, onDecline, onStatus, busyId, t }) {
   const { i18n } = useTranslation();
-  const canClaim = helper && job.status === 'posted' && job.marketplace_available === true && job.is_assigned_operator !== true;
+  // Group 9 Slice B (item 457): the card re-renders every 30s so the
+  // claim button disappears the moment the offer deadline passes,
+  // without waiting for a reload or the hourly sweep.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+  const offerExpired = isOfferExpired(job, nowMs);
+  const isOffer = helper && job.status === 'posted' && job.marketplace_available === true;
+  const canClaim = helper && job.status === 'posted' && job.marketplace_available === true && job.is_assigned_operator !== true && !offerExpired;
+  const canDecline = isOffer && !offerExpired;
   const canUpdate = job.is_assigned_operator === true && ['assigned', 'picked_up', 'in_transit'].includes(job.status);
   const nextStatus = job.status === 'assigned' ? 'picked_up'
     : job.status === 'picked_up' ? 'in_transit' : null;
   const isBusy = busyId !== null;
+  const [declineOpen, setDeclineOpen] = useState(false);
 
   return (
     <article className="delivery-job-card">
@@ -73,6 +102,12 @@ function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
           {statusLabel(job.status, t)}
         </span>
       </div>
+      {isOffer && <OfferCountdown job={job} t={t} />}
+      {hasRouteCoords(job) && (
+        <div className="delivery-job-card__route-preview">
+          <RoutePreview job={job} t={t} />
+        </div>
+      )}
       <div className="delivery-job-card__route">
         <span><MapPin size={15} aria-hidden="true" />{[job.origin_city, job.origin_state].filter(Boolean).join(', ') || '—'}</span>
         <ArrowRight size={16} aria-hidden="true" />
@@ -84,6 +119,11 @@ function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
         <span><Clock3 size={15} aria-hidden="true" />{t(`delivery.serviceLevels.${job.service_level}`, { defaultValue: job.service_level })}</span>
       </div>
       {job.item_description && <p className="delivery-job-card__item">{job.item_description}</p>}
+      {job.my_decline && (
+        <p className="delivery-job-card__declined">
+          {t('delivery.driver.declined')} · {t(`delivery.driver.declineReasons.${job.my_decline.reason_code}`)}
+        </p>
+      )}
       <div className="delivery-job-card__footer">
         <div>
           <small>{helper ? t('delivery.helper.payout') : t('delivery.customer.total')}</small>
@@ -96,6 +136,11 @@ function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
             {t('delivery.helper.claim')}
           </button>
         )}
+        {canDecline && !declineOpen && (
+          <button type="button" className="delivery-button delivery-button--secondary" onClick={() => setDeclineOpen(true)} disabled={isBusy}>
+            {job.my_decline ? t('delivery.driver.declineChange') : t('delivery.driver.decline')}
+          </button>
+        )}
         {canUpdate && nextStatus && (
             <button type="button" className="delivery-button delivery-button--primary" onClick={() => onStatus(job.id, nextStatus)} disabled={isBusy}>
             {isBusy ? <Loader2 size={16} className="delivery-spin" aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
@@ -104,6 +149,15 @@ function DeliveryCard({ job, helper, onClaim, onStatus, busyId, t }) {
         )}
         {canUpdate && job.status === 'in_transit' && <Link className="delivery-button delivery-button--primary" to={`/delivery/jobs/${job.id}`}>{t('delivery.detail.submitProof')}</Link>}
       </div>
+      {declineOpen && canDecline && (
+        <DeclineForm
+          job={job}
+          t={t}
+          busy={isBusy}
+          onSubmit={async (payload) => { setDeclineOpen(false); await onDecline(job.id, payload); }}
+          onCancel={() => setDeclineOpen(false)}
+        />
+      )}
     </article>
   );
 }
@@ -490,6 +544,382 @@ function CustomerDelivery({ t, initial, onPosted }) {
 }
 
 const DRIVER_VEHICLE_TYPES = ['car', 'van', 'pickup', 'box_truck', 'cargo_bike'];
+const EQUIPMENT_KEYS = ['stairs', 'loadingHelp', 'dolly', 'liftgate', 'parkingRequired', 'temperatureControl'];
+const DOCUMENT_TYPES = ['license', 'insurance', 'registration', 'vehicle_registration', 'other'];
+
+// Group 9 Slice A (item 454): the service area is a structured object, not
+// free text. These helpers convert between the object the server stores
+// and the comma-separated inputs the driver types.
+function buildServiceArea(area) {
+  const list = (value) => String(value || '').split(',').map((entry) => entry.trim()).filter(Boolean);
+  const result = {};
+  const states = list(area.states);
+  if (states.length) result.states = states.map((state) => state.toUpperCase());
+  const cities = list(area.cities);
+  if (cities.length) result.cities = cities;
+  const postalCodes = list(area.postalCodes);
+  if (postalCodes.length) result.postalCodes = postalCodes;
+  const lat = Number(area.centerLat);
+  const lng = Number(area.centerLng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) result.center = { lat, lng };
+  const radius = Number(area.radiusMiles);
+  if (Number.isFinite(radius) && radius > 0) result.radiusMiles = radius;
+  return result;
+}
+
+function serviceAreaToForm(area) {
+  if (!area || typeof area !== 'object') return { states: '', cities: '', postalCodes: '', radiusMiles: '', centerLat: '', centerLng: '' };
+  return {
+    states: Array.isArray(area.states) ? area.states.join(', ') : '',
+    cities: Array.isArray(area.cities) ? area.cities.join(', ') : '',
+    postalCodes: Array.isArray(area.postalCodes) ? area.postalCodes.join(', ') : '',
+    radiusMiles: area.radiusMiles != null ? String(area.radiusMiles) : '',
+    centerLat: area.center?.lat != null ? String(area.center.lat) : '',
+    centerLng: area.center?.lng != null ? String(area.center.lng) : '',
+  };
+}
+
+function serviceAreaSummary(area, t) {
+  if (!area || typeof area !== 'object' || Object.keys(area).length === 0) return t('delivery.driver.serviceAreaEverywhere');
+  const parts = [];
+  if (Array.isArray(area.states) && area.states.length) parts.push(area.states.join(', '));
+  if (Array.isArray(area.cities) && area.cities.length) parts.push(area.cities.join(', '));
+  if (Array.isArray(area.postalCodes) && area.postalCodes.length) parts.push(area.postalCodes.join(', '));
+  if (area.radiusMiles) parts.push(t('delivery.driver.serviceAreaRadiusValue', { miles: area.radiusMiles }));
+  return parts.join(' · ') || t('delivery.driver.serviceAreaEverywhere');
+}
+
+function ServiceAreaFields({ t, area, onChange }) {
+  const set = (key, value) => onChange({ ...area, [key]: value });
+  return (
+    <fieldset className="delivery-fieldset">
+      <legend>{t('delivery.driver.serviceAreaTitle')}</legend>
+      <div className="delivery-options-grid">
+        <label className="delivery-field">{t('delivery.driver.serviceAreaStates')}
+          <input className="delivery-input" value={area.states} onChange={(event) => set('states', event.target.value)} placeholder={t('delivery.driver.serviceAreaStatesPlaceholder')} />
+        </label>
+        <label className="delivery-field">{t('delivery.driver.serviceAreaCities')}
+          <input className="delivery-input" value={area.cities} onChange={(event) => set('cities', event.target.value)} placeholder={t('delivery.driver.serviceAreaCitiesPlaceholder')} />
+        </label>
+        <label className="delivery-field">{t('delivery.driver.serviceAreaPostalCodes')}
+          <input className="delivery-input" value={area.postalCodes} onChange={(event) => set('postalCodes', event.target.value)} placeholder={t('delivery.driver.serviceAreaPostalCodesPlaceholder')} />
+        </label>
+      </div>
+      <div className="delivery-options-grid">
+        <label className="delivery-field">{t('delivery.driver.serviceAreaRadius')}
+          <input className="delivery-input" type="number" min="0" step="any" value={area.radiusMiles} onChange={(event) => set('radiusMiles', event.target.value)} />
+        </label>
+        <label className="delivery-field">{t('delivery.driver.serviceAreaCenterLat')}
+          <input className="delivery-input" type="number" step="any" value={area.centerLat} onChange={(event) => set('centerLat', event.target.value)} />
+        </label>
+        <label className="delivery-field">{t('delivery.driver.serviceAreaCenterLng')}
+          <input className="delivery-input" type="number" step="any" value={area.centerLng} onChange={(event) => set('centerLng', event.target.value)} />
+        </label>
+      </div>
+      <p className="delivery-estimate-defaults">{t('delivery.driver.serviceAreaHint')}</p>
+    </fieldset>
+  );
+}
+
+// Group 9 Slice A (item 455): the driver-facing readiness checklist. It
+// renders the same readiness gate the server already enforces on claim
+// and assign (capabilityFailures) as pass/fail/warn/not-applicable rows,
+// each pointing at the section that fixes it. Advisory only: it changes
+// no gate and no claim behavior.
+const READINESS_DETAIL_KEYS = new Set([
+  'missing_profile', 'no_payload_recorded', 'no_dimensions_recorded', 'no_expiry_recorded',
+  'document_expired', 'document_expiring', 'no_documents', 'no_active_vehicle',
+]);
+const READINESS_FIX_TARGETS = {
+  profile: 'driver-service-area', vehicles: 'driver-vehicles', documents: 'driver-documents', 'service-area': 'driver-service-area',
+};
+
+function DriverReadinessChecklist({ t }) {
+  const [checklist, setChecklist] = useState(null);
+  const [error, setError] = useState('');
+  const load = useCallback(async () => {
+    setError('');
+    try {
+      const response = await getDriverReadiness();
+      setChecklist(response.checklist || []);
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.load'));
+    }
+  }, [t]);
+  useEffect(() => { load(); }, [load]);
+  const statusIcon = (status) => {
+    if (status === 'pass') return <CheckCircle2 size={17} aria-hidden="true" />;
+    if (status === 'fail') return <XCircle size={17} aria-hidden="true" />;
+    if (status === 'warn') return <AlertTriangle size={17} aria-hidden="true" />;
+    return <Clock3 size={17} aria-hidden="true" />;
+  };
+  return (
+    <section className="delivery-panel" aria-labelledby="driver-readiness-title">
+      <div className="delivery-panel__heading">
+        <div className="delivery-icon-badge delivery-icon-badge--green"><ShieldCheck size={20} aria-hidden="true" /></div>
+        <div><h2 id="driver-readiness-title">{t('delivery.driver.readinessTitle')}</h2><p>{t('delivery.driver.readinessBody')}</p></div>
+      </div>
+      {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
+      {checklist === null && !error ? <p className="delivery-estimate-defaults">{t('delivery.helper.loading')}</p> : (
+        <ul className="delivery-checklist">
+          {checklist.map((item) => (
+            <li key={item.key} className={`delivery-checklist__row delivery-checklist__row--${item.status}`}>
+              <span className="delivery-checklist__icon" aria-hidden="true">{statusIcon(item.status)}</span>
+              <span className="delivery-checklist__text">
+                <strong>{t(`delivery.driver.readiness.${item.key}`)}</strong>
+                <span>{t(`delivery.driver.readinessStatus.${item.status}`)}</span>
+                {item.detail && READINESS_DETAIL_KEYS.has(item.detail) && <span>{t(`delivery.driver.readinessDetails.${item.detail}`)}</span>}
+              </span>
+              {item.status !== 'pass' && item.fix && (
+                <a className="delivery-checklist__fix" href={`#${READINESS_FIX_TARGETS[item.fix] || item.fix}`}>{t('delivery.driver.readinessFix')}</a>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// Group 9 Slice A (item 452): the driver's own vehicles, with identity
+// (plate, make, model, year) and an active vehicle shown on the profile.
+function DriverVehiclesSection({ t, onChanged }) {
+  const [vehicles, setVehicles] = useState([]);
+  const [activeVehicleId, setActiveVehicleId] = useState(null);
+  const [form, setForm] = useState({ vehicleType: 'car', maxPayloadLbs: '', plate: '', make: '', model: '', year: '' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const load = useCallback(async () => {
+    try {
+      const response = await listDriverVehicles();
+      setVehicles(response.vehicles || []);
+      setActiveVehicleId(response.activeVehicleId || null);
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.load'));
+    }
+  }, [t]);
+  useEffect(() => { load(); }, [load]);
+  const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await createDriverVehicle({
+        vehicleType: form.vehicleType,
+        maxPayloadLbs: form.maxPayloadLbs === '' ? null : Number(form.maxPayloadLbs),
+        plate: form.plate, make: form.make, model: form.model,
+        year: form.year === '' ? null : Number(form.year),
+      });
+      setForm({ vehicleType: 'car', maxPayloadLbs: '', plate: '', make: '', model: '', year: '' });
+      await load();
+      onChanged?.();
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.status'));
+    } finally { setBusy(false); }
+  };
+  const activate = async (id) => {
+    setBusy(true);
+    setError('');
+    try { await activateDriverVehicle(id); await load(); onChanged?.(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusy(false); }
+  };
+  const remove = async (id) => {
+    setBusy(true);
+    setError('');
+    try { await deleteDriverVehicle(id); await load(); onChanged?.(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusy(false); }
+  };
+  return (
+    <section className="delivery-panel" id="driver-vehicles" aria-labelledby="driver-vehicles-title">
+      <div className="delivery-panel__heading">
+        <div className="delivery-icon-badge"><Truck size={20} aria-hidden="true" /></div>
+        <div><h2 id="driver-vehicles-title">{t('delivery.driver.vehiclesTitle')}</h2><p>{t('delivery.driver.vehiclesBody')}</p></div>
+      </div>
+      {vehicles.length === 0 ? <p className="delivery-empty-copy">{t('delivery.driver.vehiclesEmpty')}</p> : (
+        <ul className="delivery-mini-list">
+          {vehicles.map((vehicle) => (
+            <li key={vehicle.id} className="delivery-mini-row">
+              <span>
+                <strong>{[vehicle.make, vehicle.model].filter(Boolean).join(' ') || t(`delivery.ui.vehicleTypes.${vehicle.vehicle_type}`)}</strong>
+                <span>{[vehicle.plate, vehicle.year ? String(vehicle.year) : null].filter(Boolean).join(' · ')}</span>
+              </span>
+              <span className="delivery-mini-actions">
+                {String(vehicle.id) === String(activeVehicleId)
+                  ? <span className="delivery-onboard-badge"><ShieldCheck size={15} aria-hidden="true" />{t('delivery.driver.vehicleActive')}</span>
+                  : <button type="button" className="delivery-button delivery-button--secondary" onClick={() => activate(vehicle.id)} disabled={busy}>{t('delivery.driver.vehicleSetActive')}</button>}
+                <button type="button" className="delivery-button delivery-button--secondary" onClick={() => remove(vehicle.id)} disabled={busy}>{t('delivery.driver.vehicleRemove')}</button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form className="delivery-form" onSubmit={submit}>
+        <div className="delivery-options-grid">
+          <label className="delivery-field">{t('delivery.ui.vehicleType')}
+            <select className="delivery-input" value={form.vehicleType} onChange={(event) => set('vehicleType', event.target.value)}>
+              {DRIVER_VEHICLE_TYPES.map((type) => <option key={type} value={type}>{t(`delivery.ui.vehicleTypes.${type}`)}</option>)}
+            </select>
+          </label>
+          <label className="delivery-field">{t('delivery.ui.maxPayloadLbs')}
+            <input className="delivery-input" type="number" min="0" step="any" value={form.maxPayloadLbs} onChange={(event) => set('maxPayloadLbs', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.driver.vehiclePlate')}
+            <input className="delivery-input" value={form.plate} onChange={(event) => set('plate', event.target.value)} />
+          </label>
+        </div>
+        <div className="delivery-options-grid">
+          <label className="delivery-field">{t('delivery.driver.vehicleMake')}
+            <input className="delivery-input" value={form.make} onChange={(event) => set('make', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.driver.vehicleModel')}
+            <input className="delivery-input" value={form.model} onChange={(event) => set('model', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.driver.vehicleYear')}
+            <input className="delivery-input" type="number" min="1900" step="1" value={form.year} onChange={(event) => set('year', event.target.value)} />
+          </label>
+        </div>
+        {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
+        <button type="submit" className="delivery-button delivery-button--primary" disabled={busy}>
+          {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <Truck size={17} aria-hidden="true" />}
+          {t('delivery.driver.vehicleAdd')}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+// Group 9 Slice A (item 453): the driver's own documents with expiry
+// dates. Records plus renewal reminders only; no verification workflow.
+function DriverDocumentsSection({ t, onChanged }) {
+  const { i18n } = useTranslation();
+  const [documents, setDocuments] = useState([]);
+  const [form, setForm] = useState({ documentType: 'license', title: '', expiresAt: '', notes: '' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const load = useCallback(async () => {
+    try {
+      const response = await listDriverDocuments();
+      setDocuments(response.documents || []);
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.load'));
+    }
+  }, [t]);
+  useEffect(() => { load(); }, [load]);
+  const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await createDriverDocument({
+        documentType: form.documentType, title: form.title,
+        expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
+        notes: form.notes,
+      });
+      setForm({ documentType: 'license', title: '', expiresAt: '', notes: '' });
+      await load();
+      onChanged?.();
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.status'));
+    } finally { setBusy(false); }
+  };
+  const remove = async (id) => {
+    setBusy(true);
+    setError('');
+    try { await deleteDriverDocument(id); await load(); onChanged?.(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusy(false); }
+  };
+  return (
+    <section className="delivery-panel" id="driver-documents" aria-labelledby="driver-documents-title">
+      <div className="delivery-panel__heading">
+        <div className="delivery-icon-badge"><FileText size={20} aria-hidden="true" /></div>
+        <div><h2 id="driver-documents-title">{t('delivery.driver.documentsTitle')}</h2><p>{t('delivery.driver.documentsBody')}</p></div>
+      </div>
+      {documents.length === 0 ? <p className="delivery-empty-copy">{t('delivery.driver.documentsEmpty')}</p> : (
+        <ul className="delivery-mini-list">
+          {documents.map((doc) => (
+            <li key={doc.id} className="delivery-mini-row">
+              <span>
+                <strong>{doc.title}</strong>
+                <span>{t(`delivery.driver.documentTypes.${doc.document_type}`)}</span>
+                <span>
+                  {doc.expires_at
+                    ? `${deliveryDate(doc.expires_at, i18n.language)} · ${doc.days_until_expiry < 0 ? t('delivery.driver.documentExpired') : t('delivery.driver.documentExpiresIn', { days: doc.days_until_expiry })}`
+                    : t('delivery.driver.documentNoExpiry')}
+                </span>
+              </span>
+              <span className="delivery-mini-actions">
+                <button type="button" className="delivery-button delivery-button--secondary" onClick={() => remove(doc.id)} disabled={busy}>{t('delivery.driver.documentRemove')}</button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form className="delivery-form" onSubmit={submit}>
+        <div className="delivery-options-grid">
+          <label className="delivery-field">{t('delivery.driver.documentType')}
+            <select className="delivery-input" value={form.documentType} onChange={(event) => set('documentType', event.target.value)}>
+              {DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{t(`delivery.driver.documentTypes.${type}`)}</option>)}
+            </select>
+          </label>
+          <label className="delivery-field">{t('delivery.driver.documentTitle')}
+            <input className="delivery-input" value={form.title} onChange={(event) => set('title', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.driver.documentExpiresAt')}
+            <input className="delivery-input" type="date" value={form.expiresAt} onChange={(event) => set('expiresAt', event.target.value)} />
+          </label>
+        </div>
+        {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
+        <button type="submit" className="delivery-button delivery-button--primary" disabled={busy}>
+          {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <FileText size={17} aria-hidden="true" />}
+          {t('delivery.driver.documentAdd')}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+// Group 9 Slice A (item 454): the driver's service area after approval.
+// Editing reuses the same structured fields as onboarding and patches only
+// the service area, so approval and capacity are never touched.
+function DriverServiceAreaSection({ t, profile, onChanged }) {
+  const [area, setArea] = useState(() => serviceAreaToForm(profile?.service_area));
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => { setArea(serviceAreaToForm(profile?.service_area)); }, [profile?.service_area]);
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setSaved(false);
+    setError('');
+    try {
+      await updateDriverProfile({ serviceArea: buildServiceArea(area) });
+      setSaved(true);
+      onChanged?.();
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.status'));
+    } finally { setBusy(false); }
+  };
+  return (
+    <section className="delivery-panel" id="driver-service-area" aria-labelledby="driver-service-area-title">
+      <div className="delivery-panel__heading">
+        <div className="delivery-icon-badge"><MapPin size={20} aria-hidden="true" /></div>
+        <div>
+          <h2 id="driver-service-area-title">{t('delivery.driver.serviceAreaTitle')}</h2>
+          <p>{t('delivery.driver.serviceAreaCurrent', { area: serviceAreaSummary(profile?.service_area, t) })}</p>
+        </div>
+      </div>
+      <form className="delivery-form" onSubmit={submit}>
+        <ServiceAreaFields t={t} area={area} onChange={setArea} />
+        {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
+        {saved && <p className="delivery-alert delivery-alert--success" role="status">{t('delivery.driver.serviceAreaSaved')}</p>}
+        <button type="submit" className="delivery-button delivery-button--primary" disabled={busy}>
+          {busy ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <MapPin size={17} aria-hidden="true" />}
+          {t('delivery.driver.serviceAreaSave')}
+        </button>
+      </form>
+    </section>
+  );
+}
 
 // P2-4-F10: self-serve driver onboarding. Drivers without an ops-provisioned
 // driver profile register their own capability profile here; the profile is
@@ -503,15 +933,26 @@ function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
     cargoLengthIn: '',
     cargoWidthIn: '',
     cargoHeightIn: '',
-    equipment: '',
-    serviceArea: '',
+    // Group 9 Slice A (item 452): equipment is an object of boolean keys
+    // from the allowed list, not free text. The old free-text input 400d
+    // every submission that typed anything.
+    equipment: { stairs: false, loadingHelp: false, dolly: false, liftgate: false, parkingRequired: false, temperatureControl: false },
+    maxPieces: '',
+    fragileSupported: false,
+    perishableSupported: false,
+    insuranceExpiresAt: '',
     insuranceAcknowledged: false,
   });
+  // Group 9 Slice A (item 454): the service area is a structured object
+  // (states/cities/postal codes, optional radius around a center), not
+  // the free-text string the old form stored.
+  const [area, setArea] = useState({ states: '', cities: '', postalCodes: '', radiusMiles: '', centerLat: '', centerLng: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
 
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const setEquipment = (key, value) => setForm((prev) => ({ ...prev, equipment: { ...prev.equipment, [key]: value } }));
 
   const submit = async (event) => {
     event.preventDefault();
@@ -535,7 +976,11 @@ function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
         cargoWidthIn: form.cargoWidthIn === '' ? null : Number(form.cargoWidthIn),
         cargoHeightIn: form.cargoHeightIn === '' ? null : Number(form.cargoHeightIn),
         equipment: form.equipment,
-        serviceArea: form.serviceArea,
+        serviceArea: buildServiceArea(area),
+        maxPieces: form.maxPieces === '' ? null : Number(form.maxPieces),
+        fragileSupported: form.fragileSupported,
+        perishableSupported: form.perishableSupported,
+        insuranceExpiresAt: form.insuranceExpiresAt ? new Date(form.insuranceExpiresAt).toISOString() : null,
         insuranceAcknowledged: true,
       });
       setDone(true);
@@ -588,12 +1033,27 @@ function DriverOnboarding({ t, profile, onRegistered, canRegister = true }) {
             <input className="delivery-input" type="number" min="0" step="any" value={form.cargoHeightIn} onChange={(event) => set('cargoHeightIn', event.target.value)} />
           </label>
         </div>
-        <label className="delivery-field">{t('delivery.driver.equipment')}
-          <input className="delivery-input" value={form.equipment} onChange={(event) => set('equipment', event.target.value)} placeholder={t('delivery.driver.equipmentPlaceholder')} />
-        </label>
-        <label className="delivery-field">{t('delivery.driver.serviceArea')}
-          <input className="delivery-input" value={form.serviceArea} onChange={(event) => set('serviceArea', event.target.value)} placeholder={t('delivery.driver.serviceAreaPlaceholder')} />
-        </label>
+        <div className="delivery-options-grid">
+          <label className="delivery-field">{t('delivery.driver.maxPieces')}
+            <input className="delivery-input" type="number" min="1" step="1" value={form.maxPieces} onChange={(event) => set('maxPieces', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.driver.insuranceExpiresAt')}
+            <input className="delivery-input" type="date" value={form.insuranceExpiresAt} onChange={(event) => set('insuranceExpiresAt', event.target.value)} />
+          </label>
+        </div>
+        <fieldset className="delivery-fieldset">
+          <legend>{t('delivery.driver.equipment')}</legend>
+          <div className="delivery-checkbox-row">
+            {EQUIPMENT_KEYS.map((key) => (
+              <label key={key}><input type="checkbox" checked={form.equipment[key] === true} onChange={(event) => setEquipment(key, event.target.checked)} /> {t(`delivery.driver.equipmentKeys.${key}`)}</label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="delivery-checkbox-row">
+          <label><input type="checkbox" checked={form.fragileSupported} onChange={(event) => set('fragileSupported', event.target.checked)} /> {t('delivery.ui.fragileSupported')}</label>
+          <label><input type="checkbox" checked={form.perishableSupported} onChange={(event) => set('perishableSupported', event.target.checked)} /> {t('delivery.ui.perishableSupported')}</label>
+        </div>
+        <ServiceAreaFields t={t} area={area} onChange={setArea} />
         <label className="delivery-check">
           <input type="checkbox" checked={form.insuranceAcknowledged} onChange={(event) => set('insuranceAcknowledged', event.target.checked)} />
           <span>{t('delivery.driver.insuranceAck')}</span>
@@ -627,6 +1087,7 @@ function HelperDelivery({ t }) {
   // P2-4-F10: the helper's driver profile; claiming stays gated until ops
   // approves a profile (self-serve registration below).
   const [driverProfile, setDriverProfile] = useState(null);
+  const [activeVehicle, setActiveVehicle] = useState(null);
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [payouts, setPayouts] = useState(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
@@ -636,8 +1097,10 @@ function HelperDelivery({ t }) {
     try {
       const response = await getDriverProfile();
       setDriverProfile(response.profile || null);
+      setActiveVehicle(response.activeVehicle || null);
     } catch {
       setDriverProfile(null);
+      setActiveVehicle(null);
     }
   }, []);
 
@@ -692,6 +1155,14 @@ function HelperDelivery({ t }) {
     setBusyId(String(id));
     setError('');
     try { await updateDeliveryStatus(id, status, proof); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
+  };
+
+  // Group 9 Slice B (item 460): passing on an offer records the reason
+  // for dispatch. It never blocks the driver: the job stays claimable.
+  const decline = async (id, payload) => {
+    setBusyId(String(id));
+    setError('');
+    try { await declineDeliveryJob(id, payload); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
   };
 
   // Availability gates the open-jobs FEED only: an offline driver sees no
@@ -756,6 +1227,11 @@ function HelperDelivery({ t }) {
           {isDriver && driverProfile?.approved === true && !onboardingForced && (
             <>
               <p className="delivery-onboard-badge"><ShieldCheck size={15} aria-hidden="true" />{t('delivery.driver.verified')}</p>
+              <p className="delivery-estimate-defaults">
+                {activeVehicle
+                  ? t('delivery.driver.activeVehicle', { vehicle: [activeVehicle.make, activeVehicle.model, activeVehicle.plate].filter(Boolean).join(' · ') })
+                  : t('delivery.driver.noActiveVehicle')}
+              </p>
               <label className="delivery-check delivery-availability">
                 <input type="checkbox" checked={driverProfile.available === true} disabled={availabilityBusy} onChange={(event) => toggleAvailability(event.target.checked)} />
                 <span>{t('delivery.driver.availability')}</span>
@@ -774,11 +1250,28 @@ function HelperDelivery({ t }) {
                     <div><dt>{t('delivery.driver.earningsVoided')}</dt><dd>{deliveryMoney(payoutTotals.voided, i18n.language)}</dd></div>
                   </dl>
                 )}
+                {/* Group 9 Slice G (item 500): the driver's record
+                  surfaces — payouts, weekly reports, shifts. */}
+                <p>
+                  <Link to="/delivery/payouts">{t('delivery.driverPayoutHistory.viewHistory')}</Link>
+                  {' · '}
+                  <Link to="/delivery/weekly-report">{t('delivery.weeklyReport.link')}</Link>
+                  {' · '}
+                  <Link to="/delivery/shifts">{t('delivery.shift.link')}</Link>
+                </p>
               </section>
             </>
           )}
-          {canDrive && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
-          <section><div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
+          {driverProfile && (
+            <>
+              <DriverReadinessChecklist t={t} />
+              <DriverServiceAreaSection t={t} profile={driverProfile} onChanged={loadDriverProfile} />
+              <DriverVehiclesSection t={t} onChanged={loadDriverProfile} />
+              <DriverDocumentsSection t={t} onChanged={loadDriverProfile} />
+            </>
+          )}
+          {canDrive && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
+          <section><div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
         </>
       )}
     </div>

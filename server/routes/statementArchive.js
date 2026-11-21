@@ -35,7 +35,7 @@ const { creditExportLimiter } = require('../middleware/rateLimiter');
 const { getDownloadStream, createSignedUrl } = require('../services/statementArtifactService');
 const { assertScopeStanding } = require('./settlementStatementArchive');
 const { hashDocument } = require('../services/creditStatementService');
-const { memberFinanceReadStanding, memberHasFinanceRead } = require('../services/access/financeStanding');
+const { memberFinanceReadStanding } = require('../services/access/financeStanding');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SETTLEMENT_PRODUCTS = new Set(['restaurant_settlement', 'helper_earnings', 'business']);
@@ -68,27 +68,44 @@ function documentIdOr404(value) {
   return String(value).toLowerCase();
 }
 
-// Record-level authorization: the document must belong to the requester.
-// Returns the document row; throws 404 otherwise (no leakage about other
-// customers' documents).
-async function requireOwnedDocument(documentId, userId) {
+// Record-level authorization: the document must belong to the requester,
+// or be a restaurant wallet statement the requester may read through the
+// restaurant's business (owner, finance manager, or a live delegated
+// statements.view override). Returns the document plus the standing it was
+// reached under ('owner', 'finance', or 'issued_statements'); throws 404
+// otherwise (no leakage about other customers' documents).
+async function requireOwnedDocument(documentId, userId, options = {}) {
   const { rows: [document] } = await pool.query(
     `SELECT id, customer_id, product, account_id, currency_code,
             period_from, period_to, generated_at, document, content_hash
        FROM credit_statement_documents
-      WHERE id = $1 AND customer_id = $2`,
-    [documentId, userId]);
+      WHERE id = $1`,
+    [documentId]);
   if (!document) {
     throw new AppError('Statement document not found', 404, 'statement_document_not_found');
   }
-  return document;
+  if (document.product === 'restaurant') {
+    const { standing } = await assertRestaurantAccountStanding(userId, document.account_id, options);
+    return { document, standing };
+  }
+  if (String(document.customer_id) !== String(userId)) {
+    throw new AppError('Statement document not found', 404, 'statement_document_not_found');
+  }
+  return { document, standing: 'owner' };
 }
 
 // For restaurant-product documents, the requester must additionally have
 // standing with the restaurant account: either they own the wallet the
 // document was issued for, or they are an owner / active member of the
 // restaurant's business (membership shape mirrors requireRestaurantAccess).
-async function assertRestaurantAccountStanding(userId, walletAccountId) {
+// G-8: a live expirable statements.view override admits a non-manager member
+// to issued restaurant statements, read-only. The override is read fresh on
+// every call so expiry or revocation closes the archive immediately; the
+// G-19 location boundary inside memberFinanceReadStanding still applies
+// (a location-scoped member reads no restaurant-wide statement).
+// Returns the scope row plus the standing reached ('finance', or
+// 'issued_statements' for override-only readers).
+async function assertRestaurantAccountStanding(userId, walletAccountId, { allowDelegated = true } = {}) {
   const { rows } = await pool.query(
     `SELECT a.customer_id AS wallet_customer_id,
             fr.id AS restaurant_id,
@@ -117,21 +134,46 @@ async function assertRestaurantAccountStanding(userId, walletAccountId) {
     String(row.business_owner_id) === String(userId)
     || String(row.restaurant_owner_id) === String(userId)
   );
-  const hasFinanceRead = row && !isWalletCustomer && !isOwner
-    ? await memberHasFinanceRead(pool, {
+  const standing = row && !isWalletCustomer && !isOwner
+    ? await memberFinanceReadStanding(pool, {
       businessId: row.business_id,
       userId,
       restaurantId: row.restaurant_id,
+      allowDelegated,
     })
-    : false;
-  if (!row || (!isWalletCustomer && !isOwner && !hasFinanceRead)) {
+    : 'finance';
+  if (!row || (!isWalletCustomer && !isOwner && !standing)) {
     throw new AppError('Statement document not found', 404, 'statement_document_not_found');
   }
-  return row;
+  return { row, standing };
+}
+
+// Wallet accounts whose restaurant statements a live statements.view
+// override opens for this user, and nothing else: only standing derived
+// from the override ('issued_statements') is collected, so owners and
+// finance managers keep their existing customer-scoped list contract.
+async function delegatedRestaurantWalletAccountIds(userId) {
+  const { rows } = await pool.query(
+    `SELECT a.id AS wallet_account_id, fr.id AS restaurant_id, fr.business_id
+       FROM food_customer_wallet_accounts a
+       JOIN food_restaurants fr ON fr.id = a.restaurant_id
+       JOIN businesses b ON b.id = fr.business_id
+      WHERE b.user_id = $1 OR fr.owner_user_id = $1 OR EXISTS (
+        SELECT 1 FROM business_members bm WHERE bm.business_id = b.id
+          AND bm.member_id = $1 AND bm.status = 'active')`,
+    [userId]);
+  const ids = [];
+  for (const row of rows) {
+    const standing = await memberFinanceReadStanding(pool, {
+      businessId: row.business_id, userId, restaurantId: row.restaurant_id, allowDelegated: true,
+    });
+    if (standing === 'issued_statements') ids.push(Number(row.wallet_account_id));
+  }
+  return ids;
 }
 
 async function requireAuthorizedDocument(documentId, userId) {
-  const document = await requireOwnedDocument(documentId, userId);
+  const { document } = await requireOwnedDocument(documentId, userId);
   if (document.product === 'restaurant') {
     await assertRestaurantAccountStanding(userId, document.account_id);
   }
@@ -400,17 +442,23 @@ async function nestedArchiveItem(document, artifacts, amendmentData) {
 // customer predicate and restaurant-standing checks apply, and unknown ids
 // are indistinguishable from missing ones (404).
 async function resolveArchiveEntry(documentId, userId, options) {
-  const { rows: [original] } = await pool.query(
-    `SELECT id, customer_id, product, account_id, currency_code,
-            period_from, period_to, generated_at, document, content_hash
-     FROM credit_statement_documents
-     WHERE id = $1 AND customer_id = $2`,
-    [documentId, userId]);
+  // A credit original the requester may not read (wrong owner, no standing)
+  // falls through to the settlement archive and amendment versions below,
+  // which end in the same 404 when nothing matches.
+  let original = null;
+  let standing = null;
+  try {
+    ({ document: original, standing } = await requireOwnedDocument(documentId, userId, options));
+  } catch (error) {
+    if (!(error instanceof AppError) || error.status !== 404) throw error;
+  }
   if (original) {
-    if (original.product === 'restaurant') {
-      await assertRestaurantAccountStanding(userId, original.account_id);
-    }
-    return { kind: 'original', document: verifyDocument(original), version: null };
+    return {
+      kind: 'original',
+      document: verifyDocument(original),
+      version: null,
+      readOnly: standing === 'issued_statements',
+    };
   }
   const { rows: [settlement] } = await pool.query(
     'SELECT * FROM settlement_statement_documents WHERE id = $1', [documentId]);
@@ -423,8 +471,8 @@ async function resolveArchiveEntry(documentId, userId, options) {
             d.period_from, d.period_to
      FROM statement_amendment_versions v
      JOIN credit_statement_documents d ON d.id = v.original_document_id
-     WHERE v.id = $1 AND d.customer_id = $2`,
-    [documentId, userId]);
+     WHERE v.id = $1`,
+    [documentId]);
   if (!version) {
     const { rows: [settlementVersion] } = await pool.query(
       `SELECT v.*, d.product, d.currency_code, d.period_from, d.period_to,
@@ -437,10 +485,21 @@ async function resolveArchiveEntry(documentId, userId, options) {
     const row = normalizeSettlementRow(verifyDocument(settlementVersion));
     return { kind: 'amendment', document: row, version: row, readOnly };
   }
+  // Amendment versions inherit the original's authorization: the owner, or
+  // restaurant standing (owner, finance manager, or a live delegated
+  // override). Other products stay owner-only.
+  let versionStanding = 'owner';
   if (version.product === 'restaurant') {
-    await assertRestaurantAccountStanding(userId, version.account_id);
+    ({ standing: versionStanding } = await assertRestaurantAccountStanding(userId, version.account_id, options));
+  } else if (String(version.customer_id) !== String(userId)) {
+    throw new AppError('Statement document not found', 404, 'statement_document_not_found');
   }
-  return { kind: 'amendment', document: verifyDocument(version), version };
+  return {
+    kind: 'amendment',
+    document: verifyDocument(version),
+    version,
+    readOnly: versionStanding === 'issued_statements',
+  };
 }
 
 // Picks the artifact to serve: a ready original in the requested language
@@ -617,8 +676,21 @@ function createStatementArchiveRouter({ storage } = {}) {
         }
         return res.json({ items, page, perPage, total, totalPages: Math.max(1, Math.ceil(total / perPage)), paginationUnit: 'originals' });
       }
+      // G-8: a live statements.view override also admits the auditor to the
+      // restaurant wallet statements of exactly the businesses the override
+      // covers. Only override-derived scopes are added here: owners and
+      // finance managers keep the existing customer-scoped list contract.
+      const admitsRestaurant = product === undefined || String(product) === 'restaurant';
+      const delegatedAccountIds = admitsRestaurant
+        ? await delegatedRestaurantWalletAccountIds(req.user.id)
+        : [];
       const filters = [];
       const params = [req.user.id];
+      let delegatedParam = null;
+      if (delegatedAccountIds.length) {
+        params.push(delegatedAccountIds);
+        delegatedParam = `$${params.length}`;
+      }
       if (product !== undefined) {
         if (!PRODUCTS.has(String(product))) {
           throw new AppError('Invalid statement product', 400, 'statement_archive_invalid_product');
@@ -665,18 +737,20 @@ function createStatementArchiveRouter({ storage } = {}) {
         WHERE a.id = d.account_id
           AND (a.customer_id = d.customer_id OR b.user_id = d.customer_id
                OR fr.owner_user_id = d.customer_id OR bm.member_id IS NOT NULL)
-      ))`);
+      )${delegatedParam ? ` OR d.account_id = ANY(${delegatedParam}::bigint[])` : ''})`);
 
       const perPage = Math.min(MAX_PER_PAGE, Math.max(1, parsePositiveInt(req.query.per_page, DEFAULT_PER_PAGE)));
       const page = Math.max(1, parsePositiveInt(req.query.page, 1));
       const offset = (page - 1) * perPage;
-      const where = `WHERE d.customer_id = $1${filters.length ? ` AND ${filters.join(' AND ')}` : ''}`;
+      const where = delegatedParam
+        ? `WHERE (d.customer_id = $1 OR (d.product = 'restaurant' AND d.account_id = ANY(${delegatedParam}::bigint[])))${filters.length ? ` AND ${filters.join(' AND ')}` : ''}`
+        : `WHERE d.customer_id = $1${filters.length ? ` AND ${filters.join(' AND ')}` : ''}`;
       const order = 'ORDER BY d.period_to DESC, d.period_from DESC, d.generated_at DESC, d.id DESC';
 
       const { rows: [{ total }] } = await pool.query(
         `SELECT COUNT(*)::int AS total FROM credit_statement_documents d ${where}`, params);
       const { rows: documents } = await pool.query(
-        `SELECT d.id, d.product, d.account_id, d.currency_code, d.period_from,
+        `SELECT d.id, d.customer_id, d.product, d.account_id, d.currency_code, d.period_from,
                 d.period_to, d.generated_at, d.document, d.content_hash,
                 wa.restaurant_id AS restaurant_id
            FROM credit_statement_documents d
@@ -707,7 +781,10 @@ function createStatementArchiveRouter({ storage } = {}) {
       const amendmentData = await attachAmendmentVersions(documents.map((document) => document.id));
       const items = [];
       for (const document of documents) {
-        items.push(await nestedArchiveItem(document, artifactsByDocument.get(document.id) || [], amendmentData));
+        const item = await nestedArchiveItem(document, artifactsByDocument.get(document.id) || [], amendmentData);
+        // Items the requester reaches only through a live override are
+        // read-only; the client hides link minting, entries and reports.
+        items.push({ ...item, readOnly: String(document.customer_id) !== String(req.user.id) });
       }
       res.json({
         items,

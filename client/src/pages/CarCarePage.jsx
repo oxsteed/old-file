@@ -55,6 +55,10 @@ export default function CarCarePage() {
   const [editNickname, setEditNickname] = useState('');
   const [editYear,    setEditYear]    = useState('');
   const [editNotes,   setEditNotes]   = useState('');
+  // Group 1, item 27: service-mileage fields that drive the reminders.
+  const [editMileage, setEditMileage] = useState('');
+  const [editOilMile, setEditOilMile] = useState('');
+  const [editServiceDate, setEditServiceDate] = useState('');
   const [editSaving,  setEditSaving]  = useState(false);
   const [editError,   setEditError]   = useState('');
 
@@ -189,6 +193,9 @@ export default function CarCarePage() {
     setEditNickname(v.nickname || '');
     setEditYear(v.year ? String(v.year) : '');
     setEditNotes(v.notes || '');
+    setEditMileage(v.mileage != null ? String(v.mileage) : '');
+    setEditOilMile(v.last_oil_change_mile != null ? String(v.last_oil_change_mile) : '');
+    setEditServiceDate(v.last_service_date ? String(v.last_service_date).slice(0, 10) : '');
     setEditError('');
   }
   async function handleEditSave() {
@@ -199,6 +206,9 @@ export default function CarCarePage() {
         nickname: editNickname.trim() || undefined,
         year:     editYear     || undefined,
         notes:    editNotes.trim() || undefined,
+        mileage:  editMileage.trim() === '' ? undefined : Number(editMileage),
+        last_oil_change_mile: editOilMile.trim() === '' ? undefined : Number(editOilMile),
+        last_service_date: editServiceDate || undefined,
       });
       setGarage(prev => prev.map(v => v.id === data.id ? { ...v, ...data } : v));
       setEditItem(null);
@@ -410,6 +420,26 @@ export default function CarCarePage() {
                   placeholder={t('dashboard.carCare.notesPlaceholder')} maxLength={500} />
               </div>
 
+              {/* Group 1, item 27: record the mileage and service dates that
+                  the service reminders are derived from. */}
+              <div className="cc-form-group">
+                <label>{t('dashboard.carCare.mileage')}</label>
+                <input type="number" min="0" step="1" value={editMileage}
+                  onChange={e => setEditMileage(e.target.value)}
+                  placeholder={t('dashboard.carCare.mileagePlaceholder')} />
+              </div>
+              <div className="cc-form-group">
+                <label>{t('dashboard.carCare.lastOilChangeMile')}</label>
+                <input type="number" min="0" step="1" value={editOilMile}
+                  onChange={e => setEditOilMile(e.target.value)}
+                  placeholder={t('dashboard.carCare.lastOilChangeMilePlaceholder')} />
+              </div>
+              <div className="cc-form-group">
+                <label>{t('dashboard.carCare.lastServiceDate')}</label>
+                <input type="date" value={editServiceDate}
+                  onChange={e => setEditServiceDate(e.target.value)} />
+              </div>
+
               {editError && <p className="cc-error">{editError}</p>}
 
               <div className="cc-modal-actions">
@@ -459,6 +489,25 @@ function VehicleCard({ vehicle: v, onEdit, onDelete, t }) {
           <span className="cc-nhtsa-tag">{t('dashboard.carCare.nhtsaVerified')}</span>
           {v.notes && <p className="cc-vehicle-notes">{v.notes}</p>}
         </div>
+        {/* Group 1, item 27: service reminders derived from the recorded
+            mileage and service dates. Advisory only. */}
+        {Array.isArray(v.service_reminders) && v.service_reminders.length > 0 && (
+          <ul className="cc-service-reminders" role="list" aria-label={t('dashboard.carCare.serviceReminders')}>
+            {v.service_reminders.map((r) => (
+              <li key={r.kind} className={`cc-service-reminder ${r.status === 'due' ? 'cc-service-due' : 'cc-service-soon'}`}>
+                {r.kind === 'oil_change'
+                  ? (r.status === 'due'
+                    ? t('dashboard.carCare.oilChangeDue')
+                    : (r.miles_remaining !== undefined
+                      ? t('dashboard.carCare.oilChangeSoonMiles', { miles: r.miles_remaining })
+                      : t('dashboard.carCare.oilChangeSoonDays', { days: r.days_remaining ?? '' })))
+                  : (r.status === 'due'
+                    ? t('dashboard.carCare.serviceDue')
+                    : t('dashboard.carCare.serviceSoon', { days: r.days_remaining ?? '' }))}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       <div className="cc-vehicle-actions">
         <button className="cc-action-btn" onClick={onEdit} data-track="ui.9b1b8e6249.8">{t('dashboard.carCare.editBtn')}</button>

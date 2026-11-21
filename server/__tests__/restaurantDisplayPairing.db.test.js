@@ -73,7 +73,7 @@ describeDb('restaurant display pairing (migration 911)', () => {
     await db.query(`CREATE TABLE ${schema}.businesses (id BIGSERIAL PRIMARY KEY, user_id BIGINT, deleted_at TIMESTAMPTZ)`);
     await db.query(
       `CREATE TABLE ${schema}.business_members
-         (id BIGSERIAL PRIMARY KEY, business_id BIGINT, member_id BIGINT, role TEXT, status TEXT)`
+         (id BIGSERIAL PRIMARY KEY, business_id BIGINT, member_id BIGINT, role TEXT, status TEXT, access_valid_until TIMESTAMPTZ)`
     );
     await db.query(
       `CREATE TABLE ${schema}.food_restaurants

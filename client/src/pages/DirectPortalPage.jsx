@@ -107,6 +107,7 @@ const EMPTY_FORM = {
   preferred_date: '',
   preferred_time_window: '',
   urgency: 'normal',
+  response_deadline: '',
   access_notes: '',
   details: '',
   service_city: '',
@@ -536,6 +537,7 @@ function DirectQuoteRequestForm({ draftScope }) {
         timeline: form.timeline,
         preferred_contact_method: form.preferred_contact_method,
         details: form.details,
+        response_deadline: form.response_deadline ? new Date(`${form.response_deadline}T23:59:59`).toISOString() : undefined,
         metadata: {
           flow: 'direct',
           draftId,
@@ -665,6 +667,7 @@ function DirectQuoteRequestForm({ draftScope }) {
                 </Select>
               </Field>
               <Field label={t('directPortal.request.fields.timelineNotes')}><Input value={form.timeline} onChange={update('timeline')} placeholder={t('directPortal.request.placeholders.timelineNotes')} /></Field>
+              <Field label={t('directPortal.request.fields.responseDeadline')} hint={t('directPortal.request.hints.responseDeadline')}><Input type="date" value={form.response_deadline} onChange={update('response_deadline')} /></Field>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <Field label={t('directPortal.request.fields.accessNotes')} hint={t('directPortal.request.hints.accessNotes')}><Textarea rows={4} value={form.access_notes} onChange={update('access_notes')} /></Field>
