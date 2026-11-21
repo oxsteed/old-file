@@ -27,3 +27,8 @@
   margin: 0.5rem 0;
   color: var(--color-text-muted);
 }
+
+.css-slot-sub {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}

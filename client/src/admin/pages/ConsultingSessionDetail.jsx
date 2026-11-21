@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import ActionItemsPanel from '../../components/ActionItemsPanel';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import './ConsultingSessionDetail.css';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -23,6 +24,11 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
   const [assigningConsultant, setAssigningConsultant] = useState(false);
   const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false);
   const [confirmNoShowOpen, setConfirmNoShowOpen] = useState(false);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+  // Group 10 Slice C (519): the scheduled row for this session, resolved
+  // so the Cancel button can hit the unified cancel endpoint. Null when
+  // the session has no appointment yet.
+  const [scheduledDetail, setScheduledDetail] = useState(null);
 
   // Refetch and reset per-session state whenever the viewed session changes,
   // so consultants and notes never bleed across sessions.
@@ -38,6 +44,16 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
     setSelectedConsultant(session.consultant_assigned_id || '');
     setActiveTab('overview');
   }, [session.id, session.notes, session.consultant_assigned_id]);
+
+  // Resolve the scheduled appointment row (if any) for the Slice C actions.
+  useEffect(() => {
+    let cancelled = false;
+    setScheduledDetail(null);
+    axios.get(`/scheduling/sessions/by-consulting/${session.id}`)
+      .then((r) => { if (!cancelled) setScheduledDetail(r.data); })
+      .catch(() => { if (!cancelled) setScheduledDetail(null); });
+    return () => { cancelled = true; };
+  }, [session.id]);
 
   async function assignConsultant() {
     if (!selectedConsultant) {
@@ -73,8 +89,44 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
       onStatusUpdate();
     } catch (err) {
       // Rethrow so the ConfirmDialog stays open and shows the failure instead
-      // of closing as if the session was completed.
-      toast.error(t('adminConsultingSessionDetail.toast.markCompleteFailed'));
+      // of closing as if the session was completed. A future-dated session
+      // (Slice C, item 520) is refused by the server: say so plainly.
+      if (err.response?.data?.error === 'session_not_started') {
+        toast.error(t('adminConsultingSessionDetail.toast.sessionNotStarted'));
+      } else {
+        toast.error(t('adminConsultingSessionDetail.toast.markCompleteFailed'));
+      }
+      throw err;
+    } finally {
+      setUpdateLoading(false);
+    }
+  }
+
+  // Cancellation (Slice C, item 519) is confirmation-gated with a required
+  // reason and goes through the unified cancel endpoint, which moves both
+  // the scheduled row and the session in one transaction. Refunds stay on
+  // the admin refund endpoint: this only records the cancellation.
+  function requestCancel() {
+    setConfirmCancelOpen(true);
+  }
+
+  async function confirmCancelSession(reason) {
+    const scheduledId = scheduledDetail?.scheduled?.id;
+    if (!scheduledId) {
+      toast.error(t('adminConsultingSessionDetail.toast.cancelFailed'));
+      throw new Error('no scheduled appointment');
+    }
+    try {
+      setUpdateLoading(true);
+      await axios.post(`/scheduling/sessions/${scheduledId}/cancel`, {
+        reason: reason || null,
+        refund_requested: false,
+      });
+      toast.success(t('adminConsultingSessionDetail.toast.cancelled'));
+      onStatusUpdate();
+      onClose();
+    } catch (err) {
+      toast.error(t('adminConsultingSessionDetail.toast.cancelFailed'));
       throw err;
     } finally {
       setUpdateLoading(false);
@@ -442,6 +494,20 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
               <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem', fontSize: '0.9rem' }}>
                 Mark completed if session happened. Mark no-show if customer didn't attend.
               </p>
+              {scheduledDetail?.scheduled && ['confirmed', 'pending_confirmation'].includes(scheduledDetail.scheduled.status) && (
+                <div className="csd-admin-cancel-wrap">
+                  <button
+                    className="csd-admin-cancel-btn"
+                    onClick={requestCancel}
+                    disabled={updateLoading}
+                  >
+                    {t('adminConsultingSessionDetail.cancelSession')}
+                  </button>
+                  <p className="csd-admin-cancel-hint">
+                    {t('adminConsultingSessionDetail.cancelHint')}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -491,6 +557,15 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
         title={t('adminConsultingSessionDetail.confirm.noShow')}
         onConfirm={confirmMarkSessionNoShow}
         onClose={() => setConfirmNoShowOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmCancelOpen}
+        title={t('adminConsultingSessionDetail.confirm.cancel')}
+        danger
+        requireReason
+        onConfirm={confirmCancelSession}
+        onClose={() => setConfirmCancelOpen(false)}
       />
     </div>
   );

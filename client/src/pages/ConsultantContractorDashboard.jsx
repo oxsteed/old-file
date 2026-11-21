@@ -21,6 +21,7 @@ import PlatformApprovalBanner from '../components/PlatformApprovalBanner';
 import { useTranslation } from 'react-i18next';
 import { formatCents, formatNumber } from '../lib/format';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
+import ConsultantSessionsSection from '../components/ConsultantSessionsSection';
 
 const STATUS_OPTIONS = [
   ['assigned', 'consultantContractorDashboard.referralStatus.assigned', 'Assigned'],
@@ -1173,6 +1174,22 @@ export default function ConsultantContractorDashboard() {
               )}
             </section>
           </div>
+
+          {/* Group 10 Slice C (518-520): the consultant's appointments:
+              reschedule proposals, attendance, and cancellation. */}
+          <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/80">
+                <CalendarClock className="h-5 w-5 text-gray-300" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('consultantContractorDashboard.sessions.label')}</p>
+                <h2 className="text-2xl font-semibold text-white">{t('consultantContractorDashboard.sessions.title')}</h2>
+              </div>
+            </div>
+            <p className="mb-4 text-sm leading-6 text-gray-400">{t('consultantContractorDashboard.sessions.description')}</p>
+            <ConsultantSessionsSection />
+          </section>
 
           {/* Group 10 item 509: portfolio manager. */}
           <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">

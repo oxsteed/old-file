@@ -15105,6 +15105,35 @@
     "blockedDateAdded": "Date bloquée ajoutée",
     "blockedDateRemoved": "Date bloquée supprimée",
     "dateRequired": "Veuillez sélectionner une date"
+  ,
+  "yourTime": "Votre heure",
+  "rescheduleProposed": "Report proposé",
+  "rescheduleAccepted": "Report accepté",
+  "rescheduleDeclined": "Report refusé",
+  "rescheduleWithdrawn": "Report retiré",
+  "rescheduleTitle": "Proposer un nouvel horaire",
+  "rescheduleCurrent": "Rendez-vous actuel : {{date}} à {{time}}",
+  "pickDate": "Choisir une date",
+  "pickTime": "Choisir une heure",
+  "rescheduleReason": "Motif (facultatif)",
+  "rescheduleReasonPlaceholder": "Pourquoi proposez-vous un nouvel horaire ?",
+  "rescheduleCanonicalNote": "Les heures sont affichées dans votre fuseau horaire ; la réservation reste dans celui du consultant ({{zone}}).",
+  "proposeNewTime": "Proposer un nouvel horaire",
+  "cancelTitle": "Annuler ce rendez-vous",
+  "cancelReason": "Motif",
+  "cancelReasonPlaceholder": "Pourquoi ce rendez-vous est-il annulé ?",
+  "requestRefund": "Demander un remboursement pour ce rendez-vous",
+  "cancelNote": "Vous et le consultant serez informés. Les remboursements sont traités séparément par un administrateur.",
+  "cancelled": "Rendez-vous annulé",
+  "cancelSession": "Annuler le rendez-vous",
+  "confirmAttendance": "Confirmer la présence",
+  "attendanceConfirmed": "Présence confirmée",
+  "attendanceConfirmedByYou": "Vous avez confirmé votre présence",
+  "attendanceConfirmedByClient": "Le client a confirmé sa présence",
+  "attendanceConfirmedByConsultant": "Le consultant a confirmé sa présence",
+  "accept": "Accepter",
+  "decline": "Refuser",
+  "withdraw": "Retirer"
   },
   "regionForm": {
     "boundaryTypes": {
@@ -18639,6 +18668,12 @@
     "emptyStat1Label": "Commence avec clarté",
     "emptyPreviewTitle": "Ce que ce portail devient après l'achat",
     "emptyEyebrow": "Conseil en lancement d'entreprise"
+  ,
+  "schedulePanelTitle": "Votre rendez-vous",
+  "pendingProposals": "Report proposé",
+  "proposedByYou": "Proposé par vous",
+  "proposedByConsultant": "Proposé par votre consultant",
+  "proposedByOxsteed": "Proposé par OxSteed"
   },
   "logistics": {
     "forms": {
@@ -21145,6 +21180,8 @@
     "confirm": {
       "complete": "Marquer cette session comme terminée ? Un e-mail de suivi sera envoyé au client avec des actions à réaliser.",
       "noShow": "Marquer cette session comme absence ? Un e-mail de suivi sera envoyé au client pour proposer un report."
+    ,
+    "cancel": "Annuler cette séance ? Le rendez-vous et la séance seront annulés ensemble et les deux parties seront informées."
     },
     "toast": {
       "loadConsultantsFailed": "Impossible de charger les consultants",
@@ -21160,7 +21197,14 @@
       "noteRequired": "Veuillez saisir une note",
       "notesSaved": "Notes enregistrées avec succès",
       "saveNotesFailed": "Impossible d’enregistrer les notes"
+    ,
+    "sessionNotStarted": "Cette séance n’a pas encore commencé, elle ne peut donc pas être marquée comme terminée.",
+    "cancelled": "Séance annulée.",
+    "cancelFailed": "Impossible d’annuler la séance."
     }
+  ,
+  "cancelSession": "Annuler la séance",
+  "cancelHint": "Annule le rendez-vous et la séance ensemble, et informe les deux parties. Les remboursements restent gérés séparément."
   },
   "adminConsultingScheduler": {
     "loading": "Chargement des sessions…",
@@ -25282,6 +25326,25 @@
       "step3Title": "3. Exécution du pipeline",
       "step3Body": "Utilisez votre tableau de bord pour faire passer les leads de l’introduction à la découverte, la proposition, l’engagement puis la finalisation tout en gardant OxSteed en boucle."
     }
+  ,
+  "sessions": {
+    "label": "Rendez-vous",
+    "title": "Vos séances",
+    "description": "Rendez-vous confirmés avec les clients, y compris les reports proposés, la présence et l’annulation.",
+    "loading": "Chargement des séances…",
+    "emptyTitle": "Aucune séance pour le moment",
+    "emptyDescription": "Quand un client réservera une séance avec vous, elle apparaîtra ici avec son horaire, ses propositions et sa présence.",
+    "clientFallback": "Client",
+    "pendingProposals": "Report proposé",
+    "proposedBy": "Proposé par {{role}}",
+    "status": {
+      "pending_confirmation": "En attente de confirmation",
+      "confirmed": "Confirmé",
+      "completed": "Terminée",
+      "no_show": "Absent",
+      "cancelled": "Annulé"
+    }
+  }
   },
   "learn": {
     "page": {

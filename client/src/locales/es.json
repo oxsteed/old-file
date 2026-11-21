@@ -15105,6 +15105,35 @@
     "blockedDateAdded": "Fecha bloqueada agregada",
     "blockedDateRemoved": "Fecha bloqueada eliminada",
     "dateRequired": "Por favor selecciona una fecha"
+  ,
+  "yourTime": "Tu hora",
+  "rescheduleProposed": "Reprogramación propuesta",
+  "rescheduleAccepted": "Reprogramación aceptada",
+  "rescheduleDeclined": "Reprogramación rechazada",
+  "rescheduleWithdrawn": "Reprogramación retirada",
+  "rescheduleTitle": "Proponer una nueva hora",
+  "rescheduleCurrent": "Cita actual: {{date}} a las {{time}}",
+  "pickDate": "Elige una fecha",
+  "pickTime": "Elige una hora",
+  "rescheduleReason": "Motivo (opcional)",
+  "rescheduleReasonPlaceholder": "¿Por qué propones una nueva hora?",
+  "rescheduleCanonicalNote": "Las horas se muestran en tu zona horaria; la reserva se guarda en la zona horaria del consultor ({{zone}}).",
+  "proposeNewTime": "Proponer nueva hora",
+  "cancelTitle": "Cancelar esta cita",
+  "cancelReason": "Motivo",
+  "cancelReasonPlaceholder": "¿Por qué se cancela esta cita?",
+  "requestRefund": "Solicitar un reembolso por esta cita",
+  "cancelNote": "Tanto tú como el consultor recibirán una notificación. Los reembolsos los gestiona un administrador por separado.",
+  "cancelled": "Cita cancelada",
+  "cancelSession": "Cancelar cita",
+  "confirmAttendance": "Confirmar asistencia",
+  "attendanceConfirmed": "Asistencia confirmada",
+  "attendanceConfirmedByYou": "Confirmaste tu asistencia",
+  "attendanceConfirmedByClient": "El cliente confirmó su asistencia",
+  "attendanceConfirmedByConsultant": "El consultor confirmó su asistencia",
+  "accept": "Aceptar",
+  "decline": "Rechazar",
+  "withdraw": "Retirar"
   },
   "regionForm": {
     "boundaryTypes": {
@@ -18639,6 +18668,12 @@
     "emptyStat1Label": "Empieza con claridad",
     "emptyPreviewTitle": "En qué se convierte este portal después de la compra",
     "emptyEyebrow": "Consultoría de lanzamiento de negocios"
+  ,
+  "schedulePanelTitle": "Tu cita",
+  "pendingProposals": "Reprogramación propuesta",
+  "proposedByYou": "Propuesta por ti",
+  "proposedByConsultant": "Propuesta por tu consultor",
+  "proposedByOxsteed": "Propuesta por OxSteed"
   },
   "logistics": {
     "forms": {
@@ -21145,6 +21180,8 @@
     "confirm": {
       "complete": "¿Marcar esta sesión como completada? Se enviará un correo de seguimiento al cliente con elementos de acción.",
       "noShow": "¿Marcar esta sesión como inasistencia? Se enviará un correo de seguimiento al cliente para ofrecer reprogramar."
+    ,
+    "cancel": "¿Cancelar esta sesión? La cita y la sesión se cancelarán juntas y se notificará a ambas partes."
     },
     "toast": {
       "loadConsultantsFailed": "No se pudieron cargar los consultores",
@@ -21160,7 +21197,14 @@
       "noteRequired": "Ingresa una nota",
       "notesSaved": "Notas guardadas correctamente",
       "saveNotesFailed": "No se pudieron guardar las notas"
+    ,
+    "sessionNotStarted": "Esta sesión aún no ha comenzado, por lo que no se puede marcar como completada.",
+    "cancelled": "Sesión cancelada.",
+    "cancelFailed": "No se pudo cancelar la sesión."
     }
+  ,
+  "cancelSession": "Cancelar sesión",
+  "cancelHint": "Cancela la cita y la sesión juntas, y notifica a ambas partes. Los reembolsos siguen en el endpoint de reembolsos."
   },
   "adminConsultingScheduler": {
     "loading": "Cargando sesiones...",
@@ -25282,6 +25326,25 @@
       "step3Title": "3. Ejecución del pipeline",
       "step3Body": "Usa tu panel para pasar leads de introducción a descubrimiento, propuesta, engagement y finalización mientras mantienes a OxSteed informado."
     }
+  ,
+  "sessions": {
+    "label": "Citas",
+    "title": "Tus sesiones",
+    "description": "Citas confirmadas con clientes, incluidas propuestas de reprogramación, asistencia y cancelación.",
+    "loading": "Cargando sesiones…",
+    "emptyTitle": "Aún no hay sesiones",
+    "emptyDescription": "Cuando un cliente reserve una sesión contigo, aparecerá aquí con su hora, propuestas y asistencia.",
+    "clientFallback": "Cliente",
+    "pendingProposals": "Reprogramación propuesta",
+    "proposedBy": "Propuesta por {{role}}",
+    "status": {
+      "pending_confirmation": "En espera de confirmación",
+      "confirmed": "Confirmada",
+      "completed": "Completada",
+      "no_show": "No asistió",
+      "cancelled": "Cancelada"
+    }
+  }
   },
   "learn": {
     "page": {

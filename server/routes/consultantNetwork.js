@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
 const controller = require('../controllers/consultantNetworkController');
 const screeningController = require('../controllers/consultantScreeningController');
+const schedulingController = require('../controllers/consultantSchedulingController');
 
 router.get('/profile', authenticate, controller.getMyConsultantProfile);
 router.put('/profile', authenticate, controller.upsertMyConsultantProfile);
@@ -25,6 +26,10 @@ router.get('/referrals/:requestId/screen', authenticate, screeningController.get
 router.post('/referrals/:requestId/fit', authenticate, screeningController.upsertFitAssessment);
 router.post('/referrals/:requestId/conflict', authenticate, screeningController.upsertConflictDeclaration);
 router.post('/referrals/:requestId/reply', authenticate, screeningController.replyToReferral);
+// Group 10 Slice C (518/520): the consultant's own appointments, with
+// open reschedule proposals and attendance, for the dashboard sessions
+// section.
+router.get('/sessions', authenticate, schedulingController.listMyConsultantSessions);
 
 // Public specialty profile (506). No auth: only approved, active profiles
 // are ever returned; anything else 404s.

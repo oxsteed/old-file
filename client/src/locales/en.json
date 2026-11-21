@@ -15105,6 +15105,35 @@
     "blockedDateAdded": "Blocked date added",
     "blockedDateRemoved": "Blocked date removed",
     "dateRequired": "Please select a date"
+  ,
+  "yourTime": "Your time",
+  "rescheduleProposed": "Reschedule proposed",
+  "rescheduleAccepted": "Reschedule accepted",
+  "rescheduleDeclined": "Reschedule declined",
+  "rescheduleWithdrawn": "Reschedule withdrawn",
+  "rescheduleTitle": "Propose a new time",
+  "rescheduleCurrent": "Current appointment: {{date}} at {{time}}",
+  "pickDate": "Pick a date",
+  "pickTime": "Pick a time",
+  "rescheduleReason": "Reason (optional)",
+  "rescheduleReasonPlaceholder": "Why are you proposing a new time?",
+  "rescheduleCanonicalNote": "Times are shown in your time zone; the booking is kept in the consultant's zone ({{zone}}).",
+  "proposeNewTime": "Propose new time",
+  "cancelTitle": "Cancel this appointment",
+  "cancelReason": "Reason",
+  "cancelReasonPlaceholder": "Why is this appointment being cancelled?",
+  "requestRefund": "Request a refund for this appointment",
+  "cancelNote": "Both you and the consultant will be notified. Refunds are handled separately by an administrator.",
+  "cancelled": "Appointment cancelled",
+  "cancelSession": "Cancel appointment",
+  "confirmAttendance": "Confirm attendance",
+  "attendanceConfirmed": "Attendance confirmed",
+  "attendanceConfirmedByYou": "You confirmed attendance",
+  "attendanceConfirmedByClient": "Client confirmed attendance",
+  "attendanceConfirmedByConsultant": "Consultant confirmed attendance",
+  "accept": "Accept",
+  "decline": "Decline",
+  "withdraw": "Withdraw"
   },
   "regionForm": {
     "boundaryTypes": {
@@ -18639,6 +18668,12 @@
     "emptyStat1Label": "Starts with clarity",
     "emptyPreviewTitle": "What this portal becomes after purchase",
     "emptyEyebrow": "Business launch consulting"
+  ,
+  "schedulePanelTitle": "Your appointment",
+  "pendingProposals": "Reschedule proposed",
+  "proposedByYou": "Proposed by you",
+  "proposedByConsultant": "Proposed by your consultant",
+  "proposedByOxsteed": "Proposed by OxSteed"
   },
   "logistics": {
     "forms": {
@@ -21145,6 +21180,8 @@
     "confirm": {
       "complete": "Mark this session as completed? A follow-up email will be sent to the customer with action items.",
       "noShow": "Mark this session as a no-show? A follow-up email will be sent to the customer offering to reschedule."
+    ,
+    "cancel": "Cancel this session? The appointment and the session will be cancelled together and both parties notified."
     },
     "toast": {
       "loadConsultantsFailed": "Failed to load consultants",
@@ -21160,7 +21197,14 @@
       "noteRequired": "Please enter a note",
       "notesSaved": "Notes saved successfully",
       "saveNotesFailed": "Failed to save notes"
+    ,
+    "sessionNotStarted": "This session has not started yet, so it cannot be marked complete.",
+    "cancelled": "Session cancelled.",
+    "cancelFailed": "Could not cancel the session."
     }
+  ,
+  "cancelSession": "Cancel session",
+  "cancelHint": "Cancels the appointment and the session together, and notifies both parties. Refunds stay on the refund endpoint."
   },
   "adminConsultingScheduler": {
     "loading": "Loading sessions...",
@@ -25282,6 +25326,25 @@
       "step3Title": "3. Pipeline execution",
       "step3Body": "Use your dashboard to move leads from intro to discovery, proposal, engagement, and completion while keeping OxSteed in the loop."
     }
+  ,
+  "sessions": {
+    "label": "Appointments",
+    "title": "Your sessions",
+    "description": "Confirmed appointments with clients, including reschedule proposals, attendance, and cancellation.",
+    "loading": "Loading sessions…",
+    "emptyTitle": "No sessions yet",
+    "emptyDescription": "Once a client books a session with you, it will appear here with its time, proposals, and attendance.",
+    "clientFallback": "Client",
+    "pendingProposals": "Reschedule proposed",
+    "proposedBy": "Proposed by {{role}}",
+    "status": {
+      "pending_confirmation": "Awaiting confirmation",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "no_show": "No-show",
+      "cancelled": "Cancelled"
+    }
+  }
   },
   "learn": {
     "page": {

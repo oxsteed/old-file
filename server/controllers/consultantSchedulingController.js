@@ -7,6 +7,15 @@ const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { consultantEnforcement } = require('../services/access/flags');
 const { checkPayingAccess, bookingDenial } = require('../services/access/consultantGate');
+// Group 10 item 517: canonical zone is the consultant's profile timezone;
+// slots are generated in that zone and converted to the client's zone for
+// display only. Booking still posts the canonical date/time.
+const {
+  isValidIanaZone,
+  convertWallClock,
+  sessionStartInstant,
+  getConsultantTimezone,
+} = require('../utils/consultingTimezone');
 
 async function publicConsultantExists(consultantId) {
   const enforce = consultantEnforcement() === 'enforce';
@@ -201,14 +210,24 @@ exports.removeBlockedDate = async (req, res) => {
   }
 };
 
-// Get available time slots for a consultant on a specific date
+// Get available time slots for a consultant on a specific date.
+// Group 10 item 517: ?timezone=<IANA zone> converts the canonical slots
+// to the client's zone for display. The response then carries both the
+// canonical values (what booking posts) and the converted values, plus
+// the canonical zone. Without the parameter the legacy bare array is
+// returned, so the public profile page keeps working unchanged. An
+// unknown zone is a 400.
 exports.getAvailableSlots = async (req, res) => {
   try {
     const { consultantId } = req.params;
-    const { date, durationMinutes = 60 } = req.query;
+    const { date, durationMinutes = 60, timezone: clientTimezone } = req.query;
 
     if (!date) {
       return res.status(400).json({ error: 'Date parameter required (YYYY-MM-DD)' });
+    }
+
+    if (clientTimezone !== undefined && !isValidIanaZone(clientTimezone)) {
+      return res.status(400).json({ error: 'Invalid timezone' });
     }
 
     if (!(await publicConsultantExists(consultantId))) {
@@ -239,7 +258,26 @@ exports.getAvailableSlots = async (req, res) => {
       }
     }
 
-    res.json(availableSlots);
+    if (clientTimezone === undefined) return res.json(availableSlots);
+
+    const canonicalZone = await getConsultantTimezone(db, consultantId);
+    res.json({
+      timezone: canonicalZone,
+      client_timezone: clientTimezone,
+      date,
+      slots: availableSlots.map((slot) => {
+        const start = convertWallClock(date, slot.slot_start, canonicalZone, clientTimezone);
+        const end = convertWallClock(date, slot.slot_end, canonicalZone, clientTimezone);
+        return {
+          slot_start: slot.slot_start,
+          slot_end: slot.slot_end,
+          is_available: slot.is_available,
+          client_slot_start: start.time,
+          client_slot_end: end.time,
+          client_date: start.date,
+        };
+      }),
+    });
   } catch (err) {
     logger.error('Failed to get available slots', { error: err.message, consultantId: req.params.consultantId });
     res.status(500).json({ error: 'Failed to fetch available slots' });
@@ -627,15 +665,26 @@ exports.bookTimeSlot = async (req, res) => {
 };
 
 // Get next available date/slots for a consultant
+// Group 10 item 517: ?timezone=<IANA zone> converts the slot times to the
+// client's zone for display. With the parameter the response is an object
+// carrying the canonical zone plus per-slot converted times; without it
+// the legacy bare array is returned.
 exports.getNextAvailableDates = async (req, res) => {
   try {
     const { consultantId } = req.params;
-    const { fromDate, daysAhead = 30, durationMinutes = 60 } = req.query;
+    const { fromDate, daysAhead = 30, durationMinutes = 60, timezone: clientTimezone } = req.query;
+
+    if (clientTimezone !== undefined && !isValidIanaZone(clientTimezone)) {
+      return res.status(400).json({ error: 'Invalid timezone' });
+    }
 
     if (!(await publicConsultantExists(consultantId))) {
       return res.status(404).json({ error: 'Consultant not found' });
     }
 
+    const canonicalZone = clientTimezone !== undefined
+      ? await getConsultantTimezone(db, consultantId)
+      : null;
     const startDate = fromDate ? new Date(fromDate) : new Date();
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + parseInt(daysAhead));
@@ -666,7 +715,17 @@ exports.getNextAvailableDates = async (req, res) => {
           );
 
           if (booked.length === 0) {
-            availableSlots.push(slot.slot_start);
+            availableSlots.push(
+              clientTimezone === undefined
+                ? slot.slot_start
+                : {
+                  slot_start: slot.slot_start,
+                  ...(() => {
+                    const converted = convertWallClock(dateStr, slot.slot_start, canonicalZone, clientTimezone);
+                    return { client_slot_start: converted.time, client_date: converted.date };
+                  })(),
+                },
+            );
           }
         }
 
@@ -682,9 +741,724 @@ exports.getNextAvailableDates = async (req, res) => {
       if (availableDates.length >= 5) break; // Return first 5 available dates
     }
 
-    res.json(availableDates);
+    if (clientTimezone === undefined) return res.json(availableDates);
+    return res.json({
+      timezone: canonicalZone,
+      client_timezone: clientTimezone,
+      dates: availableDates,
+    });
   } catch (err) {
     logger.error('Failed to get next available dates', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch available dates' });
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────
+// Group 10 Slice C (items 518-520): reschedule proposals, cancellation,
+// attendance. A scheduled row is the appointment; the consulting session
+// row carries the canonical engagement status. Both rows move together
+// on cancel; a reschedule moves the scheduled row only (the engagement
+// itself is unchanged and already paid).
+// ──────────────────────────────────────────────────────────────────────────
+
+const SCHEDULED_ROW_SELECT = `SELECT css.*, cs.user_id AS client_id,
+  cs.consultant_assigned_id, cs.status AS session_status
+  FROM consulting_sessions_scheduled css
+  JOIN consulting_sessions cs ON cs.id = css.session_id
+  WHERE css.id = $1`;
+
+async function loadScheduledSession(scheduledId) {
+  const { rows } = await db.query(SCHEDULED_ROW_SELECT, [scheduledId]);
+  return rows[0] || null;
+}
+
+// Which party the caller is for this appointment: 'client' (the session
+// owner), 'consultant' (the assigned consultant), 'admin', or null when
+// the caller is none of them.
+function sessionParty(req, row) {
+  if (!req?.user || !row) return null;
+  if (req.user.role === 'admin' || req.user.role === 'super_admin') return 'admin';
+  if (String(req.user.id) === String(row.client_id)) return 'client';
+  if (row.consultant_assigned_id && String(req.user.id) === String(row.consultant_assigned_id)) return 'consultant';
+  return null;
+}
+
+function isDateStr(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime());
+}
+
+function isTimeStr(value) {
+  if (typeof value !== 'string') return false;
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return false;
+  return Number(match[1]) <= 23 && Number(match[2]) <= 59;
+}
+
+function endTimeOf(startTime, durationMinutes) {
+  const start = new Date(`2000-01-01T${startTime}`);
+  return new Date(start.getTime() + durationMinutes * 60000).toTimeString().slice(0, 5);
+}
+
+// A notification is best-effort: a delivery failure is logged and never
+// fails the scheduling write that already happened.
+async function notifySessionParty({ userId, type, data, actionUrl, idempotencyKey }) {
+  if (!userId) return;
+  try {
+    const result = await sendNotification({
+      userId,
+      type,
+      data,
+      action_url: actionUrl,
+      idempotencyKey,
+    });
+    if (result && result.success !== true) {
+      logger.warn('Failed to notify consulting session party', { type, userId, error: result.error || 'send_failed' });
+    }
+  } catch (err) {
+    logger.warn('Failed to notify consulting session party', { type, userId, error: err.message });
+  }
+}
+
+function clientActionUrl() {
+  return '/consulting/portal';
+}
+
+function consultantActionUrl() {
+  return '/consulting/contractor-dashboard';
+}
+
+// The counterparty of a proposal: who has to answer it. An admin proposal
+// goes to both parties; otherwise it goes to the other side.
+function proposalCounterparties(proposal, row) {
+  if (proposal.proposed_by_role === 'client') return [{ userId: row.consultant_assigned_id, url: consultantActionUrl() }];
+  if (proposal.proposed_by_role === 'consultant') return [{ userId: row.client_id, url: clientActionUrl() }];
+  return [
+    { userId: row.client_id, url: clientActionUrl() },
+    { userId: row.consultant_assigned_id, url: consultantActionUrl() },
+  ];
+}
+
+// The proposed slot must sit on the consultant's availability and must not
+// overlap another confirmed/completed appointment. `query` is db or a
+// transaction client; `excludeScheduledId` is the appointment being moved.
+async function assertSlotFree(query, { consultantId, date, startTime, durationMinutes, excludeScheduledId }) {
+  const { rows: available } = await query.query(
+    `SELECT 1 FROM get_consultant_available_slots($1, $2, $3) WHERE slot_start = $4`,
+    [consultantId, date, durationMinutes, startTime],
+  );
+  if (available.length === 0) {
+    return { ok: false, status: 409, body: { error: 'Selected time slot is not available' } };
+  }
+  const endTime = endTimeOf(startTime, durationMinutes);
+  const { rows: overlapping } = await query.query(
+    `SELECT 1 FROM consulting_sessions_scheduled other
+      WHERE other.consultant_assigned_id = $1
+        AND other.scheduled_date = $2
+        AND other.scheduled_time < $4::time
+        AND other.scheduled_time + make_interval(mins => COALESCE(other.duration_minutes, 120)) > $3::time
+        AND other.status IN ('confirmed', 'completed')
+        AND other.id <> $5`,
+    [consultantId, date, startTime, endTime, excludeScheduledId],
+  );
+  if (overlapping.length > 0) {
+    return { ok: false, status: 409, body: { error: 'Time slot conflicts with another session' } };
+  }
+  return { ok: true };
+}
+
+// ── 518: reschedule proposals ──────────────────────────────────────────
+
+// Propose a new time for a confirmed appointment. The proposer is the
+// client, the assigned consultant, or an admin; the other side answers.
+// The proposal is advisory until accepted: nothing moves on propose.
+exports.proposeReschedule = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const scheduledId = Number(req.params.sessionId);
+    if (!Number.isInteger(scheduledId) || scheduledId <= 0) {
+      return res.status(400).json({ error: 'Invalid scheduled session id' });
+    }
+    const { date, startTime, reason } = req.body || {};
+    const durationMinutes = req.body?.durationMinutes === undefined
+      ? null
+      : parseInt(req.body.durationMinutes, 10);
+
+    if (!isDateStr(date) || !isTimeStr(startTime)) {
+      return res.status(400).json({ error: 'date (YYYY-MM-DD) and startTime (HH:MM) required' });
+    }
+    if (durationMinutes !== null && (!Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 480)) {
+      return res.status(400).json({ error: 'Duration must be between 1 and 480 minutes' });
+    }
+
+    const row = await loadScheduledSession(scheduledId);
+    if (!row) return res.status(404).json({ error: 'Session not found' });
+    const party = sessionParty(req, row);
+    if (!party) return res.status(403).json({ error: 'Not authorized for this session' });
+    if (row.status !== 'confirmed') {
+      return res.status(409).json({ error: 'Only a confirmed session can be rescheduled' });
+    }
+
+    const canonicalZone = await getConsultantTimezone(db, row.consultant_assigned_id);
+    const proposedStart = sessionStartInstant(date, startTime, canonicalZone);
+    if (proposedStart <= new Date()) {
+      return res.status(400).json({ error: 'Proposed time must be in the future' });
+    }
+
+    const duration = durationMinutes ?? row.duration_minutes ?? 120;
+    const slotCheck = await assertSlotFree(db, {
+      consultantId: row.consultant_assigned_id, date, startTime, durationMinutes: duration, excludeScheduledId: scheduledId,
+    });
+    if (!slotCheck.ok) return res.status(slotCheck.status).json(slotCheck.body);
+
+    let proposal;
+    try {
+      const { rows } = await db.query(
+        `INSERT INTO consulting_session_reschedules
+           (scheduled_session_id, proposed_by, proposed_by_role, proposed_date, proposed_time,
+            proposed_duration_minutes, reason)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [scheduledId, req.user.id, party, date, startTime, duration, reason?.trim() || null],
+      );
+      proposal = rows[0];
+    } catch (err) {
+      // Partial unique index: one open proposal per scheduled session.
+      if (err.code === '23505') {
+        return res.status(409).json({ error: 'reschedule_already_open', message: 'A reschedule proposal is already open for this session.' });
+      }
+      throw err;
+    }
+
+    for (const target of proposalCounterparties(proposal, row)) {
+      await notifySessionParty({
+        userId: target.userId,
+        type: 'consulting_session_reschedule_proposed',
+        data: { session_id: row.session_id, scheduled_session_id: scheduledId, reschedule_id: proposal.id },
+        actionUrl: target.url,
+        idempotencyKey: `consulting-reschedule-proposed:${proposal.id}`,
+      });
+    }
+
+    return res.status(201).json(proposal);
+  } catch (err) {
+    logger.error('Failed to propose reschedule', { error: err.message });
+    return res.status(500).json({ error: 'Failed to propose reschedule' });
+  }
+};
+
+// List the reschedule proposals for one appointment, newest first.
+exports.listReschedules = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const scheduledId = Number(req.params.sessionId);
+    if (!Number.isInteger(scheduledId) || scheduledId <= 0) {
+      return res.status(400).json({ error: 'Invalid scheduled session id' });
+    }
+    const row = await loadScheduledSession(scheduledId);
+    if (!row) return res.status(404).json({ error: 'Session not found' });
+    if (!sessionParty(req, row)) return res.status(403).json({ error: 'Not authorized for this session' });
+
+    const { rows } = await db.query(
+      `SELECT * FROM consulting_session_reschedules
+        WHERE scheduled_session_id = $1 ORDER BY created_at DESC`,
+      [scheduledId],
+    );
+    return res.json(rows);
+  } catch (err) {
+    logger.error('Failed to list reschedules', { error: err.message });
+    return res.status(500).json({ error: 'Failed to list reschedules' });
+  }
+};
+
+async function loadProposal(scheduledId, proposalId) {
+  const { rows } = await db.query(
+    `SELECT * FROM consulting_session_reschedules WHERE id = $1 AND scheduled_session_id = $2`,
+    [proposalId, scheduledId],
+  );
+  return rows[0] || null;
+}
+
+// The counterparty answers a proposal. The proposer cannot answer their
+// own proposal; an admin may answer any proposal that is not their own.
+function canAnswerProposal(req, proposal, row) {
+  if (!req?.user) return false;
+  if (String(req.user.id) === String(proposal.proposed_by)) return false;
+  const party = sessionParty(req, row);
+  if (!party) return false;
+  if (proposal.proposed_by_role === 'admin') return true;
+  return party === 'admin' || party !== proposal.proposed_by_role;
+}
+
+// Accept a proposal: re-validate availability and overlap under the
+// advisory lock, then move the confirmed row. The engagement itself is
+// unchanged and already paid, so no payment check runs here.
+exports.acceptReschedule = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const scheduledId = Number(req.params.sessionId);
+    const proposalId = Number(req.params.proposalId);
+    if (!Number.isInteger(scheduledId) || scheduledId <= 0 || !Number.isInteger(proposalId) || proposalId <= 0) {
+      return res.status(400).json({ error: 'Invalid session or proposal id' });
+    }
+    const row = await loadScheduledSession(scheduledId);
+    if (!row) return res.status(404).json({ error: 'Session not found' });
+    const proposal = await loadProposal(scheduledId, proposalId);
+    if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+    if (!canAnswerProposal(req, proposal, row)) {
+      return res.status(403).json({ error: 'Not authorized to answer this proposal' });
+    }
+    if (proposal.status !== 'proposed') {
+      return res.status(409).json({ error: 'Proposal is no longer open' });
+    }
+    if (row.status !== 'confirmed') {
+      return res.status(409).json({ error: 'Only a confirmed session can be rescheduled' });
+    }
+
+    const enforce = consultantEnforcement() === 'enforce';
+    const proposedDate = proposal.proposed_date instanceof Date
+      ? proposal.proposed_date.toISOString().slice(0, 10)
+      : proposal.proposed_date;
+    const outcome = await withTransaction(db, async (client) => {
+      if (enforce) {
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [
+          `consulting-reschedule:${row.consultant_assigned_id}:${proposedDate}`,
+        ]);
+      }
+      const canonicalZone = await getConsultantTimezone(client, row.consultant_assigned_id);
+      const proposedStart = sessionStartInstant(proposedDate, proposal.proposed_time, canonicalZone);
+      if (proposedStart <= new Date()) {
+        return { status: 400, body: { error: 'Proposed time is no longer in the future' } };
+      }
+      const slotCheck = await assertSlotFree(client, {
+        consultantId: row.consultant_assigned_id,
+        date: proposedDate,
+        startTime: proposal.proposed_time,
+        durationMinutes: proposal.proposed_duration_minutes,
+        excludeScheduledId: scheduledId,
+      });
+      if (!slotCheck.ok) return slotCheck;
+
+      const { rows: updatedRows } = await client.query(
+        `UPDATE consulting_sessions_scheduled
+            SET scheduled_date = $1, scheduled_time = $2, duration_minutes = $3,
+                status = 'confirmed', updated_at = NOW()
+          WHERE id = $4 AND status = 'confirmed'
+          RETURNING *`,
+        [proposedDate, proposal.proposed_time, proposal.proposed_duration_minutes, scheduledId],
+      );
+      if (updatedRows.length === 0) {
+        return { status: 409, body: { error: 'Session changed. Please retry.' } };
+      }
+      const { rows: decidedRows } = await client.query(
+        `UPDATE consulting_session_reschedules
+            SET status = 'accepted', decided_by = $1, decided_at = NOW(), updated_at = NOW()
+          WHERE id = $2 AND status = 'proposed'
+          RETURNING *`,
+        [req.user.id, proposalId],
+      );
+      if (decidedRows.length === 0) {
+        return { status: 409, body: { error: 'Proposal is no longer open' } };
+      }
+      return { status: 200, body: { scheduled: updatedRows[0], proposal: decidedRows[0] } };
+    }, 'accept_consulting_reschedule');
+
+    if (outcome.status !== 200) return res.status(outcome.status).json(outcome.body);
+
+    const proposerUrl = proposal.proposed_by_role === 'consultant' ? consultantActionUrl() : clientActionUrl();
+    await notifySessionParty({
+      userId: proposal.proposed_by,
+      type: 'consulting_session_reschedule_accepted',
+      data: { session_id: row.session_id, scheduled_session_id: scheduledId, reschedule_id: proposalId },
+      actionUrl: proposerUrl,
+      idempotencyKey: `consulting-reschedule-accepted:${proposalId}`,
+    });
+
+    return res.json(outcome.body);
+  } catch (err) {
+    logger.error('Failed to accept reschedule', { error: err.message });
+    return res.status(500).json({ error: 'Failed to accept reschedule' });
+  }
+};
+
+// Decline a proposal: the appointment stays where it is.
+exports.declineReschedule = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const scheduledId = Number(req.params.sessionId);
+    const proposalId = Number(req.params.proposalId);
+    if (!Number.isInteger(scheduledId) || scheduledId <= 0 || !Number.isInteger(proposalId) || proposalId <= 0) {
+      return res.status(400).json({ error: 'Invalid session or proposal id' });
+    }
+    const row = await loadScheduledSession(scheduledId);
+    if (!row) return res.status(404).json({ error: 'Session not found' });
+    const proposal = await loadProposal(scheduledId, proposalId);
+    if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+    if (!canAnswerProposal(req, proposal, row)) {
+      return res.status(403).json({ error: 'Not authorized to answer this proposal' });
+    }
+    if (proposal.status !== 'proposed') {
+      return res.status(409).json({ error: 'Proposal is no longer open' });
+    }
+
+    const { reason } = req.body || {};
+    const { rows } = await db.query(
+      `UPDATE consulting_session_reschedules
+          SET status = 'declined', decided_by = $1, decided_at = NOW(),
+              decision_reason = $2, updated_at = NOW()
+        WHERE id = $3 AND status = 'proposed'
+        RETURNING *`,
+      [req.user.id, reason?.trim() || null, proposalId],
+    );
+    if (rows.length === 0) return res.status(409).json({ error: 'Proposal is no longer open' });
+
+    const proposerUrl = proposal.proposed_by_role === 'consultant' ? consultantActionUrl() : clientActionUrl();
+    await notifySessionParty({
+      userId: proposal.proposed_by,
+      type: 'consulting_session_reschedule_declined',
+      data: { session_id: row.session_id, scheduled_session_id: scheduledId, reschedule_id: proposalId },
+      actionUrl: proposerUrl,
+      idempotencyKey: `consulting-reschedule-declined:${proposalId}`,
+    });
+
+    return res.json(rows[0]);
+  } catch (err) {
+    logger.error('Failed to decline reschedule', { error: err.message });
+    return res.status(500).json({ error: 'Failed to decline reschedule' });
+  }
+};
+
+// Withdraw a proposal: only the proposer (or an admin acting for them)
+// may pull it back while it is still open.
+exports.withdrawReschedule = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const scheduledId = Number(req.params.sessionId);
+    const proposalId = Number(req.params.proposalId);
+    if (!Number.isInteger(scheduledId) || scheduledId <= 0 || !Number.isInteger(proposalId) || proposalId <= 0) {
+      return res.status(400).json({ error: 'Invalid session or proposal id' });
+    }
+    const row = await loadScheduledSession(scheduledId);
+    if (!row) return res.status(404).json({ error: 'Session not found' });
+    const proposal = await loadProposal(scheduledId, proposalId);
+    if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+    const party = sessionParty(req, row);
+    if (!party) return res.status(403).json({ error: 'Not authorized for this session' });
+    if (party !== 'admin' && String(req.user.id) !== String(proposal.proposed_by)) {
+      return res.status(403).json({ error: 'Only the proposer can withdraw this proposal' });
+    }
+    if (proposal.status !== 'proposed') {
+      return res.status(409).json({ error: 'Proposal is no longer open' });
+    }
+
+    const { rows } = await db.query(
+      `UPDATE consulting_session_reschedules
+          SET status = 'withdrawn', decided_by = $1, decided_at = NOW(), updated_at = NOW()
+        WHERE id = $2 AND status = 'proposed'
+        RETURNING *`,
+      [req.user.id, proposalId],
+    );
+    if (rows.length === 0) return res.status(409).json({ error: 'Proposal is no longer open' });
+
+    return res.json(rows[0]);
+  } catch (err) {
+    logger.error('Failed to withdraw reschedule', { error: err.message });
+    return res.status(500).json({ error: 'Failed to withdraw reschedule' });
+  }
+};
+
+// ── 519: cancellation ──────────────────────────────────────────────────
+
+// Cancel an appointment. The client, the assigned consultant, or an admin
+// may cancel a pending_confirmation or confirmed appointment. Both rows
+// move in one transaction, so an admin cancellation can no longer leave a
+// phantom confirmed booking behind (audit G10-4). The reason and the
+// refund request are recorded; a refund itself stays on the existing
+// admin refund endpoint and is never automatic.
+exports.cancelScheduledSession = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const scheduledId = Number(req.params.sessionId);
+    if (!Number.isInteger(scheduledId) || scheduledId <= 0) {
+      return res.status(400).json({ error: 'Invalid scheduled session id' });
+    }
+    const { reason, refund_requested } = req.body || {};
+
+    const row = await loadScheduledSession(scheduledId);
+    if (!row) return res.status(404).json({ error: 'Session not found' });
+    const party = sessionParty(req, row);
+    if (!party) return res.status(403).json({ error: 'Not authorized for this session' });
+    if (!['pending_confirmation', 'confirmed'].includes(row.status)) {
+      return res.status(409).json({ error: 'Session cannot be cancelled from its current status' });
+    }
+
+    const outcome = await withTransaction(db, async (client) => {
+      const { rows: cancelledRows } = await client.query(
+        `UPDATE consulting_sessions_scheduled
+            SET status = 'cancelled', cancellation_reason = $1, refund_requested = $2,
+                cancelled_by = $3, cancelled_at = NOW(), updated_at = NOW()
+          WHERE id = $4 AND status IN ('pending_confirmation', 'confirmed')
+          RETURNING *`,
+        [reason?.trim() || null, refund_requested === true, req.user.id, scheduledId],
+      );
+      if (cancelledRows.length === 0) {
+        return { status: 409, body: { error: 'Session cannot be cancelled from its current status' } };
+      }
+      // Canonical status lives on consulting_sessions; move it with the row.
+      await client.query(
+        `UPDATE consulting_sessions SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
+        [row.session_id],
+      );
+      // Open reschedule proposals on a cancelled appointment are moot.
+      await client.query(
+        `UPDATE consulting_session_reschedules
+            SET status = 'withdrawn', decided_by = $1, decided_at = NOW(),
+                decision_reason = 'Session cancelled', updated_at = NOW()
+          WHERE scheduled_session_id = $2 AND status = 'proposed'`,
+        [req.user.id, scheduledId],
+      );
+      return { status: 200, body: cancelledRows[0] };
+    }, 'cancel_consulting_session');
+
+    if (outcome.status !== 200) return res.status(outcome.status).json(outcome.body);
+
+    const data = { session_id: row.session_id, scheduled_session_id: scheduledId, refund_requested: refund_requested === true };
+    await notifySessionParty({
+      userId: row.client_id,
+      type: 'consulting_session_cancelled',
+      data,
+      actionUrl: clientActionUrl(),
+      idempotencyKey: `consulting-session-cancelled:${scheduledId}:client`,
+    });
+    await notifySessionParty({
+      userId: row.consultant_assigned_id,
+      type: 'consulting_session_cancelled',
+      data,
+      actionUrl: consultantActionUrl(),
+      idempotencyKey: `consulting-session-cancelled:${scheduledId}:consultant`,
+    });
+
+    return res.json(outcome.body);
+  } catch (err) {
+    logger.error('Failed to cancel scheduled session', { error: err.message });
+    return res.status(500).json({ error: 'Failed to cancel session' });
+  }
+};
+
+// ── 520: attendance ───────────────────────────────────────────────────
+
+// Confirm the caller's own attendance. Either party may confirm once the
+// scheduled start has passed; an admin is not a party and cannot confirm
+// for one. One confirmation per party per appointment.
+exports.confirmAttendance = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const scheduledId = Number(req.params.sessionId);
+    if (!Number.isInteger(scheduledId) || scheduledId <= 0) {
+      return res.status(400).json({ error: 'Invalid scheduled session id' });
+    }
+
+    const row = await loadScheduledSession(scheduledId);
+    if (!row) return res.status(404).json({ error: 'Session not found' });
+    const party = sessionParty(req, row);
+    if (party !== 'client' && party !== 'consultant') {
+      return res.status(403).json({ error: 'Only the client or the consultant can confirm attendance' });
+    }
+    if (!['confirmed', 'completed'].includes(row.status)) {
+      return res.status(409).json({ error: 'Attendance can only be confirmed for a confirmed or completed session' });
+    }
+    const start = sessionStartInstant(
+      row.scheduled_date instanceof Date ? row.scheduled_date.toISOString().slice(0, 10) : row.scheduled_date,
+      row.scheduled_time,
+      row.timezone,
+    );
+    if (start > new Date()) {
+      return res.status(409).json({ error: 'session_not_started', message: 'The session has not started yet.' });
+    }
+
+    const { rows } = await db.query(
+      `INSERT INTO consulting_session_attendance (scheduled_session_id, user_id, role)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (scheduled_session_id, role) DO NOTHING
+       RETURNING *`,
+      [scheduledId, req.user.id, party],
+    );
+    if (rows.length === 0) {
+      return res.status(409).json({ error: 'Attendance already confirmed' });
+    }
+
+    const otherParty = party === 'client'
+      ? { userId: row.consultant_assigned_id, url: consultantActionUrl() }
+      : { userId: row.client_id, url: clientActionUrl() };
+    await notifySessionParty({
+      userId: otherParty.userId,
+      type: 'consulting_session_attendance_confirmed',
+      data: { session_id: row.session_id, scheduled_session_id: scheduledId, role: party },
+      actionUrl: otherParty.url,
+      idempotencyKey: `consulting-attendance:${scheduledId}:${party}`,
+    });
+
+    return res.status(201).json(rows[0]);
+  } catch (err) {
+    logger.error('Failed to confirm attendance', { error: err.message });
+    return res.status(500).json({ error: 'Failed to confirm attendance' });
+  }
+};
+
+// List the attendance confirmations for one appointment.
+exports.listAttendance = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const scheduledId = Number(req.params.sessionId);
+    if (!Number.isInteger(scheduledId) || scheduledId <= 0) {
+      return res.status(400).json({ error: 'Invalid scheduled session id' });
+    }
+    const row = await loadScheduledSession(scheduledId);
+    if (!row) return res.status(404).json({ error: 'Session not found' });
+    if (!sessionParty(req, row)) return res.status(403).json({ error: 'Not authorized for this session' });
+
+    const { rows } = await db.query(
+      `SELECT * FROM consulting_session_attendance
+        WHERE scheduled_session_id = $1 ORDER BY confirmed_at ASC`,
+      [scheduledId],
+    );
+    return res.json(rows);
+  } catch (err) {
+    logger.error('Failed to list attendance', { error: err.message });
+    return res.status(500).json({ error: 'Failed to list attendance' });
+  }
+};
+
+// ── Session detail + contractor list ────────────────────────────────────
+
+// One appointment with its open history: the scheduled row, its reschedule
+// proposals, and its attendance confirmations. Used by the client portal,
+// the contractor dashboard, and the admin detail page.
+exports.getScheduledSessionDetail = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const scheduledId = Number(req.params.sessionId);
+    if (!Number.isInteger(scheduledId) || scheduledId <= 0) {
+      return res.status(400).json({ error: 'Invalid scheduled session id' });
+    }
+    const row = await loadScheduledSession(scheduledId);
+    if (!row) return res.status(404).json({ error: 'Session not found' });
+    if (!sessionParty(req, row)) return res.status(403).json({ error: 'Not authorized for this session' });
+
+    const [{ rows: proposals }, { rows: attendance }] = await Promise.all([
+      db.query(
+        `SELECT * FROM consulting_session_reschedules
+          WHERE scheduled_session_id = $1 ORDER BY created_at DESC`,
+        [scheduledId],
+      ),
+      db.query(
+        `SELECT * FROM consulting_session_attendance
+          WHERE scheduled_session_id = $1 ORDER BY confirmed_at ASC`,
+        [scheduledId],
+      ),
+    ]);
+    return res.json({ scheduled: row, proposals, attendance });
+  } catch (err) {
+    logger.error('Failed to get scheduled session detail', { error: err.message });
+    return res.status(500).json({ error: 'Failed to fetch scheduled session' });
+  }
+};
+
+// Resolve the detail by consulting session id (the admin detail page only
+// knows the engagement id, not the scheduled row id).
+exports.getScheduledSessionDetailByConsulting = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const consultingSessionId = Number(req.params.consultingSessionId);
+    if (!Number.isInteger(consultingSessionId) || consultingSessionId <= 0) {
+      return res.status(400).json({ error: 'Invalid consulting session id' });
+    }
+    const { rows } = await db.query(
+      `SELECT css.*, cs.user_id AS client_id,
+              cs.consultant_assigned_id, cs.status AS session_status
+         FROM consulting_sessions_scheduled css
+         JOIN consulting_sessions cs ON cs.id = css.session_id
+        WHERE cs.id = $1`,
+      [consultingSessionId],
+    );
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: 'Session not found' });
+    if (!sessionParty(req, row)) return res.status(403).json({ error: 'Not authorized for this session' });
+
+    const [{ rows: proposals }, { rows: attendance }] = await Promise.all([
+      db.query(
+        `SELECT * FROM consulting_session_reschedules
+          WHERE scheduled_session_id = $1 ORDER BY created_at DESC`,
+        [row.id],
+      ),
+      db.query(
+        `SELECT * FROM consulting_session_attendance
+          WHERE scheduled_session_id = $1 ORDER BY confirmed_at ASC`,
+        [row.id],
+      ),
+    ]);
+    return res.json({ scheduled: row, proposals, attendance });
+  } catch (err) {
+    logger.error('Failed to get scheduled session detail', { error: err.message });
+    return res.status(500).json({ error: 'Failed to fetch scheduled session' });
+  }
+};
+
+// The consultant's own appointments, with open-proposal counts and
+// attendance, for the contractor dashboard sessions section (items 518/520).
+exports.listMyConsultantSessions = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const consultantId = req.user.id;
+
+    const { rows } = await db.query(
+      `SELECT css.id AS scheduled_id, css.session_id, css.scheduled_date, css.scheduled_time,
+              css.duration_minutes, css.meeting_link, css.meeting_type, css.timezone, css.status AS scheduled_status,
+              cs.status AS session_status, cs.service_tier, cs.business_name,
+              TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) AS client_name,
+              u.email AS client_email,
+              (SELECT COUNT(*) FROM consulting_session_reschedules r
+                WHERE r.scheduled_session_id = css.id AND r.status = 'proposed') AS open_proposals
+         FROM consulting_sessions_scheduled css
+         JOIN consulting_sessions cs ON cs.id = css.session_id
+         JOIN users u ON u.id = cs.user_id
+        WHERE css.consultant_assigned_id = $1
+        ORDER BY css.scheduled_date DESC, css.scheduled_time DESC
+        LIMIT 50`,
+      [consultantId],
+    );
+
+    const ids = rows.map((r) => r.scheduled_id);
+    const proposalsBySession = {};
+    const attendanceBySession = {};
+    if (ids.length > 0) {
+      const { rows: proposals } = await db.query(
+        `SELECT * FROM consulting_session_reschedules
+          WHERE scheduled_session_id = ANY($1::bigint[]) ORDER BY created_at DESC`,
+        [ids],
+      );
+      const { rows: attendance } = await db.query(
+        `SELECT * FROM consulting_session_attendance
+          WHERE scheduled_session_id = ANY($1::bigint[]) ORDER BY confirmed_at ASC`,
+        [ids],
+      );
+      for (const proposal of proposals) {
+        (proposalsBySession[proposal.scheduled_session_id] ||= []).push(proposal);
+      }
+      for (const confirmation of attendance) {
+        (attendanceBySession[confirmation.scheduled_session_id] ||= []).push(confirmation);
+      }
+    }
+
+    return res.json(rows.map((row) => ({
+      ...row,
+      open_proposals: Number(row.open_proposals),
+      proposals: proposalsBySession[row.scheduled_id] || [],
+      attendance: attendanceBySession[row.scheduled_id] || [],
+    })));
+  } catch (err) {
+    logger.error('Failed to list consultant sessions', { error: err.message });
+    return res.status(500).json({ error: 'Failed to fetch sessions' });
   }
 };

@@ -35,6 +35,12 @@ export default function ConsultantScheduleSelector({
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  // The full slot object for the chosen slot (carries the converted
+  // client-zone times when a timezone is selected, item 517).
+  const [selectedSlotObj, setSelectedSlotObj] = useState(null);
+  // Zone metadata from the last slot response: the consultant's canonical
+  // zone and the client's selected zone. Booking posts canonical times.
+  const [slotsMeta, setSlotsMeta] = useState(null);
   const [durationMinutes, setDurationMinutes] = useState(120);
   const [loading, setLoading] = useState(false);
   const [meetingLink, setMeetingLink] = useState('');
@@ -43,15 +49,19 @@ export default function ConsultantScheduleSelector({
   // chosen format is plumbed through book-slot and stored on the row.
   const [meetingType, setMeetingType] = useState('zoom');
 
-  // Load next available dates on mount (and when the duration changes).
+  // Load next available dates on mount (and when the duration or the
+  // client's zone changes; slot times convert to the chosen zone, 517).
   useEffect(() => {
     if (!consultantId) return;
     let cancelled = false;
     const loadAvailableDates = async () => {
       try {
         setLoading(true);
-        const response = await schedulingApi.getNextAvailableDates(consultantId, 30, durationMinutes);
-        if (!cancelled) setAvailableDates(response.data || []);
+        const response = await schedulingApi.getNextAvailableDates(consultantId, 30, durationMinutes, timezone);
+        // Enriched shape (517) wraps the dates with the zones; the legacy
+        // shape is a bare array.
+        const payload = response.data;
+        if (!cancelled) setAvailableDates(Array.isArray(payload) ? payload : (payload.dates || []));
       } catch (err) {
         toast.error(t('common.errorLoading'));
         logger.error('Failed to load available dates', { error: err.message });
@@ -61,19 +71,25 @@ export default function ConsultantScheduleSelector({
     };
     loadAvailableDates();
     return () => { cancelled = true; };
-  }, [consultantId, durationMinutes, t]);
+  }, [consultantId, durationMinutes, timezone, t]);
 
-  // Load slots when a date is selected (and when the duration changes).
+  // Load slots when a date is selected (and when the duration or the
+  // client's zone changes).
   useEffect(() => {
     if (!selectedDate || !consultantId) return;
     let cancelled = false;
     const loadSlots = async () => {
       try {
         setLoading(true);
-        const response = await schedulingApi.getAvailableSlots(consultantId, selectedDate, durationMinutes);
+        const response = await schedulingApi.getAvailableSlots(consultantId, selectedDate, durationMinutes, timezone);
         if (cancelled) return;
-        // getAvailableSlots returns { slot_start, ... } rows; normalize to times.
-        setAvailableSlots((response.data || []).map((slot) => (typeof slot === 'string' ? slot : slot.slot_start)).filter(Boolean));
+        // Enriched shape (517): { timezone, client_timezone, slots } where
+        // each slot carries client_slot_start/client_slot_end alongside the
+        // canonical slot_start/slot_end. Legacy shape: a bare array.
+        const payload = response.data;
+        const slots = Array.isArray(payload) ? payload : (payload.slots || []);
+        setSlotsMeta(Array.isArray(payload) ? null : { timezone: payload.timezone, client_timezone: payload.client_timezone });
+        setAvailableSlots(slots);
       } catch (err) {
         toast.error(t('common.errorLoading'));
         logger.error('Failed to load time slots', { error: err.message });
@@ -83,22 +99,39 @@ export default function ConsultantScheduleSelector({
     };
     loadSlots();
     return () => { cancelled = true; };
-  }, [selectedDate, consultantId, durationMinutes, t]);
+  }, [selectedDate, consultantId, durationMinutes, timezone, t]);
 
   const handleDateSelect = (date) => {
     setSelectedDate(date);
     setSelectedSlot(null);
+    setSelectedSlotObj(null);
     setStep('selectTime');
   };
 
   const handleSlotSelect = (slot) => {
     // Select only. Advancing is the Next button's job (see header comment).
-    setSelectedSlot(slot);
+    setSelectedSlot(typeof slot === 'string' ? slot : slot.slot_start);
+    setSelectedSlotObj(typeof slot === 'string' ? null : slot);
+  };
+
+  // Changing the zone clears any selection made in the old one; the date
+  // and slot effects re-load in the new zone (item 517).
+  const handleTimezoneChange = (zone) => {
+    setTimezone(zone);
+    setSelectedDate(null);
+    setSelectedSlot(null);
+    setSelectedSlotObj(null);
+    setAvailableSlots([]);
+    setSlotsMeta(null);
+    setStep('selectDate');
   };
 
   const handleConfirmSchedule = async () => {
     try {
       setLoading(true);
+      // The booking posts the canonical date and time (the consultant's
+      // zone); the client-zone times are display only (item 517).
+      const canonicalZone = slotsMeta?.timezone || 'America/New_York';
       const response = await schedulingApi.bookTimeSlot(
         sessionId,
         consultantId,
@@ -106,7 +139,7 @@ export default function ConsultantScheduleSelector({
         selectedSlot,
         durationMinutes,
         meetingLink || null,
-        timezone,
+        canonicalZone,
         meetingType,
       );
       toast.success(t('scheduling.sessionConfirmed'));
@@ -199,6 +232,18 @@ export default function ConsultantScheduleSelector({
 
       {step === 'selectDate' && (
         <>
+          {/* The zone picker comes before date and slot selection (517):
+              every time shown after it is converted to the chosen zone. */}
+          <div className="css-field">
+            <label className="css-label">
+              {t('scheduling.timezone')}
+            </label>
+            <select value={timezone} onChange={(e) => handleTimezoneChange(e.target.value)} className="css-input">
+              {timezoneOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
           <div style={dateGridStyle}>
             {availableDates.map((dateObj) => (
               <button
@@ -224,17 +269,30 @@ export default function ConsultantScheduleSelector({
       {step === 'selectTime' && (
         <>
           <div style={slotGridStyle}>
-            {availableSlots.map((slot) => (
-              <button
-                key={slot}
-                type="button"
-                style={slotButtonStyle(selectedSlot === slot)}
-                onClick={() => handleSlotSelect(slot)}
-                disabled={loading} data-track="ui.1e38907353.2"
-              >
-                {slot}
-              </button>
-            ))}
+            {availableSlots.map((slot) => {
+              const slotStart = typeof slot === 'string' ? slot : slot.slot_start;
+              const clientStart = typeof slot === 'string' ? null : slot.client_slot_start;
+              const clientDate = typeof slot === 'string' ? null : slot.client_date;
+              const isSelected = selectedSlot === slotStart;
+              return (
+                <button
+                  key={slotStart}
+                  type="button"
+                  style={slotButtonStyle(isSelected)}
+                  onClick={() => handleSlotSelect(slot)}
+                  disabled={loading} data-track="ui.1e38907353.2"
+                >
+                  {String(slotStart).slice(0, 5)}
+                  {clientStart && (
+                    <div className="css-slot-sub">
+                      {clientStart}
+                      {clientDate && clientDate !== selectedDate ? ` (${new Date(clientDate).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })})` : ''}
+                      {' '}{t('scheduling.yourTime')}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
           {availableSlots.length === 0 && !loading && (
             <p style={{ color: 'var(--color-text-muted)', textAlign: 'center' }}>{t('scheduling.noSlots')}</p>
@@ -265,8 +323,18 @@ export default function ConsultantScheduleSelector({
               {new Date(selectedDate).toLocaleDateString(dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
             <p style={{ margin: '0.5rem 0', color: 'var(--color-text-muted)' }}>
-              <strong>{t('scheduling.time')}:</strong> {selectedSlot}
+              <strong>{t('scheduling.time')}:</strong> {String(selectedSlot).slice(0, 5)}
+              {slotsMeta?.timezone ? ` (${slotsMeta.timezone})` : ''}
             </p>
+            {selectedSlotObj?.client_slot_start && (
+              <p className="css-review-line">
+                <strong>{t('scheduling.yourTime')}:</strong> {selectedSlotObj.client_slot_start}
+                {selectedSlotObj.client_date && selectedSlotObj.client_date !== selectedDate
+                  ? ` (${new Date(selectedSlotObj.client_date).toLocaleDateString(dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })})`
+                  : ''}
+                {slotsMeta?.client_timezone ? ` (${slotsMeta.client_timezone})` : ''}
+              </p>
+            )}
             <p style={{ margin: '0.5rem 0', color: 'var(--color-text-muted)' }}>
               <strong>{t('scheduling.duration')}:</strong> {durationMinutes} {t('scheduling.minutes')}
             </p>
@@ -301,16 +369,6 @@ export default function ConsultantScheduleSelector({
               onChange={(e) => setMeetingLink(e.target.value)}
               style={inputStyle}
             />
-          </div>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-              {t('scheduling.timezone')}
-            </label>
-            <select value={timezone} onChange={(e) => setTimezone(e.target.value)} style={inputStyle}>
-              {timezoneOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
           </div>
         </>
       )}

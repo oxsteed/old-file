@@ -73,6 +73,13 @@ const NOTIFICATION_TYPES = [
   // a consultant declining a referral handoff.
   { type: 'consulting_inquiry_assigned', group: 'work' },
   { type: 'consulting_referral_declined', group: 'work' },
+  // Group 10 Slice C (518-520): reschedule proposals, cancellation, and
+  // attendance confirmation for confirmed appointments.
+  { type: 'consulting_session_reschedule_proposed', group: 'work' },
+  { type: 'consulting_session_reschedule_accepted', group: 'work' },
+  { type: 'consulting_session_reschedule_declined', group: 'work' },
+  { type: 'consulting_session_cancelled', group: 'work' },
+  { type: 'consulting_session_attendance_confirmed', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
   { type: 'crew_shift_published', group: 'work' },
   { type: 'crew_task_assigned', group: 'work' },

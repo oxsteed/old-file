@@ -15105,6 +15105,35 @@
     "blockedDateAdded": "Dat bloke ajoute",
     "blockedDateRemoved": "Dat bloke enleve",
     "dateRequired": "Tanpri chwazi yon dat"
+  ,
+  "yourTime": "Lè ou",
+  "rescheduleProposed": "Nouvo lè pwopoze",
+  "rescheduleAccepted": "Nouvo lè a aksepte",
+  "rescheduleDeclined": "Nouvo lè a refize",
+  "rescheduleWithdrawn": "Nouvo lè a retire",
+  "rescheduleTitle": "Pwopoze yon nouvo lè",
+  "rescheduleCurrent": "Randevou aktyèl la: {{date}} a {{time}}",
+  "pickDate": "Chwazi yon dat",
+  "pickTime": "Chwazi yon lè",
+  "rescheduleReason": "Rezon (si ou vle)",
+  "rescheduleReasonPlaceholder": "Poukisa w ap pwopoze yon nouvo lè?",
+  "rescheduleCanonicalNote": "Lè yo montre nan zòn lè ou; randevou a rete nan zòn lè konsiltan an ({{zone}}).",
+  "proposeNewTime": "Pwopoze yon nouvo lè",
+  "cancelTitle": "Anile randevou sa a",
+  "cancelReason": "Rezon",
+  "cancelReasonPlaceholder": "Poukisa randevou sa a ap anile?",
+  "requestRefund": "Mande yon ranbousman pou randevou sa a",
+  "cancelNote": "Ou menm ak konsiltan an ap resevwa yon notifikasyon. Ranbousman yo jere apa pa yon administratè.",
+  "cancelled": "Randevou a anile",
+  "cancelSession": "Anile randevou a",
+  "confirmAttendance": "Konfime prezans",
+  "attendanceConfirmed": "Prezans konfime",
+  "attendanceConfirmedByYou": "Ou konfime prezans ou",
+  "attendanceConfirmedByClient": "Kliyan an konfime prezans li",
+  "attendanceConfirmedByConsultant": "Konsiltan an konfime prezans li",
+  "accept": "Aksepte",
+  "decline": "Refize",
+  "withdraw": "Retire"
   },
   "regionForm": {
     "boundaryTypes": {
@@ -18639,6 +18668,12 @@
     "emptyStat1Label": "Kòmanse ak klète",
     "emptyPreviewTitle": "Sa pòtal sa a ap tounen apre acha a",
     "emptyEyebrow": "Konsiltasyon lansman biznis"
+  ,
+  "schedulePanelTitle": "Randevou ou",
+  "pendingProposals": "Nouvo lè pwopoze",
+  "proposedByYou": "Ou pwopoze l",
+  "proposedByConsultant": "Konsiltan ou pwopoze l",
+  "proposedByOxsteed": "OxSteed pwopoze l"
   },
   "logistics": {
     "forms": {
@@ -21145,6 +21180,8 @@
     "confirm": {
       "complete": "Make sesyon sa a fini? N ap voye yon imèl swivi bay kliyan an ak aksyon pou li fè.",
       "noShow": "Make sesyon sa a kòm 'pa vini'? N ap voye yon imèl swivi bay kliyan an pou pwopoze replanifye."
+    ,
+    "cancel": "Anile sesyon sa a? Randevou a ak sesyon an ap anile ansanm epi tou de pati yo ap resevwa notifikasyon."
     },
     "toast": {
       "loadConsultantsFailed": "Nou pa t kapab chaje konsiltan yo",
@@ -21160,7 +21197,14 @@
       "noteRequired": "Tanpri antre yon nòt",
       "notesSaved": "Nòt yo sove avèk siksè",
       "saveNotesFailed": "Nou pa t kapab sove nòt yo"
+    ,
+    "sessionNotStarted": "Sesyon sa a poko kòmanse, kidonk li pa ka make kòm konplete.",
+    "cancelled": "Sesyon an anile.",
+    "cancelFailed": "Li pa t posib pou anile sesyon an."
     }
+  ,
+  "cancelSession": "Anile sesyon an",
+  "cancelHint": "Li anile randevou a ak sesyon an ansanm, epi li avèti tou de pati yo. Ranbousman yo rete sou chemen ranbousman an."
   },
   "adminConsultingScheduler": {
     "loading": "Ap chaje sesyon yo...",
@@ -25282,6 +25326,25 @@
       "step3Title": "3. Egzekisyon tiyo",
       "step3Body": "Sèvi ak tablodbò a pou deplase leads soti nan entwodiksyon rive dekouvèt, pwopozisyon, angajman, ak fini pandan w ap kenbe OxSteed nan sik la."
     }
+  ,
+  "sessions": {
+    "label": "Randevou",
+    "title": "Sesyon ou yo",
+    "description": "Randevou konfime ak kliyan yo, ki gen ladan pwopozisyon nouvo lè, prezans, ak anilasyon.",
+    "loading": "Ap chaje sesyon yo…",
+    "emptyTitle": "Pa gen sesyon ankò",
+    "emptyDescription": "Lè yon kliyan rezève yon sesyon avè ou, li ap parèt isit la ak lè li, pwopozisyon li yo, ak prezans.",
+    "clientFallback": "Kliyan",
+    "pendingProposals": "Nouvo lè pwopoze",
+    "proposedBy": "{{role}} pwopoze l",
+    "status": {
+      "pending_confirmation": "Ap tann konfimasyon",
+      "confirmed": "Konfime",
+      "completed": "Konplete",
+      "no_show": "Pa t vini",
+      "cancelled": "Anile"
+    }
+  }
   },
   "learn": {
     "page": {

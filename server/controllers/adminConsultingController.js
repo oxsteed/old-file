@@ -5,6 +5,10 @@ const { sendEmail } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { logAdminAction } = require('../services/auditService');
 const { csvRow } = require('../utils/csv');
+// Group 10 item 520: completing a session whose scheduled start is still
+// in the future is refused; the start instant is computed in the row's
+// stored zone.
+const { sessionStartInstant } = require('../utils/consultingTimezone');
 
 const VALID_CONSULTING_STATUSES = ['pending', 'contacted', 'scheduled', 'in_progress', 'completed', 'cancelled', 'archived'];
 
@@ -428,6 +432,20 @@ exports.updateSessionDetails = async (req, res) => {
 
     const result = await db.query(query, values);
 
+    // Group 10 item 519: cancelling from the admin status dropdown must
+    // move the scheduled row too, or the portal keeps showing a phantom
+    // confirmed booking (audit G10-4). The dedicated cancel endpoint
+    // records the reason and refund request; this mirror keeps the two
+    // statuses from diverging when an admin uses the dropdown instead.
+    if (status === 'cancelled') {
+      await db.query(
+        `UPDATE consulting_sessions_scheduled
+            SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
+          WHERE session_id = $1 AND status IN ('pending_confirmation', 'confirmed')`,
+        [id],
+      );
+    }
+
     logger.info('Consulting session updated', {
       adminId: req.user?.id,
       sessionId: id,
@@ -459,6 +477,27 @@ exports.completeSession = async (req, res) => {
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Group 10 item 520: an admin cannot complete a session whose
+    // scheduled start is still in the future. A session with no scheduled
+    // row keeps the previous behavior, and the pending_confirmation
+    // sentinel (1970-01-01) is always in the past, so it never blocks.
+    const scheduled = await db.query(
+      `SELECT scheduled_date, scheduled_time, timezone, status
+         FROM consulting_sessions_scheduled WHERE session_id = $1`,
+      [sessionId],
+    );
+    if (scheduled.rows.length > 0 && scheduled.rows[0].status === 'confirmed') {
+      const row = scheduled.rows[0];
+      const start = sessionStartInstant(
+        row.scheduled_date instanceof Date ? row.scheduled_date.toISOString().slice(0, 10) : row.scheduled_date,
+        row.scheduled_time,
+        row.timezone,
+      );
+      if (start > new Date()) {
+        return res.status(409).json({ error: 'session_not_started', message: 'The session has not started yet.' });
+      }
     }
 
     // Mark session as completed

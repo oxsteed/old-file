@@ -15105,6 +15105,35 @@
     "blockedDateAdded": "تمت إضافة التاريخ المحجوب",
     "blockedDateRemoved": "تمت إزالة التاريخ المحجوب",
     "dateRequired": "يرجى اختيار تاريخ"
+  ,
+  "yourTime": "وقتك",
+  "rescheduleProposed": "تم اقتراح موعد جديد",
+  "rescheduleAccepted": "تم قبول الموعد الجديد",
+  "rescheduleDeclined": "تم رفض الموعد الجديد",
+  "rescheduleWithdrawn": "تم سحب الموعد الجديد",
+  "rescheduleTitle": "اقتراح وقت جديد",
+  "rescheduleCurrent": "الموعد الحالي: {{date}} في {{time}}",
+  "pickDate": "اختر تاريخًا",
+  "pickTime": "اختر وقتًا",
+  "rescheduleReason": "السبب (اختياري)",
+  "rescheduleReasonPlaceholder": "لماذا تقترح وقتًا جديدًا؟",
+  "rescheduleCanonicalNote": "تُعرض الأوقات بتوقيتك؛ ويبقى الحجز بتوقيت المستشار ({{zone}}).",
+  "proposeNewTime": "اقتراح وقت جديد",
+  "cancelTitle": "إلغاء هذا الموعد",
+  "cancelReason": "السبب",
+  "cancelReasonPlaceholder": "لماذا يتم إلغاء هذا الموعد؟",
+  "requestRefund": "طلب استرداد لهذا الموعد",
+  "cancelNote": "سيتم إشعارك أنت والمستشار. تتم معالجة المبالغ المستردة بشكل منفصل بواسطة مسؤول.",
+  "cancelled": "تم إلغاء الموعد",
+  "cancelSession": "إلغاء الموعد",
+  "confirmAttendance": "تأكيد الحضور",
+  "attendanceConfirmed": "تم تأكيد الحضور",
+  "attendanceConfirmedByYou": "لقد أكدت حضورك",
+  "attendanceConfirmedByClient": "أكد العميل حضوره",
+  "attendanceConfirmedByConsultant": "أكد المستشار حضوره",
+  "accept": "قبول",
+  "decline": "رفض",
+  "withdraw": "سحب"
   },
   "regionForm": {
     "boundaryTypes": {
@@ -18650,6 +18679,12 @@
     "emptyStat1Label": "ابدأ بوضوح",
     "emptyPreviewTitle": "ما سيصبح عليه هذا البوابة بعد الشراء",
     "emptyEyebrow": "استشارات إطلاق الأنشطة التجارية"
+  ,
+  "schedulePanelTitle": "موعدك",
+  "pendingProposals": "تم اقتراح موعد جديد",
+  "proposedByYou": "اقترحته أنت",
+  "proposedByConsultant": "اقترحه مستشارك",
+  "proposedByOxsteed": "اقترحته OxSteed"
   },
   "logistics": {
     "forms": {
@@ -21156,6 +21191,8 @@
     "confirm": {
       "complete": "هل تريد وسم هذه الجلسة كمكتملة؟ سيتم إرسال بريد متابعة إلى العميل يتضمن عناصر العمل.",
       "noShow": "هل تريد وسم هذه الجلسة كعدم حضور؟ سيتم إرسال بريد متابعة إلى العميل يعرض إعادة الجدولة."
+    ,
+    "cancel": "إلغاء هذه الجلسة؟ سيتم إلغاء الموعد والجلسة معًا وإشعار الطرفين."
     },
     "toast": {
       "loadConsultantsFailed": "فشل تحميل المستشارين",
@@ -21171,7 +21208,14 @@
       "noteRequired": "الرجاء إدخال ملاحظة",
       "notesSaved": "تم حفظ الملاحظات بنجاح",
       "saveNotesFailed": "فشل في حفظ الملاحظات"
+    ,
+    "sessionNotStarted": "لم تبدأ هذه الجلسة بعد، لذا لا يمكن وضع علامة اكتمال عليها.",
+    "cancelled": "تم إلغاء الجلسة.",
+    "cancelFailed": "تعذر إلغاء الجلسة."
     }
+  ,
+  "cancelSession": "إلغاء الجلسة",
+  "cancelHint": "يلغي الموعد والجلسة معًا، ويُشعر الطرفين. تبقى المبالغ المستردة عبر نقطة الاسترداد."
   },
   "adminConsultingScheduler": {
     "loading": "جارٍ تحميل الجلسات...",
@@ -25293,6 +25337,25 @@
       "step3Title": "3. تنفيذ خط العمل",
       "step3Body": "استخدم لوحة التحكم لنقل الإحالات من التقديم إلى الاكتشاف ثم الاقتراح والتفاعل والإتمام مع إبقاء OxSteed ضمن المتابعة."
     }
+  ,
+  "sessions": {
+    "label": "المواعيد",
+    "title": "جلساتك",
+    "description": "المواعيد المؤكدة مع العملاء، بما في ذلك مقترحات إعادة الجدولة والحضور والإلغاء.",
+    "loading": "جارٍ تحميل الجلسات…",
+    "emptyTitle": "لا توجد جلسات بعد",
+    "emptyDescription": "عندما يحجز عميل جلسة معك، ستظهر هنا مع وقتها ومقترحاتها وحضورها.",
+    "clientFallback": "عميل",
+    "pendingProposals": "تم اقتراح موعد جديد",
+    "proposedBy": "اقترحه {{role}}",
+    "status": {
+      "pending_confirmation": "بانتظار التأكيد",
+      "confirmed": "مؤكد",
+      "completed": "مكتمل",
+      "no_show": "لم يحضر",
+      "cancelled": "ملغى"
+    }
+  }
   },
   "learn": {
     "page": {

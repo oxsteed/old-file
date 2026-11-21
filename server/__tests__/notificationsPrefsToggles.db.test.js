@@ -396,6 +396,9 @@ ddescribe('Track C preference toggles (DB)', () => {
         { file: 'controllers/bookingController.js', name: 'type', expansions: ['booking_accepted', 'booking_declined', 'booking_cancelled'] },
         { file: 'controllers/businessAppointmentsController.js', name: 'notificationType', expansions: ['appointment_created', 'appointment_cancelled', 'appointment_rescheduled', 'appointment_staff_reassigned', 'appointment_payment_recorded', 'appointment_pending', 'appointment_confirmed', 'appointment_in_progress', 'appointment_completed', 'appointment_no_show'] },
         { file: 'controllers/businessInvoiceController.js', name: 'type', expansions: ['business_invoice_paid', 'business_invoice_voided'] },
+        // Group 10 Slice C: notifySessionParty fan-out in the scheduling
+        // controller; the five types are the only ones its callers pass.
+        { file: 'controllers/consultantSchedulingController.js', name: 'type', expansions: ['consulting_session_reschedule_proposed', 'consulting_session_reschedule_accepted', 'consulting_session_reschedule_declined', 'consulting_session_cancelled', 'consulting_session_attendance_confirmed'] },
         { file: 'controllers/calendarNotificationController.js', name: 'notification_type', expansions: ['appointment_requested', 'appointment_confirmed', 'appointment_cancelled', 'appointment_rescheduled', 'reminder_24h', 'reminder_2h', 'reminder_same_day'] },
         { file: 'controllers/mediaController.js', name: 'type', expansions: ['media_reply', 'media_like', 'media_follow'] },
         { file: 'controllers/superAdminController.js', name: 'type', expansions: ['account_deletion_scheduled', 'account_restored', 'account_suspended', 'account_restricted', 'admin_warning'] },
