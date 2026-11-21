@@ -14466,6 +14466,8 @@
         "failedSubmit": "Failed to submit your request. Please try again."
       },
       "formSuccess": "Your request has been submitted! Check your email for confirmation.",
+      "addressedTo": "Your inquiry goes directly to {{name}}. They will review it and reply from their dashboard.",
+      "addressedUnavailable": "The consultant you selected is not available right now. Your inquiry will go to our team instead.",
       "buttons": {
         "back": "Back",
         "cancel": "Cancel",
@@ -25170,7 +25172,11 @@
       "notesLabel": "Notes for this referral",
       "notesPlaceholder": "Capture discovery notes, local market context, next steps, and anything OxSteed should know.",
       "targetMarketLabel": "Target market",
-      "targetMarketMissing": "Not provided"
+      "targetMarketMissing": "Not provided",
+      "acceptButton": "Accept referral",
+      "declineButton": "Decline referral",
+      "confirmDeclineButton": "Click again to decline",
+      "cancelDeclineButton": "Keep referral"
     },
     "referralStatus": {
       "assigned": "Assigned",
@@ -25182,7 +25188,48 @@
       "won": "Won",
       "lost": "Lost",
       "completed": "Completed",
-      "paused": "Paused"
+      "paused": "Paused",
+      "declined": "Declined"
+    },
+    "screening": {
+      "title": "Screen this inquiry",
+      "show": "Show",
+      "hide": "Hide",
+      "loading": "Loading…",
+      "loadError": "Failed to load screening.",
+      "saveError": "Failed to save.",
+      "fitTitle": "Fit assessment",
+      "fitHint": "Advisory only. A fit assessment never blocks scheduling or accepting the referral.",
+      "fitBudget": "Budget fit",
+      "fitScope": "Scope fit",
+      "fitTiming": "Timing fit",
+      "fitOverall": "Overall fit",
+      "fitDecision": "Decision",
+      "fitDecisionFit": "Good fit",
+      "fitDecisionNoFit": "Not a fit",
+      "fitDecisionNeedsInfo": "Needs more info",
+      "fitNotes": "Notes",
+      "fitNotesPlaceholder": "Why this is or is not a fit.",
+      "fitSave": "Save fit assessment",
+      "fitSaved": "Fit assessment saved.",
+      "conflictTitle": "Conflict of interest",
+      "conflictBlocks": "An open conflict blocks moving this referral forward until you clear it or decline the referral.",
+      "conflictHas": "I have a conflict of interest with this inquiry",
+      "conflictDescription": "Description",
+      "conflictDescriptionPlaceholder": "Describe the conflict, for example a competing client or a personal relationship.",
+      "conflictSave": "Save declaration",
+      "conflictSaved": "Conflict declaration saved.",
+      "replyTitle": "Reply to the inquiry",
+      "replyTemplate": "Template",
+      "replyTemplateCustom": "Custom message",
+      "replySubject": "Subject",
+      "replyBody": "Message",
+      "replySend": "Send reply",
+      "replySent": "Reply sent.",
+      "messagesTitle": "Message history",
+      "messagesEmpty": "No messages yet.",
+      "messageFromConsultant": "From you",
+      "messageFromTeam": "From the OxSteed team"
     },
     "profile": {
       "fields": {
@@ -36872,6 +36919,7 @@
     "sectionMessageHistory": "Message History",
     "emptyMessages": "No messages sent yet",
     "messageErrorLine": "Error: {{error}}",
+      "consultantReply": "Consultant reply",
     "closeButton": "Close"
   },
   "adminAdminAccounts": {

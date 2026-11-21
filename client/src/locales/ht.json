@@ -14461,6 +14461,8 @@
         "failedSubmit": "Pa t ka soumèt demann ou. Tanpri eseye ankò."
       },
       "formSuccess": "Demann ou te soumèt avèk siksè! Verifye imel ou pou konfimason.",
+      "addressedTo": "Demann ou a ale dirèkteman bay {{name}}. Li pral revize l epi reponn nan tablodbò li.",
+      "addressedUnavailable": "Konsiltan ou te chwazi a pa disponib kounye a. Demann ou a pral ale bay ekip nou an pito.",
       "buttons": {
         "back": "Retò",
         "cancel": "Anile",
@@ -25170,7 +25172,11 @@
       "notesLabel": "Nòt pou referans sa a",
       "notesPlaceholder": "Ekri nòt dekouvèt, kontèks mache lokal, pwochen etap, ak sa OxSteed dwe konnen.",
       "targetMarketLabel": "Mache sib",
-      "targetMarketMissing": "Pa bay"
+      "targetMarketMissing": "Pa bay",
+      "acceptButton": "Aksepte referans lan",
+      "declineButton": "Refize referans lan",
+      "confirmDeclineButton": "Klike ankò pou refize",
+      "cancelDeclineButton": "Kenbe referans lan"
     },
     "referralStatus": {
       "assigned": "Asiyen",
@@ -25182,7 +25188,48 @@
       "won": "Ganyen",
       "lost": "Pèdi",
       "completed": "Fin",
-      "paused": "Kanpe"
+      "paused": "Kanpe",
+      "declined": "Refize"
+    },
+    "screening": {
+      "title": "Evalye demann sa a",
+      "show": "Montre",
+      "hide": "Kache",
+      "loading": "Ap chaje…",
+      "loadError": "Pa t kapab chaje evalyasyon an.",
+      "saveError": "Pa t kapab anrejistre.",
+      "fitTitle": "Evalyasyon konpatibilite",
+      "fitHint": "Se yon konsèy sèlman. Yon evalyasyon konpatibilite pa janm bloke planifikasyon oswa akseptasyon referans lan.",
+      "fitBudget": "Konpatibilite bidjè",
+      "fitScope": "Konpatibilite dimansyon",
+      "fitTiming": "Konpatibilite tan",
+      "fitOverall": "Konpatibilite jeneral",
+      "fitDecision": "Desizyon",
+      "fitDecisionFit": "Bon konpatibilite",
+      "fitDecisionNoFit": "Pa yon bon konpatibilite",
+      "fitDecisionNeedsInfo": "Bezwen plis enfòmasyon",
+      "fitNotes": "Nòt",
+      "fitNotesPlaceholder": "Poukisa sa a se oswa li pa yon bon konpatibilite.",
+      "fitSave": "Anrejistre evalyasyon konpatibilite a",
+      "fitSaved": "Evalyasyon konpatibilite a anrejistre.",
+      "conflictTitle": "Konfli enterè",
+      "conflictBlocks": "Yon konfli ki louvri bloke avansman referans sa a jiskaske ou retire l oswa ou refize referans lan.",
+      "conflictHas": "Mwen gen yon konfli enterè ak demann sa a",
+      "conflictDescription": "Deskripsyon",
+      "conflictDescriptionPlaceholder": "Dekri konfli a, pa egzanp yon kliyan konpetitè oswa yon relasyon pèsonèl.",
+      "conflictSave": "Anrejistre deklarasyon an",
+      "conflictSaved": "Deklarasyon konfli a anrejistre.",
+      "replyTitle": "Reponn demann lan",
+      "replyTemplate": "Modèl",
+      "replyTemplateCustom": "Mesaj pèsonalize",
+      "replySubject": "Sijè",
+      "replyBody": "Mesaj",
+      "replySend": "Voye repons lan",
+      "replySent": "Repons lan voye.",
+      "messagesTitle": "Istorik mesaj",
+      "messagesEmpty": "Pa gen mesaj ankò.",
+      "messageFromConsultant": "Soti nan ou",
+      "messageFromTeam": "Soti nan ekip OxSteed la"
     },
     "profile": {
       "fields": {
@@ -36872,6 +36919,7 @@
     "sectionMessageHistory": "Istorik mesaj",
     "emptyMessages": "Pok gen mesaj yo voye",
     "messageErrorLine": "Erè: {{error}}",
+      "consultantReply": "Repons konsiltan an",
     "closeButton": "Fèmen"
   },
   "adminAdminAccounts": {

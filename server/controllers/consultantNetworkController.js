@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { consultantEnforcement, requestsEnabled } = require('../services/access/flags');
 const { checkPayingAccess } = require('../services/access/consultantGate');
+const { notifySupportStaff } = require('../services/supportNotificationService');
 
 const REFERRAL_STATUSES = [
   'assigned',
@@ -15,6 +16,9 @@ const REFERRAL_STATUSES = [
   'lost',
   'completed',
   'paused',
+  // Group 10 Slice B (514): the consultant declines the handoff before
+  // the client is introduced. Only from 'assigned' (D-106).
+  'declined',
 ];
 
 const PAYING_STATUSES = new Set(['engaged', 'won']);
@@ -227,12 +231,12 @@ exports.getMyConsultantDashboard = async (req, res) => {
     const [{ rows: summaryRows }, { rows: referralRows }, { rows: activityRows }, payingReferralAccess, readiness] = await Promise.all([
       db.query(
         `SELECT
-           COUNT(*) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')) AS active_referrals,
+           COUNT(*) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed', 'declined')) AS active_referrals,
            COUNT(*) FILTER (WHERE consultant_assignment_status = 'completed') AS completed_referrals,
            COUNT(*) FILTER (WHERE consultant_assignment_status = 'won') AS won_referrals,
            COUNT(*) FILTER (WHERE consultant_assignment_status = 'lost') AS lost_referrals,
-           COALESCE(SUM(estimated_consultant_share_cents) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost')), 0) AS consultant_pipeline_cents,
-           COALESCE(SUM(estimated_oxsteed_share_cents) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost')), 0) AS oxsteed_generated_cents
+           COALESCE(SUM(estimated_consultant_share_cents) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost', 'declined')), 0) AS consultant_pipeline_cents,
+           COALESCE(SUM(estimated_oxsteed_share_cents) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost', 'declined')), 0) AS oxsteed_generated_cents
          FROM consulting_requests
          WHERE consultant_assigned_id = $1`,
         [req.user.id]
@@ -687,6 +691,28 @@ exports.updateMyReferral = async (req, res) => {
       );
       if (!existing) return { status: 404, body: { error: 'Referral not found.' } };
 
+      // Group 10 Slice B (514, D-106): declining is the consultant's
+      // explicit refusal of the handoff, only while the referral is still
+      // unaccepted ('assigned'). Once accepted, the consultant uses the
+      // other statuses; a decline then would strand an introduced client.
+      if (consultant_assignment_status === 'declined' && existing.consultant_assignment_status !== 'assigned') {
+        return { status: 409, body: { error: 'Only an unaccepted referral can be declined.' } };
+      }
+
+      // Group 10 Slice B (513, D-105): an open conflict declaration blocks
+      // forward moves on the referral until the consultant clears it or
+      // declines. Declining and pausing are exits, not forward moves.
+      if (consultant_assignment_status !== 'declined' && consultant_assignment_status !== 'paused') {
+        const { hasOpenConflict, FORWARD_STATUSES } = require('./consultantScreeningController');
+        if (FORWARD_STATUSES.has(consultant_assignment_status)
+          && await hasOpenConflict(client, requestId, req.user.id)) {
+          return { status: 409, body: {
+            error: 'You declared a conflict of interest for this referral. Clear the declaration or decline the referral before moving it forward.',
+            code: 'conflict_declared',
+          } };
+        }
+      }
+
       if (PAYING_STATUSES.has(consultant_assignment_status) && !isAdmin(req.user)) {
         let decision;
         try {
@@ -738,6 +764,23 @@ exports.updateMyReferral = async (req, res) => {
       });
       return { status: 200, body: { referral } };
     }, 'consultant_referral_update');
+    // Group 10 Slice B (514): a decline frees the referral for
+    // reassignment and tells support staff, who re-route it. After the
+    // transaction commits, never inside it.
+    if (outcome.status === 200 && consultant_assignment_status === 'declined') {
+      try {
+        await notifySupportStaff({
+          type: 'consulting_referral_declined',
+          title: 'Consultant declined a referral',
+          body: 'A consultant declined a business-launch referral before the client was introduced. The referral needs re-routing.',
+          data: { requestId },
+          action_url: '/admin/consulting',
+          idempotencyKeyPrefix: `consulting-referral-declined-${requestId}`,
+        });
+      } catch (e) {
+        logger.warn('Failed to notify staff of referral decline', { requestId, error: e.message });
+      }
+    }
     return res.status(outcome.status).json(outcome.body);
   } catch (err) {
     logger.error('updateMyReferral error', { err });

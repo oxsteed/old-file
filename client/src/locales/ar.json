@@ -14466,6 +14466,8 @@
         "failedSubmit": "فشل في تقديم طلبك. يرجى المحاولة مرة أخرى."
       },
       "formSuccess": "لقد تم تقديم طلبك! تحقق من بريدك الإلكتروني للتأكيد.",
+      "addressedTo": "يذهب استفسارك مباشرة إلى {{name}}. سيراجعه ويرد من لوحة التحكم الخاصة به.",
+      "addressedUnavailable": "المستشار الذي اخترته غير متاح الآن. سيتم إرسال استفسارك إلى فريقنا بدلاً من ذلك.",
       "buttons": {
         "back": "خلف",
         "cancel": "يلغي",
@@ -25181,7 +25183,11 @@
       "notesLabel": "ملاحظات لهذا الإجراء",
       "notesPlaceholder": "دوّن ملاحظات الاكتشاف وسياق السوق المحلي والخطوات التالية وأي تفاصيل يجب أن تعرفها OxSteed.",
       "targetMarketLabel": "السوق المستهدفة",
-      "targetMarketMissing": "غير مذكور"
+      "targetMarketMissing": "غير مذكور",
+      "acceptButton": "قبول الإحالة",
+      "declineButton": "رفض الإحالة",
+      "confirmDeclineButton": "انقر مرة أخرى للرفض",
+      "cancelDeclineButton": "الاحتفاظ بالإحالة"
     },
     "referralStatus": {
       "assigned": "معين",
@@ -25193,7 +25199,48 @@
       "won": "مقبول",
       "lost": "مرفوض",
       "completed": "مكتمل",
-      "paused": "معلق"
+      "paused": "معلق",
+      "declined": "مرفوضة"
+    },
+    "screening": {
+      "title": "فحص هذا الاستفسار",
+      "show": "عرض",
+      "hide": "إخفاء",
+      "loading": "جارٍ التحميل…",
+      "loadError": "تعذر تحميل الفحص.",
+      "saveError": "تعذر الحفظ.",
+      "fitTitle": "تقييم الملاءمة",
+      "fitHint": "استشارية فقط. لا يمنع تقييم الملاءمة أبدًا جدولة الإحالة أو قبولها.",
+      "fitBudget": "ملاءمة الميزانية",
+      "fitScope": "ملاءمة النطاق",
+      "fitTiming": "ملاءمة التوقيت",
+      "fitOverall": "الملاءمة العامة",
+      "fitDecision": "القرار",
+      "fitDecisionFit": "ملاءمة جيدة",
+      "fitDecisionNoFit": "غير ملائم",
+      "fitDecisionNeedsInfo": "يحتاج إلى مزيد من المعلومات",
+      "fitNotes": "ملاحظات",
+      "fitNotesPlaceholder": "لماذا يعد هذا ملائمًا أو غير ملائم.",
+      "fitSave": "حفظ تقييم الملاءمة",
+      "fitSaved": "تم حفظ تقييم الملاءمة.",
+      "conflictTitle": "تضارب المصالح",
+      "conflictBlocks": "يمنع التضارب المفتوح تقدم هذه الإحالة حتى تقوم بإزالته أو رفض الإحالة.",
+      "conflictHas": "لدي تضارب مصالح مع هذا الاستفسار",
+      "conflictDescription": "الوصف",
+      "conflictDescriptionPlaceholder": "صف التضارب، على سبيل المثال عميل منافس أو علاقة شخصية.",
+      "conflictSave": "حفظ الإقرار",
+      "conflictSaved": "تم حفظ إقرار التضارب.",
+      "replyTitle": "الرد على الاستفسار",
+      "replyTemplate": "القالب",
+      "replyTemplateCustom": "رسالة مخصصة",
+      "replySubject": "الموضوع",
+      "replyBody": "الرسالة",
+      "replySend": "إرسال الرد",
+      "replySent": "تم إرسال الرد.",
+      "messagesTitle": "سجل الرسائل",
+      "messagesEmpty": "لا توجد رسائل بعد.",
+      "messageFromConsultant": "منك",
+      "messageFromTeam": "من فريق OxSteed"
     },
     "profile": {
       "fields": {
@@ -36986,6 +37033,7 @@
     "sectionMessageHistory": "سجل الرسائل",
     "emptyMessages": "لم يتم إرسال رسائل بعد",
     "messageErrorLine": "خطأ: {{error}}",
+      "consultantReply": "رد المستشار",
     "closeButton": "إغلاق"
   },
   "adminAdminAccounts": {

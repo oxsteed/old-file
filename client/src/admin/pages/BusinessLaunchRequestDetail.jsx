@@ -617,6 +617,8 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
                         color: 'var(--color-text-muted)',
                       }}>
                         {msg.first_name} {msg.last_name} • {new Date(msg.created_at).toLocaleString()}
+                        {/* Group 10 Slice B (515): consultant-authored replies share this history. */}
+                        {msg.author_role === 'consultant' && ` • ${t('adminBusinessLaunchDetail.consultantReply')}`}
                       </p>
                     </div>
                     <span style={{

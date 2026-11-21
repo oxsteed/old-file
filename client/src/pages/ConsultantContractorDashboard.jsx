@@ -33,6 +33,7 @@ const STATUS_OPTIONS = [
   ['lost', 'consultantContractorDashboard.referralStatus.lost', 'Lost'],
   ['completed', 'consultantContractorDashboard.referralStatus.completed', 'Completed'],
   ['paused', 'consultantContractorDashboard.referralStatus.paused', 'Paused'],
+  ['declined', 'consultantContractorDashboard.referralStatus.declined', 'Declined'],
 ];
 const PAYING_STATUSES = new Set(['engaged', 'won']);
 
@@ -357,12 +358,272 @@ function ReferralAttachments({ referral, userId, tx }) {
   );
 }
 
+// Group 10 Slice B (512/513/515): screen one assigned inquiry.
+// Fit assessment is advisory; a conflict declaration blocks forward
+// moves on the referral until cleared or the referral is declined (D-105).
+function ReferralScreening({ referralId, tx }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [templates, setTemplates] = useState([]);
+  const [fit, setFit] = useState({ budget_fit: '', scope_fit: '', timing_fit: '', overall_fit: '', decision: 'fit', notes: '' });
+  const [conflict, setConflict] = useState({ has_conflict: false, description: '' });
+  const [messages, setMessages] = useState([]);
+  const [replyTemplateId, setReplyTemplateId] = useState('');
+  const [replySubject, setReplySubject] = useState('');
+  const [replyBody, setReplyBody] = useState('');
+  const [savingFit, setSavingFit] = useState(false);
+  const [savingConflict, setSavingConflict] = useState(false);
+  const [sendingReply, setSendingReply] = useState(false);
+  const [savedNote, setSavedNote] = useState('');
+
+  async function loadScreen() {
+    try {
+      setLoading(true);
+      setError('');
+      const [{ data: screen }, { data: templateList }] = await Promise.all([
+        api.get(`/consulting/contractor/referrals/${referralId}/screen`),
+        api.get('/consulting/contractor/inquiry-templates'),
+      ]);
+      if (screen.fit) {
+        setFit({
+          budget_fit: screen.fit.budget_fit ?? '',
+          scope_fit: screen.fit.scope_fit ?? '',
+          timing_fit: screen.fit.timing_fit ?? '',
+          overall_fit: screen.fit.overall_fit ?? '',
+          decision: screen.fit.decision || 'fit',
+          notes: screen.fit.notes || '',
+        });
+      }
+      if (screen.conflict) {
+        setConflict({
+          has_conflict: Boolean(screen.conflict.has_conflict),
+          description: screen.conflict.description || '',
+        });
+      }
+      setMessages(screen.messages || []);
+      setTemplates(templateList.templates || []);
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.screening.loadError', 'Failed to load screening.'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (open) loadScreen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, referralId]);
+
+  const scoreValue = (value) => (value === '' ? null : Number(value));
+
+  async function saveFit() {
+    try {
+      setSavingFit(true);
+      setSavedNote('');
+      const { data } = await api.post(`/consulting/contractor/referrals/${referralId}/fit`, {
+        budget_fit: scoreValue(fit.budget_fit),
+        scope_fit: scoreValue(fit.scope_fit),
+        timing_fit: scoreValue(fit.timing_fit),
+        overall_fit: scoreValue(fit.overall_fit),
+        decision: fit.decision,
+        notes: fit.notes,
+      });
+      setFit((prev) => ({ ...prev, ...data.fit, budget_fit: data.fit.budget_fit ?? '', scope_fit: data.fit.scope_fit ?? '', timing_fit: data.fit.timing_fit ?? '', overall_fit: data.fit.overall_fit ?? '' }));
+      setSavedNote(tx('consultantContractorDashboard.screening.fitSaved', 'Fit assessment saved.'));
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.screening.saveError', 'Failed to save.'));
+    } finally {
+      setSavingFit(false);
+    }
+  }
+
+  async function saveConflict() {
+    try {
+      setSavingConflict(true);
+      setSavedNote('');
+      const { data } = await api.post(`/consulting/contractor/referrals/${referralId}/conflict`, {
+        has_conflict: conflict.has_conflict,
+        description: conflict.description,
+      });
+      setConflict({ has_conflict: Boolean(data.conflict.has_conflict), description: data.conflict.description || '' });
+      setSavedNote(tx('consultantContractorDashboard.screening.conflictSaved', 'Conflict declaration saved.'));
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.screening.saveError', 'Failed to save.'));
+    } finally {
+      setSavingConflict(false);
+    }
+  }
+
+  function applyTemplate(templateId) {
+    setReplyTemplateId(templateId);
+    const template = templates.find((entry) => entry.id === templateId);
+    if (template) {
+      setReplySubject(template.subject || '');
+      setReplyBody(template.body_plain || '');
+    }
+  }
+
+  async function sendReply() {
+    try {
+      setSendingReply(true);
+      setSavedNote('');
+      const { data } = await api.post(`/consulting/contractor/referrals/${referralId}/reply`, {
+        template_id: replyTemplateId || undefined,
+        subject: replySubject,
+        body_plain: replyBody,
+      });
+      setMessages((prev) => [...prev, data.message]);
+      setReplyTemplateId('');
+      setReplySubject('');
+      setReplyBody('');
+      setSavedNote(tx('consultantContractorDashboard.screening.replySent', 'Reply sent.'));
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.screening.saveError', 'Failed to save.'));
+    } finally {
+      setSendingReply(false);
+    }
+  }
+
+  const scoreOptions = ['', 1, 2, 3, 4, 5];
+  const inputClass = 'w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500';
+  const labelClass = 'mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500';
+
+  return (
+    <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/50 p-4">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between text-left text-sm font-semibold text-white"
+        aria-expanded={open}
+      >
+        <span>{tx('consultantContractorDashboard.screening.title', 'Screen this inquiry')}</span>
+        <span className="text-xs font-normal text-gray-400">{open ? tx('consultantContractorDashboard.screening.hide', 'Hide') : tx('consultantContractorDashboard.screening.show', 'Show')}</span>
+      </button>
+      {open && (
+        <div className="mt-4 space-y-5">
+          {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+          {savedNote && <p role="status" className="text-sm text-emerald-300">{savedNote}</p>}
+          {loading ? (
+            <p className="text-sm text-gray-400">{tx('consultantContractorDashboard.screening.loading', 'Loading…')}</p>
+          ) : (
+            <>
+              <section>
+                <h4 className="mb-3 text-sm font-semibold text-white">{tx('consultantContractorDashboard.screening.fitTitle', 'Fit assessment')}</h4>
+                <p className="mb-3 text-xs leading-5 text-gray-400">{tx('consultantContractorDashboard.screening.fitHint', 'Advisory only. A fit assessment never blocks scheduling or accepting the referral.')}</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[['budget_fit', 'consultantContractorDashboard.screening.fitBudget', 'Budget fit'], ['scope_fit', 'consultantContractorDashboard.screening.fitScope', 'Scope fit'], ['timing_fit', 'consultantContractorDashboard.screening.fitTiming', 'Timing fit'], ['overall_fit', 'consultantContractorDashboard.screening.fitOverall', 'Overall fit']].map(([field, key, fallback]) => (
+                    <div key={field}>
+                      <label className={labelClass} htmlFor={`${referralId}-${field}`}>{tx(key, fallback)}</label>
+                      <select id={`${referralId}-${field}`} value={fit[field]} onChange={(event) => setFit((prev) => ({ ...prev, [field]: event.target.value }))} className={inputClass}>
+                        {scoreOptions.map((option) => (
+                          <option key={String(option)} value={option}>{option === '' ? '—' : option}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3">
+                  <label className={labelClass} htmlFor={`${referralId}-decision`}>{tx('consultantContractorDashboard.screening.fitDecision', 'Decision')}</label>
+                  <select id={`${referralId}-decision`} value={fit.decision} onChange={(event) => setFit((prev) => ({ ...prev, decision: event.target.value }))} className={inputClass}>
+                    <option value="fit">{tx('consultantContractorDashboard.screening.fitDecisionFit', 'Good fit')}</option>
+                    <option value="no_fit">{tx('consultantContractorDashboard.screening.fitDecisionNoFit', 'Not a fit')}</option>
+                    <option value="needs_info">{tx('consultantContractorDashboard.screening.fitDecisionNeedsInfo', 'Needs more info')}</option>
+                  </select>
+                </div>
+                <div className="mt-3">
+                  <label className={labelClass} htmlFor={`${referralId}-fit-notes`}>{tx('consultantContractorDashboard.screening.fitNotes', 'Notes')}</label>
+                  <textarea id={`${referralId}-fit-notes`} value={fit.notes} onChange={(event) => setFit((prev) => ({ ...prev, notes: event.target.value }))} className="min-h-[80px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500" placeholder={tx('consultantContractorDashboard.screening.fitNotesPlaceholder', 'Why this is or is not a fit.')} />
+                </div>
+                <button type="button" onClick={saveFit} disabled={savingFit} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                  {savingFit ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {tx('consultantContractorDashboard.screening.fitSave', 'Save fit assessment')}
+                </button>
+              </section>
+
+              <section>
+                <h4 className="mb-3 text-sm font-semibold text-white">{tx('consultantContractorDashboard.screening.conflictTitle', 'Conflict of interest')}</h4>
+                {conflict.has_conflict && (
+                  <p role="alert" className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-200">
+                    {tx('consultantContractorDashboard.screening.conflictBlocks', 'An open conflict blocks moving this referral forward until you clear it or decline the referral.')}
+                  </p>
+                )}
+                <label className="flex items-start gap-2 text-sm text-gray-300">
+                  <input type="checkbox" checked={conflict.has_conflict} onChange={(event) => setConflict((prev) => ({ ...prev, has_conflict: event.target.checked }))} className="mt-1 h-4 w-4 accent-orange-500" />
+                  {tx('consultantContractorDashboard.screening.conflictHas', 'I have a conflict of interest with this inquiry')}
+                </label>
+                <div className="mt-3">
+                  <label className={labelClass} htmlFor={`${referralId}-conflict-desc`}>{tx('consultantContractorDashboard.screening.conflictDescription', 'Description')}</label>
+                  <textarea id={`${referralId}-conflict-desc`} value={conflict.description} onChange={(event) => setConflict((prev) => ({ ...prev, description: event.target.value }))} className="min-h-[80px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500" placeholder={tx('consultantContractorDashboard.screening.conflictDescriptionPlaceholder', 'Describe the conflict, for example a competing client or a personal relationship.')} />
+                </div>
+                <button type="button" onClick={saveConflict} disabled={savingConflict} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                  {savingConflict ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {tx('consultantContractorDashboard.screening.conflictSave', 'Save declaration')}
+                </button>
+              </section>
+
+              <section>
+                <h4 className="mb-3 text-sm font-semibold text-white">{tx('consultantContractorDashboard.screening.replyTitle', 'Reply to the inquiry')}</h4>
+                <div>
+                  <label className={labelClass} htmlFor={`${referralId}-template`}>{tx('consultantContractorDashboard.screening.replyTemplate', 'Template')}</label>
+                  <select id={`${referralId}-template`} value={replyTemplateId} onChange={(event) => applyTemplate(event.target.value)} className={inputClass}>
+                    <option value="">{tx('consultantContractorDashboard.screening.replyTemplateCustom', 'Custom message')}</option>
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>{template.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-3">
+                  <label className={labelClass} htmlFor={`${referralId}-reply-subject`}>{tx('consultantContractorDashboard.screening.replySubject', 'Subject')}</label>
+                  <input id={`${referralId}-reply-subject`} type="text" value={replySubject} onChange={(event) => setReplySubject(event.target.value)} className={inputClass} />
+                </div>
+                <div className="mt-3">
+                  <label className={labelClass} htmlFor={`${referralId}-reply-body`}>{tx('consultantContractorDashboard.screening.replyBody', 'Message')}</label>
+                  <textarea id={`${referralId}-reply-body`} value={replyBody} onChange={(event) => setReplyBody(event.target.value)} className="min-h-[110px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500" />
+                </div>
+                <button type="button" onClick={sendReply} disabled={sendingReply || !replySubject.trim() || !replyBody.trim()} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50">
+                  {sendingReply ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {tx('consultantContractorDashboard.screening.replySend', 'Send reply')}
+                </button>
+                <div className="mt-4">
+                  <h5 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantContractorDashboard.screening.messagesTitle', 'Message history')}</h5>
+                  {messages.length ? (
+                    <ul className="space-y-2">
+                      {messages.map((message) => (
+                        <li key={message.id} className="rounded-xl border border-gray-800 bg-gray-900/70 px-3 py-2">
+                          <p className="text-sm font-semibold text-white">{message.subject}</p>
+                          <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-gray-400">{message.message_plain}</p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {message.author_role === 'consultant'
+                              ? tx('consultantContractorDashboard.screening.messageFromConsultant', 'From you')
+                              : tx('consultantContractorDashboard.screening.messageFromTeam', 'From the OxSteed team')}
+                            {' • '}{new Date(message.created_at).toLocaleString()}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-500">{tx('consultantContractorDashboard.screening.messagesEmpty', 'No messages yet.')}</p>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId }) {
   const [draft, setDraft] = useState({
     consultant_assignment_status: referral.consultant_assignment_status || 'assigned',
     consultant_status_notes: referral.consultant_status_notes || '',
     consultant_follow_up_at: referral.consultant_follow_up_at ? referral.consultant_follow_up_at.slice(0, 16) : '',
   });
+  // Group 10 Slice B (514, D-106): declining is a deliberate refusal, so
+  // the button asks once more before it fires.
+  const [confirmingDecline, setConfirmingDecline] = useState(false);
 
   useEffect(() => {
     setDraft({
@@ -473,7 +734,50 @@ function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId })
         {tx('consultantContractorDashboard.referral.targetMarketLabel', 'Target market')}: {referral.target_market || tx('consultantContractorDashboard.referral.targetMarketMissing', 'Not provided')}<br />
       </div>
 
+      {/* Group 10 Slice B (514, D-106): accept moves the referral to
+          intro_pending; decline is only offered while it is unaccepted. */}
+      {referral.consultant_assignment_status === 'assigned' && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onSave(referral.id, { ...draft, consultant_assignment_status: 'intro_pending' })}
+            disabled={savingId === referral.id}
+            className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {tx('consultantContractorDashboard.referral.acceptButton', 'Accept referral')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (confirmingDecline) {
+                setConfirmingDecline(false);
+                onSave(referral.id, { ...draft, consultant_assignment_status: 'declined' });
+              } else {
+                setConfirmingDecline(true);
+              }
+            }}
+            disabled={savingId === referral.id}
+            className="inline-flex items-center gap-2 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
+          >
+            {confirmingDecline
+              ? tx('consultantContractorDashboard.referral.confirmDeclineButton', 'Click again to decline')
+              : tx('consultantContractorDashboard.referral.declineButton', 'Decline referral')}
+          </button>
+          {confirmingDecline && (
+            <button
+              type="button"
+              onClick={() => setConfirmingDecline(false)}
+              className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-gray-800"
+            >
+              {tx('consultantContractorDashboard.referral.cancelDeclineButton', 'Keep referral')}
+            </button>
+          )}
+        </div>
+      )}
+
       <ReferralAttachments referral={referral} userId={userId} tx={tx} />
+      <ReferralScreening referralId={referral.id} tx={tx} />
     </article>
   );
 }

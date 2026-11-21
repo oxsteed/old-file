@@ -14466,6 +14466,8 @@
         "failedSubmit": "Échec de la soumission de votre demande. Veuillez réessayer."
       },
       "formSuccess": "Votre demande a été soumise avec succès! Vérifiez votre email pour la confirmation.",
+      "addressedTo": "Votre demande est adressée directement à {{name}}. Il ou elle l'examinera et répondra depuis son tableau de bord.",
+      "addressedUnavailable": "Le consultant sélectionné n'est pas disponible pour le moment. Votre demande sera transmise à notre équipe.",
       "buttons": {
         "back": "Retour",
         "cancel": "Annuler",
@@ -25170,7 +25172,11 @@
       "notesLabel": "Notes pour ce lead",
       "notesPlaceholder": "Consignez vos notes de découverte, le contexte local et les prochaines étapes, ainsi que toute information utile à OxSteed.",
       "targetMarketLabel": "Marché cible",
-      "targetMarketMissing": "Non fourni"
+      "targetMarketMissing": "Non fourni",
+      "acceptButton": "Accepter la référence",
+      "declineButton": "Refuser la référence",
+      "confirmDeclineButton": "Cliquez à nouveau pour refuser",
+      "cancelDeclineButton": "Garder la référence"
     },
     "referralStatus": {
       "assigned": "Assigné",
@@ -25182,7 +25188,48 @@
       "won": "Gagné",
       "lost": "Perdu",
       "completed": "Terminé",
-      "paused": "En pause"
+      "paused": "En pause",
+      "declined": "Refusée"
+    },
+    "screening": {
+      "title": "Examiner cette demande",
+      "show": "Afficher",
+      "hide": "Masquer",
+      "loading": "Chargement…",
+      "loadError": "Impossible de charger l'examen.",
+      "saveError": "Échec de l'enregistrement.",
+      "fitTitle": "Évaluation de l'adéquation",
+      "fitHint": "À titre indicatif uniquement. Une évaluation de l'adéquation ne bloque jamais la planification ni l'acceptation de la référence.",
+      "fitBudget": "Adéquation du budget",
+      "fitScope": "Adéquation du périmètre",
+      "fitTiming": "Adéquation du calendrier",
+      "fitOverall": "Adéquation globale",
+      "fitDecision": "Décision",
+      "fitDecisionFit": "Bonne adéquation",
+      "fitDecisionNoFit": "Pas adapté",
+      "fitDecisionNeedsInfo": "Besoin de plus d'informations",
+      "fitNotes": "Notes",
+      "fitNotesPlaceholder": "Pourquoi c'est adapté ou non.",
+      "fitSave": "Enregistrer l'évaluation",
+      "fitSaved": "Évaluation enregistrée.",
+      "conflictTitle": "Conflit d'intérêts",
+      "conflictBlocks": "Un conflit ouvert bloque l'avancement de cette référence jusqu'à ce que vous le leviez ou refusiez la référence.",
+      "conflictHas": "J'ai un conflit d'intérêts avec cette demande",
+      "conflictDescription": "Description",
+      "conflictDescriptionPlaceholder": "Décrivez le conflit, par exemple un client concurrent ou une relation personnelle.",
+      "conflictSave": "Enregistrer la déclaration",
+      "conflictSaved": "Déclaration enregistrée.",
+      "replyTitle": "Répondre à la demande",
+      "replyTemplate": "Modèle",
+      "replyTemplateCustom": "Message personnalisé",
+      "replySubject": "Objet",
+      "replyBody": "Message",
+      "replySend": "Envoyer la réponse",
+      "replySent": "Réponse envoyée.",
+      "messagesTitle": "Historique des messages",
+      "messagesEmpty": "Aucun message pour le moment.",
+      "messageFromConsultant": "De vous",
+      "messageFromTeam": "De l'équipe OxSteed"
     },
     "profile": {
       "fields": {
@@ -36872,6 +36919,7 @@
     "sectionMessageHistory": "Historique des messages",
     "emptyMessages": "Aucun message envoyé pour l'instant",
     "messageErrorLine": "Erreur : {{error}}",
+      "consultantReply": "Réponse du consultant",
     "closeButton": "Fermer"
   },
   "adminAdminAccounts": {

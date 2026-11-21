@@ -14466,6 +14466,8 @@
         "failedSubmit": "Falló al enviar tu solicitud. Por favor intenta de nuevo."
       },
       "formSuccess": "¡Tu solicitud ha sido enviada exitosamente! Revisa tu correo electrónico para la confirmación.",
+      "addressedTo": "Tu consulta va directamente a {{name}}. La revisará y responderá desde su panel.",
+      "addressedUnavailable": "El consultor que seleccionaste no está disponible en este momento. Tu consulta irá a nuestro equipo.",
       "buttons": {
         "back": "Atrás",
         "cancel": "Cancelar",
@@ -25170,7 +25172,11 @@
       "notesLabel": "Notas de esta referencia",
       "notesPlaceholder": "Guarda notas de descubrimiento, contexto del mercado local, próximos pasos y cualquier información para OxSteed.",
       "targetMarketLabel": "Mercado objetivo",
-      "targetMarketMissing": "No proporcionado"
+      "targetMarketMissing": "No proporcionado",
+      "acceptButton": "Aceptar referencia",
+      "declineButton": "Rechazar referencia",
+      "confirmDeclineButton": "Haz clic de nuevo para rechazar",
+      "cancelDeclineButton": "Conservar referencia"
     },
     "referralStatus": {
       "assigned": "Asignado",
@@ -25182,7 +25188,48 @@
       "won": "Ganado",
       "lost": "Perdido",
       "completed": "Completado",
-      "paused": "Pausado"
+      "paused": "Pausado",
+      "declined": "Rechazada"
+    },
+    "screening": {
+      "title": "Evaluar esta consulta",
+      "show": "Mostrar",
+      "hide": "Ocultar",
+      "loading": "Cargando…",
+      "loadError": "No se pudo cargar la evaluación.",
+      "saveError": "No se pudo guardar.",
+      "fitTitle": "Evaluación de compatibilidad",
+      "fitHint": "Solo orientativo. Una evaluación de compatibilidad nunca bloquea la programación ni la aceptación de la referencia.",
+      "fitBudget": "Compatibilidad de presupuesto",
+      "fitScope": "Compatibilidad de alcance",
+      "fitTiming": "Compatibilidad de plazos",
+      "fitOverall": "Compatibilidad general",
+      "fitDecision": "Decisión",
+      "fitDecisionFit": "Buena compatibilidad",
+      "fitDecisionNoFit": "No es compatible",
+      "fitDecisionNeedsInfo": "Necesita más información",
+      "fitNotes": "Notas",
+      "fitNotesPlaceholder": "Por qué es o no es compatible.",
+      "fitSave": "Guardar evaluación de compatibilidad",
+      "fitSaved": "Evaluación de compatibilidad guardada.",
+      "conflictTitle": "Conflicto de intereses",
+      "conflictBlocks": "Un conflicto abierto impide avanzar esta referencia hasta que lo resuelvas o rechaces la referencia.",
+      "conflictHas": "Tengo un conflicto de intereses con esta consulta",
+      "conflictDescription": "Descripción",
+      "conflictDescriptionPlaceholder": "Describe el conflicto, por ejemplo un cliente competidor o una relación personal.",
+      "conflictSave": "Guardar declaración",
+      "conflictSaved": "Declaración de conflicto guardada.",
+      "replyTitle": "Responder a la consulta",
+      "replyTemplate": "Plantilla",
+      "replyTemplateCustom": "Mensaje personalizado",
+      "replySubject": "Asunto",
+      "replyBody": "Mensaje",
+      "replySend": "Enviar respuesta",
+      "replySent": "Respuesta enviada.",
+      "messagesTitle": "Historial de mensajes",
+      "messagesEmpty": "Aún no hay mensajes.",
+      "messageFromConsultant": "De ti",
+      "messageFromTeam": "Del equipo de OxSteed"
     },
     "profile": {
       "fields": {
@@ -36872,6 +36919,7 @@
     "sectionMessageHistory": "Historial de mensajes",
     "emptyMessages": "Aún no se han enviado mensajes",
     "messageErrorLine": "Error: {{error}}",
+      "consultantReply": "Respuesta del consultor",
     "closeButton": "Cerrar"
   },
   "adminAdminAccounts": {

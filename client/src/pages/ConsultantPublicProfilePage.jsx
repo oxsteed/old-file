@@ -160,7 +160,7 @@ export default function ConsultantPublicProfilePage() {
                 <p className="cpp-muted">{t('consultantPublicProfile.empty.availability')}</p>
               )}
               <p className="cpp-link-row">
-                <Link to="/consulting-intake" className="cpp-link">{t('consultantPublicProfile.bookLink')}</Link>
+                <Link to={`/consulting-intake?consultant=${encodeURIComponent(profile.user_id)}`} className="cpp-link">{t('consultantPublicProfile.bookLink')}</Link>
               </p>
             </section>
           </article>

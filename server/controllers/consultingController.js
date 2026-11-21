@@ -2,6 +2,7 @@ const logger = require('../utils/logger');
 const { sendEmailOrThrow } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { maskEmail } = require('../utils/directQuote');
+const { sendNotification } = require('../services/notificationService');
 
 const AREAS_OF_HELP = [
   'legal_setup',
@@ -19,7 +20,7 @@ const AREAS_OF_HELP = [
 const SERVICE_TIERS = ['foundation', 'implementation', 'transformation', 'initial'];
 
 exports.submitConsultingRequest = async (req, res) => {
-  const { email, first_name, last_name, business_name, phone, current_phase, service_tier, areas_of_help, description, preferred_date, preferred_time_slot } = req.body;
+  const { email, first_name, last_name, business_name, phone, current_phase, service_tier, areas_of_help, description, preferred_date, preferred_time_slot, consultant_id } = req.body;
 
   try {
     // Validation
@@ -71,10 +72,30 @@ exports.submitConsultingRequest = async (req, res) => {
     const client = await db.connect();
 
     try {
+      // Group 10 item 511: an inquiry may be addressed to one consultant.
+      // The consultant must be publicly visible (approved + active); a
+      // pending, declined, or inactive consultant cannot be addressed
+      // (D-104). The grant is not required here: no money moves at intake.
+      let addressedConsultantId = null;
+      if (consultant_id !== undefined && consultant_id !== null && consultant_id !== '') {
+        if (typeof consultant_id !== 'string' || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(consultant_id)) {
+          return res.status(400).json({ error: 'Invalid consultant id' });
+        }
+        const { rows: [profile] } = await client.query(
+          `SELECT user_id FROM consultant_contractor_profiles
+            WHERE user_id = $1 AND approval_status = 'approved' AND is_active = TRUE`,
+          [consultant_id],
+        );
+        if (!profile) {
+          return res.status(400).json({ error: 'Consultant is not available for inquiries' });
+        }
+        addressedConsultantId = consultant_id;
+      }
+
       const result = await client.query(
         `INSERT INTO consulting_sessions
-         (user_id, email, first_name, last_name, business_name, phone, current_phase, service_tier, areas_of_help, description, preferred_date, preferred_time_slot, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending')
+         (user_id, email, first_name, last_name, business_name, phone, current_phase, service_tier, areas_of_help, description, preferred_date, preferred_time_slot, status, consultant_assigned_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', $13)
          RETURNING id, created_at`,
         [
           req.user?.id || null,
@@ -89,10 +110,29 @@ exports.submitConsultingRequest = async (req, res) => {
           description?.trim() || null,
           preferred_date || null,
           preferred_time_slot || 'flexible',
+          addressedConsultantId,
         ]
       );
 
       const sessionId = result.rows[0].id;
+
+      // Group 10 item 511: tell the addressed consultant an inquiry
+      // arrived for them. Fire-and-forget: the intake is already saved.
+      if (addressedConsultantId) {
+        try {
+          await sendNotification({
+            userId: addressedConsultantId,
+            type: 'consulting_inquiry_assigned',
+            title: 'New consulting inquiry for you',
+            body: `${first_name.trim()} ${last_name.trim()} sent you a consulting inquiry.`,
+            data: { sessionId },
+            action_url: '/consulting/contractor-dashboard',
+            idempotencyKey: `consulting-inquiry-${sessionId}`,
+          });
+        } catch (e) {
+          logger.warn('Failed to notify addressed consultant of inquiry', { sessionId, error: e.message });
+        }
+      }
 
       // Send confirmation email. Review P3-844/P3-849: the intake is already
       // persisted, so this stays fire-and-forget, but sendEmailOrThrow makes
@@ -131,6 +171,7 @@ exports.submitConsultingRequest = async (req, res) => {
         id: sessionId,
         message: 'Consulting request submitted successfully',
         next_steps: 'A specialist will contact you within 24 hours',
+        consultant_assigned_id: addressedConsultantId,
       });
     } finally {
       client.release();
