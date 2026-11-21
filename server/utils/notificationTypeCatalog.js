@@ -80,6 +80,12 @@ const NOTIFICATION_TYPES = [
   { type: 'consulting_session_reschedule_declined', group: 'work' },
   { type: 'consulting_session_cancelled', group: 'work' },
   { type: 'consulting_session_attendance_confirmed', group: 'work' },
+  // Group 10 Slice D (521-525): engagement proposals sent, approved,
+  // rejected, and withdrawn on a referral.
+  { type: 'consulting_proposal_sent', group: 'work' },
+  { type: 'consulting_proposal_approved', group: 'work' },
+  { type: 'consulting_proposal_rejected', group: 'work' },
+  { type: 'consulting_proposal_withdrawn', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
   { type: 'crew_shift_published', group: 'work' },
   { type: 'crew_task_assigned', group: 'work' },

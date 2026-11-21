@@ -25,6 +25,7 @@ const {
   getMessages,
   getMessageTemplates,
 } = require('../controllers/businessLaunchNotesController');
+const proposalController = require('../controllers/consultantProposalController');
 
 // Public route: Submit a new Business Launch request
 router.post(
@@ -95,6 +96,30 @@ router.post(
   authenticate,
   requireAdmin, requirePermission('manage_operations'),
   assignConsultant
+);
+
+// Group 10 Slice D (521-525): the client reads their proposals and
+// approves or rejects the sent version. The controller enforces the
+// client-owner rule (user_id, or verified-email guest recovery) or admin.
+router.get(
+  '/requests/:id/proposals',
+  authenticate,
+  proposalController.listProposals
+);
+router.get(
+  '/requests/:id/proposals/:proposalId',
+  authenticate,
+  proposalController.getProposal
+);
+router.post(
+  '/requests/:id/proposals/:proposalId/approve',
+  authenticate,
+  proposalController.approveProposal
+);
+router.post(
+  '/requests/:id/proposals/:proposalId/reject',
+  authenticate,
+  proposalController.rejectProposal
 );
 
 router.post('/requests/:id/attachments', authenticate, generalLimiter, upload.single('file'), validateFileUpload, attachmentController.uploadAttachment);

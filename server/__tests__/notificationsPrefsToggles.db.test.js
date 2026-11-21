@@ -399,6 +399,9 @@ ddescribe('Track C preference toggles (DB)', () => {
         // Group 10 Slice C: notifySessionParty fan-out in the scheduling
         // controller; the five types are the only ones its callers pass.
         { file: 'controllers/consultantSchedulingController.js', name: 'type', expansions: ['consulting_session_reschedule_proposed', 'consulting_session_reschedule_accepted', 'consulting_session_reschedule_declined', 'consulting_session_cancelled', 'consulting_session_attendance_confirmed'] },
+        // Group 10 Slice D: notifyProposalParty fan-out in the proposal
+        // controller; the four types are the only ones its callers pass.
+        { file: 'controllers/consultantProposalController.js', name: 'type', expansions: ['consulting_proposal_sent', 'consulting_proposal_approved', 'consulting_proposal_rejected', 'consulting_proposal_withdrawn'] },
         { file: 'controllers/calendarNotificationController.js', name: 'notification_type', expansions: ['appointment_requested', 'appointment_confirmed', 'appointment_cancelled', 'appointment_rescheduled', 'reminder_24h', 'reminder_2h', 'reminder_same_day'] },
         { file: 'controllers/mediaController.js', name: 'type', expansions: ['media_reply', 'media_like', 'media_follow'] },
         { file: 'controllers/superAdminController.js', name: 'type', expansions: ['account_deletion_scheduled', 'account_restored', 'account_suspended', 'account_restricted', 'admin_warning'] },

@@ -5,6 +5,7 @@ const { requireAdmin } = require('../middleware/adminAuth');
 const controller = require('../controllers/consultantNetworkController');
 const screeningController = require('../controllers/consultantScreeningController');
 const schedulingController = require('../controllers/consultantSchedulingController');
+const proposalController = require('../controllers/consultantProposalController');
 
 router.get('/profile', authenticate, controller.getMyConsultantProfile);
 router.put('/profile', authenticate, controller.upsertMyConsultantProfile);
@@ -30,6 +31,15 @@ router.post('/referrals/:requestId/reply', authenticate, screeningController.rep
 // open reschedule proposals and attendance, for the dashboard sessions
 // section.
 router.get('/sessions', authenticate, schedulingController.listMyConsultantSessions);
+// Group 10 Slice D (521-525): agree on work. Engagement proposals on the
+// referral: the assigned consultant drafts, edits, sends, and withdraws;
+// the client reads and decides through the business-launch routes.
+router.get('/referrals/:requestId/proposals', authenticate, proposalController.listProposals);
+router.post('/referrals/:requestId/proposals', authenticate, proposalController.createProposal);
+router.get('/referrals/:requestId/proposals/:proposalId', authenticate, proposalController.getProposal);
+router.put('/referrals/:requestId/proposals/:proposalId', authenticate, proposalController.updateProposal);
+router.post('/referrals/:requestId/proposals/:proposalId/send', authenticate, proposalController.sendProposal);
+router.post('/referrals/:requestId/proposals/:proposalId/withdraw', authenticate, proposalController.withdrawProposal);
 
 // Public specialty profile (506). No auth: only approved, active profiles
 // are ever returned; anything else 404s.

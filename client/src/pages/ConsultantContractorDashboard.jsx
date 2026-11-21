@@ -616,7 +616,401 @@ function ReferralScreening({ referralId, tx }) {
   );
 }
 
-function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId }) {
+// Group 10 Slice D (521-525): agree on work. Versioned engagement
+// proposals on the referral. The assigned consultant drafts the offer
+// (scope, price, deliverables, exclusions), sends it, and withdraws it;
+// the client approves or rejects from the launch status page. Sent
+// versions are immutable: a change means a new version, and sending
+// supersedes the previous sent one (D-112). An open conflict blocks the
+// send (D-105).
+const PROPOSAL_DELIVERABLE_TYPES = [
+  'sop', 'contract', 'financial_tracker', 'marketing_plan',
+  'team_structure', 'operational_manual', 'other',
+];
+
+function emptyDeliverable() {
+  return { title: '', description: '', deliverable_type: 'other', due_date: '' };
+}
+
+function ReferralProposal({ referralId, tx, onProposalChanged }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [savedNote, setSavedNote] = useState('');
+  const [proposals, setProposals] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ title: '', scope_summary: '', price_dollars: '', deliverables: [emptyDeliverable()], exclusions: [''] });
+  const [saving, setSaving] = useState(false);
+  const [sendingId, setSendingId] = useState(null);
+  const [withdrawingId, setWithdrawingId] = useState(null);
+  const [confirmingWithdrawId, setConfirmingWithdrawId] = useState(null);
+
+  const inputClass = 'w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500';
+  const labelClass = 'mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500';
+
+  async function loadProposals() {
+    try {
+      setLoading(true);
+      setError('');
+      const { data } = await api.get(`/consulting/contractor/referrals/${referralId}/proposals`);
+      setProposals(data.proposals || []);
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantProposal.loadError', 'Failed to load proposals.'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (open) loadProposals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, referralId]);
+
+  const draft = proposals.find((proposal) => proposal.status === 'draft') || null;
+  const sent = proposals.find((proposal) => proposal.status === 'sent') || null;
+
+  function startNewDraft() {
+    setEditingId('new');
+    setForm({ title: '', scope_summary: '', price_dollars: '', deliverables: [emptyDeliverable()], exclusions: [''] });
+    setSavedNote('');
+    setError('');
+  }
+
+  function startEdit(proposal) {
+    setEditingId(proposal.id);
+    setForm({
+      title: proposal.title || '',
+      scope_summary: proposal.scope_summary || '',
+      price_dollars: proposal.price_cents === null || proposal.price_cents === undefined ? '' : String((proposal.price_cents / 100).toFixed(2)),
+      deliverables: (proposal.deliverables || []).map((item) => ({
+        title: item.title || '',
+        description: item.description || '',
+        deliverable_type: item.deliverable_type || 'other',
+        due_date: item.due_date ? String(item.due_date).slice(0, 10) : '',
+      })),
+      exclusions: (proposal.exclusions || []).map((item) => item.exclusion_text || ''),
+    });
+    setSavedNote('');
+    setError('');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setError('');
+  }
+
+  function formPayload() {
+    const price = form.price_dollars === '' ? null : Math.round(Number(form.price_dollars) * 100);
+    return {
+      title: form.title,
+      scope_summary: form.scope_summary,
+      price_cents: Number.isFinite(price) && price >= 0 ? price : form.price_dollars,
+      deliverables: form.deliverables
+        .filter((item) => item.title.trim() !== '')
+        .map((item) => ({
+          title: item.title,
+          description: item.description,
+          deliverable_type: item.deliverable_type,
+          due_date: item.due_date || null,
+        })),
+      exclusions: form.exclusions.filter((text) => text.trim() !== ''),
+    };
+  }
+
+  async function saveDraft() {
+    try {
+      setSaving(true);
+      setSavedNote('');
+      setError('');
+      const payload = formPayload();
+      let saved;
+      if (editingId === 'new') {
+        ({ data: saved } = await api.post(`/consulting/contractor/referrals/${referralId}/proposals`, payload));
+      } else {
+        ({ data: saved } = await api.put(`/consulting/contractor/referrals/${referralId}/proposals/${editingId}`, payload));
+      }
+      setEditingId(null);
+      setSavedNote(tx('consultantProposal.draftSaved', 'Draft saved.'));
+      await loadProposals();
+      return saved?.proposal;
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantProposal.saveError', 'Failed to save the draft.'));
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function sendProposal(proposalId) {
+    try {
+      setSendingId(proposalId);
+      setSavedNote('');
+      setError('');
+      await api.post(`/consulting/contractor/referrals/${referralId}/proposals/${proposalId}/send`);
+      setSavedNote(tx('consultantProposal.sent', 'Proposal sent to the client.'));
+      await loadProposals();
+      if (onProposalChanged) onProposalChanged();
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.message || tx('consultantProposal.saveError', 'Failed to save the draft.'));
+    } finally {
+      setSendingId(null);
+    }
+  }
+
+  async function withdrawProposal(proposalId) {
+    try {
+      setWithdrawingId(proposalId);
+      setSavedNote('');
+      setError('');
+      await api.post(`/consulting/contractor/referrals/${referralId}/proposals/${proposalId}/withdraw`);
+      setConfirmingWithdrawId(null);
+      setSavedNote(tx('consultantProposal.withdrawn', 'Proposal withdrawn.'));
+      await loadProposals();
+      if (onProposalChanged) onProposalChanged();
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantProposal.saveError', 'Failed to save the draft.'));
+    } finally {
+      setWithdrawingId(null);
+    }
+  }
+
+  function statusBadge(status) {
+    const colors = {
+      draft: 'border-gray-700 bg-gray-900/70 text-gray-300',
+      sent: 'border-sky-500/30 bg-sky-500/10 text-sky-200',
+      approved: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+      rejected: 'border-red-500/30 bg-red-500/10 text-red-200',
+      withdrawn: 'border-gray-700 bg-gray-900/70 text-gray-400',
+      superseded: 'border-gray-700 bg-gray-900/70 text-gray-500',
+    };
+    return (
+      <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${colors[status] || colors.draft}`}>
+        {tx(`consultantProposal.status.${status}`, status.replace(/_/g, ' '))}
+      </span>
+    );
+  }
+
+  function updateDeliverable(index, patch) {
+    setForm((prev) => ({
+      ...prev,
+      deliverables: prev.deliverables.map((item, i) => (i === index ? { ...item, ...patch } : item)),
+    }));
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/50 p-4">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between text-left text-sm font-semibold text-white"
+        aria-expanded={open} data-track="ui.c62ffb2364.22"
+      >
+        <span>{tx('consultantProposal.title', 'Engagement proposal')}</span>
+        <span className="text-xs font-normal text-gray-400">
+          {sent
+            ? tx('consultantProposal.sentVersion', 'Version {{version}} sent', { version: sent.version })
+            : draft
+              ? tx('consultantProposal.draftVersion', 'Draft version {{version}}', { version: draft.version })
+              : open
+                ? tx('consultantProposal.hide', 'Hide')
+                : tx('consultantProposal.show', 'Show')}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-4 space-y-5">
+          {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+          {savedNote && <p role="status" className="text-sm text-emerald-300">{savedNote}</p>}
+          {loading ? (
+            <p className="text-sm text-gray-400">{tx('consultantProposal.loading', 'Loading…')}</p>
+          ) : (
+            <>
+              {editingId !== null && (
+                <section>
+                  <h4 className="mb-3 text-sm font-semibold text-white">
+                    {editingId === 'new'
+                      ? tx('consultantProposal.newTitle', 'New proposal version')
+                      : tx('consultantProposal.editTitle', 'Edit draft')}
+                  </h4>
+                  <p className="mb-3 text-xs leading-5 text-gray-400">
+                    {tx('consultantProposal.formHint', 'A sent proposal cannot be edited. Send a new version instead; it supersedes the one the client already has.')}
+                  </p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className={labelClass} htmlFor={`${referralId}-proposal-title`}>{tx('consultantProposal.fieldTitle', 'Title')}</label>
+                      <input id={`${referralId}-proposal-title`} type="text" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} placeholder={tx('consultantProposal.titlePlaceholder', 'Business launch engagement')} />
+                    </div>
+                    <div>
+                      <label className={labelClass} htmlFor={`${referralId}-proposal-scope`}>{tx('consultantProposal.fieldScope', 'Scope summary')}</label>
+                      <textarea id={`${referralId}-proposal-scope`} value={form.scope_summary} onChange={(event) => setForm((prev) => ({ ...prev, scope_summary: event.target.value }))} className="min-h-[90px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500" placeholder={tx('consultantProposal.scopePlaceholder', 'What the engagement covers, in plain language.')} />
+                    </div>
+                    <div>
+                      <label className={labelClass} htmlFor={`${referralId}-proposal-price`}>{tx('consultantProposal.fieldPrice', 'Price (USD)')}</label>
+                      <input id={`${referralId}-proposal-price`} type="number" min="0" step="0.01" value={form.price_dollars} onChange={(event) => setForm((prev) => ({ ...prev, price_dollars: event.target.value }))} className={inputClass} placeholder="0.00" />
+                    </div>
+                    <div>
+                      <h5 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantProposal.deliverablesTitle', 'Deliverables')}</h5>
+                      <div className="space-y-3">
+                        {form.deliverables.map((item, index) => (
+                          <div key={index} className="rounded-2xl border border-gray-800 bg-gray-900/70 p-3">
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <input type="text" value={item.title} onChange={(event) => updateDeliverable(index, { title: event.target.value })} className={inputClass} placeholder={tx('consultantProposal.deliverableTitlePlaceholder', 'Deliverable title')} aria-label={tx('consultantProposal.deliverableTitlePlaceholder', 'Deliverable title')} />
+                              <select value={item.deliverable_type} onChange={(event) => updateDeliverable(index, { deliverable_type: event.target.value })} className={inputClass} aria-label={tx('consultantProposal.deliverableType', 'Type')}>
+                                {PROPOSAL_DELIVERABLE_TYPES.map((type) => (
+                                  <option key={type} value={type}>{tx(`consultantProposal.deliverableTypes.${type}`, type.replace(/_/g, ' '))}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <input type="date" value={item.due_date} onChange={(event) => updateDeliverable(index, { due_date: event.target.value })} className={`${inputClass} mt-2`} aria-label={tx('consultantProposal.deliverableDue', 'Due date')} />
+                            <textarea value={item.description} onChange={(event) => updateDeliverable(index, { description: event.target.value })} className="mt-2 min-h-[60px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500" placeholder={tx('consultantProposal.deliverableDescriptionPlaceholder', 'What the client receives.')} aria-label={tx('consultantProposal.deliverableDescriptionPlaceholder', 'What the client receives.')} />
+                            {form.deliverables.length > 1 && (
+                              <button type="button" onClick={() => setForm((prev) => ({ ...prev, deliverables: prev.deliverables.filter((_, i) => i !== index) }))} className="mt-2 text-xs font-semibold text-red-300 hover:text-red-200" data-track="ui.c62ffb2364.23">
+                                {tx('consultantProposal.removeDeliverable', 'Remove deliverable')}
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <button type="button" onClick={() => setForm((prev) => ({ ...prev, deliverables: [...prev.deliverables, emptyDeliverable()] }))} className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-200 transition hover:bg-gray-800" data-track="ui.c62ffb2364.24">
+                        {tx('consultantProposal.addDeliverable', 'Add deliverable')}
+                      </button>
+                    </div>
+                    <div>
+                      <h5 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantProposal.exclusionsTitle', 'Scope exclusions')}</h5>
+                      <p className="mb-2 text-xs leading-5 text-gray-400">{tx('consultantProposal.exclusionsHint', 'Name what is not included, so the client never assumes it is.')}</p>
+                      <div className="space-y-2">
+                        {form.exclusions.map((text, index) => (
+                          <div key={index} className="flex gap-2">
+                            <input type="text" value={text} onChange={(event) => setForm((prev) => ({ ...prev, exclusions: prev.exclusions.map((entry, i) => (i === index ? event.target.value : entry)) }))} className={inputClass} placeholder={tx('consultantProposal.exclusionPlaceholder', 'Not included: …')} aria-label={tx('consultantProposal.exclusionPlaceholder', 'Not included: …')} />
+                            {form.exclusions.length > 1 && (
+                              <button type="button" onClick={() => setForm((prev) => ({ ...prev, exclusions: prev.exclusions.filter((_, i) => i !== index) }))} className="shrink-0 rounded-2xl border border-gray-700 px-3 text-sm font-semibold text-gray-300 hover:bg-gray-800" aria-label={tx('consultantProposal.removeExclusion', 'Remove exclusion')} data-track="ui.c62ffb2364.25">×</button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <button type="button" onClick={() => setForm((prev) => ({ ...prev, exclusions: [...prev.exclusions, ''] }))} className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-200 transition hover:bg-gray-800" data-track="ui.c62ffb2364.26">
+                        {tx('consultantProposal.addExclusion', 'Add exclusion')}
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={saveDraft} disabled={saving} className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.27">
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        {tx('consultantProposal.saveDraft', 'Save draft')}
+                      </button>
+                      <button type="button" onClick={cancelEdit} className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-300 transition hover:bg-gray-800" data-track="ui.c62ffb2364.28">
+                        {tx('consultantProposal.cancelEdit', 'Cancel')}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {editingId === null && !draft && (
+                <button type="button" onClick={startNewDraft} className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600" data-track="ui.c62ffb2364.29">
+                  {tx('consultantProposal.newVersion', 'Draft a new proposal version')}
+                </button>
+              )}
+
+              <section>
+                <h4 className="mb-3 text-sm font-semibold text-white">{tx('consultantProposal.historyTitle', 'Version history')}</h4>
+                {proposals.length ? (
+                  <ul className="space-y-2">
+                    {proposals.map((proposal) => (
+                      <li key={proposal.id} className="rounded-xl border border-gray-800 bg-gray-900/70 px-3 py-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <button type="button" onClick={() => setExpandedId((prev) => (prev === proposal.id ? null : proposal.id))} className="text-left text-sm font-semibold text-white" aria-expanded={expandedId === proposal.id} data-track="ui.c62ffb2364.35">
+                            {tx('consultantProposal.versionLabel', 'Version {{version}}', { version: proposal.version })} • {proposal.title}
+                          </button>
+                          <span className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-white">{centsToCurrency(proposal.price_cents)}</span>
+                            {statusBadge(proposal.status)}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {tx('consultantProposal.versionMeta', '{{count}} deliverables', { count: (proposal.deliverables || []).length })}
+                          {' • '}{new Date(proposal.created_at).toLocaleString()}
+                          {proposal.decided_at ? ` • ${tx('consultantProposal.decidedOn', 'decided {{date}}', { date: new Date(proposal.decided_at).toLocaleDateString() })}` : ''}
+                        </p>
+                        {proposal.decision_reason && (
+                          <p className="mt-1 text-xs leading-5 text-gray-400">{proposal.decision_reason}</p>
+                        )}
+                        {expandedId === proposal.id && (
+                          <div className="mt-3 space-y-3 border-t border-gray-800 pt-3">
+                            {proposal.scope_summary && (
+                              <p className="whitespace-pre-wrap text-sm leading-6 text-gray-300">{proposal.scope_summary}</p>
+                            )}
+                            {(proposal.deliverables || []).length > 0 && (
+                              <div>
+                                <h5 className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantProposal.deliverablesTitle', 'Deliverables')}</h5>
+                                <ul className="list-disc space-y-1 pl-5 text-sm text-gray-300">
+                                  {(proposal.deliverables || []).map((item) => (
+                                    <li key={item.id}>
+                                      {item.title}
+                                      {item.due_date ? ` • ${tx('consultantProposal.dueLabel', 'due {{date}}', { date: String(item.due_date).slice(0, 10) })}` : ''}
+                                      {item.description ? <span className="block text-xs text-gray-500">{item.description}</span> : null}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {(proposal.exclusions || []).length > 0 && (
+                              <div>
+                                <h5 className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantProposal.exclusionsTitle', 'Scope exclusions')}</h5>
+                                <ul className="list-disc space-y-1 pl-5 text-sm text-gray-300">
+                                  {(proposal.exclusions || []).map((item) => (
+                                    <li key={item.id}>{item.exclusion_text}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {proposal.status === 'draft' && (
+                              <div className="flex flex-wrap gap-2">
+                                <button type="button" onClick={() => startEdit(proposal)} className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-200 transition hover:bg-gray-800" data-track="ui.c62ffb2364.30">
+                                  {tx('consultantProposal.editDraft', 'Edit draft')}
+                                </button>
+                                <button type="button" onClick={() => sendProposal(proposal.id)} disabled={sendingId === proposal.id} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50" data-track="ui.c62ffb2364.31">
+                                  {sendingId === proposal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                  {tx('consultantProposal.send', 'Send to client')}
+                                </button>
+                              </div>
+                            )}
+                            {proposal.status === 'sent' && (
+                              <div className="flex flex-wrap gap-2">
+                                {confirmingWithdrawId === proposal.id ? (
+                                  <>
+                                    <button type="button" onClick={() => withdrawProposal(proposal.id)} disabled={withdrawingId === proposal.id} className="inline-flex items-center gap-2 rounded-2xl bg-red-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-50" data-track="ui.c62ffb2364.32">
+                                      {withdrawingId === proposal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                      {tx('consultantProposal.confirmWithdraw', 'Withdraw this proposal')}
+                                    </button>
+                                    <button type="button" onClick={() => setConfirmingWithdrawId(null)} className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-300 transition hover:bg-gray-800" data-track="ui.c62ffb2364.33">
+                                      {tx('consultantProposal.keepProposal', 'Keep it sent')}
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button type="button" onClick={() => setConfirmingWithdrawId(proposal.id)} className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-300 transition hover:bg-gray-800" data-track="ui.c62ffb2364.34">
+                                    {tx('consultantProposal.withdraw', 'Withdraw')}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">{tx('consultantProposal.historyEmpty', 'No proposals yet. Draft the first version to put the engagement in writing.')}</p>
+                )}
+              </section>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId, onProposalChanged }) {
   const [draft, setDraft] = useState({
     consultant_assignment_status: referral.consultant_assignment_status || 'assigned',
     consultant_status_notes: referral.consultant_status_notes || '',
@@ -779,6 +1173,7 @@ function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId })
 
       <ReferralAttachments referral={referral} userId={userId} tx={tx} />
       <ReferralScreening referralId={referral.id} tx={tx} />
+      <ReferralProposal referralId={referral.id} tx={tx} onProposalChanged={onProposalChanged} />
     </article>
   );
 }
@@ -1158,6 +1553,7 @@ export default function ConsultantContractorDashboard() {
                       payingAllowed={payingReferralAccess?.allowed !== false}
                       tx={tx}
                       userId={user?.id}
+                      onProposalChanged={loadDashboard}
                     />
                   ))}
                 </div>
