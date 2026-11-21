@@ -105,3 +105,17 @@ test-only change; the application build at `b58b7e715` passed both locally and
 in GitHub CI. Remote CI for the repair commit remains separate evidence.
 
 From `client/`, `node --test scripts/*.test.mjs`: all 943 passed, no skips or cancellations (19.27s). `git diff --check` passed.
+
+### Source-suite CI follow-up
+
+Run `44853568362` at `b6d7b1fb01dbf123b5570508a2e9f4e580c7199b`
+passed client smoke tests, then failed the separate `Client src unit tests`
+step: `utils/legacyDeepLinks.test.mjs` also required the old inline parser.
+That assertion now verifies JoinPage delegates to the shared resolver and tests
+every recognized legacy join alias against its indexed intent. Both CI unit
+groups were run together locally: all 1,132 tests across 206 files passed,
+no skips or cancellations (32.94s). No application runtime change; the existing
+successful client build remains applicable. Remote CI for the new repair commit
+is separate from these local results.
+
+The full `node --test client/scripts/signup.browser-check.cjs` rerun passed all seven journeys (96.92s), including responsive/RTL/embedded layouts, application recovery, all 18 goal deep links, saved drafts, and invitation acceptance. `git diff --check` passed.

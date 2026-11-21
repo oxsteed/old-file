@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { signupEntryForParams } from './signupPersonas.js';
 import {
   intentForLegacyMode,
+  JOIN_MODE_CARDS,
   joinModeForLegacyMode,
   joinTargetForLegacyMode,
   resolveLegacyRegisterPath,
@@ -68,5 +70,11 @@ test('the register redirect is wired in App.jsx and the join page uses the index
   assert.match(app, /LegacyRegisterRedirect/);
   assert.match(app, /resolveLegacyRegisterPath/);
   const join = await readFile(new URL('../pages/JoinPage.jsx', import.meta.url), 'utf8');
-  assert.match(join, /intentForLegacyMode\(presetMode\)/);
+  assert.match(join, /signupEntryForParams\(params\)/);
+  // JoinPage delegates preselection to the shared goal resolver. Verify the
+  // legacy index still supplies every recognized intent through that boundary.
+  for (const mode of JOIN_MODE_CARDS) {
+    assert.equal(signupEntryForParams(new URLSearchParams({ mode })).intent,
+      intentForLegacyMode(mode), mode);
+  }
 });
