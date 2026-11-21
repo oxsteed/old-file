@@ -1,4 +1,19 @@
 {
+  "reservationRequest": {
+    "eyebrow": "Planifye vizit ou",
+    "steps": "Etap pou mande yon rezèvasyon",
+    "visit": "Vizit ou",
+    "contact": "Enfòmasyon kontak",
+    "arrival": "Dat ak lè arive",
+    "departure": "Dat ak lè depa",
+    "editVisit": "Modifye detay vizit la",
+    "contactHint": "Ajoute yon nimewo telefòn oswa imèl pou restoran an ka reponn ou.",
+    "contactRequired": "Ajoute yon nimewo telefòn oswa imèl pou kontinye.",
+    "addNote": "Ajoute yon nòt (si ou vle)",
+    "notePlaceholder": "Bezwen aksesibilite, yon okazyon espesyal oswa lòt enfòmasyon…",
+    "continue": "Kontinye",
+    "invalidWindow": "Chwazi yon lè depa ki apre lè arive ou."
+  },
   "adminOpsAudit": {
     "bulkFailed": "ID itilizatè ki echwe: {{ids}}. Yo rete chwazi pou eseye ankò.",
     "fulfillmentTitle": "Konfime livrezon kat la",
