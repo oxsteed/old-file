@@ -1,4 +1,19 @@
 {
+  "reservationRequest": {
+    "eyebrow": "Préparez votre visite",
+    "steps": "Étapes de la demande de réservation",
+    "visit": "Votre visite",
+    "contact": "Coordonnées",
+    "arrival": "Date et heure d’arrivée",
+    "departure": "Date et heure de départ",
+    "editVisit": "Modifier la visite",
+    "contactHint": "Ajoutez un téléphone ou un e-mail pour que le restaurant puisse vous répondre.",
+    "contactRequired": "Ajoutez un téléphone ou un e-mail pour continuer.",
+    "addNote": "Ajouter une note (facultatif)",
+    "notePlaceholder": "Besoins d’accessibilité, occasion spéciale ou autres précisions…",
+    "continue": "Continuer",
+    "invalidWindow": "Choisissez une heure de départ après votre arrivée."
+  },
   "adminOpsAudit": {
     "bulkFailed": "Identifiants en échec : {{ids}}. Ces utilisateurs restent sélectionnés pour réessayer.",
     "fulfillmentTitle": "Confirmer la remise de la carte",
