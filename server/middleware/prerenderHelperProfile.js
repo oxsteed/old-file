@@ -548,7 +548,7 @@ function buildMarketingStaticShell(page, pagePath, req) {
         </ul>
       </nav>`
     : '';
-  return `<div id="ssr-shell" data-seo-page="${escapeHtml(pagePath)}" style="max-width:64rem;margin:0 auto;padding:3rem 1rem;">
+  return `<div id="ssr-shell" class="oxsteed-ssr-shell" data-seo-page="${escapeHtml(pagePath)}" style="max-width:64rem;margin:0 auto;padding:3rem 1rem;">
     <article>
       <p style="letter-spacing:.12em;text-transform:uppercase;font-size:.75rem;">OxSteed</p>
       <h1>${escapeHtml(title)}</h1>

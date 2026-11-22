@@ -48,6 +48,10 @@ export function getServiceWorkerUrl() {
 // the page, is applied silently: nothing can be lost and the reload is
 // indistinguishable from the page still loading.
 export const SILENT_UPDATE_WINDOW_MS = 10000;
+// Public/read-only pages can move to an announced release after a short
+// quiet period. Sensitive paths and pages with unfinished input remain
+// protected by canApplyQuietly().
+export const AUTO_APPLY_UPDATE_DELAY_MS = 30000;
 const SILENT_UPDATE_KEY = 'oxsteed:sw-silent-update';
 let pageInteracted = false;
 let silentUpdateDeadline = 0;
@@ -96,6 +100,7 @@ function announceUpdate(worker) {
   if (waitingWorker === worker) return;
   if (trySilentUpdate(worker)) return;
   waitingWorker = worker;
+  scheduleQuietAutoUpdate();
   watchQuietMoments();
   updateListeners.forEach(listener => listener(worker));
 }
@@ -119,6 +124,43 @@ function canApplyQuietly(pathname) {
     && !isUpdateSensitivePath(pathname)
     && !isSilentUpdateSensitivePath(pathname)
     && !hasUnsavedInput();
+}
+
+let quietUpdateTimer = null;
+
+function clearQuietUpdateTimer() {
+  if (quietUpdateTimer === null) return;
+  try { (window.clearTimeout || clearTimeout)(quietUpdateTimer); } catch { /* optional timer API */ }
+  quietUpdateTimer = null;
+}
+
+/** Apply a waiting update when the current page is safe to replace. */
+export function autoApplyWaitingUpdate() {
+  try {
+    if (!canApplyQuietly(window.location.pathname)) return false;
+    return applyWorkerUpdate();
+  } catch {
+    return false;
+  }
+}
+
+function scheduleQuietAutoUpdate() {
+  if (quietUpdateTimer !== null || typeof window === 'undefined') return;
+  try {
+    if (!canApplyQuietly(window.location.pathname)) return;
+  } catch {
+    // A partial DOM (for example an embedded shell) should still receive the
+    // visible update notice rather than interrupting worker detection.
+    return;
+  }
+  const schedule = window.setTimeout || setTimeout;
+  quietUpdateTimer = schedule(() => {
+    quietUpdateTimer = null;
+    autoApplyWaitingUpdate();
+  }, AUTO_APPLY_UPDATE_DELAY_MS);
+  // Do not keep non-browser test runners alive solely for this best-effort
+  // browser timer. Browsers ignore the Node-specific unref method.
+  quietUpdateTimer?.unref?.();
 }
 
 /**
@@ -152,6 +194,7 @@ function installQuietWatch() {
 
 export function applyWorkerUpdate() {
   if (!waitingWorker || appUpdatesDeferred() || isUpdateSensitivePath(window.location.pathname)) return false;
+  clearQuietUpdateTimer();
   // Another tab may already have accepted this worker. Refresh this page
   // only when its own user presses the button.
   if (waitingWorker.state === 'activated') { reloadDocument(); return true; }

@@ -20,6 +20,7 @@ function fakeDocument(nodes) {
       if (selector === 'script[type="module"][src]') return nodes.filter((n) => n.tagName === 'script' && n.type === 'module' && n.src);
       if (selector === 'script[src]') return nodes.filter((n) => n.tagName === 'script' && n.src);
       if (selector.includes('modulepreload')) return nodes.filter((n) => n.tagName === 'link' && n.rel === 'modulepreload');
+      if (selector === 'input, textarea, select') return nodes.filter((n) => ['input', 'textarea', 'select'].includes(n.tagName));
       throw new Error(`unexpected selector ${selector}`);
     },
   };
@@ -212,6 +213,19 @@ test('once the user has interacted, an update shows the notice instead of reload
     assert.deepEqual(env.posted, []);
     assert.deepEqual(env.announced, [env.worker]);
     assert.equal(env.reloads(), 0);
+  } finally { env.restore(); }
+});
+
+test('a public page applies an announced update during a later quiet moment', async () => {
+  const env = fakeServiceWorkerEnv({ marker: 'https://oxsteed.com/sw.js?v=build-2' });
+  try {
+    const mod = await freshModule();
+    mod.subscribeWorkerUpdate((w) => env.announced.push(w));
+    mod.registerServiceWorker();
+    await settle();
+    assert.deepEqual(env.announced, [env.worker], 'waiting worker should be announced');
+    assert.equal(mod.autoApplyWaitingUpdate(), true, 'public page should auto-apply safely');
+    assert.deepEqual(env.posted, [{ type: 'SKIP_WAITING' }]);
   } finally { env.restore(); }
 });
 
