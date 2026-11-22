@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { ClipboardList, FileText, Download } from 'lucide-react';
 import { deliverablesApi } from '../api/consultantDeliverables';
 import { changesApi } from '../api/consultantChanges';
+import { confidentialityApi, downloadEngagementRecord } from '../api/consultantConfidentiality';
 
 // Group 10 Slice F (531-535): the change-request, history, and pause
 // UI for one engagement. Either party files a request; the other party
@@ -286,6 +287,308 @@ function EngagementChanges({ sessionId, deliverables, sessionStatus, onChanged }
                 {event.createdAt ? String(event.createdAt).slice(0, 10) : ''}
               </li>
             ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Group 10 Slice G (536-540): participants, confidentiality
+// acknowledgment, document sharing, and the record export for one
+// engagement. The consultant adds participants by email, acknowledges
+// for themselves, and changes document sharing; participants read the
+// board and the documents shared with them.
+function EngagementConfidentiality({ sessionId, deliverables, onChanged }) {
+  const { t } = useTranslation();
+  const tx = (key, fallback, options) => t(key, { defaultValue: fallback, ...options });
+  const [participants, setParticipants] = useState(null);
+  const [confidentiality, setConfidentiality] = useState(null);
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('site_contact');
+  const [busy, setBusy] = useState('');
+  const [expiryDrafts, setExpiryDrafts] = useState({});
+  const [clearedExpiry, setClearedExpiry] = useState({});
+  const [visibilityDrafts, setVisibilityDrafts] = useState({});
+  const [shareDrafts, setShareDrafts] = useState({});
+
+  const load = async () => {
+    try {
+      const [partRes, confRes] = await Promise.all([
+        confidentialityApi.listContractorParticipants(sessionId),
+        confidentialityApi.getContractorConfidentiality(sessionId),
+      ]);
+      setParticipants(partRes.data);
+      setConfidentiality(confRes.data);
+    } catch {
+      toast.error(t('common.errorLoading'));
+    }
+  };
+
+  useEffect(() => { load(); }, [sessionId]);
+
+  const runAction = async (key, fn, successKey) => {
+    setBusy(key);
+    try {
+      await fn();
+      if (successKey) toast.success(t(successKey));
+      await load();
+      if (onChanged) await onChanged();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating'));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const addParticipant = () => runAction(
+    'add-participant',
+    () => confidentialityApi.addContractorParticipant(sessionId, { email: email.trim(), role }),
+    'consultantConfidentiality.added',
+  ).then(() => setEmail(''));
+
+  const removeParticipant = (participantId) => runAction(
+    `remove-${participantId}`,
+    () => confidentialityApi.removeContractorParticipant(sessionId, participantId),
+    'consultantConfidentiality.removed',
+  );
+
+  const acknowledge = () => runAction(
+    'acknowledge',
+    () => confidentialityApi.acknowledgeContractorConfidentiality(sessionId),
+    'consultantConfidentiality.acknowledged',
+  );
+
+  const exportRecord = async () => {
+    setBusy('export');
+    try {
+      const { data } = await confidentialityApi.exportContractorRecord(sessionId);
+      downloadEngagementRecord(data, sessionId);
+      toast.success(t('consultantConfidentiality.exported'));
+    } catch {
+      toast.error(t('consultantConfidentiality.exportError'));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const allDocs = (deliverables || []).flatMap((item) => (item.documents || []).map((doc) => ({ ...doc, deliverableId: item.id })));
+  const parties = [
+    ...(participants?.core || []),
+    ...(participants?.participants || []).filter((party) => party.active),
+  ];
+  const myAck = (confidentiality?.parties || []).find((party) => party.role === 'consultant');
+  const pending = (confidentiality?.parties || []).filter((party) => !party.acknowledgedAt);
+  const fmtName = (party) => [party.firstName, party.lastName].filter(Boolean).join(' ') || party.email || party.userId;
+
+  const saveSharing = (doc) => {
+    const visibility = visibilityDrafts[doc.id] || doc.visibility;
+    const payload = { visibility };
+    if (clearedExpiry[doc.id]) {
+      payload.expires_at = null;
+    } else if (expiryDrafts[doc.id]) {
+      payload.expires_at = new Date(`${expiryDrafts[doc.id]}T23:59:59.999Z`).toISOString();
+    }
+    if (visibility === 'limited') {
+      payload.shared_with = shareDrafts[doc.id] ?? doc.sharedWith ?? [];
+    }
+    return runAction(
+      `sharing-${doc.id}`,
+      () => confidentialityApi.updateContractorDocumentSharing(sessionId, doc.deliverableId, doc.id, payload),
+      'consultantConfidentiality.sharingUpdated',
+    );
+  };
+
+  const toggleShare = (doc, userId) => {
+    setShareDrafts((prev) => {
+      const current = new Set(prev[doc.id] ?? doc.sharedWith ?? []);
+      if (current.has(userId)) current.delete(userId);
+      else current.add(userId);
+      return { ...prev, [doc.id]: [...current] };
+    });
+  };
+
+  return (
+    <div className="mt-3 space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold text-white">{tx('consultantConfidentiality.title', 'Confidentiality')}</h4>
+        <button
+          type="button"
+          onClick={exportRecord}
+          disabled={busy === 'export'}
+          className="rounded-xl border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-white/5 disabled:opacity-60" data-track="ui.d91e4e0189.14"
+        >
+          {tx('consultantConfidentiality.export', 'Export engagement record')}
+        </button>
+      </div>
+
+      <div>
+        <h5 className="text-xs font-semibold text-gray-300">{tx('consultantConfidentiality.participantsTitle', 'Participants')}</h5>
+        <ul className="mt-1 space-y-1">
+          {parties.map((party) => (
+            <li key={party.userId} className="flex items-center justify-between gap-2 text-xs text-gray-300">
+              <span>
+                {fmtName(party)}
+                {' • '}
+                {tx(`consultantConfidentiality.roles.${party.role}`, party.role.replace(/_/g, ' '))}
+              </span>
+              {party.id && (
+                <button
+                  type="button"
+                  onClick={() => removeParticipant(party.id)}
+                  disabled={busy === `remove-${party.id}`}
+                  className="font-semibold text-gray-400 hover:text-red-300 disabled:opacity-60" data-track="ui.d91e4e0189.15"
+                >
+                  {tx('consultantConfidentiality.remove', 'Remove')}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+        {parties.length === 0 && (
+          <p className="mt-1 text-xs text-gray-400">{tx('consultantConfidentiality.participantsEmpty', 'Only the client and the consultant are on this engagement.')}</p>
+        )}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder={tx('consultantConfidentiality.participantEmailPlaceholder', 'Participant email')}
+            aria-label={tx('consultantConfidentiality.participantEmailPlaceholder', 'Participant email')}
+            className="min-w-[200px] flex-1 rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white outline-none focus:border-orange-500"
+          />
+          <select
+            value={role}
+            onChange={(event) => setRole(event.target.value)}
+            className="rounded-lg border border-gray-700 bg-gray-900 px-2 py-2 text-xs text-gray-200"
+            aria-label={tx('consultantConfidentiality.participantRole', 'Role')}
+          >
+            <option value="site_contact">{tx('consultantConfidentiality.roles.site_contact', 'Site contact')}</option>
+            <option value="observer">{tx('consultantConfidentiality.roles.observer', 'Observer')}</option>
+          </select>
+          <button
+            type="button"
+            onClick={addParticipant}
+            disabled={busy === 'add-participant' || !email.trim()}
+            className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-600 disabled:opacity-60" data-track="ui.d91e4e0189.16"
+          >
+            {tx('consultantConfidentiality.addParticipant', 'Add participant')}
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <h5 className="text-xs font-semibold text-gray-300">{tx('consultantConfidentiality.title', 'Confidentiality')}</h5>
+        {pending.length === 0 ? (
+          <p className="mt-1 text-xs text-emerald-300">{tx('consultantConfidentiality.ackDone', 'Everyone on this engagement has acknowledged confidentiality.')}</p>
+        ) : (
+          <p className="mt-1 text-xs text-gray-400">
+            {pending.map((party) => tx('consultantConfidentiality.ackPending', 'Still waiting on {{name}}.', { name: fmtName(party) })).join(' ')}
+          </p>
+        )}
+        {myAck && !myAck.acknowledgedAt && (
+          <div className="mt-2 space-y-2">
+            <p className="text-xs leading-5 text-gray-400">{tx('consultantConfidentiality.ackStatement', 'I will keep this engagement\u2019s information confidential and share it only with the people on this engagement.')}</p>
+            <button
+              type="button"
+              onClick={acknowledge}
+              disabled={busy === 'acknowledge'}
+              className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60" data-track="ui.d91e4e0189.17"
+            >
+              {tx('consultantConfidentiality.acknowledge', 'Acknowledge confidentiality')}
+            </button>
+          </div>
+        )}
+        {myAck && myAck.acknowledgedAt && (
+          <p className="mt-1 text-xs text-emerald-300">{tx('consultantConfidentiality.ackYou', 'You have acknowledged confidentiality.')}</p>
+        )}
+      </div>
+
+      {allDocs.length > 0 && (
+        <div>
+          <h5 className="text-xs font-semibold text-gray-300">{tx('consultantDeliverable.attachDocument', 'Attach a document')}</h5>
+          <ul className="mt-1 space-y-2">
+            {allDocs.map((doc) => {
+              const visibility = visibilityDrafts[doc.id] || doc.visibility;
+              const expiry = expiryDrafts[doc.id] ?? (doc.expired ? '' : (doc.expiresAt ? String(doc.expiresAt).slice(0, 10) : ''));
+              return (
+                <li key={doc.id} className="rounded-xl border border-gray-800 p-3">
+                  <p className="text-xs font-semibold text-white">{doc.originalName}</p>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {tx(`consultantConfidentiality.visibility${visibility === 'shared' ? 'Shared' : visibility === 'client_only' ? 'ClientOnly' : visibility === 'consultant_only' ? 'ConsultantOnly' : visibility === 'limited' ? 'Limited' : 'Internal'}`, visibility.replace(/_/g, ' '))}
+                    {doc.expired ? (
+                      <span className="text-red-300">{` • ${tx('consultantConfidentiality.docExpired', 'Access expired')}`}</span>
+                    ) : doc.expiresAt ? (
+                      <span>{` • ${tx('consultantConfidentiality.docExpiry', 'Access until {{date}}', { date: String(doc.expiresAt).slice(0, 10) })}`}</span>
+                    ) : (
+                      <span>{` • ${tx('consultantConfidentiality.docNoExpiry', 'No expiry')}`}</span>
+                    )}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <select
+                      value={visibility}
+                      onChange={(event) => setVisibilityDrafts((prev) => ({ ...prev, [doc.id]: event.target.value }))}
+                      className="rounded-lg border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200"
+                      aria-label={tx('consultantConfidentiality.visibility', 'Who can see this')}
+                    >
+                      <option value="shared">{tx('consultantConfidentiality.visibilityShared', 'Shared with client')}</option>
+                      <option value="consultant_only">{tx('consultantConfidentiality.visibilityConsultantOnly', 'Consultant only')}</option>
+                      <option value="limited">{tx('consultantConfidentiality.visibilityLimited', 'Named people only')}</option>
+                    </select>
+                    <input
+                      type="date"
+                      value={expiry}
+                      onChange={(event) => {
+                        setExpiryDrafts((prev) => ({ ...prev, [doc.id]: event.target.value }));
+                        setClearedExpiry((prev) => ({ ...prev, [doc.id]: false }));
+                      }}
+                      className="rounded-lg border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-200"
+                      aria-label={tx('consultantConfidentiality.setExpiry', 'Set expiry')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExpiryDrafts((prev) => ({ ...prev, [doc.id]: '' }));
+                        setClearedExpiry((prev) => ({ ...prev, [doc.id]: true }));
+                      }}
+                      className="rounded-lg border border-gray-700 px-2 py-1 text-xs text-gray-300 hover:bg-white/5" data-track="ui.d91e4e0189.18"
+                    >
+                      {tx('consultantConfidentiality.clearExpiry', 'Clear expiry')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => saveSharing(doc)}
+                      disabled={busy === `sharing-${doc.id}`}
+                      className="rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-600 disabled:opacity-60" data-track="ui.d91e4e0189.19"
+                    >
+                      {tx('consultantConfidentiality.saveSharing', 'Save sharing')}
+                    </button>
+                  </div>
+                  {visibility === 'limited' && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {parties.map((party) => {
+                        const selected = (shareDrafts[doc.id] ?? doc.sharedWith ?? []).includes(party.userId);
+                        return (
+                          <label key={party.userId} className="inline-flex items-center gap-1 text-xs text-gray-300">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => toggleShare(doc, party.userId)} data-track="ui.d91e4e0189.20"
+                            />
+                            {fmtName(party)}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {visibility === 'limited' && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      {tx('consultantConfidentiality.sharedWithCount', 'Shared with {{count}} people', { count: (shareDrafts[doc.id] ?? doc.sharedWith ?? []).length })}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -580,6 +883,11 @@ export default function ConsultantEngagementsSection() {
                   sessionId={sessionId}
                   deliverables={board}
                   sessionStatus={engagement.status}
+                  onChanged={async () => { await load(); if (expandedId) await loadBoard(expandedId); }}
+                />
+                <EngagementConfidentiality
+                  sessionId={sessionId}
+                  deliverables={board}
                   onChanged={async () => { await load(); if (expandedId) await loadBoard(expandedId); }}
                 />
               </div>

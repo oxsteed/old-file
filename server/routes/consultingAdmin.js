@@ -3,6 +3,7 @@ const router = express.Router();
 const adminConsultingController = require('../controllers/adminConsultingController');
 const deliverableController = require('../controllers/consultantDeliverableController');
 const changeController = require('../controllers/consultantChangeController');
+const confidentialityController = require('../controllers/consultantConfidentialityController');
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 
@@ -55,6 +56,15 @@ router.post('/sessions/:sessionId/change-requests/:requestId/withdraw', ...write
 router.get('/sessions/:sessionId/history', ...auth, changeController.getEngagementHistory);
 router.post('/sessions/:sessionId/pause', ...writeAuth, changeController.pauseEngagement);
 router.post('/sessions/:sessionId/resume', ...writeAuth, changeController.resumeEngagement);
+// Group 10 Slice G (536-540): admin read of participants and
+// confidentiality status, admin participant management, document
+// sharing changes, and the record export.
+router.get('/sessions/:sessionId/participants', ...auth, confidentialityController.listParticipants);
+router.post('/sessions/:sessionId/participants', ...writeAuth, confidentialityController.addParticipant);
+router.delete('/sessions/:sessionId/participants/:participantId', ...writeAuth, confidentialityController.removeParticipant);
+router.get('/sessions/:sessionId/confidentiality', ...auth, confidentialityController.getAcknowledgmentStatus);
+router.patch('/sessions/:sessionId/deliverables/:deliverableId/documents/:documentId', ...writeAuth, confidentialityController.updateDocumentSharing);
+router.get('/sessions/:sessionId/export', ...auth, confidentialityController.exportEngagementRecord);
 router.post('/sessions/:id/send-reminder', ...writeAuth, adminConsultingController.sendSessionReminder);
 router.post('/sessions/:id/send-followup', ...writeAuth, adminConsultingController.sendSessionFollowUp);
 router.post('/sessions/:id/send-invite', ...writeAuth, adminConsultingController.sendSessionReminder);

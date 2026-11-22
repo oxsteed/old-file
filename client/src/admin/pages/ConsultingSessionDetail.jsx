@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import ActionItemsPanel from '../../components/ActionItemsPanel';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import { confidentialityApi, downloadEngagementRecord } from '../../api/consultantConfidentiality';
 import './ConsultingSessionDetail.css';
 
 const STATUS_COLORS = {
@@ -39,6 +40,17 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
   const [changesLoading, setChangesLoading] = useState(true);
   const [pauseReason, setPauseReason] = useState('');
   const [pauseBusy, setPauseBusy] = useState(false);
+  // Group 10 Slice G (536-540): participants, confidentiality
+  // acknowledgment, and document sharing, read-only for admin except
+  // document sharing and the record export.
+  const [participants, setParticipants] = useState(null);
+  const [confidentiality, setConfidentiality] = useState(null);
+  const [confidentialityLoading, setConfidentialityLoading] = useState(true);
+  const [confidentialityBusy, setConfidentialityBusy] = useState('');
+  const [expiryDrafts, setExpiryDrafts] = useState({});
+  const [clearedExpiry, setClearedExpiry] = useState({});
+  const [visibilityDrafts, setVisibilityDrafts] = useState({});
+  const [shareDrafts, setShareDrafts] = useState({});
 
   // Refetch and reset per-session state whenever the viewed session changes,
   // so consultants and notes never bleed across sessions.
@@ -66,16 +78,15 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
   }, [session.id]);
 
   // Load the milestone board (Slice E) for this session.
-  useEffect(() => {
-    let cancelled = false;
+  const loadDeliverables = () => {
     setDeliverables([]);
     setDeliverablesLoading(true);
-    axios.get(`/consulting/admin/sessions/${session.id}/deliverables`)
-      .then((r) => { if (!cancelled) setDeliverables(Array.isArray(r.data?.deliverables) ? r.data.deliverables : []); })
-      .catch(() => { if (!cancelled) setDeliverables([]); })
-      .finally(() => { if (!cancelled) setDeliverablesLoading(false); });
-    return () => { cancelled = true; };
-  }, [session.id]);
+    return axios.get(`/consulting/admin/sessions/${session.id}/deliverables`)
+      .then((r) => { setDeliverables(Array.isArray(r.data?.deliverables) ? r.data.deliverables : []); })
+      .catch(() => { setDeliverables([]); })
+      .finally(() => { setDeliverablesLoading(false); });
+  };
+  useEffect(() => { loadDeliverables(); }, [session.id]);
 
   // Load change requests and history (Slice F) for this session.
   const loadChanges = () => {
@@ -92,6 +103,67 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
       .finally(() => setChangesLoading(false));
   };
   useEffect(() => { loadChanges(); }, [session.id]);
+
+  // Load participants and confidentiality status (Slice G) for this session.
+  const loadConfidentiality = () => {
+    setConfidentialityLoading(true);
+    return Promise.all([
+      confidentialityApi.listAdminParticipants(session.id),
+      confidentialityApi.getAdminConfidentiality(session.id),
+    ])
+      .then(([partRes, confRes]) => {
+        setParticipants(partRes.data);
+        setConfidentiality(confRes.data);
+      })
+      .catch(() => { setParticipants(null); setConfidentiality(null); })
+      .finally(() => setConfidentialityLoading(false));
+  };
+  useEffect(() => { loadConfidentiality(); }, [session.id]);
+
+  async function exportRecord() {
+    try {
+      setConfidentialityBusy('export');
+      const { data } = await confidentialityApi.exportAdminRecord(session.id);
+      downloadEngagementRecord(data, session.id);
+      toast.success(t('consultantConfidentiality.exported', { defaultValue: 'Engagement record downloaded.' }));
+    } catch {
+      toast.error(t('consultantConfidentiality.exportError', { defaultValue: 'Could not export the engagement record.' }));
+    } finally {
+      setConfidentialityBusy('');
+    }
+  }
+
+  async function saveSharing(doc, deliverableId) {
+    const visibility = visibilityDrafts[doc.id] || doc.visibility;
+    const payload = { visibility };
+    if (clearedExpiry[doc.id]) {
+      payload.expires_at = null;
+    } else if (expiryDrafts[doc.id]) {
+      payload.expires_at = new Date(`${expiryDrafts[doc.id]}T23:59:59.999Z`).toISOString();
+    }
+    if (visibility === 'limited') {
+      payload.shared_with = shareDrafts[doc.id] ?? doc.sharedWith ?? [];
+    }
+    try {
+      setConfidentialityBusy(`sharing-${doc.id}`);
+      await confidentialityApi.updateAdminDocumentSharing(session.id, deliverableId, doc.id, payload);
+      toast.success(t('consultantConfidentiality.sharingUpdated', { defaultValue: 'Document sharing updated.' }));
+      await Promise.all([loadConfidentiality(), loadDeliverables()]);
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setConfidentialityBusy('');
+    }
+  }
+
+  function toggleShare(doc, userId) {
+    setShareDrafts((prev) => {
+      const current = new Set(prev[doc.id] ?? doc.sharedWith ?? []);
+      if (current.has(userId)) current.delete(userId);
+      else current.add(userId);
+      return { ...prev, [doc.id]: [...current] };
+    });
+  }
 
   async function pauseEngagement() {
     if (pauseReason.trim().length < 10) {
@@ -442,7 +514,14 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
                   {(item.documents || []).length > 0 && (
                     <ul className="csd-deliverable-docs">
                       {item.documents.map((doc) => (
-                        <li key={doc.id}>{doc.originalName} • {doc.visibility}</li>
+                        <li key={doc.id}>
+                          {doc.originalName} • {doc.visibility}
+                          {doc.expired ? (
+                            <span>{` • ${t('consultantConfidentiality.docExpired', { defaultValue: 'Access expired' })}`}</span>
+                          ) : doc.expiresAt ? (
+                            <span>{` • ${t('consultantConfidentiality.docExpiry', { defaultValue: 'Access until {{date}}', date: String(doc.expiresAt).slice(0, 10) })}`}</span>
+                          ) : null}
+                        </li>
                       ))}
                     </ul>
                   )}
@@ -519,6 +598,119 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
                     </ul>
                   </>
                 )}
+              </>
+            )}
+          </div>
+
+          {/* Group 10 Slice G (536-540): participants, confidentiality
+              acknowledgment, document sharing, and the record export. */}
+          <div className="csd-deliverables-section">
+            <div className="csd-deliverables-title">{t('consultantConfidentiality.title', { defaultValue: 'Confidentiality' })}</div>
+            <button type="button" onClick={exportRecord} disabled={confidentialityBusy === 'export'} className="csd-changes-button">
+              {t('consultantConfidentiality.export', { defaultValue: 'Export engagement record' })}
+            </button>
+            {confidentialityLoading ? (
+              <p className="csd-deliverables-note">{t('common.loading', { defaultValue: 'Loading…' })}</p>
+            ) : (
+              <>
+                <ul className="csd-deliverable-docs">
+                  {[...(participants?.core || []), ...((participants?.participants || []).filter((party) => party.active))].map((party) => (
+                    <li key={party.userId}>
+                      {[party.firstName, party.lastName].filter(Boolean).join(' ') || party.email || party.userId}
+                      {' • '}
+                      {t(`consultantConfidentiality.roles.${party.role}`, { defaultValue: party.role.replace(/_/g, ' ') })}
+                    </li>
+                  ))}
+                </ul>
+                {(confidentiality?.parties || []).filter((party) => !party.acknowledgedAt).length === 0 ? (
+                  <p className="csd-deliverable-meta">
+                    {t('consultantConfidentiality.ackDone', { defaultValue: 'Everyone on this engagement has acknowledged confidentiality.' })}
+                  </p>
+                ) : (
+                  <p className="csd-deliverable-meta">
+                    {(confidentiality?.parties || []).filter((party) => !party.acknowledgedAt).map((party) => t('consultantConfidentiality.ackPending', { defaultValue: 'Still waiting on {{name}}.', name: [party.firstName, party.lastName].filter(Boolean).join(' ') || party.email || party.userId })).join(' ')}
+                  </p>
+                )}
+                {deliverables.flatMap((item) => (item.documents || []).map((doc) => ({ ...doc, deliverableId: item.id }))).map((doc) => {
+                  const visibility = visibilityDrafts[doc.id] || doc.visibility;
+                  const expiry = expiryDrafts[doc.id] ?? (doc.expired ? '' : (doc.expiresAt ? String(doc.expiresAt).slice(0, 10) : ''));
+                  const parties = [...(participants?.core || []), ...((participants?.participants || []).filter((party) => party.active))];
+                  return (
+                    <div key={doc.id} className="csd-deliverable-card">
+                      <p className="csd-deliverable-name"><strong>{doc.originalName}</strong></p>
+                      <p className="csd-deliverable-meta">
+                        {t(`consultantConfidentiality.visibility${visibility === 'shared' ? 'Shared' : visibility === 'client_only' ? 'ClientOnly' : visibility === 'consultant_only' ? 'ConsultantOnly' : visibility === 'limited' ? 'Limited' : 'Internal'}`, { defaultValue: visibility.replace(/_/g, ' ') })}
+                        {doc.expired ? (
+                          <span>{` • ${t('consultantConfidentiality.docExpired', { defaultValue: 'Access expired' })}`}</span>
+                        ) : doc.expiresAt ? (
+                          <span>{` • ${t('consultantConfidentiality.docExpiry', { defaultValue: 'Access until {{date}}', date: String(doc.expiresAt).slice(0, 10) })}`}</span>
+                        ) : (
+                          <span>{` • ${t('consultantConfidentiality.docNoExpiry', { defaultValue: 'No expiry' })}`}</span>
+                        )}
+                      </p>
+                      <div className="csd-changes-pause-row">
+                        <select
+                          value={visibility}
+                          onChange={(event) => setVisibilityDrafts((prev) => ({ ...prev, [doc.id]: event.target.value }))}
+                          className="csd-changes-input"
+                          aria-label={t('consultantConfidentiality.visibility', { defaultValue: 'Who can see this' })}
+                        >
+                          <option value="shared">{t('consultantConfidentiality.visibilityShared', { defaultValue: 'Shared with client' })}</option>
+                          <option value="client_only">{t('consultantConfidentiality.visibilityClientOnly', { defaultValue: 'Client only' })}</option>
+                          <option value="consultant_only">{t('consultantConfidentiality.visibilityConsultantOnly', { defaultValue: 'Consultant only' })}</option>
+                          <option value="limited">{t('consultantConfidentiality.visibilityLimited', { defaultValue: 'Named people only' })}</option>
+                          <option value="internal">{t('consultantConfidentiality.visibilityInternal', { defaultValue: 'Internal' })}</option>
+                        </select>
+                        <input
+                          type="date"
+                          value={expiry}
+                          onChange={(event) => {
+                            setExpiryDrafts((prev) => ({ ...prev, [doc.id]: event.target.value }));
+                            setClearedExpiry((prev) => ({ ...prev, [doc.id]: false }));
+                          }}
+                          className="csd-changes-input"
+                          aria-label={t('consultantConfidentiality.setExpiry', { defaultValue: 'Set expiry' })}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExpiryDrafts((prev) => ({ ...prev, [doc.id]: '' }));
+                            setClearedExpiry((prev) => ({ ...prev, [doc.id]: true }));
+                          }}
+                          className="csd-changes-button"
+                        >
+                          {t('consultantConfidentiality.clearExpiry', { defaultValue: 'Clear expiry' })}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => saveSharing(doc, doc.deliverableId)}
+                          disabled={confidentialityBusy === `sharing-${doc.id}`}
+                          className="csd-changes-button"
+                        >
+                          {t('consultantConfidentiality.saveSharing', { defaultValue: 'Save sharing' })}
+                        </button>
+                      </div>
+                      {visibility === 'limited' && (
+                        <div className="csd-changes-pause-row">
+                          {parties.map((party) => {
+                            const selected = (shareDrafts[doc.id] ?? doc.sharedWith ?? []).includes(party.userId);
+                            return (
+                              <label key={party.userId} className="csd-deliverable-meta">
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => toggleShare(doc, party.userId)}
+                                />
+                                {' '}
+                                {[party.firstName, party.lastName].filter(Boolean).join(' ') || party.email || party.userId}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </>
             )}
           </div>

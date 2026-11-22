@@ -8,6 +8,7 @@ const schedulingController = require('../controllers/consultantSchedulingControl
 const proposalController = require('../controllers/consultantProposalController');
 const deliverableController = require('../controllers/consultantDeliverableController');
 const changeController = require('../controllers/consultantChangeController');
+const confidentialityController = require('../controllers/consultantConfidentialityController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 
@@ -66,6 +67,16 @@ router.post('/sessions/:sessionId/change-requests/:requestId/withdraw', authenti
 router.get('/sessions/:sessionId/history', authenticate, changeController.getEngagementHistory);
 router.post('/sessions/:sessionId/pause', authenticate, changeController.pauseEngagement);
 router.post('/sessions/:sessionId/resume', authenticate, changeController.resumeEngagement);
+// Group 10 Slice G (536-540): maintain confidentiality. Participants,
+// confidentiality acknowledgment, document sharing, and the record
+// export on the engagement session.
+router.get('/sessions/:sessionId/participants', authenticate, confidentialityController.listParticipants);
+router.post('/sessions/:sessionId/participants', authenticate, confidentialityController.addParticipant);
+router.delete('/sessions/:sessionId/participants/:participantId', authenticate, confidentialityController.removeParticipant);
+router.get('/sessions/:sessionId/confidentiality', authenticate, confidentialityController.getAcknowledgmentStatus);
+router.post('/sessions/:sessionId/confidentiality/acknowledge', authenticate, confidentialityController.acknowledgeConfidentiality);
+router.patch('/sessions/:sessionId/deliverables/:deliverableId/documents/:documentId', authenticate, confidentialityController.updateDocumentSharing);
+router.get('/sessions/:sessionId/export', authenticate, confidentialityController.exportEngagementRecord);
 
 // Public specialty profile (506). No auth: only approved, active profiles
 // are ever returned; anything else 404s.

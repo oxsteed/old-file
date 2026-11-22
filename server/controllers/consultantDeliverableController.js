@@ -21,6 +21,12 @@ const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 // and accepts milestones. Acceptance is the client's own act and is
 // final; change requests go through Slice F. Decisions D-119..D-125 in
 // persona-roadmap-decisions.md.
+//
+// Group 10 Slice G (536-540): maintain confidentiality. Participants
+// (site_contact / observer) read the board and the documents shared
+// with them; documents gain 'limited' visibility with named shares
+// plus an expiry that is enforced at list and download time.
+// Decisions D-132..D-137 in persona-roadmap-decisions.md.
 
 const UUID_RE = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const BIGINT_RE = /^\d+$/;
@@ -81,7 +87,40 @@ function visibleClause(type) {
   if (type === 'admin') return 'TRUE';
   if (type === 'client') return `visibility IN ('shared', 'client_only')`;
   if (type === 'consultant') return `visibility IN ('shared', 'consultant_only')`;
+  if (type === 'participant') return `(
+    visibility = 'shared'
+    OR (visibility = 'limited' AND EXISTS (
+      SELECT 1 FROM consulting_document_shares s
+       WHERE s.document_id = d.id AND s.user_id = $2
+    ))
+  )`;
   return 'FALSE';
+}
+
+// Group 10 Slice G (536): an active participant row for this session
+// and user, or null. Removal is soft, so a removed row never matches.
+async function loadActiveParticipant(client, sessionId, userId) {
+  if (!userId) return null;
+  const { rows: [row] } = await client.query(
+    `SELECT * FROM consulting_session_participants
+      WHERE session_id = $1 AND user_id = $2 AND removed_at IS NULL`,
+    [sessionId, userId],
+  );
+  return row || null;
+}
+
+// The actor on a session, participant-aware: 'admin', 'client',
+// 'consultant', 'participant' (with .participantRole), or null.
+// The mutation handlers keep using actorForSession, which does not
+// know participants, so a participant can never upload, move, accept,
+// or file: those handlers see null and refuse.
+async function resolveSessionActor(client, req, session) {
+  const type = actorForSession(req, session);
+  if (type) return { type, participantRole: null };
+  if (!req?.user?.id) return { type: null, participantRole: null };
+  const participant = await loadActiveParticipant(client, session.id, req.user.id);
+  if (!participant) return { type: null, participantRole: null };
+  return { type: 'participant', participantRole: participant.role };
 }
 
 async function loadSession(client, sessionId) {
@@ -115,15 +154,35 @@ async function loadDeliverable(client, sessionId, deliverableId) {
   return row || null;
 }
 
-async function loadDocumentsFor(client, deliverableId, type) {
+// Group 10 Slice G (537, 539): expired documents stay listed
+// (flagged) for the uploader and for admins, so the expiry can be
+// renewed; every other party stops seeing them at expiry. 'limited'
+// documents carry their named share list so the board can show who
+// can see them.
+async function loadDocumentsFor(client, deliverableId, type, userId) {
   const { rows } = await client.query(
-    `SELECT id, deliverable_id, uploaded_by, original_name, content_type,
-            size_bytes, visibility, created_at
-       FROM consulting_deliverable_documents
-      WHERE deliverable_id = $1 AND deleted_at IS NULL AND (${visibleClause(type)})
-      ORDER BY created_at DESC, id DESC`,
-    [deliverableId],
+    `SELECT d.id, d.deliverable_id, d.uploaded_by, d.original_name, d.content_type,
+            d.size_bytes, d.visibility, d.expires_at, d.created_at,
+            (d.expires_at IS NOT NULL AND d.expires_at <= NOW()) AS expired
+       FROM consulting_deliverable_documents d
+      WHERE d.deliverable_id = $1 AND d.deleted_at IS NULL AND (${visibleClause(type)})
+        AND (d.expires_at IS NULL OR d.expires_at > NOW()
+             OR d.uploaded_by = $2 OR $3::boolean)
+      ORDER BY d.created_at DESC, d.id DESC`,
+    [deliverableId, userId, type === 'admin'],
   );
+  const limitedIds = rows.filter((row) => row.visibility === 'limited').map((row) => row.id);
+  const sharesByDoc = {};
+  if (limitedIds.length > 0) {
+    const { rows: shareRows } = await client.query(
+      `SELECT document_id, user_id FROM consulting_document_shares
+        WHERE document_id = ANY($1)`,
+      [limitedIds],
+    );
+    for (const share of shareRows) {
+      (sharesByDoc[String(share.document_id)] ||= []).push(String(share.user_id));
+    }
+  }
   return rows.map((row) => ({
     id: String(row.id),
     deliverableId: String(row.deliverable_id),
@@ -132,12 +191,15 @@ async function loadDocumentsFor(client, deliverableId, type) {
     contentType: row.content_type,
     sizeBytes: Number(row.size_bytes),
     visibility: row.visibility,
+    expiresAt: row.expires_at,
+    expired: row.expired === true,
+    sharedWith: sharesByDoc[String(row.id)] || [],
     createdAt: row.created_at,
   }));
 }
 
-async function presentDeliverable(client, row, type) {
-  const documents = await loadDocumentsFor(client, row.id, type);
+async function presentDeliverable(client, row, type, userId) {
+  const documents = await loadDocumentsFor(client, row.id, type, userId);
   const { rows: [feedback] } = await client.query(
     `SELECT COUNT(*)::int AS count, MAX(session_quality_rating) AS latest_rating
        FROM consulting_session_feedback WHERE deliverable_id = $1`,
@@ -293,7 +355,7 @@ async function getEngagementSession(req, res) {
       [session.id],
     );
     const deliverables = [];
-    for (const row of deliverableRows) deliverables.push(await presentDeliverable(db, row, type));
+    for (const row of deliverableRows) deliverables.push(await presentDeliverable(db, row, type, req.user.id));
     return res.json({ session: { ...session, id: String(session.id) }, deliverables });
   } catch (err) {
     logger.error('Consulting get engagement session failed', { requestId, error: err.message });
@@ -309,14 +371,15 @@ async function listDeliverables(req, res) {
   try {
     const session = await loadSession(db, sessionId);
     if (!session) return res.status(404).json({ error: 'Session not found' });
-    const type = actorForSession(req, session);
-    if (!type) return res.status(403).json({ error: 'Only the session client, consultant, or an administrator can view deliverables' });
+    // Group 10 Slice G (536): participants read the board too.
+    const { type } = await resolveSessionActor(db, req, session);
+    if (!type) return res.status(403).json({ error: 'Only the session client, consultant, participants, or an administrator can view deliverables' });
     const { rows } = await db.query(
       'SELECT * FROM consulting_deliverables WHERE session_id = $1 ORDER BY due_date ASC NULLS LAST, id ASC',
       [sessionId],
     );
     const deliverables = [];
-    for (const row of rows) deliverables.push(await presentDeliverable(db, row, type));
+    for (const row of rows) deliverables.push(await presentDeliverable(db, row, type, req.user.id));
     return res.json({ session: { ...session, id: String(session.id) }, deliverables });
   } catch (err) {
     logger.error('Consulting list deliverables failed', { sessionId, error: err.message });
@@ -357,7 +420,7 @@ async function updateDeliverableStatus(req, res) {
         WHERE id = $3 RETURNING *`,
       [next, completedDate, deliverable.id],
     );
-    return res.json({ deliverable: await presentDeliverable(db, updated, 'consultant') });
+    return res.json({ deliverable: await presentDeliverable(db, updated, 'consultant', req.user.id) });
   } catch (err) {
     logger.error('Consulting update deliverable status failed', { sessionId, deliverableId, error: err.message });
     return res.status(500).json({ error: 'Failed to update the milestone' });
@@ -410,7 +473,7 @@ async function deliverDraft(req, res) {
       await emailParty(session.email, 'A draft is ready for your review',
         'A draft is ready for your review',
         `Your consultant delivered a draft of "${deliverable.name}". Open your milestone board to review it and leave feedback.`);
-      result.body.deliverable = await presentDeliverable(db, deliverable, 'consultant');
+      result.body.deliverable = await presentDeliverable(db, deliverable, 'consultant', req.user.id);
       delete result.body.session;
     }
     return res.status(result.status).json(result.body);
@@ -489,11 +552,12 @@ async function listDocuments(req, res) {
   try {
     const session = await loadSession(db, sessionId);
     if (!session) return res.status(404).json({ error: 'Session not found' });
-    const type = actorForSession(req, session);
-    if (!type) return res.status(403).json({ error: 'Only the session client, consultant, or an administrator can view documents' });
+    // Group 10 Slice G (536): participants read documents too.
+    const { type } = await resolveSessionActor(db, req, session);
+    if (!type) return res.status(403).json({ error: 'Only the session client, consultant, participants, or an administrator can view documents' });
     const deliverable = await loadDeliverable(db, sessionId, deliverableId);
     if (!deliverable) return res.status(404).json({ error: 'Deliverable not found' });
-    const documents = await loadDocumentsFor(db, deliverable.id, type);
+    const documents = await loadDocumentsFor(db, deliverable.id, type, req.user.id);
     return res.json({ documents });
   } catch (err) {
     logger.error('Consulting list deliverable documents failed', { sessionId, deliverableId, error: err.message });
@@ -510,7 +574,7 @@ async function downloadDocument(req, res) {
   if (!validRequestId(documentId)) return res.status(400).json({ error: 'Invalid document id' });
   try {
     const { rows: [row] } = await db.query(
-      `SELECT d.*, cs.user_id, cs.consultant_assigned_id
+      `SELECT d.*, cs.id AS session_id, cs.user_id, cs.consultant_assigned_id
          FROM consulting_deliverable_documents d
          JOIN consulting_deliverables cd ON cd.id = d.deliverable_id
          JOIN consulting_sessions cs ON cs.id = cd.session_id
@@ -519,14 +583,30 @@ async function downloadDocument(req, res) {
     );
     if (!row) return res.status(404).json({ error: 'Document not found' });
     const session = {
-      user_id: row.user_id, consultant_assigned_id: row.consultant_assigned_id,
+      id: row.session_id, user_id: row.user_id, consultant_assigned_id: row.consultant_assigned_id,
     };
-    const type = actorForSession(req, session);
+    // Group 10 Slice G (536, 537, 539): participants download 'shared'
+    // documents and 'limited' documents shared with them by name; an
+    // expired document is a 410 for everyone, including the uploader
+    // (renewal goes through the sharing update, not a download).
+    const { type } = await resolveSessionActor(db, req, session);
     if (!type) return res.status(404).json({ error: 'Document not found' });
-    const allowed = type === 'admin'
-      || (type === 'client' && ['shared', 'client_only'].includes(row.visibility))
-      || (type === 'consultant' && ['shared', 'consultant_only'].includes(row.visibility));
+    let allowed = false;
+    if (type === 'admin') allowed = true;
+    else if (type === 'client') allowed = ['shared', 'client_only'].includes(row.visibility);
+    else if (type === 'consultant') allowed = ['shared', 'consultant_only'].includes(row.visibility);
+    else if (type === 'participant' && row.visibility === 'shared') allowed = true;
+    else if (type === 'participant' && row.visibility === 'limited') {
+      const { rows: [share] } = await db.query(
+        `SELECT 1 FROM consulting_document_shares WHERE document_id = $1 AND user_id = $2`,
+        [documentId, req.user.id],
+      );
+      allowed = share !== undefined;
+    }
     if (!allowed) return res.status(404).json({ error: 'Document not found' });
+    if (row.expires_at && new Date(row.expires_at) <= new Date()) {
+      return res.status(410).json({ error: 'Document expired', code: 'document_expired' });
+    }
     const url = await getSignedDownloadUrl(row.storage_key, 900);
     if (!url) return res.status(503).json({ error: 'File download is temporarily unavailable', code: 'storage_unavailable' });
     res.set('Cache-Control', 'private, no-store');
@@ -634,7 +714,7 @@ async function acceptDeliverable(req, res) {
       await emailParty(consultant?.email, 'A milestone was accepted',
         'A milestone was accepted',
         `Your client accepted "${deliverable.name}" on the engagement.`);
-      result.body.deliverable = await presentDeliverable(db, deliverable, 'client');
+      result.body.deliverable = await presentDeliverable(db, deliverable, 'client', req.user.id);
       delete result.body.session;
     }
     return res.status(result.status).json(result.body);
@@ -656,9 +736,14 @@ module.exports = {
   downloadDocument,
   submitFeedback,
   acceptDeliverable,
-  // Shared by the Slice F change controller (same session actor rules).
+  // Shared by the Slice F change controller (same session actor rules)
+  // and the Slice G confidentiality controller (participant-aware reads
+  // and document listing for the record export).
   loadSession,
   actorForSession,
+  resolveSessionActor,
+  loadActiveParticipant,
+  loadDocumentsFor,
   isClientOwner,
   notifyUser,
 };

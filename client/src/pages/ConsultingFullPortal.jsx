@@ -26,6 +26,8 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import { schedulingApi } from '../api/scheduling';
+import { deliverablesApi } from '../api/consultantDeliverables';
+import { confidentialityApi, downloadEngagementRecord } from '../api/consultantConfidentiality';
 import { useAuth } from '../context/AuthContext';
 import ConsultantScheduleSelector from '../components/ConsultantScheduleSelector';
 import ConsultantRescheduleDialog from '../components/ConsultantRescheduleDialog';
@@ -474,7 +476,7 @@ function PackageGrid({ packages, t }) {
         <Card key={p.id}>
           <div className="text-[10px] font-bold uppercase tracking-wider text-orange-400">{p.service_tier || p.tier}</div>
           <h3 className="text-lg font-semibold mt-1">{p.package_name || p.name}</h3>
-          <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>{p.description}</p>
+          <p className="text-xs mt-1 text-[var(--color-text-muted)]">{p.description}</p>
           <div className="text-2xl font-bold mt-3">
             {p.base_price != null
               ? `$${Number(p.base_price).toLocaleString()}`
@@ -489,6 +491,185 @@ function PackageGrid({ packages, t }) {
         </Card>
       ))}
     </div>
+  );
+}
+
+// Group 10 Slice G (536-540): engagements the signed-in user
+// participates in as a site contact or observer. The participant reads
+// the milestone board and the documents shared with them, acknowledges
+// confidentiality for themselves, and exports the engagement record.
+// Participants never mutate: no file, decide, accept, upload, or pause.
+function ParticipatingEngagements({ user }) {
+  const { t } = useTranslation();
+  const [engagements, setEngagements] = useState([]);
+  const [details, setDetails] = useState({});
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState('');
+
+  const load = async () => {
+    try {
+      const { data } = await confidentialityApi.listParticipatingSessions();
+      const list = Array.isArray(data?.engagements) ? data.engagements : [];
+      setEngagements(list);
+      const entries = await Promise.all(list.map(async (item) => {
+        const [confRes, boardRes] = await Promise.all([
+          confidentialityApi.getClientConfidentiality(item.id).catch(() => null),
+          deliverablesApi.listClientDeliverables(item.id).catch(() => null),
+        ]);
+        return [item.id, {
+          confidentiality: confRes?.data || null,
+          deliverables: Array.isArray(boardRes?.data?.deliverables) ? boardRes.data.deliverables : [],
+        }];
+      }));
+      const map = {};
+      for (const [id, detail] of entries) map[id] = detail;
+      setDetails(map);
+    } catch {
+      toast.error(t('consultantConfidentiality.loadError', { defaultValue: 'Could not load confidentiality details.' }));
+    } finally {
+      setLoaded(true);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (!loaded) return null;
+  if (engagements.length === 0) return null;
+
+  const acknowledge = async (sessionId) => {
+    setBusy(`ack-${sessionId}`);
+    try {
+      await confidentialityApi.acknowledgeClientConfidentiality(sessionId);
+      toast.success(t('consultantConfidentiality.acknowledged', { defaultValue: 'Confidentiality acknowledged.' }));
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const exportRecord = async (sessionId) => {
+    setBusy(`export-${sessionId}`);
+    try {
+      const { data } = await confidentialityApi.exportClientRecord(sessionId);
+      downloadEngagementRecord(data, sessionId);
+      toast.success(t('consultantConfidentiality.exported', { defaultValue: 'Engagement record downloaded.' }));
+    } catch {
+      toast.error(t('consultantConfidentiality.exportError', { defaultValue: 'Could not export the engagement record.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const downloadDocument = async (doc) => {
+    try {
+      const { data } = await deliverablesApi.downloadClientDocument(doc.id);
+      if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast.error(t('consultantDeliverable.downloadError', { defaultValue: 'Could not prepare the download.' }));
+    }
+  };
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-lg font-semibold flex items-center gap-2">
+        <ShieldCheck size={18} className="text-orange-500" />
+        {t('consultantConfidentiality.participatingTitle', { defaultValue: 'Engagements you participate in' })}
+      </h2>
+      {engagements.map((item) => {
+        const detail = details[item.id] || {};
+        const parties = detail.confidentiality?.parties || [];
+        const myAck = parties.find((party) => String(party.userId) === String(user?.id)) || null;
+        const pending = parties.filter((party) => !party.acknowledgedAt);
+        return (
+          <Card key={item.id}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold">{item.businessName || item.business_name || 'Engagement'}</h3>
+                <p className="text-xs mt-1 text-[var(--color-text-muted)]">
+                  {t(`consultantConfidentiality.roles.${item.participantRole}`, { defaultValue: (item.participantRole || 'observer').replace(/_/g, ' ') })}
+                  {' • '}
+                  {item.status}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => exportRecord(item.id)}
+                disabled={busy === `export-${item.id}`}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-semibold transition hover:border-orange-400 hover:text-orange-300 disabled:opacity-60 border-[rgba(148,163,184,0.22)] text-[var(--color-text)]" data-track="ui.719d896ad2.12"
+              >
+                {t('consultantConfidentiality.export', { defaultValue: 'Export engagement record' })}
+              </button>
+            </div>
+            {pending.length === 0 ? (
+              <p className="text-xs mt-3 text-[#6ee7b7]">
+                {t('consultantConfidentiality.ackDone', { defaultValue: 'Everyone on this engagement has acknowledged confidentiality.' })}
+              </p>
+            ) : (
+              <p className="text-xs mt-3 text-[var(--color-text-muted)]">
+                {pending.map((party) => t('consultantConfidentiality.ackPending', { defaultValue: 'Still waiting on {{name}}.', name: [party.firstName, party.lastName].filter(Boolean).join(' ') || party.email || party.userId })).join(' ')}
+              </p>
+            )}
+            {(!myAck || !myAck.acknowledgedAt) && (
+              <div className="mt-3 flex flex-col gap-2">
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  {t('consultantConfidentiality.ackStatement', { defaultValue: 'I will keep this engagement\u2019s information confidential and share it only with the people on this engagement.' })}
+                </p>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => acknowledge(item.id)}
+                    disabled={busy === `ack-${item.id}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition disabled:opacity-60" data-track="ui.719d896ad2.13"
+                  >
+                    {t('consultantConfidentiality.acknowledge', { defaultValue: 'Acknowledge confidentiality' })}
+                  </button>
+                </div>
+              </div>
+            )}
+            {myAck?.acknowledgedAt && (
+              <p className="text-xs mt-3 text-[#6ee7b7]">
+                {t('consultantConfidentiality.ackYou', { defaultValue: 'You have acknowledged confidentiality.' })}
+              </p>
+            )}
+            {(detail.deliverables || []).length > 0 && (
+              <div className="mt-4 grid gap-2">
+                {detail.deliverables.map((deliverable) => (
+                  <div key={deliverable.id} className="rounded-xl border p-3 border-[rgba(148,163,184,0.16)] bg-[rgba(255,255,255,0.03)]">
+                    <div className="text-sm font-semibold">{deliverable.name}</div>
+                    <div className="text-xs mt-1 text-[var(--color-text-muted)]">
+                      {t(`consultantDeliverable.status.${deliverable.status}`, { defaultValue: (deliverable.status || '').replace(/_/g, ' ') })}
+                    </div>
+                    {(deliverable.documents || []).length > 0 && (
+                      <ul className="mt-2 grid gap-1">
+                        {deliverable.documents.map((doc) => (
+                          <li key={doc.id} className="flex items-center gap-2 text-xs">
+                            <span className="flex-1 min-w-0 truncate">{doc.originalName}</span>
+                            {doc.expired ? (
+                              <span className="text-[#fca5a5]">{t('consultantConfidentiality.docExpired', { defaultValue: 'Access expired' })}</span>
+                            ) : doc.expiresAt ? (
+                              <span className="text-[var(--color-text-muted)]">{t('consultantConfidentiality.docExpiry', { defaultValue: 'Access until {{date}}', date: String(doc.expiresAt).slice(0, 10) })}</span>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => downloadDocument(doc)}
+                              className="font-semibold text-indigo-300 hover:text-indigo-200" data-track="ui.719d896ad2.14"
+                            >
+                              {t('consultantDeliverable.download', { defaultValue: 'Download' })}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </section>
   );
 }
 
@@ -786,6 +967,8 @@ export default function ConsultingFullPortal() {
             </div>
           </section>
 
+          <ParticipatingEngagements user={user} />
+
           {packages.length > 0 && (
             <section className="flex flex-col gap-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -860,6 +1043,10 @@ export default function ConsultingFullPortal() {
             onCancel={() => setCancelTarget(activeSession)}
           />
         )}
+
+        {/* Group 10 Slice G (536-540): engagements the user participates
+            in as a site contact or observer. */}
+        <ParticipatingEngagements user={user} />
 
         {/* Stats strip */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1057,7 +1244,7 @@ export default function ConsultingFullPortal() {
 
             <Card style={{ background: 'rgba(249,115,22,0.06)', borderColor: 'rgba(249,115,22,0.25)' }}>
               <h3 className="text-sm font-semibold">{t('consultingPortal.bookMoreTitle', { defaultValue: 'Need more help?' })}</h3>
-              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+              <p className="text-xs mt-1 text-[var(--color-text-muted)]">
                 {t('consultingPortal.bookMoreHint', { defaultValue: 'Add another package or schedule a follow-up session with your consultant.' })}
               </p>
               <div className="flex flex-col gap-2 mt-3">

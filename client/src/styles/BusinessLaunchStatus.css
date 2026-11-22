@@ -438,6 +438,20 @@
   cursor: pointer;
 }
 
+/* Group 10 Slice G (536-540): file access expiry badges on the board. */
+.bl-milestone__doc-expiry {
+  color: var(--muted-text);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.bl-milestone__doc-expired {
+  color: #fca5a5;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .bl-milestone__upload {
   display: grid;
   gap: 0.45rem;

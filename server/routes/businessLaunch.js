@@ -28,6 +28,7 @@ const {
 const proposalController = require('../controllers/consultantProposalController');
 const deliverableController = require('../controllers/consultantDeliverableController');
 const changeController = require('../controllers/consultantChangeController');
+const confidentialityController = require('../controllers/consultantConfidentialityController');
 
 // Public route: Submit a new Business Launch request
 router.post(
@@ -207,6 +208,41 @@ router.post(
   '/sessions/:sessionId/resume',
   authenticate,
   changeController.resumeEngagement
+);
+
+// Group 10 Slice G (536-540): maintain confidentiality. The client
+// reads participants and confidentiality status, acknowledges for
+// themselves, changes sharing on documents they uploaded, exports the
+// record, and sees engagements they participate in.
+router.get(
+  '/sessions/participating',
+  authenticate,
+  confidentialityController.listParticipatingSessions
+);
+router.get(
+  '/sessions/:sessionId/participants',
+  authenticate,
+  confidentialityController.listParticipants
+);
+router.get(
+  '/sessions/:sessionId/confidentiality',
+  authenticate,
+  confidentialityController.getAcknowledgmentStatus
+);
+router.post(
+  '/sessions/:sessionId/confidentiality/acknowledge',
+  authenticate,
+  confidentialityController.acknowledgeConfidentiality
+);
+router.patch(
+  '/sessions/:sessionId/deliverables/:deliverableId/documents/:documentId',
+  authenticate,
+  confidentialityController.updateDocumentSharing
+);
+router.get(
+  '/sessions/:sessionId/export',
+  authenticate,
+  confidentialityController.exportEngagementRecord
 );
 
 router.post('/requests/:id/attachments', authenticate, generalLimiter, upload.single('file'), validateFileUpload, attachmentController.uploadAttachment);

@@ -408,6 +408,9 @@ ddescribe('Track C preference toggles (DB)', () => {
         // Group 10 Slice F: notifyUser fan-out in the change controller;
         // the five types are the only ones its callers pass.
         { file: 'controllers/consultantChangeController.js', name: 'type', expansions: ['consulting_change_requested', 'consulting_change_approved', 'consulting_change_rejected', 'consulting_engagement_paused', 'consulting_engagement_resumed'] },
+        // Group 10 Slice G: notifyUser fan-out in the confidentiality
+        // controller; the two types are the only ones its callers pass.
+        { file: 'controllers/consultantConfidentialityController.js', name: 'type', expansions: ['consulting_participant_added', 'consulting_confidentiality_acknowledged'] },
         { file: 'controllers/calendarNotificationController.js', name: 'notification_type', expansions: ['appointment_requested', 'appointment_confirmed', 'appointment_cancelled', 'appointment_rescheduled', 'reminder_24h', 'reminder_2h', 'reminder_same_day'] },
         { file: 'controllers/mediaController.js', name: 'type', expansions: ['media_reply', 'media_like', 'media_follow'] },
         { file: 'controllers/superAdminController.js', name: 'type', expansions: ['account_deletion_scheduled', 'account_restored', 'account_suspended', 'account_restricted', 'admin_warning'] },

@@ -23,6 +23,7 @@ import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import { deliverablesApi } from '../api/consultantDeliverables';
 import { changesApi } from '../api/consultantChanges';
+import { confidentialityApi, downloadEngagementRecord } from '../api/consultantConfidentiality';
 import '../styles/BusinessLaunchStatus.css';
 
 const STATUS_PROGRESS = {
@@ -773,6 +774,11 @@ function MilestoneBoard({ request }) {
                     {item.documents.map((doc) => (
                       <li key={doc.id} className="bl-milestone__doc-row">
                         <span className="bl-milestone__doc-name">{doc.originalName}</span>
+                        {doc.expired ? (
+                          <span className="bl-milestone__doc-expired">{t('consultantConfidentiality.docExpired', { defaultValue: 'Access expired' })}</span>
+                        ) : doc.expiresAt ? (
+                          <span className="bl-milestone__doc-expiry">{t('consultantConfidentiality.docExpiry', { defaultValue: 'Access until {{date}}', date: String(doc.expiresAt).slice(0, 10) })}</span>
+                        ) : null}
                         <button type="button" onClick={() => downloadDocument(doc)} className="bl-milestone__doc-button" data-track="ui.478f2e3593.16">
                           {t('consultantDeliverable.download', { defaultValue: 'Download' })}
                         </button>
@@ -856,7 +862,10 @@ function MilestoneBoard({ request }) {
             );
           })}
           {session && (
-            <MilestoneChanges session={session} deliverables={deliverables} onChanged={load} />
+            <>
+              <MilestoneChanges session={session} deliverables={deliverables} onChanged={load} />
+              <MilestoneConfidentiality session={session} deliverables={deliverables} onChanged={load} />
+            </>
           )}
         </div>
       )}
@@ -1138,6 +1147,268 @@ function MilestoneChanges({ session, deliverables, onChanged }) {
                 {event.createdAt ? String(event.createdAt).slice(0, 10) : ''}
               </li>
             ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Group 10 Slice G (536-540): the client's confidentiality panel on the
+// milestone board. The client reads the participant list, acknowledges
+// for themselves, exports the engagement record, and changes sharing
+// and expiry on the documents they uploaded.
+function MilestoneConfidentiality({ session, deliverables, onChanged }) {
+  const { t } = useTranslation();
+  const [participants, setParticipants] = useState(null);
+  const [confidentiality, setConfidentiality] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [expiryDrafts, setExpiryDrafts] = useState({});
+  const [clearedExpiry, setClearedExpiry] = useState({});
+  const [visibilityDrafts, setVisibilityDrafts] = useState({});
+  const [shareDrafts, setShareDrafts] = useState({});
+
+  const loadConfidentiality = useCallback(async () => {
+    try {
+      const [partRes, confRes] = await Promise.all([
+        confidentialityApi.listClientParticipants(session.id),
+        confidentialityApi.getClientConfidentiality(session.id),
+      ]);
+      setParticipants(partRes.data);
+      setConfidentiality(confRes.data);
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantConfidentiality.loadError', { defaultValue: 'Could not load confidentiality details.' }));
+    }
+  }, [session.id, t]);
+
+  useEffect(() => { loadConfidentiality(); }, [loadConfidentiality]);
+
+  const runAction = async (key, fn, successKey, successDefault) => {
+    setBusy(key);
+    setError('');
+    setNotice('');
+    try {
+      await fn();
+      if (successKey) setNotice(t(successKey, { defaultValue: successDefault || successKey }));
+      await loadConfidentiality();
+      if (onChanged) await onChanged();
+    } catch (err) {
+      setError(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const acknowledge = () => runAction(
+    'acknowledge',
+    () => confidentialityApi.acknowledgeClientConfidentiality(session.id),
+    'consultantConfidentiality.acknowledged',
+    'Confidentiality acknowledged.',
+  );
+
+  const exportRecord = async () => {
+    setBusy('export');
+    setError('');
+    try {
+      const { data } = await confidentialityApi.exportClientRecord(session.id);
+      downloadEngagementRecord(data, session.id);
+      setNotice(t('consultantConfidentiality.exported', { defaultValue: 'Engagement record downloaded.' }));
+    } catch {
+      setError(t('consultantConfidentiality.exportError', { defaultValue: 'Could not export the engagement record.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const parties = [
+    ...(participants?.core || []),
+    ...(participants?.participants || []).filter((party) => party.active),
+  ];
+  const myAck = (confidentiality?.parties || []).find((party) => party.role === 'client');
+  const pending = (confidentiality?.parties || []).filter((party) => !party.acknowledgedAt);
+  const fmtName = (party) => [party.firstName, party.lastName].filter(Boolean).join(' ') || party.email || party.userId;
+  const myDocs = (deliverables || [])
+    .flatMap((item) => (item.documents || []).map((doc) => ({ ...doc, deliverableId: item.id })))
+    .filter((doc) => session.user_id && doc.uploadedBy === session.user_id);
+
+  const saveSharing = (doc) => {
+    const visibility = visibilityDrafts[doc.id] || doc.visibility;
+    const payload = { visibility };
+    if (clearedExpiry[doc.id]) {
+      payload.expires_at = null;
+    } else if (expiryDrafts[doc.id]) {
+      payload.expires_at = new Date(`${expiryDrafts[doc.id]}T23:59:59.999Z`).toISOString();
+    }
+    if (visibility === 'limited') {
+      payload.shared_with = shareDrafts[doc.id] ?? doc.sharedWith ?? [];
+    }
+    return runAction(
+      `sharing-${doc.id}`,
+      () => confidentialityApi.updateClientDocumentSharing(session.id, doc.deliverableId, doc.id, payload),
+      'consultantConfidentiality.sharingUpdated',
+      'Document sharing updated.',
+    );
+  };
+
+  const toggleShare = (doc, userId) => {
+    setShareDrafts((prev) => {
+      const current = new Set(prev[doc.id] ?? doc.sharedWith ?? []);
+      if (current.has(userId)) current.delete(userId);
+      else current.add(userId);
+      return { ...prev, [doc.id]: [...current] };
+    });
+  };
+
+  return (
+    <div className="bl-milestone__changes">
+      <div className="bl-milestone__actions">
+        <h4 className="bl-milestone__changes-title">
+          {t('consultantConfidentiality.title', { defaultValue: 'Confidentiality' })}
+        </h4>
+        <button
+          type="button"
+          onClick={exportRecord}
+          disabled={busy === 'export'}
+          className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.24"
+        >
+          {t('consultantConfidentiality.export', { defaultValue: 'Export engagement record' })}
+        </button>
+      </div>
+      {error && <p role="alert" className="bl-milestone__error">{error}</p>}
+      {notice && <p role="status" className="bl-milestone__notice">{notice}</p>}
+      <div>
+        <h5 className="bl-milestone__changes-title">{t('consultantConfidentiality.participantsTitle', { defaultValue: 'Participants' })}</h5>
+        <ul className="bl-milestone__list">
+          {parties.map((party) => (
+            <li key={party.userId} className="bl-milestone__card-meta">
+              {fmtName(party)}
+              {' • '}
+              {t(`consultantConfidentiality.roles.${party.role}`, { defaultValue: party.role.replace(/_/g, ' ') })}
+            </li>
+          ))}
+        </ul>
+        {parties.length === 0 && (
+          <p className="bl-milestone__card-meta">
+            {t('consultantConfidentiality.participantsEmpty', { defaultValue: 'Only the client and the consultant are on this engagement.' })}
+          </p>
+        )}
+      </div>
+      <div>
+        {pending.length === 0 ? (
+          <p className="bl-milestone__card-meta">
+            {t('consultantConfidentiality.ackDone', { defaultValue: 'Everyone on this engagement has acknowledged confidentiality.' })}
+          </p>
+        ) : (
+          <p className="bl-milestone__card-meta">
+            {pending.map((party) => t('consultantConfidentiality.ackPending', { defaultValue: 'Still waiting on {{name}}.', name: fmtName(party) })).join(' ')}
+          </p>
+        )}
+        {myAck && !myAck.acknowledgedAt && (
+          <div className="bl-milestone__feedback-form">
+            <p className="bl-milestone__card-meta">
+              {t('consultantConfidentiality.ackStatement', { defaultValue: 'I will keep this engagement\u2019s information confidential and share it only with the people on this engagement.' })}
+            </p>
+            <div>
+              <button
+                type="button"
+                onClick={acknowledge}
+                disabled={busy === 'acknowledge'}
+                className="bl-milestone__btn-accept" data-track="ui.478f2e3593.25"
+              >
+                {t('consultantConfidentiality.acknowledge', { defaultValue: 'Acknowledge confidentiality' })}
+              </button>
+            </div>
+          </div>
+        )}
+        {myAck && myAck.acknowledgedAt && (
+          <p className="bl-milestone__card-meta">
+            {t('consultantConfidentiality.ackYou', { defaultValue: 'You have acknowledged confidentiality.' })}
+          </p>
+        )}
+      </div>
+      {myDocs.length > 0 && (
+        <div>
+          <h5 className="bl-milestone__changes-title">{t('consultantDeliverable.attachDocument', { defaultValue: 'Attach a document' })}</h5>
+          <ul className="bl-milestone__list">
+            {myDocs.map((doc) => {
+              const visibility = visibilityDrafts[doc.id] || doc.visibility;
+              const expiry = expiryDrafts[doc.id] ?? (doc.expired ? '' : (doc.expiresAt ? String(doc.expiresAt).slice(0, 10) : ''));
+              return (
+                <li key={doc.id} className="bl-milestone__card">
+                  <p className="bl-milestone__card-meta">{doc.originalName}</p>
+                  <p className="bl-milestone__card-meta">
+                    {t(`consultantConfidentiality.visibility${visibility === 'shared' ? 'Shared' : visibility === 'client_only' ? 'ClientOnly' : visibility === 'consultant_only' ? 'ConsultantOnly' : visibility === 'limited' ? 'Limited' : 'Internal'}`, { defaultValue: visibility.replace(/_/g, ' ') })}
+                    {doc.expired ? (
+                      <span>{` • ${t('consultantConfidentiality.docExpired', { defaultValue: 'Access expired' })}`}</span>
+                    ) : doc.expiresAt ? (
+                      <span>{` • ${t('consultantConfidentiality.docExpiry', { defaultValue: 'Access until {{date}}', date: String(doc.expiresAt).slice(0, 10) })}`}</span>
+                    ) : (
+                      <span>{` • ${t('consultantConfidentiality.docNoExpiry', { defaultValue: 'No expiry' })}`}</span>
+                    )}
+                  </p>
+                  <div className="bl-milestone__actions">
+                    <select
+                      value={visibility}
+                      onChange={(event) => setVisibilityDrafts((prev) => ({ ...prev, [doc.id]: event.target.value }))}
+                      className="bl-milestone__select"
+                      aria-label={t('consultantConfidentiality.visibility', { defaultValue: 'Who can see this' })}
+                    >
+                      <option value="shared">{t('consultantConfidentiality.visibilityShared', { defaultValue: 'Shared with consultant' })}</option>
+                      <option value="client_only">{t('consultantConfidentiality.visibilityClientOnly', { defaultValue: 'Only me' })}</option>
+                      <option value="limited">{t('consultantConfidentiality.visibilityLimited', { defaultValue: 'Named people only' })}</option>
+                    </select>
+                    <input
+                      type="date"
+                      value={expiry}
+                      onChange={(event) => {
+                        setExpiryDrafts((prev) => ({ ...prev, [doc.id]: event.target.value }));
+                        setClearedExpiry((prev) => ({ ...prev, [doc.id]: false }));
+                      }}
+                      className="bl-milestone__select"
+                      aria-label={t('consultantConfidentiality.setExpiry', { defaultValue: 'Set expiry' })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExpiryDrafts((prev) => ({ ...prev, [doc.id]: '' }));
+                        setClearedExpiry((prev) => ({ ...prev, [doc.id]: true }));
+                      }}
+                      className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.26"
+                    >
+                      {t('consultantConfidentiality.clearExpiry', { defaultValue: 'Clear expiry' })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => saveSharing(doc)}
+                      disabled={busy === `sharing-${doc.id}`}
+                      className="bl-milestone__btn-accept" data-track="ui.478f2e3593.27"
+                    >
+                      {t('consultantConfidentiality.saveSharing', { defaultValue: 'Save sharing' })}
+                    </button>
+                  </div>
+                  {visibility === 'limited' && (
+                    <div className="bl-milestone__actions">
+                      {parties.map((party) => {
+                        const selected = (shareDrafts[doc.id] ?? doc.sharedWith ?? []).includes(party.userId);
+                        return (
+                          <label key={party.userId} className="bl-milestone__card-meta">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => toggleShare(doc, party.userId)} data-track="ui.478f2e3593.28"
+                            />
+                            {' '}
+                            {fmtName(party)}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

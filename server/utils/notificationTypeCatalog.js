@@ -95,6 +95,8 @@ const NOTIFICATION_TYPES = [
   { type: 'consulting_change_rejected', group: 'work' },
   { type: 'consulting_engagement_paused', group: 'work' },
   { type: 'consulting_engagement_resumed', group: 'work' },
+  { type: 'consulting_participant_added', group: 'work' },
+  { type: 'consulting_confidentiality_acknowledged', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
   { type: 'crew_shift_published', group: 'work' },
   { type: 'crew_task_assigned', group: 'work' },
