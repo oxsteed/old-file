@@ -38,15 +38,17 @@ describe('D1 — every new person has customer access; signup choice is intent o
     const intents = [
       'find_help', 'offer_services', 'run_business', 'join_business_team',
       'run_restaurant', 'join_restaurant_team', 'ship_goods', 'consult',
-      'list_equipment', 'franchise', 'request_reporting', 'join_credit',
+      'list_equipment', 'franchise', 'join_credit',
       'join_partner', 'join_workforce', 'request_reviewer', 'request_support',
       'request_operations', 'request_device',
     ];
     for (const intent of intents) expect(registry.normalizeSignupIntent(intent)).toBe(intent);
+    expect(registry.normalizeSignupIntent('request_reporting')).toBe('find_help');
+    expect(registry.normalizeSignupIntent('investor')).toBe('find_help');
     expect(registry.capabilityForIntent('join_business_team')).toBeNull();
     expect(registry.capabilityForIntent('franchise')).toBeNull();
     expect(registry.capabilityForIntent('request_reviewer')).toBeNull();
-    expect(registry.capabilityForIntent('request_reporting')).toBe('investor.reporting');
+    expect(registry.capabilityForIntent('request_reporting')).toBeNull();
   });
 });
 

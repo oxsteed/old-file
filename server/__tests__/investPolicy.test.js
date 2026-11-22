@@ -41,7 +41,7 @@ describe('invest authority matrix', () => {
   test('investor.reporting is untouched and keeps its own reviewer pool', () => {
     const cap = registry.getCapability('investor.reporting');
     expect(cap.reviewPermission).toBe('review_investor_access');
-    expect(cap.legacyModes).toEqual(['investor']);
+    expect(cap.legacyModes).toEqual([]);
   });
 
   test('publish, close, and proceeds release are admin permissions, not registry capabilities', () => {

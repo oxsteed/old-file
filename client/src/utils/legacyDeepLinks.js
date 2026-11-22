@@ -48,7 +48,9 @@ export const LEGACY_MODE_TO_INTENT = Object.freeze({
   delivery: 'ship_goods',
   driver: 'ship_goods',
   franchise_applicant: 'franchise',
-  investor: 'request_reporting',
+  // Investor is private and invite-only. A stale public mode link is treated
+  // as ordinary customer signup and never selects an investor path.
+  investor: 'find_help',
   credit_participant: 'join_credit',
   credit_member: 'join_credit',
   partner: 'join_partner',
@@ -62,7 +64,7 @@ export const LEGACY_MODE_TO_INTENT = Object.freeze({
 // LAUNCH_SELF_SELECTABLE_MODES in ./launchScope.js (JoinPage's MODES).
 export const JOIN_MODE_CARDS = Object.freeze([
   'customer', 'helper', 'business_owner', 'restaurant_owner', 'logistics', 'delivery', 'driver',
-  'consultant', 'tool_owner', 'equipment_owner', 'franchise_applicant', 'investor',
+  'consultant', 'tool_owner', 'equipment_owner', 'franchise_applicant',
   'credit_participant', 'credit_member', 'partner', 'affiliate', 'workforce', 'learner', 'instructor',
 ]);
 

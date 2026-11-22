@@ -35,7 +35,7 @@ import { routeLoaders } from './utils/routePrefetch';
 const ImpersonatePage = lazyWithRetry(() => import('./pages/ImpersonatePage'));
 const HomePage = lazyWithRetry(() => import('./pages/HomePage'));
 const Login = lazyWithRetry(() => import('./pages/Login'));
-const InvestorLoginPage = lazyWithRetry(() => import('./pages/InvestorLoginPage'));
+const InvestorInvitePage = lazyWithRetry(() => import('./pages/InvestorInvitePage'));
 const JoinPage = lazyWithRetry(() => import('./pages/JoinPage'));
 const ConsultingIntakePage = lazyWithRetry(() => import('./pages/ConsultingIntakePage'));
 const ConsultingFeedbackPage = lazyWithRetry(() => import('./pages/ConsultingFeedbackPage'));
@@ -515,7 +515,8 @@ export default function App() {
                     <Route path="/"                        element={<Guarded>{isStatusHost ? <StatusPage /> : <ModeHomeRoute DiscoveryPage={HomePage} DashboardPage={SmartDashboard} LoadingState={RouteLoadingFallback} />}</Guarded>} />
                     <Route path="/status"                  element={<Guarded><StatusPage /></Guarded>} />
                     <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
-                    <Route path="/investor/login"          element={<Guarded><InvestorLoginPage /></Guarded>} />
+                    <Route path="/investor/login"          element={<Navigate to="/login" replace />} />
+                    <Route path="/investor/invite"         element={<Guarded><InvestorInvitePage /></Guarded>} />
                     <Route path="/register/:mode"         element={<LegacyRegisterRedirect />} />
                     {/* ── Unified signup. /join is the single registration  */}
                     {/*    page; the static /register/customer and            */}

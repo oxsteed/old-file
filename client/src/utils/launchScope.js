@@ -251,6 +251,10 @@ function matchesPathPrefix(pathname, prefix) {
 
 export function getLaunchRedirect(pathname = '/') {
   const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  // The invite landing is a private admission link, not a public investor
+  // workspace. It must remain reachable even while investor workspaces are
+  // launch-gated.
+  if (matchesPathPrefix(normalizedPath, '/investor/invite')) return null;
   const mediaRedirect = mediaLaunchRedirect(normalizedPath);
   if (mediaRedirect) return mediaRedirect;
   // Review P3-7-F14: removed the unconditional /orders/:id -> /orders

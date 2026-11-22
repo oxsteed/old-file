@@ -71,7 +71,7 @@ test('WP-104 cutover 1.2: mode-router machinery, register redirects and the Join
   for (const [mode, intent] of [
     ['customer', 'find_help'], ['helper', 'offer_services'],
     ['business_owner', 'run_business'], ['restaurant_owner', 'run_restaurant'],
-    ['driver', 'ship_goods'], ['investor', 'request_reporting'],
+    ['driver', 'ship_goods'], ['investor', 'find_help'],
   ]) {
     assert.equal(signupEntryForParams(new URLSearchParams({ mode })).intent, intent);
   }

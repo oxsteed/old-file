@@ -17,7 +17,6 @@ import { useTranslation } from 'react-i18next';
  */
 const ACCOUNT_TYPES = [
   { value: 'customer', labelKey: 'customer', hintKey: 'customer' },
-  { value: 'investor', labelKey: 'investor', hintKey: 'investor' },
   { value: 'helper', labelKey: 'helper', hintKey: 'helper' },
   { value: 'helper_pro', labelKey: 'helperPro', hintKey: 'helperPro' },
   { value: 'broker', labelKey: 'broker', hintKey: 'broker' },

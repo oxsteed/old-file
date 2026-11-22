@@ -197,8 +197,11 @@ const CAPABILITIES = Object.freeze({
     subjectTypes: Object.freeze(['self']),
     reviewerClass: 'platform',
     reviewPermission: 'review_investor_access',
-    applicantMayRequest: true,
-    legacyModes: Object.freeze(['investor']),
+    // Investor reporting is invite-only. The public access-request flow must
+    // never mint this capability; an admin invitation creates an admission
+    // record first and review remains the only grant path.
+    applicantMayRequest: false,
+    legacyModes: Object.freeze([]),
     legacyRoles: Object.freeze([]),
     activationRequirements: Object.freeze([]),
     form: Object.freeze({ fields: Object.freeze([
@@ -272,7 +275,9 @@ const SIGNUP_INTENTS = Object.freeze({
   consult: 'consultant.accept_paying_clients',
   list_equipment: 'tool_owner.list_equipment',
   franchise: null,
-  request_reporting: 'investor.reporting',
+  // Private investor invitations are the only admission mechanism. A public
+  // signup intent is intentionally descriptive customer intent, not a request.
+  request_reporting: null,
   join_credit: null,
   join_partner: null,
   join_workforce: null,
@@ -297,7 +302,6 @@ const LEGACY_MODE_TO_INTENT = Object.freeze({
   delivery: 'ship_goods',
   driver: 'ship_goods',
   franchise_applicant: 'franchise',
-  investor: 'request_reporting',
   credit_participant: 'join_credit',
   credit_member: 'join_credit',
   partner: 'join_partner',
@@ -341,6 +345,7 @@ function publicPolicy(key) {
 function normalizeSignupIntent(raw) {
   if (typeof raw !== 'string') return 'find_help';
   const v = raw.trim().toLowerCase();
+  if (v === 'request_reporting' || v === 'investor') return 'find_help';
   if (Object.prototype.hasOwnProperty.call(SIGNUP_INTENTS, v)) return v;
   if (Object.prototype.hasOwnProperty.call(LEGACY_MODE_TO_INTENT, v)) return LEGACY_MODE_TO_INTENT[v];
   return 'find_help';

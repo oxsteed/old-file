@@ -210,7 +210,15 @@ const requireHelperSetupCapability = requireCapability('helper.offer_services', 
 const requireInvestorCapability = requireCapability('investor.reporting', {
   modeFn: flags.investorEnforcement,
   audienceLoader: async (userId) => require('../services/access/accessService').getInvestorAudience(userId),
-  legacyAllowedFn: (req) => ['investor', 'admin', 'super_admin'].includes(req.user?.role),
+  // Legacy investor roles are not authority. Only an explicit projection
+  // grant (or an administrator using the separate admin path) may pass.
+  legacyAllowedFn: (req) => ['admin', 'super_admin'].includes(req.user?.role),
+});
+// Participation is always admission-controlled. Unlike reporting's legacy
+// rollout flag, an authenticated customer must have an explicit, active
+// investor.participate grant before creating applications or commitments.
+const requireInvestorParticipationCapability = requireCapability('investor.participate', {
+  modeFn: () => 'enforce',
 });
 const requireFranchiseCapability = requireCapability('franchise.operate', {
   modeFn: flags.franchiseEnforcement,
@@ -259,4 +267,4 @@ const toolOwnerCapabilityGate = async function toolOwnerCapabilityGate(req, res,
   }
 };
 
-module.exports = { requireCapability, requireAnyCapability, requireHelperCapability, requireHelperSetupCapability, requireInvestorCapability, requireFranchiseCapability, toolOwnerCapabilityGate, isHelperActor, hasCapability };
+module.exports = { requireCapability, requireAnyCapability, requireHelperCapability, requireHelperSetupCapability, requireInvestorCapability, requireInvestorParticipationCapability, requireFranchiseCapability, toolOwnerCapabilityGate, isHelperActor, hasCapability };

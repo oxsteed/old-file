@@ -15,7 +15,6 @@ const PERSONA_SIGNUP_CONFIG = Object.freeze({
   consultant: { intent: 'consult', admission: 'platform_review', icon: 'consultant', copy: 'consultant' },
   'equipment-owner': { intent: 'list_equipment', admission: 'platform_review', icon: 'equipment', copy: 'equipmentOwner' },
   franchise: { intent: 'franchise', admission: 'domain_enrollment', icon: 'franchise', copy: 'franchise' },
-  'investor-reporting': { intent: 'request_reporting', admission: 'platform_review', icon: 'investor', copy: 'investorReporting' },
   'credit-participant': { intent: 'join_credit', admission: 'domain_enrollment', icon: 'credit', copy: 'creditParticipant' },
   'partner-affiliate': { intent: 'join_partner', admission: 'domain_enrollment', icon: 'partner', copy: 'partnerAffiliate' },
   'workforce-learning': { intent: 'join_workforce', admission: 'domain_enrollment', icon: 'learning', copy: 'workforceLearning' },
@@ -49,8 +48,15 @@ export function signupEntryForParams(params) {
   const requested = [params.get('goal'), params.get('intent')]
     .map((value) => SIGNUP_PERSONAS.find(({ id, intent }) => value === id || value === intent))
     .find(Boolean);
-  const mode = joinModeForLegacyMode(params.get('mode'));
-  const presetIntent = requested?.intent || (mode ? intentForLegacyMode(mode) : null);
+  const rawMode = params.get('mode')?.trim().toLowerCase();
+  const mode = joinModeForLegacyMode(rawMode);
+  // Private investor links deliberately land on the customer baseline even
+  // though investor is no longer a public Join card. Unknown/provisioned
+  // modes still stay unselected rather than inventing an intent.
+  const legacyIntent = rawMode === 'investor'
+    ? 'find_help'
+    : (mode ? intentForLegacyMode(mode) : null);
+  const presetIntent = requested?.intent || legacyIntent;
   // An invitation always leads to its server-validated handoff. A URL goal
   // cannot turn it into a professional application or an ownership grant.
   return {

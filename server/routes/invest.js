@@ -29,6 +29,7 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const { requireInvestorParticipationCapability } = require('../middleware/requireAccess');
 const { errorHandler } = require('../middleware/errorHandler');
 const ctrl = require('../controllers/investController');
 
@@ -52,22 +53,22 @@ router.post('/opportunities/:id/publish', authenticate, invest, requireAdmin, re
 
 // Commit flow: Idempotency-Key required; eligibility rechecked at commit
 // inside the settlement service transaction.
-router.post('/opportunities/:id/commitments', authenticate, invest, commitments, suspended, rejectImpersonated, ctrl.createCommitment);
-router.post('/commitments/:id/cancel', authenticate, invest, suspended, rejectImpersonated, ctrl.cancelCommitment);
-router.get('/commitments/:id', authenticate, invest, suspended, ctrl.getCommitment);
+router.post('/opportunities/:id/commitments', authenticate, invest, requireInvestorParticipationCapability, commitments, suspended, rejectImpersonated, ctrl.createCommitment);
+router.post('/commitments/:id/cancel', authenticate, invest, requireInvestorParticipationCapability, suspended, rejectImpersonated, ctrl.cancelCommitment);
+router.get('/commitments/:id', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.getCommitment);
 
 // Participation applications.
-router.post('/applications', authenticate, invest, suspended, ctrl.createApplication);
-router.get('/applications', authenticate, invest, suspended, ctrl.listApplications);
-router.get('/applications/:id', authenticate, invest, suspended, ctrl.getApplication);
-router.patch('/applications/:id', authenticate, invest, suspended, ctrl.updateApplication);
-router.post('/applications/:id/submit', authenticate, invest, suspended, ctrl.submitApplication);
-router.post('/applications/:id/withdraw', authenticate, invest, suspended, ctrl.withdrawApplication);
-router.post('/applications/:id/accept-agreement', authenticate, invest, suspended, ctrl.acceptAgreement);
+router.post('/applications', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.createApplication);
+router.get('/applications', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.listApplications);
+router.get('/applications/:id', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.getApplication);
+router.patch('/applications/:id', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.updateApplication);
+router.post('/applications/:id/submit', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.submitApplication);
+router.post('/applications/:id/withdraw', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.withdrawApplication);
+router.post('/applications/:id/accept-agreement', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.acceptAgreement);
 router.post('/applications/:id/review', authenticate, invest, requireAdmin, requirePermission('review_invest_participation'), ctrl.reviewApplication);
 
 // My investments: never a live portfolio market value.
-router.get('/me', authenticate, invest, suspended, ctrl.getMyInvestments);
+router.get('/me', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.getMyInvestments);
 
 // Reviewer queue (capability-scoped inside the service).
 router.get('/review-queue', authenticate, invest, requireAdmin, ctrl.getReviewQueue);
