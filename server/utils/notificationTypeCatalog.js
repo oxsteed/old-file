@@ -30,6 +30,8 @@
 // this batch and the humanized key is unambiguous.
 const NOTIFICATION_TYPES = [
   { type: 'bid_accepted', group: 'work' },
+  // Group 4 Slice B (164): 24h bid-expiry reminder from bidDeadlineNotices.
+  { type: 'bid_deadline_reminder', group: 'work' },
   { type: 'bid_received', group: 'work' },
   { type: 'bid_reconfirmed', group: 'work' },
   { type: 'booking_accepted', group: 'work' },

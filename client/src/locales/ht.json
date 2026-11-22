@@ -44475,7 +44475,13 @@
     "schedule_conflict": "Lè a pa mache ak kalandriye ou, limit pa jou oswa tan deplasman ou. Dakò sou yon lòt lè anvan ou aksepte.",
     "schedule_unknown": "Nou bezwen yon lè nan lavni ak yon dire pou verifye kalandriye ou.",
     "review": "Kondisyon ak konpetans pou konfime",
-    "none": "Pa gen kondisyon ki presize. Konfime travay la ak kliyan an."
+    "none": "Pa gen kondisyon ki presize. Konfime travay la ak kliyan an.",
+    "distance": "Anviwon {{miles}} mil lwen.",
+    "distanceUnknown": "Distans enkoni: travay la oswa zòn sèvis ou a pa gen okenn kote anrejistre.",
+    "budgetRange": "Bidjè: ${{min}} – ${{max}}.",
+    "budgetFrom": "Bidjè: apati ${{min}}.",
+    "budgetUpTo": "Bidjè: jiska ${{max}}.",
+    "budgetUnknown": "Pa gen okenn entèval bidjè pou travay sa a."
   },
   "portfolioConsent": {
     "title": "Pèmisyon pòtfolyo",

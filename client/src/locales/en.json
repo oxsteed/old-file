@@ -44475,7 +44475,13 @@
     "schedule_conflict": "The stated time conflicts with your calendar, daily limit, or travel gap. Agree another time before accepting.",
     "schedule_unknown": "A future start time and duration are needed to check your calendar.",
     "review": "Requirements and skills to confirm",
-    "none": "No requirements were specified. Confirm the scope with the customer."
+    "none": "No requirements were specified. Confirm the scope with the customer.",
+    "distance": "About {{miles}} miles away.",
+    "distanceUnknown": "Distance unknown: the job or your service area has no location saved.",
+    "budgetRange": "Budget: ${{min}} – ${{max}}.",
+    "budgetFrom": "Budget: from ${{min}}.",
+    "budgetUpTo": "Budget: up to ${{max}}.",
+    "budgetUnknown": "No budget range listed for this job."
   },
   "portfolioConsent": {
     "title": "Portfolio permission",

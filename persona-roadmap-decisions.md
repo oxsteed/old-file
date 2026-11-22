@@ -450,3 +450,19 @@ items close as roadmap work; none is claimed closed as an audit finding.
 
 **Open calls awaiting Emile (Group 4 Slice A):**
 - Whether the fixed travel gap (item 175) is accepted as the delivery for "travel time blocks" or real per-trip travel time is wanted (today the gap only; the Slice D build adds manual travel blocks; computed travel time needs a routing provider, which is Emile's Coolify domain).
+
+### Group 4 Slice B: Find work (items 163, 164, 165) — built 2026-11-22
+
+Items 163, 164, 165 built backend + UI together, with acceptance
+tests in `server/__tests__/group4SliceBFindWork.db.test.js` and the client
+decision test in `client/scripts/discoveryRadius.test.mjs`. One new
+migration (`20261122183000_bid_deadline_notice.sql`, adds
+`bids.deadline_notice_sent_at`). Audit overlaps G4-13, G4-17, G4-25 are
+the same gaps these items close as roadmap work; none is claimed closed
+as an audit finding.
+
+- **D-159. The /jobs radius filter seeds from the saved distance preference (item 163).** `JobListPage` fetches `GET /helpers/me/discovery` once on mount for helpers and seeds `radiusMiles` from `opportunity_radius_miles` through `resolveSeededRadius` (a radius restored from navigation state wins; the preference wins over the built-in 25; invalid values fall back to 25). The preference is re-applied when it changes in settings (`oxsteed:discovery-changed`, the same event the dashboard nearby feed listens to), and Reset restores the seeded preference instead of 25. The three stored radii stay as they are (discovery preference for matching, profile `service_radius_miles` for the service area); only the feed default changes. Flip: keep the feed at a hard 25 (would keep ignoring the preference the helper saved).
+- **D-160. Bid expiry is a real hourly sweeper: one reminder, then expiry (item 164).** `server/jobs/bidDeadlineNotices.js` runs hourly (cron `37 * * * *`, fenced by the background-worker starter): it first flips lapsed pending bids to `expired`, then notifies once for pending bids on still-open jobs (`published`/`matched`/`negotiating`) expiring within 24 hours. The reminder is type `bid_deadline_reminder`, registered in `notificationTypeCatalog.js` with localized copy in `utils/i18n.js` (the catalog entry is required: `sendNotification` resolves title/body from it, so a missing entry would lose the text for non-English recipients). The body carries no hour count (the server catalog has no plural forms); the exact deadline is shown on `/my-bids` by `BidDeadlineNotice`. The `deadline_notice_sent_at` stamp makes re-runs safe. Expiry itself sends no notification. Flip: notify on expiry too (would add a second ping for a bid the helper can already see as expired on /my-bids), or remind for bids on closed jobs (would nag about bids that can no longer be acted on).
+- **D-161. The suitability preview answers distance and pay, and nothing else new (item 165).** `GET /helpers/me/suitability/:jobId` now returns `distance_miles` (one-decimal miles from the helper's saved service location to the job's point, null when either side has no location) and `budget_min`/`budget_max` (the job's own listed range). No coordinates leave the server; the preview still hides billing, contact details, and private notes. The job page renders the distance and budget lines under the schedule line with new `helperSuitability` keys in all five locales. Flip: show the exact distance from the browser location instead (would need the helper's live location on every preview and would leak precision the feed deliberately fuzzes).
+
+**Open calls awaiting Emile (Group 4 Slice B):** none new. The Slice A opens stand: fixed travel gap vs real per-trip travel time (item 175), endorsement model for 194 (G4-21), ownership carry-over for 196-200 (G4-20).

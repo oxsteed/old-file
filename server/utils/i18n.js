@@ -718,6 +718,25 @@ const T = {
       ar: 'انتهت مهلة الرد على طلب عرض السعر الخاص بك دون تلقي عرض سعر بعد.',
     },
   },
+  // Group 4 Slice B (164): the helper's pending bid expires within 24 hours.
+  // The body carries no hour count (the server catalog has no plural
+  // forms); the exact deadline is shown on /my-bids by BidDeadlineNotice.
+  bid_deadline_reminder: {
+    title: {
+      en: 'Your bid expires soon',
+      fr: 'Votre offre expire bientôt',
+      es: 'Tu oferta vence pronto',
+      ht: 'Òf ou a prèt pou ekspire',
+      ar: 'عرضك ينتهي قريبًا',
+    },
+    body: {
+      en: 'Your bid on "{jobTitle}" expires within 24 hours. Review it before the deadline.',
+      fr: 'Votre offre sur « {jobTitle} » expire dans moins de 24 heures. Vérifiez-la avant la date limite.',
+      es: 'Tu oferta en "{jobTitle}" vence en menos de 24 horas. Revísala antes de la fecha límite.',
+      ht: 'Òf ou sou "{jobTitle}" ap ekspire nan mwens pase 24 èdtan. Revize li anvan dat limit la.',
+      ar: 'عرضك على "{jobTitle}" ينتهي خلال أقل من 24 ساعة. راجعه قبل الموعد النهائي.',
+    },
+  },
   // G-6/G-7: book-for-another invite, site-contact status link, and the
   // booker's notice that the recipient responded.
   booking_recipient_invite: {

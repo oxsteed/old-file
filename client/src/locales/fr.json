@@ -44475,7 +44475,13 @@
     "schedule_conflict": "L’horaire entre en conflit avec votre calendrier, limite quotidienne ou marge de trajet. Convenez d’un autre horaire avant d’accepter.",
     "schedule_unknown": "Une date future et une durée sont nécessaires pour vérifier votre calendrier.",
     "review": "Exigences et compétences à confirmer",
-    "none": "Aucune exigence précisée. Confirmez le périmètre avec le client."
+    "none": "Aucune exigence précisée. Confirmez le périmètre avec le client.",
+    "distance": "À environ {{miles}} miles.",
+    "distanceUnknown": "Distance inconnue : le travail ou votre zone de service n'a pas de lieu enregistré.",
+    "budgetRange": "Budget : {{min}} $ – {{max}} $.",
+    "budgetFrom": "Budget : à partir de {{min}} $.",
+    "budgetUpTo": "Budget : jusqu'à {{max}} $.",
+    "budgetUnknown": "Aucune fourchette de budget indiquée pour ce travail."
   },
   "portfolioConsent": {
     "title": "Autorisation de portfolio",
