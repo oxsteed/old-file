@@ -4,6 +4,7 @@ const adminConsultingController = require('../controllers/adminConsultingControl
 const deliverableController = require('../controllers/consultantDeliverableController');
 const changeController = require('../controllers/consultantChangeController');
 const confidentialityController = require('../controllers/consultantConfidentialityController');
+const closeoutController = require('../controllers/consultantCloseoutController');
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 
@@ -65,6 +66,14 @@ router.delete('/sessions/:sessionId/participants/:participantId', ...writeAuth, 
 router.get('/sessions/:sessionId/confidentiality', ...auth, confidentialityController.getAcknowledgmentStatus);
 router.patch('/sessions/:sessionId/deliverables/:deliverableId/documents/:documentId', ...writeAuth, confidentialityController.updateDocumentSharing);
 router.get('/sessions/:sessionId/export', ...auth, confidentialityController.exportEngagementRecord);
+
+// Group 10 Slice H (541-545): close the engagement. The admin reads
+// the closeout, confirms on the client's behalf only (the D-115 rule),
+// and archives or unarchives a closed engagement.
+router.get('/sessions/:sessionId/closeout', ...auth, closeoutController.getCloseout);
+router.post('/sessions/:sessionId/closeout/confirm', ...writeAuth, closeoutController.confirmCloseout);
+router.post('/sessions/:sessionId/archive', ...writeAuth, closeoutController.archiveEngagement);
+router.post('/sessions/:sessionId/unarchive', ...writeAuth, closeoutController.unarchiveEngagement);
 router.post('/sessions/:id/send-reminder', ...writeAuth, adminConsultingController.sendSessionReminder);
 router.post('/sessions/:id/send-followup', ...writeAuth, adminConsultingController.sendSessionFollowUp);
 router.post('/sessions/:id/send-invite', ...writeAuth, adminConsultingController.sendSessionReminder);

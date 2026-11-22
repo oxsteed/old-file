@@ -6,6 +6,7 @@ import ActionItemsPanel from '../../components/ActionItemsPanel';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import ConfirmDialog from '../lib/ConfirmDialog';
 import { confidentialityApi, downloadEngagementRecord } from '../../api/consultantConfidentiality';
+import { closeoutApi } from '../../api/consultantCloseout';
 import './ConsultingSessionDetail.css';
 
 const STATUS_COLORS = {
@@ -51,6 +52,13 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
   const [clearedExpiry, setClearedExpiry] = useState({});
   const [visibilityDrafts, setVisibilityDrafts] = useState({});
   const [shareDrafts, setShareDrafts] = useState({});
+  // Group 10 Slice H (541-545): the closeout checklist, confirmations,
+  // follow-ups, feedback request, and archive. The admin reads the
+  // checklist, confirms on the client's behalf only (never for the
+  // consultant), and archives or unarchives the engagement.
+  const [closeout, setCloseout] = useState(null);
+  const [closeoutLoading, setCloseoutLoading] = useState(true);
+  const [closeoutBusy, setCloseoutBusy] = useState('');
 
   // Refetch and reset per-session state whenever the viewed session changes,
   // so consultants and notes never bleed across sessions.
@@ -119,6 +127,57 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
       .finally(() => setConfidentialityLoading(false));
   };
   useEffect(() => { loadConfidentiality(); }, [session.id]);
+
+  // Load the closeout checklist and follow-ups (Slice H) for this session.
+  const loadCloseout = () => {
+    setCloseoutLoading(true);
+    return closeoutApi.getAdminCloseout(session.id)
+      .then((r) => { setCloseout(r.data); })
+      .catch(() => { setCloseout(null); })
+      .finally(() => { setCloseoutLoading(false); });
+  };
+  useEffect(() => { loadCloseout(); }, [session.id]);
+
+  async function confirmCloseoutForClient() {
+    try {
+      setCloseoutBusy('confirm-client');
+      await closeoutApi.confirmAdminCloseout(session.id, { on_behalf_of: 'client' });
+      toast.success(t('consultantCloseout.confirmedToast'));
+      await loadCloseout();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setCloseoutBusy('');
+    }
+  }
+
+  async function archiveEngagement() {
+    try {
+      setCloseoutBusy('archive');
+      await closeoutApi.archiveAdminEngagement(session.id);
+      toast.success(t('consultantCloseout.archivedToast'));
+      await loadCloseout();
+      onStatusUpdate();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setCloseoutBusy('');
+    }
+  }
+
+  async function unarchiveEngagement() {
+    try {
+      setCloseoutBusy('unarchive');
+      await closeoutApi.unarchiveAdminEngagement(session.id);
+      toast.success(t('consultantCloseout.unarchivedToast'));
+      await loadCloseout();
+      onStatusUpdate();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setCloseoutBusy('');
+    }
+  }
 
   async function exportRecord() {
     try {
@@ -715,6 +774,82 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
             )}
           </div>
 
+          {/* Group 10 Slice H (541-545): the closeout checklist,
+              confirmations, follow-ups, feedback request, and archive.
+              The admin confirms on the client's behalf only. */}
+          <div className="csd-deliverables-section">
+            <div className="csd-deliverables-title">{t('consultantCloseout.title')}</div>
+            {closeoutLoading ? (
+              <p className="csd-deliverables-note">{t('common.loading', { defaultValue: 'Loading…' })}</p>
+            ) : !closeout ? (
+              <p className="csd-deliverables-note">{t('consultantCloseout.loadError')}</p>
+            ) : (
+              <>
+                {closeout.closeout?.closedAt && (
+                  <p className="csd-deliverable-meta">{t('consultantCloseout.closedNote')}</p>
+                )}
+                <ul className="csd-deliverable-docs">
+                  {(closeout.checklist?.items || []).map((item) => (
+                    <li key={item.key}>
+                      {item.met ? '✓ ' : '• '}
+                      {t(`consultantCloseout.item_${item.key}`)}
+                      {' — '}
+                      {item.required ? t('consultantCloseout.required') : t('consultantCloseout.recommended')}
+                      {' — '}
+                      {item.met ? t('consultantCloseout.met') : t('consultantCloseout.unmet')}
+                    </li>
+                  ))}
+                </ul>
+                {closeout.checklist?.archiveEligible ? (
+                  <p className="csd-deliverable-meta">{t('consultantCloseout.archiveEligible')}</p>
+                ) : (
+                  <p className="csd-deliverable-meta">{t('consultantCloseout.archiveNotEligible')}</p>
+                )}
+                {session.status === 'completed' && !closeout.closeout?.clientConfirmedAt && (
+                  <button type="button" onClick={confirmCloseoutForClient} disabled={closeoutBusy === 'confirm-client'} className="csd-changes-button">
+                    {t('consultantCloseout.confirmForClient')}
+                  </button>
+                )}
+                {closeout.closeout?.clientConfirmedAt && (
+                  <p className="csd-deliverable-meta">{t('consultantCloseout.confirmed')}</p>
+                )}
+                <div className="csd-deliverables-title">{t('consultantCloseout.feedbackTitle')}</div>
+                {closeout.checklist?.items?.find((item) => item.key === 'feedback_received')?.met ? (
+                  <p className="csd-deliverable-meta">{t('consultantCloseout.feedbackReceived')}</p>
+                ) : closeout.feedbackRequest ? (
+                  <p className="csd-deliverable-meta">{t('consultantCloseout.feedbackPending')}</p>
+                ) : (
+                  <p className="csd-deliverable-meta">{t('consultantCloseout.feedbackPending')}</p>
+                )}
+                {(closeout.followUps || []).filter((item) => item.status === 'scheduled').length > 0 && (
+                  <>
+                    <div className="csd-deliverables-title">{t('consultantCloseout.followUpTitle')}</div>
+                    <ul className="csd-deliverable-docs">
+                      {(closeout.followUps || []).filter((item) => item.status === 'scheduled').map((item) => (
+                        <li key={item.id}>
+                          {t(`consultantCloseout.followUpKind${item.kind === 'check_in' ? 'CheckIn' : item.kind === 'review' ? 'Review' : item.kind === 'renewal' ? 'Renewal' : 'Other'}`)}
+                          {' • '}
+                          {t('consultantCloseout.dueLabel', { date: String(item.dueAt).slice(0, 10) })}
+                          {item.note ? ` • ${item.note}` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {session.status === 'archived' ? (
+                  <button type="button" onClick={unarchiveEngagement} disabled={closeoutBusy === 'unarchive'} className="csd-changes-button">
+                    {t('consultantCloseout.unarchive')}
+                  </button>
+                ) : (
+                  <button type="button" onClick={archiveEngagement} disabled={!closeout.checklist?.archiveEligible || closeoutBusy === 'archive'} className="csd-changes-button">
+                    {t('consultantCloseout.archive')}
+                  </button>
+                )}
+                <p className="csd-deliverable-meta">{t('consultantCloseout.archiveHint')}</p>
+              </>
+            )}
+          </div>
+
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>Areas of Help</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -758,6 +893,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
               <option value="scheduled">Scheduled</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
+              <option value="archived">Archived</option>
             </select>
           </div>
 

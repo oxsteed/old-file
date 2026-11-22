@@ -7,7 +7,7 @@ import api from './axios';
 // business-launch attachments.
 export const deliverablesApi = {
   startEngagement: (requestId) => api.post(`/consulting/contractor/referrals/${encodeURIComponent(requestId)}/start-engagement`),
-  listMyEngagements: () => api.get('/consulting/contractor/engagements'),
+  listMyEngagements: (params = {}) => api.get('/consulting/contractor/engagements', { params }),
   listContractorDeliverables: (sessionId) => api.get(`/consulting/contractor/sessions/${encodeURIComponent(sessionId)}/deliverables`),
   updateDeliverableStatus: (sessionId, deliverableId, status) => api.patch(
     `/consulting/contractor/sessions/${encodeURIComponent(sessionId)}/deliverables/${encodeURIComponent(deliverableId)}/status`,

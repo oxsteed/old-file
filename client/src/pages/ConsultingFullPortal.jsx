@@ -591,6 +591,12 @@ function ParticipatingEngagements({ user }) {
                   {t(`consultantConfidentiality.roles.${item.participantRole}`, { defaultValue: (item.participantRole || 'observer').replace(/_/g, ' ') })}
                   {' • '}
                   {item.status}
+                  {item.status === 'archived' && (
+                    <>
+                      {' • '}
+                      <span className="font-semibold">{t('consultantCloseout.archived')}</span>
+                    </>
+                  )}
                 </p>
               </div>
               <button

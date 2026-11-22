@@ -24,6 +24,7 @@ import api from '../api/axios';
 import { deliverablesApi } from '../api/consultantDeliverables';
 import { changesApi } from '../api/consultantChanges';
 import { confidentialityApi, downloadEngagementRecord } from '../api/consultantConfidentiality';
+import { closeoutApi } from '../api/consultantCloseout';
 import '../styles/BusinessLaunchStatus.css';
 
 const STATUS_PROGRESS = {
@@ -865,6 +866,7 @@ function MilestoneBoard({ request }) {
             <>
               <MilestoneChanges session={session} deliverables={deliverables} onChanged={load} />
               <MilestoneConfidentiality session={session} deliverables={deliverables} onChanged={load} />
+              <MilestoneCloseout session={session} onChanged={load} />
             </>
           )}
         </div>
@@ -1409,6 +1411,143 @@ function MilestoneConfidentiality({ session, deliverables, onChanged }) {
                 </li>
               );
             })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Group 10 Slice H (541-545): the client's closeout panel on the
+// milestone board. The client reads the final deliverable checklist,
+// confirms closeout for themselves, sees the feedback request and the
+// follow-ups the consultant scheduled, and sees the archived badge.
+// The client cannot schedule follow-ups or archive the engagement.
+function MilestoneCloseout({ session, onChanged }) {
+  const { t } = useTranslation();
+  const [closeout, setCloseout] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [confirmNote, setConfirmNote] = useState('');
+
+  const loadCloseout = useCallback(async () => {
+    try {
+      const { data } = await closeoutApi.getClientCloseout(session.id);
+      setCloseout(data);
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantCloseout.loadError'));
+    }
+  }, [session.id, t]);
+
+  useEffect(() => { loadCloseout(); }, [loadCloseout]);
+
+  const confirm = async () => {
+    setBusy('confirm');
+    setError('');
+    setNotice('');
+    try {
+      await closeoutApi.confirmClientCloseout(session.id, { note: confirmNote.trim() || null });
+      setNotice(t('consultantCloseout.confirmedToast'));
+      await loadCloseout();
+      if (onChanged) await onChanged();
+    } catch (err) {
+      setError(err.response?.data?.error || t('common.errorUpdating'));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const record = closeout?.closeout || null;
+  const items = closeout?.checklist?.items || [];
+  const myConfirmed = Boolean(record?.clientConfirmedAt);
+  const canConfirm = session.status === 'completed' && !myConfirmed;
+  const feedbackReceived = Boolean(items.find((item) => item.key === 'feedback_received')?.met);
+  const scheduledFollowUps = (closeout?.followUps || []).filter((item) => item.status === 'scheduled');
+
+  return (
+    <div className="bl-milestone__changes">
+      <div className="bl-milestone__actions">
+        <h4 className="bl-milestone__changes-title">{t('consultantCloseout.title')}</h4>
+        {session.status === 'archived' && (
+          <span className="bl-milestone__card-meta">{t('consultantCloseout.archived')}</span>
+        )}
+      </div>
+      {error && <p role="alert" className="bl-milestone__error">{error}</p>}
+      {notice && <p role="status" className="bl-milestone__notice">{notice}</p>}
+      {record?.closedAt && (
+        <p className="bl-milestone__card-meta">{t('consultantCloseout.closedNote')}</p>
+      )}
+      <div>
+        <h5 className="bl-milestone__changes-title">{t('consultantCloseout.checklistTitle')}</h5>
+        <ul className="bl-milestone__list">
+          {items.map((item) => (
+            <li key={item.key} className="bl-milestone__card-meta">
+              {item.met ? '✓ ' : '• '}
+              {t(`consultantCloseout.item_${item.key}`)}
+              {' — '}
+              {item.required ? t('consultantCloseout.required') : t('consultantCloseout.recommended')}
+              {' — '}
+              {item.met ? t('consultantCloseout.met') : t('consultantCloseout.unmet')}
+            </li>
+          ))}
+        </ul>
+      </div>
+      {!record?.closedAt && (
+        <div className="bl-milestone__feedback-form">
+          <input
+            type="text"
+            value={confirmNote}
+            onChange={(event) => setConfirmNote(event.target.value)}
+            placeholder={t('consultantCloseout.confirmNotePlaceholder')}
+            aria-label={t('consultantCloseout.confirmNotePlaceholder')}
+            disabled={!canConfirm}
+            className="bl-milestone__feedback-text"
+          />
+          <div>
+            <button
+              type="button"
+              onClick={confirm}
+              disabled={!canConfirm || busy === 'confirm'}
+              className="bl-milestone__btn-accept" data-track="ui.478f2e3593.29"
+            >
+              {t('consultantCloseout.confirm')}
+            </button>
+          </div>
+        </div>
+      )}
+      {session.status !== 'completed' && session.status !== 'archived' && (
+        <p className="bl-milestone__card-meta">{t('consultantCloseout.notCompleted')}</p>
+      )}
+      {record?.closedAt && !myConfirmed && (
+        <p className="bl-milestone__card-meta">{t('consultantCloseout.waitingOther')}</p>
+      )}
+      <div>
+        <h5 className="bl-milestone__changes-title">{t('consultantCloseout.feedbackTitle')}</h5>
+        {feedbackReceived ? (
+          <p className="bl-milestone__card-meta">{t('consultantCloseout.feedbackReceived')}</p>
+        ) : closeout?.feedbackRequest ? (
+          <p className="bl-milestone__card-meta">
+            {t('consultantCloseout.feedbackPending')}
+            {' '}
+            {t('consultantCloseout.leaveFeedback')}
+          </p>
+        ) : (
+          <p className="bl-milestone__card-meta">{t('consultantCloseout.feedbackPending')}</p>
+        )}
+      </div>
+      {scheduledFollowUps.length > 0 && (
+        <div>
+          <h5 className="bl-milestone__changes-title">{t('consultantCloseout.followUpTitle')}</h5>
+          <ul className="bl-milestone__list">
+            {scheduledFollowUps.map((item) => (
+              <li key={item.id} className="bl-milestone__card-meta">
+                {t(`consultantCloseout.followUpKind${item.kind === 'check_in' ? 'CheckIn' : item.kind === 'review' ? 'Review' : item.kind === 'renewal' ? 'Renewal' : 'Other'}`)}
+                {' • '}
+                {t('consultantCloseout.dueLabel', { date: String(item.dueAt).slice(0, 10) })}
+                {item.note ? ` • ${item.note}` : ''}
+              </li>
+            ))}
           </ul>
         </div>
       )}

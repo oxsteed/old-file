@@ -188,6 +188,10 @@ async function addParticipant(req, res) {
       if (type !== 'consultant' && type !== 'admin') {
         return { status: 403, body: { error: 'Only the assigned consultant or an administrator can add participants' } };
       }
+      // Slice H (545): an archived engagement takes no new participants.
+      if (session.status === 'archived') {
+        return { status: 409, body: { error: 'The engagement is archived', code: 'engagement_archived' } };
+      }
       const { rows: [user] } = await client.query(
         `SELECT id, first_name, last_name, email FROM users
           WHERE LOWER(email) = $1 AND is_active = TRUE AND deleted_at IS NULL`,
@@ -443,6 +447,10 @@ async function updateDocumentSharing(req, res) {
       const isUploader = String(doc.uploaded_by) === String(req.user?.id);
       if (type !== 'admin' && !isUploader) {
         return { status: 403, body: { error: 'Only the uploader or an administrator can change document sharing' } };
+      }
+      // Slice H (545): an archived engagement takes no sharing changes.
+      if (session.status === 'archived') {
+        return { status: 409, body: { error: 'The engagement is archived', code: 'engagement_archived' } };
       }
       let visibility = doc.visibility;
       if (hasVisibility) {

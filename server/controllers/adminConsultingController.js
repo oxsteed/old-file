@@ -352,7 +352,7 @@ exports.updateSessionDetails = async (req, res) => {
   try {
     // Verify session exists
     const sessionCheck = await db.query(
-      'SELECT id FROM consulting_sessions WHERE id = $1',
+      'SELECT id, status FROM consulting_sessions WHERE id = $1',
       [id]
     );
 
@@ -369,6 +369,27 @@ exports.updateSessionDetails = async (req, res) => {
       updates.push(`status = $${paramIndex}`);
       values.push(status);
       paramIndex++;
+      // Group 10 item 545: archiving from the admin status dropdown
+      // stamps the same bookkeeping as the archive endpoint (the
+      // item-519 cancelled mirror), so the two paths cannot diverge.
+      // Leaving 'archived' clears it. The dropdown is an admin
+      // override and does not enforce the closeout gate; the
+      // canonical archive path is the archive endpoint.
+      const currentStatus = sessionCheck.rows[0].status;
+      if (status === 'archived' && currentStatus !== 'archived') {
+        updates.push(`archived_at = NOW()`);
+        updates.push(`archived_by = $${paramIndex}`);
+        values.push(req.user.id);
+        paramIndex++;
+        updates.push(`status_before_archive = $${paramIndex}`);
+        values.push(currentStatus);
+        paramIndex++;
+      }
+      if (status !== 'archived' && currentStatus === 'archived') {
+        updates.push(`archived_at = NULL`);
+        updates.push(`archived_by = NULL`);
+        updates.push(`status_before_archive = NULL`);
+      }
     }
 
     if (consultant_assigned_id !== undefined) {

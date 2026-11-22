@@ -9,6 +9,7 @@ const proposalController = require('../controllers/consultantProposalController'
 const deliverableController = require('../controllers/consultantDeliverableController');
 const changeController = require('../controllers/consultantChangeController');
 const confidentialityController = require('../controllers/consultantConfidentialityController');
+const closeoutController = require('../controllers/consultantCloseoutController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 
@@ -77,6 +78,17 @@ router.get('/sessions/:sessionId/confidentiality', authenticate, confidentiality
 router.post('/sessions/:sessionId/confidentiality/acknowledge', authenticate, confidentialityController.acknowledgeConfidentiality);
 router.patch('/sessions/:sessionId/deliverables/:deliverableId/documents/:documentId', authenticate, confidentialityController.updateDocumentSharing);
 router.get('/sessions/:sessionId/export', authenticate, confidentialityController.exportEngagementRecord);
+// Group 10 Slice H (541-545): close the engagement. The final
+// deliverable checklist, closeout confirmation, follow-up schedule,
+// client feedback request, and archive live here for the consultant.
+router.get('/follow-ups', authenticate, closeoutController.listMyFollowUps);
+router.get('/sessions/:sessionId/closeout', authenticate, closeoutController.getCloseout);
+router.post('/sessions/:sessionId/closeout/confirm', authenticate, closeoutController.confirmCloseout);
+router.post('/sessions/:sessionId/follow-ups', authenticate, closeoutController.createFollowUp);
+router.patch('/sessions/:sessionId/follow-ups/:followUpId', authenticate, closeoutController.updateFollowUp);
+router.post('/sessions/:sessionId/feedback-request', authenticate, closeoutController.requestFeedback);
+router.post('/sessions/:sessionId/archive', authenticate, closeoutController.archiveEngagement);
+router.post('/sessions/:sessionId/unarchive', authenticate, closeoutController.unarchiveEngagement);
 
 // Public specialty profile (506). No auth: only approved, active profiles
 // are ever returned; anything else 404s.

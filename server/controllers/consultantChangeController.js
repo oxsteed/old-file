@@ -183,6 +183,10 @@ async function createChangeRequest(req, res) {
       if (type !== 'consultant' && type !== 'client') {
         return { status: 403, body: { error: 'Only the consultant or the client can request a change' } };
       }
+      // Slice H (545): an archived engagement takes no new change requests.
+      if (session.status === 'archived') {
+        return { status: 409, body: { error: 'The engagement is archived', code: 'engagement_archived' } };
+      }
       let deliverable = null;
       if (deliverableId) {
         deliverable = await loadDeliverable(client, sessionId, deliverableId);
@@ -280,6 +284,10 @@ function decideChangeRequest(decision) {
         if (!session) return { status: 404, body: { error: 'Session not found' } };
         const type = actorForSession(req, session);
         if (!type) return { status: 403, body: { error: 'Session not found' } };
+        // Slice H (545): an archived engagement takes no decisions.
+        if (session.status === 'archived') {
+          return { status: 409, body: { error: 'The engagement is archived', code: 'engagement_archived' } };
+        }
         const request = await loadChangeRequest(client, sessionId, requestId);
         if (!request) return { status: 404, body: { error: 'Change request not found' } };
         if (request.status !== 'pending') {

@@ -29,6 +29,7 @@ const proposalController = require('../controllers/consultantProposalController'
 const deliverableController = require('../controllers/consultantDeliverableController');
 const changeController = require('../controllers/consultantChangeController');
 const confidentialityController = require('../controllers/consultantConfidentialityController');
+const closeoutController = require('../controllers/consultantCloseoutController');
 
 // Public route: Submit a new Business Launch request
 router.post(
@@ -243,6 +244,21 @@ router.get(
   '/sessions/:sessionId/export',
   authenticate,
   confidentialityController.exportEngagementRecord
+);
+
+// Group 10 Slice H (541-545): close the engagement. The client reads
+// the final deliverable checklist and confirms the closeout; the
+// follow-up schedule, feedback request, and archive are the
+// consultant's (and the archive is the consultant's or an admin's).
+router.get(
+  '/sessions/:sessionId/closeout',
+  authenticate,
+  closeoutController.getCloseout
+);
+router.post(
+  '/sessions/:sessionId/closeout/confirm',
+  authenticate,
+  closeoutController.confirmCloseout
 );
 
 router.post('/requests/:id/attachments', authenticate, generalLimiter, upload.single('file'), validateFileUpload, attachmentController.uploadAttachment);

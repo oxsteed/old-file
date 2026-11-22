@@ -128,7 +128,8 @@ async function loadSession(client, sessionId) {
     `SELECT id, user_id, email, first_name, last_name, business_name,
             consultant_assigned_id, status, current_phase, referral_id,
             description, paused_at, paused_by, pause_reason,
-            status_before_pause, created_at, updated_at
+            status_before_pause, archived_at, archived_by,
+            status_before_archive, created_at, updated_at
        FROM consulting_sessions WHERE id = $1`,
     [sessionId],
   );
@@ -315,7 +316,9 @@ async function startEngagement(req, res) {
 
 // GET /contractor/engagements
 // The consultant's engagement sessions, newest first, with board counts.
+// Archived engagements are hidden by default (?archived=true lists them).
 async function listMyEngagements(req, res) {
+  const archived = String(req.query?.archived || '').trim() === 'true';
   try {
     const { rows } = await db.query(
       `SELECT cs.*,
@@ -325,8 +328,9 @@ async function listMyEngagements(req, res) {
          FROM consulting_sessions cs
          LEFT JOIN consulting_requests cr ON cr.id = cs.referral_id
         WHERE cs.consultant_assigned_id = $1
+          AND ($2::boolean OR cs.status <> 'archived')
         ORDER BY cs.created_at DESC LIMIT 50`,
-      [req.user.id],
+      [req.user.id, archived],
     );
     return res.json({ engagements: rows.map((row) => ({ ...row, id: String(row.id) })) });
   } catch (err) {
@@ -404,6 +408,10 @@ async function updateDeliverableStatus(req, res) {
     if (session.status === 'paused') {
       return res.status(409).json({ error: 'The engagement is paused', code: 'engagement_paused' });
     }
+    // Slice H (545): an archived engagement takes no milestone moves.
+    if (session.status === 'archived') {
+      return res.status(409).json({ error: 'The engagement is archived', code: 'engagement_archived' });
+    }
     const deliverable = await loadDeliverable(db, sessionId, deliverableId);
     if (!deliverable) return res.status(404).json({ error: 'Deliverable not found' });
     const allowed = STATUS_TRANSITIONS[deliverable.status] || [];
@@ -443,6 +451,8 @@ async function deliverDraft(req, res) {
       if (type !== 'consultant') return { status: 403, body: { error: 'Only the assigned consultant can deliver a draft' } };
       // Slice F (535): a paused engagement takes no draft deliveries.
       if (session.status === 'paused') return { status: 409, body: { error: 'The engagement is paused', code: 'engagement_paused' } };
+      // Slice H (545): an archived engagement takes no draft deliveries.
+      if (session.status === 'archived') return { status: 409, body: { error: 'The engagement is archived', code: 'engagement_archived' } };
       const deliverable = await loadDeliverable(client, sessionId, deliverableId);
       if (!deliverable) return { status: 404, body: { error: 'Deliverable not found' } };
       if (!['in_progress', 'draft_delivered'].includes(deliverable.status)) {
@@ -496,6 +506,11 @@ async function attachDocument(req, res) {
     if (!session) return res.status(404).json({ error: 'Session not found' });
     const type = actorForSession(req, session);
     if (!type) return res.status(404).json({ error: 'Session not found' });
+    // Slice H (545): an archived engagement takes no new documents.
+    // The guard sits before the upload so no file is orphaned in storage.
+    if (session.status === 'archived') {
+      return res.status(409).json({ error: 'The engagement is archived', code: 'engagement_archived' });
+    }
     const deliverable = await loadDeliverable(db, sessionId, deliverableId);
     if (!deliverable) return res.status(404).json({ error: 'Deliverable not found' });
     if (!req.file) return res.status(400).json({ error: 'file is required', code: 'attachment_required' });
@@ -688,6 +703,8 @@ async function acceptDeliverable(req, res) {
       if (type !== 'client') return { status: 403, body: { error: 'Only the session client can accept a milestone' } };
       // Slice F (535): a paused engagement takes no acceptances.
       if (session.status === 'paused') return { status: 409, body: { error: 'The engagement is paused', code: 'engagement_paused' } };
+      // Slice H (545): an archived engagement takes no acceptances.
+      if (session.status === 'archived') return { status: 409, body: { error: 'The engagement is archived', code: 'engagement_archived' } };
       const deliverable = await loadDeliverable(client, sessionId, deliverableId);
       if (!deliverable) return { status: 404, body: { error: 'Deliverable not found' } };
       if (!ACCEPTABLE_FROM.has(deliverable.status)) {

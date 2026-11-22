@@ -5,6 +5,7 @@ import { ClipboardList, FileText, Download } from 'lucide-react';
 import { deliverablesApi } from '../api/consultantDeliverables';
 import { changesApi } from '../api/consultantChanges';
 import { confidentialityApi, downloadEngagementRecord } from '../api/consultantConfidentiality';
+import { closeoutApi } from '../api/consultantCloseout';
 
 // Group 10 Slice F (531-535): the change-request, history, and pause
 // UI for one engagement. Either party files a request; the other party
@@ -596,6 +597,257 @@ function EngagementConfidentiality({ sessionId, deliverables, onChanged }) {
   );
 }
 
+// Group 10 Slice H (541-545): close the engagement. The final
+// deliverable checklist, closeout confirmation, follow-up schedule,
+// client feedback request, and archive, for one engagement. Only a
+// completed engagement can close; only a closed engagement can archive.
+// An archived engagement freezes work mutations, so the action buttons
+// hide and only the unarchive button stays.
+function EngagementCloseout({ sessionId, sessionStatus, onChanged }) {
+  const { t } = useTranslation();
+  const [closeout, setCloseout] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [followUpDue, setFollowUpDue] = useState('');
+  const [followUpKind, setFollowUpKind] = useState('check_in');
+  const [followUpNote, setFollowUpNote] = useState('');
+  const [confirmNote, setConfirmNote] = useState('');
+
+  const load = async () => {
+    try {
+      const { data } = await closeoutApi.getContractorCloseout(sessionId);
+      setCloseout(data);
+    } catch {
+      toast.error(t('consultantCloseout.loadError'));
+    }
+  };
+
+  useEffect(() => { load(); }, [sessionId]);
+
+  const runAction = async (key, fn, successKey) => {
+    setBusy(key);
+    try {
+      await fn();
+      if (successKey) toast.success(t(successKey));
+      await load();
+      if (onChanged) await onChanged();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating'));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const archived = sessionStatus === 'archived';
+  const completed = sessionStatus === 'completed';
+  const record = closeout?.closeout || null;
+  const items = closeout?.checklist?.items || [];
+  const myConfirmed = Boolean(record?.consultantConfirmedAt);
+  const canConfirm = completed && !archived && !myConfirmed;
+  const feedbackRequest = closeout?.feedbackRequest || null;
+  const feedbackReceived = Boolean(closeout?.checklist?.items?.find((item) => item.key === 'feedback_received')?.met);
+  const scheduledFollowUps = (closeout?.followUps || []).filter((item) => item.status === 'scheduled');
+
+  const scheduleFollowUp = () => runAction(
+    'schedule-follow-up',
+    () => closeoutApi.createContractorFollowUp(sessionId, {
+      due_at: followUpDue ? new Date(followUpDue).toISOString() : null,
+      kind: followUpKind,
+      note: followUpNote.trim() || null,
+    }),
+    'consultantCloseout.followUpScheduled',
+  ).then(() => { setFollowUpDue(''); setFollowUpNote(''); });
+
+  return (
+    <div className="mt-3 space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold text-white">{t('consultantCloseout.title')}</h4>
+        {archived && (
+          <span className="rounded-xl bg-gray-700/40 px-3 py-2 text-xs font-semibold text-gray-300">
+            {t('consultantCloseout.archived')}
+          </span>
+        )}
+      </div>
+
+      {record?.closedAt && (
+        <p className="rounded-lg bg-emerald-600/10 px-3 py-2 text-xs text-emerald-300">
+          {t('consultantCloseout.closedNote')}
+        </p>
+      )}
+
+      <div>
+        <h5 className="text-xs font-semibold text-gray-300">{t('consultantCloseout.checklistTitle')}</h5>
+        <ul className="mt-1 space-y-1">
+          {items.map((item) => (
+            <li key={item.key} className="flex items-start justify-between gap-2 text-xs text-gray-300">
+              <span>
+                {item.met ? '✓ ' : '• '}
+                {t(`consultantCloseout.item_${item.key}`)}
+                {' — '}
+                <span className="text-gray-400">{item.required ? t('consultantCloseout.required') : t('consultantCloseout.recommended')}</span>
+              </span>
+              <span className={item.met ? 'font-semibold text-emerald-300' : 'font-semibold text-amber-300'}>
+                {item.met ? t('consultantCloseout.met') : t('consultantCloseout.unmet')}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {closeout?.checklist?.archiveEligible && !archived && (
+          <p className="mt-1 text-xs text-emerald-300">{t('consultantCloseout.archiveEligible')}</p>
+        )}
+        {!closeout?.checklist?.archiveEligible && !archived && (
+          <p className="mt-1 text-xs text-gray-400">{t('consultantCloseout.archiveNotEligible')}</p>
+        )}
+      </div>
+
+      {!record?.closedAt && (
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            value={confirmNote}
+            onChange={(event) => setConfirmNote(event.target.value)}
+            placeholder={t('consultantCloseout.confirmNotePlaceholder')}
+            aria-label={t('consultantCloseout.confirmNotePlaceholder')}
+            disabled={!canConfirm}
+            className="min-w-[200px] flex-1 rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white outline-none focus:border-orange-500 disabled:opacity-60"
+          />
+          <button
+            type="button"
+            onClick={() => runAction('confirm', () => closeoutApi.confirmContractorCloseout(sessionId, { note: confirmNote.trim() || null }), 'consultantCloseout.confirmedToast')}
+            disabled={!canConfirm || busy === 'confirm'}
+            className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60" data-track="ui.d91e4e0189.21"
+          >
+            {t('consultantCloseout.confirm')}
+          </button>
+        </div>
+      )}
+      {!completed && !archived && (
+        <p className="text-xs text-gray-400">{t('consultantCloseout.notCompleted')}</p>
+      )}
+      {record?.closedAt && !myConfirmed && !archived && (
+        <p className="text-xs text-gray-400">{t('consultantCloseout.waitingOther')}</p>
+      )}
+
+      <div>
+        <h5 className="text-xs font-semibold text-gray-300">{t('consultantCloseout.feedbackTitle')}</h5>
+        {feedbackReceived ? (
+          <p className="mt-1 text-xs text-emerald-300">{t('consultantCloseout.feedbackReceived')}</p>
+        ) : feedbackRequest ? (
+          <p className="mt-1 text-xs text-gray-400">{t('consultantCloseout.feedbackPending')}</p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => runAction('request-feedback', () => closeoutApi.requestContractorFeedback(sessionId, {}), 'consultantCloseout.feedbackRequested')}
+            disabled={!completed || archived || busy === 'request-feedback'}
+            className="mt-1 rounded-xl border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-white/5 disabled:opacity-60" data-track="ui.d91e4e0189.22"
+          >
+            {t('consultantCloseout.requestFeedback')}
+          </button>
+        )}
+      </div>
+
+      <div>
+        <h5 className="text-xs font-semibold text-gray-300">{t('consultantCloseout.followUpTitle')}</h5>
+        {scheduledFollowUps.length === 0 && (
+          <p className="mt-1 text-xs text-gray-400">{t('consultantCloseout.noFollowUps')}</p>
+        )}
+        <ul className="mt-1 space-y-1">
+          {scheduledFollowUps.map((item) => (
+            <li key={item.id} className="flex items-center justify-between gap-2 text-xs text-gray-300">
+              <span>
+                {t(`consultantCloseout.followUpKind${item.kind === 'check_in' ? 'CheckIn' : item.kind === 'review' ? 'Review' : item.kind === 'renewal' ? 'Renewal' : 'Other'}`)}
+                {' • '}
+                {t('consultantCloseout.dueLabel', { date: String(item.dueAt).slice(0, 10) })}
+                {item.note ? ` • ${item.note}` : ''}
+              </span>
+              <span className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => runAction(`follow-up-done-${item.id}`, () => closeoutApi.updateContractorFollowUp(sessionId, item.id, { status: 'done' }), 'consultantCloseout.followUpDone')}
+                  disabled={archived || busy === `follow-up-done-${item.id}`}
+                  className="font-semibold text-emerald-300 hover:text-emerald-200 disabled:opacity-60" data-track="ui.d91e4e0189.23"
+                >
+                  {t('consultantCloseout.markDone')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => runAction(`follow-up-cancel-${item.id}`, () => closeoutApi.updateContractorFollowUp(sessionId, item.id, { status: 'cancelled' }), 'consultantCloseout.followUpCancelled')}
+                  disabled={archived || busy === `follow-up-cancel-${item.id}`}
+                  className="font-semibold text-gray-400 hover:text-red-300 disabled:opacity-60" data-track="ui.d91e4e0189.24"
+                >
+                  {t('consultantCloseout.cancel')}
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+        {completed && !archived && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <input
+              type="datetime-local"
+              value={followUpDue}
+              onChange={(event) => setFollowUpDue(event.target.value)}
+              aria-label={t('consultantCloseout.dueLabel', { date: '' })}
+              className="rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white outline-none focus:border-orange-500"
+            />
+            <select
+              value={followUpKind}
+              onChange={(event) => setFollowUpKind(event.target.value)}
+              aria-label={t('consultantCloseout.followUpTitle')}
+              className="rounded-lg border border-gray-700 bg-gray-900 px-2 py-2 text-xs text-gray-200"
+            >
+              <option value="check_in">{t('consultantCloseout.followUpKindCheckIn')}</option>
+              <option value="review">{t('consultantCloseout.followUpKindReview')}</option>
+              <option value="renewal">{t('consultantCloseout.followUpKindRenewal')}</option>
+              <option value="other">{t('consultantCloseout.followUpKindOther')}</option>
+            </select>
+            <input
+              type="text"
+              value={followUpNote}
+              onChange={(event) => setFollowUpNote(event.target.value)}
+              placeholder={t('consultantCloseout.followUpTitle')}
+              aria-label={t('consultantCloseout.followUpTitle')}
+              className="min-w-[160px] flex-1 rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-xs text-white outline-none focus:border-orange-500"
+            />
+            <button
+              type="button"
+              onClick={scheduleFollowUp}
+              disabled={!followUpDue || busy === 'schedule-follow-up'}
+              className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-600 disabled:opacity-60" data-track="ui.d91e4e0189.25"
+            >
+              {t('consultantCloseout.scheduleFollowUp')}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div>
+        {archived ? (
+          <button
+            type="button"
+            onClick={() => runAction('unarchive', () => closeoutApi.unarchiveContractorEngagement(sessionId), 'consultantCloseout.unarchivedToast')}
+            disabled={busy === 'unarchive'}
+            className="rounded-xl border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-white/5 disabled:opacity-60" data-track="ui.d91e4e0189.26"
+          >
+            {t('consultantCloseout.unarchive')}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => runAction('archive', () => closeoutApi.archiveContractorEngagement(sessionId), 'consultantCloseout.archivedToast')}
+              disabled={!closeout?.checklist?.archiveEligible || busy === 'archive'}
+              className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-600 disabled:opacity-60" data-track="ui.d91e4e0189.27"
+            >
+              {t('consultantCloseout.archive')}
+            </button>
+            <p className="mt-1 text-xs text-gray-400">{t('consultantCloseout.archiveHint')}</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Group 10 Slice E (526-530): the consultant's milestone board. Each
 // engagement session shows the deliverables seeded from the approved
 // proposal; the consultant moves milestones forward, delivers drafts
@@ -611,11 +863,16 @@ export default function ConsultantEngagementsSection() {
   const [busy, setBusy] = useState('');
   const [draftNotes, setDraftNotes] = useState({});
   const [uploadVisibility, setUploadVisibility] = useState({});
+  // Group 10 Slice H (541-545): archived engagements are hidden by
+  // default; the toggle loads them instead. Follow-ups due in the next
+  // 30 days sit above the board so the consultant sees them first.
+  const [showArchived, setShowArchived] = useState(false);
+  const [dueFollowUps, setDueFollowUps] = useState([]);
 
   const load = async () => {
     try {
       setLoading(true);
-      const { data } = await deliverablesApi.listMyEngagements();
+      const { data } = await deliverablesApi.listMyEngagements({ archived: showArchived });
       setEngagements(Array.isArray(data?.engagements) ? data.engagements : []);
     } catch {
       toast.error(t('common.errorLoading'));
@@ -624,7 +881,18 @@ export default function ConsultantEngagementsSection() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [showArchived]);
+
+  const loadDueFollowUps = async () => {
+    try {
+      const { data } = await closeoutApi.listContractorFollowUps({ due_within_days: 30 });
+      setDueFollowUps(Array.isArray(data?.followUps) ? data.followUps : []);
+    } catch {
+      setDueFollowUps([]);
+    }
+  };
+
+  useEffect(() => { loadDueFollowUps(); }, []);
 
   const loadBoard = async (sessionId) => {
     const { data } = await deliverablesApi.listContractorDeliverables(sessionId);
@@ -651,6 +919,19 @@ export default function ConsultantEngagementsSection() {
       if (successKey) toast.success(t(successKey));
       await load();
       if (expandedId) await loadBoard(expandedId);
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating'));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const markDueFollowUpDone = async (item) => {
+    setBusy(`due-done-${item.id}`);
+    try {
+      await closeoutApi.updateContractorFollowUp(item.sessionId, item.id, { status: 'done' });
+      toast.success(t('consultantCloseout.followUpDone'));
+      await loadDueFollowUps();
     } catch (err) {
       toast.error(err.response?.data?.error || t('common.errorUpdating'));
     } finally {
@@ -713,6 +994,40 @@ export default function ConsultantEngagementsSection() {
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setShowArchived((prev) => !prev)}
+          className="rounded-xl border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-white/5" data-track="ui.d91e4e0189.28"
+        >
+          {showArchived ? t('consultantCloseout.hideArchived') : t('consultantCloseout.showArchived')}
+        </button>
+      </div>
+      {dueFollowUps.length > 0 && (
+        <div className="rounded-2xl border border-gray-800 bg-[#111318] p-4">
+          <h4 className="text-sm font-semibold text-white">{t('consultantCloseout.dueSoonTitle')}</h4>
+          <ul className="mt-2 space-y-1">
+            {dueFollowUps.map((item) => (
+              <li key={item.id} className="flex items-center justify-between gap-2 text-xs text-gray-300">
+                <span>
+                  {item.businessName || item.clientName || item.sessionId}
+                  {' • '}
+                  {t('consultantCloseout.dueLabel', { date: String(item.dueAt).slice(0, 10) })}
+                  {item.note ? ` • ${item.note}` : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => markDueFollowUpDone(item)}
+                  disabled={busy === `due-done-${item.id}`}
+                  className="font-semibold text-emerald-300 hover:text-emerald-200 disabled:opacity-60" data-track="ui.d91e4e0189.29"
+                >
+                  {t('consultantCloseout.markDone')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {engagements.map((engagement) => {
         const sessionId = String(engagement.id);
         const board = boards[sessionId] || [];
@@ -732,6 +1047,12 @@ export default function ConsultantEngagementsSection() {
                   {tx(`consultantDeliverable.sessionStatus.${engagement.status}`, engagement.status)}
                   {' • '}
                   {tx('consultantDeliverable.acceptedCount', '{{accepted}} of {{total}} milestones accepted', { accepted: engagement.accepted_count ?? 0, total: engagement.deliverable_count ?? 0 })}
+                  {engagement.status === 'archived' && (
+                    <>
+                      {' • '}
+                      <span className="font-semibold text-gray-300">{t('consultantCloseout.archived')}</span>
+                    </>
+                  )}
                 </span>
               </span>
               <span className="text-xs font-semibold text-orange-400">{expanded ? '−' : '+'}</span>
@@ -888,6 +1209,11 @@ export default function ConsultantEngagementsSection() {
                 <EngagementConfidentiality
                   sessionId={sessionId}
                   deliverables={board}
+                  onChanged={async () => { await load(); if (expandedId) await loadBoard(expandedId); }}
+                />
+                <EngagementCloseout
+                  sessionId={sessionId}
+                  sessionStatus={engagement.status}
                   onChanged={async () => { await load(); if (expandedId) await loadBoard(expandedId); }}
                 />
               </div>
