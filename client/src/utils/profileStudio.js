@@ -43,6 +43,9 @@ export function buildHelperSectionCompleteness({
   // Keep the pure helper compatible with callers/tests that still provide the
   // persisted weekly template instead of the derived boolean.
   availability_json,
+  // Items 156/159: skills and qualifications sections.
+  skillsCount = 0,
+  qualifications = false,
 } = {}) {
   const availabilityTemplate = availability_json ?? core.availability_json;
   const derivedSchedule = availabilityTemplate && typeof availabilityTemplate === 'object'
@@ -57,6 +60,8 @@ export function buildHelperSectionCompleteness({
     basics: !!(core.profile_headline && core.bio_long && core.hourly_rate_min),
     hours: hoursOpen,
     services: Number(servicesCount) > 0,
+    skills: Number(skillsCount) > 0,
+    qualifications: !!qualifications,
     faqs: Number(faqsCount) > 0,
     policies: Number(policiesCount) > 0,
     gallery: Number(galleryCount) > 0,
@@ -127,6 +132,12 @@ export function serializeHelperCore(core) {
     service_city: core?.service_city || '',
     service_state: core?.service_state || '',
     is_available_now: !!core?.is_available_now,
+    // Item 159: qualifications ride the core save; include them so the
+    // sticky save bar marks the tab dirty when they change.
+    is_licensed: !!core?.is_licensed,
+    is_insured: !!core?.is_insured,
+    license_details: JSON.stringify(core?.license_details || []),
+    insurance_details: JSON.stringify(core?.insurance_details || []),
   });
 }
 

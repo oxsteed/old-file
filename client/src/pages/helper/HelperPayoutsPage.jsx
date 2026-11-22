@@ -246,14 +246,131 @@ function PayoutMethodsSection() {
   );
 }
 
+// Item 155: one payout-readiness checklist. Identity, terms, W-9, Connect
+// and the Credit default each lived on a different surface; this section
+// shows all five with per-item status on /helper/payouts, driven by the
+// onboarding status and the Connect status. The Connect start button posts
+// to /payments/connect in place; the old setup link dropped the helper on
+// the invoices list.
+function PayoutReadinessChecklist({ onStartConnect, startingConnect }) {
+  const { t } = useTranslation();
+  const [checklist, setChecklist] = useState({ status: 'loading', onboarding: null, connect: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [onboarding, connect] = await Promise.allSettled([
+        api.get('/helper-registration/onboarding/status'),
+        api.get('/payments/connect/status'),
+      ]);
+      if (cancelled) return;
+      setChecklist({
+        status: 'ready',
+        onboarding: onboarding.status === 'fulfilled' ? onboarding.value.data : null,
+        connect: connect.status === 'fulfilled' ? connect.value.data : null,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const { onboarding, connect } = checklist;
+  const identityDone = onboarding?.id_verified === true;
+  const termsDone = onboarding?.terms_accepted === true;
+  const w9Done = onboarding?.w9_completed === true;
+  const connectDone = connect?.connected === true;
+  const payoutsDone = connect?.payouts_enabled === true;
+  const doneCount = [identityDone, termsDone, w9Done, connectDone, payoutsDone].filter(Boolean).length;
+  const rows = [
+    {
+      key: 'identity',
+      done: identityDone,
+      label: t('helperPayouts.readiness.identity'),
+      action: identityDone ? null : <Link to="/verify-identity" className="text-sm font-semibold text-orange-400">{t('helperPayouts.readiness.verifyIdentity')}</Link>,
+    },
+    {
+      key: 'terms',
+      done: termsDone,
+      label: t('helperPayouts.readiness.terms'),
+      action: termsDone ? null : <Link to="/jobs" className="text-sm font-semibold text-orange-400">{t('helperPayouts.readiness.acceptTerms')}</Link>,
+    },
+    {
+      key: 'w9',
+      done: w9Done,
+      label: t('helperPayouts.readiness.w9'),
+      action: w9Done ? null : <Link to="/settings?tab=tax" className="text-sm font-semibold text-orange-400">{t('helperPayouts.readiness.completeW9')}</Link>,
+    },
+    {
+      key: 'connect',
+      done: connectDone,
+      label: t('helperPayouts.readiness.connect'),
+      action: connectDone ? null : (
+        <button type="button" onClick={onStartConnect} disabled={startingConnect || !identityDone || !termsDone} title={!identityDone || !termsDone ? t('helperPayouts.readiness.connectNeedsBasics') : undefined} className="text-sm font-semibold text-orange-400 disabled:opacity-50" data-track="ui.ac312e2612.3">
+          {startingConnect ? t('helperPayouts.readiness.startingConnect') : t('helperPayouts.readiness.startConnect')}
+        </button>
+      ),
+    },
+    {
+      key: 'payoutsEnabled',
+      done: payoutsDone,
+      label: t('helperPayouts.readiness.payoutsEnabled'),
+      action: null,
+    },
+  ];
+
+  return (
+    <section aria-labelledby="payout-readiness-title" className="rounded-2xl border border-gray-700 bg-gray-900 p-5">
+      <h2 id="payout-readiness-title" className="text-base font-semibold text-white">{t('helperPayouts.readiness.title')}</h2>
+      <p className="mt-1 text-sm text-gray-400">{t('helperPayouts.readiness.intro', { done: doneCount, total: rows.length })}</p>
+      {checklist.status === 'loading' ? (
+        <p role="status" className="mt-3 text-sm text-gray-400">{t('helperPayouts.loading')}</p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {rows.map((row) => (
+            <li key={row.key} className="flex items-center justify-between gap-3 text-sm">
+              <span className="flex items-center gap-2 text-gray-200">
+                <span className={row.done ? 'font-semibold text-emerald-400' : 'font-semibold text-amber-300'}>
+                  {row.done ? t('helperPayouts.readiness.done') : t('helperPayouts.readiness.pending')}
+                </span>
+                {row.label}
+              </span>
+              {row.action}
+            </li>
+          ))}
+        </ul>
+      )}
+      {!connectDone && checklist.status === 'ready' && (
+        <p className="mt-4 text-sm text-gray-400">{t('helperPayouts.readiness.creditDefault')}</p>
+      )}
+    </section>
+  );
+}
+
 // Review P2-481: helper payout balance and instant payout.
 export default function HelperPayoutsPage() {
   const { t } = useTranslation();
   const [state, setState] = useState({ status: 'loading', data: null });
   const [paying, setPaying] = useState(false);
+  const [startingConnect, setStartingConnect] = useState(false);
   // Review P2-2-F08: the requireTaxIdentity gate 403s with code
   // tax_identity_required; surface the W-9 path instead of a dead end.
   const [taxBlocked, setTaxBlocked] = useState(false);
+
+  // Item 155: start Stripe Connect onboarding in place instead of linking
+  // away. The server returns the Stripe onboarding URL; a helper whose
+  // onboarding is not active yet gets the server's step error as a toast.
+  async function startConnect() {
+    setStartingConnect(true);
+    try {
+      const { data } = await api.post('/payments/connect');
+      const url = data?.onboarding_url || data?.url;
+      if (url) window.location.href = url;
+      else toast.error(t('helperPayouts.readiness.connectStartFailed'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('helperPayouts.readiness.connectStartFailed'));
+    } finally {
+      setStartingConnect(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setState({ status: 'loading', data: null });
@@ -302,6 +419,7 @@ export default function HelperPayoutsPage() {
       <Navbar />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
         <h1 className="text-2xl font-bold text-white">{t('helperPayouts.title')}</h1>
+        <PayoutReadinessChecklist onStartConnect={startConnect} startingConnect={startingConnect} />
         {/* Review P2-2-F08: W-9 compliance path when the tax-identity gate blocks payouts. */}
         {showTaxBanner && (
           <div role="alert" className="rounded-2xl border border-amber-700 bg-amber-950/50 p-5 text-amber-200">
@@ -322,7 +440,9 @@ export default function HelperPayoutsPage() {
         {state.status === 'success' && !d?.connected && (
           <div className="rounded-2xl border border-gray-700 bg-gray-900 p-5 text-gray-300">
             <p>{t('helperPayouts.notConnected')}</p>
-            <Link to="/invoices" className="mt-2 inline-block font-semibold text-orange-400">{t('helperPayouts.setup')}</Link>
+            <button type="button" onClick={startConnect} disabled={startingConnect} className="mt-2 inline-block font-semibold text-orange-400 disabled:opacity-50" data-track="ui.ac312e2612.4">
+              {startingConnect ? t('helperPayouts.readiness.startingConnect') : t('helperPayouts.setup')}
+            </button>
           </div>
         )}
         {state.status === 'success' && d?.connected && (

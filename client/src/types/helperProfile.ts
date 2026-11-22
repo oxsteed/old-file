@@ -60,6 +60,12 @@ export interface HelperProfile {
   isAvailableNow?: boolean;
   /** Helper's listed specializations/skills */
   specializations?: string[];
+  /** Skills the helper listed themselves (item 156, helper_skills rows) */
+  skills?: string[];
+  /** License detail entries the helper listed (item 159) */
+  licenses?: Array<{ name: string; number?: string; issuer?: string; expires_at?: string; state?: string }>;
+  /** Insurance detail entries the helper listed (item 159) */
+  insurance?: Array<{ name: string; number?: string; issuer?: string; expires_at?: string; state?: string }>;
   /** "online" | "offline" | "away" */
   availabilityStatus?: 'online' | 'offline' | 'away';
   /** Total jobs attempted */

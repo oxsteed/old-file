@@ -402,3 +402,51 @@ Items 546-550 built backend + UI together, with acceptance tests in `server/__te
 - Whether a no-show session should count as booked utilization (today it does not; D-149 records the current behavior).
 - Whether the earnings report should gain a CSV export (not built).
 - G10-8 (consultant sets their own OxSteed cut, clamp allows 0) is not changed here; the earnings split uses whatever cut is stored.
+
+### Group 4 survey (items 151-200) — surveyed 2026-11-22 at d3c941006
+
+Surveyed each item against the current tree before building, verifying the
+Nov 21 daily audit's per-item verdicts firsthand by marker checks (route
+and file existence, zero-hit greps for the missing legs, response-shape
+reads). Verdicts hold at this tip: **13 BUILT / 31 PARTIAL / 6 MISSING**.
+Nothing already built is rebuilt. The 13 BUILT: 151, 152, 154, 157, 158,
+160, 161, 162, 166, 167, 178, 188, 191. The 6 MISSING: 194 (skill
+endorsements — no code anywhere) and 196-200 (the whole grow-into-ownership
+slice). The 31 PARTIAL cluster on: missing notifications on counterparty
+flows (169, 179, 183, 191's request leg is built but silent), enforcement
+that exists on the booking path but not the job-hire path (171, 174),
+helper-facing settings with no UI or no write path (156, 159, 173),
+server-only surfaces with no client caller (187), and split sources of
+truth (153, 163, 180).
+
+Blocked on Emile's call (NOT built in this wave, recorded as open calls):
+194 needs the endorsement model (who endorses, where it shows; G4-21);
+196-200 need the ownership carry-over model (what, if anything, carries
+from helper history into a new business; G4-20). Item 175 is built as
+manual travel blocks on the availability calendar (decision recorded with
+Slice D) because computed per-trip travel time needs a routing provider,
+which is Emile's Coolify domain; the fixed-gap default stays. Item 183 is built as
+notifications on propose/decide only; the agreement-less scope-change path
+stays an open call (G4-22). Audit findings (G4-1..G4-39, R1-R10, G10)
+overlap these items but are NOT claimed closed here; they stay open
+pending Emile's item-by-item picks and re-verification against the new head.
+
+### Group 4 Slice A: Get approved, polished (items 153, 155, 156, 159, 160) — built 2026-11-22
+
+Items 153, 155, 156, 159, 160 built backend + UI together, with acceptance
+tests in `server/__tests__/group4SliceAGetApproved.db.test.js`. No new
+migration: skills write into the existing `helper_skills` table and
+qualifications into the existing `helper_profiles` columns
+(`is_licensed`, `is_insured`, `license_details`, `insurance_details`).
+Audit overlaps G4-9, G4-18, G4-19, G4-24, G4-31 are the same gaps these
+items close as roadmap work; none is claimed closed as an audit finding.
+
+- **D-153. Identity status is derived from activation facts, not the Stripe table alone (item 153).** `GET /verification/identity/status` now returns `{identity, verified, submitted, source, didit_status}` where `verified` uses the same `isIdentityVerified` helper activation uses (legacy `id_verified`/`identity_verified` columns or a verified Didit check), so a Didit-verified helper no longer reads as unverified. The Stripe row is still returned as `identity` for its detail. The dashboard renders an Identity card from `verified` with a link to `/verify-identity` when pending; the ApplicationsPage activation list deep-links each missing requirement (identity to `/verify-identity`, terms to `/jobs`, payout setup to `/helper/payouts`). Flip: go back to the Stripe-only read (would re-break Didit-verified helpers).
+- **D-154. The payout-readiness checklist composes existing endpoints; the Credit default is stated on the page (item 155).** The checklist on `/helper/payouts` reads `GET /helper-registration/onboarding/status` (identity, terms, W-9) and `GET /payments/connect/status` (connected, payouts enabled) and shows all five rows with per-item status and an in-place action. The Stripe Connect start button POSTs `/payments/connect` and follows the returned onboarding URL instead of linking to `/invoices`; it is disabled until identity and terms are done because the endpoint requires active onboarding. When Connect is absent the page states plainly that payouts default to OxSteed Credit (Emile's 2026-11-19 decision). Flip: hide the Credit-default note until the flags are live (would leave the helper guessing which rail pays them).
+- **D-155. Skills are category-backed rows the helper owns (item 156).** `GET/POST/DELETE /helper-profile/skills` plus `GET /helper-profile/skills/categories` (active categories from the shared table). A skill needs an existing active category, a name (max 100 chars), and optional years 0-60; the `(user_id, category_id, skill_name)` unique constraint surfaces as a 409 `skill_duplicate`. Deletes are own-row only (404 otherwise). The public profile returns the skill names and the editor lives in the profile studio; discovery already matched on `helper_skills`, so saved skills immediately affect matching. Flip: free-text categories instead of the shared table (would fork the taxonomy discovery matches on).
+- **D-156. Qualifications ride the core save as JSON detail lists (item 159).** `PUT /helper-profile/core` accepts `is_licensed`, `is_insured`, `license_details`, and `insurance_details`; each detail entry needs a `name` (max 100 chars) with optional `number`/`issuer`/`expires_at`/`state` (max 200 chars), max 20 entries, stored as JSON in the existing TEXT columns. Absent fields preserve stored values; an empty array clears. `GET /helper-profile/me` returns the lists parsed as arrays, and the public profile response now carries `licenses` and `insurance` alongside `skills` (see D-158). The editor lives in the profile studio; the public page renders the lists under Licenses & insurance. Flip: separate license/insurance tables (would add a migration and a second write path for data the profile already stored).
+- **D-157. The availability headline goes dark when the helper toggled off (item 160).** `GET /helpers/:id/availability/summary` now returns the raw `isAvailableNow` toggle alongside `isOnline` (which also counts socket presence). The profile headline shows "Currently unavailable" with tone `off` when the toggle is false, even while the template shows open hours; the day grid and the online dot are unchanged. Flip: keep the headline template-only (would keep showing "Open now" to a helper who paused new work).
+- **D-158. The public profile response now carries skills, licenses, and insurance (items 156/159).** The directory list already returned these fields, but `GET /helpers/:id/profile` did not, so the profile page had nothing to render even though the data existed. The response now includes `skills` (skill names from `helper_skills`), `licenses`, and `insurance` (parsed detail lists). No new query: the skill rows were already fetched for categories. Flip: leave the profile response unchanged (would leave the new editor and display with no public surface).
+
+**Open calls awaiting Emile (Group 4 Slice A):**
+- Whether the fixed travel gap (item 175) is accepted as the delivery for "travel time blocks" or real per-trip travel time is wanted (today the gap only; the Slice D build adds manual travel blocks; computed travel time needs a routing provider, which is Emile's Coolify domain).

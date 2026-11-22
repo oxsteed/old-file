@@ -32,6 +32,44 @@ function parseBufferMinutes(value) {
   return parsed;
 }
 
+// Item 159: license_details / insurance_details are TEXT columns holding a
+// JSON array (read back by helpersController.parseJsonList). Parse leniently:
+// anything unparseable reads as an empty list.
+function parseJsonList(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// Item 159: validate a license/insurance detail list. Returns undefined when
+// the field was not sent (preserve), null when invalid, or the JSON string
+// to store. Each entry needs a name (max 100 chars); number, issuer,
+// expires_at and state are optional strings (max 200 chars). Max 20 entries.
+function safeDetailList(value) {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value) || value.length > 20) return null;
+  const cleaned = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+    if (typeof item.name !== 'string' || !item.name.trim() || item.name.trim().length > 100) return null;
+    for (const key of ['number', 'issuer', 'expires_at', 'state']) {
+      if (item[key] !== undefined && (typeof item[key] !== 'string' || item[key].length > 200)) return null;
+    }
+    cleaned.push({
+      name: item.name.trim(),
+      ...(item.number ? { number: String(item.number).slice(0, 200) } : {}),
+      ...(item.issuer ? { issuer: String(item.issuer).slice(0, 200) } : {}),
+      ...(item.expires_at ? { expires_at: String(item.expires_at).slice(0, 200) } : {}),
+      ...(item.state ? { state: String(item.state).slice(0, 200) } : {}),
+    });
+  }
+  return JSON.stringify(cleaned);
+}
+
 const coverUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -60,6 +98,7 @@ router.get('/me', helperOnly, async (req, res) => {
               booking_buffer_minutes, is_listed,
               flat_rate_available, contact_for_pricing,
               is_available_now, response_rate,
+              is_licensed, is_insured, license_details, insurance_details,
               show_services, show_faqs, show_policies, show_gallery, show_hours,
               ai_knowledge,
               profile_slug, profile_slug_updated_at,
@@ -70,6 +109,9 @@ router.get('/me', helperOnly, async (req, res) => {
       [uid],
     );
     if (!hp) return res.status(404).json({ error: 'Helper profile not found' });
+    // Item 159: the editor works with arrays, not the stored JSON strings.
+    hp.license_details = parseJsonList(hp.license_details);
+    hp.insurance_details = parseJsonList(hp.insurance_details);
 
     const [svcRes, faqRes, polRes, galRes] = await Promise.all([
       pool.query('SELECT * FROM helper_services WHERE user_id=$1 AND is_active=true ORDER BY sort_order,id', [uid]),
@@ -117,6 +159,10 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
       is_available_now,
       ai_knowledge,
       booking_buffer_minutes,
+      is_licensed,
+      is_insured,
+      license_details,
+      insurance_details,
     } = req.body;
 
     let safeAiKnowledge = undefined;
@@ -135,12 +181,21 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
       return res.status(400).json({ error: 'booking_buffer_minutes must be an integer between 0 and 240' });
     }
 
+    // Item 159: qualifications ride the core save so the editor has one
+    // save path. Undefined preserves the stored value; an empty array clears.
+    const safeLicenseDetails = safeDetailList(license_details);
+    const safeInsuranceDetails = safeDetailList(insurance_details);
+    if (safeLicenseDetails === null || safeInsuranceDetails === null) {
+      return res.status(400).json({ error: 'license_details and insurance_details must be arrays of at most 20 entries with a name (max 100 chars)' });
+    }
+
     await pool.query(
       `INSERT INTO helper_profiles (user_id, profile_headline, bio_long, bio_short,
           hourly_rate_min, hourly_rate_max, rate_preference, flat_rate_available, contact_for_pricing,
           service_city, service_state, service_zip, service_radius_miles,
-          is_available_now, ai_knowledge, booking_buffer_minutes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,FALSE),COALESCE($9,FALSE),$10,$11,$12,COALESCE($13,10),COALESCE($14,FALSE),$15,COALESCE($17::integer,0))
+          is_available_now, ai_knowledge, booking_buffer_minutes,
+          is_licensed, is_insured, license_details, insurance_details)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,FALSE),COALESCE($9,FALSE),$10,$11,$12,COALESCE($13,10),COALESCE($14,FALSE),$15,COALESCE($17::integer,0),COALESCE($18,FALSE),COALESCE($19,FALSE),$20,$21)
        ON CONFLICT (user_id) DO UPDATE SET
          profile_headline    = COALESCE($2,  helper_profiles.profile_headline),
          bio_long            = COALESCE($3,  helper_profiles.bio_long),
@@ -162,6 +217,10 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
          END,
          ai_knowledge        = CASE WHEN $16::boolean THEN $15 ELSE helper_profiles.ai_knowledge END,
          booking_buffer_minutes = COALESCE($17, helper_profiles.booking_buffer_minutes),
+         is_licensed         = COALESCE($18, helper_profiles.is_licensed),
+         is_insured          = COALESCE($19, helper_profiles.is_insured),
+         license_details     = COALESCE($20, helper_profiles.license_details),
+         insurance_details   = COALESCE($21, helper_profiles.insurance_details),
          updated_at          = NOW()`,
       [
         uid,
@@ -183,6 +242,10 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
         safeAiKnowledge !== undefined ? safeAiKnowledge : null,
         safeAiKnowledge !== undefined,
         safeBufferMinutes === undefined ? null : safeBufferMinutes,
+        is_licensed != null ? !!is_licensed : null,
+        is_insured != null ? !!is_insured : null,
+        safeLicenseDetails === undefined ? null : safeLicenseDetails,
+        safeInsuranceDetails === undefined ? null : safeInsuranceDetails,
       ],
     );
 
@@ -461,6 +524,96 @@ router.delete('/services/:id', helperOnly, async (req, res) => {
   } catch (err) {
     logger.error('[helperProfile] DELETE /services/:id', { err: err.message });
     res.status(500).json({ error: 'Failed to delete service' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Skills (item 156)
+// The helper_skills table existed with no server write path outside
+// migrations/tests: discovery matched on skills the helper could never set.
+// These routes give the helper a builder: pick an active category, name the
+// skill, optionally record years of experience. The public profile already
+// renders helper_skills rows (helpersController), so a saved skill is
+// visible there without further work.
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.get('/skills/categories', helperOnly, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, slug FROM categories WHERE is_active = TRUE ORDER BY sort_order, name`
+    );
+    res.json(rows);
+  } catch (err) {
+    logger.error('[helperProfile] GET /skills/categories', { err: err.message });
+    res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
+router.get('/skills', helperOnly, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT hs.id, hs.category_id, c.name AS category_name, c.slug AS category_slug,
+              hs.skill_name, hs.years_exp, hs.created_at
+         FROM helper_skills hs
+         JOIN categories c ON c.id = hs.category_id
+        WHERE hs.user_id = $1
+        ORDER BY c.sort_order, c.name, hs.skill_name`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    logger.error('[helperProfile] GET /skills', { err: err.message });
+    res.status(500).json({ error: 'Failed to fetch skills' });
+  }
+});
+
+router.post('/skills', helperOnly, generalLimiter, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const { category_id, skill_name, years_exp } = req.body;
+    const categoryId = parseInt(category_id, 10);
+    const name = typeof skill_name === 'string' ? skill_name.trim() : '';
+    if (!Number.isInteger(categoryId) || !name || name.length > 100) {
+      return res.status(400).json({ error: 'category_id and skill_name (max 100 chars) are required' });
+    }
+    const years = years_exp == null || years_exp === '' ? null : parseInt(years_exp, 10);
+    if (years !== null && (!Number.isInteger(years) || years < 0 || years > 60)) {
+      return res.status(400).json({ error: 'years_exp must be an integer between 0 and 60' });
+    }
+    const { rows: [cat] } = await pool.query(
+      'SELECT id FROM categories WHERE id = $1 AND is_active = TRUE', [categoryId]
+    );
+    if (!cat) return res.status(400).json({ error: 'Unknown category' });
+    try {
+      const { rows: [skill] } = await pool.query(
+        `INSERT INTO helper_skills (user_id, category_id, skill_name, years_exp)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [uid, categoryId, name, years]
+      );
+      res.status(201).json(skill);
+    } catch (err) {
+      if (err.code === '23505') {
+        return res.status(409).json({ error: 'Skill already added', code: 'skill_duplicate' });
+      }
+      throw err;
+    }
+  } catch (err) {
+    logger.error('[helperProfile] POST /skills', { err: err.message });
+    res.status(500).json({ error: 'Failed to add skill' });
+  }
+});
+
+router.delete('/skills/:id', helperOnly, async (req, res) => {
+  try {
+    const { rows: [r] } = await pool.query(
+      'DELETE FROM helper_skills WHERE id = $1 AND user_id = $2 RETURNING id',
+      [req.params.id, req.user.id]
+    );
+    if (!r) return res.status(404).json({ error: 'Skill not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('[helperProfile] DELETE /skills/:id', { err: err.message });
+    res.status(500).json({ error: 'Failed to delete skill' });
   }
 });
 

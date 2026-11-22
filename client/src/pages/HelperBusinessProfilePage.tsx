@@ -20,7 +20,7 @@ import ProfileJsonLd from '../components/ProfileJsonLd';
 import JsonLd, { buildBreadcrumbList, buildFaqPage } from '../components/JsonLd';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
 import ProfileShareControls from '../components/helperProfile/ProfileShareControls';
-import { Flag, GraduationCap } from 'lucide-react';
+import { Award, Flag, GraduationCap, Shield, Wrench } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import usePromotionVisitBeacon from '../hooks/usePromotionVisitBeacon';
@@ -489,6 +489,80 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
                       {b.label}
                     </span>
                   ))}
+                </div>
+              </section>
+            )}
+
+            {/* ── Skills the helper listed themselves (item 156) ── */}
+            {helper.skills && helper.skills.length > 0 && (
+              <section
+                aria-labelledby="skills-heading"
+                className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-6 py-5"
+              >
+                <h2 id="skills-heading" className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+                  <Wrench size={16} className="text-orange-500" />
+                  {t('helperProfile.skillsTitle')}
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {helper.skills.map((s: string) => (
+                    <span
+                      key={s}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-800 text-gray-200 border border-gray-700"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ── Licenses and insurance (item 159) ── */}
+            {((helper.licenses && helper.licenses.length > 0) || (helper.insurance && helper.insurance.length > 0)) && (
+              <section
+                aria-labelledby="qualifications-heading"
+                className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-6 py-5"
+              >
+                <h2 id="qualifications-heading" className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+                  <Award size={16} className="text-orange-500" />
+                  {t('helperProfile.licensesTitle')}
+                </h2>
+                <div className="space-y-4">
+                  {helper.licenses && helper.licenses.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('helperProfile.licensesTitle')}</p>
+                      <ul className="space-y-2">
+                        {helper.licenses.map((lic: { name: string; number?: string; issuer?: string; expires_at?: string; state?: string }, i: number) => (
+                          <li key={i} className="text-sm text-gray-300">
+                            <span className="font-medium text-white">{lic.name}</span>
+                            {[lic.number, lic.issuer, lic.state].filter(Boolean).join(' · ') && (
+                              <span className="text-gray-400"> — {[lic.number, lic.issuer, lic.state].filter(Boolean).join(' · ')}</span>
+                            )}
+                            {lic.expires_at && (
+                              <span className="block text-xs text-gray-500">{t('helperProfile.licenseExpires', { date: new Date(lic.expires_at).toLocaleDateString() })}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {helper.insurance && helper.insurance.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Shield size={12} className="text-orange-500" />
+                        {t('helperProfile.insuranceTitle')}
+                      </p>
+                      <ul className="space-y-2">
+                        {helper.insurance.map((ins: { name: string; number?: string; issuer?: string; expires_at?: string; state?: string }, i: number) => (
+                          <li key={i} className="text-sm text-gray-300">
+                            <span className="font-medium text-white">{ins.name}</span>
+                            {[ins.number, ins.issuer, ins.state].filter(Boolean).join(' · ') && (
+                              <span className="text-gray-400"> — {[ins.number, ins.issuer, ins.state].filter(Boolean).join(' · ')}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </section>
             )}
