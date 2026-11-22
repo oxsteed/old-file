@@ -217,8 +217,17 @@ const requireInvestorCapability = requireCapability('investor.reporting', {
 // Participation is always admission-controlled. Unlike reporting's legacy
 // rollout flag, an authenticated customer must have an explicit, active
 // investor.participate grant before creating applications or commitments.
+// Activation is deliberately tolerated here (same pattern as the helper
+// setup gate): three of investor.participate's declared activation
+// requirements (authority_verified, eligibility_verified,
+// agreement_accepted) are per-opportunity and can never be satisfied
+// from account facts (see activation.js), so a strict gate would refuse
+// every admitted investor. The invest controller rechecks identity,
+// authority, eligibility and agreement acceptance per opportunity at
+// commit and at closing; a missing or revoked grant still fails shut.
 const requireInvestorParticipationCapability = requireCapability('investor.participate', {
   modeFn: () => 'enforce',
+  allowActivationIncomplete: true,
 });
 const requireFranchiseCapability = requireCapability('franchise.operate', {
   modeFn: flags.franchiseEnforcement,

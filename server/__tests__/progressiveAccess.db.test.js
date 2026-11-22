@@ -132,12 +132,27 @@ ddescribe('progressive access (real database, mounted routes)', () => {
 
   test('approved investor access creates a scoped audience and expires cleanly (WP-077)', async () => {
     const u = await newUser('investor-applicant');
-    const created = await as(u).post('/api/me/access-requests', {
+    // Investor reporting is invite-only since 76d1de5a1: the public
+    // access-request flow must never mint it, so filing here is refused.
+    const refused = await as(u).post('/api/me/access-requests', {
       capability: 'investor.reporting',
       answers: { audience: 'quarterly board', requestedReports: ['overview', 'revenue'], about: 'Board reporting' },
     });
-    expect(created.status).toBe(201);
-    const id = created.body.request.id;
+    expect(refused.status).toBe(403);
+    expect(refused.body.code).toBe('access_request_not_available');
+    // An admitted investor's request reaches review through the
+    // invitation path; seed the draft directly and exercise the real
+    // submit/approve/audience/expiry behavior below.
+    const { rows: seeded } = await pool.query(
+      `INSERT INTO access_requests
+         (applicant_id, capability, subject_type, subject_id, subject_key, status, policy_version,
+          answers, source, return_to)
+       VALUES ($1, 'investor.reporting', 'self', NULL, 'self', 'draft', 'investor-policy-2',
+          $2::jsonb, 'in_context', NULL)
+       RETURNING id`,
+      [u, JSON.stringify({ audience: 'quarterly board', requestedReports: ['overview', 'revenue'], about: 'Board reporting' })],
+    );
+    const id = seeded[0].id;
     const submitted = await as(u).post(`/api/me/access-requests/${id}/submit`, { expectedVersion: 1 });
     expect(submitted.status).toBe(200);
     const approved = await as(investorReviewer).post(`/api/admin/access-requests/${id}/decision`, { decision: 'approve', expectedVersion: 2 });
