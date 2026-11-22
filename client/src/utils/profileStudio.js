@@ -5,6 +5,8 @@ export const HELPER_SECTION_IDS = [
   'basics',
   'hours',
   'services',
+  'skills',
+  'qualifications',
   'faqs',
   'policies',
   'gallery',
