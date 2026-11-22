@@ -219,7 +219,9 @@ test('standalone and native modal layouts, light/dark, RTL, zoom and focus',asyn
       assert.equal(await page.locator('#ageConfirmed').isChecked(),false);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`overflow ${embedded}/${width}/${dark}`);
       assert.equal(await page.locator('label[for="password"]').count(),1);
-      assert.equal(await page.locator('input[type="radio"]').count(),18);
+      // Investor reporting is private and invite-only, so the public picker
+      // contains the remaining 17 catalog paths only.
+      assert.equal(await page.locator('input[type="radio"]').count(),17);
       assert.equal(await page.locator('.signup-common-goals input').count(),3);
       assert.equal(await page.locator('.signup-more-goals').getAttribute('open'),null);
       assert.equal(await page.locator('input[type=radio]:visible').count(),3);
@@ -309,7 +311,7 @@ test('goal-first discovery keeps every catalog path and direct links skip discov
     await open(page, app.url+'/join');
     const more=page.getByText('More ways to use OxSteed',{exact:true});
     await more.focus();await page.keyboard.press('Enter');
-    assert.equal(await page.locator('input[type=radio]:visible').count(),18);
+    assert.equal(await page.locator('input[type=radio]:visible').count(),17);
     await page.getByText('Consult for clients',{exact:true}).click();
     await page.reload();await page.locator('#email').waitFor();
     assert.equal(await page.locator('input[value=consult]').isVisible(),true,'specialized draft stays discoverable');
