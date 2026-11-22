@@ -366,7 +366,7 @@ function ApplicationsDisclosure({ items, mode }) {
   const { open, setOpen, containerRef, triggerRef, panelId } = useNavDisclosure(mode);
   return (
     <div ref={containerRef} data-nav-disclosure className="ox-nav-account">
-      <button ref={triggerRef} type="button" className="ox-btn ox-btn-ghost ox-btn-sm ox-nav-account-trigger" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}>
+      <button ref={triggerRef} type="button" className="ox-btn ox-btn-ghost ox-btn-sm ox-nav-account-trigger" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)} data-track="ui.0b9e115b87.6">
         {t('nav.myApplications')} <span aria-hidden="true">⌄</span>
       </button>
       {open && (
