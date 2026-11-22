@@ -64,3 +64,29 @@ Validation:
 These checks do not substitute for the full GitHub Linux/AMD64 Media harness
 or production acceptance. No production settings, deployments, or permissions
 were changed.
+
+## Customer 360 pagination follow-up
+
+The latest PR head `71ea9cc09b1a3f04214bae1d6b6addb1dc8814ba` failed server CI
+run [44945862722](https://github.com/oxsteed/old-file/actions/runs/44945862722)
+only in `customer360EventLog.db.test.js`. The first page returned a cursor but
+the shared disposable database could leave no deterministic second page for
+that test's customer, so the pagination assertion dereferenced an empty page.
+
+The test now appends one uniquely keyed login event immediately before the
+pagination checks. This keeps the source-capture assertions intact while
+guaranteeing a real follow-up page when the full server suite shares the
+disposable database. Production event-log behavior is unchanged.
+
+Verification on the task-owned Colima PostgreSQL fixture (loopback port 32800,
+database `credit_statement_test`):
+
+```sh
+DATABASE_URL='postgresql://postgres@127.0.0.1:32800/credit_statement_test?sslmode=disable' \
+CUSTOMER360_TEST_DATABASE_URL='postgresql://postgres@127.0.0.1:32800/credit_statement_test?sslmode=disable' \
+npm --prefix server test -- --runInBand __tests__/customer360EventLog.db.test.js
+```
+
+Result: 1 suite / 6 tests passed. `git diff --check` passed. GitHub CI for the
+repair commit remains the final remote verification; nothing is merged or
+deployed.

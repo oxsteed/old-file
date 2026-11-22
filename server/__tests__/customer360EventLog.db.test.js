@@ -129,6 +129,21 @@ describeDatabase('customer360 unified event log', () => {
   });
 
   test('list filters by viewer sources and paginates; replay folds state', async () => {
+    // Keep the pagination assertion deterministic even when the shared
+    // disposable database has been exercised by earlier suites. The captured
+    // source rows above are still verified; this row only guarantees that the
+    // first page has a subsequent cursor page to read.
+    await events.append(null, {
+      customerId: customer,
+      source: 'login',
+      type: 'login.succeeded',
+      actorType: 'customer',
+      actorId: customer,
+      entityType: 'session',
+      entityId: `pagination-${crypto.randomUUID()}`,
+      changes: {},
+      dedupeKey: `c360-pagination:${crypto.randomUUID()}`,
+    });
     const filter = events.eventFilters({ limit: '2' });
     const page1 = await events.listEvents(customer, filter, ['support', 'login']);
     expect(page1.events).toHaveLength(2);
