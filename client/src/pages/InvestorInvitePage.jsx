@@ -13,12 +13,13 @@ export default function InvestorInvitePage() {
   const [account, setAccount] = useState({ firstName: '', lastName: '', password: '', ageConfirmed: false, termsAccepted: false });
   const [step, setStep] = useState('invite');
   const [message, setMessage] = useState('');
+  const [signInRequired, setSignInRequired] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function verify(event) {
     event.preventDefault();
     if (busy) return;
-    setBusy(true); setMessage('');
+    setBusy(true); setMessage(''); setSignInRequired(false);
     try {
       const { data } = await api.post('/investor-invitations/verify', {
         id: params.get('id') || undefined, email: email.trim(), inviteCode: inviteCode.trim(),
@@ -32,13 +33,14 @@ export default function InvestorInvitePage() {
   async function complete(event) {
     event.preventDefault();
     if (busy) return;
-    setBusy(true); setMessage('');
+    setBusy(true); setMessage(''); setSignInRequired(false);
     try {
       await api.post('/investor-invitations/accept', {
         email: email.trim(), proof, verificationCode: verificationCode.trim(), ...account,
       });
       setStep('done');
     } catch (error) {
+      setSignInRequired(error?.response?.data?.code === 'sign_in_required');
       setMessage(error?.response?.data?.error || 'The invitation could not be verified.');
     } finally { setBusy(false); }
   }
@@ -68,6 +70,7 @@ export default function InvestorInvitePage() {
         </form>}
         {step === 'done' && <div className="mt-6 space-y-3"><p className="text-sm text-gray-300">Your customer account is ready. Your investor admission is pending administrator review; no reporting or investment access has been granted yet.</p><Link className="inline-block rounded-lg border border-orange-500 px-4 py-2 text-orange-300" to="/login">Sign in</Link></div>}
         {message && <p role="alert" className="mt-4 text-sm text-red-300">{message}</p>}
+        {signInRequired && <Link className="mt-3 inline-block text-sm text-orange-300 underline" to="/login">Sign in with the invited email, then return here to finish</Link>}
         <p className="mt-6 text-xs text-gray-500">Do not have an invitation? <Link className="text-orange-300" to="/join">Create a customer account</Link>.</p>
       </div>
     </main>
