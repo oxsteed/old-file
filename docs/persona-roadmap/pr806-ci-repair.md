@@ -73,10 +73,10 @@ only in `customer360EventLog.db.test.js`. The first page returned a cursor but
 the shared disposable database could leave no deterministic second page for
 that test's customer, so the pagination assertion dereferenced an empty page.
 
-The test now appends one uniquely keyed login event immediately before the
-pagination checks. This keeps the source-capture assertions intact while
-guaranteeing a real follow-up page when the full server suite shares the
-disposable database. Production event-log behavior is unchanged.
+The test now creates a private customer and three uniquely keyed login events
+for the pagination checks. This keeps the source-capture assertions intact
+while preventing unrelated shared-database fixtures from changing the cursor
+between page requests. Production event-log behavior is unchanged.
 
 Verification on the task-owned Colima PostgreSQL fixture (loopback port 32800,
 database `credit_statement_test`):

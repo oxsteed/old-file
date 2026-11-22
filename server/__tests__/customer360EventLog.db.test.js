@@ -129,27 +129,28 @@ describeDatabase('customer360 unified event log', () => {
   });
 
   test('list filters by viewer sources and paginates; replay folds state', async () => {
-    // Keep the pagination assertion deterministic even when the shared
-    // disposable database has been exercised by earlier suites. The captured
-    // source rows above are still verified; this row only guarantees that the
-    // first page has a subsequent cursor page to read.
-    await events.append(null, {
-      customerId: customer,
-      source: 'login',
-      type: 'login.succeeded',
-      actorType: 'customer',
-      actorId: customer,
-      entityType: 'session',
-      entityId: `pagination-${crypto.randomUUID()}`,
-      changes: {},
-      dedupeKey: `c360-pagination:${crypto.randomUUID()}`,
-    });
+    // Use a private customer for pagination so unrelated suites that share the
+    // disposable database cannot remove or add rows between cursor requests.
+    const paginationCustomer = await createUser('customer');
+    for (let i = 0; i < 3; i += 1) {
+      await events.append(null, {
+        customerId: paginationCustomer,
+        source: 'login',
+        type: 'login.succeeded',
+        actorType: 'customer',
+        actorId: paginationCustomer,
+        entityType: 'session',
+        entityId: `pagination-${i}-${crypto.randomUUID()}`,
+        changes: {},
+        dedupeKey: `c360-pagination:${i}:${crypto.randomUUID()}`,
+      });
+    }
     const filter = events.eventFilters({ limit: '2' });
-    const page1 = await events.listEvents(customer, filter, ['support', 'login']);
+    const page1 = await events.listEvents(paginationCustomer, filter, ['support', 'login']);
     expect(page1.events).toHaveLength(2);
     expect(page1.events.every((e) => ['support', 'login'].includes(e.source))).toBe(true);
     expect(page1.nextBefore).toBeTruthy();
-    const page2 = await events.listEvents(customer, { ...filter, before: page1.nextBefore }, ['support', 'login']);
+    const page2 = await events.listEvents(paginationCustomer, { ...filter, before: page1.nextBefore }, ['support', 'login']);
     expect(Number(page2.events[0].id)).toBeLessThan(Number(page1.nextBefore) + 1);
     const hidden = await events.listEvents(customer, filter, ['support']);
     expect(hidden.events.some((e) => e.source === 'admin_audit')).toBe(false);
