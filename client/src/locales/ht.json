@@ -25656,6 +25656,77 @@
     "visibilityLimited": "Moun yo te nonmen yo sèlman",
     "visibilityShared": "Pataje ak kliyan an"
   },
+  "consultantPractice": {
+    "deliverables": {
+      "awaitingAcceptance": "Ap tann akseptasyon kliyan an: {{count}}",
+      "empty": "Anyen pa rete. Tout etap yo aksepte.",
+      "label": "Livrezon ki rete",
+      "noDueDate": "Pa gen dat limit",
+      "overdueBy": "{{count}} jou an reta",
+      "title": "Travay ki toujou louvri nan angajman yo"
+    },
+    "description": "Tiyo, itilizasyon, travay ki rete, revni, ak sipò nan yon sèl kote.",
+    "earnings": {
+      "empty": "Pa gen peman ki fini ankò.",
+      "gross": "Brit",
+      "label": "Revni yo otorize",
+      "note": "Sèlman peman ki fini, separe dapre pousantaj ki te dakò sou chak angajman. Sa a se yon rapò, pa yon peman.",
+      "oxsteedShare": "Pati OxSteed",
+      "refunded": "Ranbouse: {{amount}} sou {{count}} peman.",
+      "title": "Sa travay ki fini a te rapòte",
+      "yourShare": "Pati ou"
+    },
+    "hint": "Rapò yo kouvri sèlman pwòp angajman ou yo. Revni yo se peman ki fini, separe dapre pousantaj ki te dakò a.",
+    "label": "Jere pratik la",
+    "loading": "Ap chaje rapò pratik yo…",
+    "pipeline": {
+      "closedNote": "Demann ki pèdi, ki refize, ak ki fini yo pa nan tiyo a ki louvri.",
+      "empty": "Pa gen demann yo bay ou ankò.",
+      "label": "Tiyo demann yo",
+      "stages": {
+        "assigned": "Bay ou",
+        "completed": "Fini",
+        "declined": "Refize",
+        "discoveryScheduled": "Dekouvèt pwograme",
+        "engaged": "Angaje",
+        "introPending": "Prezantasyon an ap tann",
+        "introSent": "Prezantasyon voye",
+        "lost": "Pèdi",
+        "paused": "Poz",
+        "proposalSent": "Pwopozisyon voye",
+        "won": "Genyen"
+      },
+      "title": "Kote demann ou yo ye",
+      "total": "Valè tiyo a ki louvri (pati ou)"
+    },
+    "support": {
+      "cancel": "Anile",
+      "filed": "Demann sipò pratik la voye.",
+      "label": "Sipò pratik",
+      "message": "Mesaj",
+      "newRequest": "Nouvo demann sipò",
+      "priorities": {
+        "high": "Wo",
+        "low": "Ba",
+        "normal": "Nòmal",
+        "urgent": "Ijan"
+      },
+      "priority": "Priyorite",
+      "required": "Sijè a ak mesaj la obligatwa.",
+      "subject": "Sijè",
+      "submit": "Voye demann lan",
+      "submitting": "Ap voye…",
+      "title": "Mande OxSteed èd pou pratik ou"
+    },
+    "title": "Jere pratik ou",
+    "utilization": {
+      "bookedOf": "rezève",
+      "empty": "Pa gen done itilizasyon ankò.",
+      "label": "Itilizasyon disponiblite",
+      "noAvailability": "Mete disponiblite ou ki repete pou mezire itilizasyon an.",
+      "title": "Konbyen kalandriye ou plen"
+    }
+  },
   "learn": {
     "page": {
       "videoTitle": "Videyo: {{title}}",

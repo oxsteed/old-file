@@ -12,6 +12,7 @@ import {
   MapPinned,
   Save,
   Sparkles,
+  TrendingUp,
   Wallet,
 } from 'lucide-react';
 import PageShell from '../components/PageShell';
@@ -24,6 +25,7 @@ import { formatCents, formatNumber } from '../lib/format';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import ConsultantSessionsSection from '../components/ConsultantSessionsSection';
 import ConsultantEngagementsSection from '../components/ConsultantEngagementsSection';
+import ConsultantPracticeSection from '../components/ConsultantPracticeSection';
 import { deliverablesApi } from '../api/consultantDeliverables';
 
 const STATUS_OPTIONS = [
@@ -1657,6 +1659,24 @@ export default function ConsultantContractorDashboard() {
             </div>
             <p className="mb-4 text-sm leading-6 text-gray-400">{t('consultantContractorDashboard.engagements.description')}</p>
             <ConsultantEngagementsSection />
+          </section>
+
+          {/* Group 10 Slice I (546-550): operate the practice. The
+              inquiry pipeline report, availability utilization,
+              outstanding deliverables view, permitted earnings report,
+              and practice support intake. */}
+          <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/80">
+                <TrendingUp className="h-5 w-5 text-gray-300" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('consultantPractice.label')}</p>
+                <h2 className="text-2xl font-semibold text-white">{t('consultantPractice.title')}</h2>
+              </div>
+            </div>
+            <p className="mb-4 text-sm leading-6 text-gray-400">{t('consultantPractice.description')}</p>
+            <ConsultantPracticeSection />
           </section>
 
           {/* Group 10 item 509: portfolio manager. */}

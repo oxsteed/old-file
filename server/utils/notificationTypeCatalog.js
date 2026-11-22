@@ -101,6 +101,9 @@ const NOTIFICATION_TYPES = [
   { type: 'consulting_feedback_requested', group: 'work' },
   { type: 'consulting_follow_up_scheduled', group: 'work' },
   { type: 'consulting_engagement_archived', group: 'work' },
+  // Group 10 Slice I (550): a consultant filing a practice support
+  // request alerts support staff.
+  { type: 'consulting_practice_support_requested', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
   { type: 'crew_shift_published', group: 'work' },
   { type: 'crew_task_assigned', group: 'work' },

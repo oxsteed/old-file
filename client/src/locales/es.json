@@ -25656,6 +25656,77 @@
     "visibilityLimited": "Solo personas nombradas",
     "visibilityShared": "Compartido con el cliente"
   },
+  "consultantPractice": {
+    "deliverables": {
+      "awaitingAcceptance": "Esperando aceptación del cliente: {{count}}",
+      "empty": "Nada pendiente. Todos los hitos están aceptados.",
+      "label": "Entregables pendientes",
+      "noDueDate": "Sin fecha límite",
+      "overdueBy": "{{count}}d de retraso",
+      "title": "Trabajo aún abierto en los compromisos"
+    },
+    "description": "Cartera, uso, trabajo pendiente, ganancias y soporte en un solo lugar.",
+    "earnings": {
+      "empty": "Aún no hay pagos completados.",
+      "gross": "Bruto",
+      "label": "Ganancias permitidas",
+      "note": "Solo pagos completados, divididos según el porcentaje acordado en cada compromiso. Esto es un informe, no un pago.",
+      "oxsteedShare": "Parte de OxSteed",
+      "refunded": "Reembolsado: {{amount}} en {{count}} pagos.",
+      "title": "Lo que ganó el trabajo completado",
+      "yourShare": "Su parte"
+    },
+    "hint": "Los informes cubren solo sus propios compromisos. Las ganancias son pagos completados divididos según el porcentaje acordado.",
+    "label": "Operar la práctica",
+    "loading": "Cargando informes de la práctica…",
+    "pipeline": {
+      "closedNote": "Las consultas perdidas, rechazadas y completadas no están en el embudo abierto.",
+      "empty": "Aún no hay consultas asignadas.",
+      "label": "Cartera de consultas",
+      "stages": {
+        "assigned": "Asignada",
+        "completed": "Completada",
+        "declined": "Rechazada",
+        "discoveryScheduled": "Descubrimiento programado",
+        "engaged": "Contratada",
+        "introPending": "Presentación pendiente",
+        "introSent": "Presentación enviada",
+        "lost": "Perdida",
+        "paused": "Pausada",
+        "proposalSent": "Propuesta enviada",
+        "won": "Ganada"
+      },
+      "title": "Dónde están sus consultas",
+      "total": "Valor abierto de la cartera (su parte)"
+    },
+    "support": {
+      "cancel": "Cancelar",
+      "filed": "Solicitud de soporte de la práctica enviada.",
+      "label": "Soporte de la práctica",
+      "message": "Mensaje",
+      "newRequest": "Nueva solicitud de soporte",
+      "priorities": {
+        "high": "Alta",
+        "low": "Baja",
+        "normal": "Normal",
+        "urgent": "Urgente"
+      },
+      "priority": "Prioridad",
+      "required": "El asunto y el mensaje son obligatorios.",
+      "subject": "Asunto",
+      "submit": "Enviar solicitud",
+      "submitting": "Enviando…",
+      "title": "Pida ayuda a OxSteed con su práctica"
+    },
+    "title": "Opere su práctica",
+    "utilization": {
+      "bookedOf": "reservado",
+      "empty": "Aún no hay datos de uso.",
+      "label": "Uso de disponibilidad",
+      "noAvailability": "Configure su disponibilidad recurrente para medir el uso.",
+      "title": "Qué tan lleno está su calendario"
+    }
+  },
   "learn": {
     "page": {
       "videoTitle": "Video: {{title}}",

@@ -10,6 +10,7 @@ const deliverableController = require('../controllers/consultantDeliverableContr
 const changeController = require('../controllers/consultantChangeController');
 const confidentialityController = require('../controllers/consultantConfidentialityController');
 const closeoutController = require('../controllers/consultantCloseoutController');
+const practiceController = require('../controllers/consultantPracticeController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 
@@ -89,6 +90,17 @@ router.patch('/sessions/:sessionId/follow-ups/:followUpId', authenticate, closeo
 router.post('/sessions/:sessionId/feedback-request', authenticate, closeoutController.requestFeedback);
 router.post('/sessions/:sessionId/archive', authenticate, closeoutController.archiveEngagement);
 router.post('/sessions/:sessionId/unarchive', authenticate, closeoutController.unarchiveEngagement);
+
+// Group 10 Slice I (546-550): operate the practice. The inquiry
+// pipeline report, availability utilization, outstanding deliverables
+// view, permitted earnings report, and practice support intake live
+// here for the consultant.
+router.get('/practice/inquiry-pipeline', authenticate, practiceController.getInquiryPipeline);
+router.get('/practice/utilization', authenticate, practiceController.getUtilization);
+router.get('/practice/deliverables/outstanding', authenticate, practiceController.getOutstandingDeliverables);
+router.get('/practice/earnings', authenticate, practiceController.getEarnings);
+router.post('/practice/support', authenticate, practiceController.createSupportIntake);
+router.get('/practice/support', authenticate, practiceController.listSupportIntakes);
 
 // Public specialty profile (506). No auth: only approved, active profiles
 // are ever returned; anything else 404s.

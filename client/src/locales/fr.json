@@ -25656,6 +25656,77 @@
     "visibilityLimited": "Personnes nommées uniquement",
     "visibilityShared": "Partagé avec le client"
   },
+  "consultantPractice": {
+    "deliverables": {
+      "awaitingAcceptance": "En attente d’acceptation du client : {{count}}",
+      "empty": "Rien en attente. Tous les jalons sont acceptés.",
+      "label": "Livrables en attente",
+      "noDueDate": "Aucune échéance",
+      "overdueBy": "{{count}} j de retard",
+      "title": "Travail encore ouvert sur les missions"
+    },
+    "description": "Pipeline, utilisation, travail en attente, gains et assistance en un seul endroit.",
+    "earnings": {
+      "empty": "Aucun paiement terminé pour l’instant.",
+      "gross": "Brut",
+      "label": "Gains autorisés",
+      "note": "Paiements terminés uniquement, répartis selon la part convenue sur chaque mission. Ceci est un rapport, pas un paiement.",
+      "oxsteedShare": "Part d’OxSteed",
+      "refunded": "Remboursé : {{amount}} sur {{count}} paiements.",
+      "title": "Ce que le travail terminé a rapporté",
+      "yourShare": "Votre part"
+    },
+    "hint": "Les rapports couvrent uniquement vos propres missions. Les gains sont les paiements terminés répartis selon la part convenue.",
+    "label": "Gérer la pratique",
+    "loading": "Chargement des rapports de pratique…",
+    "pipeline": {
+      "closedNote": "Les demandes perdues, refusées et terminées ne figurent pas dans l’entonnoir ouvert.",
+      "empty": "Aucune demande assignée pour l’instant.",
+      "label": "Pipeline des demandes",
+      "stages": {
+        "assigned": "Assignée",
+        "completed": "Terminée",
+        "declined": "Refusée",
+        "discoveryScheduled": "Découverte planifiée",
+        "engaged": "Engagée",
+        "introPending": "Présentation en attente",
+        "introSent": "Présentation envoyée",
+        "lost": "Perdue",
+        "paused": "En pause",
+        "proposalSent": "Proposition envoyée",
+        "won": "Gagnée"
+      },
+      "title": "Où en sont vos demandes",
+      "total": "Valeur ouverte du pipeline (votre part)"
+    },
+    "support": {
+      "cancel": "Annuler",
+      "filed": "Demande d’assistance de pratique envoyée.",
+      "label": "Support de pratique",
+      "message": "Message",
+      "newRequest": "Nouvelle demande d’assistance",
+      "priorities": {
+        "high": "Haute",
+        "low": "Basse",
+        "normal": "Normale",
+        "urgent": "Urgente"
+      },
+      "priority": "Priorité",
+      "required": "L’objet et le message sont obligatoires.",
+      "subject": "Objet",
+      "submit": "Envoyer la demande",
+      "submitting": "Envoi…",
+      "title": "Demandez de l’aide à OxSteed pour votre pratique"
+    },
+    "title": "Gérez votre pratique",
+    "utilization": {
+      "bookedOf": "réservé",
+      "empty": "Aucune donnée d’utilisation pour l’instant.",
+      "label": "Utilisation des disponibilités",
+      "noAvailability": "Définissez vos disponibilités récurrentes pour mesurer l’utilisation.",
+      "title": "À quel point votre calendrier est rempli"
+    }
+  },
   "learn": {
     "page": {
       "videoTitle": "Vidéo : {{title}}",
