@@ -22,13 +22,23 @@ const PERSONA_SIGNUP_CONFIG = Object.freeze({
   'support-agent': { intent: 'request_support', admission: 'staff_provisioning', icon: 'staff', copy: 'supportAgent' },
   'operations-staff': { intent: 'request_operations', admission: 'staff_provisioning', icon: 'staff', copy: 'operationsStaff' },
   'device-service-account': { intent: 'request_device', admission: 'nonhuman_provisioning', icon: 'device', copy: 'deviceServiceAccount' },
+  // Investor admission is private and invite-only. Keep it in the catalog
+  // coverage model for internal/admin flows, but never expose it through the
+  // public Join picker or URL intent resolver.
+  'investor-reporting': { intent: null, admission: 'admin_invite', icon: 'investor', copy: 'investor', public: false },
 });
 
-export const SIGNUP_PERSONAS = Object.freeze(PERSONA_NAVIGATION_CATALOG.map((family) => {
+export const SIGNUP_CATALOG_PERSONAS = Object.freeze(PERSONA_NAVIGATION_CATALOG.map((family) => {
   const config = PERSONA_SIGNUP_CONFIG[family.id];
   if (!config) return null;
   return Object.freeze({ ...family, ...config });
 }).filter(Boolean));
+
+// Public signup choices intentionally exclude invite-only admissions. The
+// catalog-aware export above lets tests and internal tooling prove that every
+// family still has an explicit admission contract without making private
+// investor access look publicly selectable.
+export const SIGNUP_PERSONAS = Object.freeze(SIGNUP_CATALOG_PERSONAS.filter((persona) => persona.public !== false));
 
 export const SIGNUP_INTENT_VALUES = Object.freeze(SIGNUP_PERSONAS.map(({ intent }) => intent));
 

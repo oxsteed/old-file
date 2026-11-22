@@ -58,17 +58,23 @@ router.post('/commitments/:id/cancel', authenticate, invest, requireInvestorPart
 router.get('/commitments/:id', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.getCommitment);
 
 // Participation applications.
-router.post('/applications', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.createApplication);
-router.get('/applications', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.listApplications);
-router.get('/applications/:id', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.getApplication);
-router.patch('/applications/:id', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.updateApplication);
-router.post('/applications/:id/submit', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.submitApplication);
-router.post('/applications/:id/withdraw', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.withdrawApplication);
-router.post('/applications/:id/accept-agreement', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.acceptAgreement);
+// Opportunity discovery and participation applications remain customer-safe
+// admission flows. They do not grant participation: the commitment routes
+// below re-check the explicit investor.participate grant before any protected
+// investment action. Keeping the application lifecycle available lets a
+// customer express interest without turning a public route into investor
+// access or blocking existing customer-first workflows.
+router.post('/applications', authenticate, invest, suspended, ctrl.createApplication);
+router.get('/applications', authenticate, invest, suspended, ctrl.listApplications);
+router.get('/applications/:id', authenticate, invest, suspended, ctrl.getApplication);
+router.patch('/applications/:id', authenticate, invest, suspended, ctrl.updateApplication);
+router.post('/applications/:id/submit', authenticate, invest, suspended, ctrl.submitApplication);
+router.post('/applications/:id/withdraw', authenticate, invest, suspended, ctrl.withdrawApplication);
+router.post('/applications/:id/accept-agreement', authenticate, invest, suspended, ctrl.acceptAgreement);
 router.post('/applications/:id/review', authenticate, invest, requireAdmin, requirePermission('review_invest_participation'), ctrl.reviewApplication);
 
 // My investments: never a live portfolio market value.
-router.get('/me', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.getMyInvestments);
+router.get('/me', authenticate, invest, suspended, ctrl.getMyInvestments);
 
 // Reviewer queue (capability-scoped inside the service).
 router.get('/review-queue', authenticate, invest, requireAdmin, ctrl.getReviewQueue);
