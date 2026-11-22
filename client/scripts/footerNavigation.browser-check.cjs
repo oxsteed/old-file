@@ -64,13 +64,13 @@ test('footer layouts, shared support access, cookie settings and preserved invit
     await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>window.configure);
     // The public footer stays customer-first. Signed-in accounts get their
     // personal entry points, while team/staff workspaces remain access-gated.
-    const expected=[['/helpers','/restaurants','/how-it-works'],['/direct','/delivery','/media','/products'],['/about','/careers','/support'],['/login','/join']];
+    const expected=[['/helpers','/restaurants'],['/how-it-works','/tool-rentals','/learn'],['/direct','/delivery','/media','/products'],['/about','/careers','/support'],['/login','/join']];
     for(const language of ['en','fr','ar'])for(const theme of ['dark','light'])for(const mode of ['guest','customer','helper','business_owner']){
       await page.evaluate(options=>window.configure(options),{mode,language,theme});
       for(const width of [320,390,768,1360,1600]){
         await page.setViewportSize({width,height:850});await page.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));
-        const accountLinks=mode==='guest'?expected[3]:['/dashboard','/post-job'];
-        assert.deepEqual(await page.locator('.site-footer__group').evaluateAll(groups=>groups.map(group=>[...group.querySelectorAll('a')].map(a=>a.getAttribute('href')))),[...expected.slice(0,3),accountLinks],`${mode} ${language} ${theme} ${width}`);
+        const accountLinks=mode==='guest'?expected[4]:['/dashboard','/post-job'];
+        assert.deepEqual(await page.locator('.site-footer__group').evaluateAll(groups=>groups.map(group=>[...group.querySelectorAll('a')].map(a=>a.getAttribute('href')))),[...expected.slice(0,4),accountLinks],`${mode} ${language} ${theme} ${width}`);
         assert.equal(await page.locator('.site-footer__legal-links a').count(),7);
         assert.equal(await page.locator('.site-footer__legal-links button').count(),1);
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`no overflow ${language} ${width}`);
