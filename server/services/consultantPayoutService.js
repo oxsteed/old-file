@@ -382,6 +382,17 @@ async function attemptPayout(payoutId, { actorUserId } = {}) {
   const creditTransactionId = loadResult && loadResult.transaction && loadResult.transaction.id
     ? String(loadResult.transaction.id)
     : null;
+  if (!creditTransactionId) {
+    // Fail closed: a load with no transaction id must never be marked
+    // paid, or the money would be untraceable from the payout row.
+    const failed = await markPayout(payout.id, 'failed', 'payout_transaction_missing', 'The Credit load completed without returning a transaction id.');
+    logger.warn('Consultant payout load returned no transaction id', {
+      payoutId: payout.id,
+      requestId: payout.consulting_request_id,
+    });
+    await notifyConsultant(failed, 'failed', { businessName });
+    return failed;
+  }
   const paid = await markPayout(payout.id, 'paid', null, null, {
     creditTransactionId,
   });
