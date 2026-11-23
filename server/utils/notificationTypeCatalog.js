@@ -128,6 +128,9 @@ const NOTIFICATION_TYPES = [
   { type: 'helper_alert', group: 'work' },
   { type: 'job_alert', group: 'work' },
   { type: 'job_arrived', group: 'work' },
+  // Group 4 rest (179, 180): customer hears about helper progress and handover.
+  { type: 'helper_progress_update', group: 'work' },
+  { type: 'helper_handover_updated', group: 'work' },
   { type: 'job_auto_cancelled', group: 'work' },
   { type: 'job_auto_cancel_warning', group: 'work' },
   { type: 'job_change_order_applied', group: 'work' },

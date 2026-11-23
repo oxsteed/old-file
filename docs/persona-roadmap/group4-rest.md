@@ -21,8 +21,8 @@ BUILD = to build in this batch. DONE = built on this branch (commit cited).
 | 176 | Active assignment board | EXISTS | `server/routes/helperWork.js` `GET /work-board`; `docs/persona-roadmap/helper-work-execution.md` | none | - |
 | 177 | Arrival check-in | PARTIAL | `jobController.markJobArrived` (assigned helper only, notifies customer), `JobDetailPage.jsx:483` | no time guard: arrival can be recorded days before the scheduled window. Plan: refuse arrival more than 2h before the scheduled start when one exists (409 `arrival_too_early`) | BUILD |
 | 178 | Work checklist | EXISTS | `helperWork.js` work-records + templates (PR 805) | none | - |
-| 179 | Progress update | PARTIAL | `helperWorkService.publish` (append-only, idempotent) | customer is never notified. Plan: `helper_progress_update` notification to the job's customer after commit, idempotent per update id | BUILD |
-| 180 | Completion handover | PARTIAL | work-record handover (PR 805) vs `completeJob` | handover not surfaced at completion. Plan: completion response/notification references the shared handover; customer notified when handover is saved | BUILD |
+| 179 | Progress update | PARTIAL | `helperWorkService.publish` (append-only, idempotent) | customer is never notified. Plan: `helper_progress_update` notification to the job's customer after commit, idempotent per update id | DONE (helperWorkService notices, group4RestWorkNotices.db.test.js) |
+| 180 | Completion handover | PARTIAL | work-record handover (PR 805) vs `completeJob` | handover not surfaced at completion. Plan: completion response/notification references the shared handover; customer notified when handover is saved | DONE (helperWorkService notices, group4RestWorkNotices.db.test.js) |
 | 181 | Reschedule proposal | PARTIAL | `calendar.js` appointment reschedule-requests (only when the job has an appointment); bookings have their own | jobs hired without an appointment have no reschedule path. Plan: job-level proposal (`job_reschedule_proposals`), proposal-only like D-25 | BUILD |
 | 182 | No-show report | PARTIAL | `jobController.markJobNoShow` (either party, reason, notifies) | no time guard: either party can mark no-show before the job time. Plan: refuse before scheduled start (409 `no_show_too_early`) | BUILD |
 | 183 | Scope change request | PARTIAL | `workAgreements.js` change-orders (+ notifications, Slice C) | agreement-less jobs have no path (open call G4-22) | OPEN CALL G4-22 (not built) |
@@ -72,4 +72,4 @@ cd ../client && npm run build:ci
 (symlink node_modules from /workspace/old-file/{client,server}; remove before committing)
 
 ## Next step
-Build step 2 (179 + 180 customer notifications on progress update and handover).
+Build step 3 (187 payout timeline on /helper/payouts, then 186 + 189 per-job breakdown).

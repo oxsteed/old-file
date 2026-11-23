@@ -317,8 +317,6 @@ exports.respondToReview = async (req, res, next) => {
     await sendNotification({
       userId: rows[0].reviewer_id,
       type: 'review_response_posted',
-      title: 'Your review got a response',
-      body: 'The person you reviewed responded to your review.',
       data: { reviewId: rows[0].id, jobId: rows[0].job_id },
       action_url: `/jobs/${rows[0].job_id}`,
       idempotencyKey: `review-response:${rows[0].id}`,
