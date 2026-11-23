@@ -371,6 +371,10 @@ const NOTIFICATION_TYPES = [
   { type: 'business_ownership_transfer_declined', group: 'work' },
   { type: 'business_deputy_designated', group: 'work' },
   { type: 'business_work_transferred', group: 'work' },
+  { type: 'business_permission_requested', group: 'work' },
+  { type: 'business_permission_decided', group: 'work' },
+  { type: 'business_work_released', group: 'work' },
+  { type: 'business_dispatch_declined', group: 'work' },
   // <<< Groups 5-6
 ];
 

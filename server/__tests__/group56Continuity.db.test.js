@@ -59,6 +59,7 @@ describeDb('Groups 5-6: continuity', () => {
   test('243: open work moves to another member, skipping conflicts', async () => {
     const at = h => `NOW() + interval '${h} hours'`;
     const mk = (staff, h) => pool.query(`INSERT INTO business_appointments(business_id,service_id,staff_id,start_time,end_time,status) VALUES($1,$2,$3,${at(h)},${at(h + 1)},'confirmed') RETURNING id`, [bizId, serviceId, staff]).then(r => r.rows[0].id);
+    await pool.query('INSERT INTO business_service_staff(service_id,staff_id,is_available) VALUES($1,$2,TRUE),($1,$3,TRUE)', [serviceId, employee, manager]);
     const a1 = await mk(employee, 24), a2 = await mk(employee, 48);
     await mk(manager, 48);
     await pool.query("INSERT INTO business_team_tasks(business_id,assignee_id,created_by,request_id,kind,title,status,due_at) VALUES($1,$2,$3,$4,'task','Call back','open',NOW() + interval '1 day')", [bizId, employee, owner, crypto.randomUUID()]);

@@ -223,14 +223,13 @@ async function transitionWork(businessId, actorId, body) {
     for (const a of appts) {
       if (only && !only.includes(String(a.id))) continue;
       if (to) {
-        const { rows: [qualified] } = await db.query(`SELECT NOT EXISTS (SELECT 1 FROM business_service_staff WHERE service_id=$1)
-            OR EXISTS (SELECT 1 FROM business_service_staff WHERE service_id=$1 AND staff_id=$2) AS ok`, [a.service_id, to]);
+        const { rows: [qualified] } = await db.query(`SELECT EXISTS (SELECT 1 FROM business_service_staff WHERE service_id=$1 AND staff_id=$2 AND is_available) AS ok`, [a.service_id, to]);
         if (!qualified.ok) { skipped.push({ id: a.id, reason: 'not_qualified' }); continue; }
         const { rows: [clash] } = await db.query(`SELECT 1 FROM business_appointments WHERE business_id=$1 AND staff_id=$2 AND id<>$3
             AND status IN ('pending','confirmed','in_progress') AND start_time < $5 AND end_time > $4 LIMIT 1`, [businessId, to, a.id, a.start_time, a.end_time]);
         if (clash) { skipped.push({ id: a.id, reason: 'conflict' }); continue; }
       }
-      await db.query('UPDATE business_appointments SET staff_id=$2, updated_at=NOW() WHERE id=$1', [a.id, to]);
+      await db.query("UPDATE business_appointments SET staff_id=$2, dispatch_status=CASE WHEN $2::uuid IS NULL THEN NULL ELSE 'pending' END, dispatch_responded_at=NULL, updated_at=NOW() WHERE id=$1", [a.id, to]);
       await db.query(`INSERT INTO business_appointment_assignment_events(appointment_id, business_id, from_staff_id, to_staff_id, actor_id, source, reason)
         VALUES($1,$2,$3,$4,$5,'transfer',$6)`, [a.id, businessId, from, to, actorId, reason]);
       moved.push(a.id);

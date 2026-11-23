@@ -40,6 +40,22 @@ const businessTeamNotifications = {
     title: t('Work was moved to you', 'Se te asignó trabajo', 'Du travail vous a été confié', 'Yo transfere travay ba ou', 'نُقل إليك عمل'),
     body: t('{count} open items are now yours. Check My work.', 'Ahora tienes {count} pendientes. Revisa Mi trabajo.', '{count} éléments ouverts vous sont désormais attribués. Consultez Mon travail.', '{count} travay ouvè se pou ou kounye a. Gade Travay mwen.', 'أصبح لديك {count} من العناصر المفتوحة. راجع عملي.'),
   },
+  business_permission_requested: {
+    title: t('A team member asked for access', 'Un miembro del equipo pidió acceso', 'Un membre de l’équipe demande un accès', 'Yon manm ekip mande aksè', 'طلب عضو في الفريق صلاحية وصول'),
+    body: t('Review the request in the owner console.', 'Revisa la solicitud en la consola del dueño.', 'Examinez la demande dans la console du propriétaire.', 'Revize demann lan nan konsòl pwopriyetè a.', 'راجع الطلب في لوحة المالك.'),
+  },
+  business_permission_decided: {
+    title: t('Your access request was answered', 'Respondieron tu solicitud de acceso', 'Votre demande d’accès a reçu une réponse', 'Yo reponn demann aksè ou', 'تم الرد على طلب الوصول الخاص بك'),
+    body: t('Open My work to see the decision.', 'Abre Mi trabajo para ver la decisión.', 'Ouvrez Mon travail pour voir la décision.', 'Louvri Travay mwen pou wè desizyon an.', 'افتح عملي لرؤية القرار.'),
+  },
+  business_work_released: {
+    title: t('A visit needs a new assignee', 'Una visita necesita otra persona asignada', 'Une visite doit être réattribuée', 'Yon vizit bezwen yon lòt moun', 'زيارة تحتاج إلى شخص آخر'),
+    body: t('A team member released a visit. Assign it in the owner console.', 'Un miembro del equipo liberó una visita. Asígnala en la consola del dueño.', 'Un membre de l’équipe a libéré une visite. Attribuez-la dans la console du propriétaire.', 'Yon manm ekip lage yon vizit. Asiyen l nan konsòl pwopriyetè a.', 'أعاد أحد أعضاء الفريق زيارة. عيّنها من لوحة المالك.'),
+  },
+  business_dispatch_declined: {
+    title: t('An assignment was declined', 'Rechazaron una asignación', 'Une affectation a été refusée', 'Yo refize yon asiyasyon', 'تم رفض تكليف'),
+    body: t('The visit is unassigned again. Pick someone in the owner console.', 'La visita quedó sin asignar. Elige a alguien en la consola del dueño.', 'La visite n’est plus attribuée. Choisissez quelqu’un dans la console du propriétaire.', 'Vizit la san moun ankò. Chwazi yon moun nan konsòl pwopriyetè a.', 'أصبحت الزيارة دون تعيين. اختر شخصًا من لوحة المالك.'),
+  },
 };
 
 module.exports = { businessTeamNotifications, BUSINESS_TEAM_NOTIFICATION_TYPES: Object.keys(businessTeamNotifications) };

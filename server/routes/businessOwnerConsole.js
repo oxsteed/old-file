@@ -18,6 +18,7 @@ const finance = require('../services/businessOwner/financeService');
 const expansion = require('../services/businessOwner/expansionService');
 const continuity = require('../services/businessOwner/continuityService');
 const performance = require('../services/businessOwner/performanceService');
+const workStart = require('../services/businessOwner/workStartService');
 const { requireFinanceRead, requireFinanceWrite } = require('../middleware/requireBusinessFinance');
 
 const h = fn => async (req, res, next) => { res.set('Cache-Control', 'no-store'); try { await fn(req, res); } catch (e) { next(e); } };
@@ -96,6 +97,24 @@ router.get('/:businessId/owner/reports/quality', ...biz('manager', 'analytics.vi
 router.get('/:businessId/owner/reports/costs', ...biz('manager', 'analytics.view_financial'), h(async (req, res) => res.json(await performance.costSnapshots(req.business.id, req.query))));
 router.post('/:businessId/owner/reports/costs/snapshots', ...write('manager', 'analytics.view_financial'), h(async (req, res) => res.status(201).json(await performance.takeSnapshot(req.business.id, req.user.id, req.body))));
 router.get('/:businessId/owner/reports/recurring', ...biz('manager', 'analytics.view_financial'), h(async (req, res) => res.json(await performance.recurringRevenue(req.business.id))));
+
+// 252-260 team member start + dispatch (any active member; managers for the boards)
+const ctx = req => ({ role: req.businessRole, permissions: req.permissions });
+router.get('/:businessId/work/me', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workStart.overview(req.business.id, req.user.id, ctx(req)))));
+router.get('/:businessId/work/onboarding', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workStart.onboarding(req.business.id, req.user.id))));
+router.get('/:businessId/work/access-check', ...biz('any'), h(async (req, res) => res.json(await workStart.accessCheck(req.business.id, req.user.id, ctx(req), req.query.code))));
+router.get('/:businessId/work/permission-requests', ...biz('any'), h(async (req, res) => res.json(await workStart.myPermissionRequests(req.business.id, req.user.id))));
+router.post('/:businessId/work/permission-requests', ...write('any'), h(async (req, res) => res.status(201).json(await workStart.requestPermission(req.business.id, req.user.id, ctx(req), req.body))));
+router.post('/:businessId/work/permission-requests/:requestId/cancel', ...write('any'), h(async (req, res) => res.json(await workStart.cancelPermissionRequest(req.business.id, req.user.id, req.params.requestId))));
+router.get('/:businessId/owner/permission-requests', ...biz('manager', 'team.assign_permissions'), h(async (req, res) => res.json(await workStart.permissionQueue(req.business.id))));
+router.post('/:businessId/owner/permission-requests/:requestId/decision', ...write('manager', 'team.assign_permissions'), h(async (req, res) => res.json(await workStart.decidePermission(req.business.id, req.user.id, ctx(req), req.params.requestId, req.body))));
+router.get('/:businessId/work/queue', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workStart.queue(req.business.id, req.user.id))));
+router.post('/:businessId/work/queue/:appointmentId/claim', ...write('any', 'business.view'), h(async (req, res) => res.json(await workStart.claim(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
+router.post('/:businessId/work/appointments/:appointmentId/release', ...write('any', 'business.view'), h(async (req, res) => res.json(await workStart.release(req.business.id, req.user.id, req.params.appointmentId, req.body))));
+router.post('/:businessId/work/appointments/:appointmentId/dispatch', ...write('any', 'business.view'), h(async (req, res) => res.json(await workStart.respondDispatch(req.business.id, req.user.id, req.params.appointmentId, req.body))));
+router.get('/:businessId/work/conflicts', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workStart.conflicts(req.business.id, req.user.id))));
+router.get('/:businessId/owner/appointments/:appointmentId/matches', ...biz('manager', 'jobs.assign'), h(async (req, res) => res.json(await workStart.matches(req.business.id, req.params.appointmentId))));
+router.get('/:businessId/owner/dispatch', ...biz('manager', 'jobs.assign'), h(async (req, res) => res.json(await workStart.dispatchBoard(req.business.id))));
 
 const claimRouter = express.Router();
 // 201 listing claims (the service checks the claimant owns the business)

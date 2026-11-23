@@ -859,7 +859,9 @@ async function reassignAppointmentStaff(req, res, next) {
       }
       const result = await client.query(
         `UPDATE business_appointments
-         SET staff_id = $1, updated_at = NOW()
+         SET staff_id = $1, updated_at = NOW(),
+             -- Groups 5-6 item 260: a new assignee must confirm dispatch.
+             dispatch_status = CASE WHEN $1::uuid IS NULL THEN NULL ELSE 'pending' END, dispatch_responded_at = NULL
          WHERE id = $2 AND business_id = $3
          RETURNING *`,
         [newStaffId, appointmentId, businessId]

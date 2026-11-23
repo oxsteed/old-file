@@ -7,7 +7,8 @@ const { withTransaction } = require('../../utils/transaction');
 const { fail, invalid, int, text } = require('./common');
 
 const DEFAULTS = { quote_approval_cents: null, expense_approval_cents: null, refund_approval_cents: null, work_start_requires: 'none',
-  work_start_min_role: 'employee', default_cancellation_fee_percent: 0, no_show_fee_percent: 0, version: 0 };
+  work_start_min_role: 'employee', default_cancellation_fee_percent: 0, no_show_fee_percent: 0, version: 0,
+  allow_self_claim: false, dispatch_confirm_hours: null, require_completion_record: false, escalation_hours: 4 };
 const RANK = { employee: 1, support_agent: 2, representative: 3, manager: 4, owner: 5 };
 
 async function policyRow(db, businessId) {
@@ -66,15 +67,25 @@ async function update(businessId, actorId, body) {
     await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`business-policy:${businessId}`]);
     const cur = await policyRow(db, businessId);
     if (cur.version !== expected) fail(409, 'conflict');
+    // Team work settings (items 256, 260, 281, 289); omitted fields keep their value.
+    next.allow_self_claim = body.allow_self_claim === undefined ? cur.allow_self_claim : body.allow_self_claim === true;
+    next.require_completion_record = body.require_completion_record === undefined ? cur.require_completion_record : body.require_completion_record === true;
+    next.dispatch_confirm_hours = body.dispatch_confirm_hours === undefined ? cur.dispatch_confirm_hours
+      : (body.dispatch_confirm_hours === null || body.dispatch_confirm_hours === '' ? null : int(body.dispatch_confirm_hours, { min: 1, max: 168, field: 'dispatch_confirm_hours' }));
+    next.escalation_hours = body.escalation_hours === undefined ? cur.escalation_hours : int(body.escalation_hours, { min: 1, max: 168, field: 'escalation_hours' });
     const { rows: [row] } = await db.query(`INSERT INTO business_operating_policies(business_id,quote_approval_cents,expense_approval_cents,refund_approval_cents,
-        work_start_requires,work_start_min_role,default_cancellation_fee_percent,no_show_fee_percent,version,updated_by,updated_at)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,1,$9,NOW())
+        work_start_requires,work_start_min_role,default_cancellation_fee_percent,no_show_fee_percent,version,updated_by,updated_at,
+        allow_self_claim,dispatch_confirm_hours,require_completion_record,escalation_hours)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,1,$9,NOW(),$10,$11,$12,$13)
       ON CONFLICT (business_id) DO UPDATE SET quote_approval_cents=EXCLUDED.quote_approval_cents, expense_approval_cents=EXCLUDED.expense_approval_cents,
         refund_approval_cents=EXCLUDED.refund_approval_cents, work_start_requires=EXCLUDED.work_start_requires, work_start_min_role=EXCLUDED.work_start_min_role,
         default_cancellation_fee_percent=EXCLUDED.default_cancellation_fee_percent, no_show_fee_percent=EXCLUDED.no_show_fee_percent,
+        allow_self_claim=EXCLUDED.allow_self_claim, dispatch_confirm_hours=EXCLUDED.dispatch_confirm_hours,
+        require_completion_record=EXCLUDED.require_completion_record, escalation_hours=EXCLUDED.escalation_hours,
         version=business_operating_policies.version+1, updated_by=EXCLUDED.updated_by, updated_at=NOW() RETURNING *`,
       [businessId, next.quote_approval_cents, next.expense_approval_cents, next.refund_approval_cents, next.work_start_requires, next.work_start_min_role,
-        next.default_cancellation_fee_percent, next.no_show_fee_percent, actorId]);
+        next.default_cancellation_fee_percent, next.no_show_fee_percent, actorId,
+        next.allow_self_claim, next.dispatch_confirm_hours, next.require_completion_record, next.escalation_hours]);
     const rules = await rulesRow(db, businessId);
     if (rules) await db.query('UPDATE business_booking_rules SET cancellation_allowed_hours_before=$2, allow_customer_reschedule=$3, auto_cancel_no_show_hours=$4, updated_at=NOW() WHERE id=$1', [rules.id, notice, allowReschedule, noShowHours]);
     else await db.query('INSERT INTO business_booking_rules(business_id,cancellation_allowed_hours_before,allow_customer_reschedule,auto_cancel_no_show_hours) VALUES($1,$2,$3,$4)', [businessId, notice, allowReschedule, noShowHours]);
@@ -139,4 +150,4 @@ async function defaultFees(db, businessId) {
   return { fee: p.default_cancellation_fee_percent, noShow: p.no_show_fee_percent };
 }
 
-module.exports = { read, update, assertQuoteSendAllowed, approveQuote, expenseStatusFor, decideExpense, assertRefundRequestAllowed, assertWorkStart, defaultFees };
+module.exports = { policyRow, read, update, assertQuoteSendAllowed, approveQuote, expenseStatusFor, decideExpense, assertRefundRequestAllowed, assertWorkStart, defaultFees };
