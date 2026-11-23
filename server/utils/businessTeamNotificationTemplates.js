@@ -92,6 +92,30 @@ const businessTeamNotifications = {
     title: t('Low customer rating to follow up', 'Calificación baja de un cliente para dar seguimiento', 'Note client basse à suivre', 'Yon kliyan bay yon nòt ki ba, fè swivi', 'تقييم منخفض من عميل يحتاج إلى متابعة'),
     body: t('A customer rated a visit 3 stars or less. Reach out from the owner console.', 'Un cliente calificó una visita con 3 estrellas o menos. Contáctalo desde la consola del dueño.', 'Un client a noté une intervention 3 étoiles ou moins. Contactez-le depuis la console du propriétaire.', 'Yon kliyan bay yon vizit 3 zetwal oswa mwens. Kontakte l nan konsòl pwopriyetè a.', 'قيّم عميل زيارة بثلاث نجوم أو أقل. تواصل معه من لوحة المالك.'),
   },
+  business_shift_handover: {
+    title: t('You have a shift handover', 'Tienes una entrega de turno', 'Vous avez une passation de quart', 'Ou gen yon remiz ekip', 'لديك تسليم وردية'),
+    body: t('Read the notes and acknowledge them in My work.', 'Lee las notas y confírmalas en Mi trabajo.', 'Lisez les notes et confirmez-les dans Mon travail.', 'Li nòt yo epi konfime yo nan Travay mwen.', 'اقرأ الملاحظات وأكّد استلامها في عملي.'),
+  },
+  business_task_assigned_to_you: {
+    title: t('Tasks were handed to you', 'Te entregaron tareas', 'Des tâches vous ont été confiées', 'Yo ba w kèk travay', 'تم تسليم مهام إليك'),
+    body: t('Open My work to see what moved to you.', 'Abre Mi trabajo para ver lo que pasó a ti.', 'Ouvrez Mon travail pour voir ce qui vous a été confié.', 'Louvri Travay mwen pou wè sa yo ba ou.', 'افتح عملي لرؤية ما انتقل إليك.'),
+  },
+  business_delegation_proposed: {
+    title: t('A teammate asked you to cover', 'Un compañero te pidió que lo cubras', 'Un collègue vous demande de le remplacer', 'Yon kolèg mande w ranplase l', 'طلب منك أحد الزملاء أن تنوب عنه'),
+    body: t('Accept or decline the absence cover in My work.', 'Acepta o rechaza la cobertura de ausencia en Mi trabajo.', 'Acceptez ou refusez le remplacement dans Mon travail.', 'Aksepte oswa refize ranplasman an nan Travay mwen.', 'اقبل أو ارفض النيابة في عملي.'),
+  },
+  business_delegation_answered: {
+    title: t('Your absence cover was answered', 'Respondieron a tu cobertura de ausencia', 'Votre demande de remplacement a reçu une réponse', 'Yo reponn demann ranplasman ou', 'تم الرد على طلب النيابة'),
+    body: t('Open My work to see the answer.', 'Abre Mi trabajo para ver la respuesta.', 'Ouvrez Mon travail pour voir la réponse.', 'Louvri Travay mwen pou wè repons lan.', 'افتح عملي لرؤية الرد.'),
+  },
+  business_delegation_visits: {
+    title: t('Visits need a new assignee', 'Hay visitas que necesitan otro responsable', 'Des interventions doivent être réattribuées', 'Kèk vizit bezwen yon lòt moun', 'زيارات تحتاج إلى مسؤول جديد'),
+    body: t('{count} visit(s) fall in a team member’s absence. Reassign them.', '{count} visita(s) caen durante la ausencia de un miembro. Reasígnalas.', '{count} intervention(s) tombent pendant l’absence d’un membre. Réattribuez-les.', '{count} vizit tonbe pandan yon manm absan. Bay yon lòt moun yo.', '{count} زيارة تقع خلال غياب أحد الأعضاء. أعد إسنادها.'),
+  },
+  business_member_left: {
+    title: t('A team member left', 'Un miembro del equipo se fue', 'Un membre de l’équipe est parti', 'Yon manm ekip la kite', 'غادر أحد أعضاء الفريق'),
+    body: t('Their open work moved to a manager. Review the team page.', 'Su trabajo pendiente pasó a un gerente. Revisa la página del equipo.', 'Son travail en cours a été confié à un responsable. Consultez la page de l’équipe.', 'Travay li te genyen an ale bay yon manadjè. Gade paj ekip la.', 'انتقل عمله المفتوح إلى مدير. راجع صفحة الفريق.'),
+  },
 };
 
 module.exports = { businessTeamNotifications, BUSINESS_TEAM_NOTIFICATION_TYPES: Object.keys(businessTeamNotifications) };

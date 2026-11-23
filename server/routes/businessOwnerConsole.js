@@ -22,6 +22,7 @@ const workStart = require('../services/businessOwner/workStartService');
 const workJobs = require('../services/businessOwner/workJobsService');
 const workComms = require('../services/businessOwner/workCommsService');
 const workOutcomes = require('../services/businessOwner/workOutcomesService');
+const workLeave = require('../services/businessOwner/workLeaveService');
 const { requireFinanceRead, requireFinanceWrite } = require('../middleware/requireBusinessFinance');
 
 const h = fn => async (req, res, next) => { res.set('Cache-Control', 'no-store'); try { await fn(req, res); } catch (e) { next(e); } };
@@ -168,6 +169,21 @@ router.get(`${A}/assignment-history`, ...biz('any', 'business.view'), h(async (r
 router.get('/:businessId/work/feedback', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workOutcomes.myFeedback(req.business.id, req.user.id))));
 router.get('/:businessId/owner/feedback-followups', ...biz('manager'), h(async (req, res) => res.json(await workOutcomes.feedbackQueue(req.business.id, req.user.id, ctx(req), req.query))));
 router.patch('/:businessId/owner/feedback-followups/:followupId', ...write('manager'), h(async (req, res) => res.json(await workOutcomes.updateFollowup(req.business.id, req.user.id, ctx(req), req.params.followupId, req.body))));
+
+// 291-300 continuity and leaving a scope
+router.get('/:businessId/work/handovers', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workLeave.handovers(req.business.id, req.user.id))));
+router.post('/:businessId/work/handovers', ...write('any', 'business.view'), h(async (req, res) => res.status(201).json(await workLeave.createHandover(req.business.id, req.user.id, req.body))));
+router.post('/:businessId/work/handovers/:handoverId/ack', ...write('any', 'business.view'), h(async (req, res) => res.json(await workLeave.acknowledgeHandover(req.business.id, req.user.id, req.params.handoverId))));
+router.post('/:businessId/owner/team-tasks/:taskId/owner', ...write('manager', 'jobs.assign'), h(async (req, res) => res.json(await workLeave.replaceTaskOwner(req.business.id, req.user.id, req.params.taskId, req.body))));
+router.post('/:businessId/work/tasks/transfer', ...write('any', 'business.view'), h(async (req, res) => res.json(await workLeave.transferUnfinished(req.business.id, req.user.id, req.body))));
+router.get('/:businessId/work/tasks/:taskId/history', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workLeave.taskHistory(req.business.id, req.user.id, ctx(req), req.params.taskId))));
+router.get('/:businessId/work/delegations', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workLeave.delegations(req.business.id, req.user.id))));
+router.post('/:businessId/work/delegations', ...write('any', 'business.view'), h(async (req, res) => res.status(201).json(await workLeave.proposeDelegation(req.business.id, req.user.id, req.body))));
+router.post('/:businessId/work/delegations/:delegationId/respond', ...write('any', 'business.view'), h(async (req, res) => res.json(await workLeave.respondDelegation(req.business.id, req.user.id, req.params.delegationId, req.body))));
+router.get('/:businessId/work/end-of-shift', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workLeave.endOfShift(req.business.id, req.user.id))));
+router.put('/:businessId/work/end-of-shift', ...write('any', 'business.view'), h(async (req, res) => res.json(await workLeave.saveEndOfShift(req.business.id, req.user.id, req.body))));
+router.get('/:businessId/work/leave-preview', ...biz('any'), h(async (req, res) => res.json(await workLeave.leavePreview(req.business.id, req.user.id))));
+router.post('/:businessId/work/leave', ...write('any'), h(async (req, res) => res.json(await workLeave.leave(req.business.id, req.user.id, req.body))));
 
 const claimRouter = express.Router();
 // 201 listing claims (the service checks the claimant owns the business)

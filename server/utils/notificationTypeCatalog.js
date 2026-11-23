@@ -384,6 +384,12 @@ const NOTIFICATION_TYPES = [
   { type: 'business_coverage_decided', group: 'work' },
   { type: 'business_job_follow_up', group: 'work' },
   { type: 'business_feedback_follow_up', group: 'work' },
+  { type: 'business_shift_handover', group: 'work' },
+  { type: 'business_task_assigned_to_you', group: 'work' },
+  { type: 'business_delegation_proposed', group: 'work' },
+  { type: 'business_delegation_answered', group: 'work' },
+  { type: 'business_delegation_visits', group: 'work' },
+  { type: 'business_member_left', group: 'work' },
   // <<< Groups 5-6
 ];
 
