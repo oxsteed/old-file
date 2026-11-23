@@ -45028,7 +45028,8 @@
       "not_transfer_recipient": "Esta transferencia es para otra persona.",
       "deputy_not_eligible": "Elige un gerente o representante activo.",
       "deputy_exists": "Ya hay un suplente. Termínalo primero.",
-      "target_not_active": "Esa persona no es un miembro activo del equipo."
+      "target_not_active": "Esa persona no es un miembro activo del equipo.",
+      "month_not_closed": "Solo puedes guardar una instantánea de un mes terminado."
     },
     "launch": {
       "title": "Estado de lanzamiento",
@@ -45440,6 +45441,53 @@
       "date": "Fecha",
       "hours": "Horas",
       "approved": "Aprobado"
+    },
+    "reports": {
+      "title": "Rendimiento",
+      "period": "Periodo",
+      "periods": {
+        "30d": "Últimos 30 días",
+        "90d": "Últimos 90 días",
+        "365d": "Últimos 12 meses"
+      },
+      "quotes": "Aceptación de cotizaciones",
+      "acceptance": "Tasa de aceptación",
+      "sent": "Enviadas",
+      "accepted": "Aceptadas",
+      "declined": "Rechazadas",
+      "expired": "Vencidas",
+      "waiting": "En espera",
+      "avgAccepted": "Cotización aceptada promedio",
+      "person": "Miembro del equipo",
+      "acceptedValue": "Valor aceptado",
+      "topReasons": "Principales motivos de rechazo",
+      "utilization": "Utilización",
+      "utilizationSummary": "{{booked}} de {{scheduled}} horas programadas se dedicaron a visitas ({{rate}}).",
+      "scheduled": "Horas programadas",
+      "booked": "Horas en visitas",
+      "visits": "Visitas",
+      "quality": "Tendencias de calidad del servicio",
+      "month": "Mes",
+      "completed": "Completadas",
+      "rating": "Calificación",
+      "issueRate": "Tasa de problemas",
+      "noShowRate": "Tasa de ausencias",
+      "cancelRate": "Tasa de cancelación",
+      "costs": "Costos operativos",
+      "revenue": "Cobrado",
+      "expenses": "Gastos",
+      "labor": "Mano de obra",
+      "margin": "Margen",
+      "missingRates": "{{count}} registros de horas no tienen tarifa y cuentan como costo cero.",
+      "saveSnapshot": "Guardar instantánea",
+      "savedAt": "Guardado",
+      "recurring": "Ingresos recurrentes",
+      "mrr": "Recurrente mensual",
+      "arr": "Proyección anual",
+      "activePlans": "Planes activos",
+      "pausedPlans": "En pausa",
+      "churned": "Cancelados en 90 días",
+      "topClients": "Clientes principales"
     }
   }
 }

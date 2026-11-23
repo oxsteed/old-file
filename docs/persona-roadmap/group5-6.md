@@ -67,7 +67,7 @@ BUILD = to build. DONE = built on this branch (commit/test cited).
 | 235 | Delegated statement access | EXISTS | D-22 `statements.view` override | - |
 | 236-240 | Locations / checklist / territory / capacity / seasonal forecast | BUILD | | DONE (D-209..D-213; migration 20261123190500, expansionService, /owner/{locations,territory,capacity,staffing-forecast}, OwnerExpansion; group56Expansion.db.test.js) |
 | 241-245 | Transfer / deputy / open work / departed access / closure | BUILD | | DONE (D-214..D-218; migration 20261123190600, continuityService, /owner/{ownership-transfer,deputy,work-transition,departed-members,closure-checklist,closure-plan}, admin transfer review, /api/me/former-workplaces, OwnerContinuity, MyFormerWorkplaces; group56Continuity.db.test.js) |
-| 246-250 | Performance reports | BUILD | | - |
+| 246-250 | Performance reports | BUILD | | DONE (D-219..D-223; migration 20261123190700, performanceService, /owner/reports/*, OwnerReports; group56Performance.db.test.js) |
 | 251 | Invitation acceptance | EXISTS | `POST /businesses/invitations/:id/accept` | - |
 | 252 | Responsibility overview | BUILD | | - |
 | 253 | Assigned workspace picker | EXISTS | `meWorkspace.js` `/businesses` + workspace-context | - |
@@ -106,4 +106,4 @@ cd ../client && npm run build:ci
 - Tests: `server/__tests__/group56*.db.test.js`; also `STATEMENT_TEST_DATABASE_URL=.../credit_statement_test npx jest __tests__/notificationsPrefsToggles`.
 
 ## Next step
-S8: performance reports (246 quote acceptance, 247 utilization, 248 service quality trends, 249 operating cost snapshots, 250 recurring revenue).
+S9: team member start/dispatch (252 responsibility overview, 254 shift onboarding checklist, 255 permission help request, 256-258 assignment queue / availability matching / conflict warnings, 260 dispatch confirmation) in `TeamMemberWork.jsx` (my-work tab).

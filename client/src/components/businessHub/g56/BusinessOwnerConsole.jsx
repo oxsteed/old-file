@@ -6,6 +6,7 @@ import OwnerPolicies from './OwnerPolicies';
 import OwnerFinance from './OwnerFinance';
 import OwnerExpansion from './OwnerExpansion';
 import OwnerContinuity from './OwnerContinuity';
+import OwnerReports from './OwnerReports';
 
 export default function BusinessOwnerConsole({ businessId, role }) {
   return (
@@ -15,6 +16,7 @@ export default function BusinessOwnerConsole({ businessId, role }) {
       <OwnerPolicies businessId={businessId} role={role} />
       <OwnerFinance businessId={businessId} />
       <OwnerExpansion businessId={businessId} />
+      <OwnerReports businessId={businessId} />
       <OwnerContinuity businessId={businessId} role={role} />
     </div>
   );

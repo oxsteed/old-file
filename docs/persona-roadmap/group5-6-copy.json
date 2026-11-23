@@ -2686,5 +2686,313 @@
   "Cette personne n'est pas un membre actif.",
   "Moun sa a pa yon manm ekip aktif.",
   "هذا الشخص ليس عضوًا نشطًا في الفريق."
+ ],
+ "reports.title": [
+  "Performance",
+  "Rendimiento",
+  "Performance",
+  "Pèfòmans",
+  "الأداء"
+ ],
+ "reports.period": [
+  "Period",
+  "Periodo",
+  "Période",
+  "Peryòd",
+  "الفترة"
+ ],
+ "reports.periods.30d": [
+  "Last 30 days",
+  "Últimos 30 días",
+  "30 derniers jours",
+  "30 dènye jou",
+  "آخر 30 يومًا"
+ ],
+ "reports.periods.90d": [
+  "Last 90 days",
+  "Últimos 90 días",
+  "90 derniers jours",
+  "90 dènye jou",
+  "آخر 90 يومًا"
+ ],
+ "reports.periods.365d": [
+  "Last 12 months",
+  "Últimos 12 meses",
+  "12 derniers mois",
+  "12 dènye mwa",
+  "آخر 12 شهرًا"
+ ],
+ "reports.quotes": [
+  "Quote acceptance",
+  "Aceptación de cotizaciones",
+  "Acceptation des devis",
+  "Akseptasyon devi",
+  "قبول عروض الأسعار"
+ ],
+ "reports.acceptance": [
+  "Acceptance rate",
+  "Tasa de aceptación",
+  "Taux d'acceptation",
+  "To akseptasyon",
+  "معدل القبول"
+ ],
+ "reports.sent": [
+  "Sent",
+  "Enviadas",
+  "Envoyés",
+  "Voye",
+  "المرسلة"
+ ],
+ "reports.accepted": [
+  "Accepted",
+  "Aceptadas",
+  "Acceptés",
+  "Aksepte",
+  "المقبولة"
+ ],
+ "reports.declined": [
+  "Declined",
+  "Rechazadas",
+  "Refusés",
+  "Refize",
+  "المرفوضة"
+ ],
+ "reports.expired": [
+  "Expired",
+  "Vencidas",
+  "Expirés",
+  "Ekspire",
+  "المنتهية"
+ ],
+ "reports.waiting": [
+  "Waiting",
+  "En espera",
+  "En attente",
+  "Ap tann",
+  "بالانتظار"
+ ],
+ "reports.avgAccepted": [
+  "Average accepted quote",
+  "Cotización aceptada promedio",
+  "Devis accepté moyen",
+  "Mwayèn devi aksepte",
+  "متوسط العرض المقبول"
+ ],
+ "reports.person": [
+  "Team member",
+  "Miembro del equipo",
+  "Membre de l'équipe",
+  "Manm ekip",
+  "عضو الفريق"
+ ],
+ "reports.acceptedValue": [
+  "Accepted value",
+  "Valor aceptado",
+  "Valeur acceptée",
+  "Valè aksepte",
+  "القيمة المقبولة"
+ ],
+ "reports.topReasons": [
+  "Top decline reasons",
+  "Principales motivos de rechazo",
+  "Principaux motifs de refus",
+  "Rezon refi ki pi komen",
+  "أبرز أسباب الرفض"
+ ],
+ "reports.utilization": [
+  "Utilization",
+  "Utilización",
+  "Taux d'occupation",
+  "Itilizasyon",
+  "نسبة الاستخدام"
+ ],
+ "reports.utilizationSummary": [
+  "{{booked}} of {{scheduled}} scheduled hours were spent on visits ({{rate}}).",
+  "{{booked}} de {{scheduled}} horas programadas se dedicaron a visitas ({{rate}}).",
+  "{{booked}} des {{scheduled}} heures planifiées ont servi aux visites ({{rate}}).",
+  "{{booked}} sou {{scheduled}} èdtan pwograme te pase nan vizit ({{rate}}).",
+  "خُصصت {{booked}} من أصل {{scheduled}} ساعة مجدولة للزيارات ({{rate}})."
+ ],
+ "reports.scheduled": [
+  "Scheduled hours",
+  "Horas programadas",
+  "Heures planifiées",
+  "Èdtan pwograme",
+  "الساعات المجدولة"
+ ],
+ "reports.booked": [
+  "Visit hours",
+  "Horas en visitas",
+  "Heures de visite",
+  "Èdtan vizit",
+  "ساعات الزيارات"
+ ],
+ "reports.visits": [
+  "Visits",
+  "Visitas",
+  "Visites",
+  "Vizit",
+  "الزيارات"
+ ],
+ "reports.quality": [
+  "Service quality trends",
+  "Tendencias de calidad del servicio",
+  "Tendances de la qualité de service",
+  "Tandans kalite sèvis",
+  "اتجاهات جودة الخدمة"
+ ],
+ "reports.month": [
+  "Month",
+  "Mes",
+  "Mois",
+  "Mwa",
+  "الشهر"
+ ],
+ "reports.completed": [
+  "Completed",
+  "Completadas",
+  "Terminées",
+  "Fini",
+  "المكتملة"
+ ],
+ "reports.rating": [
+  "Rating",
+  "Calificación",
+  "Note",
+  "Nòt",
+  "التقييم"
+ ],
+ "reports.issueRate": [
+  "Issue rate",
+  "Tasa de problemas",
+  "Taux de problèmes",
+  "To pwoblèm",
+  "معدل المشكلات"
+ ],
+ "reports.noShowRate": [
+  "No-show rate",
+  "Tasa de ausencias",
+  "Taux d'absence",
+  "To absans",
+  "معدل عدم الحضور"
+ ],
+ "reports.cancelRate": [
+  "Cancellation rate",
+  "Tasa de cancelación",
+  "Taux d'annulation",
+  "To anilasyon",
+  "معدل الإلغاء"
+ ],
+ "reports.costs": [
+  "Operating costs",
+  "Costos operativos",
+  "Coûts d'exploitation",
+  "Depans operasyon",
+  "تكاليف التشغيل"
+ ],
+ "reports.revenue": [
+  "Collected",
+  "Cobrado",
+  "Encaissé",
+  "Kolekte",
+  "المحصّل"
+ ],
+ "reports.expenses": [
+  "Expenses",
+  "Gastos",
+  "Dépenses",
+  "Depans",
+  "المصروفات"
+ ],
+ "reports.labor": [
+  "Labor",
+  "Mano de obra",
+  "Main-d'œuvre",
+  "Travay",
+  "العمالة"
+ ],
+ "reports.margin": [
+  "Margin",
+  "Margen",
+  "Marge",
+  "Maj",
+  "الهامش"
+ ],
+ "reports.missingRates": [
+  "{{count}} time entries have no pay rate and count as zero labor cost.",
+  "{{count}} registros de horas no tienen tarifa y cuentan como costo cero.",
+  "{{count}} pointages n'ont pas de taux horaire et comptent pour zéro.",
+  "{{count}} antre lè pa gen to peman epi yo konte kòm zewo.",
+  "{{count}} من سجلات الوقت بلا أجر وتُحتسب تكلفتها صفرًا."
+ ],
+ "reports.saveSnapshot": [
+  "Save snapshot",
+  "Guardar instantánea",
+  "Enregistrer l'instantané",
+  "Sove foto a",
+  "حفظ اللقطة"
+ ],
+ "reports.savedAt": [
+  "Saved",
+  "Guardado",
+  "Enregistré",
+  "Sove",
+  "تم الحفظ"
+ ],
+ "reports.recurring": [
+  "Recurring revenue",
+  "Ingresos recurrentes",
+  "Revenus récurrents",
+  "Revni ki repete",
+  "الإيرادات المتكررة"
+ ],
+ "reports.mrr": [
+  "Monthly recurring",
+  "Recurrente mensual",
+  "Récurrent mensuel",
+  "Chak mwa",
+  "الشهري المتكرر"
+ ],
+ "reports.arr": [
+  "Yearly run rate",
+  "Proyección anual",
+  "Projection annuelle",
+  "Pwojeksyon anyèl",
+  "المعدل السنوي"
+ ],
+ "reports.activePlans": [
+  "Active plans",
+  "Planes activos",
+  "Forfaits actifs",
+  "Plan aktif",
+  "الخطط النشطة"
+ ],
+ "reports.pausedPlans": [
+  "Paused",
+  "En pausa",
+  "En pause",
+  "Kanpe",
+  "متوقفة"
+ ],
+ "reports.churned": [
+  "Cancelled in 90 days",
+  "Cancelados en 90 días",
+  "Annulés sur 90 jours",
+  "Anile nan 90 jou",
+  "أُلغيت خلال 90 يومًا"
+ ],
+ "reports.topClients": [
+  "Largest clients",
+  "Clientes principales",
+  "Principaux clients",
+  "Pi gwo kliyan",
+  "أكبر العملاء"
+ ],
+ "errors.month_not_closed": [
+  "You can save a snapshot only for a month that has ended.",
+  "Solo puedes guardar una instantánea de un mes terminado.",
+  "Vous ne pouvez enregistrer un instantané que pour un mois terminé.",
+  "Ou ka sove foto sèlman pou yon mwa ki fini.",
+  "يمكنك حفظ لقطة لشهر انتهى فقط."
  ]
 }

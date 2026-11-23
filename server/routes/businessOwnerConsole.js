@@ -17,6 +17,7 @@ const policies = require('../services/businessOwner/policyService');
 const finance = require('../services/businessOwner/financeService');
 const expansion = require('../services/businessOwner/expansionService');
 const continuity = require('../services/businessOwner/continuityService');
+const performance = require('../services/businessOwner/performanceService');
 const { requireFinanceRead, requireFinanceWrite } = require('../middleware/requireBusinessFinance');
 
 const h = fn => async (req, res, next) => { res.set('Cache-Control', 'no-store'); try { await fn(req, res); } catch (e) { next(e); } };
@@ -87,6 +88,14 @@ router.get('/:businessId/owner/departed-members', ...biz('manager', 'team.view')
 router.patch('/:businessId/owner/departed-members/:recordId', ...write('owner'), h(async (req, res) => res.json(await continuity.setFormerAccess(req.business.id, req.user.id, req.params.recordId, req.body))));
 router.get('/:businessId/owner/closure-checklist', ...biz('owner'), h(async (req, res) => res.json(await continuity.closureChecklist(req.business.id))));
 router.put('/:businessId/owner/closure-plan', ...write('owner', 'owner.delete_business'), h(async (req, res) => res.json(await continuity.saveClosurePlan(req.business.id, req.user.id, req.body))));
+
+// 246-250 performance (operations: analytics.view_ops; money: analytics.view_financial)
+router.get('/:businessId/owner/reports/quote-acceptance', ...biz('manager', 'analytics.view_ops'), h(async (req, res) => res.json(await performance.quoteAcceptance(req.business.id, req.query))));
+router.get('/:businessId/owner/reports/utilization', ...biz('manager', 'analytics.view_ops'), h(async (req, res) => res.json(await performance.utilization(req.business.id, req.query))));
+router.get('/:businessId/owner/reports/quality', ...biz('manager', 'analytics.view_ops'), h(async (req, res) => res.json(await performance.qualityTrends(req.business.id))));
+router.get('/:businessId/owner/reports/costs', ...biz('manager', 'analytics.view_financial'), h(async (req, res) => res.json(await performance.costSnapshots(req.business.id, req.query))));
+router.post('/:businessId/owner/reports/costs/snapshots', ...write('manager', 'analytics.view_financial'), h(async (req, res) => res.status(201).json(await performance.takeSnapshot(req.business.id, req.user.id, req.body))));
+router.get('/:businessId/owner/reports/recurring', ...biz('manager', 'analytics.view_financial'), h(async (req, res) => res.json(await performance.recurringRevenue(req.business.id))));
 
 const claimRouter = express.Router();
 // 201 listing claims (the service checks the claimant owns the business)

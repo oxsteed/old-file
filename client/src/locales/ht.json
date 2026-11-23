@@ -45028,7 +45028,8 @@
       "not_transfer_recipient": "Transfè sa a se pou yon lòt moun.",
       "deputy_not_eligible": "Chwazi yon manadjè oswa reprezantan aktif.",
       "deputy_exists": "Gen yon depite deja. Fini l anvan.",
-      "target_not_active": "Moun sa a pa yon manm ekip aktif."
+      "target_not_active": "Moun sa a pa yon manm ekip aktif.",
+      "month_not_closed": "Ou ka sove foto sèlman pou yon mwa ki fini."
     },
     "launch": {
       "title": "Estati lansman",
@@ -45440,6 +45441,53 @@
       "date": "Dat",
       "hours": "Èdtan",
       "approved": "Apwouve"
+    },
+    "reports": {
+      "title": "Pèfòmans",
+      "period": "Peryòd",
+      "periods": {
+        "30d": "30 dènye jou",
+        "90d": "90 dènye jou",
+        "365d": "12 dènye mwa"
+      },
+      "quotes": "Akseptasyon devi",
+      "acceptance": "To akseptasyon",
+      "sent": "Voye",
+      "accepted": "Aksepte",
+      "declined": "Refize",
+      "expired": "Ekspire",
+      "waiting": "Ap tann",
+      "avgAccepted": "Mwayèn devi aksepte",
+      "person": "Manm ekip",
+      "acceptedValue": "Valè aksepte",
+      "topReasons": "Rezon refi ki pi komen",
+      "utilization": "Itilizasyon",
+      "utilizationSummary": "{{booked}} sou {{scheduled}} èdtan pwograme te pase nan vizit ({{rate}}).",
+      "scheduled": "Èdtan pwograme",
+      "booked": "Èdtan vizit",
+      "visits": "Vizit",
+      "quality": "Tandans kalite sèvis",
+      "month": "Mwa",
+      "completed": "Fini",
+      "rating": "Nòt",
+      "issueRate": "To pwoblèm",
+      "noShowRate": "To absans",
+      "cancelRate": "To anilasyon",
+      "costs": "Depans operasyon",
+      "revenue": "Kolekte",
+      "expenses": "Depans",
+      "labor": "Travay",
+      "margin": "Maj",
+      "missingRates": "{{count}} antre lè pa gen to peman epi yo konte kòm zewo.",
+      "saveSnapshot": "Sove foto a",
+      "savedAt": "Sove",
+      "recurring": "Revni ki repete",
+      "mrr": "Chak mwa",
+      "arr": "Pwojeksyon anyèl",
+      "activePlans": "Plan aktif",
+      "pausedPlans": "Kanpe",
+      "churned": "Anile nan 90 jou",
+      "topClients": "Pi gwo kliyan"
     }
   }
 }

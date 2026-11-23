@@ -37154,7 +37154,8 @@
       "not_transfer_recipient": "This transfer is for someone else.",
       "deputy_not_eligible": "Choose an active manager or representative.",
       "deputy_exists": "A deputy is already named. End it first.",
-      "target_not_active": "That person is not an active team member."
+      "target_not_active": "That person is not an active team member.",
+      "month_not_closed": "You can save a snapshot only for a month that has ended."
     },
     "launch": {
       "title": "Launch status",
@@ -37566,6 +37567,53 @@
       "date": "Date",
       "hours": "Hours",
       "approved": "Approved"
+    },
+    "reports": {
+      "title": "Performance",
+      "period": "Period",
+      "periods": {
+        "30d": "Last 30 days",
+        "90d": "Last 90 days",
+        "365d": "Last 12 months"
+      },
+      "quotes": "Quote acceptance",
+      "acceptance": "Acceptance rate",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired",
+      "waiting": "Waiting",
+      "avgAccepted": "Average accepted quote",
+      "person": "Team member",
+      "acceptedValue": "Accepted value",
+      "topReasons": "Top decline reasons",
+      "utilization": "Utilization",
+      "utilizationSummary": "{{booked}} of {{scheduled}} scheduled hours were spent on visits ({{rate}}).",
+      "scheduled": "Scheduled hours",
+      "booked": "Visit hours",
+      "visits": "Visits",
+      "quality": "Service quality trends",
+      "month": "Month",
+      "completed": "Completed",
+      "rating": "Rating",
+      "issueRate": "Issue rate",
+      "noShowRate": "No-show rate",
+      "cancelRate": "Cancellation rate",
+      "costs": "Operating costs",
+      "revenue": "Collected",
+      "expenses": "Expenses",
+      "labor": "Labor",
+      "margin": "Margin",
+      "missingRates": "{{count}} time entries have no pay rate and count as zero labor cost.",
+      "saveSnapshot": "Save snapshot",
+      "savedAt": "Saved",
+      "recurring": "Recurring revenue",
+      "mrr": "Monthly recurring",
+      "arr": "Yearly run rate",
+      "activePlans": "Active plans",
+      "pausedPlans": "Paused",
+      "churned": "Cancelled in 90 days",
+      "topClients": "Largest clients"
     }
   }
 }

@@ -45028,7 +45028,8 @@
       "not_transfer_recipient": "Ce transfert concerne quelqu'un d'autre.",
       "deputy_not_eligible": "Choisissez un responsable ou représentant actif.",
       "deputy_exists": "Un adjoint est déjà désigné. Terminez-le d'abord.",
-      "target_not_active": "Cette personne n'est pas un membre actif."
+      "target_not_active": "Cette personne n'est pas un membre actif.",
+      "month_not_closed": "Vous ne pouvez enregistrer un instantané que pour un mois terminé."
     },
     "launch": {
       "title": "État du lancement",
@@ -45440,6 +45441,53 @@
       "date": "Date",
       "hours": "Heures",
       "approved": "Approuvé"
+    },
+    "reports": {
+      "title": "Performance",
+      "period": "Période",
+      "periods": {
+        "30d": "30 derniers jours",
+        "90d": "90 derniers jours",
+        "365d": "12 derniers mois"
+      },
+      "quotes": "Acceptation des devis",
+      "acceptance": "Taux d'acceptation",
+      "sent": "Envoyés",
+      "accepted": "Acceptés",
+      "declined": "Refusés",
+      "expired": "Expirés",
+      "waiting": "En attente",
+      "avgAccepted": "Devis accepté moyen",
+      "person": "Membre de l'équipe",
+      "acceptedValue": "Valeur acceptée",
+      "topReasons": "Principaux motifs de refus",
+      "utilization": "Taux d'occupation",
+      "utilizationSummary": "{{booked}} des {{scheduled}} heures planifiées ont servi aux visites ({{rate}}).",
+      "scheduled": "Heures planifiées",
+      "booked": "Heures de visite",
+      "visits": "Visites",
+      "quality": "Tendances de la qualité de service",
+      "month": "Mois",
+      "completed": "Terminées",
+      "rating": "Note",
+      "issueRate": "Taux de problèmes",
+      "noShowRate": "Taux d'absence",
+      "cancelRate": "Taux d'annulation",
+      "costs": "Coûts d'exploitation",
+      "revenue": "Encaissé",
+      "expenses": "Dépenses",
+      "labor": "Main-d'œuvre",
+      "margin": "Marge",
+      "missingRates": "{{count}} pointages n'ont pas de taux horaire et comptent pour zéro.",
+      "saveSnapshot": "Enregistrer l'instantané",
+      "savedAt": "Enregistré",
+      "recurring": "Revenus récurrents",
+      "mrr": "Récurrent mensuel",
+      "arr": "Projection annuelle",
+      "activePlans": "Forfaits actifs",
+      "pausedPlans": "En pause",
+      "churned": "Annulés sur 90 jours",
+      "topClients": "Principaux clients"
     }
   }
 }
