@@ -38,11 +38,11 @@ BUILD = to build in this batch. DONE = built on this branch (commit cited).
 | 193 | Repeat customer follow-up | MISSING leg | no surface | Plan: list of the helper's past customers (completed jobs) + rate-limited "book me again" invite notification | DONE (migration 20261123170100_helper_rebook_invites.sql, helperRepeatCustomerService, HelperRepeatCustomers, group4RestRepeatCustomers.db.test.js) |
 | 194 | Skill endorsement record | MISSING | none | Emile confirmed 2026-11-23 (directly, in chat): endorsements only from completed engagements, one per client per skill | DONE (migration 20261123170000_helper_skill_endorsements.sql, helperEndorsementService, JobSkillEndorsements, profile counts, group4RestEndorsements.db.test.js) |
 | 195 | Quality feedback summary | PARTIAL | ratings exist, no helper-facing summary | Plan: avg, distribution, 90-day trend, response rate, changes-requested and no-show counts | DONE (helperReputationService, HelperReputationPanel, group4RestReputation.db.test.js) |
-| 196 | Business application handoff | MISSING | business application exists, no helper carry-in | Emile confirmed 2026-11-23: helper portfolio/history carry as a read-only record | BUILD |
-| 197 | Readiness milestones | MISSING | | as 196 | BUILD |
-| 198 | Service migration preview | MISSING | | as 196 (preview only, nothing moves) | BUILD |
-| 199 | Personal work preservation | MISSING | | as 196 (helper record stays personal; business gets a read-only reference) | BUILD |
-| 200 | New workspace introduction | MISSING | | as 196 | BUILD |
+| 196 | Business application handoff | MISSING | business application exists, no helper carry-in | Emile confirmed 2026-11-23: helper portfolio/history carry as a read-only record | DONE (migration 20261123170400_helper_business_records.sql, helperBusinessTransitionService, /helpers/me/business-transition, HelperBusinessTransition, BusinessCreationWizard prefill, BusinessWorkspaceIntro, group4RestBusinessTransition.db.test.js) |
+| 197 | Readiness milestones | MISSING | | as 196 | DONE (migration 20261123170400_helper_business_records.sql, helperBusinessTransitionService, /helpers/me/business-transition, HelperBusinessTransition, BusinessCreationWizard prefill, BusinessWorkspaceIntro, group4RestBusinessTransition.db.test.js) |
+| 198 | Service migration preview | MISSING | | as 196 (preview only, nothing moves) | DONE (migration 20261123170400_helper_business_records.sql, helperBusinessTransitionService, /helpers/me/business-transition, HelperBusinessTransition, BusinessCreationWizard prefill, BusinessWorkspaceIntro, group4RestBusinessTransition.db.test.js) |
+| 199 | Personal work preservation | MISSING | | as 196 (helper record stays personal; business gets a read-only reference) | DONE (migration 20261123170400_helper_business_records.sql, helperBusinessTransitionService, /helpers/me/business-transition, HelperBusinessTransition, BusinessCreationWizard prefill, BusinessWorkspaceIntro, group4RestBusinessTransition.db.test.js) |
+| 200 | New workspace introduction | MISSING | | as 196 | DONE (migration 20261123170400_helper_business_records.sql, helperBusinessTransitionService, /helpers/me/business-transition, HelperBusinessTransition, BusinessCreationWizard prefill, BusinessWorkspaceIntro, group4RestBusinessTransition.db.test.js) |
 
 ## Order (highest value / lowest risk first)
 1. 192 + 195 reviews page and quality summary
@@ -72,4 +72,4 @@ cd ../client && npm run build:ci
 (symlink node_modules from /workspace/old-file/{client,server}; remove before committing)
 
 ## Next step
-Build step 9 (196-200 business transition: verify existing business application/onboarding first); finally the Slice E+ entry in persona-roadmap-decisions.md.
+Slice E+ entry in persona-roadmap-decisions.md, PR body refresh, then a settled green CI run.

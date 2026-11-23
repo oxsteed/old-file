@@ -44889,6 +44889,60 @@
         "handback_after_start": "La hora de inicio ya pasó. Cancela el trabajo o contacta a soporte.",
         "generic": "No se pudo devolver el trabajo. Recarga e inténtalo de nuevo."
       }
+    },
+    "growth": {
+      "title": "Convierte tu trabajo en un negocio",
+      "hint": "Cuando estés listo, crea un negocio en OxSteed. Tu historial de trabajo te acompaña como registro de solo lectura. Tus calificaciones y clientes se quedan contigo como ayudante.",
+      "milestonesTitle": "Hitos de preparación",
+      "milestonesHint": "Son guías, no requisitos. Puedes crear un negocio en cualquier momento.",
+      "met": "Listo",
+      "notMet": "Aún no",
+      "progress": "{{current}} de {{target}}",
+      "milestones": {
+        "profile_complete": "El perfil tiene un titular y al menos una habilidad",
+        "identity_verified": "Identidad verificada",
+        "completed_jobs": "Trabajos completados",
+        "steady_reviews": "Reseñas constantes (4.0 o más)",
+        "payouts_ready": "Pagos configurados",
+        "no_open_disputes": "Sin disputas abiertas"
+      },
+      "previewTitle": "Qué se transfiere",
+      "carries": "Te acompaña como registro de solo lectura",
+      "completedJobs": "Trabajos completados: {{count}}",
+      "portfolioItems": "Elementos de portafolio que puedes mostrar: {{count}}",
+      "skills": "Habilidades",
+      "categories": "Tipos de trabajo",
+      "stays": "Se queda contigo como ayudante",
+      "stay": {
+        "ratings_reviews": "Calificaciones y reseñas",
+        "client_relationships": "Relaciones con clientes",
+        "messages": "Mensajes",
+        "earnings_payouts": "Ganancias y pagos",
+        "personal_profile": "Tu perfil personal de ayudante"
+      },
+      "serviceIdeas": "Habilidades que podrías ofrecer como servicios (solo vista previa, no se crea nada)",
+      "start": "Iniciar solicitud de negocio",
+      "linkTitle": "Agrega tu historial a un negocio que ya tienes",
+      "link": "Agregar registro de solo lectura",
+      "linked": "Tu historial está en {{name}}",
+      "unlink": "Quitar registro",
+      "failed": "No funcionó. Inténtalo de nuevo.",
+      "prefilled": "Completamos algunos datos con tu perfil de ayudante. Revísalos antes de continuar."
+    },
+    "workspace": {
+      "title": "Bienvenido a tu nuevo espacio de negocio",
+      "hint": "Aquí es donde empezar. Tu historial de ayudante aparece abajo como registro de solo lectura.",
+      "steps": {
+        "add_services": "Agrega tus servicios",
+        "set_hours": "Define tu horario",
+        "publish_profile": "Publica tu perfil de negocio",
+        "invite_team": "Invita a tu equipo"
+      },
+      "done": "Listo",
+      "todo": "Pendiente",
+      "dismiss": "Ocultar esta introducción",
+      "recordTitle": "Historial de ayudante del fundador (solo lectura)",
+      "recordHint": "Tomado el {{date}}. Las calificaciones y los clientes se quedan en el perfil personal de ayudante."
     }
   }
 }

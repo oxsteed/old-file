@@ -4,6 +4,7 @@ import CountrySelect from '../CountrySelect';
 import PostalCodeInput from '../PostalCodeInput';
 import RegionInput from '../RegionInput';
 import { createBusinessWithSetup, listBusinessCategories } from '../../api/businesses';
+import api from '../../api/axios';
 import { getDefaultCurrency } from '../../lib/countries';
 import '../../styles/BusinessCreationWizard.css';
 
@@ -46,7 +47,7 @@ function readDraft(country) {
   }
 }
 
-export default function BusinessCreationWizard({ initialCountry = 'US', initialKind = '', onCancel, onCreated }) {
+export default function BusinessCreationWizard({ initialCountry = 'US', initialKind = '', helperHandoff = false, onCancel, onCreated }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(() => {
     const saved = readDraft(initialCountry);
@@ -62,6 +63,29 @@ export default function BusinessCreationWizard({ initialCountry = 'US', initialK
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [prefilled, setPrefilled] = useState(false);
+
+  // Group 4 item 196: business application handoff. Prefill empty fields
+  // from the helper profile; the person still reviews and submits.
+  useEffect(() => {
+    if (!helperHandoff) return undefined;
+    const ctrl = new AbortController();
+    api.get('/helpers/me/business-transition', { signal: ctrl.signal })
+      .then(({ data }) => {
+        const p = data?.prefill;
+        if (ctrl.signal.aborted || !p) return;
+        setDraft((current) => {
+          const next = { ...current };
+          for (const key of ['business_name', 'description', 'address_city', 'address_state']) {
+            if (!String(next[key] || '').trim() && p[key]) next[key] = p[key];
+          }
+          return next;
+        });
+        setPrefilled(true);
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [helperHandoff]);
 
   useEffect(() => {
     let active = true;
@@ -149,6 +173,12 @@ export default function BusinessCreationWizard({ initialCountry = 'US', initialK
       );
       const result = await createBusinessWithSetup(payload, draft.idempotencyKey);
       localStorage.removeItem(DRAFT_KEY);
+      // Item 199: attach the helper's read-only history record to the new
+      // business. Best effort: the business exists either way, and the
+      // helper can attach it later from the helper dashboard.
+      if (helperHandoff && result?.business?.id) {
+        await api.post(`/helpers/me/business-transition/records/${encodeURIComponent(result.business.id)}`).catch(() => {});
+      }
       onCreated(result);
     } catch (requestError) {
       const fields = requestError?.response?.data?.fields;
@@ -177,6 +207,7 @@ export default function BusinessCreationWizard({ initialCountry = 'US', initialK
         </div>
 
         <div className="bcw-body">
+          {prefilled && <p className="bcw-eyebrow" role="status">{t('helperG4.growth.prefilled')}</p>}
           {draft.step === 0 && (
             <div className="bcw-scene">
               <div className="bcw-scene-copy">

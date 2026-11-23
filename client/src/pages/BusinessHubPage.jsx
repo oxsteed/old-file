@@ -45,6 +45,7 @@ const ServicePackagesManager = lazyNamed(() => import('../components/businessHub
 const HealthAlertsDashboard = lazyNamed(() => import('../components/businessHub/HealthAlertsDashboard'), 'HealthAlertsDashboard');
 const LeadPipeline = lazyNamed(() => import('../components/businessHub/LeadPipeline'), 'LeadPipeline');
 const MessageTemplatesManager = lazyNamed(() => import('../components/businessHub/MessageTemplatesManager'), 'MessageTemplatesManager');
+const BusinessWorkspaceIntro = lazyDefault(() => import('../components/BusinessWorkspaceIntro'));
 const BusinessCreationWizard = lazyDefault(() => import('../components/businessHub/BusinessCreationWizard'));
 const PropertyOperationsTab = lazyDefault(() => import('../components/businessHub/PropertyOperationsTab'));
 const TradesOperationsTab = lazyDefault(() => import('../components/businessHub/TradesOperationsTab'));
@@ -2146,6 +2147,8 @@ function BusinessHubInner() {
               <BusinessMediaTab businessId={bizId} />
             )}
 
+            {/* Group 4 items 199-200: new workspace intro + founder's read-only helper record (owner only; renders nothing otherwise). */}
+            {(tab === 'overview' || tab === 'profile') && bizId && currentRole === 'owner' && <Suspense fallback={null}><BusinessWorkspaceIntro businessId={bizId} /></Suspense>}
             {/* ── Overview tab ────────────────────────────────────── */}
             {tab === 'overview' && bizId && (
               <BusinessOperationsOverview businessId={bizId} viewerId={user?.id} role={currentRole}
@@ -2378,6 +2381,7 @@ function BusinessHubInner() {
           <BusinessCreationWizard
             initialCountry={user?.country || 'US'}
             initialKind={requestedCreateKind}
+            helperHandoff={searchParams.get('from') === 'helper'}
             onCancel={closeModal}
             onCreated={handleBusinessCreated}
           />

@@ -915,5 +915,313 @@
     "fr": "Impossible de rendre le travail. Rechargez et réessayez.",
     "ht": "Nou pa t ka remèt travay la. Rechaje epi eseye ankò.",
     "ar": "تعذّرت إعادة العمل. أعد التحميل وحاول مرة أخرى."
+  },
+  "growth.title": {
+    "en": "Grow into a business",
+    "es": "Convierte tu trabajo en un negocio",
+    "fr": "Développez votre activité en entreprise",
+    "ht": "Fè travay ou tounen yon biznis",
+    "ar": "حوّل عملك إلى نشاط تجاري"
+  },
+  "growth.hint": {
+    "en": "When you are ready, start a business on OxSteed. Your work history comes with you as a read-only record. Your ratings and clients stay with you as a helper.",
+    "es": "Cuando estés listo, crea un negocio en OxSteed. Tu historial de trabajo te acompaña como registro de solo lectura. Tus calificaciones y clientes se quedan contigo como ayudante.",
+    "fr": "Quand vous êtes prêt, créez une entreprise sur OxSteed. Votre historique de travail vous suit en lecture seule. Vos notes et vos clients restent avec vous en tant qu'aide.",
+    "ht": "Lè ou pare, kreye yon biznis sou OxSteed. Istwa travay ou vin avè w kòm yon dosye pou li sèlman. Nòt ou ak kliyan ou rete avè w kòm moun k ap ede.",
+    "ar": "عندما تكون جاهزًا، أنشئ نشاطًا تجاريًا على OxSteed. ينتقل سجل عملك معك كسجل للقراءة فقط. تبقى تقييماتك وعملاؤك معك كمساعد."
+  },
+  "growth.milestonesTitle": {
+    "en": "Readiness milestones",
+    "es": "Hitos de preparación",
+    "fr": "Étapes de préparation",
+    "ht": "Etap pou w pare",
+    "ar": "مراحل الجاهزية"
+  },
+  "growth.milestonesHint": {
+    "en": "These are guides, not requirements. You can start a business at any time.",
+    "es": "Son guías, no requisitos. Puedes crear un negocio en cualquier momento.",
+    "fr": "Ce sont des repères, pas des obligations. Vous pouvez créer une entreprise à tout moment.",
+    "ht": "Se gid yo ye, se pa obligasyon. Ou ka kreye yon biznis nenpòt lè.",
+    "ar": "هذه إرشادات وليست شروطًا. يمكنك إنشاء نشاط تجاري في أي وقت."
+  },
+  "growth.met": {
+    "en": "Done",
+    "es": "Listo",
+    "fr": "Fait",
+    "ht": "Fini",
+    "ar": "مكتمل"
+  },
+  "growth.notMet": {
+    "en": "Not yet",
+    "es": "Aún no",
+    "fr": "Pas encore",
+    "ht": "Poko",
+    "ar": "ليس بعد"
+  },
+  "growth.progress": {
+    "en": "{{current}} of {{target}}",
+    "es": "{{current}} de {{target}}",
+    "fr": "{{current}} sur {{target}}",
+    "ht": "{{current}} sou {{target}}",
+    "ar": "{{current}} من {{target}}"
+  },
+  "growth.milestones.profile_complete": {
+    "en": "Profile has a headline and at least one skill",
+    "es": "El perfil tiene un titular y al menos una habilidad",
+    "fr": "Le profil a un titre et au moins une compétence",
+    "ht": "Pwofil la gen yon tit ak omwen yon konpetans",
+    "ar": "يحتوي الملف على عنوان ومهارة واحدة على الأقل"
+  },
+  "growth.milestones.identity_verified": {
+    "en": "Identity verified",
+    "es": "Identidad verificada",
+    "fr": "Identité vérifiée",
+    "ht": "Idantite verifye",
+    "ar": "تم التحقق من الهوية"
+  },
+  "growth.milestones.completed_jobs": {
+    "en": "Completed jobs",
+    "es": "Trabajos completados",
+    "fr": "Travaux terminés",
+    "ht": "Travay fini",
+    "ar": "الأعمال المكتملة"
+  },
+  "growth.milestones.steady_reviews": {
+    "en": "Steady reviews (4.0 or higher)",
+    "es": "Reseñas constantes (4.0 o más)",
+    "fr": "Avis réguliers (4,0 ou plus)",
+    "ht": "Revizyon regilye (4.0 oswa plis)",
+    "ar": "تقييمات ثابتة (4.0 أو أعلى)"
+  },
+  "growth.milestones.payouts_ready": {
+    "en": "Payouts set up",
+    "es": "Pagos configurados",
+    "fr": "Versements configurés",
+    "ht": "Peman yo konfigire",
+    "ar": "تم إعداد الدفعات"
+  },
+  "growth.milestones.no_open_disputes": {
+    "en": "No open disputes",
+    "es": "Sin disputas abiertas",
+    "fr": "Aucun litige ouvert",
+    "ht": "Pa gen diskisyon ki louvri",
+    "ar": "لا توجد نزاعات مفتوحة"
+  },
+  "growth.previewTitle": {
+    "en": "What carries over",
+    "es": "Qué se transfiere",
+    "fr": "Ce qui est repris",
+    "ht": "Sa ki ale avè w",
+    "ar": "ما الذي ينتقل"
+  },
+  "growth.carries": {
+    "en": "Comes with you as a read-only record",
+    "es": "Te acompaña como registro de solo lectura",
+    "fr": "Vous suit en lecture seule",
+    "ht": "Vin avè w kòm dosye pou li sèlman",
+    "ar": "ينتقل معك كسجل للقراءة فقط"
+  },
+  "growth.completedJobs": {
+    "en": "Completed jobs: {{count}}",
+    "es": "Trabajos completados: {{count}}",
+    "fr": "Travaux terminés : {{count}}",
+    "ht": "Travay fini: {{count}}",
+    "ar": "الأعمال المكتملة: {{count}}"
+  },
+  "growth.portfolioItems": {
+    "en": "Portfolio items you may show: {{count}}",
+    "es": "Elementos de portafolio que puedes mostrar: {{count}}",
+    "fr": "Éléments de portfolio que vous pouvez montrer : {{count}}",
+    "ht": "Eleman pòtfolyo ou ka montre: {{count}}",
+    "ar": "عناصر المعرض التي يمكنك عرضها: {{count}}"
+  },
+  "growth.skills": {
+    "en": "Skills",
+    "es": "Habilidades",
+    "fr": "Compétences",
+    "ht": "Konpetans",
+    "ar": "المهارات"
+  },
+  "growth.categories": {
+    "en": "Kinds of work",
+    "es": "Tipos de trabajo",
+    "fr": "Types de travaux",
+    "ht": "Kalite travay",
+    "ar": "أنواع العمل"
+  },
+  "growth.stays": {
+    "en": "Stays with you as a helper",
+    "es": "Se queda contigo como ayudante",
+    "fr": "Reste avec vous en tant qu'aide",
+    "ht": "Rete avè w kòm moun k ap ede",
+    "ar": "يبقى معك كمساعد"
+  },
+  "growth.stay.ratings_reviews": {
+    "en": "Ratings and reviews",
+    "es": "Calificaciones y reseñas",
+    "fr": "Notes et avis",
+    "ht": "Nòt ak revizyon",
+    "ar": "التقييمات والمراجعات"
+  },
+  "growth.stay.client_relationships": {
+    "en": "Client relationships",
+    "es": "Relaciones con clientes",
+    "fr": "Relations clients",
+    "ht": "Relasyon ak kliyan",
+    "ar": "العلاقات مع العملاء"
+  },
+  "growth.stay.messages": {
+    "en": "Messages",
+    "es": "Mensajes",
+    "fr": "Messages",
+    "ht": "Mesaj",
+    "ar": "الرسائل"
+  },
+  "growth.stay.earnings_payouts": {
+    "en": "Earnings and payouts",
+    "es": "Ganancias y pagos",
+    "fr": "Revenus et versements",
+    "ht": "Revni ak peman",
+    "ar": "الأرباح والدفعات"
+  },
+  "growth.stay.personal_profile": {
+    "en": "Your personal helper profile",
+    "es": "Tu perfil personal de ayudante",
+    "fr": "Votre profil personnel d'aide",
+    "ht": "Pwofil pèsonèl ou kòm moun k ap ede",
+    "ar": "ملفك الشخصي كمساعد"
+  },
+  "growth.serviceIdeas": {
+    "en": "Skills you could offer as services (preview only, nothing is created)",
+    "es": "Habilidades que podrías ofrecer como servicios (solo vista previa, no se crea nada)",
+    "fr": "Compétences à proposer comme services (aperçu seulement, rien n'est créé)",
+    "ht": "Konpetans ou ta ka ofri kòm sèvis (apèsi sèlman, anyen pa kreye)",
+    "ar": "مهارات يمكنك تقديمها كخدمات (معاينة فقط، لا يُنشأ شيء)"
+  },
+  "growth.start": {
+    "en": "Start a business application",
+    "es": "Iniciar solicitud de negocio",
+    "fr": "Commencer une demande d'entreprise",
+    "ht": "Kòmanse yon aplikasyon biznis",
+    "ar": "بدء طلب نشاط تجاري"
+  },
+  "growth.linkTitle": {
+    "en": "Add your history to a business you own",
+    "es": "Agrega tu historial a un negocio que ya tienes",
+    "fr": "Ajoutez votre historique à une entreprise que vous possédez",
+    "ht": "Ajoute istwa ou nan yon biznis ou genyen",
+    "ar": "أضف سجلك إلى نشاط تجاري تملكه"
+  },
+  "growth.link": {
+    "en": "Add read-only record",
+    "es": "Agregar registro de solo lectura",
+    "fr": "Ajouter l'historique en lecture seule",
+    "ht": "Ajoute dosye pou li sèlman",
+    "ar": "إضافة سجل للقراءة فقط"
+  },
+  "growth.linked": {
+    "en": "Your history is on {{name}}",
+    "es": "Tu historial está en {{name}}",
+    "fr": "Votre historique figure sur {{name}}",
+    "ht": "Istwa ou sou {{name}}",
+    "ar": "سجلك موجود في {{name}}"
+  },
+  "growth.unlink": {
+    "en": "Remove record",
+    "es": "Quitar registro",
+    "fr": "Retirer l'historique",
+    "ht": "Retire dosye a",
+    "ar": "إزالة السجل"
+  },
+  "growth.failed": {
+    "en": "That didn't work. Try again.",
+    "es": "No funcionó. Inténtalo de nuevo.",
+    "fr": "Cela n'a pas fonctionné. Réessayez.",
+    "ht": "Sa pa t mache. Eseye ankò.",
+    "ar": "لم ينجح ذلك. حاول مرة أخرى."
+  },
+  "growth.prefilled": {
+    "en": "We filled in some details from your helper profile. Check them before you continue.",
+    "es": "Completamos algunos datos con tu perfil de ayudante. Revísalos antes de continuar.",
+    "fr": "Nous avons rempli certains détails à partir de votre profil d'aide. Vérifiez-les avant de continuer.",
+    "ht": "Nou ranpli kèk detay ak pwofil ou. Verifye yo anvan ou kontinye.",
+    "ar": "ملأنا بعض التفاصيل من ملفك كمساعد. راجعها قبل المتابعة."
+  },
+  "workspace.title": {
+    "en": "Welcome to your new business workspace",
+    "es": "Bienvenido a tu nuevo espacio de negocio",
+    "fr": "Bienvenue dans votre nouvel espace d'entreprise",
+    "ht": "Byenvini nan nouvo espas biznis ou",
+    "ar": "مرحبًا بك في مساحة عملك الجديدة"
+  },
+  "workspace.hint": {
+    "en": "Here is where to start. Your helper history is attached below as a read-only record.",
+    "es": "Aquí es donde empezar. Tu historial de ayudante aparece abajo como registro de solo lectura.",
+    "fr": "Voici par où commencer. Votre historique d'aide figure ci-dessous en lecture seule.",
+    "ht": "Men kote pou w kòmanse. Istwa ou kòm moun k ap ede parèt anba a kòm dosye pou li sèlman.",
+    "ar": "إليك من أين تبدأ. سجلك كمساعد مرفق أدناه للقراءة فقط."
+  },
+  "workspace.steps.add_services": {
+    "en": "Add your services",
+    "es": "Agrega tus servicios",
+    "fr": "Ajoutez vos services",
+    "ht": "Ajoute sèvis ou yo",
+    "ar": "أضف خدماتك"
+  },
+  "workspace.steps.set_hours": {
+    "en": "Set your business hours",
+    "es": "Define tu horario",
+    "fr": "Définissez vos horaires",
+    "ht": "Mete orè biznis ou",
+    "ar": "حدد ساعات العمل"
+  },
+  "workspace.steps.publish_profile": {
+    "en": "Publish your business profile",
+    "es": "Publica tu perfil de negocio",
+    "fr": "Publiez votre profil d'entreprise",
+    "ht": "Pibliye pwofil biznis ou",
+    "ar": "انشر ملف نشاطك التجاري"
+  },
+  "workspace.steps.invite_team": {
+    "en": "Invite your team",
+    "es": "Invita a tu equipo",
+    "fr": "Invitez votre équipe",
+    "ht": "Envite ekip ou",
+    "ar": "ادعُ فريقك"
+  },
+  "workspace.done": {
+    "en": "Done",
+    "es": "Listo",
+    "fr": "Fait",
+    "ht": "Fini",
+    "ar": "مكتمل"
+  },
+  "workspace.todo": {
+    "en": "To do",
+    "es": "Pendiente",
+    "fr": "À faire",
+    "ht": "Pou fè",
+    "ar": "قيد الانتظار"
+  },
+  "workspace.dismiss": {
+    "en": "Hide this introduction",
+    "es": "Ocultar esta introducción",
+    "fr": "Masquer cette introduction",
+    "ht": "Kache entwodiksyon sa a",
+    "ar": "إخفاء هذه المقدمة"
+  },
+  "workspace.recordTitle": {
+    "en": "Founder's helper record (read-only)",
+    "es": "Historial de ayudante del fundador (solo lectura)",
+    "fr": "Historique d'aide du fondateur (lecture seule)",
+    "ht": "Dosye fondatè a kòm moun k ap ede (pou li sèlman)",
+    "ar": "سجل المؤسس كمساعد (للقراءة فقط)"
+  },
+  "workspace.recordHint": {
+    "en": "Taken on {{date}}. Ratings and clients stay on the personal helper profile.",
+    "es": "Tomado el {{date}}. Las calificaciones y los clientes se quedan en el perfil personal de ayudante.",
+    "fr": "Établi le {{date}}. Les notes et les clients restent sur le profil personnel d'aide.",
+    "ht": "Pran nan dat {{date}}. Nòt ak kliyan rete sou pwofil pèsonèl la.",
+    "ar": "أُخذ في {{date}}. تبقى التقييمات والعملاء في الملف الشخصي للمساعد."
   }
 }

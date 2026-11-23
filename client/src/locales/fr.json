@@ -44889,6 +44889,60 @@
         "handback_after_start": "L'heure de début est passée. Annulez le travail ou contactez le support.",
         "generic": "Impossible de rendre le travail. Rechargez et réessayez."
       }
+    },
+    "growth": {
+      "title": "Développez votre activité en entreprise",
+      "hint": "Quand vous êtes prêt, créez une entreprise sur OxSteed. Votre historique de travail vous suit en lecture seule. Vos notes et vos clients restent avec vous en tant qu'aide.",
+      "milestonesTitle": "Étapes de préparation",
+      "milestonesHint": "Ce sont des repères, pas des obligations. Vous pouvez créer une entreprise à tout moment.",
+      "met": "Fait",
+      "notMet": "Pas encore",
+      "progress": "{{current}} sur {{target}}",
+      "milestones": {
+        "profile_complete": "Le profil a un titre et au moins une compétence",
+        "identity_verified": "Identité vérifiée",
+        "completed_jobs": "Travaux terminés",
+        "steady_reviews": "Avis réguliers (4,0 ou plus)",
+        "payouts_ready": "Versements configurés",
+        "no_open_disputes": "Aucun litige ouvert"
+      },
+      "previewTitle": "Ce qui est repris",
+      "carries": "Vous suit en lecture seule",
+      "completedJobs": "Travaux terminés : {{count}}",
+      "portfolioItems": "Éléments de portfolio que vous pouvez montrer : {{count}}",
+      "skills": "Compétences",
+      "categories": "Types de travaux",
+      "stays": "Reste avec vous en tant qu'aide",
+      "stay": {
+        "ratings_reviews": "Notes et avis",
+        "client_relationships": "Relations clients",
+        "messages": "Messages",
+        "earnings_payouts": "Revenus et versements",
+        "personal_profile": "Votre profil personnel d'aide"
+      },
+      "serviceIdeas": "Compétences à proposer comme services (aperçu seulement, rien n'est créé)",
+      "start": "Commencer une demande d'entreprise",
+      "linkTitle": "Ajoutez votre historique à une entreprise que vous possédez",
+      "link": "Ajouter l'historique en lecture seule",
+      "linked": "Votre historique figure sur {{name}}",
+      "unlink": "Retirer l'historique",
+      "failed": "Cela n'a pas fonctionné. Réessayez.",
+      "prefilled": "Nous avons rempli certains détails à partir de votre profil d'aide. Vérifiez-les avant de continuer."
+    },
+    "workspace": {
+      "title": "Bienvenue dans votre nouvel espace d'entreprise",
+      "hint": "Voici par où commencer. Votre historique d'aide figure ci-dessous en lecture seule.",
+      "steps": {
+        "add_services": "Ajoutez vos services",
+        "set_hours": "Définissez vos horaires",
+        "publish_profile": "Publiez votre profil d'entreprise",
+        "invite_team": "Invitez votre équipe"
+      },
+      "done": "Fait",
+      "todo": "À faire",
+      "dismiss": "Masquer cette introduction",
+      "recordTitle": "Historique d'aide du fondateur (lecture seule)",
+      "recordHint": "Établi le {{date}}. Les notes et les clients restent sur le profil personnel d'aide."
     }
   }
 }

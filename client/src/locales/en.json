@@ -44889,6 +44889,60 @@
         "handback_after_start": "The start time has passed. Cancel the job or contact support instead.",
         "generic": "Could not hand the job back. Reload and try again."
       }
+    },
+    "growth": {
+      "title": "Grow into a business",
+      "hint": "When you are ready, start a business on OxSteed. Your work history comes with you as a read-only record. Your ratings and clients stay with you as a helper.",
+      "milestonesTitle": "Readiness milestones",
+      "milestonesHint": "These are guides, not requirements. You can start a business at any time.",
+      "met": "Done",
+      "notMet": "Not yet",
+      "progress": "{{current}} of {{target}}",
+      "milestones": {
+        "profile_complete": "Profile has a headline and at least one skill",
+        "identity_verified": "Identity verified",
+        "completed_jobs": "Completed jobs",
+        "steady_reviews": "Steady reviews (4.0 or higher)",
+        "payouts_ready": "Payouts set up",
+        "no_open_disputes": "No open disputes"
+      },
+      "previewTitle": "What carries over",
+      "carries": "Comes with you as a read-only record",
+      "completedJobs": "Completed jobs: {{count}}",
+      "portfolioItems": "Portfolio items you may show: {{count}}",
+      "skills": "Skills",
+      "categories": "Kinds of work",
+      "stays": "Stays with you as a helper",
+      "stay": {
+        "ratings_reviews": "Ratings and reviews",
+        "client_relationships": "Client relationships",
+        "messages": "Messages",
+        "earnings_payouts": "Earnings and payouts",
+        "personal_profile": "Your personal helper profile"
+      },
+      "serviceIdeas": "Skills you could offer as services (preview only, nothing is created)",
+      "start": "Start a business application",
+      "linkTitle": "Add your history to a business you own",
+      "link": "Add read-only record",
+      "linked": "Your history is on {{name}}",
+      "unlink": "Remove record",
+      "failed": "That didn't work. Try again.",
+      "prefilled": "We filled in some details from your helper profile. Check them before you continue."
+    },
+    "workspace": {
+      "title": "Welcome to your new business workspace",
+      "hint": "Here is where to start. Your helper history is attached below as a read-only record.",
+      "steps": {
+        "add_services": "Add your services",
+        "set_hours": "Set your business hours",
+        "publish_profile": "Publish your business profile",
+        "invite_team": "Invite your team"
+      },
+      "done": "Done",
+      "todo": "To do",
+      "dismiss": "Hide this introduction",
+      "recordTitle": "Founder's helper record (read-only)",
+      "recordHint": "Taken on {{date}}. Ratings and clients stay on the personal helper profile."
     }
   }
 }

@@ -44889,6 +44889,60 @@
         "handback_after_start": "Lè pou kòmanse a pase. Anile travay la oswa kontakte sipò.",
         "generic": "Nou pa t ka remèt travay la. Rechaje epi eseye ankò."
       }
+    },
+    "growth": {
+      "title": "Fè travay ou tounen yon biznis",
+      "hint": "Lè ou pare, kreye yon biznis sou OxSteed. Istwa travay ou vin avè w kòm yon dosye pou li sèlman. Nòt ou ak kliyan ou rete avè w kòm moun k ap ede.",
+      "milestonesTitle": "Etap pou w pare",
+      "milestonesHint": "Se gid yo ye, se pa obligasyon. Ou ka kreye yon biznis nenpòt lè.",
+      "met": "Fini",
+      "notMet": "Poko",
+      "progress": "{{current}} sou {{target}}",
+      "milestones": {
+        "profile_complete": "Pwofil la gen yon tit ak omwen yon konpetans",
+        "identity_verified": "Idantite verifye",
+        "completed_jobs": "Travay fini",
+        "steady_reviews": "Revizyon regilye (4.0 oswa plis)",
+        "payouts_ready": "Peman yo konfigire",
+        "no_open_disputes": "Pa gen diskisyon ki louvri"
+      },
+      "previewTitle": "Sa ki ale avè w",
+      "carries": "Vin avè w kòm dosye pou li sèlman",
+      "completedJobs": "Travay fini: {{count}}",
+      "portfolioItems": "Eleman pòtfolyo ou ka montre: {{count}}",
+      "skills": "Konpetans",
+      "categories": "Kalite travay",
+      "stays": "Rete avè w kòm moun k ap ede",
+      "stay": {
+        "ratings_reviews": "Nòt ak revizyon",
+        "client_relationships": "Relasyon ak kliyan",
+        "messages": "Mesaj",
+        "earnings_payouts": "Revni ak peman",
+        "personal_profile": "Pwofil pèsonèl ou kòm moun k ap ede"
+      },
+      "serviceIdeas": "Konpetans ou ta ka ofri kòm sèvis (apèsi sèlman, anyen pa kreye)",
+      "start": "Kòmanse yon aplikasyon biznis",
+      "linkTitle": "Ajoute istwa ou nan yon biznis ou genyen",
+      "link": "Ajoute dosye pou li sèlman",
+      "linked": "Istwa ou sou {{name}}",
+      "unlink": "Retire dosye a",
+      "failed": "Sa pa t mache. Eseye ankò.",
+      "prefilled": "Nou ranpli kèk detay ak pwofil ou. Verifye yo anvan ou kontinye."
+    },
+    "workspace": {
+      "title": "Byenvini nan nouvo espas biznis ou",
+      "hint": "Men kote pou w kòmanse. Istwa ou kòm moun k ap ede parèt anba a kòm dosye pou li sèlman.",
+      "steps": {
+        "add_services": "Ajoute sèvis ou yo",
+        "set_hours": "Mete orè biznis ou",
+        "publish_profile": "Pibliye pwofil biznis ou",
+        "invite_team": "Envite ekip ou"
+      },
+      "done": "Fini",
+      "todo": "Pou fè",
+      "dismiss": "Kache entwodiksyon sa a",
+      "recordTitle": "Dosye fondatè a kòm moun k ap ede (pou li sèlman)",
+      "recordHint": "Pran nan dat {{date}}. Nòt ak kliyan rete sou pwofil pèsonèl la."
     }
   }
 }

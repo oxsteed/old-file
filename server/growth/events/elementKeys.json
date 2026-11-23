@@ -3171,6 +3171,8 @@
   "ui.footer.vortex_redeem",
   "ui.helperG4.breakdown.toggle",
   "ui.helperG4.endorsements.toggle",
+  "ui.helperG4.growth.link",
+  "ui.helperG4.growth.unlink",
   "ui.helperG4.handback.cancel",
   "ui.helperG4.handback.confirm",
   "ui.helperG4.handback.open",
@@ -3183,5 +3185,6 @@
   "ui.helperG4.reschedule.decline",
   "ui.helperG4.reschedule.propose",
   "ui.helperG4.reschedule.withdraw",
+  "ui.helperG4.workspace.dismiss",
   "ui.learn.programs.enroll"
 ]

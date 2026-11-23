@@ -48,4 +48,11 @@ router.delete('/endorsements/:id',rejectImpersonated,handle(async(req,res)=>{awa
 const repeatCustomers=require('../services/helperRepeatCustomerService');
 router.get('/repeat-customers',handle(async(req,res)=>res.json({customers:await repeatCustomers.list(req.user.id)})));
 router.post('/repeat-customers/:customerId/invite',rejectImpersonated,handle(async(req,res)=>res.status(201).json({invite:await repeatCustomers.invite(req.user.id,req.params.customerId,req.body)})));
+// Group 4 rest items 196-200: grow into ownership (read-only history record).
+const businessTransition=require('../services/helperBusinessTransitionService');
+router.get('/business-transition',handle(async(req,res)=>res.json(await businessTransition.overview(req.user.id))));
+router.post('/business-transition/records/:businessId',rejectImpersonated,handle(async(req,res)=>res.status(201).json({record:await businessTransition.link(req.user.id,req.params.businessId)})));
+router.get('/business-transition/records/:businessId',handle(async(req,res)=>res.json({record:await businessTransition.record(req.user.id,req.params.businessId)})));
+router.delete('/business-transition/records/:businessId',rejectImpersonated,handle(async(req,res)=>res.json(await businessTransition.revoke(req.user.id,req.params.businessId))));
+router.post('/business-transition/records/:businessId/dismiss-intro',rejectImpersonated,handle(async(req,res)=>res.json(await businessTransition.dismissIntro(req.user.id,req.params.businessId))));
 module.exports = router;
