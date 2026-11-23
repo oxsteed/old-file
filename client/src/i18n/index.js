@@ -249,6 +249,7 @@ const localeLoaders = {
     import('../locales/generated/th-2.json'),
     import('../locales/generated/th-3.json'),
     import('../locales/generated/th-4.json'),
+    import('../locales/generated/th-5.json'),
     optionalLocaleModule(import('./locales/th/common.json')),
     optionalLocaleModule(import('./locales/th/translator.json')),
     optionalLocaleModule(import('./locales/th/credit.json')),
@@ -257,7 +258,7 @@ const localeLoaders = {
   ]),
 };
 
-const localeLegacyShardCounts = { en: 4, es: 4, fr: 4, ht: 4, ar: 5, hi: 5, vi: 4, ru: 5, ja: 4, ur: 4, bn: 6, th: 5 };
+const localeLegacyShardCounts = { en: 4, es: 4, fr: 4, ht: 4, ar: 5, hi: 5, vi: 4, ru: 5, ja: 4, ur: 4, bn: 6, th: 6 };
 
 const legalLocaleLoaders = {
   en: () => Promise.all([
