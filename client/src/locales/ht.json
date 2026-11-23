@@ -44979,5 +44979,109 @@
       "empty": "Pa gen travay ki remèt.",
       "failed": "Nou pa t ka chaje travay yo remèt yo."
     }
+  },
+  "bizG56": {
+    "tabs": {
+      "ownerConsole": "Konsòl pwopriyetè",
+      "myWork": "Travay mwen"
+    },
+    "common": {
+      "save": "Anrejistre",
+      "cancel": "Anile",
+      "saved": "Anrejistre.",
+      "none": "Pa gen anyen la a ankò."
+    },
+    "errors": {
+      "saveError": "Sa pa t anrejistre. Eseye ankò.",
+      "loadError": "Seksyon sa a pa t ka chaje.",
+      "noAccess": "Ou pa gen aksè nan seksyon sa a.",
+      "conflict": "Sa a te chanje entretan. Rafrechi epi eseye ankò.",
+      "validation_failed": "Tcheke chan yo epi eseye ankò.",
+      "offering_changed": "Sèvis sa a te chanje entretan. Rafrechi epi eseye ankò.",
+      "listing_already_claimed": "Fich sa a deja konekte ak yon biznis.",
+      "claim_already_pending": "Ou deja gen yon demann k ap tann pou fich sa a.",
+      "claim_not_pending": "Demann sa a pa an atant ankò."
+    },
+    "launch": {
+      "title": "Estati lansman",
+      "progress": "{{done}} sou {{total}} verifikasyon fini",
+      "status": {
+        "in_progress": "Ap prepare",
+        "ready_to_publish": "Pare pou pibliye",
+        "live": "An liy",
+        "hidden": "OxSteed kache l pandan revizyon"
+      },
+      "hiddenReason": "Rezon",
+      "optional": "(opsyonèl)",
+      "verificationTitle": "Lis verifikasyon biznis",
+      "check": {
+        "name": "Non biznis la",
+        "description": "Deskripsyon omwen 40 karaktè",
+        "contact_phone": "Telefòn kontak",
+        "address": "Vil ak eta biznis la",
+        "service_area": "Zòn sèvis",
+        "hours": "Lè travay",
+        "payouts": "Peman ak vèsman konfigire",
+        "logo": "Logo",
+        "cover_photo": "Foto kouvèti",
+        "tax_id": "Nimewo taks (EIN)",
+        "verified_badge": "Badj biznis verifye"
+      },
+      "servicesTitle": "Lis pou pibliye sèvis yo",
+      "noServices": "Ajoute yon sèvis pou pibliye biznis ou.",
+      "serviceReady": "Pare",
+      "serviceNotReady": "Bezwen travay",
+      "serviceCheck": {
+        "active": "Aktive sèvis la",
+        "not_paused": "Sèvis la an poz",
+        "description": "Ajoute yon deskripsyon (20+ karaktè)",
+        "price": "Mete yon pri",
+        "duration": "Mete yon dire",
+        "bookable_staff": "Bay yon manm ekip pou rezèvasyon sou entènèt"
+      }
+    },
+    "offerings": {
+      "title": "Disponiblite sèvis yo",
+      "mode": {
+        "everywhere": "Ofri tout kote ou sèvi",
+        "only": "Sèlman nan zòn ki nan lis la",
+        "except": "Tout kote eksepte zòn ki nan lis la"
+      },
+      "modeLabel": "Ki kote li ofri",
+      "states": "Eta (egz. FL, GA)",
+      "postal": "Prefiks kòd postal (egz. 331, 33139)",
+      "editRegions": "Modifye zòn yo",
+      "pause": "Mete rezèvasyon an poz",
+      "resume": "Rekòmanse rezèvasyon",
+      "paused": "An poz",
+      "until": "jiska {{date}}",
+      "reason": "Rezon (kliyan p ap wè l)",
+      "resumeOn": "Rekòmanse otomatikman nan (opsyonèl)",
+      "confirmPause": "Mete an poz"
+    },
+    "claim": {
+      "title": "Reklame yon fich ki egziste deja",
+      "help": "Si biznis ou deja parèt nan anyè OxSteed la, konekte l isit la. OxSteed revize chak demann.",
+      "search": "Non biznis la",
+      "find": "Chèche fich",
+      "listing": "Fich",
+      "choose": "Chwazi yon fich",
+      "noListings": "Pa gen fich ki pa reklame ki koresponn.",
+      "relationship": "Wòl ou",
+      "rel": {
+        "owner": "Pwopriyetè",
+        "officer": "Ofisye konpayi",
+        "authorized_manager": "Manadjè otorize"
+      },
+      "evidence": "Kijan nou ka konfime se biznis ou? (20+ karaktè)",
+      "submit": "Voye demann lan",
+      "withdraw": "Retire",
+      "claimStatus": {
+        "pending": "Nan revizyon",
+        "approved": "Apwouve",
+        "rejected": "Pa apwouve",
+        "withdrawn": "Retire"
+      }
+    }
   }
 }

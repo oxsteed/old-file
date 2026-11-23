@@ -44979,5 +44979,109 @@
       "empty": "Aucun travail rendu.",
       "failed": "Impossible de charger les travaux rendus."
     }
+  },
+  "bizG56": {
+    "tabs": {
+      "ownerConsole": "Console du propriétaire",
+      "myWork": "Mon travail"
+    },
+    "common": {
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "saved": "Enregistré.",
+      "none": "Rien pour l’instant."
+    },
+    "errors": {
+      "saveError": "L’enregistrement a échoué. Réessayez.",
+      "loadError": "Cette section n’a pas pu se charger.",
+      "noAccess": "Vous n’avez pas accès à cette section.",
+      "conflict": "Cet élément a changé entre-temps. Actualisez et réessayez.",
+      "validation_failed": "Vérifiez les champs et réessayez.",
+      "offering_changed": "Ce service a changé entre-temps. Actualisez et réessayez.",
+      "listing_already_claimed": "Cette fiche est déjà liée à une entreprise.",
+      "claim_already_pending": "Vous avez déjà une revendication en attente pour cette fiche.",
+      "claim_not_pending": "Cette revendication n’est plus en attente."
+    },
+    "launch": {
+      "title": "État du lancement",
+      "progress": "{{done}} vérifications sur {{total}} terminées",
+      "status": {
+        "in_progress": "En cours de configuration",
+        "ready_to_publish": "Prêt à publier",
+        "live": "En ligne",
+        "hidden": "Masqué par la vérification OxSteed"
+      },
+      "hiddenReason": "Motif",
+      "optional": "(facultatif)",
+      "verificationTitle": "Liste de vérification de l’entreprise",
+      "check": {
+        "name": "Nom de l’entreprise",
+        "description": "Description d’au moins 40 caractères",
+        "contact_phone": "Téléphone de contact",
+        "address": "Ville et État de l’entreprise",
+        "service_area": "Zone de service",
+        "hours": "Heures d’ouverture",
+        "payouts": "Paiements et versements configurés",
+        "logo": "Logo",
+        "cover_photo": "Photo de couverture",
+        "tax_id": "Numéro fiscal (EIN)",
+        "verified_badge": "Badge d’entreprise vérifiée"
+      },
+      "servicesTitle": "Liste de publication des services",
+      "noServices": "Ajoutez un service pour publier votre entreprise.",
+      "serviceReady": "Prêt",
+      "serviceNotReady": "À compléter",
+      "serviceCheck": {
+        "active": "Activez le service",
+        "not_paused": "Le service est en pause",
+        "description": "Ajoutez une description (20+ caractères)",
+        "price": "Fixez un prix",
+        "duration": "Fixez une durée",
+        "bookable_staff": "Affectez un membre de l’équipe pour la réservation en ligne"
+      }
+    },
+    "offerings": {
+      "title": "Disponibilité des services",
+      "mode": {
+        "everywhere": "Proposé partout où vous intervenez",
+        "only": "Uniquement dans les zones listées",
+        "except": "Partout sauf les zones listées"
+      },
+      "modeLabel": "Où il est proposé",
+      "states": "États (ex. FL, GA)",
+      "postal": "Préfixes postaux (ex. 331, 33139)",
+      "editRegions": "Modifier les zones",
+      "pause": "Suspendre les réservations",
+      "resume": "Reprendre les réservations",
+      "paused": "En pause",
+      "until": "jusqu’au {{date}}",
+      "reason": "Motif (non visible par les clients)",
+      "resumeOn": "Reprise automatique le (facultatif)",
+      "confirmPause": "Suspendre"
+    },
+    "claim": {
+      "title": "Revendiquer une fiche existante",
+      "help": "Si votre entreprise figure déjà dans l’annuaire OxSteed, liez-la ici. OxSteed examine chaque revendication.",
+      "search": "Nom de l’entreprise",
+      "find": "Trouver la fiche",
+      "listing": "Fiche",
+      "choose": "Choisissez une fiche",
+      "noListings": "Aucune fiche non revendiquée ne correspond.",
+      "relationship": "Votre rôle",
+      "rel": {
+        "owner": "Propriétaire",
+        "officer": "Dirigeant de l’entreprise",
+        "authorized_manager": "Gérant autorisé"
+      },
+      "evidence": "Comment confirmer qu’il s’agit de votre entreprise ? (20+ caractères)",
+      "submit": "Envoyer la revendication",
+      "withdraw": "Retirer",
+      "claimStatus": {
+        "pending": "En cours d’examen",
+        "approved": "Approuvée",
+        "rejected": "Non approuvée",
+        "withdrawn": "Retirée"
+      }
+    }
   }
 }

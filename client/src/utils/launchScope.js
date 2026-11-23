@@ -82,6 +82,9 @@ export const LAUNCH_BUSINESS_HUB_TABS = new Set([
   'maintenance',
   // G-22: business-funded Credit tab (owner/manager funds member Credit).
   'credit',
+  // Groups 5-6 (items 201-300): owner console and team member work.
+  'owner-console',
+  'my-work',
 ]);
 
 export const LAUNCH_DEFAULTS = Object.freeze({

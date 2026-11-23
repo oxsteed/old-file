@@ -87,6 +87,7 @@ const T = {
   ...require('./logisticsQuoteNotifications').quoteNotifications,
   ...require('./logisticsPaymentNotifications').paymentNotifications,
   ...require('./jobLifecycleNotificationTemplates').jobLifecycleNotifications,
+  ...require('./businessTeamNotificationTemplates').businessTeamNotifications,
   ...require('./campaignReviewNotifications').campaignReviewNotifications,
   // S-19: staff membership notices (invite/removal/resend/withdraw/rehire/hired).
   ...require('./staffNotificationTemplates').staffNotifications,

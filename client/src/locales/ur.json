@@ -37075,5 +37075,109 @@
       "empty": "No hand-backs.",
       "failed": "Could not load hand-backs."
     }
+  },
+  "bizG56": {
+    "tabs": {
+      "ownerConsole": "Owner console",
+      "myWork": "My work"
+    },
+    "common": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "saved": "Saved.",
+      "none": "Nothing here yet."
+    },
+    "errors": {
+      "saveError": "That didn’t save. Try again.",
+      "loadError": "This section couldn’t load.",
+      "noAccess": "You don’t have access to this section.",
+      "conflict": "This changed in the meantime. Refresh and try again.",
+      "validation_failed": "Check the fields and try again.",
+      "offering_changed": "This service changed in the meantime. Refresh and try again.",
+      "listing_already_claimed": "This listing is already linked to a business.",
+      "claim_already_pending": "You already have a pending claim for this listing.",
+      "claim_not_pending": "This claim is no longer pending."
+    },
+    "launch": {
+      "title": "Launch status",
+      "progress": "{{done}} of {{total}} checks done",
+      "status": {
+        "in_progress": "Setting up",
+        "ready_to_publish": "Ready to publish",
+        "live": "Live",
+        "hidden": "Hidden by OxSteed review"
+      },
+      "hiddenReason": "Reason",
+      "optional": "(optional)",
+      "verificationTitle": "Business verification checklist",
+      "check": {
+        "name": "Business name",
+        "description": "Description of at least 40 characters",
+        "contact_phone": "Contact phone",
+        "address": "Business city and state",
+        "service_area": "Service area",
+        "hours": "Business hours",
+        "payouts": "Payments and payouts set up",
+        "logo": "Logo",
+        "cover_photo": "Cover photo",
+        "tax_id": "Tax ID (EIN)",
+        "verified_badge": "Verified business badge"
+      },
+      "servicesTitle": "Service publication checklist",
+      "noServices": "Add a service to publish your business.",
+      "serviceReady": "Ready",
+      "serviceNotReady": "Needs work",
+      "serviceCheck": {
+        "active": "Turn the service on",
+        "not_paused": "Service is paused",
+        "description": "Add a description (20+ characters)",
+        "price": "Set a price",
+        "duration": "Set a duration",
+        "bookable_staff": "Assign a team member for online booking"
+      }
+    },
+    "offerings": {
+      "title": "Service availability",
+      "mode": {
+        "everywhere": "Offered everywhere you serve",
+        "only": "Only in listed areas",
+        "except": "Everywhere except listed areas"
+      },
+      "modeLabel": "Where it’s offered",
+      "states": "States (e.g. FL, GA)",
+      "postal": "ZIP prefixes (e.g. 331, 33139)",
+      "editRegions": "Edit areas",
+      "pause": "Pause bookings",
+      "resume": "Resume bookings",
+      "paused": "Paused",
+      "until": "until {{date}}",
+      "reason": "Reason (customers won’t see it)",
+      "resumeOn": "Resume automatically on (optional)",
+      "confirmPause": "Pause"
+    },
+    "claim": {
+      "title": "Claim an existing listing",
+      "help": "If your business already appears in the OxSteed directory, link it here. OxSteed reviews every claim.",
+      "search": "Business name",
+      "find": "Find listing",
+      "listing": "Listing",
+      "choose": "Choose a listing",
+      "noListings": "No unclaimed listings match.",
+      "relationship": "Your role",
+      "rel": {
+        "owner": "Owner",
+        "officer": "Company officer",
+        "authorized_manager": "Authorized manager"
+      },
+      "evidence": "How can we confirm this is your business? (20+ characters)",
+      "submit": "Submit claim",
+      "withdraw": "Withdraw",
+      "claimStatus": {
+        "pending": "In review",
+        "approved": "Approved",
+        "rejected": "Not approved",
+        "withdrawn": "Withdrawn"
+      }
+    }
   }
 }

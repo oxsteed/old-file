@@ -36,6 +36,8 @@ const ExpenseTracker = lazyNamed(() => import('../components/businessHub/Expense
 const QuoteBuilder = lazyNamed(() => import('../components/businessHub/QuoteBuilder'), 'QuoteBuilder');
 const RoleTemplates = lazyDefault(() => import('../components/businessHub/RoleTemplates'));
 const TeamReadiness = lazyDefault(() => import('../components/businessHub/TeamReadiness'));
+const BusinessOwnerConsole = lazyDefault(() => import('../components/businessHub/g56/BusinessOwnerConsole'));
+const TeamMemberWork = lazyDefault(() => import('../components/businessHub/g56/TeamMemberWork'));
 const RecurringBillingManager = lazyNamed(() => import('../components/businessHub/RecurringBillingManager'), 'RecurringBillingManager');
 const StaffScheduler = lazyNamed(() => import('../components/businessHub/StaffScheduler'), 'StaffScheduler');
 const ReviewManager = lazyNamed(() => import('../components/businessHub/ReviewManager'), 'ReviewManager');
@@ -326,6 +328,8 @@ function BusinessHubInner() {
   // Put daily operations before configuration and detailed reporting.
   const serviceBusinessTabs = [
     'overview',
+    'my-work',
+    'owner-console',
     'calendar',
     'messages',
     'clients',
@@ -387,6 +391,8 @@ function BusinessHubInner() {
       if (tb === 'loyalty' && !canEditBizProfile) return false;
       if (tb === 'hiring' && !canEditBizProfile) return false;
       if (tb === 'integrations' && currentRole !== 'owner') return false;
+      // Groups 5-6: owner console is owner/manager; the server re-checks every call.
+      if (tb === 'owner-console' && !['owner', 'manager'].includes(currentRole)) return false;
       if (['property-ops','trades-ops','beauty-ops','creative-ops','professional-ops','continuity-ops','expenses','quotes','recurring','staff','reviews-mgmt','marketing','waitlist','packages','health','leads','msg-templates'].includes(tb) && !canEditBizProfile) return false;
       return true;
     });
@@ -1602,6 +1608,8 @@ function BusinessHubInner() {
     if (tb === 'creative-ops') return t('businessHub.tabCreativeOpsLabel', { defaultValue: 'Creative Ops' });
     if (tb === 'professional-ops') return t('businessHub.tabProfessionalOpsLabel', { defaultValue: 'Professional Ops' });
     if (tb === 'continuity-ops') return t('businessHub.tabContinuityOpsLabel', { defaultValue: 'Continuity Ops' });
+    if (tb === 'owner-console') return t('bizG56.tabs.ownerConsole');
+    if (tb === 'my-work') return t('bizG56.tabs.myWork');
     if (tb === 'calendar') return t('businessHub.tabCalendarLabel', { defaultValue: 'Schedule' });
     if (tb === 'clients') return t('businessHub.tabClientsLabel', { defaultValue: 'Clients' });
     if (tb === 'media') return t('businessHub.tabMediaLabel');
@@ -2149,6 +2157,9 @@ function BusinessHubInner() {
 
             {/* Group 4 items 199-200: new workspace intro + founder's read-only helper record (owner only; renders nothing otherwise). */}
             {(tab === 'overview' || tab === 'profile') && bizId && currentRole === 'owner' && <Suspense fallback={null}><BusinessWorkspaceIntro businessId={bizId} /></Suspense>}
+            {/* Groups 5-6 (items 201-300): owner console and team member work. */}
+            {tab === 'owner-console' && bizId && <Suspense fallback={null}><BusinessOwnerConsole businessId={bizId} role={currentRole} /></Suspense>}
+            {tab === 'my-work' && bizId && <Suspense fallback={null}><TeamMemberWork businessId={bizId} role={currentRole} /></Suspense>}
             {/* ── Overview tab ────────────────────────────────────── */}
             {tab === 'overview' && bizId && (
               <BusinessOperationsOverview businessId={bizId} viewerId={user?.id} role={currentRole}

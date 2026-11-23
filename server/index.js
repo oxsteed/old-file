@@ -613,6 +613,10 @@ app.use('/api/businesses', businessMsgTemplatesRoutes);
 app.use('/api/businesses', businessIntegrationsRoutes);
 app.use('/api/businesses', businessProductPricingRoutes);
 app.use('/api/businesses', businessTeamRoutes);
+// Groups 5-6 (items 201-300): owner console + team member work.
+const businessOwnerConsole = require('./routes/businessOwnerConsole');
+app.use('/api/businesses', businessOwnerConsole.router);
+app.use('/api/business-listing-claims', businessOwnerConsole.claimRouter);
   app.use('/api/careers',    careerRoutes);
   app.use('/api/vortex',     vortexAccessRoutes);
 app.use('/api/me',         meWorkspaceRoutes);

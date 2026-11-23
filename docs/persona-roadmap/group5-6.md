@@ -34,16 +34,16 @@ BUILD = to build. DONE = built on this branch (commit/test cited).
 
 | # | Item | Status at 28196a8a8 | Evidence / gap | Branch status |
 |---|---|---|---|---|
-| 201 | Business claim | BUILD | `prospect_businesses` listings exist, no claim path | - |
+| 201 | Business claim | BUILD | `prospect_businesses` listings exist, no claim path | DONE (D-194; migration 20261123190000, listingClaimService, /api/business-listing-claims + admin review; group56Launch.db.test.js) |
 | 202 | Ownership application | EXISTS | `access_requests` capability `business.own` (`services/access/*`, `businessGate.js`), linked launch intake (migration 20261116162100) | - |
-| 203 | Launch status page | BUILD | `setup_status`/`published_at`/`is_hidden_by_admin` exist, no owner-facing status | - |
-| 204 | Business verification checklist | BUILD | no computed checklist | - |
-| 205 | Service publication checklist | BUILD | no per-service readiness | - |
+| 203 | Launch status page | BUILD | `setup_status`/`published_at`/`is_hidden_by_admin` exist, no owner-facing status | DONE (D-196; launchService.readiness, GET /owner/launch-readiness, BusinessLaunchConsole; group56Launch.db.test.js) |
+| 204 | Business verification checklist | BUILD | no computed checklist | DONE (D-196; as 203) |
+| 205 | Service publication checklist | BUILD | no per-service readiness | DONE (D-196; as 203) |
 | 206 | Service catalog editor | EXISTS | `businesses.js` services CRUD + `BusinessServicesTab.jsx` | - |
-| 207 | Regional offering rules | BUILD | only `service_radius_miles` | - |
+| 207 | Regional offering rules | BUILD | only `service_radius_miles` | DONE (D-197; migration 20261123190100, PUT /owner/services/:id/regions, booking guard; group56Launch.db.test.js) |
 | 208 | Standard quote terms | EXISTS | thirty-feature-delivery.md | - |
 | 209 | Business pricing templates | EXISTS | thirty-feature-delivery.md | - |
-| 210 | Service pause controls | PARTIAL | `is_active` only (no pause reason/resume date) | - |
+| 210 | Service pause controls | PARTIAL | `is_active` only (no pause reason/resume date) | DONE (D-198; POST /owner/services/:id/pause|resume, booking guard, public list filter; group56Launch.db.test.js) |
 | 211 | Invitation dashboard | EXISTS | `GET /:id/members` pending + resend/expire (`BusinessHubPage.jsx` team tab) | - |
 | 212-215 | Role templates / preview / expiry / offboarding | EXISTS | thirty-feature-delivery.md | - |
 | 216 | Operations board | EXISTS | `GET /:id/operations-summary`, `BusinessOperationsOverview.jsx` | - |
@@ -99,5 +99,11 @@ cd ../client && npm run build:ci
 ```
 (symlink node_modules from /workspace/old-file/{client,server}; remove before committing)
 
+## Conventions
+- Server: `server/routes/businessOwnerConsole.js` (mounted at `/api/businesses`, owner paths `/:businessId/owner/*`, member paths `/:businessId/work/*`), services in `server/services/businessOwner/*`, shared helpers + `notify()` in `common.js`.
+- Notifications: add types to `server/utils/businessTeamNotificationTemplates.js`, then run `python3 docs/persona-roadmap/tools/group56-sync.py .` (regenerates the catalog block, the toggles-test variable site, and the `bizG56` locale block from `docs/persona-roadmap/group5-6-copy.json`). The `bizG56` block must stay last in each locale file.
+- Client: `client/src/components/businessHub/g56/*` (shared hook `useBizG56`), tabs `owner-console` and `my-work` in `BusinessHubPage.jsx`; run `node client/scripts/growthInstrumentation.mjs --write` after UI edits.
+- Tests: `server/__tests__/group56*.db.test.js`; also `STATEMENT_TEST_DATABASE_URL=.../credit_statement_test npx jest __tests__/notificationsPrefsToggles`.
+
 ## Next step
-S1: launch readiness service + claim.
+S3: owner oversight (217, 218, 220, 222, 225).

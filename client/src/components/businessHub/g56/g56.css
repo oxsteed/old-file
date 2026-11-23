@@ -1,0 +1,16 @@
+/* Groups 5-6 panels. Logical properties only (RTL-safe). */
+.g56-panel { border: 1px solid var(--color-border, #e5e7eb); border-radius: 12px; padding-block: 16px; padding-inline: 16px; margin-block: 16px; }
+.g56-panel h3 { margin-block: 0 8px; }
+.g56-panel h4 { margin-block: 12px 6px; }
+.g56-list { list-style: none; padding-inline-start: 0; margin: 0; }
+.g56-list li { padding-block: 6px; border-block-end: 1px solid var(--color-border, #e5e7eb); }
+.g56-ok { color: #047857; }
+.g56-miss { color: #b45309; }
+.g56-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.g56-row label { display: inline-flex; flex-direction: column; gap: 4px; }
+.g56-badge { display: inline-block; padding-inline: 8px; border-radius: 999px; background: #eef2ff; font-size: 0.85em; }
+.g56-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 2px; }
+.g56-cell { text-align: center; font-size: 0.75em; padding-block: 4px; border-radius: 4px; }
+.g56-error { color: #b91c1c; }
+.g56-table { width: 100%; border-collapse: collapse; }
+.g56-table th, .g56-table td { text-align: start; padding-block: 4px; padding-inline: 6px; border-block-end: 1px solid var(--color-border, #e5e7eb); }

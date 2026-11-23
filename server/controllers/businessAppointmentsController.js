@@ -283,6 +283,17 @@ async function createAppointment(req, res, next) {
       if (serviceResult.rows[0].is_active === false) {
         throw new AppError('Service is inactive', 409, 'service_inactive');
       }
+      // Groups 5-6 items 207/210: customer bookings honor the service pause
+      // and its regional offering rules. Staff-created walk-ins bypass (D-203).
+      if (!req.staffCreated) {
+        const svc = serviceResult.rows[0];
+        let location = { state: req.body.service_state, postal_code: req.body.service_postal_code };
+        if (svc.region_mode && svc.region_mode !== 'everywhere' && !location.state && !location.postal_code && effectiveCustomerId) {
+          const { rows: [profile] } = await client.query('SELECT state, zip_code FROM users WHERE id = $1', [effectiveCustomerId]);
+          location = { state: profile?.state, postal_code: profile?.zip_code };
+        }
+        require('../services/businessOwner/launchService').assertBookable(svc, location);
+      }
 
       // Price only after the service row is locked. The middleware snapshot
       // can be stale if the catalog changed between validation and insert;

@@ -45,6 +45,8 @@ export const TAB_PERMISSIONS = {
   quotes:           'quotes.create',
   recurring:        'invoices.create',
   staff:            'team.view',
+  'owner-console':  'business.view',
+  'my-work':        'business.view',
   'reviews-mgmt':   'business.edit_profile',
   marketing:        'business.edit_branding',
   waitlist:         'customers.view_all',

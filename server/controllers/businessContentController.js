@@ -64,7 +64,7 @@ function coerceServiceFields(body = {}) {
 
 const SERVICE_SELECT = `id, name, description, price, price_unit, duration, popular, category, sort_order, is_active,
          duration_minutes, base_price_cents, max_capacity, min_notice_hours, cancellation_policy_hours,
-         allow_online_booking,
+         allow_online_booking, paused_at, paused_until, pause_reason, region_mode, region_states, region_postal_prefixes,
          created_at, updated_at`;
 
 // ─── Public visibility gate ────────────────────────────────────────────────
@@ -164,7 +164,7 @@ exports.getBusinessServices = async (req, res) => {
          FROM business_services
          WHERE business_id = $1
          AND deleted_at IS NULL
-         ${!showAll ? 'AND is_active = true' : ''}
+         ${!showAll ? "AND is_active = true AND (paused_at IS NULL OR (paused_until IS NOT NULL AND paused_until <= NOW()))" : ''}
          ORDER BY sort_order ASC, created_at DESC`;
 
       const result = await client.query(query, [businessId]);

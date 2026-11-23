@@ -235,6 +235,14 @@ router.get('/users/:userId/handbacks', requireAdmin, requirePermission('manage_u
   try { res.json(await require('../services/helperHandbackOversightService').forHelper(req.params.userId)); } catch (e) { next(e); }
 });
 
+// Groups 5-6 item 201: directory listing claim review (links a listing only).
+router.get('/business-listing-claims', requireAdmin, requirePermission('manage_operations'), async (req, res, next) => {
+  try { res.json(await require('../services/businessOwner/listingClaimService').queue({ status: req.query.status || 'pending' })); } catch (e) { next(e); }
+});
+router.post('/business-listing-claims/:claimId/decision', requireAdmin, rejectImpersonated, requirePermission('manage_operations'), async (req, res, next) => {
+  try { res.json(await require('../services/businessOwner/listingClaimService').decide(req.user.id, req.params.claimId, req.body)); } catch (e) { next(e); }
+});
+
 // ── E13: controlled investigation access ─────────────────────────────────
 // Purpose-limited, approver-tied elevated reads. Every served read is
 // written to the admin audit log with purpose + approver; without an

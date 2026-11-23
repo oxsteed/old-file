@@ -44979,5 +44979,109 @@
       "empty": "Sin devoluciones.",
       "failed": "No se pudieron cargar las devoluciones."
     }
+  },
+  "bizG56": {
+    "tabs": {
+      "ownerConsole": "Consola del dueño",
+      "myWork": "Mi trabajo"
+    },
+    "common": {
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "saved": "Guardado.",
+      "none": "Todavía no hay nada."
+    },
+    "errors": {
+      "saveError": "No se guardó. Inténtalo de nuevo.",
+      "loadError": "Esta sección no se pudo cargar.",
+      "noAccess": "No tienes acceso a esta sección.",
+      "conflict": "Esto cambió mientras tanto. Actualiza e inténtalo de nuevo.",
+      "validation_failed": "Revisa los campos e inténtalo de nuevo.",
+      "offering_changed": "Este servicio cambió mientras tanto. Actualiza e inténtalo de nuevo.",
+      "listing_already_claimed": "Este perfil ya está vinculado a un negocio.",
+      "claim_already_pending": "Ya tienes un reclamo pendiente para este perfil.",
+      "claim_not_pending": "Este reclamo ya no está pendiente."
+    },
+    "launch": {
+      "title": "Estado de lanzamiento",
+      "progress": "{{done}} de {{total}} verificaciones listas",
+      "status": {
+        "in_progress": "En configuración",
+        "ready_to_publish": "Listo para publicar",
+        "live": "Publicado",
+        "hidden": "Oculto por revisión de OxSteed"
+      },
+      "hiddenReason": "Motivo",
+      "optional": "(opcional)",
+      "verificationTitle": "Lista de verificación del negocio",
+      "check": {
+        "name": "Nombre del negocio",
+        "description": "Descripción de al menos 40 caracteres",
+        "contact_phone": "Teléfono de contacto",
+        "address": "Ciudad y estado del negocio",
+        "service_area": "Zona de servicio",
+        "hours": "Horario",
+        "payouts": "Pagos y retiros configurados",
+        "logo": "Logotipo",
+        "cover_photo": "Foto de portada",
+        "tax_id": "Número fiscal (EIN)",
+        "verified_badge": "Insignia de negocio verificado"
+      },
+      "servicesTitle": "Lista para publicar servicios",
+      "noServices": "Agrega un servicio para publicar tu negocio.",
+      "serviceReady": "Listo",
+      "serviceNotReady": "Falta completar",
+      "serviceCheck": {
+        "active": "Activa el servicio",
+        "not_paused": "El servicio está en pausa",
+        "description": "Agrega una descripción (20+ caracteres)",
+        "price": "Fija un precio",
+        "duration": "Fija una duración",
+        "bookable_staff": "Asigna a alguien del equipo para reservas en línea"
+      }
+    },
+    "offerings": {
+      "title": "Disponibilidad de servicios",
+      "mode": {
+        "everywhere": "Se ofrece en toda tu zona",
+        "only": "Solo en las zonas indicadas",
+        "except": "En todas partes excepto las zonas indicadas"
+      },
+      "modeLabel": "Dónde se ofrece",
+      "states": "Estados (p. ej. FL, GA)",
+      "postal": "Prefijos postales (p. ej. 331, 33139)",
+      "editRegions": "Editar zonas",
+      "pause": "Pausar reservas",
+      "resume": "Reanudar reservas",
+      "paused": "En pausa",
+      "until": "hasta {{date}}",
+      "reason": "Motivo (los clientes no lo verán)",
+      "resumeOn": "Reanudar automáticamente el (opcional)",
+      "confirmPause": "Pausar"
+    },
+    "claim": {
+      "title": "Reclamar un perfil existente",
+      "help": "Si tu negocio ya aparece en el directorio de OxSteed, vincúlalo aquí. OxSteed revisa cada reclamo.",
+      "search": "Nombre del negocio",
+      "find": "Buscar perfil",
+      "listing": "Perfil",
+      "choose": "Elige un perfil",
+      "noListings": "No hay perfiles sin reclamar que coincidan.",
+      "relationship": "Tu función",
+      "rel": {
+        "owner": "Dueño",
+        "officer": "Directivo de la empresa",
+        "authorized_manager": "Gerente autorizado"
+      },
+      "evidence": "¿Cómo confirmamos que es tu negocio? (20+ caracteres)",
+      "submit": "Enviar reclamo",
+      "withdraw": "Retirar",
+      "claimStatus": {
+        "pending": "En revisión",
+        "approved": "Aprobado",
+        "rejected": "No aprobado",
+        "withdrawn": "Retirado"
+      }
+    }
   }
 }
