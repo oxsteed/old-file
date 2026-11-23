@@ -19,6 +19,13 @@ export function ExpenseTracker({ businessId }) {
   const [form, setForm] = useState({ category: 'materials', description: '', amount_cents: '', expense_date: new Date().toISOString().split('T')[0], notes: '' });
 
   useEffect(() => { load(); }, [businessId, filter]);
+  // Groups 5-6 item 234: business-defined categories (server maps to a base category).
+  const [customCats, setCustomCats] = useState([]);
+  useEffect(() => {
+    let live = true;
+    api.get(`/businesses/${businessId}/owner/expense-categories`).then(r => { if (live) setCustomCats((r.data.categories || []).filter(c => !c.is_archived)); }).catch(() => { if (live) setCustomCats([]); });
+    return () => { live = false; };
+  }, [businessId]);
 
   const load = async () => {
     setLoading(true);
@@ -60,7 +67,7 @@ export function ExpenseTracker({ businessId }) {
 
   const startEdit = (exp) => {
     setEditing(exp);
-    setForm({ category: exp.category, description: exp.description || '', amount_cents: (exp.amount_cents / 100).toFixed(2), expense_date: exp.expense_date?.split('T')[0] || '', notes: exp.notes || '' });
+    setForm({ category: exp.category, custom_category_id: exp.custom_category_id || null, description: exp.description || '', amount_cents: (exp.amount_cents / 100).toFixed(2), expense_date: exp.expense_date?.split('T')[0] || '', notes: exp.notes || '' });
     setShowForm(true);
   };
 
@@ -112,6 +119,14 @@ export function ExpenseTracker({ businessId }) {
               <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)' }}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{t(`businessHub.expenseTracker.categories.${c}`, { defaultValue: c })}</option>)}
               </select>
+              {customCats.length > 0 && (
+                <label className="expense-custom-category">{t('bizG56.finance.customCategory')}
+                  <select value={form.custom_category_id || ''} onChange={e => { const c = customCats.find(x => String(x.id) === e.target.value); setForm(f => ({ ...f, custom_category_id: c ? c.id : null, category: c ? c.base_category : f.category })); }}>
+                    <option value="">—</option>
+                    {customCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </label>
+              )}
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.expenseTracker.amountRequired')}</label>

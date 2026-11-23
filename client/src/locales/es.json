@@ -45007,7 +45007,11 @@
       "quote_approval_required": "Esta cotización necesita aprobación antes de enviarse.",
       "work_authorization_required": "La política del negocio exige autorización antes de empezar.",
       "work_start_role_required": "Tu función no puede empezar trabajos según la política del negocio.",
-      "refund_owner_approval_required": "Los reembolsos por encima del límite debe pedirlos el dueño."
+      "refund_owner_approval_required": "Los reembolsos por encima del límite debe pedirlos el dueño.",
+      "payment_already_matched": "Uno de esos pagos ya está conciliado con otro depósito.",
+      "category_exists": "Ya existe una categoría con ese nombre.",
+      "category_limit": "Alcanzaste el límite de 100 categorías.",
+      "not_found": "Ese elemento ya no está disponible."
     },
     "launch": {
       "title": "Estado de lanzamiento",
@@ -45214,6 +45218,56 @@
       "approve": "Aprobar",
       "reject": "Rechazar",
       "history": "Historial de políticas"
+    },
+    "finance": {
+      "title": "Finanzas",
+      "invoices": "Facturas",
+      "outstanding": "Pendiente de cobro",
+      "invoicedMonth": "Facturado este mes",
+      "collectedMonth": "Cobrado este mes",
+      "drafts": "Borradores: {{count}}",
+      "bucket": {
+        "current_cents": "Aún no vence",
+        "d1_30_cents": "1-30 días de atraso",
+        "d31_60_cents": "31-60 días de atraso",
+        "d61_90_cents": "61-90 días de atraso",
+        "d90_plus_cents": "Más de 90 días de atraso"
+      },
+      "daysOverdue": "{{count}} días vencida",
+      "refunds": "Solicitudes de reembolso",
+      "refundsNone": "Aún no hay solicitudes de reembolso.",
+      "refundStatus": {
+        "pending": "En revisión",
+        "approved": "Aprobado",
+        "rejected": "Rechazado",
+        "executed": "Reembolsado",
+        "failed": "El reembolso falló"
+      },
+      "reconcile": "Conciliación de pagos",
+      "reconcileHelp": "Relaciona los pagos con tarjeta con los depósitos que ves en tu banco. No incluye efectivo ni cheques.",
+      "unmatched": "Pagos con tarjeta sin conciliar",
+      "source": {
+        "invoice": "Factura",
+        "appointment": "Reserva"
+      },
+      "depositAmount": "Monto del depósito",
+      "depositDate": "Fecha del depósito",
+      "reference": "Referencia bancaria",
+      "selected": "Seleccionado",
+      "recordDeposit": "Registrar depósito",
+      "matched": "{{count}} pagos conciliados",
+      "balanced": "Cuadrado",
+      "variance": "Diferencia",
+      "remove": "Quitar",
+      "categories": "Categorías de gastos",
+      "categoriesHelp": "Crea tus propias categorías. Cada una se agrupa en una categoría estándar para informes e impuestos.",
+      "categoryName": "Nombre de la categoría",
+      "baseCategory": "Se reporta como",
+      "addCategory": "Agregar categoría",
+      "archive": "Archivar",
+      "restore": "Restaurar",
+      "archived": "Archivada",
+      "customCategory": "Tu categoría (opcional)"
     }
   }
 }

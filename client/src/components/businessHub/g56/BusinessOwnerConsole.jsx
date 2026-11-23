@@ -3,6 +3,7 @@
 import BusinessLaunchConsole from './BusinessLaunchConsole';
 import OwnerOversight from './OwnerOversight';
 import OwnerPolicies from './OwnerPolicies';
+import OwnerFinance from './OwnerFinance';
 
 export default function BusinessOwnerConsole({ businessId, role }) {
   return (
@@ -10,6 +11,7 @@ export default function BusinessOwnerConsole({ businessId, role }) {
       <BusinessLaunchConsole businessId={businessId} />
       <OwnerOversight businessId={businessId} />
       <OwnerPolicies businessId={businessId} role={role} />
+      <OwnerFinance businessId={businessId} />
     </div>
   );
 }

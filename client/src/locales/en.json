@@ -45007,7 +45007,11 @@
       "quote_approval_required": "This quote needs approval before it can be sent.",
       "work_authorization_required": "The business policy requires authorization before work starts.",
       "work_start_role_required": "Your role can’t start work under this business’s policy.",
-      "refund_owner_approval_required": "Refunds above the business limit must be requested by the owner."
+      "refund_owner_approval_required": "Refunds above the business limit must be requested by the owner.",
+      "payment_already_matched": "One of those payments is already matched to another deposit.",
+      "category_exists": "A category with that name already exists.",
+      "category_limit": "You have reached the limit of 100 categories.",
+      "not_found": "That item is no longer available."
     },
     "launch": {
       "title": "Launch status",
@@ -45214,6 +45218,56 @@
       "approve": "Approve",
       "reject": "Reject",
       "history": "Policy history"
+    },
+    "finance": {
+      "title": "Finance",
+      "invoices": "Invoices",
+      "outstanding": "Outstanding",
+      "invoicedMonth": "Invoiced this month",
+      "collectedMonth": "Collected this month",
+      "drafts": "Drafts: {{count}}",
+      "bucket": {
+        "current_cents": "Not yet due",
+        "d1_30_cents": "1-30 days late",
+        "d31_60_cents": "31-60 days late",
+        "d61_90_cents": "61-90 days late",
+        "d90_plus_cents": "Over 90 days late"
+      },
+      "daysOverdue": "{{count}} days overdue",
+      "refunds": "Refund requests",
+      "refundsNone": "No refund requests yet.",
+      "refundStatus": {
+        "pending": "Waiting for review",
+        "approved": "Approved",
+        "rejected": "Declined",
+        "executed": "Refunded",
+        "failed": "Refund failed"
+      },
+      "reconcile": "Payout reconciliation",
+      "reconcileHelp": "Match card payments to the deposits you see in your bank. Cash and checks are not included.",
+      "unmatched": "Card payments not yet matched",
+      "source": {
+        "invoice": "Invoice",
+        "appointment": "Booking"
+      },
+      "depositAmount": "Deposit amount",
+      "depositDate": "Deposit date",
+      "reference": "Bank reference",
+      "selected": "Selected",
+      "recordDeposit": "Record deposit",
+      "matched": "{{count}} payments matched",
+      "balanced": "Balanced",
+      "variance": "Difference",
+      "remove": "Remove",
+      "categories": "Expense categories",
+      "categoriesHelp": "Create your own categories. Each one rolls up to a standard category for reports and taxes.",
+      "categoryName": "Category name",
+      "baseCategory": "Reports as",
+      "addCategory": "Add category",
+      "archive": "Archive",
+      "restore": "Restore",
+      "archived": "Archived",
+      "customCategory": "Your category (optional)"
     }
   }
 }

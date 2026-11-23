@@ -14,6 +14,8 @@ const launch = require('../services/businessOwner/launchService');
 const claims = require('../services/businessOwner/listingClaimService');
 const oversight = require('../services/businessOwner/oversightService');
 const policies = require('../services/businessOwner/policyService');
+const finance = require('../services/businessOwner/financeService');
+const { requireFinanceRead, requireFinanceWrite } = require('../middleware/requireBusinessFinance');
 
 const h = fn => async (req, res, next) => { res.set('Cache-Control', 'no-store'); try { await fn(req, res); } catch (e) { next(e); } };
 const biz = (minRole, perm) => [authenticate, requireBusinessAccess({ minRole }), ...(perm ? [requirePermission(perm)] : [])];
@@ -45,6 +47,18 @@ router.get('/:businessId/owner/policies', ...biz('manager', 'business.view'), h(
 router.put('/:businessId/owner/policies', ...write('owner'), h(async (req, res) => res.json(await policies.update(req.business.id, req.user.id, req.body))));
 router.post('/:businessId/owner/quotes/:quoteId/approve', ...write('manager', 'quotes.approve_discounts'), h(async (req, res) => res.json(await policies.approveQuote(req.business.id, req.user.id, req.params.quoteId))));
 router.post('/:businessId/owner/expenses/:expenseId/decision', ...write('manager', 'payouts.manage'), h(async (req, res) => res.json(await policies.decideExpense(req.business.id, req.user.id, req.params.expenseId, req.body))));
+
+// 231-234 finance (finance-read codes see; payouts.manage reconciles; invoices.create edits categories)
+const finRead = [authenticate, requireBusinessAccess({ minRole: 'any' }), requireFinanceRead()];
+const finWrite = code => [authenticate, rejectImpersonated, requireBusinessAccess({ minRole: 'any' }), requireFinanceWrite(code)];
+router.get('/:businessId/owner/invoice-overview', ...finRead, h(async (req, res) => res.json(await finance.invoiceOverview(req.business.id))));
+router.get('/:businessId/owner/refund-tracker', ...finRead, h(async (req, res) => res.json(await finance.refundTracker(req.business.id))));
+router.get('/:businessId/owner/payout-reconciliation', ...finRead, h(async (req, res) => res.json(await finance.reconciliation(req.business.id))));
+router.post('/:businessId/owner/payout-deposits', ...finWrite('payouts.manage'), h(async (req, res) => res.status(201).json(await finance.recordDeposit(req.business.id, req.user.id, req.body))));
+router.delete('/:businessId/owner/payout-deposits/:depositId', ...finWrite('payouts.manage'), h(async (req, res) => res.json(await finance.deleteDeposit(req.business.id, req.params.depositId))));
+router.get('/:businessId/owner/expense-categories', ...finRead, h(async (req, res) => res.json(await finance.listCategories(req.business.id))));
+router.post('/:businessId/owner/expense-categories', ...finWrite('invoices.create'), h(async (req, res) => res.status(201).json(await finance.saveCategory(req.business.id, req.user.id, req.body))));
+router.put('/:businessId/owner/expense-categories/:categoryId', ...finWrite('invoices.create'), h(async (req, res) => res.json(await finance.saveCategory(req.business.id, req.user.id, req.body, req.params.categoryId))));
 
 const claimRouter = express.Router();
 // 201 listing claims (the service checks the claimant owns the business)

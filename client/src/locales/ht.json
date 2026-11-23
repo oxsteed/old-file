@@ -45007,7 +45007,11 @@
       "quote_approval_required": "Devi sa a bezwen apwobasyon anvan yo voye l.",
       "work_authorization_required": "Règ biznis la mande otorizasyon anvan travay kòmanse.",
       "work_start_role_required": "Wòl ou pa ka kòmanse travay dapre règ biznis la.",
-      "refund_owner_approval_required": "Se pwopriyetè a ki dwe mande ranbousman ki pi wo pase limit la."
+      "refund_owner_approval_required": "Se pwopriyetè a ki dwe mande ranbousman ki pi wo pase limit la.",
+      "payment_already_matched": "Youn nan peman sa yo deja mache ak yon lòt depo.",
+      "category_exists": "Gen yon kategori ki gen non sa a deja.",
+      "category_limit": "Ou rive nan limit 100 kategori.",
+      "not_found": "Eleman sa a pa disponib ankò."
     },
     "launch": {
       "title": "Estati lansman",
@@ -45214,6 +45218,56 @@
       "approve": "Apwouve",
       "reject": "Refize",
       "history": "Istwa règ yo"
+    },
+    "finance": {
+      "title": "Finans",
+      "invoices": "Fakti",
+      "outstanding": "Pa peye",
+      "invoicedMonth": "Fakti mwa sa a",
+      "collectedMonth": "Kolekte mwa sa a",
+      "drafts": "Bouyon: {{count}}",
+      "bucket": {
+        "current_cents": "Poko rive dat",
+        "d1_30_cents": "1-30 jou an reta",
+        "d31_60_cents": "31-60 jou an reta",
+        "d61_90_cents": "61-90 jou an reta",
+        "d90_plus_cents": "Plis pase 90 jou an reta"
+      },
+      "daysOverdue": "{{count}} jou an reta",
+      "refunds": "Demann ranbousman",
+      "refundsNone": "Poko gen demann ranbousman.",
+      "refundStatus": {
+        "pending": "Ap tann revizyon",
+        "approved": "Apwouve",
+        "rejected": "Refize",
+        "executed": "Ranbouse",
+        "failed": "Ranbousman an echwe"
+      },
+      "reconcile": "Rekonsilyasyon peman",
+      "reconcileHelp": "Mache peman kat yo ak depo ou wè nan bank ou. Lajan kach ak chèk pa ladan.",
+      "unmatched": "Peman kat ki poko mache",
+      "source": {
+        "invoice": "Fakti",
+        "appointment": "Rezèvasyon"
+      },
+      "depositAmount": "Montan depo",
+      "depositDate": "Dat depo",
+      "reference": "Referans bank",
+      "selected": "Chwazi",
+      "recordDeposit": "Anrejistre depo",
+      "matched": "{{count}} peman mache",
+      "balanced": "Balanse",
+      "variance": "Diferans",
+      "remove": "Retire",
+      "categories": "Kategori depans",
+      "categoriesHelp": "Kreye pwòp kategori ou. Chak youn ale nan yon kategori estanda pou rapò ak taks.",
+      "categoryName": "Non kategori",
+      "baseCategory": "Rapòte kòm",
+      "addCategory": "Ajoute kategori",
+      "archive": "Achive",
+      "restore": "Restore",
+      "archived": "Achive",
+      "customCategory": "Kategori ou (opsyonèl)"
     }
   }
 }

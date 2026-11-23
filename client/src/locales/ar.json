@@ -45121,7 +45121,11 @@
       "quote_approval_required": "يحتاج عرض السعر هذا إلى موافقة قبل إرساله.",
       "work_authorization_required": "تتطلب سياسة النشاط التجاري تفويضًا قبل بدء العمل.",
       "work_start_role_required": "لا يمكن لدورك بدء العمل وفق سياسة هذا النشاط التجاري.",
-      "refund_owner_approval_required": "يجب أن يطلب المالك المبالغ المستردة التي تتجاوز الحد."
+      "refund_owner_approval_required": "يجب أن يطلب المالك المبالغ المستردة التي تتجاوز الحد.",
+      "payment_already_matched": "إحدى هذه الدفعات مطابقة بالفعل لإيداع آخر.",
+      "category_exists": "توجد فئة بهذا الاسم بالفعل.",
+      "category_limit": "لقد بلغت الحد الأقصى وهو 100 فئة.",
+      "not_found": "هذا العنصر لم يعد متاحًا."
     },
     "launch": {
       "title": "حالة الإطلاق",
@@ -45328,6 +45332,56 @@
       "approve": "موافقة",
       "reject": "رفض",
       "history": "سجل السياسات"
+    },
+    "finance": {
+      "title": "المالية",
+      "invoices": "الفواتير",
+      "outstanding": "المستحق",
+      "invoicedMonth": "المفوتر هذا الشهر",
+      "collectedMonth": "المحصّل هذا الشهر",
+      "drafts": "المسودات: {{count}}",
+      "bucket": {
+        "current_cents": "غير مستحق بعد",
+        "d1_30_cents": "متأخر 1-30 يومًا",
+        "d31_60_cents": "متأخر 31-60 يومًا",
+        "d61_90_cents": "متأخر 61-90 يومًا",
+        "d90_plus_cents": "متأخر أكثر من 90 يومًا"
+      },
+      "daysOverdue": "متأخرة {{count}} يومًا",
+      "refunds": "طلبات الاسترداد",
+      "refundsNone": "لا توجد طلبات استرداد بعد.",
+      "refundStatus": {
+        "pending": "بانتظار المراجعة",
+        "approved": "تمت الموافقة",
+        "rejected": "مرفوض",
+        "executed": "تم الاسترداد",
+        "failed": "فشل الاسترداد"
+      },
+      "reconcile": "مطابقة الدفعات",
+      "reconcileHelp": "طابق مدفوعات البطاقات مع الإيداعات التي تظهر في حسابك المصرفي. لا يشمل ذلك النقد والشيكات.",
+      "unmatched": "مدفوعات بطاقة غير مطابقة",
+      "source": {
+        "invoice": "فاتورة",
+        "appointment": "حجز"
+      },
+      "depositAmount": "مبلغ الإيداع",
+      "depositDate": "تاريخ الإيداع",
+      "reference": "المرجع المصرفي",
+      "selected": "المحدد",
+      "recordDeposit": "تسجيل الإيداع",
+      "matched": "{{count}} دفعات مطابقة",
+      "balanced": "متوازن",
+      "variance": "الفرق",
+      "remove": "إزالة",
+      "categories": "فئات المصروفات",
+      "categoriesHelp": "أنشئ فئاتك الخاصة. تُجمَّع كل فئة ضمن فئة قياسية للتقارير والضرائب.",
+      "categoryName": "اسم الفئة",
+      "baseCategory": "تُدرج ضمن",
+      "addCategory": "إضافة فئة",
+      "archive": "أرشفة",
+      "restore": "استعادة",
+      "archived": "مؤرشفة",
+      "customCategory": "فئتك (اختياري)"
     }
   }
 }

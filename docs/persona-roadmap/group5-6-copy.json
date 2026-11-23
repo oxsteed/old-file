@@ -1300,5 +1300,327 @@
   "Au-delà de la limite, seul le propriétaire peut demander un remboursement.",
   "Se pwopriyetè a ki dwe mande ranbousman ki pi wo pase limit la.",
   "يجب أن يطلب المالك المبالغ المستردة التي تتجاوز الحد."
+ ],
+ "finance.title": [
+  "Finance",
+  "Finanzas",
+  "Finances",
+  "Finans",
+  "المالية"
+ ],
+ "finance.invoices": [
+  "Invoices",
+  "Facturas",
+  "Factures",
+  "Fakti",
+  "الفواتير"
+ ],
+ "finance.outstanding": [
+  "Outstanding",
+  "Pendiente de cobro",
+  "Impayé",
+  "Pa peye",
+  "المستحق"
+ ],
+ "finance.invoicedMonth": [
+  "Invoiced this month",
+  "Facturado este mes",
+  "Facturé ce mois-ci",
+  "Fakti mwa sa a",
+  "المفوتر هذا الشهر"
+ ],
+ "finance.collectedMonth": [
+  "Collected this month",
+  "Cobrado este mes",
+  "Encaissé ce mois-ci",
+  "Kolekte mwa sa a",
+  "المحصّل هذا الشهر"
+ ],
+ "finance.drafts": [
+  "Drafts: {{count}}",
+  "Borradores: {{count}}",
+  "Brouillons : {{count}}",
+  "Bouyon: {{count}}",
+  "المسودات: {{count}}"
+ ],
+ "finance.bucket.current_cents": [
+  "Not yet due",
+  "Aún no vence",
+  "Pas encore échu",
+  "Poko rive dat",
+  "غير مستحق بعد"
+ ],
+ "finance.bucket.d1_30_cents": [
+  "1-30 days late",
+  "1-30 días de atraso",
+  "1 à 30 jours de retard",
+  "1-30 jou an reta",
+  "متأخر 1-30 يومًا"
+ ],
+ "finance.bucket.d31_60_cents": [
+  "31-60 days late",
+  "31-60 días de atraso",
+  "31 à 60 jours de retard",
+  "31-60 jou an reta",
+  "متأخر 31-60 يومًا"
+ ],
+ "finance.bucket.d61_90_cents": [
+  "61-90 days late",
+  "61-90 días de atraso",
+  "61 à 90 jours de retard",
+  "61-90 jou an reta",
+  "متأخر 61-90 يومًا"
+ ],
+ "finance.bucket.d90_plus_cents": [
+  "Over 90 days late",
+  "Más de 90 días de atraso",
+  "Plus de 90 jours de retard",
+  "Plis pase 90 jou an reta",
+  "متأخر أكثر من 90 يومًا"
+ ],
+ "finance.daysOverdue": [
+  "{{count}} days overdue",
+  "{{count}} días vencida",
+  "{{count}} jours de retard",
+  "{{count}} jou an reta",
+  "متأخرة {{count}} يومًا"
+ ],
+ "finance.refunds": [
+  "Refund requests",
+  "Solicitudes de reembolso",
+  "Demandes de remboursement",
+  "Demann ranbousman",
+  "طلبات الاسترداد"
+ ],
+ "finance.refundsNone": [
+  "No refund requests yet.",
+  "Aún no hay solicitudes de reembolso.",
+  "Aucune demande de remboursement pour l'instant.",
+  "Poko gen demann ranbousman.",
+  "لا توجد طلبات استرداد بعد."
+ ],
+ "finance.refundStatus.pending": [
+  "Waiting for review",
+  "En revisión",
+  "En attente d'examen",
+  "Ap tann revizyon",
+  "بانتظار المراجعة"
+ ],
+ "finance.refundStatus.approved": [
+  "Approved",
+  "Aprobado",
+  "Approuvé",
+  "Apwouve",
+  "تمت الموافقة"
+ ],
+ "finance.refundStatus.rejected": [
+  "Declined",
+  "Rechazado",
+  "Refusé",
+  "Refize",
+  "مرفوض"
+ ],
+ "finance.refundStatus.executed": [
+  "Refunded",
+  "Reembolsado",
+  "Remboursé",
+  "Ranbouse",
+  "تم الاسترداد"
+ ],
+ "finance.refundStatus.failed": [
+  "Refund failed",
+  "El reembolso falló",
+  "Échec du remboursement",
+  "Ranbousman an echwe",
+  "فشل الاسترداد"
+ ],
+ "finance.reconcile": [
+  "Payout reconciliation",
+  "Conciliación de pagos",
+  "Rapprochement des versements",
+  "Rekonsilyasyon peman",
+  "مطابقة الدفعات"
+ ],
+ "finance.reconcileHelp": [
+  "Match card payments to the deposits you see in your bank. Cash and checks are not included.",
+  "Relaciona los pagos con tarjeta con los depósitos que ves en tu banco. No incluye efectivo ni cheques.",
+  "Associez les paiements par carte aux dépôts visibles dans votre banque. Les espèces et chèques ne sont pas inclus.",
+  "Mache peman kat yo ak depo ou wè nan bank ou. Lajan kach ak chèk pa ladan.",
+  "طابق مدفوعات البطاقات مع الإيداعات التي تظهر في حسابك المصرفي. لا يشمل ذلك النقد والشيكات."
+ ],
+ "finance.unmatched": [
+  "Card payments not yet matched",
+  "Pagos con tarjeta sin conciliar",
+  "Paiements par carte non rapprochés",
+  "Peman kat ki poko mache",
+  "مدفوعات بطاقة غير مطابقة"
+ ],
+ "finance.source.invoice": [
+  "Invoice",
+  "Factura",
+  "Facture",
+  "Fakti",
+  "فاتورة"
+ ],
+ "finance.source.appointment": [
+  "Booking",
+  "Reserva",
+  "Réservation",
+  "Rezèvasyon",
+  "حجز"
+ ],
+ "finance.depositAmount": [
+  "Deposit amount",
+  "Monto del depósito",
+  "Montant du dépôt",
+  "Montan depo",
+  "مبلغ الإيداع"
+ ],
+ "finance.depositDate": [
+  "Deposit date",
+  "Fecha del depósito",
+  "Date du dépôt",
+  "Dat depo",
+  "تاريخ الإيداع"
+ ],
+ "finance.reference": [
+  "Bank reference",
+  "Referencia bancaria",
+  "Référence bancaire",
+  "Referans bank",
+  "المرجع المصرفي"
+ ],
+ "finance.selected": [
+  "Selected",
+  "Seleccionado",
+  "Sélectionné",
+  "Chwazi",
+  "المحدد"
+ ],
+ "finance.recordDeposit": [
+  "Record deposit",
+  "Registrar depósito",
+  "Enregistrer le dépôt",
+  "Anrejistre depo",
+  "تسجيل الإيداع"
+ ],
+ "finance.matched": [
+  "{{count}} payments matched",
+  "{{count}} pagos conciliados",
+  "{{count}} paiements rapprochés",
+  "{{count}} peman mache",
+  "{{count}} دفعات مطابقة"
+ ],
+ "finance.balanced": [
+  "Balanced",
+  "Cuadrado",
+  "Équilibré",
+  "Balanse",
+  "متوازن"
+ ],
+ "finance.variance": [
+  "Difference",
+  "Diferencia",
+  "Écart",
+  "Diferans",
+  "الفرق"
+ ],
+ "finance.remove": [
+  "Remove",
+  "Quitar",
+  "Retirer",
+  "Retire",
+  "إزالة"
+ ],
+ "finance.categories": [
+  "Expense categories",
+  "Categorías de gastos",
+  "Catégories de dépenses",
+  "Kategori depans",
+  "فئات المصروفات"
+ ],
+ "finance.categoriesHelp": [
+  "Create your own categories. Each one rolls up to a standard category for reports and taxes.",
+  "Crea tus propias categorías. Cada una se agrupa en una categoría estándar para informes e impuestos.",
+  "Créez vos propres catégories. Chacune est regroupée dans une catégorie standard pour les rapports et les impôts.",
+  "Kreye pwòp kategori ou. Chak youn ale nan yon kategori estanda pou rapò ak taks.",
+  "أنشئ فئاتك الخاصة. تُجمَّع كل فئة ضمن فئة قياسية للتقارير والضرائب."
+ ],
+ "finance.categoryName": [
+  "Category name",
+  "Nombre de la categoría",
+  "Nom de la catégorie",
+  "Non kategori",
+  "اسم الفئة"
+ ],
+ "finance.baseCategory": [
+  "Reports as",
+  "Se reporta como",
+  "Déclarée comme",
+  "Rapòte kòm",
+  "تُدرج ضمن"
+ ],
+ "finance.addCategory": [
+  "Add category",
+  "Agregar categoría",
+  "Ajouter une catégorie",
+  "Ajoute kategori",
+  "إضافة فئة"
+ ],
+ "finance.archive": [
+  "Archive",
+  "Archivar",
+  "Archiver",
+  "Achive",
+  "أرشفة"
+ ],
+ "finance.restore": [
+  "Restore",
+  "Restaurar",
+  "Restaurer",
+  "Restore",
+  "استعادة"
+ ],
+ "finance.archived": [
+  "Archived",
+  "Archivada",
+  "Archivée",
+  "Achive",
+  "مؤرشفة"
+ ],
+ "finance.customCategory": [
+  "Your category (optional)",
+  "Tu categoría (opcional)",
+  "Votre catégorie (facultatif)",
+  "Kategori ou (opsyonèl)",
+  "فئتك (اختياري)"
+ ],
+ "errors.payment_already_matched": [
+  "One of those payments is already matched to another deposit.",
+  "Uno de esos pagos ya está conciliado con otro depósito.",
+  "L'un de ces paiements est déjà rapproché d'un autre dépôt.",
+  "Youn nan peman sa yo deja mache ak yon lòt depo.",
+  "إحدى هذه الدفعات مطابقة بالفعل لإيداع آخر."
+ ],
+ "errors.category_exists": [
+  "A category with that name already exists.",
+  "Ya existe una categoría con ese nombre.",
+  "Une catégorie portant ce nom existe déjà.",
+  "Gen yon kategori ki gen non sa a deja.",
+  "توجد فئة بهذا الاسم بالفعل."
+ ],
+ "errors.category_limit": [
+  "You have reached the limit of 100 categories.",
+  "Alcanzaste el límite de 100 categorías.",
+  "Vous avez atteint la limite de 100 catégories.",
+  "Ou rive nan limit 100 kategori.",
+  "لقد بلغت الحد الأقصى وهو 100 فئة."
+ ],
+ "errors.not_found": [
+  "That item is no longer available.",
+  "Ese elemento ya no está disponible.",
+  "Cet élément n'est plus disponible.",
+  "Eleman sa a pa disponib ankò.",
+  "هذا العنصر لم يعد متاحًا."
  ]
 }

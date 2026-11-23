@@ -60,10 +60,10 @@ BUILD = to build. DONE = built on this branch (commit/test cited).
 | 227 | Work authorization policy | BUILD | | DONE (D-202..D-204; migration 20261123190300, policyService + guards in quote send / expense create / refund request / appointment status / late-cancel fee, OwnerPolicies; group56Policies.db.test.js) |
 | 228 | Cancellation settings | PARTIAL | per-service `cancellation_policy_hours/fee_percent`; no business default | DONE (D-202..D-204; migration 20261123190300, policyService + guards in quote send / expense create / refund request / appointment status / late-cancel fee, OwnerPolicies; group56Policies.db.test.js) |
 | 229, 230 | Onboarding guide / policy acks | EXISTS | thirty-feature-delivery.md | - |
-| 231 | Invoice overview | PARTIAL | invoice list only; no aging overview | - |
-| 232 | Refund request tracker | PARTIAL | per-job refund requests (`businessFinance.js`); no business-wide tracker | - |
-| 233 | Payout reconciliation | BUILD | | - |
-| 234 | Business expense categories | PARTIAL | free-text `business_expenses.category` | - |
+| 231 | Invoice overview | PARTIAL | invoice list only; no aging overview | DONE (D-205..D-208; migration 20261123190400, financeService, /owner/{invoice-overview,refund-tracker,payout-reconciliation,payout-deposits,expense-categories}, OwnerFinance + ExpenseTracker custom category; group56Finance.db.test.js) |
+| 232 | Refund request tracker | PARTIAL | per-job refund requests (`businessFinance.js`); no business-wide tracker | DONE (D-205..D-208; migration 20261123190400, financeService, /owner/{invoice-overview,refund-tracker,payout-reconciliation,payout-deposits,expense-categories}, OwnerFinance + ExpenseTracker custom category; group56Finance.db.test.js) |
+| 233 | Payout reconciliation | BUILD | | DONE (D-205..D-208; migration 20261123190400, financeService, /owner/{invoice-overview,refund-tracker,payout-reconciliation,payout-deposits,expense-categories}, OwnerFinance + ExpenseTracker custom category; group56Finance.db.test.js) |
+| 234 | Business expense categories | PARTIAL | free-text `business_expenses.category` | DONE (D-205..D-208; migration 20261123190400, financeService, /owner/{invoice-overview,refund-tracker,payout-reconciliation,payout-deposits,expense-categories}, OwnerFinance + ExpenseTracker custom category; group56Finance.db.test.js) |
 | 235 | Delegated statement access | EXISTS | D-22 `statements.view` override | - |
 | 236-240 | Locations / checklist / territory / capacity / seasonal forecast | BUILD | | - |
 | 241-245 | Transfer / deputy / open work / departed access / closure | BUILD | | - |
@@ -106,4 +106,4 @@ cd ../client && npm run build:ci
 - Tests: `server/__tests__/group56*.db.test.js`; also `STATEMENT_TEST_DATABASE_URL=.../credit_statement_test npx jest __tests__/notificationsPrefsToggles`.
 
 ## Next step
-S5: finance (231 invoice overview, 232 refund tracker, 233 payout reconciliation, 234 expense categories).
+S6: expansion (236-240 locations, checklist, territory, capacity, seasonal forecast).

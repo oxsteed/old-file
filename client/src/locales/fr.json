@@ -45007,7 +45007,11 @@
       "quote_approval_required": "Ce devis doit être approuvé avant l’envoi.",
       "work_authorization_required": "La règle de l’entreprise exige une autorisation avant le début.",
       "work_start_role_required": "Votre rôle ne peut pas démarrer les travaux selon les règles.",
-      "refund_owner_approval_required": "Au-delà de la limite, seul le propriétaire peut demander un remboursement."
+      "refund_owner_approval_required": "Au-delà de la limite, seul le propriétaire peut demander un remboursement.",
+      "payment_already_matched": "L'un de ces paiements est déjà rapproché d'un autre dépôt.",
+      "category_exists": "Une catégorie portant ce nom existe déjà.",
+      "category_limit": "Vous avez atteint la limite de 100 catégories.",
+      "not_found": "Cet élément n'est plus disponible."
     },
     "launch": {
       "title": "État du lancement",
@@ -45214,6 +45218,56 @@
       "approve": "Approuver",
       "reject": "Refuser",
       "history": "Historique des règles"
+    },
+    "finance": {
+      "title": "Finances",
+      "invoices": "Factures",
+      "outstanding": "Impayé",
+      "invoicedMonth": "Facturé ce mois-ci",
+      "collectedMonth": "Encaissé ce mois-ci",
+      "drafts": "Brouillons : {{count}}",
+      "bucket": {
+        "current_cents": "Pas encore échu",
+        "d1_30_cents": "1 à 30 jours de retard",
+        "d31_60_cents": "31 à 60 jours de retard",
+        "d61_90_cents": "61 à 90 jours de retard",
+        "d90_plus_cents": "Plus de 90 jours de retard"
+      },
+      "daysOverdue": "{{count}} jours de retard",
+      "refunds": "Demandes de remboursement",
+      "refundsNone": "Aucune demande de remboursement pour l'instant.",
+      "refundStatus": {
+        "pending": "En attente d'examen",
+        "approved": "Approuvé",
+        "rejected": "Refusé",
+        "executed": "Remboursé",
+        "failed": "Échec du remboursement"
+      },
+      "reconcile": "Rapprochement des versements",
+      "reconcileHelp": "Associez les paiements par carte aux dépôts visibles dans votre banque. Les espèces et chèques ne sont pas inclus.",
+      "unmatched": "Paiements par carte non rapprochés",
+      "source": {
+        "invoice": "Facture",
+        "appointment": "Réservation"
+      },
+      "depositAmount": "Montant du dépôt",
+      "depositDate": "Date du dépôt",
+      "reference": "Référence bancaire",
+      "selected": "Sélectionné",
+      "recordDeposit": "Enregistrer le dépôt",
+      "matched": "{{count}} paiements rapprochés",
+      "balanced": "Équilibré",
+      "variance": "Écart",
+      "remove": "Retirer",
+      "categories": "Catégories de dépenses",
+      "categoriesHelp": "Créez vos propres catégories. Chacune est regroupée dans une catégorie standard pour les rapports et les impôts.",
+      "categoryName": "Nom de la catégorie",
+      "baseCategory": "Déclarée comme",
+      "addCategory": "Ajouter une catégorie",
+      "archive": "Archiver",
+      "restore": "Restaurer",
+      "archived": "Archivée",
+      "customCategory": "Votre catégorie (facultatif)"
     }
   }
 }
