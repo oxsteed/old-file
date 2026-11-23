@@ -5094,5 +5094,2329 @@
   "Cette étape n’est pas possible maintenant.",
   "Etap sa a pa posib kounye a.",
   "هذه الخطوة غير ممكنة الآن."
+ ],
+ "common.status": [
+  "Status",
+  "Estado",
+  "Statut",
+  "Estati",
+  "الحالة"
+ ],
+ "common.created": [
+  "Created",
+  "Creada",
+  "Créée",
+  "Kreye",
+  "أُنشئ"
+ ],
+ "common.amount": [
+  "Amount",
+  "Monto",
+  "Montant",
+  "Montan",
+  "المبلغ"
+ ],
+ "common.vendor": [
+  "Vendor",
+  "Proveedor",
+  "Fournisseur",
+  "Founisè",
+  "المورّد"
+ ],
+ "common.scope": [
+  "Scope",
+  "Alcance",
+  "Portée",
+  "Dimansyon",
+  "النطاق"
+ ],
+ "common.approve": [
+  "Approve",
+  "Aprobar",
+  "Approuver",
+  "Apwouve",
+  "الموافقة"
+ ],
+ "common.decline": [
+  "Decline",
+  "Rechazar",
+  "Refuser",
+  "Refize",
+  "الرفض"
+ ],
+ "common.view": [
+  "View",
+  "Ver",
+  "Voir",
+  "Wè",
+  "عرض"
+ ],
+ "common.back": [
+  "Back",
+  "Volver",
+  "Retour",
+  "Retounen",
+  "رجوع"
+ ],
+ "common.delete": [
+  "Delete",
+  "Eliminar",
+  "Supprimer",
+  "Efase",
+  "حذف"
+ ],
+ "common.empty": [
+  "Nothing here yet.",
+  "Nada por aquí todavía.",
+  "Rien pour l’instant.",
+  "Anyen isit la pou kounye a.",
+  "لا يوجد شيء هنا بعد."
+ ],
+ "common.title": [
+  "Title",
+  "Título",
+  "Titre",
+  "Tit",
+  "العنوان"
+ ],
+ "common.notes": [
+  "Notes",
+  "Notas",
+  "Notes",
+  "Nòt",
+  "ملاحظات"
+ ],
+ "common.role": [
+  "Role",
+  "Rol",
+  "Rôle",
+  "Wòl",
+  "الدور"
+ ],
+ "common.detail": [
+  "Detail",
+  "Detalle",
+  "Détail",
+  "Detay",
+  "التفاصيل"
+ ],
+ "common.reason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "common.quantity": [
+  "Quantity",
+  "Cantidad",
+  "Quantité",
+  "Kantite",
+  "الكمية"
+ ],
+ "common.item": [
+  "Item",
+  "Artículo",
+  "Article",
+  "Atik",
+  "العنصر"
+ ],
+ "common.location": [
+  "Location",
+  "Ubicación",
+  "Emplacement",
+  "Kote",
+  "الموقع"
+ ],
+ "common.date": [
+  "Date",
+  "Fecha",
+  "Date",
+  "Dat",
+  "التاريخ"
+ ],
+ "properties.title": [
+  "Property console",
+  "Consola de propiedades",
+  "Console des propriétés",
+  "Konsòl pwopriyete",
+  "وحدة تحكم العقارات"
+ ],
+ "properties.subtitle": [
+  "Manage your portfolio, units, staff, upkeep, and costs.",
+  "Gestione su cartera, unidades, personal, mantenimiento y costos.",
+  "Gérez votre portefeuille, vos unités, votre personnel, l’entretien et les coûts.",
+  "Jere pòtfèy ou, inite ou, anplwaye ou, antretyen ou, ak depans ou.",
+  "أدِر محفظتك ووحداتك وموظفيك وصيانتك وتكاليفك."
+ ],
+ "properties.portfolio": [
+  "Portfolio",
+  "Cartera",
+  "Portefeuille",
+  "Pòtfèy",
+  "المحفظة"
+ ],
+ "properties.createProperty": [
+  "Add property",
+  "Agregar propiedad",
+  "Ajouter une propriété",
+  "Ajoute pwopriyete",
+  "إضافة عقار"
+ ],
+ "properties.label": [
+  "Label",
+  "Etiqueta",
+  "Libellé",
+  "Etikèt",
+  "التسمية"
+ ],
+ "properties.type": [
+  "Type",
+  "Tipo",
+  "Type",
+  "Kalite",
+  "النوع"
+ ],
+ "properties.city": [
+  "City",
+  "Ciudad",
+  "Ville",
+  "Vil",
+  "المدينة"
+ ],
+ "properties.address": [
+  "Address",
+  "Dirección",
+  "Adresse",
+  "Adrès",
+  "العنوان"
+ ],
+ "properties.create": [
+  "Add",
+  "Agregar",
+  "Ajouter",
+  "Ajoute",
+  "إضافة"
+ ],
+ "properties.showArchived": [
+  "Show archived",
+  "Mostrar archivadas",
+  "Afficher les archives",
+  "Montre achiv yo",
+  "عرض المؤرشفة"
+ ],
+ "properties.hideArchived": [
+  "Hide archived",
+  "Ocultar archivadas",
+  "Masquer les archives",
+  "Kache achiv yo",
+  "إخفاء المؤرشفة"
+ ],
+ "properties.empty": [
+  "No properties yet.",
+  "Aún no hay propiedades.",
+  "Aucune propriété pour l’instant.",
+  "Pa gen pwopriyete pou kounye a.",
+  "لا توجد عقارات بعد."
+ ],
+ "properties.openRequests": [
+  "Open requests",
+  "Solicitudes abiertas",
+  "Demandes ouvertes",
+  "Demann ouvè",
+  "الطلبات المفتوحة"
+ ],
+ "properties.urgent": [
+  "Urgent",
+  "Urgente",
+  "Urgent",
+  "Ijan",
+  "عاجل"
+ ],
+ "properties.pendingApprovals": [
+  "Pending approvals",
+  "Aprobaciones pendientes",
+  "Approbations en attente",
+  "Apwobasyon an atant",
+  "الموافقات المعلقة"
+ ],
+ "properties.overdue": [
+  "Overdue upkeep",
+  "Mantenimiento vencido",
+  "Entretien en retard",
+  "Antretyen an reta",
+  "صيانة متأخرة"
+ ],
+ "properties.incidents": [
+  "Incidents",
+  "Incidentes",
+  "Incidents",
+  "Ensidan",
+  "الحوادث"
+ ],
+ "properties.units": [
+  "Units",
+  "Unidades",
+  "Unités",
+  "Inite",
+  "الوحدات"
+ ],
+ "properties.vacant": [
+  "Vacant",
+  "Vacantes",
+  "Vacantes",
+  "Vid",
+  "شاغرة"
+ ],
+ "properties.managers": [
+  "Managers",
+  "Gerentes",
+  "Gestionnaires",
+  "Manadjè",
+  "المديرون"
+ ],
+ "properties.profile": [
+  "Profile",
+  "Perfil",
+  "Profil",
+  "Pwofil",
+  "الملف"
+ ],
+ "properties.owner": [
+  "Owner",
+  "Dueño",
+  "Propriétaire",
+  "Pwopriyetè",
+  "المالك"
+ ],
+ "properties.monthlyBudget": [
+  "Monthly budget",
+  "Presupuesto mensual",
+  "Budget mensuel",
+  "Bidjè mansyèl",
+  "الميزانية الشهرية"
+ ],
+ "properties.approvalThreshold": [
+  "Approval threshold",
+  "Umbral de aprobación",
+  "Seuil d’approbation",
+  "Papò apwobasyon",
+  "حد الموافقة"
+ ],
+ "properties.reserveBalance": [
+  "Reserve balance",
+  "Saldo de reserva",
+  "Solde de réserve",
+  "Balans rezèv",
+  "رصيد الاحتياطي"
+ ],
+ "properties.saveProfile": [
+  "Save profile",
+  "Guardar perfil",
+  "Enregistrer le profil",
+  "Anrejistre pwofil",
+  "حفظ الملف"
+ ],
+ "properties.unitList": [
+  "Units",
+  "Unidades",
+  "Unités",
+  "Inite",
+  "الوحدات"
+ ],
+ "properties.addUnit": [
+  "Add unit",
+  "Agregar unidad",
+  "Ajouter une unité",
+  "Ajoute inite",
+  "إضافة وحدة"
+ ],
+ "properties.unitLabel": [
+  "Unit",
+  "Unidad",
+  "Unité",
+  "Inite",
+  "الوحدة"
+ ],
+ "properties.occupancy": [
+  "Occupancy",
+  "Ocupación",
+  "Occupation",
+  "Okipasyon",
+  "الإشغال"
+ ],
+ "properties.occupied": [
+  "Occupied",
+  "Ocupada",
+  "Occupée",
+  "Okipe",
+  "مشغولة"
+ ],
+ "properties.vacantStatus": [
+  "Vacant",
+  "Vacante",
+  "Vacante",
+  "Vid",
+  "شاغرة"
+ ],
+ "properties.turnover": [
+  "Turnover",
+  "Cambio",
+  "Rotation",
+  "Woulman",
+  "تسليم"
+ ],
+ "properties.ownerHold": [
+  "Owner hold",
+  "Retenida",
+  "Réservée",
+  "Kenbe",
+  "محجوزة للمالك"
+ ],
+ "properties.contactName": [
+  "Contact name",
+  "Nombre de contacto",
+  "Nom du contact",
+  "Non kontak",
+  "اسم جهة الاتصال"
+ ],
+ "properties.contactPhone": [
+  "Contact phone",
+  "Teléfono",
+  "Téléphone",
+  "Telefòn",
+  "هاتف الاتصال"
+ ],
+ "properties.contactEmail": [
+  "Contact email",
+  "Correo",
+  "Courriel",
+  "Imèl",
+  "بريد الاتصال"
+ ],
+ "properties.accessSummary": [
+  "Access notes",
+  "Notas de acceso",
+  "Notes d’accès",
+  "Nòt aksè",
+  "ملاحظات الوصول"
+ ],
+ "properties.areas": [
+  "Common areas",
+  "Áreas comunes",
+  "Espaces communs",
+  "Zòn komen",
+  "المناطق المشتركة"
+ ],
+ "properties.addArea": [
+  "Add area",
+  "Agregar área",
+  "Ajouter un espace",
+  "Ajoute zòn",
+  "إضافة منطقة"
+ ],
+ "properties.areaName": [
+  "Area name",
+  "Nombre del área",
+  "Nom de l’espace",
+  "Non zòn",
+  "اسم المنطقة"
+ ],
+ "properties.areaKind": [
+  "Kind",
+  "Tipo",
+  "Type",
+  "Kalite",
+  "النوع"
+ ],
+ "properties.assignments": [
+  "Staff assignments",
+  "Asignaciones",
+  "Affectations",
+  "Afektasyon",
+  "تعيينات الموظفين"
+ ],
+ "properties.assign": [
+  "Assign",
+  "Asignar",
+  "Affecter",
+  "Afekte",
+  "تعيين"
+ ],
+ "properties.userId": [
+  "Member ID",
+  "ID de miembro",
+  "ID du membre",
+  "ID manm",
+  "معرّف العضو"
+ ],
+ "properties.startsAt": [
+  "Starts",
+  "Inicio",
+  "Début",
+  "Kòmansman",
+  "يبدأ"
+ ],
+ "properties.endsAt": [
+  "Ends",
+  "Fin",
+  "Fin",
+  "Fen",
+  "ينتهي"
+ ],
+ "properties.endAssignment": [
+  "End",
+  "Terminar",
+  "Terminer",
+  "Fini",
+  "إنهاء"
+ ],
+ "properties.reviewAssignment": [
+  "Review",
+  "Revisar",
+  "Réviser",
+  "Revize",
+  "مراجعة"
+ ],
+ "properties.keep": [
+  "Keep",
+  "Mantener",
+  "Garder",
+  "Kenbe",
+  "إبقاء"
+ ],
+ "properties.accessReview": [
+  "Access review",
+  "Revisión de accesos",
+  "Révision des accès",
+  "Revizyon aksè",
+  "مراجعة الوصول"
+ ],
+ "properties.flagged": [
+  "Flagged",
+  "Marcadas",
+  "Signalées",
+  "Make",
+  "مميزة"
+ ],
+ "properties.memberInactive": [
+  "Member inactive",
+  "Miembro inactivo",
+  "Membre inactif",
+  "Manm inaktif",
+  "العضو غير نشط"
+ ],
+ "properties.endingSoon": [
+  "Ending soon",
+  "Termina pronto",
+  "Se termine bientôt",
+  "Ap fini byento",
+  "ينتهي قريبًا"
+ ],
+ "properties.reviewDue": [
+  "Review due",
+  "Revisión pendiente",
+  "Révision due",
+  "Revizyon dwe",
+  "المراجعة مستحقة"
+ ],
+ "properties.keysOut": [
+  "Keys out",
+  "Llaves fuera",
+  "Clés sorties",
+  "Kle deyò",
+  "المفاتيح الخارجة"
+ ],
+ "properties.requests": [
+  "Maintenance requests",
+  "Solicitudes de mantenimiento",
+  "Demandes de maintenance",
+  "Demann antretyen",
+  "طلبات الصيانة"
+ ],
+ "properties.requestDetail": [
+  "Request detail",
+  "Detalle de la solicitud",
+  "Détail de la demande",
+  "Detay demann lan",
+  "تفاصيل الطلب"
+ ],
+ "properties.quotes": [
+  "Quotes",
+  "Cotizaciones",
+  "Devis",
+  "Deviz",
+  "عروض الأسعار"
+ ],
+ "properties.addQuote": [
+  "Add quote",
+  "Agregar cotización",
+  "Ajouter un devis",
+  "Ajoute deviz",
+  "إضافة عرض سعر"
+ ],
+ "properties.availableOn": [
+  "Available on",
+  "Disponible el",
+  "Disponible le",
+  "Disponib nan dat",
+  "متاح في"
+ ],
+ "properties.selectQuote": [
+  "Select",
+  "Seleccionar",
+  "Sélectionner",
+  "Chwazi",
+  "اختيار"
+ ],
+ "properties.selected": [
+  "Selected",
+  "Seleccionada",
+  "Sélectionné",
+  "Chwazi",
+  "مختار"
+ ],
+ "properties.lowest": [
+  "Lowest",
+  "Más baja",
+  "Plus bas",
+  "Pi ba",
+  "الأدنى"
+ ],
+ "properties.needsApproval": [
+  "Needs approval",
+  "Necesita aprobación",
+  "Approbation requise",
+  "Bezwen apwobasyon",
+  "يحتاج موافقة"
+ ],
+ "properties.issueWorkOrder": [
+  "Issue work order",
+  "Emitir orden de trabajo",
+  "Émettre un ordre de travail",
+  "Bay lòd travay",
+  "إصدار أمر عمل"
+ ],
+ "properties.notToExceed": [
+  "Not to exceed",
+  "No exceder",
+  "Ne pas dépasser",
+  "Pa depase",
+  "حد أقصى"
+ ],
+ "properties.requestApproval": [
+  "Request approval",
+  "Solicitar aprobación",
+  "Demander l’approbation",
+  "Mande apwobasyon",
+  "طلب الموافقة"
+ ],
+ "properties.approvalAmount": [
+  "Approval amount",
+  "Monto a aprobar",
+  "Montant à approuver",
+  "Montan pou apwouve",
+  "مبلغ الموافقة"
+ ],
+ "properties.entry": [
+  "Entry",
+  "Entrada",
+  "Entrée",
+  "Antre",
+  "الدخول"
+ ],
+ "properties.permissionToEnter": [
+  "Permission to enter",
+  "Permiso de entrada",
+  "Autorisation d’entrer",
+  "Pèmisyon pou antre",
+  "إذن الدخول"
+ ],
+ "properties.offerWindow": [
+  "Offer entry windows",
+  "Ofrecer horarios de entrada",
+  "Proposer des créneaux",
+  "Ofri lè antre",
+  "عرض نوافذ الدخول"
+ ],
+ "properties.windowStart": [
+  "Window start",
+  "Inicio del horario",
+  "Début du créneau",
+  "Kòmansman lè a",
+  "بداية النافذة"
+ ],
+ "properties.windowEnd": [
+  "Window end",
+  "Fin del horario",
+  "Fin du créneau",
+  "Fen lè a",
+  "نهاية النافذة"
+ ],
+ "properties.saveEntry": [
+  "Save entry",
+  "Guardar entrada",
+  "Enregistrer l’entrée",
+  "Anrejistre antre",
+  "حفظ الدخول"
+ ],
+ "properties.entryInstructions": [
+  "Entry instructions",
+  "Instrucciones de entrada",
+  "Instructions d’entrée",
+  "Enstriksyon antre",
+  "تعليمات الدخول"
+ ],
+ "properties.notifyOccupant": [
+  "Notify occupant",
+  "Avisar al ocupante",
+  "Prévenir l’occupant",
+  "Avèti okipan",
+  "إشعار الشاغل"
+ ],
+ "properties.routeEmergency": [
+  "Route as emergency",
+  "Marcar como emergencia",
+  "Marquer urgence",
+  "Make ijans",
+  "توجيه كطارئ"
+ ],
+ "properties.incidentsTitle": [
+  "Incidents",
+  "Incidentes",
+  "Incidents",
+  "Ensidan",
+  "الحوادث"
+ ],
+ "properties.createIncident": [
+  "Report incident",
+  "Reportar incidente",
+  "Signaler un incident",
+  "Rapòte ensidan",
+  "الإبلاغ عن حادث"
+ ],
+ "properties.severity": [
+  "Severity",
+  "Gravedad",
+  "Gravité",
+  "Gravite",
+  "الخطورة"
+ ],
+ "properties.upkeep": [
+  "Upkeep",
+  "Mantenimiento",
+  "Entretien",
+  "Antretyen",
+  "الصيانة"
+ ],
+ "properties.calendar": [
+  "Maintenance calendar",
+  "Calendario de mantenimiento",
+  "Calendrier d’entretien",
+  "Kalandriye antretyen",
+  "تقويم الصيانة"
+ ],
+ "properties.due": [
+  "Due",
+  "Vence",
+  "Échéance",
+  "Dat limit",
+  "مستحق"
+ ],
+ "properties.alerts": [
+  "Alerts",
+  "Alertas",
+  "Alertes",
+  "Alèt",
+  "تنبيهات"
+ ],
+ "properties.notifyNow": [
+  "Notify now",
+  "Avisar ahora",
+  "Prévenir maintenant",
+  "Avèti kounye a",
+  "إشعار الآن"
+ ],
+ "properties.turnovers": [
+  "Turnovers",
+  "Cambios de ocupante",
+  "Rotations",
+  "Woulman",
+  "عمليات التسليم"
+ ],
+ "properties.startTurnover": [
+  "Start turnover",
+  "Iniciar cambio",
+  "Démarrer une rotation",
+  "Kòmanse woulman",
+  "بدء التسليم"
+ ],
+ "properties.costs": [
+  "Costs",
+  "Costos",
+  "Coûts",
+  "Pri",
+  "التكاليف"
+ ],
+ "properties.monthSpend": [
+  "This month",
+  "Este mes",
+  "Ce mois-ci",
+  "Mwa sa a",
+  "هذا الشهر"
+ ],
+ "properties.budget": [
+  "Budget",
+  "Presupuesto",
+  "Budget",
+  "Bidjè",
+  "الميزانية"
+ ],
+ "properties.reserve": [
+  "Reserve",
+  "Reserva",
+  "Réserve",
+  "Rezèv",
+  "الاحتياطي"
+ ],
+ "properties.invoices": [
+  "Invoices",
+  "Facturas",
+  "Factures",
+  "Fakti",
+  "الفواتير"
+ ],
+ "properties.addInvoice": [
+  "Add invoice",
+  "Agregar factura",
+  "Ajouter une facture",
+  "Ajoute fakti",
+  "إضافة فاتورة"
+ ],
+ "properties.matchStatus": [
+  "Match",
+  "Coincidencia",
+  "Correspondance",
+  "Korespondans",
+  "المطابقة"
+ ],
+ "properties.invoiceDecision": [
+  "Decision",
+  "Decisión",
+  "Décision",
+  "Desizyon",
+  "القرار"
+ ],
+ "properties.vendors": [
+  "Vendors",
+  "Proveedores",
+  "Fournisseurs",
+  "Founisè",
+  "المورّدون"
+ ],
+ "properties.createVendor": [
+  "Add vendor",
+  "Agregar proveedor",
+  "Ajouter un fournisseur",
+  "Ajoute founisè",
+  "إضافة مورّد"
+ ],
+ "properties.vendorName": [
+  "Vendor name",
+  "Nombre del proveedor",
+  "Nom du fournisseur",
+  "Non founisè",
+  "اسم المورّد"
+ ],
+ "properties.trade": [
+  "Trade",
+  "Oficio",
+  "Métier",
+  "Metye",
+  "الحرفة"
+ ],
+ "properties.insuranceExpired": [
+  "Insurance expired",
+  "Seguro vencido",
+  "Assurance expirée",
+  "Asirans ekspire",
+  "التأمين منتهي"
+ ],
+ "properties.workOrders": [
+  "Work orders",
+  "Órdenes de trabajo",
+  "Ordres de travail",
+  "Lòd travay",
+  "أوامر العمل"
+ ],
+ "properties.closeWorkOrder": [
+  "Close",
+  "Cerrar",
+  "Clôturer",
+  "Fèmen",
+  "إغلاق"
+ ],
+ "properties.keys": [
+  "Keys",
+  "Llaves",
+  "Clés",
+  "Kle",
+  "المفاتيح"
+ ],
+ "properties.addKey": [
+  "Add key",
+  "Agregar llave",
+  "Ajouter une clé",
+  "Ajoute kle",
+  "إضافة مفتاح"
+ ],
+ "properties.keyLabel": [
+  "Key label",
+  "Etiqueta de llave",
+  "Étiquette de clé",
+  "Etikèt kle",
+  "تسمية المفتاح"
+ ],
+ "properties.checkOut": [
+  "Check out",
+  "Entregar",
+  "Sortir",
+  "Prete",
+  "إخراج"
+ ],
+ "properties.checkIn": [
+  "Return",
+  "Devolver",
+  "Retourner",
+  "Retounen",
+  "إعادة"
+ ],
+ "properties.lost": [
+  "Lost",
+  "Perdida",
+  "Perdue",
+  "Pèdi",
+  "مفقود"
+ ],
+ "properties.handover": [
+  "Handover",
+  "Entrega",
+  "Remise",
+  "Remiz",
+  "التسليم"
+ ],
+ "properties.reassign": [
+  "Reassign",
+  "Reasignar",
+  "Réaffecter",
+  "Reafekte",
+  "إعادة تعيين"
+ ],
+ "properties.notifyOccupants": [
+  "Notify occupants",
+  "Avisar a los ocupantes",
+  "Prévenir les occupants",
+  "Avèti okipan yo",
+  "إشعار الشاغلين"
+ ],
+ "properties.revokeAccess": [
+  "Revoke access",
+  "Revocar acceso",
+  "Révoquer l’accès",
+  "Retire aksè",
+  "إلغاء الوصول"
+ ],
+ "properties.archive": [
+  "Archive",
+  "Archivar",
+  "Archiver",
+  "Achive",
+  "أرشفة"
+ ],
+ "properties.restore": [
+  "Restore",
+  "Restaurar",
+  "Restaurer",
+  "Retabli",
+  "استعادة"
+ ],
+ "properties.archiveReason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "ops.title": [
+  "Operations console",
+  "Consola de operaciones",
+  "Console des opérations",
+  "Konsòl operasyon",
+  "وحدة تحكم العمليات"
+ ],
+ "ops.subtitle": [
+  "Readiness, menu, reports, downtime, transfers, and closures.",
+  "Preparación, menú, informes, averías, traslados y cierres.",
+  "Préparation, menu, rapports, pannes, transferts et fermetures.",
+  "Preparasyon, meni, rapò, pann, transfè, ak fèmti.",
+  "الجاهزية والقائمة والتقارير والأعطال والتحويلات والإغلاقات."
+ ],
+ "ops.readiness": [
+  "Readiness",
+  "Preparación",
+  "Préparation",
+  "Preparasyon",
+  "الجاهزية"
+ ],
+ "ops.checks": [
+  "Checks",
+  "Verificaciones",
+  "Vérifications",
+  "Verifikasyon",
+  "الفحوصات"
+ ],
+ "ops.ready": [
+  "Ready",
+  "Listo",
+  "Prêt",
+  "Pare",
+  "جاهز"
+ ],
+ "ops.notReady": [
+  "Not ready",
+  "No listo",
+  "Pas prêt",
+  "Pa pare",
+  "غير جاهز"
+ ],
+ "ops.launch": [
+  "Launch location",
+  "Abrir ubicación",
+  "Ouvrir l’emplacement",
+  "Louvri kote",
+  "إطلاق الموقع"
+ ],
+ "ops.markDone": [
+  "Mark done",
+  "Marcar hecho",
+  "Marquer fait",
+  "Make fèt",
+  "تعليم كمكتمل"
+ ],
+ "ops.settings": [
+  "Location settings",
+  "Ajustes de ubicación",
+  "Paramètres de l’emplacement",
+  "Paramèt kote",
+  "إعدادات الموقع"
+ ],
+ "ops.pickupArea": [
+  "Pickup area",
+  "Zona de retiro",
+  "Zone de retrait",
+  "Zòn retrè",
+  "منطقة الاستلام"
+ ],
+ "ops.pickupInstructions": [
+  "Pickup instructions",
+  "Instrucciones de retiro",
+  "Instructions de retrait",
+  "Enstriksyon retrè",
+  "تعليمات الاستلام"
+ ],
+ "ops.parkingNote": [
+  "Parking note",
+  "Nota de estacionamiento",
+  "Note de stationnement",
+  "Nòt pakin",
+  "ملاحظة مواقف السيارات"
+ ],
+ "ops.curbside": [
+  "Curbside pickup",
+  "Retiro en acera",
+  "Retrait au trottoir",
+  "Retrè bò wout",
+  "استلام من الرصيف"
+ ],
+ "ops.substitution": [
+  "Substitution policy",
+  "Política de sustitución",
+  "Politique de substitution",
+  "Règ sibstitisyon",
+  "سياسة الاستبدال"
+ ],
+ "ops.unclaimedMinutes": [
+  "Unclaimed pickup minutes",
+  "Minutos sin reclamar",
+  "Minutes sans retrait",
+  "Minit san reklamasyon",
+  "دقائق الاستلام غير المُطالب به"
+ ],
+ "ops.slotMinutes": [
+  "Slot minutes",
+  "Minutos por turno",
+  "Minutes par créneau",
+  "Minit pa plas",
+  "دقائق الفترة"
+ ],
+ "ops.slotMax": [
+  "Max orders per slot",
+  "Máx. por turno",
+  "Max par créneau",
+  "Maks pa plas",
+  "الحد الأقصى للطلبات لكل فترة"
+ ],
+ "ops.saveSettings": [
+  "Save settings",
+  "Guardar ajustes",
+  "Enregistrer les paramètres",
+  "Anrejistre paramèt",
+  "حفظ الإعدادات"
+ ],
+ "ops.specialHours": [
+  "Special hours",
+  "Horarios especiales",
+  "Horaires spéciaux",
+  "Lè espesyal",
+  "ساعات خاصة"
+ ],
+ "ops.addHours": [
+  "Add special hours",
+  "Agregar horario especial",
+  "Ajouter des horaires",
+  "Ajoute lè espesyal",
+  "إضافة ساعات خاصة"
+ ],
+ "ops.startDate": [
+  "Start date",
+  "Fecha de inicio",
+  "Date de début",
+  "Dat kòmansman",
+  "تاريخ البدء"
+ ],
+ "ops.endDate": [
+  "End date",
+  "Fecha de fin",
+  "Date de fin",
+  "Dat fen",
+  "تاريخ الانتهاء"
+ ],
+ "ops.openTime": [
+  "Opens",
+  "Apertura",
+  "Ouverture",
+  "Ouvèti",
+  "يفتح"
+ ],
+ "ops.closeTime": [
+  "Closes",
+  "Cierre",
+  "Fermeture",
+  "Fèmti",
+  "يغلق"
+ ],
+ "ops.closed": [
+  "Closed",
+  "Cerrado",
+  "Fermé",
+  "Fèmen",
+  "مغلق"
+ ],
+ "ops.reports": [
+  "Reports",
+  "Informes",
+  "Rapports",
+  "Rapò",
+  "التقارير"
+ ],
+ "ops.unclaimed": [
+  "Unclaimed pickups",
+  "Retiros sin reclamar",
+  "Retraits non réclamés",
+  "Retrè san reklamasyon",
+  "عمليات استلام غير مُطالب بها"
+ ],
+ "ops.cancellations": [
+  "Cancellations",
+  "Cancelaciones",
+  "Annulations",
+  "Anilasyon",
+  "الإلغاءات"
+ ],
+ "ops.dispatchDelays": [
+  "Dispatch delays",
+  "Retrasos de despacho",
+  "Retards d’expédition",
+  "Reta depech",
+  "تأخيرات الإرسال"
+ ],
+ "ops.prepTrends": [
+  "Prep trends",
+  "Tendencias de preparación",
+  "Tendances de préparation",
+  "Tandans preparasyon",
+  "اتجاهات التحضير"
+ ],
+ "ops.unavailability": [
+  "Unavailability",
+  "No disponibilidad",
+  "Indisponibilité",
+  "Endisponibilite",
+  "عدم التوفر"
+ ],
+ "ops.peakLoad": [
+  "Peak load",
+  "Carga máxima",
+  "Charge maximale",
+  "Chaj pik",
+  "ذروة الحمل"
+ ],
+ "ops.repeatIssues": [
+  "Repeat issues",
+  "Problemas repetidos",
+  "Problèmes récurrents",
+  "Pwoblèm repete",
+  "المشكلات المتكررة"
+ ],
+ "ops.capacity": [
+  "Capacity forecast",
+  "Pronóstico de capacidad",
+  "Prévision de capacité",
+  "Previzyon kapasite",
+  "توقعات السعة"
+ ],
+ "ops.menu": [
+  "Menu changes",
+  "Cambios de menú",
+  "Changements de menu",
+  "Chanjman meni",
+  "تغييرات القائمة"
+ ],
+ "ops.scheduledChanges": [
+  "Scheduled changes",
+  "Cambios programados",
+  "Changements planifiés",
+  "Chanjman pwograme",
+  "التغييرات المجدولة"
+ ],
+ "ops.scheduleChange": [
+  "Schedule a change",
+  "Programar un cambio",
+  "Planifier un changement",
+  "Pwograme yon chanjman",
+  "جدولة تغيير"
+ ],
+ "ops.menuItemId": [
+  "Menu item ID",
+  "ID del plato",
+  "ID de l’article",
+  "ID atik meni",
+  "معرّف عنصر القائمة"
+ ],
+ "ops.effectiveAt": [
+  "Effective at",
+  "Vigente desde",
+  "Effectif le",
+  "Efektif apati",
+  "ساري اعتبارًا من"
+ ],
+ "ops.changeType": [
+  "Change",
+  "Cambio",
+  "Changement",
+  "Chanjman",
+  "التغيير"
+ ],
+ "ops.cancelChange": [
+  "Cancel",
+  "Cancelar",
+  "Annuler",
+  "Anile",
+  "إلغاء"
+ ],
+ "ops.menuHistory": [
+  "Menu history",
+  "Historial de menú",
+  "Historique du menu",
+  "Istwa meni",
+  "سجل القائمة"
+ ],
+ "ops.downtime": [
+  "Equipment downtime",
+  "Equipos fuera de servicio",
+  "Équipements en panne",
+  "Ekipman an pann",
+  "تعطل المعدات"
+ ],
+ "ops.reportDowntime": [
+  "Report downtime",
+  "Reportar avería",
+  "Signaler une panne",
+  "Rapòte pann",
+  "الإبلاغ عن تعطل"
+ ],
+ "ops.equipment": [
+  "Equipment",
+  "Equipo",
+  "Équipement",
+  "Ekipman",
+  "المعدات"
+ ],
+ "ops.restoreDowntime": [
+  "Restore",
+  "Restaurar",
+  "Restaurer",
+  "Retabli",
+  "استعادة"
+ ],
+ "ops.transfers": [
+  "Transfers",
+  "Traslados",
+  "Transferts",
+  "Transfè",
+  "التحويلات"
+ ],
+ "ops.requestTransfer": [
+  "Request transfer",
+  "Solicitar traslado",
+  "Demander un transfert",
+  "Mande transfè",
+  "طلب تحويل"
+ ],
+ "ops.fromLocation": [
+  "From",
+  "Desde",
+  "De",
+  "Soti",
+  "من"
+ ],
+ "ops.toLocation": [
+  "To",
+  "Hacia",
+  "Vers",
+  "Ale",
+  "إلى"
+ ],
+ "ops.emergency": [
+  "Emergency closure",
+  "Cierre de emergencia",
+  "Fermeture d’urgence",
+  "Fèmti ijans",
+  "إغلاق طارئ"
+ ],
+ "ops.closeNow": [
+  "Close now",
+  "Cerrar ahora",
+  "Fermer maintenant",
+  "Fèmen kounye a",
+  "الإغلاق الآن"
+ ],
+ "ops.closureReason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "ops.currentClosure": [
+  "Current closure",
+  "Cierre actual",
+  "Fermeture en cours",
+  "Fèmti aktyèl",
+  "الإغلاق الحالي"
+ ],
+ "ops.reopen": [
+  "Reopen",
+  "Reabrir",
+  "Rouvrir",
+  "Relouvri",
+  "إعادة الفتح"
+ ],
+ "ops.openOrders": [
+  "Open orders",
+  "Pedidos abiertos",
+  "Commandes ouvertes",
+  "Kòmann ouvè",
+  "الطلبات المفتوحة"
+ ],
+ "ops.followUp": [
+  "Follow up",
+  "Seguimiento",
+  "Suivi",
+  "Swivi",
+  "متابعة"
+ ],
+ "ops.resolution": [
+  "Resolution",
+  "Resolución",
+  "Résolution",
+  "Rezolisyon",
+  "الحل"
+ ],
+ "ops.days": [
+  "Days",
+  "Días",
+  "Jours",
+  "Jou",
+  "الأيام"
+ ],
+ "ops.orders": [
+  "Orders",
+  "Pedidos",
+  "Commandes",
+  "Kòmann",
+  "الطلبات"
+ ],
+ "ops.minutesLate": [
+  "Minutes late",
+  "Minutos de retraso",
+  "Minutes de retard",
+  "Minit an reta",
+  "دقائق التأخير"
+ ],
+ "shift.title": [
+  "My shift",
+  "Mi turno",
+  "Mon poste",
+  "Chif mwen",
+  "ورديتي"
+ ],
+ "shift.subtitle": [
+  "Start, brief, and close your shift.",
+  "Inicie, revise y cierre su turno.",
+  "Commencez, préparez et terminez votre poste.",
+  "Kòmanse, prepare, epi fèmen chif ou.",
+  "ابدأ ورديتك وراجعها وأغلقها."
+ ],
+ "shift.startShift": [
+  "Start shift",
+  "Iniciar turno",
+  "Commencer le poste",
+  "Kòmanse chif",
+  "بدء الوردية"
+ ],
+ "shift.todaysShifts": [
+  "Today’s shifts",
+  "Turnos de hoy",
+  "Postes du jour",
+  "Chif jodi a",
+  "ورديات اليوم"
+ ],
+ "shift.started": [
+  "Shift started",
+  "Turno iniciado",
+  "Poste commencé",
+  "Chif kòmanse",
+  "بدأت الوردية"
+ ],
+ "shift.station": [
+  "Station",
+  "Estación",
+  "Poste",
+  "Estasyon",
+  "المحطة"
+ ],
+ "shift.assignStation": [
+  "Assign station",
+  "Asignar estación",
+  "Affecter un poste",
+  "Afekte estasyon",
+  "تعيين محطة"
+ ],
+ "shift.stationName": [
+  "Station",
+  "Estación",
+  "Poste",
+  "Estasyon",
+  "المحطة"
+ ],
+ "shift.tasks": [
+  "My tasks",
+  "Mis tareas",
+  "Mes tâches",
+  "Travay mwen",
+  "مهامي"
+ ],
+ "shift.checklists": [
+  "Checklists",
+  "Listas de verificación",
+  "Listes de contrôle",
+  "Lis verifikasyon",
+  "قوائم المراجعة"
+ ],
+ "shift.handoff": [
+  "Handoff",
+  "Entrega de turno",
+  "Passation",
+  "Remiz",
+  "التسليم"
+ ],
+ "shift.unread": [
+  "Unread",
+  "Sin leer",
+  "Non lu",
+  "Pa li",
+  "غير مقروء"
+ ],
+ "shift.readinessItems": [
+  "Readiness",
+  "Preparación",
+  "Préparation",
+  "Preparasyon",
+  "الجاهزية"
+ ],
+ "shift.acknowledgeReadiness": [
+  "Acknowledge readiness",
+  "Confirmar preparación",
+  "Confirmer la préparation",
+  "Konfime preparasyon",
+  "تأكيد الجاهزية"
+ ],
+ "shift.ready": [
+  "Ready",
+  "Listo",
+  "Prêt",
+  "Pare",
+  "جاهز"
+ ],
+ "shift.batchPrint": [
+  "Batch print",
+  "Impresión por lote",
+  "Impression groupée",
+  "Enpresyon pakè",
+  "طباعة جماعية"
+ ],
+ "shift.orderIds": [
+  "Order IDs",
+  "IDs de pedido",
+  "IDs de commande",
+  "ID kòmann",
+  "معرّفات الطلبات"
+ ],
+ "shift.print": [
+  "Print",
+  "Imprimir",
+  "Imprimer",
+  "Enprime",
+  "طباعة"
+ ],
+ "shift.lateOrders": [
+  "Late orders",
+  "Pedidos atrasados",
+  "Commandes en retard",
+  "Kòmann an reta",
+  "الطلبات المتأخرة"
+ ],
+ "shift.stockNotices": [
+  "Stock notices",
+  "Avisos de stock",
+  "Avis de stock",
+  "Avi stock",
+  "إشعارات المخزون"
+ ],
+ "shift.createNotice": [
+  "New notice",
+  "Nuevo aviso",
+  "Nouvel avis",
+  "Nouvo avi",
+  "إشعار جديد"
+ ],
+ "shift.itemName": [
+  "Item",
+  "Artículo",
+  "Article",
+  "Atik",
+  "العنصر"
+ ],
+ "shift.note": [
+  "Note",
+  "Nota",
+  "Note",
+  "Nòt",
+  "ملاحظة"
+ ],
+ "shift.resolve": [
+  "Resolve",
+  "Resolver",
+  "Résoudre",
+  "Rezoud",
+  "حل"
+ ],
+ "shift.issues": [
+  "Issues",
+  "Problemas",
+  "Problèmes",
+  "Pwoblèm",
+  "المشكلات"
+ ],
+ "shift.reportIssue": [
+  "Report issue",
+  "Reportar problema",
+  "Signaler un problème",
+  "Rapòte pwoblèm",
+  "الإبلاغ عن مشكلة"
+ ],
+ "shift.issueKind": [
+  "Kind",
+  "Tipo",
+  "Type",
+  "Kalite",
+  "النوع"
+ ],
+ "shift.escalate": [
+  "Escalate",
+  "Escalar",
+  "Escalader",
+  "Eskalade",
+  "تصعيد"
+ ],
+ "shift.breakStart": [
+  "Start break",
+  "Iniciar descanso",
+  "Commencer la pause",
+  "Kòmanse poz",
+  "بدء الاستراحة"
+ ],
+ "shift.breakEnd": [
+  "End break",
+  "Terminar descanso",
+  "Terminer la pause",
+  "Fini poz",
+  "إنهاء الاستراحة"
+ ],
+ "shift.onBreak": [
+  "On break",
+  "En descanso",
+  "En pause",
+  "Nan poz",
+  "في استراحة"
+ ],
+ "shift.incidents": [
+  "Incidents",
+  "Incidentes",
+  "Incidents",
+  "Ensidan",
+  "الحوادث"
+ ],
+ "shift.createIncident": [
+  "Report incident",
+  "Reportar incidente",
+  "Signaler un incident",
+  "Rapòte ensidan",
+  "الإبلاغ عن حادث"
+ ],
+ "shift.incidentCategory": [
+  "Category",
+  "Categoría",
+  "Catégorie",
+  "Kategori",
+  "الفئة"
+ ],
+ "shift.incidentUrgency": [
+  "Urgency",
+  "Urgencia",
+  "Urgence",
+  "Ijans",
+  "الأولوية"
+ ],
+ "shift.endPreview": [
+  "End of shift",
+  "Fin de turno",
+  "Fin de poste",
+  "Fen chif",
+  "نهاية الوردية"
+ ],
+ "shift.endShift": [
+  "End shift",
+  "Terminar turno",
+  "Terminer le poste",
+  "Fini chif",
+  "إنهاء الوردية"
+ ],
+ "shift.endReason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "shift.ownedTickets": [
+  "My open tickets",
+  "Mis tickets abiertos",
+  "Mes tickets ouverts",
+  "Tikè mwen ki ouvè",
+  "تذاكري المفتوحة"
+ ],
+ "shift.needsHandoff": [
+  "Needs handoff",
+  "Necesita entrega",
+  "Passation requise",
+  "Bezwen remiz",
+  "يحتاج تسليمًا"
+ ],
+ "shift.verifyPickup": [
+  "Verify pickup code",
+  "Verificar código de retiro",
+  "Vérifier le code de retrait",
+  "Verifye kòd retrè",
+  "التحقق من رمز الاستلام"
+ ],
+ "shift.orderId": [
+  "Order ID",
+  "ID de pedido",
+  "ID de commande",
+  "ID kòmann",
+  "معرّف الطلب"
+ ],
+ "shift.pickupCode": [
+  "Pickup code",
+  "Código de retiro",
+  "Code de retrait",
+  "Kòd retrè",
+  "رمز الاستلام"
+ ],
+ "shift.verify": [
+  "Verify",
+  "Verificar",
+  "Vérifier",
+  "Verifye",
+  "تحقق"
+ ],
+ "shift.ticketHistory": [
+  "Ticket history",
+  "Historial del ticket",
+  "Historique du ticket",
+  "Istwa tikè",
+  "سجل التذكرة"
+ ],
+ "shift.pack": [
+  "Pack",
+  "Empacar",
+  "Emballer",
+  "Anbale",
+  "تعبئة"
+ ],
+ "shift.ticket": [
+  "Ticket",
+  "Ticket",
+  "Ticket",
+  "Tikè",
+  "التذكرة"
+ ],
+ "properties.moveOut": [
+  "Move-out",
+  "Salida",
+  "Départ",
+  "Depa",
+  "المغادرة"
+ ],
+ "properties.moveIn": [
+  "Move-in",
+  "Entrada",
+  "Emménagement",
+  "Antre",
+  "الانتقال"
+ ],
+ "properties.instructionsExpired": [
+  "Instructions expired",
+  "Instrucciones vencidas",
+  "Instructions expirées",
+  "Enstriksyon ekspire",
+  "انتهت صلاحية التعليمات"
+ ],
+ "properties.urgency": [
+  "Urgency",
+  "Urgencia",
+  "Urgence",
+  "Ijans",
+  "الأولوية"
+ ],
+ "properties.category": [
+  "Category",
+  "Categoría",
+  "Catégorie",
+  "Kategori",
+  "الفئة"
+ ],
+ "properties.cost": [
+  "Cost",
+  "Costo",
+  "Coût",
+  "Pri",
+  "التكلفة"
+ ],
+ "ops.sub.contact_customer": [
+  "Contact customer",
+  "Contactar al cliente",
+  "Contacter le client",
+  "Kontakte kliyan an",
+  "الاتصال بالعميل"
+ ],
+ "ops.sub.substitute_similar": [
+  "Substitute similar item",
+  "Sustituir por similar",
+  "Remplacer par un article similaire",
+  "Ranplase ak yon atik ki sanble",
+  "استبدال بعنصر مشابه"
+ ],
+ "ops.sub.refund_item": [
+  "Refund the item",
+  "Reembolsar el artículo",
+  "Rembourser l’article",
+  "Ranbouse atik la",
+  "رد قيمة العنصر"
+ ],
+ "ops.sub.cancel_order": [
+  "Cancel the order",
+  "Cancelar el pedido",
+  "Annuler la commande",
+  "Anile kòmann lan",
+  "إلغاء الطلب"
+ ],
+ "ops.check.hours": [
+  "Hours set",
+  "Horario configurado",
+  "Horaires définis",
+  "Lè yo fikse",
+  "الساعات مضبوطة"
+ ],
+ "ops.check.tax": [
+  "Tax rate set",
+  "Impuesto configurado",
+  "Taux de taxe défini",
+  "Taks fikse",
+  "معدل الضريبة مضبوط"
+ ],
+ "ops.check.menu": [
+  "Menu published",
+  "Menú publicado",
+  "Menu publié",
+  "Meni pibliye",
+  "القائمة منشورة"
+ ],
+ "ops.check.station": [
+  "Kitchen station ready",
+  "Estación de cocina lista",
+  "Poste de cuisine prêt",
+  "Estasyon kwizin pare",
+  "محطة المطبخ جاهزة"
+ ],
+ "ops.check.staff": [
+  "Staff assigned",
+  "Personal asignado",
+  "Personnel affecté",
+  "Anplwaye afekte",
+  "الموظفون معيّنون"
+ ],
+ "ops.check.pickup": [
+  "Pickup area set",
+  "Zona de retiro lista",
+  "Zone de retrait définie",
+  "Zòn retrè pare",
+  "منطقة الاستلام مضبوطة"
+ ],
+ "ops.check.food_safety_inspection": [
+  "Food safety inspection",
+  "Inspección de seguridad alimentaria",
+  "Inspection de sécurité alimentaire",
+  "Enspeksyon sekirite alimantè",
+  "فحص سلامة الغذاء"
+ ],
+ "ops.check.staff_trained": [
+  "Staff trained",
+  "Personal capacitado",
+  "Personnel formé",
+  "Anplwaye fòme",
+  "الموظفون مدرّبون"
+ ],
+ "ops.check.test_order": [
+  "Test order",
+  "Pedido de prueba",
+  "Commande test",
+  "Kòmann tès",
+  "طلب تجريبي"
+ ],
+ "ops.check.soft_open": [
+  "Soft open",
+  "Apertura suave",
+  "Ouverture douce",
+  "Ouvèti dou",
+  "افتتاح تجريبي"
+ ],
+ "ops.downtimeCheck.cleaned": [
+  "Cleaned",
+  "Limpio",
+  "Nettoyé",
+  "Netwaye",
+  "تم التنظيف"
+ ],
+ "ops.downtimeCheck.tested": [
+  "Tested",
+  "Probado",
+  "Testé",
+  "Teste",
+  "تم الاختبار"
+ ],
+ "ops.downtimeCheck.temperature_ok": [
+  "Temperature OK",
+  "Temperatura correcta",
+  "Température OK",
+  "Tanperati OK",
+  "درجة الحرارة مناسبة"
+ ],
+ "ops.reopenCheck.equipment_checked": [
+  "Equipment checked",
+  "Equipo revisado",
+  "Équipement vérifié",
+  "Ekipman verifye",
+  "تم فحص المعدات"
+ ],
+ "ops.reopenCheck.food_safety_checked": [
+  "Food safety checked",
+  "Seguridad alimentaria revisada",
+  "Sécurité alimentaire vérifiée",
+  "Sekirite alimantè verifye",
+  "تم التحقق من سلامة الغذاء"
+ ],
+ "ops.reopenCheck.staff_ready": [
+  "Staff ready",
+  "Personal listo",
+  "Personnel prêt",
+  "Anplwaye pare",
+  "الموظفون جاهزون"
+ ],
+ "ops.reopenCheck.systems_online": [
+  "Systems online",
+  "Sistemas en línea",
+  "Systèmes en ligne",
+  "Sistèm an liy",
+  "الأنظمة متصلة"
+ ],
+ "ops.copySettings": [
+  "Copy settings",
+  "Copiar ajustes",
+  "Copier les paramètres",
+  "Kopye paramèt",
+  "نسخ الإعدادات"
+ ],
+ "ops.label": [
+  "Label",
+  "Etiqueta",
+  "Libellé",
+  "Etikèt",
+  "التسمية"
+ ],
+ "ops.orderId": [
+  "Order ID",
+  "ID de pedido",
+  "ID de commande",
+  "ID kòmann",
+  "معرّف الطلب"
+ ],
+ "ops.avgMinutes": [
+  "Avg minutes",
+  "Min. prom.",
+  "Min. moy.",
+  "Minit mwayèn",
+  "متوسط الدقائق"
+ ],
+ "ops.hour": [
+  "Hour",
+  "Hora",
+  "Heure",
+  "Lè",
+  "الساعة"
+ ],
+ "ops.staff": [
+  "Staff",
+  "Personal",
+  "Personnel",
+  "Anplwaye",
+  "الموظفون"
+ ],
+ "ops.needed": [
+  "Needed",
+  "Necesario",
+  "Requis",
+  "Bezwen",
+  "المطلوب"
+ ],
+ "ops.decide": [
+  "Decide",
+  "Decidir",
+  "Décider",
+  "Deside",
+  "اتخاذ قرار"
+ ],
+ "shift.readyItem.uniform_ready": [
+  "Uniform ready",
+  "Uniforme listo",
+  "Uniforme prêt",
+  "Inifòm pare",
+  "الزي جاهز"
+ ],
+ "shift.readyItem.hands_washed": [
+  "Hands washed",
+  "Manos lavadas",
+  "Mains lavées",
+  "Men lave",
+  "اليدان مغسولتان"
+ ],
+ "shift.readyItem.station_stocked": [
+  "Station stocked",
+  "Estación abastecida",
+  "Poste approvisionné",
+  "Estasyon gen stock",
+  "المحطة مجهزة"
+ ],
+ "shift.readyItem.handoff_read": [
+  "Handoff read",
+  "Entrega leída",
+  "Passation lue",
+  "Remiz li",
+  "تمت قراءة التسليم"
+ ],
+ "shift.noticeKind.low_stock": [
+  "Low stock",
+  "Stock bajo",
+  "Stock bas",
+  "Stock ba",
+  "مخزون منخفض"
+ ],
+ "shift.noticeKind.substitution": [
+  "Substitution",
+  "Sustitución",
+  "Substitution",
+  "Sibstitisyon",
+  "استبدال"
+ ],
+ "shift.noticeKind.menu_correction": [
+  "Menu correction",
+  "Corrección de menú",
+  "Correction de menu",
+  "Koreksyon meni",
+  "تصحيح القائمة"
+ ],
+ "shift.issKind.missing_item": [
+  "Missing item",
+  "Artículo faltante",
+  "Article manquant",
+  "Atik ki manke",
+  "عنصر مفقود"
+ ],
+ "shift.issKind.substitution": [
+  "Substitution",
+  "Sustitución",
+  "Substitution",
+  "Sibstitisyon",
+  "استبدال"
+ ],
+ "shift.issKind.wrong_order": [
+  "Wrong order",
+  "Pedido equivocado",
+  "Mauvaise commande",
+  "Kòmann ki pa bon",
+  "طلب خاطئ"
+ ],
+ "shift.issKind.late": [
+  "Late",
+  "Atrasado",
+  "En retard",
+  "An reta",
+  "متأخر"
+ ],
+ "shift.incCat.food_service": [
+  "Food service",
+  "Servicio de comida",
+  "Service de restauration",
+  "Sèvis manje",
+  "خدمة الطعام"
+ ],
+ "shift.incCat.equipment": [
+  "Equipment",
+  "Equipo",
+  "Équipement",
+  "Ekipman",
+  "المعدات"
+ ],
+ "shift.incCat.safety": [
+  "Safety",
+  "Seguridad",
+  "Sécurité",
+  "Sekirite",
+  "السلامة"
+ ],
+ "shift.incCat.guest": [
+  "Guest",
+  "Cliente",
+  "Client",
+  "Kliyan",
+  "الضيف"
+ ],
+ "shift.incCat.other": [
+  "Other",
+  "Otro",
+  "Autre",
+  "Lòt",
+  "أخرى"
+ ],
+ "shift.handoffKind.owner": [
+  "Owner",
+  "Dueño",
+  "Propriétaire",
+  "Pwopriyetè",
+  "المالك"
+ ],
+ "shift.handoffKind.station": [
+  "Station",
+  "Estación",
+  "Poste",
+  "Estasyon",
+  "المحطة"
+ ],
+ "shift.handoffKind.prep": [
+  "Prep",
+  "Preparación",
+  "Préparation",
+  "Preparasyon",
+  "التحضير"
+ ],
+ "shift.packItem.items_verified": [
+  "Items verified",
+  "Artículos verificados",
+  "Articles vérifiés",
+  "Atik verifye",
+  "تم التحقق من العناصر"
+ ],
+ "shift.packItem.sauces_utensils": [
+  "Sauces and utensils",
+  "Salsas y utensilios",
+  "Sauces et ustensiles",
+  "Sòs ak istansil",
+  "الصلصات والأدوات"
+ ],
+ "shift.packItem.drinks": [
+  "Drinks",
+  "Bebidas",
+  "Boissons",
+  "Bwason",
+  "المشروبات"
+ ],
+ "shift.packItem.sealed": [
+  "Sealed",
+  "Sellado",
+  "Scellé",
+  "Sele",
+  "مغلق"
+ ],
+ "shift.packItem.label_applied": [
+  "Label applied",
+  "Etiqueta puesta",
+  "Étiquette apposée",
+  "Etikèt mete",
+  "تم وضع الملصق"
+ ],
+ "shift.acknowledge": [
+  "Acknowledge",
+  "Confirmar",
+  "Accuser réception",
+  "Konfime",
+  "تأكيد"
+ ],
+ "shift.break": [
+  "Break",
+  "Descanso",
+  "Pause",
+  "Poz",
+  "استراحة"
+ ],
+ "shift.ended": [
+  "Shift ended",
+  "Turno terminado",
+  "Poste terminé",
+  "Chif fini",
+  "انتهت الوردية"
+ ],
+ "shift.issueDetail": [
+  "Detail",
+  "Detalle",
+  "Détail",
+  "Detay",
+  "التفاصيل"
+ ],
+ "shift.no": [
+  "No",
+  "No",
+  "Non",
+  "Non",
+  "لا"
+ ],
+ "shift.notReady": [
+  "Not ready",
+  "No listo",
+  "Pas prêt",
+  "Pa pare",
+  "غير جاهز"
+ ],
+ "shift.proposedSubstitute": [
+  "Proposed substitute",
+  "Sustituto propuesto",
+  "Remplaçant proposé",
+  "Ranplasan pwopoze",
+  "البديل المقترح"
+ ],
+ "shift.resolution": [
+  "Resolution",
+  "Resolución",
+  "Résolution",
+  "Rezolisyon",
+  "الحل"
+ ],
+ "shift.substitutes": [
+  "Substitutes",
+  "Sustitutos",
+  "Remplaçants",
+  "Ranplasan",
+  "البدائل"
+ ],
+ "shift.yes": [
+  "Yes",
+  "Sí",
+  "Oui",
+  "Wi",
+  "نعم"
+ ],
+ "properties.duplicates": [
+  "Duplicates",
+  "Duplicados",
+  "Doublons",
+  "Doublon",
+  "التكرارات"
+ ],
+ "properties.linkDuplicate": [
+  "Link duplicate",
+  "Vincular duplicado",
+  "Lier le doublon",
+  "Lye doublon",
+  "ربط التكرار"
+ ],
+ "properties.duplicateOf": [
+  "Duplicate of",
+  "Duplicado de",
+  "Doublon de",
+  "Doublon",
+  "تكرار لـ"
+ ],
+ "properties.evidence": [
+  "Evidence",
+  "Evidencia",
+  "Preuves",
+  "Prèv",
+  "الأدلة"
+ ],
+ "properties.evidenceUrl": [
+  "Evidence link",
+  "Enlace de evidencia",
+  "Lien de preuve",
+  "Lyen prèv",
+  "رابط الدليل"
+ ],
+ "properties.addEvidence": [
+  "Add evidence",
+  "Agregar evidencia",
+  "Ajouter une preuve",
+  "Ajoute prèv",
+  "إضافة دليل"
+ ],
+ "properties.followUpOn": [
+  "Follow up on",
+  "Seguimiento el",
+  "Suivi le",
+  "Swivi nan dat",
+  "المتابعة في"
+ ],
+ "properties.setFollowUp": [
+  "Set follow-up",
+  "Fijar seguimiento",
+  "Définir le suivi",
+  "Mete swivi",
+  "تعيين المتابعة"
+ ],
+ "properties.scheduleKind": [
+  "Schedule kind",
+  "Tipo de programa",
+  "Type de planning",
+  "Kalite orè",
+  "نوع الجدولة"
+ ],
+ "properties.intervalDays": [
+  "Every N days",
+  "Cada N días",
+  "Tous les N jours",
+  "Chak N jou",
+  "كل N أيام"
+ ],
+ "properties.months": [
+  "Months",
+  "Meses",
+  "Mois",
+  "Mwa",
+  "الأشهر"
+ ],
+ "properties.createSchedule": [
+  "Create schedule",
+  "Crear programa",
+  "Créer un planning",
+  "Kreye orè",
+  "إنشاء جدولة"
+ ],
+ "properties.bookOccurrence": [
+  "Book",
+  "Reservar",
+  "Réserver",
+  "Rezève",
+  "حجز"
+ ],
+ "properties.sendBudgetAlerts": [
+  "Send budget alerts",
+  "Enviar alertas de presupuesto",
+  "Envoyer les alertes de budget",
+  "Voye alèt bidjè",
+  "إرسال تنبيهات الميزانية"
+ ],
+ "properties.unitSpend": [
+  "Unit spending",
+  "Gasto por unidad",
+  "Dépenses par unité",
+  "Depans pa inite",
+  "إنفاق الوحدات"
+ ],
+ "shift.handoffTo": [
+  "Hand off to (member ID)",
+  "Entregar a (ID)",
+  "Transmettre à (ID)",
+  "Remèt bay (ID)",
+  "تسليم إلى (معرّف العضو)"
+ ],
+ "shift.escalatedTo": [
+  "Escalated to",
+  "Escalado a",
+  "Escaladé à",
+  "Eskalade bay",
+  "تم التصعيد إلى"
+ ],
+ "shift.followUpAt": [
+  "Follow up at",
+  "Seguimiento el",
+  "Suivi le",
+  "Swivi nan dat",
+  "المتابعة في"
+ ],
+ "shift.handoffToUser": [
+  "Hand off to (member ID)",
+  "Entregar a (ID)",
+  "Transmettre à (ID)",
+  "Remèt bay (ID)",
+  "تسليم إلى (معرّف العضو)"
  ]
 }

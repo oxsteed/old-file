@@ -20,6 +20,7 @@ import { apiErrorMessage } from './foodShared';
 import { ChecklistsPanel, SopsPanel } from './RestaurantOpsPanels';
 import { TrainingPanel } from './RestaurantTrainingPanels';
 import RestaurantTimeClockCard from './RestaurantTimeClockCard';
+import ShiftPanel from '../../components/businessHub/g56/ShiftPanel';
 
 export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant }) {
   const { t, i18n } = useTranslation();
@@ -218,6 +219,10 @@ export default function RestaurantMyShiftPanel({ restaurant, canManageRestaurant
       <p>
         <Link to={`/restaurants/${restaurantId}/portal`} className="fd-btn fd-btn-secondary fd-btn-sm">{t('food.merchant.openEmployeePortal')}</Link>
       </p>
+
+      {/* Groups 7-8 shift console (402-450): brief, start, station, readiness,
+          late orders, stock notices, issues, breaks, incidents, tickets, end. */}
+      <ShiftPanel restaurantId={restaurantId} />
 
       {/* Announcements (S-17) */}
       <section className="fd-card fd-myshift-section" aria-label={t('food.myShift.announcements')}>
