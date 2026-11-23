@@ -411,7 +411,7 @@ export default function FoodKitchenPage() {
                     style={urgency.color ? {
                       borderLeft: `5px solid ${urgency.color}`,
                       boxShadow: `inset 0 0 0 1px ${urgency.color}55`,
-                    } : undefined}
+                    } : undefined} data-track="ui.c0077c088e.16"
                   >
                     <div className="fd-kds-status-row">
                       <span className="fd-kds-order-status">{column.title}</span>
