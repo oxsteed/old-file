@@ -390,6 +390,18 @@ const NOTIFICATION_TYPES = [
   { type: 'business_delegation_answered', group: 'work' },
   { type: 'business_delegation_visits', group: 'work' },
   { type: 'business_member_left', group: 'work' },
+  { type: 'property_assigned', group: 'work' },
+  { type: 'property_manager_changed', group: 'work' },
+  { type: 'property_contact_updated', group: 'work' },
+  { type: 'property_access_revoked', group: 'work' },
+  { type: 'property_approval_requested', group: 'work' },
+  { type: 'property_approval_decided', group: 'work' },
+  { type: 'property_entry_scheduled', group: 'work' },
+  { type: 'property_entry_window_selected', group: 'work' },
+  { type: 'property_emergency', group: 'work' },
+  { type: 'property_incident_summary', group: 'work' },
+  { type: 'property_maintenance_due', group: 'work' },
+  { type: 'property_budget_over', group: 'work' },
   // <<< Groups 5-6
 ];
 

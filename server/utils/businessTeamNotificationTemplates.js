@@ -116,6 +116,54 @@ const businessTeamNotifications = {
     title: t('A team member left', 'Un miembro del equipo se fue', 'Un membre de l’équipe est parti', 'Yon manm ekip la kite', 'غادر أحد أعضاء الفريق'),
     body: t('Their open work moved to a manager. Review the team page.', 'Su trabajo pendiente pasó a un gerente. Revisa la página del equipo.', 'Son travail en cours a été confié à un responsable. Consultez la page de l’équipe.', 'Travay li te genyen an ale bay yon manadjè. Gade paj ekip la.', 'انتقل عمله المفتوح إلى مدير. راجع صفحة الفريق.'),
   },
+  property_assigned: {
+    title: t('New property assignment', 'Nueva asignación de propiedad', 'Nouvelle affectation de propriété', 'Nouvo asiyasyon pwopriyete', 'تعيين عقار جديد'),
+    body: t('You were assigned to {property}.', 'Se te asignó a {property}.', 'Vous avez été affecté à {property}.', 'Yo asiyen w nan {property}.', 'تم تعيينك في {property}.'),
+  },
+  property_manager_changed: {
+    title: t('Property handed over', 'Propiedad transferida', 'Propriété transférée', 'Pwopriyete transfere', 'تم تسليم العقار'),
+    body: t('{property} now has a new manager.', '{property} ahora tiene un nuevo administrador.', '{property} a maintenant un nouveau gestionnaire.', '{property} gen yon nouvo manadjè kounye a.', 'لدى {property} مدير جديد الآن.'),
+  },
+  property_contact_updated: {
+    title: t('Your property contact changed', 'Cambió tu contacto de la propiedad', 'Votre contact pour la propriété a changé', 'Kontak pwopriyete ou chanje', 'تغيّر جهة الاتصال الخاصة بعقارك'),
+    body: t('Your management contact for {property} changed. Open requests continue as before.', 'Tu contacto de administración para {property} cambió. Las solicitudes abiertas siguen igual.', 'Votre contact de gestion pour {property} a changé. Les demandes ouvertes continuent.', 'Kontak jesyon w pou {property} chanje. Demann ki ouvè yo kontinye.', 'تغيّرت جهة الإدارة لعقار {property}. تستمر الطلبات المفتوحة كما هي.'),
+  },
+  property_access_revoked: {
+    title: t('Property access ended', 'Acceso a la propiedad finalizado', 'Accès à la propriété terminé', 'Aksè pwopriyete fini', 'انتهى الوصول إلى العقار'),
+    body: t('Your access to {property} ended. Return any keys you hold.', 'Tu acceso a {property} terminó. Devuelve las llaves que tengas.', 'Votre accès à {property} a pris fin. Rendez les clés que vous détenez.', 'Aksè w nan {property} fini. Remèt kle ou genyen yo.', 'انتهى وصولك إلى {property}. أعد أي مفاتيح لديك.'),
+  },
+  property_approval_requested: {
+    title: t('Repair needs your approval', 'Una reparación necesita tu aprobación', 'Une réparation nécessite votre approbation', 'Yon reparasyon bezwen apwobasyon w', 'إصلاح يحتاج إلى موافقتك'),
+    body: t('{title} at {property} is over your approval limit.', '{title} en {property} supera tu límite de aprobación.', '{title} à {property} dépasse votre seuil d’approbation.', '{title} nan {property} depase limit apwobasyon w.', '{title} في {property} يتجاوز حد موافقتك.'),
+  },
+  property_approval_decided: {
+    title: t('Owner decision received', 'Decisión del propietario recibida', 'Décision du propriétaire reçue', 'Desizyon pwopriyetè a rive', 'وصل قرار المالك'),
+    body: t('The owner decided on {title} at {property}.', 'El propietario decidió sobre {title} en {property}.', 'Le propriétaire a statué sur {title} à {property}.', 'Pwopriyetè a deside sou {title} nan {property}.', 'قرر المالك بشأن {title} في {property}.'),
+  },
+  property_entry_scheduled: {
+    title: t('Choose a visit time', 'Elige un horario de visita', 'Choisissez une heure de visite', 'Chwazi yon lè pou vizit la', 'اختر موعد الزيارة'),
+    body: t('Pick a time for us to enter for {title}.', 'Elige un horario para entrar por {title}.', 'Choisissez quand nous pouvons entrer pour {title}.', 'Chwazi ki lè nou ka antre pou {title}.', 'اختر وقتاً لدخولنا من أجل {title}.'),
+  },
+  property_entry_window_selected: {
+    title: t('Visit time chosen', 'Horario de visita elegido', 'Heure de visite choisie', 'Lè vizit la chwazi', 'تم اختيار موعد الزيارة'),
+    body: t('The occupant chose a visit time for {title}.', 'El ocupante eligió un horario para {title}.', 'L’occupant a choisi une heure pour {title}.', 'Lokatè a chwazi yon lè pou {title}.', 'اختار الساكن موعداً لـ {title}.'),
+  },
+  property_emergency: {
+    title: t('Emergency at a property', 'Emergencia en una propiedad', 'Urgence dans une propriété', 'Ijans nan yon pwopriyete', 'حالة طارئة في عقار'),
+    body: t('Emergency: {title}. Respond now.', 'Emergencia: {title}. Responde ahora.', 'Urgence : {title}. Intervenez maintenant.', 'Ijans: {title}. Reponn kounye a.', 'طارئ: {title}. استجب الآن.'),
+  },
+  property_incident_summary: {
+    title: t('Incident summary shared', 'Resumen de incidente compartido', 'Résumé d’incident partagé', 'Rezime ensidan pataje', 'تمت مشاركة ملخص الحادث'),
+    body: t('Your manager shared a summary of {title} at {property}.', 'Tu administrador compartió un resumen de {title} en {property}.', 'Votre gestionnaire a partagé un résumé de {title} à {property}.', 'Manadjè w pataje yon rezime {title} nan {property}.', 'شارك مديرك ملخصاً لـ {title} في {property}.'),
+  },
+  property_maintenance_due: {
+    title: t('Maintenance overdue', 'Mantenimiento vencido', 'Entretien en retard', 'Antretyen an reta', 'صيانة متأخرة'),
+    body: t('{title} is past due.', '{title} está vencido.', '{title} est en retard.', '{title} an reta.', '{title} متأخر عن موعده.'),
+  },
+  property_budget_over: {
+    title: t('Over budget', 'Presupuesto excedido', 'Budget dépassé', 'Bidjè depase', 'تجاوز الميزانية'),
+    body: t('{property} is over its monthly maintenance budget.', '{property} superó su presupuesto mensual de mantenimiento.', '{property} dépasse son budget d’entretien mensuel.', '{property} depase bidjè antretyen chak mwa li.', 'تجاوز {property} ميزانية الصيانة الشهرية.'),
+  },
 };
 
 module.exports = { businessTeamNotifications, BUSINESS_TEAM_NOTIFICATION_TYPES: Object.keys(businessTeamNotifications) };
