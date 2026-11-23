@@ -512,3 +512,46 @@ claimed closed as an audit finding.
 - **D-175. Slice D ships ungated, default on (items 171-175).** No feature flag gates any part of these paths: the hire pre-check, the buffer setting and UI, the travel-block type, and the partial-day overrides all run unconditionally, per Emile's 2026-11-23 standing rule. The counterparty-approval gates are untouched: `INVEST_COMMITMENTS_ENABLED` stays off until counsel and the regulated partner approve, and the credit-rail legal clearance stays off. Flip: gate the hire pre-check behind a flag (would let hires land outside working hours while the flag is off, the exact failure this slice closes). CI run 45177418900 on the Slice C head `f1b6e9cf0` failed on a browser-regression timeout flake (the reference-layouts subtest, `page.waitForFunction` 30s) with zero client files in the Slice C diff and the server suite green; treated as a flake, not a code defect, so Slice D proceeded per the brief's stop condition. No CI re-run was ordered. Verified 2026-11-23 after the run: test 89 passes locally (1/1, 16.8s, Playwright headless shell) and Slice C touched none of the 12 client files the mediaShell fixture bundles nor the locale catalogs it inlines, so the CI failure cannot be caused by this branch's diff; the browser job also passed on three earlier runs of this branch (45037619747, 45040812783, 45047858833) with identical mediaShell inputs.
 
 **Open calls (Group 4 Slice D):** none new. The Slice A opens stand decided: endorsements for item 194 (completed engagements only, one per client per skill) and ownership carry-over for items 196-200 (portfolio/history as a read-only record) are decided and unblock later slices; Slice D builds nothing for 194 or 196-200.
+
+### Group 4 Slice E+: Execute, exceptions, earnings, reputation, ownership (items 176-200) — built 2026-11-23
+
+Branch `feat/persona-group4-rest` (PR #809), tracker
+`docs/persona-roadmap/group4-rest.md`. Verified first, then closed the gaps
+without rebuilding working code. Already working, not rebuilt: 176 (active
+assignment board), 178 (work checklist), 188 (statement download), 191
+(portfolio permission request). Built here: 177, 179-182, 184-187, 189,
+190, 192-200. Not built: 183 (open call G4-22, below). Acceptance tests:
+`server/__tests__/group4Rest*.db.test.js` (10 files) plus two new cases in
+`pr804TrackDJobArrivalNoShow.db.test.js`. New migrations (additive,
+idempotent): `20261123170000_helper_skill_endorsements.sql`,
+`20261123170100_helper_rebook_invites.sql`,
+`20261123170200_job_reschedule_proposals.sql`,
+`20261123170300_job_handbacks.sql`,
+`20261123170400_helper_business_records.sql`. UI copy is in all 20
+locales (`helperG4.*`; en/es/fr/ht/ar translated, the other 15 fall back to
+English text until translated). Audit findings that overlap these items are
+not claimed closed here.
+
+**Emile's confirmation (2026-11-23, in chat: "Yes, build 194 and 196-200 on
+those rules"):** 194 endorsements come only from completed engagements, one
+per client per skill; 196-200 carry the helper's portfolio and history into
+the new business as a read-only record, while ratings and client
+relationships stay with the helper. Both are built in this slice on exactly
+those rules.
+
+- **D-176. Item 177: arrival is time-guarded.** Arrival is refused (409 `arrival_too_early`) more than 2 hours before the start (earliest live appointment, else `scheduled_time`, else `scheduled_date` in the job's timezone). Jobs with no schedule are unchanged. Flip: a per-helper or per-category window.
+- **D-177. Item 182: no-show only after the start.** 409 `no_show_too_early` before the start; no schedule means no check.
+- **D-178. Items 179-180: the customer is told about progress and handover.** `helper_progress_update` for each newly stored update and `helper_handover_updated` when the handover is set or changes, both idempotent per update or version. No new write paths.
+- **D-179. Item 181: job-level reschedule is proposal-only.** For hired (`accepted`) jobs with no live appointment (jobs with one keep the appointment reschedule flow, 409 `use_appointment_reschedule`). Either party proposes a time in the next 180 days; only the other party accepts or declines; the proposer can withdraw; a new proposal from the same side supersedes their open one. Accepting moves `scheduled_time`/`scheduled_date` only; price, payment and payout are untouched. It does not re-check the helper's capacity or availability. Flip: run the hire-path availability check on accept.
+- **D-180. Item 184: a hand-back reopens the job and moves no money.** The assigned helper may hand back an `accepted` job before arrival and before the start, with a reason. Refused (409) when any live payment, held Credit payment, Credit collateral or confirmed off-platform payment is on the job (`handback_money_on_job`), or the work agreement is signed (`handback_agreement_signed`); those cases use cancel or support. On hand-back the job returns to `published` with no helper and no payment-rail lock; the helper's bid becomes `withdrawn`; bids auto-rejected by that hire go back to `pending` so the customer can pick a replacement; the appointment is cancelled and detached; open reschedule proposals are withdrawn; the customer is notified; `job_handbacks` keeps the record. A dedicated path, not a generic transition (`TRANSITIONS.accepted` is unchanged; documented in `docs/job-status-transitions.md`). Not counted as a no-show or cancellation in reputation. Flip: allow hand-back with money attached by releasing holds (needs the two-admin credit rules).
+- **D-181. Items 185, 190: support tickets from the job.** `job_issue` (normal, 24h), `safety` (urgent, 1h), `payment_issue` (high, 4h, category `helper_payment`). Idempotent per client request id; staff are alerted; no job state or money changes.
+- **D-182. Items 186, 187, 189: earnings are read-only explanations.** Per-job breakdown (value, platform fee, broker fee, payout) with adjustments itemized from approved change orders, fees and refunds; anything the records don't itemize is shown as `other_recorded_difference`, never guessed. The payout timeline reads the existing payout summary.
+- **D-183. Item 192: review responses are public, once, at most 2000 characters, and notify the reviewer.**
+- **D-184. Item 193: rebook invites are in-app only.** One per customer per 30 days, only to customers with completed work, first name shown, optional 500-character note. Not marketing; no email or SMS.
+- **D-185. Item 194: endorsements per Emile's rule.** Only the customer of a completed or closed job can endorse that helper's skills; DB-unique per (endorser, skill); the endorser can withdraw; public profiles show a count per skill. They do not affect ranking. Flip: let endorsements weigh in search.
+- **D-186. Item 195: the quality summary is computed on read**, never stored. 90-day vs prior-90-day trend with a 0.2 threshold.
+- **D-187. Items 196-198: ownership readiness is advisory.** Milestones (profile, identity, 10 completed jobs, 5 reviews at 4.0+, payouts set up, no open disputes) never gate creating a business. The preview lists what carries (completed-job count, kinds of work, skills, service area, consented portfolio count) and what stays (ratings and reviews, client relationships, messages, earnings and payouts, the personal profile). Skills are shown as service ideas only; nothing is created. The application handoff prefills empty wizard fields from the helper profile; the normal `POST /businesses` still creates the business.
+- **D-188. Items 199-200: the business gets a reference, the helper keeps their record.** `helper_business_records` links a business the helper owns to a frozen snapshot of counts taken at link time. Portfolio images are read live from the helper's consented gallery, so a customer's revocation still applies. No reviews, ratings, clients, messages or money are copied or exposed. The helper can remove the link at any time; nothing on the helper side changes. Only the owner sees the record (not public). The workspace intro shows four first steps computed from the business's own data and can be dismissed. Flip: show the founder record on the public business profile.
+- **D-189. Slice E+ ships ungated, default on**, per Emile's standing rule. No paid vendors, email or AI added.
+
+**Open calls (Group 4 Slice E+):** G4-22, item 183 (scope change request for jobs with no work agreement): change orders still require an agreement, and the agreement-less path is not built. Proposed defaults awaiting Emile's yes or no: the 184 hand-back rules (D-180), the 193 invite limit (one per 30 days, in-app only), and the 177/182 time guards (2 hours before the start, and no-show only after the start).

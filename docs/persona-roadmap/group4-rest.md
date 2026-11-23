@@ -72,4 +72,4 @@ cd ../client && npm run build:ci
 (symlink node_modules from /workspace/old-file/{client,server}; remove before committing)
 
 ## Next step
-Slice E+ entry in persona-roadmap-decisions.md, PR body refresh, then a settled green CI run.
+PR body refresh, then a settled green CI run. Don't merge.
