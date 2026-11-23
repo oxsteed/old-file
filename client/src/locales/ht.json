@@ -44821,6 +44821,18 @@
     "timeGuards": {
       "arrivalTooEarly": "Ou ka anrejistre arive w depi 2 èdtan anvan lè ki pwograme a.",
       "noShowTooEarly": "Ou ka rapòte yon absans sèlman apre lè kòmansman ki pwograme a."
+    },
+    "endorsements": {
+      "publicCount": "· {{count}} apwobasyon",
+      "title": "Apwouve konpetans èd sa a",
+      "hint": "Ou ka apwouve chak konpetans yon sèl fwa, dapre travay li fini pou ou.",
+      "endorse": "Apwouve",
+      "withdraw": "Retire apwobasyon an",
+      "none": "Èd sa a poko mete okenn konpetans.",
+      "failed": "Sa pa t mache. Eseye ankò.",
+      "recordTitle": "Apwobasyon konpetans",
+      "recordEmpty": "Poko gen apwobasyon. Kliyan yo ka apwouve konpetans ou apre yon travay fini.",
+      "recordCount": "{{count}} apwobasyon"
     }
   }
 }

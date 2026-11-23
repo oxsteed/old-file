@@ -62,6 +62,8 @@ export interface HelperProfile {
   specializations?: string[];
   /** Skills the helper listed themselves (item 156, helper_skills rows) */
   skills?: string[];
+  /** Group 4 rest (194): endorsement counts by skill name. */
+  skillEndorsements?: Record<string, number>;
   /** License detail entries the helper listed (item 159) */
   licenses?: Array<{ name: string; number?: string; issuer?: string; expires_at?: string; state?: string }>;
   /** Insurance detail entries the helper listed (item 159) */

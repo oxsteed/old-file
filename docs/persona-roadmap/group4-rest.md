@@ -36,7 +36,7 @@ BUILD = to build in this batch. DONE = built on this branch (commit cited).
 | 191 | Portfolio permission request | EXISTS | `helperWork.js` portfolio-requests | none | - |
 | 192 | Review response | PARTIAL | `PUT /reviews/:id/respond` + `useReviews` hook, zero UI callers; reviewer not notified | Plan: helper "My reviews" page with respond; notify reviewer | DONE (helperReputationService, HelperReputationPanel, group4RestReputation.db.test.js) |
 | 193 | Repeat customer follow-up | MISSING leg | no surface | Plan: list of the helper's past customers (completed jobs) + rate-limited "book me again" invite notification | BUILD |
-| 194 | Skill endorsement record | MISSING | none | Emile confirmed 2026-11-23: endorsements only from completed engagements, one per client per skill | BUILD |
+| 194 | Skill endorsement record | MISSING | none | Emile confirmed 2026-11-23 (directly, in chat): endorsements only from completed engagements, one per client per skill | DONE (migration 20261123170000_helper_skill_endorsements.sql, helperEndorsementService, JobSkillEndorsements, profile counts, group4RestEndorsements.db.test.js) |
 | 195 | Quality feedback summary | PARTIAL | ratings exist, no helper-facing summary | Plan: avg, distribution, 90-day trend, response rate, changes-requested and no-show counts | DONE (helperReputationService, HelperReputationPanel, group4RestReputation.db.test.js) |
 | 196 | Business application handoff | MISSING | business application exists, no helper carry-in | Emile confirmed 2026-11-23: helper portfolio/history carry as a read-only record | BUILD |
 | 197 | Readiness milestones | MISSING | | as 196 | BUILD |
@@ -72,4 +72,4 @@ cd ../client && npm run build:ci
 (symlink node_modules from /workspace/old-file/{client,server}; remove before committing)
 
 ## Next step
-Build step 6 (194 skill endorsements: completed engagements only, one per client per skill).
+Build step 7 (193 repeat customer follow-up), then 181, 184, then 196-200; finally the Slice E+ entry in persona-roadmap-decisions.md.

@@ -37,4 +37,11 @@ router.get('/jobs/:jobId/earnings',handle(async(req,res)=>res.json(await jobEarn
 const jobSupport=require('../services/helperJobSupportService');
 router.get('/jobs/:jobId/support',handle(async(req,res)=>res.json({tickets:await jobSupport.list(req.user.id,req.params.jobId)})));
 router.post('/jobs/:jobId/support',rejectImpersonated,handle(async(req,res)=>{const out=await jobSupport.file(req.user.id,req.params.jobId,req.body);res.status(out.duplicate?200:201).json(out);}));
+// Group 4 rest (194): skill endorsements. Customer actions are re-checked
+// against a completed job they own; the helper record needs helper access.
+const endorsements=require('../services/helperEndorsementService');
+router.get('/endorsements',handle(async(req,res)=>res.json({skills:await endorsements.myRecord(req.user.id)})));
+router.get('/endorsements/jobs/:jobId',handle(async(req,res)=>res.json({skills:await endorsements.optionsForJob(req.user.id,req.params.jobId)})));
+router.post('/endorsements/jobs/:jobId',rejectImpersonated,handle(async(req,res)=>res.status(201).json({endorsement:await endorsements.endorse(req.user.id,req.params.jobId,req.body)})));
+router.delete('/endorsements/:id',rejectImpersonated,handle(async(req,res)=>{await endorsements.withdraw(req.user.id,req.params.id);res.sendStatus(204);}));
 module.exports = router;

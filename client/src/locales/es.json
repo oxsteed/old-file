@@ -44821,6 +44821,18 @@
     "timeGuards": {
       "arrivalTooEarly": "Puedes registrar tu llegada desde 2 horas antes del inicio programado.",
       "noShowTooEarly": "Solo puedes reportar una ausencia después de la hora de inicio programada."
+    },
+    "endorsements": {
+      "publicCount": "· {{count}} respaldos",
+      "title": "Respalda las habilidades de este ayudante",
+      "hint": "Puedes respaldar cada habilidad una vez, según el trabajo que completó para ti.",
+      "endorse": "Respaldar",
+      "withdraw": "Retirar respaldo",
+      "none": "Este ayudante aún no ha indicado habilidades.",
+      "failed": "No funcionó. Inténtalo de nuevo.",
+      "recordTitle": "Respaldos de habilidades",
+      "recordEmpty": "Aún no hay respaldos. Los clientes pueden respaldar tus habilidades después de un trabajo completado.",
+      "recordCount": "{{count}} respaldos"
     }
   }
 }

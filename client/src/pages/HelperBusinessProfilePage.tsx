@@ -510,6 +510,11 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-800 text-gray-200 border border-gray-700"
                     >
                       {s}
+                      {(helper.skillEndorsements?.[s] ?? 0) > 0 && (
+                        <span className="text-gray-400 font-normal">
+                          {t('helperG4.endorsements.publicCount', { count: helper.skillEndorsements?.[s] ?? 0 })}
+                        </span>
+                      )}
                     </span>
                   ))}
                 </div>

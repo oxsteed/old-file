@@ -30,8 +30,9 @@ function ReputationWorkspace() {
     Promise.all([
       api.get('/helpers/me/reviews', { signal: controller.signal }),
       api.get('/helpers/me/quality-summary', { signal: controller.signal }),
-    ]).then(([reviews, summary]) => {
-      if (!controller.signal.aborted) setState({ loading: false, error: false, reviews: reviews.data.reviews || [], summary: summary.data });
+      api.get('/helpers/me/endorsements', { signal: controller.signal }).catch(() => ({ data: { skills: [] } })),
+    ]).then(([reviews, summary, endorsed]) => {
+      if (!controller.signal.aborted) setState({ loading: false, error: false, reviews: reviews.data.reviews || [], summary: summary.data, endorsements: endorsed.data.skills || [] });
     }).catch(() => {
       if (!controller.signal.aborted) setState({ loading: false, error: true, reviews: [], summary: null });
     });
@@ -79,6 +80,14 @@ function ReputationWorkspace() {
       </ul>
       {s.lowRatingsAwaitingResponse > 0 && <p role="status">{c('lowAwaiting', { count: s.lowRatingsAwaitingResponse })}</p>}
     </>}
+    {state.endorsements && <section aria-labelledby="helper-endorsements-title">
+      <h3 id="helper-endorsements-title">{t('helperG4.endorsements.recordTitle')}</h3>
+      {state.endorsements.every((e) => e.count === 0)
+        ? <p>{t('helperG4.endorsements.recordEmpty')}</p>
+        : <ul className="helper-reputation-dist">{state.endorsements.map((e) => <li key={e.helperSkillId}>
+            <span>{e.skill}</span><strong>{t('helperG4.endorsements.recordCount', { count: e.count })}</strong>
+          </li>)}</ul>}
+    </section>}
     {notice && <p role="status">{notice}</p>}
     {!state.loading && !state.error && state.reviews.length === 0 && <p>{c('empty')}</p>}
     {state.reviews.length > 0 && <ul className="helper-reputation-list">

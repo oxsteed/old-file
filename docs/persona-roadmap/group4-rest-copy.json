@@ -537,5 +537,75 @@
     "fr": "Vous ne pouvez signaler une absence qu'après l'heure de début prévue.",
     "ht": "Ou ka rapòte yon absans sèlman apre lè kòmansman ki pwograme a.",
     "ar": "لا يمكنك الإبلاغ عن عدم الحضور إلا بعد موعد البدء المحدد."
+  },
+  "endorsements.publicCount": {
+    "en": "· {{count}} endorsed",
+    "es": "· {{count}} respaldos",
+    "fr": "· {{count}} recommandations",
+    "ht": "· {{count}} apwobasyon",
+    "ar": "· {{count}} تزكية"
+  },
+  "endorsements.title": {
+    "en": "Endorse this helper's skills",
+    "es": "Respalda las habilidades de este ayudante",
+    "fr": "Recommandez les compétences de ce prestataire",
+    "ht": "Apwouve konpetans èd sa a",
+    "ar": "زكِّ مهارات هذا المساعد"
+  },
+  "endorsements.hint": {
+    "en": "You can endorse each skill once, based on work they completed for you.",
+    "es": "Puedes respaldar cada habilidad una vez, según el trabajo que completó para ti.",
+    "fr": "Vous pouvez recommander chaque compétence une fois, selon le travail réalisé pour vous.",
+    "ht": "Ou ka apwouve chak konpetans yon sèl fwa, dapre travay li fini pou ou.",
+    "ar": "يمكنك تزكية كل مهارة مرة واحدة بناءً على عمل أنجزه لك."
+  },
+  "endorsements.endorse": {
+    "en": "Endorse",
+    "es": "Respaldar",
+    "fr": "Recommander",
+    "ht": "Apwouve",
+    "ar": "تزكية"
+  },
+  "endorsements.withdraw": {
+    "en": "Withdraw endorsement",
+    "es": "Retirar respaldo",
+    "fr": "Retirer la recommandation",
+    "ht": "Retire apwobasyon an",
+    "ar": "سحب التزكية"
+  },
+  "endorsements.none": {
+    "en": "This helper has not listed any skills yet.",
+    "es": "Este ayudante aún no ha indicado habilidades.",
+    "fr": "Ce prestataire n'a encore indiqué aucune compétence.",
+    "ht": "Èd sa a poko mete okenn konpetans.",
+    "ar": "لم يُدرج هذا المساعد أي مهارات بعد."
+  },
+  "endorsements.failed": {
+    "en": "That didn't work. Try again.",
+    "es": "No funcionó. Inténtalo de nuevo.",
+    "fr": "Cela n'a pas fonctionné. Réessayez.",
+    "ht": "Sa pa t mache. Eseye ankò.",
+    "ar": "لم ينجح ذلك. حاول مرة أخرى."
+  },
+  "endorsements.recordTitle": {
+    "en": "Skill endorsements",
+    "es": "Respaldos de habilidades",
+    "fr": "Recommandations de compétences",
+    "ht": "Apwobasyon konpetans",
+    "ar": "تزكيات المهارات"
+  },
+  "endorsements.recordEmpty": {
+    "en": "No endorsements yet. Customers can endorse your listed skills after a completed job.",
+    "es": "Aún no hay respaldos. Los clientes pueden respaldar tus habilidades después de un trabajo completado.",
+    "fr": "Aucune recommandation pour l'instant. Les clients peuvent recommander vos compétences après un travail terminé.",
+    "ht": "Poko gen apwobasyon. Kliyan yo ka apwouve konpetans ou apre yon travay fini.",
+    "ar": "لا توجد تزكيات بعد. يمكن للعملاء تزكية مهاراتك بعد إكمال عمل."
+  },
+  "endorsements.recordCount": {
+    "en": "{{count}} endorsements",
+    "es": "{{count}} respaldos",
+    "fr": "{{count}} recommandations",
+    "ht": "{{count}} apwobasyon",
+    "ar": "{{count}} تزكية"
   }
 }

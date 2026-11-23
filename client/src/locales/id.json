@@ -36947,6 +36947,18 @@
     "timeGuards": {
       "arrivalTooEarly": "You can check in from 2 hours before the scheduled start.",
       "noShowTooEarly": "You can report a no-show only after the scheduled start time."
+    },
+    "endorsements": {
+      "publicCount": "· {{count}} endorsed",
+      "title": "Endorse this helper's skills",
+      "hint": "You can endorse each skill once, based on work they completed for you.",
+      "endorse": "Endorse",
+      "withdraw": "Withdraw endorsement",
+      "none": "This helper has not listed any skills yet.",
+      "failed": "That didn't work. Try again.",
+      "recordTitle": "Skill endorsements",
+      "recordEmpty": "No endorsements yet. Customers can endorse your listed skills after a completed job.",
+      "recordCount": "{{count}} endorsements"
     }
   }
 }

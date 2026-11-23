@@ -44821,6 +44821,18 @@
     "timeGuards": {
       "arrivalTooEarly": "Vous pouvez signaler votre arrivée à partir de 2 heures avant le début prévu.",
       "noShowTooEarly": "Vous ne pouvez signaler une absence qu'après l'heure de début prévue."
+    },
+    "endorsements": {
+      "publicCount": "· {{count}} recommandations",
+      "title": "Recommandez les compétences de ce prestataire",
+      "hint": "Vous pouvez recommander chaque compétence une fois, selon le travail réalisé pour vous.",
+      "endorse": "Recommander",
+      "withdraw": "Retirer la recommandation",
+      "none": "Ce prestataire n'a encore indiqué aucune compétence.",
+      "failed": "Cela n'a pas fonctionné. Réessayez.",
+      "recordTitle": "Recommandations de compétences",
+      "recordEmpty": "Aucune recommandation pour l'instant. Les clients peuvent recommander vos compétences après un travail terminé.",
+      "recordCount": "{{count}} recommandations"
     }
   }
 }
