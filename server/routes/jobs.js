@@ -84,6 +84,11 @@ router.post('/:id/payment-reauthorization/:attemptId/confirm', ...reauthGuards, 
 router.post('/:id/cancel',    authenticate, cancelJob);
 router.post('/:id/start',    authenticate, startJob);
 // G-15: helper marks arrival (customer notified); either party marks a no-show.
+// Group 4 rest (181): job-level reschedule proposals (jobs without an appointment).
+const jobReschedule = require('../services/jobRescheduleService');
+router.get('/:id/reschedule-proposals', authenticate, generalLimiter, async (req, res, next) => { try { res.json({ proposals: await jobReschedule.list(req.user.id, req.params.id) }); } catch (e) { next(e); } });
+router.post('/:id/reschedule-proposals', authenticate, rejectImpersonated, jobEditLimiter, async (req, res, next) => { try { res.status(201).json({ proposal: await jobReschedule.propose(req.user.id, req.params.id, req.body) }); } catch (e) { next(e); } });
+router.post('/:id/reschedule-proposals/:proposalId/respond', authenticate, rejectImpersonated, jobEditLimiter, async (req, res, next) => { try { res.json({ proposal: await jobReschedule.respond(req.user.id, req.params.id, req.params.proposalId, req.body) }); } catch (e) { next(e); } });
 router.post('/:id/arrive',   authenticate, markJobArrived);
 router.post('/:id/no-show',  authenticate, markJobNoShow);
 // G-16: customer asks for changes on a completion request (rework, not a dispute).

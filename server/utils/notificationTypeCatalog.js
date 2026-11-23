@@ -134,6 +134,10 @@ const NOTIFICATION_TYPES = [
   { type: 'helper_progress_update', group: 'work' },
   // Group 4 rest (193): a past helper invites the customer to book again.
   { type: 'helper_rebook_invite', group: 'work' },
+  // Group 4 rest (181): job-level reschedule proposals.
+  { type: 'job_reschedule_proposed', group: 'work' },
+  { type: 'job_reschedule_accepted', group: 'work' },
+  { type: 'job_reschedule_declined', group: 'work' },
   { type: 'helper_handover_updated', group: 'work' },
   { type: 'job_auto_cancelled', group: 'work' },
   { type: 'job_auto_cancel_warning', group: 'work' },

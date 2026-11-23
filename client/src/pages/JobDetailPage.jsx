@@ -36,6 +36,7 @@ import JobSuitabilityPreview from '../components/JobSuitabilityPreview';
 import JobPortfolioConsent from '../components/JobPortfolioConsent';
 import { JobWorkRecord } from '../components/HelperWorkPanel';
 import HelperJobSupport from '../components/HelperJobSupport';
+import JobRescheduleProposals from '../components/JobRescheduleProposals';
 import JobSkillEndorsements from '../components/JobSkillEndorsements';
 import JobRevisionHistory from '../components/JobRevisionHistory';
 
@@ -876,6 +877,7 @@ function JobDetailContent() {
         <div className="jdp-main">
           <PreferredHelperBanner job={job} />
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && ['accepted', 'in_progress', 'completed', 'closed'].includes(job.status) && <JobWorkRecord jobId={id} />}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && <JobRescheduleProposals jobId={id} userId={user?.id} canPropose={job.status === 'accepted'} onChanged={() => fetchJob(id)} />}
           {isAssignedHelper && <HelperJobSupport jobId={id} />}
           {isOwner && job.assigned_helper_id && ['completed', 'closed'].includes(job.status) && <JobSkillEndorsements jobId={id} />}
           {(isOwner || (user && String(job.assigned_helper_id) === String(user.id))) && <PaymentReauthorizationBanner jobId={id} job={job} onResolved={() => fetchJob(id)} />}

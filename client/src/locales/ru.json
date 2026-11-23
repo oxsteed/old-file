@@ -36970,6 +36970,26 @@
       "nextOn": "Next invite possible on {{date}}",
       "failed": "We couldn't send the invitation.",
       "customer": "Customer"
+    },
+    "reschedule": {
+      "title": "Change the job time",
+      "hint": "Propose a new time. Nothing changes until the other side accepts.",
+      "newTime": "New time",
+      "reason": "Reason (optional)",
+      "propose": "Propose new time",
+      "accept": "Accept",
+      "decline": "Decline",
+      "withdraw": "Withdraw",
+      "byYou": "You proposed",
+      "byOther": "They proposed",
+      "status": {
+        "proposed": "Waiting for an answer",
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "withdrawn": "Withdrawn",
+        "superseded": "Replaced by a newer proposal"
+      },
+      "failed": "That didn't work. Check the time and try again."
     }
   }
 }

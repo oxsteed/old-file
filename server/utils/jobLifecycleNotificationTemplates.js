@@ -78,6 +78,18 @@ const jobLifecycleNotifications = {
       'Louvri pwofil li pou rezève l ankò.',
       'افتح ملفه الشخصي لحجزه مرة أخرى.'),
   },
+  job_reschedule_proposed: {
+    title: t('New time proposed for your job', 'Nueva hora propuesta para tu trabajo', 'Nouvel horaire proposé pour votre travail', 'Yo pwopoze yon nouvo lè pou travay ou', 'تم اقتراح موعد جديد لعملك'),
+    body: t('Open the job to accept or decline the new time.', 'Abre el trabajo para aceptar o rechazar la nueva hora.', 'Ouvrez le travail pour accepter ou refuser le nouvel horaire.', 'Louvri travay la pou aksepte oswa refize nouvo lè a.', 'افتح العمل لقبول الموعد الجديد أو رفضه.'),
+  },
+  job_reschedule_accepted: {
+    title: t('Your new time was accepted', 'Se aceptó tu nueva hora', 'Votre nouvel horaire a été accepté', 'Yo aksepte nouvo lè ou a', 'تم قبول الموعد الجديد'),
+    body: t('The job now uses the time you proposed.', 'El trabajo ahora usa la hora que propusiste.', 'Le travail utilise maintenant l\'horaire proposé.', 'Travay la kounye a sou lè ou te pwopoze a.', 'أصبح العمل يستخدم الموعد الذي اقترحته.'),
+  },
+  job_reschedule_declined: {
+    title: t('Your new time was declined', 'Se rechazó tu nueva hora', 'Votre nouvel horaire a été refusé', 'Yo refize nouvo lè ou a', 'تم رفض الموعد الجديد'),
+    body: t('The job keeps its current time. You can propose another one.', 'El trabajo conserva su hora actual. Puedes proponer otra.', 'Le travail garde son horaire actuel. Vous pouvez en proposer un autre.', 'Travay la kenbe lè li genyen an. Ou ka pwopoze yon lòt.', 'يحتفظ العمل بموعده الحالي. يمكنك اقتراح موعد آخر.'),
+  },
   review_response_posted: {
     title: t('Your review got a response',
       'Tu reseña recibió una respuesta',

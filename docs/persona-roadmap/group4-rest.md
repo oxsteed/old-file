@@ -23,7 +23,7 @@ BUILD = to build in this batch. DONE = built on this branch (commit cited).
 | 178 | Work checklist | EXISTS | `helperWork.js` work-records + templates (PR 805) | none | - |
 | 179 | Progress update | PARTIAL | `helperWorkService.publish` (append-only, idempotent) | customer is never notified. Plan: `helper_progress_update` notification to the job's customer after commit, idempotent per update id | DONE (helperWorkService notices, group4RestWorkNotices.db.test.js) |
 | 180 | Completion handover | PARTIAL | work-record handover (PR 805) vs `completeJob` | handover not surfaced at completion. Plan: completion response/notification references the shared handover; customer notified when handover is saved | DONE (helperWorkService notices, group4RestWorkNotices.db.test.js) |
-| 181 | Reschedule proposal | PARTIAL | `calendar.js` appointment reschedule-requests (only when the job has an appointment); bookings have their own | jobs hired without an appointment have no reschedule path. Plan: job-level proposal (`job_reschedule_proposals`), proposal-only like D-25 | BUILD |
+| 181 | Reschedule proposal | PARTIAL | `calendar.js` appointment reschedule-requests (only when the job has an appointment); bookings have their own | jobs hired without an appointment have no reschedule path. Plan: job-level proposal (`job_reschedule_proposals`), proposal-only like D-25 | DONE (migration 20261123170200_job_reschedule_proposals.sql, jobRescheduleService, /jobs/:id/reschedule-proposals, JobRescheduleProposals, group4RestJobReschedule.db.test.js) |
 | 182 | No-show report | PARTIAL | `jobController.markJobNoShow` (either party, reason, notifies) | no time guard: either party can mark no-show before the job time. Plan: refuse before scheduled start (409 `no_show_too_early`) | DONE (jobStartGuard in jobController; tests in pr804TrackDJobArrivalNoShow.db.test.js, which also fixes its broken interval param) |
 | 183 | Scope change request | PARTIAL | `workAgreements.js` change-orders (+ notifications, Slice C) | agreement-less jobs have no path (open call G4-22) | OPEN CALL G4-22 (not built) |
 | 184 | Replacement handoff | PARTIAL | `bids.js` withdraw (pre-hire only); work records separate per helper (PR 805) | assigned helper cannot hand a job back. Plan: helper release request with reason before start; job returns to open, customer notified, payment untouched unless not yet captured (decision) | BUILD |
@@ -72,4 +72,4 @@ cd ../client && npm run build:ci
 (symlink node_modules from /workspace/old-file/{client,server}; remove before committing)
 
 ## Next step
-Build step 8 (181 job reschedule proposal for jobs without an appointment, then 184 replacement handoff), then 196-200; finally the Slice E+ entry in persona-roadmap-decisions.md.
+Build step 8b (184 replacement handoff), then 196-200; finally the Slice E+ entry in persona-roadmap-decisions.md.

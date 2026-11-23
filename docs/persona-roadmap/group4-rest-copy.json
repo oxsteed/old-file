@@ -677,5 +677,117 @@
     "fr": "Client",
     "ht": "Kliyan",
     "ar": "عميل"
+  },
+  "reschedule.title": {
+    "en": "Change the job time",
+    "es": "Cambiar la hora del trabajo",
+    "fr": "Changer l'horaire du travail",
+    "ht": "Chanje lè travay la",
+    "ar": "تغيير موعد العمل"
+  },
+  "reschedule.hint": {
+    "en": "Propose a new time. Nothing changes until the other side accepts.",
+    "es": "Propón una nueva hora. Nada cambia hasta que la otra parte acepte.",
+    "fr": "Proposez un nouvel horaire. Rien ne change tant que l'autre partie n'accepte pas.",
+    "ht": "Pwopoze yon nouvo lè. Anyen pa chanje jiskaske lòt pati a aksepte.",
+    "ar": "اقترح موعدًا جديدًا. لا يتغير شيء حتى يقبل الطرف الآخر."
+  },
+  "reschedule.newTime": {
+    "en": "New time",
+    "es": "Nueva hora",
+    "fr": "Nouvel horaire",
+    "ht": "Nouvo lè",
+    "ar": "الموعد الجديد"
+  },
+  "reschedule.reason": {
+    "en": "Reason (optional)",
+    "es": "Motivo (opcional)",
+    "fr": "Raison (facultatif)",
+    "ht": "Rezon (opsyonèl)",
+    "ar": "السبب (اختياري)"
+  },
+  "reschedule.propose": {
+    "en": "Propose new time",
+    "es": "Proponer nueva hora",
+    "fr": "Proposer un nouvel horaire",
+    "ht": "Pwopoze nouvo lè",
+    "ar": "اقتراح موعد جديد"
+  },
+  "reschedule.accept": {
+    "en": "Accept",
+    "es": "Aceptar",
+    "fr": "Accepter",
+    "ht": "Aksepte",
+    "ar": "قبول"
+  },
+  "reschedule.decline": {
+    "en": "Decline",
+    "es": "Rechazar",
+    "fr": "Refuser",
+    "ht": "Refize",
+    "ar": "رفض"
+  },
+  "reschedule.withdraw": {
+    "en": "Withdraw",
+    "es": "Retirar",
+    "fr": "Retirer",
+    "ht": "Retire",
+    "ar": "سحب"
+  },
+  "reschedule.byYou": {
+    "en": "You proposed",
+    "es": "Tú propusiste",
+    "fr": "Vous avez proposé",
+    "ht": "Ou te pwopoze",
+    "ar": "اقترحتَ"
+  },
+  "reschedule.byOther": {
+    "en": "They proposed",
+    "es": "La otra parte propuso",
+    "fr": "L'autre partie a proposé",
+    "ht": "Lòt pati a pwopoze",
+    "ar": "اقترح الطرف الآخر"
+  },
+  "reschedule.status.proposed": {
+    "en": "Waiting for an answer",
+    "es": "Esperando respuesta",
+    "fr": "En attente de réponse",
+    "ht": "Ap tann repons",
+    "ar": "بانتظار الرد"
+  },
+  "reschedule.status.accepted": {
+    "en": "Accepted",
+    "es": "Aceptada",
+    "fr": "Acceptée",
+    "ht": "Aksepte",
+    "ar": "مقبول"
+  },
+  "reschedule.status.declined": {
+    "en": "Declined",
+    "es": "Rechazada",
+    "fr": "Refusée",
+    "ht": "Refize",
+    "ar": "مرفوض"
+  },
+  "reschedule.status.withdrawn": {
+    "en": "Withdrawn",
+    "es": "Retirada",
+    "fr": "Retirée",
+    "ht": "Retire",
+    "ar": "مسحوب"
+  },
+  "reschedule.status.superseded": {
+    "en": "Replaced by a newer proposal",
+    "es": "Reemplazada por una propuesta más reciente",
+    "fr": "Remplacée par une proposition plus récente",
+    "ht": "Ranplase pa yon pwopozisyon pi resan",
+    "ar": "استُبدل باقتراح أحدث"
+  },
+  "reschedule.failed": {
+    "en": "That didn't work. Check the time and try again.",
+    "es": "No funcionó. Revisa la hora e inténtalo de nuevo.",
+    "fr": "Cela n'a pas fonctionné. Vérifiez l'horaire et réessayez.",
+    "ht": "Sa pa t mache. Verifye lè a epi eseye ankò.",
+    "ar": "لم ينجح ذلك. تحقق من الموعد وحاول مرة أخرى."
   }
 }

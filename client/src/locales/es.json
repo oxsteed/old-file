@@ -44845,6 +44845,26 @@
       "nextOn": "Próxima invitación posible el {{date}}",
       "failed": "No pudimos enviar la invitación.",
       "customer": "Cliente"
+    },
+    "reschedule": {
+      "title": "Cambiar la hora del trabajo",
+      "hint": "Propón una nueva hora. Nada cambia hasta que la otra parte acepte.",
+      "newTime": "Nueva hora",
+      "reason": "Motivo (opcional)",
+      "propose": "Proponer nueva hora",
+      "accept": "Aceptar",
+      "decline": "Rechazar",
+      "withdraw": "Retirar",
+      "byYou": "Tú propusiste",
+      "byOther": "La otra parte propuso",
+      "status": {
+        "proposed": "Esperando respuesta",
+        "accepted": "Aceptada",
+        "declined": "Rechazada",
+        "withdrawn": "Retirada",
+        "superseded": "Reemplazada por una propuesta más reciente"
+      },
+      "failed": "No funcionó. Revisa la hora e inténtalo de nuevo."
     }
   }
 }

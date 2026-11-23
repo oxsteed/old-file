@@ -44845,6 +44845,26 @@
       "nextOn": "Pwochen envitasyon posib le {{date}}",
       "failed": "Nou pa t ka voye envitasyon an.",
       "customer": "Kliyan"
+    },
+    "reschedule": {
+      "title": "Chanje lè travay la",
+      "hint": "Pwopoze yon nouvo lè. Anyen pa chanje jiskaske lòt pati a aksepte.",
+      "newTime": "Nouvo lè",
+      "reason": "Rezon (opsyonèl)",
+      "propose": "Pwopoze nouvo lè",
+      "accept": "Aksepte",
+      "decline": "Refize",
+      "withdraw": "Retire",
+      "byYou": "Ou te pwopoze",
+      "byOther": "Lòt pati a pwopoze",
+      "status": {
+        "proposed": "Ap tann repons",
+        "accepted": "Aksepte",
+        "declined": "Refize",
+        "withdrawn": "Retire",
+        "superseded": "Ranplase pa yon pwopozisyon pi resan"
+      },
+      "failed": "Sa pa t mache. Verifye lè a epi eseye ankò."
     }
   }
 }

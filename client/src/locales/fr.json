@@ -44845,6 +44845,26 @@
       "nextOn": "Prochaine invitation possible le {{date}}",
       "failed": "Impossible d'envoyer l'invitation.",
       "customer": "Client"
+    },
+    "reschedule": {
+      "title": "Changer l'horaire du travail",
+      "hint": "Proposez un nouvel horaire. Rien ne change tant que l'autre partie n'accepte pas.",
+      "newTime": "Nouvel horaire",
+      "reason": "Raison (facultatif)",
+      "propose": "Proposer un nouvel horaire",
+      "accept": "Accepter",
+      "decline": "Refuser",
+      "withdraw": "Retirer",
+      "byYou": "Vous avez proposé",
+      "byOther": "L'autre partie a proposé",
+      "status": {
+        "proposed": "En attente de réponse",
+        "accepted": "Acceptée",
+        "declined": "Refusée",
+        "withdrawn": "Retirée",
+        "superseded": "Remplacée par une proposition plus récente"
+      },
+      "failed": "Cela n'a pas fonctionné. Vérifiez l'horaire et réessayez."
     }
   }
 }
