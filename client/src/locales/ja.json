@@ -37039,6 +37039,41 @@
       "dismiss": "Hide this introduction",
       "recordTitle": "Founder's helper record (read-only)",
       "recordHint": "Taken on {{date}}. Ratings and clients stay on the personal helper profile."
+    },
+    "changes": {
+      "title": "Scope and price changes",
+      "hint": "Nothing changes and nothing is charged unless the other side accepts. Every version is kept.",
+      "description": "What changes",
+      "priceChange": "Price change (use a minus sign to lower it)",
+      "propose": "Propose change",
+      "counter": "Counter",
+      "sendCounter": "Send counter",
+      "accept": "Accept",
+      "decline": "Decline",
+      "withdraw": "Withdraw",
+      "version": "Version {{version}}",
+      "byYou": "you",
+      "byOther": "the other party",
+      "from": "From {{who}}",
+      "reauth": "The customer will be asked to approve the higher amount before any charge.",
+      "status": {
+        "proposed": "Waiting for an answer",
+        "countered": "Countered",
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "withdrawn": "Withdrawn"
+      },
+      "errors": {
+        "use_work_agreement_change_order": "This job has a work agreement. Use its change orders instead.",
+        "generic": "That didn't work. Check the details and try again."
+      }
+    },
+    "handbackAdmin": {
+      "title": "Job hand-backs (Trust & Safety, private)",
+      "hint": "Internal only. Not shown publicly and not counted in ratings.",
+      "counts": "Last 30 days: {{last30}} · Last 90 days: {{last90}} · Total: {{total}}",
+      "empty": "No hand-backs.",
+      "failed": "Could not load hand-backs."
     }
   }
 }

@@ -397,6 +397,8 @@ ddescribe('Track C preference toggles (DB)', () => {
       const VARIABLE_SITES = [
         // Group 4 rest items 179-180: tellCustomer in the helper work service.
         { file: 'services/helperWorkService.js', name: 'type', expansions: ['helper_progress_update', 'helper_handover_updated'] },
+        // Group 4 rest item 183: notify() in the job change request service.
+        { file: 'services/jobChangeRequestService.js', name: 'type', expansions: ['job_change_request_proposed', 'job_change_request_countered', 'job_change_request_accepted', 'job_change_request_declined'] },
         // Group 4 rest item 181: notify() in the job reschedule service.
         { file: 'services/jobRescheduleService.js', name: 'type', expansions: ['job_reschedule_proposed', 'job_reschedule_accepted', 'job_reschedule_declined'] },
         { file: 'analytics/regionGeoSourceSwitch.js', name: 'type', expansions: ['admin_operational_notice_region_geo_switched', 'admin_operational_notice_region_geo_rolled_back'] },

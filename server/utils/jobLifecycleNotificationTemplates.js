@@ -90,6 +90,22 @@ const jobLifecycleNotifications = {
     title: t('Your new time was declined', 'Se rechazó tu nueva hora', 'Votre nouvel horaire a été refusé', 'Yo refize nouvo lè ou a', 'تم رفض الموعد الجديد'),
     body: t('The job keeps its current time. You can propose another one.', 'El trabajo conserva su hora actual. Puedes proponer otra.', 'Le travail garde son horaire actuel. Vous pouvez en proposer un autre.', 'Travay la kenbe lè li genyen an. Ou ka pwopoze yon lòt.', 'يحتفظ العمل بموعده الحالي. يمكنك اقتراح موعد آخر.'),
   },
+  job_change_request_proposed: {
+    title: t('Your helper proposed a change', 'Tu ayudante propuso un cambio', 'Votre aide a proposé une modification', 'Moun k ap ede w la pwopoze yon chanjman', 'اقترح المساعد تغييرًا'),
+    body: t('Review the new scope and price. Nothing changes or is charged unless you accept.', 'Revisa el nuevo alcance y precio. Nada cambia ni se cobra a menos que aceptes.', 'Examinez la nouvelle portée et le prix. Rien ne change et rien n\'est facturé sans votre accord.', 'Gade nouvo travay la ak pri a. Anyen pa chanje ni yo pa fè w peye si ou pa aksepte.', 'راجع النطاق والسعر الجديدين. لا يتغير شيء ولا يُخصم أي مبلغ ما لم توافق.'),
+  },
+  job_change_request_countered: {
+    title: t('You received a counter on a job change', 'Recibiste una contraoferta sobre un cambio', 'Vous avez reçu une contre-proposition', 'Ou resevwa yon kontre-pwopozisyon sou yon chanjman', 'تلقيت عرضًا مضادًا على تغيير في العمل'),
+    body: t('Review the new version and accept or answer it.', 'Revisa la nueva versión y acéptala o respóndela.', 'Examinez la nouvelle version, puis acceptez-la ou répondez.', 'Gade nouvo vèsyon an epi aksepte l oswa reponn.', 'راجع النسخة الجديدة واقبلها أو رد عليها.'),
+  },
+  job_change_request_accepted: {
+    title: t('Your job change was accepted', 'Se aceptó tu cambio en el trabajo', 'Votre modification a été acceptée', 'Yo aksepte chanjman ou an', 'تم قبول التغيير الذي اقترحته'),
+    body: t('The job now uses the new scope and price.', 'El trabajo ahora usa el nuevo alcance y precio.', 'Le travail utilise désormais la nouvelle portée et le nouveau prix.', 'Travay la kounye a sou nouvo travay la ak nouvo pri a.', 'أصبح العمل يستخدم النطاق والسعر الجديدين.'),
+  },
+  job_change_request_declined: {
+    title: t('Your job change was declined', 'Se rechazó tu cambio en el trabajo', 'Votre modification a été refusée', 'Yo refize chanjman ou an', 'تم رفض التغيير الذي اقترحته'),
+    body: t('The job keeps its current scope and price.', 'El trabajo conserva su alcance y precio actuales.', 'Le travail garde sa portée et son prix actuels.', 'Travay la kenbe menm travay ak menm pri a.', 'يحتفظ العمل بنطاقه وسعره الحاليين.'),
+  },
   job_handed_back: {
     title: t('Your helper handed the job back', 'Tu ayudante devolvió el trabajo', 'Votre aide a rendu le travail', 'Moun k ap ede w la remèt travay la', 'أعاد المساعد العمل'),
     body: t('Your job is open again so you can hire a replacement. No money was charged.', 'Tu trabajo está abierto de nuevo para que contrates a otra persona. No se cobró dinero.', 'Votre travail est de nouveau ouvert pour engager un remplaçant. Aucun montant n\'a été prélevé.', 'Travay ou a louvri ankò pou ou ka anboche yon lòt moun. Yo pa t retire okenn lajan.', 'عملك مفتوح من جديد لتوظيف بديل. لم يتم خصم أي مبلغ.'),

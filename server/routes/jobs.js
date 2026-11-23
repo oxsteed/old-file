@@ -89,6 +89,11 @@ const jobReschedule = require('../services/jobRescheduleService');
 router.get('/:id/reschedule-proposals', authenticate, generalLimiter, async (req, res, next) => { try { res.json({ proposals: await jobReschedule.list(req.user.id, req.params.id) }); } catch (e) { next(e); } });
 router.post('/:id/reschedule-proposals', authenticate, rejectImpersonated, jobEditLimiter, async (req, res, next) => { try { res.status(201).json({ proposal: await jobReschedule.propose(req.user.id, req.params.id, req.body) }); } catch (e) { next(e); } });
 router.post('/:id/reschedule-proposals/:proposalId/respond', authenticate, rejectImpersonated, jobEditLimiter, async (req, res, next) => { try { res.json({ proposal: await jobReschedule.respond(req.user.id, req.params.id, req.params.proposalId, req.body) }); } catch (e) { next(e); } });
+const jobChangeRequests = require('../services/jobChangeRequestService');
+// Group 4 rest item 183: change requests for hired jobs without a work agreement.
+router.get('/:id/change-requests', authenticate, async (req, res, next) => { try { res.json({ changeRequests: await jobChangeRequests.list(req.user.id, req.params.id) }); } catch (e) { next(e); } });
+router.post('/:id/change-requests', authenticate, rejectImpersonated, jobEditLimiter, async (req, res, next) => { try { res.status(201).json({ changeRequest: await jobChangeRequests.propose(req.user.id, req.params.id, req.body) }); } catch (e) { next(e); } });
+router.post('/:id/change-requests/:requestId/respond', authenticate, rejectImpersonated, jobEditLimiter, async (req, res, next) => { try { res.json({ changeRequest: await jobChangeRequests.respond(req.user.id, req.params.id, req.params.requestId, req.body) }); } catch (e) { next(e); } });
 const jobHandback = require('../services/jobHandbackService');
 // Group 4 rest item 184: the assigned helper hands a hired job back before it starts.
 router.post('/:id/hand-back', authenticate, rejectImpersonated, jobEditLimiter, async (req, res, next) => { try { res.json({ handback: await jobHandback.handBack(req.user.id, req.params.id, req.body) }); } catch (e) { next(e); } });

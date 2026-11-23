@@ -44943,6 +44943,41 @@
       "dismiss": "Ocultar esta introducción",
       "recordTitle": "Historial de ayudante del fundador (solo lectura)",
       "recordHint": "Tomado el {{date}}. Las calificaciones y los clientes se quedan en el perfil personal de ayudante."
+    },
+    "changes": {
+      "title": "Cambios de alcance y precio",
+      "hint": "Nada cambia ni se cobra a menos que la otra parte acepte. Se guarda cada versión.",
+      "description": "Qué cambia",
+      "priceChange": "Cambio de precio (usa un signo menos para bajarlo)",
+      "propose": "Proponer cambio",
+      "counter": "Contraoferta",
+      "sendCounter": "Enviar contraoferta",
+      "accept": "Aceptar",
+      "decline": "Rechazar",
+      "withdraw": "Retirar",
+      "version": "Versión {{version}}",
+      "byYou": "tú",
+      "byOther": "la otra parte",
+      "from": "De {{who}}",
+      "reauth": "Se pedirá al cliente que apruebe el monto mayor antes de cualquier cobro.",
+      "status": {
+        "proposed": "Esperando respuesta",
+        "countered": "Contraofertada",
+        "accepted": "Aceptada",
+        "declined": "Rechazada",
+        "withdrawn": "Retirada"
+      },
+      "errors": {
+        "use_work_agreement_change_order": "Este trabajo tiene un acuerdo. Usa sus órdenes de cambio.",
+        "generic": "No funcionó. Revisa los datos e inténtalo de nuevo."
+      }
+    },
+    "handbackAdmin": {
+      "title": "Devoluciones de trabajos (Confianza y Seguridad, privado)",
+      "hint": "Solo uso interno. No se muestra públicamente ni cuenta en las calificaciones.",
+      "counts": "Últimos 30 días: {{last30}} · Últimos 90 días: {{last90}} · Total: {{total}}",
+      "empty": "Sin devoluciones.",
+      "failed": "No se pudieron cargar las devoluciones."
     }
   }
 }

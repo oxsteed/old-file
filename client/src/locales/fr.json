@@ -44943,6 +44943,41 @@
       "dismiss": "Masquer cette introduction",
       "recordTitle": "Historique d'aide du fondateur (lecture seule)",
       "recordHint": "Établi le {{date}}. Les notes et les clients restent sur le profil personnel d'aide."
+    },
+    "changes": {
+      "title": "Modifications de portée et de prix",
+      "hint": "Rien ne change et rien n'est facturé sans l'accord de l'autre partie. Chaque version est conservée.",
+      "description": "Ce qui change",
+      "priceChange": "Variation de prix (signe moins pour baisser)",
+      "propose": "Proposer la modification",
+      "counter": "Contre-proposer",
+      "sendCounter": "Envoyer la contre-proposition",
+      "accept": "Accepter",
+      "decline": "Refuser",
+      "withdraw": "Retirer",
+      "version": "Version {{version}}",
+      "byYou": "vous",
+      "byOther": "l'autre partie",
+      "from": "De {{who}}",
+      "reauth": "Le client devra approuver le montant plus élevé avant tout prélèvement.",
+      "status": {
+        "proposed": "En attente de réponse",
+        "countered": "Contre-proposée",
+        "accepted": "Acceptée",
+        "declined": "Refusée",
+        "withdrawn": "Retirée"
+      },
+      "errors": {
+        "use_work_agreement_change_order": "Ce travail a un accord. Utilisez plutôt ses avenants.",
+        "generic": "Cela n'a pas fonctionné. Vérifiez et réessayez."
+      }
+    },
+    "handbackAdmin": {
+      "title": "Travaux rendus (Confiance et sécurité, privé)",
+      "hint": "Usage interne uniquement. Non public et non compté dans les notes.",
+      "counts": "30 derniers jours : {{last30}} · 90 derniers jours : {{last90}} · Total : {{total}}",
+      "empty": "Aucun travail rendu.",
+      "failed": "Impossible de charger les travaux rendus."
     }
   }
 }

@@ -1223,5 +1223,194 @@
     "fr": "Établi le {{date}}. Les notes et les clients restent sur le profil personnel d'aide.",
     "ht": "Pran nan dat {{date}}. Nòt ak kliyan rete sou pwofil pèsonèl la.",
     "ar": "أُخذ في {{date}}. تبقى التقييمات والعملاء في الملف الشخصي للمساعد."
+  },
+  "changes.title": {
+    "en": "Scope and price changes",
+    "es": "Cambios de alcance y precio",
+    "fr": "Modifications de portée et de prix",
+    "ht": "Chanjman nan travay ak pri",
+    "ar": "تغييرات النطاق والسعر"
+  },
+  "changes.hint": {
+    "en": "Nothing changes and nothing is charged unless the other side accepts. Every version is kept.",
+    "es": "Nada cambia ni se cobra a menos que la otra parte acepte. Se guarda cada versión.",
+    "fr": "Rien ne change et rien n'est facturé sans l'accord de l'autre partie. Chaque version est conservée.",
+    "ht": "Anyen pa chanje e yo pa fè okenn moun peye si lòt pati a pa aksepte. Yo kenbe chak vèsyon.",
+    "ar": "لا يتغير شيء ولا يُخصم أي مبلغ ما لم يوافق الطرف الآخر. تُحفظ كل نسخة."
+  },
+  "changes.description": {
+    "en": "What changes",
+    "es": "Qué cambia",
+    "fr": "Ce qui change",
+    "ht": "Kisa ki chanje",
+    "ar": "ما الذي يتغير"
+  },
+  "changes.priceChange": {
+    "en": "Price change (use a minus sign to lower it)",
+    "es": "Cambio de precio (usa un signo menos para bajarlo)",
+    "fr": "Variation de prix (signe moins pour baisser)",
+    "ht": "Chanjman pri (mete yon siy mwens pou bese l)",
+    "ar": "تغيير السعر (استخدم علامة الطرح لتخفيضه)"
+  },
+  "changes.propose": {
+    "en": "Propose change",
+    "es": "Proponer cambio",
+    "fr": "Proposer la modification",
+    "ht": "Pwopoze chanjman",
+    "ar": "اقتراح التغيير"
+  },
+  "changes.counter": {
+    "en": "Counter",
+    "es": "Contraoferta",
+    "fr": "Contre-proposer",
+    "ht": "Kontre-pwopoze",
+    "ar": "عرض مضاد"
+  },
+  "changes.sendCounter": {
+    "en": "Send counter",
+    "es": "Enviar contraoferta",
+    "fr": "Envoyer la contre-proposition",
+    "ht": "Voye kontre-pwopozisyon",
+    "ar": "إرسال العرض المضاد"
+  },
+  "changes.accept": {
+    "en": "Accept",
+    "es": "Aceptar",
+    "fr": "Accepter",
+    "ht": "Aksepte",
+    "ar": "قبول"
+  },
+  "changes.decline": {
+    "en": "Decline",
+    "es": "Rechazar",
+    "fr": "Refuser",
+    "ht": "Refize",
+    "ar": "رفض"
+  },
+  "changes.withdraw": {
+    "en": "Withdraw",
+    "es": "Retirar",
+    "fr": "Retirer",
+    "ht": "Retire",
+    "ar": "سحب"
+  },
+  "changes.version": {
+    "en": "Version {{version}}",
+    "es": "Versión {{version}}",
+    "fr": "Version {{version}}",
+    "ht": "Vèsyon {{version}}",
+    "ar": "النسخة {{version}}"
+  },
+  "changes.byYou": {
+    "en": "you",
+    "es": "tú",
+    "fr": "vous",
+    "ht": "ou",
+    "ar": "أنت"
+  },
+  "changes.byOther": {
+    "en": "the other party",
+    "es": "la otra parte",
+    "fr": "l'autre partie",
+    "ht": "lòt pati a",
+    "ar": "الطرف الآخر"
+  },
+  "changes.from": {
+    "en": "From {{who}}",
+    "es": "De {{who}}",
+    "fr": "De {{who}}",
+    "ht": "Soti nan {{who}}",
+    "ar": "من {{who}}"
+  },
+  "changes.reauth": {
+    "en": "The customer will be asked to approve the higher amount before any charge.",
+    "es": "Se pedirá al cliente que apruebe el monto mayor antes de cualquier cobro.",
+    "fr": "Le client devra approuver le montant plus élevé avant tout prélèvement.",
+    "ht": "Y ap mande kliyan an apwouve pi gwo montan an anvan nenpòt peman.",
+    "ar": "سيُطلب من العميل الموافقة على المبلغ الأعلى قبل أي خصم."
+  },
+  "changes.status.proposed": {
+    "en": "Waiting for an answer",
+    "es": "Esperando respuesta",
+    "fr": "En attente de réponse",
+    "ht": "Ap tann repons",
+    "ar": "بانتظار الرد"
+  },
+  "changes.status.countered": {
+    "en": "Countered",
+    "es": "Contraofertada",
+    "fr": "Contre-proposée",
+    "ht": "Kontre-pwopoze",
+    "ar": "تم تقديم عرض مضاد"
+  },
+  "changes.status.accepted": {
+    "en": "Accepted",
+    "es": "Aceptada",
+    "fr": "Acceptée",
+    "ht": "Aksepte",
+    "ar": "مقبول"
+  },
+  "changes.status.declined": {
+    "en": "Declined",
+    "es": "Rechazada",
+    "fr": "Refusée",
+    "ht": "Refize",
+    "ar": "مرفوض"
+  },
+  "changes.status.withdrawn": {
+    "en": "Withdrawn",
+    "es": "Retirada",
+    "fr": "Retirée",
+    "ht": "Retire",
+    "ar": "مسحوب"
+  },
+  "changes.errors.use_work_agreement_change_order": {
+    "en": "This job has a work agreement. Use its change orders instead.",
+    "es": "Este trabajo tiene un acuerdo. Usa sus órdenes de cambio.",
+    "fr": "Ce travail a un accord. Utilisez plutôt ses avenants.",
+    "ht": "Travay sa a gen yon akò. Sèvi ak chanjman akò a pito.",
+    "ar": "لهذا العمل اتفاقية. استخدم أوامر التغيير الخاصة بها."
+  },
+  "changes.errors.generic": {
+    "en": "That didn't work. Check the details and try again.",
+    "es": "No funcionó. Revisa los datos e inténtalo de nuevo.",
+    "fr": "Cela n'a pas fonctionné. Vérifiez et réessayez.",
+    "ht": "Sa pa t mache. Verifye detay yo epi eseye ankò.",
+    "ar": "لم ينجح ذلك. تحقق من التفاصيل وحاول مرة أخرى."
+  },
+  "handbackAdmin.title": {
+    "en": "Job hand-backs (Trust & Safety, private)",
+    "es": "Devoluciones de trabajos (Confianza y Seguridad, privado)",
+    "fr": "Travaux rendus (Confiance et sécurité, privé)",
+    "ht": "Travay yo remèt (Konfyans ak Sekirite, prive)",
+    "ar": "الأعمال المُعادة (الثقة والأمان، خاص)"
+  },
+  "handbackAdmin.hint": {
+    "en": "Internal only. Not shown publicly and not counted in ratings.",
+    "es": "Solo uso interno. No se muestra públicamente ni cuenta en las calificaciones.",
+    "fr": "Usage interne uniquement. Non public et non compté dans les notes.",
+    "ht": "Pou itilizasyon entèn sèlman. Li pa parèt piblikman e li pa konte nan nòt yo.",
+    "ar": "للاستخدام الداخلي فقط. لا يظهر للعامة ولا يُحتسب في التقييمات."
+  },
+  "handbackAdmin.counts": {
+    "en": "Last 30 days: {{last30}} · Last 90 days: {{last90}} · Total: {{total}}",
+    "es": "Últimos 30 días: {{last30}} · Últimos 90 días: {{last90}} · Total: {{total}}",
+    "fr": "30 derniers jours : {{last30}} · 90 derniers jours : {{last90}} · Total : {{total}}",
+    "ht": "30 dènye jou: {{last30}} · 90 dènye jou: {{last90}} · Total: {{total}}",
+    "ar": "آخر 30 يومًا: {{last30}} · آخر 90 يومًا: {{last90}} · الإجمالي: {{total}}"
+  },
+  "handbackAdmin.empty": {
+    "en": "No hand-backs.",
+    "es": "Sin devoluciones.",
+    "fr": "Aucun travail rendu.",
+    "ht": "Pa gen travay ki remèt.",
+    "ar": "لا توجد أعمال مُعادة."
+  },
+  "handbackAdmin.failed": {
+    "en": "Could not load hand-backs.",
+    "es": "No se pudieron cargar las devoluciones.",
+    "fr": "Impossible de charger les travaux rendus.",
+    "ht": "Nou pa t ka chaje travay yo remèt yo.",
+    "ar": "تعذّر تحميل الأعمال المُعادة."
   }
 }

@@ -14,6 +14,7 @@ test('job details: viewer actions, asynchronous guards, dialogs, keyboard galler
       if(path.startsWith('/helpers/me/work-records/'))return {data:{work:{version:0,handover:'',aftercare:''},updates:[],writable:false}};
       if(/^\\/helpers\\/me\\/jobs\\/[^/]+\\/support$/.test(path))return {data:{tickets:[]}};
       if(/^\\/jobs\\/[^/]+\\/reschedule-proposals$/.test(path))return {data:{proposals:[]}};
+      if(/^\\/jobs\\/[^/]+\\/change-requests$/.test(path))return {data:{changeRequests:[]}};
       if(path.startsWith('/helpers/me/suitability/'))return {data:{can_bid_now:true,schedule:'unknown',requirements:[],required_skills:[],advisory:true}};
       if(path.startsWith('/helpers/me/portfolio-requests/'))return {data:{requests:[],customer:String(config.user?.id)==='1',can_request:false}};
       if(path==='/support/agent/me')return {data:{data:[]}};

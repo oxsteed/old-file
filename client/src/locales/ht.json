@@ -44943,6 +44943,41 @@
       "dismiss": "Kache entwodiksyon sa a",
       "recordTitle": "Dosye fondatè a kòm moun k ap ede (pou li sèlman)",
       "recordHint": "Pran nan dat {{date}}. Nòt ak kliyan rete sou pwofil pèsonèl la."
+    },
+    "changes": {
+      "title": "Chanjman nan travay ak pri",
+      "hint": "Anyen pa chanje e yo pa fè okenn moun peye si lòt pati a pa aksepte. Yo kenbe chak vèsyon.",
+      "description": "Kisa ki chanje",
+      "priceChange": "Chanjman pri (mete yon siy mwens pou bese l)",
+      "propose": "Pwopoze chanjman",
+      "counter": "Kontre-pwopoze",
+      "sendCounter": "Voye kontre-pwopozisyon",
+      "accept": "Aksepte",
+      "decline": "Refize",
+      "withdraw": "Retire",
+      "version": "Vèsyon {{version}}",
+      "byYou": "ou",
+      "byOther": "lòt pati a",
+      "from": "Soti nan {{who}}",
+      "reauth": "Y ap mande kliyan an apwouve pi gwo montan an anvan nenpòt peman.",
+      "status": {
+        "proposed": "Ap tann repons",
+        "countered": "Kontre-pwopoze",
+        "accepted": "Aksepte",
+        "declined": "Refize",
+        "withdrawn": "Retire"
+      },
+      "errors": {
+        "use_work_agreement_change_order": "Travay sa a gen yon akò. Sèvi ak chanjman akò a pito.",
+        "generic": "Sa pa t mache. Verifye detay yo epi eseye ankò."
+      }
+    },
+    "handbackAdmin": {
+      "title": "Travay yo remèt (Konfyans ak Sekirite, prive)",
+      "hint": "Pou itilizasyon entèn sèlman. Li pa parèt piblikman e li pa konte nan nòt yo.",
+      "counts": "30 dènye jou: {{last30}} · 90 dènye jou: {{last90}} · Total: {{total}}",
+      "empty": "Pa gen travay ki remèt.",
+      "failed": "Nou pa t ka chaje travay yo remèt yo."
     }
   }
 }
