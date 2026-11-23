@@ -19,6 +19,7 @@ const expansion = require('../services/businessOwner/expansionService');
 const continuity = require('../services/businessOwner/continuityService');
 const performance = require('../services/businessOwner/performanceService');
 const workStart = require('../services/businessOwner/workStartService');
+const workJobs = require('../services/businessOwner/workJobsService');
 const { requireFinanceRead, requireFinanceWrite } = require('../middleware/requireBusinessFinance');
 
 const h = fn => async (req, res, next) => { res.set('Cache-Control', 'no-store'); try { await fn(req, res); } catch (e) { next(e); } };
@@ -115,6 +116,32 @@ router.post('/:businessId/work/appointments/:appointmentId/dispatch', ...write('
 router.get('/:businessId/work/conflicts', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workStart.conflicts(req.business.id, req.user.id))));
 router.get('/:businessId/owner/appointments/:appointmentId/matches', ...biz('manager', 'jobs.assign'), h(async (req, res) => res.json(await workStart.matches(req.business.id, req.params.appointmentId))));
 router.get('/:businessId/owner/dispatch', ...biz('manager', 'jobs.assign'), h(async (req, res) => res.json(await workStart.dispatchBoard(req.business.id))));
+
+// 261-270, 286-290 jobs, crews and blockers
+const A = '/:businessId/work/appointments/:appointmentId';
+router.get('/:businessId/work/board', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workJobs.board(req.business.id, req.user.id))));
+router.get(`${A}/checklist`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workJobs.checklist(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
+router.post(`${A}/checklist`, ...write('any', 'business.view'), h(async (req, res) => res.status(201).json(await workJobs.addChecklistItem(req.business.id, req.user.id, ctx(req), req.params.appointmentId, req.body))));
+router.patch(`${A}/checklist/:itemId`, ...write('any', 'business.view'), h(async (req, res) => res.json(await workJobs.setChecklistItem(req.business.id, req.user.id, ctx(req), req.params.appointmentId, req.params.itemId, req.body))));
+router.get('/:businessId/owner/service-checklists', ...biz('manager', 'jobs.edit'), h(async (req, res) => res.json(await workJobs.serviceChecklists(req.business.id))));
+router.put('/:businessId/owner/services/:serviceId/checklist', ...write('manager', 'jobs.edit'), h(async (req, res) => res.json(await workJobs.setServiceChecklist(req.business.id, req.user.id, req.params.serviceId, req.body))));
+router.get(`${A}/progress`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workJobs.progress(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
+router.post(`${A}/progress`, ...write('any', 'business.view'), h(async (req, res) => res.status(201).json(await workJobs.addProgress(req.business.id, req.user.id, req.params.appointmentId, req.body))));
+router.get('/:businessId/work/exceptions', ...biz('any'), h(async (req, res) => res.json(await workJobs.myExceptions(req.business.id, req.user.id))));
+router.post('/:businessId/work/exceptions', ...write('any'), h(async (req, res) => res.status(201).json(await workJobs.raiseException(req.business.id, req.user.id, ctx(req), req.body))));
+router.post('/:businessId/work/exceptions/:exceptionId/escalate', ...write('any'), h(async (req, res) => res.json(await workJobs.escalate(req.business.id, req.user.id, req.params.exceptionId))));
+router.patch('/:businessId/work/exceptions/:exceptionId', ...write('any'), h(async (req, res) => res.json(await workJobs.updateException(req.business.id, req.user.id, ctx(req), req.params.exceptionId, req.body))));
+router.get('/:businessId/owner/exceptions', ...biz('manager', 'jobs.view_all'), h(async (req, res) => res.json(await workJobs.exceptionQueue(req.business.id, req.query))));
+router.get('/:businessId/work/crews', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workJobs.crews(req.business.id))));
+router.post('/:businessId/owner/crews', ...write('manager', 'jobs.assign'), h(async (req, res) => res.status(201).json(await workJobs.saveCrew(req.business.id, req.user.id, req.body))));
+router.put('/:businessId/owner/crews/:crewId', ...write('manager', 'jobs.assign'), h(async (req, res) => res.json(await workJobs.saveCrew(req.business.id, req.user.id, req.body, req.params.crewId))));
+router.get(`${A}/crew`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workJobs.appointmentCrew(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
+router.put('/:businessId/owner/appointments/:appointmentId/crew', ...write('manager', 'jobs.assign'), h(async (req, res) => res.json(await workJobs.allocateCrew(req.business.id, req.user.id, req.params.appointmentId, req.body))));
+router.patch(`${A}/crew/:memberId`, ...write('any', 'business.view'), h(async (req, res) => res.json(await workJobs.setCrewTask(req.business.id, req.user.id, req.params.appointmentId, req.params.memberId, req.body))));
+router.post(`${A}/attendance`, ...write('any', 'business.view'), h(async (req, res) => res.json(await workJobs.respondAttendance(req.business.id, req.user.id, req.params.appointmentId, req.body))));
+router.get(`${A}/documents`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workJobs.documents(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
+router.post('/:businessId/owner/appointments/:appointmentId/documents', ...write('manager', 'jobs.edit'), h(async (req, res) => res.status(201).json(await workJobs.addDocument(req.business.id, req.user.id, req.params.appointmentId, req.body))));
+router.delete('/:businessId/owner/appointment-documents/:documentId', ...write('manager', 'jobs.edit'), h(async (req, res) => res.json(await workJobs.removeDocument(req.business.id, req.params.documentId))));
 
 const claimRouter = express.Router();
 // 201 listing claims (the service checks the claimant owns the business)

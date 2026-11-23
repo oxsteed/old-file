@@ -56,6 +56,22 @@ const businessTeamNotifications = {
     title: t('An assignment was declined', 'Rechazaron una asignación', 'Une affectation a été refusée', 'Yo refize yon asiyasyon', 'تم رفض تكليف'),
     body: t('The visit is unassigned again. Pick someone in the owner console.', 'La visita quedó sin asignar. Elige a alguien en la consola del dueño.', 'La visite n’est plus attribuée. Choisissez quelqu’un dans la console du propriétaire.', 'Vizit la san moun ankò. Chwazi yon moun nan konsòl pwopriyetè a.', 'أصبحت الزيارة دون تعيين. اختر شخصًا من لوحة المالك.'),
   },
+  business_work_exception_raised: {
+    title: t('A team member needs help', 'Un miembro del equipo necesita ayuda', 'Un membre de l’équipe a besoin d’aide', 'Yon manm ekip bezwen èd', 'عضو في الفريق يحتاج إلى مساعدة'),
+    body: t('An issue was raised on a job. Review it in the owner console.', 'Se reportó un problema en un trabajo. Revísalo en la consola del dueño.', 'Un problème a été signalé sur une intervention. Examinez-le dans la console du propriétaire.', 'Yo siyale yon pwoblèm sou yon travay. Revize l nan konsòl pwopriyetè a.', 'تم الإبلاغ عن مشكلة في عمل. راجعها في لوحة المالك.'),
+  },
+  business_work_exception_updated: {
+    title: t('Your issue was updated', 'Tu reporte fue actualizado', 'Votre signalement a été mis à jour', 'Yo mete siyalman ou ajou', 'تم تحديث بلاغك'),
+    body: t('Open My work to see the status.', 'Abre Mi trabajo para ver el estado.', 'Ouvrez Mon travail pour voir le statut.', 'Louvri Travay mwen pou wè estati a.', 'افتح عملي لرؤية الحالة.'),
+  },
+  business_crew_allocated: {
+    title: t('You were added to a job crew', 'Te agregaron al equipo de un trabajo', 'Vous avez été ajouté à l’équipe d’une intervention', 'Yo ajoute w nan ekip yon travay', 'تمت إضافتك إلى فريق عمل'),
+    body: t('Confirm whether you can attend in My work.', 'Confirma en Mi trabajo si puedes asistir.', 'Confirmez votre présence dans Mon travail.', 'Konfime nan Travay mwen si ou ka vini.', 'أكّد في عملي ما إذا كان بإمكانك الحضور.'),
+  },
+  business_crew_declined: {
+    title: t('A crew member can’t make it', 'Un miembro del equipo no puede asistir', 'Un membre de l’équipe ne peut pas venir', 'Yon manm ekip pa ka vini', 'أحد أعضاء الفريق لا يستطيع الحضور'),
+    body: t('Check the job’s crew in My work.', 'Revisa el equipo del trabajo en Mi trabajo.', 'Vérifiez l’équipe de l’intervention dans Mon travail.', 'Tcheke ekip travay la nan Travay mwen.', 'راجع فريق العمل في عملي.'),
+  },
 };
 
 module.exports = { businessTeamNotifications, BUSINESS_TEAM_NOTIFICATION_TYPES: Object.keys(businessTeamNotifications) };
