@@ -84,6 +84,14 @@ const businessTeamNotifications = {
     title: t('A shift cover was decided', 'Se decidió una cobertura de turno', 'Un remplacement de quart a été décidé', 'Yo pran desizyon sou yon ranplasman ekip', 'تم البت في تغطية وردية'),
     body: t('Open My work to see whether it was approved and your schedule.', 'Abre Mi trabajo para ver si se aprobó y tu horario.', 'Ouvrez Mon travail pour voir s’il a été approuvé et votre planning.', 'Louvri Travay mwen pou wè si yo apwouve l ak orè ou.', 'افتح عملي لمعرفة ما إذا تمت الموافقة عليها ولرؤية جدولك.'),
   },
+  business_job_follow_up: {
+    title: t('A job needs a follow-up', 'Un trabajo necesita seguimiento', 'Une intervention nécessite un suivi', 'Yon travay bezwen yon swivi', 'عمل يحتاج إلى متابعة'),
+    body: t('The completion record asks for a follow-up visit or call.', 'El registro de finalización pide una visita o llamada de seguimiento.', 'Le compte rendu demande une visite ou un appel de suivi.', 'Rapò fen travay la mande yon vizit oswa yon apèl swivi.', 'يطلب سجل الإنجاز زيارة أو مكالمة متابعة.'),
+  },
+  business_feedback_follow_up: {
+    title: t('Low customer rating to follow up', 'Calificación baja de un cliente para dar seguimiento', 'Note client basse à suivre', 'Yon kliyan bay yon nòt ki ba, fè swivi', 'تقييم منخفض من عميل يحتاج إلى متابعة'),
+    body: t('A customer rated a visit 3 stars or less. Reach out from the owner console.', 'Un cliente calificó una visita con 3 estrellas o menos. Contáctalo desde la consola del dueño.', 'Un client a noté une intervention 3 étoiles ou moins. Contactez-le depuis la console du propriétaire.', 'Yon kliyan bay yon vizit 3 zetwal oswa mwens. Kontakte l nan konsòl pwopriyetè a.', 'قيّم عميل زيارة بثلاث نجوم أو أقل. تواصل معه من لوحة المالك.'),
+  },
 };
 
 module.exports = { businessTeamNotifications, BUSINESS_TEAM_NOTIFICATION_TYPES: Object.keys(businessTeamNotifications) };

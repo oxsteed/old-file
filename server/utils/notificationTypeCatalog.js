@@ -382,6 +382,8 @@ const NOTIFICATION_TYPES = [
   { type: 'business_team_mention', group: 'work' },
   { type: 'business_coverage_claimed', group: 'work' },
   { type: 'business_coverage_decided', group: 'work' },
+  { type: 'business_job_follow_up', group: 'work' },
+  { type: 'business_feedback_follow_up', group: 'work' },
   // <<< Groups 5-6
 ];
 

@@ -519,6 +519,10 @@ async function updateAppointmentStatus(req, res, next) {
       if (status === 'in_progress') {
         await require('../services/businessOwner/policyService').assertWorkStart(client, businessId, current, req.businessRole || 'owner');
       }
+      // Groups 5-6 item 281: optional business rule, completion record first.
+      if (status === 'completed') {
+        await require('../services/businessOwner/workOutcomesService').assertCompletionRecord(client, businessId, current.id);
+      }
       // The hub Cancel buttons drive this endpoint with status='cancelled',
       // so a cancellation through here must record the same audit fields as
       // the dedicated cancel path (cancelled_at / cancelled_by).
