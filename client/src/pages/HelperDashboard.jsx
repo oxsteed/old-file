@@ -149,7 +149,7 @@ export default function HelperDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const initialDashboardLoadForUserRef = useRef(null);
-  const [verification, setVerification] = useState({backgroundCheck:null,identity:null});
+  const [verification, setVerification] = useState({backgroundCheck:null,identity:null,identityVerified:false,identityLoaded:false});
   const [notifications, setNotifications] = useState([]);
   // Maintenance requests assigned to this helper (their discoverable work queue).
   const [assignedMaintenance, setAssignedMaintenance] = useState([]);
@@ -940,7 +940,11 @@ export default function HelperDashboard() {
       const r = await Promise.allSettled(p);
       const anyFailed = r.some(res=>res.status==='rejected');
       if(anyFailed) setError(true);
-      setVerification({backgroundCheck:r[0].status==='fulfilled'?r[0].value.data?.backgroundCheck||null:null,identity:r[1].status==='fulfilled'?r[1].value.data?.identity||null:null});
+      // Item 153: /verification/identity/status now derives `verified` from
+      // the same facts activation uses (Didit counts), so the card reflects
+      // the real gate instead of the Stripe-only row.
+      const identityData = r[1].status==='fulfilled' ? (r[1].value.data || {}) : {};
+      setVerification({backgroundCheck:r[0].status==='fulfilled'?r[0].value.data?.backgroundCheck||null:null,identity:identityData.identity ?? null,identityVerified:identityData.verified === true,identityLoaded:r[1].status==='fulfilled'});
       if(r[2].status==='fulfilled'){const n=r[2].value.data?.notifications||r[2].value.data||[];setNotifications(Array.isArray(n)?n:[]);}
       if(isOnboardingComplete){
         if(r[3]?.status==='fulfilled'){const b=r[3].value.data?.bids||r[3].value.data||[];setMyBids(Array.isArray(b)?b:[]);}
@@ -1538,6 +1542,22 @@ export default function HelperDashboard() {
                 {verification.backgroundCheck?<Tag text={verification.backgroundCheck.status} color={verification.backgroundCheck.status==='passed'?'green':'orange'}/>
                 :(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.bgCheckHint')} Available on every account, with or without Pro.</p><button onClick={startBackgroundCheck} className="bg-action hover:bg-action-hover text-on-action text-xs font-semibold px-4 py-2 rounded-lg transition" data-track="ui.2144c8cfa1.4">{t('helperDashboard.startCheck')}</button></>)}
               </Card>}
+              {/* Item 153: identity status, from the same derived source the
+                  activation gate uses. Previously the dashboard fetched this
+                  and never rendered it. */}
+              <Card>
+                <div className="flex items-center gap-2 mb-3"><IcoShield size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.identity')}</span></div>
+                {!verification.identityLoaded ? (
+                  <p className="text-xs text-gray-500">{t('helperDashboard.identityLoading')}</p>
+                ) : verification.identityVerified ? (
+                  <Tag text={t('helperDashboard.identityVerified')} color="green" />
+                ) : (
+                  <>
+                    <p className="text-xs text-gray-500 mb-3">{t('helperDashboard.identityPendingHint')}</p>
+                    <Link to="/verify-identity" className="inline-flex items-center justify-center bg-action hover:bg-action-hover text-on-action text-xs font-semibold px-4 py-2 rounded-lg transition" data-track="ui.2144c8cfa1.7">{t('helperDashboard.verifyIdentity')}</Link>
+                  </>
+                )}
+              </Card>
               </div>
 
             </>)}

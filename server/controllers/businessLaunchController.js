@@ -7,6 +7,12 @@ const { logAdminAction } = require('../services/auditService');
 const { csvCell } = require('../utils/csv');
 const { consultantEnforcement } = require('../services/access/flags');
 const { checkPayingAccess } = require('../services/access/consultantGate');
+const {
+  createPayoutForCompletedRequest,
+  attemptPayout,
+  getPayoutByRequestId,
+  retryPayoutByRequestId,
+} = require('../services/consultantPayoutService');
 
 function sanitizeCountry(code) {
   const value = String(code || '').trim().toUpperCase();
@@ -39,6 +45,7 @@ async function submitBusinessLaunchRequest(req, res) {
     package_selected,
     package_price,
     access_request_id,
+    consultant_id,
   } = req.body;
 
   // Validation
@@ -74,6 +81,35 @@ async function submitBusinessLaunchRequest(req, res) {
         }
       }
 
+      // Group 10 Slice B (511, D-104): the intake may address a consultant
+      // directly (from their public profile). Only an approved, active
+      // consultant can be addressed; the access grant is not required at
+      // intake because no money moves yet. The consultant's default cut
+      // prices the referral the same way admin assignment does.
+      let addressedConsultantId = null;
+      let assignedCut = null;
+      if (consultant_id !== undefined && consultant_id !== null && consultant_id !== '') {
+        const { rows: [profile] } = await client.query(
+          `SELECT user_id, default_oxsteed_cut_bps FROM consultant_contractor_profiles
+            WHERE user_id = $1 AND approval_status = 'approved' AND is_active = TRUE`,
+          [consultant_id],
+        );
+        if (!profile) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'The selected consultant is not available.' });
+        }
+        addressedConsultantId = profile.user_id;
+        const oxsteedCutBps = Math.max(0, Math.min(10000, parseInt(profile.default_oxsteed_cut_bps ?? 0, 10) || 0));
+        const totalPriceCents = Math.round(Number(package_price || 0) * 100);
+        assignedCut = {
+          oxsteed_cut_bps: oxsteedCutBps,
+          consultant_cut_bps: Math.max(0, 10000 - oxsteedCutBps),
+          total_price_cents: totalPriceCents,
+          oxsteed_share_cents: Math.round(totalPriceCents * (oxsteedCutBps / 10000)),
+          consultant_share_cents: Math.max(0, totalPriceCents - Math.round(totalPriceCents * (oxsteedCutBps / 10000))),
+        };
+      }
+
       // Insert the consulting request
       const result = await client.query(
         `INSERT INTO consulting_requests (
@@ -81,10 +117,16 @@ async function submitBusinessLaunchRequest(req, res) {
           skill_description, target_market, has_revenue, business_name_decided,
           business_name, operating_country, operating_state, setup_items_selected, select_all_chosen,
           current_phase, additional_notes, urgency, package_selected, package_price,
-          status, access_request_id
+          status, access_request_id,
+          consultant_assigned_id, consultant_assignment_status, consultant_assigned_at,
+          assigned_oxsteed_cut_bps, assigned_consultant_cut_bps,
+          estimated_total_price_cents, estimated_oxsteed_share_cents, estimated_consultant_share_cents
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'pending', $21
+          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'pending', $21,
+          $22, CASE WHEN $22::uuid IS NULL THEN 'unassigned' ELSE 'assigned' END,
+          CASE WHEN $22::uuid IS NULL THEN NULL ELSE NOW() END,
+          $23, $24, $25, $26, $27
         ) RETURNING id, created_at`,
         [
           req.user?.id || null,
@@ -108,6 +150,12 @@ async function submitBusinessLaunchRequest(req, res) {
           package_selected,
           package_price,
           applicationId,
+          addressedConsultantId,
+          assignedCut?.oxsteed_cut_bps ?? 0,
+          assignedCut?.consultant_cut_bps ?? 10000,
+          assignedCut?.total_price_cents ?? null,
+          assignedCut?.oxsteed_share_cents ?? null,
+          assignedCut?.consultant_share_cents ?? null,
         ]
       );
 
@@ -115,6 +163,25 @@ async function submitBusinessLaunchRequest(req, res) {
       const createdAt = result.rows[0].created_at;
 
       await client.query('COMMIT');
+
+      // Group 10 Slice B (511): tell the addressed consultant an inquiry
+      // arrived for them. Fire-and-forget: the request is already saved.
+      if (addressedConsultantId) {
+        const { sendNotification } = require('../services/notificationService');
+        try {
+          await sendNotification({
+            userId: addressedConsultantId,
+            type: 'consulting_inquiry_assigned',
+            title: 'New consulting inquiry for you',
+            body: `${first_name.trim()} ${last_name.trim()} sent you a business-launch inquiry.`,
+            data: { requestId },
+            action_url: '/consulting/contractor-dashboard',
+            idempotencyKey: `consulting-inquiry-request-${requestId}`,
+          });
+        } catch (e) {
+          logger.warn('Failed to notify addressed consultant of inquiry', { requestId, error: e.message });
+        }
+      }
 
       // Send confirmation email to client (non-blocking)
       sendClientConfirmationEmail(
@@ -152,6 +219,7 @@ async function submitBusinessLaunchRequest(req, res) {
       return res.status(201).json({
         success: true,
         requestId,
+        consultant_assigned_id: addressedConsultantId,
         message: 'Your request has been submitted. Check your email for confirmation.',
       });
     } catch (err) {
@@ -433,7 +501,7 @@ async function getMatchedConsultants(req, res) {
          p.timezone,
          COUNT(cr.id) FILTER (
            WHERE cr.consultant_assigned_id = p.user_id
-             AND cr.consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')
+             AND cr.consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed', 'declined')
          ) AS active_referrals,
          CASE
            WHEN $1::text IS NOT NULL AND $1 = ANY(p.coverage_countries) AND $2::text <> '' AND $2 = ANY(p.coverage_regions) THEN 3
@@ -445,6 +513,7 @@ async function getMatchedConsultants(req, res) {
        JOIN users u ON u.id = p.user_id
        LEFT JOIN consulting_requests cr ON cr.consultant_assigned_id = p.user_id
        WHERE p.is_active = TRUE
+         AND p.approval_status = 'approved'
          AND p.accepts_new_referrals = TRUE
          ${enforce ? `
          AND u.is_active = TRUE AND u.deleted_at IS NULL AND NOT COALESCE(u.is_banned, FALSE)
@@ -465,7 +534,7 @@ async function getMatchedConsultants(req, res) {
        GROUP BY p.user_id, u.id
        HAVING p.active_referral_limit < 0 OR COUNT(cr.id) FILTER (
          WHERE cr.consultant_assigned_id = p.user_id
-           AND cr.consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')
+           AND cr.consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed', 'declined')
        ) < p.active_referral_limit
        ORDER BY match_score DESC, active_referrals ASC, p.updated_at DESC
        LIMIT 40`,
@@ -542,7 +611,7 @@ async function assignConsultant(req, res) {
          FROM consulting_requests
          WHERE consultant_assigned_id = $1
            AND id <> $2
-           AND consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')`,
+           AND consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed', 'declined')`,
         [consultant_user_id, id]
       );
 
@@ -709,6 +778,22 @@ async function updateBusinessLaunchRequestStatus(req, res) {
         [id, req.user?.id || null, oldStatus, status, notes || null]
       );
 
+      // G10-1: a transition into 'completed' creates the consultant payout
+      // row atomically with the status change, so a completion can never
+      // lose its payout to a crash between the two writes. The Credit load
+      // itself runs after COMMIT (it opens its own transaction) and never
+      // blocks the status change: a failed load is recorded on the payout
+      // row (parked/failed) and retried by the sweeper. The admin id is
+      // guaranteed by requireAdmin on this route; a missing id fails the
+      // whole change closed rather than creating an un-retryable payout.
+      let payoutRow = null;
+      if (status === 'completed' && oldStatus !== 'completed') {
+        payoutRow = await createPayoutForCompletedRequest(client, {
+          request,
+          adminUserId: req.user?.id || null,
+        });
+      }
+
       await client.query('COMMIT');
 
       logger.info('Business launch request status updated', {
@@ -718,6 +803,31 @@ async function updateBusinessLaunchRequestStatus(req, res) {
         adminId: req.user?.id,
       });
 
+      // G10-1: attempt the payout after COMMIT. Never fails the response.
+      let payout = payoutRow;
+      if (payoutRow) {
+        try {
+          payout = await attemptPayout(payoutRow.id, { actorUserId: req.user?.id || null });
+        } catch (err) {
+          logger.error('Consultant payout attempt errored after completion', {
+            requestId: id,
+            payoutId: payoutRow.id,
+            err,
+          });
+        }
+      } else if (status === 'completed') {
+        // Re-marking an already-completed request creates no new row;
+        // report the existing payout so the admin always sees its state.
+        try {
+          payout = await getPayoutByRequestId(id);
+        } catch (err) {
+          logger.warn('Consultant payout lookup failed after status update', {
+            requestId: id,
+            err: err.message,
+          });
+        }
+      }
+
       // Send notification email to customer (non-blocking)
       sendStatusUpdateEmail(request, status).catch(err => {
         logger.error('Failed to send status update email', { requestId: id, email: request.email, err });
@@ -726,6 +836,7 @@ async function updateBusinessLaunchRequestStatus(req, res) {
       return res.json({
         message: 'Status updated successfully',
         request: updateResult.rows[0],
+        payout,
       });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -736,6 +847,28 @@ async function updateBusinessLaunchRequestStatus(req, res) {
   } catch (err) {
     logger.error('Error updating business launch request status', { id, err });
     return res.status(500).json({ error: 'Failed to update status' });
+  }
+}
+
+/**
+ * Retry the consultant payout for a request (G10-1).
+ * POST /api/consulting/business-launch/requests/:id/payout/retry
+ * Admin-only (manage_operations). Re-attempts a pending / parked /
+ * failed payout under its original idempotency key, so a retry can never
+ * pay twice; a paid payout returns as-is. The retrying admin is the
+ * Credit actor for this attempt.
+ */
+async function retryConsultantPayout(req, res) {
+  const { id } = req.params;
+  try {
+    const payout = await retryPayoutByRequestId(id, { actorUserId: req.user?.id || null });
+    if (!payout) {
+      return res.status(404).json({ error: 'No consultant payout exists for this request' });
+    }
+    return res.json({ message: 'Payout retry attempted', payout });
+  } catch (err) {
+    logger.error('Error retrying consultant payout', { id, err });
+    return res.status(500).json({ error: 'Failed to retry consultant payout.' });
   }
 }
 
@@ -1105,4 +1238,5 @@ module.exports = {
   searchBusinessLaunchRequests,
   getMatchedConsultants,
   assignConsultant,
+  retryConsultantPayout,
 };

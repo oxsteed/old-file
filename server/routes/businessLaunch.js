@@ -16,6 +16,7 @@ const {
   searchBusinessLaunchRequests,
   getMatchedConsultants,
   assignConsultant,
+  retryConsultantPayout,
 } = require('../controllers/businessLaunchController');
 const {
   addNote,
@@ -25,6 +26,11 @@ const {
   getMessages,
   getMessageTemplates,
 } = require('../controllers/businessLaunchNotesController');
+const proposalController = require('../controllers/consultantProposalController');
+const deliverableController = require('../controllers/consultantDeliverableController');
+const changeController = require('../controllers/consultantChangeController');
+const confidentialityController = require('../controllers/consultantConfidentialityController');
+const closeoutController = require('../controllers/consultantCloseoutController');
 
 // Public route: Submit a new Business Launch request
 router.post(
@@ -96,6 +102,172 @@ router.post(
   requireAdmin, requirePermission('manage_operations'),
   assignConsultant
 );
+
+// Group 10 Slice D (521-525): the client reads their proposals and
+// approves or rejects the sent version. The controller enforces the
+// client-owner rule (user_id, or verified-email guest recovery) or admin.
+router.get(
+  '/requests/:id/proposals',
+  authenticate,
+  proposalController.listProposals
+);
+router.get(
+  '/requests/:id/proposals/:proposalId',
+  authenticate,
+  proposalController.getProposal
+);
+router.post(
+  '/requests/:id/proposals/:proposalId/approve',
+  authenticate,
+  proposalController.approveProposal
+);
+router.post(
+  '/requests/:id/proposals/:proposalId/reject',
+  authenticate,
+  proposalController.rejectProposal
+);
+
+// Group 10 Slice E (526-530): deliver work. The client reads the
+// milestone board for their engagement session, exchanges documents on
+// a milestone, leaves feedback, and accepts milestones.
+router.get(
+  '/requests/:id/session',
+  authenticate,
+  deliverableController.getEngagementSession
+);
+router.get(
+  '/sessions/:sessionId/deliverables',
+  authenticate,
+  deliverableController.listDeliverables
+);
+router.post(
+  '/sessions/:sessionId/deliverables/:deliverableId/documents',
+  authenticate,
+  upload.single('file'),
+  validateFileUpload,
+  deliverableController.attachDocument
+);
+router.get(
+  '/sessions/:sessionId/deliverables/:deliverableId/documents',
+  authenticate,
+  deliverableController.listDocuments
+);
+router.get(
+  '/documents/:documentId/download',
+  authenticate,
+  deliverableController.downloadDocument
+);
+router.post(
+  '/sessions/:sessionId/feedback',
+  authenticate,
+  deliverableController.submitFeedback
+);
+router.post(
+  '/sessions/:sessionId/deliverables/:deliverableId/accept',
+  authenticate,
+  deliverableController.acceptDeliverable
+);
+
+// Group 10 Slice F (531-535): handle changes. The client files change
+// requests, decides the consultant's requests, and pauses/resumes the
+// engagement; the change history shows requests and events together.
+router.post(
+  '/sessions/:sessionId/change-requests',
+  authenticate,
+  changeController.createChangeRequest
+);
+router.get(
+  '/sessions/:sessionId/change-requests',
+  authenticate,
+  changeController.listChangeRequests
+);
+router.post(
+  '/sessions/:sessionId/change-requests/:requestId/approve',
+  authenticate,
+  changeController.decideChangeRequest('approved')
+);
+router.post(
+  '/sessions/:sessionId/change-requests/:requestId/reject',
+  authenticate,
+  changeController.decideChangeRequest('rejected')
+);
+router.post(
+  '/sessions/:sessionId/change-requests/:requestId/withdraw',
+  authenticate,
+  changeController.withdrawChangeRequest
+);
+router.get(
+  '/sessions/:sessionId/history',
+  authenticate,
+  changeController.getEngagementHistory
+);
+router.post(
+  '/sessions/:sessionId/pause',
+  authenticate,
+  changeController.pauseEngagement
+);
+router.post(
+  '/sessions/:sessionId/resume',
+  authenticate,
+  changeController.resumeEngagement
+);
+
+// Group 10 Slice G (536-540): maintain confidentiality. The client
+// reads participants and confidentiality status, acknowledges for
+// themselves, changes sharing on documents they uploaded, exports the
+// record, and sees engagements they participate in.
+router.get(
+  '/sessions/participating',
+  authenticate,
+  confidentialityController.listParticipatingSessions
+);
+router.get(
+  '/sessions/:sessionId/participants',
+  authenticate,
+  confidentialityController.listParticipants
+);
+router.get(
+  '/sessions/:sessionId/confidentiality',
+  authenticate,
+  confidentialityController.getAcknowledgmentStatus
+);
+router.post(
+  '/sessions/:sessionId/confidentiality/acknowledge',
+  authenticate,
+  confidentialityController.acknowledgeConfidentiality
+);
+router.patch(
+  '/sessions/:sessionId/deliverables/:deliverableId/documents/:documentId',
+  authenticate,
+  confidentialityController.updateDocumentSharing
+);
+router.get(
+  '/sessions/:sessionId/export',
+  authenticate,
+  confidentialityController.exportEngagementRecord
+);
+
+// Group 10 Slice H (541-545): close the engagement. The client reads
+// the final deliverable checklist and confirms the closeout; the
+// follow-up schedule, feedback request, and archive are the
+// consultant's (and the archive is the consultant's or an admin's).
+router.get(
+  '/sessions/:sessionId/closeout',
+  authenticate,
+  closeoutController.getCloseout
+);
+router.post(
+  '/sessions/:sessionId/closeout/confirm',
+  authenticate,
+  closeoutController.confirmCloseout
+);
+
+// G10-1: retry a pending / parked / failed consultant payout (admin only).
+router.post(
+  '/requests/:id/payout/retry',
+  authenticate,
+  requireAdmin, requirePermission('manage_operations'),
+  retryConsultantPayout);
 
 router.post('/requests/:id/attachments', authenticate, generalLimiter, upload.single('file'), validateFileUpload, attachmentController.uploadAttachment);
 router.get('/requests/:id/attachments', authenticate, attachmentController.listAttachments);

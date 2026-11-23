@@ -29,6 +29,7 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const { requireInvestorParticipationCapability } = require('../middleware/requireAccess');
 const { errorHandler } = require('../middleware/errorHandler');
 const ctrl = require('../controllers/investController');
 
@@ -52,11 +53,17 @@ router.post('/opportunities/:id/publish', authenticate, invest, requireAdmin, re
 
 // Commit flow: Idempotency-Key required; eligibility rechecked at commit
 // inside the settlement service transaction.
-router.post('/opportunities/:id/commitments', authenticate, invest, commitments, suspended, rejectImpersonated, ctrl.createCommitment);
-router.post('/commitments/:id/cancel', authenticate, invest, suspended, rejectImpersonated, ctrl.cancelCommitment);
-router.get('/commitments/:id', authenticate, invest, suspended, ctrl.getCommitment);
+router.post('/opportunities/:id/commitments', authenticate, invest, requireInvestorParticipationCapability, commitments, suspended, rejectImpersonated, ctrl.createCommitment);
+router.post('/commitments/:id/cancel', authenticate, invest, requireInvestorParticipationCapability, suspended, rejectImpersonated, ctrl.cancelCommitment);
+router.get('/commitments/:id', authenticate, invest, requireInvestorParticipationCapability, suspended, ctrl.getCommitment);
 
 // Participation applications.
+// Opportunity discovery and participation applications remain customer-safe
+// admission flows. They do not grant participation: the commitment routes
+// below re-check the explicit investor.participate grant before any protected
+// investment action. Keeping the application lifecycle available lets a
+// customer express interest without turning a public route into investor
+// access or blocking existing customer-first workflows.
 router.post('/applications', authenticate, invest, suspended, ctrl.createApplication);
 router.get('/applications', authenticate, invest, suspended, ctrl.listApplications);
 router.get('/applications/:id', authenticate, invest, suspended, ctrl.getApplication);

@@ -137,6 +137,20 @@ describeDb('progressive consultant and business launch access', () => {
     const { body } = await review.decide({ id: reviewerId }, application.id, {
       action: 'approve', expectedVersion: application.version, evidenceRevision: application.evidenceRevision,
     });
+    // Group 10 Slice A (504): matching also requires profile approval, so
+    // the fixture approves the contractor profile through the admin endpoint
+    // rather than weakening the gate. Consultants without a profile row
+    // (e.g. the off/shadow test) have nothing to approve.
+    const profileRows = await db.query(
+      'SELECT 1 FROM consultant_contractor_profiles WHERE user_id = $1', [consultant],
+    );
+    if (profileRows.rows.length > 0) {
+      await request(app)
+        .post(`/api/consulting/contractor/admin/profiles/${consultant}/decision`)
+        .set('x-test-user', reviewerId)
+        .send({ action: 'approve' })
+        .expect(200);
+    }
     return body.grantId;
   }
 

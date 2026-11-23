@@ -31,6 +31,9 @@ import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
+import api from '../api/axios';
+import { DISCOVERY_CHANGED_EVENT } from '../components/HelperDiscoverySettings';
+import { resolveSeededRadius } from '../utils/discoveryRadius';
 import { detectCountryFromLocale } from '../lib/countries';
 
 import SearchBar from '../components/jobDirectory/SearchBar';
@@ -357,6 +360,36 @@ export default function JobListPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedTileId, setSelectedTileId] = useState(_initTileId);
 
+  // Group 4 Slice B (163): seed the radius filter from the helper's saved
+  // distance preference instead of the built-in 25 miles. A radius restored
+  // from navigation state is the helper's explicit choice and wins; the
+  // preference is re-applied when it changes in settings. The feed still
+  // works on the default when the preference read fails.
+  const discoveryRadiusSeededRef = useRef(false);
+  const discoveryRadiusRef = useRef(null);
+  const applyDiscoveryRadius = useCallback(async (savedRadius = null) => {
+    if (!hasHelperAccess) return;
+    try {
+      const { data } = await api.get('/helpers/me/discovery');
+      const preference = data?.preferences?.opportunity_radius_miles;
+      if (Number.isInteger(preference) && preference >= 1 && preference <= 250) {
+        discoveryRadiusRef.current = preference;
+      }
+      const next = resolveSeededRadius({ savedRadius, preference, fallback: 25 });
+      setFilters((prev) => (prev.radiusMiles === next ? prev : { ...prev, radiusMiles: next }));
+    } catch {
+      // Keep the default radius; the feed still loads.
+    }
+  }, [hasHelperAccess]);
+  useEffect(() => {
+    if (!hasHelperAccess || discoveryRadiusSeededRef.current) return undefined;
+    discoveryRadiusSeededRef.current = true;
+    void applyDiscoveryRadius(savedList?.filters?.radiusMiles ?? null);
+    const onChanged = () => void applyDiscoveryRadius();
+    window.addEventListener(DISCOVERY_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(DISCOVERY_CHANGED_EVENT, onChanged);
+  }, [hasHelperAccess, applyDiscoveryRadius, savedList]);
+
   const debounceRef = useRef(null);
   const isFirstLoad = useRef(true);
 
@@ -442,7 +475,7 @@ export default function JobListPage() {
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters({ ...DEFAULT_JOB_FILTERS, country: defaultCountry, userLat: null, userLng: null, radiusMiles: 25 });
+    setFilters({ ...DEFAULT_JOB_FILTERS, country: defaultCountry, userLat: null, userLng: null, radiusMiles: discoveryRadiusRef.current ?? 25 });
     setSelectedTileId(null);
   }, [defaultCountry]);
 

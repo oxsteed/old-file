@@ -25,7 +25,6 @@ const STATUSES = ['', 'active', 'banned'];
 const PAGE_SIZES = [25, 50, 100];
 const QUICK_CREATE_ACCOUNT_TYPES = [
   { value: 'customer', label: 'Customer' },
-  { value: 'investor', label: 'Investor' },
   { value: 'helper', label: 'Helper' },
   { value: 'helper_pro', label: 'Helper Pro' },
   { value: 'broker', label: 'Broker' },

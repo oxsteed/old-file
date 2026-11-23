@@ -2,17 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { PERSONA_NAVIGATION_CATALOG } from '../src/utils/personaNavigation.js';
-import { SIGNUP_PERSONAS, SIGNUP_INTENT_VALUES, signupPersonaForIntent, COMMON_SIGNUP_PERSONAS, MORE_SIGNUP_PERSONAS, signupEntryForParams } from '../src/utils/signupPersonas.js';
+import { SIGNUP_PERSONAS, SIGNUP_CATALOG_PERSONAS, SIGNUP_INTENT_VALUES, signupPersonaForIntent, COMMON_SIGNUP_PERSONAS, MORE_SIGNUP_PERSONAS, signupEntryForParams } from '../src/utils/signupPersonas.js';
 
 test('signup covers every catalog persona family exactly once', () => {
-  assert.equal(SIGNUP_PERSONAS.length, PERSONA_NAVIGATION_CATALOG.length);
-  assert.deepEqual(SIGNUP_PERSONAS.map(({ id }) => id), PERSONA_NAVIGATION_CATALOG.map(({ id }) => id));
+  assert.equal(SIGNUP_CATALOG_PERSONAS.length, PERSONA_NAVIGATION_CATALOG.length);
+  assert.deepEqual(SIGNUP_CATALOG_PERSONAS.map(({ id }) => id), PERSONA_NAVIGATION_CATALOG.map(({ id }) => id));
+  assert.ok(!SIGNUP_PERSONAS.some(({ id }) => id === 'investor-reporting'));
   assert.equal(new Set(SIGNUP_INTENT_VALUES).size, SIGNUP_INTENT_VALUES.length);
-  for (const persona of SIGNUP_PERSONAS) {
-    assert.ok(persona.intent, persona.id);
+  for (const persona of SIGNUP_CATALOG_PERSONAS) {
+    if (persona.public !== false) assert.ok(persona.intent, persona.id);
     assert.ok(persona.admission, persona.id);
     assert.ok(persona.copy, persona.id);
-    assert.equal(signupPersonaForIntent(persona.intent).id, persona.id);
+    if (persona.intent) assert.equal(signupPersonaForIntent(persona.intent).id, persona.id);
   }
 });
 
@@ -49,9 +50,9 @@ test('goal-picker copy never uses mode or switcher language', () => {
   }
 });
 
-test('common goals and specialized choices partition all 18 paths without changing admission', () => {
+test('common goals and specialized choices partition all public paths without changing admission', () => {
   assert.deepEqual(COMMON_SIGNUP_PERSONAS.map(({id}) => id), ['customer', 'helper', 'business-owner']);
-  assert.equal(MORE_SIGNUP_PERSONAS.length, 15);
+  assert.equal(MORE_SIGNUP_PERSONAS.length, 14);
   assert.deepEqual([...COMMON_SIGNUP_PERSONAS, ...MORE_SIGNUP_PERSONAS].map(({id}) => id).sort(), SIGNUP_PERSONAS.map(({id}) => id).sort());
   for (const persona of SIGNUP_PERSONAS) {
     for (const key of ['goal', 'intent']) {

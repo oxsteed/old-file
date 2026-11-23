@@ -1,0 +1,34 @@
+/* Engagement format picker (Group 10 item 507) on the consultant schedule
+   selector. Mirrors the component's existing inline style objects as
+   classes, per the CSP style migration gate (no new style={} occurrences). */
+
+.css-field {
+  margin-bottom: 1.5rem;
+}
+
+.css-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.css-input {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.css-review-line {
+  margin: 0.5rem 0;
+  color: var(--color-text-muted);
+}
+
+.css-slot-sub {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}

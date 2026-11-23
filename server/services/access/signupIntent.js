@@ -37,7 +37,6 @@ const SIGNUP_ADMISSIONS = Object.freeze({
   consult: Object.freeze({ kind: 'platform_review', statusPath: '/settings/applications' }),
   list_equipment: Object.freeze({ kind: 'platform_review', statusPath: '/settings/applications' }),
   franchise: Object.freeze({ kind: 'domain_enrollment', statusPath: '/franchise/apply' }),
-  request_reporting: Object.freeze({ kind: 'platform_review', statusPath: '/settings/applications' }),
   join_credit: Object.freeze({ kind: 'domain_enrollment', statusPath: '/credit/apply' }),
   join_partner: Object.freeze({ kind: 'domain_enrollment', statusPath: '/affiliate' }),
   join_workforce: Object.freeze({ kind: 'domain_enrollment', statusPath: '/learn' }),

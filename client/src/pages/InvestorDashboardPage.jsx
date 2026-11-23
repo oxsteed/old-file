@@ -4,7 +4,7 @@
  * Live investor dashboard — platform health KPIs, revenue time-series,
  * franchise pipeline, and supply/demand data sourced from /api/investor/*.
  *
- * Accessible only to users with role investor | admin | super_admin.
+ * Accessible only to users with an investor.reporting grant, admin, or super_admin.
  */
 
 import { useEffect, useState, useCallback } from 'react';
@@ -208,7 +208,7 @@ export default function InvestorDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const legacyInvestor = ['investor', 'admin', 'super_admin'].includes(user?.role ?? user?.default_mode);
+  const legacyInvestor = ['admin', 'super_admin'].includes(user?.role);
   const projectedAccess = accessProjection?.access || accessProjection;
   const hasInvestorAccess = legacyInvestor || projectedAccess?.personal?.includes('investor.reporting');
   const projectionSettled = Boolean(accessProjection?.status)

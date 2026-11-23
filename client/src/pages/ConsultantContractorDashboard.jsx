@@ -6,11 +6,13 @@ import {
   Building2,
   CalendarClock,
   CheckCircle2,
+  ClipboardList,
   Globe2,
   Loader2,
   MapPinned,
   Save,
   Sparkles,
+  TrendingUp,
   Wallet,
 } from 'lucide-react';
 import PageShell from '../components/PageShell';
@@ -21,6 +23,10 @@ import PlatformApprovalBanner from '../components/PlatformApprovalBanner';
 import { useTranslation } from 'react-i18next';
 import { formatCents, formatNumber } from '../lib/format';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
+import ConsultantSessionsSection from '../components/ConsultantSessionsSection';
+import ConsultantEngagementsSection from '../components/ConsultantEngagementsSection';
+import ConsultantPracticeSection from '../components/ConsultantPracticeSection';
+import { deliverablesApi } from '../api/consultantDeliverables';
 
 const STATUS_OPTIONS = [
   ['assigned', 'consultantContractorDashboard.referralStatus.assigned', 'Assigned'],
@@ -33,8 +39,18 @@ const STATUS_OPTIONS = [
   ['lost', 'consultantContractorDashboard.referralStatus.lost', 'Lost'],
   ['completed', 'consultantContractorDashboard.referralStatus.completed', 'Completed'],
   ['paused', 'consultantContractorDashboard.referralStatus.paused', 'Paused'],
+  ['declined', 'consultantContractorDashboard.referralStatus.declined', 'Declined'],
 ];
 const PAYING_STATUSES = new Set(['engaged', 'won']);
+
+// G10-1: payout status labels, keyed statically like STATUS_OPTIONS so the
+// i18n gate can see every key.
+const PAYOUT_STATUS_LABELS = {
+  pending: ['consultantContractorDashboard.payouts.status.pending', 'Pending'],
+  paid: ['consultantContractorDashboard.payouts.status.paid', 'Paid'],
+  parked: ['consultantContractorDashboard.payouts.status.parked', 'Waiting'],
+  failed: ['consultantContractorDashboard.payouts.status.failed', 'Needs attention'],
+};
 
 function centsToCurrency(cents) {
   return formatCents(cents || 0, { maximumFractionDigits: 0 });
@@ -99,6 +115,151 @@ function centsToFriendly(cents) {
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(n);
+}
+
+// Group 10 item 509: portfolio manager on the contractor dashboard. The
+// consultant adds, edits, hides, and removes portfolio items; public items
+// appear on the public specialty profile (506), hidden ones never leave
+// this workspace.
+function PortfolioManager() {
+  const { t } = useTranslation();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({ title: '', description: '', link_url: '', image_url: '', visibility: 'public', sort_order: '0' });
+  const [editingId, setEditingId] = useState(null);
+
+  async function load() {
+    try {
+      setLoading(true);
+      const { data } = await api.get('/consulting/contractor/portfolio');
+      setItems(data?.portfolio || []);
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantContractorDashboard.portfolio.loadError'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setForm({
+      title: item.title || '',
+      description: item.description || '',
+      link_url: item.link_url || '',
+      image_url: item.image_url || '',
+      visibility: item.visibility || 'public',
+      sort_order: String(item.sort_order ?? 0),
+    });
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setForm({ title: '', description: '', link_url: '', image_url: '', visibility: 'public', sort_order: '0' });
+  }
+
+  async function save(event) {
+    event.preventDefault();
+    if (!form.title.trim()) return;
+    setBusy(true);
+    setError('');
+    try {
+      if (editingId) await api.put(`/consulting/contractor/portfolio/${editingId}`, form);
+      else await api.post('/consulting/contractor/portfolio', form);
+      resetForm();
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantContractorDashboard.portfolio.saveError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(item) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.delete(`/consulting/contractor/portfolio/${item.id}`);
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantContractorDashboard.portfolio.removeError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const inputClass = 'w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500';
+
+  return (
+    <div>
+      {error ? <p role="alert" className="mb-3 text-sm text-red-200">{error}</p> : null}
+      {loading ? (
+        <p className="text-sm text-gray-400">{t('consultantContractorDashboard.portfolio.loading')}</p>
+      ) : items.length ? (
+        <ul className="space-y-3">
+          {items.map((item) => (
+            <li key={item.id} className="rounded-2xl border border-gray-800 bg-[#111318] px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-white">{item.title}</p>
+                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${item.visibility === 'public' ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-gray-700 bg-gray-900/70 text-gray-400'}`}>
+                  {item.visibility === 'public' ? t('consultantContractorDashboard.portfolio.visiblePublic') : t('consultantContractorDashboard.portfolio.hidden')}
+                </span>
+              </div>
+              {item.description ? <p className="mt-1 text-sm text-gray-400">{item.description}</p> : null}
+              {item.link_url ? (
+                <a href={item.link_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-sm text-indigo-300 hover:text-indigo-200" data-track="ui.c62ffb2364.12">{item.link_url}</a>
+              ) : null}
+              <div className="mt-2 flex gap-3">
+                <button type="button" onClick={() => startEdit(item)} className="text-xs font-semibold text-orange-300 hover:text-orange-200" data-track="ui.c62ffb2364.7">
+                  {t('consultantContractorDashboard.portfolio.edit')}
+                </button>
+                <button type="button" disabled={busy} onClick={() => remove(item)} className="text-xs font-semibold text-red-300 hover:text-red-200 disabled:opacity-50" data-track="ui.c62ffb2364.8">
+                  {t('consultantContractorDashboard.portfolio.remove')}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-gray-400">{t('consultantContractorDashboard.portfolio.empty')}</p>
+      )}
+
+      <form onSubmit={save} className="mt-4 grid gap-3 rounded-2xl border border-gray-800 bg-[#111318] p-4" data-track="ui.c62ffb2364.13">
+        <p className="text-sm font-semibold text-white">{editingId ? t('consultantContractorDashboard.portfolio.editTitle') : t('consultantContractorDashboard.portfolio.addTitle')}</p>
+        <input value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} placeholder={t('consultantContractorDashboard.portfolio.fields.title')} className={inputClass} required maxLength={180} />
+        <textarea value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} placeholder={t('consultantContractorDashboard.portfolio.fields.description')} className={`${inputClass} min-h-[80px]`} maxLength={2000} />
+        <input value={form.link_url} onChange={(e) => setForm((prev) => ({ ...prev, link_url: e.target.value }))} placeholder={t('consultantContractorDashboard.portfolio.fields.link')} className={inputClass} inputMode="url" maxLength={500} />
+        <input value={form.image_url} onChange={(e) => setForm((prev) => ({ ...prev, image_url: e.target.value }))} placeholder={t('consultantContractorDashboard.portfolio.fields.image')} className={inputClass} inputMode="url" maxLength={500} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+            {t('consultantContractorDashboard.portfolio.fields.visibility')}
+            <select value={form.visibility} onChange={(e) => setForm((prev) => ({ ...prev, visibility: e.target.value }))} className={`${inputClass} mt-2 normal-case tracking-normal`}>
+              <option value="public">{t('consultantContractorDashboard.portfolio.visiblePublic')}</option>
+              <option value="hidden">{t('consultantContractorDashboard.portfolio.hidden')}</option>
+            </select>
+          </label>
+          <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+            {t('consultantContractorDashboard.portfolio.fields.order')}
+            <input type="number" min="0" max="1000" value={form.sort_order} onChange={(e) => setForm((prev) => ({ ...prev, sort_order: e.target.value }))} className={`${inputClass} mt-2`} />
+          </label>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <button type="submit" disabled={busy || !form.title.trim()} className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.9">
+            {busy ? t('consultantContractorDashboard.actions.saving') : editingId ? t('consultantContractorDashboard.portfolio.saveChanges') : t('consultantContractorDashboard.portfolio.add')}
+          </button>
+          {editingId && (
+            <button type="button" onClick={resetForm} className="rounded-2xl border border-gray-700 bg-gray-900 px-4 py-2.5 text-sm font-semibold text-gray-200" data-track="ui.c62ffb2364.10">
+              {t('common.cancel')}
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
 }
 
 function ReferralAttachments({ referral, userId, tx }) {
@@ -212,12 +373,717 @@ function ReferralAttachments({ referral, userId, tx }) {
   );
 }
 
-function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId }) {
+// Group 10 Slice B (512/513/515): screen one assigned inquiry.
+// Fit assessment is advisory; a conflict declaration blocks forward
+// moves on the referral until cleared or the referral is declined (D-105).
+function ReferralScreening({ referralId, tx }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [templates, setTemplates] = useState([]);
+  const [fit, setFit] = useState({ budget_fit: '', scope_fit: '', timing_fit: '', overall_fit: '', decision: 'fit', notes: '' });
+  const [conflict, setConflict] = useState({ has_conflict: false, description: '' });
+  const [messages, setMessages] = useState([]);
+  const [replyTemplateId, setReplyTemplateId] = useState('');
+  const [replySubject, setReplySubject] = useState('');
+  const [replyBody, setReplyBody] = useState('');
+  const [savingFit, setSavingFit] = useState(false);
+  const [savingConflict, setSavingConflict] = useState(false);
+  const [sendingReply, setSendingReply] = useState(false);
+  const [savedNote, setSavedNote] = useState('');
+
+  async function loadScreen() {
+    try {
+      setLoading(true);
+      setError('');
+      const [{ data: screen }, { data: templateList }] = await Promise.all([
+        api.get(`/consulting/contractor/referrals/${referralId}/screen`),
+        api.get('/consulting/contractor/inquiry-templates'),
+      ]);
+      if (screen.fit) {
+        setFit({
+          budget_fit: screen.fit.budget_fit ?? '',
+          scope_fit: screen.fit.scope_fit ?? '',
+          timing_fit: screen.fit.timing_fit ?? '',
+          overall_fit: screen.fit.overall_fit ?? '',
+          decision: screen.fit.decision || 'fit',
+          notes: screen.fit.notes || '',
+        });
+      }
+      if (screen.conflict) {
+        setConflict({
+          has_conflict: Boolean(screen.conflict.has_conflict),
+          description: screen.conflict.description || '',
+        });
+      }
+      setMessages(screen.messages || []);
+      setTemplates(templateList.templates || []);
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.screening.loadError', 'Failed to load screening.'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (open) loadScreen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, referralId]);
+
+  const scoreValue = (value) => (value === '' ? null : Number(value));
+
+  async function saveFit() {
+    try {
+      setSavingFit(true);
+      setSavedNote('');
+      const { data } = await api.post(`/consulting/contractor/referrals/${referralId}/fit`, {
+        budget_fit: scoreValue(fit.budget_fit),
+        scope_fit: scoreValue(fit.scope_fit),
+        timing_fit: scoreValue(fit.timing_fit),
+        overall_fit: scoreValue(fit.overall_fit),
+        decision: fit.decision,
+        notes: fit.notes,
+      });
+      setFit((prev) => ({ ...prev, ...data.fit, budget_fit: data.fit.budget_fit ?? '', scope_fit: data.fit.scope_fit ?? '', timing_fit: data.fit.timing_fit ?? '', overall_fit: data.fit.overall_fit ?? '' }));
+      setSavedNote(tx('consultantContractorDashboard.screening.fitSaved', 'Fit assessment saved.'));
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.screening.saveError', 'Failed to save.'));
+    } finally {
+      setSavingFit(false);
+    }
+  }
+
+  async function saveConflict() {
+    try {
+      setSavingConflict(true);
+      setSavedNote('');
+      const { data } = await api.post(`/consulting/contractor/referrals/${referralId}/conflict`, {
+        has_conflict: conflict.has_conflict,
+        description: conflict.description,
+      });
+      setConflict({ has_conflict: Boolean(data.conflict.has_conflict), description: data.conflict.description || '' });
+      setSavedNote(tx('consultantContractorDashboard.screening.conflictSaved', 'Conflict declaration saved.'));
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.screening.saveError', 'Failed to save.'));
+    } finally {
+      setSavingConflict(false);
+    }
+  }
+
+  function applyTemplate(templateId) {
+    setReplyTemplateId(templateId);
+    const template = templates.find((entry) => entry.id === templateId);
+    if (template) {
+      setReplySubject(template.subject || '');
+      setReplyBody(template.body_plain || '');
+    }
+  }
+
+  async function sendReply() {
+    try {
+      setSendingReply(true);
+      setSavedNote('');
+      const { data } = await api.post(`/consulting/contractor/referrals/${referralId}/reply`, {
+        template_id: replyTemplateId || undefined,
+        subject: replySubject,
+        body_plain: replyBody,
+      });
+      setMessages((prev) => [...prev, data.message]);
+      setReplyTemplateId('');
+      setReplySubject('');
+      setReplyBody('');
+      setSavedNote(tx('consultantContractorDashboard.screening.replySent', 'Reply sent.'));
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantContractorDashboard.screening.saveError', 'Failed to save.'));
+    } finally {
+      setSendingReply(false);
+    }
+  }
+
+  const scoreOptions = ['', 1, 2, 3, 4, 5];
+  const inputClass = 'w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500';
+  const labelClass = 'mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500';
+
+  return (
+    <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/50 p-4">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between text-left text-sm font-semibold text-white"
+        aria-expanded={open} data-track="ui.c62ffb2364.14"
+      >
+        <span>{tx('consultantContractorDashboard.screening.title', 'Screen this inquiry')}</span>
+        <span className="text-xs font-normal text-gray-400">{open ? tx('consultantContractorDashboard.screening.hide', 'Hide') : tx('consultantContractorDashboard.screening.show', 'Show')}</span>
+      </button>
+      {open && (
+        <div className="mt-4 space-y-5">
+          {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+          {savedNote && <p role="status" className="text-sm text-emerald-300">{savedNote}</p>}
+          {loading ? (
+            <p className="text-sm text-gray-400">{tx('consultantContractorDashboard.screening.loading', 'Loading…')}</p>
+          ) : (
+            <>
+              <section>
+                <h4 className="mb-3 text-sm font-semibold text-white">{tx('consultantContractorDashboard.screening.fitTitle', 'Fit assessment')}</h4>
+                <p className="mb-3 text-xs leading-5 text-gray-400">{tx('consultantContractorDashboard.screening.fitHint', 'Advisory only. A fit assessment never blocks scheduling or accepting the referral.')}</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[['budget_fit', 'consultantContractorDashboard.screening.fitBudget', 'Budget fit'], ['scope_fit', 'consultantContractorDashboard.screening.fitScope', 'Scope fit'], ['timing_fit', 'consultantContractorDashboard.screening.fitTiming', 'Timing fit'], ['overall_fit', 'consultantContractorDashboard.screening.fitOverall', 'Overall fit']].map(([field, key, fallback]) => (
+                    <div key={field}>
+                      <label className={labelClass} htmlFor={`${referralId}-${field}`}>{tx(key, fallback)}</label>
+                      <select id={`${referralId}-${field}`} value={fit[field]} onChange={(event) => setFit((prev) => ({ ...prev, [field]: event.target.value }))} className={inputClass}>
+                        {scoreOptions.map((option) => (
+                          <option key={String(option)} value={option}>{option === '' ? '—' : option}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3">
+                  <label className={labelClass} htmlFor={`${referralId}-decision`}>{tx('consultantContractorDashboard.screening.fitDecision', 'Decision')}</label>
+                  <select id={`${referralId}-decision`} value={fit.decision} onChange={(event) => setFit((prev) => ({ ...prev, decision: event.target.value }))} className={inputClass}>
+                    <option value="fit">{tx('consultantContractorDashboard.screening.fitDecisionFit', 'Good fit')}</option>
+                    <option value="no_fit">{tx('consultantContractorDashboard.screening.fitDecisionNoFit', 'Not a fit')}</option>
+                    <option value="needs_info">{tx('consultantContractorDashboard.screening.fitDecisionNeedsInfo', 'Needs more info')}</option>
+                  </select>
+                </div>
+                <div className="mt-3">
+                  <label className={labelClass} htmlFor={`${referralId}-fit-notes`}>{tx('consultantContractorDashboard.screening.fitNotes', 'Notes')}</label>
+                  <textarea id={`${referralId}-fit-notes`} value={fit.notes} onChange={(event) => setFit((prev) => ({ ...prev, notes: event.target.value }))} className="min-h-[80px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500" placeholder={tx('consultantContractorDashboard.screening.fitNotesPlaceholder', 'Why this is or is not a fit.')} />
+                </div>
+                <button type="button" onClick={saveFit} disabled={savingFit} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.15">
+                  {savingFit ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {tx('consultantContractorDashboard.screening.fitSave', 'Save fit assessment')}
+                </button>
+              </section>
+
+              <section>
+                <h4 className="mb-3 text-sm font-semibold text-white">{tx('consultantContractorDashboard.screening.conflictTitle', 'Conflict of interest')}</h4>
+                {conflict.has_conflict && (
+                  <p role="alert" className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-200">
+                    {tx('consultantContractorDashboard.screening.conflictBlocks', 'An open conflict blocks moving this referral forward until you clear it or decline the referral.')}
+                  </p>
+                )}
+                <label className="flex items-start gap-2 text-sm text-gray-300">
+                  <input type="checkbox" checked={conflict.has_conflict} onChange={(event) => setConflict((prev) => ({ ...prev, has_conflict: event.target.checked }))} className="mt-1 h-4 w-4 accent-orange-500" data-track="ui.c62ffb2364.16" />
+                  {tx('consultantContractorDashboard.screening.conflictHas', 'I have a conflict of interest with this inquiry')}
+                </label>
+                <div className="mt-3">
+                  <label className={labelClass} htmlFor={`${referralId}-conflict-desc`}>{tx('consultantContractorDashboard.screening.conflictDescription', 'Description')}</label>
+                  <textarea id={`${referralId}-conflict-desc`} value={conflict.description} onChange={(event) => setConflict((prev) => ({ ...prev, description: event.target.value }))} className="min-h-[80px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500" placeholder={tx('consultantContractorDashboard.screening.conflictDescriptionPlaceholder', 'Describe the conflict, for example a competing client or a personal relationship.')} />
+                </div>
+                <button type="button" onClick={saveConflict} disabled={savingConflict} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.17">
+                  {savingConflict ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {tx('consultantContractorDashboard.screening.conflictSave', 'Save declaration')}
+                </button>
+              </section>
+
+              <section>
+                <h4 className="mb-3 text-sm font-semibold text-white">{tx('consultantContractorDashboard.screening.replyTitle', 'Reply to the inquiry')}</h4>
+                <div>
+                  <label className={labelClass} htmlFor={`${referralId}-template`}>{tx('consultantContractorDashboard.screening.replyTemplate', 'Template')}</label>
+                  <select id={`${referralId}-template`} value={replyTemplateId} onChange={(event) => applyTemplate(event.target.value)} className={inputClass}>
+                    <option value="">{tx('consultantContractorDashboard.screening.replyTemplateCustom', 'Custom message')}</option>
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>{template.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-3">
+                  <label className={labelClass} htmlFor={`${referralId}-reply-subject`}>{tx('consultantContractorDashboard.screening.replySubject', 'Subject')}</label>
+                  <input id={`${referralId}-reply-subject`} type="text" value={replySubject} onChange={(event) => setReplySubject(event.target.value)} className={inputClass} />
+                </div>
+                <div className="mt-3">
+                  <label className={labelClass} htmlFor={`${referralId}-reply-body`}>{tx('consultantContractorDashboard.screening.replyBody', 'Message')}</label>
+                  <textarea id={`${referralId}-reply-body`} value={replyBody} onChange={(event) => setReplyBody(event.target.value)} className="min-h-[110px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500" />
+                </div>
+                <button type="button" onClick={sendReply} disabled={sendingReply || !replySubject.trim() || !replyBody.trim()} className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.18">
+                  {sendingReply ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {tx('consultantContractorDashboard.screening.replySend', 'Send reply')}
+                </button>
+                <div className="mt-4">
+                  <h5 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantContractorDashboard.screening.messagesTitle', 'Message history')}</h5>
+                  {messages.length ? (
+                    <ul className="space-y-2">
+                      {messages.map((message) => (
+                        <li key={message.id} className="rounded-xl border border-gray-800 bg-gray-900/70 px-3 py-2">
+                          <p className="text-sm font-semibold text-white">{message.subject}</p>
+                          <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-gray-400">{message.message_plain}</p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {message.author_role === 'consultant'
+                              ? tx('consultantContractorDashboard.screening.messageFromConsultant', 'From you')
+                              : tx('consultantContractorDashboard.screening.messageFromTeam', 'From the OxSteed team')}
+                            {' • '}{new Date(message.created_at).toLocaleString()}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-500">{tx('consultantContractorDashboard.screening.messagesEmpty', 'No messages yet.')}</p>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Group 10 Slice D (521-525): agree on work. Versioned engagement
+// proposals on the referral. The assigned consultant drafts the offer
+// (scope, price, deliverables, exclusions), sends it, and withdraws it;
+// the client approves or rejects from the launch status page. Sent
+// versions are immutable: a change means a new version, and sending
+// supersedes the previous sent one (D-112). An open conflict blocks the
+// send (D-105).
+const PROPOSAL_DELIVERABLE_TYPES = [
+  'sop', 'contract', 'financial_tracker', 'marketing_plan',
+  'team_structure', 'operational_manual', 'other',
+];
+
+function emptyDeliverable() {
+  return { title: '', description: '', deliverable_type: 'other', due_date: '' };
+}
+
+function ReferralProposal({ referralId, tx, onProposalChanged }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [savedNote, setSavedNote] = useState('');
+  const [proposals, setProposals] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ title: '', scope_summary: '', price_dollars: '', deliverables: [emptyDeliverable()], exclusions: [''] });
+  const [saving, setSaving] = useState(false);
+  const [sendingId, setSendingId] = useState(null);
+  const [withdrawingId, setWithdrawingId] = useState(null);
+  const [confirmingWithdrawId, setConfirmingWithdrawId] = useState(null);
+
+  const inputClass = 'w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500';
+  const labelClass = 'mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500';
+
+  async function loadProposals() {
+    try {
+      setLoading(true);
+      setError('');
+      const { data } = await api.get(`/consulting/contractor/referrals/${referralId}/proposals`);
+      setProposals(data.proposals || []);
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantProposal.loadError', 'Failed to load proposals.'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (open) loadProposals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, referralId]);
+
+  const draft = proposals.find((proposal) => proposal.status === 'draft') || null;
+  const sent = proposals.find((proposal) => proposal.status === 'sent') || null;
+
+  function startNewDraft() {
+    setEditingId('new');
+    setForm({ title: '', scope_summary: '', price_dollars: '', deliverables: [emptyDeliverable()], exclusions: [''] });
+    setSavedNote('');
+    setError('');
+  }
+
+  function startEdit(proposal) {
+    setEditingId(proposal.id);
+    setForm({
+      title: proposal.title || '',
+      scope_summary: proposal.scope_summary || '',
+      price_dollars: proposal.price_cents === null || proposal.price_cents === undefined ? '' : String((proposal.price_cents / 100).toFixed(2)),
+      deliverables: (proposal.deliverables || []).map((item) => ({
+        title: item.title || '',
+        description: item.description || '',
+        deliverable_type: item.deliverable_type || 'other',
+        due_date: item.due_date ? String(item.due_date).slice(0, 10) : '',
+      })),
+      exclusions: (proposal.exclusions || []).map((item) => item.exclusion_text || ''),
+    });
+    setSavedNote('');
+    setError('');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setError('');
+  }
+
+  function formPayload() {
+    const price = form.price_dollars === '' ? null : Math.round(Number(form.price_dollars) * 100);
+    return {
+      title: form.title,
+      scope_summary: form.scope_summary,
+      price_cents: Number.isFinite(price) && price >= 0 ? price : form.price_dollars,
+      deliverables: form.deliverables
+        .filter((item) => item.title.trim() !== '')
+        .map((item) => ({
+          title: item.title,
+          description: item.description,
+          deliverable_type: item.deliverable_type,
+          due_date: item.due_date || null,
+        })),
+      exclusions: form.exclusions.filter((text) => text.trim() !== ''),
+    };
+  }
+
+  async function saveDraft() {
+    try {
+      setSaving(true);
+      setSavedNote('');
+      setError('');
+      const payload = formPayload();
+      let saved;
+      if (editingId === 'new') {
+        ({ data: saved } = await api.post(`/consulting/contractor/referrals/${referralId}/proposals`, payload));
+      } else {
+        ({ data: saved } = await api.put(`/consulting/contractor/referrals/${referralId}/proposals/${editingId}`, payload));
+      }
+      setEditingId(null);
+      setSavedNote(tx('consultantProposal.draftSaved', 'Draft saved.'));
+      await loadProposals();
+      return saved?.proposal;
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantProposal.saveError', 'Failed to save the draft.'));
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function sendProposal(proposalId) {
+    try {
+      setSendingId(proposalId);
+      setSavedNote('');
+      setError('');
+      await api.post(`/consulting/contractor/referrals/${referralId}/proposals/${proposalId}/send`);
+      setSavedNote(tx('consultantProposal.sent', 'Proposal sent to the client.'));
+      await loadProposals();
+      if (onProposalChanged) onProposalChanged();
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.message || tx('consultantProposal.saveError', 'Failed to save the draft.'));
+    } finally {
+      setSendingId(null);
+    }
+  }
+
+  async function withdrawProposal(proposalId) {
+    try {
+      setWithdrawingId(proposalId);
+      setSavedNote('');
+      setError('');
+      await api.post(`/consulting/contractor/referrals/${referralId}/proposals/${proposalId}/withdraw`);
+      setConfirmingWithdrawId(null);
+      setSavedNote(tx('consultantProposal.withdrawn', 'Proposal withdrawn.'));
+      await loadProposals();
+      if (onProposalChanged) onProposalChanged();
+    } catch (err) {
+      setError(err.response?.data?.error || tx('consultantProposal.saveError', 'Failed to save the draft.'));
+    } finally {
+      setWithdrawingId(null);
+    }
+  }
+
+  function statusBadge(status) {
+    const colors = {
+      draft: 'border-gray-700 bg-gray-900/70 text-gray-300',
+      sent: 'border-sky-500/30 bg-sky-500/10 text-sky-200',
+      approved: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+      rejected: 'border-red-500/30 bg-red-500/10 text-red-200',
+      withdrawn: 'border-gray-700 bg-gray-900/70 text-gray-400',
+      superseded: 'border-gray-700 bg-gray-900/70 text-gray-500',
+    };
+    return (
+      <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${colors[status] || colors.draft}`}>
+        {tx(`consultantProposal.status.${status}`, status.replace(/_/g, ' '))}
+      </span>
+    );
+  }
+
+  function updateDeliverable(index, patch) {
+    setForm((prev) => ({
+      ...prev,
+      deliverables: prev.deliverables.map((item, i) => (i === index ? { ...item, ...patch } : item)),
+    }));
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-gray-800 bg-gray-900/50 p-4">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between text-left text-sm font-semibold text-white"
+        aria-expanded={open} data-track="ui.c62ffb2364.22"
+      >
+        <span>{tx('consultantProposal.title', 'Engagement proposal')}</span>
+        <span className="text-xs font-normal text-gray-400">
+          {sent
+            ? tx('consultantProposal.sentVersion', 'Version {{version}} sent', { version: sent.version })
+            : draft
+              ? tx('consultantProposal.draftVersion', 'Draft version {{version}}', { version: draft.version })
+              : open
+                ? tx('consultantProposal.hide', 'Hide')
+                : tx('consultantProposal.show', 'Show')}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-4 space-y-5">
+          {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+          {savedNote && <p role="status" className="text-sm text-emerald-300">{savedNote}</p>}
+          {loading ? (
+            <p className="text-sm text-gray-400">{tx('consultantProposal.loading', 'Loading…')}</p>
+          ) : (
+            <>
+              {editingId !== null && (
+                <section>
+                  <h4 className="mb-3 text-sm font-semibold text-white">
+                    {editingId === 'new'
+                      ? tx('consultantProposal.newTitle', 'New proposal version')
+                      : tx('consultantProposal.editTitle', 'Edit draft')}
+                  </h4>
+                  <p className="mb-3 text-xs leading-5 text-gray-400">
+                    {tx('consultantProposal.formHint', 'A sent proposal cannot be edited. Send a new version instead; it supersedes the one the client already has.')}
+                  </p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className={labelClass} htmlFor={`${referralId}-proposal-title`}>{tx('consultantProposal.fieldTitle', 'Title')}</label>
+                      <input id={`${referralId}-proposal-title`} type="text" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} placeholder={tx('consultantProposal.titlePlaceholder', 'Business launch engagement')} />
+                    </div>
+                    <div>
+                      <label className={labelClass} htmlFor={`${referralId}-proposal-scope`}>{tx('consultantProposal.fieldScope', 'Scope summary')}</label>
+                      <textarea id={`${referralId}-proposal-scope`} value={form.scope_summary} onChange={(event) => setForm((prev) => ({ ...prev, scope_summary: event.target.value }))} className="min-h-[90px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm text-white outline-none transition focus:border-orange-500" placeholder={tx('consultantProposal.scopePlaceholder', 'What the engagement covers, in plain language.')} />
+                    </div>
+                    <div>
+                      <label className={labelClass} htmlFor={`${referralId}-proposal-price`}>{tx('consultantProposal.fieldPrice', 'Price (USD)')}</label>
+                      <input id={`${referralId}-proposal-price`} type="number" min="0" step="0.01" value={form.price_dollars} onChange={(event) => setForm((prev) => ({ ...prev, price_dollars: event.target.value }))} className={inputClass} placeholder="0.00" />
+                    </div>
+                    <div>
+                      <h5 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantProposal.deliverablesTitle', 'Deliverables')}</h5>
+                      <div className="space-y-3">
+                        {form.deliverables.map((item, index) => (
+                          <div key={index} className="rounded-2xl border border-gray-800 bg-gray-900/70 p-3">
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <input type="text" value={item.title} onChange={(event) => updateDeliverable(index, { title: event.target.value })} className={inputClass} placeholder={tx('consultantProposal.deliverableTitlePlaceholder', 'Deliverable title')} aria-label={tx('consultantProposal.deliverableTitlePlaceholder', 'Deliverable title')} />
+                              <select value={item.deliverable_type} onChange={(event) => updateDeliverable(index, { deliverable_type: event.target.value })} className={inputClass} aria-label={tx('consultantProposal.deliverableType', 'Type')}>
+                                {PROPOSAL_DELIVERABLE_TYPES.map((type) => (
+                                  <option key={type} value={type}>{tx(`consultantProposal.deliverableTypes.${type}`, type.replace(/_/g, ' '))}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <input type="date" value={item.due_date} onChange={(event) => updateDeliverable(index, { due_date: event.target.value })} className={`${inputClass} mt-2`} aria-label={tx('consultantProposal.deliverableDue', 'Due date')} />
+                            <textarea value={item.description} onChange={(event) => updateDeliverable(index, { description: event.target.value })} className="mt-2 min-h-[60px] w-full rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500" placeholder={tx('consultantProposal.deliverableDescriptionPlaceholder', 'What the client receives.')} aria-label={tx('consultantProposal.deliverableDescriptionPlaceholder', 'What the client receives.')} />
+                            {form.deliverables.length > 1 && (
+                              <button type="button" onClick={() => setForm((prev) => ({ ...prev, deliverables: prev.deliverables.filter((_, i) => i !== index) }))} className="mt-2 text-xs font-semibold text-red-300 hover:text-red-200" data-track="ui.c62ffb2364.23">
+                                {tx('consultantProposal.removeDeliverable', 'Remove deliverable')}
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <button type="button" onClick={() => setForm((prev) => ({ ...prev, deliverables: [...prev.deliverables, emptyDeliverable()] }))} className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-200 transition hover:bg-gray-800" data-track="ui.c62ffb2364.24">
+                        {tx('consultantProposal.addDeliverable', 'Add deliverable')}
+                      </button>
+                    </div>
+                    <div>
+                      <h5 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantProposal.exclusionsTitle', 'Scope exclusions')}</h5>
+                      <p className="mb-2 text-xs leading-5 text-gray-400">{tx('consultantProposal.exclusionsHint', 'Name what is not included, so the client never assumes it is.')}</p>
+                      <div className="space-y-2">
+                        {form.exclusions.map((text, index) => (
+                          <div key={index} className="flex gap-2">
+                            <input type="text" value={text} onChange={(event) => setForm((prev) => ({ ...prev, exclusions: prev.exclusions.map((entry, i) => (i === index ? event.target.value : entry)) }))} className={inputClass} placeholder={tx('consultantProposal.exclusionPlaceholder', 'Not included: …')} aria-label={tx('consultantProposal.exclusionPlaceholder', 'Not included: …')} />
+                            {form.exclusions.length > 1 && (
+                              <button type="button" onClick={() => setForm((prev) => ({ ...prev, exclusions: prev.exclusions.filter((_, i) => i !== index) }))} className="shrink-0 rounded-2xl border border-gray-700 px-3 text-sm font-semibold text-gray-300 hover:bg-gray-800" aria-label={tx('consultantProposal.removeExclusion', 'Remove exclusion')} data-track="ui.c62ffb2364.25">×</button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <button type="button" onClick={() => setForm((prev) => ({ ...prev, exclusions: [...prev.exclusions, ''] }))} className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-200 transition hover:bg-gray-800" data-track="ui.c62ffb2364.26">
+                        {tx('consultantProposal.addExclusion', 'Add exclusion')}
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={saveDraft} disabled={saving} className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50" data-track="ui.c62ffb2364.27">
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        {tx('consultantProposal.saveDraft', 'Save draft')}
+                      </button>
+                      <button type="button" onClick={cancelEdit} className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-300 transition hover:bg-gray-800" data-track="ui.c62ffb2364.28">
+                        {tx('consultantProposal.cancelEdit', 'Cancel')}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {editingId === null && !draft && (
+                <button type="button" onClick={startNewDraft} className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600" data-track="ui.c62ffb2364.29">
+                  {tx('consultantProposal.newVersion', 'Draft a new proposal version')}
+                </button>
+              )}
+
+              <section>
+                <h4 className="mb-3 text-sm font-semibold text-white">{tx('consultantProposal.historyTitle', 'Version history')}</h4>
+                {proposals.length ? (
+                  <ul className="space-y-2">
+                    {proposals.map((proposal) => (
+                      <li key={proposal.id} className="rounded-xl border border-gray-800 bg-gray-900/70 px-3 py-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <button type="button" onClick={() => setExpandedId((prev) => (prev === proposal.id ? null : proposal.id))} className="text-left text-sm font-semibold text-white" aria-expanded={expandedId === proposal.id} data-track="ui.c62ffb2364.35">
+                            {tx('consultantProposal.versionLabel', 'Version {{version}}', { version: proposal.version })} • {proposal.title}
+                          </button>
+                          <span className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-white">{centsToCurrency(proposal.price_cents)}</span>
+                            {statusBadge(proposal.status)}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {tx('consultantProposal.versionMeta', '{{count}} deliverables', { count: (proposal.deliverables || []).length })}
+                          {' • '}{new Date(proposal.created_at).toLocaleString()}
+                          {proposal.decided_at ? ` • ${tx('consultantProposal.decidedOn', 'decided {{date}}', { date: new Date(proposal.decided_at).toLocaleDateString() })}` : ''}
+                        </p>
+                        {proposal.decision_reason && (
+                          <p className="mt-1 text-xs leading-5 text-gray-400">{proposal.decision_reason}</p>
+                        )}
+                        {expandedId === proposal.id && (
+                          <div className="mt-3 space-y-3 border-t border-gray-800 pt-3">
+                            {proposal.scope_summary && (
+                              <p className="whitespace-pre-wrap text-sm leading-6 text-gray-300">{proposal.scope_summary}</p>
+                            )}
+                            {(proposal.deliverables || []).length > 0 && (
+                              <div>
+                                <h5 className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantProposal.deliverablesTitle', 'Deliverables')}</h5>
+                                <ul className="list-disc space-y-1 pl-5 text-sm text-gray-300">
+                                  {(proposal.deliverables || []).map((item) => (
+                                    <li key={item.id}>
+                                      {item.title}
+                                      {item.due_date ? ` • ${tx('consultantProposal.dueLabel', 'due {{date}}', { date: String(item.due_date).slice(0, 10) })}` : ''}
+                                      {item.description ? <span className="block text-xs text-gray-500">{item.description}</span> : null}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {(proposal.exclusions || []).length > 0 && (
+                              <div>
+                                <h5 className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantProposal.exclusionsTitle', 'Scope exclusions')}</h5>
+                                <ul className="list-disc space-y-1 pl-5 text-sm text-gray-300">
+                                  {(proposal.exclusions || []).map((item) => (
+                                    <li key={item.id}>{item.exclusion_text}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {proposal.status === 'draft' && (
+                              <div className="flex flex-wrap gap-2">
+                                <button type="button" onClick={() => startEdit(proposal)} className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-200 transition hover:bg-gray-800" data-track="ui.c62ffb2364.30">
+                                  {tx('consultantProposal.editDraft', 'Edit draft')}
+                                </button>
+                                <button type="button" onClick={() => sendProposal(proposal.id)} disabled={sendingId === proposal.id} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50" data-track="ui.c62ffb2364.31">
+                                  {sendingId === proposal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                  {tx('consultantProposal.send', 'Send to client')}
+                                </button>
+                              </div>
+                            )}
+                            {proposal.status === 'sent' && (
+                              <div className="flex flex-wrap gap-2">
+                                {confirmingWithdrawId === proposal.id ? (
+                                  <>
+                                    <button type="button" onClick={() => withdrawProposal(proposal.id)} disabled={withdrawingId === proposal.id} className="inline-flex items-center gap-2 rounded-2xl bg-red-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-50" data-track="ui.c62ffb2364.32">
+                                      {withdrawingId === proposal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                      {tx('consultantProposal.confirmWithdraw', 'Withdraw this proposal')}
+                                    </button>
+                                    <button type="button" onClick={() => setConfirmingWithdrawId(null)} className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-300 transition hover:bg-gray-800" data-track="ui.c62ffb2364.33">
+                                      {tx('consultantProposal.keepProposal', 'Keep it sent')}
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button type="button" onClick={() => setConfirmingWithdrawId(proposal.id)} className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-300 transition hover:bg-gray-800" data-track="ui.c62ffb2364.34">
+                                    {tx('consultantProposal.withdraw', 'Withdraw')}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500">{tx('consultantProposal.historyEmpty', 'No proposals yet. Draft the first version to put the engagement in writing.')}</p>
+                )}
+              </section>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Group 10 Slice E (526-530): start the engagement from an engaged
+// referral. The approved proposal seeds the milestone board; a second
+// start 409s with session_exists and the card shows the started state.
+function EngagementStart({ referral, tx, onProposalChanged }) {
+  const [starting, setStarting] = useState(false);
+  const [started, setStarted] = useState(false);
+  const [error, setError] = useState('');
+  if (referral.consultant_assignment_status !== 'engaged') return null;
+  const start = async () => {
+    try {
+      setStarting(true);
+      setError('');
+      await deliverablesApi.startEngagement(referral.id);
+      setStarted(true);
+      if (onProposalChanged) await onProposalChanged();
+    } catch (err) {
+      if (err.response?.data?.code === 'session_exists') {
+        setStarted(true);
+      } else {
+        setError(err.response?.data?.error || tx('consultantDeliverable.startError', 'Could not start the engagement.'));
+      }
+    } finally {
+      setStarting(false);
+    }
+  };
+  return (
+    <div className="mt-5 rounded-2xl border border-gray-800 bg-[#111318] p-4">
+      <h4 className="text-sm font-semibold text-white">{tx('consultantDeliverable.startTitle', 'Start the engagement')}</h4>
+      <p className="mt-1 text-xs leading-5 text-gray-400">
+        {tx('consultantDeliverable.startDescription', 'Creates the working session and seeds the milestone board from the approved proposal.')}
+      </p>
+      {error && <p role="alert" className="mt-2 text-xs text-red-300">{error}</p>}
+      {started ? (
+        <p className="mt-3 text-sm font-semibold text-emerald-300">{tx('consultantDeliverable.started', 'Engagement started. The milestones are on your board below.')}</p>
+      ) : (
+        <button
+          type="button"
+          onClick={start}
+          disabled={starting}
+          className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+          data-track="ui.c62ffb2364.36"
+        >
+          {starting
+            ? tx('consultantDeliverable.starting', 'Starting…')
+            : tx('consultantDeliverable.startButton', 'Start engagement')}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId, onProposalChanged }) {
   const [draft, setDraft] = useState({
     consultant_assignment_status: referral.consultant_assignment_status || 'assigned',
     consultant_status_notes: referral.consultant_status_notes || '',
     consultant_follow_up_at: referral.consultant_follow_up_at ? referral.consultant_follow_up_at.slice(0, 16) : '',
   });
+  // Group 10 Slice B (514, D-106): declining is a deliberate refusal, so
+  // the button asks once more before it fires.
+  const [confirmingDecline, setConfirmingDecline] = useState(false);
 
   useEffect(() => {
     setDraft({
@@ -328,7 +1194,52 @@ function ReferralCard({ referral, onSave, savingId, payingAllowed, tx, userId })
         {tx('consultantContractorDashboard.referral.targetMarketLabel', 'Target market')}: {referral.target_market || tx('consultantContractorDashboard.referral.targetMarketMissing', 'Not provided')}<br />
       </div>
 
+      {/* Group 10 Slice B (514, D-106): accept moves the referral to
+          intro_pending; decline is only offered while it is unaccepted. */}
+      {referral.consultant_assignment_status === 'assigned' && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onSave(referral.id, { ...draft, consultant_assignment_status: 'intro_pending' })}
+            disabled={savingId === referral.id}
+            className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50" data-track="ui.c62ffb2364.19"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {tx('consultantContractorDashboard.referral.acceptButton', 'Accept referral')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (confirmingDecline) {
+                setConfirmingDecline(false);
+                onSave(referral.id, { ...draft, consultant_assignment_status: 'declined' });
+              } else {
+                setConfirmingDecline(true);
+              }
+            }}
+            disabled={savingId === referral.id}
+            className="inline-flex items-center gap-2 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50" data-track="ui.c62ffb2364.20"
+          >
+            {confirmingDecline
+              ? tx('consultantContractorDashboard.referral.confirmDeclineButton', 'Click again to decline')
+              : tx('consultantContractorDashboard.referral.declineButton', 'Decline referral')}
+          </button>
+          {confirmingDecline && (
+            <button
+              type="button"
+              onClick={() => setConfirmingDecline(false)}
+              className="inline-flex items-center gap-2 rounded-2xl border border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-gray-800" data-track="ui.c62ffb2364.21"
+            >
+              {tx('consultantContractorDashboard.referral.cancelDeclineButton', 'Keep referral')}
+            </button>
+          )}
+        </div>
+      )}
+
       <ReferralAttachments referral={referral} userId={userId} tx={tx} />
+      <ReferralScreening referralId={referral.id} tx={tx} />
+      <ReferralProposal referralId={referral.id} tx={tx} onProposalChanged={onProposalChanged} />
+      <EngagementStart referral={referral} tx={tx} onProposalChanged={onProposalChanged} />
     </article>
   );
 }
@@ -438,9 +1349,21 @@ export default function ConsultantContractorDashboard() {
 
   const summary = dashboard?.summary || {};
   const referrals = dashboard?.referrals || [];
+  const payouts = dashboard?.payouts || [];
+  const paidPayoutsCents = useMemo(
+    () => payouts.filter((payout) => payout.status === 'paid').reduce((sum, payout) => sum + (Number(payout.amount_cents) || 0), 0),
+    [payouts]
+  );
   const payingReferralAccess = dashboard?.payingReferralAccess;
   const profile = dashboard?.profile || {};
   const hasCoverage = (profile.coverage_countries || []).length > 0;
+  const READINESS_LABELS = {
+    profile_complete: 'consultantContractorDashboard.readiness.items.profileComplete',
+    specialties_declared: 'consultantContractorDashboard.readiness.items.specialtiesDeclared',
+    availability_set: 'consultantContractorDashboard.readiness.items.availabilitySet',
+    pricing_set: 'consultantContractorDashboard.readiness.items.pricingSet',
+    profile_approved: 'consultantContractorDashboard.readiness.items.profileApproved',
+  };
 
   const referralPipelineCount = useMemo(
     () => referrals.filter((referral) => !['lost', 'completed'].includes(referral.consultant_assignment_status)).length,
@@ -522,6 +1445,43 @@ export default function ConsultantContractorDashboard() {
               hint={tx('consultantContractorDashboard.summary.coveredCountriesHint', 'Markets where you are currently available for local or virtual referrals.')}
             />
           </section>
+
+          {/* Group 10 item 505: engagement readiness checklist, computed
+              server-side. Item 504: the approval state is shown here too. */}
+          {dashboard?.readiness && (
+            <section className="mt-6 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('consultantContractorDashboard.readiness.label')}</p>
+                  <h2 className="text-2xl font-semibold text-white">{t('consultantContractorDashboard.readiness.title')}</h2>
+                </div>
+                <span className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] ${dashboard.readiness.ready ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/25 bg-amber-500/10 text-amber-200'}`}>
+                  {dashboard.readiness.ready ? t('consultantContractorDashboard.readiness.ready') : t('consultantContractorDashboard.readiness.notReady')}
+                </span>
+              </div>
+              {profile.approval_status === 'pending' && (
+                <p role="status" className="mb-4 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                  {t('consultantContractorDashboard.readiness.pendingApproval')}
+                </p>
+              )}
+              {profile.approval_status === 'declined' && (
+                <p role="status" className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  {t('consultantContractorDashboard.readiness.declined', { note: profile.approval_note || '' })}
+                </p>
+              )}
+              <ul className="grid gap-2 md:grid-cols-2">
+                {dashboard.readiness.items.map((item) => (
+                  <li key={item.key} className="flex items-center gap-3 rounded-2xl border border-gray-800 bg-[#111318] px-4 py-3 text-sm text-white">
+                    {item.met
+                      ? <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
+                      : <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-600 text-xs text-gray-400">•</span>}
+                    <span>{t(READINESS_LABELS[item.key] || 'consultantContractorDashboard.readiness.items.profileComplete')}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-gray-500">{t('consultantContractorDashboard.readiness.hint')}</p>
+            </section>
+          )}
 
           <div className="mt-6 grid gap-5 xl:grid-cols-[1.05fr_1.35fr]">
             <section className="rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
@@ -610,6 +1570,21 @@ export default function ConsultantContractorDashboard() {
                   {tx('consultantContractorDashboard.actions.manageAvailability', 'Manage availability')}
                 </a>
               </div>
+
+              {/* Group 10 item 510: the consultant's own pricing summary. */}
+              {dashboard?.pricingSummary && (
+                <div className="mt-5 rounded-2xl border border-gray-800 bg-[#111318] p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{t('consultantContractorDashboard.pricing.label')}</p>
+                  <p className="mt-2 text-sm text-gray-200">{t('consultantContractorDashboard.pricing.minimum', { amount: centsToFriendly(dashboard.pricingSummary.minimum_package_price_cents) })}</p>
+                  <p className="mt-1 text-sm text-gray-400">{t('consultantContractorDashboard.pricing.cut', { percent: ((dashboard.pricingSummary.default_oxsteed_cut_bps || 0) / 100).toFixed(2) })}</p>
+                  <p className="mt-1 text-sm text-gray-400">{t('consultantContractorDashboard.pricing.limit', { count: dashboard.pricingSummary.active_referral_limit })}</p>
+                  {profile.approval_status === 'approved' && user?.id && (
+                    <a href={`/consultants/${user.id}`} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-orange-300 hover:text-orange-200" data-track="ui.c62ffb2364.11">
+                      {t('consultantContractorDashboard.pricing.viewPublic')}
+                    </a>
+                  )}
+                </div>
+              )}
             </section>
 
             <section className="rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
@@ -649,6 +1624,7 @@ export default function ConsultantContractorDashboard() {
                       payingAllowed={payingReferralAccess?.allowed !== false}
                       tx={tx}
                       userId={user?.id}
+                      onProposalChanged={loadDashboard}
                     />
                   ))}
                 </div>
@@ -665,6 +1641,149 @@ export default function ConsultantContractorDashboard() {
               )}
             </section>
           </div>
+
+          {/* Group 10 Slice C (518-520): the consultant's appointments:
+              reschedule proposals, attendance, and cancellation. */}
+          <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/80">
+                <CalendarClock className="h-5 w-5 text-gray-300" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('consultantContractorDashboard.sessions.label')}</p>
+                <h2 className="text-2xl font-semibold text-white">{t('consultantContractorDashboard.sessions.title')}</h2>
+              </div>
+            </div>
+            <p className="mb-4 text-sm leading-6 text-gray-400">{t('consultantContractorDashboard.sessions.description')}</p>
+            <ConsultantSessionsSection />
+          </section>
+
+          {/* Group 10 Slice E (526-530): the milestone board. Engagements
+              started from approved proposals, with deliverable status,
+              draft delivery, and document exchange. */}
+          <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/80">
+                <ClipboardList className="h-5 w-5 text-gray-300" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('consultantContractorDashboard.engagements.label')}</p>
+                <h2 className="text-2xl font-semibold text-white">{t('consultantContractorDashboard.engagements.title')}</h2>
+              </div>
+            </div>
+            <p className="mb-4 text-sm leading-6 text-gray-400">{t('consultantContractorDashboard.engagements.description')}</p>
+            <ConsultantEngagementsSection />
+          </section>
+
+          {/* Group 10 Slice I (546-550): operate the practice. The
+              inquiry pipeline report, availability utilization,
+              outstanding deliverables view, permitted earnings report,
+              and practice support intake. */}
+          <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/80">
+                <TrendingUp className="h-5 w-5 text-gray-300" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('consultantPractice.label')}</p>
+                <h2 className="text-2xl font-semibold text-white">{t('consultantPractice.title')}</h2>
+              </div>
+            </div>
+            <p className="mb-4 text-sm leading-6 text-gray-400">{t('consultantPractice.description')}</p>
+            <ConsultantPracticeSection />
+          </section>
+
+          {/* Group 10 item 509: portfolio manager. */}
+          <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/80">
+                <Briefcase className="h-5 w-5 text-gray-300" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{t('consultantContractorDashboard.portfolio.label')}</p>
+                <h2 className="text-2xl font-semibold text-white">{t('consultantContractorDashboard.portfolio.title')}</h2>
+              </div>
+            </div>
+            <p className="mb-4 text-sm leading-6 text-gray-400">{t('consultantContractorDashboard.portfolio.description')}</p>
+            <PortfolioManager />
+          </section>
+
+          {/* G10-1: consultant payout status. Paid automatically in OxSteed
+              Credit when an engagement completes; a payout that cannot move
+              yet (rail off, legal clearance missing, or a failed attempt)
+              stays visible here with its reason until it clears. */}
+          <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{tx('consultantContractorDashboard.payouts.label', 'Payouts')}</p>
+                <h2 className="text-2xl font-semibold text-white">{tx('consultantContractorDashboard.payouts.title', 'Consulting payouts in OxSteed Credit')}</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
+                  {tx('consultantContractorDashboard.payouts.description', 'When an engagement completes, your share is paid automatically in OxSteed Credit. A payout that cannot move yet stays visible here with its reason until it clears.')}
+                </p>
+              </div>
+              <div className="shrink-0 rounded-2xl border border-gray-800 bg-gray-900/75 px-4 py-3 text-right">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantContractorDashboard.payouts.paidTotal', 'Paid to date')}</p>
+                <p className="mt-1 text-xl font-semibold text-white">{loading ? '...' : centsToCurrency(paidPayoutsCents)}</p>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="rounded-2xl border border-dashed border-gray-700 bg-[#111318] px-4 py-10 text-center text-sm text-gray-400">
+                {tx('consultantContractorDashboard.payouts.loading', 'Loading payouts…')}
+              </div>
+            ) : payouts.length ? (
+              <div className="space-y-3">
+                {payouts.map((payout) => (
+                  <div key={payout.id} className="rounded-[24px] border border-gray-800 bg-[#111318] p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {payout.business_name || payout.client_name || tx('consultantContractorDashboard.payouts.unknownEngagement', 'Business-launch engagement')}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-400">
+                          {payout.package_selected ? `${payout.package_selected} · ` : ''}
+                          {payout.paid_at
+                            ? new Date(payout.paid_at).toLocaleDateString()
+                            : new Date(payout.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-semibold text-white">{centsToCurrency(payout.amount_cents)}</p>
+                        <span className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                          payout.status === 'paid'
+                            ? 'border-green-500/30 bg-green-500/10 text-green-200'
+                            : payout.status === 'parked'
+                              ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+                              : payout.status === 'failed'
+                                ? 'border-red-500/30 bg-red-500/10 text-red-200'
+                                : 'border-gray-600 bg-gray-800/80 text-gray-300'
+                        }`}>
+                          {tx(...(PAYOUT_STATUS_LABELS[payout.status] || PAYOUT_STATUS_LABELS.pending))}
+                        </span>
+                      </div>
+                    </div>
+                    {(payout.status === 'parked' || payout.status === 'failed') && payout.reason_detail && (
+                      <p className="mt-3 text-sm leading-6 text-amber-100/90">{payout.reason_detail}</p>
+                    )}
+                    {payout.status === 'pending' && (
+                      <p className="mt-3 text-sm leading-6 text-gray-400">
+                        {tx('consultantContractorDashboard.payouts.pendingNote', 'Payment is being processed.')}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-[26px] border border-dashed border-gray-700 bg-[#111318] px-5 py-10 text-center">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl border border-gray-800 bg-gray-900/80">
+                  <Wallet className="h-6 w-6 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">{tx('consultantContractorDashboard.payouts.emptyTitle', 'No payouts yet')}</h3>
+                <p className="mt-2 text-sm leading-6 text-gray-400">
+                  {tx('consultantContractorDashboard.payouts.emptyDescription', 'Completed engagements pay out here automatically in OxSteed Credit.')}
+                </p>
+              </div>
+            )}          </section>
 
           <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
             <div className="mb-5 flex items-center gap-3">

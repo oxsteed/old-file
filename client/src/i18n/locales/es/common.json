@@ -6735,6 +6735,8 @@
       "areasOfExpertise": "Áreas de especialidad",
       "bio": "Biografía profesional",
       "sampleWorkUrl": "Enlace a un trabajo de muestra",
+      "qualifications": "Cualificaciones",
+      "credentials": "Credenciales",
       "yearsExperience": "Años de experiencia",
       "area": {
         "country": "Código de país (2 letras)",

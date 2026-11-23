@@ -5,6 +5,10 @@ const { sendEmail } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { logAdminAction } = require('../services/auditService');
 const { csvRow } = require('../utils/csv');
+// Group 10 item 520: completing a session whose scheduled start is still
+// in the future is refused; the start instant is computed in the row's
+// stored zone.
+const { sessionStartInstant } = require('../utils/consultingTimezone');
 
 const VALID_CONSULTING_STATUSES = ['pending', 'contacted', 'scheduled', 'in_progress', 'completed', 'cancelled', 'archived'];
 
@@ -348,7 +352,7 @@ exports.updateSessionDetails = async (req, res) => {
   try {
     // Verify session exists
     const sessionCheck = await db.query(
-      'SELECT id FROM consulting_sessions WHERE id = $1',
+      'SELECT id, status FROM consulting_sessions WHERE id = $1',
       [id]
     );
 
@@ -365,6 +369,27 @@ exports.updateSessionDetails = async (req, res) => {
       updates.push(`status = $${paramIndex}`);
       values.push(status);
       paramIndex++;
+      // Group 10 item 545: archiving from the admin status dropdown
+      // stamps the same bookkeeping as the archive endpoint (the
+      // item-519 cancelled mirror), so the two paths cannot diverge.
+      // Leaving 'archived' clears it. The dropdown is an admin
+      // override and does not enforce the closeout gate; the
+      // canonical archive path is the archive endpoint.
+      const currentStatus = sessionCheck.rows[0].status;
+      if (status === 'archived' && currentStatus !== 'archived') {
+        updates.push(`archived_at = NOW()`);
+        updates.push(`archived_by = $${paramIndex}`);
+        values.push(req.user.id);
+        paramIndex++;
+        updates.push(`status_before_archive = $${paramIndex}`);
+        values.push(currentStatus);
+        paramIndex++;
+      }
+      if (status !== 'archived' && currentStatus === 'archived') {
+        updates.push(`archived_at = NULL`);
+        updates.push(`archived_by = NULL`);
+        updates.push(`status_before_archive = NULL`);
+      }
     }
 
     if (consultant_assigned_id !== undefined) {
@@ -428,6 +453,20 @@ exports.updateSessionDetails = async (req, res) => {
 
     const result = await db.query(query, values);
 
+    // Group 10 item 519: cancelling from the admin status dropdown must
+    // move the scheduled row too, or the portal keeps showing a phantom
+    // confirmed booking (audit G10-4). The dedicated cancel endpoint
+    // records the reason and refund request; this mirror keeps the two
+    // statuses from diverging when an admin uses the dropdown instead.
+    if (status === 'cancelled') {
+      await db.query(
+        `UPDATE consulting_sessions_scheduled
+            SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
+          WHERE session_id = $1 AND status IN ('pending_confirmation', 'confirmed')`,
+        [id],
+      );
+    }
+
     logger.info('Consulting session updated', {
       adminId: req.user?.id,
       sessionId: id,
@@ -459,6 +498,33 @@ exports.completeSession = async (req, res) => {
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Group 10 item 535: a paused engagement cannot be completed without
+    // resuming first; resume restores the pre-pause status.
+    if (existing.rows[0].status === 'paused') {
+      return res.status(409).json({ error: 'engagement_paused', message: 'The engagement is paused. Resume it before completing.' });
+    }
+
+    // Group 10 item 520: an admin cannot complete a session whose
+    // scheduled start is still in the future. A session with no scheduled
+    // row keeps the previous behavior, and the pending_confirmation
+    // sentinel (1970-01-01) is always in the past, so it never blocks.
+    const scheduled = await db.query(
+      `SELECT scheduled_date, scheduled_time, timezone, status
+         FROM consulting_sessions_scheduled WHERE session_id = $1`,
+      [sessionId],
+    );
+    if (scheduled.rows.length > 0 && scheduled.rows[0].status === 'confirmed') {
+      const row = scheduled.rows[0];
+      const start = sessionStartInstant(
+        row.scheduled_date instanceof Date ? row.scheduled_date.toISOString().slice(0, 10) : row.scheduled_date,
+        row.scheduled_time,
+        row.timezone,
+      );
+      if (start > new Date()) {
+        return res.status(409).json({ error: 'session_not_started', message: 'The session has not started yet.' });
+      }
     }
 
     // Mark session as completed
@@ -509,6 +575,12 @@ exports.markNoShow = async (req, res) => {
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Group 10 item 535: a paused engagement cannot be marked no-show
+    // without resuming first.
+    if (existing.rows[0].status === 'paused') {
+      return res.status(409).json({ error: 'engagement_paused', message: 'The engagement is paused. Resume it before marking a no-show.' });
     }
 
     // Mark session as no-show

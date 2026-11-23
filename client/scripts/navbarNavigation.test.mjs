@@ -187,10 +187,11 @@ test('business switcher renders translated organization roles in every locale', 
   }
 });
 
-test('mobile QR entry uses the same helper projection gate as desktop', async () => {
+test('network and resource launchers stay out of the navbar', async () => {
   const navbar = await readFile(new URL('../src/components/Navbar.jsx', import.meta.url), 'utf8');
-  assert.match(navbar, /hasHelperAccess && canUseQrGenerator\(user\) && <MobileNavLink to="\/qr-generator"/);
-  assert.match(navbar, /\{hasHelperAccess && \(/);
+  assert.doesNotMatch(navbar, /OxSteedNetworkSwitcher/);
+  assert.doesNotMatch(navbar, /nav-resources-menu/);
+  assert.doesNotMatch(navbar, /\/qr-generator/);
 });
 
 // OxSteed Invest: one unified workspace entry comes from the access

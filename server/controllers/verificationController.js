@@ -11,6 +11,7 @@ const { sendEmail } = require('../utils/email');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { tNotif } = require('../utils/i18n');
+const { isIdentityVerified } = require('../services/helperOnboarding');
 
 const CHECKR_API = 'https://api.checkr.com/v1';
 
@@ -420,13 +421,36 @@ exports.identityWebhook = async (req, res, next) => {
 };
 
 // Get identity verification status
+// Item 153: the status is derived from the same facts activation.js uses
+// (legacy id_verified / identity_verified columns, or a verified Didit
+// check), not from the Stripe identity_verifications table alone, so a
+// Didit-verified helper no longer reads as unverified here. The Stripe
+// row is still returned as `identity` for its detail (name, error).
 exports.getIdentityStatus = async (req, res, next) => {
   try {
-    const { rows } = await db.query(
-      `SELECT status, verified_name, last_error, created_at FROM identity_verifications
-       WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`, [req.user.id]
-    );
-    res.json({ identity: rows[0] || null });
+    const [{ rows: stripeRows }, { rows: userRows }] = await Promise.all([
+      db.query(
+        `SELECT status, verified_name, last_error, created_at FROM identity_verifications
+         WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`, [req.user.id]
+      ),
+      db.query(
+        `SELECT id_verified, identity_verified, didit_status FROM users WHERE id = $1`,
+        [req.user.id]
+      ),
+    ]);
+    const stripe = stripeRows[0] || null;
+    const user = userRows[0] || {};
+    const verified = isIdentityVerified(user);
+    const diditStatus = String(user.didit_status || '').toLowerCase();
+    const source = stripe && stripe.status === 'verified'
+      ? 'stripe'
+      : diditStatus === 'verified'
+        ? 'didit'
+        : (user.id_verified || user.identity_verified)
+          ? 'legacy'
+          : null;
+    const submitted = verified || ['pending', 'in_review'].includes(diditStatus);
+    res.json({ identity: stripe, verified, submitted, source, didit_status: user.didit_status || null });
   } catch (err) {
     next(err);
   }

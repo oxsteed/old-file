@@ -73,6 +73,11 @@ export default function EditProfileTab() {
     profile_headline: '', bio_long: '', hourly_rate_min: '', hourly_rate_max: '',
     service_radius_miles: 10, service_city: '', service_state: '',
     is_available_now: false,
+    // Item 159: qualifications ride the core save.
+    is_licensed: false,
+    is_insured: false,
+    license_details: [],
+    insurance_details: [],
   });
   // True weekly schedule lives in the ONE availability system (helper_availability
   // + availability_blocks); the editor below owns it and reports back here.
@@ -81,6 +86,10 @@ export default function EditProfileTab() {
   const [faqs,      setFaqs]      = useState([]);
   const [policies,  setPolicies]  = useState([]);
   const [gallery,   setGallery]   = useState([]);
+  // Item 156: skills the helper offers (writes helper_skills).
+  const [skills, setSkills] = useState([]);
+  const [skillCategories, setSkillCategories] = useState([]);
+  const [newSkill, setNewSkill] = useState({ category_id: '', skill_name: '', years_exp: '' });
   const [failedImages, setFailedImages] = useState({});
 
   const [newSvc, setNewSvc] = useState({ name:'', description:'', price:'', price_unit:'flat', duration:'', category:'General', popular:false });
@@ -117,6 +126,11 @@ export default function EditProfileTab() {
           service_city:         d.service_city          || '',
           service_state:        d.service_state         || '',
           is_available_now:     !!d.is_available_now,
+          // Item 159: /me now returns the stored qualification fields.
+          is_licensed:          !!d.is_licensed,
+          is_insured:           !!d.is_insured,
+          license_details:      Array.isArray(d.license_details) ? d.license_details : [],
+          insurance_details:    Array.isArray(d.insurance_details) ? d.insurance_details : [],
         };
         setCore(nextCore);
         coreBaselineRef.current = serializeHelperCore(nextCore);
@@ -139,6 +153,13 @@ export default function EditProfileTab() {
       })
       .catch(() => toast.error(t('helperDashboard.failedLoadProfile')))
       .finally(() => setLoading(false));
+    // Item 156: skills and their categories load alongside the profile.
+    api.get('/helper-profile/skills')
+      .then(r => setSkills(Array.isArray(r.data) ? r.data : []))
+      .catch(() => {});
+    api.get('/helper-profile/skills/categories')
+      .then(r => setSkillCategories(Array.isArray(r.data) ? r.data : []))
+      .catch(() => {});
   }, [t]);
 
   const coreDirty = isHelperCoreDirty(core, coreBaselineRef.current);
@@ -268,6 +289,37 @@ export default function EditProfileTab() {
     } catch {
       toast.error(t('helperDashboard.failedUpdateService'));
     }
+  };
+
+  // ── Skills (item 156) ─────────────────────────────────────────────────────
+  const addSkill = async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api.post('/helper-profile/skills', {
+        category_id: newSkill.category_id,
+        skill_name: newSkill.skill_name,
+        years_exp: newSkill.years_exp === '' ? null : Number(newSkill.years_exp),
+      });
+      setSkills(p => [...p, r.data]);
+      setNewSkill({ category_id: '', skill_name: '', years_exp: '' });
+      markSaved();
+      toast.success(t('helperDashboard.skillAdded'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('helperDashboard.skillAddFailed'));
+    }
+  };
+  const deleteSkill = (id) => {
+    const snapshot = skills;
+    scheduleUndo({
+      key: `helper-skill-${id}`,
+      message: t('undoToast.skillRemoved'),
+      undoLabel: t('undoToast.undo', { defaultValue: 'Undo' }),
+      onOptimistic: () => setSkills((p) => p.filter((s) => s.id !== id)),
+      onRestore: () => setSkills(snapshot),
+      onFinalize: () => api.delete(`/helper-profile/skills/${id}`),
+      onFinalized: () => markSaved(),
+      onError: () => toast.error(t('helperDashboard.failedDelete')),
+    });
   };
 
   // ── FAQs ────────────────────────────────────────────────────────────────────
@@ -464,17 +516,21 @@ export default function EditProfileTab() {
     coverImageUrl,
     core,
     servicesCount: services.length,
+    skillsCount: skills.length,
+    qualifications: core.is_licensed || core.is_insured || (core.license_details || []).length > 0 || (core.insurance_details || []).length > 0,
     faqsCount: faqs.length,
     policiesCount: policies.length,
     galleryCount: gallery.length,
     hasSchedule,
-  }), [coverImageUrl, core, services.length, faqs.length, policies.length, gallery.length, hasSchedule]);
+  }), [coverImageUrl, core, services.length, skills.length, faqs.length, policies.length, gallery.length, hasSchedule]);
 
   const SECTIONS = useMemo(() => applySectionCompleteness([
     { id: 'cover',      label: t('profileStudio.sectionCover') },
     { id: 'basics',     label: t('helperDashboard.sectionBasicInfo') },
+    { id: 'qualifications', label: t('profileStudio.sectionQualifications') },
     { id: 'hours',      label: t('helperDashboard.sectionAvailability') },
     { id: 'services',   label: t('helperDashboard.sectionServices') },
+    { id: 'skills',     label: t('profileStudio.sectionSkills') },
     { id: 'faqs',       label: t('helperDashboard.sectionFaqs') },
     { id: 'policies',   label: t('helperDashboard.sectionPolicies') },
     { id: 'gallery',    label: t('helperDashboard.sectionPhotos') },
@@ -485,8 +541,10 @@ export default function EditProfileTab() {
   const panelHints = {
     cover: t('helperDashboard.profileCoverHint'),
     basics: t('profileStudio.hintBasics'),
+    qualifications: t('profileStudio.hintQualifications'),
     hours: t('helperDashboard.hoursHint'),
     services: t('profileStudio.hintServices'),
+    skills: t('profileStudio.hintSkills'),
     faqs: t('profileStudio.hintFaqs'),
     policies: t('profileStudio.hintPolicies'),
     gallery: t('helperDashboard.photosHint'),
@@ -568,6 +626,16 @@ export default function EditProfileTab() {
 
   let sectionBody = null;
 
+  // Item 159: license/insurance list editors. The lists ride `core` and
+  // save through the same PUT /helper-profile/core as the basics section.
+  const updateDetailItem = (field, index, patch) => setCore((c) => {
+    const list = [...(c[field] || [])];
+    list[index] = { ...(list[index] || {}), ...patch };
+    return { ...c, [field]: list };
+  });
+  const addDetailItem = (field) => setCore((c) => ({ ...c, [field]: [...(c[field] || []), { name: '' }] }));
+  const removeDetailItem = (field, index) => setCore((c) => ({ ...c, [field]: (c[field] || []).filter((_, i) => i !== index) }));
+
   if (section === 'cover') {
     sectionBody = (
       <CoverImageUpload
@@ -625,6 +693,62 @@ export default function EditProfileTab() {
             className="accent-orange-500" data-track="ui.c78adb519b.3" />
           <label htmlFor="avail-now" className="text-sm text-gray-300">{t('helperDashboard.availableNow')}</label>
         </div>
+      </form>
+    );
+  } else if (section === 'qualifications') {
+    // Item 159: licenses and insurance. The toggles say whether the helper
+    // holds them; the lists carry the detail customers see on the profile.
+    // Everything here saves through saveCore (PUT /helper-profile/core).
+    const renderDetailList = (field, titleKey, emptyKey, addKey) => (
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t(titleKey)}</p>
+        {(core[field] || []).length === 0 && <p className="text-gray-600 text-sm mb-2">{t(emptyKey)}</p>}
+        <div className="space-y-2 mb-3">
+          {(core[field] || []).map((item, i) => (
+            <div key={i} className="p-3 bg-gray-800 rounded-xl border border-gray-700 space-y-3">
+              <Input label={t('helperDashboard.licenseName')} value={item.name || ''}
+                onChange={e => updateDetailItem(field, i, { name: e.target.value })}
+                maxLength={100} required />
+              <div className="grid grid-cols-2 gap-3">
+                <Input label={t('helperDashboard.licenseNumber')} value={item.number || ''}
+                  onChange={e => updateDetailItem(field, i, { number: e.target.value })} maxLength={200} />
+                <Input label={t('helperDashboard.licenseIssuer')} value={item.issuer || ''}
+                  onChange={e => updateDetailItem(field, i, { issuer: e.target.value })} maxLength={200} />
+              </div>
+              <div className="flex items-end justify-between gap-3">
+                <Input label={t('helperDashboard.licenseExpires')} type="date" value={item.expires_at || ''}
+                  onChange={e => updateDetailItem(field, i, { expires_at: e.target.value })} />
+                <Btn variant="danger" type="button" onClick={() => removeDetailItem(field, i)}>{t('helperDashboard.delete')}</Btn>
+              </div>
+            </div>
+          ))}
+        </div>
+        <Btn type="button" variant="secondary" onClick={() => addDetailItem(field)}>{t(addKey)}</Btn>
+      </div>
+    );
+    sectionBody = (
+      <form
+        id="ps-helper-qualifications"
+        onSubmit={saveCore}
+        className="space-y-5"
+        data-track="ui.c78adb519b.8"
+      >
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="qual-licensed" checked={!!core.is_licensed}
+              onChange={e => setCore({ ...core, is_licensed: e.target.checked })}
+              className="accent-orange-500" data-track="ui.c78adb519b.9" />
+            <label htmlFor="qual-licensed" className="text-sm text-gray-300">{t('helperDashboard.licensedLabel')}</label>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="qual-insured" checked={!!core.is_insured}
+              onChange={e => setCore({ ...core, is_insured: e.target.checked })}
+              className="accent-orange-500" data-track="ui.c78adb519b.10" />
+            <label htmlFor="qual-insured" className="text-sm text-gray-300">{t('helperDashboard.insuredLabel')}</label>
+          </div>
+        </div>
+        {renderDetailList('license_details', 'helperDashboard.licensesTitle', 'helperDashboard.noLicenses', 'helperDashboard.addLicenseBtn')}
+        {renderDetailList('insurance_details', 'helperDashboard.insuranceTitle', 'helperDashboard.noInsurance', 'helperDashboard.addInsuranceBtn')}
       </form>
     );
   } else if (section === 'hours') {
@@ -729,6 +853,44 @@ export default function EditProfileTab() {
             </div>
           </div>
           <Btn type="submit">{t('helperDashboard.addServiceBtn')}</Btn>
+        </form>
+      </>
+    );
+  } else if (section === 'skills') {
+    // Item 156: the skill builder. Categories come from the shared
+    // categories table; a saved skill shows on the public profile and feeds
+    // discovery matching, which previously read skills nobody could set.
+    sectionBody = (
+      <>
+        {skills.length === 0 && <p className="text-gray-600 text-sm mb-4">{t('helperDashboard.noSkills')}</p>}
+        <div className="space-y-2 mb-5">
+          {skills.map(s => (
+            <div key={s.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-white">{s.skill_name}</p>
+                  <p className="text-xs text-gray-500">{s.category_name}{s.years_exp != null ? ` · ${s.years_exp} ${t('helperDashboard.skillYearsUnit')}` : ''}</p>
+                </div>
+                <Btn variant="danger" type="button" onClick={() => deleteSkill(s.id)}>{t('helperDashboard.delete')}</Btn>
+              </div>
+            </div>
+          ))}
+        </div>
+        <form onSubmit={addSkill} className="space-y-3 border-t border-gray-800 pt-4" data-track="ui.c78adb519b.11">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addSkillHeader')}</p>
+          <Select label={t('helperDashboard.skillCategory')} value={newSkill.category_id}
+            onChange={e => setNewSkill({ ...newSkill, category_id: e.target.value })} required>
+            <option value="">{t('helperDashboard.skillCategoryPlaceholder')}</option>
+            {skillCategories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </Select>
+          <Input label={t('helperDashboard.skillName')} value={newSkill.skill_name}
+            onChange={e => setNewSkill({ ...newSkill, skill_name: e.target.value })}
+            placeholder={t('helperDashboard.skillNamePlaceholder')} maxLength={100} required />
+          <Input label={t('helperDashboard.skillYears')} type="number" min="0" max="60" value={newSkill.years_exp}
+            onChange={e => setNewSkill({ ...newSkill, years_exp: e.target.value })} placeholder="5" />
+          <Btn type="submit">{t('helperDashboard.addSkillBtn')}</Btn>
         </form>
       </>
     );

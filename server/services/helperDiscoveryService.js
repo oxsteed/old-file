@@ -30,8 +30,24 @@ async function preview(userId, jobId) {
   await helper(pool, userId);
   // Only public/open jobs or the helper's own assignment. Never return billing,
   // exact coordinates, contact details, or the customer's private notes.
-  const { rows: [job] } = await pool.query(`SELECT id,client_id,assigned_helper_id,status,requirements,required_skills,scheduled_start_at,scheduled_end_at,estimated_duration_hours FROM jobs WHERE id=$1 AND deleted_at IS NULL`, [jobId]);
+  // Group 4 Slice B (165): the preview also answers distance and pay, the
+  // two things the helper needs to judge "is this worth it for me". Distance
+  // is a rounded one-decimal mile figure computed server-side from the
+  // helper's saved service location and the job's point (null when either
+  // side has no location); no coordinates leave the server. Budget is the
+  // job's own listed range, which the job page already shows to bidders.
+  const { rows: [job] } = await pool.query(`SELECT id,client_id,assigned_helper_id,status,requirements,required_skills,scheduled_start_at,scheduled_end_at,estimated_duration_hours,location_point,budget_min,budget_max FROM jobs WHERE id=$1 AND deleted_at IS NULL`, [jobId]);
   if (!job || (!jobStatus.isBiddable(job.status) && String(job.assigned_helper_id) !== String(userId))) fail(404, 'not_found');
+  let distanceMiles = null;
+  const { rows: [loc] } = await pool.query(
+    `SELECT ST_Distance(j.location_point, COALESCE(hp.service_location, ST_SetSRID(ST_MakePoint(hp.service_lng, hp.service_lat), 4326)::geography)) / 1609.344 AS miles
+       FROM jobs j, helper_profiles hp
+      WHERE j.id = $1 AND hp.user_id = $2`,
+    [jobId, userId],
+  );
+  if (loc && loc.miles !== null && loc.miles !== undefined && Number.isFinite(Number(loc.miles))) {
+    distanceMiles = Math.round(Number(loc.miles) * 10) / 10;
+  }
   const own = String(job.client_id) === String(userId);
   let schedule = 'unknown';
   if (job.scheduled_start_at && (job.scheduled_end_at || Number(job.estimated_duration_hours) > 0)) {
@@ -44,6 +60,6 @@ async function preview(userId, jobId) {
     }
   }
   const labels = input => Array.isArray(input) ? input.slice(0, 50).map(value => typeof value === 'string' ? value.slice(0, 200) : typeof value?.label === 'string' ? value.label.slice(0, 200) : '').filter(Boolean) : [];
-  return { can_bid_now: !own && jobStatus.isBiddable(job.status), schedule, requirements: labels(job.requirements), required_skills: labels(job.required_skills), advisory: true };
+  return { can_bid_now: !own && jobStatus.isBiddable(job.status), schedule, requirements: labels(job.requirements), required_skills: labels(job.required_skills), advisory: true, distance_miles: distanceMiles, budget_min: job.budget_min === null || job.budget_min === undefined ? null : Number(job.budget_min), budget_max: job.budget_max === null || job.budget_max === undefined ? null : Number(job.budget_max) };
 }
 module.exports = { preferences, save, preview };

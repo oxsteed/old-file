@@ -168,7 +168,9 @@ describe('placeholder row unblocks the rest of the chain', () => {
     expect(r.statusCode).toBe(200);
     expect(r.body).toMatchObject({ id: 99, status: 'confirmed', scheduled_date: future, scheduled_time: '10:00' });
     const update = mockQuery.mock.calls.find(([sql]) => /UPDATE consulting_sessions_scheduled css_target/.test(sql));
-    expect(update[1]).toEqual([future, '10:00', 120, null, 'America/New_York', CONSULTANT_ID, '99', '10:00', '12:00']);
+    // Group 10 Slice A (507): the book-slot UPDATE now also stores the
+    // chosen engagement format; no format in the request defaults to zoom.
+    expect(update[1]).toEqual([future, '10:00', 120, null, 'America/New_York', CONSULTANT_ID, '99', '10:00', '12:00', 'zoom']);
     // Drain the fire-and-forget confirmation email so it cannot leak into
     // the next test's mock queue.
     await new Promise((resolve) => setImmediate(resolve));

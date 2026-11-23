@@ -29,9 +29,6 @@ export default function InvestorLoginPage() {
         agreementName: agreementName.trim(),
       });
       const user = result?.user;
-      if (user?.default_mode !== 'investor') {
-        toast(t('investorLogin.toast.switchingMode'));
-      }
       navigate('/investor/dashboard', { replace: true });
     } catch (err) {
       toast.error(err?.response?.data?.error || t('investorLogin.toast.signInFailed'));
@@ -99,7 +96,7 @@ export default function InvestorLoginPage() {
         </form>
 
         <div className="mt-4 text-xs text-gray-400 flex justify-between">
-          <Link to="/join?mode=investor" className="hover:text-white">{t('investorLogin.actions.createAccount')}</Link>
+          <Link to="/join" className="hover:text-white">{t('investorLogin.actions.standardLogin')}</Link>
           <Link to="/login" className="hover:text-white">{t('investorLogin.actions.standardLogin')}</Link>
         </div>
       </div>

@@ -37,6 +37,15 @@ const USE_NOW_ROUTES = Object.freeze({
   'franchise.operate': '/franchise/territory',
 });
 
+// Items 153/155: a missing activation requirement names the place that
+// satisfies it. Identity verifies at /verify-identity, terms are accepted
+// from the onboarding checklist on /jobs, payout setup lives on /helper/payouts.
+const REQUIREMENT_LINKS = Object.freeze({
+  identity_verified: '/verify-identity',
+  helper_terms: '/jobs',
+  payout_setup: '/helper/payouts',
+});
+
 const errorCode = (err) => err?.response?.data?.code || null;
 
 function capabilityLabel(t, capability) {
@@ -474,9 +483,15 @@ function AccountApplications({ accountId, epoch }) {
                         <li key={c} className="rounded-xl border border-border p-3">
                           <p className="text-sm font-medium text-content">{capabilityLabel(t, c)}</p>
                           <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted">
-                            {(activation[c].missing || []).map((req) => (
-                              <li key={req}>{t(`progressiveAccess.activationRequirements.${req}`, { ns: NS })}</li>
-                            ))}
+                            {(activation[c].missing || []).map((req) => {
+                              const to = REQUIREMENT_LINKS[req];
+                              const label = t(`progressiveAccess.activationRequirements.${req}`, { ns: NS });
+                              return (
+                                <li key={req}>
+                                  {to ? <Link to={to} className="font-medium text-primary underline">{label}</Link> : label}
+                                </li>
+                              );
+                            })}
                           </ul>
                         </li>
                       ))}

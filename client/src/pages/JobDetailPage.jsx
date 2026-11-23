@@ -590,6 +590,7 @@ function JobDetailContent() {
   function getErrorMessage(err) {
     const capacityCode = err.response?.data?.code;
     if (['helper_daily_capacity','helper_travel_conflict'].includes(capacityCode)) return t(`helperCapacity.${capacityCode}`);
+    if (capacityCode === 'helper_unavailable') return t('helperCapacity.helper_unavailable');
     if (err.code === 'NO_TOKEN') {
       return t('jobDetail.sessionExpired');
     }

@@ -107,6 +107,9 @@ export interface HelperAvailabilitySummary {
   };
   bookingBufferMinutes: number;
   isOnline: boolean;
+  // Item 160: the raw "available now" toggle, separate from isOnline (which
+  // also counts socket presence). Absent on stale responses; treat as on.
+  isAvailableNow?: boolean;
   responseTime: string;
 }
 

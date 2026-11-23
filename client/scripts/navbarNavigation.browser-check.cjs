@@ -143,7 +143,7 @@ test('projection navbar renders responsive priorities, accessible disclosures an
     // advertise specialist logistics/jobs or a persona-oriented join flow.
     await page.evaluate(() => window.configure({ anonymous: true, language: 'en', theme: 'dark' }));
     await page.setViewportSize({ width: 1600, height: 850 });
-    assert.deepEqual(await page.locator('.ox-nav-desktop > a').evaluateAll(nodes => nodes.map(node => node.getAttribute('href'))), ['/helpers', '/restaurants', '/how-it-works', '/login', '/join']);
+    assert.deepEqual(await page.locator('.ox-nav-desktop > a').evaluateAll(nodes => nodes.map(node => node.getAttribute('href'))), ['/helpers', '/restaurants', '/login', '/join']);
     assert.equal(await page.locator('.ox-nav-desktop > a.ox-btn-primary').getAttribute('href'), '/join');
     assert.equal(await page.locator('.ox-nav-desktop > a[href="/jobs"]').count(), 0);
     assert.equal(await page.locator('.ox-nav-desktop > a[href="/logistics"]').count(), 0);
@@ -164,9 +164,10 @@ test('projection navbar renders responsive priorities, accessible disclosures an
       flags: { accessProjection: true },
       access: { personal: ['customer'], organizations: [], openRequestCount: 2 },
     });
-    await account.click(); await page.locator('.ox-nav-account-panel').waitFor();
+    const applications = page.getByRole('button', { name: 'My applications', exact: true });
+    await applications.click(); await page.locator('.ox-nav-account-panel').waitFor();
     assert.equal(await page.locator('.ox-nav-account-panel .ox-nav-unread').textContent(), '2');
-    await page.keyboard.press('Escape'); await waitExpanded(account, 'false');
+    await page.keyboard.press('Escape'); await waitExpanded(applications, 'false');
     await account.click(); await page.locator('#outside').click(); await waitExpanded(account, 'false'); assert.equal(await account.getAttribute('aria-expanded'), 'false');
     await account.click(); await page.locator('.ox-nav-account-panel a[href="/settings"]').click();
     await waitExpanded(account, 'false');

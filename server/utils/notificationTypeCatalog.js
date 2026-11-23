@@ -30,8 +30,19 @@
 // this batch and the humanized key is unambiguous.
 const NOTIFICATION_TYPES = [
   { type: 'bid_accepted', group: 'work' },
+  // Group 4 Slice B (164): 24h bid-expiry reminder from bidDeadlineNotices.
+  { type: 'bid_deadline_reminder', group: 'work' },
   { type: 'bid_received', group: 'work' },
   { type: 'bid_reconfirmed', group: 'work' },
+  // Group 4 Slice C (166-170): counterparty notices for the helper-quote
+  // negotiation flow (create/revise/counter/counter-decision/respond).
+  { type: 'helper_quote_received', group: 'work' },
+  { type: 'helper_quote_revised', group: 'work' },
+  { type: 'helper_quote_counter_proposed', group: 'work' },
+  { type: 'helper_quote_counter_accepted', group: 'work' },
+  { type: 'helper_quote_counter_declined', group: 'work' },
+  { type: 'helper_quote_accepted', group: 'work' },
+  { type: 'helper_quote_declined', group: 'work' },
   { type: 'booking_accepted', group: 'work' },
   { type: 'booking_auto_completed', group: 'work' },
   { type: 'booking_auto_posted', group: 'work' },
@@ -68,7 +79,46 @@ const NOTIFICATION_TYPES = [
   { type: 'booking_reschedule_declined', group: 'work' },
   { type: 'booking_reschedule_proposed', group: 'work' },
   { type: 'booking_site_contact_link', group: 'work' },
+  // G10-1: consultant payout leg (OxSteed Credit settlement on completion).
+  { type: 'consultant_payout_failed', group: 'credit' },
+  { type: 'consultant_payout_paid', group: 'credit' },
+  { type: 'consultant_payout_parked', group: 'credit' },
   { type: 'consulting_session_scheduled', group: 'work' },
+  // Group 10 Slice B (511/514): inquiry addressed to a consultant, and
+  // a consultant declining a referral handoff.
+  { type: 'consulting_inquiry_assigned', group: 'work' },
+  { type: 'consulting_referral_declined', group: 'work' },
+  // Group 10 Slice C (518-520): reschedule proposals, cancellation, and
+  // attendance confirmation for confirmed appointments.
+  { type: 'consulting_session_reschedule_proposed', group: 'work' },
+  { type: 'consulting_session_reschedule_accepted', group: 'work' },
+  { type: 'consulting_session_reschedule_declined', group: 'work' },
+  { type: 'consulting_session_cancelled', group: 'work' },
+  { type: 'consulting_session_attendance_confirmed', group: 'work' },
+  // Group 10 Slice D (521-525): engagement proposals sent, approved,
+  // rejected, and withdrawn on a referral.
+  { type: 'consulting_proposal_sent', group: 'work' },
+  { type: 'consulting_proposal_approved', group: 'work' },
+  { type: 'consulting_proposal_rejected', group: 'work' },
+  { type: 'consulting_proposal_withdrawn', group: 'work' },
+  { type: 'consulting_engagement_started', group: 'work' },
+  { type: 'consulting_draft_delivered', group: 'work' },
+  { type: 'consulting_milestone_accepted', group: 'work' },
+  { type: 'consulting_deliverable_feedback', group: 'work' },
+  { type: 'consulting_change_requested', group: 'work' },
+  { type: 'consulting_change_approved', group: 'work' },
+  { type: 'consulting_change_rejected', group: 'work' },
+  { type: 'consulting_engagement_paused', group: 'work' },
+  { type: 'consulting_engagement_resumed', group: 'work' },
+  { type: 'consulting_participant_added', group: 'work' },
+  { type: 'consulting_confidentiality_acknowledged', group: 'work' },
+  { type: 'consulting_closeout_confirmed', group: 'work' },
+  { type: 'consulting_feedback_requested', group: 'work' },
+  { type: 'consulting_follow_up_scheduled', group: 'work' },
+  { type: 'consulting_engagement_archived', group: 'work' },
+  // Group 10 Slice I (550): a consultant filing a practice support
+  // request alerts support staff.
+  { type: 'consulting_practice_support_requested', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
   { type: 'crew_shift_published', group: 'work' },
   { type: 'crew_task_assigned', group: 'work' },
@@ -123,6 +173,9 @@ const NOTIFICATION_TYPES = [
   { type: 'payout_approved', group: 'payments' },
   { type: 'payout_deposited', group: 'payments' },
   { type: 'payout_destination_changed', group: 'payments' },
+  // G7-13: a manager draft notifies the owner as payout_draft_created;
+  // without a catalog entry it had no prefs toggle and no i18n copy.
+  { type: 'payout_draft_created', group: 'payments' },
   { type: 'payout_failed', group: 'payments' },
   { type: 'payout_rejected', group: 'payments' },
   { type: 'payout_requested', group: 'payments' },

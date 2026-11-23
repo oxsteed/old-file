@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const adminConsultingController = require('../controllers/adminConsultingController');
+const deliverableController = require('../controllers/consultantDeliverableController');
+const changeController = require('../controllers/consultantChangeController');
+const confidentialityController = require('../controllers/consultantConfidentialityController');
+const closeoutController = require('../controllers/consultantCloseoutController');
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 
@@ -41,6 +45,35 @@ router.get('/sessions/:id', ...auth, adminConsultingController.getSessionDetail)
 router.patch('/sessions/:id', ...writeAuth, adminConsultingController.updateSessionDetails);
 router.patch('/sessions/:sessionId/complete', ...writeAuth, adminConsultingController.completeSession);
 router.patch('/sessions/:sessionId/no-show', ...writeAuth, adminConsultingController.markNoShow);
+// Group 10 Slice E (526-530): admin read of the milestone board.
+router.get('/sessions/:sessionId/deliverables', ...auth, deliverableController.listDeliverables);
+// Group 10 Slice F (531-535): admin read of change requests and history,
+// and admin pause/resume (deciding stays with the parties; an admin
+// decides only when the client is the decider).
+router.get('/sessions/:sessionId/change-requests', ...auth, changeController.listChangeRequests);
+router.post('/sessions/:sessionId/change-requests/:requestId/approve', ...writeAuth, changeController.decideChangeRequest('approved'));
+router.post('/sessions/:sessionId/change-requests/:requestId/reject', ...writeAuth, changeController.decideChangeRequest('rejected'));
+router.post('/sessions/:sessionId/change-requests/:requestId/withdraw', ...writeAuth, changeController.withdrawChangeRequest);
+router.get('/sessions/:sessionId/history', ...auth, changeController.getEngagementHistory);
+router.post('/sessions/:sessionId/pause', ...writeAuth, changeController.pauseEngagement);
+router.post('/sessions/:sessionId/resume', ...writeAuth, changeController.resumeEngagement);
+// Group 10 Slice G (536-540): admin read of participants and
+// confidentiality status, admin participant management, document
+// sharing changes, and the record export.
+router.get('/sessions/:sessionId/participants', ...auth, confidentialityController.listParticipants);
+router.post('/sessions/:sessionId/participants', ...writeAuth, confidentialityController.addParticipant);
+router.delete('/sessions/:sessionId/participants/:participantId', ...writeAuth, confidentialityController.removeParticipant);
+router.get('/sessions/:sessionId/confidentiality', ...auth, confidentialityController.getAcknowledgmentStatus);
+router.patch('/sessions/:sessionId/deliverables/:deliverableId/documents/:documentId', ...writeAuth, confidentialityController.updateDocumentSharing);
+router.get('/sessions/:sessionId/export', ...auth, confidentialityController.exportEngagementRecord);
+
+// Group 10 Slice H (541-545): close the engagement. The admin reads
+// the closeout, confirms on the client's behalf only (the D-115 rule),
+// and archives or unarchives a closed engagement.
+router.get('/sessions/:sessionId/closeout', ...auth, closeoutController.getCloseout);
+router.post('/sessions/:sessionId/closeout/confirm', ...writeAuth, closeoutController.confirmCloseout);
+router.post('/sessions/:sessionId/archive', ...writeAuth, closeoutController.archiveEngagement);
+router.post('/sessions/:sessionId/unarchive', ...writeAuth, closeoutController.unarchiveEngagement);
 router.post('/sessions/:id/send-reminder', ...writeAuth, adminConsultingController.sendSessionReminder);
 router.post('/sessions/:id/send-followup', ...writeAuth, adminConsultingController.sendSessionFollowUp);
 router.post('/sessions/:id/send-invite', ...writeAuth, adminConsultingController.sendSessionReminder);

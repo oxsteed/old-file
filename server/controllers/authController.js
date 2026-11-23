@@ -200,7 +200,6 @@ function getRefreshTokenFromRequest(req) {
 // Mirrors the CHECK constraint on pending_registrations.default_mode (mig 270).
 const SELF_SELECTABLE_MODES = Object.freeze([
   'customer',
-  'investor',
   'helper',
   'logistics',
   'business_owner',
@@ -231,6 +230,9 @@ const MODES_REQUIRING_HELPER_ROLE = new Set([
 function normalizeDefaultMode(raw) {
   if (raw === undefined || raw === null) return null;
   const s = String(raw).trim().toLowerCase();
+  // Investor access is private and invite-only. Treat the old mode as an
+  // omitted customer preference so stale links cannot create authority.
+  if (s === 'investor') return null;
   return SELF_SELECTABLE_MODES.includes(s) ? s : null;
 }
 
@@ -1442,7 +1444,9 @@ async function startRegistration(req, res) {
     // and is fine — the existing customer-only flow doesn't send this field.
     const modePref = normalizeDefaultMode(defaultMode ?? default_mode);
     // If a value was sent but didn't validate, reject so the user knows.
-    if ((defaultMode ?? default_mode) !== undefined && (defaultMode ?? default_mode) !== null && modePref === null) {
+    const rawMode = defaultMode ?? default_mode;
+    const legacyPrivateInvestor = typeof rawMode === 'string' && rawMode.trim().toLowerCase() === 'investor';
+    if (rawMode !== undefined && rawMode !== null && modePref === null && !legacyPrivateInvestor) {
       return res.status(400).json({
         error: 'validation_failed',
         code: 'validation_failed',

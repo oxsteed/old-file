@@ -1760,7 +1760,7 @@ exports.getBusinessAvailableSlots = async (req, res) => {
         `SELECT to_char(start_time, 'HH24:MI:SS') AS start_time,
                 to_char(end_time, 'HH24:MI:SS') AS end_time
            FROM availability_blocks
-          WHERE helper_id = $1 AND type IN ('unavailable', 'busy')
+          WHERE helper_id = $1 AND type IN ('unavailable', 'busy', 'travel')
             AND end_time > $2::timestamptz
             AND start_time < (($2::date + INTERVAL '1 day')::timestamptz)`,
         [String(staffId), date]

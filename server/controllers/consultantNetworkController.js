@@ -3,6 +3,8 @@ const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { consultantEnforcement, requestsEnabled } = require('../services/access/flags');
 const { checkPayingAccess } = require('../services/access/consultantGate');
+const { notifySupportStaff } = require('../services/supportNotificationService');
+const { listPayoutsForConsultant } = require('../services/consultantPayoutService');
 
 const REFERRAL_STATUSES = [
   'assigned',
@@ -15,6 +17,9 @@ const REFERRAL_STATUSES = [
   'lost',
   'completed',
   'paused',
+  // Group 10 Slice B (514): the consultant declines the handoff before
+  // the client is introduced. Only from 'assigned' (D-106).
+  'declined',
 ];
 
 const PAYING_STATUSES = new Set(['engaged', 'won']);
@@ -62,6 +67,9 @@ async function getProfileWithIdentity(userId) {
        p.accepts_virtual_consulting,
        p.is_active,
        p.timezone,
+       p.approval_status,
+       p.approval_decided_at,
+       p.approval_note,
        p.created_at,
        p.updated_at
      FROM users u
@@ -178,6 +186,11 @@ exports.upsertMyConsultantProfile = async (req, res) => {
          accepts_virtual_consulting = EXCLUDED.accepts_virtual_consulting,
          is_active = EXCLUDED.is_active,
          timezone = EXCLUDED.timezone,
+         -- Group 10 item 504: profile edits never move the approval state.
+         -- Only an admin decision changes approval_status; a consultant
+         -- cannot approve (or quietly re-approve) their own profile by
+         -- saving it, and an approved consultant is not hidden by editing.
+         approval_status = consultant_contractor_profiles.approval_status,
          updated_at = NOW()
        RETURNING *`,
       [
@@ -216,15 +229,15 @@ exports.getMyConsultantDashboard = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const [{ rows: summaryRows }, { rows: referralRows }, { rows: activityRows }, payingReferralAccess] = await Promise.all([
+    const [{ rows: summaryRows }, { rows: referralRows }, { rows: activityRows }, payingReferralAccess, readiness, payouts] = await Promise.all([
       db.query(
         `SELECT
-           COUNT(*) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')) AS active_referrals,
+           COUNT(*) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed', 'declined')) AS active_referrals,
            COUNT(*) FILTER (WHERE consultant_assignment_status = 'completed') AS completed_referrals,
            COUNT(*) FILTER (WHERE consultant_assignment_status = 'won') AS won_referrals,
            COUNT(*) FILTER (WHERE consultant_assignment_status = 'lost') AS lost_referrals,
-           COALESCE(SUM(estimated_consultant_share_cents) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost')), 0) AS consultant_pipeline_cents,
-           COALESCE(SUM(estimated_oxsteed_share_cents) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost')), 0) AS oxsteed_generated_cents
+           COALESCE(SUM(estimated_consultant_share_cents) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost', 'declined')), 0) AS consultant_pipeline_cents,
+           COALESCE(SUM(estimated_oxsteed_share_cents) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost', 'declined')), 0) AS oxsteed_generated_cents
          FROM consulting_requests
          WHERE consultant_assigned_id = $1`,
         [req.user.id]
@@ -271,6 +284,15 @@ exports.getMyConsultantDashboard = async (req, res) => {
         [req.user.id]
       ),
       consultantEnforcement() === 'enforce' ? getPayingReferralAccess(req.user) : null,
+      computeReadiness(req.user.id),
+      // G10-1: consultant payout status (pending / paid / parked / failed
+      // with reason) for completed engagements. A missing payouts table
+      // (pre-migration) must not break the dashboard: the payout leg is
+      // additive, so a lookup failure degrades to an empty list.
+      listPayoutsForConsultant(req.user.id).catch((err) => {
+        logger.warn('getMyConsultantDashboard payouts lookup failed', { err: err.message });
+        return [];
+      }),
     ]);
 
     return res.json({
@@ -281,15 +303,358 @@ exports.getMyConsultantDashboard = async (req, res) => {
         languages: profile.languages || [],
         specialties: profile.specialties || [],
       },
+      readiness,
+      pricingSummary: pricingSummaryForOwner(profile),
       summary: summaryRows[0] || {},
       referrals: referralRows,
       activity: activityRows,
+      payouts,
       referralStatuses: REFERRAL_STATUSES,
       ...(payingReferralAccess && { payingReferralAccess }),
     });
   } catch (err) {
     logger.error('getMyConsultantDashboard error', { err });
     return res.status(500).json({ error: 'Failed to load consultant dashboard.' });
+  }
+};
+
+// Group 10 item 510: the consultant's own pricing summary. The public
+// profile only ever sees the minimum package price; the OxSteed cut is an
+// internal split and is only returned to the owner (dashboard) and admins.
+function pricingSummaryForOwner(profile) {
+  return {
+    minimum_package_price_cents: profile.minimum_package_price_cents ?? 0,
+    default_oxsteed_cut_bps: profile.default_oxsteed_cut_bps ?? 2000,
+    active_referral_limit: profile.active_referral_limit ?? 12,
+    accepts_new_referrals: profile.accepts_new_referrals !== false,
+    currency: 'USD',
+  };
+}
+
+function pricingSummaryForPublic(profile) {
+  return {
+    minimum_package_price_cents: profile.minimum_package_price_cents ?? 0,
+    accepts_new_referrals: profile.accepts_new_referrals !== false,
+    currency: 'USD',
+  };
+}
+
+// Group 10 item 505: engagement readiness, computed server-side from the
+// stored profile, recurring availability, pricing, and approval state.
+// Ready means every item is met; the client renders the item list as the
+// checklist and must not compute readiness itself.
+async function computeReadiness(userId) {
+  const { rows } = await db.query(
+    `SELECT
+       p.headline,
+       p.bio,
+       p.coverage_countries,
+       p.coverage_regions,
+       p.languages,
+       p.specialties,
+       p.minimum_package_price_cents,
+       p.approval_status,
+       EXISTS (
+         SELECT 1 FROM consultant_availability ca
+         WHERE ca.consultant_id = $1 AND ca.is_active = TRUE
+       ) AS has_availability
+     FROM consultant_contractor_profiles p
+     WHERE p.user_id = $1`,
+    [userId]
+  );
+  const profile = rows[0];
+  const hasProfile = Boolean(profile);
+  const specialties = profile?.specialties || [];
+  const coverageCountries = profile?.coverage_countries || [];
+  const coverageRegions = profile?.coverage_regions || [];
+  const languages = profile?.languages || [];
+  const items = [
+    {
+      key: 'profile_complete',
+      met: hasProfile
+        && Boolean(profile.headline?.trim())
+        && Boolean(profile.bio?.trim())
+        && specialties.length > 0
+        && (coverageCountries.length > 0 || coverageRegions.length > 0)
+        && languages.length > 0,
+    },
+    { key: 'specialties_declared', met: hasProfile && specialties.length > 0 },
+    { key: 'availability_set', met: hasProfile && profile.has_availability === true },
+    {
+      key: 'pricing_set',
+      met: hasProfile && Number(profile.minimum_package_price_cents || 0) > 0,
+    },
+    {
+      key: 'profile_approved',
+      met: hasProfile && profile.approval_status === 'approved',
+    },
+  ];
+  return { hasProfile, items, ready: items.every((item) => item.met) };
+}
+
+exports.getMyConsultantReadiness = async (req, res) => {
+  try {
+    return res.json({ readiness: await computeReadiness(req.user.id) });
+  } catch (err) {
+    logger.error('getMyConsultantReadiness error', { err });
+    return res.status(500).json({ error: 'Failed to load readiness checklist.' });
+  }
+};
+
+exports.getMyConsultantPricingSummary = async (req, res) => {
+  try {
+    const profile = await getProfileWithIdentity(req.user.id);
+    if (!profile) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    return res.json({ pricingSummary: pricingSummaryForOwner(profile) });
+  } catch (err) {
+    logger.error('getMyConsultantPricingSummary error', { err });
+    return res.status(500).json({ error: 'Failed to load pricing summary.' });
+  }
+};
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
+function sanitizePortfolioInput(body) {
+  const title = String(body.title || '').trim();
+  const description = body.description == null ? null : String(body.description).trim() || null;
+  const linkUrl = body.link_url == null ? null : String(body.link_url).trim() || null;
+  const imageUrl = body.image_url == null ? null : String(body.image_url).trim() || null;
+  const visibility = body.visibility == null ? 'public' : String(body.visibility).trim();
+  const sortOrder = body.sort_order == null ? 0 : parseInt(body.sort_order, 10);
+  return { title, description, linkUrl, imageUrl, visibility, sortOrder };
+}
+
+function validatePortfolioInput(input) {
+  if (!input.title || input.title.length > 180) {
+    return 'A portfolio title of 1-180 characters is required.';
+  }
+  if (input.description != null && input.description.length > 2000) {
+    return 'Portfolio description must be 2000 characters or fewer.';
+  }
+  for (const url of [input.linkUrl, input.imageUrl]) {
+    if (url != null && (url.length > 500 || !/^https?:\/\//i.test(url))) {
+      return 'Portfolio links must be http(s) URLs of 500 characters or fewer.';
+    }
+  }
+  if (!['public', 'hidden'].includes(input.visibility)) {
+    return 'Portfolio visibility must be public or hidden.';
+  }
+  if (!Number.isInteger(input.sortOrder) || input.sortOrder < 0 || input.sortOrder > 1000) {
+    return 'Portfolio sort order must be an integer between 0 and 1000.';
+  }
+  return null;
+}
+
+// Group 10 item 509: portfolio items on the contractor profile. The owner
+// sees every item; the public profile (506) only ever receives public ones.
+exports.listMyPortfolio = async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, user_id, title, description, link_url, image_url, visibility,
+              sort_order, created_at, updated_at
+       FROM consultant_portfolio_items
+       WHERE user_id = $1
+       ORDER BY sort_order ASC, created_at ASC`,
+      [req.user.id]
+    );
+    return res.json({ portfolio: rows });
+  } catch (err) {
+    logger.error('listMyPortfolio error', { err });
+    return res.status(500).json({ error: 'Failed to load portfolio.' });
+  }
+};
+
+exports.createPortfolioItem = async (req, res) => {
+  try {
+    const input = sanitizePortfolioInput(req.body);
+    const error = validatePortfolioInput(input);
+    if (error) return res.status(400).json({ error });
+    const { rows } = await db.query(
+      `INSERT INTO consultant_portfolio_items
+         (user_id, title, description, link_url, image_url, visibility, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [req.user.id, input.title, input.description, input.linkUrl, input.imageUrl, input.visibility, input.sortOrder]
+    );
+    return res.status(201).json({ item: rows[0] });
+  } catch (err) {
+    logger.error('createPortfolioItem error', { err });
+    return res.status(500).json({ error: 'Failed to add portfolio item.' });
+  }
+};
+
+exports.updatePortfolioItem = async (req, res) => {
+  try {
+    if (!isUuid(req.params.itemId)) return res.status(404).json({ error: 'Portfolio item not found.' });
+    const input = sanitizePortfolioInput(req.body);
+    const error = validatePortfolioInput(input);
+    if (error) return res.status(400).json({ error });
+    const { rows } = await db.query(
+      `UPDATE consultant_portfolio_items
+       SET title = $2, description = $3, link_url = $4, image_url = $5,
+           visibility = $6, sort_order = $7, updated_at = NOW()
+       WHERE id = $1 AND user_id = $8
+       RETURNING *`,
+      [req.params.itemId, input.title, input.description, input.linkUrl, input.imageUrl, input.visibility, input.sortOrder, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Portfolio item not found.' });
+    return res.json({ item: rows[0] });
+  } catch (err) {
+    logger.error('updatePortfolioItem error', { err });
+    return res.status(500).json({ error: 'Failed to update portfolio item.' });
+  }
+};
+
+exports.deletePortfolioItem = async (req, res) => {
+  try {
+    if (!isUuid(req.params.itemId)) return res.status(404).json({ error: 'Portfolio item not found.' });
+    const { rowCount } = await db.query(
+      'DELETE FROM consultant_portfolio_items WHERE id = $1 AND user_id = $2',
+      [req.params.itemId, req.user.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Portfolio item not found.' });
+    return res.json({ deleted: true });
+  } catch (err) {
+    logger.error('deletePortfolioItem error', { err });
+    return res.status(500).json({ error: 'Failed to remove portfolio item.' });
+  }
+};
+
+// Group 10 item 506: public consultant / specialty profile. Only approved,
+// active profiles are visible; unapproved, declined, and inactive profiles
+// 404 exactly like a missing profile so approval state is not leaked.
+// Email and the OxSteed cut are never public.
+exports.getPublicConsultantProfile = async (req, res) => {
+  try {
+    if (!isUuid(req.params.userId)) return res.status(404).json({ error: 'Consultant not found.' });
+    const { rows } = await db.query(
+      `SELECT
+         u.id AS user_id,
+         u.first_name,
+         u.last_name,
+         p.headline,
+         p.bio,
+         p.home_country,
+         p.home_region,
+         p.home_city,
+         p.coverage_countries,
+         p.coverage_regions,
+         p.languages,
+         p.specialties,
+         p.years_experience,
+         p.minimum_package_price_cents,
+         p.accepts_new_referrals,
+         p.accepts_virtual_consulting,
+         p.timezone
+       FROM users u
+       JOIN consultant_contractor_profiles p ON p.user_id = u.id
+       WHERE u.id = $1
+         AND p.approval_status = 'approved'
+         AND p.is_active = TRUE
+         AND u.is_active = TRUE
+         AND u.deleted_at IS NULL`,
+      [req.params.userId]
+    );
+    const profile = rows[0];
+    if (!profile) return res.status(404).json({ error: 'Consultant not found.' });
+    const { rows: portfolio } = await db.query(
+      `SELECT id, title, description, link_url, image_url, sort_order, created_at
+       FROM consultant_portfolio_items
+       WHERE user_id = $1 AND visibility = 'public'
+       ORDER BY sort_order ASC, created_at ASC`,
+      [req.params.userId]
+    );
+    return res.json({
+      profile: {
+        ...profile,
+        coverage_countries: profile.coverage_countries || [],
+        coverage_regions: profile.coverage_regions || [],
+        languages: profile.languages || [],
+        specialties: profile.specialties || [],
+        pricingSummary: pricingSummaryForPublic(profile),
+        portfolio,
+      },
+    });
+  } catch (err) {
+    logger.error('getPublicConsultantProfile error', { err });
+    return res.status(500).json({ error: 'Failed to load consultant profile.' });
+  }
+};
+
+// Group 10 item 504: admin approval workflow for contractor profiles.
+exports.listConsultantProfilesForReview = async (req, res) => {
+  try {
+    const status = String(req.query.status || 'pending').trim();
+    if (!['pending', 'approved', 'declined', 'all'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid approval status filter.' });
+    }
+    const { rows } = await db.query(
+      `SELECT
+         u.id AS user_id,
+         u.first_name,
+         u.last_name,
+         u.email,
+         p.headline,
+         p.bio,
+         p.home_country,
+         p.home_region,
+         p.home_city,
+         p.coverage_countries,
+         p.coverage_regions,
+         p.languages,
+         p.specialties,
+         p.years_experience,
+         p.minimum_package_price_cents,
+         p.accepts_new_referrals,
+         p.accepts_virtual_consulting,
+         p.is_active,
+         p.timezone,
+         p.approval_status,
+         p.approval_decided_at,
+         p.approval_note,
+         p.updated_at
+       FROM consultant_contractor_profiles p
+       JOIN users u ON u.id = p.user_id
+       WHERE ($1::text = 'all' OR p.approval_status = $1)
+       ORDER BY p.updated_at DESC`,
+      [status]
+    );
+    return res.json({ profiles: rows });
+  } catch (err) {
+    logger.error('listConsultantProfilesForReview error', { err });
+    return res.status(500).json({ error: 'Failed to load consultant profiles.' });
+  }
+};
+
+exports.decideConsultantProfileApproval = async (req, res) => {
+  try {
+    if (!isUuid(req.params.userId)) return res.status(404).json({ error: 'Consultant profile not found.' });
+    const action = String(req.body?.action || '').trim();
+    if (!['approve', 'decline'].includes(action)) {
+      return res.status(400).json({ error: 'Action must be approve or decline.' });
+    }
+    const note = req.body?.note == null ? null : String(req.body.note).trim().slice(0, 1000) || null;
+    const status = action === 'approve' ? 'approved' : 'declined';
+    const { rows } = await db.query(
+      `UPDATE consultant_contractor_profiles
+       SET approval_status = $2,
+           approval_decided_at = NOW(),
+           approval_decided_by = $3,
+           approval_note = $4,
+           updated_at = NOW()
+       WHERE user_id = $1
+       RETURNING *`,
+      [req.params.userId, status, req.user.id, note]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Consultant profile not found.' });
+    return res.json({ profile: rows[0] });
+  } catch (err) {
+    logger.error('decideConsultantProfileApproval error', { err });
+    return res.status(500).json({ error: 'Failed to decide consultant profile.' });
   }
 };
 
@@ -335,6 +700,28 @@ exports.updateMyReferral = async (req, res) => {
         [requestId, req.user.id],
       );
       if (!existing) return { status: 404, body: { error: 'Referral not found.' } };
+
+      // Group 10 Slice B (514, D-106): declining is the consultant's
+      // explicit refusal of the handoff, only while the referral is still
+      // unaccepted ('assigned'). Once accepted, the consultant uses the
+      // other statuses; a decline then would strand an introduced client.
+      if (consultant_assignment_status === 'declined' && existing.consultant_assignment_status !== 'assigned') {
+        return { status: 409, body: { error: 'Only an unaccepted referral can be declined.' } };
+      }
+
+      // Group 10 Slice B (513, D-105): an open conflict declaration blocks
+      // forward moves on the referral until the consultant clears it or
+      // declines. Declining and pausing are exits, not forward moves.
+      if (consultant_assignment_status !== 'declined' && consultant_assignment_status !== 'paused') {
+        const { hasOpenConflict, FORWARD_STATUSES } = require('./consultantScreeningController');
+        if (FORWARD_STATUSES.has(consultant_assignment_status)
+          && await hasOpenConflict(client, requestId, req.user.id)) {
+          return { status: 409, body: {
+            error: 'You declared a conflict of interest for this referral. Clear the declaration or decline the referral before moving it forward.',
+            code: 'conflict_declared',
+          } };
+        }
+      }
 
       if (PAYING_STATUSES.has(consultant_assignment_status) && !isAdmin(req.user)) {
         let decision;
@@ -387,6 +774,23 @@ exports.updateMyReferral = async (req, res) => {
       });
       return { status: 200, body: { referral } };
     }, 'consultant_referral_update');
+    // Group 10 Slice B (514): a decline frees the referral for
+    // reassignment and tells support staff, who re-route it. After the
+    // transaction commits, never inside it.
+    if (outcome.status === 200 && consultant_assignment_status === 'declined') {
+      try {
+        await notifySupportStaff({
+          type: 'consulting_referral_declined',
+          title: 'Consultant declined a referral',
+          body: 'A consultant declined a business-launch referral before the client was introduced. The referral needs re-routing.',
+          data: { requestId },
+          action_url: '/admin/consulting',
+          idempotencyKeyPrefix: `consulting-referral-declined-${requestId}`,
+        });
+      } catch (e) {
+        logger.warn('Failed to notify staff of referral decline', { requestId, error: e.message });
+      }
+    }
     return res.status(outcome.status).json(outcome.body);
   } catch (err) {
     logger.error('updateMyReferral error', { err });

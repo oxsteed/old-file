@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { UserRound, Users, Briefcase, Check, ArrowRight, MapPin, Store, Truck, GraduationCap, ShieldCheck, Wrench, BarChart3, Utensils, Factory, Smartphone } from 'lucide-react';
+import { UserRound, Users, Briefcase, Check, ArrowRight, MapPin, Store, Truck, GraduationCap, ShieldCheck, Wrench, Utensils, Factory, Smartphone } from 'lucide-react';
 import api from '../api/axios';
 import { persistSessionPayload } from '../api/auth';
 import { currentAuthEpoch, isCurrentAuthEpoch } from '../api/authSessionEpoch';
@@ -102,7 +102,7 @@ function InvitationAcceptPanel({ inviteId }) {
 const ICONS = {
   customer: UserRound, helper: Users, business: Briefcase, team: Users, restaurant: Utensils,
   restaurantTeam: Store, logistics: Truck, consultant: GraduationCap, equipment: Wrench,
-  franchise: Factory, investor: BarChart3, credit: Users, partner: Users,
+  franchise: Factory, credit: Users, partner: Users,
   learning: GraduationCap, staff: ShieldCheck, device: Smartphone,
 };
 // Goals describe intent; every account is created as a customer. Supported

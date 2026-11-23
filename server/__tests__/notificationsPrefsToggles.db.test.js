@@ -384,6 +384,9 @@ ddescribe('Track C preference toggles (DB)', () => {
       const { DELIVERY_NOTIFICATION_EVENTS } = require('../utils/localDeliveryNotifications');
       const TEMPLATE_FAMILIES = {
         credit_cashout_: ['credit_cashout_paid', 'credit_cashout_failed'],
+        // G10-1: consultant payout leg (notifyConsultant in
+        // services/consultantPayoutService.js).
+        consultant_payout_: ['consultant_payout_paid', 'consultant_payout_parked', 'consultant_payout_failed'],
         logistics_payment_: ['logistics_payment_succeeded', 'logistics_payment_failed'],
         'delivery:': DELIVERY_NOTIFICATION_EVENTS.map((event) => `delivery:${event}`),
       };
@@ -396,6 +399,21 @@ ddescribe('Track C preference toggles (DB)', () => {
         { file: 'controllers/bookingController.js', name: 'type', expansions: ['booking_accepted', 'booking_declined', 'booking_cancelled'] },
         { file: 'controllers/businessAppointmentsController.js', name: 'notificationType', expansions: ['appointment_created', 'appointment_cancelled', 'appointment_rescheduled', 'appointment_staff_reassigned', 'appointment_payment_recorded', 'appointment_pending', 'appointment_confirmed', 'appointment_in_progress', 'appointment_completed', 'appointment_no_show'] },
         { file: 'controllers/businessInvoiceController.js', name: 'type', expansions: ['business_invoice_paid', 'business_invoice_voided'] },
+        // Group 10 Slice C: notifySessionParty fan-out in the scheduling
+        // controller; the five types are the only ones its callers pass.
+        { file: 'controllers/consultantSchedulingController.js', name: 'type', expansions: ['consulting_session_reschedule_proposed', 'consulting_session_reschedule_accepted', 'consulting_session_reschedule_declined', 'consulting_session_cancelled', 'consulting_session_attendance_confirmed'] },
+        // Group 10 Slice D: notifyProposalParty fan-out in the proposal
+        // controller; the four types are the only ones its callers pass.
+        { file: 'controllers/consultantProposalController.js', name: 'type', expansions: ['consulting_proposal_sent', 'consulting_proposal_approved', 'consulting_proposal_rejected', 'consulting_proposal_withdrawn'] },
+        // Group 10 Slice E: notifyUser fan-out in the deliverable
+        // controller; the four types are the only ones its callers pass.
+        { file: 'controllers/consultantDeliverableController.js', name: 'type', expansions: ['consulting_engagement_started', 'consulting_draft_delivered', 'consulting_milestone_accepted', 'consulting_deliverable_feedback'] },
+        // Group 10 Slice F: notifyUser fan-out in the change controller;
+        // the five types are the only ones its callers pass.
+        { file: 'controllers/consultantChangeController.js', name: 'type', expansions: ['consulting_change_requested', 'consulting_change_approved', 'consulting_change_rejected', 'consulting_engagement_paused', 'consulting_engagement_resumed'] },
+        // Group 10 Slice G: notifyUser fan-out in the confidentiality
+        // controller; the two types are the only ones its callers pass.
+        { file: 'controllers/consultantConfidentialityController.js', name: 'type', expansions: ['consulting_participant_added', 'consulting_confidentiality_acknowledged'] },
         { file: 'controllers/calendarNotificationController.js', name: 'notification_type', expansions: ['appointment_requested', 'appointment_confirmed', 'appointment_cancelled', 'appointment_rescheduled', 'reminder_24h', 'reminder_2h', 'reminder_same_day'] },
         { file: 'controllers/mediaController.js', name: 'type', expansions: ['media_reply', 'media_like', 'media_follow'] },
         { file: 'controllers/superAdminController.js', name: 'type', expansions: ['account_deletion_scheduled', 'account_restored', 'account_suspended', 'account_restricted', 'admin_warning'] },
@@ -405,6 +423,10 @@ ddescribe('Track C preference toggles (DB)', () => {
         { file: 'jobs/jobEventOutbox.js', name: 'send.type', expansions: [] },
         { file: 'routes/savedSearches.js', name: 'notifType', expansions: ['job_alert', 'helper_alert', 'tool_alert'] },
         { file: 'services/disputeNotifications.js', name: 'type', expansions: ['dispute_resolved', 'dispute_under_review', 'dispute_reopened'] },
+        // Group 4 Slice C: notifyQuoteEvent fan-out in the quote
+        // negotiation service; the seven types are the only ones its
+        // callers pass.
+        { file: 'services/helperQuoteNegotiation.js', name: 'type', expansions: ['helper_quote_received', 'helper_quote_revised', 'helper_quote_counter_proposed', 'helper_quote_counter_accepted', 'helper_quote_counter_declined', 'helper_quote_accepted', 'helper_quote_declined'] },
         // Group 2: household notifyHousehold fan-out; the four types are
         // the only ones its callers pass.
         { file: 'services/householdDelegationService.js', name: 'type', expansions: ['household_delegate_invite', 'household_delegation_update', 'household_spending_request', 'household_visit_update'] },
@@ -419,7 +441,10 @@ ddescribe('Track C preference toggles (DB)', () => {
         { file: 'services/oxsteedCreditDisputeService.js', name: 'type', expansions: ['credit_dispute_resolved', 'credit_dispute_updated', 'credit_dispute_provisional_credit'] },
         { file: 'services/paymentRefundService.js', name: 'type', expansions: ['refund', 'refund_failed'] },
         { file: 'services/pooledOrderService.js', name: 'type', expansions: ['logistics_campaign_approved', 'logistics_campaign_revisions_requested', 'logistics_campaign_rejected'] },
-        { file: 'services/restaurantPayoutService.js', name: 'type', expansions: ['payout_requested', 'payout_failed', 'payout_approved', 'payout_deposited', 'payout_reversed', 'payout_rejected'] },
+        // G7-13: the notifyPayoutOwner fan-out also sends
+        // payout_draft_created (manager draft, line 265); the expansions
+        // omitted it, so the N3 diff never enforced its catalog entry.
+        { file: 'services/restaurantPayoutService.js', name: 'type', expansions: ['payout_requested', 'payout_failed', 'payout_approved', 'payout_deposited', 'payout_reversed', 'payout_rejected', 'payout_draft_created'] },
         { file: 'services/supportNotificationService.js', name: 'type', expansions: ['support_sla_breach'] },
         // Redis job-data replay: the queued payload is a full
         // notification object produced by a sendNotification caller

@@ -2,7 +2,7 @@
  * routes/investor.js
  *
  * All routes under /api/investor.
- * Accessible by: investor, admin, super_admin.
+ * Accessible by: an active investor.reporting grant, admin, or super_admin.
  */
 
 const express  = require('express');
@@ -22,7 +22,7 @@ const {
 // During progressive rollout an approved customer-class grant can also reach
 // the dashboard without mutating users.role.
 const allowInvestor = (req, res, next) => {
-  if (hasCapability(req, 'investor.reporting') || ['investor', 'admin', 'super_admin'].includes(req.user?.role)) return next();
+  if (hasCapability(req, 'investor.reporting') || ['admin', 'super_admin'].includes(req.user?.role)) return next();
   return res.status(403).json({ error: 'Insufficient permissions' });
 };
 

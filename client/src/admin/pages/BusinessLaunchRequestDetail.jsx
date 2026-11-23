@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import './BusinessLaunchRequestDetail.css';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -28,6 +29,8 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [consultants, setConsultants] = useState([]);
   const [consultantsLoading, setConsultantsLoading] = useState(false);
+  const [proposals, setProposals] = useState([]);
+  const [proposalsLoading, setProposalsLoading] = useState(false);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [assignmentForm, setAssignmentForm] = useState({
@@ -75,6 +78,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
     loadMessages();
     loadTemplates();
     loadConsultants();
+    loadProposals();
     setAssignmentForm({
       consultant_user_id: request.consultant_assigned_id || '',
       assigned_oxsteed_cut_bps: request.assigned_oxsteed_cut_bps || 2000,
@@ -118,6 +122,17 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
         return axios.get(`/consulting/business-launch/consultants?${params}`, { signal }).then(r => r.data.consultants || []);
       },
       { setData: setConsultants, setLoading: setConsultantsLoading, onError: () => toast.error(t('adminBusinessLaunchDetail.loadConsultantsFailed')) }
+    );
+  }
+
+  // Group 10 Slice D (521-525): read-only proposal history. Admins read
+  // every version; authoring and deciding stay with the consultant and
+  // the client.
+  async function loadProposals() {
+    await loadResource(
+      'proposals',
+      (signal) => axios.get(`/consulting/business-launch/requests/${request.id}/proposals`, { signal }).then(r => r.data.proposals || []),
+      { setData: setProposals, setLoading: setProposalsLoading, onError: () => {} }
     );
   }
 
@@ -435,6 +450,47 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
             </div>
           </div>
 
+          <div className="blr-proposal-section">
+            <div className="blr-proposal-section-title">{t('consultantProposal.title', { defaultValue: 'Engagement proposal' })}</div>
+            {proposalsLoading ? (
+              <p className="blr-proposal-note">{t('common.loading', { defaultValue: 'Loading…' })}</p>
+            ) : proposals.length === 0 ? (
+              <p className="blr-proposal-note">{t('consultantProposal.adminEmpty', { defaultValue: 'No proposal yet for this request.' })}</p>
+            ) : (
+              proposals.map((proposal) => (
+                <div key={proposal.id} className="blr-proposal-card">
+                  <p className="blr-proposal-card-title">
+                    <strong>{t('consultantProposal.versionLabel', { defaultValue: 'Version {{version}}', version: proposal.version })} • {proposal.title}</strong>
+                  </p>
+                  <p className="blr-proposal-card-meta">
+                    {proposal.price_cents === null || proposal.price_cents === undefined ? '—' : new Intl.NumberFormat('en-US', { style: 'currency', currency: proposal.currency || 'USD' }).format(proposal.price_cents / 100)}
+                    {' • '}
+                    {t(`consultantProposal.status.${proposal.status}`, { defaultValue: proposal.status.replace(/_/g, ' ') })}
+                    {proposal.decided_at ? ` • ${new Date(proposal.decided_at).toLocaleDateString()}` : ''}
+                  </p>
+                  {proposal.scope_summary && <p className="blr-proposal-card-text">{proposal.scope_summary}</p>}
+                  {(proposal.deliverables || []).length > 0 && (
+                    <ul className="blr-proposal-card-list">
+                      {proposal.deliverables.map((item) => (
+                        <li key={item.id}>{item.title}{item.due_date ? ` • ${t('consultantProposal.dueLabel', { defaultValue: 'due {{date}}', date: String(item.due_date).slice(0, 10) })}` : ''}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {(proposal.exclusions || []).length > 0 && (
+                    <p className="blr-proposal-card-muted">
+                      {t('consultantProposal.exclusionsTitle', { defaultValue: 'Scope exclusions' })}: {proposal.exclusions.map((item) => item.exclusion_text).join('; ')}
+                    </p>
+                  )}
+                  {proposal.decision_reason && (
+                    <p className="blr-proposal-card-muted">
+                      {t('consultantProposal.decisionReason', { defaultValue: 'Decision note: {{reason}}', reason: proposal.decision_reason })}
+                    </p>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>{t('adminBusinessLaunchDetail.sectionSetupItems', { count: request.setup_items_selected?.length || 0 })}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -617,6 +673,8 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
                         color: 'var(--color-text-muted)',
                       }}>
                         {msg.first_name} {msg.last_name} • {new Date(msg.created_at).toLocaleString()}
+                        {/* Group 10 Slice B (515): consultant-authored replies share this history. */}
+                        {msg.author_role === 'consultant' && ` • ${t('adminBusinessLaunchDetail.consultantReply')}`}
                       </p>
                     </div>
                     <span style={{

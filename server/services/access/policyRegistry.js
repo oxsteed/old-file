@@ -150,6 +150,12 @@ const CAPABILITIES = Object.freeze({
         answerField('bio', 'text', { required: true, minLength: 80, maxLength: 2000 }),
         answerField('yearsExperience', 'integer', { required: true, min: 0, max: 60 }),
         answerField('areasOfExpertise', 'string_list', { required: true, maxItems: 20, maxLength: 120 }),
+        // Group 10 item 501: consultant-specific application fields, collected
+        // at apply time and shown to the reviewer alongside bio/experience.
+        // Optional so applications drafted under the earlier form stay
+        // submittable; the required core (bio, years, expertise) is unchanged.
+        answerField('qualifications', 'text', { maxLength: 2000 }),
+        answerField('credentials', 'string_list', { maxItems: 20, maxLength: 120 }),
         answerField('sampleWorkUrl', 'url', { maxLength: 500 }),
       ]),
     }),
@@ -191,8 +197,11 @@ const CAPABILITIES = Object.freeze({
     subjectTypes: Object.freeze(['self']),
     reviewerClass: 'platform',
     reviewPermission: 'review_investor_access',
-    applicantMayRequest: true,
-    legacyModes: Object.freeze(['investor']),
+    // Investor reporting is invite-only. The public access-request flow must
+    // never mint this capability; an admin invitation creates an admission
+    // record first and review remains the only grant path.
+    applicantMayRequest: false,
+    legacyModes: Object.freeze([]),
     legacyRoles: Object.freeze([]),
     activationRequirements: Object.freeze([]),
     form: Object.freeze({ fields: Object.freeze([
@@ -266,7 +275,9 @@ const SIGNUP_INTENTS = Object.freeze({
   consult: 'consultant.accept_paying_clients',
   list_equipment: 'tool_owner.list_equipment',
   franchise: null,
-  request_reporting: 'investor.reporting',
+  // Private investor invitations are the only admission mechanism. A public
+  // signup intent is intentionally descriptive customer intent, not a request.
+  request_reporting: null,
   join_credit: null,
   join_partner: null,
   join_workforce: null,
@@ -291,7 +302,6 @@ const LEGACY_MODE_TO_INTENT = Object.freeze({
   delivery: 'ship_goods',
   driver: 'ship_goods',
   franchise_applicant: 'franchise',
-  investor: 'request_reporting',
   credit_participant: 'join_credit',
   credit_member: 'join_credit',
   partner: 'join_partner',
@@ -335,6 +345,7 @@ function publicPolicy(key) {
 function normalizeSignupIntent(raw) {
   if (typeof raw !== 'string') return 'find_help';
   const v = raw.trim().toLowerCase();
+  if (v === 'request_reporting' || v === 'investor') return 'find_help';
   if (Object.prototype.hasOwnProperty.call(SIGNUP_INTENTS, v)) return v;
   if (Object.prototype.hasOwnProperty.call(LEGACY_MODE_TO_INTENT, v)) return LEGACY_MODE_TO_INTENT[v];
   return 'find_help';

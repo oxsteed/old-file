@@ -49,9 +49,9 @@ test('self-selectable persona cards are preselectable from ?mode=', () => {
   assert.equal(joinModeForLegacyMode('business_owner'), 'business_owner');
   assert.equal(joinModeForLegacyMode('customer'), 'customer');
   assert.equal(joinModeForLegacyMode('restaurant_owner'), 'restaurant_owner');
-  assert.equal(joinModeForLegacyMode('investor'), 'investor');
+  assert.equal(joinModeForLegacyMode('investor'), null);
   assert.equal(joinTargetForLegacyMode('helper'), '/join?mode=helper');
-  assert.equal(joinTargetForLegacyMode('investor'), '/join?mode=investor');
+  assert.equal(joinTargetForLegacyMode('investor'), '/join');
 });
 
 test('former dashboard deep links resolve to a page the account can have', () => {

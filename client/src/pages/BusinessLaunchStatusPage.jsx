@@ -21,6 +21,10 @@ import {
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
+import { deliverablesApi } from '../api/consultantDeliverables';
+import { changesApi } from '../api/consultantChanges';
+import { confidentialityApi, downloadEngagementRecord } from '../api/consultantConfidentiality';
+import { closeoutApi } from '../api/consultantCloseout';
 import '../styles/BusinessLaunchStatus.css';
 
 const STATUS_PROGRESS = {
@@ -393,6 +397,1164 @@ function DetailField({ icon: Icon, label, value }) {
   );
 }
 
+function fmtProposalPrice(priceCents, currency) {
+  if (priceCents === null || priceCents === undefined) return '—';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(priceCents / 100);
+}
+
+// Group 10 Slice D (521-525): the client reviews the sent proposal and
+// approves or rejects it here, on their launch status page. Approval
+// moves the referral to engaged; rejection needs a reason so the
+// consultant knows what to change. Earlier versions stay visible as
+// history; only the sent version can be decided.
+function ProposalReview({ requestId }) {
+  const { t } = useTranslation();
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [forbidden, setForbidden] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
+  const [showReject, setShowReject] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setForbidden(false);
+      const { data } = await api.get(`/consulting/business-launch/requests/${encodeURIComponent(requestId)}/proposals`);
+      setProposals(data.proposals || []);
+    } catch (err) {
+      if (err.response?.status === 403) setForbidden(true);
+      else setError(err.response?.data?.error || t('consultantProposal.loadError', { defaultValue: 'Proposals could not be loaded.' }));
+    } finally {
+      setLoading(false);
+    }
+  }, [requestId, t]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const sent = proposals.find((proposal) => proposal.status === 'sent') || null;
+  const latest = proposals[0] || null;
+
+  async function decide(action) {
+    if (!sent) return;
+    if (action === 'reject' && rejectReason.trim().length < 10) {
+      setError(t('consultantProposal.rejectReasonRequired', { defaultValue: 'Tell the consultant what to change (at least 10 characters).' }));
+      return;
+    }
+    try {
+      setBusy(true);
+      setError('');
+      setNotice('');
+      await api.post(
+        `/consulting/business-launch/requests/${encodeURIComponent(requestId)}/proposals/${sent.id}/${action}`,
+        action === 'reject' ? { reason: rejectReason.trim() } : {},
+      );
+      setNotice(action === 'approve'
+        ? t('consultantProposal.approved', { defaultValue: 'Proposal approved. The engagement is agreed.' })
+        : t('consultantProposal.rejected', { defaultValue: 'Proposal rejected. Your consultant can send a revised version.' }));
+      setShowReject(false);
+      setRejectReason('');
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantProposal.saveError', { defaultValue: 'Could not record your decision.' }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="bl-proposal">
+      <h3 className="bl-proposal__title">
+        {t('consultantProposal.title', { defaultValue: 'Engagement proposal' })}
+      </h3>
+      {loading ? (
+        <p className="bl-proposal__note">{t('common.loading', { defaultValue: 'Loading…' })}</p>
+      ) : forbidden ? (
+        <p className="bl-proposal__note">
+          {t('consultantProposal.clientOnly', { defaultValue: 'Proposals are visible to the request owner.' })}
+        </p>
+      ) : !proposals.length ? (
+        <p className="bl-proposal__note">
+          {t('consultantProposal.clientEmpty', { defaultValue: 'No proposal yet. Your consultant will send one here once the scope is agreed.' })}
+        </p>
+      ) : (
+        <div className="bl-proposal__stack">
+          {error && <p role="alert" className="bl-proposal__error">{error}</p>}
+          {notice && <p role="status" className="bl-proposal__notice">{notice}</p>}
+          {latest && (
+            <div className={`bl-proposal__card bl-proposal__card--${latest.status}`}>
+              <div className="bl-proposal__card-head">
+                <div>
+                  <div className="bl-proposal__card-title">
+                    {t('consultantProposal.versionLabel', { defaultValue: 'Version {{version}}', version: latest.version })} • {latest.title}
+                  </div>
+                  <div className="bl-proposal__card-meta">
+                    {fmtProposalPrice(latest.price_cents, latest.currency)}
+                    {' • '}
+                    {t(`consultantProposal.status.${latest.status}`, { defaultValue: latest.status.replace(/_/g, ' ') })}
+                  </div>
+                </div>
+              </div>
+              {latest.scope_summary && (
+                <p className="bl-proposal__scope">{latest.scope_summary}</p>
+              )}
+              {(latest.deliverables || []).length > 0 && (
+                <div className="bl-proposal__group">
+                  <div className="bl-proposal__group-label">
+                    {t('consultantProposal.deliverablesTitle', { defaultValue: 'Deliverables' })}
+                  </div>
+                  <ul className="bl-proposal__list">
+                    {latest.deliverables.map((item) => (
+                      <li key={item.id}>
+                        {item.title}
+                        {item.due_date ? ` • ${t('consultantProposal.dueLabel', { defaultValue: 'due {{date}}', date: String(item.due_date).slice(0, 10) })}` : ''}
+                        {item.description ? <span className="bl-proposal__item-desc">{item.description}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {(latest.exclusions || []).length > 0 && (
+                <div className="bl-proposal__group">
+                  <div className="bl-proposal__group-label">
+                    {t('consultantProposal.exclusionsTitle', { defaultValue: 'Scope exclusions' })}
+                  </div>
+                  <ul className="bl-proposal__list">
+                    {latest.exclusions.map((item) => (
+                      <li key={item.id}>{item.exclusion_text}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {latest.decision_reason && (
+                <p className="bl-proposal__reason">
+                  {t('consultantProposal.decisionReason', { defaultValue: 'Decision note: {{reason}}', reason: latest.decision_reason })}
+                </p>
+              )}
+              {sent && (
+                <div className="bl-proposal__actions">
+                  <div className="bl-proposal__action-row">
+                    <button
+                      type="button"
+                      onClick={() => decide('approve')}
+                      disabled={busy}
+                      className="bl-proposal__btn-approve" data-track="ui.478f2e3593.10"
+                    >
+                      {t('consultantProposal.approve', { defaultValue: 'Approve proposal' })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowReject((prev) => !prev)}
+                      disabled={busy}
+                      className="bl-proposal__btn-reject" data-track="ui.478f2e3593.11"
+                    >
+                      {t('consultantProposal.reject', { defaultValue: 'Ask for changes' })}
+                    </button>
+                  </div>
+                  {showReject && (
+                    <div className="bl-proposal__reject-form">
+                      <label className="bl-proposal__reject-label">
+                        {t('consultantProposal.rejectReasonLabel', { defaultValue: 'What should change?' })}
+                      </label>
+                      <textarea
+                        value={rejectReason}
+                        onChange={(event) => setRejectReason(event.target.value)}
+                        rows={3}
+                        className="bl-proposal__reject-text"
+                        placeholder={t('consultantProposal.rejectReasonPlaceholder', { defaultValue: 'Tell your consultant what to change, so the next version gets it right.' })}
+                      />
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => decide('reject')}
+                          disabled={busy || rejectReason.trim().length < 10}
+                          className="bl-proposal__btn-confirm" data-track="ui.478f2e3593.12"
+                        >
+                          {t('consultantProposal.rejectConfirm', { defaultValue: 'Send rejection' })}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {proposals.length > 1 && (
+            <div>
+              <div className="bl-proposal__history-label">
+                {t('consultantProposal.historyTitle', { defaultValue: 'Version history' })}
+              </div>
+              <ul className="bl-proposal__history-list">
+                {proposals.slice(1).map((proposal) => (
+                  <li key={proposal.id} className="bl-proposal__history-item">
+                    <button type="button" onClick={() => setExpandedId((prev) => (prev === proposal.id ? null : proposal.id))} className="bl-proposal__history-button" data-track="ui.478f2e3593.13">
+                      {t('consultantProposal.versionLabel', { defaultValue: 'Version {{version}}', version: proposal.version })} • {proposal.title} • {fmtProposalPrice(proposal.price_cents, proposal.currency)} • {t(`consultantProposal.status.${proposal.status}`, { defaultValue: proposal.status.replace(/_/g, ' ') })}
+                    </button>
+                    {expandedId === proposal.id && proposal.decision_reason && (
+                      <p className="bl-proposal__history-reason">{proposal.decision_reason}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Group 10 Slice E (526-530): the client's milestone board. Loads the
+// engagement session behind an engaged referral, shows each milestone
+// with its documents, lets the client accept a delivered milestone and
+// leave feedback on it, and exchange documents both ways.
+function MilestoneBoard({ request }) {
+  const { t } = useTranslation();
+  const [session, setSession] = useState(null);
+  const [deliverables, setDeliverables] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [notStarted, setNotStarted] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState('');
+  const [feedback, setFeedback] = useState({});
+  const [feedbackSent, setFeedbackSent] = useState({});
+  const [uploadVisibility, setUploadVisibility] = useState({});
+  const [uploadBusy, setUploadBusy] = useState('');
+
+  const engaged = request.consultant_assignment_status === 'engaged';
+
+  const load = useCallback(async () => {
+    if (!engaged) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError('');
+      const { data } = await deliverablesApi.getEngagementSession(request.id);
+      setSession(data.session || null);
+      setDeliverables(Array.isArray(data.deliverables) ? data.deliverables : []);
+      setNotStarted(false);
+    } catch (err) {
+      if (err.response?.data?.code === 'session_not_started') {
+        setNotStarted(true);
+      } else {
+        setError(err.response?.data?.error || t('consultantDeliverable.loadError', { defaultValue: 'Could not load the milestone board.' }));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [engaged, request.id, t]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (!engaged) return null;
+
+  const isOverdue = (item) => {
+    if (!item.due_date || !['pending', 'in_progress'].includes(item.status)) return false;
+    return String(item.due_date).slice(0, 10) < new Date().toISOString().slice(0, 10);
+  };
+
+  const accept = async (item) => {
+    if (!session) return;
+    try {
+      setBusy(`accept-${item.id}`);
+      setError('');
+      setNotice('');
+      await deliverablesApi.acceptDeliverable(session.id, item.id);
+      setNotice(t('consultantDeliverable.acceptedNotice', { defaultValue: 'Milestone accepted. Thank you.' }));
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantDeliverable.acceptError', { defaultValue: 'Could not accept the milestone.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const sendFeedback = async (item) => {
+    if (!session) return;
+    const form = feedback[item.id] || {};
+    const rating = Number(form.rating || 5);
+    try {
+      setBusy(`feedback-${item.id}`);
+      setError('');
+      await deliverablesApi.submitFeedback(session.id, {
+        rating, feedback_text: (form.text || '').trim(), deliverable_id: item.id,
+      });
+      setFeedbackSent((prev) => ({ ...prev, [item.id]: true }));
+      setNotice(t('consultantDeliverable.feedbackSent', { defaultValue: 'Feedback sent. Thank you.' }));
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantDeliverable.feedbackError', { defaultValue: 'Could not send feedback.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const uploadDocument = async (event, item) => {
+    const file = event.target.files?.[0];
+    if (!file || !session) return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('visibility', uploadVisibility[item.id] || 'shared');
+    try {
+      setUploadBusy(`upload-${item.id}`);
+      setError('');
+      await deliverablesApi.attachClientDocument(session.id, item.id, form);
+      setNotice(t('consultantDeliverable.documentUploaded', { defaultValue: 'Document attached.' }));
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantDeliverable.uploadError', { defaultValue: 'Could not attach the document.' }));
+    } finally {
+      setUploadBusy('');
+      event.target.value = '';
+    }
+  };
+
+  const downloadDocument = async (doc) => {
+    try {
+      const { data } = await deliverablesApi.downloadClientDocument(doc.id);
+      if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch {
+      setError(t('consultantDeliverable.downloadError', { defaultValue: 'Could not prepare the download.' }));
+    }
+  };
+
+  const feedbackOpen = (item) => ['draft_delivered', 'completed', 'accepted'].includes(item.status);
+  const acceptOpen = (item) => ['draft_delivered', 'completed'].includes(item.status);
+
+  return (
+    <section className="bl-milestone">
+      <h3 className="bl-milestone__title">
+        {t('consultantDeliverable.title', { defaultValue: 'Milestone board' })}
+      </h3>
+      {loading ? (
+        <p className="bl-milestone__note">{t('common.loading', { defaultValue: 'Loading…' })}</p>
+      ) : notStarted ? (
+        <p className="bl-milestone__note">
+          {t('consultantDeliverable.notStarted', { defaultValue: 'The engagement is agreed. Your consultant will start it and the milestones will appear here.' })}
+        </p>
+      ) : (
+        <div className="bl-milestone__stack">
+          {error && <p role="alert" className="bl-milestone__error">{error}</p>}
+          {notice && <p role="status" className="bl-milestone__notice">{notice}</p>}
+          {!deliverables.length && (
+            <p className="bl-milestone__note">
+              {t('consultantDeliverable.noMilestones', { defaultValue: 'No milestones on this engagement yet.' })}
+            </p>
+          )}
+          {deliverables.map((item) => {
+            const form = feedback[item.id] || {};
+            return (
+              <div key={item.id} className="bl-milestone__card">
+                <div className="bl-milestone__card-title">{item.name}</div>
+                <div className="bl-milestone__card-meta">
+                  {t(`consultantProposal.deliverableTypes.${item.deliverable_type}`, { defaultValue: (item.deliverable_type || 'other').replace(/_/g, ' ') })}
+                  {' • '}
+                  {t('consultantDeliverable.dueLabel', { defaultValue: 'due {{date}}', date: item.due_date ? String(item.due_date).slice(0, 10) : '-' })}
+                  {' • '}
+                  {isOverdue(item)
+                    ? t('consultantDeliverable.overdue', { defaultValue: 'overdue' })
+                    : t(`consultantDeliverable.status.${item.status}`, { defaultValue: item.status.replace(/_/g, ' ') })}
+                </div>
+                {item.description && <p className="bl-milestone__draft">{item.description}</p>}
+                {item.draft_note && (
+                  <p className="bl-milestone__draft">
+                    {t('consultantDeliverable.draftNote', { defaultValue: 'Draft note: {{note}}', note: item.draft_note })}
+                  </p>
+                )}
+                {(item.documents || []).length > 0 && (
+                  <ul className="bl-milestone__list">
+                    {item.documents.map((doc) => (
+                      <li key={doc.id} className="bl-milestone__doc-row">
+                        <span className="bl-milestone__doc-name">{doc.originalName}</span>
+                        {doc.expired ? (
+                          <span className="bl-milestone__doc-expired">{t('consultantConfidentiality.docExpired', { defaultValue: 'Access expired' })}</span>
+                        ) : doc.expiresAt ? (
+                          <span className="bl-milestone__doc-expiry">{t('consultantConfidentiality.docExpiry', { defaultValue: 'Access until {{date}}', date: String(doc.expiresAt).slice(0, 10) })}</span>
+                        ) : null}
+                        <button type="button" onClick={() => downloadDocument(doc)} className="bl-milestone__doc-button" data-track="ui.478f2e3593.16">
+                          {t('consultantDeliverable.download', { defaultValue: 'Download' })}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <label className="bl-milestone__upload">
+                  <span>{t('consultantDeliverable.attachDocument', { defaultValue: 'Attach a document' })}</span>
+                  <select
+                    value={uploadVisibility[item.id] || 'shared'}
+                    onChange={(event) => setUploadVisibility((prev) => ({ ...prev, [item.id]: event.target.value }))}
+                    disabled={uploadBusy === `upload-${item.id}`}
+                    className="bl-milestone__select"
+                  >
+                    <option value="shared">{t('consultantDeliverable.visibilityShared', { defaultValue: 'Shared with consultant' })}</option>
+                    <option value="client_only">{t('consultantDeliverable.visibilityClientOnly', { defaultValue: 'Only me' })}</option>
+                  </select>
+                  <input type="file" onChange={(event) => uploadDocument(event, item)} disabled={uploadBusy === `upload-${item.id}`} accept="image/*,application/pdf,.doc,.docx" />
+                </label>
+                <div className="bl-milestone__actions">
+                  {acceptOpen(item) && (
+                    <button
+                      type="button"
+                      onClick={() => accept(item)}
+                      disabled={busy === `accept-${item.id}`}
+                      className="bl-milestone__btn-accept" data-track="ui.478f2e3593.14"
+                    >
+                      {t('consultantDeliverable.accept', { defaultValue: 'Accept milestone' })}
+                    </button>
+                  )}
+                  {item.status === 'accepted' && (
+                    <p className="bl-milestone__accepted">
+                      {t('consultantDeliverable.accepted', { defaultValue: 'Accepted by you' })}
+                      {item.accepted_at ? ` • ${new Date(item.accepted_at).toLocaleDateString()}` : ''}
+                    </p>
+                  )}
+                </div>
+                {feedbackOpen(item) && !feedbackSent[item.id] && item.feedback_count === 0 && (
+                  <div className="bl-milestone__feedback-form">
+                    <label className="bl-milestone__feedback-label" htmlFor={`feedback-rating-${item.id}`}>
+                      {t('consultantDeliverable.feedbackLabel', { defaultValue: 'How was this milestone?' })}
+                    </label>
+                    <select
+                      id={`feedback-rating-${item.id}`}
+                      value={form.rating || '5'}
+                      onChange={(event) => setFeedback((prev) => ({ ...prev, [item.id]: { ...form, rating: event.target.value } }))}
+                      className="bl-milestone__select"
+                    >
+                      {[5, 4, 3, 2, 1].map((value) => (
+                        <option key={value} value={value}>
+                          {t('consultantDeliverable.ratingOption', { defaultValue: '{{rating}} out of 5', rating: value })}
+                        </option>
+                      ))}
+                    </select>
+                    <textarea
+                      value={form.text || ''}
+                      onChange={(event) => setFeedback((prev) => ({ ...prev, [item.id]: { ...form, text: event.target.value } }))}
+                      rows={3}
+                      className="bl-milestone__feedback-text"
+                      placeholder={t('consultantDeliverable.feedbackPlaceholder', { defaultValue: 'Tell your consultant what worked and what could be better.' })}
+                    />
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => sendFeedback(item)}
+                        disabled={busy === `feedback-${item.id}`}
+                        className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.15"
+                      >
+                        {t('consultantDeliverable.sendFeedback', { defaultValue: 'Send feedback' })}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {item.feedback_count > 0 && (
+                  <p className="bl-milestone__card-meta">
+                    {t('consultantDeliverable.feedbackGiven', { defaultValue: 'Feedback sent for this milestone.' })}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+          {session && (
+            <>
+              <MilestoneChanges session={session} deliverables={deliverables} onChanged={load} />
+              <MilestoneConfidentiality session={session} deliverables={deliverables} onChanged={load} />
+              <MilestoneCloseout session={session} onChanged={load} />
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Group 10 Slice F (531-535): the client's change-request, history, and
+// pause UI on the milestone board. The client files requests, decides
+// the consultant's requests, and pauses/resumes the engagement.
+function MilestoneChanges({ session, deliverables, onChanged }) {
+  const { t } = useTranslation();
+  const [requests, setRequests] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [formType, setFormType] = useState('scope_revision');
+  const [formDeliverable, setFormDeliverable] = useState('');
+  const [formTitle, setFormTitle] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formDueDate, setFormDueDate] = useState('');
+  const [formAmount, setFormAmount] = useState('');
+  const [formReason, setFormReason] = useState('');
+  const [rejectReasons, setRejectReasons] = useState({});
+  const [pauseReason, setPauseReason] = useState('');
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const loadChanges = useCallback(async () => {
+    try {
+      const [reqRes, histRes] = await Promise.all([
+        changesApi.listClientChangeRequests(session.id),
+        changesApi.getClientHistory(session.id),
+      ]);
+      setRequests(Array.isArray(reqRes.data?.changeRequests) ? reqRes.data.changeRequests : []);
+      setEvents(Array.isArray(histRes.data?.events) ? histRes.data.events : []);
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantChange.loadError', { defaultValue: 'Could not load the changes.' }));
+    }
+  }, [session.id, t]);
+
+  useEffect(() => { loadChanges(); }, [loadChanges]);
+
+  const runAction = async (key, fn, successKey, successDefault) => {
+    setBusy(key);
+    setError('');
+    setNotice('');
+    try {
+      await fn();
+      if (successKey) setNotice(t(successKey, { defaultValue: successDefault || successKey }));
+      await loadChanges();
+      if (onChanged) await onChanged();
+    } catch (err) {
+      setError(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const submitRequest = () => runAction('submit-request', () => changesApi.createClientChangeRequest(session.id, {
+    request_type: formType,
+    deliverable_id: formDeliverable || null,
+    title: null,
+    reason: formReason.trim(),
+    new_title: formTitle.trim() || null,
+    new_description: formDescription.trim() || null,
+    new_due_date: formDueDate || null,
+    amount_cents: formType === 'additional_fee' ? Math.round(Number(formAmount) * 100) : null,
+    currency: 'USD',
+  }), 'consultantChange.requested', 'Change request sent.').then(() => {
+    setShowForm(false);
+    setFormTitle('');
+    setFormDescription('');
+    setFormDueDate('');
+    setFormAmount('');
+    setFormReason('');
+  });
+
+  const paused = session.status === 'paused';
+
+  return (
+    <div className="bl-milestone__changes">
+      <h4 className="bl-milestone__changes-title">
+        {t('consultantChange.title', { defaultValue: 'Changes' })}
+      </h4>
+      {error && <p role="alert" className="bl-milestone__error">{error}</p>}
+      {notice && <p role="status" className="bl-milestone__notice">{notice}</p>}
+      {paused && (
+        <p className="bl-milestone__paused">
+          {t('consultantChange.pausedNotice', { defaultValue: 'This engagement is paused. Milestone work and change approvals are on hold until it resumes.' })}
+        </p>
+      )}
+      <div className="bl-milestone__actions">
+        <button
+          type="button"
+          onClick={() => setShowForm((prev) => !prev)}
+          className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.23"
+        >
+          {t('consultantChange.requestChange', { defaultValue: 'Request a change' })}
+        </button>
+        {paused ? (
+          <button
+            type="button"
+            onClick={() => runAction('resume', () => changesApi.resumeClientEngagement(session.id), 'consultantChange.resumed', 'Engagement resumed.')}
+            disabled={busy === 'resume'}
+            className="bl-milestone__btn-accept" data-track="ui.478f2e3593.22"
+          >
+            {t('consultantChange.resume', { defaultValue: 'Resume engagement' })}
+          </button>
+        ) : (
+          <>
+            <input
+              type="text"
+              value={pauseReason}
+              onChange={(event) => setPauseReason(event.target.value)}
+              placeholder={t('consultantChange.pauseReasonPlaceholder', { defaultValue: 'Why pause? (at least 10 characters)' })}
+              className="bl-milestone__feedback-text"
+            />
+            <button
+              type="button"
+              onClick={() => runAction('pause', () => changesApi.pauseClientEngagement(session.id, pauseReason.trim()), 'consultantChange.paused', 'Engagement paused.')}
+              disabled={busy === 'pause' || pauseReason.trim().length < 10}
+              className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.21"
+            >
+              {t('consultantChange.pause', { defaultValue: 'Pause engagement' })}
+            </button>
+          </>
+        )}
+      </div>
+      {showForm && (
+        <div className="bl-milestone__feedback-form">
+          <select
+            value={formType}
+            onChange={(event) => setFormType(event.target.value)}
+            className="bl-milestone__select"
+            aria-label={t('consultantChange.requestType', { defaultValue: 'Change type' })}
+          >
+            <option value="scope_revision">{t('consultantChange.types.scope_revision', { defaultValue: 'Scope revision' })}</option>
+            <option value="deadline_adjustment">{t('consultantChange.types.deadline_adjustment', { defaultValue: 'Deadline adjustment' })}</option>
+            <option value="additional_fee">{t('consultantChange.types.additional_fee', { defaultValue: 'Additional fee' })}</option>
+          </select>
+          {formType !== 'additional_fee' && (
+            <select
+              value={formDeliverable}
+              onChange={(event) => setFormDeliverable(event.target.value)}
+              className="bl-milestone__select"
+              aria-label={t('consultantChange.milestone', { defaultValue: 'Milestone' })}
+            >
+              <option value="">{t('consultantChange.wholeEngagement', { defaultValue: 'Whole engagement' })}</option>
+              {(deliverables || []).map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          )}
+          {formType === 'scope_revision' && (
+            <>
+              <input
+                type="text"
+                value={formTitle}
+                onChange={(event) => setFormTitle(event.target.value)}
+                placeholder={t('consultantChange.newTitlePlaceholder', { defaultValue: 'New milestone title (optional)' })}
+                className="bl-milestone__feedback-text"
+              />
+              <textarea
+                value={formDescription}
+                onChange={(event) => setFormDescription(event.target.value)}
+                placeholder={t('consultantChange.newDescriptionPlaceholder', { defaultValue: 'New scope or description' })}
+                rows={2}
+                className="bl-milestone__feedback-text"
+              />
+            </>
+          )}
+          {formType === 'deadline_adjustment' && (
+            <input
+              type="date"
+              value={formDueDate}
+              onChange={(event) => setFormDueDate(event.target.value)}
+              className="bl-milestone__feedback-text"
+              aria-label={t('consultantChange.newDueDate', { defaultValue: 'New due date' })}
+            />
+          )}
+          {formType === 'additional_fee' && (
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formAmount}
+              onChange={(event) => setFormAmount(event.target.value)}
+              placeholder={t('consultantChange.amountPlaceholder', { defaultValue: 'Additional fee in dollars' })}
+              className="bl-milestone__feedback-text"
+            />
+          )}
+          <textarea
+            value={formReason}
+            onChange={(event) => setFormReason(event.target.value)}
+            placeholder={t('consultantChange.reasonPlaceholder', { defaultValue: 'Why is this change needed? (at least 10 characters)' })}
+            rows={2}
+            className="bl-milestone__feedback-text"
+          />
+          <button
+            type="button"
+            onClick={submitRequest}
+            disabled={busy === 'submit-request' || formReason.trim().length < 10}
+            className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.17"
+          >
+            {t('consultantChange.submitRequest', { defaultValue: 'Send change request' })}
+          </button>
+        </div>
+      )}
+      {requests.length === 0 && events.length === 0 && (
+        <p className="bl-milestone__note">{t('consultantChange.empty', { defaultValue: 'No changes yet.' })}</p>
+      )}
+      {requests.map((request) => (
+        <div key={request.id} className="bl-milestone__card">
+          <div className="bl-milestone__card-title">
+            {t(`consultantChange.types.${request.requestType}`, { defaultValue: request.requestType.replace(/_/g, ' ') })}
+            {request.deliverableName ? ` • ${request.deliverableName}` : ''}
+          </div>
+          <div className="bl-milestone__card-meta">
+            {t(`consultantChange.status.${request.status}`, { defaultValue: request.status })}
+            {' • '}
+            {t('consultantChange.requestedBy', { defaultValue: 'Requested by {{role}}', role: t(`consultantChange.roles.${request.requestedByRole}`, { defaultValue: request.requestedByRole }) })}
+            {request.amountCents != null ? ` • $${(request.amountCents / 100).toFixed(2)}` : ''}
+            {request.newDueDate ? ` • ${t('consultantDeliverable.dueLabel', { defaultValue: 'due {{date}}', date: request.newDueDate })}` : ''}
+          </div>
+          {request.reason && <p className="bl-milestone__draft">{request.reason}</p>}
+          {request.decisionReason && (
+            <p className="bl-milestone__draft">
+              {t('consultantChange.decisionReason', { defaultValue: 'Decision: {{reason}}', reason: request.decisionReason })}
+            </p>
+          )}
+          {request.status === 'pending' && request.requestedByRole === 'consultant' && (
+            <div className="bl-milestone__actions">
+              <button
+                type="button"
+                onClick={() => runAction(`approve-${request.id}`, () => changesApi.approveClientChangeRequest(session.id, request.id), 'consultantChange.approved', 'Change request approved.')}
+                disabled={busy === `approve-${request.id}`}
+                className="bl-milestone__btn-accept" data-track="ui.478f2e3593.18"
+              >
+                {t('consultantChange.approve', { defaultValue: 'Approve' })}
+              </button>
+              <input
+                type="text"
+                value={rejectReasons[request.id] || ''}
+                onChange={(event) => setRejectReasons((prev) => ({ ...prev, [request.id]: event.target.value }))}
+                placeholder={t('consultantChange.rejectReasonPlaceholder', { defaultValue: 'Reason for declining (required)' })}
+                className="bl-milestone__feedback-text"
+              />
+              <button
+                type="button"
+                onClick={() => runAction(`reject-${request.id}`, () => changesApi.rejectClientChangeRequest(session.id, request.id, (rejectReasons[request.id] || '').trim()), 'consultantChange.rejected', 'Change request declined.')}
+                disabled={busy === `reject-${request.id}` || (rejectReasons[request.id] || '').trim().length < 10}
+                className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.19"
+              >
+                {t('consultantChange.reject', { defaultValue: 'Decline' })}
+              </button>
+            </div>
+          )}
+          {request.status === 'pending' && request.requestedByRole === 'client' && (
+            <button
+              type="button"
+              onClick={() => runAction(`withdraw-${request.id}`, () => changesApi.withdrawClientChangeRequest(session.id, request.id), 'consultantChange.withdrawn', 'Change request withdrawn.')}
+              disabled={busy === `withdraw-${request.id}`}
+              className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.20"
+            >
+              {t('consultantChange.withdraw', { defaultValue: 'Withdraw request' })}
+            </button>
+          )}
+        </div>
+      ))}
+      {events.length > 0 && (
+        <div>
+          <h5 className="bl-milestone__changes-title">{t('consultantChange.history', { defaultValue: 'Change history' })}</h5>
+          <ul className="bl-milestone__list">
+            {events.map((event) => (
+              <li key={event.id} className="bl-milestone__card-meta">
+                {event.summary}
+                {' • '}
+                {event.createdAt ? String(event.createdAt).slice(0, 10) : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Group 10 Slice G (536-540): the client's confidentiality panel on the
+// milestone board. The client reads the participant list, acknowledges
+// for themselves, exports the engagement record, and changes sharing
+// and expiry on the documents they uploaded.
+function MilestoneConfidentiality({ session, deliverables, onChanged }) {
+  const { t } = useTranslation();
+  const [participants, setParticipants] = useState(null);
+  const [confidentiality, setConfidentiality] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [expiryDrafts, setExpiryDrafts] = useState({});
+  const [clearedExpiry, setClearedExpiry] = useState({});
+  const [visibilityDrafts, setVisibilityDrafts] = useState({});
+  const [shareDrafts, setShareDrafts] = useState({});
+
+  const loadConfidentiality = useCallback(async () => {
+    try {
+      const [partRes, confRes] = await Promise.all([
+        confidentialityApi.listClientParticipants(session.id),
+        confidentialityApi.getClientConfidentiality(session.id),
+      ]);
+      setParticipants(partRes.data);
+      setConfidentiality(confRes.data);
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantConfidentiality.loadError', { defaultValue: 'Could not load confidentiality details.' }));
+    }
+  }, [session.id, t]);
+
+  useEffect(() => { loadConfidentiality(); }, [loadConfidentiality]);
+
+  const runAction = async (key, fn, successKey, successDefault) => {
+    setBusy(key);
+    setError('');
+    setNotice('');
+    try {
+      await fn();
+      if (successKey) setNotice(t(successKey, { defaultValue: successDefault || successKey }));
+      await loadConfidentiality();
+      if (onChanged) await onChanged();
+    } catch (err) {
+      setError(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const acknowledge = () => runAction(
+    'acknowledge',
+    () => confidentialityApi.acknowledgeClientConfidentiality(session.id),
+    'consultantConfidentiality.acknowledged',
+    'Confidentiality acknowledged.',
+  );
+
+  const exportRecord = async () => {
+    setBusy('export');
+    setError('');
+    try {
+      const { data } = await confidentialityApi.exportClientRecord(session.id);
+      downloadEngagementRecord(data, session.id);
+      setNotice(t('consultantConfidentiality.exported', { defaultValue: 'Engagement record downloaded.' }));
+    } catch {
+      setError(t('consultantConfidentiality.exportError', { defaultValue: 'Could not export the engagement record.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const parties = [
+    ...(participants?.core || []),
+    ...(participants?.participants || []).filter((party) => party.active),
+  ];
+  const myAck = (confidentiality?.parties || []).find((party) => party.role === 'client');
+  const pending = (confidentiality?.parties || []).filter((party) => !party.acknowledgedAt);
+  const fmtName = (party) => [party.firstName, party.lastName].filter(Boolean).join(' ') || party.email || party.userId;
+  const myDocs = (deliverables || [])
+    .flatMap((item) => (item.documents || []).map((doc) => ({ ...doc, deliverableId: item.id })))
+    .filter((doc) => session.user_id && doc.uploadedBy === session.user_id);
+
+  const saveSharing = (doc) => {
+    const visibility = visibilityDrafts[doc.id] || doc.visibility;
+    const payload = { visibility };
+    if (clearedExpiry[doc.id]) {
+      payload.expires_at = null;
+    } else if (expiryDrafts[doc.id]) {
+      payload.expires_at = new Date(`${expiryDrafts[doc.id]}T23:59:59.999Z`).toISOString();
+    }
+    if (visibility === 'limited') {
+      payload.shared_with = shareDrafts[doc.id] ?? doc.sharedWith ?? [];
+    }
+    return runAction(
+      `sharing-${doc.id}`,
+      () => confidentialityApi.updateClientDocumentSharing(session.id, doc.deliverableId, doc.id, payload),
+      'consultantConfidentiality.sharingUpdated',
+      'Document sharing updated.',
+    );
+  };
+
+  const toggleShare = (doc, userId) => {
+    setShareDrafts((prev) => {
+      const current = new Set(prev[doc.id] ?? doc.sharedWith ?? []);
+      if (current.has(userId)) current.delete(userId);
+      else current.add(userId);
+      return { ...prev, [doc.id]: [...current] };
+    });
+  };
+
+  return (
+    <div className="bl-milestone__changes">
+      <div className="bl-milestone__actions">
+        <h4 className="bl-milestone__changes-title">
+          {t('consultantConfidentiality.title', { defaultValue: 'Confidentiality' })}
+        </h4>
+        <button
+          type="button"
+          onClick={exportRecord}
+          disabled={busy === 'export'}
+          className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.24"
+        >
+          {t('consultantConfidentiality.export', { defaultValue: 'Export engagement record' })}
+        </button>
+      </div>
+      {error && <p role="alert" className="bl-milestone__error">{error}</p>}
+      {notice && <p role="status" className="bl-milestone__notice">{notice}</p>}
+      <div>
+        <h5 className="bl-milestone__changes-title">{t('consultantConfidentiality.participantsTitle', { defaultValue: 'Participants' })}</h5>
+        <ul className="bl-milestone__list">
+          {parties.map((party) => (
+            <li key={party.userId} className="bl-milestone__card-meta">
+              {fmtName(party)}
+              {' • '}
+              {t(`consultantConfidentiality.roles.${party.role}`, { defaultValue: party.role.replace(/_/g, ' ') })}
+            </li>
+          ))}
+        </ul>
+        {parties.length === 0 && (
+          <p className="bl-milestone__card-meta">
+            {t('consultantConfidentiality.participantsEmpty', { defaultValue: 'Only the client and the consultant are on this engagement.' })}
+          </p>
+        )}
+      </div>
+      <div>
+        {pending.length === 0 ? (
+          <p className="bl-milestone__card-meta">
+            {t('consultantConfidentiality.ackDone', { defaultValue: 'Everyone on this engagement has acknowledged confidentiality.' })}
+          </p>
+        ) : (
+          <p className="bl-milestone__card-meta">
+            {pending.map((party) => t('consultantConfidentiality.ackPending', { defaultValue: 'Still waiting on {{name}}.', name: fmtName(party) })).join(' ')}
+          </p>
+        )}
+        {myAck && !myAck.acknowledgedAt && (
+          <div className="bl-milestone__feedback-form">
+            <p className="bl-milestone__card-meta">
+              {t('consultantConfidentiality.ackStatement', { defaultValue: 'I will keep this engagement\u2019s information confidential and share it only with the people on this engagement.' })}
+            </p>
+            <div>
+              <button
+                type="button"
+                onClick={acknowledge}
+                disabled={busy === 'acknowledge'}
+                className="bl-milestone__btn-accept" data-track="ui.478f2e3593.25"
+              >
+                {t('consultantConfidentiality.acknowledge', { defaultValue: 'Acknowledge confidentiality' })}
+              </button>
+            </div>
+          </div>
+        )}
+        {myAck && myAck.acknowledgedAt && (
+          <p className="bl-milestone__card-meta">
+            {t('consultantConfidentiality.ackYou', { defaultValue: 'You have acknowledged confidentiality.' })}
+          </p>
+        )}
+      </div>
+      {myDocs.length > 0 && (
+        <div>
+          <h5 className="bl-milestone__changes-title">{t('consultantDeliverable.attachDocument', { defaultValue: 'Attach a document' })}</h5>
+          <ul className="bl-milestone__list">
+            {myDocs.map((doc) => {
+              const visibility = visibilityDrafts[doc.id] || doc.visibility;
+              const expiry = expiryDrafts[doc.id] ?? (doc.expired ? '' : (doc.expiresAt ? String(doc.expiresAt).slice(0, 10) : ''));
+              return (
+                <li key={doc.id} className="bl-milestone__card">
+                  <p className="bl-milestone__card-meta">{doc.originalName}</p>
+                  <p className="bl-milestone__card-meta">
+                    {t(`consultantConfidentiality.visibility${visibility === 'shared' ? 'Shared' : visibility === 'client_only' ? 'ClientOnly' : visibility === 'consultant_only' ? 'ConsultantOnly' : visibility === 'limited' ? 'Limited' : 'Internal'}`, { defaultValue: visibility.replace(/_/g, ' ') })}
+                    {doc.expired ? (
+                      <span>{` • ${t('consultantConfidentiality.docExpired', { defaultValue: 'Access expired' })}`}</span>
+                    ) : doc.expiresAt ? (
+                      <span>{` • ${t('consultantConfidentiality.docExpiry', { defaultValue: 'Access until {{date}}', date: String(doc.expiresAt).slice(0, 10) })}`}</span>
+                    ) : (
+                      <span>{` • ${t('consultantConfidentiality.docNoExpiry', { defaultValue: 'No expiry' })}`}</span>
+                    )}
+                  </p>
+                  <div className="bl-milestone__actions">
+                    <select
+                      value={visibility}
+                      onChange={(event) => setVisibilityDrafts((prev) => ({ ...prev, [doc.id]: event.target.value }))}
+                      className="bl-milestone__select"
+                      aria-label={t('consultantConfidentiality.visibility', { defaultValue: 'Who can see this' })}
+                    >
+                      <option value="shared">{t('consultantConfidentiality.visibilityShared', { defaultValue: 'Shared with consultant' })}</option>
+                      <option value="client_only">{t('consultantConfidentiality.visibilityClientOnly', { defaultValue: 'Only me' })}</option>
+                      <option value="limited">{t('consultantConfidentiality.visibilityLimited', { defaultValue: 'Named people only' })}</option>
+                    </select>
+                    <input
+                      type="date"
+                      value={expiry}
+                      onChange={(event) => {
+                        setExpiryDrafts((prev) => ({ ...prev, [doc.id]: event.target.value }));
+                        setClearedExpiry((prev) => ({ ...prev, [doc.id]: false }));
+                      }}
+                      className="bl-milestone__select"
+                      aria-label={t('consultantConfidentiality.setExpiry', { defaultValue: 'Set expiry' })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExpiryDrafts((prev) => ({ ...prev, [doc.id]: '' }));
+                        setClearedExpiry((prev) => ({ ...prev, [doc.id]: true }));
+                      }}
+                      className="bl-milestone__btn-feedback" data-track="ui.478f2e3593.26"
+                    >
+                      {t('consultantConfidentiality.clearExpiry', { defaultValue: 'Clear expiry' })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => saveSharing(doc)}
+                      disabled={busy === `sharing-${doc.id}`}
+                      className="bl-milestone__btn-accept" data-track="ui.478f2e3593.27"
+                    >
+                      {t('consultantConfidentiality.saveSharing', { defaultValue: 'Save sharing' })}
+                    </button>
+                  </div>
+                  {visibility === 'limited' && (
+                    <div className="bl-milestone__actions">
+                      {parties.map((party) => {
+                        const selected = (shareDrafts[doc.id] ?? doc.sharedWith ?? []).includes(party.userId);
+                        return (
+                          <label key={party.userId} className="bl-milestone__card-meta">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => toggleShare(doc, party.userId)} data-track="ui.478f2e3593.28"
+                            />
+                            {' '}
+                            {fmtName(party)}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Group 10 Slice H (541-545): the client's closeout panel on the
+// milestone board. The client reads the final deliverable checklist,
+// confirms closeout for themselves, sees the feedback request and the
+// follow-ups the consultant scheduled, and sees the archived badge.
+// The client cannot schedule follow-ups or archive the engagement.
+function MilestoneCloseout({ session, onChanged }) {
+  const { t } = useTranslation();
+  const [closeout, setCloseout] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [confirmNote, setConfirmNote] = useState('');
+
+  const loadCloseout = useCallback(async () => {
+    try {
+      const { data } = await closeoutApi.getClientCloseout(session.id);
+      setCloseout(data);
+    } catch (err) {
+      setError(err.response?.data?.error || t('consultantCloseout.loadError'));
+    }
+  }, [session.id, t]);
+
+  useEffect(() => { loadCloseout(); }, [loadCloseout]);
+
+  const confirm = async () => {
+    setBusy('confirm');
+    setError('');
+    setNotice('');
+    try {
+      await closeoutApi.confirmClientCloseout(session.id, { note: confirmNote.trim() || null });
+      setNotice(t('consultantCloseout.confirmedToast'));
+      await loadCloseout();
+      if (onChanged) await onChanged();
+    } catch (err) {
+      setError(err.response?.data?.error || t('common.errorUpdating'));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const record = closeout?.closeout || null;
+  const items = closeout?.checklist?.items || [];
+  const myConfirmed = Boolean(record?.clientConfirmedAt);
+  const canConfirm = session.status === 'completed' && !myConfirmed;
+  const feedbackReceived = Boolean(items.find((item) => item.key === 'feedback_received')?.met);
+  const scheduledFollowUps = (closeout?.followUps || []).filter((item) => item.status === 'scheduled');
+
+  return (
+    <div className="bl-milestone__changes">
+      <div className="bl-milestone__actions">
+        <h4 className="bl-milestone__changes-title">{t('consultantCloseout.title')}</h4>
+        {session.status === 'archived' && (
+          <span className="bl-milestone__card-meta">{t('consultantCloseout.archived')}</span>
+        )}
+      </div>
+      {error && <p role="alert" className="bl-milestone__error">{error}</p>}
+      {notice && <p role="status" className="bl-milestone__notice">{notice}</p>}
+      {record?.closedAt && (
+        <p className="bl-milestone__card-meta">{t('consultantCloseout.closedNote')}</p>
+      )}
+      <div>
+        <h5 className="bl-milestone__changes-title">{t('consultantCloseout.checklistTitle')}</h5>
+        <ul className="bl-milestone__list">
+          {items.map((item) => (
+            <li key={item.key} className="bl-milestone__card-meta">
+              {item.met ? '✓ ' : '• '}
+              {t(`consultantCloseout.item_${item.key}`)}
+              {' — '}
+              {item.required ? t('consultantCloseout.required') : t('consultantCloseout.recommended')}
+              {' — '}
+              {item.met ? t('consultantCloseout.met') : t('consultantCloseout.unmet')}
+            </li>
+          ))}
+        </ul>
+      </div>
+      {!record?.closedAt && (
+        <div className="bl-milestone__feedback-form">
+          <input
+            type="text"
+            value={confirmNote}
+            onChange={(event) => setConfirmNote(event.target.value)}
+            placeholder={t('consultantCloseout.confirmNotePlaceholder')}
+            aria-label={t('consultantCloseout.confirmNotePlaceholder')}
+            disabled={!canConfirm}
+            className="bl-milestone__feedback-text"
+          />
+          <div>
+            <button
+              type="button"
+              onClick={confirm}
+              disabled={!canConfirm || busy === 'confirm'}
+              className="bl-milestone__btn-accept" data-track="ui.478f2e3593.29"
+            >
+              {t('consultantCloseout.confirm')}
+            </button>
+          </div>
+        </div>
+      )}
+      {session.status !== 'completed' && session.status !== 'archived' && (
+        <p className="bl-milestone__card-meta">{t('consultantCloseout.notCompleted')}</p>
+      )}
+      {record?.closedAt && !myConfirmed && (
+        <p className="bl-milestone__card-meta">{t('consultantCloseout.waitingOther')}</p>
+      )}
+      <div>
+        <h5 className="bl-milestone__changes-title">{t('consultantCloseout.feedbackTitle')}</h5>
+        {feedbackReceived ? (
+          <p className="bl-milestone__card-meta">{t('consultantCloseout.feedbackReceived')}</p>
+        ) : closeout?.feedbackRequest ? (
+          <p className="bl-milestone__card-meta">
+            {t('consultantCloseout.feedbackPending')}
+            {' '}
+            {t('consultantCloseout.leaveFeedback')}
+          </p>
+        ) : (
+          <p className="bl-milestone__card-meta">{t('consultantCloseout.feedbackPending')}</p>
+        )}
+      </div>
+      {scheduledFollowUps.length > 0 && (
+        <div>
+          <h5 className="bl-milestone__changes-title">{t('consultantCloseout.followUpTitle')}</h5>
+          <ul className="bl-milestone__list">
+            {scheduledFollowUps.map((item) => (
+              <li key={item.id} className="bl-milestone__card-meta">
+                {t(`consultantCloseout.followUpKind${item.kind === 'check_in' ? 'CheckIn' : item.kind === 'review' ? 'Review' : item.kind === 'renewal' ? 'Renewal' : 'Other'}`)}
+                {' • '}
+                {t('consultantCloseout.dueLabel', { date: String(item.dueAt).slice(0, 10) })}
+                {item.note ? ` • ${item.note}` : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DetailModal({ request, onClose }) {
   const { t } = useTranslation();
   const items = safeItems(request.setup_items_selected);
@@ -604,6 +1766,8 @@ function DetailModal({ request, onClose }) {
                 </label>
               </div>
             </section>
+            <ProposalReview requestId={request.id} />
+            <MilestoneBoard request={request} />
             <section
               style={{
                 border: '1px solid rgba(148,163,184,0.14)',

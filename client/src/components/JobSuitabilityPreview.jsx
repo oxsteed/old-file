@@ -11,7 +11,8 @@ export default function JobSuitabilityPreview({ jobId }) {
   return user?.id && hasHelperAccess ? <Preview key={`${user.id}:${epoch}:${jobId}`} jobId={jobId} epoch={epoch} /> : null;
 }
 function Preview({ jobId, epoch }) {
-  const { t } = useTranslation(), tr = key => t(`helperSuitability.${key}`);
+  const { t } = useTranslation(), tr = (key, params) => t(`helperSuitability.${key}`, params);
+  const fmt = value => Number(value).toLocaleString('en-US');
   const [data, setData] = useState(null), [error, setError] = useState(false), [reload, setReload] = useState(0);
   useEffect(() => {
     let active = true; setData(null); setError(false);
@@ -26,6 +27,8 @@ function Preview({ jobId, epoch }) {
     <h2>{tr('title')}</h2><p>{tr('help')}</p>
     {error ? <><p role="alert">{tr('loadError')}</p><button type="button" onClick={() => setReload(value => value + 1)}>{tr('reload')}</button></> : !data ? <p role="status">{tr('loading')}</p> : <>
       <p>{tr(data.can_bid_now ? 'eligible' : 'notOpen')}</p><p>{tr(`schedule_${data.schedule}`)}</p>
+      <p>{data.distance_miles == null ? tr('distanceUnknown') : tr('distance', { miles: data.distance_miles })}</p>
+      {data.budget_min != null && data.budget_max != null ? <p>{tr('budgetRange', { min: fmt(data.budget_min), max: fmt(data.budget_max) })}</p> : data.budget_min != null ? <p>{tr('budgetFrom', { min: fmt(data.budget_min) })}</p> : data.budget_max != null ? <p>{tr('budgetUpTo', { max: fmt(data.budget_max) })}</p> : <p>{tr('budgetUnknown')}</p>}
       <h3>{tr('review')}</h3><ul>{[...(data.requirements || []), ...(data.required_skills || [])].map((item, index) => <li key={index}>{item}</li>)}</ul>
       {!data.requirements?.length && !data.required_skills?.length && <p>{tr('none')}</p>}
       <button type="button" onClick={() => setReload(value => value + 1)}>{tr('reload')}</button>

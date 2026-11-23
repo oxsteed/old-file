@@ -270,6 +270,59 @@ const T = {
       ar: 'تم رفض طلب الدفع الخاص بك. تحقق من ملاحظة المراجعة لمزيد من التفاصيل.',
     },
   },
+  // G7-13: these three payout notices arrived blank (tNotif returns empty
+  // title/body for a missing entry, and the NULL title then fails the
+  // notifications insert, so the owner heard nothing at all). The audit
+  // misread payout_deposited's email button-text line as a title/body
+  // entry; it had none either.
+  payout_draft_created: {
+    title: {
+      en: 'Payout draft created',
+      fr: 'Brouillon de paiement créé',
+      es: 'Borrador de pago creado',
+      ht: 'Bouyon peman kreye',
+      ar: 'تم إنشاء مسودة دفع',
+    },
+    body: {
+      en: 'A payout draft was created and is awaiting owner confirmation.',
+      fr: 'Un brouillon de paiement a été créé et attend la confirmation du propriétaire.',
+      es: 'Se creó un borrador de pago que está a la espera de la confirmación del propietario.',
+      ht: 'Yo kreye yon bouyon peman k ap tann konfimasyon pwopriyetè a.',
+      ar: 'تم إنشاء مسودة دفع وهي بانتظار تأكيد المالك.',
+    },
+  },
+  payout_deposited: {
+    title: {
+      en: 'Payout deposited',
+      fr: 'Paiement déposé',
+      es: 'Pago depositado',
+      ht: 'Peman depoze',
+      ar: 'تم إيداع الدفع',
+    },
+    body: {
+      en: 'Your payout was deposited to your connected account.',
+      fr: 'Votre paiement a été déposé sur votre compte connecté.',
+      es: 'Tu pago fue depositado en tu cuenta conectada.',
+      ht: 'Peman ou an te depoze nan kont konekte ou an.',
+      ar: 'تم إيداع دفعتك في حسابك المتصل.',
+    },
+  },
+  payout_reversed: {
+    title: {
+      en: 'Payout reversed',
+      fr: 'Paiement annulé',
+      es: 'Pago revertido',
+      ht: 'Peman an anile',
+      ar: 'تم عكس الدفع',
+    },
+    body: {
+      en: 'Your payout was reversed by the payment provider. The amount is being returned to your restaurant balance.',
+      fr: 'Votre paiement a été annulé par le prestataire de paiement. Le montant est en cours de retour sur le solde de votre restaurant.',
+      es: 'Tu pago fue revertido por el proveedor de pagos. El importe se está devolviendo al saldo de tu restaurante.',
+      ht: 'Prestataire peman an te anile peman ou an. Yo ap remèt lajan an nan balans restoran ou an.',
+      ar: 'تم عكس دفعتك من قبل مزود الدفع. ويجري إرجاع المبلغ إلى رصيد مطعمك.',
+    },
+  },
   refund: {
     title: {
       en: 'Refund processed', fr: 'Remboursement traité', es: 'Reembolso procesado',
@@ -718,6 +771,140 @@ const T = {
       ar: 'انتهت مهلة الرد على طلب عرض السعر الخاص بك دون تلقي عرض سعر بعد.',
     },
   },
+  // Group 4 Slice C (166-170): counterparty notices for the helper-quote
+  // negotiation flow. Bodies stay generic (no names or amounts); the
+  // job and quote ride in data with an action_url to the job page.
+  helper_quote_received: {
+    title: {
+      en: 'New quote on your job',
+      fr: 'Nouveau devis sur votre annonce',
+      es: 'Nueva cotización en tu trabajo',
+      ht: 'Yon nouvo estimasyon sou travay ou',
+      ar: 'عرض سعر جديد على وظيفتك',
+    },
+    body: {
+      en: 'A helper sent an itemized quote for your job.',
+      fr: 'Un prestataire a envoyé un devis détaillé pour votre annonce.',
+      es: 'Un ayudante envió una cotización detallada para tu trabajo.',
+      ht: 'Yon asistan voye yon estimasyon detaye pou travay ou.',
+      ar: 'أرسل أحد المساعدين عرض سعر مفصل لوظيفتك.',
+    },
+  },
+  helper_quote_revised: {
+    title: {
+      en: 'A quote was revised',
+      fr: 'Un devis a été révisé',
+      es: 'Se revisó una cotización',
+      ht: 'Yo revize yon estimasyon',
+      ar: 'تمت مراجعة عرض سعر',
+    },
+    body: {
+      en: 'A helper updated their itemized quote for your job.',
+      fr: 'Un prestataire a mis à jour son devis détaillé pour votre annonce.',
+      es: 'Un ayudante actualizó su cotización detallada para tu trabajo.',
+      ht: 'Yon asistan mete estimasyon detaye li pou travay ou a ajou.',
+      ar: 'قام أحد المساعدين بتحديث عرض السعر المفصل لوظيفتك.',
+    },
+  },
+  helper_quote_counter_proposed: {
+    title: {
+      en: 'New counteroffer on your quote',
+      fr: 'Nouvelle contre-offre sur votre devis',
+      es: 'Nueva contraoferta en tu cotización',
+      ht: 'Yon nouvo kont-òf sou estimasyon ou',
+      ar: 'عرض مضاد جديد على عرض السعر الخاص بك',
+    },
+    body: {
+      en: 'The customer proposed a counteroffer on your quote.',
+      fr: 'Le client a proposé une contre-offre sur votre devis.',
+      es: 'El cliente propuso una contraoferta en tu cotización.',
+      ht: 'Kliyan an te pwopoze yon kont-òf sou estimasyon ou.',
+      ar: 'اقترح العميل عرضا مضادا على عرض السعر الخاص بك.',
+    },
+  },
+  helper_quote_counter_accepted: {
+    title: {
+      en: 'Counteroffer accepted',
+      fr: 'Contre-offre acceptée',
+      es: 'Contraoferta aceptada',
+      ht: 'Yo aksepte kont-òf la',
+      ar: 'تم قبول العرض المضاد',
+    },
+    body: {
+      en: 'The helper accepted your counteroffer and issued a revised quote.',
+      fr: 'Le prestataire a accepté votre contre-offre et émis un devis révisé.',
+      es: 'El ayudante aceptó tu contraoferta y emitió una cotización revisada.',
+      ht: 'Asistan an te aksepte kont-òf ou epi li voye yon estimasyon revize.',
+      ar: 'قبل المساعد عرضك المضاد وأصدر عرض سعر منقحا.',
+    },
+  },
+  helper_quote_counter_declined: {
+    title: {
+      en: 'Counteroffer declined',
+      fr: 'Contre-offre refusée',
+      es: 'Contraoferta rechazada',
+      ht: 'Yo refize kont-òf la',
+      ar: 'تم رفض العرض المضاد',
+    },
+    body: {
+      en: 'The helper declined your counteroffer. The original quote still stands.',
+      fr: 'Le prestataire a refusé votre contre-offre. Le devis initial reste valable.',
+      es: 'El ayudante rechazó tu contraoferta. La cotización original sigue vigente.',
+      ht: 'Asistan an te refize kont-òf ou. Estimasyon orijinal la toujou valab.',
+      ar: 'رفض المساعد عرضك المضاد. عرض السعر الأصلي ما زال قائما.',
+    },
+  },
+  helper_quote_accepted: {
+    title: {
+      en: 'Your quote was accepted',
+      fr: 'Votre devis a été accepté',
+      es: 'Tu cotización fue aceptada',
+      ht: 'Yo aksepte estimasyon ou',
+      ar: 'تم قبول عرض السعر الخاص بك',
+    },
+    body: {
+      en: 'The customer accepted your quote.',
+      fr: 'Le client a accepté votre devis.',
+      es: 'El cliente aceptó tu cotización.',
+      ht: 'Kliyan an te aksepte estimasyon ou.',
+      ar: 'قبل العميل عرض السعر الخاص بك.',
+    },
+  },
+  helper_quote_declined: {
+    title: {
+      en: 'Your quote was declined',
+      fr: 'Votre devis a été refusé',
+      es: 'Tu cotización fue rechazada',
+      ht: 'Yo refize estimasyon ou',
+      ar: 'تم رفض عرض السعر الخاص بك',
+    },
+    body: {
+      en: 'The customer declined your quote.',
+      fr: 'Le client a refusé votre devis.',
+      es: 'El cliente rechazó tu cotización.',
+      ht: 'Kliyan an te refize estimasyon ou.',
+      ar: 'رفض العميل عرض السعر الخاص بك.',
+    },
+  },
+  // Group 4 Slice B (164): the helper's pending bid expires within 24 hours.
+  // The body carries no hour count (the server catalog has no plural
+  // forms); the exact deadline is shown on /my-bids by BidDeadlineNotice.
+  bid_deadline_reminder: {
+    title: {
+      en: 'Your bid expires soon',
+      fr: 'Votre offre expire bientôt',
+      es: 'Tu oferta vence pronto',
+      ht: 'Òf ou a prèt pou ekspire',
+      ar: 'عرضك ينتهي قريبًا',
+    },
+    body: {
+      en: 'Your bid on "{jobTitle}" expires within 24 hours. Review it before the deadline.',
+      fr: 'Votre offre sur « {jobTitle} » expire dans moins de 24 heures. Vérifiez-la avant la date limite.',
+      es: 'Tu oferta en "{jobTitle}" vence en menos de 24 horas. Revísala antes de la fecha límite.',
+      ht: 'Òf ou sou "{jobTitle}" ap ekspire nan mwens pase 24 èdtan. Revize li anvan dat limit la.',
+      ar: 'عرضك على "{jobTitle}" ينتهي خلال أقل من 24 ساعة. راجعه قبل الموعد النهائي.',
+    },
+  },
   // G-6/G-7: book-for-another invite, site-contact status link, and the
   // booker's notice that the recipient responded.
   booking_recipient_invite: {
@@ -1159,6 +1346,55 @@ const T = {
       ar: 'جدول عميل جلسة استشارية معك. افتح لوحة التحكم لعرض التفاصيل والاستعداد.',
     },
   },
+  // G10-1: consultant payout leg (OxSteed Credit settlement on completion).
+  consultant_payout_paid: {
+    title: {
+      en: 'Your consulting payout was paid',
+      fr: 'Votre paiement de consultation a été versé',
+      es: 'Tu pago de consultoría fue enviado',
+      ht: 'Peman konsiltasyon ou an te peye',
+      ar: 'تم دفع مستحقاتك الاستشارية',
+    },
+    body: {
+      en: 'OxSteed paid {amount} in OxSteed Credit for {business}. Open your contractor dashboard to see the payout.',
+      fr: 'OxSteed a versé {amount} en crédit OxSteed pour {business}. Ouvrez votre tableau de bord pour voir le paiement.',
+      es: 'OxSteed pagó {amount} en crédito OxSteed por {business}. Abre tu panel para ver el pago.',
+      ht: 'OxSteed te peye {amount} an kredi OxSteed pou {business}. Louvri tablodbò ou pou wè peman an.',
+      ar: 'دفع OxSteed مبلغ {amount} برصيد OxSteed عن {business}. افتح لوحة التحكم لعرض الدفعة.',
+    },
+  },
+  consultant_payout_parked: {
+    title: {
+      en: 'Your consulting payout is waiting',
+      fr: 'Votre paiement de consultation est en attente',
+      es: 'Tu pago de consultoría está en espera',
+      ht: 'Peman konsiltasyon ou an ap tann',
+      ar: 'مستحقاتك الاستشارية قيد الانتظار',
+    },
+    body: {
+      en: 'Your payout of {amount} in OxSteed Credit for {business} is waiting because the Credit rail is not available right now. It will be retried automatically; no action is needed.',
+      fr: 'Votre paiement de {amount} en crédit OxSteed pour {business} est en attente car le rail de crédit n’est pas disponible pour le moment. Il sera réessayé automatiquement ; aucune action n’est requise.',
+      es: 'Tu pago de {amount} en crédito OxSteed por {business} está en espera porque el rail de crédito no está disponible ahora mismo. Se reintentará automáticamente; no necesitas hacer nada.',
+      ht: 'Peman {amount} an kredi OxSteed pou {business} ap tann paske ray kredi a pa disponib kounye a. Y ap eseye l ankò otomatikman; ou pa bezwen fè anyen.',
+      ar: 'دفعتك البالغة {amount} برصيد OxSteed عن {business} قيد الانتظار لأن مسار الائتمان غير متاح حاليا. ستتم إعادة المحاولة تلقائيا؛ لا يلزم اتخاذ أي إجراء.',
+    },
+  },
+  consultant_payout_failed: {
+    title: {
+      en: 'Your consulting payout needs attention',
+      fr: 'Votre paiement de consultation nécessite votre attention',
+      es: 'Tu pago de consultoría necesita atención',
+      ht: 'Peman konsiltasyon ou an bezwen atansyon',
+      ar: 'مستحقاتك الاستشارية تحتاج إلى انتباه',
+    },
+    body: {
+      en: 'Your payout of {amount} in OxSteed Credit for {business} could not be completed. It will be retried automatically; if it keeps failing, contact support.',
+      fr: 'Votre paiement de {amount} en crédit OxSteed pour {business} n’a pas pu être effectué. Il sera réessayé automatiquement ; s’il continue d’échouer, contactez l’assistance.',
+      es: 'Tu pago de {amount} en crédito OxSteed por {business} no pudo completarse. Se reintentará automáticamente; si sigue fallando, contacta con soporte.',
+      ht: 'Peman {amount} an kredi OxSteed pou {business} pa t ka fini. Y ap eseye l ankò otomatikman; si l kontinye echwe, kontakte sipò.',
+      ar: 'تعذّر إكمال دفعتك البالغة {amount} برصيد OxSteed عن {business}. ستتم إعادة المحاولة تلقائيا؛ وإذا استمر الفشل، تواصل مع الدعم.',
+    },
+  },
   appointment_requested: {
     title: {
       en: 'New appointment request',
@@ -1470,6 +1706,13 @@ const EMAIL_TEMPLATES = {
       ht: 'Gade benefis',
       ar: 'عرض الأرباح',
     },
+    payout_draft_created: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
     payout_requested: {
       en: 'View Payouts',
       fr: 'Voir les paiements',
@@ -1492,6 +1735,13 @@ const EMAIL_TEMPLATES = {
       ar: 'عرض المدفوعات',
     },
     payout_rejected: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    payout_reversed: {
       en: 'View Payouts',
       fr: 'Voir les paiements',
       es: 'Ver pagos',
@@ -1595,6 +1845,28 @@ const EMAIL_TEMPLATES = {
       es: 'Ver sesiones',
       ht: 'Gade sesyon yo',
       ar: 'عرض الجلسات',
+    },
+    // G10-1: consultant payout leg.
+    consultant_payout_paid: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    consultant_payout_parked: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    consultant_payout_failed: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
     },
   booking_auto_released: {
     title: {

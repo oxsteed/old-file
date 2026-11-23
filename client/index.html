@@ -48,6 +48,27 @@
     <meta name="twitter:image" content="https://oxsteed.com/icons/icon-512.png" />
     <meta name="robots" content="index, follow" />
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <!-- Critical styles keep the server-rendered shell aligned with the app
+         while the first JavaScript and full design-system CSS load. -->
+    <style id="oxsteed-critical-shell">
+      html { background: #0a0f1a; }
+      html[data-theme="light"] { background: #f8fafc; }
+      body {
+        box-sizing: border-box;
+        min-width: 320px;
+        min-height: 100vh;
+        margin: 0;
+        background: #0a0f1a;
+        color: #f1f5f9;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      html[data-theme="light"] body { background: #f8fafc; color: #0f172a; }
+      *, *::before, *::after { box-sizing: inherit; }
+      #root { min-height: 100vh; }
+      #ssr-shell, #status-seo-shell { color: inherit; }
+      #ssr-shell a, #status-seo-shell a { color: #fb923c; }
+    </style>
     <script>
       (() => {
         try {

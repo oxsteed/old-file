@@ -24,6 +24,7 @@ const { startSiteVisitRetentionJob } = require('../jobs/siteVisitRetention');
 const { startConsultingSessionReminders } = require('../jobs/consultingSessionReminders');
 const { startConsultingPostSessionFollowup } = require('../jobs/consultingPostSessionFollowup');
 const { startConsultingNoShowFollowup } = require('../jobs/consultingNoShowFollowup');
+const { startConsultantPayoutSweeperJob } = require('../jobs/consultantPayoutSweeper'); // G10-1 consultant payout retry
 const { startBusinessAppointmentReminderJob } = require('../jobs/businessAppointmentReminders'); // Review P2-3-F04
 const { startBusinessAppointmentNoShowSweeper } = require('../jobs/businessAppointmentNoShowSweeper'); // Review P3-8-F03
 const { startCalendarReminderJob } = require('../jobs/calendarReminders');
@@ -40,6 +41,7 @@ const { startFranchiseRoyaltyRedriveJob } = require('../jobs/franchiseRoyaltyRed
 const { startCareersJobs } = require('../jobs/careersJobs');
 const { startChatQuoteExpiryJob } = require('../jobs/chatQuoteExpiryJob');
 const { startQuoteDeadlineNoticesJob } = require('../jobs/quoteDeadlineNotices');
+const { startBidDeadlineNoticesJob } = require('../jobs/bidDeadlineNotices'); // Group 4 Slice B (164)
 const { startDriverDocumentRenewalNoticesJob } = require('../jobs/driverDocumentRenewalNotices'); // Group 9 Slice A (453)
 const { startDeliveryOfferExpiryJob } = require('../jobs/deliveryOfferExpiryNotices'); // Group 9 Slice B (457)
 const { startDeliveryWindowWarningsJob } = require('../jobs/deliveryWindowWarnings'); // Group 9 Slice C (463)
@@ -202,6 +204,7 @@ class BackgroundWorkers {
       startConsultingSessionReminders();
       startConsultingPostSessionFollowup();
       startConsultingNoShowFollowup();
+      startConsultantPayoutSweeperJob();
       this.handles.push(startCalendarReminderJob());
       this.handles.push(startDirectCalendarReminderJob());
       this.handles.push(startBusinessAppointmentReminderJob());
@@ -223,6 +226,7 @@ class BackgroundWorkers {
       startCareersJobs();
       startChatQuoteExpiryJob();
       startQuoteDeadlineNoticesJob();
+      startBidDeadlineNoticesJob();
       startDriverDocumentRenewalNoticesJob();
       startDeliveryOfferExpiryJob();
       startDeliveryWindowWarningsJob();

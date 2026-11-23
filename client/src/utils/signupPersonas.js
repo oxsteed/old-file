@@ -15,7 +15,6 @@ const PERSONA_SIGNUP_CONFIG = Object.freeze({
   consultant: { intent: 'consult', admission: 'platform_review', icon: 'consultant', copy: 'consultant' },
   'equipment-owner': { intent: 'list_equipment', admission: 'platform_review', icon: 'equipment', copy: 'equipmentOwner' },
   franchise: { intent: 'franchise', admission: 'domain_enrollment', icon: 'franchise', copy: 'franchise' },
-  'investor-reporting': { intent: 'request_reporting', admission: 'platform_review', icon: 'investor', copy: 'investorReporting' },
   'credit-participant': { intent: 'join_credit', admission: 'domain_enrollment', icon: 'credit', copy: 'creditParticipant' },
   'partner-affiliate': { intent: 'join_partner', admission: 'domain_enrollment', icon: 'partner', copy: 'partnerAffiliate' },
   'workforce-learning': { intent: 'join_workforce', admission: 'domain_enrollment', icon: 'learning', copy: 'workforceLearning' },
@@ -23,13 +22,23 @@ const PERSONA_SIGNUP_CONFIG = Object.freeze({
   'support-agent': { intent: 'request_support', admission: 'staff_provisioning', icon: 'staff', copy: 'supportAgent' },
   'operations-staff': { intent: 'request_operations', admission: 'staff_provisioning', icon: 'staff', copy: 'operationsStaff' },
   'device-service-account': { intent: 'request_device', admission: 'nonhuman_provisioning', icon: 'device', copy: 'deviceServiceAccount' },
+  // Investor admission is private and invite-only. Keep it in the catalog
+  // coverage model for internal/admin flows, but never expose it through the
+  // public Join picker or URL intent resolver.
+  'investor-reporting': { intent: null, admission: 'admin_invite', icon: 'investor', copy: 'investor', public: false },
 });
 
-export const SIGNUP_PERSONAS = Object.freeze(PERSONA_NAVIGATION_CATALOG.map((family) => {
+export const SIGNUP_CATALOG_PERSONAS = Object.freeze(PERSONA_NAVIGATION_CATALOG.map((family) => {
   const config = PERSONA_SIGNUP_CONFIG[family.id];
   if (!config) return null;
   return Object.freeze({ ...family, ...config });
 }).filter(Boolean));
+
+// Public signup choices intentionally exclude invite-only admissions. The
+// catalog-aware export above lets tests and internal tooling prove that every
+// family still has an explicit admission contract without making private
+// investor access look publicly selectable.
+export const SIGNUP_PERSONAS = Object.freeze(SIGNUP_CATALOG_PERSONAS.filter((persona) => persona.public !== false));
 
 export const SIGNUP_INTENT_VALUES = Object.freeze(SIGNUP_PERSONAS.map(({ intent }) => intent));
 
@@ -49,8 +58,15 @@ export function signupEntryForParams(params) {
   const requested = [params.get('goal'), params.get('intent')]
     .map((value) => SIGNUP_PERSONAS.find(({ id, intent }) => value === id || value === intent))
     .find(Boolean);
-  const mode = joinModeForLegacyMode(params.get('mode'));
-  const presetIntent = requested?.intent || (mode ? intentForLegacyMode(mode) : null);
+  const rawMode = params.get('mode')?.trim().toLowerCase();
+  const mode = joinModeForLegacyMode(rawMode);
+  // Private investor links deliberately land on the customer baseline even
+  // though investor is no longer a public Join card. Unknown/provisioned
+  // modes still stay unselected rather than inventing an intent.
+  const legacyIntent = rawMode === 'investor'
+    ? 'find_help'
+    : (mode ? intentForLegacyMode(mode) : null);
+  const presetIntent = requested?.intent || legacyIntent;
   // An invitation always leads to its server-validated handoff. A URL goal
   // cannot turn it into a professional application or an ownership grant.
   return {

@@ -124,6 +124,18 @@ describeDatabase('invest routes', () => {
     );
   }
 
+  async function admitInvestor(userId) {
+    // Private admission (invite-only since 76d1de5a1): the commitment
+    // routes require an explicit investor.participate grant. Tests seed
+    // the grant directly, mirroring the post-review grant an admitted
+    // investor holds; spec 1b uses the same insert.
+    await pool.query(
+      `INSERT INTO access_grants (user_id, capability, subject_type, subject_key, status, provenance, policy_version, granted_by)
+       VALUES ($1, 'investor.participate', 'self', 'self', 'active', 'admin', 'invest-participate-policy-1', $2)`,
+      [userId, superAdminId],
+    );
+  }
+
   async function freshInvestor(fundsCents) {
     const userId = await createUser(`inv-${crypto.randomUUID().slice(0, 8)}`);
     let walletId;
@@ -283,6 +295,7 @@ describeDatabase('invest routes', () => {
     const { userId } = await freshInvestor(10000);
     const { opportunity, version } = await freshOpportunity(10000);
     const application = await approvedApplication(userId, opportunity.id, version.id);
+    await admitInvestor(userId);
     const previous = process.env.INVEST_COMMITMENTS_ENABLED;
     process.env.INVEST_COMMITMENTS_ENABLED = 'false';
     try {
@@ -482,6 +495,7 @@ describeDatabase('invest routes', () => {
     const { userId } = await freshInvestor(20000);
     const { opportunity, version } = await freshOpportunity(15000);
     const application = await approvedApplication(userId, opportunity.id, version.id);
+    await admitInvestor(userId);
     const key = `invest-commit-${crypto.randomUUID()}`;
     const first = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, key, {
       applicationId: application.id, amountCents: 8000, agreementVersionId: version.id, riskAcknowledged: true,
@@ -524,6 +538,7 @@ describeDatabase('invest routes', () => {
     const { userId } = await freshInvestor(20000);
     const { opportunity, version } = await freshOpportunity(15000);
     const application = await approvedApplication(userId, opportunity.id, version.id);
+    await admitInvestor(userId);
     // Creating version 2 does NOT move the current version: new
     // applicants still accept version 1 until the amendment is effective.
     const created = await as(entityOwnerId).post(`/api/invest/opportunities/${opportunity.id}/agreement-versions`, {
@@ -633,6 +648,7 @@ describeDatabase('invest routes', () => {
     const { userId, walletId } = await freshInvestor(20000);
     const { opportunity, version } = await freshOpportunity(15000);
     const application = await approvedApplication(userId, opportunity.id, version.id);
+    await admitInvestor(userId);
     const committed = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-failclose-${crypto.randomUUID()}`, {
       applicationId: application.id, amountCents: 6000, agreementVersionId: version.id, riskAcknowledged: true,
     });
@@ -675,6 +691,7 @@ describeDatabase('invest routes', () => {
     const second = await freshInvestor(20000);
     const closedOpp = await freshOpportunity(10000);
     const secondApp = await approvedApplication(second.userId, closedOpp.opportunity.id, closedOpp.version.id);
+    await admitInvestor(second.userId);
     const secondCommitted = await as(second.userId).postKey(`/api/invest/opportunities/${closedOpp.opportunity.id}/commitments`, `invest-escrow-${crypto.randomUUID()}`, {
       applicationId: secondApp.id, amountCents: 10000, agreementVersionId: closedOpp.version.id, riskAcknowledged: true,
     });
@@ -706,6 +723,7 @@ describeDatabase('invest routes', () => {
     const { userId, walletId } = await freshInvestor(20000);
     const { opportunity, version } = await freshOpportunity(15000);
     const application = await approvedApplication(userId, opportunity.id, version.id);
+    await admitInvestor(userId);
     const committed = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-cancel-${crypto.randomUUID()}`, {
       applicationId: application.id, amountCents: 6000, agreementVersionId: version.id, riskAcknowledged: true,
     });
@@ -732,6 +750,7 @@ describeDatabase('invest routes', () => {
     const { userId } = await freshInvestor(20000);
     const { opportunity, version } = await freshOpportunity(15000);
     const application = await approvedApplication(userId, opportunity.id, version.id);
+    await admitInvestor(userId);
     const committed = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-amend-${crypto.randomUUID()}`, {
       applicationId: application.id, amountCents: 5000, agreementVersionId: version.id, riskAcknowledged: true,
     });
@@ -767,6 +786,10 @@ describeDatabase('invest routes', () => {
     const other = await freshInvestor(20000);
     const { opportunity, version } = await freshOpportunity(15000);
     const application = await approvedApplication(userId, opportunity.id, version.id);
+    await admitInvestor(userId);
+    // The second investor is admitted too, so the isolation checks below
+    // exercise the commitment-visibility rules rather than the admission gate.
+    await admitInvestor(other.userId);
     const committed = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-iso-${crypto.randomUUID()}`, {
       applicationId: application.id, amountCents: 5000, agreementVersionId: version.id, riskAcknowledged: true,
     });
@@ -788,6 +811,7 @@ describeDatabase('invest routes', () => {
     const { opportunity: published, version } = await freshOpportunity(10000);
     const { userId } = await freshInvestor(20000);
     const application = await approvedApplication(userId, published.id, version.id);
+    await admitInvestor(userId);
     const doc = await as(entityOwnerId).post(`/api/invest/opportunities/${published.id}/documents`, {
       title: 'Confidential financials', storageRef: 'invest/docs/financials-1', visibility: 'committed',
     });
@@ -835,6 +859,7 @@ describeDatabase('invest routes', () => {
     const { userId } = await freshInvestor(20000);
     const { opportunity, version } = await freshOpportunity(10000);
     const application = await approvedApplication(userId, opportunity.id, version.id);
+    await admitInvestor(userId);
     await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-close-${crypto.randomUUID()}`, {
       applicationId: application.id, amountCents: 10000, agreementVersionId: version.id, riskAcknowledged: true,
     });
@@ -895,6 +920,7 @@ describeDatabase('invest routes', () => {
     const { userId } = await freshInvestor(20000);
     const { opportunity, version } = await freshOpportunity(10000);
     const application = await approvedApplication(userId, opportunity.id, version.id);
+    await admitInvestor(userId);
     await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-detail-${crypto.randomUUID()}`, {
       applicationId: application.id, amountCents: 10000, agreementVersionId: version.id, riskAcknowledged: true,
     });
@@ -985,6 +1011,7 @@ describeDatabase('invest routes', () => {
     const { userId } = await freshInvestor(20000);
     const { opportunity, version } = await freshOpportunity(15000);
     const application = await approvedApplication(userId, opportunity.id, version.id);
+    await admitInvestor(userId);
     const committed = await as(userId).postKey(`/api/invest/opportunities/${opportunity.id}/commitments`, `invest-susp-${crypto.randomUUID()}`, {
       applicationId: application.id, amountCents: 5000, agreementVersionId: version.id, riskAcknowledged: true,
     });

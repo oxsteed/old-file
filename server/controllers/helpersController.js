@@ -1020,6 +1020,12 @@ async function respondHelperProfile(req, res, next, adminPreview) {
         yearsInBusiness,
         isAvailableNow:    !!h.is_available_now,
         specializations:   categories,
+        // Items 156/159: the helper's own skills and qualification detail.
+        // The directory list already returned these; the profile response
+        // did not, so the profile page had nothing to render.
+        skills:           [...new Set(skillRes.rows.map((r) => r.skill_name))],
+        licenses:         parseJsonList(h.license_details),
+        insurance:        parseJsonList(h.insurance_details),
         availabilityStatus,
         totalJobs:         totalJobsCount,
         completionRate,
@@ -1262,6 +1268,10 @@ async function getHelperAvailabilitySummary(req, res, next) {
       helperTimeZone
     );
     result.isOnline = !!(hp.is_available_now || socketService.isOnline(id));
+    // Item 160: the raw toggle, separate from isOnline (which also counts
+    // socket presence). The profile headline must go dark when the helper
+    // toggled themselves off, even while their socket is still connected.
+    result.isAvailableNow = !!hp.is_available_now;
     result.responseTime = formatResponseTime(hp.response_time_hours);
     return res.json(result);
   } catch (err) {

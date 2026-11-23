@@ -32,7 +32,7 @@ describe('mounted investor reporting access', () => {
     access.getInvestorAudience.mockReset();
   });
 
-  test.each(['investor', 'admin', 'super_admin'])('%s reaches KPI reporting during explicit legacy rollback', async (role) => {
+  test.each(['admin', 'super_admin'])('%s reaches KPI reporting during explicit legacy rollback', async (role) => {
     process.env.ACCESS_INVESTOR_ENFORCEMENT = 'off';
     const response = await request(mountedFixture()).get('/api/investor/kpis').set('x-test-role', role);
     expect(response.status).toBe(200);

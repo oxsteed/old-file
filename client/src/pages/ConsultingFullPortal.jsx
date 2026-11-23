@@ -26,8 +26,12 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import { schedulingApi } from '../api/scheduling';
+import { deliverablesApi } from '../api/consultantDeliverables';
+import { confidentialityApi, downloadEngagementRecord } from '../api/consultantConfidentiality';
 import { useAuth } from '../context/AuthContext';
 import ConsultantScheduleSelector from '../components/ConsultantScheduleSelector';
+import ConsultantRescheduleDialog from '../components/ConsultantRescheduleDialog';
+import ConsultantCancelSessionDialog from '../components/ConsultantCancelSessionDialog';
 import ConsultingPaymentModal from '../components/ConsultingPaymentModal';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -277,6 +281,147 @@ function ActiveSessionHero({ session, t, onBookReschedule, onScheduleSession, sc
   );
 }
 
+// ── session schedule panel (Group 10 Slice C, 518-520) ────────────────────
+// Pending reschedule proposals for one appointment, the client's own
+// attendance confirmation once the start has passed, and cancellation.
+// Rendered under the hero for the active session; returns null when there
+// is nothing to act on.
+function SchedulePanel({ session, detail, t, onChanged, onReschedule, onCancel }) {
+  const [busy, setBusy] = useState('');
+  if (!session?.scheduled_id || !detail) return null;
+  const scheduled = detail.scheduled || {};
+  const proposals = (detail.proposals || []).filter((p) => p.status === 'proposed');
+  const attendance = detail.attendance || [];
+  const clientConfirmed = attendance.some((a) => a.role === 'client');
+  const consultantConfirmed = attendance.some((a) => a.role === 'consultant');
+  const startPassed = scheduled.scheduled_date
+    ? new Date(`${scheduled.scheduled_date}T${scheduled.scheduled_time || '00:00'}`).getTime() <= Date.now()
+    : false;
+  const cancellable = ['confirmed', 'pending_confirmation'].includes(scheduled.status);
+  const canConfirmAttendance = startPassed && !clientConfirmed && ['confirmed', 'completed'].includes(scheduled.status);
+  if (proposals.length === 0 && !canConfirmAttendance && !cancellable && !clientConfirmed && !consultantConfirmed) return null;
+
+  const runAction = async (key, fn, successKey) => {
+    setBusy(key);
+    try {
+      await fn();
+      if (successKey) toast.success(t(successKey));
+      onChanged?.();
+    } catch (err) {
+      toast.error(err.response?.data?.message || t('common.errorUpdating'));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  return (
+    <Card>
+      <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
+        <CalendarClock size={16} className="text-orange-500" />
+        {t('consultingPortal.schedulePanelTitle')}
+      </h3>
+
+      {proposals.length > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wider mb-2 text-amber-300">
+            {t('consultingPortal.pendingProposals')}
+          </div>
+          <ul className="flex flex-col gap-2">
+            {proposals.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="text-xs">
+                  <span className="font-semibold">
+                    {fmtDate(`${p.proposed_date}T${p.proposed_time}`)}
+                  </span>
+                  {' · '}
+                  {p.proposed_by_role === 'client'
+                    ? t('consultingPortal.proposedByYou')
+                    : p.proposed_by_role === 'consultant'
+                      ? t('consultingPortal.proposedByConsultant')
+                      : t('consultingPortal.proposedByOxsteed')}
+                  {p.reason ? ` · ${p.reason}` : ''}
+                </div>
+                <div className="flex gap-1.5">
+                  {p.proposed_by_role === 'client' ? (
+                    <button
+                      type="button"
+                      disabled={busy === `withdraw-${p.id}`}
+                      onClick={() => runAction(`withdraw-${p.id}`, () => schedulingApi.withdrawReschedule(session.scheduled_id, p.id), 'scheduling.rescheduleWithdrawn')}
+                      className="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-gray-700 disabled:opacity-60" data-track="ui.719d896ad2.5"
+                    >
+                      {t('scheduling.withdraw')}
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={busy === `accept-${p.id}`}
+                        onClick={() => runAction(`accept-${p.id}`, () => schedulingApi.acceptReschedule(session.scheduled_id, p.id), 'scheduling.rescheduleAccepted')}
+                        className="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60" data-track="ui.719d896ad2.6"
+                      >
+                        {t('scheduling.accept')}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy === `decline-${p.id}`}
+                        onClick={() => runAction(`decline-${p.id}`, () => schedulingApi.declineReschedule(session.scheduled_id, p.id), 'scheduling.rescheduleDeclined')}
+                        className="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-gray-700 disabled:opacity-60" data-track="ui.719d896ad2.7"
+                      >
+                        {t('scheduling.decline')}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {canConfirmAttendance && (
+          <button
+            type="button"
+            disabled={busy === 'attend'}
+            onClick={() => runAction('attend', () => schedulingApi.confirmAttendance(session.scheduled_id), 'scheduling.attendanceConfirmed')}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60" data-track="ui.719d896ad2.8"
+          >
+            <CheckCircle2 size={12} /> {t('scheduling.confirmAttendance')}
+          </button>
+        )}
+        {clientConfirmed && (
+          <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+            <CheckCircle2 size={12} /> {t('scheduling.attendanceConfirmedByYou')}
+          </span>
+        )}
+        {consultantConfirmed && (
+          <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+            <CheckCircle2 size={12} /> {t('scheduling.attendanceConfirmedByConsultant')}
+          </span>
+        )}
+        {cancellable && (
+          <>
+            <button
+              type="button"
+              onClick={onReschedule}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md bg-orange-500 hover:bg-orange-600 text-white" data-track="ui.719d896ad2.9"
+            >
+              <CalendarClock size={12} /> {t('scheduling.proposeNewTime')}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md border border-red-700 text-red-300 hover:bg-red-600/10" data-track="ui.719d896ad2.10"
+            >
+              {t('scheduling.cancelSession')}
+            </button>
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 // ── consultant card ─────────────────────────────────────────────────────────
 
 function ConsultantCard({ session, t }) {
@@ -331,7 +476,7 @@ function PackageGrid({ packages, t }) {
         <Card key={p.id}>
           <div className="text-[10px] font-bold uppercase tracking-wider text-orange-400">{p.service_tier || p.tier}</div>
           <h3 className="text-lg font-semibold mt-1">{p.package_name || p.name}</h3>
-          <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>{p.description}</p>
+          <p className="text-xs mt-1 text-[var(--color-text-muted)]">{p.description}</p>
           <div className="text-2xl font-bold mt-3">
             {p.base_price != null
               ? `$${Number(p.base_price).toLocaleString()}`
@@ -349,6 +494,191 @@ function PackageGrid({ packages, t }) {
   );
 }
 
+// Group 10 Slice G (536-540): engagements the signed-in user
+// participates in as a site contact or observer. The participant reads
+// the milestone board and the documents shared with them, acknowledges
+// confidentiality for themselves, and exports the engagement record.
+// Participants never mutate: no file, decide, accept, upload, or pause.
+function ParticipatingEngagements({ user }) {
+  const { t } = useTranslation();
+  const [engagements, setEngagements] = useState([]);
+  const [details, setDetails] = useState({});
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState('');
+
+  const load = async () => {
+    try {
+      const { data } = await confidentialityApi.listParticipatingSessions();
+      const list = Array.isArray(data?.engagements) ? data.engagements : [];
+      setEngagements(list);
+      const entries = await Promise.all(list.map(async (item) => {
+        const [confRes, boardRes] = await Promise.all([
+          confidentialityApi.getClientConfidentiality(item.id).catch(() => null),
+          deliverablesApi.listClientDeliverables(item.id).catch(() => null),
+        ]);
+        return [item.id, {
+          confidentiality: confRes?.data || null,
+          deliverables: Array.isArray(boardRes?.data?.deliverables) ? boardRes.data.deliverables : [],
+        }];
+      }));
+      const map = {};
+      for (const [id, detail] of entries) map[id] = detail;
+      setDetails(map);
+    } catch {
+      toast.error(t('consultantConfidentiality.loadError', { defaultValue: 'Could not load confidentiality details.' }));
+    } finally {
+      setLoaded(true);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (!loaded) return null;
+  if (engagements.length === 0) return null;
+
+  const acknowledge = async (sessionId) => {
+    setBusy(`ack-${sessionId}`);
+    try {
+      await confidentialityApi.acknowledgeClientConfidentiality(sessionId);
+      toast.success(t('consultantConfidentiality.acknowledged', { defaultValue: 'Confidentiality acknowledged.' }));
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('common.errorUpdating', { defaultValue: 'Could not save that change.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const exportRecord = async (sessionId) => {
+    setBusy(`export-${sessionId}`);
+    try {
+      const { data } = await confidentialityApi.exportClientRecord(sessionId);
+      downloadEngagementRecord(data, sessionId);
+      toast.success(t('consultantConfidentiality.exported', { defaultValue: 'Engagement record downloaded.' }));
+    } catch {
+      toast.error(t('consultantConfidentiality.exportError', { defaultValue: 'Could not export the engagement record.' }));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const downloadDocument = async (doc) => {
+    try {
+      const { data } = await deliverablesApi.downloadClientDocument(doc.id);
+      if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast.error(t('consultantDeliverable.downloadError', { defaultValue: 'Could not prepare the download.' }));
+    }
+  };
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-lg font-semibold flex items-center gap-2">
+        <ShieldCheck size={18} className="text-orange-500" />
+        {t('consultantConfidentiality.participatingTitle', { defaultValue: 'Engagements you participate in' })}
+      </h2>
+      {engagements.map((item) => {
+        const detail = details[item.id] || {};
+        const parties = detail.confidentiality?.parties || [];
+        const myAck = parties.find((party) => String(party.userId) === String(user?.id)) || null;
+        const pending = parties.filter((party) => !party.acknowledgedAt);
+        return (
+          <Card key={item.id}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold">{item.businessName || item.business_name || 'Engagement'}</h3>
+                <p className="text-xs mt-1 text-[var(--color-text-muted)]">
+                  {t(`consultantConfidentiality.roles.${item.participantRole}`, { defaultValue: (item.participantRole || 'observer').replace(/_/g, ' ') })}
+                  {' • '}
+                  {item.status}
+                  {item.status === 'archived' && (
+                    <>
+                      {' • '}
+                      <span className="font-semibold">{t('consultantCloseout.archived')}</span>
+                    </>
+                  )}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => exportRecord(item.id)}
+                disabled={busy === `export-${item.id}`}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-semibold transition hover:border-orange-400 hover:text-orange-300 disabled:opacity-60 border-[rgba(148,163,184,0.22)] text-[var(--color-text)]" data-track="ui.719d896ad2.12"
+              >
+                {t('consultantConfidentiality.export', { defaultValue: 'Export engagement record' })}
+              </button>
+            </div>
+            {pending.length === 0 ? (
+              <p className="text-xs mt-3 text-[#6ee7b7]">
+                {t('consultantConfidentiality.ackDone', { defaultValue: 'Everyone on this engagement has acknowledged confidentiality.' })}
+              </p>
+            ) : (
+              <p className="text-xs mt-3 text-[var(--color-text-muted)]">
+                {pending.map((party) => t('consultantConfidentiality.ackPending', { defaultValue: 'Still waiting on {{name}}.', name: [party.firstName, party.lastName].filter(Boolean).join(' ') || party.email || party.userId })).join(' ')}
+              </p>
+            )}
+            {(!myAck || !myAck.acknowledgedAt) && (
+              <div className="mt-3 flex flex-col gap-2">
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  {t('consultantConfidentiality.ackStatement', { defaultValue: 'I will keep this engagement\u2019s information confidential and share it only with the people on this engagement.' })}
+                </p>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => acknowledge(item.id)}
+                    disabled={busy === `ack-${item.id}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition disabled:opacity-60" data-track="ui.719d896ad2.13"
+                  >
+                    {t('consultantConfidentiality.acknowledge', { defaultValue: 'Acknowledge confidentiality' })}
+                  </button>
+                </div>
+              </div>
+            )}
+            {myAck?.acknowledgedAt && (
+              <p className="text-xs mt-3 text-[#6ee7b7]">
+                {t('consultantConfidentiality.ackYou', { defaultValue: 'You have acknowledged confidentiality.' })}
+              </p>
+            )}
+            {(detail.deliverables || []).length > 0 && (
+              <div className="mt-4 grid gap-2">
+                {detail.deliverables.map((deliverable) => (
+                  <div key={deliverable.id} className="rounded-xl border p-3 border-[rgba(148,163,184,0.16)] bg-[rgba(255,255,255,0.03)]">
+                    <div className="text-sm font-semibold">{deliverable.name}</div>
+                    <div className="text-xs mt-1 text-[var(--color-text-muted)]">
+                      {t(`consultantDeliverable.status.${deliverable.status}`, { defaultValue: (deliverable.status || '').replace(/_/g, ' ') })}
+                    </div>
+                    {(deliverable.documents || []).length > 0 && (
+                      <ul className="mt-2 grid gap-1">
+                        {deliverable.documents.map((doc) => (
+                          <li key={doc.id} className="flex items-center gap-2 text-xs">
+                            <span className="flex-1 min-w-0 truncate">{doc.originalName}</span>
+                            {doc.expired ? (
+                              <span className="text-[#fca5a5]">{t('consultantConfidentiality.docExpired', { defaultValue: 'Access expired' })}</span>
+                            ) : doc.expiresAt ? (
+                              <span className="text-[var(--color-text-muted)]">{t('consultantConfidentiality.docExpiry', { defaultValue: 'Access until {{date}}', date: String(doc.expiresAt).slice(0, 10) })}</span>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => downloadDocument(doc)}
+                              className="font-semibold text-indigo-300 hover:text-indigo-200" data-track="ui.719d896ad2.14"
+                            >
+                              {t('consultantDeliverable.download', { defaultValue: 'Download' })}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </section>
+  );
+}
+
 // ── main page ───────────────────────────────────────────────────────────────
 
 export default function ConsultingFullPortal() {
@@ -363,6 +693,11 @@ export default function ConsultingFullPortal() {
   const [paymentSession, setPaymentSession] = useState(null); // session open in the payment modal
   const [paymentReturnsToWidget, setPaymentReturnsToWidget] = useState(false);
   const [creatingSchedule, setCreatingSchedule] = useState(false);
+  // Group 10 Slice C (518-520): per-appointment detail (proposals +
+  // attendance) keyed by scheduled_id, plus the open dialogs.
+  const [sessionDetails, setSessionDetails] = useState({});
+  const [rescheduleSession, setRescheduleSession] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
   const [loaded, setLoaded] = useState(false);
 
   // 1. Load dashboard + packages in parallel.
@@ -458,14 +793,46 @@ export default function ConsultingFullPortal() {
     else toast(t('consultingPortal.consultantPending'));
   };
 
+  // Slice C wiring: load each appointment's proposals and attendance once
+  // the dashboard sessions are known, and refresh them after any schedule
+  // action (proposal answer, attendance, cancellation).
+  const loadSessionDetails = async (list) => {
+    const withRows = (list || []).filter((s) => s.scheduled_id);
+    if (!withRows.length) return;
+    const entries = await Promise.all(
+      withRows.map((s) =>
+        schedulingApi.getSessionDetail(s.scheduled_id)
+          .then((r) => [s.scheduled_id, r.data])
+          .catch(() => null),
+      ),
+    );
+    setSessionDetails((prev) => {
+      const next = { ...prev };
+      for (const entry of entries) if (entry) next[entry[0]] = entry[1];
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (sessions.length) loadSessionDetails(sessions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions]);
+
+  const refreshSchedule = async () => {
+    const fresh = await fetchDashboardSessions();
+    await loadSessionDetails(fresh);
+  };
+
   // Open booking for any session row: create the row first when missing,
   // open the widget when a consultant is assigned, otherwise explain why
-  // booking cannot start yet.
+  // booking cannot start yet. A confirmed appointment opens the
+  // reschedule dialog instead: the booking widget 409s on confirmed rows.
   const openBookingFor = (session) => {
     if (!session) return;
     if (!session.scheduled_id) { handleScheduleSession(session); return; }
-    if (session.consultant_assigned_id) setSchedulingSession(session);
-    else toast(t('consultingPortal.consultantPending'));
+    if (!session.consultant_assigned_id) { toast(t('consultingPortal.consultantPending')); return; }
+    if (session.scheduled_status === 'confirmed') { setRescheduleSession(session); return; }
+    setSchedulingSession(session);
   };
 
   const activeSession = useMemo(
@@ -606,6 +973,8 @@ export default function ConsultingFullPortal() {
             </div>
           </section>
 
+          <ParticipatingEngagements user={user} />
+
           {packages.length > 0 && (
             <section className="flex flex-col gap-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -667,6 +1036,23 @@ export default function ConsultingFullPortal() {
             schedulingBusy={creatingSchedule}
           />
         )}
+
+        {/* Group 10 Slice C (518-520): proposals, attendance, cancellation
+            for the active appointment. */}
+        {activeSession?.scheduled_id && (
+          <SchedulePanel
+            session={activeSession}
+            detail={sessionDetails[activeSession.scheduled_id]}
+            t={t}
+            onChanged={refreshSchedule}
+            onReschedule={() => setRescheduleSession(activeSession)}
+            onCancel={() => setCancelTarget(activeSession)}
+          />
+        )}
+
+        {/* Group 10 Slice G (536-540): engagements the user participates
+            in as a site contact or observer. */}
+        <ParticipatingEngagements user={user} />
 
         {/* Stats strip */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -784,14 +1170,27 @@ export default function ConsultingFullPortal() {
                         </div>
                       </div>
                       {/* Was a dead link to /consulting/:id (no such route):
-                          it now opens booking for that session in place. */}
-                      <button
-                        type="button"
-                        onClick={() => openBookingFor(s)}
-                        className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 flex-shrink-0" data-track="ui.719d896ad2.4"
-                      >
-                        {t('consultingPortal.reschedule')} <ArrowRight size={11} />
-                      </button>
+                          it now opens booking for that session in place. A
+                          confirmed appointment opens the reschedule dialog;
+                          cancellation has its own dialog (Slice C). */}
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        {['confirmed', 'pending_confirmation'].includes(s.scheduled_status) && (
+                          <button
+                            type="button"
+                            onClick={() => setCancelTarget(s)}
+                            className="text-xs text-red-400 hover:text-red-300 inline-flex items-center gap-1" data-track="ui.719d896ad2.11"
+                          >
+                            {t('scheduling.cancelSession')}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => openBookingFor(s)}
+                          className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1 flex-shrink-0" data-track="ui.719d896ad2.4"
+                        >
+                          {t('consultingPortal.reschedule')} <ArrowRight size={11} />
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -851,7 +1250,7 @@ export default function ConsultingFullPortal() {
 
             <Card style={{ background: 'rgba(249,115,22,0.06)', borderColor: 'rgba(249,115,22,0.25)' }}>
               <h3 className="text-sm font-semibold">{t('consultingPortal.bookMoreTitle', { defaultValue: 'Need more help?' })}</h3>
-              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+              <p className="text-xs mt-1 text-[var(--color-text-muted)]">
                 {t('consultingPortal.bookMoreHint', { defaultValue: 'Add another package or schedule a follow-up session with your consultant.' })}
               </p>
               <div className="flex flex-col gap-2 mt-3">
@@ -898,6 +1297,24 @@ export default function ConsultingFullPortal() {
             />
           </div>
         </div>
+      )}
+
+      {/* Group 10 Slice C (518-519): reschedule and cancel dialogs. */}
+      {rescheduleSession && (
+        <ConsultantRescheduleDialog
+          consultantId={rescheduleSession.consultant_assigned_id}
+          scheduledSession={rescheduleSession}
+          onClose={() => setRescheduleSession(null)}
+          onDone={() => { setRescheduleSession(null); refreshSchedule(); }}
+        />
+      )}
+      {cancelTarget && (
+        <ConsultantCancelSessionDialog
+          scheduledSession={cancelTarget}
+          canRequestRefund
+          onClose={() => setCancelTarget(null)}
+          onDone={() => { setCancelTarget(null); refreshSchedule(); }}
+        />
       )}
 
       {/* Existing payment modal: on 402 from the widget, and after a

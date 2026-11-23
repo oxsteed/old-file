@@ -3,19 +3,14 @@ import useUnreadMessages from '../hooks/useUnreadMessages';
 import { useLocation } from 'react-router-dom';
 import PrefetchLink from './PrefetchLink';
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import api from '../api/axios';
 import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
 import BusinessSwitcher from './BusinessSwitcher';
-import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
 import { navbarNavigation, navbarLinkActive } from '../utils/navbarNavigation';
 import useAccessProjection from '../hooks/useAccessProjection';
 import { useNavDisclosure } from '../hooks/useNavDisclosure';
 import { useSupportWorkspaceAccess } from '../hooks/useSupportWorkspaceAccess';
-import { LAUNCH_VISIBILITY } from '../utils/launchScope';
-import { canUseQrGenerator } from '../utils/modeAccess';
 import { openCommandPalette } from './CommandPalette';
 import '../styles/BusinessSwitcher.css';
 import { OxSteedIcon } from './OxSteedIcon';
@@ -23,13 +18,10 @@ import './Navbar.css';
 
 export { OxSteedIcon };
 
-const SHOW_LEGACY_NAV_RESOURCES = LAUNCH_VISIBILITY.resourcesMenu;
-const SHOW_NETWORK_BRANCH_SWITCHER = LAUNCH_VISIBILITY.networkBranchSwitcher;
-
 // Shared trusted CSS for the mounted navbar and script-free customer snapshot.
 
 export default function Navbar() {
-  const { user, logout, hasHelperAccess } = useAuth();
+  const { user, logout } = useAuth();
   const { t } = useTranslation();
   const { t: accessT } = useTranslation('common');
   const location = useLocation();
@@ -44,28 +36,9 @@ export default function Navbar() {
   const currentMode = navigation.mode;
   const authorizedOrganizations = accessProjection?.access?.organizations || [];
   const { open: mobileOpen, setOpen: setMobileOpen, containerRef: mobileRef, triggerRef: mobileTriggerRef, panelId: mobilePanelId } = useNavDisclosure(currentMode);
-  const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
-  const resourcesMenuRef = useRef(null);
   const showBusinessHub = !!user && navigation.showBusinessSwitcher;
-
-  useEffect(() => { setResourcesMenuOpen(false); }, [location.pathname, location.search, currentMode]);
-
-  // Desktop: close "Resources" menu on outside click / Escape
-  useEffect(() => {
-    if (!resourcesMenuOpen) return;
-    const onDoc = (e) => {
-      if (resourcesMenuRef.current && !resourcesMenuRef.current.contains(e.target)) setResourcesMenuOpen(false);
-    };
-    const onKey = (e) => {
-      if (e.key === 'Escape') setResourcesMenuOpen(false);
-    };
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [resourcesMenuOpen]);
+  const applicationItems = navigation.account.filter(isApplicationItem);
+  const accountItems = navigation.account.filter(item => !isApplicationItem(item));
 
   const isActive = (path) => location.pathname === path;
 
@@ -129,97 +102,13 @@ export default function Navbar() {
                   </NavLink>
                 ))}
 
-                {/* OxSteed Network — branch switcher (major branches live here) */}
-                {SHOW_NETWORK_BRANCH_SWITCHER && (
-                  <OxSteedNetworkSwitcher showSupportWorkspace={showSupportWorkspaceNav} />
-                )}
-
-                {/* Resources Dropdown — learning + help content only */}
-                {SHOW_LEGACY_NAV_RESOURCES && (
-                <div ref={resourcesMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
-                  <button
-                    type="button"
-                    className="ox-btn ox-btn-ghost ox-btn-sm"
-                    aria-haspopup="menu"
-                    aria-expanded={resourcesMenuOpen}
-                    aria-controls="nav-resources-menu"
-                    onClick={() => setResourcesMenuOpen((o) => !o)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: resourcesMenuOpen ? 'var(--color-primary)' : 'var(--color-nav-link)' }} data-track="ui.0b9e115b87.1"
-                  >
-                    {t('nav.resources')}
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                  {resourcesMenuOpen && (
-                    <div
-                      id="nav-resources-menu"
-                      role="menu"
-                      style={{
-                        position: 'absolute',
-                        right: 0,
-                        top: 'calc(100% + 0.35rem)',
-                        minWidth: 'min(18rem, calc(100vw - 2rem))',
-                        padding: '0.35rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--color-border)',
-                        background: 'var(--color-surface)',
-                        boxShadow: '0 10px 40px rgba(0,0,0,0.18)',
-                        zIndex: 60,
-                      }}
-                    >
-                      <PrefetchLink
-                        role="menuitem"
-                        to="/how-it-works"
-                        className="ox-nav-resource-option"
-                        onClick={() => setResourcesMenuOpen(false)}
-                      >
-                        <span className="ox-nav-resource-option-title">{t('nav.howOxsteedWorks')}</span>
-                      </PrefetchLink>
-                      <PrefetchLink
-                        role="menuitem"
-                        to="/tool-rentals"
-                        className="ox-nav-resource-option"
-                        onClick={() => setResourcesMenuOpen(false)}
-                      >
-                        <span className="ox-nav-resource-option-title">{t('toolRentals.browsePage')}</span>
-                      </PrefetchLink>
-                      <PrefetchLink
-                        role="menuitem"
-                        to="/learn"
-                        className="ox-nav-resource-option"
-                        onClick={() => setResourcesMenuOpen(false)}
-                      >
-                        <span className="ox-nav-resource-option-title">{t('nav.learnToDiy')}</span>
-                      </PrefetchLink>
-                      {hasHelperAccess && (
-                        <>
-                          {canUseQrGenerator(user) && (
-                            <PrefetchLink
-                              role="menuitem"
-                              to="/qr-generator"
-                              className="ox-nav-resource-option"
-                              onClick={() => setResourcesMenuOpen(false)}
-                            >
-                              <span className="ox-nav-resource-option-title">{t('nav.qrGenerator')}</span>
-                            </PrefetchLink>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-                )}
-
-                <AccountDisclosure items={navigation.account} mode={currentMode} logout={logout} />
+                {applicationItems.length > 0 && <ApplicationsDisclosure items={applicationItems} mode={currentMode} />}
+                <AccountDisclosure items={accountItems} mode={currentMode} logout={logout} />
               </>
             ) : (
               <>
                 <NavLink to="/helpers" active={location.pathname.startsWith('/helpers')}>{t('nav.findHelp')}</NavLink>
                 <NavLink to="/restaurants" active={location.pathname.startsWith('/restaurants')}>{t('nav.orderFood')}</NavLink>
-                {SHOW_LEGACY_NAV_RESOURCES && (
-                  <NavLink to="/how-it-works" active={isActive('/how-it-works')}>{t('nav.howItWorks')}</NavLink>
-                )}
                 <NavLink to="/login" active={isActive('/login')}>{t('nav.signIn')}</NavLink>
                 {/* Customer-first entry point: /join captures intent without
                     granting professional access or asking for a persona switch. */}
@@ -315,44 +204,29 @@ export default function Navbar() {
                     {item.id === 'messages' && <UnreadBadge count={unreadMsgs} />}
                   </MobileNavLink>
                 ))}
+                {applicationItems.length > 0 && <div className="ox-nav-account-section">
+                  <span className="ox-nav-section-label">{t('nav.myApplications')}</span>
+                  {applicationItems.map(item => (
+                    <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname, currentMode)}>
+                      {t(item.labelKey)}{item.count > 0 && <UnreadBadge count={item.count} />}
+                    </MobileNavLink>
+                  ))}
+                </div>}
                 <div className="ox-nav-account-section">
                   <span className="ox-nav-section-label">{t('nav.account')}</span>
-                  {navigation.account.map(item => (
+                  {accountItems.map(item => (
                     <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname, currentMode)}>
                       {t(item.labelKey)}{item.count > 0 && <UnreadBadge count={item.count} />}
                     </MobileNavLink>
                   ))}
                   <button type="button" className="ox-nav-signout" onClick={() => { logout(); setMobileOpen(false); }} data-track="ui.0b9e115b87.3">{t('nav.signOut')}</button>
                 </div>
-                {/* Resources are a section, not primary links: keep them
-                    grouped so the mobile menu's direct children stay the
-                    primary links the navbar fixture asserts on. */}
-                {SHOW_LEGACY_NAV_RESOURCES && (
-                  <div className="ox-nav-account-section">
-                    <span className="ox-nav-section-label">{t('nav.resources')}</span>
-                    <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howOxsteedWorks')}</MobileNavLink>
-                    <MobileNavLink to="/tool-rentals" onClick={() => setMobileOpen(false)}>{t('toolRentals.browsePage')}</MobileNavLink>
-                    <MobileNavLink to="/learn" onClick={() => setMobileOpen(false)}>{t('nav.learnToDiy')}</MobileNavLink>
-                    {hasHelperAccess && canUseQrGenerator(user) && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
-                  </div>
-                )}
-                {SHOW_NETWORK_BRANCH_SWITCHER && (
-                  <div style={{ marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)' }}>
-                    <OxSteedNetworkSwitcher mobile showSupportWorkspace={showSupportWorkspaceNav} onNavigate={() => setMobileOpen(false)} />
-                  </div>
-                )}
               </>
             ) : (
               <>
                 <MobileNavLink to="/helpers" onClick={() => setMobileOpen(false)}>{t('nav.findHelp')}</MobileNavLink>
                 <MobileNavLink to="/restaurants" onClick={() => setMobileOpen(false)}>{t('nav.orderFood')}</MobileNavLink>
                 <MobileNavLink to="/login" onClick={() => setMobileOpen(false)}>{t('nav.signIn')}</MobileNavLink>
-                {SHOW_LEGACY_NAV_RESOURCES && (
-                  <div className="ox-nav-account-section">
-                    <span className="ox-nav-section-label">{t('nav.resources')}</span>
-                    <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howItWorks')}</MobileNavLink>
-                  </div>
-                )}
                 <div
                   style={{
                     marginTop: 'var(--space-2)',
@@ -477,6 +351,35 @@ function MobileNavLink({ to, children, onClick, active, primary }) {
 function UnreadBadge({ count }) {
   if (count <= 0) return null;
   return <span className="ox-nav-unread">{count}</span>;
+}
+
+function isApplicationItem(item) {
+  return item.id === 'applications'
+    || /(?:Setup|Application)$/i.test(item.id)
+    || item.to === '/settings/applications'
+    || item.to === '/business-launch-status';
+}
+
+function ApplicationsDisclosure({ items, mode }) {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const { open, setOpen, containerRef, triggerRef, panelId } = useNavDisclosure(mode);
+  return (
+    <div ref={containerRef} data-nav-disclosure className="ox-nav-account">
+      <button ref={triggerRef} type="button" className="ox-btn ox-btn-ghost ox-btn-sm ox-nav-account-trigger" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)} data-track="ui.0b9e115b87.6">
+        {t('nav.myApplications')} <span aria-hidden="true">⌄</span>
+      </button>
+      {open && (
+        <div id={panelId} className="ox-nav-account-panel">
+          {items.map(item => (
+            <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname, mode)}>
+              {t(item.labelKey)}{item.count > 0 && <UnreadBadge count={item.count} />}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AccountDisclosure({ items, mode, logout }) {

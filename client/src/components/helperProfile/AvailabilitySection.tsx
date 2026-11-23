@@ -124,7 +124,13 @@ const AvailabilitySection: React.FC<AvailabilitySectionProps> = ({ helperId }) =
   let headline = '';
   let subline = '';
   let headlineTone: 'open' | 'limited' | 'off' | 'closed' = 'open';
-  if (summary.state === 'open-now') {
+  // Item 160: the helper toggled themselves off. The template may still
+  // show open hours today, but the headline must not say "Open now".
+  if (data.isAvailableNow === false) {
+    headlineTone = 'off';
+    headline = t('helperProfile.availability.statusUnavailable');
+    subline = t('helperProfile.availability.statusUnavailableSub');
+  } else if (summary.state === 'open-now') {
     headline =
       summary.openUntilMin != null
         ? t('helperProfile.availability.statusOpenNowUntil', {
