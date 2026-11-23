@@ -72,4 +72,4 @@ cd ../client && npm run build:ci
 (symlink node_modules from /workspace/old-file/{client,server}; remove before committing)
 
 ## Next step
-PR body refresh, then a settled green CI run. Don't merge.
+CI green at b481d1540 (run 45227906181). Awaiting Emile's review and his calls on the open items in the PR body. Don't merge.
