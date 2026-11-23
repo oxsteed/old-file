@@ -45000,7 +45000,10 @@
       "offering_changed": "Este servicio cambió mientras tanto. Actualiza e inténtalo de nuevo.",
       "listing_already_claimed": "Este perfil ya está vinculado a un negocio.",
       "claim_already_pending": "Ya tienes un reclamo pendiente para este perfil.",
-      "claim_not_pending": "Este reclamo ya no está pendiente."
+      "claim_not_pending": "Este reclamo ya no está pendiente.",
+      "issue_window_closed": "Los problemas se pueden reportar hasta 30 días después de la visita.",
+      "issue_already_open": "Ya tienes un reporte abierto para esta visita.",
+      "issue_not_reportable": "Aún no se puede reportar esta visita."
     },
     "launch": {
       "title": "Estado de lanzamiento",
@@ -45082,6 +45085,93 @@
         "rejected": "No aprobado",
         "withdrawn": "Retirado"
       }
+    },
+    "days": {
+      "0": "Dom",
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mié",
+      "4": "Jue",
+      "5": "Vie",
+      "6": "Sáb"
+    },
+    "oversight": {
+      "title": "Supervisar el trabajo",
+      "openTitle": "Asignaciones pendientes",
+      "openNone": "Cada visita próxima tiene a alguien asignado.",
+      "reason": {
+        "unassigned": "Sin asignar",
+        "assignee_inactive": "La persona asignada dejó el equipo"
+      },
+      "assignTo": "Asignar a",
+      "choose": "Elige a alguien",
+      "assign": "Asignar",
+      "heatTitle": "Mapa de calor del horario",
+      "range": "Periodo",
+      "upcoming": "Próximas 4 semanas",
+      "past": "Últimas 4 semanas",
+      "heatLegend": "Reservas por día y hora ({{tz}}).",
+      "cellTitle": "{{hour}}:00 · {{booked}} reservas · {{staffed}} en turno",
+      "heatHelp": "Las horas con borde tienen más reservas que personas disponibles.",
+      "timelineTitle": "Historial de traspasos",
+      "timelineNone": "Aún no hay traspasos.",
+      "by": "por {{name}}",
+      "event": {
+        "reassign": "Trabajo reasignado",
+        "claim": "Trabajo tomado",
+        "release": "Trabajo liberado",
+        "transfer": "Trabajo transferido",
+        "handover": "Entrega de turno",
+        "absence": "Cubierto durante una ausencia",
+        "offboarding": "Reasignado al salir del equipo",
+        "confirm": "Asignación confirmada",
+        "decline": "Asignación rechazada",
+        "joined": "Se unió al equipo",
+        "role_changed": "Cambio de función",
+        "offboarded": "Dejó el equipo",
+        "swap_approved": "Cambio de turno aprobado",
+        "ownership_transferred": "Propiedad transferida",
+        "deputy_designated": "Suplente designado"
+      },
+      "repeatTitle": "Clientes recurrentes",
+      "repeatNone": "Ningún cliente tiene dos visitas completadas todavía.",
+      "customer": "Cliente",
+      "visits": "Visitas",
+      "lastVisit": "Última visita",
+      "every": "Intervalo habitual",
+      "days": "{{n}} días",
+      "lifetime": "Valor total"
+    },
+    "issues": {
+      "title": "Problemas con el servicio",
+      "none": "No hay problemas reportados.",
+      "response": "Respuesta al cliente",
+      "startReview": "Iniciar revisión",
+      "resolve": "Resolver",
+      "dismiss": "Cerrar sin acción",
+      "status": {
+        "open": "Abierto",
+        "in_review": "En revisión",
+        "resolved": "Resuelto",
+        "dismissed": "Cerrado"
+      },
+      "category": {
+        "quality": "Calidad del trabajo",
+        "incomplete": "Trabajo sin terminar",
+        "damage": "Daños",
+        "late_or_no_show": "Llegó tarde o no llegó",
+        "conduct": "Conducta",
+        "billing": "Facturación",
+        "other": "Otra cosa"
+      }
+    },
+    "visits": {
+      "title": "Visitas recientes a negocios",
+      "report": "Reportar un problema",
+      "category": "¿Qué salió mal?",
+      "description": "Descríbelo (10+ caracteres)",
+      "send": "Enviar al negocio",
+      "sent": "Enviado. El negocio responderá aquí."
     }
   }
 }

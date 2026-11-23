@@ -9,8 +9,10 @@ const { authenticate } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const requirePermission = require('../middleware/requirePermission');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const { scopeExempt } = require('../middleware/scopeGates');
 const launch = require('../services/businessOwner/launchService');
 const claims = require('../services/businessOwner/listingClaimService');
+const oversight = require('../services/businessOwner/oversightService');
 
 const h = fn => async (req, res, next) => { res.set('Cache-Control', 'no-store'); try { await fn(req, res); } catch (e) { next(e); } };
 const biz = (minRole, perm) => [authenticate, requireBusinessAccess({ minRole }), ...(perm ? [requirePermission(perm)] : [])];
@@ -25,6 +27,18 @@ router.put('/:businessId/owner/services/:serviceId/regions', ...write('manager',
 router.post('/:businessId/owner/services/:serviceId/pause', ...write('manager', 'business.edit_profile'), h(async (req, res) => res.json(await launch.pause(req.business.id, req.user.id, req.params.serviceId, req.body))));
 router.post('/:businessId/owner/services/:serviceId/resume', ...write('manager', 'business.edit_profile'), h(async (req, res) => res.json(await launch.resume(req.business.id, req.user.id, req.params.serviceId, req.body))));
 
+// 217, 218, 220 oversight
+router.get('/:businessId/owner/open-assignments', ...biz('manager', 'jobs.assign'), h(async (req, res) => res.json(await oversight.openAssignments(req.business.id))));
+router.get('/:businessId/owner/schedule-heatmap', ...biz('manager', 'calendar.view_all'), h(async (req, res) => res.json(await oversight.heatmap(req.business.id, req.query))));
+router.get('/:businessId/owner/handoff-timeline', ...biz('manager', 'team.view'), h(async (req, res) => res.json(await oversight.handoffTimeline(req.business.id, req.query))));
+// 222 repeat service records
+router.get('/:businessId/owner/repeat-customers', ...biz('manager', 'customers.view_all'), h(async (req, res) => res.json(await oversight.repeatRecords(req.business.id))));
+// 225 service issue review (business side); customer side below is reporter-scoped
+router.get('/:businessId/owner/service-issues', ...biz('manager', 'bookings.manage'), h(async (req, res) => res.json(await oversight.issueQueue(req.business.id, req.query))));
+router.patch('/:businessId/owner/service-issues/:issueId', ...write('manager', 'bookings.manage'), h(async (req, res) => res.json(await oversight.updateIssue(req.business.id, req.user.id, req.params.issueId, req.body))));
+router.get('/:businessId/appointments/:appointmentId/service-issues/mine', authenticate, scopeExempt('customer-self-service'), h(async (req, res) => res.json(await oversight.myIssues(req.user.id, req.params.appointmentId))));
+router.post('/:businessId/appointments/:appointmentId/service-issues', authenticate, scopeExempt('customer-self-service'), rejectImpersonated, h(async (req, res) => res.status(201).json(await oversight.reportIssue(req.user.id, req.params.businessId, req.params.appointmentId, req.body))));
+
 const claimRouter = express.Router();
 // 201 listing claims (the service checks the claimant owns the business)
 claimRouter.get('/listings', authenticate, h(async (req, res) => res.json(await claims.searchListings(req.query.q))));
@@ -32,4 +46,8 @@ claimRouter.get('/mine', authenticate, h(async (req, res) => res.json(await clai
 claimRouter.post('/', authenticate, rejectImpersonated, h(async (req, res) => res.status(201).json(await claims.submit(req.user.id, req.body))));
 claimRouter.post('/:claimId/withdraw', authenticate, rejectImpersonated, h(async (req, res) => res.json(await claims.withdraw(req.user.id, req.params.claimId))));
 
-module.exports = { router, claimRouter };
+const meRouter = express.Router();
+// 225 customer: own recent business visits and their issue status.
+meRouter.get('/', authenticate, h(async (req, res) => res.json(await oversight.myVisits(req.user.id))));
+
+module.exports = { router, claimRouter, meRouter };

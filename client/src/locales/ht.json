@@ -45000,7 +45000,10 @@
       "offering_changed": "Sèvis sa a te chanje entretan. Rafrechi epi eseye ankò.",
       "listing_already_claimed": "Fich sa a deja konekte ak yon biznis.",
       "claim_already_pending": "Ou deja gen yon demann k ap tann pou fich sa a.",
-      "claim_not_pending": "Demann sa a pa an atant ankò."
+      "claim_not_pending": "Demann sa a pa an atant ankò.",
+      "issue_window_closed": "Ou ka siyale pwoblèm jiska 30 jou apre vizit la.",
+      "issue_already_open": "Ou deja gen yon rapò ouvè pou vizit sa a.",
+      "issue_not_reportable": "Ou poko ka siyale vizit sa a."
     },
     "launch": {
       "title": "Estati lansman",
@@ -45082,6 +45085,93 @@
         "rejected": "Pa apwouve",
         "withdrawn": "Retire"
       }
+    },
+    "days": {
+      "0": "Dim",
+      "1": "Len",
+      "2": "Mad",
+      "3": "Mèk",
+      "4": "Jed",
+      "5": "Van",
+      "6": "Sam"
+    },
+    "oversight": {
+      "title": "Sipèvize travay la",
+      "openTitle": "Travay ki poko asiyen",
+      "openNone": "Chak vizit k ap vini gen yon moun asiyen.",
+      "reason": {
+        "unassigned": "Pa gen moun asiyen",
+        "assignee_inactive": "Moun ki te asiyen an kite ekip la"
+      },
+      "assignTo": "Asiyen bay",
+      "choose": "Chwazi yon moun",
+      "assign": "Asiyen",
+      "heatTitle": "Kat chalè orè a",
+      "range": "Peryòd",
+      "upcoming": "4 pwochen semèn",
+      "past": "4 dènye semèn",
+      "heatLegend": "Rezèvasyon pa jou ak pa lè ({{tz}}).",
+      "cellTitle": "{{hour}}:00 · {{booked}} rezèvasyon · {{staffed}} an sèvis",
+      "heatHelp": "Lè ki gen kad yo gen plis rezèvasyon pase moun ki disponib.",
+      "timelineTitle": "Istwa transfè yo",
+      "timelineNone": "Poko gen transfè.",
+      "by": "pa {{name}}",
+      "event": {
+        "reassign": "Travay reasiyen",
+        "claim": "Yon moun pran travay la",
+        "release": "Travay lage",
+        "transfer": "Travay transfere",
+        "handover": "Transfè fen ekip",
+        "absence": "Kouvri pandan yon absans",
+        "offboarding": "Reasiyen lè moun nan kite",
+        "confirm": "Asiyasyon konfime",
+        "decline": "Asiyasyon refize",
+        "joined": "Antre nan ekip la",
+        "role_changed": "Wòl chanje",
+        "offboarded": "Kite ekip la",
+        "swap_approved": "Chanjman ekip apwouve",
+        "ownership_transferred": "Pwopriyete transfere",
+        "deputy_designated": "Ranplasan deziyen"
+      },
+      "repeatTitle": "Kliyan ki retounen",
+      "repeatNone": "Poko gen kliyan ki gen de vizit fini.",
+      "customer": "Kliyan",
+      "visits": "Vizit",
+      "lastVisit": "Dènye vizit",
+      "every": "Entèval abityèl",
+      "days": "{{n}} jou",
+      "lifetime": "Valè total"
+    },
+    "issues": {
+      "title": "Pwoblèm sèvis",
+      "none": "Pa gen pwoblèm ki siyale.",
+      "response": "Repons pou kliyan an",
+      "startReview": "Kòmanse revizyon",
+      "resolve": "Rezoud",
+      "dismiss": "Fèmen san aksyon",
+      "status": {
+        "open": "Louvri",
+        "in_review": "Nan revizyon",
+        "resolved": "Rezoud",
+        "dismissed": "Fèmen"
+      },
+      "category": {
+        "quality": "Kalite travay la",
+        "incomplete": "Travay pa fini",
+        "damage": "Domaj",
+        "late_or_no_show": "Te an reta oswa pa t vini",
+        "conduct": "Konpòtman",
+        "billing": "Faktirasyon",
+        "other": "Lòt bagay"
+      }
+    },
+    "visits": {
+      "title": "Vizit resan nan biznis",
+      "report": "Siyale yon pwoblèm",
+      "category": "Kisa ki pa t mache?",
+      "description": "Dekri l (10+ karaktè)",
+      "send": "Voye bay biznis la",
+      "sent": "Voye. Biznis la ap reponn isit la."
     }
   }
 }

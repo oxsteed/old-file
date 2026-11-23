@@ -37126,7 +37126,10 @@
       "offering_changed": "This service changed in the meantime. Refresh and try again.",
       "listing_already_claimed": "This listing is already linked to a business.",
       "claim_already_pending": "You already have a pending claim for this listing.",
-      "claim_not_pending": "This claim is no longer pending."
+      "claim_not_pending": "This claim is no longer pending.",
+      "issue_window_closed": "Problems can be reported up to 30 days after a visit.",
+      "issue_already_open": "You already have an open report for this visit.",
+      "issue_not_reportable": "This visit can’t be reported yet."
     },
     "launch": {
       "title": "Launch status",
@@ -37208,6 +37211,93 @@
         "rejected": "Not approved",
         "withdrawn": "Withdrawn"
       }
+    },
+    "days": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    },
+    "oversight": {
+      "title": "Oversee work",
+      "openTitle": "Open assignments",
+      "openNone": "Every upcoming visit has someone assigned.",
+      "reason": {
+        "unassigned": "Nobody assigned",
+        "assignee_inactive": "Assignee left the team"
+      },
+      "assignTo": "Assign to",
+      "choose": "Choose someone",
+      "assign": "Assign",
+      "heatTitle": "Schedule heatmap",
+      "range": "Period",
+      "upcoming": "Next 4 weeks",
+      "past": "Last 4 weeks",
+      "heatLegend": "Bookings by day and hour ({{tz}}).",
+      "cellTitle": "{{hour}}:00 · {{booked}} booked · {{staffed}} on staff",
+      "heatHelp": "Outlined hours have more bookings than people available.",
+      "timelineTitle": "Handoff timeline",
+      "timelineNone": "No handoffs yet.",
+      "by": "by {{name}}",
+      "event": {
+        "reassign": "Work reassigned",
+        "claim": "Work claimed",
+        "release": "Work released",
+        "transfer": "Work transferred",
+        "handover": "Shift handover",
+        "absence": "Covered during absence",
+        "offboarding": "Reassigned at offboarding",
+        "confirm": "Assignment confirmed",
+        "decline": "Assignment declined",
+        "joined": "Joined the team",
+        "role_changed": "Role changed",
+        "offboarded": "Left the team",
+        "swap_approved": "Shift swap approved",
+        "ownership_transferred": "Ownership transferred",
+        "deputy_designated": "Deputy designated"
+      },
+      "repeatTitle": "Repeat customers",
+      "repeatNone": "No customer has two completed visits yet.",
+      "customer": "Customer",
+      "visits": "Visits",
+      "lastVisit": "Last visit",
+      "every": "Typical gap",
+      "days": "{{n}} days",
+      "lifetime": "Lifetime value"
+    },
+    "issues": {
+      "title": "Service issues",
+      "none": "No service issues reported.",
+      "response": "Response to the customer",
+      "startReview": "Start review",
+      "resolve": "Resolve",
+      "dismiss": "Close without action",
+      "status": {
+        "open": "Open",
+        "in_review": "In review",
+        "resolved": "Resolved",
+        "dismissed": "Closed"
+      },
+      "category": {
+        "quality": "Quality of work",
+        "incomplete": "Work not finished",
+        "damage": "Damage",
+        "late_or_no_show": "Late or didn’t arrive",
+        "conduct": "Conduct",
+        "billing": "Billing",
+        "other": "Something else"
+      }
+    },
+    "visits": {
+      "title": "Recent business visits",
+      "report": "Report a problem",
+      "category": "What went wrong?",
+      "description": "Describe it (10+ characters)",
+      "send": "Send to the business",
+      "sent": "Sent. The business will respond here."
     }
   }
 }

@@ -97,7 +97,7 @@ async function decide(adminId, claimId, body) {
     return row;
   }, 'business_listing_claim_decide');
   await notify(out.claimant_id, out.status === 'approved' ? 'business_listing_claim_approved' : 'business_listing_claim_rejected',
-    { claim_id: out.id, business_id: out.business_id }, `listing-claim:${out.id}:${out.status}`, `/business/${out.business_id}?tab=overview`);
+    { claim_id: out.id, business_id: out.business_id }, `listing-claim:${out.id}:${out.status}`, `/business/${out.business_id}/workspace/owner-console`);
   return out;
 }
 

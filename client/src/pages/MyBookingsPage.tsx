@@ -17,6 +17,8 @@ import InvoiceModal from '../components/InvoiceModal';
 import TermsAcceptanceModal from '../components/TermsAcceptanceModal';
 import UserReportModal from '../components/UserReportModal';
 import './MyBookingsPage.css';
+// Groups 5-6 item 225: customer service-issue reports on business visits.
+import MyBusinessVisits from '../components/businessHub/g56/MyBusinessVisits';
 
 function formatTime(hhmm: string | null | undefined, locale: string): string {
   if (!hhmm) return '';
@@ -561,6 +563,7 @@ const MyBookingsPageContent = () => {
       />
 
       <div className="my-bookings-container">
+        <MyBusinessVisits />
         <div className="my-bookings-hero">
           <div className="my-bookings-header">
             <p className="my-bookings-eyebrow">{t('myBookings.eyebrow')}</p>

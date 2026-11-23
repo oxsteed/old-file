@@ -617,6 +617,7 @@ app.use('/api/businesses', businessTeamRoutes);
 const businessOwnerConsole = require('./routes/businessOwnerConsole');
 app.use('/api/businesses', businessOwnerConsole.router);
 app.use('/api/business-listing-claims', businessOwnerConsole.claimRouter);
+app.use('/api/me/business-visits', businessOwnerConsole.meRouter);
   app.use('/api/careers',    careerRoutes);
   app.use('/api/vortex',     vortexAccessRoutes);
 app.use('/api/me',         meWorkspaceRoutes);

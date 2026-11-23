@@ -854,6 +854,14 @@ async function reassignAppointmentStaff(req, res, next) {
          VALUES ($1, $2, 'internal', $3)`,
         [appointmentId, req.user.id, `Staff reassigned to ${newStaffId || 'unassigned'}`]
       );
+      // Groups 5-6 items 220/283: structured assignment history.
+      await client.query(
+        `INSERT INTO business_appointment_assignment_events
+         (appointment_id, business_id, from_staff_id, to_staff_id, actor_id, source, reason)
+         VALUES ($1, $2, $3, $4, $5, 'reassign', $6)`,
+        [appointmentId, businessId, current.staff_id || null, newStaffId, req.user.id,
+          typeof req.body?.reason === 'string' ? req.body.reason.slice(0, 300) : null]
+      );
       return result.rows[0];
     }, 'reassign_appointment_staff');
 

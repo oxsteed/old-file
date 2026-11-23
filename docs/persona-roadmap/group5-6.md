@@ -47,15 +47,15 @@ BUILD = to build. DONE = built on this branch (commit/test cited).
 | 211 | Invitation dashboard | EXISTS | `GET /:id/members` pending + resend/expire (`BusinessHubPage.jsx` team tab) | - |
 | 212-215 | Role templates / preview / expiry / offboarding | EXISTS | thirty-feature-delivery.md | - |
 | 216 | Operations board | EXISTS | `GET /:id/operations-summary`, `BusinessOperationsOverview.jsx` | - |
-| 217 | Open assignment view | BUILD | | - |
-| 218 | Schedule heatmap | BUILD | | - |
+| 217 | Open assignment view | BUILD | | DONE (D-199..D-201; migration 20261123190200, oversightService, /owner/* routes, OwnerOversight, MyBusinessVisits; group56Oversight.db.test.js) |
+| 218 | Schedule heatmap | BUILD | | DONE (D-199..D-201; migration 20261123190200, oversightService, /owner/* routes, OwnerOversight, MyBusinessVisits; group56Oversight.db.test.js) |
 | 219 | Overdue task alerts | EXISTS | thirty-feature-delivery.md | - |
-| 220 | Business handoff timeline | BUILD | `business_audit_log` exists, no timeline | - |
+| 220 | Business handoff timeline | BUILD | `business_audit_log` exists, no timeline | DONE (D-199..D-201; migration 20261123190200, oversightService, /owner/* routes, OwnerOversight, MyBusinessVisits; group56Oversight.db.test.js) |
 | 221 | Scoped customer directory | EXISTS | `businessCustomer360.js` | - |
-| 222 | Repeat service records | BUILD | | - |
+| 222 | Repeat service records | BUILD | | DONE (D-199..D-201; migration 20261123190200, oversightService, /owner/* routes, OwnerOversight, MyBusinessVisits; group56Oversight.db.test.js) |
 | 223 | Shared business inbox | EXISTS | `businessOperations.js` messages claim/release/reassign | - |
 | 224 | Follow-up reminders | EXISTS | thirty-feature-delivery.md | - |
-| 225 | Service issue review | BUILD | | - |
+| 225 | Service issue review | BUILD | | DONE (D-199..D-201; migration 20261123190200, oversightService, /owner/* routes, OwnerOversight, MyBusinessVisits; group56Oversight.db.test.js) |
 | 226 | Approval thresholds | BUILD | | - |
 | 227 | Work authorization policy | BUILD | | - |
 | 228 | Cancellation settings | PARTIAL | per-service `cancellation_policy_hours/fee_percent`; no business default | - |
@@ -106,4 +106,4 @@ cd ../client && npm run build:ci
 - Tests: `server/__tests__/group56*.db.test.js`; also `STATEMENT_TEST_DATABASE_URL=.../credit_statement_test npx jest __tests__/notificationsPrefsToggles`.
 
 ## Next step
-S3: owner oversight (217, 218, 220, 222, 225).
+S4: policies (226 approval thresholds, 227 work authorization, 228 cancellation defaults).
