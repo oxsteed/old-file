@@ -119,6 +119,8 @@ const NOTIFICATION_TYPES = [
   // Group 10 Slice I (550): a consultant filing a practice support
   // request alerts support staff.
   { type: 'consulting_practice_support_requested', group: 'work' },
+  // Group 4 rest (185, 190): a helper escalating a job or a payment issue.
+  { type: 'helper_job_support_requested', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
   { type: 'crew_shift_published', group: 'work' },
   { type: 'crew_task_assigned', group: 'work' },

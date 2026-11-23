@@ -35,6 +35,7 @@ import JobQuoteWorkspace from '../components/JobQuoteWorkspace';
 import JobSuitabilityPreview from '../components/JobSuitabilityPreview';
 import JobPortfolioConsent from '../components/JobPortfolioConsent';
 import { JobWorkRecord } from '../components/HelperWorkPanel';
+import HelperJobSupport from '../components/HelperJobSupport';
 import JobRevisionHistory from '../components/JobRevisionHistory';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -874,6 +875,7 @@ function JobDetailContent() {
         <div className="jdp-main">
           <PreferredHelperBanner job={job} />
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && ['accepted', 'in_progress', 'completed', 'closed'].includes(job.status) && <JobWorkRecord jobId={id} />}
+          {isAssignedHelper && <HelperJobSupport jobId={id} />}
           {(isOwner || (user && String(job.assigned_helper_id) === String(user.id))) && <PaymentReauthorizationBanner jobId={id} job={job} onResolved={() => fetchJob(id)} />}
           <JobPaymentLayersPanel job={job} isOwner={isOwner} isAssignedHelper={isAssignedHelper} onChanged={() => fetchJob(id)} />
           {ownBidToReconfirm && <section className="jdp-card jdp-reconfirm" role="status" aria-labelledby={`${fieldId}-reconfirm`}>

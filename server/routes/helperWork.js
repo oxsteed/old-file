@@ -33,4 +33,8 @@ router.get('/quality-summary',handle(async(req,res)=>res.json(await reputation.q
 // Group 4 rest (186, 189): one job's earnings breakdown with explanations.
 const jobEarnings=require('../services/helperJobEarningsService');
 router.get('/jobs/:jobId/earnings',handle(async(req,res)=>res.json(await jobEarnings.jobEarnings(req.user.id,req.params.jobId))));
+// Group 4 rest (185, 190): job-linked support escalation and payment issue intake.
+const jobSupport=require('../services/helperJobSupportService');
+router.get('/jobs/:jobId/support',handle(async(req,res)=>res.json({tickets:await jobSupport.list(req.user.id,req.params.jobId)})));
+router.post('/jobs/:jobId/support',rejectImpersonated,handle(async(req,res)=>{const out=await jobSupport.file(req.user.id,req.params.jobId,req.body);res.status(out.duplicate?200:201).json(out);}));
 module.exports = router;

@@ -44794,6 +44794,29 @@
         "not_priced": "Travay sa a poko gen pri anrejistre"
       },
       "none": "Pa gen dediksyon ni ajisteman sou travay sa a."
+    },
+    "jobSupport": {
+      "title": "Jwenn èd pou travay sa a",
+      "kind": "Ak kisa ou bezwen èd?",
+      "kinds": {
+        "job_issue": "Yon pwoblèm ak travay la",
+        "safety": "Yon pwoblèm sekirite",
+        "payment_issue": "Yon pwoblèm peman"
+      },
+      "message": "Dekri sa k te pase",
+      "submit": "Voye bay sipò",
+      "sent": "Voye. Sipò ap reponn sou tikè {{number}}.",
+      "failed": "Nou pa t ka voye l. Eseye ankò.",
+      "safetyNote": "Si yon moun an danje, rele sèvis ijans yo anvan.",
+      "history": "Demann ou yo pou travay sa a",
+      "status": {
+        "open": "Louvri",
+        "assigned": "Asiyen",
+        "in_progress": "Ap fèt",
+        "waiting_user": "Ap tann ou",
+        "resolved": "Rezoud",
+        "closed": "Fèmen"
+      }
     }
   }
 }

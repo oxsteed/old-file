@@ -44794,6 +44794,29 @@
         "not_priced": "Ce travail n'a pas encore de prix enregistré"
       },
       "none": "Aucune déduction ni ajustement sur ce travail."
+    },
+    "jobSupport": {
+      "title": "Obtenir de l'aide pour ce travail",
+      "kind": "De quoi avez-vous besoin ?",
+      "kinds": {
+        "job_issue": "Un problème avec le travail",
+        "safety": "Un problème de sécurité",
+        "payment_issue": "Un problème de paiement"
+      },
+      "message": "Décrivez ce qui s'est passé",
+      "submit": "Envoyer à l'assistance",
+      "sent": "Envoyé. L'assistance répondra sur le ticket {{number}}.",
+      "failed": "Envoi impossible. Réessayez.",
+      "safetyNote": "Si quelqu'un est en danger, appelez d'abord les services d'urgence.",
+      "history": "Vos demandes pour ce travail",
+      "status": {
+        "open": "Ouvert",
+        "assigned": "Attribué",
+        "in_progress": "En cours",
+        "waiting_user": "En attente de votre réponse",
+        "resolved": "Résolu",
+        "closed": "Fermé"
+      }
     }
   }
 }

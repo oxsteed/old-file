@@ -27,12 +27,12 @@ BUILD = to build in this batch. DONE = built on this branch (commit cited).
 | 182 | No-show report | PARTIAL | `jobController.markJobNoShow` (either party, reason, notifies) | no time guard: either party can mark no-show before the job time. Plan: refuse before scheduled start (409 `no_show_too_early`) | BUILD |
 | 183 | Scope change request | PARTIAL | `workAgreements.js` change-orders (+ notifications, Slice C) | agreement-less jobs have no path (open call G4-22) | OPEN CALL G4-22 (not built) |
 | 184 | Replacement handoff | PARTIAL | `bids.js` withdraw (pre-hire only); work records separate per helper (PR 805) | assigned helper cannot hand a job back. Plan: helper release request with reason before start; job returns to open, customer notified, payment untouched unless not yet captured (decision) | BUILD |
-| 185 | Support escalation | PARTIAL | `support_tickets` intake pattern (`consultantPracticeController.createSupportIntake`) | no job-linked helper escalation. Plan: `POST /helpers/me/jobs/:jobId/support` (assignment-checked, idempotent, notifies staff) + list | BUILD |
+| 185 | Support escalation | PARTIAL | `support_tickets` intake pattern (`consultantPracticeController.createSupportIntake`) | no job-linked helper escalation. Plan: `POST /helpers/me/jobs/:jobId/support` (assignment-checked, idempotent, notifies staff) + list | DONE (helperJobSupportService, HelperJobSupport on JobDetailPage, group4RestJobSupport.db.test.js) |
 | 186 | Job earnings summary | PARTIAL | `HelperJobEarnings.jsx` via `GET /main-app/earnings` (per-job amount + status) | no per-job breakdown. Plan: per-job gross / platform fee / net / adjustments detail | DONE (helperJobEarningsService, HelperJobBreakdown, HelperPayoutTimeline, group4RestEarnings.db.test.js) |
 | 187 | Payout timeline | PARTIAL | `GET /main-app/payouts/summary` has zero client callers | Plan: timeline on `/helper/payouts` from that endpoint | DONE (helperJobEarningsService, HelperJobBreakdown, HelperPayoutTimeline, group4RestEarnings.db.test.js) |
 | 188 | Statement download | EXISTS | statement center / exports (`statementExports.js`, `helper_earnings` product) | none | - |
 | 189 | Adjustment explanation | PARTIAL | adjustments exist server-side, not explained to the helper | Plan: per-job breakdown lines with plain-language reason codes | DONE (helperJobEarningsService, HelperJobBreakdown, HelperPayoutTimeline, group4RestEarnings.db.test.js) |
-| 190 | Payment issue intake | PARTIAL | general support only | Plan: same intake as 185 with `kind=payment_issue`, category `helper_payment` | BUILD (with 185) |
+| 190 | Payment issue intake | PARTIAL | general support only | Plan: same intake as 185 with `kind=payment_issue`, category `helper_payment` | DONE (helperJobSupportService, HelperJobSupport on JobDetailPage, group4RestJobSupport.db.test.js) |
 | 191 | Portfolio permission request | EXISTS | `helperWork.js` portfolio-requests | none | - |
 | 192 | Review response | PARTIAL | `PUT /reviews/:id/respond` + `useReviews` hook, zero UI callers; reviewer not notified | Plan: helper "My reviews" page with respond; notify reviewer | DONE (helperReputationService, HelperReputationPanel, group4RestReputation.db.test.js) |
 | 193 | Repeat customer follow-up | MISSING leg | no surface | Plan: list of the helper's past customers (completed jobs) + rate-limited "book me again" invite notification | BUILD |
@@ -72,4 +72,4 @@ cd ../client && npm run build:ci
 (symlink node_modules from /workspace/old-file/{client,server}; remove before committing)
 
 ## Next step
-Build step 4 (185 + 190 job-linked helper support and payment-issue intake).
+Build step 5 (177 + 182 arrival/no-show time guards; update pr804TrackDJobArrivalNoShow fixture to schedule inside the window).

@@ -44794,6 +44794,29 @@
         "not_priced": "This job has no recorded price yet"
       },
       "none": "No deductions or adjustments on this job."
+    },
+    "jobSupport": {
+      "title": "Get help with this job",
+      "kind": "What do you need help with?",
+      "kinds": {
+        "job_issue": "A problem with the job",
+        "safety": "A safety concern",
+        "payment_issue": "A payment problem"
+      },
+      "message": "Describe what happened",
+      "submit": "Send to support",
+      "sent": "Sent. Support will reply on ticket {{number}}.",
+      "failed": "We couldn't send this. Try again.",
+      "safetyNote": "If anyone is in danger, call local emergency services first.",
+      "history": "Your requests for this job",
+      "status": {
+        "open": "Open",
+        "assigned": "Assigned",
+        "in_progress": "In progress",
+        "waiting_user": "Waiting on you",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      }
     }
   }
 }

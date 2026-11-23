@@ -44794,6 +44794,29 @@
         "not_priced": "Este trabajo aún no tiene precio registrado"
       },
       "none": "No hay deducciones ni ajustes en este trabajo."
+    },
+    "jobSupport": {
+      "title": "Obtén ayuda con este trabajo",
+      "kind": "¿Con qué necesitas ayuda?",
+      "kinds": {
+        "job_issue": "Un problema con el trabajo",
+        "safety": "Un problema de seguridad",
+        "payment_issue": "Un problema de pago"
+      },
+      "message": "Describe lo que pasó",
+      "submit": "Enviar a soporte",
+      "sent": "Enviado. Soporte responderá en el ticket {{number}}.",
+      "failed": "No pudimos enviarlo. Inténtalo de nuevo.",
+      "safetyNote": "Si alguien está en peligro, llama primero a emergencias.",
+      "history": "Tus solicitudes para este trabajo",
+      "status": {
+        "open": "Abierto",
+        "assigned": "Asignado",
+        "in_progress": "En curso",
+        "waiting_user": "Esperando tu respuesta",
+        "resolved": "Resuelto",
+        "closed": "Cerrado"
+      }
     }
   }
 }

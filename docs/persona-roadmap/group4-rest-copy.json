@@ -404,5 +404,124 @@
     "fr": "Aucune déduction ni ajustement sur ce travail.",
     "ht": "Pa gen dediksyon ni ajisteman sou travay sa a.",
     "ar": "لا توجد خصومات أو تعديلات على هذا العمل."
+  },
+  "jobSupport.title": {
+    "en": "Get help with this job",
+    "es": "Obtén ayuda con este trabajo",
+    "fr": "Obtenir de l'aide pour ce travail",
+    "ht": "Jwenn èd pou travay sa a",
+    "ar": "احصل على مساعدة بشأن هذا العمل"
+  },
+  "jobSupport.kind": {
+    "en": "What do you need help with?",
+    "es": "¿Con qué necesitas ayuda?",
+    "fr": "De quoi avez-vous besoin ?",
+    "ht": "Ak kisa ou bezwen èd?",
+    "ar": "بماذا تحتاج المساعدة؟"
+  },
+  "jobSupport.kinds.job_issue": {
+    "en": "A problem with the job",
+    "es": "Un problema con el trabajo",
+    "fr": "Un problème avec le travail",
+    "ht": "Yon pwoblèm ak travay la",
+    "ar": "مشكلة في العمل"
+  },
+  "jobSupport.kinds.safety": {
+    "en": "A safety concern",
+    "es": "Un problema de seguridad",
+    "fr": "Un problème de sécurité",
+    "ht": "Yon pwoblèm sekirite",
+    "ar": "مخاوف تتعلق بالسلامة"
+  },
+  "jobSupport.kinds.payment_issue": {
+    "en": "A payment problem",
+    "es": "Un problema de pago",
+    "fr": "Un problème de paiement",
+    "ht": "Yon pwoblèm peman",
+    "ar": "مشكلة في الدفع"
+  },
+  "jobSupport.message": {
+    "en": "Describe what happened",
+    "es": "Describe lo que pasó",
+    "fr": "Décrivez ce qui s'est passé",
+    "ht": "Dekri sa k te pase",
+    "ar": "صف ما حدث"
+  },
+  "jobSupport.submit": {
+    "en": "Send to support",
+    "es": "Enviar a soporte",
+    "fr": "Envoyer à l'assistance",
+    "ht": "Voye bay sipò",
+    "ar": "إرسال إلى الدعم"
+  },
+  "jobSupport.sent": {
+    "en": "Sent. Support will reply on ticket {{number}}.",
+    "es": "Enviado. Soporte responderá en el ticket {{number}}.",
+    "fr": "Envoyé. L'assistance répondra sur le ticket {{number}}.",
+    "ht": "Voye. Sipò ap reponn sou tikè {{number}}.",
+    "ar": "تم الإرسال. سيرد الدعم على التذكرة {{number}}."
+  },
+  "jobSupport.failed": {
+    "en": "We couldn't send this. Try again.",
+    "es": "No pudimos enviarlo. Inténtalo de nuevo.",
+    "fr": "Envoi impossible. Réessayez.",
+    "ht": "Nou pa t ka voye l. Eseye ankò.",
+    "ar": "تعذّر الإرسال. حاول مرة أخرى."
+  },
+  "jobSupport.safetyNote": {
+    "en": "If anyone is in danger, call local emergency services first.",
+    "es": "Si alguien está en peligro, llama primero a emergencias.",
+    "fr": "Si quelqu'un est en danger, appelez d'abord les services d'urgence.",
+    "ht": "Si yon moun an danje, rele sèvis ijans yo anvan.",
+    "ar": "إذا كان أي شخص في خطر، اتصل بخدمات الطوارئ أولًا."
+  },
+  "jobSupport.history": {
+    "en": "Your requests for this job",
+    "es": "Tus solicitudes para este trabajo",
+    "fr": "Vos demandes pour ce travail",
+    "ht": "Demann ou yo pou travay sa a",
+    "ar": "طلباتك لهذا العمل"
+  },
+  "jobSupport.status.open": {
+    "en": "Open",
+    "es": "Abierto",
+    "fr": "Ouvert",
+    "ht": "Louvri",
+    "ar": "مفتوح"
+  },
+  "jobSupport.status.assigned": {
+    "en": "Assigned",
+    "es": "Asignado",
+    "fr": "Attribué",
+    "ht": "Asiyen",
+    "ar": "مُسند"
+  },
+  "jobSupport.status.in_progress": {
+    "en": "In progress",
+    "es": "En curso",
+    "fr": "En cours",
+    "ht": "Ap fèt",
+    "ar": "قيد المعالجة"
+  },
+  "jobSupport.status.waiting_user": {
+    "en": "Waiting on you",
+    "es": "Esperando tu respuesta",
+    "fr": "En attente de votre réponse",
+    "ht": "Ap tann ou",
+    "ar": "بانتظار ردّك"
+  },
+  "jobSupport.status.resolved": {
+    "en": "Resolved",
+    "es": "Resuelto",
+    "fr": "Résolu",
+    "ht": "Rezoud",
+    "ar": "تم الحل"
+  },
+  "jobSupport.status.closed": {
+    "en": "Closed",
+    "es": "Cerrado",
+    "fr": "Fermé",
+    "ht": "Fèmen",
+    "ar": "مغلق"
   }
 }
