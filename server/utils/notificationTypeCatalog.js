@@ -138,6 +138,7 @@ const NOTIFICATION_TYPES = [
   { type: 'job_reschedule_proposed', group: 'work' },
   { type: 'job_reschedule_accepted', group: 'work' },
   { type: 'job_reschedule_declined', group: 'work' },
+  { type: 'job_handed_back', group: 'work' },
   { type: 'helper_handover_updated', group: 'work' },
   { type: 'job_auto_cancelled', group: 'work' },
   { type: 'job_auto_cancel_warning', group: 'work' },

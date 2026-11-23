@@ -36962,6 +36962,30 @@
         "superseded": "Replaced by a newer proposal"
       },
       "failed": "That didn't work. Check the time and try again."
+    },
+    "handback": {
+      "title": "Can't do this job?",
+      "hint": "Hand it back before it starts. The job reopens so the customer can hire someone else. No money moves.",
+      "open": "Hand this job back",
+      "reason": "Reason",
+      "reasons": {
+        "schedule_conflict": "Schedule conflict",
+        "illness": "Illness",
+        "outside_skills": "Outside my skills",
+        "travel": "Can't travel there",
+        "other": "Other"
+      },
+      "note": "Note for the customer",
+      "noteRequired": "Add a short note when you pick Other.",
+      "confirm": "Hand back now",
+      "cancel": "Keep the job",
+      "done": "You handed the job back. The customer has been told.",
+      "errors": {
+        "handback_money_on_job": "Money is already attached to this job. Cancel the job or contact support instead.",
+        "handback_agreement_signed": "The work agreement is signed. Cancel the job instead.",
+        "handback_after_start": "The start time has passed. Cancel the job or contact support instead.",
+        "generic": "Could not hand the job back. Reload and try again."
+      }
     }
   }
 }

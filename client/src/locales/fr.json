@@ -44865,6 +44865,30 @@
         "superseded": "Remplacée par une proposition plus récente"
       },
       "failed": "Cela n'a pas fonctionné. Vérifiez l'horaire et réessayez."
+    },
+    "handback": {
+      "title": "Vous ne pouvez pas faire ce travail ?",
+      "hint": "Rendez-le avant qu'il commence. Le travail est rouvert pour que le client engage quelqu'un d'autre. Aucun argent n'est déplacé.",
+      "open": "Rendre ce travail",
+      "reason": "Raison",
+      "reasons": {
+        "schedule_conflict": "Conflit d'horaire",
+        "illness": "Maladie",
+        "outside_skills": "Hors de mes compétences",
+        "travel": "Je ne peux pas me déplacer",
+        "other": "Autre"
+      },
+      "note": "Note pour le client",
+      "noteRequired": "Ajoutez une courte note si vous choisissez Autre.",
+      "confirm": "Rendre maintenant",
+      "cancel": "Garder le travail",
+      "done": "Vous avez rendu le travail. Le client a été prévenu.",
+      "errors": {
+        "handback_money_on_job": "De l'argent est déjà lié à ce travail. Annulez-le ou contactez le support.",
+        "handback_agreement_signed": "L'accord de travail est signé. Annulez plutôt le travail.",
+        "handback_after_start": "L'heure de début est passée. Annulez le travail ou contactez le support.",
+        "generic": "Impossible de rendre le travail. Rechargez et réessayez."
+      }
     }
   }
 }

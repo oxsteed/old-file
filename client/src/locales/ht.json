@@ -44865,6 +44865,30 @@
         "superseded": "Ranplase pa yon pwopozisyon pi resan"
       },
       "failed": "Sa pa t mache. Verifye lè a epi eseye ankò."
+    },
+    "handback": {
+      "title": "Ou pa ka fè travay sa a?",
+      "hint": "Remèt li anvan li kòmanse. Travay la ap louvri ankò pou kliyan an ka anboche yon lòt moun. Pa gen lajan ki deplase.",
+      "open": "Remèt travay sa a",
+      "reason": "Rezon",
+      "reasons": {
+        "schedule_conflict": "Konfli orè",
+        "illness": "Maladi",
+        "outside_skills": "Pa nan konpetans mwen",
+        "travel": "Mwen pa ka vwayaje la",
+        "other": "Lòt"
+      },
+      "note": "Nòt pou kliyan an",
+      "noteRequired": "Ajoute yon ti nòt si ou chwazi Lòt.",
+      "confirm": "Remèt kounye a",
+      "cancel": "Kenbe travay la",
+      "done": "Ou remèt travay la. Yo avèti kliyan an.",
+      "errors": {
+        "handback_money_on_job": "Gen lajan ki deja mare ak travay sa a. Anile travay la oswa kontakte sipò.",
+        "handback_agreement_signed": "Akò travay la siyen. Anile travay la pito.",
+        "handback_after_start": "Lè pou kòmanse a pase. Anile travay la oswa kontakte sipò.",
+        "generic": "Nou pa t ka remèt travay la. Rechaje epi eseye ankò."
+      }
     }
   }
 }

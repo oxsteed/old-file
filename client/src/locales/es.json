@@ -44865,6 +44865,30 @@
         "superseded": "Reemplazada por una propuesta más reciente"
       },
       "failed": "No funcionó. Revisa la hora e inténtalo de nuevo."
+    },
+    "handback": {
+      "title": "¿No puedes hacer este trabajo?",
+      "hint": "Devuélvelo antes de que empiece. El trabajo se reabre para que el cliente contrate a otra persona. No se mueve dinero.",
+      "open": "Devolver este trabajo",
+      "reason": "Motivo",
+      "reasons": {
+        "schedule_conflict": "Conflicto de horario",
+        "illness": "Enfermedad",
+        "outside_skills": "Fuera de mis habilidades",
+        "travel": "No puedo desplazarme allí",
+        "other": "Otro"
+      },
+      "note": "Nota para el cliente",
+      "noteRequired": "Agrega una nota breve si eliges Otro.",
+      "confirm": "Devolver ahora",
+      "cancel": "Conservar el trabajo",
+      "done": "Devolviste el trabajo. Se avisó al cliente.",
+      "errors": {
+        "handback_money_on_job": "Ya hay dinero asociado a este trabajo. Cancela el trabajo o contacta a soporte.",
+        "handback_agreement_signed": "El acuerdo de trabajo está firmado. Cancela el trabajo.",
+        "handback_after_start": "La hora de inicio ya pasó. Cancela el trabajo o contacta a soporte.",
+        "generic": "No se pudo devolver el trabajo. Recarga e inténtalo de nuevo."
+      }
     }
   }
 }

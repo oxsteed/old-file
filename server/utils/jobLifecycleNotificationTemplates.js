@@ -90,6 +90,10 @@ const jobLifecycleNotifications = {
     title: t('Your new time was declined', 'Se rechazó tu nueva hora', 'Votre nouvel horaire a été refusé', 'Yo refize nouvo lè ou a', 'تم رفض الموعد الجديد'),
     body: t('The job keeps its current time. You can propose another one.', 'El trabajo conserva su hora actual. Puedes proponer otra.', 'Le travail garde son horaire actuel. Vous pouvez en proposer un autre.', 'Travay la kenbe lè li genyen an. Ou ka pwopoze yon lòt.', 'يحتفظ العمل بموعده الحالي. يمكنك اقتراح موعد آخر.'),
   },
+  job_handed_back: {
+    title: t('Your helper handed the job back', 'Tu ayudante devolvió el trabajo', 'Votre aide a rendu le travail', 'Moun k ap ede w la remèt travay la', 'أعاد المساعد العمل'),
+    body: t('Your job is open again so you can hire a replacement. No money was charged.', 'Tu trabajo está abierto de nuevo para que contrates a otra persona. No se cobró dinero.', 'Votre travail est de nouveau ouvert pour engager un remplaçant. Aucun montant n\'a été prélevé.', 'Travay ou a louvri ankò pou ou ka anboche yon lòt moun. Yo pa t retire okenn lajan.', 'عملك مفتوح من جديد لتوظيف بديل. لم يتم خصم أي مبلغ.'),
+  },
   review_response_posted: {
     title: t('Your review got a response',
       'Tu reseña recibió una respuesta',
