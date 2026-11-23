@@ -233,12 +233,14 @@ async function listPayoutsForConsultant(consultantUserId, { limit = 50 } = {}) {
 }
 
 async function notifyConsultant(payout, outcome, { businessName } = {}) {
-  const type = `consultant_payout_${outcome}`;
   const amount = `$${(Number(payout.amount_cents || 0) / 100).toFixed(2)}`;
   try {
     await sendNotification({
       userId: payout.consultant_user_id,
-      type,
+      // Template literal inline (not a hoisted const): the notification
+      // catalog sync test extracts the type from the call site, and a
+      // `type` variable reference would fail it as unclassified.
+      type: `consultant_payout_${outcome}`,
       data: {
         reference_id: String(payout.id),
         consulting_request_id: String(payout.consulting_request_id),
