@@ -72,6 +72,18 @@ const businessTeamNotifications = {
     title: t('A crew member can’t make it', 'Un miembro del equipo no puede asistir', 'Un membre de l’équipe ne peut pas venir', 'Yon manm ekip pa ka vini', 'أحد أعضاء الفريق لا يستطيع الحضور'),
     body: t('Check the job’s crew in My work.', 'Revisa el equipo del trabajo en Mi trabajo.', 'Vérifiez l’équipe de l’intervention dans Mon travail.', 'Tcheke ekip travay la nan Travay mwen.', 'راجع فريق العمل في عملي.'),
   },
+  business_team_mention: {
+    title: t('A teammate mentioned you', 'Un compañero te mencionó', 'Un collègue vous a mentionné', 'Yon kolèg mansyone w', 'أشار إليك أحد زملائك'),
+    body: t('You were mentioned in a job note. Open My work to read it.', 'Te mencionaron en una nota de trabajo. Abre Mi trabajo para leerla.', 'Vous avez été mentionné dans une note d’intervention. Ouvrez Mon travail pour la lire.', 'Yo mansyone w nan yon nòt travay. Louvri Travay mwen pou li l.', 'تمت الإشارة إليك في ملاحظة عمل. افتح عملي لقراءتها.'),
+  },
+  business_coverage_claimed: {
+    title: t('A shift cover needs approval', 'Una cobertura de turno necesita aprobación', 'Un remplacement de quart attend une approbation', 'Yon ranplasman ekip bezwen apwobasyon', 'تغطية وردية تحتاج إلى موافقة'),
+    body: t('A teammate offered to cover a shift. Approve or decline it.', 'Un compañero se ofreció a cubrir un turno. Apruébalo o recházalo.', 'Un collègue propose de remplacer un quart. Approuvez ou refusez.', 'Yon kolèg ofri ranplase yon ekip. Apwouve oswa refize.', 'عرض أحد الزملاء تغطية وردية. وافق أو ارفض.'),
+  },
+  business_coverage_decided: {
+    title: t('A shift cover was decided', 'Se decidió una cobertura de turno', 'Un remplacement de quart a été décidé', 'Yo pran desizyon sou yon ranplasman ekip', 'تم البت في تغطية وردية'),
+    body: t('Open My work to see whether it was approved and your schedule.', 'Abre Mi trabajo para ver si se aprobó y tu horario.', 'Ouvrez Mon travail pour voir s’il a été approuvé et votre planning.', 'Louvri Travay mwen pou wè si yo apwouve l ak orè ou.', 'افتح عملي لمعرفة ما إذا تمت الموافقة عليها ولرؤية جدولك.'),
+  },
 };
 
 module.exports = { businessTeamNotifications, BUSINESS_TEAM_NOTIFICATION_TYPES: Object.keys(businessTeamNotifications) };

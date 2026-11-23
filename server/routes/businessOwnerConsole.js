@@ -20,6 +20,7 @@ const continuity = require('../services/businessOwner/continuityService');
 const performance = require('../services/businessOwner/performanceService');
 const workStart = require('../services/businessOwner/workStartService');
 const workJobs = require('../services/businessOwner/workJobsService');
+const workComms = require('../services/businessOwner/workCommsService');
 const { requireFinanceRead, requireFinanceWrite } = require('../middleware/requireBusinessFinance');
 
 const h = fn => async (req, res, next) => { res.set('Cache-Control', 'no-store'); try { await fn(req, res); } catch (e) { next(e); } };
@@ -142,6 +143,19 @@ router.post(`${A}/attendance`, ...write('any', 'business.view'), h(async (req, r
 router.get(`${A}/documents`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workJobs.documents(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
 router.post('/:businessId/owner/appointments/:appointmentId/documents', ...write('manager', 'jobs.edit'), h(async (req, res) => res.status(201).json(await workJobs.addDocument(req.business.id, req.user.id, req.params.appointmentId, req.body))));
 router.delete('/:businessId/owner/appointment-documents/:documentId', ...write('manager', 'jobs.edit'), h(async (req, res) => res.json(await workJobs.removeDocument(req.business.id, req.params.documentId))));
+
+// 273-275, 277, 280 handoffs, mentions, inbox, coverage, day view
+router.get(`${A}/handoff`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workComms.handoff(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
+router.post(`${A}/handoff/ack`, ...write('any', 'business.view'), h(async (req, res) => res.json(await workComms.acknowledgeHandoff(req.business.id, req.user.id, req.params.appointmentId))));
+router.post(`${A}/team-notes`, ...write('any', 'business.view'), h(async (req, res) => res.status(201).json(await workComms.addNote(req.business.id, req.user.id, ctx(req), req.params.appointmentId, req.body))));
+router.get('/:businessId/work/inbox', ...biz('any'), h(async (req, res) => res.json(await workComms.inbox(req.business.id, req.user.id))));
+router.post('/:businessId/work/inbox/seen', ...write('any'), h(async (req, res) => res.json(await workComms.markInboxSeen(req.business.id, req.user.id, req.body))));
+router.get('/:businessId/work/coverage', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workComms.coverage(req.business.id, req.user.id, ctx(req)))));
+router.post('/:businessId/work/shifts/:shiftId/coverage', ...write('any', 'business.view'), h(async (req, res) => res.status(201).json(await workComms.requestCoverage(req.business.id, req.user.id, req.params.shiftId, req.body))));
+router.post('/:businessId/work/coverage/:requestId/claim', ...write('any', 'business.view'), h(async (req, res) => res.json(await workComms.claimCoverage(req.business.id, req.user.id, req.params.requestId))));
+router.post('/:businessId/work/coverage/:requestId/cancel', ...write('any'), h(async (req, res) => res.json(await workComms.cancelCoverage(req.business.id, req.user.id, req.params.requestId))));
+router.post('/:businessId/owner/coverage/:requestId/decision', ...write('manager'), h(async (req, res) => res.json(await workComms.decideCoverage(req.business.id, req.user.id, req.params.requestId, req.body))));
+router.get('/:businessId/work/day', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workComms.day(req.business.id, req.user.id, req.query))));
 
 const claimRouter = express.Router();
 // 201 listing claims (the service checks the claimant owns the business)

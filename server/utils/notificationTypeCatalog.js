@@ -379,6 +379,9 @@ const NOTIFICATION_TYPES = [
   { type: 'business_work_exception_updated', group: 'work' },
   { type: 'business_crew_allocated', group: 'work' },
   { type: 'business_crew_declined', group: 'work' },
+  { type: 'business_team_mention', group: 'work' },
+  { type: 'business_coverage_claimed', group: 'work' },
+  { type: 'business_coverage_decided', group: 'work' },
   // <<< Groups 5-6
 ];
 
