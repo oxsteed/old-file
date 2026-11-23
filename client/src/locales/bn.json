@@ -21963,6 +21963,16 @@
         "delayed": "বিলম্বিত",
         "problem": "সমস্যা",
         "cancelled": "বাতিল হয়েছে"
+      },
+      "a11y": {
+        "title": "Display options",
+        "largeText": "Large text",
+        "reducedMotion": "Reduce motion",
+        "keyboardHint": "Keys: J/K move between tickets, Enter advances the selected ticket, R recalls it",
+        "urgency": {
+          "late": "Late",
+          "watch": "Running late"
+        }
       }
     },
     "queue": {

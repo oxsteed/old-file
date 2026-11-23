@@ -27559,6 +27559,16 @@
         "delayed": "Anreta",
         "problem": "Pwoblèm",
         "cancelled": "Anile"
+      },
+      "a11y": {
+        "title": "Opsyon ekran",
+        "largeText": "Gwo tèks",
+        "reducedMotion": "Diminye mouvman",
+        "keyboardHint": "Touch: J/K pou deplase ant tikè yo, Antre pou avanse tikè chwazi a, R pou raple li",
+        "urgency": {
+          "late": "An reta",
+          "watch": "Prèt pou an reta"
+        }
       }
     },
     "queue": {

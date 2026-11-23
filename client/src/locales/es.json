@@ -27559,6 +27559,16 @@
         "delayed": "Retrasado",
         "problem": "Problema",
         "cancelled": "Cancelado"
+      },
+      "a11y": {
+        "title": "Opciones de pantalla",
+        "largeText": "Texto grande",
+        "reducedMotion": "Reducir movimiento",
+        "keyboardHint": "Teclas: J/K para moverse entre los pedidos, Enter para avanzar el pedido seleccionado, R para recuperarlo",
+        "urgency": {
+          "late": "Atrasado",
+          "watch": "Con retraso"
+        }
       }
     },
     "queue": {

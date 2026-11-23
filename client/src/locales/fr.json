@@ -27559,6 +27559,16 @@
         "delayed": "Retardé",
         "problem": "Problème",
         "cancelled": "Annulé"
+      },
+      "a11y": {
+        "title": "Options d'affichage",
+        "largeText": "Texte large",
+        "reducedMotion": "Réduire les animations",
+        "keyboardHint": "Touches : J/K pour naviguer entre les tickets, Entrée pour faire avancer le ticket sélectionné, R pour le rappeler",
+        "urgency": {
+          "late": "En retard",
+          "watch": "Bientôt en retard"
+        }
       }
     },
     "queue": {

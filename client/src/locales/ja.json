@@ -21962,6 +21962,16 @@
         "delayed": "遅延中",
         "problem": "問題あり",
         "cancelled": "キャンセル済み"
+      },
+      "a11y": {
+        "title": "Display options",
+        "largeText": "Large text",
+        "reducedMotion": "Reduce motion",
+        "keyboardHint": "Keys: J/K move between tickets, Enter advances the selected ticket, R recalls it",
+        "urgency": {
+          "late": "Late",
+          "watch": "Running late"
+        }
       }
     },
     "queue": {

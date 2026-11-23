@@ -21963,6 +21963,16 @@
         "delayed": "已延迟",
         "problem": "有问题",
         "cancelled": "已取消"
+      },
+      "a11y": {
+        "title": "Display options",
+        "largeText": "Large text",
+        "reducedMotion": "Reduce motion",
+        "keyboardHint": "Keys: J/K move between tickets, Enter advances the selected ticket, R recalls it",
+        "urgency": {
+          "late": "Late",
+          "watch": "Running late"
+        }
       }
     },
     "queue": {
