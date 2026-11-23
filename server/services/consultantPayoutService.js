@@ -78,6 +78,7 @@ function formatPayout(row) {
     reason_code: row.reason_code || null,
     reason_detail: row.reason_detail || null,
     credit_transaction_id: row.credit_transaction_id || null,
+    idempotency_key: row.idempotency_key || null,
     attempt_count: Number(row.attempt_count || 0),
     last_attempted_at: row.last_attempted_at || null,
     paid_at: row.paid_at || null,
@@ -218,9 +219,10 @@ async function listPayoutsForConsultant(consultantUserId, { limit = 50 } = {}) {
   );
   return rows.map((row) => {
     const payout = formatPayout(row);
-    // created_by is the completing admin's id: internal (retry actor), not
-    // a consultant-facing field.
+    // created_by is the completing admin's id (internal retry actor) and
+    // idempotency_key is ledger plumbing: neither is consultant-facing.
     delete payout.created_by;
+    delete payout.idempotency_key;
     return {
       ...payout,
       business_name: row.business_name || null,
@@ -396,17 +398,21 @@ async function attemptPayout(payoutId, { actorUserId } = {}) {
 
 async function markPayout(payoutId, status, reasonCode, reasonDetail, { creditTransactionId } = {}) {
   if (!PAYOUT_STATUSES.includes(status)) throw new Error(`Invalid payout status: ${status}`);
+  // NOTE: the paid flag rides its own boolean parameter. Reusing the
+  // status parameter in `CASE WHEN $2 = 'paid'` makes Postgres infer two
+  // types for $2 (varchar from the column, text from the literal) and
+  // fail the query with 42P08.
   const { rows } = await db.query(
     `UPDATE consulting_consultant_payouts
         SET status = $2,
             reason_code = $3,
             reason_detail = $4,
             credit_transaction_id = COALESCE($5, credit_transaction_id),
-            paid_at = CASE WHEN $2 = 'paid' THEN COALESCE(paid_at, NOW()) ELSE paid_at END,
+            paid_at = CASE WHEN $6 THEN COALESCE(paid_at, NOW()) ELSE paid_at END,
             updated_at = NOW()
       WHERE id = $1
       RETURNING *`,
-    [payoutId, status, reasonCode || null, reasonDetail || null, creditTransactionId || null]
+    [payoutId, status, reasonCode || null, reasonDetail || null, creditTransactionId || null, status === 'paid']
   );
   return formatPayout(rows[0]);
 }
