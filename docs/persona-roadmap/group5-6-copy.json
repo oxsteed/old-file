@@ -1622,5 +1622,565 @@
   "Cet élément n'est plus disponible.",
   "Eleman sa a pa disponib ankò.",
   "هذا العنصر لم يعد متاحًا."
+ ],
+ "expansion.title": [
+  "Growth and locations",
+  "Crecimiento y ubicaciones",
+  "Croissance et sites",
+  "Kwasans ak lokal",
+  "النمو والمواقع"
+ ],
+ "expansion.locations": [
+  "Locations",
+  "Ubicaciones",
+  "Sites",
+  "Lokal",
+  "المواقع"
+ ],
+ "expansion.locationsHelp": [
+  "Set up each new location, then launch it when every checklist item is done.",
+  "Configura cada nueva ubicación y lánzala cuando completes todos los puntos de la lista.",
+  "Configurez chaque nouveau site, puis lancez-le lorsque tous les points de la liste sont faits.",
+  "Prepare chak nouvo lokal, epi lanse l lè tout pwen nan lis la fini.",
+  "جهّز كل موقع جديد، ثم أطلقه عند إكمال جميع بنود القائمة."
+ ],
+ "expansion.addLocation": [
+  "Add location",
+  "Agregar ubicación",
+  "Ajouter un site",
+  "Ajoute yon lokal",
+  "إضافة موقع"
+ ],
+ "expansion.name": [
+  "Name",
+  "Nombre",
+  "Nom",
+  "Non",
+  "الاسم"
+ ],
+ "expansion.street": [
+  "Street address",
+  "Dirección",
+  "Adresse",
+  "Adrès",
+  "عنوان الشارع"
+ ],
+ "expansion.city": [
+  "City",
+  "Ciudad",
+  "Ville",
+  "Vil",
+  "المدينة"
+ ],
+ "expansion.state": [
+  "State",
+  "Estado",
+  "État",
+  "Eta",
+  "الولاية"
+ ],
+ "expansion.zip": [
+  "ZIP code",
+  "Código postal",
+  "Code postal",
+  "Kòd postal",
+  "الرمز البريدي"
+ ],
+ "expansion.phone": [
+  "Phone",
+  "Teléfono",
+  "Téléphone",
+  "Telefòn",
+  "الهاتف"
+ ],
+ "expansion.timezone": [
+  "Time zone",
+  "Zona horaria",
+  "Fuseau horaire",
+  "Zòn lè",
+  "المنطقة الزمنية"
+ ],
+ "expansion.hours": [
+  "Open days",
+  "Días de apertura",
+  "Jours d'ouverture",
+  "Jou ouvè",
+  "أيام العمل"
+ ],
+ "expansion.opens": [
+  "Opens",
+  "Abre",
+  "Ouverture",
+  "Louvri",
+  "يفتح"
+ ],
+ "expansion.closes": [
+  "Closes",
+  "Cierra",
+  "Fermeture",
+  "Fèmen",
+  "يغلق"
+ ],
+ "expansion.day.mon": [
+  "Mon",
+  "Lun",
+  "Lun",
+  "Len",
+  "الإثنين"
+ ],
+ "expansion.day.tue": [
+  "Tue",
+  "Mar",
+  "Mar",
+  "Mad",
+  "الثلاثاء"
+ ],
+ "expansion.day.wed": [
+  "Wed",
+  "Mié",
+  "Mer",
+  "Mèk",
+  "الأربعاء"
+ ],
+ "expansion.day.thu": [
+  "Thu",
+  "Jue",
+  "Jeu",
+  "Jed",
+  "الخميس"
+ ],
+ "expansion.day.fri": [
+  "Fri",
+  "Vie",
+  "Ven",
+  "Van",
+  "الجمعة"
+ ],
+ "expansion.day.sat": [
+  "Sat",
+  "Sáb",
+  "Sam",
+  "Sam",
+  "السبت"
+ ],
+ "expansion.day.sun": [
+  "Sun",
+  "Dom",
+  "Dim",
+  "Dim",
+  "الأحد"
+ ],
+ "expansion.manager": [
+  "Location manager",
+  "Gerente de la ubicación",
+  "Responsable du site",
+  "Manadjè lokal la",
+  "مدير الموقع"
+ ],
+ "expansion.team": [
+  "Team at this location",
+  "Equipo en esta ubicación",
+  "Équipe de ce site",
+  "Ekip nan lokal sa a",
+  "الفريق في هذا الموقع"
+ ],
+ "expansion.services": [
+  "Services offered",
+  "Servicios ofrecidos",
+  "Services proposés",
+  "Sèvis ki ofri",
+  "الخدمات المقدمة"
+ ],
+ "expansion.status.setup": [
+  "Setting up",
+  "En preparación",
+  "En préparation",
+  "Ap prepare",
+  "قيد الإعداد"
+ ],
+ "expansion.status.active": [
+  "Open",
+  "Abierta",
+  "Ouvert",
+  "Ouvè",
+  "مفتوح"
+ ],
+ "expansion.status.paused": [
+  "Paused",
+  "En pausa",
+  "En pause",
+  "Kanpe",
+  "متوقف مؤقتًا"
+ ],
+ "expansion.status.closed": [
+  "Closed",
+  "Cerrada",
+  "Fermé",
+  "Fèmen",
+  "مغلق"
+ ],
+ "expansion.check.address": [
+  "Full address entered",
+  "Dirección completa",
+  "Adresse complète saisie",
+  "Adrès konplè antre",
+  "تم إدخال العنوان كاملًا"
+ ],
+ "expansion.check.timezone": [
+  "Time zone set",
+  "Zona horaria definida",
+  "Fuseau horaire défini",
+  "Zòn lè defini",
+  "تم تحديد المنطقة الزمنية"
+ ],
+ "expansion.check.hours": [
+  "Opening hours set",
+  "Horario definido",
+  "Horaires définis",
+  "Lè ouvèti defini",
+  "تم تحديد ساعات العمل"
+ ],
+ "expansion.check.manager": [
+  "Manager assigned",
+  "Gerente asignado",
+  "Responsable désigné",
+  "Manadjè chwazi",
+  "تم تعيين مدير"
+ ],
+ "expansion.check.staff": [
+  "At least one team member assigned",
+  "Al menos un miembro del equipo asignado",
+  "Au moins un membre de l'équipe affecté",
+  "Omwen yon manm ekip chwazi",
+  "تم تعيين عضو واحد على الأقل من الفريق"
+ ],
+ "expansion.check.services": [
+  "At least one active service offered",
+  "Al menos un servicio activo ofrecido",
+  "Au moins un service actif proposé",
+  "Omwen yon sèvis aktif ofri",
+  "تقديم خدمة نشطة واحدة على الأقل"
+ ],
+ "expansion.optional": [
+  "optional",
+  "opcional",
+  "facultatif",
+  "opsyonèl",
+  "اختياري"
+ ],
+ "expansion.remove": [
+  "Remove",
+  "Quitar",
+  "Retirer",
+  "Retire",
+  "إزالة"
+ ],
+ "expansion.newItem": [
+  "New checklist item",
+  "Nuevo punto de la lista",
+  "Nouveau point de la liste",
+  "Nouvo pwen nan lis la",
+  "بند جديد في القائمة"
+ ],
+ "expansion.addItem": [
+  "Add item",
+  "Agregar punto",
+  "Ajouter",
+  "Ajoute",
+  "إضافة بند"
+ ],
+ "expansion.edit": [
+  "Edit",
+  "Editar",
+  "Modifier",
+  "Modifye",
+  "تعديل"
+ ],
+ "expansion.launch": [
+  "Launch location",
+  "Lanzar ubicación",
+  "Lancer le site",
+  "Lanse lokal la",
+  "إطلاق الموقع"
+ ],
+ "expansion.pause": [
+  "Pause",
+  "Pausar",
+  "Mettre en pause",
+  "Kanpe",
+  "إيقاف مؤقت"
+ ],
+ "expansion.close": [
+  "Close location",
+  "Cerrar ubicación",
+  "Fermer le site",
+  "Fèmen lokal la",
+  "إغلاق الموقع"
+ ],
+ "expansion.closeConfirm": [
+  "Close this location? It cannot be reopened.",
+  "¿Cerrar esta ubicación? No se podrá reabrir.",
+  "Fermer ce site ? Il ne pourra pas être rouvert.",
+  "Fèmen lokal sa a? Ou p ap ka relouvri l.",
+  "هل تريد إغلاق هذا الموقع؟ لا يمكن إعادة فتحه."
+ ],
+ "expansion.territory": [
+  "Territory",
+  "Territorio",
+  "Territoire",
+  "Teritwa",
+  "النطاق الجغرافي"
+ ],
+ "expansion.territoryHelp": [
+  "Completed visits in the last 12 months, by customer area.",
+  "Visitas completadas en los últimos 12 meses, por zona del cliente.",
+  "Visites terminées sur les 12 derniers mois, par zone client.",
+  "Vizit ki fini nan 12 dènye mwa yo, pa zòn kliyan.",
+  "الزيارات المكتملة خلال آخر 12 شهرًا حسب منطقة العميل."
+ ],
+ "expansion.area": [
+  "Area",
+  "Zona",
+  "Zone",
+  "Zòn",
+  "المنطقة"
+ ],
+ "expansion.visits": [
+  "Visits (12 months)",
+  "Visitas (12 meses)",
+  "Visites (12 mois)",
+  "Vizit (12 mwa)",
+  "الزيارات (12 شهرًا)"
+ ],
+ "expansion.visits90": [
+  "Last 90 days",
+  "Últimos 90 días",
+  "90 derniers jours",
+  "90 dènye jou",
+  "آخر 90 يومًا"
+ ],
+ "expansion.share": [
+  "Share",
+  "Proporción",
+  "Part",
+  "Pati",
+  "الحصة"
+ ],
+ "expansion.unknownArea": [
+  "Area unknown",
+  "Zona desconocida",
+  "Zone inconnue",
+  "Zòn enkoni",
+  "منطقة غير معروفة"
+ ],
+ "expansion.regionRules": [
+  "Services limited to regions",
+  "Servicios limitados por región",
+  "Services limités à des régions",
+  "Sèvis ki limite a rejyon",
+  "خدمات مقصورة على مناطق"
+ ],
+ "expansion.capacity": [
+  "Capacity planning",
+  "Planificación de capacidad",
+  "Planification de la capacité",
+  "Planifikasyon kapasite",
+  "تخطيط السعة"
+ ],
+ "expansion.weeks": [
+  "Weeks ahead",
+  "Semanas",
+  "Semaines à venir",
+  "Semèn devan",
+  "الأسابيع القادمة"
+ ],
+ "expansion.location": [
+  "Location",
+  "Ubicación",
+  "Site",
+  "Lokal",
+  "الموقع"
+ ],
+ "expansion.allLocations": [
+  "All locations",
+  "Todas las ubicaciones",
+  "Tous les sites",
+  "Tout lokal yo",
+  "كل المواقع"
+ ],
+ "expansion.weekOf": [
+  "Week of",
+  "Semana del",
+  "Semaine du",
+  "Semèn",
+  "أسبوع"
+ ],
+ "expansion.capacityHours": [
+  "Available hours",
+  "Horas disponibles",
+  "Heures disponibles",
+  "Èdtan disponib",
+  "الساعات المتاحة"
+ ],
+ "expansion.bookedHours": [
+  "Booked hours",
+  "Horas reservadas",
+  "Heures réservées",
+  "Èdtan rezève",
+  "الساعات المحجوزة"
+ ],
+ "expansion.openHours": [
+  "Open hours",
+  "Horas libres",
+  "Heures libres",
+  "Èdtan lib",
+  "الساعات الشاغرة"
+ ],
+ "expansion.utilization": [
+  "Utilization",
+  "Utilización",
+  "Taux d'occupation",
+  "Itilizasyon",
+  "نسبة الاستخدام"
+ ],
+ "expansion.flag.tight": [
+  "Nearly full",
+  "Casi lleno",
+  "Presque complet",
+  "Prèske plen",
+  "شبه ممتلئ"
+ ],
+ "expansion.flag.over": [
+  "Overbooked",
+  "Sobrerreservado",
+  "Surréservé",
+  "Twòp rezèvasyon",
+  "محجوز بأكثر من السعة"
+ ],
+ "expansion.flag.no_capacity": [
+  "Bookings but no one scheduled",
+  "Reservas sin personal programado",
+  "Réservations sans personne planifiée",
+  "Gen rezèvasyon men pèsonn pa pwograme",
+  "حجوزات بدون موظفين مجدولين"
+ ],
+ "expansion.forecast": [
+  "Seasonal staffing forecast",
+  "Pronóstico de personal por temporada",
+  "Prévision saisonnière des effectifs",
+  "Previzyon anplwaye pa sezon",
+  "توقعات التوظيف الموسمية"
+ ],
+ "expansion.forecastHelp": [
+  "Based on past bookings for the same months, adjusted for recent growth. Team today: {{staff}}; about {{hours}} hours per person each month at {{target}}% target use.",
+  "Basado en reservas anteriores de los mismos meses, ajustado al crecimiento reciente. Equipo actual: {{staff}}; unas {{hours}} horas por persona al mes con un uso objetivo del {{target}} %.",
+  "Basée sur les réservations passées des mêmes mois, ajustée selon la croissance récente. Équipe actuelle : {{staff}} ; environ {{hours}} heures par personne et par mois pour un taux cible de {{target}} %.",
+  "Baze sou rezèvasyon ansyen pou menm mwa yo, ajiste pou kwasans resan. Ekip jodi a: {{staff}}; anviwon {{hours}} èdtan pa moun chak mwa pou {{target}}% itilizasyon.",
+  "بناءً على الحجوزات السابقة للأشهر نفسها مع مراعاة النمو الأخير. الفريق الحالي: {{staff}}؛ نحو {{hours}} ساعة لكل شخص شهريًا عند استخدام مستهدف {{target}}٪."
+ ],
+ "expansion.month": [
+  "Month",
+  "Mes",
+  "Mois",
+  "Mwa",
+  "الشهر"
+ ],
+ "expansion.demandHours": [
+  "Expected hours",
+  "Horas previstas",
+  "Heures prévues",
+  "Èdtan prevwa",
+  "الساعات المتوقعة"
+ ],
+ "expansion.staffNeeded": [
+  "People needed",
+  "Personas necesarias",
+  "Personnes nécessaires",
+  "Moun ki nesesè",
+  "عدد الأشخاص المطلوب"
+ ],
+ "expansion.gap": [
+  "Gap",
+  "Diferencia",
+  "Écart",
+  "Diferans",
+  "الفجوة"
+ ],
+ "expansion.basis": [
+  "Based on",
+  "Basado en",
+  "Basé sur",
+  "Baze sou",
+  "بناءً على"
+ ],
+ "expansion.basisLabel.same_month": [
+  "Same month in past years",
+  "Mismo mes de años anteriores",
+  "Même mois les années passées",
+  "Menm mwa ane pase yo",
+  "الشهر نفسه في السنوات السابقة"
+ ],
+ "expansion.basisLabel.recent_average": [
+  "Recent months",
+  "Meses recientes",
+  "Mois récents",
+  "Dènye mwa yo",
+  "الأشهر الأخيرة"
+ ],
+ "expansion.basisLabel.no_history": [
+  "No history yet",
+  "Aún sin historial",
+  "Pas encore d'historique",
+  "Poko gen istwa",
+  "لا يوجد سجل بعد"
+ ],
+ "errors.use_restaurant_locations": [
+  "Restaurants manage locations in the restaurant settings.",
+  "Los restaurantes gestionan sus ubicaciones en la configuración del restaurante.",
+  "Les restaurants gèrent leurs sites dans les paramètres du restaurant.",
+  "Restoran yo jere lokal yo nan paramèt restoran an.",
+  "تدير المطاعم مواقعها من إعدادات المطعم."
+ ],
+ "errors.location_limit": [
+  "You have reached the limit of 50 open locations.",
+  "Alcanzaste el límite de 50 ubicaciones abiertas.",
+  "Vous avez atteint la limite de 50 sites ouverts.",
+  "Ou rive nan limit 50 lokal ouvè.",
+  "لقد بلغت الحد الأقصى وهو 50 موقعًا مفتوحًا."
+ ],
+ "errors.location_exists": [
+  "A location with that name already exists.",
+  "Ya existe una ubicación con ese nombre.",
+  "Un site portant ce nom existe déjà.",
+  "Gen yon lokal ki gen non sa a deja.",
+  "يوجد موقع بهذا الاسم بالفعل."
+ ],
+ "errors.location_closed": [
+  "This location is closed.",
+  "Esta ubicación está cerrada.",
+  "Ce site est fermé.",
+  "Lokal sa a fèmen.",
+  "هذا الموقع مغلق."
+ ],
+ "errors.location_not_ready": [
+  "Finish the launch checklist first.",
+  "Primero completa la lista de lanzamiento.",
+  "Terminez d'abord la liste de lancement.",
+  "Fini lis lansman an anvan.",
+  "أكمل قائمة الإطلاق أولًا."
+ ],
+ "errors.invalid_transition": [
+  "That change is not possible right now.",
+  "Ese cambio no es posible ahora.",
+  "Ce changement n'est pas possible pour le moment.",
+  "Chanjman sa a pa posib kounye a.",
+  "هذا التغيير غير ممكن حاليًا."
+ ],
+ "errors.checklist_limit": [
+  "This checklist is full (50 items).",
+  "Esta lista está llena (50 puntos).",
+  "Cette liste est pleine (50 points).",
+  "Lis sa a plen (50 pwen).",
+  "هذه القائمة ممتلئة (50 بندًا)."
  ]
 }

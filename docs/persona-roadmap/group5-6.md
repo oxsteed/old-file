@@ -65,7 +65,7 @@ BUILD = to build. DONE = built on this branch (commit/test cited).
 | 233 | Payout reconciliation | BUILD | | DONE (D-205..D-208; migration 20261123190400, financeService, /owner/{invoice-overview,refund-tracker,payout-reconciliation,payout-deposits,expense-categories}, OwnerFinance + ExpenseTracker custom category; group56Finance.db.test.js) |
 | 234 | Business expense categories | PARTIAL | free-text `business_expenses.category` | DONE (D-205..D-208; migration 20261123190400, financeService, /owner/{invoice-overview,refund-tracker,payout-reconciliation,payout-deposits,expense-categories}, OwnerFinance + ExpenseTracker custom category; group56Finance.db.test.js) |
 | 235 | Delegated statement access | EXISTS | D-22 `statements.view` override | - |
-| 236-240 | Locations / checklist / territory / capacity / seasonal forecast | BUILD | | - |
+| 236-240 | Locations / checklist / territory / capacity / seasonal forecast | BUILD | | DONE (D-209..D-213; migration 20261123190500, expansionService, /owner/{locations,territory,capacity,staffing-forecast}, OwnerExpansion; group56Expansion.db.test.js) |
 | 241-245 | Transfer / deputy / open work / departed access / closure | BUILD | | - |
 | 246-250 | Performance reports | BUILD | | - |
 | 251 | Invitation acceptance | EXISTS | `POST /businesses/invitations/:id/accept` | - |
@@ -106,4 +106,4 @@ cd ../client && npm run build:ci
 - Tests: `server/__tests__/group56*.db.test.js`; also `STATEMENT_TEST_DATABASE_URL=.../credit_statement_test npx jest __tests__/notificationsPrefsToggles`.
 
 ## Next step
-S6: expansion (236-240 locations, checklist, territory, capacity, seasonal forecast).
+S7: continuity (241 ownership transfer, 242 deputy, 243 open work transition, 244 departed access, 245 closure checklist).

@@ -45011,7 +45011,14 @@
       "payment_already_matched": "Youn nan peman sa yo deja mache ak yon lòt depo.",
       "category_exists": "Gen yon kategori ki gen non sa a deja.",
       "category_limit": "Ou rive nan limit 100 kategori.",
-      "not_found": "Eleman sa a pa disponib ankò."
+      "not_found": "Eleman sa a pa disponib ankò.",
+      "use_restaurant_locations": "Restoran yo jere lokal yo nan paramèt restoran an.",
+      "location_limit": "Ou rive nan limit 50 lokal ouvè.",
+      "location_exists": "Gen yon lokal ki gen non sa a deja.",
+      "location_closed": "Lokal sa a fèmen.",
+      "location_not_ready": "Fini lis lansman an anvan.",
+      "invalid_transition": "Chanjman sa a pa posib kounye a.",
+      "checklist_limit": "Lis sa a plen (50 pwen)."
     },
     "launch": {
       "title": "Estati lansman",
@@ -45268,6 +45275,91 @@
       "restore": "Restore",
       "archived": "Achive",
       "customCategory": "Kategori ou (opsyonèl)"
+    },
+    "expansion": {
+      "title": "Kwasans ak lokal",
+      "locations": "Lokal",
+      "locationsHelp": "Prepare chak nouvo lokal, epi lanse l lè tout pwen nan lis la fini.",
+      "addLocation": "Ajoute yon lokal",
+      "name": "Non",
+      "street": "Adrès",
+      "city": "Vil",
+      "state": "Eta",
+      "zip": "Kòd postal",
+      "phone": "Telefòn",
+      "timezone": "Zòn lè",
+      "hours": "Jou ouvè",
+      "opens": "Louvri",
+      "closes": "Fèmen",
+      "day": {
+        "mon": "Len",
+        "tue": "Mad",
+        "wed": "Mèk",
+        "thu": "Jed",
+        "fri": "Van",
+        "sat": "Sam",
+        "sun": "Dim"
+      },
+      "manager": "Manadjè lokal la",
+      "team": "Ekip nan lokal sa a",
+      "services": "Sèvis ki ofri",
+      "status": {
+        "setup": "Ap prepare",
+        "active": "Ouvè",
+        "paused": "Kanpe",
+        "closed": "Fèmen"
+      },
+      "check": {
+        "address": "Adrès konplè antre",
+        "timezone": "Zòn lè defini",
+        "hours": "Lè ouvèti defini",
+        "manager": "Manadjè chwazi",
+        "staff": "Omwen yon manm ekip chwazi",
+        "services": "Omwen yon sèvis aktif ofri"
+      },
+      "optional": "opsyonèl",
+      "remove": "Retire",
+      "newItem": "Nouvo pwen nan lis la",
+      "addItem": "Ajoute",
+      "edit": "Modifye",
+      "launch": "Lanse lokal la",
+      "pause": "Kanpe",
+      "close": "Fèmen lokal la",
+      "closeConfirm": "Fèmen lokal sa a? Ou p ap ka relouvri l.",
+      "territory": "Teritwa",
+      "territoryHelp": "Vizit ki fini nan 12 dènye mwa yo, pa zòn kliyan.",
+      "area": "Zòn",
+      "visits": "Vizit (12 mwa)",
+      "visits90": "90 dènye jou",
+      "share": "Pati",
+      "unknownArea": "Zòn enkoni",
+      "regionRules": "Sèvis ki limite a rejyon",
+      "capacity": "Planifikasyon kapasite",
+      "weeks": "Semèn devan",
+      "location": "Lokal",
+      "allLocations": "Tout lokal yo",
+      "weekOf": "Semèn",
+      "capacityHours": "Èdtan disponib",
+      "bookedHours": "Èdtan rezève",
+      "openHours": "Èdtan lib",
+      "utilization": "Itilizasyon",
+      "flag": {
+        "tight": "Prèske plen",
+        "over": "Twòp rezèvasyon",
+        "no_capacity": "Gen rezèvasyon men pèsonn pa pwograme"
+      },
+      "forecast": "Previzyon anplwaye pa sezon",
+      "forecastHelp": "Baze sou rezèvasyon ansyen pou menm mwa yo, ajiste pou kwasans resan. Ekip jodi a: {{staff}}; anviwon {{hours}} èdtan pa moun chak mwa pou {{target}}% itilizasyon.",
+      "month": "Mwa",
+      "demandHours": "Èdtan prevwa",
+      "staffNeeded": "Moun ki nesesè",
+      "gap": "Diferans",
+      "basis": "Baze sou",
+      "basisLabel": {
+        "same_month": "Menm mwa ane pase yo",
+        "recent_average": "Dènye mwa yo",
+        "no_history": "Poko gen istwa"
+      }
     }
   }
 }

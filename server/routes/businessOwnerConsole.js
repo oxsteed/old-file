@@ -15,6 +15,7 @@ const claims = require('../services/businessOwner/listingClaimService');
 const oversight = require('../services/businessOwner/oversightService');
 const policies = require('../services/businessOwner/policyService');
 const finance = require('../services/businessOwner/financeService');
+const expansion = require('../services/businessOwner/expansionService');
 const { requireFinanceRead, requireFinanceWrite } = require('../middleware/requireBusinessFinance');
 
 const h = fn => async (req, res, next) => { res.set('Cache-Control', 'no-store'); try { await fn(req, res); } catch (e) { next(e); } };
@@ -59,6 +60,17 @@ router.delete('/:businessId/owner/payout-deposits/:depositId', ...finWrite('payo
 router.get('/:businessId/owner/expense-categories', ...finRead, h(async (req, res) => res.json(await finance.listCategories(req.business.id))));
 router.post('/:businessId/owner/expense-categories', ...finWrite('invoices.create'), h(async (req, res) => res.status(201).json(await finance.saveCategory(req.business.id, req.user.id, req.body))));
 router.put('/:businessId/owner/expense-categories/:categoryId', ...finWrite('invoices.create'), h(async (req, res) => res.json(await finance.saveCategory(req.business.id, req.user.id, req.body, req.params.categoryId))));
+
+// 236-240 expansion (locations: business.manage_locations; planning: analytics.view_ops)
+router.get('/:businessId/owner/locations', ...biz('manager', 'business.view'), h(async (req, res) => res.json(await expansion.listLocations(req.business.id))));
+router.post('/:businessId/owner/locations', ...write('manager', 'business.manage_locations'), h(async (req, res) => res.status(201).json(await expansion.createLocation(req.business.id, req.user.id, req.body))));
+router.put('/:businessId/owner/locations/:locationId', ...write('manager', 'business.manage_locations'), h(async (req, res) => res.json(await expansion.updateLocation(req.business.id, req.user.id, req.params.locationId, req.body))));
+router.post('/:businessId/owner/locations/:locationId/:action(launch|pause|close)', ...write('manager', 'business.manage_locations'), h(async (req, res) => res.json(await expansion.setStatus(req.business.id, req.user.id, req.params.locationId, req.params.action, req.body))));
+router.post('/:businessId/owner/locations/:locationId/checklist', ...write('manager', 'business.manage_locations'), h(async (req, res) => res.status(201).json(await expansion.addChecklistItem(req.business.id, req.params.locationId, req.body))));
+router.patch('/:businessId/owner/locations/:locationId/checklist/:itemId', ...write('manager', 'business.manage_locations'), h(async (req, res) => res.json(await expansion.setChecklistItem(req.business.id, req.user.id, req.params.locationId, req.params.itemId, req.body))));
+router.get('/:businessId/owner/territory', ...biz('manager', 'customers.view_all'), h(async (req, res) => res.json(await expansion.territory(req.business.id))));
+router.get('/:businessId/owner/capacity', ...biz('manager', 'calendar.view_all'), h(async (req, res) => res.json(await expansion.capacity(req.business.id, req.query))));
+router.get('/:businessId/owner/staffing-forecast', ...biz('manager', 'calendar.view_all'), h(async (req, res) => res.json(await expansion.seasonalForecast(req.business.id))));
 
 const claimRouter = express.Router();
 // 201 listing claims (the service checks the claimant owns the business)

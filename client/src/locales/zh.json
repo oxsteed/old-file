@@ -37108,7 +37108,14 @@
       "payment_already_matched": "One of those payments is already matched to another deposit.",
       "category_exists": "A category with that name already exists.",
       "category_limit": "You have reached the limit of 100 categories.",
-      "not_found": "That item is no longer available."
+      "not_found": "That item is no longer available.",
+      "use_restaurant_locations": "Restaurants manage locations in the restaurant settings.",
+      "location_limit": "You have reached the limit of 50 open locations.",
+      "location_exists": "A location with that name already exists.",
+      "location_closed": "This location is closed.",
+      "location_not_ready": "Finish the launch checklist first.",
+      "invalid_transition": "That change is not possible right now.",
+      "checklist_limit": "This checklist is full (50 items)."
     },
     "launch": {
       "title": "Launch status",
@@ -37365,6 +37372,91 @@
       "restore": "Restore",
       "archived": "Archived",
       "customCategory": "Your category (optional)"
+    },
+    "expansion": {
+      "title": "Growth and locations",
+      "locations": "Locations",
+      "locationsHelp": "Set up each new location, then launch it when every checklist item is done.",
+      "addLocation": "Add location",
+      "name": "Name",
+      "street": "Street address",
+      "city": "City",
+      "state": "State",
+      "zip": "ZIP code",
+      "phone": "Phone",
+      "timezone": "Time zone",
+      "hours": "Open days",
+      "opens": "Opens",
+      "closes": "Closes",
+      "day": {
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat",
+        "sun": "Sun"
+      },
+      "manager": "Location manager",
+      "team": "Team at this location",
+      "services": "Services offered",
+      "status": {
+        "setup": "Setting up",
+        "active": "Open",
+        "paused": "Paused",
+        "closed": "Closed"
+      },
+      "check": {
+        "address": "Full address entered",
+        "timezone": "Time zone set",
+        "hours": "Opening hours set",
+        "manager": "Manager assigned",
+        "staff": "At least one team member assigned",
+        "services": "At least one active service offered"
+      },
+      "optional": "optional",
+      "remove": "Remove",
+      "newItem": "New checklist item",
+      "addItem": "Add item",
+      "edit": "Edit",
+      "launch": "Launch location",
+      "pause": "Pause",
+      "close": "Close location",
+      "closeConfirm": "Close this location? It cannot be reopened.",
+      "territory": "Territory",
+      "territoryHelp": "Completed visits in the last 12 months, by customer area.",
+      "area": "Area",
+      "visits": "Visits (12 months)",
+      "visits90": "Last 90 days",
+      "share": "Share",
+      "unknownArea": "Area unknown",
+      "regionRules": "Services limited to regions",
+      "capacity": "Capacity planning",
+      "weeks": "Weeks ahead",
+      "location": "Location",
+      "allLocations": "All locations",
+      "weekOf": "Week of",
+      "capacityHours": "Available hours",
+      "bookedHours": "Booked hours",
+      "openHours": "Open hours",
+      "utilization": "Utilization",
+      "flag": {
+        "tight": "Nearly full",
+        "over": "Overbooked",
+        "no_capacity": "Bookings but no one scheduled"
+      },
+      "forecast": "Seasonal staffing forecast",
+      "forecastHelp": "Based on past bookings for the same months, adjusted for recent growth. Team today: {{staff}}; about {{hours}} hours per person each month at {{target}}% target use.",
+      "month": "Month",
+      "demandHours": "Expected hours",
+      "staffNeeded": "People needed",
+      "gap": "Gap",
+      "basis": "Based on",
+      "basisLabel": {
+        "same_month": "Same month in past years",
+        "recent_average": "Recent months",
+        "no_history": "No history yet"
+      }
     }
   }
 }

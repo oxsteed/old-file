@@ -45011,7 +45011,14 @@
       "payment_already_matched": "L'un de ces paiements est déjà rapproché d'un autre dépôt.",
       "category_exists": "Une catégorie portant ce nom existe déjà.",
       "category_limit": "Vous avez atteint la limite de 100 catégories.",
-      "not_found": "Cet élément n'est plus disponible."
+      "not_found": "Cet élément n'est plus disponible.",
+      "use_restaurant_locations": "Les restaurants gèrent leurs sites dans les paramètres du restaurant.",
+      "location_limit": "Vous avez atteint la limite de 50 sites ouverts.",
+      "location_exists": "Un site portant ce nom existe déjà.",
+      "location_closed": "Ce site est fermé.",
+      "location_not_ready": "Terminez d'abord la liste de lancement.",
+      "invalid_transition": "Ce changement n'est pas possible pour le moment.",
+      "checklist_limit": "Cette liste est pleine (50 points)."
     },
     "launch": {
       "title": "État du lancement",
@@ -45268,6 +45275,91 @@
       "restore": "Restaurer",
       "archived": "Archivée",
       "customCategory": "Votre catégorie (facultatif)"
+    },
+    "expansion": {
+      "title": "Croissance et sites",
+      "locations": "Sites",
+      "locationsHelp": "Configurez chaque nouveau site, puis lancez-le lorsque tous les points de la liste sont faits.",
+      "addLocation": "Ajouter un site",
+      "name": "Nom",
+      "street": "Adresse",
+      "city": "Ville",
+      "state": "État",
+      "zip": "Code postal",
+      "phone": "Téléphone",
+      "timezone": "Fuseau horaire",
+      "hours": "Jours d'ouverture",
+      "opens": "Ouverture",
+      "closes": "Fermeture",
+      "day": {
+        "mon": "Lun",
+        "tue": "Mar",
+        "wed": "Mer",
+        "thu": "Jeu",
+        "fri": "Ven",
+        "sat": "Sam",
+        "sun": "Dim"
+      },
+      "manager": "Responsable du site",
+      "team": "Équipe de ce site",
+      "services": "Services proposés",
+      "status": {
+        "setup": "En préparation",
+        "active": "Ouvert",
+        "paused": "En pause",
+        "closed": "Fermé"
+      },
+      "check": {
+        "address": "Adresse complète saisie",
+        "timezone": "Fuseau horaire défini",
+        "hours": "Horaires définis",
+        "manager": "Responsable désigné",
+        "staff": "Au moins un membre de l'équipe affecté",
+        "services": "Au moins un service actif proposé"
+      },
+      "optional": "facultatif",
+      "remove": "Retirer",
+      "newItem": "Nouveau point de la liste",
+      "addItem": "Ajouter",
+      "edit": "Modifier",
+      "launch": "Lancer le site",
+      "pause": "Mettre en pause",
+      "close": "Fermer le site",
+      "closeConfirm": "Fermer ce site ? Il ne pourra pas être rouvert.",
+      "territory": "Territoire",
+      "territoryHelp": "Visites terminées sur les 12 derniers mois, par zone client.",
+      "area": "Zone",
+      "visits": "Visites (12 mois)",
+      "visits90": "90 derniers jours",
+      "share": "Part",
+      "unknownArea": "Zone inconnue",
+      "regionRules": "Services limités à des régions",
+      "capacity": "Planification de la capacité",
+      "weeks": "Semaines à venir",
+      "location": "Site",
+      "allLocations": "Tous les sites",
+      "weekOf": "Semaine du",
+      "capacityHours": "Heures disponibles",
+      "bookedHours": "Heures réservées",
+      "openHours": "Heures libres",
+      "utilization": "Taux d'occupation",
+      "flag": {
+        "tight": "Presque complet",
+        "over": "Surréservé",
+        "no_capacity": "Réservations sans personne planifiée"
+      },
+      "forecast": "Prévision saisonnière des effectifs",
+      "forecastHelp": "Basée sur les réservations passées des mêmes mois, ajustée selon la croissance récente. Équipe actuelle : {{staff}} ; environ {{hours}} heures par personne et par mois pour un taux cible de {{target}} %.",
+      "month": "Mois",
+      "demandHours": "Heures prévues",
+      "staffNeeded": "Personnes nécessaires",
+      "gap": "Écart",
+      "basis": "Basé sur",
+      "basisLabel": {
+        "same_month": "Même mois les années passées",
+        "recent_average": "Mois récents",
+        "no_history": "Pas encore d'historique"
+      }
     }
   }
 }
