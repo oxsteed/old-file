@@ -26,7 +26,7 @@ BUILD = to build in this batch. DONE = built on this branch (commit cited).
 | 181 | Reschedule proposal | PARTIAL | `calendar.js` appointment reschedule-requests (only when the job has an appointment); bookings have their own | jobs hired without an appointment have no reschedule path. Plan: job-level proposal (`job_reschedule_proposals`), proposal-only like D-25 | DONE (migration 20261123170200_job_reschedule_proposals.sql, jobRescheduleService, /jobs/:id/reschedule-proposals, JobRescheduleProposals, group4RestJobReschedule.db.test.js) |
 | 182 | No-show report | PARTIAL | `jobController.markJobNoShow` (either party, reason, notifies) | no time guard: either party can mark no-show before the job time. Plan: refuse before scheduled start (409 `no_show_too_early`) | DONE (jobStartGuard in jobController; tests in pr804TrackDJobArrivalNoShow.db.test.js, which also fixes its broken interval param) |
 | 183 | Scope change request | PARTIAL | `workAgreements.js` change-orders (+ notifications, Slice C) | agreement-less jobs have no path (open call G4-22) | DONE (Emile approved 2026-11-23, closes G4-22: migration 20261123180000_job_change_requests.sql, jobChangeRequestService reusing quote terms() + applyApprovedChangeOrder, /jobs/:id/change-requests, JobChangeRequests, group4RestChangeRequests.db.test.js) |
-| 184 | Replacement handoff | PARTIAL | `bids.js` withdraw (pre-hire only); work records separate per helper (PR 805) | assigned helper cannot hand a job back. Plan: helper release request with reason before start; job returns to open, customer notified, payment untouched unless not yet captured (decision) | DONE (migration 20261123170300_job_handbacks.sql, jobHandbackService, POST /jobs/:id/hand-back, JobHandback, group4RestHandback.db.test.js; pre-start only, refused when money or a signed agreement is attached) |
+| 184 | Replacement handoff | PARTIAL | `bids.js` withdraw (pre-hire only); work records separate per helper (PR 805) | assigned helper cannot hand a job back. Plan: helper release request with reason before start; job returns to open, customer notified, payment untouched unless not yet captured (decision) | DONE (job_handbacks, jobHandbackService, POST /jobs/:id/hand-back, JobHandback; private T&S log via GET /api/admin/users/:userId/handbacks + AdminHelperHandbacks, never public or in ratings, Emile 2026-11-23) |
 | 185 | Support escalation | PARTIAL | `support_tickets` intake pattern (`consultantPracticeController.createSupportIntake`) | no job-linked helper escalation. Plan: `POST /helpers/me/jobs/:jobId/support` (assignment-checked, idempotent, notifies staff) + list | DONE (helperJobSupportService, HelperJobSupport on JobDetailPage, group4RestJobSupport.db.test.js) |
 | 186 | Job earnings summary | PARTIAL | `HelperJobEarnings.jsx` via `GET /main-app/earnings` (per-job amount + status) | no per-job breakdown. Plan: per-job gross / platform fee / net / adjustments detail | DONE (helperJobEarningsService, HelperJobBreakdown, HelperPayoutTimeline, group4RestEarnings.db.test.js) |
 | 187 | Payout timeline | PARTIAL | `GET /main-app/payouts/summary` has zero client callers | Plan: timeline on `/helper/payouts` from that endpoint | DONE (helperJobEarningsService, HelperJobBreakdown, HelperPayoutTimeline, group4RestEarnings.db.test.js) |
@@ -71,5 +71,12 @@ cd ../client && npm run build:ci
 ```
 (symlink node_modules from /workspace/old-file/{client,server}; remove before committing)
 
+## Emile 2026-11-23 approvals
+
+- 183 built as an industry-standard change order (closes G4-22), D-190.
+- Hand-backs recorded privately for Trust & Safety, D-191.
+- Accepted defaults: 181, 193, 177/182, 196-200 (D-192).
+- Travel time stays a fixed gap plus manual blocks; self-hosted OSRM is a separate future project (D-193).
+
 ## Next step
-Private hand-back log for Trust & Safety (184 follow-up), then decisions doc + PR body, then green CI.
+Decisions recorded (D-190..D-193). Get a settled green CI run; don't merge.

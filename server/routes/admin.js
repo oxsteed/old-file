@@ -230,6 +230,10 @@ router.post('/payment-disputes/:id/decision', requireAdmin, rejectImpersonated, 
 // Users - read + write actions (ban/unban logged; admins cannot ban other admins)
 router.get('/users',            requireAdmin, requirePermission('manage_users'), superCtrl.getUsers);
 router.get('/users/:userId',    requireAdmin, requirePermission('manage_users'), superCtrl.getUserDetail);
+// Group 4 item 184: private Trust & Safety log of a helper's job hand-backs (never public, never in ratings).
+router.get('/users/:userId/handbacks', requireAdmin, requirePermission('manage_users'), async (req, res, next) => {
+  try { res.json(await require('../services/helperHandbackOversightService').forHelper(req.params.userId)); } catch (e) { next(e); }
+});
 
 // ── E13: controlled investigation access ─────────────────────────────────
 // Purpose-limited, approver-tied elevated reads. Every served read is

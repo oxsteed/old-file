@@ -61,6 +61,14 @@ describeDb('Group 4 rest: replacement handoff (184)', () => {
     expect(a).toEqual({ job_id: null, status: 'cancelled', cancelled_by: 'helper' });
     expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: client, type: 'job_handed_back' }));
     await expect(svc.handBack(helper, jobId, { reasonCode: 'illness' })).rejects.toMatchObject({ statusCode: 404 });
+    // Private Trust & Safety log (admin-only reader); not part of ratings.
+    const oversight = await require('../services/helperHandbackOversightService').forHelper(helper);
+    expect(oversight.counts).toMatchObject({ total: 1, last30: 1, last90: 1 });
+    expect(oversight.handbacks[0]).toMatchObject({ jobId, reasonCode: 'schedule_conflict', reopenedBidCount: 1 });
+    const fs = require('fs'), path = require('path');
+    for (const f of ['services/helperReputationService.js', 'controllers/helpersController.js']) {
+      expect(fs.readFileSync(path.join(__dirname, '..', f), 'utf8')).not.toContain('job_handbacks');
+    }
   });
 
   test('refuses when money is attached, the agreement is signed, or the helper has arrived', async () => {

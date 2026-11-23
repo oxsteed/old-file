@@ -519,8 +519,8 @@ Branch `feat/persona-group4-rest` (PR #809), tracker
 `docs/persona-roadmap/group4-rest.md`. Verified first, then closed the gaps
 without rebuilding working code. Already working, not rebuilt: 176 (active
 assignment board), 178 (work checklist), 188 (statement download), 191
-(portfolio permission request). Built here: 177, 179-182, 184-187, 189,
-190, 192-200. Not built: 183 (open call G4-22, below). Acceptance tests:
+(portfolio permission request). Built here: 177, 179-187, 189, 190, 192-200
+(183 added after Emile's 2026-11-23 approval). Acceptance tests:
 `server/__tests__/group4Rest*.db.test.js` (10 files) plus two new cases in
 `pr804TrackDJobArrivalNoShow.db.test.js`. New migrations (additive,
 idempotent): `20261123170000_helper_skill_endorsements.sql`,
@@ -554,4 +554,9 @@ those rules.
 - **D-188. Items 199-200: the business gets a reference, the helper keeps their record.** `helper_business_records` links a business the helper owns to a frozen snapshot of counts taken at link time. Portfolio images are read live from the helper's consented gallery, so a customer's revocation still applies. No reviews, ratings, clients, messages or money are copied or exposed. The helper can remove the link at any time; nothing on the helper side changes. Only the owner sees the record (not public). The workspace intro shows four first steps computed from the business's own data and can be dismissed. Flip: show the founder record on the public business profile.
 - **D-189. Slice E+ ships ungated, default on**, per Emile's standing rule. No paid vendors, email or AI added.
 
-**Open calls (Group 4 Slice E+):** G4-22, item 183 (scope change request for jobs with no work agreement): change orders still require an agreement, and the agreement-less path is not built. Proposed defaults awaiting Emile's yes or no: the 184 hand-back rules (D-180), the 193 invite limit (one per 30 days, in-app only), and the 177/182 time guards (2 hours before the start, and no-show only after the start).
+- **D-190. Item 183 (closes G4-22; Emile approved 2026-11-23): change requests on hired jobs with no work agreement.** Industry-standard change order: the assigned helper opens a scope/price change on an `accepted` or `in_progress` job; the customer accepts, declines or counters; either side may counter the other's latest version; only the party who did not propose the latest version can accept; the proposer can withdraw. One open version per job; every version is kept (`job_change_requests`, thread + version). Line items reuse the quote negotiation `terms()` validator. Accepting reuses the work-agreement change-order money path (`applyApprovedChangeOrder`): the agreed price changes, a card capture goes down or the customer is asked to re-authorize a higher amount, and Credit holds are replaced. Nothing is charged automatically. A `job_revisions` row records it, and the other party is notified at every step. Jobs with an active or pending work agreement keep its change orders (409 `use_work_agreement_change_order`).
+- **D-191. Item 184 follow-up (Emile approved 2026-11-23): hand-backs are a private Trust & Safety record.** `job_handbacks` is read only by the admin endpoint `GET /api/admin/users/:userId/handbacks` (permission `manage_users`; 30-day, 90-day and total counts plus the recent log) and the admin user page. It is never shown publicly and never feeds ratings, reputation or ranking (a test asserts the reputation and public profile code do not read it). Flip: use it in automated risk scoring.
+- **D-192. Defaults accepted by Emile (2026-11-23):** D-179 (181 reschedule is proposal-only, no availability re-check), D-184 (193 invites one per 30 days, in-app only), D-176/D-177 (arrival from 2 hours before the start, no-show only after it), and D-187/D-188 (196-200 milestones are advisory; the founder record is owner-only).
+- **D-193. Travel time stays a fixed gap plus manual travel blocks (Emile, 2026-11-23).** This confirms D-173/D-174. Real per-trip travel time is a future, separate project: a self-hosted OSRM server on OpenStreetMap data (no paid vendor).
+
+**Open calls (Group 4 Slice E+):** none. G4-22 is closed by D-190. The future OSRM travel-time project is tracked as D-193, outside this slice.
