@@ -395,6 +395,10 @@ ddescribe('Track C preference toggles (DB)', () => {
       // lookup table, or a DB column. The expansions are the types that
       // can actually reach sendNotification through the site.
       const VARIABLE_SITES = [
+        // Group 4 rest items 179-180: tellCustomer in the helper work service.
+        { file: 'services/helperWorkService.js', name: 'type', expansions: ['helper_progress_update', 'helper_handover_updated'] },
+        // Group 4 rest item 181: notify() in the job reschedule service.
+        { file: 'services/jobRescheduleService.js', name: 'type', expansions: ['job_reschedule_proposed', 'job_reschedule_accepted', 'job_reschedule_declined'] },
         { file: 'analytics/regionGeoSourceSwitch.js', name: 'type', expansions: ['admin_operational_notice_region_geo_switched', 'admin_operational_notice_region_geo_rolled_back'] },
         { file: 'controllers/bookingController.js', name: 'type', expansions: ['booking_accepted', 'booking_declined', 'booking_cancelled'] },
         { file: 'controllers/businessAppointmentsController.js', name: 'notificationType', expansions: ['appointment_created', 'appointment_cancelled', 'appointment_rescheduled', 'appointment_staff_reassigned', 'appointment_payment_recorded', 'appointment_pending', 'appointment_confirmed', 'appointment_in_progress', 'appointment_completed', 'appointment_no_show'] },
