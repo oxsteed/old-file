@@ -441,7 +441,10 @@ ddescribe('Track C preference toggles (DB)', () => {
         { file: 'services/oxsteedCreditDisputeService.js', name: 'type', expansions: ['credit_dispute_resolved', 'credit_dispute_updated', 'credit_dispute_provisional_credit'] },
         { file: 'services/paymentRefundService.js', name: 'type', expansions: ['refund', 'refund_failed'] },
         { file: 'services/pooledOrderService.js', name: 'type', expansions: ['logistics_campaign_approved', 'logistics_campaign_revisions_requested', 'logistics_campaign_rejected'] },
-        { file: 'services/restaurantPayoutService.js', name: 'type', expansions: ['payout_requested', 'payout_failed', 'payout_approved', 'payout_deposited', 'payout_reversed', 'payout_rejected'] },
+        // G7-13: the notifyPayoutOwner fan-out also sends
+        // payout_draft_created (manager draft, line 265); the expansions
+        // omitted it, so the N3 diff never enforced its catalog entry.
+        { file: 'services/restaurantPayoutService.js', name: 'type', expansions: ['payout_requested', 'payout_failed', 'payout_approved', 'payout_deposited', 'payout_reversed', 'payout_rejected', 'payout_draft_created'] },
         { file: 'services/supportNotificationService.js', name: 'type', expansions: ['support_sla_breach'] },
         // Redis job-data replay: the queued payload is a full
         // notification object produced by a sendNotification caller

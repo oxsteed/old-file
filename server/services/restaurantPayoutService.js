@@ -527,6 +527,21 @@ async function updateTransferOutbox(payoutId, leaseToken, update) {
 
 async function processNextTransfer() {
   if (!processorEnabled()) return { skipped: true, reason: 'processor_disabled' };
+  // G7-1: the credit rail is the kill switch for money movement. Approval
+  // asserted it, but the rail can be killed or frozen between approval and
+  // the drain; a worker that only checks the processor would still send
+  // the money to Stripe (repeat of Nov 7 money-audit #10, restaurant
+  // half). Fail closed before claiming any row: a skipped drain leaves
+  // the outbox row pending, so it pays automatically once the rail is
+  // restored. No row is claimed and no lease is taken.
+  try {
+    await assertCreditRailEnabled(pool);
+  } catch (error) {
+    logger.warn('[RestaurantPayout] credit rail unavailable; transfer withheld', {
+      reason: error.code || 'credit_rail_suspended',
+    });
+    return { skipped: true, reason: error.code || 'credit_rail_suspended' };
+  }
   const outbox = await claimNextTransferOutbox();
   if (!outbox) return { processed: false };
 
@@ -625,6 +640,13 @@ async function processNextTransfer() {
         return { processed: true, payoutId: payout.payout_id, attention: true, reason: 'payout_destination_changed' };
       }
     }
+
+    // G7-1: re-assert the rail immediately before the provider call, so a
+    // kill/freeze that lands after the top-of-drain check (between claim
+    // and transfer) still withholds the money. A throw here flows through
+    // the retry path below: backoff, a visible failure reason, and
+    // 'attention' once attempts are exhausted.
+    await assertCreditRailEnabled(pool);
 
     const transfer = await stripe.transfers.create(
       transferPayload({ ...payout, id: payout.payout_id }),

@@ -173,6 +173,9 @@ const NOTIFICATION_TYPES = [
   { type: 'payout_approved', group: 'payments' },
   { type: 'payout_deposited', group: 'payments' },
   { type: 'payout_destination_changed', group: 'payments' },
+  // G7-13: a manager draft notifies the owner as payout_draft_created;
+  // without a catalog entry it had no prefs toggle and no i18n copy.
+  { type: 'payout_draft_created', group: 'payments' },
   { type: 'payout_failed', group: 'payments' },
   { type: 'payout_rejected', group: 'payments' },
   { type: 'payout_requested', group: 'payments' },

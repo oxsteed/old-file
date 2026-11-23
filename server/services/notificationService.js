@@ -490,6 +490,9 @@ exports.sendNotification = async ({
       // never attempted, so the toggle was dead).
       'new_message',
       'payout_deposited', 'payout_requested', 'payout_approved', 'payout_rejected', 'account_banned',
+      // G7-13: a manager draft is a payout request in waiting; it emails
+      // like its siblings (non-transactional: respects the email toggle).
+      'payout_draft_created',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
       // Notifications audit item 20: cash-out settlement mail (paid/failed)
       // never sent because neither type was in this allow-list.
@@ -694,6 +697,10 @@ exports.sendNotification = async ({
 const MONEY_CRITICAL_EMAIL_TYPES = new Set([
   'payment_failed',
   'payout_failed',
+  // G7-13: a reversed payout is reversed money, same class as a failed
+  // payout. Transactional: the owner cannot opt out by email toggle,
+  // because the reversal asks them (or an operator) to act.
+  'payout_reversed',
   'refund',
   'refund_failed',
   'oxsteed_credit_withdrawal_failed',

@@ -270,6 +270,59 @@ const T = {
       ar: 'تم رفض طلب الدفع الخاص بك. تحقق من ملاحظة المراجعة لمزيد من التفاصيل.',
     },
   },
+  // G7-13: these three payout notices arrived blank (tNotif returns empty
+  // title/body for a missing entry, and the NULL title then fails the
+  // notifications insert, so the owner heard nothing at all). The audit
+  // misread payout_deposited's email button-text line as a title/body
+  // entry; it had none either.
+  payout_draft_created: {
+    title: {
+      en: 'Payout draft created',
+      fr: 'Brouillon de paiement créé',
+      es: 'Borrador de pago creado',
+      ht: 'Bouyon peman kreye',
+      ar: 'تم إنشاء مسودة دفع',
+    },
+    body: {
+      en: 'A payout draft was created and is awaiting owner confirmation.',
+      fr: 'Un brouillon de paiement a été créé et attend la confirmation du propriétaire.',
+      es: 'Se creó un borrador de pago que está a la espera de la confirmación del propietario.',
+      ht: 'Yo kreye yon bouyon peman k ap tann konfimasyon pwopriyetè a.',
+      ar: 'تم إنشاء مسودة دفع وهي بانتظار تأكيد المالك.',
+    },
+  },
+  payout_deposited: {
+    title: {
+      en: 'Payout deposited',
+      fr: 'Paiement déposé',
+      es: 'Pago depositado',
+      ht: 'Peman depoze',
+      ar: 'تم إيداع الدفع',
+    },
+    body: {
+      en: 'Your payout was deposited to your connected account.',
+      fr: 'Votre paiement a été déposé sur votre compte connecté.',
+      es: 'Tu pago fue depositado en tu cuenta conectada.',
+      ht: 'Peman ou an te depoze nan kont konekte ou an.',
+      ar: 'تم إيداع دفعتك في حسابك المتصل.',
+    },
+  },
+  payout_reversed: {
+    title: {
+      en: 'Payout reversed',
+      fr: 'Paiement annulé',
+      es: 'Pago revertido',
+      ht: 'Peman an anile',
+      ar: 'تم عكس الدفع',
+    },
+    body: {
+      en: 'Your payout was reversed by the payment provider. The amount is being returned to your restaurant balance.',
+      fr: 'Votre paiement a été annulé par le prestataire de paiement. Le montant est en cours de retour sur le solde de votre restaurant.',
+      es: 'Tu pago fue revertido por el proveedor de pagos. El importe se está devolviendo al saldo de tu restaurante.',
+      ht: 'Prestataire peman an te anile peman ou an. Yo ap remèt lajan an nan balans restoran ou an.',
+      ar: 'تم عكس دفعتك من قبل مزود الدفع. ويجري إرجاع المبلغ إلى رصيد مطعمك.',
+    },
+  },
   refund: {
     title: {
       en: 'Refund processed', fr: 'Remboursement traité', es: 'Reembolso procesado',
@@ -1653,6 +1706,13 @@ const EMAIL_TEMPLATES = {
       ht: 'Gade benefis',
       ar: 'عرض الأرباح',
     },
+    payout_draft_created: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
     payout_requested: {
       en: 'View Payouts',
       fr: 'Voir les paiements',
@@ -1675,6 +1735,13 @@ const EMAIL_TEMPLATES = {
       ar: 'عرض المدفوعات',
     },
     payout_rejected: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    payout_reversed: {
       en: 'View Payouts',
       fr: 'Voir les paiements',
       es: 'Ver pagos',
