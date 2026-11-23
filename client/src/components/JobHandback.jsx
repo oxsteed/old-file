@@ -16,8 +16,7 @@ export default function JobHandback({ jobId, onDone }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  async function submit(e) {
-    e.preventDefault();
+  async function submit() {
     if (reason === 'other' && !note.trim()) { setError(c('noteRequired')); return; }
     setBusy(true); setError('');
     try {
@@ -33,14 +32,14 @@ export default function JobHandback({ jobId, onDone }) {
     <h3 id={`job-handback-${jobId}`}>{c('title')}</h3>
     <p>{c('hint')}</p>
     {!open && <button type="button" className="jdp-btn-ghost" onClick={() => setOpen(true)} data-track="ui.helperG4.handback.open">{c('open')}</button>}
-    {open && <form onSubmit={submit} data-track="ui.485ac1f9a7.1">
+    {open && <div role="group" aria-label={c('open')}>
       <label>{c('reason')} <select value={reason} onChange={(e) => setReason(e.target.value)}>
         {REASONS.map((r) => <option key={r} value={r}>{c(`reasons.${r}`)}</option>)}
       </select></label>
       <label>{c('note')} <textarea dir="auto" maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-      <button type="submit" className="jdp-btn-ghost" disabled={busy} data-track="ui.helperG4.handback.confirm">{c('confirm')}</button>
+      <button type="button" className="jdp-btn-ghost" disabled={busy} onClick={submit} data-track="ui.helperG4.handback.confirm">{c('confirm')}</button>
       {' '}<button type="button" className="jdp-btn-ghost" disabled={busy} onClick={() => { setOpen(false); setError(''); }} data-track="ui.helperG4.handback.cancel">{c('cancel')}</button>
-    </form>}
+    </div>}
     {error && <p role="alert">{error}</p>}
   </section>;
 }

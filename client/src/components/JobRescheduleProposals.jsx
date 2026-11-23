@@ -22,19 +22,21 @@ export default function JobRescheduleProposals({ jobId, userId, canPropose, onCh
 
   async function run(fn) {
     setBusy(true); setError('');
-    try { await fn(); await load(); onChanged?.(); } catch { setError(c('failed')); } finally { setBusy(false); }
+    try { await fn(); await load(); onChanged?.(); return true; } catch { setError(c('failed')); return false; } finally { setBusy(false); }
   }
   const fmt = (v) => formatDateTime(v, { locale: i18n.language });
 
   if (!canPropose && items.length === 0) return null;
   return <section className="jdp-secondary-action" aria-labelledby={`job-resched-${jobId}`}>
     <h3 id={`job-resched-${jobId}`}>{c('title')}</h3>
-    {canPropose && <form onSubmit={(e) => { e.preventDefault(); if (!when) return; run(() => api.post(base, { proposedTime: new Date(when).toISOString(), reason: reason.trim() || undefined })).then(() => { setWhen(''); setReason(''); }); }} data-track="ui.2c8b47a982.1">
+    {/* A plain group, not a <form>: the job page's own forms expect one submit button each. */}
+    {canPropose && <div className="job-resched-form" role="group" aria-label={c('propose')}>
       <p>{c('hint')}</p>
       <label>{c('newTime')} <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} required /></label>
       <label>{c('reason')} <input type="text" dir="auto" maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
-      <button type="submit" className="jdp-btn-ghost" disabled={busy || !when} data-track="ui.helperG4.reschedule.propose">{c('propose')}</button>
-    </form>}
+      <button type="button" className="jdp-btn-ghost" disabled={busy || !when} data-track="ui.helperG4.reschedule.propose"
+        onClick={() => run(() => api.post(base, { proposedTime: new Date(when).toISOString(), reason: reason.trim() || undefined })).then((ok) => { if (ok) { setWhen(''); setReason(''); } })}>{c('propose')}</button>
+    </div>}
     {error && <p role="alert">{error}</p>}
     {items.length > 0 && <ul>{items.map((p) => {
       const mine = String(p.proposedBy) === String(userId);
