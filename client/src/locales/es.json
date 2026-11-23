@@ -44817,6 +44817,10 @@
         "resolved": "Resuelto",
         "closed": "Cerrado"
       }
+    },
+    "timeGuards": {
+      "arrivalTooEarly": "Puedes registrar tu llegada desde 2 horas antes del inicio programado.",
+      "noShowTooEarly": "Solo puedes reportar una ausencia después de la hora de inicio programada."
     }
   }
 }

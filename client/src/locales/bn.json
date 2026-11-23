@@ -36943,6 +36943,10 @@
         "resolved": "Resolved",
         "closed": "Closed"
       }
+    },
+    "timeGuards": {
+      "arrivalTooEarly": "You can check in from 2 hours before the scheduled start.",
+      "noShowTooEarly": "You can report a no-show only after the scheduled start time."
     }
   }
 }

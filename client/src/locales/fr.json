@@ -44817,6 +44817,10 @@
         "resolved": "Résolu",
         "closed": "Fermé"
       }
+    },
+    "timeGuards": {
+      "arrivalTooEarly": "Vous pouvez signaler votre arrivée à partir de 2 heures avant le début prévu.",
+      "noShowTooEarly": "Vous ne pouvez signaler une absence qu'après l'heure de début prévue."
     }
   }
 }

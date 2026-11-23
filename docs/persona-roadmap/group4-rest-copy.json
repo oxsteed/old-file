@@ -523,5 +523,19 @@
     "fr": "Fermé",
     "ht": "Fèmen",
     "ar": "مغلق"
+  },
+  "timeGuards.arrivalTooEarly": {
+    "en": "You can check in from 2 hours before the scheduled start.",
+    "es": "Puedes registrar tu llegada desde 2 horas antes del inicio programado.",
+    "fr": "Vous pouvez signaler votre arrivée à partir de 2 heures avant le début prévu.",
+    "ht": "Ou ka anrejistre arive w depi 2 èdtan anvan lè ki pwograme a.",
+    "ar": "يمكنك تسجيل الوصول بدءًا من ساعتين قبل موعد البدء المحدد."
+  },
+  "timeGuards.noShowTooEarly": {
+    "en": "You can report a no-show only after the scheduled start time.",
+    "es": "Solo puedes reportar una ausencia después de la hora de inicio programada.",
+    "fr": "Vous ne pouvez signaler une absence qu'après l'heure de début prévue.",
+    "ht": "Ou ka rapòte yon absans sèlman apre lè kòmansman ki pwograme a.",
+    "ar": "لا يمكنك الإبلاغ عن عدم الحضور إلا بعد موعد البدء المحدد."
   }
 }

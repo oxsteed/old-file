@@ -485,7 +485,7 @@ function JobDetailContent() {
       fetchJob(id);
       toast.success(t('jobDetail.arrivedRecorded'));
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      toast.error(err?.response?.data?.code === 'arrival_too_early' ? t('helperG4.timeGuards.arrivalTooEarly') : getErrorMessage(err));
     } finally {
       setActionLoading(false);
     }
@@ -505,7 +505,7 @@ function JobDetailContent() {
       fetchJob(id);
       toast.success(t('jobDetail.noShowRecorded'));
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      toast.error(err?.response?.data?.code === 'no_show_too_early' ? t('helperG4.timeGuards.noShowTooEarly') : getErrorMessage(err));
     } finally {
       setActionLoading(false);
     }

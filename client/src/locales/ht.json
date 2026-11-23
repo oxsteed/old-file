@@ -44817,6 +44817,10 @@
         "resolved": "Rezoud",
         "closed": "Fèmen"
       }
+    },
+    "timeGuards": {
+      "arrivalTooEarly": "Ou ka anrejistre arive w depi 2 èdtan anvan lè ki pwograme a.",
+      "noShowTooEarly": "Ou ka rapòte yon absans sèlman apre lè kòmansman ki pwograme a."
     }
   }
 }
