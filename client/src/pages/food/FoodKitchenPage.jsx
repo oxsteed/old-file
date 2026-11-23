@@ -390,7 +390,24 @@ export default function FoodKitchenPage() {
                     key={order.id}
                     className={`fd-kds-card${selectedOrderId === order.id ? ' fd-kds-selected' : ''}`}
                     aria-current={selectedOrderId === order.id ? 'true' : undefined}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`#${order.queue_number} ${column.title}`}
                     onClick={() => setSelectedOrderId(order.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === ' ') {
+                        event.preventDefault();
+                        setSelectedOrderId(order.id);
+                        return;
+                      }
+                      // Enter on an unselected ticket selects it; Enter on the
+                      // selected ticket bubbles to the global handler, which bumps it.
+                      if (event.key === 'Enter' && selectedOrderId !== order.id) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setSelectedOrderId(order.id);
+                      }
+                    }}
                     style={urgency.color ? {
                       borderLeft: `5px solid ${urgency.color}`,
                       boxShadow: `inset 0 0 0 1px ${urgency.color}55`,
