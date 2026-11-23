@@ -157,6 +157,7 @@ router.post('/:businessId/work/shifts/:shiftId/coverage', ...write('any', 'busin
 router.post('/:businessId/work/coverage/:requestId/claim', ...write('any', 'business.view'), h(async (req, res) => res.json(await workComms.claimCoverage(req.business.id, req.user.id, req.params.requestId))));
 router.post('/:businessId/work/coverage/:requestId/cancel', ...write('any'), h(async (req, res) => res.json(await workComms.cancelCoverage(req.business.id, req.user.id, req.params.requestId))));
 router.post('/:businessId/owner/coverage/:requestId/decision', ...write('manager'), h(async (req, res) => res.json(await workComms.decideCoverage(req.business.id, req.user.id, req.params.requestId, req.body))));
+router.get('/:businessId/work/teammates', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workComms.teammates(req.business.id, req.user.id))));
 router.get('/:businessId/work/day', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workComms.day(req.business.id, req.user.id, req.query))));
 
 // 281-285 outcomes

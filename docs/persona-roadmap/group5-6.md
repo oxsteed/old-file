@@ -69,26 +69,26 @@ BUILD = to build. DONE = built on this branch (commit/test cited).
 | 241-245 | Transfer / deputy / open work / departed access / closure | BUILD | | DONE (D-214..D-218; migration 20261123190600, continuityService, /owner/{ownership-transfer,deputy,work-transition,departed-members,closure-checklist,closure-plan}, admin transfer review, /api/me/former-workplaces, OwnerContinuity, MyFormerWorkplaces; group56Continuity.db.test.js) |
 | 246-250 | Performance reports | BUILD | | DONE (D-219..D-223; migration 20261123190700, performanceService, /owner/reports/*, OwnerReports; group56Performance.db.test.js) |
 | 251 | Invitation acceptance | EXISTS | `POST /businesses/invitations/:id/accept` | - |
-| 252 | Responsibility overview | BUILD | | - |
+| 252 | Responsibility overview | BUILD | | DONE (D-224; workStartService.overview, /work/me, TeamMemberWork; group56WorkStart) |
 | 253 | Assigned workspace picker | EXISTS | `meWorkspace.js` `/businesses` + workspace-context | - |
-| 254 | Shift onboarding checklist | BUILD | | - |
-| 255 | Permission help request | BUILD | | - |
-| 256-258 | Assignment queue / availability matching / conflict warnings | BUILD | | - |
+| 254 | Shift onboarding checklist | BUILD | | DONE (D-224; /work/onboarding) |
+| 255 | Permission help request | BUILD | | DONE (D-225; /work/permission-requests, /owner/permission-requests; OwnerTeamWork) |
+| 256-258 | Assignment queue / availability matching / conflict warnings | BUILD | | DONE (D-226; /work/queue, /owner/appointments/:id/matches, /work/conflicts) |
 | 259 | Provider transfer | EXISTS | `PUT /appointments/:id/staff` (notifies `appointment_staff_reassigned`) | - |
-| 260 | Dispatch confirmation | BUILD | | - |
-| 261, 262, 264, 265 | Work board / checklist / progress / exception routing | BUILD | | - |
+| 260 | Dispatch confirmation | BUILD | | DONE (D-227; /work/appointments/:id/dispatch, /owner/dispatch) |
+| 261, 262, 264, 265 | Work board / checklist / progress / exception routing | BUILD | | DONE (D-228, D-229; workJobsService; WorkJobDetail; group56WorkJobs) |
 | 263 | Customer note handoff | EXISTS | appointment notes (`POST /appointments/:id/notes`) | - |
-| 266-270 | Crews | BUILD | | - |
+| 266-270 | Crews | BUILD | | DONE (D-230; crews, appointment crew, subcontractor scope, job documents, attendance) |
 | 271 | Scoped customer messages | EXISTS | shared inbox claim/assignment | - |
 | 272 | Internal job notes | EXISTS | appointment notes `note_type='internal'` | - |
-| 273-275 | Handoff summary / mentions / unread inbox | BUILD | | - |
+| 273-275 | Handoff summary / mentions / unread inbox | BUILD | | DONE (D-231; workCommsService; group56WorkComms) |
 | 276 | Shift calendar | EXISTS | `businessStaff.js` shifts (any role) | - |
-| 277 | Coverage request | BUILD | | - |
+| 277 | Coverage request | BUILD | | DONE (D-232; /work/coverage, /owner/coverage/:id/decision) |
 | 278 | Shift swap approval | EXISTS | `businessStaff.js` shift-swaps respond/approve | - |
 | 279 | Schedule change notice | EXISTS | shifts publish notifies; `schedule-changes` | - |
-| 280 | Daily workload view | BUILD | | - |
-| 281-290 | Outcomes / blockers | BUILD | | - |
-| 291-300 | Continuity / leave a scope | BUILD | | - |
+| 280 | Daily workload view | BUILD | | DONE (D-233; /work/day) |
+| 281-290 | Outcomes / blockers | BUILD | | DONE (D-229, D-234..D-236; workOutcomesService + workJobsService exceptions; 284 handoff ack in workCommsService; group56WorkOutcomes) |
+| 291-300 | Continuity / leave a scope | BUILD | | DONE (D-237..D-239; workLeaveService; TeamMemberSchedule; group56WorkLeave; 296 EXISTS `member_removed`; 300 = former workplaces D-217) |
 
 ## Running tests
 ```
@@ -106,4 +106,4 @@ cd ../client && npm run build:ci
 - Tests: `server/__tests__/group56*.db.test.js`; also `STATEMENT_TEST_DATABASE_URL=.../credit_statement_test npx jest __tests__/notificationsPrefsToggles`.
 
 ## Next step
-S9: team member start/dispatch (252 responsibility overview, 254 shift onboarding checklist, 255 permission help request, 256-258 assignment queue / availability matching / conflict warnings, 260 dispatch confirmation) in `TeamMemberWork.jsx` (my-work tab).
+Items 201-300 are all DONE or EXISTS. Next unbuilt backlog group: 301+ (see /workspace/persona-backlog-1000.md and persona-roadmap-decisions.md for which groups are already merged). Continue on PR #809.

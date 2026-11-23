@@ -47,8 +47,14 @@ async function addNote(businessId, userId, ctx, appointmentId, body) {
   if (mentionIds.length > 10) invalid('mention_user_ids');
   const out = await withTransaction(pool, async db => {
     const { appt } = await readable(db, businessId, appointmentId, userId, ctx);
+    // Only people who can already see this job can be mentioned on it
+    // (assignee, crew, managers, owner), so the note never leaks wider.
     for (const m of mentionIds) {
       if (String(m) === String(userId) || !(await isStaff(db, businessId, m))) invalid('mention_user_ids');
+      const { rows: [ok] } = await db.query(`SELECT ($3::uuid = $4::uuid) OR EXISTS (SELECT 1 FROM business_appointment_crew WHERE appointment_id=$2 AND user_id=$3)
+          OR EXISTS (SELECT 1 FROM businesses WHERE id=$1 AND user_id=$3)
+          OR EXISTS (SELECT 1 FROM business_members WHERE business_id=$1 AND member_id=$3 AND status='active' AND role='manager') AS ok`, [businessId, appt.id, m, appt.staff_id]);
+      if (!ok.ok) fail(409, 'mention_not_on_job');
     }
     const { rows: [note] } = await db.query("INSERT INTO business_appointment_notes(appointment_id,created_by_id,note_type,content) VALUES($1,$2,'internal',$3) RETURNING *", [appt.id, userId, content]);
     for (const m of mentionIds) {
@@ -104,7 +110,10 @@ async function coverage(businessId, userId, ctx) {
   const manager = canManage(ctx.role, ctx.permissions);
   const { rows } = await pool.query(`${COVER_SELECT} WHERE r.business_id=$1 AND (r.status IN ('open','claimed') OR r.requester_id=$2 OR r.claimed_by=$2)
     AND s.shift_date >= CURRENT_DATE - 1 ORDER BY s.shift_date, s.start_time LIMIT 200`, [businessId, userId]);
+  const { rows: myShifts } = await pool.query(`SELECT id, shift_date, start_time, end_time, role_label FROM business_staff_shifts
+    WHERE business_id=$1 AND user_id=$2 AND cancelled_at IS NULL AND shift_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 30 ORDER BY shift_date, start_time LIMIT 60`, [businessId, userId]);
   return {
+    my_shifts: myShifts,
     mine: rows.filter(r => String(r.requester_id) === String(userId)),
     available: rows.filter(r => r.status === 'open' && String(r.requester_id) !== String(userId)),
     awaiting_approval: manager ? rows.filter(r => r.status === 'claimed') : [],
@@ -177,6 +186,14 @@ async function cancelCoverage(businessId, userId, requestId) {
   return r;
 }
 
+// Teammates a member can hand work to (active staff, never contact details).
+async function teammates(businessId, userId) {
+  const { STAFF_SQL } = require('./teamCommon');
+  const { rows } = await pool.query(`SELECT u.id, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS name FROM (${STAFF_SQL}) s JOIN users u ON u.id=s.user_id
+    WHERE u.id <> $2 ORDER BY u.first_name, u.last_name LIMIT 500`, [businessId, userId]);
+  return { teammates: rows };
+}
+
 // 280: one day's work in the business time zone.
 async function day(businessId, userId, query) {
   const zone = await tz(pool, businessId);
@@ -201,4 +218,4 @@ async function day(businessId, userId, query) {
   };
 }
 
-module.exports = { handoff, acknowledgeHandoff, addNote, inbox, markInboxSeen, coverage, requestCoverage, claimCoverage, decideCoverage, cancelCoverage, day };
+module.exports = { teammates, handoff, acknowledgeHandoff, addNote, inbox, markInboxSeen, coverage, requestCoverage, claimCoverage, decideCoverage, cancelCoverage, day };

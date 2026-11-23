@@ -49,6 +49,7 @@ describeDb('Groups 5-6: team member comms and schedule', () => {
     await request(app).get(`${B()}/work/appointments/${a}/handoff`).set(as(other)).expect(404);
     expect((await request(app).post(`${B()}/work/appointments/${a}/handoff/ack`).set(as(employee)).expect(200)).body.acknowledged_at).toBeTruthy();
     await request(app).post(`${B()}/work/appointments/${a}/team-notes`).set(as(employee)).send({ content: 'hi', mention_user_ids: [employee] }).expect(400);
+    await request(app).post(`${B()}/work/appointments/${a}/team-notes`).set(as(employee)).send({ content: 'psst', mention_user_ids: [other] }).expect(409);
     const n = (await request(app).post(`${B()}/work/appointments/${a}/team-notes`).set(as(employee)).send({ content: 'Can you bring a ladder?', mention_user_ids: [manager] }).expect(201)).body;
     const ib = (await request(app).get(`${B()}/work/inbox`).set(as(manager)).expect(200)).body;
     expect(ib.items.find(i => i.kind === 'mention' && i.id === n.note.id)).toBeTruthy();
@@ -64,6 +65,8 @@ describeDb('Groups 5-6: team member comms and schedule', () => {
     await request(app).post(`${B()}/work/coverage/${r.id}/claim`).set(as(employee)).expect(409);
     const list = (await request(app).get(`${B()}/work/coverage`).set(as(other)).expect(200)).body;
     expect(list.available.map(x => x.id)).toContain(r.id);
+    expect((await request(app).get(`${B()}/work/coverage`).set(as(employee)).expect(200)).body.my_shifts.map(x => x.id)).toContain(s.id);
+    expect((await request(app).get(`${B()}/work/teammates`).set(as(employee)).expect(200)).body.teammates.map(x => x.id)).toEqual(expect.arrayContaining([owner, manager, other]));
     await request(app).post(`${B()}/work/coverage/${r.id}/claim`).set(as(other)).expect(200);
     await request(app).post(`${B()}/owner/coverage/${r.id}/decision`).set(as(other)).send({ decision: 'approve' }).expect(403);
     expect((await request(app).get(`${B()}/work/coverage`).set(as(manager)).expect(200)).body.awaiting_approval.map(x => x.id)).toContain(r.id);

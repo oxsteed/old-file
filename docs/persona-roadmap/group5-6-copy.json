@@ -2994,5 +2994,2105 @@
   "Vous ne pouvez enregistrer un instantané que pour un mois terminé.",
   "Ou ka sove foto sèlman pou yon mwa ki fini.",
   "يمكنك حفظ لقطة لشهر انتهى فقط."
+ ],
+ "work.title": [
+  "My responsibilities",
+  "Mis responsabilidades",
+  "Mes responsabilités",
+  "Responsablite mwen",
+  "مسؤولياتي"
+ ],
+ "work.role.owner": [
+  "Owner",
+  "Dueño",
+  "Propriétaire",
+  "Pwopriyetè",
+  "المالك"
+ ],
+ "work.role.manager": [
+  "Manager",
+  "Gerente",
+  "Responsable",
+  "Manadjè",
+  "مدير"
+ ],
+ "work.role.representative": [
+  "Representative",
+  "Representante",
+  "Représentant",
+  "Reprezantan",
+  "ممثل"
+ ],
+ "work.role.support_agent": [
+  "Support agent",
+  "Agente de soporte",
+  "Agent d’assistance",
+  "Ajan sipò",
+  "وكيل دعم"
+ ],
+ "work.role.employee": [
+  "Employee",
+  "Empleado",
+  "Employé",
+  "Anplwaye",
+  "موظف"
+ ],
+ "work.subcontractor": [
+  "Subcontractor",
+  "Subcontratista",
+  "Sous-traitant",
+  "Soutretan",
+  "مقاول من الباطن"
+ ],
+ "work.accessEnds": [
+  "Access ends {{date}}",
+  "El acceso termina el {{date}}",
+  "Accès jusqu’au {{date}}",
+  "Aksè fini {{date}}",
+  "ينتهي الوصول في {{date}}"
+ ],
+ "work.services": [
+  "Services",
+  "Servicios",
+  "Services",
+  "Sèvis",
+  "الخدمات"
+ ],
+ "work.locations": [
+  "Locations",
+  "Ubicaciones",
+  "Sites",
+  "Kote",
+  "المواقع"
+ ],
+ "work.managers": [
+  "Who to ask",
+  "A quién preguntar",
+  "À qui demander",
+  "Ki moun pou mande",
+  "بمن تتصل"
+ ],
+ "work.onboarding": [
+  "Get ready for your first shift",
+  "Prepárate para tu primer turno",
+  "Préparez votre premier quart",
+  "Prepare pou premye ekip ou",
+  "استعد لورديتك الأولى"
+ ],
+ "work.ob.phone": [
+  "Add a phone number",
+  "Agrega un número de teléfono",
+  "Ajoutez un numéro de téléphone",
+  "Ajoute yon nimewo telefòn",
+  "أضف رقم هاتف"
+ ],
+ "work.ob.availability": [
+  "Set your availability",
+  "Indica tu disponibilidad",
+  "Indiquez vos disponibilités",
+  "Mete disponiblite ou",
+  "حدد أوقات توفرك"
+ ],
+ "work.ob.documents": [
+  "Acknowledge team documents",
+  "Confirma los documentos del equipo",
+  "Confirmez les documents de l’équipe",
+  "Konfime dokiman ekip yo",
+  "أكّد مستندات الفريق"
+ ],
+ "work.ob.services": [
+  "Get assigned to a service",
+  "Que te asignen un servicio",
+  "Être affecté à un service",
+  "Jwenn yon sèvis",
+  "احصل على خدمة مسندة"
+ ],
+ "work.ob.first_shift": [
+  "Have a published shift",
+  "Tener un turno publicado",
+  "Avoir un quart publié",
+  "Gen yon ekip pibliye",
+  "لديك وردية منشورة"
+ ],
+ "work.askAccess": [
+  "Need access to something?",
+  "¿Necesitas acceso a algo?",
+  "Besoin d’un accès ?",
+  "Ou bezwen aksè a yon bagay?",
+  "هل تحتاج إلى صلاحية؟"
+ ],
+ "work.askAccessHelp": [
+  "Ask a manager for a permission. They see your reason and can approve it for a set time.",
+  "Pide un permiso a un gerente. Verá tu motivo y puede aprobarlo por un tiempo.",
+  "Demandez une autorisation à un responsable. Il voit votre motif et peut l’accorder pour une durée.",
+  "Mande yon manadjè yon pèmisyon. Li wè rezon ou epi li ka apwouve l pou yon tan.",
+  "اطلب صلاحية من مدير. سيرى السبب ويمكنه منحها لفترة محددة."
+ ],
+ "work.permissionCode": [
+  "Permission",
+  "Permiso",
+  "Autorisation",
+  "Pèmisyon",
+  "الصلاحية"
+ ],
+ "work.reason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "work.send": [
+  "Send request",
+  "Enviar solicitud",
+  "Envoyer la demande",
+  "Voye demann",
+  "إرسال الطلب"
+ ],
+ "work.reqStatus.pending": [
+  "Pending",
+  "Pendiente",
+  "En attente",
+  "Ap tann",
+  "قيد الانتظار"
+ ],
+ "work.reqStatus.approved": [
+  "Approved",
+  "Aprobado",
+  "Approuvé",
+  "Apwouve",
+  "موافق عليه"
+ ],
+ "work.reqStatus.denied": [
+  "Denied",
+  "Denegado",
+  "Refusé",
+  "Refize",
+  "مرفوض"
+ ],
+ "work.reqStatus.cancelled": [
+  "Cancelled",
+  "Cancelado",
+  "Annulé",
+  "Anile",
+  "ملغى"
+ ],
+ "work.reqStatus.expired": [
+  "Expired",
+  "Vencido",
+  "Expiré",
+  "Ekspire",
+  "منتهي"
+ ],
+ "work.inbox": [
+  "Work inbox",
+  "Bandeja de trabajo",
+  "Boîte de travail",
+  "Bwat travay",
+  "صندوق العمل"
+ ],
+ "work.inboxEmpty": [
+  "Nothing new.",
+  "Nada nuevo.",
+  "Rien de nouveau.",
+  "Pa gen anyen nouvo.",
+  "لا جديد."
+ ],
+ "work.markSeen": [
+  "Mark all as seen",
+  "Marcar todo como visto",
+  "Tout marquer comme vu",
+  "Make tout kòm wè",
+  "تعليم الكل كمقروء"
+ ],
+ "work.open": [
+  "Open",
+  "Abrir",
+  "Ouvrir",
+  "Louvri",
+  "فتح"
+ ],
+ "work.kind.mention": [
+  "Mention",
+  "Mención",
+  "Mention",
+  "Mansyon",
+  "إشارة"
+ ],
+ "work.kind.dispatch": [
+  "To confirm",
+  "Por confirmar",
+  "À confirmer",
+  "Pou konfime",
+  "للتأكيد"
+ ],
+ "work.kind.crew": [
+  "Crew",
+  "Equipo",
+  "Équipe",
+  "Ekip",
+  "الفريق"
+ ],
+ "work.kind.exception": [
+  "Issue",
+  "Problema",
+  "Problème",
+  "Pwoblèm",
+  "مشكلة"
+ ],
+ "work.kind.handover": [
+  "Handover",
+  "Entrega",
+  "Passation",
+  "Remiz",
+  "تسليم"
+ ],
+ "work.kind.coverage": [
+  "Shift cover",
+  "Cobertura",
+  "Remplacement",
+  "Ranplasman",
+  "تغطية"
+ ],
+ "work.board": [
+  "My work",
+  "Mi trabajo",
+  "Mon travail",
+  "Travay mwen",
+  "عملي"
+ ],
+ "work.conflicts": [
+  "{{count}} visit(s) have schedule warnings.",
+  "{{count}} visita(s) tienen avisos de horario.",
+  "{{count}} intervention(s) ont des alertes de planning.",
+  "{{count}} vizit gen avètisman orè.",
+  "{{count}} زيارة لديها تنبيهات في الجدول."
+ ],
+ "work.lane.to_confirm": [
+  "Needs your confirmation",
+  "Necesita tu confirmación",
+  "À confirmer",
+  "Bezwen konfimasyon ou",
+  "تحتاج إلى تأكيدك"
+ ],
+ "work.lane.in_progress": [
+  "In progress",
+  "En curso",
+  "En cours",
+  "Ap fèt",
+  "قيد التنفيذ"
+ ],
+ "work.lane.today": [
+  "Today",
+  "Hoy",
+  "Aujourd’hui",
+  "Jodi a",
+  "اليوم"
+ ],
+ "work.lane.upcoming": [
+  "Upcoming",
+  "Próximos",
+  "À venir",
+  "Kap vini",
+  "القادمة"
+ ],
+ "work.lane.finish_up": [
+  "Finish up (record missing)",
+  "Por cerrar (falta el registro)",
+  "À clôturer (compte rendu manquant)",
+  "Pou fini (rapò manke)",
+  "للإكمال (السجل ناقص)"
+ ],
+ "work.warn.overlap": [
+  "Overlaps another visit",
+  "Se superpone con otra visita",
+  "Chevauche une autre intervention",
+  "Kwaze ak yon lòt vizit",
+  "يتداخل مع زيارة أخرى"
+ ],
+ "work.warn.outside_schedule": [
+  "Outside your schedule",
+  "Fuera de tu horario",
+  "Hors de votre planning",
+  "Andeyò orè ou",
+  "خارج جدولك"
+ ],
+ "work.warn.time_off": [
+  "During time off",
+  "Durante tu ausencia",
+  "Pendant un congé",
+  "Pandan konje",
+  "خلال إجازة"
+ ],
+ "work.confirm": [
+  "Confirm",
+  "Confirmar",
+  "Confirmer",
+  "Konfime",
+  "تأكيد"
+ ],
+ "work.decline": [
+  "Decline",
+  "Rechazar",
+  "Refuser",
+  "Refize",
+  "رفض"
+ ],
+ "work.declineReason": [
+  "Reason to decline",
+  "Motivo del rechazo",
+  "Motif du refus",
+  "Rezon pou refize",
+  "سبب الرفض"
+ ],
+ "work.confirmAttend": [
+  "I’ll be there",
+  "Asistiré",
+  "Je serai là",
+  "M ap la",
+  "سأحضر"
+ ],
+ "work.tasks": [
+  "Open tasks",
+  "Tareas abiertas",
+  "Tâches ouvertes",
+  "Travay ki louvri",
+  "المهام المفتوحة"
+ ],
+ "work.queue": [
+  "Open visits you can take",
+  "Visitas abiertas que puedes tomar",
+  "Interventions disponibles",
+  "Vizit ou ka pran",
+  "زيارات متاحة يمكنك أخذها"
+ ],
+ "work.queueManagerOnly": [
+  "Only a manager can assign these at this business.",
+  "En este negocio solo un gerente puede asignarlas.",
+  "Ici, seul un responsable peut les attribuer.",
+  "Se sèlman yon manadjè ki ka bay yo nan biznis sa a.",
+  "في هذا النشاط، يسندها المدير فقط."
+ ],
+ "work.claim": [
+  "Take it",
+  "Tomarla",
+  "La prendre",
+  "Pran l",
+  "أخذها"
+ ],
+ "work.day": [
+  "My day",
+  "Mi día",
+  "Ma journée",
+  "Jounen mwen",
+  "يومي"
+ ],
+ "work.date": [
+  "Date",
+  "Fecha",
+  "Date",
+  "Dat",
+  "التاريخ"
+ ],
+ "work.dayTotals": [
+  "{{booked}} h booked · {{shift}} h on shift · {{tasks}} open task(s)",
+  "{{booked}} h reservadas · {{shift}} h de turno · {{tasks}} tarea(s) abierta(s)",
+  "{{booked}} h réservées · {{shift}} h de quart · {{tasks}} tâche(s) ouverte(s)",
+  "{{booked}} è rezève · {{shift}} è ekip · {{tasks}} travay louvri",
+  "{{booked}} س محجوزة · {{shift}} س وردية · {{tasks}} مهمة مفتوحة"
+ ],
+ "work.load.ok": [
+  "Room to spare",
+  "Con margen",
+  "Marge disponible",
+  "Gen espas",
+  "يوجد متسع"
+ ],
+ "work.load.full": [
+  "Nearly full",
+  "Casi lleno",
+  "Presque plein",
+  "Prèske plen",
+  "شبه ممتلئ"
+ ],
+ "work.load.over": [
+  "Over your shift",
+  "Supera tu turno",
+  "Dépasse votre quart",
+  "Depase ekip ou",
+  "يتجاوز ورديتك"
+ ],
+ "work.load.unscheduled": [
+  "Work without a shift",
+  "Trabajo sin turno",
+  "Travail sans quart",
+  "Travay san ekip",
+  "عمل بدون وردية"
+ ],
+ "work.load.free": [
+  "Free",
+  "Libre",
+  "Libre",
+  "Lib",
+  "متاح"
+ ],
+ "work.status.pending": [
+  "Pending",
+  "Pendiente",
+  "En attente",
+  "Ap tann",
+  "قيد الانتظار"
+ ],
+ "work.status.confirmed": [
+  "Confirmed",
+  "Confirmada",
+  "Confirmée",
+  "Konfime",
+  "مؤكدة"
+ ],
+ "work.status.in_progress": [
+  "In progress",
+  "En curso",
+  "En cours",
+  "Ap fèt",
+  "قيد التنفيذ"
+ ],
+ "work.status.completed": [
+  "Completed",
+  "Completada",
+  "Terminée",
+  "Fini",
+  "مكتملة"
+ ],
+ "work.endOfShift": [
+  "End-of-shift review",
+  "Revisión de fin de turno",
+  "Bilan de fin de quart",
+  "Revizyon fen ekip",
+  "مراجعة نهاية الوردية"
+ ],
+ "work.eos.in_progress": [
+  "{{count}} visit(s) still in progress",
+  "{{count}} visita(s) aún en curso",
+  "{{count}} intervention(s) encore en cours",
+  "{{count}} vizit toujou ap fèt",
+  "{{count}} زيارة ما زالت قيد التنفيذ"
+ ],
+ "work.eos.missing_completion": [
+  "{{count}} completed visit(s) without a record",
+  "{{count}} visita(s) completada(s) sin registro",
+  "{{count}} intervention(s) terminée(s) sans compte rendu",
+  "{{count}} vizit fini san rapò",
+  "{{count}} زيارة مكتملة بلا سجل"
+ ],
+ "work.eos.required_checklist_open": [
+  "{{count}} visit(s) with required steps open",
+  "{{count}} visita(s) con pasos obligatorios pendientes",
+  "{{count}} intervention(s) avec étapes obligatoires ouvertes",
+  "{{count}} vizit ak etap obligatwa ki pa fini",
+  "{{count}} زيارة بخطوات إلزامية غير منجزة"
+ ],
+ "work.eos.open_tasks": [
+  "{{count}} open task(s) due",
+  "{{count}} tarea(s) pendiente(s)",
+  "{{count}} tâche(s) à échéance",
+  "{{count}} travay ki dwe fèt",
+  "{{count}} مهمة مستحقة"
+ ],
+ "work.eos.open_exceptions": [
+  "{{count}} issue(s) you raised still open",
+  "{{count}} problema(s) que reportaste siguen abiertos",
+  "{{count}} problème(s) signalé(s) encore ouvert(s)",
+  "{{count}} pwoblèm ou siyale toujou louvri",
+  "{{count}} مشكلة أبلغت عنها ما زالت مفتوحة"
+ ],
+ "work.eos.handoverSent": [
+  "Handover sent",
+  "Entrega enviada",
+  "Passation envoyée",
+  "Remiz voye",
+  "تم إرسال التسليم"
+ ],
+ "work.eos.handoverMissing": [
+  "No handover sent today",
+  "No enviaste entrega hoy",
+  "Aucune passation envoyée aujourd’hui",
+  "Ou pa voye remiz jodi a",
+  "لم ترسل تسليمًا اليوم"
+ ],
+ "work.eosNotes": [
+  "Notes for your manager",
+  "Notas para tu gerente",
+  "Notes pour votre responsable",
+  "Nòt pou manadjè ou",
+  "ملاحظات لمديرك"
+ ],
+ "work.saveReview": [
+  "Save review",
+  "Guardar revisión",
+  "Enregistrer le bilan",
+  "Anrejistre revizyon",
+  "حفظ المراجعة"
+ ],
+ "job.title": [
+  "Job details",
+  "Detalles del trabajo",
+  "Détails de l’intervention",
+  "Detay travay",
+  "تفاصيل العمل"
+ ],
+ "job.close": [
+  "Close",
+  "Cerrar",
+  "Fermer",
+  "Fèmen",
+  "إغلاق"
+ ],
+ "job.handoff": [
+  "Handoff summary",
+  "Resumen de entrega",
+  "Résumé de passation",
+  "Rezime remiz",
+  "ملخص التسليم"
+ ],
+ "job.pinned": [
+  "Pinned",
+  "Fijada",
+  "Épinglée",
+  "Kloure",
+  "مثبتة"
+ ],
+ "job.openIssues": [
+  "{{count}} open issue(s) on this job",
+  "{{count}} problema(s) abierto(s) en este trabajo",
+  "{{count}} problème(s) ouvert(s) sur cette intervention",
+  "{{count}} pwoblèm louvri sou travay sa a",
+  "{{count}} مشكلة مفتوحة في هذا العمل"
+ ],
+ "job.acked": [
+  "You read this on {{date}}",
+  "Lo leíste el {{date}}",
+  "Lu le {{date}}",
+  "Ou li sa {{date}}",
+  "قرأت هذا في {{date}}"
+ ],
+ "job.ack": [
+  "I’ve read this",
+  "Lo leí",
+  "J’ai lu",
+  "Mwen li sa",
+  "قرأت هذا"
+ ],
+ "job.checklist": [
+  "Checklist",
+  "Lista de pasos",
+  "Liste de contrôle",
+  "Lis etap",
+  "قائمة التحقق"
+ ],
+ "job.addItem": [
+  "Add step",
+  "Agregar paso",
+  "Ajouter une étape",
+  "Ajoute etap",
+  "إضافة خطوة"
+ ],
+ "job.progress": [
+  "Progress",
+  "Avance",
+  "Avancement",
+  "Pwogrè",
+  "التقدم"
+ ],
+ "job.progressNote": [
+  "Update",
+  "Actualización",
+  "Point d’étape",
+  "Nouvèl",
+  "تحديث"
+ ],
+ "job.post": [
+  "Post",
+  "Publicar",
+  "Publier",
+  "Pibliye",
+  "نشر"
+ ],
+ "job.crew": [
+  "Crew",
+  "Equipo",
+  "Équipe",
+  "Ekip",
+  "الفريق"
+ ],
+ "job.notes": [
+  "Team notes",
+  "Notas del equipo",
+  "Notes d’équipe",
+  "Nòt ekip",
+  "ملاحظات الفريق"
+ ],
+ "job.noteText": [
+  "Note",
+  "Nota",
+  "Note",
+  "Nòt",
+  "ملاحظة"
+ ],
+ "job.mention": [
+  "Mention",
+  "Mencionar",
+  "Mentionner",
+  "Mansyone",
+  "الإشارة إلى"
+ ],
+ "job.documents": [
+  "Job documents",
+  "Documentos del trabajo",
+  "Documents de l’intervention",
+  "Dokiman travay",
+  "مستندات العمل"
+ ],
+ "job.openLink": [
+  "Open link",
+  "Abrir enlace",
+  "Ouvrir le lien",
+  "Louvri lyen",
+  "فتح الرابط"
+ ],
+ "job.completion": [
+  "Completion record",
+  "Registro de finalización",
+  "Compte rendu de fin",
+  "Rapò fen travay",
+  "سجل الإنجاز"
+ ],
+ "job.required": [
+  "required",
+  "obligatorio",
+  "obligatoire",
+  "obligatwa",
+  "إلزامي"
+ ],
+ "job.summary": [
+  "What was done",
+  "Qué se hizo",
+  "Travaux réalisés",
+  "Sa ki fèt",
+  "ما تم إنجازه"
+ ],
+ "job.signoff": [
+  "Customer sign-off name",
+  "Nombre de quien aprobó",
+  "Nom du client signataire",
+  "Non kliyan ki siyen",
+  "اسم العميل الموقّع"
+ ],
+ "job.followUp": [
+  "Needs a follow-up",
+  "Necesita seguimiento",
+  "Suivi nécessaire",
+  "Bezwen swivi",
+  "يحتاج إلى متابعة"
+ ],
+ "job.followUpNote": [
+  "Follow-up details",
+  "Detalles del seguimiento",
+  "Détails du suivi",
+  "Detay swivi",
+  "تفاصيل المتابعة"
+ ],
+ "job.saveRecord": [
+  "Save record",
+  "Guardar registro",
+  "Enregistrer",
+  "Anrejistre rapò",
+  "حفظ السجل"
+ ],
+ "job.materials": [
+  "Materials used",
+  "Materiales usados",
+  "Matériaux utilisés",
+  "Materyèl itilize",
+  "المواد المستخدمة"
+ ],
+ "job.material": [
+  "Material",
+  "Material",
+  "Matériau",
+  "Materyèl",
+  "المادة"
+ ],
+ "job.qty": [
+  "Qty",
+  "Cant.",
+  "Qté",
+  "Kantite",
+  "الكمية"
+ ],
+ "job.unit": [
+  "Unit",
+  "Unidad",
+  "Unité",
+  "Inite",
+  "الوحدة"
+ ],
+ "job.cost": [
+  "Cost",
+  "Costo",
+  "Coût",
+  "Pri",
+  "التكلفة"
+ ],
+ "job.add": [
+  "Add",
+  "Agregar",
+  "Ajouter",
+  "Ajoute",
+  "إضافة"
+ ],
+ "job.remove": [
+  "Remove",
+  "Quitar",
+  "Retirer",
+  "Retire",
+  "إزالة"
+ ],
+ "job.blockers": [
+  "Report a problem",
+  "Reportar un problema",
+  "Signaler un problème",
+  "Siyale yon pwoblèm",
+  "الإبلاغ عن مشكلة"
+ ],
+ "job.kindLabel": [
+  "Type",
+  "Tipo",
+  "Type",
+  "Kalite",
+  "النوع"
+ ],
+ "job.category": [
+  "What happened",
+  "Qué pasó",
+  "Ce qui s’est passé",
+  "Sa k pase",
+  "ماذا حدث"
+ ],
+ "job.severity": [
+  "Urgency",
+  "Urgencia",
+  "Urgence",
+  "Ijans",
+  "الأولوية"
+ ],
+ "job.describe": [
+  "Details",
+  "Detalles",
+  "Détails",
+  "Detay",
+  "التفاصيل"
+ ],
+ "job.raise": [
+  "Send",
+  "Enviar",
+  "Envoyer",
+  "Voye",
+  "إرسال"
+ ],
+ "job.routedTo": [
+  "with {{name}}",
+  "con {{name}}",
+  "chez {{name}}",
+  "ak {{name}}",
+  "لدى {{name}}"
+ ],
+ "job.escalate": [
+  "Escalate",
+  "Escalar",
+  "Faire remonter",
+  "Monte l pi wo",
+  "تصعيد"
+ ],
+ "job.history": [
+  "Assignment history",
+  "Historial de asignación",
+  "Historique d’attribution",
+  "Istwa asiyasyon",
+  "سجل الإسناد"
+ ],
+ "job.kind.exception": [
+  "Job problem",
+  "Problema en el trabajo",
+  "Problème d’intervention",
+  "Pwoblèm travay",
+  "مشكلة في العمل"
+ ],
+ "job.kind.missing_instruction": [
+  "Missing instructions",
+  "Faltan instrucciones",
+  "Instructions manquantes",
+  "Enstriksyon manke",
+  "تعليمات ناقصة"
+ ],
+ "job.kind.incident": [
+  "On-site incident",
+  "Incidente en el sitio",
+  "Incident sur place",
+  "Ensidan sou plas",
+  "حادث في الموقع"
+ ],
+ "job.kind.access_denied": [
+  "Can’t access something",
+  "No puedo acceder a algo",
+  "Accès impossible",
+  "Pa ka jwenn aksè",
+  "لا يمكن الوصول"
+ ],
+ "job.kind.reassignment_request": [
+  "Ask to reassign",
+  "Pedir reasignación",
+  "Demander une réattribution",
+  "Mande chanje moun",
+  "طلب إعادة إسناد"
+ ],
+ "job.cat.customer_not_home": [
+  "Customer not home",
+  "Cliente ausente",
+  "Client absent",
+  "Kliyan pa la",
+  "العميل غير موجود"
+ ],
+ "job.cat.access_issue": [
+  "Can’t get in",
+  "No puedo entrar",
+  "Impossible d’entrer",
+  "Pa ka antre",
+  "لا يمكن الدخول"
+ ],
+ "job.cat.scope_change": [
+  "Scope changed",
+  "Cambió el alcance",
+  "Travaux modifiés",
+  "Travay la chanje",
+  "تغيّر نطاق العمل"
+ ],
+ "job.cat.parts_missing": [
+  "Parts missing",
+  "Faltan piezas",
+  "Pièces manquantes",
+  "Pyès manke",
+  "قطع ناقصة"
+ ],
+ "job.cat.weather": [
+  "Weather",
+  "Clima",
+  "Météo",
+  "Tan",
+  "الطقس"
+ ],
+ "job.cat.other": [
+  "Other",
+  "Otro",
+  "Autre",
+  "Lòt",
+  "أخرى"
+ ],
+ "job.cat.address": [
+  "Address",
+  "Dirección",
+  "Adresse",
+  "Adrès",
+  "العنوان"
+ ],
+ "job.cat.scope": [
+  "Scope of work",
+  "Alcance del trabajo",
+  "Étendue des travaux",
+  "Sa pou fè",
+  "نطاق العمل"
+ ],
+ "job.cat.access_code": [
+  "Access code",
+  "Código de acceso",
+  "Code d’accès",
+  "Kòd aksè",
+  "رمز الدخول"
+ ],
+ "job.cat.materials": [
+  "Materials",
+  "Materiales",
+  "Matériaux",
+  "Materyèl",
+  "المواد"
+ ],
+ "job.cat.customer_contact": [
+  "Customer contact",
+  "Contacto del cliente",
+  "Contact client",
+  "Kontak kliyan",
+  "جهة اتصال العميل"
+ ],
+ "job.cat.injury": [
+  "Injury",
+  "Lesión",
+  "Blessure",
+  "Blesi",
+  "إصابة"
+ ],
+ "job.cat.property_damage": [
+  "Property damage",
+  "Daño a la propiedad",
+  "Dégât matériel",
+  "Domaj pwopriyete",
+  "ضرر بالممتلكات"
+ ],
+ "job.cat.vehicle": [
+  "Vehicle",
+  "Vehículo",
+  "Véhicule",
+  "Machin",
+  "مركبة"
+ ],
+ "job.cat.safety_hazard": [
+  "Safety hazard",
+  "Riesgo de seguridad",
+  "Danger",
+  "Danje sekirite",
+  "خطر على السلامة"
+ ],
+ "job.cat.customer_conduct": [
+  "Customer conduct",
+  "Conducta del cliente",
+  "Comportement du client",
+  "Konpòtman kliyan",
+  "سلوك العميل"
+ ],
+ "job.cat.permission": [
+  "Permission",
+  "Permiso",
+  "Autorisation",
+  "Pèmisyon",
+  "صلاحية"
+ ],
+ "job.cat.location": [
+  "Location",
+  "Ubicación",
+  "Lieu",
+  "Kote",
+  "الموقع"
+ ],
+ "job.cat.document": [
+  "Document",
+  "Documento",
+  "Document",
+  "Dokiman",
+  "مستند"
+ ],
+ "job.cat.schedule": [
+  "Schedule",
+  "Horario",
+  "Planning",
+  "Orè",
+  "الجدول"
+ ],
+ "job.cat.skills": [
+  "Skills",
+  "Habilidades",
+  "Compétences",
+  "Konpetans",
+  "المهارات"
+ ],
+ "job.cat.workload": [
+  "Workload",
+  "Carga de trabajo",
+  "Charge de travail",
+  "Chaj travay",
+  "عبء العمل"
+ ],
+ "job.cat.personal": [
+  "Personal",
+  "Personal",
+  "Personnel",
+  "Pèsonèl",
+  "شخصي"
+ ],
+ "job.sev.default": [
+  "Default",
+  "Predeterminada",
+  "Par défaut",
+  "Pa default",
+  "افتراضي"
+ ],
+ "job.sev.low": [
+  "Low",
+  "Baja",
+  "Faible",
+  "Ba",
+  "منخفضة"
+ ],
+ "job.sev.normal": [
+  "Normal",
+  "Normal",
+  "Normale",
+  "Nòmal",
+  "عادية"
+ ],
+ "job.sev.high": [
+  "High",
+  "Alta",
+  "Élevée",
+  "Wo",
+  "عالية"
+ ],
+ "job.sev.critical": [
+  "Critical",
+  "Crítica",
+  "Critique",
+  "Kritik",
+  "حرجة"
+ ],
+ "team.sev.low": [
+  "Low",
+  "Baja",
+  "Faible",
+  "Ba",
+  "منخفضة"
+ ],
+ "team.sev.normal": [
+  "Normal",
+  "Normal",
+  "Normale",
+  "Nòmal",
+  "عادية"
+ ],
+ "team.sev.high": [
+  "High",
+  "Alta",
+  "Élevée",
+  "Wo",
+  "عالية"
+ ],
+ "team.sev.critical": [
+  "Critical",
+  "Crítica",
+  "Critique",
+  "Kritik",
+  "حرجة"
+ ],
+ "job.excStatus.open": [
+  "Open",
+  "Abierto",
+  "Ouvert",
+  "Louvri",
+  "مفتوح"
+ ],
+ "job.excStatus.acknowledged": [
+  "Seen by manager",
+  "Visto por el gerente",
+  "Vu par le responsable",
+  "Manadjè wè l",
+  "اطلع عليه المدير"
+ ],
+ "job.excStatus.resolved": [
+  "Resolved",
+  "Resuelto",
+  "Résolu",
+  "Rezoud",
+  "تم الحل"
+ ],
+ "job.excStatus.dismissed": [
+  "Dismissed",
+  "Descartado",
+  "Classé",
+  "Rejte",
+  "مرفوض"
+ ],
+ "job.attend.pending": [
+  "Not confirmed",
+  "Sin confirmar",
+  "Non confirmé",
+  "Pa konfime",
+  "غير مؤكد"
+ ],
+ "job.attend.confirmed": [
+  "Confirmed",
+  "Confirmado",
+  "Confirmé",
+  "Konfime",
+  "مؤكد"
+ ],
+ "job.attend.declined": [
+  "Can’t make it",
+  "No puede",
+  "Indisponible",
+  "Pa ka vini",
+  "لا يستطيع"
+ ],
+ "job.attend.checked_in": [
+  "Checked in",
+  "Llegó",
+  "Arrivé",
+  "Rive",
+  "وصل"
+ ],
+ "job.crewRole.lead": [
+  "Lead",
+  "Líder",
+  "Chef",
+  "Chèf",
+  "قائد"
+ ],
+ "job.crewRole.member": [
+  "Member",
+  "Miembro",
+  "Membre",
+  "Manm",
+  "عضو"
+ ],
+ "job.ev.reassign": [
+  "Reassigned",
+  "Reasignado",
+  "Réattribué",
+  "Chanje moun",
+  "أعيد الإسناد"
+ ],
+ "job.ev.claim": [
+  "Taken",
+  "Tomado",
+  "Pris",
+  "Pran",
+  "تم الأخذ"
+ ],
+ "job.ev.release": [
+  "Handed back",
+  "Devuelto",
+  "Rendu",
+  "Remèt",
+  "أعيد"
+ ],
+ "job.ev.transfer": [
+  "Transferred",
+  "Transferido",
+  "Transféré",
+  "Transfere",
+  "نُقل"
+ ],
+ "job.ev.confirm": [
+  "Confirmed",
+  "Confirmado",
+  "Confirmé",
+  "Konfime",
+  "تم التأكيد"
+ ],
+ "job.ev.decline": [
+  "Declined",
+  "Rechazado",
+  "Refusé",
+  "Refize",
+  "رُفض"
+ ],
+ "job.ev.crew_added": [
+  "Added to crew",
+  "Agregado al equipo",
+  "Ajouté à l’équipe",
+  "Ajoute nan ekip",
+  "أضيف إلى الفريق"
+ ],
+ "job.ev.crew_confirmed": [
+  "Crew confirmed",
+  "Equipo confirmado",
+  "Équipe confirmée",
+  "Ekip konfime",
+  "أكد الفريق"
+ ],
+ "job.ev.crew_declined": [
+  "Crew declined",
+  "Equipo rechazó",
+  "Équipe indisponible",
+  "Ekip refize",
+  "اعتذر الفريق"
+ ],
+ "job.ev.crew_checked_in": [
+  "Crew checked in",
+  "Equipo llegó",
+  "Équipe arrivée",
+  "Ekip rive",
+  "وصل الفريق"
+ ],
+ "job.ev.dispatch_confirmed": [
+  "Dispatch confirmed",
+  "Despacho confirmado",
+  "Affectation confirmée",
+  "Konfime travay la",
+  "تم تأكيد الإرسال"
+ ],
+ "job.ev.dispatch_declined": [
+  "Dispatch declined",
+  "Despacho rechazado",
+  "Affectation refusée",
+  "Refize travay la",
+  "تم رفض الإرسال"
+ ],
+ "sched.coverage": [
+  "Shift cover",
+  "Cobertura de turno",
+  "Remplacement de quart",
+  "Ranplasman ekip",
+  "تغطية الوردية"
+ ],
+ "sched.shiftId": [
+  "Your shift",
+  "Tu turno",
+  "Votre quart",
+  "Ekip ou",
+  "ورديتك"
+ ],
+ "sched.reason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "sched.askCover": [
+  "Ask for cover",
+  "Pedir cobertura",
+  "Demander un remplacement",
+  "Mande ranplasman",
+  "طلب تغطية"
+ ],
+ "sched.mine": [
+  "My requests",
+  "Mis solicitudes",
+  "Mes demandes",
+  "Demann mwen",
+  "طلباتي"
+ ],
+ "sched.available": [
+  "Shifts you could cover",
+  "Turnos que podrías cubrir",
+  "Quarts à remplacer",
+  "Ekip ou ka ranplase",
+  "ورديات يمكنك تغطيتها"
+ ],
+ "sched.cover": [
+  "I’ll cover",
+  "Lo cubro",
+  "Je remplace",
+  "M ap ranplase",
+  "سأغطيها"
+ ],
+ "sched.approve": [
+  "Waiting for approval",
+  "Esperando aprobación",
+  "En attente d’approbation",
+  "Ap tann apwobasyon",
+  "بانتظار الموافقة"
+ ],
+ "sched.approveBtn": [
+  "Approve",
+  "Aprobar",
+  "Approuver",
+  "Apwouve",
+  "موافقة"
+ ],
+ "sched.declineBtn": [
+  "Decline",
+  "Rechazar",
+  "Refuser",
+  "Refize",
+  "رفض"
+ ],
+ "sched.handovers": [
+  "Shift handovers",
+  "Entregas de turno",
+  "Passations de quart",
+  "Remiz ekip",
+  "تسليمات الوردية"
+ ],
+ "sched.to": [
+  "To",
+  "Para",
+  "À",
+  "Pou",
+  "إلى"
+ ],
+ "sched.toManager": [
+  "My manager",
+  "Mi gerente",
+  "Mon responsable",
+  "Manadjè mwen",
+  "مديري"
+ ],
+ "sched.summary": [
+  "Summary",
+  "Resumen",
+  "Résumé",
+  "Rezime",
+  "الملخص"
+ ],
+ "sched.openItems": [
+  "Open items (one per line)",
+  "Pendientes (uno por línea)",
+  "Points ouverts (un par ligne)",
+  "Sa ki rete (youn pa liy)",
+  "بنود مفتوحة (بند في كل سطر)"
+ ],
+ "sched.sendHandover": [
+  "Send handover",
+  "Enviar entrega",
+  "Envoyer la passation",
+  "Voye remiz",
+  "إرسال التسليم"
+ ],
+ "sched.ack": [
+  "Got it",
+  "Entendido",
+  "Bien reçu",
+  "Mwen resevwa l",
+  "تم الاستلام"
+ ],
+ "sched.away": [
+  "Time away and handing off",
+  "Ausencias y traspasos",
+  "Absences et transferts",
+  "Absans ak remèt travay",
+  "الغياب وتسليم العمل"
+ ],
+ "sched.awayHelp": [
+  "Pick a teammate to cover while you are away. Your open tasks move to them when they accept; a manager reassigns visits.",
+  "Elige a un compañero que te cubra. Tus tareas pasan a él cuando acepte; un gerente reasigna las visitas.",
+  "Choisissez un collègue pour vous remplacer. Vos tâches lui sont confiées à son accord ; un responsable réattribue les interventions.",
+  "Chwazi yon kolèg pou ranplase w. Travay ou ale ba li lè li aksepte; yon manadjè chanje moun pou vizit yo.",
+  "اختر زميلًا ينوب عنك. تنتقل مهامك إليه عند قبوله، ويعيد المدير إسناد الزيارات."
+ ],
+ "sched.delegate": [
+  "Stand-in",
+  "Suplente",
+  "Remplaçant",
+  "Ranplasan",
+  "البديل"
+ ],
+ "sched.from": [
+  "From",
+  "Desde",
+  "Du",
+  "Soti",
+  "من"
+ ],
+ "sched.until": [
+  "Until",
+  "Hasta",
+  "Au",
+  "Jiska",
+  "حتى"
+ ],
+ "sched.note": [
+  "Note",
+  "Nota",
+  "Note",
+  "Nòt",
+  "ملاحظة"
+ ],
+ "sched.propose": [
+  "Ask",
+  "Pedir",
+  "Demander",
+  "Mande",
+  "طلب"
+ ],
+ "sched.coveringFor": [
+  "Covering for {{name}}",
+  "Cubriendo a {{name}}",
+  "Remplace {{name}}",
+  "Ap ranplase {{name}}",
+  "تنوب عن {{name}}"
+ ],
+ "sched.accept": [
+  "Accept",
+  "Aceptar",
+  "Accepter",
+  "Aksepte",
+  "قبول"
+ ],
+ "sched.transfer": [
+  "Hand over unfinished tasks",
+  "Traspasar tareas pendientes",
+  "Transférer les tâches en cours",
+  "Remèt travay ki pa fini",
+  "تسليم المهام غير المكتملة"
+ ],
+ "sched.tasksLabel": [
+  "Tasks",
+  "Tareas",
+  "Tâches",
+  "Travay",
+  "المهام"
+ ],
+ "sched.handOver": [
+  "Hand over",
+  "Traspasar",
+  "Transférer",
+  "Remèt",
+  "تسليم"
+ ],
+ "sched.feedback": [
+  "Feedback on my visits",
+  "Opiniones de mis visitas",
+  "Avis sur mes interventions",
+  "Fidbak sou vizit mwen",
+  "آراء العملاء في زياراتي"
+ ],
+ "sched.leave": [
+  "Leave this business",
+  "Salir de este negocio",
+  "Quitter cette entreprise",
+  "Kite biznis sa a",
+  "مغادرة هذا النشاط"
+ ],
+ "sched.reviewLeave": [
+  "Review what is still on me",
+  "Revisar lo que tengo pendiente",
+  "Voir ce qu’il me reste",
+  "Gade sa k rete sou mwen",
+  "مراجعة ما زال عليّ"
+ ],
+ "sched.afterLeave": [
+  "Open work moves to a manager. You keep read-only access to your hours and visit history for {{years}} years.",
+  "El trabajo abierto pasa a un gerente. Conservas acceso de lectura a tus horas e historial por {{years}} años.",
+  "Le travail en cours est confié à un responsable. Vous gardez un accès en lecture à vos heures et à votre historique pendant {{years}} ans.",
+  "Travay ki louvri ale bay yon manadjè. Ou kenbe aksè pou li èdtan ak istwa vizit ou pandan {{years}} an.",
+  "ينتقل العمل المفتوح إلى مدير. تحتفظ بإمكانية قراءة ساعاتك وسجل زياراتك لمدة {{years}} سنوات."
+ ],
+ "sched.confirmLeave": [
+  "I want to leave {{name}}",
+  "Quiero salir de {{name}}",
+  "Je veux quitter {{name}}",
+  "Mwen vle kite {{name}}",
+  "أريد مغادرة {{name}}"
+ ],
+ "sched.leaveBtn": [
+  "Leave and go to my Home",
+  "Salir e ir a mi Inicio",
+  "Quitter et revenir à mon accueil",
+  "Kite epi ale lakay mwen",
+  "المغادرة والعودة إلى صفحتي الرئيسية"
+ ],
+ "sched.cov.open": [
+  "Open",
+  "Abierta",
+  "Ouverte",
+  "Louvri",
+  "مفتوح"
+ ],
+ "sched.cov.claimed": [
+  "Covered, awaiting approval",
+  "Cubierta, esperando aprobación",
+  "Remplacé, en attente",
+  "Ranplase, ap tann",
+  "مغطى بانتظار الموافقة"
+ ],
+ "sched.cov.approved": [
+  "Approved",
+  "Aprobada",
+  "Approuvé",
+  "Apwouve",
+  "موافق عليه"
+ ],
+ "sched.cov.declined": [
+  "Declined",
+  "Rechazada",
+  "Refusé",
+  "Refize",
+  "مرفوض"
+ ],
+ "sched.cov.cancelled": [
+  "Cancelled",
+  "Cancelada",
+  "Annulé",
+  "Anile",
+  "ملغى"
+ ],
+ "sched.deleg.proposed": [
+  "Waiting",
+  "Esperando",
+  "En attente",
+  "Ap tann",
+  "بانتظار الرد"
+ ],
+ "sched.deleg.accepted": [
+  "Accepted",
+  "Aceptada",
+  "Acceptée",
+  "Aksepte",
+  "مقبول"
+ ],
+ "sched.deleg.declined": [
+  "Declined",
+  "Rechazada",
+  "Refusée",
+  "Refize",
+  "مرفوض"
+ ],
+ "sched.deleg.cancelled": [
+  "Cancelled",
+  "Cancelada",
+  "Annulée",
+  "Anile",
+  "ملغى"
+ ],
+ "sched.fu.open": [
+  "Manager following up",
+  "El gerente da seguimiento",
+  "Suivi en cours",
+  "Manadjè ap swiv",
+  "المدير يتابع"
+ ],
+ "sched.fu.contacted": [
+  "Customer contacted",
+  "Cliente contactado",
+  "Client contacté",
+  "Yo kontakte kliyan",
+  "تم التواصل مع العميل"
+ ],
+ "sched.fu.resolved": [
+  "Resolved",
+  "Resuelto",
+  "Résolu",
+  "Rezoud",
+  "تم الحل"
+ ],
+ "sched.pending.upcoming_visits": [
+  "{{count}} upcoming visit(s)",
+  "{{count}} visita(s) próxima(s)",
+  "{{count}} intervention(s) à venir",
+  "{{count}} vizit kap vini",
+  "{{count}} زيارة قادمة"
+ ],
+ "sched.pending.in_progress_visits": [
+  "{{count}} visit(s) in progress",
+  "{{count}} visita(s) en curso",
+  "{{count}} intervention(s) en cours",
+  "{{count}} vizit ap fèt",
+  "{{count}} زيارة قيد التنفيذ"
+ ],
+ "sched.pending.crew_spots": [
+  "{{count}} crew spot(s)",
+  "{{count}} lugar(es) en equipos",
+  "{{count}} place(s) en équipe",
+  "{{count}} plas nan ekip",
+  "{{count}} مكان في فرق"
+ ],
+ "sched.pending.open_tasks": [
+  "{{count}} open task(s)",
+  "{{count}} tarea(s) abierta(s)",
+  "{{count}} tâche(s) ouverte(s)",
+  "{{count}} travay louvri",
+  "{{count}} مهمة مفتوحة"
+ ],
+ "sched.pending.exceptions_routed_to_me": [
+  "{{count}} issue(s) waiting on you",
+  "{{count}} problema(s) esperándote",
+  "{{count}} problème(s) en attente de vous",
+  "{{count}} pwoblèm ap tann ou",
+  "{{count}} مشكلة بانتظارك"
+ ],
+ "sched.pending.coverage_claims": [
+  "{{count}} shift(s) you offered to cover",
+  "{{count}} turno(s) que ofreciste cubrir",
+  "{{count}} quart(s) que vous remplacez",
+  "{{count}} ekip ou ofri ranplase",
+  "{{count}} وردية عرضت تغطيتها"
+ ],
+ "sched.pending.future_shifts": [
+  "{{count}} future shift(s)",
+  "{{count}} turno(s) futuro(s)",
+  "{{count}} quart(s) à venir",
+  "{{count}} ekip kap vini",
+  "{{count}} وردية قادمة"
+ ],
+ "sched.pending.open_clock_ins": [
+  "{{count}} open clock-in(s)",
+  "{{count}} entrada(s) sin salida",
+  "{{count}} pointage(s) ouvert(s)",
+  "{{count}} pwentaj ki pa fèmen",
+  "{{count}} تسجيل حضور مفتوح"
+ ],
+ "sched.blocker.owner_must_transfer": [
+  "An owner must transfer ownership before leaving.",
+  "El dueño debe transferir la propiedad antes de salir.",
+  "Le propriétaire doit transférer la propriété avant de partir.",
+  "Pwopriyetè a dwe transfere biznis la anvan l kite.",
+  "يجب على المالك نقل الملكية قبل المغادرة."
+ ],
+ "sched.blocker.visit_in_progress": [
+  "Finish or hand off the visit in progress first.",
+  "Termina o entrega primero la visita en curso.",
+  "Terminez ou transmettez d’abord l’intervention en cours.",
+  "Fini oswa remèt vizit k ap fèt la anvan.",
+  "أكمل الزيارة الجارية أو سلّمها أولًا."
+ ],
+ "sched.blocker.clocked_in": [
+  "Clock out first.",
+  "Marca tu salida primero.",
+  "Pointez votre sortie d’abord.",
+  "Make sòti ou anvan.",
+  "سجّل خروجك أولًا."
+ ],
+ "team.rules": [
+  "Team work rules",
+  "Reglas de trabajo del equipo",
+  "Règles de travail de l’équipe",
+  "Règ travay ekip la",
+  "قواعد عمل الفريق"
+ ],
+ "team.selfClaim": [
+  "Team members can take open visits",
+  "Los miembros pueden tomar visitas abiertas",
+  "Les membres peuvent prendre les interventions libres",
+  "Manm yo ka pran vizit ki louvri",
+  "يمكن للأعضاء أخذ الزيارات المتاحة"
+ ],
+ "team.requireRecord": [
+  "Require a completion record before “completed”",
+  "Exigir registro antes de “completada”",
+  "Exiger un compte rendu avant « terminée »",
+  "Mande yon rapò anvan “fini”",
+  "اشتراط سجل إنجاز قبل «مكتملة»"
+ ],
+ "team.confirmHours": [
+  "Confirm dispatch within (hours)",
+  "Confirmar despacho en (horas)",
+  "Confirmer l’affectation sous (heures)",
+  "Konfime travay nan (èdtan)",
+  "تأكيد الإرسال خلال (ساعات)"
+ ],
+ "team.escalationHours": [
+  "Escalate unanswered issues after (hours)",
+  "Escalar problemas sin respuesta tras (horas)",
+  "Faire remonter les problèmes sans réponse après (heures)",
+  "Monte pwoblèm san repons apre (èdtan)",
+  "تصعيد المشكلات بلا رد بعد (ساعات)"
+ ],
+ "team.requests": [
+  "Permission requests",
+  "Solicitudes de permiso",
+  "Demandes d’autorisation",
+  "Demann pèmisyon",
+  "طلبات الصلاحيات"
+ ],
+ "team.days": [
+  "{{count}} day(s)",
+  "{{count}} día(s)",
+  "{{count}} jour(s)",
+  "{{count}} jou",
+  "{{count}} يوم"
+ ],
+ "team.approve": [
+  "Approve",
+  "Aprobar",
+  "Approuver",
+  "Apwouve",
+  "موافقة"
+ ],
+ "team.deny": [
+  "Deny",
+  "Denegar",
+  "Refuser",
+  "Refize",
+  "رفض"
+ ],
+ "team.dispatch": [
+  "Waiting for dispatch confirmation",
+  "Esperando confirmación de despacho",
+  "En attente de confirmation d’affectation",
+  "Ap tann konfimasyon travay",
+  "بانتظار تأكيد الإرسال"
+ ],
+ "team.dispatchHelp": [
+  "Assignees should confirm within {{hours}} hours of the start.",
+  "Los asignados deben confirmar dentro de las {{hours}} horas previas al inicio.",
+  "Les personnes affectées doivent confirmer dans les {{hours}} heures avant le début.",
+  "Moun yo bay travay la dwe konfime nan {{hours}} èdtan anvan l kòmanse.",
+  "يجب على المكلّفين التأكيد خلال {{hours}} ساعة قبل البدء."
+ ],
+ "team.details": [
+  "Details",
+  "Detalles",
+  "Détails",
+  "Detay",
+  "التفاصيل"
+ ],
+ "team.candidates": [
+  "Who else could help",
+  "Quién más puede ayudar",
+  "Qui d’autre peut aider",
+  "Ki lòt moun ki ka ede",
+  "من يمكنه المساعدة أيضًا"
+ ],
+ "team.outside": [
+  "Outside schedule",
+  "Fuera de horario",
+  "Hors planning",
+  "Andeyò orè",
+  "خارج الجدول"
+ ],
+ "team.busy": [
+  "Busy",
+  "Ocupado",
+  "Occupé",
+  "Okipe",
+  "مشغول"
+ ],
+ "team.addCrew": [
+  "Add to crew",
+  "Agregar al equipo",
+  "Ajouter à l’équipe",
+  "Ajoute nan ekip",
+  "إضافة إلى الفريق"
+ ],
+ "team.addDoc": [
+  "Add a job document",
+  "Agregar documento del trabajo",
+  "Ajouter un document",
+  "Ajoute yon dokiman travay",
+  "إضافة مستند عمل"
+ ],
+ "team.docTitle": [
+  "Title",
+  "Título",
+  "Titre",
+  "Tit",
+  "العنوان"
+ ],
+ "team.docBody": [
+  "Instructions",
+  "Instrucciones",
+  "Instructions",
+  "Enstriksyon",
+  "التعليمات"
+ ],
+ "team.add": [
+  "Add",
+  "Agregar",
+  "Ajouter",
+  "Ajoute",
+  "إضافة"
+ ],
+ "team.issues": [
+  "Team issues",
+  "Problemas del equipo",
+  "Problèmes de l’équipe",
+  "Pwoblèm ekip la",
+  "مشكلات الفريق"
+ ],
+ "team.showClosed": [
+  "Show closed",
+  "Mostrar cerrados",
+  "Afficher les clos",
+  "Montre sa ki fèmen",
+  "إظهار المغلقة"
+ ],
+ "team.escalated": [
+  "Escalated",
+  "Escalado",
+  "Remonté",
+  "Monte",
+  "مُصعّد"
+ ],
+ "team.resolution": [
+  "Resolution",
+  "Resolución",
+  "Résolution",
+  "Solisyon",
+  "الحل"
+ ],
+ "team.acknowledge": [
+  "Acknowledge",
+  "Confirmar recibido",
+  "Accuser réception",
+  "Konfime resepsyon",
+  "تأكيد الاستلام"
+ ],
+ "team.resolve": [
+  "Resolve",
+  "Resolver",
+  "Résoudre",
+  "Rezoud",
+  "حل"
+ ],
+ "team.dismiss": [
+  "Dismiss",
+  "Descartar",
+  "Classer",
+  "Rejte",
+  "رفض"
+ ],
+ "team.followUps": [
+  "Low ratings to follow up",
+  "Calificaciones bajas por atender",
+  "Notes basses à suivre",
+  "Nòt ba pou swiv",
+  "تقييمات منخفضة للمتابعة"
+ ],
+ "team.note": [
+  "Note",
+  "Nota",
+  "Note",
+  "Nòt",
+  "ملاحظة"
+ ],
+ "team.contacted": [
+  "Contacted",
+  "Contactado",
+  "Contacté",
+  "Kontakte",
+  "تم التواصل"
+ ],
+ "team.crews": [
+  "Crews",
+  "Equipos",
+  "Équipes",
+  "Ekip",
+  "الفرق"
+ ],
+ "team.lead": [
+  "lead {{name}}",
+  "líder {{name}}",
+  "chef {{name}}",
+  "chèf {{name}}",
+  "القائد {{name}}"
+ ],
+ "team.sub": [
+  "subcontractor",
+  "subcontratista",
+  "sous-traitant",
+  "soutretan",
+  "مقاول من الباطن"
+ ],
+ "team.crewName": [
+  "Crew name",
+  "Nombre del equipo",
+  "Nom de l’équipe",
+  "Non ekip",
+  "اسم الفريق"
+ ],
+ "team.crewLead": [
+  "Lead",
+  "Líder",
+  "Chef",
+  "Chèf",
+  "القائد"
+ ],
+ "team.crewMembers": [
+  "Members",
+  "Miembros",
+  "Membres",
+  "Manm",
+  "الأعضاء"
+ ],
+ "team.checklists": [
+  "Service checklists",
+  "Listas por servicio",
+  "Listes par service",
+  "Lis etap pa sèvis",
+  "قوائم التحقق للخدمات"
+ ],
+ "team.checklistsHelp": [
+  "One step per line. New visits start with these steps.",
+  "Un paso por línea. Las visitas nuevas empiezan con estos pasos.",
+  "Une étape par ligne. Les nouvelles interventions commencent avec ces étapes.",
+  "Yon etap pa liy. Nouvo vizit kòmanse ak etap sa yo.",
+  "خطوة في كل سطر. تبدأ الزيارات الجديدة بهذه الخطوات."
+ ],
+ "errors.permission_request_pending": [
+  "You already asked for this.",
+  "Ya lo pediste.",
+  "Vous l’avez déjà demandé.",
+  "Ou deja mande sa.",
+  "لقد طلبت هذا بالفعل."
+ ],
+ "errors.permission_not_requestable": [
+  "This permission can’t be requested.",
+  "Este permiso no se puede pedir.",
+  "Cette autorisation ne peut pas être demandée.",
+  "Ou pa ka mande pèmisyon sa a.",
+  "لا يمكن طلب هذه الصلاحية."
+ ],
+ "errors.permission_already_held": [
+  "You already have this permission.",
+  "Ya tienes este permiso.",
+  "Vous avez déjà cette autorisation.",
+  "Ou gen pèmisyon sa a deja.",
+  "لديك هذه الصلاحية بالفعل."
+ ],
+ "errors.cannot_grant_unheld": [
+  "You can only grant permissions you hold.",
+  "Solo puedes otorgar permisos que tienes.",
+  "Vous ne pouvez accorder que vos propres autorisations.",
+  "Ou ka bay sèlman pèmisyon ou genyen.",
+  "يمكنك منح الصلاحيات التي تملكها فقط."
+ ],
+ "errors.self_claim_disabled": [
+  "Only a manager can assign visits here.",
+  "Aquí solo un gerente asigna visitas.",
+  "Ici, seul un responsable attribue les interventions.",
+  "Se manadjè sèlman ki bay vizit isit.",
+  "هنا يسند المدير الزيارات فقط."
+ ],
+ "errors.schedule_conflict": [
+  "That person is busy then.",
+  "Esa persona está ocupada a esa hora.",
+  "Cette personne est occupée à ce moment.",
+  "Moun sa a okipe lè sa a.",
+  "هذا الشخص مشغول في ذلك الوقت."
+ ],
+ "errors.crew_exists": [
+  "A crew with that name exists.",
+  "Ya existe un equipo con ese nombre.",
+  "Une équipe porte déjà ce nom.",
+  "Gen yon ekip ki gen non sa a deja.",
+  "يوجد فريق بهذا الاسم."
+ ],
+ "errors.too_early_to_check_in": [
+  "Check-in opens 2 hours before the start.",
+  "La llegada se abre 2 horas antes.",
+  "L’arrivée s’ouvre 2 heures avant le début.",
+  "Ou ka siyale rive 2 èdtan anvan.",
+  "يُفتح تسجيل الوصول قبل البدء بساعتين."
+ ],
+ "errors.not_overdue": [
+  "It’s too early to escalate.",
+  "Aún es pronto para escalar.",
+  "Trop tôt pour faire remonter.",
+  "Li twò bonè pou monte l.",
+  "من المبكر التصعيد."
+ ],
+ "errors.max_escalation": [
+  "Already with the owner.",
+  "Ya está con el dueño.",
+  "Déjà chez le propriétaire.",
+  "Li deja kote pwopriyetè a.",
+  "إنها لدى المالك بالفعل."
+ ],
+ "errors.self_review": [
+  "Someone else has to decide this.",
+  "Otra persona debe decidir esto.",
+  "Une autre personne doit décider.",
+  "Yon lòt moun dwe deside sa.",
+  "يجب أن يقرر شخص آخر."
+ ],
+ "errors.forbidden": [
+  "You can’t do that here.",
+  "No puedes hacer eso aquí.",
+  "Action impossible ici.",
+  "Ou pa ka fè sa isit.",
+  "لا يمكنك فعل ذلك هنا."
+ ],
+ "errors.coverage_open": [
+  "A cover request is already open.",
+  "Ya hay una solicitud de cobertura.",
+  "Une demande de remplacement est déjà ouverte.",
+  "Gen yon demann ranplasman deja.",
+  "يوجد طلب تغطية مفتوح."
+ ],
+ "errors.own_request": [
+  "You can’t cover your own shift.",
+  "No puedes cubrir tu propio turno.",
+  "Vous ne pouvez pas remplacer votre propre quart.",
+  "Ou pa ka ranplase pwòp ekip ou.",
+  "لا يمكنك تغطية ورديتك."
+ ],
+ "errors.shift_started": [
+  "That shift has started.",
+  "Ese turno ya empezó.",
+  "Ce quart a commencé.",
+  "Ekip sa a kòmanse deja.",
+  "بدأت هذه الوردية."
+ ],
+ "errors.time_off": [
+  "You’re off that day.",
+  "Ese día tienes ausencia.",
+  "Vous êtes en congé ce jour-là.",
+  "Ou an konje jou sa a.",
+  "أنت في إجازة ذلك اليوم."
+ ],
+ "errors.claimer_inactive": [
+  "That teammate is no longer active.",
+  "Ese compañero ya no está activo.",
+  "Ce collègue n’est plus actif.",
+  "Kolèg sa a pa aktif ankò.",
+  "هذا الزميل لم يعد نشطًا."
+ ],
+ "errors.shift_changed": [
+  "The shift changed. Refresh.",
+  "El turno cambió. Actualiza.",
+  "Le quart a changé. Actualisez.",
+  "Ekip la chanje. Rafrechi.",
+  "تغيّرت الوردية. حدّث الصفحة."
+ ],
+ "errors.completion_record_required": [
+  "Add a completion record first.",
+  "Agrega primero el registro de finalización.",
+  "Ajoutez d’abord un compte rendu.",
+  "Ajoute yon rapò fen travay anvan.",
+  "أضف سجل الإنجاز أولًا."
+ ],
+ "errors.materials_limit": [
+  "Too many materials on this job.",
+  "Demasiados materiales en este trabajo.",
+  "Trop de matériaux sur cette intervention.",
+  "Twòp materyèl sou travay sa a.",
+  "مواد كثيرة جدًا في هذا العمل."
+ ],
+ "errors.mention_not_on_job": [
+  "You can only mention people on this job or managers.",
+  "Solo puedes mencionar a quien trabaja aquí o a gerentes.",
+  "Mentionnez seulement l’équipe de l’intervention ou un responsable.",
+  "Ou ka mansyone sèlman moun sou travay la oswa manadjè.",
+  "يمكنك الإشارة إلى فريق العمل أو المديرين فقط."
+ ],
+ "errors.delegation_overlap": [
+  "You already have a cover for that time.",
+  "Ya tienes cobertura para ese tiempo.",
+  "Vous avez déjà un remplaçant sur cette période.",
+  "Ou gen yon ranplasan deja pou lè sa a.",
+  "لديك بديل لهذا الوقت بالفعل."
+ ],
+ "errors.member_inactive": [
+  "That teammate is no longer active.",
+  "Ese compañero ya no está activo.",
+  "Ce collègue n’est plus actif.",
+  "Kolèg sa a pa aktif ankò.",
+  "هذا الزميل لم يعد نشطًا."
+ ],
+ "errors.owner_must_transfer": [
+  "Transfer ownership before leaving.",
+  "Transfiere la propiedad antes de salir.",
+  "Transférez la propriété avant de partir.",
+  "Transfere biznis la anvan ou kite.",
+  "انقل الملكية قبل المغادرة."
+ ],
+ "errors.visit_in_progress": [
+  "Finish the visit in progress first.",
+  "Termina primero la visita en curso.",
+  "Terminez d’abord l’intervention en cours.",
+  "Fini vizit k ap fèt la anvan.",
+  "أكمل الزيارة الجارية أولًا."
+ ],
+ "errors.clocked_in": [
+  "Clock out first.",
+  "Marca tu salida primero.",
+  "Pointez votre sortie d’abord.",
+  "Make sòti ou anvan.",
+  "سجّل خروجك أولًا."
+ ],
+ "errors.invalid_status_transition": [
+  "That step isn’t possible now.",
+  "Ese paso no es posible ahora.",
+  "Cette étape n’est pas possible maintenant.",
+  "Etap sa a pa posib kounye a.",
+  "هذه الخطوة غير ممكنة الآن."
  ]
 }
