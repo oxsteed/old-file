@@ -1159,6 +1159,55 @@ const T = {
       ar: 'جدول عميل جلسة استشارية معك. افتح لوحة التحكم لعرض التفاصيل والاستعداد.',
     },
   },
+  // G10-1: consultant payout leg (OxSteed Credit settlement on completion).
+  consultant_payout_paid: {
+    title: {
+      en: 'Your consulting payout was paid',
+      fr: 'Votre paiement de consultation a été versé',
+      es: 'Tu pago de consultoría fue enviado',
+      ht: 'Peman konsiltasyon ou an te peye',
+      ar: 'تم دفع مستحقاتك الاستشارية',
+    },
+    body: {
+      en: 'OxSteed paid {amount} in OxSteed Credit for {business}. Open your contractor dashboard to see the payout.',
+      fr: 'OxSteed a versé {amount} en crédit OxSteed pour {business}. Ouvrez votre tableau de bord pour voir le paiement.',
+      es: 'OxSteed pagó {amount} en crédito OxSteed por {business}. Abre tu panel para ver el pago.',
+      ht: 'OxSteed te peye {amount} an kredi OxSteed pou {business}. Louvri tablodbò ou pou wè peman an.',
+      ar: 'دفع OxSteed مبلغ {amount} برصيد OxSteed عن {business}. افتح لوحة التحكم لعرض الدفعة.',
+    },
+  },
+  consultant_payout_parked: {
+    title: {
+      en: 'Your consulting payout is waiting',
+      fr: 'Votre paiement de consultation est en attente',
+      es: 'Tu pago de consultoría está en espera',
+      ht: 'Peman konsiltasyon ou an ap tann',
+      ar: 'مستحقاتك الاستشارية قيد الانتظار',
+    },
+    body: {
+      en: 'Your payout of {amount} in OxSteed Credit for {business} is waiting because the Credit rail is not available right now. It will be retried automatically; no action is needed.',
+      fr: 'Votre paiement de {amount} en crédit OxSteed pour {business} est en attente car le rail de crédit n’est pas disponible pour le moment. Il sera réessayé automatiquement ; aucune action n’est requise.',
+      es: 'Tu pago de {amount} en crédito OxSteed por {business} está en espera porque el rail de crédito no está disponible ahora mismo. Se reintentará automáticamente; no necesitas hacer nada.',
+      ht: 'Peman {amount} an kredi OxSteed pou {business} ap tann paske ray kredi a pa disponib kounye a. Y ap eseye l ankò otomatikman; ou pa bezwen fè anyen.',
+      ar: 'دفعتك البالغة {amount} برصيد OxSteed عن {business} قيد الانتظار لأن مسار الائتمان غير متاح حاليا. ستتم إعادة المحاولة تلقائيا؛ لا يلزم اتخاذ أي إجراء.',
+    },
+  },
+  consultant_payout_failed: {
+    title: {
+      en: 'Your consulting payout needs attention',
+      fr: 'Votre paiement de consultation nécessite votre attention',
+      es: 'Tu pago de consultoría necesita atención',
+      ht: 'Peman konsiltasyon ou an bezwen atansyon',
+      ar: 'مستحقاتك الاستشارية تحتاج إلى انتباه',
+    },
+    body: {
+      en: 'Your payout of {amount} in OxSteed Credit for {business} could not be completed. It will be retried automatically; if it keeps failing, contact support.',
+      fr: 'Votre paiement de {amount} en crédit OxSteed pour {business} n’a pas pu être effectué. Il sera réessayé automatiquement ; s’il continue d’échouer, contactez l’assistance.',
+      es: 'Tu pago de {amount} en crédito OxSteed por {business} no pudo completarse. Se reintentará automáticamente; si sigue fallando, contacta con soporte.',
+      ht: 'Peman {amount} an kredi OxSteed pou {business} pa t ka fini. Y ap eseye l ankò otomatikman; si l kontinye echwe, kontakte sipò.',
+      ar: 'تعذّر إكمال دفعتك البالغة {amount} برصيد OxSteed عن {business}. ستتم إعادة المحاولة تلقائيا؛ وإذا استمر الفشل، تواصل مع الدعم.',
+    },
+  },
   appointment_requested: {
     title: {
       en: 'New appointment request',
@@ -1595,6 +1644,28 @@ const EMAIL_TEMPLATES = {
       es: 'Ver sesiones',
       ht: 'Gade sesyon yo',
       ar: 'عرض الجلسات',
+    },
+    // G10-1: consultant payout leg.
+    consultant_payout_paid: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    consultant_payout_parked: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    consultant_payout_failed: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
     },
   booking_auto_released: {
     title: {

@@ -25134,6 +25134,23 @@
       "emptyTitle": "Aucun lead attribué",
       "emptyDescription": "Lorsqu’OxSteed vous attribue un lead de lancement d’activité, il apparaîtra ici avec la répartition de gains, le contexte marché et le suivi des prochaines étapes."
     },
+    "payouts": {
+      "label": "Paiements",
+      "title": "Paiements de consultation en crédit OxSteed",
+      "description": "Lorsqu’un engagement est terminé, votre part est versée automatiquement en crédit OxSteed. Un paiement qui ne peut pas encore être effectué reste visible ici avec son motif jusqu’à sa résolution.",
+      "paidTotal": "Versé à ce jour",
+      "loading": "Chargement des paiements…",
+      "unknownEngagement": "Engagement de lancement d’activité",
+      "pendingNote": "Le paiement est en cours de traitement.",
+      "emptyTitle": "Aucun paiement",
+      "emptyDescription": "Les engagements terminés sont payés ici automatiquement en crédit OxSteed.",
+      "status": {
+        "pending": "En cours de traitement",
+        "paid": "Payé",
+        "parked": "En attente",
+        "failed": "Attention requise"
+      }
+    },
     "howItWorks": {
       "label": "Comment fonctionne ce programme",
       "title": "Modèle de referral OxSteed",

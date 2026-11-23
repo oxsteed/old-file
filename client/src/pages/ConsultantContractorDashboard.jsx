@@ -36,6 +36,15 @@ const STATUS_OPTIONS = [
 ];
 const PAYING_STATUSES = new Set(['engaged', 'won']);
 
+// G10-1: payout status labels, keyed statically like STATUS_OPTIONS so the
+// i18n gate can see every key.
+const PAYOUT_STATUS_LABELS = {
+  pending: ['consultantContractorDashboard.payouts.status.pending', 'Pending'],
+  paid: ['consultantContractorDashboard.payouts.status.paid', 'Paid'],
+  parked: ['consultantContractorDashboard.payouts.status.parked', 'Waiting'],
+  failed: ['consultantContractorDashboard.payouts.status.failed', 'Needs attention'],
+};
+
 function centsToCurrency(cents) {
   return formatCents(cents || 0, { maximumFractionDigits: 0 });
 }
@@ -438,6 +447,11 @@ export default function ConsultantContractorDashboard() {
 
   const summary = dashboard?.summary || {};
   const referrals = dashboard?.referrals || [];
+  const payouts = dashboard?.payouts || [];
+  const paidPayoutsCents = useMemo(
+    () => payouts.filter((payout) => payout.status === 'paid').reduce((sum, payout) => sum + (Number(payout.amount_cents) || 0), 0),
+    [payouts]
+  );
   const payingReferralAccess = dashboard?.payingReferralAccess;
   const profile = dashboard?.profile || {};
   const hasCoverage = (profile.coverage_countries || []).length > 0;
@@ -665,6 +679,84 @@ export default function ConsultantContractorDashboard() {
               )}
             </section>
           </div>
+
+          {/* G10-1: consultant payout status. Paid automatically in OxSteed
+              Credit when an engagement completes; a payout that cannot move
+              yet (rail off, legal clearance missing, or a failed attempt)
+              stays visible here with its reason until it clears. */}
+          <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500">{tx('consultantContractorDashboard.payouts.label', 'Payouts')}</p>
+                <h2 className="text-2xl font-semibold text-white">{tx('consultantContractorDashboard.payouts.title', 'Consulting payouts in OxSteed Credit')}</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
+                  {tx('consultantContractorDashboard.payouts.description', 'When an engagement completes, your share is paid automatically in OxSteed Credit. A payout that cannot move yet stays visible here with its reason until it clears.')}
+                </p>
+              </div>
+              <div className="shrink-0 rounded-2xl border border-gray-800 bg-gray-900/75 px-4 py-3 text-right">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">{tx('consultantContractorDashboard.payouts.paidTotal', 'Paid to date')}</p>
+                <p className="mt-1 text-xl font-semibold text-white">{loading ? '...' : centsToCurrency(paidPayoutsCents)}</p>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="rounded-2xl border border-dashed border-gray-700 bg-[#111318] px-4 py-10 text-center text-sm text-gray-400">
+                {tx('consultantContractorDashboard.payouts.loading', 'Loading payouts…')}
+              </div>
+            ) : payouts.length ? (
+              <div className="space-y-3">
+                {payouts.map((payout) => (
+                  <div key={payout.id} className="rounded-[24px] border border-gray-800 bg-[#111318] p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {payout.business_name || payout.client_name || tx('consultantContractorDashboard.payouts.unknownEngagement', 'Business-launch engagement')}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-400">
+                          {payout.package_selected ? `${payout.package_selected} · ` : ''}
+                          {payout.paid_at
+                            ? new Date(payout.paid_at).toLocaleDateString()
+                            : new Date(payout.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-semibold text-white">{centsToCurrency(payout.amount_cents)}</p>
+                        <span className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                          payout.status === 'paid'
+                            ? 'border-green-500/30 bg-green-500/10 text-green-200'
+                            : payout.status === 'parked'
+                              ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+                              : payout.status === 'failed'
+                                ? 'border-red-500/30 bg-red-500/10 text-red-200'
+                                : 'border-gray-600 bg-gray-800/80 text-gray-300'
+                        }`}>
+                          {tx(...(PAYOUT_STATUS_LABELS[payout.status] || PAYOUT_STATUS_LABELS.pending))}
+                        </span>
+                      </div>
+                    </div>
+                    {(payout.status === 'parked' || payout.status === 'failed') && payout.reason_detail && (
+                      <p className="mt-3 text-sm leading-6 text-amber-100/90">{payout.reason_detail}</p>
+                    )}
+                    {payout.status === 'pending' && (
+                      <p className="mt-3 text-sm leading-6 text-gray-400">
+                        {tx('consultantContractorDashboard.payouts.pendingNote', 'Payment is being processed.')}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-[26px] border border-dashed border-gray-700 bg-[#111318] px-5 py-10 text-center">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl border border-gray-800 bg-gray-900/80">
+                  <Wallet className="h-6 w-6 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">{tx('consultantContractorDashboard.payouts.emptyTitle', 'No payouts yet')}</h3>
+                <p className="mt-2 text-sm leading-6 text-gray-400">
+                  {tx('consultantContractorDashboard.payouts.emptyDescription', 'Completed engagements pay out here automatically in OxSteed Credit.')}
+                </p>
+              </div>
+            )}
+          </section>
 
           <section className="mt-5 rounded-[30px] border border-gray-800 bg-[#0d1016] p-5 lg:p-6">
             <div className="mb-5 flex items-center gap-3">

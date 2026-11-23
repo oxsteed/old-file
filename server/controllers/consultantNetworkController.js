@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { consultantEnforcement, requestsEnabled } = require('../services/access/flags');
 const { checkPayingAccess } = require('../services/access/consultantGate');
+const { listPayoutsForConsultant } = require('../services/consultantPayoutService');
 
 const REFERRAL_STATUSES = [
   'assigned',
@@ -216,7 +217,7 @@ exports.getMyConsultantDashboard = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const [{ rows: summaryRows }, { rows: referralRows }, { rows: activityRows }, payingReferralAccess] = await Promise.all([
+    const [{ rows: summaryRows }, { rows: referralRows }, { rows: activityRows }, payingReferralAccess, payouts] = await Promise.all([
       db.query(
         `SELECT
            COUNT(*) FILTER (WHERE consultant_assignment_status NOT IN ('unassigned', 'lost', 'completed')) AS active_referrals,
@@ -271,6 +272,14 @@ exports.getMyConsultantDashboard = async (req, res) => {
         [req.user.id]
       ),
       consultantEnforcement() === 'enforce' ? getPayingReferralAccess(req.user) : null,
+      // G10-1: consultant payout status (pending / paid / parked / failed
+      // with reason) for completed engagements. A missing payouts table
+      // (pre-migration) must not break the dashboard: the payout leg is
+      // additive, so a lookup failure degrades to an empty list.
+      listPayoutsForConsultant(req.user.id).catch((err) => {
+        logger.warn('getMyConsultantDashboard payouts lookup failed', { err: err.message });
+        return [];
+      }),
     ]);
 
     return res.json({
@@ -284,6 +293,7 @@ exports.getMyConsultantDashboard = async (req, res) => {
       summary: summaryRows[0] || {},
       referrals: referralRows,
       activity: activityRows,
+      payouts,
       referralStatuses: REFERRAL_STATUSES,
       ...(payingReferralAccess && { payingReferralAccess }),
     });

@@ -68,6 +68,10 @@ const NOTIFICATION_TYPES = [
   { type: 'booking_reschedule_declined', group: 'work' },
   { type: 'booking_reschedule_proposed', group: 'work' },
   { type: 'booking_site_contact_link', group: 'work' },
+  // G10-1: consultant payout leg (OxSteed Credit settlement on completion).
+  { type: 'consultant_payout_failed', group: 'credit' },
+  { type: 'consultant_payout_paid', group: 'credit' },
+  { type: 'consultant_payout_parked', group: 'credit' },
   { type: 'consulting_session_scheduled', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
   { type: 'crew_shift_published', group: 'work' },
