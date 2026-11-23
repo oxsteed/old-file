@@ -44754,6 +44754,46 @@
       "posted": "Repons lan poste.",
       "postFailed": "Nou pa t ka poste repons ou. Petèt li gen youn deja.",
       "anonymous": "Yon kliyan"
+    },
+    "payoutTimeline": {
+      "title": "Kwonoloji peman yo",
+      "loading": "N ap chaje istwa peman yo…",
+      "loadFailed": "Nou pa t ka chaje istwa peman ou yo.",
+      "empty": "Poko gen demann peman.",
+      "available": "Disponib",
+      "pending": "Sou wout",
+      "paid": "Peye",
+      "requested": "Mande",
+      "processed": "Trete",
+      "cancelled": "Anile",
+      "status": {
+        "pending": "Ap tann pou yo trete l",
+        "processing": "Y ap trete l",
+        "completed": "Fini",
+        "paid": "Fini",
+        "failed": "Echwe — kontakte sipò",
+        "cancelled": "Anile"
+      },
+      "settlementNote": "Yon peman fini sèlman lè bank lan oswa patnè peman an regle l."
+    },
+    "breakdown": {
+      "show": "Wè detay yo",
+      "hide": "Kache detay yo",
+      "loading": "N ap chaje detay yo…",
+      "loadFailed": "Nou pa t ka chaje detay sa a.",
+      "jobValue": "Valè travay la",
+      "yourPayout": "Peman ou",
+      "notRecorded": "Pa anrejistre",
+      "why": "Poukisa montan yo diferan",
+      "code": {
+        "platform_fee": "Frè sèvis OxSteed",
+        "broker_fee": "Frè referans oswa koutye",
+        "change_order": "Chanjman ki apwouve",
+        "refund": "Ranbousman bay kliyan an",
+        "other_recorded_difference": "Lòt diferans ki anrejistre — mande sipò si li pa klè",
+        "not_priced": "Travay sa a poko gen pri anrejistre"
+      },
+      "none": "Pa gen dediksyon ni ajisteman sou travay sa a."
     }
   }
 }

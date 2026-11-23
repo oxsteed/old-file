@@ -1,28 +1,408 @@
 {
-  "reputation.title": {"en": "Reviews and quality", "es": "Reseñas y calidad", "fr": "Avis et qualité", "ht": "Revizyon ak kalite", "ar": "التقييمات والجودة"},
-  "reputation.loading": {"en": "Loading your reviews…", "es": "Cargando tus reseñas…", "fr": "Chargement de vos avis…", "ht": "N ap chaje revizyon ou yo…", "ar": "جارٍ تحميل تقييماتك…"},
-  "reputation.loadFailed": {"en": "We couldn't load your reviews.", "es": "No pudimos cargar tus reseñas.", "fr": "Impossible de charger vos avis.", "ht": "Nou pa t ka chaje revizyon ou yo.", "ar": "تعذّر تحميل تقييماتك."},
-  "reputation.retry": {"en": "Try again", "es": "Reintentar", "fr": "Réessayer", "ht": "Eseye ankò", "ar": "حاول مرة أخرى"},
-  "reputation.average": {"en": "Average rating", "es": "Calificación media", "fr": "Note moyenne", "ht": "Nòt mwayèn", "ar": "متوسط التقييم"},
-  "reputation.total": {"en": "Reviews", "es": "Reseñas", "fr": "Avis", "ht": "Revizyon", "ar": "التقييمات"},
-  "reputation.recent": {"en": "Last 90 days", "es": "Últimos 90 días", "fr": "90 derniers jours", "ht": "90 dènye jou yo", "ar": "آخر 90 يومًا"},
-  "reputation.responseRate": {"en": "Response rate", "es": "Tasa de respuesta", "fr": "Taux de réponse", "ht": "To repons", "ar": "معدل الرد"},
-  "reputation.completed": {"en": "Completed jobs", "es": "Trabajos completados", "fr": "Missions terminées", "ht": "Travay fini", "ar": "الأعمال المكتملة"},
-  "reputation.changesRequested": {"en": "Jobs where changes were requested", "es": "Trabajos con cambios solicitados", "fr": "Missions avec modifications demandées", "ht": "Travay kote yo te mande chanjman", "ar": "أعمال طُلبت فيها تعديلات"},
-  "reputation.noShows": {"en": "No-shows reported against you", "es": "Ausencias reportadas en tu contra", "fr": "Absences signalées contre vous", "ht": "Absans yo rapòte kont ou", "ar": "حالات عدم الحضور المبلّغ عنها ضدك"},
-  "reputation.trend.up": {"en": "Trending up versus the 90 days before", "es": "En alza frente a los 90 días anteriores", "fr": "En hausse par rapport aux 90 jours précédents", "ht": "Ap monte konpare ak 90 jou anvan yo", "ar": "في تحسن مقارنة بالأيام التسعين السابقة"},
-  "reputation.trend.down": {"en": "Trending down versus the 90 days before", "es": "En baja frente a los 90 días anteriores", "fr": "En baisse par rapport aux 90 jours précédents", "ht": "Ap desann konpare ak 90 jou anvan yo", "ar": "في تراجع مقارنة بالأيام التسعين السابقة"},
-  "reputation.trend.steady": {"en": "Steady versus the 90 days before", "es": "Estable frente a los 90 días anteriores", "fr": "Stable par rapport aux 90 jours précédents", "ht": "Estab konpare ak 90 jou anvan yo", "ar": "مستقر مقارنة بالأيام التسعين السابقة"},
-  "reputation.trend.not_enough_data": {"en": "Not enough recent reviews to show a trend", "es": "No hay suficientes reseñas recientes para mostrar una tendencia", "fr": "Pas assez d'avis récents pour afficher une tendance", "ht": "Pa gen ase revizyon resan pou montre yon tandans", "ar": "لا توجد تقييمات حديثة كافية لعرض اتجاه"},
-  "reputation.lowAwaiting": {"en": "{{count}} low ratings still have no response", "es": "{{count}} calificaciones bajas aún no tienen respuesta", "fr": "{{count}} notes basses n'ont pas encore de réponse", "ht": "{{count}} nòt ki ba poko gen repons", "ar": "{{count}} من التقييمات المنخفضة بلا رد بعد"},
-  "reputation.empty": {"en": "No reviews yet. Reviews appear here after customers rate completed jobs.", "es": "Aún no hay reseñas. Aparecen aquí cuando los clientes califican trabajos completados.", "fr": "Aucun avis pour l'instant. Ils apparaissent ici lorsque les clients notent des missions terminées.", "ht": "Poko gen revizyon. Yo parèt isit lè kliyan yo bay nòt pou travay ki fini.", "ar": "لا توجد تقييمات بعد. تظهر هنا بعد أن يقيّم العملاء الأعمال المكتملة."},
-  "reputation.stars": {"en": "{{rating}} out of 5", "es": "{{rating}} de 5", "fr": "{{rating}} sur 5", "ht": "{{rating}} sou 5", "ar": "{{rating}} من 5"},
-  "reputation.yourResponse": {"en": "Your response", "es": "Tu respuesta", "fr": "Votre réponse", "ht": "Repons ou", "ar": "ردّك"},
-  "reputation.respond": {"en": "Respond publicly", "es": "Responder públicamente", "fr": "Répondre publiquement", "ht": "Reponn piblikman", "ar": "الرد علنًا"},
-  "reputation.respondHint": {"en": "Your response is public and can't be edited after posting.", "es": "Tu respuesta es pública y no se puede editar después de publicarla.", "fr": "Votre réponse est publique et ne peut plus être modifiée après publication.", "ht": "Repons ou piblik epi ou pa ka modifye l apre ou poste l.", "ar": "ردّك علني ولا يمكن تعديله بعد النشر."},
-  "reputation.post": {"en": "Post response", "es": "Publicar respuesta", "fr": "Publier la réponse", "ht": "Poste repons lan", "ar": "نشر الرد"},
-  "reputation.cancel": {"en": "Cancel", "es": "Cancelar", "fr": "Annuler", "ht": "Anile", "ar": "إلغاء"},
-  "reputation.posted": {"en": "Response posted.", "es": "Respuesta publicada.", "fr": "Réponse publiée.", "ht": "Repons lan poste.", "ar": "تم نشر الرد."},
-  "reputation.postFailed": {"en": "We couldn't post your response. It may already have one.", "es": "No pudimos publicar tu respuesta. Puede que ya tenga una.", "fr": "Impossible de publier votre réponse. Il y en a peut-être déjà une.", "ht": "Nou pa t ka poste repons ou. Petèt li gen youn deja.", "ar": "تعذّر نشر ردّك. ربما يوجد رد بالفعل."},
-  "reputation.anonymous": {"en": "A customer", "es": "Un cliente", "fr": "Un client", "ht": "Yon kliyan", "ar": "أحد العملاء"}
+  "reputation.title": {
+    "en": "Reviews and quality",
+    "es": "Reseñas y calidad",
+    "fr": "Avis et qualité",
+    "ht": "Revizyon ak kalite",
+    "ar": "التقييمات والجودة"
+  },
+  "reputation.loading": {
+    "en": "Loading your reviews…",
+    "es": "Cargando tus reseñas…",
+    "fr": "Chargement de vos avis…",
+    "ht": "N ap chaje revizyon ou yo…",
+    "ar": "جارٍ تحميل تقييماتك…"
+  },
+  "reputation.loadFailed": {
+    "en": "We couldn't load your reviews.",
+    "es": "No pudimos cargar tus reseñas.",
+    "fr": "Impossible de charger vos avis.",
+    "ht": "Nou pa t ka chaje revizyon ou yo.",
+    "ar": "تعذّر تحميل تقييماتك."
+  },
+  "reputation.retry": {
+    "en": "Try again",
+    "es": "Reintentar",
+    "fr": "Réessayer",
+    "ht": "Eseye ankò",
+    "ar": "حاول مرة أخرى"
+  },
+  "reputation.average": {
+    "en": "Average rating",
+    "es": "Calificación media",
+    "fr": "Note moyenne",
+    "ht": "Nòt mwayèn",
+    "ar": "متوسط التقييم"
+  },
+  "reputation.total": {
+    "en": "Reviews",
+    "es": "Reseñas",
+    "fr": "Avis",
+    "ht": "Revizyon",
+    "ar": "التقييمات"
+  },
+  "reputation.recent": {
+    "en": "Last 90 days",
+    "es": "Últimos 90 días",
+    "fr": "90 derniers jours",
+    "ht": "90 dènye jou yo",
+    "ar": "آخر 90 يومًا"
+  },
+  "reputation.responseRate": {
+    "en": "Response rate",
+    "es": "Tasa de respuesta",
+    "fr": "Taux de réponse",
+    "ht": "To repons",
+    "ar": "معدل الرد"
+  },
+  "reputation.completed": {
+    "en": "Completed jobs",
+    "es": "Trabajos completados",
+    "fr": "Missions terminées",
+    "ht": "Travay fini",
+    "ar": "الأعمال المكتملة"
+  },
+  "reputation.changesRequested": {
+    "en": "Jobs where changes were requested",
+    "es": "Trabajos con cambios solicitados",
+    "fr": "Missions avec modifications demandées",
+    "ht": "Travay kote yo te mande chanjman",
+    "ar": "أعمال طُلبت فيها تعديلات"
+  },
+  "reputation.noShows": {
+    "en": "No-shows reported against you",
+    "es": "Ausencias reportadas en tu contra",
+    "fr": "Absences signalées contre vous",
+    "ht": "Absans yo rapòte kont ou",
+    "ar": "حالات عدم الحضور المبلّغ عنها ضدك"
+  },
+  "reputation.trend.up": {
+    "en": "Trending up versus the 90 days before",
+    "es": "En alza frente a los 90 días anteriores",
+    "fr": "En hausse par rapport aux 90 jours précédents",
+    "ht": "Ap monte konpare ak 90 jou anvan yo",
+    "ar": "في تحسن مقارنة بالأيام التسعين السابقة"
+  },
+  "reputation.trend.down": {
+    "en": "Trending down versus the 90 days before",
+    "es": "En baja frente a los 90 días anteriores",
+    "fr": "En baisse par rapport aux 90 jours précédents",
+    "ht": "Ap desann konpare ak 90 jou anvan yo",
+    "ar": "في تراجع مقارنة بالأيام التسعين السابقة"
+  },
+  "reputation.trend.steady": {
+    "en": "Steady versus the 90 days before",
+    "es": "Estable frente a los 90 días anteriores",
+    "fr": "Stable par rapport aux 90 jours précédents",
+    "ht": "Estab konpare ak 90 jou anvan yo",
+    "ar": "مستقر مقارنة بالأيام التسعين السابقة"
+  },
+  "reputation.trend.not_enough_data": {
+    "en": "Not enough recent reviews to show a trend",
+    "es": "No hay suficientes reseñas recientes para mostrar una tendencia",
+    "fr": "Pas assez d'avis récents pour afficher une tendance",
+    "ht": "Pa gen ase revizyon resan pou montre yon tandans",
+    "ar": "لا توجد تقييمات حديثة كافية لعرض اتجاه"
+  },
+  "reputation.lowAwaiting": {
+    "en": "{{count}} low ratings still have no response",
+    "es": "{{count}} calificaciones bajas aún no tienen respuesta",
+    "fr": "{{count}} notes basses n'ont pas encore de réponse",
+    "ht": "{{count}} nòt ki ba poko gen repons",
+    "ar": "{{count}} من التقييمات المنخفضة بلا رد بعد"
+  },
+  "reputation.empty": {
+    "en": "No reviews yet. Reviews appear here after customers rate completed jobs.",
+    "es": "Aún no hay reseñas. Aparecen aquí cuando los clientes califican trabajos completados.",
+    "fr": "Aucun avis pour l'instant. Ils apparaissent ici lorsque les clients notent des missions terminées.",
+    "ht": "Poko gen revizyon. Yo parèt isit lè kliyan yo bay nòt pou travay ki fini.",
+    "ar": "لا توجد تقييمات بعد. تظهر هنا بعد أن يقيّم العملاء الأعمال المكتملة."
+  },
+  "reputation.stars": {
+    "en": "{{rating}} out of 5",
+    "es": "{{rating}} de 5",
+    "fr": "{{rating}} sur 5",
+    "ht": "{{rating}} sou 5",
+    "ar": "{{rating}} من 5"
+  },
+  "reputation.yourResponse": {
+    "en": "Your response",
+    "es": "Tu respuesta",
+    "fr": "Votre réponse",
+    "ht": "Repons ou",
+    "ar": "ردّك"
+  },
+  "reputation.respond": {
+    "en": "Respond publicly",
+    "es": "Responder públicamente",
+    "fr": "Répondre publiquement",
+    "ht": "Reponn piblikman",
+    "ar": "الرد علنًا"
+  },
+  "reputation.respondHint": {
+    "en": "Your response is public and can't be edited after posting.",
+    "es": "Tu respuesta es pública y no se puede editar después de publicarla.",
+    "fr": "Votre réponse est publique et ne peut plus être modifiée après publication.",
+    "ht": "Repons ou piblik epi ou pa ka modifye l apre ou poste l.",
+    "ar": "ردّك علني ولا يمكن تعديله بعد النشر."
+  },
+  "reputation.post": {
+    "en": "Post response",
+    "es": "Publicar respuesta",
+    "fr": "Publier la réponse",
+    "ht": "Poste repons lan",
+    "ar": "نشر الرد"
+  },
+  "reputation.cancel": {
+    "en": "Cancel",
+    "es": "Cancelar",
+    "fr": "Annuler",
+    "ht": "Anile",
+    "ar": "إلغاء"
+  },
+  "reputation.posted": {
+    "en": "Response posted.",
+    "es": "Respuesta publicada.",
+    "fr": "Réponse publiée.",
+    "ht": "Repons lan poste.",
+    "ar": "تم نشر الرد."
+  },
+  "reputation.postFailed": {
+    "en": "We couldn't post your response. It may already have one.",
+    "es": "No pudimos publicar tu respuesta. Puede que ya tenga una.",
+    "fr": "Impossible de publier votre réponse. Il y en a peut-être déjà une.",
+    "ht": "Nou pa t ka poste repons ou. Petèt li gen youn deja.",
+    "ar": "تعذّر نشر ردّك. ربما يوجد رد بالفعل."
+  },
+  "reputation.anonymous": {
+    "en": "A customer",
+    "es": "Un cliente",
+    "fr": "Un client",
+    "ht": "Yon kliyan",
+    "ar": "أحد العملاء"
+  },
+  "payoutTimeline.title": {
+    "en": "Payout timeline",
+    "es": "Cronología de pagos",
+    "fr": "Chronologie des versements",
+    "ht": "Kwonoloji peman yo",
+    "ar": "الجدول الزمني للمدفوعات"
+  },
+  "payoutTimeline.loading": {
+    "en": "Loading payout history…",
+    "es": "Cargando historial de pagos…",
+    "fr": "Chargement de l'historique des versements…",
+    "ht": "N ap chaje istwa peman yo…",
+    "ar": "جارٍ تحميل سجل المدفوعات…"
+  },
+  "payoutTimeline.loadFailed": {
+    "en": "We couldn't load your payout history.",
+    "es": "No pudimos cargar tu historial de pagos.",
+    "fr": "Impossible de charger l'historique des versements.",
+    "ht": "Nou pa t ka chaje istwa peman ou yo.",
+    "ar": "تعذّر تحميل سجل مدفوعاتك."
+  },
+  "payoutTimeline.empty": {
+    "en": "No payout requests yet.",
+    "es": "Aún no hay solicitudes de pago.",
+    "fr": "Aucune demande de versement pour l'instant.",
+    "ht": "Poko gen demann peman.",
+    "ar": "لا توجد طلبات دفع بعد."
+  },
+  "payoutTimeline.available": {
+    "en": "Available",
+    "es": "Disponible",
+    "fr": "Disponible",
+    "ht": "Disponib",
+    "ar": "متاح"
+  },
+  "payoutTimeline.pending": {
+    "en": "On the way",
+    "es": "En camino",
+    "fr": "En cours",
+    "ht": "Sou wout",
+    "ar": "قيد التحويل"
+  },
+  "payoutTimeline.paid": {
+    "en": "Paid out",
+    "es": "Pagado",
+    "fr": "Versé",
+    "ht": "Peye",
+    "ar": "تم الدفع"
+  },
+  "payoutTimeline.requested": {
+    "en": "Requested",
+    "es": "Solicitado",
+    "fr": "Demandé",
+    "ht": "Mande",
+    "ar": "تم الطلب"
+  },
+  "payoutTimeline.processed": {
+    "en": "Processed",
+    "es": "Procesado",
+    "fr": "Traité",
+    "ht": "Trete",
+    "ar": "تمت المعالجة"
+  },
+  "payoutTimeline.cancelled": {
+    "en": "Cancelled",
+    "es": "Cancelado",
+    "fr": "Annulé",
+    "ht": "Anile",
+    "ar": "أُلغي"
+  },
+  "payoutTimeline.status.pending": {
+    "en": "Waiting to be processed",
+    "es": "Esperando procesamiento",
+    "fr": "En attente de traitement",
+    "ht": "Ap tann pou yo trete l",
+    "ar": "في انتظار المعالجة"
+  },
+  "payoutTimeline.status.processing": {
+    "en": "Being processed",
+    "es": "En proceso",
+    "fr": "En cours de traitement",
+    "ht": "Y ap trete l",
+    "ar": "قيد المعالجة"
+  },
+  "payoutTimeline.status.completed": {
+    "en": "Completed",
+    "es": "Completado",
+    "fr": "Terminé",
+    "ht": "Fini",
+    "ar": "مكتمل"
+  },
+  "payoutTimeline.status.paid": {
+    "en": "Completed",
+    "es": "Completado",
+    "fr": "Terminé",
+    "ht": "Fini",
+    "ar": "مكتمل"
+  },
+  "payoutTimeline.status.failed": {
+    "en": "Failed — contact support",
+    "es": "Falló: contacta a soporte",
+    "fr": "Échec — contactez l'assistance",
+    "ht": "Echwe — kontakte sipò",
+    "ar": "فشل — تواصل مع الدعم"
+  },
+  "payoutTimeline.status.cancelled": {
+    "en": "Cancelled",
+    "es": "Cancelado",
+    "fr": "Annulé",
+    "ht": "Anile",
+    "ar": "أُلغي"
+  },
+  "payoutTimeline.settlementNote": {
+    "en": "A payout is complete only after the bank or payout partner settles it.",
+    "es": "Un pago solo se completa cuando el banco o socio de pagos lo liquida.",
+    "fr": "Un versement n'est terminé qu'après règlement par la banque ou le partenaire de paiement.",
+    "ht": "Yon peman fini sèlman lè bank lan oswa patnè peman an regle l.",
+    "ar": "لا يكتمل الدفع إلا بعد أن يسوّيه البنك أو شريك الدفع."
+  },
+  "breakdown.show": {
+    "en": "Show breakdown",
+    "es": "Ver desglose",
+    "fr": "Voir le détail",
+    "ht": "Wè detay yo",
+    "ar": "عرض التفاصيل"
+  },
+  "breakdown.hide": {
+    "en": "Hide breakdown",
+    "es": "Ocultar desglose",
+    "fr": "Masquer le détail",
+    "ht": "Kache detay yo",
+    "ar": "إخفاء التفاصيل"
+  },
+  "breakdown.loading": {
+    "en": "Loading breakdown…",
+    "es": "Cargando desglose…",
+    "fr": "Chargement du détail…",
+    "ht": "N ap chaje detay yo…",
+    "ar": "جارٍ تحميل التفاصيل…"
+  },
+  "breakdown.loadFailed": {
+    "en": "We couldn't load this breakdown.",
+    "es": "No pudimos cargar este desglose.",
+    "fr": "Impossible de charger ce détail.",
+    "ht": "Nou pa t ka chaje detay sa a.",
+    "ar": "تعذّر تحميل هذه التفاصيل."
+  },
+  "breakdown.jobValue": {
+    "en": "Job value",
+    "es": "Valor del trabajo",
+    "fr": "Valeur du travail",
+    "ht": "Valè travay la",
+    "ar": "قيمة العمل"
+  },
+  "breakdown.yourPayout": {
+    "en": "Your payout",
+    "es": "Tu pago",
+    "fr": "Votre versement",
+    "ht": "Peman ou",
+    "ar": "المبلغ المستحق لك"
+  },
+  "breakdown.notRecorded": {
+    "en": "Not recorded",
+    "es": "No registrado",
+    "fr": "Non enregistré",
+    "ht": "Pa anrejistre",
+    "ar": "غير مسجّل"
+  },
+  "breakdown.why": {
+    "en": "Why the amounts differ",
+    "es": "Por qué difieren los montos",
+    "fr": "Pourquoi les montants diffèrent",
+    "ht": "Poukisa montan yo diferan",
+    "ar": "لماذا تختلف المبالغ"
+  },
+  "breakdown.code.platform_fee": {
+    "en": "OxSteed service fee",
+    "es": "Tarifa de servicio de OxSteed",
+    "fr": "Frais de service OxSteed",
+    "ht": "Frè sèvis OxSteed",
+    "ar": "رسوم خدمة OxSteed"
+  },
+  "breakdown.code.broker_fee": {
+    "en": "Referral or broker fee",
+    "es": "Tarifa de referido o intermediario",
+    "fr": "Frais de recommandation ou d'intermédiaire",
+    "ht": "Frè referans oswa koutye",
+    "ar": "رسوم الإحالة أو الوساطة"
+  },
+  "breakdown.code.change_order": {
+    "en": "Approved change order",
+    "es": "Orden de cambio aprobada",
+    "fr": "Avenant approuvé",
+    "ht": "Chanjman ki apwouve",
+    "ar": "أمر تغيير معتمد"
+  },
+  "breakdown.code.refund": {
+    "en": "Refund to the customer",
+    "es": "Reembolso al cliente",
+    "fr": "Remboursement au client",
+    "ht": "Ranbousman bay kliyan an",
+    "ar": "استرداد للعميل"
+  },
+  "breakdown.code.other_recorded_difference": {
+    "en": "Other recorded difference — ask support if unclear",
+    "es": "Otra diferencia registrada: consulta a soporte si no está clara",
+    "fr": "Autre écart enregistré — demandez à l'assistance si besoin",
+    "ht": "Lòt diferans ki anrejistre — mande sipò si li pa klè",
+    "ar": "فرق آخر مسجّل — اسأل الدعم إذا لم يكن واضحًا"
+  },
+  "breakdown.code.not_priced": {
+    "en": "This job has no recorded price yet",
+    "es": "Este trabajo aún no tiene precio registrado",
+    "fr": "Ce travail n'a pas encore de prix enregistré",
+    "ht": "Travay sa a poko gen pri anrejistre",
+    "ar": "لا يوجد سعر مسجّل لهذا العمل بعد"
+  },
+  "breakdown.none": {
+    "en": "No deductions or adjustments on this job.",
+    "es": "No hay deducciones ni ajustes en este trabajo.",
+    "fr": "Aucune déduction ni ajustement sur ce travail.",
+    "ht": "Pa gen dediksyon ni ajisteman sou travay sa a.",
+    "ar": "لا توجد خصومات أو تعديلات على هذا العمل."
+  }
 }

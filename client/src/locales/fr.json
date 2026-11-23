@@ -44754,6 +44754,46 @@
       "posted": "Réponse publiée.",
       "postFailed": "Impossible de publier votre réponse. Il y en a peut-être déjà une.",
       "anonymous": "Un client"
+    },
+    "payoutTimeline": {
+      "title": "Chronologie des versements",
+      "loading": "Chargement de l'historique des versements…",
+      "loadFailed": "Impossible de charger l'historique des versements.",
+      "empty": "Aucune demande de versement pour l'instant.",
+      "available": "Disponible",
+      "pending": "En cours",
+      "paid": "Versé",
+      "requested": "Demandé",
+      "processed": "Traité",
+      "cancelled": "Annulé",
+      "status": {
+        "pending": "En attente de traitement",
+        "processing": "En cours de traitement",
+        "completed": "Terminé",
+        "paid": "Terminé",
+        "failed": "Échec — contactez l'assistance",
+        "cancelled": "Annulé"
+      },
+      "settlementNote": "Un versement n'est terminé qu'après règlement par la banque ou le partenaire de paiement."
+    },
+    "breakdown": {
+      "show": "Voir le détail",
+      "hide": "Masquer le détail",
+      "loading": "Chargement du détail…",
+      "loadFailed": "Impossible de charger ce détail.",
+      "jobValue": "Valeur du travail",
+      "yourPayout": "Votre versement",
+      "notRecorded": "Non enregistré",
+      "why": "Pourquoi les montants diffèrent",
+      "code": {
+        "platform_fee": "Frais de service OxSteed",
+        "broker_fee": "Frais de recommandation ou d'intermédiaire",
+        "change_order": "Avenant approuvé",
+        "refund": "Remboursement au client",
+        "other_recorded_difference": "Autre écart enregistré — demandez à l'assistance si besoin",
+        "not_priced": "Ce travail n'a pas encore de prix enregistré"
+      },
+      "none": "Aucune déduction ni ajustement sur ce travail."
     }
   }
 }

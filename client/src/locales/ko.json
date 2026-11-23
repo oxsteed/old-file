@@ -36851,6 +36851,46 @@
       "posted": "Response posted.",
       "postFailed": "We couldn't post your response. It may already have one.",
       "anonymous": "A customer"
+    },
+    "payoutTimeline": {
+      "title": "Payout timeline",
+      "loading": "Loading payout history…",
+      "loadFailed": "We couldn't load your payout history.",
+      "empty": "No payout requests yet.",
+      "available": "Available",
+      "pending": "On the way",
+      "paid": "Paid out",
+      "requested": "Requested",
+      "processed": "Processed",
+      "cancelled": "Cancelled",
+      "status": {
+        "pending": "Waiting to be processed",
+        "processing": "Being processed",
+        "completed": "Completed",
+        "paid": "Completed",
+        "failed": "Failed — contact support",
+        "cancelled": "Cancelled"
+      },
+      "settlementNote": "A payout is complete only after the bank or payout partner settles it."
+    },
+    "breakdown": {
+      "show": "Show breakdown",
+      "hide": "Hide breakdown",
+      "loading": "Loading breakdown…",
+      "loadFailed": "We couldn't load this breakdown.",
+      "jobValue": "Job value",
+      "yourPayout": "Your payout",
+      "notRecorded": "Not recorded",
+      "why": "Why the amounts differ",
+      "code": {
+        "platform_fee": "OxSteed service fee",
+        "broker_fee": "Referral or broker fee",
+        "change_order": "Approved change order",
+        "refund": "Refund to the customer",
+        "other_recorded_difference": "Other recorded difference — ask support if unclear",
+        "not_priced": "This job has no recorded price yet"
+      },
+      "none": "No deductions or adjustments on this job."
     }
   }
 }

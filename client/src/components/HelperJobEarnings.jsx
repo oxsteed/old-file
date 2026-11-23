@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import { moneyMinor } from '../lib/moneyExact';
 import { formatDate } from '../lib/format';
+import HelperJobBreakdown from './HelperJobBreakdown';
 import './HelperJobEarnings.css';
 
 export default function HelperJobEarnings() {
@@ -66,6 +67,7 @@ function HelperEarningsWorkspace({ userId }) {
         <time>{formatDate(job.completedAt, { locale: i18n.language })}</time>
         <span>{oldCopy({ earned: 'statusEarned', pending: 'statusPending', processing: 'statusProcessing', paid: 'statusPaid' }[job.payoutStatus] || 'statusNotReady')}</span>
         <strong>{job.amountCents == null ? copy('notRecorded') : money(job.amountCents)}</strong>
+        <HelperJobBreakdown jobId={job.id} />
       </li>)}</ul>
       <nav aria-label={copy('pagination')}>
         <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))} data-track="ui.ebd0443089.2">{copy('previous')}</button>

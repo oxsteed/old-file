@@ -44754,6 +44754,46 @@
       "posted": "Respuesta publicada.",
       "postFailed": "No pudimos publicar tu respuesta. Puede que ya tenga una.",
       "anonymous": "Un cliente"
+    },
+    "payoutTimeline": {
+      "title": "Cronología de pagos",
+      "loading": "Cargando historial de pagos…",
+      "loadFailed": "No pudimos cargar tu historial de pagos.",
+      "empty": "Aún no hay solicitudes de pago.",
+      "available": "Disponible",
+      "pending": "En camino",
+      "paid": "Pagado",
+      "requested": "Solicitado",
+      "processed": "Procesado",
+      "cancelled": "Cancelado",
+      "status": {
+        "pending": "Esperando procesamiento",
+        "processing": "En proceso",
+        "completed": "Completado",
+        "paid": "Completado",
+        "failed": "Falló: contacta a soporte",
+        "cancelled": "Cancelado"
+      },
+      "settlementNote": "Un pago solo se completa cuando el banco o socio de pagos lo liquida."
+    },
+    "breakdown": {
+      "show": "Ver desglose",
+      "hide": "Ocultar desglose",
+      "loading": "Cargando desglose…",
+      "loadFailed": "No pudimos cargar este desglose.",
+      "jobValue": "Valor del trabajo",
+      "yourPayout": "Tu pago",
+      "notRecorded": "No registrado",
+      "why": "Por qué difieren los montos",
+      "code": {
+        "platform_fee": "Tarifa de servicio de OxSteed",
+        "broker_fee": "Tarifa de referido o intermediario",
+        "change_order": "Orden de cambio aprobada",
+        "refund": "Reembolso al cliente",
+        "other_recorded_difference": "Otra diferencia registrada: consulta a soporte si no está clara",
+        "not_priced": "Este trabajo aún no tiene precio registrado"
+      },
+      "none": "No hay deducciones ni ajustes en este trabajo."
     }
   }
 }

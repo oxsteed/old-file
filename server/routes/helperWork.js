@@ -30,4 +30,7 @@ const reputation=require('../services/helperReputationService');
 // Group 4 rest (192, 195): the helper's received reviews and quality summary.
 router.get('/reviews',handle(async(req,res)=>res.json({reviews:await reputation.myReviews(req.user.id)})));
 router.get('/quality-summary',handle(async(req,res)=>res.json(await reputation.qualitySummary(req.user.id))));
+// Group 4 rest (186, 189): one job's earnings breakdown with explanations.
+const jobEarnings=require('../services/helperJobEarningsService');
+router.get('/jobs/:jobId/earnings',handle(async(req,res)=>res.json(await jobEarnings.jobEarnings(req.user.id,req.params.jobId))));
 module.exports = router;
