@@ -384,6 +384,9 @@ ddescribe('Track C preference toggles (DB)', () => {
       const { DELIVERY_NOTIFICATION_EVENTS } = require('../utils/localDeliveryNotifications');
       const TEMPLATE_FAMILIES = {
         credit_cashout_: ['credit_cashout_paid', 'credit_cashout_failed'],
+        // G10-1: consultant payout leg (notifyConsultant in
+        // services/consultantPayoutService.js).
+        consultant_payout_: ['consultant_payout_paid', 'consultant_payout_parked', 'consultant_payout_failed'],
         logistics_payment_: ['logistics_payment_succeeded', 'logistics_payment_failed'],
         'delivery:': DELIVERY_NOTIFICATION_EVENTS.map((event) => `delivery:${event}`),
       };

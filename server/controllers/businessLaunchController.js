@@ -10,6 +10,7 @@ const { checkPayingAccess } = require('../services/access/consultantGate');
 const {
   createPayoutForCompletedRequest,
   attemptPayout,
+  getPayoutByRequestId,
   retryPayoutByRequestId,
 } = require('../services/consultantPayoutService');
 
@@ -749,6 +750,17 @@ async function updateBusinessLaunchRequestStatus(req, res) {
             requestId: id,
             payoutId: payoutRow.id,
             err,
+          });
+        }
+      } else if (status === 'completed') {
+        // Re-marking an already-completed request creates no new row;
+        // report the existing payout so the admin always sees its state.
+        try {
+          payout = await getPayoutByRequestId(id);
+        } catch (err) {
+          logger.warn('Consultant payout lookup failed after status update', {
+            requestId: id,
+            err: err.message,
           });
         }
       }
