@@ -173,7 +173,7 @@ router.patch('/:id/status', authenticate, async (req, res, next) => {
   try {
     // Ensure requester is the job's client
     const check = await pool.query(`
-      SELECT hq.id, hq.negotiation_managed FROM helper_quotes hq
+      SELECT hq.id, hq.negotiation_managed, hq.valid_until FROM helper_quotes hq
       JOIN jobs j ON j.id = hq.job_id
       JOIN users helper ON helper.id = hq.helper_id
                        AND helper.is_active = TRUE
@@ -188,6 +188,13 @@ router.patch('/:id/status', authenticate, async (req, res, next) => {
       const updated = await require('../services/helperQuoteNegotiation').respond(req.params.id,userId,req.body);
       return res.json({...updated,next_step:updated.bid_id?'accept_bid':null});
     }
+
+    // Group 4 Slice C (168): a legacy (non-negotiation) quote past its
+    // validity window cannot be accepted or declined; the negotiation
+    // path enforces the same rule in the service (mutable). Accepting
+    // here would mint a bid at a stale price through the bridge.
+    if (check.rows[0].valid_until && new Date(check.rows[0].valid_until).getTime() <= Date.now())
+      return res.status(409).json({ error: 'Quote expired', code: 'quote_expired' });
 
     const updated = await pool.query(`
       UPDATE helper_quotes SET status = $1, updated_at = NOW()

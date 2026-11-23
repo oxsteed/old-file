@@ -718,6 +718,121 @@ const T = {
       ar: 'انتهت مهلة الرد على طلب عرض السعر الخاص بك دون تلقي عرض سعر بعد.',
     },
   },
+  // Group 4 Slice C (166-170): counterparty notices for the helper-quote
+  // negotiation flow. Bodies stay generic (no names or amounts); the
+  // job and quote ride in data with an action_url to the job page.
+  helper_quote_received: {
+    title: {
+      en: 'New quote on your job',
+      fr: 'Nouveau devis sur votre annonce',
+      es: 'Nueva cotización en tu trabajo',
+      ht: 'Yon nouvo estimasyon sou travay ou',
+      ar: 'عرض سعر جديد على وظيفتك',
+    },
+    body: {
+      en: 'A helper sent an itemized quote for your job.',
+      fr: 'Un prestataire a envoyé un devis détaillé pour votre annonce.',
+      es: 'Un ayudante envió una cotización detallada para tu trabajo.',
+      ht: 'Yon asistan voye yon estimasyon detaye pou travay ou.',
+      ar: 'أرسل أحد المساعدين عرض سعر مفصل لوظيفتك.',
+    },
+  },
+  helper_quote_revised: {
+    title: {
+      en: 'A quote was revised',
+      fr: 'Un devis a été révisé',
+      es: 'Se revisó una cotización',
+      ht: 'Yo revize yon estimasyon',
+      ar: 'تمت مراجعة عرض سعر',
+    },
+    body: {
+      en: 'A helper updated their itemized quote for your job.',
+      fr: 'Un prestataire a mis à jour son devis détaillé pour votre annonce.',
+      es: 'Un ayudante actualizó su cotización detallada para tu trabajo.',
+      ht: 'Yon asistan mete estimasyon detaye li pou travay ou a ajou.',
+      ar: 'قام أحد المساعدين بتحديث عرض السعر المفصل لوظيفتك.',
+    },
+  },
+  helper_quote_counter_proposed: {
+    title: {
+      en: 'New counteroffer on your quote',
+      fr: 'Nouvelle contre-offre sur votre devis',
+      es: 'Nueva contraoferta en tu cotización',
+      ht: 'Yon nouvo kont-òf sou estimasyon ou',
+      ar: 'عرض مضاد جديد على عرض السعر الخاص بك',
+    },
+    body: {
+      en: 'The customer proposed a counteroffer on your quote.',
+      fr: 'Le client a proposé une contre-offre sur votre devis.',
+      es: 'El cliente propuso una contraoferta en tu cotización.',
+      ht: 'Kliyan an te pwopoze yon kont-òf sou estimasyon ou.',
+      ar: 'اقترح العميل عرضا مضادا على عرض السعر الخاص بك.',
+    },
+  },
+  helper_quote_counter_accepted: {
+    title: {
+      en: 'Counteroffer accepted',
+      fr: 'Contre-offre acceptée',
+      es: 'Contraoferta aceptada',
+      ht: 'Yo aksepte kont-òf la',
+      ar: 'تم قبول العرض المضاد',
+    },
+    body: {
+      en: 'The helper accepted your counteroffer and issued a revised quote.',
+      fr: 'Le prestataire a accepté votre contre-offre et émis un devis révisé.',
+      es: 'El ayudante aceptó tu contraoferta y emitió una cotización revisada.',
+      ht: 'Asistan an te aksepte kont-òf ou epi li voye yon estimasyon revize.',
+      ar: 'قبل المساعد عرضك المضاد وأصدر عرض سعر منقحا.',
+    },
+  },
+  helper_quote_counter_declined: {
+    title: {
+      en: 'Counteroffer declined',
+      fr: 'Contre-offre refusée',
+      es: 'Contraoferta rechazada',
+      ht: 'Yo refize kont-òf la',
+      ar: 'تم رفض العرض المضاد',
+    },
+    body: {
+      en: 'The helper declined your counteroffer. The original quote still stands.',
+      fr: 'Le prestataire a refusé votre contre-offre. Le devis initial reste valable.',
+      es: 'El ayudante rechazó tu contraoferta. La cotización original sigue vigente.',
+      ht: 'Asistan an te refize kont-òf ou. Estimasyon orijinal la toujou valab.',
+      ar: 'رفض المساعد عرضك المضاد. عرض السعر الأصلي ما زال قائما.',
+    },
+  },
+  helper_quote_accepted: {
+    title: {
+      en: 'Your quote was accepted',
+      fr: 'Votre devis a été accepté',
+      es: 'Tu cotización fue aceptada',
+      ht: 'Yo aksepte estimasyon ou',
+      ar: 'تم قبول عرض السعر الخاص بك',
+    },
+    body: {
+      en: 'The customer accepted your quote.',
+      fr: 'Le client a accepté votre devis.',
+      es: 'El cliente aceptó tu cotización.',
+      ht: 'Kliyan an te aksepte estimasyon ou.',
+      ar: 'قبل العميل عرض السعر الخاص بك.',
+    },
+  },
+  helper_quote_declined: {
+    title: {
+      en: 'Your quote was declined',
+      fr: 'Votre devis a été refusé',
+      es: 'Tu cotización fue rechazada',
+      ht: 'Yo refize estimasyon ou',
+      ar: 'تم رفض عرض السعر الخاص بك',
+    },
+    body: {
+      en: 'The customer declined your quote.',
+      fr: 'Le client a refusé votre devis.',
+      es: 'El cliente rechazó tu cotización.',
+      ht: 'Kliyan an te refize estimasyon ou.',
+      ar: 'رفض العميل عرض السعر الخاص بك.',
+    },
+  },
   // Group 4 Slice B (164): the helper's pending bid expires within 24 hours.
   // The body carries no hour count (the server catalog has no plural
   // forms); the exact deadline is shown on /my-bids by BidDeadlineNotice.

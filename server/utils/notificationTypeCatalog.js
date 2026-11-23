@@ -34,6 +34,15 @@ const NOTIFICATION_TYPES = [
   { type: 'bid_deadline_reminder', group: 'work' },
   { type: 'bid_received', group: 'work' },
   { type: 'bid_reconfirmed', group: 'work' },
+  // Group 4 Slice C (166-170): counterparty notices for the helper-quote
+  // negotiation flow (create/revise/counter/counter-decision/respond).
+  { type: 'helper_quote_received', group: 'work' },
+  { type: 'helper_quote_revised', group: 'work' },
+  { type: 'helper_quote_counter_proposed', group: 'work' },
+  { type: 'helper_quote_counter_accepted', group: 'work' },
+  { type: 'helper_quote_counter_declined', group: 'work' },
+  { type: 'helper_quote_accepted', group: 'work' },
+  { type: 'helper_quote_declined', group: 'work' },
   { type: 'booking_accepted', group: 'work' },
   { type: 'booking_auto_completed', group: 'work' },
   { type: 'booking_auto_posted', group: 'work' },

@@ -4,6 +4,8 @@ const pool=require('../db');
 const {withTransaction}=require('../utils/transaction');
 const access=require('./access/accessService');
 const {bidFromAcceptedQuote}=require('./jobQuoteBridge');
+const {sendNotification}=require('./notificationService');
+const logger=require('../utils/logger');
 const AppError=require('../utils/appError');
 const money=require('../validation/money');
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -26,10 +28,19 @@ function terms(body){
  return {line_items,subtotal_cents,tax_cents,total_cents,tax_basis_points,valid_days,notes};
 }
 const hash=value=>crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
+// Group 4 Slice C (169): every negotiation event notifies the counterparty.
+// Sends run AFTER the transaction commits (sendNotification uses the pool,
+// not the tx client) and only on a fresh state change — idempotent replays
+// return the prior row and notify nothing. A failed send is logged, never
+// thrown: a missed ping must not roll back an accepted quote.
+async function notifyQuoteEvent({userId,type,title,body,data,actionUrl,key}){
+ try{await sendNotification({userId,type,title,body,data,action_url:actionUrl,idempotencyKey:key});}
+ catch(err){logger.warn('Failed to send quote negotiation notification',{type,error:err.message});}
+}
 async function helper(db,userId){if(!(await access.can(userId,'helper.offer_services',undefined,db)).allowed)fail(403,'access_required');}
 async function job(db,jobId,userId,{write=false,provider=false}={}){
  id(jobId);
- const {rows:[row]}=await db.query(`SELECT id,client_id,status,revision,currency_code FROM jobs WHERE id=$1 AND deleted_at IS NULL${write?' FOR UPDATE':''}`,[jobId]);
+ const {rows:[row]}=await db.query(`SELECT id,client_id,title,status,revision,currency_code FROM jobs WHERE id=$1 AND deleted_at IS NULL${write?' FOR UPDATE':''}`,[jobId]);
  if(!row)fail(404,'not_found');
  if(!money.normalizeCurrency(row.currency_code||'USD'))fail(409,'unsupported_currency');
  if(String(row.client_id)!==String(userId))await helper(db,userId);
@@ -64,32 +75,43 @@ async function insert(db,owner,userId,value,requestId,fingerprint,parent=null){
 }
 async function create(jobId,userId,body){
  const value=terms(body),requestId=id(body.requestId),fingerprint=hash({jobId,value});
- return withTransaction(pool,async db=>{
-  const owner=await job(db,jobId,userId,{write:true,provider:true});
+ let created=null,owner=null;
+ const quote=await withTransaction(pool,async db=>{
+  owner=await job(db,jobId,userId,{write:true,provider:true});
   if(body.expectedJobRevision!==owner.revision)fail(409,'job_revision_changed');
   const {rows:[prior]}=await db.query('SELECT * FROM helper_quotes WHERE helper_id=$1 AND client_request_id=$2',[userId,requestId]);
   if(prior){if(prior.request_hash!==fingerprint)fail(409,'idempotency_conflict');return prior;}
   const existing=await db.query("SELECT id FROM helper_quotes WHERE job_id=$1 AND helper_id=$2 AND negotiation_managed AND superseded_at IS NULL AND status IN ('sent','accepted')",[jobId,userId]);
   if(existing.rows.length)fail(409,'quote_exists');
-  return insert(db,owner,userId,value,requestId,fingerprint);
+  created=await insert(db,owner,userId,value,requestId,fingerprint);
+  return created;
  },'helper_quote_create');
+ if(created)await notifyQuoteEvent({userId:owner.client_id,type:'helper_quote_received',title:'New quote on your job',body:'A helper sent an itemized quote for your job.',data:{job_id:owner.id,quote_id:created.id,total_cents:created.total_cents,currency_code:created.currency_code},actionUrl:`/jobs/${owner.id}`,key:`helper-quote-received:${created.id}`});
+ return quote;
 }
 async function revise(quoteId,userId,body){
  const value=terms(body),requestId=id(body.requestId),fingerprint=hash({quoteId,value});
- return withTransaction(pool,async db=>{
-  const {row,owner}=await quote(db,quoteId,userId);
+ let created=null,owner=null;
+ const result=await withTransaction(pool,async db=>{
+  const found=await quote(db,quoteId,userId);
+  const row=found.row;owner=found.owner;
   if(String(row.helper_id)!==String(userId))fail(403,'forbidden');
   const {rows:[prior]}=await db.query('SELECT * FROM helper_quotes WHERE helper_id=$1 AND client_request_id=$2',[userId,requestId]);
   if(prior){if(prior.request_hash!==fingerprint)fail(409,'idempotency_conflict');return prior;}
   if(body.expectedJobRevision!==owner.revision)fail(409,'job_revision_changed');
   mutable(row,owner,body.expectedVersion,true,true);
-  return insert(db,owner,userId,value,requestId,fingerprint,row);
+  created=await insert(db,owner,userId,value,requestId,fingerprint,row);
+  return created;
  },'helper_quote_revise');
+ if(created)await notifyQuoteEvent({userId:owner.client_id,type:'helper_quote_revised',title:'A quote was revised',body:'A helper updated their itemized quote for your job.',data:{job_id:owner.id,quote_id:created.id,total_cents:created.total_cents,currency_code:created.currency_code},actionUrl:`/jobs/${owner.id}`,key:`helper-quote-revised:${created.id}`});
+ return result;
 }
 async function respond(quoteId,userId,body){
  if(!['accepted','declined'].includes(body?.status))fail(400,'validation_failed');
- return withTransaction(pool,async db=>{
-  const {row,owner}=await quote(db,quoteId,userId);
+ let changed=null,owner=null;
+ const result=await withTransaction(pool,async db=>{
+  const found=await quote(db,quoteId,userId);
+  const row=found.row;owner=found.owner;
   if(String(owner.client_id)!==String(userId))fail(403,'forbidden');
   await helper(db,row.helper_id);
   if(row.status===body.status&&!row.superseded_at&&row.version===body.expectedVersion){
@@ -102,29 +124,39 @@ async function respond(quoteId,userId,body){
   const bidId=body.status==='accepted'?await bidFromAcceptedQuote(updated,db):null;
   if(body.status==='accepted'&&!bidId)fail(409,'bid_conflict');
   await db.query("UPDATE helper_quote_counters SET status='superseded' WHERE quote_id=$1 AND status='pending'",[row.id]);
-  return {...updated,bid_id:bidId};
+  changed={...updated,bid_id:bidId};
+  return changed;
  },'helper_quote_respond');
+ if(changed)await notifyQuoteEvent({userId:changed.helper_id,type:body.status==='accepted'?'helper_quote_accepted':'helper_quote_declined',title:body.status==='accepted'?'Your quote was accepted':'Your quote was declined',body:body.status==='accepted'?'The customer accepted your quote.':'The customer declined your quote.',data:{job_id:owner.id,quote_id:changed.id,bid_id:changed.bid_id||null,total_cents:changed.total_cents,currency_code:changed.currency_code},actionUrl:`/jobs/${owner.id}`,key:`helper-quote-${body.status}:${changed.id}:${changed.version}`});
+ return result;
 }
 async function counter(quoteId,userId,body){
  const value=terms(body),requestId=id(body.requestId),fingerprint=hash({quoteId,value});
- return withTransaction(pool,async db=>{
-  const {row,owner}=await quote(db,quoteId,userId);
+ let created=null,owner=null,quoteRow=null;
+ const result=await withTransaction(pool,async db=>{
+  const found=await quote(db,quoteId,userId);
+  const row=found.row;owner=found.owner;quoteRow=row;
   if(String(owner.client_id)!==String(userId))fail(403,'forbidden');
   const {rows:[prior]}=await db.query('SELECT * FROM helper_quote_counters WHERE customer_id=$1 AND request_id=$2',[userId,requestId]);
   if(prior){if(prior.request_hash!==fingerprint)fail(409,'idempotency_conflict');return prior;}
   mutable(row,owner,body.expectedVersion);
   const pending=await db.query("SELECT id FROM helper_quote_counters WHERE quote_id=$1 AND status='pending'",[row.id]);
   if(pending.rows.length)fail(409,'counter_pending');
-  return (await db.query(`INSERT INTO helper_quote_counters(quote_id,customer_id,line_items,tax_basis_points,valid_days,notes,request_id,request_hash)
+  created=(await db.query(`INSERT INTO helper_quote_counters(quote_id,customer_id,line_items,tax_basis_points,valid_days,notes,request_id,request_hash)
    VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,[row.id,userId,JSON.stringify(value.line_items),value.tax_basis_points,value.valid_days,value.notes,requestId,fingerprint])).rows[0];
+  return created;
  },'helper_quote_counter');
+ if(created)await notifyQuoteEvent({userId:quoteRow.helper_id,type:'helper_quote_counter_proposed',title:'New counteroffer on your quote',body:'The customer proposed a counteroffer on your quote.',data:{job_id:owner.id,quote_id:quoteRow.id,counter_id:created.id},actionUrl:`/jobs/${owner.id}`,key:`helper-quote-counter:${created.id}`});
+ return result;
 }
 async function counterRespond(counterId,userId,body){
  id(counterId);if(!['accepted','declined'].includes(body?.status))fail(400,'validation_failed');
- return withTransaction(pool,async db=>{
+ let changed=null,owner=null,quoteRow=null;
+ const result=await withTransaction(pool,async db=>{
   const {rows:[ref]}=await db.query('SELECT quote_id FROM helper_quote_counters WHERE id=$1',[counterId]);
   if(!ref)fail(404,'not_found');
-  const {row,owner}=await quote(db,ref.quote_id,userId);
+  const found=await quote(db,ref.quote_id,userId);
+  const row=found.row;owner=found.owner;quoteRow=row;
   if(String(row.helper_id)!==String(userId))fail(403,'forbidden');
   const {rows:[proposal]}=await db.query('SELECT * FROM helper_quote_counters WHERE id=$1 FOR UPDATE',[counterId]);
   if(proposal.status===body.status)return {counter:proposal};
@@ -132,8 +164,11 @@ async function counterRespond(counterId,userId,body){
   if(proposal.status!=='pending')fail(409,'counter_locked');
   const revised=body.status==='accepted'?await insert(db,owner,userId,terms(proposal),null,null,row):null;
   const {rows:[updated]}=await db.query('UPDATE helper_quote_counters SET status=$2,result_quote_id=$3 WHERE id=$1 RETURNING *',[counterId,body.status,revised?.id||null]);
-  return {counter:updated,quote:revised};
+  changed={counter:updated,quote:revised};
+  return changed;
  },'helper_counter_respond');
+ if(changed)await notifyQuoteEvent({userId:owner.client_id,type:body.status==='accepted'?'helper_quote_counter_accepted':'helper_quote_counter_declined',title:body.status==='accepted'?'Counteroffer accepted':'Counteroffer declined',body:body.status==='accepted'?'The helper accepted your counteroffer and issued a revised quote.':'The helper declined your counteroffer. The original quote still stands.',data:{job_id:owner.id,quote_id:changed.quote?.id||quoteRow.id,counter_id:changed.counter.id},actionUrl:`/jobs/${owner.id}`,key:`helper-quote-counter-${body.status}:${changed.counter.id}`});
+ return result;
 }
 async function list(jobId,userId){
  const owner=await job(pool,jobId,userId);
