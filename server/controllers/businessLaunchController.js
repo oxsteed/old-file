@@ -7,6 +7,11 @@ const { logAdminAction } = require('../services/auditService');
 const { csvCell } = require('../utils/csv');
 const { consultantEnforcement } = require('../services/access/flags');
 const { checkPayingAccess } = require('../services/access/consultantGate');
+const {
+  createPayoutForCompletedRequest,
+  attemptPayout,
+  retryPayoutByRequestId,
+} = require('../services/consultantPayoutService');
 
 function sanitizeCountry(code) {
   const value = String(code || '').trim().toUpperCase();
@@ -772,6 +777,22 @@ async function updateBusinessLaunchRequestStatus(req, res) {
         [id, req.user?.id || null, oldStatus, status, notes || null]
       );
 
+      // G10-1: a transition into 'completed' creates the consultant payout
+      // row atomically with the status change, so a completion can never
+      // lose its payout to a crash between the two writes. The Credit load
+      // itself runs after COMMIT (it opens its own transaction) and never
+      // blocks the status change: a failed load is recorded on the payout
+      // row (parked/failed) and retried by the sweeper. The admin id is
+      // guaranteed by requireAdmin on this route; a missing id fails the
+      // whole change closed rather than creating an un-retryable payout.
+      let payoutRow = null;
+      if (status === 'completed' && oldStatus !== 'completed') {
+        payoutRow = await createPayoutForCompletedRequest(client, {
+          request,
+          adminUserId: req.user?.id || null,
+        });
+      }
+
       await client.query('COMMIT');
 
       logger.info('Business launch request status updated', {
@@ -781,6 +802,20 @@ async function updateBusinessLaunchRequestStatus(req, res) {
         adminId: req.user?.id,
       });
 
+      // G10-1: attempt the payout after COMMIT. Never fails the response.
+      let payout = payoutRow;
+      if (payoutRow) {
+        try {
+          payout = await attemptPayout(payoutRow.id, { actorUserId: req.user?.id || null });
+        } catch (err) {
+          logger.error('Consultant payout attempt errored after completion', {
+            requestId: id,
+            payoutId: payoutRow.id,
+            err,
+          });
+        }
+      }
+
       // Send notification email to customer (non-blocking)
       sendStatusUpdateEmail(request, status).catch(err => {
         logger.error('Failed to send status update email', { requestId: id, email: request.email, err });
@@ -789,6 +824,7 @@ async function updateBusinessLaunchRequestStatus(req, res) {
       return res.json({
         message: 'Status updated successfully',
         request: updateResult.rows[0],
+        payout,
       });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -799,6 +835,28 @@ async function updateBusinessLaunchRequestStatus(req, res) {
   } catch (err) {
     logger.error('Error updating business launch request status', { id, err });
     return res.status(500).json({ error: 'Failed to update status' });
+  }
+}
+
+/**
+ * Retry the consultant payout for a request (G10-1).
+ * POST /api/consulting/business-launch/requests/:id/payout/retry
+ * Admin-only (manage_operations). Re-attempts a pending / parked /
+ * failed payout under its original idempotency key, so a retry can never
+ * pay twice; a paid payout returns as-is. The retrying admin is the
+ * Credit actor for this attempt.
+ */
+async function retryConsultantPayout(req, res) {
+  const { id } = req.params;
+  try {
+    const payout = await retryPayoutByRequestId(id, { actorUserId: req.user?.id || null });
+    if (!payout) {
+      return res.status(404).json({ error: 'No consultant payout exists for this request' });
+    }
+    return res.json({ message: 'Payout retry attempted', payout });
+  } catch (err) {
+    logger.error('Error retrying consultant payout', { id, err });
+    return res.status(500).json({ error: 'Failed to retry consultant payout.' });
   }
 }
 
@@ -1168,4 +1226,5 @@ module.exports = {
   searchBusinessLaunchRequests,
   getMatchedConsultants,
   assignConsultant,
+  retryConsultantPayout,
 };

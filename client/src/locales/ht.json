@@ -25374,6 +25374,23 @@
       "emptyTitle": "Pa gen referans ki asiyen",
       "emptyDescription": "Lè OxSteed voye yon gid lansman biznis bay ou, li va parèt isit la ak pataj peman, kontèks mache, ak siveyans pwochen etap."
     },
+    "payouts": {
+      "label": "Peman",
+      "title": "Peman konsiltasyon an kredi OxSteed",
+      "description": "Lè yon travay fini, pati ou an peye otomatikman an kredi OxSteed. Yon peman ki poko ka deplase rete vizib isit la ak rezon li jiskaske li rezoud.",
+      "paidTotal": "Peye jiska prezan",
+      "loading": "Ap chaje peman yo…",
+      "unknownEngagement": "Travay lansman biznis",
+      "pendingNote": "Peman an ap trete.",
+      "emptyTitle": "Poko gen peman",
+      "emptyDescription": "Travay ki fini yo peye isit la otomatikman an kredi OxSteed.",
+      "status": {
+        "pending": "An atant",
+        "paid": "Peye",
+        "parked": "Ap tann",
+        "failed": "Bezwen atansyon"
+      }
+    },
     "howItWorks": {
       "label": "Kijan pwogram sa a mache",
       "title": "Modèl referans OxSteed",

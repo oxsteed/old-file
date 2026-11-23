@@ -16,6 +16,7 @@ const {
   searchBusinessLaunchRequests,
   getMatchedConsultants,
   assignConsultant,
+  retryConsultantPayout,
 } = require('../controllers/businessLaunchController');
 const {
   addNote,
@@ -260,6 +261,13 @@ router.post(
   authenticate,
   closeoutController.confirmCloseout
 );
+
+// G10-1: retry a pending / parked / failed consultant payout (admin only).
+router.post(
+  '/requests/:id/payout/retry',
+  authenticate,
+  requireAdmin, requirePermission('manage_operations'),
+  retryConsultantPayout);
 
 router.post('/requests/:id/attachments', authenticate, generalLimiter, upload.single('file'), validateFileUpload, attachmentController.uploadAttachment);
 router.get('/requests/:id/attachments', authenticate, attachmentController.listAttachments);

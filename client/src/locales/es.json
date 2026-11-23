@@ -25374,6 +25374,23 @@
       "emptyTitle": "Aún no hay referencias asignadas",
       "emptyDescription": "Cuando OxSteed te asigne una referencia de lanzamiento de negocio, aparecerá aquí con la comisión, contexto de mercado y seguimiento de siguientes pasos."
     },
+    "payouts": {
+      "label": "Pagos",
+      "title": "Pagos de consultoría en crédito OxSteed",
+      "description": "Cuando un trabajo se completa, tu parte se paga automáticamente en crédito OxSteed. Un pago que aún no puede moverse permanece visible aquí con su motivo hasta que se resuelva.",
+      "paidTotal": "Pagado hasta ahora",
+      "loading": "Cargando pagos…",
+      "unknownEngagement": "Trabajo de lanzamiento de negocio",
+      "pendingNote": "El pago se está procesando.",
+      "emptyTitle": "Aún no hay pagos",
+      "emptyDescription": "Los trabajos completados se pagan aquí automáticamente en crédito OxSteed.",
+      "status": {
+        "pending": "Pendiente",
+        "paid": "Pagado",
+        "parked": "En espera",
+        "failed": "Necesita atención"
+      }
+    },
     "howItWorks": {
       "label": "Cómo funciona este programa",
       "title": "Modelo de referencia de OxSteed",

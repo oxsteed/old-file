@@ -25374,6 +25374,23 @@
       "emptyTitle": "No assigned referrals yet",
       "emptyDescription": "Once OxSteed routes a business-launch lead to you, it will appear here with payout split, market context, and next-step tracking."
     },
+    "payouts": {
+      "label": "Payouts",
+      "title": "Consulting payouts in OxSteed Credit",
+      "description": "When an engagement completes, your share is paid automatically in OxSteed Credit. A payout that cannot move yet stays visible here with its reason until it clears.",
+      "paidTotal": "Paid to date",
+      "loading": "Loading payouts…",
+      "unknownEngagement": "Business-launch engagement",
+      "pendingNote": "Payment is being processed.",
+      "emptyTitle": "No payouts yet",
+      "emptyDescription": "Completed engagements pay out here automatically in OxSteed Credit.",
+      "status": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "parked": "Waiting",
+        "failed": "Needs attention"
+      }
+    },
     "howItWorks": {
       "label": "How this program works",
       "title": "OxSteed referral model",
