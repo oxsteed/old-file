@@ -13,6 +13,7 @@ const { scopeExempt } = require('../middleware/scopeGates');
 const launch = require('../services/businessOwner/launchService');
 const claims = require('../services/businessOwner/listingClaimService');
 const oversight = require('../services/businessOwner/oversightService');
+const policies = require('../services/businessOwner/policyService');
 
 const h = fn => async (req, res, next) => { res.set('Cache-Control', 'no-store'); try { await fn(req, res); } catch (e) { next(e); } };
 const biz = (minRole, perm) => [authenticate, requireBusinessAccess({ minRole }), ...(perm ? [requirePermission(perm)] : [])];
@@ -38,6 +39,12 @@ router.get('/:businessId/owner/service-issues', ...biz('manager', 'bookings.mana
 router.patch('/:businessId/owner/service-issues/:issueId', ...write('manager', 'bookings.manage'), h(async (req, res) => res.json(await oversight.updateIssue(req.business.id, req.user.id, req.params.issueId, req.body))));
 router.get('/:businessId/appointments/:appointmentId/service-issues/mine', authenticate, scopeExempt('customer-self-service'), h(async (req, res) => res.json(await oversight.myIssues(req.user.id, req.params.appointmentId))));
 router.post('/:businessId/appointments/:appointmentId/service-issues', authenticate, scopeExempt('customer-self-service'), rejectImpersonated, h(async (req, res) => res.status(201).json(await oversight.reportIssue(req.user.id, req.params.businessId, req.params.appointmentId, req.body))));
+
+// 226-228 policies (owner edits; approvers act on pending items)
+router.get('/:businessId/owner/policies', ...biz('manager', 'business.view'), h(async (req, res) => res.json(await policies.read(req.business.id))));
+router.put('/:businessId/owner/policies', ...write('owner'), h(async (req, res) => res.json(await policies.update(req.business.id, req.user.id, req.body))));
+router.post('/:businessId/owner/quotes/:quoteId/approve', ...write('manager', 'quotes.approve_discounts'), h(async (req, res) => res.json(await policies.approveQuote(req.business.id, req.user.id, req.params.quoteId))));
+router.post('/:businessId/owner/expenses/:expenseId/decision', ...write('manager', 'payouts.manage'), h(async (req, res) => res.json(await policies.decideExpense(req.business.id, req.user.id, req.params.expenseId, req.body))));
 
 const claimRouter = express.Router();
 // 201 listing claims (the service checks the claimant owns the business)

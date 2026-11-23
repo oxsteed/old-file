@@ -13,6 +13,9 @@ exports.requestRefund = async (req, res, next) => {
     if (!Number.isSafeInteger(businessId) || !Number.isSafeInteger(jobId)) {
       throw new AppError('A valid business and job are required.', 400, 'validation_failed');
     }
+    // Groups 5-6 item 226: business refund approval threshold (owner only above it).
+    await require('../services/businessOwner/policyService').assertRefundRequestAllowed(businessId, req.businessRole,
+      req.body?.amount_cents ?? req.body?.amountCents ?? null, req.body?.fullRefund === true || req.body?.full_refund === true);
     const { approval, replay, requestId } = await refundRequests.requestBusinessRefund({
       businessId,
       userId: req.user.id,

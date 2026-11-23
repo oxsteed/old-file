@@ -45003,7 +45003,11 @@
       "claim_not_pending": "This claim is no longer pending.",
       "issue_window_closed": "Problems can be reported up to 30 days after a visit.",
       "issue_already_open": "You already have an open report for this visit.",
-      "issue_not_reportable": "This visit can’t be reported yet."
+      "issue_not_reportable": "This visit can’t be reported yet.",
+      "quote_approval_required": "This quote needs approval before it can be sent.",
+      "work_authorization_required": "The business policy requires authorization before work starts.",
+      "work_start_role_required": "Your role can’t start work under this business’s policy.",
+      "refund_owner_approval_required": "Refunds above the business limit must be requested by the owner."
     },
     "launch": {
       "title": "Launch status",
@@ -45172,6 +45176,44 @@
       "description": "Describe it (10+ characters)",
       "send": "Send to the business",
       "sent": "Sent. The business will respond here."
+    },
+    "policies": {
+      "title": "Business policies",
+      "ownerOnly": "Only the owner can change these policies.",
+      "thresholds": "Approval thresholds",
+      "thresholdsHelp": "Leave a field empty for no limit. Amounts are in dollars.",
+      "quote": "Quotes above this need approval to send",
+      "expense": "Expenses above this need approval",
+      "refund": "Refunds above this: owner only",
+      "workAuth": "Work authorization",
+      "startRequires": "Before work starts",
+      "requires": {
+        "none": "No extra step",
+        "confirmed_booking": "Booking must be confirmed",
+        "accepted_quote": "Customer must accept a quote"
+      },
+      "startRole": "Who can start work",
+      "role": {
+        "employee": "Any team member",
+        "representative": "Representatives and up",
+        "manager": "Managers and owner",
+        "owner": "Owner only"
+      },
+      "cancellation": "Cancellation settings",
+      "notice": "Free cancellation until (hours before)",
+      "fee": "Late cancellation fee (%)",
+      "noShow": "No-show fee (%)",
+      "autoNoShow": "Mark no-show after (hours, optional)",
+      "reschedule": "Customers can reschedule",
+      "pending": "Waiting for approval",
+      "pendingNone": "Nothing is waiting for approval.",
+      "kind": {
+        "quote": "Quote",
+        "expense": "Expense"
+      },
+      "approve": "Approve",
+      "reject": "Reject",
+      "history": "Policy history"
     }
   }
 }

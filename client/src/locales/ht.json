@@ -45003,7 +45003,11 @@
       "claim_not_pending": "Demann sa a pa an atant ankò.",
       "issue_window_closed": "Ou ka siyale pwoblèm jiska 30 jou apre vizit la.",
       "issue_already_open": "Ou deja gen yon rapò ouvè pou vizit sa a.",
-      "issue_not_reportable": "Ou poko ka siyale vizit sa a."
+      "issue_not_reportable": "Ou poko ka siyale vizit sa a.",
+      "quote_approval_required": "Devi sa a bezwen apwobasyon anvan yo voye l.",
+      "work_authorization_required": "Règ biznis la mande otorizasyon anvan travay kòmanse.",
+      "work_start_role_required": "Wòl ou pa ka kòmanse travay dapre règ biznis la.",
+      "refund_owner_approval_required": "Se pwopriyetè a ki dwe mande ranbousman ki pi wo pase limit la."
     },
     "launch": {
       "title": "Estati lansman",
@@ -45172,6 +45176,44 @@
       "description": "Dekri l (10+ karaktè)",
       "send": "Voye bay biznis la",
       "sent": "Voye. Biznis la ap reponn isit la."
+    },
+    "policies": {
+      "title": "Règ biznis la",
+      "ownerOnly": "Se pwopriyetè a sèlman ki ka chanje règ sa yo.",
+      "thresholds": "Limit apwobasyon",
+      "thresholdsHelp": "Kite yon chan vid pou pa gen limit. Montan an dola.",
+      "quote": "Devi ki pi wo bezwen apwobasyon anvan yo voye",
+      "expense": "Depans ki pi wo bezwen apwobasyon",
+      "refund": "Ranbousman ki pi wo: pwopriyetè sèlman",
+      "workAuth": "Otorizasyon travay",
+      "startRequires": "Anvan travay la kòmanse",
+      "requires": {
+        "none": "Pa gen etap anplis",
+        "confirmed_booking": "Rezèvasyon an dwe konfime",
+        "accepted_quote": "Kliyan an dwe aksepte yon devi"
+      },
+      "startRole": "Ki moun ki ka kòmanse travay",
+      "role": {
+        "employee": "Nenpòt manm ekip",
+        "representative": "Reprezantan ak pi wo",
+        "manager": "Manadjè ak pwopriyetè",
+        "owner": "Pwopriyetè sèlman"
+      },
+      "cancellation": "Paramèt anilasyon",
+      "notice": "Anilasyon gratis jiska (èdtan anvan)",
+      "fee": "Frè anilasyon an reta (%)",
+      "noShow": "Frè pou pa prezante (%)",
+      "autoNoShow": "Make absan apre (èdtan, opsyonèl)",
+      "reschedule": "Kliyan yo ka chanje dat",
+      "pending": "Ap tann apwobasyon",
+      "pendingNone": "Anyen pa ap tann apwobasyon.",
+      "kind": {
+        "quote": "Devi",
+        "expense": "Depans"
+      },
+      "approve": "Apwouve",
+      "reject": "Refize",
+      "history": "Istwa règ yo"
     }
   }
 }

@@ -45003,7 +45003,11 @@
       "claim_not_pending": "Este reclamo ya no está pendiente.",
       "issue_window_closed": "Los problemas se pueden reportar hasta 30 días después de la visita.",
       "issue_already_open": "Ya tienes un reporte abierto para esta visita.",
-      "issue_not_reportable": "Aún no se puede reportar esta visita."
+      "issue_not_reportable": "Aún no se puede reportar esta visita.",
+      "quote_approval_required": "Esta cotización necesita aprobación antes de enviarse.",
+      "work_authorization_required": "La política del negocio exige autorización antes de empezar.",
+      "work_start_role_required": "Tu función no puede empezar trabajos según la política del negocio.",
+      "refund_owner_approval_required": "Los reembolsos por encima del límite debe pedirlos el dueño."
     },
     "launch": {
       "title": "Estado de lanzamiento",
@@ -45172,6 +45176,44 @@
       "description": "Descríbelo (10+ caracteres)",
       "send": "Enviar al negocio",
       "sent": "Enviado. El negocio responderá aquí."
+    },
+    "policies": {
+      "title": "Políticas del negocio",
+      "ownerOnly": "Solo el dueño puede cambiar estas políticas.",
+      "thresholds": "Límites de aprobación",
+      "thresholdsHelp": "Deja un campo vacío para no poner límite. Montos en dólares.",
+      "quote": "Cotizaciones por encima requieren aprobación",
+      "expense": "Gastos por encima requieren aprobación",
+      "refund": "Reembolsos por encima: solo el dueño",
+      "workAuth": "Autorización de trabajo",
+      "startRequires": "Antes de empezar el trabajo",
+      "requires": {
+        "none": "Sin paso adicional",
+        "confirmed_booking": "La reserva debe estar confirmada",
+        "accepted_quote": "El cliente debe aceptar una cotización"
+      },
+      "startRole": "Quién puede empezar el trabajo",
+      "role": {
+        "employee": "Cualquier miembro del equipo",
+        "representative": "Representantes y superiores",
+        "manager": "Gerentes y dueño",
+        "owner": "Solo el dueño"
+      },
+      "cancellation": "Configuración de cancelación",
+      "notice": "Cancelación gratis hasta (horas antes)",
+      "fee": "Cargo por cancelación tardía (%)",
+      "noShow": "Cargo por no presentarse (%)",
+      "autoNoShow": "Marcar ausencia después de (horas, opcional)",
+      "reschedule": "Los clientes pueden reprogramar",
+      "pending": "Esperando aprobación",
+      "pendingNone": "Nada espera aprobación.",
+      "kind": {
+        "quote": "Cotización",
+        "expense": "Gasto"
+      },
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "history": "Historial de políticas"
     }
   }
 }

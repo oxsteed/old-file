@@ -45003,7 +45003,11 @@
       "claim_not_pending": "Cette revendication n’est plus en attente.",
       "issue_window_closed": "Les problèmes peuvent être signalés jusqu’à 30 jours après la visite.",
       "issue_already_open": "Vous avez déjà un signalement ouvert pour cette visite.",
-      "issue_not_reportable": "Cette visite ne peut pas encore être signalée."
+      "issue_not_reportable": "Cette visite ne peut pas encore être signalée.",
+      "quote_approval_required": "Ce devis doit être approuvé avant l’envoi.",
+      "work_authorization_required": "La règle de l’entreprise exige une autorisation avant le début.",
+      "work_start_role_required": "Votre rôle ne peut pas démarrer les travaux selon les règles.",
+      "refund_owner_approval_required": "Au-delà de la limite, seul le propriétaire peut demander un remboursement."
     },
     "launch": {
       "title": "État du lancement",
@@ -45172,6 +45176,44 @@
       "description": "Décrivez-le (10+ caractères)",
       "send": "Envoyer à l’entreprise",
       "sent": "Envoyé. L’entreprise répondra ici."
+    },
+    "policies": {
+      "title": "Règles de l’entreprise",
+      "ownerOnly": "Seul le propriétaire peut modifier ces règles.",
+      "thresholds": "Seuils d’approbation",
+      "thresholdsHelp": "Laissez un champ vide pour aucune limite. Montants en dollars.",
+      "quote": "Devis au-delà : approbation requise avant envoi",
+      "expense": "Dépenses au-delà : approbation requise",
+      "refund": "Remboursements au-delà : propriétaire uniquement",
+      "workAuth": "Autorisation des travaux",
+      "startRequires": "Avant le début des travaux",
+      "requires": {
+        "none": "Aucune étape supplémentaire",
+        "confirmed_booking": "La réservation doit être confirmée",
+        "accepted_quote": "Le client doit accepter un devis"
+      },
+      "startRole": "Qui peut démarrer les travaux",
+      "role": {
+        "employee": "Tout membre de l’équipe",
+        "representative": "Représentants et plus",
+        "manager": "Gérants et propriétaire",
+        "owner": "Propriétaire uniquement"
+      },
+      "cancellation": "Paramètres d’annulation",
+      "notice": "Annulation gratuite jusqu’à (heures avant)",
+      "fee": "Frais d’annulation tardive (%)",
+      "noShow": "Frais d’absence (%)",
+      "autoNoShow": "Marquer absent après (heures, facultatif)",
+      "reschedule": "Les clients peuvent reprogrammer",
+      "pending": "En attente d’approbation",
+      "pendingNone": "Rien n’attend d’approbation.",
+      "kind": {
+        "quote": "Devis",
+        "expense": "Dépense"
+      },
+      "approve": "Approuver",
+      "reject": "Refuser",
+      "history": "Historique des règles"
     }
   }
 }

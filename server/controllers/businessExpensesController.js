@@ -30,10 +30,13 @@ exports.createExpense = async (req, res, next) => {
     return res.status(400).json({ error: 'category, amount_cents, and expense_date are required' });
   }
   try {
+    // Groups 5-6 item 226: above the expense threshold a non-approver's
+    // expense waits for approval.
+    const approvalStatus = await require('../services/businessOwner/policyService').expenseStatusFor(businessId, req.businessRole, req.permissions, amount_cents);
     const row = await pool.query(
-      `INSERT INTO business_expenses (business_id, category, description, amount_cents, expense_date, receipt_url, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [businessId, category, description, amount_cents, expense_date, receipt_url, notes, req.user.id]
+      `INSERT INTO business_expenses (business_id, category, description, amount_cents, expense_date, receipt_url, notes, created_by, approval_status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [businessId, category, description, amount_cents, expense_date, receipt_url, notes, req.user.id, approvalStatus]
     );
     res.status(201).json(row.rows[0]);
   } catch (err) { next(err); }

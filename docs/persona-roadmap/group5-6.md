@@ -56,9 +56,9 @@ BUILD = to build. DONE = built on this branch (commit/test cited).
 | 223 | Shared business inbox | EXISTS | `businessOperations.js` messages claim/release/reassign | - |
 | 224 | Follow-up reminders | EXISTS | thirty-feature-delivery.md | - |
 | 225 | Service issue review | BUILD | | DONE (D-199..D-201; migration 20261123190200, oversightService, /owner/* routes, OwnerOversight, MyBusinessVisits; group56Oversight.db.test.js) |
-| 226 | Approval thresholds | BUILD | | - |
-| 227 | Work authorization policy | BUILD | | - |
-| 228 | Cancellation settings | PARTIAL | per-service `cancellation_policy_hours/fee_percent`; no business default | - |
+| 226 | Approval thresholds | BUILD | | DONE (D-202..D-204; migration 20261123190300, policyService + guards in quote send / expense create / refund request / appointment status / late-cancel fee, OwnerPolicies; group56Policies.db.test.js) |
+| 227 | Work authorization policy | BUILD | | DONE (D-202..D-204; migration 20261123190300, policyService + guards in quote send / expense create / refund request / appointment status / late-cancel fee, OwnerPolicies; group56Policies.db.test.js) |
+| 228 | Cancellation settings | PARTIAL | per-service `cancellation_policy_hours/fee_percent`; no business default | DONE (D-202..D-204; migration 20261123190300, policyService + guards in quote send / expense create / refund request / appointment status / late-cancel fee, OwnerPolicies; group56Policies.db.test.js) |
 | 229, 230 | Onboarding guide / policy acks | EXISTS | thirty-feature-delivery.md | - |
 | 231 | Invoice overview | PARTIAL | invoice list only; no aging overview | - |
 | 232 | Refund request tracker | PARTIAL | per-job refund requests (`businessFinance.js`); no business-wide tracker | - |
@@ -106,4 +106,4 @@ cd ../client && npm run build:ci
 - Tests: `server/__tests__/group56*.db.test.js`; also `STATEMENT_TEST_DATABASE_URL=.../credit_statement_test npx jest __tests__/notificationsPrefsToggles`.
 
 ## Next step
-S4: policies (226 approval thresholds, 227 work authorization, 228 cancellation defaults).
+S5: finance (231 invoice overview, 232 refund tracker, 233 payout reconciliation, 234 expense categories).

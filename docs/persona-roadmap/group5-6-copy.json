@@ -1062,5 +1062,243 @@
   "Cette visite ne peut pas encore être signalée.",
   "Ou poko ka siyale vizit sa a.",
   "لا يمكن الإبلاغ عن هذه الزيارة بعد."
+ ],
+ "policies.title": [
+  "Business policies",
+  "Políticas del negocio",
+  "Règles de l’entreprise",
+  "Règ biznis la",
+  "سياسات النشاط التجاري"
+ ],
+ "policies.ownerOnly": [
+  "Only the owner can change these policies.",
+  "Solo el dueño puede cambiar estas políticas.",
+  "Seul le propriétaire peut modifier ces règles.",
+  "Se pwopriyetè a sèlman ki ka chanje règ sa yo.",
+  "يمكن للمالك فقط تغيير هذه السياسات."
+ ],
+ "policies.thresholds": [
+  "Approval thresholds",
+  "Límites de aprobación",
+  "Seuils d’approbation",
+  "Limit apwobasyon",
+  "حدود الموافقة"
+ ],
+ "policies.thresholdsHelp": [
+  "Leave a field empty for no limit. Amounts are in dollars.",
+  "Deja un campo vacío para no poner límite. Montos en dólares.",
+  "Laissez un champ vide pour aucune limite. Montants en dollars.",
+  "Kite yon chan vid pou pa gen limit. Montan an dola.",
+  "اترك الحقل فارغًا لعدم وجود حد. المبالغ بالدولار."
+ ],
+ "policies.quote": [
+  "Quotes above this need approval to send",
+  "Cotizaciones por encima requieren aprobación",
+  "Devis au-delà : approbation requise avant envoi",
+  "Devi ki pi wo bezwen apwobasyon anvan yo voye",
+  "العروض التي تتجاوز هذا تحتاج موافقة قبل الإرسال"
+ ],
+ "policies.expense": [
+  "Expenses above this need approval",
+  "Gastos por encima requieren aprobación",
+  "Dépenses au-delà : approbation requise",
+  "Depans ki pi wo bezwen apwobasyon",
+  "المصروفات التي تتجاوز هذا تحتاج موافقة"
+ ],
+ "policies.refund": [
+  "Refunds above this: owner only",
+  "Reembolsos por encima: solo el dueño",
+  "Remboursements au-delà : propriétaire uniquement",
+  "Ranbousman ki pi wo: pwopriyetè sèlman",
+  "المبالغ المستردة فوق هذا: المالك فقط"
+ ],
+ "policies.workAuth": [
+  "Work authorization",
+  "Autorización de trabajo",
+  "Autorisation des travaux",
+  "Otorizasyon travay",
+  "تفويض العمل"
+ ],
+ "policies.startRequires": [
+  "Before work starts",
+  "Antes de empezar el trabajo",
+  "Avant le début des travaux",
+  "Anvan travay la kòmanse",
+  "قبل بدء العمل"
+ ],
+ "policies.requires.none": [
+  "No extra step",
+  "Sin paso adicional",
+  "Aucune étape supplémentaire",
+  "Pa gen etap anplis",
+  "لا توجد خطوة إضافية"
+ ],
+ "policies.requires.confirmed_booking": [
+  "Booking must be confirmed",
+  "La reserva debe estar confirmada",
+  "La réservation doit être confirmée",
+  "Rezèvasyon an dwe konfime",
+  "يجب تأكيد الحجز"
+ ],
+ "policies.requires.accepted_quote": [
+  "Customer must accept a quote",
+  "El cliente debe aceptar una cotización",
+  "Le client doit accepter un devis",
+  "Kliyan an dwe aksepte yon devi",
+  "يجب أن يقبل العميل عرض سعر"
+ ],
+ "policies.startRole": [
+  "Who can start work",
+  "Quién puede empezar el trabajo",
+  "Qui peut démarrer les travaux",
+  "Ki moun ki ka kòmanse travay",
+  "من يمكنه بدء العمل"
+ ],
+ "policies.role.employee": [
+  "Any team member",
+  "Cualquier miembro del equipo",
+  "Tout membre de l’équipe",
+  "Nenpòt manm ekip",
+  "أي عضو في الفريق"
+ ],
+ "policies.role.representative": [
+  "Representatives and up",
+  "Representantes y superiores",
+  "Représentants et plus",
+  "Reprezantan ak pi wo",
+  "الممثلون فما فوق"
+ ],
+ "policies.role.manager": [
+  "Managers and owner",
+  "Gerentes y dueño",
+  "Gérants et propriétaire",
+  "Manadjè ak pwopriyetè",
+  "المديرون والمالك"
+ ],
+ "policies.role.owner": [
+  "Owner only",
+  "Solo el dueño",
+  "Propriétaire uniquement",
+  "Pwopriyetè sèlman",
+  "المالك فقط"
+ ],
+ "policies.cancellation": [
+  "Cancellation settings",
+  "Configuración de cancelación",
+  "Paramètres d’annulation",
+  "Paramèt anilasyon",
+  "إعدادات الإلغاء"
+ ],
+ "policies.notice": [
+  "Free cancellation until (hours before)",
+  "Cancelación gratis hasta (horas antes)",
+  "Annulation gratuite jusqu’à (heures avant)",
+  "Anilasyon gratis jiska (èdtan anvan)",
+  "إلغاء مجاني حتى (ساعات قبل)"
+ ],
+ "policies.fee": [
+  "Late cancellation fee (%)",
+  "Cargo por cancelación tardía (%)",
+  "Frais d’annulation tardive (%)",
+  "Frè anilasyon an reta (%)",
+  "رسوم الإلغاء المتأخر (%)"
+ ],
+ "policies.noShow": [
+  "No-show fee (%)",
+  "Cargo por no presentarse (%)",
+  "Frais d’absence (%)",
+  "Frè pou pa prezante (%)",
+  "رسوم عدم الحضور (%)"
+ ],
+ "policies.autoNoShow": [
+  "Mark no-show after (hours, optional)",
+  "Marcar ausencia después de (horas, opcional)",
+  "Marquer absent après (heures, facultatif)",
+  "Make absan apre (èdtan, opsyonèl)",
+  "وضع علامة عدم الحضور بعد (ساعات، اختياري)"
+ ],
+ "policies.reschedule": [
+  "Customers can reschedule",
+  "Los clientes pueden reprogramar",
+  "Les clients peuvent reprogrammer",
+  "Kliyan yo ka chanje dat",
+  "يمكن للعملاء إعادة الجدولة"
+ ],
+ "policies.pending": [
+  "Waiting for approval",
+  "Esperando aprobación",
+  "En attente d’approbation",
+  "Ap tann apwobasyon",
+  "بانتظار الموافقة"
+ ],
+ "policies.pendingNone": [
+  "Nothing is waiting for approval.",
+  "Nada espera aprobación.",
+  "Rien n’attend d’approbation.",
+  "Anyen pa ap tann apwobasyon.",
+  "لا يوجد شيء بانتظار الموافقة."
+ ],
+ "policies.kind.quote": [
+  "Quote",
+  "Cotización",
+  "Devis",
+  "Devi",
+  "عرض سعر"
+ ],
+ "policies.kind.expense": [
+  "Expense",
+  "Gasto",
+  "Dépense",
+  "Depans",
+  "مصروف"
+ ],
+ "policies.approve": [
+  "Approve",
+  "Aprobar",
+  "Approuver",
+  "Apwouve",
+  "موافقة"
+ ],
+ "policies.reject": [
+  "Reject",
+  "Rechazar",
+  "Refuser",
+  "Refize",
+  "رفض"
+ ],
+ "policies.history": [
+  "Policy history",
+  "Historial de políticas",
+  "Historique des règles",
+  "Istwa règ yo",
+  "سجل السياسات"
+ ],
+ "errors.quote_approval_required": [
+  "This quote needs approval before it can be sent.",
+  "Esta cotización necesita aprobación antes de enviarse.",
+  "Ce devis doit être approuvé avant l’envoi.",
+  "Devi sa a bezwen apwobasyon anvan yo voye l.",
+  "يحتاج عرض السعر هذا إلى موافقة قبل إرساله."
+ ],
+ "errors.work_authorization_required": [
+  "The business policy requires authorization before work starts.",
+  "La política del negocio exige autorización antes de empezar.",
+  "La règle de l’entreprise exige une autorisation avant le début.",
+  "Règ biznis la mande otorizasyon anvan travay kòmanse.",
+  "تتطلب سياسة النشاط التجاري تفويضًا قبل بدء العمل."
+ ],
+ "errors.work_start_role_required": [
+  "Your role can’t start work under this business’s policy.",
+  "Tu función no puede empezar trabajos según la política del negocio.",
+  "Votre rôle ne peut pas démarrer les travaux selon les règles.",
+  "Wòl ou pa ka kòmanse travay dapre règ biznis la.",
+  "لا يمكن لدورك بدء العمل وفق سياسة هذا النشاط التجاري."
+ ],
+ "errors.refund_owner_approval_required": [
+  "Refunds above the business limit must be requested by the owner.",
+  "Los reembolsos por encima del límite debe pedirlos el dueño.",
+  "Au-delà de la limite, seul le propriétaire peut demander un remboursement.",
+  "Se pwopriyetè a ki dwe mande ranbousman ki pi wo pase limit la.",
+  "يجب أن يطلب المالك المبالغ المستردة التي تتجاوز الحد."
  ]
 }

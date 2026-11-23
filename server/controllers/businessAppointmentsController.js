@@ -25,9 +25,11 @@ const { isStaffBlocked } = require('../services/businessAvailability'); // Revie
 async function computeLateCancellationFee(client, { businessId, serviceId, startTime, finalPriceCents }) {
   const { rows } = await client.query(
     `SELECT COALESCE(s.cancellation_policy_hours, r.cancellation_allowed_hours_before, 24) AS policy_hours,
-            COALESCE(s.cancellation_fee_percent, 0) AS fee_percent
+            -- Groups 5-6 item 228: a service without its own fee uses the business default.
+            COALESCE(NULLIF(s.cancellation_fee_percent, 0), p.default_cancellation_fee_percent, 0) AS fee_percent
        FROM business_services s
        LEFT JOIN business_booking_rules r ON r.business_id = s.business_id
+       LEFT JOIN business_operating_policies p ON p.business_id = s.business_id
       WHERE s.id = $1 AND s.business_id = $2`,
     [serviceId, businessId]
   );
@@ -513,6 +515,10 @@ async function updateAppointmentStatus(req, res, next) {
       if (!allowedTransitions[current.status]?.includes(status)) {
         throw new AppError(`Cannot change appointment from ${current.status} to ${status}`, 409, 'invalid_status_transition');
       }
+      // Groups 5-6 item 227: the business work authorization policy.
+      if (status === 'in_progress') {
+        await require('../services/businessOwner/policyService').assertWorkStart(client, businessId, current, req.businessRole || 'owner');
+      }
       // The hub Cancel buttons drive this endpoint with status='cancelled',
       // so a cancellation through here must record the same audit fields as
       // the dedicated cancel path (cancelled_at / cancelled_by).
@@ -541,6 +547,16 @@ async function updateAppointmentStatus(req, res, next) {
         lateCancellation = late;
         params.push(feeCents);
         setFragments.push(`cancellation_fee_cents = $${params.length}`);
+      }
+      if (status === 'no_show') {
+        // Groups 5-6 item 228: record the business no-show fee (same column
+        // and collection path as the late-cancel fee; nothing auto-charges).
+        const { noShow } = await require('../services/businessOwner/policyService').defaultFees(client, businessId);
+        if (noShow > 0) {
+          params.push(Math.round((Number(current.final_price_cents) || 0) * noShow / 100));
+          setFragments.push(`cancellation_fee_cents = $${params.length}`);
+        }
+        setFragments.push('no_show_marked_at = COALESCE(no_show_marked_at, NOW())');
       }
       const result = await client.query(
         `UPDATE business_appointments SET ${setFragments.join(', ')}

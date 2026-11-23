@@ -162,6 +162,8 @@ exports.sendQuote = async (req, res, next) => {
   const { businessId } = req.params;
   const quoteId = req.params.quoteId || req.params.id; // routes use :quoteId
   try {
+    // Groups 5-6 item 226: quotes above the approval threshold need an approver.
+    await require('../services/businessOwner/policyService').assertQuoteSendAllowed(pool, businessId, quoteId, req.businessRole, req.permissions);
     const row = await pool.query(
       `UPDATE business_quotes SET status='sent', updated_at=NOW() WHERE id=$1 AND business_id=$2 AND status='draft' RETURNING *`,
       [quoteId, businessId]
