@@ -44723,5 +44723,37 @@
     "cleared": "Fin eliminado",
     "expired": "Membresía vencida",
     "ongoing": "Acceso continuo"
+  },
+  "helperG4": {
+    "reputation": {
+      "title": "Reseñas y calidad",
+      "loading": "Cargando tus reseñas…",
+      "loadFailed": "No pudimos cargar tus reseñas.",
+      "retry": "Reintentar",
+      "average": "Calificación media",
+      "total": "Reseñas",
+      "recent": "Últimos 90 días",
+      "responseRate": "Tasa de respuesta",
+      "completed": "Trabajos completados",
+      "changesRequested": "Trabajos con cambios solicitados",
+      "noShows": "Ausencias reportadas en tu contra",
+      "trend": {
+        "up": "En alza frente a los 90 días anteriores",
+        "down": "En baja frente a los 90 días anteriores",
+        "steady": "Estable frente a los 90 días anteriores",
+        "not_enough_data": "No hay suficientes reseñas recientes para mostrar una tendencia"
+      },
+      "lowAwaiting": "{{count}} calificaciones bajas aún no tienen respuesta",
+      "empty": "Aún no hay reseñas. Aparecen aquí cuando los clientes califican trabajos completados.",
+      "stars": "{{rating}} de 5",
+      "yourResponse": "Tu respuesta",
+      "respond": "Responder públicamente",
+      "respondHint": "Tu respuesta es pública y no se puede editar después de publicarla.",
+      "post": "Publicar respuesta",
+      "cancel": "Cancelar",
+      "posted": "Respuesta publicada.",
+      "postFailed": "No pudimos publicar tu respuesta. Puede que ya tenga una.",
+      "anonymous": "Un cliente"
+    }
   }
 }

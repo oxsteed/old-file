@@ -302,6 +302,8 @@ const NOTIFICATION_TYPES = [
   { type: 'new_review', group: 'support' },
   { type: 'report_resolved', group: 'support' },
   { type: 'review_received', group: 'support' },
+  // Group 4 rest (192): the reviewer is told the reviewee responded.
+  { type: 'review_response_posted', group: 'support' },
   { type: 'review_reported', group: 'support' },
   { type: 'review_warning', group: 'support' },
   { type: 'safety_sos', group: 'support' },

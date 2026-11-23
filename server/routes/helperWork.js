@@ -26,4 +26,8 @@ router.delete('/work-templates/:id',rejectImpersonated,handle(async(req,res)=>{a
 router.get('/work-records/:jobId',handle(async(req,res)=>res.json(await service.read(req.params.jobId,req.user.id))));
 router.put('/work-records/:jobId',rejectImpersonated,handle(async(req,res)=>res.json(await service.save(req.params.jobId,req.user.id,req.body))));
 router.post('/work-records/:jobId/updates',rejectImpersonated,handle(async(req,res)=>res.status(201).json({update:await service.publish(req.params.jobId,req.user.id,req.body)})));
+const reputation=require('../services/helperReputationService');
+// Group 4 rest (192, 195): the helper's received reviews and quality summary.
+router.get('/reviews',handle(async(req,res)=>res.json({reviews:await reputation.myReviews(req.user.id)})));
+router.get('/quality-summary',handle(async(req,res)=>res.json(await reputation.qualitySummary(req.user.id))));
 module.exports = router;

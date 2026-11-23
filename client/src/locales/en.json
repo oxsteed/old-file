@@ -44723,5 +44723,37 @@
     "cleared": "End time cleared",
     "expired": "Membership expired",
     "ongoing": "Ongoing access"
+  },
+  "helperG4": {
+    "reputation": {
+      "title": "Reviews and quality",
+      "loading": "Loading your reviews…",
+      "loadFailed": "We couldn't load your reviews.",
+      "retry": "Try again",
+      "average": "Average rating",
+      "total": "Reviews",
+      "recent": "Last 90 days",
+      "responseRate": "Response rate",
+      "completed": "Completed jobs",
+      "changesRequested": "Jobs where changes were requested",
+      "noShows": "No-shows reported against you",
+      "trend": {
+        "up": "Trending up versus the 90 days before",
+        "down": "Trending down versus the 90 days before",
+        "steady": "Steady versus the 90 days before",
+        "not_enough_data": "Not enough recent reviews to show a trend"
+      },
+      "lowAwaiting": "{{count}} low ratings still have no response",
+      "empty": "No reviews yet. Reviews appear here after customers rate completed jobs.",
+      "stars": "{{rating}} out of 5",
+      "yourResponse": "Your response",
+      "respond": "Respond publicly",
+      "respondHint": "Your response is public and can't be edited after posting.",
+      "post": "Post response",
+      "cancel": "Cancel",
+      "posted": "Response posted.",
+      "postFailed": "We couldn't post your response. It may already have one.",
+      "anonymous": "A customer"
+    }
   }
 }

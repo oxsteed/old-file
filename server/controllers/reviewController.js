@@ -290,7 +290,8 @@ exports.respondToReview = async (req, res, next) => {
     const { response } = req.body;
 
     const fields = {};
-    if (!response?.trim()) fields.response = 'Response text is required';
+    if (typeof response !== 'string' || !response.trim()) fields.response = 'Response text is required';
+    else if (response.trim().length > 2000) fields.response = 'Response must be 2000 characters or fewer';
     if (Object.keys(fields).length) {
       throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
@@ -310,6 +311,18 @@ exports.respondToReview = async (req, res, next) => {
     if (!rows.length) {
       throw new AppError('Review not found, you are not the reviewee, or already responded', 404, 'not_found');
     }
+
+    // Item 192: the reviewer learns their review got a public response.
+    // Best-effort after the write; idempotent per review.
+    await sendNotification({
+      userId: rows[0].reviewer_id,
+      type: 'review_response_posted',
+      title: 'Your review got a response',
+      body: 'The person you reviewed responded to your review.',
+      data: { reviewId: rows[0].id, jobId: rows[0].job_id },
+      action_url: `/jobs/${rows[0].job_id}`,
+      idempotencyKey: `review-response:${rows[0].id}`,
+    }).catch(() => {});
 
     res.json({ review: rows[0] });
   } catch (err) {

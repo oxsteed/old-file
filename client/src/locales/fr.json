@@ -44723,5 +44723,37 @@
     "cleared": "Fin supprimée",
     "expired": "Adhésion expirée",
     "ongoing": "Accès continu"
+  },
+  "helperG4": {
+    "reputation": {
+      "title": "Avis et qualité",
+      "loading": "Chargement de vos avis…",
+      "loadFailed": "Impossible de charger vos avis.",
+      "retry": "Réessayer",
+      "average": "Note moyenne",
+      "total": "Avis",
+      "recent": "90 derniers jours",
+      "responseRate": "Taux de réponse",
+      "completed": "Missions terminées",
+      "changesRequested": "Missions avec modifications demandées",
+      "noShows": "Absences signalées contre vous",
+      "trend": {
+        "up": "En hausse par rapport aux 90 jours précédents",
+        "down": "En baisse par rapport aux 90 jours précédents",
+        "steady": "Stable par rapport aux 90 jours précédents",
+        "not_enough_data": "Pas assez d'avis récents pour afficher une tendance"
+      },
+      "lowAwaiting": "{{count}} notes basses n'ont pas encore de réponse",
+      "empty": "Aucun avis pour l'instant. Ils apparaissent ici lorsque les clients notent des missions terminées.",
+      "stars": "{{rating}} sur 5",
+      "yourResponse": "Votre réponse",
+      "respond": "Répondre publiquement",
+      "respondHint": "Votre réponse est publique et ne peut plus être modifiée après publication.",
+      "post": "Publier la réponse",
+      "cancel": "Annuler",
+      "posted": "Réponse publiée.",
+      "postFailed": "Impossible de publier votre réponse. Il y en a peut-être déjà une.",
+      "anonymous": "Un client"
+    }
   }
 }

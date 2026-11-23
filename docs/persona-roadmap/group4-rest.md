@@ -27,17 +27,17 @@ BUILD = to build in this batch. DONE = built on this branch (commit cited).
 | 182 | No-show report | PARTIAL | `jobController.markJobNoShow` (either party, reason, notifies) | no time guard: either party can mark no-show before the job time. Plan: refuse before scheduled start (409 `no_show_too_early`) | BUILD |
 | 183 | Scope change request | PARTIAL | `workAgreements.js` change-orders (+ notifications, Slice C) | agreement-less jobs have no path (open call G4-22) | OPEN CALL G4-22 (not built) |
 | 184 | Replacement handoff | PARTIAL | `bids.js` withdraw (pre-hire only); work records separate per helper (PR 805) | assigned helper cannot hand a job back. Plan: helper release request with reason before start; job returns to open, customer notified, payment untouched unless not yet captured (decision) | BUILD |
-| 185 | Support escalation | PARTIAL | `support_tickets` intake pattern (`consultantPracticeController.createSupportIntake`) | no job-linked helper escalation. Plan: `POST /helper-work/jobs/:jobId/support` (assignment-checked, idempotent, notifies staff) + list | BUILD |
+| 185 | Support escalation | PARTIAL | `support_tickets` intake pattern (`consultantPracticeController.createSupportIntake`) | no job-linked helper escalation. Plan: `POST /helpers/me/jobs/:jobId/support` (assignment-checked, idempotent, notifies staff) + list | BUILD |
 | 186 | Job earnings summary | PARTIAL | `HelperJobEarnings.jsx` via `GET /main-app/earnings` (per-job amount + status) | no per-job breakdown. Plan: per-job gross / platform fee / net / adjustments detail | BUILD (with 189) |
 | 187 | Payout timeline | PARTIAL | `GET /main-app/payouts/summary` has zero client callers | Plan: timeline on `/helper/payouts` from that endpoint | BUILD |
 | 188 | Statement download | EXISTS | statement center / exports (`statementExports.js`, `helper_earnings` product) | none | - |
 | 189 | Adjustment explanation | PARTIAL | adjustments exist server-side, not explained to the helper | Plan: per-job breakdown lines with plain-language reason codes | BUILD |
 | 190 | Payment issue intake | PARTIAL | general support only | Plan: same intake as 185 with `kind=payment_issue`, category `helper_payment` | BUILD (with 185) |
 | 191 | Portfolio permission request | EXISTS | `helperWork.js` portfolio-requests | none | - |
-| 192 | Review response | PARTIAL | `PUT /reviews/:id/respond` + `useReviews` hook, zero UI callers; reviewer not notified | Plan: helper "My reviews" page with respond; notify reviewer | BUILD |
+| 192 | Review response | PARTIAL | `PUT /reviews/:id/respond` + `useReviews` hook, zero UI callers; reviewer not notified | Plan: helper "My reviews" page with respond; notify reviewer | DONE (helperReputationService, HelperReputationPanel, group4RestReputation.db.test.js) |
 | 193 | Repeat customer follow-up | MISSING leg | no surface | Plan: list of the helper's past customers (completed jobs) + rate-limited "book me again" invite notification | BUILD |
 | 194 | Skill endorsement record | MISSING | none | Emile confirmed 2026-11-23: endorsements only from completed engagements, one per client per skill | BUILD |
-| 195 | Quality feedback summary | PARTIAL | ratings exist, no helper-facing summary | Plan: avg, distribution, 90-day trend, response rate, changes-requested and no-show counts | BUILD (with 192) |
+| 195 | Quality feedback summary | PARTIAL | ratings exist, no helper-facing summary | Plan: avg, distribution, 90-day trend, response rate, changes-requested and no-show counts | DONE (helperReputationService, HelperReputationPanel, group4RestReputation.db.test.js) |
 | 196 | Business application handoff | MISSING | business application exists, no helper carry-in | Emile confirmed 2026-11-23: helper portfolio/history carry as a read-only record | BUILD |
 | 197 | Readiness milestones | MISSING | | as 196 | BUILD |
 | 198 | Service migration preview | MISSING | | as 196 (preview only, nothing moves) | BUILD |
@@ -56,7 +56,7 @@ BUILD = to build in this batch. DONE = built on this branch (commit cited).
 9. 196-200 grow into ownership
 
 ## Conventions
-- Server routes for helper-side items go under `/api/helper-work/*` (`server/routes/helperWork.js`, which already enforces `helper.offer_services`).
+- Server routes for helper-side items go under `/api/helpers/me/*` (`server/routes/helperWork.js`, which already enforces `helper.offer_services`).
 - Migrations `server/migrations/YYYYMMDDHHMMSS_name.sql`, additive, `IF NOT EXISTS`.
 - UI copy: keys under `helperWork.*` in all 20 `client/src/locales/*.json`; en/es/fr/ht/ar translated, others English fallback text; logical CSS properties only (RTL).
 - Tests: `server/__tests__/group4Rest*.db.test.js`.
@@ -72,4 +72,4 @@ cd ../client && npm run build:ci
 (symlink node_modules from /workspace/old-file/{client,server}; remove before committing)
 
 ## Next step
-Build step 1 (192 + 195).
+Build step 2 (179 + 180 customer notifications on progress update and handover).

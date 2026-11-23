@@ -44723,5 +44723,37 @@
     "cleared": "Fen retire",
     "expired": "Aksè manm ekspire",
     "ongoing": "Aksè kontinyèl"
+  },
+  "helperG4": {
+    "reputation": {
+      "title": "Revizyon ak kalite",
+      "loading": "N ap chaje revizyon ou yo…",
+      "loadFailed": "Nou pa t ka chaje revizyon ou yo.",
+      "retry": "Eseye ankò",
+      "average": "Nòt mwayèn",
+      "total": "Revizyon",
+      "recent": "90 dènye jou yo",
+      "responseRate": "To repons",
+      "completed": "Travay fini",
+      "changesRequested": "Travay kote yo te mande chanjman",
+      "noShows": "Absans yo rapòte kont ou",
+      "trend": {
+        "up": "Ap monte konpare ak 90 jou anvan yo",
+        "down": "Ap desann konpare ak 90 jou anvan yo",
+        "steady": "Estab konpare ak 90 jou anvan yo",
+        "not_enough_data": "Pa gen ase revizyon resan pou montre yon tandans"
+      },
+      "lowAwaiting": "{{count}} nòt ki ba poko gen repons",
+      "empty": "Poko gen revizyon. Yo parèt isit lè kliyan yo bay nòt pou travay ki fini.",
+      "stars": "{{rating}} sou 5",
+      "yourResponse": "Repons ou",
+      "respond": "Reponn piblikman",
+      "respondHint": "Repons ou piblik epi ou pa ka modifye l apre ou poste l.",
+      "post": "Poste repons lan",
+      "cancel": "Anile",
+      "posted": "Repons lan poste.",
+      "postFailed": "Nou pa t ka poste repons ou. Petèt li gen youn deja.",
+      "anonymous": "Yon kliyan"
+    }
   }
 }

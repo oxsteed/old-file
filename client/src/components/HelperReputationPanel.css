@@ -1,0 +1,11 @@
+.helper-reputation { display: grid; gap: 0.75rem; margin-block: 1.5rem; }
+.helper-reputation-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.5rem; margin: 0; }
+.helper-reputation-totals > div { border: 1px solid var(--color-border, #d0d5dd); border-radius: 0.5rem; padding: 0.5rem 0.75rem; }
+.helper-reputation-totals dd { margin: 0; font-weight: 600; }
+.helper-reputation-dist, .helper-reputation-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.helper-reputation-dist li { display: flex; justify-content: space-between; gap: 1rem; max-inline-size: 16rem; }
+.helper-reputation-list > li { border-block-end: 1px solid var(--color-border, #d0d5dd); padding-block: 0.5rem; }
+.helper-reputation-list header { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: baseline; }
+.helper-reputation-list blockquote { margin: 0.5rem 0 0; padding-inline-start: 0.75rem; border-inline-start: 3px solid var(--color-border, #d0d5dd); }
+.helper-reputation-respond { display: grid; gap: 0.5rem; }
+.helper-reputation-respond textarea { min-block-size: 5rem; inline-size: 100%; }
