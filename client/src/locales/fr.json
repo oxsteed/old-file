@@ -44833,6 +44833,18 @@
       "recordTitle": "Recommandations de compétences",
       "recordEmpty": "Aucune recommandation pour l'instant. Les clients peuvent recommander vos compétences après un travail terminé.",
       "recordCount": "{{count}} recommandations"
+    },
+    "repeat": {
+      "title": "Anciens clients",
+      "hint": "Invitez un client pour qui vous avez terminé un travail à vous réserver à nouveau. Il reçoit un avis dans l'app ; une invitation par client tous les 30 jours.",
+      "empty": "Les clients apparaissent ici après un travail terminé pour eux.",
+      "jobs": "{{count}} travaux terminés",
+      "note": "Note facultative",
+      "invite": "Inviter à réserver à nouveau",
+      "invited": "Invitation envoyée.",
+      "nextOn": "Prochaine invitation possible le {{date}}",
+      "failed": "Impossible d'envoyer l'invitation.",
+      "customer": "Client"
     }
   }
 }

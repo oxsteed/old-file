@@ -44833,6 +44833,18 @@
       "recordTitle": "Respaldos de habilidades",
       "recordEmpty": "Aún no hay respaldos. Los clientes pueden respaldar tus habilidades después de un trabajo completado.",
       "recordCount": "{{count}} respaldos"
+    },
+    "repeat": {
+      "title": "Clientes anteriores",
+      "hint": "Invita a un cliente con quien completaste un trabajo a contratarte de nuevo. Recibe un aviso en la app; puedes invitar a cada cliente una vez cada 30 días.",
+      "empty": "Los clientes aparecen aquí después de completar un trabajo para ellos.",
+      "jobs": "{{count}} trabajos completados",
+      "note": "Nota opcional",
+      "invite": "Invitar a contratar de nuevo",
+      "invited": "Invitación enviada.",
+      "nextOn": "Próxima invitación posible el {{date}}",
+      "failed": "No pudimos enviar la invitación.",
+      "customer": "Cliente"
     }
   }
 }

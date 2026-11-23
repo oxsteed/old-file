@@ -607,5 +607,75 @@
     "fr": "{{count}} recommandations",
     "ht": "{{count}} apwobasyon",
     "ar": "{{count}} تزكية"
+  },
+  "repeat.title": {
+    "en": "Past customers",
+    "es": "Clientes anteriores",
+    "fr": "Anciens clients",
+    "ht": "Ansyen kliyan",
+    "ar": "العملاء السابقون"
+  },
+  "repeat.hint": {
+    "en": "Invite a customer you completed work for to book you again. They get an in-app notice; you can invite each customer once every 30 days.",
+    "es": "Invita a un cliente con quien completaste un trabajo a contratarte de nuevo. Recibe un aviso en la app; puedes invitar a cada cliente una vez cada 30 días.",
+    "fr": "Invitez un client pour qui vous avez terminé un travail à vous réserver à nouveau. Il reçoit un avis dans l'app ; une invitation par client tous les 30 jours.",
+    "ht": "Envite yon kliyan ou te fini travay pou li pou l rezève w ankò. Li resevwa yon avi nan app la; ou ka envite chak kliyan yon fwa chak 30 jou.",
+    "ar": "ادعُ عميلًا أنجزت له عملًا ليحجزك مرة أخرى. يتلقى إشعارًا داخل التطبيق؛ يمكنك دعوة كل عميل مرة كل 30 يومًا."
+  },
+  "repeat.empty": {
+    "en": "Customers appear here after you complete a job for them.",
+    "es": "Los clientes aparecen aquí después de completar un trabajo para ellos.",
+    "fr": "Les clients apparaissent ici après un travail terminé pour eux.",
+    "ht": "Kliyan yo parèt isit apre ou fini yon travay pou yo.",
+    "ar": "يظهر العملاء هنا بعد إكمال عمل لهم."
+  },
+  "repeat.jobs": {
+    "en": "{{count}} completed jobs",
+    "es": "{{count}} trabajos completados",
+    "fr": "{{count}} travaux terminés",
+    "ht": "{{count}} travay fini",
+    "ar": "{{count}} أعمال مكتملة"
+  },
+  "repeat.note": {
+    "en": "Optional note",
+    "es": "Nota opcional",
+    "fr": "Note facultative",
+    "ht": "Nòt opsyonèl",
+    "ar": "ملاحظة اختيارية"
+  },
+  "repeat.invite": {
+    "en": "Invite to book again",
+    "es": "Invitar a contratar de nuevo",
+    "fr": "Inviter à réserver à nouveau",
+    "ht": "Envite pou rezève ankò",
+    "ar": "دعوة للحجز مرة أخرى"
+  },
+  "repeat.invited": {
+    "en": "Invitation sent.",
+    "es": "Invitación enviada.",
+    "fr": "Invitation envoyée.",
+    "ht": "Envitasyon voye.",
+    "ar": "تم إرسال الدعوة."
+  },
+  "repeat.nextOn": {
+    "en": "Next invite possible on {{date}}",
+    "es": "Próxima invitación posible el {{date}}",
+    "fr": "Prochaine invitation possible le {{date}}",
+    "ht": "Pwochen envitasyon posib le {{date}}",
+    "ar": "يمكن إرسال الدعوة التالية في {{date}}"
+  },
+  "repeat.failed": {
+    "en": "We couldn't send the invitation.",
+    "es": "No pudimos enviar la invitación.",
+    "fr": "Impossible d'envoyer l'invitation.",
+    "ht": "Nou pa t ka voye envitasyon an.",
+    "ar": "تعذّر إرسال الدعوة."
+  },
+  "repeat.customer": {
+    "en": "Customer",
+    "es": "Cliente",
+    "fr": "Client",
+    "ht": "Kliyan",
+    "ar": "عميل"
   }
 }

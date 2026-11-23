@@ -44,4 +44,8 @@ router.get('/endorsements',handle(async(req,res)=>res.json({skills:await endorse
 router.get('/endorsements/jobs/:jobId',handle(async(req,res)=>res.json({skills:await endorsements.optionsForJob(req.user.id,req.params.jobId)})));
 router.post('/endorsements/jobs/:jobId',rejectImpersonated,handle(async(req,res)=>res.status(201).json({endorsement:await endorsements.endorse(req.user.id,req.params.jobId,req.body)})));
 router.delete('/endorsements/:id',rejectImpersonated,handle(async(req,res)=>{await endorsements.withdraw(req.user.id,req.params.id);res.sendStatus(204);}));
+// Group 4 rest (193): repeat customer follow-up.
+const repeatCustomers=require('../services/helperRepeatCustomerService');
+router.get('/repeat-customers',handle(async(req,res)=>res.json({customers:await repeatCustomers.list(req.user.id)})));
+router.post('/repeat-customers/:customerId/invite',rejectImpersonated,handle(async(req,res)=>res.status(201).json({invite:await repeatCustomers.invite(req.user.id,req.params.customerId,req.body)})));
 module.exports = router;

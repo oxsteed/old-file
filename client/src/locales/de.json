@@ -36958,6 +36958,18 @@
       "recordTitle": "Skill endorsements",
       "recordEmpty": "No endorsements yet. Customers can endorse your listed skills after a completed job.",
       "recordCount": "{{count}} endorsements"
+    },
+    "repeat": {
+      "title": "Past customers",
+      "hint": "Invite a customer you completed work for to book you again. They get an in-app notice; you can invite each customer once every 30 days.",
+      "empty": "Customers appear here after you complete a job for them.",
+      "jobs": "{{count}} completed jobs",
+      "note": "Optional note",
+      "invite": "Invite to book again",
+      "invited": "Invitation sent.",
+      "nextOn": "Next invite possible on {{date}}",
+      "failed": "We couldn't send the invitation.",
+      "customer": "Customer"
     }
   }
 }

@@ -66,6 +66,18 @@ const jobLifecycleNotifications = {
       'Èd ou a ekri oswa mete ajou nòt remiz pou travay sa a.',
       'كتب المساعد ملاحظات التسليم لهذا العمل أو حدّثها.'),
   },
+  helper_rebook_invite: {
+    title: t('A helper you worked with is available again',
+      'Un ayudante con quien trabajaste está disponible de nuevo',
+      'Un prestataire avec qui vous avez travaillé est de nouveau disponible',
+      'Yon èd ou te travay avè l disponib ankò',
+      'مساعد عملت معه متاح مرة أخرى'),
+    body: t('Open their profile to book them again.',
+      'Abre su perfil para volver a contratarlo.',
+      'Ouvrez son profil pour le réserver à nouveau.',
+      'Louvri pwofil li pou rezève l ankò.',
+      'افتح ملفه الشخصي لحجزه مرة أخرى.'),
+  },
   review_response_posted: {
     title: t('Your review got a response',
       'Tu reseña recibió una respuesta',

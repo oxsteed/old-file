@@ -44833,6 +44833,18 @@
       "recordTitle": "Apwobasyon konpetans",
       "recordEmpty": "Poko gen apwobasyon. Kliyan yo ka apwouve konpetans ou apre yon travay fini.",
       "recordCount": "{{count}} apwobasyon"
+    },
+    "repeat": {
+      "title": "Ansyen kliyan",
+      "hint": "Envite yon kliyan ou te fini travay pou li pou l rezève w ankò. Li resevwa yon avi nan app la; ou ka envite chak kliyan yon fwa chak 30 jou.",
+      "empty": "Kliyan yo parèt isit apre ou fini yon travay pou yo.",
+      "jobs": "{{count}} travay fini",
+      "note": "Nòt opsyonèl",
+      "invite": "Envite pou rezève ankò",
+      "invited": "Envitasyon voye.",
+      "nextOn": "Pwochen envitasyon posib le {{date}}",
+      "failed": "Nou pa t ka voye envitasyon an.",
+      "customer": "Kliyan"
     }
   }
 }

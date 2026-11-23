@@ -14,6 +14,7 @@ import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
 import HelperWorkPanel from '../components/HelperWorkPanel';
 import HelperReputationPanel from '../components/HelperReputationPanel';
+import HelperRepeatCustomers from '../components/HelperRepeatCustomers';
 import HelperOffersCard from '../components/HelperOffersCard';
 import EditProfileTab from '../components/EditProfileTab';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
@@ -1352,7 +1353,7 @@ export default function HelperDashboard() {
             </div>
           )}
 
-          {tab === 'work' && <><HelperWorkPanel /><HelperReputationPanel /></>}
+          {tab === 'work' && <><HelperWorkPanel /><HelperReputationPanel /><HelperRepeatCustomers /></>}
           <HelperOffersCard />
 
           {SHOW_LEGACY_HELPER_RECOMMENDATIONS && <RecommendationFeed title={t('helperDashboard.nextAction')} />}
