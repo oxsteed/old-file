@@ -92,6 +92,12 @@ const BUSINESS_LEVEL = 'business-level owner/manager action across all stores (r
 const AGGREGATE_ONLY = 'existence/count check only; returns no store data';
 
 const REVIEWED = {
+  // Groups 5-6 (items 236-300): own-row reads, business-level aggregates, or
+  // the shared storeBoundary filter in teamCommon.js.
+  'services/businessOwner/expansionService.js': BUSINESS_LEVEL,
+  'services/businessOwner/performanceService.js': BUSINESS_LEVEL,
+  'services/businessOwner/workLeaveService.js': CUSTOMER_OR_SELF,
+  'services/businessOwner/workStartService.js': CUSTOMER_OR_SELF,
   'controllers/adminFoodOrdersController.js': PLATFORM_ADMIN,
   'controllers/agentFoodRefundActions.js': PLATFORM_ADMIN,
   'controllers/businessController.js': AGGREGATE_ONLY,

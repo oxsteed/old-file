@@ -5,7 +5,7 @@
 const pool = require('../../db');
 const { withTransaction } = require('../../utils/transaction');
 const { fail, invalid, text, uuid, int, notify } = require('./common');
-const { tz, isStaff, workedAppointment, canManage, routeTarget } = require('./teamCommon');
+const { tz, isStaff, workedAppointment, canManage, routeTarget, storeBoundary } = require('./teamCommon');
 
 const myWorkUrl = id => `/business/${id}/workspace/my-work`;
 const readable = (db, b, a, u, ctx) => workedAppointment(db, b, a, u, { allowManager: canManage(ctx.role, ctx.permissions, 'jobs.view_all') });
@@ -109,7 +109,8 @@ const COVER_SELECT = `SELECT r.*, s.shift_date, s.start_time, s.end_time, s.role
 async function coverage(businessId, userId, ctx) {
   const manager = canManage(ctx.role, ctx.permissions);
   const { rows } = await pool.query(`${COVER_SELECT} WHERE r.business_id=$1 AND (r.status IN ('open','claimed') OR r.requester_id=$2 OR r.claimed_by=$2)
-    AND s.shift_date >= CURRENT_DATE - 1 ORDER BY s.shift_date, s.start_time LIMIT 200`, [businessId, userId]);
+    AND s.shift_date >= CURRENT_DATE - 1 AND ($3 OR r.requester_id=$2 OR ${storeBoundary('s.location_id', '$1', '$2')})
+    ORDER BY s.shift_date, s.start_time LIMIT 200`, [businessId, userId, manager]);
   const { rows: myShifts } = await pool.query(`SELECT id, shift_date, start_time, end_time, role_label FROM business_staff_shifts
     WHERE business_id=$1 AND user_id=$2 AND cancelled_at IS NULL AND shift_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 30 ORDER BY shift_date, start_time LIMIT 60`, [businessId, userId]);
   return {
@@ -148,6 +149,8 @@ async function claimCoverage(businessId, userId, requestId) {
     if (String(r.requester_id) === String(userId)) fail(409, 'own_request');
     if (r.status !== 'open') fail(409, 'invalid_transition');
     const s = await shiftFor(db, businessId, r.shift_id);
+    const { rows: [vis] } = await db.query(`SELECT ${storeBoundary('$3::bigint', '$1', '$2')} AS ok`, [businessId, userId, s.location_id]);
+    if (!vis.ok) fail(404, 'not_found');
     const { rows: overlap } = await db.query(`SELECT 1 FROM business_staff_shifts WHERE business_id=$1 AND user_id=$2 AND shift_date=$3 AND cancelled_at IS NULL
       AND start_time < $5 AND end_time > $4`, [businessId, userId, s.shift_date, s.start_time, s.end_time]);
     if (overlap.length) fail(409, 'schedule_conflict');

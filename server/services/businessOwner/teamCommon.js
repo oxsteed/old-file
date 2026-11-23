@@ -67,4 +67,12 @@ async function fitFor(db, businessId, userIds, appt) {
   return rows.map(r => ({ ...r, available: r.has_shift ? r.shift_fit : r.avail_fit }));
 }
 
-module.exports = { ACTIVE_MEMBER, STAFF_SQL, OPEN_STATUSES, tz, isStaff, workedAppointment, canManage, routeTarget, fitFor };
+// Store boundary for per-store rows (restaurant locations): a member with
+// active location assignments only sees rows at those stores; members without
+// assignments keep all-store access (same rule as getLocationScope).
+const storeBoundary = (locCol, bizParam, userParam) => `(${locCol} IS NULL OR NOT EXISTS (SELECT 1 FROM restaurant_location_memberships lm
+    JOIN business_members bm ON bm.id=lm.membership_id WHERE bm.business_id=${bizParam} AND bm.member_id=${userParam} AND bm.status='active' AND lm.status='active')
+  OR EXISTS (SELECT 1 FROM restaurant_location_memberships lm JOIN business_members bm ON bm.id=lm.membership_id
+    WHERE bm.business_id=${bizParam} AND bm.member_id=${userParam} AND bm.status='active' AND lm.status='active' AND lm.location_id=${locCol}))`;
+
+module.exports = { storeBoundary, ACTIVE_MEMBER, STAFF_SQL, OPEN_STATUSES, tz, isStaff, workedAppointment, canManage, routeTarget, fitFor };
