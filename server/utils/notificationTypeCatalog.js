@@ -366,6 +366,11 @@ const NOTIFICATION_TYPES = [
   { type: 'business_listing_claim_rejected', group: 'work' },
   { type: 'business_service_issue_reported', group: 'work' },
   { type: 'business_service_issue_resolved', group: 'work' },
+  { type: 'business_ownership_transfer_requested', group: 'work' },
+  { type: 'business_ownership_transfer_completed', group: 'work' },
+  { type: 'business_ownership_transfer_declined', group: 'work' },
+  { type: 'business_deputy_designated', group: 'work' },
+  { type: 'business_work_transferred', group: 'work' },
   // <<< Groups 5-6
 ];
 

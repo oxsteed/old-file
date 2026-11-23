@@ -396,7 +396,7 @@ ddescribe('Track C preference toggles (DB)', () => {
       // can actually reach sendNotification through the site.
       const VARIABLE_SITES = [
         // Groups 5-6: notify() in services/businessOwner/common.js.
-        { file: 'services/businessOwner/common.js', name: 'type', expansions: ['business_listing_claim_approved', 'business_listing_claim_rejected', 'business_service_issue_reported', 'business_service_issue_resolved'] },
+        { file: 'services/businessOwner/common.js', name: 'type', expansions: ['business_listing_claim_approved', 'business_listing_claim_rejected', 'business_service_issue_reported', 'business_service_issue_resolved', 'business_ownership_transfer_requested', 'business_ownership_transfer_completed', 'business_ownership_transfer_declined', 'business_deputy_designated', 'business_work_transferred'] },
         // Group 4 rest items 179-180: tellCustomer in the helper work service.
         { file: 'services/helperWorkService.js', name: 'type', expansions: ['helper_progress_update', 'helper_handover_updated'] },
         // Group 4 rest item 183: notify() in the job change request service.

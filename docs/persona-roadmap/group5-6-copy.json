@@ -2182,5 +2182,509 @@
   "Cette liste est pleine (50 points).",
   "Lis sa a plen (50 pwen).",
   "هذه القائمة ممتلئة (50 بندًا)."
+ ],
+ "continuity.title": [
+  "Continuity",
+  "Continuidad",
+  "Continuité",
+  "Kontinwite",
+  "استمرارية العمل"
+ ],
+ "continuity.transfer": [
+  "Ownership transfer",
+  "Transferencia de propiedad",
+  "Transfert de propriété",
+  "Transfè pwopriyete",
+  "نقل الملكية"
+ ],
+ "continuity.transferHelp": [
+  "Hand the business to one of your managers. They must accept within 7 days. You stay on as a manager. Businesses with a payout account are reviewed by OxSteed before the change.",
+  "Entrega el negocio a uno de tus gerentes. Debe aceptar en 7 días. Tú sigues como gerente. Los negocios con cuenta de pagos son revisados por OxSteed antes del cambio.",
+  "Confiez l'entreprise à l'un de vos responsables. Il doit accepter sous 7 jours. Vous restez responsable. Les entreprises avec un compte de versement sont vérifiées par OxSteed avant le changement.",
+  "Bay youn nan manadjè ou yo biznis la. Li dwe aksepte nan 7 jou. Ou rete kòm manadjè. OxSteed revize biznis ki gen kont peman anvan chanjman an.",
+  "سلّم النشاط التجاري لأحد مديريك. يجب أن يقبل خلال 7 أيام. وستبقى مديرًا. تراجع OxSteed الأنشطة التي لديها حساب دفعات قبل التغيير."
+ ],
+ "continuity.newOwner": [
+  "New owner",
+  "Nuevo dueño",
+  "Nouveau propriétaire",
+  "Nouvo pwopriyetè",
+  "المالك الجديد"
+ ],
+ "continuity.confirmName": [
+  "Type the business name to confirm",
+  "Escribe el nombre del negocio para confirmar",
+  "Saisissez le nom de l'entreprise pour confirmer",
+  "Tape non biznis la pou konfime",
+  "اكتب اسم النشاط التجاري للتأكيد"
+ ],
+ "continuity.note": [
+  "Note",
+  "Nota",
+  "Note",
+  "Nòt",
+  "ملاحظة"
+ ],
+ "continuity.requestTransfer": [
+  "Request transfer",
+  "Solicitar transferencia",
+  "Demander le transfert",
+  "Mande transfè",
+  "طلب النقل"
+ ],
+ "continuity.noManagers": [
+  "Add a manager to your team first.",
+  "Primero agrega un gerente a tu equipo.",
+  "Ajoutez d'abord un responsable à votre équipe.",
+  "Ajoute yon manadjè nan ekip ou anvan.",
+  "أضف مديرًا إلى فريقك أولًا."
+ ],
+ "continuity.transferTo": [
+  "To {{name}}",
+  "Para {{name}}",
+  "À {{name}}",
+  "Pou {{name}}",
+  "إلى {{name}}"
+ ],
+ "continuity.expires": [
+  "expires",
+  "vence",
+  "expire",
+  "ekspire",
+  "تنتهي"
+ ],
+ "continuity.transferForYou": [
+  "{{name}} wants to make you the owner of this business.",
+  "{{name}} quiere hacerte dueño de este negocio.",
+  "{{name}} souhaite vous nommer propriétaire de cette entreprise.",
+  "{{name}} vle fè w pwopriyetè biznis sa a.",
+  "يريد {{name}} أن يجعلك مالك هذا النشاط التجاري."
+ ],
+ "continuity.acceptConfirm": [
+  "Accept ownership? You will be responsible for this business.",
+  "¿Aceptar la propiedad? Serás responsable de este negocio.",
+  "Accepter la propriété ? Vous serez responsable de cette entreprise.",
+  "Aksepte pwopriyete a? Ou pral responsab biznis sa a.",
+  "هل تقبل الملكية؟ ستكون مسؤولًا عن هذا النشاط التجاري."
+ ],
+ "continuity.accept": [
+  "Accept",
+  "Aceptar",
+  "Accepter",
+  "Aksepte",
+  "قبول"
+ ],
+ "continuity.decline": [
+  "Decline",
+  "Rechazar",
+  "Refuser",
+  "Refize",
+  "رفض"
+ ],
+ "continuity.transferStatus.pending": [
+  "Waiting for the new owner",
+  "Esperando al nuevo dueño",
+  "En attente du nouveau propriétaire",
+  "Ap tann nouvo pwopriyetè a",
+  "بانتظار المالك الجديد"
+ ],
+ "continuity.transferStatus.awaiting_admin": [
+  "Under OxSteed review",
+  "En revisión por OxSteed",
+  "En cours d'examen par OxSteed",
+  "OxSteed ap revize",
+  "قيد مراجعة OxSteed"
+ ],
+ "continuity.deputy": [
+  "Deputy",
+  "Suplente",
+  "Adjoint",
+  "Depite",
+  "النائب"
+ ],
+ "continuity.deputyHelp": [
+  "While you are away, a deputy can run day-to-day work: assignments, schedules, customers, quotes and bookings. Payouts, refunds approval, permissions and ownership stay with you.",
+  "Mientras no estás, un suplente puede llevar el trabajo diario: asignaciones, horarios, clientes, cotizaciones y reservas. Los pagos, la aprobación de reembolsos, los permisos y la propiedad siguen contigo.",
+  "Pendant votre absence, un adjoint gère le quotidien : affectations, plannings, clients, devis et réservations. Les versements, l'approbation des remboursements, les autorisations et la propriété restent à vous.",
+  "Pandan ou absan, yon depite ka jere travay chak jou: asiyasyon, orè, kliyan, devi ak rezèvasyon. Peman, apwobasyon ranbousman, otorizasyon ak pwopriyete rete avè w.",
+  "أثناء غيابك يمكن للنائب إدارة العمل اليومي: التكليفات والجداول والعملاء وعروض الأسعار والحجوزات. تبقى الدفعات والموافقة على الاسترداد والصلاحيات والملكية معك."
+ ],
+ "continuity.deputyActive": [
+  "{{name}} is your deputy until {{until}}.",
+  "{{name}} es tu suplente hasta {{until}}.",
+  "{{name}} est votre adjoint jusqu'au {{until}}.",
+  "{{name}} se depite ou jiska {{until}}.",
+  "{{name}} نائبك حتى {{until}}."
+ ],
+ "continuity.endDeputy": [
+  "End now",
+  "Terminar ahora",
+  "Terminer maintenant",
+  "Fini kounye a",
+  "إنهاء الآن"
+ ],
+ "continuity.deputyPerson": [
+  "Deputy",
+  "Suplente",
+  "Adjoint",
+  "Depite",
+  "النائب"
+ ],
+ "continuity.until": [
+  "Until",
+  "Hasta",
+  "Jusqu'au",
+  "Jiska",
+  "حتى"
+ ],
+ "continuity.designate": [
+  "Name deputy",
+  "Designar suplente",
+  "Désigner l'adjoint",
+  "Nonmen depite",
+  "تعيين النائب"
+ ],
+ "continuity.workTransition": [
+  "Move open work",
+  "Mover trabajo pendiente",
+  "Transférer le travail en cours",
+  "Deplase travay ouvè",
+  "نقل العمل المفتوح"
+ ],
+ "continuity.workTransitionHelp": [
+  "Move someone's upcoming visits and open tasks to another team member. Visits that clash or need another skill stay put.",
+  "Pasa las próximas visitas y tareas pendientes de alguien a otro miembro del equipo. Las visitas con choque de horario o que requieren otra habilidad no se mueven.",
+  "Transférez les prochaines visites et tâches ouvertes d'une personne à un autre membre. Les visites en conflit ou nécessitant une autre compétence restent en place.",
+  "Deplase vizit ak travay ouvè yon moun bay yon lòt manm ekip. Vizit ki gen konfli oswa ki bezwen yon lòt konpetans rete kote yo ye.",
+  "انقل الزيارات القادمة والمهام المفتوحة لشخص ما إلى عضو آخر في الفريق. تبقى الزيارات المتعارضة أو التي تتطلب مهارة أخرى كما هي."
+ ],
+ "continuity.from": [
+  "From",
+  "De",
+  "De",
+  "Soti nan",
+  "من"
+ ],
+ "continuity.to": [
+  "To",
+  "Para",
+  "À",
+  "Pou",
+  "إلى"
+ ],
+ "continuity.unassign": [
+  "Leave unassigned",
+  "Dejar sin asignar",
+  "Laisser non attribué",
+  "Kite san asiyasyon",
+  "تركها دون تعيين"
+ ],
+ "continuity.openWork": [
+  "{{visits}} upcoming visits, {{tasks}} open tasks",
+  "{{visits}} visitas próximas, {{tasks}} tareas pendientes",
+  "{{visits}} visites à venir, {{tasks}} tâches ouvertes",
+  "{{visits}} vizit k ap vini, {{tasks}} travay ouvè",
+  "{{visits}} زيارات قادمة، {{tasks}} مهام مفتوحة"
+ ],
+ "continuity.moveWork": [
+  "Move work",
+  "Mover trabajo",
+  "Transférer",
+  "Deplase travay",
+  "نقل العمل"
+ ],
+ "continuity.moved": [
+  "Moved {{visits}} visits and {{tasks}} tasks; {{skipped}} left in place.",
+  "Se movieron {{visits}} visitas y {{tasks}} tareas; {{skipped}} sin mover.",
+  "{{visits}} visites et {{tasks}} tâches transférées ; {{skipped}} laissées en place.",
+  "Deplase {{visits}} vizit ak {{tasks}} travay; {{skipped}} rete.",
+  "نُقلت {{visits}} زيارات و{{tasks}} مهام؛ وبقيت {{skipped}} كما هي."
+ ],
+ "continuity.departed": [
+  "Former team members",
+  "Exmiembros del equipo",
+  "Anciens membres de l'équipe",
+  "Ansyen manm ekip",
+  "أعضاء الفريق السابقون"
+ ],
+ "continuity.departedHelp": [
+  "Former team members keep read-only access to their own hours and visits for at least {{years}} years. Their business access ends when they leave.",
+  "Los exmiembros conservan acceso de solo lectura a sus horas y visitas durante al menos {{years}} años. Su acceso al negocio termina al irse.",
+  "Les anciens membres gardent un accès en lecture seule à leurs heures et visites pendant au moins {{years}} ans. Leur accès à l'entreprise prend fin à leur départ.",
+  "Ansyen manm yo kenbe aksè lekti sèlman nan pwòp èdtan ak vizit yo pou omwen {{years}} an. Aksè yo nan biznis la fini lè yo kite.",
+  "يحتفظ الأعضاء السابقون بإمكانية قراءة ساعاتهم وزياراتهم فقط لمدة {{years}} سنوات على الأقل. وينتهي وصولهم إلى النشاط التجاري عند مغادرتهم."
+ ],
+ "continuity.left": [
+  "left",
+  "salió",
+  "parti le",
+  "kite",
+  "غادر"
+ ],
+ "continuity.accessUntil": [
+  "records until",
+  "registros hasta",
+  "dossiers jusqu'au",
+  "dosye jiska",
+  "السجلات حتى"
+ ],
+ "continuity.records": [
+  "{{entries}} time entries, {{visits}} visits",
+  "{{entries}} registros de horas, {{visits}} visitas",
+  "{{entries}} pointages, {{visits}} visites",
+  "{{entries}} antre lè, {{visits}} vizit",
+  "{{entries}} سجلات وقت، {{visits}} زيارات"
+ ],
+ "continuity.extendAccess": [
+  "Extend access",
+  "Extender acceso",
+  "Prolonger l'accès",
+  "Pwolonje aksè",
+  "تمديد الوصول"
+ ],
+ "continuity.closure": [
+  "Closure checklist",
+  "Lista para cerrar el negocio",
+  "Liste de fermeture",
+  "Lis pou fèmen",
+  "قائمة الإغلاق"
+ ],
+ "continuity.closureHelp": [
+  "Before closing, finish or hand off open work, settle money owed and keep a copy of your records.",
+  "Antes de cerrar, termina o entrega el trabajo pendiente, salda lo adeudado y guarda una copia de tus registros.",
+  "Avant de fermer, terminez ou transmettez le travail en cours, réglez les sommes dues et gardez une copie de vos dossiers.",
+  "Anvan ou fèmen, fini oswa remèt travay ouvè yo, regle lajan ou dwe epi kenbe yon kopi dosye ou.",
+  "قبل الإغلاق، أنهِ العمل المفتوح أو سلّمه، وسوِّ المبالغ المستحقة، واحتفظ بنسخة من سجلاتك."
+ ],
+ "continuity.closureItem.future_bookings": [
+  "Upcoming bookings: {{count}}",
+  "Reservas próximas: {{count}}",
+  "Réservations à venir : {{count}}",
+  "Rezèvasyon k ap vini: {{count}}",
+  "الحجوزات القادمة: {{count}}"
+ ],
+ "continuity.closureItem.unpaid_invoices": [
+  "Unpaid invoices: {{count}}",
+  "Facturas sin pagar: {{count}}",
+  "Factures impayées : {{count}}",
+  "Fakti ki pa peye: {{count}}",
+  "فواتير غير مدفوعة: {{count}}"
+ ],
+ "continuity.closureItem.pending_refunds": [
+  "Refunds in progress: {{count}}",
+  "Reembolsos en curso: {{count}}",
+  "Remboursements en cours : {{count}}",
+  "Ranbousman an kou: {{count}}",
+  "عمليات استرداد جارية: {{count}}"
+ ],
+ "continuity.closureItem.open_service_issues": [
+  "Open service issues: {{count}}",
+  "Problemas de servicio abiertos: {{count}}",
+  "Problèmes de service ouverts : {{count}}",
+  "Pwoblèm sèvis ouvè: {{count}}",
+  "مشكلات خدمة مفتوحة: {{count}}"
+ ],
+ "continuity.closureItem.open_transfers": [
+  "Open ownership transfer: {{count}}",
+  "Transferencia de propiedad abierta: {{count}}",
+  "Transfert de propriété en cours : {{count}}",
+  "Transfè pwopriyete ouvè: {{count}}",
+  "نقل ملكية مفتوح: {{count}}"
+ ],
+ "continuity.closureItem.open_quotes": [
+  "Quotes waiting on customers: {{count}}",
+  "Cotizaciones pendientes del cliente: {{count}}",
+  "Devis en attente des clients : {{count}}",
+  "Devi k ap tann kliyan: {{count}}",
+  "عروض أسعار بانتظار العملاء: {{count}}"
+ ],
+ "continuity.closureItem.active_team": [
+  "Active team members: {{count}}",
+  "Miembros activos del equipo: {{count}}",
+  "Membres actifs de l'équipe : {{count}}",
+  "Manm ekip aktif: {{count}}",
+  "أعضاء الفريق النشطون: {{count}}"
+ ],
+ "continuity.closureItem.open_locations": [
+  "Open locations: {{count}}",
+  "Ubicaciones abiertas: {{count}}",
+  "Sites ouverts : {{count}}",
+  "Lokal ouvè: {{count}}",
+  "المواقع المفتوحة: {{count}}"
+ ],
+ "continuity.closureItem.data_export": [
+  "Records exported and saved",
+  "Registros exportados y guardados",
+  "Dossiers exportés et sauvegardés",
+  "Dosye ekspòte epi sove",
+  "تم تصدير السجلات وحفظها"
+ ],
+ "continuity.advisory": [
+  "recommended",
+  "recomendado",
+  "recommandé",
+  "rekòmande",
+  "موصى به"
+ ],
+ "continuity.closureReady": [
+  "Ready to close.",
+  "Listo para cerrar.",
+  "Prêt à fermer.",
+  "Pare pou fèmen.",
+  "جاهز للإغلاق."
+ ],
+ "continuity.closureNotReady": [
+  "Not ready to close yet.",
+  "Aún no está listo para cerrar.",
+  "Pas encore prêt à fermer.",
+  "Poko pare pou fèmen.",
+  "غير جاهز للإغلاق بعد."
+ ],
+ "continuity.targetDate": [
+  "Planned closing date",
+  "Fecha prevista de cierre",
+  "Date de fermeture prévue",
+  "Dat fèmen prevwa",
+  "تاريخ الإغلاق المخطط"
+ ],
+ "continuity.reason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "continuity.customerMessage": [
+  "Message for customers",
+  "Mensaje para clientes",
+  "Message aux clients",
+  "Mesaj pou kliyan",
+  "رسالة للعملاء"
+ ],
+ "continuity.exportConfirmed": [
+  "I exported and saved my records",
+  "Exporté y guardé mis registros",
+  "J'ai exporté et sauvegardé mes dossiers",
+  "Mwen ekspòte epi sove dosye mwen",
+  "صدّرت سجلاتي وحفظتها"
+ ],
+ "former.title": [
+  "Past workplaces",
+  "Lugares de trabajo anteriores",
+  "Anciens lieux de travail",
+  "Ansyen kote travay",
+  "أماكن العمل السابقة"
+ ],
+ "former.help": [
+  "Your own hours and visits from businesses you have left. Read-only.",
+  "Tus horas y visitas en negocios donde ya no trabajas. Solo lectura.",
+  "Vos heures et visites dans les entreprises que vous avez quittées. Lecture seule.",
+  "Pwòp èdtan ak vizit ou nan biznis ou te kite. Lekti sèlman.",
+  "ساعاتك وزياراتك في الأنشطة التجارية التي غادرتها. للقراءة فقط."
+ ],
+ "former.accessUntil": [
+  "available until",
+  "disponible hasta",
+  "disponible jusqu'au",
+  "disponib jiska",
+  "متاح حتى"
+ ],
+ "former.summary": [
+  "{{hours}} hours recorded, {{visits}} completed visits",
+  "{{hours}} horas registradas, {{visits}} visitas completadas",
+  "{{hours}} heures enregistrées, {{visits}} visites terminées",
+  "{{hours}} èdtan anrejistre, {{visits}} vizit fini",
+  "{{hours}} ساعة مسجلة، {{visits}} زيارة مكتملة"
+ ],
+ "former.date": [
+  "Date",
+  "Fecha",
+  "Date",
+  "Dat",
+  "التاريخ"
+ ],
+ "former.hours": [
+  "Hours",
+  "Horas",
+  "Heures",
+  "Èdtan",
+  "الساعات"
+ ],
+ "former.approved": [
+  "Approved",
+  "Aprobado",
+  "Approuvé",
+  "Apwouve",
+  "معتمد"
+ ],
+ "errors.owner_only": [
+  "Only the owner can do this.",
+  "Solo el dueño puede hacer esto.",
+  "Seul le propriétaire peut faire cela.",
+  "Se pwopriyetè a sèlman ki ka fè sa.",
+  "يمكن للمالك فقط القيام بذلك."
+ ],
+ "errors.confirm_name_mismatch": [
+  "The business name does not match.",
+  "El nombre del negocio no coincide.",
+  "Le nom de l'entreprise ne correspond pas.",
+  "Non biznis la pa matche.",
+  "اسم النشاط التجاري غير مطابق."
+ ],
+ "errors.transfer_target_not_manager": [
+  "Choose an active manager.",
+  "Elige un gerente activo.",
+  "Choisissez un responsable actif.",
+  "Chwazi yon manadjè aktif.",
+  "اختر مديرًا نشطًا."
+ ],
+ "errors.transfer_already_open": [
+  "A transfer is already open.",
+  "Ya hay una transferencia abierta.",
+  "Un transfert est déjà en cours.",
+  "Gen yon transfè ki ouvè deja.",
+  "يوجد نقل مفتوح بالفعل."
+ ],
+ "errors.transfer_not_pending": [
+  "This transfer is no longer open.",
+  "Esta transferencia ya no está abierta.",
+  "Ce transfert n'est plus ouvert.",
+  "Transfè sa a pa ouvè ankò.",
+  "لم يعد هذا النقل مفتوحًا."
+ ],
+ "errors.transfer_stale": [
+  "The team changed. Start a new transfer.",
+  "El equipo cambió. Inicia una nueva transferencia.",
+  "L'équipe a changé. Lancez un nouveau transfert.",
+  "Ekip la chanje. Kòmanse yon nouvo transfè.",
+  "تغيّر الفريق. ابدأ نقلًا جديدًا."
+ ],
+ "errors.not_transfer_recipient": [
+  "This transfer is for someone else.",
+  "Esta transferencia es para otra persona.",
+  "Ce transfert concerne quelqu'un d'autre.",
+  "Transfè sa a se pou yon lòt moun.",
+  "هذا النقل لشخص آخر."
+ ],
+ "errors.deputy_not_eligible": [
+  "Choose an active manager or representative.",
+  "Elige un gerente o representante activo.",
+  "Choisissez un responsable ou représentant actif.",
+  "Chwazi yon manadjè oswa reprezantan aktif.",
+  "اختر مديرًا أو ممثلًا نشطًا."
+ ],
+ "errors.deputy_exists": [
+  "A deputy is already named. End it first.",
+  "Ya hay un suplente. Termínalo primero.",
+  "Un adjoint est déjà désigné. Terminez-le d'abord.",
+  "Gen yon depite deja. Fini l anvan.",
+  "يوجد نائب بالفعل. أنهِه أولًا."
+ ],
+ "errors.target_not_active": [
+  "That person is not an active team member.",
+  "Esa persona no es un miembro activo del equipo.",
+  "Cette personne n'est pas un membre actif.",
+  "Moun sa a pa yon manm ekip aktif.",
+  "هذا الشخص ليس عضوًا نشطًا في الفريق."
  ]
 }

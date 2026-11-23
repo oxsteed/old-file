@@ -243,6 +243,14 @@ router.post('/business-listing-claims/:claimId/decision', requireAdmin, rejectIm
   try { res.json(await require('../services/businessOwner/listingClaimService').decide(req.user.id, req.params.claimId, req.body)); } catch (e) { next(e); }
 });
 
+// Groups 5-6 item 241: ownership transfers of businesses with a payout account.
+router.get('/business-ownership-transfers', requireAdmin, requirePermission('manage_operations'), async (req, res, next) => {
+  try { res.json(await require('../services/businessOwner/continuityService').adminQueue()); } catch (e) { next(e); }
+});
+router.post('/business-ownership-transfers/:transferId/decision', requireAdmin, rejectImpersonated, requirePermission('manage_operations'), async (req, res, next) => {
+  try { res.json(await require('../services/businessOwner/continuityService').adminDecide(req.user.id, req.params.transferId, req.body)); } catch (e) { next(e); }
+});
+
 // ── E13: controlled investigation access ─────────────────────────────────
 // Purpose-limited, approver-tied elevated reads. Every served read is
 // written to the admin audit log with purpose + approver; without an

@@ -16,6 +16,7 @@ const oversight = require('../services/businessOwner/oversightService');
 const policies = require('../services/businessOwner/policyService');
 const finance = require('../services/businessOwner/financeService');
 const expansion = require('../services/businessOwner/expansionService');
+const continuity = require('../services/businessOwner/continuityService');
 const { requireFinanceRead, requireFinanceWrite } = require('../middleware/requireBusinessFinance');
 
 const h = fn => async (req, res, next) => { res.set('Cache-Control', 'no-store'); try { await fn(req, res); } catch (e) { next(e); } };
@@ -72,6 +73,21 @@ router.get('/:businessId/owner/territory', ...biz('manager', 'customers.view_all
 router.get('/:businessId/owner/capacity', ...biz('manager', 'calendar.view_all'), h(async (req, res) => res.json(await expansion.capacity(req.business.id, req.query))));
 router.get('/:businessId/owner/staffing-forecast', ...biz('manager', 'calendar.view_all'), h(async (req, res) => res.json(await expansion.seasonalForecast(req.business.id))));
 
+// 241-245 continuity (ownership and deputy are owner-only; recipient responds as a manager)
+router.get('/:businessId/owner/ownership-transfer', ...biz('manager'), h(async (req, res) => res.json(await continuity.transferState(req.business.id, req.user.id))));
+router.post('/:businessId/owner/ownership-transfer', ...write('owner', 'owner.transfer'), h(async (req, res) => res.status(201).json(await continuity.requestTransfer(req.business.id, req.user.id, req.body))));
+router.post('/:businessId/owner/ownership-transfer/:transferId/cancel', ...write('owner', 'owner.transfer'), h(async (req, res) => res.json(await continuity.cancelTransfer(req.business.id, req.user.id, req.params.transferId))));
+router.post('/:businessId/ownership-transfer/:transferId/:answer(accept|decline)', ...write('manager'), h(async (req, res) => res.json(await continuity.respondTransfer(req.business.id, req.user.id, req.params.transferId, req.params.answer === 'accept'))));
+router.get('/:businessId/owner/deputy', ...biz('manager', 'team.view'), h(async (req, res) => res.json(await continuity.deputyState(req.business.id))));
+router.post('/:businessId/owner/deputy', ...write('owner'), h(async (req, res) => res.status(201).json(await continuity.designateDeputy(req.business.id, req.user.id, req.body))));
+router.delete('/:businessId/owner/deputy', ...write('owner'), h(async (req, res) => res.json(await continuity.endDeputy(req.business.id, req.user.id))));
+router.get('/:businessId/owner/work-transition', ...biz('manager', 'jobs.assign'), h(async (req, res) => res.json(await continuity.workPreview(req.business.id, req.query.from))));
+router.post('/:businessId/owner/work-transition', ...write('manager', 'jobs.assign'), h(async (req, res) => res.json(await continuity.transitionWork(req.business.id, req.user.id, req.body))));
+router.get('/:businessId/owner/departed-members', ...biz('manager', 'team.view'), h(async (req, res) => res.json(await continuity.departed(req.business.id))));
+router.patch('/:businessId/owner/departed-members/:recordId', ...write('owner'), h(async (req, res) => res.json(await continuity.setFormerAccess(req.business.id, req.user.id, req.params.recordId, req.body))));
+router.get('/:businessId/owner/closure-checklist', ...biz('owner'), h(async (req, res) => res.json(await continuity.closureChecklist(req.business.id))));
+router.put('/:businessId/owner/closure-plan', ...write('owner', 'owner.delete_business'), h(async (req, res) => res.json(await continuity.saveClosurePlan(req.business.id, req.user.id, req.body))));
+
 const claimRouter = express.Router();
 // 201 listing claims (the service checks the claimant owns the business)
 claimRouter.get('/listings', authenticate, h(async (req, res) => res.json(await claims.searchListings(req.query.q))));
@@ -83,4 +99,7 @@ const meRouter = express.Router();
 // 225 customer: own recent business visits and their issue status.
 meRouter.get('/', authenticate, h(async (req, res) => res.json(await oversight.myVisits(req.user.id))));
 
-module.exports = { router, claimRouter, meRouter };
+const formerRouter = express.Router();
+formerRouter.get('/', authenticate, h(async (req, res) => res.json(await continuity.myFormerWorkplaces(req.user.id))));
+
+module.exports = { router, claimRouter, meRouter, formerRouter };
