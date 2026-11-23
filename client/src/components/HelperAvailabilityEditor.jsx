@@ -58,6 +58,9 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
   const [showOverrideForm, setShowOverrideForm] = useState(false);
   const [overrideDate, setOverrideDate]         = useState('');
   const [overrideReason, setOverrideReason]     = useState('');
+  const [overrideKind, setOverrideKind]         = useState('time_off');
+  const [overrideStart, setOverrideStart]       = useState('');
+  const [overrideEnd, setOverrideEnd]           = useState('');
   const [savingOverride, setSavingOverride]      = useState(false);
 
   // Load saved template
@@ -135,16 +138,30 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
   async function handleAddOverride(e) {
     e.preventDefault();
     if (!overrideDate) return;
+    // A partial block needs both times, and the end after the start; the
+    // server rejects a lone start (it would default the end to 00:00).
+    if ((overrideStart && !overrideEnd) || (!overrideStart && overrideEnd) || (overrideStart && overrideEnd && overrideEnd <= overrideStart)) {
+      toast.error(t('availability.fixTimes'));
+      return;
+    }
     setSavingOverride(true);
     try {
       await api.post('/helper-profile/availability/overrides', {
         override_date: overrideDate,
         is_blocked:    true,
+        start_time:    overrideStart || null,
+        end_time:      overrideEnd || null,
         reason:        overrideReason || null,
+        kind:          overrideKind,
       });
-      toast.success(t('availability.overrideAdded', { defaultValue: 'Day blocked.' }));
+      toast.success(overrideKind === 'travel'
+        ? t('availability.travelAdded')
+        : t('availability.overrideAdded', { defaultValue: 'Day blocked.' }));
       setOverrideDate('');
       setOverrideReason('');
+      setOverrideKind('time_off');
+      setOverrideStart('');
+      setOverrideEnd('');
       setShowOverrideForm(false);
       loadTemplate();
     } catch (err) {
@@ -277,6 +294,31 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
                 />
               </div>
               <div className="hae-field">
+                <label>{t('availability.blockKind')}</label>
+                <select value={overrideKind} onChange={e => setOverrideKind(e.target.value)}>
+                  <option value="time_off">{t('availability.kindTimeOff')}</option>
+                  <option value="travel">{t('availability.kindTravel')}</option>
+                </select>
+              </div>
+              <div className="hae-field">
+                <label>{t('availability.startTime')}</label>
+                <select value={overrideStart} onChange={e => setOverrideStart(e.target.value)}>
+                  <option value="">{t('availability.allDay')}</option>
+                  {COMMON_TIMES.map(t => (
+                    <option key={t} value={t}>{to12(t)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="hae-field">
+                <label>{t('availability.endTime')}</label>
+                <select value={overrideEnd} onChange={e => setOverrideEnd(e.target.value)}>
+                  <option value="">{t('availability.allDay')}</option>
+                  {COMMON_TIMES.map(t => (
+                    <option key={t} value={t}>{to12(t)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="hae-field">
                 <label>{t('availability.reason', { defaultValue: 'Reason (optional)' })}</label>
                 <input
                   type="text"
@@ -290,7 +332,9 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
             <button type="submit" className="hae-save-btn" disabled={savingOverride} data-track="ui.008c76b67b.5">
               {savingOverride
                 ? t('availability.blocking', { defaultValue: 'Blocking…' })
-                : t('availability.blockDay', { defaultValue: 'Block this day' })}
+                : overrideKind === 'travel'
+                  ? t('availability.blockTravel')
+                  : t('availability.blockDay', { defaultValue: 'Block this day' })}
             </button>
           </form>
         )}
@@ -304,6 +348,8 @@ export default function HelperAvailabilityEditor({ onTemplateLoaded, saveRef } =
                     weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
                   })}
                 </span>
+                {o.type === 'travel' && <span className="hae-override-kind">{t('availability.travelBlock')}</span>}
+                {o.start_time && <span className="hae-override-time">{to12(o.start_time)}–{to12(o.end_time)}</span>}
                 {o.reason && <span className="hae-override-reason">{o.reason}</span>}
                 <button
                   className="hae-remove-override"

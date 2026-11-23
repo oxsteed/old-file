@@ -623,7 +623,7 @@ async function isSlotFree(helperId, startISO, endISO, client = pool, timeZone = 
   if (!hasTemplate) {
     const { rows } = await client.query(
       `SELECT 1 FROM availability_blocks
-        WHERE helper_id = $1 AND type IN ('unavailable','busy')
+        WHERE helper_id = $1 AND type IN ('unavailable','busy','travel')
           AND start_time < $3 AND end_time > $2 LIMIT 1`,
       [helperId, start.toISOString(), end.toISOString()]
     );
@@ -657,6 +657,39 @@ async function isSlotFree(helperId, startISO, endISO, client = pool, timeZone = 
     const ok = d.windows.some((w) => w.startMin <= s && w.endMin >= e);
     if (!ok) return { free: false, reason: d.status === 'blocked' ? 'blocked' : 'unavailable' };
   }
+  return { free: true };
+}
+
+/**
+ * True if a date-precision commitment can land on this date: the helper
+ * works that day (some free time in the weekly template), is not fully
+ * blocked off, and has not reached the daily job limit. A date-precision
+ * job carries no meaningful clock time (migration 760 stores it at 09:00
+ * UTC), so the check is day-level, not slot-level. With no template
+ * configured, only a block covering the whole day refuses the date, matching
+ * isSlotFree's historically permissive no-template fallback.
+ */
+async function isDateAvailable(helperId, dateISO, client = pool) {
+  const tz = await getHelperTimeZone(client, helperId);
+  const { days, hasTemplate } = await computeAvailability(helperId, dateISO, dateISO, client, tz);
+  const day = days[0];
+  if (!day) return { free: false, reason: 'unavailable' };
+  if (day.capacityReached) return { free: false, reason: 'daily_capacity' };
+  if (hasTemplate) {
+    if (day.status === 'available' || day.status === 'limited') return { free: true };
+    return { free: false, reason: day.status === 'blocked' ? 'blocked' : 'unavailable' };
+  }
+  const blocks = await getBlocks(client, helperId, dateISO, dateISO, tz);
+  const dayLen = zonedDayLengthMinutes(dateISO, tz);
+  const blocked = mergeRanges(
+    blocks.flatMap((b) => (blockRangesPerDate(b, tz)[dateISO] || []).filter((r) => r.type !== 'available'))
+  );
+  let covered = 0;
+  for (const r of blocked) {
+    if (r.start > covered) break;
+    covered = Math.max(covered, r.end);
+  }
+  if (covered >= dayLen) return { free: false, reason: 'blocked' };
   return { free: true };
 }
 
@@ -730,6 +763,7 @@ module.exports = {
   getBlocks,
   computeAvailability,
   isSlotFree,
+  isDateAvailable,
   getHourSlots,
   getBookingBuffer,
   getHelperTimeZone,

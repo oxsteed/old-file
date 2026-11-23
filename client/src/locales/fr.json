@@ -16008,7 +16008,16 @@
     "blocking": "Blocage…",
     "blockDay": "Bloquer ce jour",
     "noOverrides": "Aucune date bloquée.",
-    "unavailable": "Indisponible"
+    "unavailable": "Indisponible",
+    "blockKind": "Type de blocage",
+    "kindTimeOff": "Congé",
+    "kindTravel": "Temps de trajet",
+    "startTime": "Heure de début (facultatif)",
+    "endTime": "Heure de fin (facultatif)",
+    "allDay": "Toute la journée",
+    "travelAdded": "Temps de trajet bloqué.",
+    "blockTravel": "Bloquer le temps de trajet",
+    "travelBlock": "Trajet"
   },
   "cancellationModal": {
     "cancelJob": "Annuler la Mission",
@@ -44448,7 +44457,9 @@
     "saveError": "Impossible d’enregistrer. Vérifiez les limites et réessayez.",
     "conflict": "La capacité a changé sur un autre appareil. Rechargez et vérifiez avant d’enregistrer.",
     "helper_daily_capacity": "Ce prestataire a atteint sa limite quotidienne. Choisissez un autre jour.",
-    "helper_travel_conflict": "Ce créneau ne laisse pas assez de temps de déplacement. Choisissez-en un autre."
+    "helper_travel_conflict": "Ce créneau ne laisse pas assez de temps de déplacement. Choisissez-en un autre.",
+    "buffer": "Temps de préparation entre les rendez-vous (minutes, 0–240)",
+    "helper_unavailable": "Cet assistant n'est pas disponible à ce moment. Choisissez un autre créneau."
   },
   "helperDiscovery": {
     "title": "Distance des opportunités",

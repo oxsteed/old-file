@@ -16008,7 +16008,16 @@
     "blocking": "Blokaj…",
     "blockDay": "Bloke jou sa a",
     "noOverrides": "Pa gen dat bloke.",
-    "unavailable": "Pa disponib"
+    "unavailable": "Pa disponib",
+    "blockKind": "Kalite blokaj",
+    "kindTimeOff": "Konje",
+    "kindTravel": "Tan vwayaj",
+    "startTime": "Lè kòmansman (si ou vle)",
+    "endTime": "Lè fen (si ou vle)",
+    "allDay": "Tout jounen an",
+    "travelAdded": "Tan vwayaj la bloke.",
+    "blockTravel": "Bloke tan vwayaj",
+    "travelBlock": "Vwayaj"
   },
   "cancellationModal": {
     "cancelJob": "Anile Travay",
@@ -44448,7 +44457,9 @@
     "saveError": "Nou pa t kapab sove. Verifye limit yo epi eseye ankò.",
     "conflict": "Kapasite a chanje sou yon lòt aparèy. Rechaje epi revize anvan ou sove.",
     "helper_daily_capacity": "Èd sa a rive nan limit rezèvasyon li pou jounen an. Chwazi yon lòt jou.",
-    "helper_travel_conflict": "Lè sa a pa kite ase tan pou deplasman. Chwazi yon lòt lè."
+    "helper_travel_conflict": "Lè sa a pa kite ase tan pou deplasman. Chwazi yon lòt lè.",
+    "buffer": "Tan preparasyon ant randevou yo (minit, 0–240)",
+    "helper_unavailable": "Asistan sa a pa disponib nan moman sa a. Chwazi yon lòt lè."
   },
   "helperDiscovery": {
     "title": "Distans opòtinite yo",

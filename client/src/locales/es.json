@@ -16008,7 +16008,16 @@
     "blocking": "Bloqueando…",
     "blockDay": "Bloquear este día",
     "noOverrides": "Sin fechas bloqueadas.",
-    "unavailable": "No disponible"
+    "unavailable": "No disponible",
+    "blockKind": "Tipo de bloqueo",
+    "kindTimeOff": "Tiempo libre",
+    "kindTravel": "Tiempo de viaje",
+    "startTime": "Hora de inicio (opcional)",
+    "endTime": "Hora de fin (opcional)",
+    "allDay": "Todo el día",
+    "travelAdded": "Tiempo de viaje bloqueado.",
+    "blockTravel": "Bloquear tiempo de viaje",
+    "travelBlock": "Viaje"
   },
   "cancellationModal": {
     "cancelJob": "Cancelar Trabajo",
@@ -44448,7 +44457,9 @@
     "saveError": "No se pudo guardar. Revisa los límites e inténtalo de nuevo.",
     "conflict": "La capacidad cambió en otro dispositivo. Recarga y revisa antes de guardar.",
     "helper_daily_capacity": "Este ayudante alcanzó su límite diario. Elige otro día.",
-    "helper_travel_conflict": "Este horario no deja suficiente tiempo de viaje. Elige otra franja."
+    "helper_travel_conflict": "Este horario no deja suficiente tiempo de viaje. Elige otra franja.",
+    "buffer": "Tiempo de preparación entre citas (minutos, 0–240)",
+    "helper_unavailable": "Este ayudante no está disponible a esa hora. Elige otro horario."
   },
   "helperDiscovery": {
     "title": "Distancia de oportunidades",

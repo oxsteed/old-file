@@ -180,13 +180,22 @@ exports.getOverrides = async (req, res, next) => {
 
 // ─────────────────────────────────────────────────────────────────
 // POST /api/helper-profile/availability/overrides
-// Body: { override_date, is_blocked, start_time?, end_time?, reason? }
+// Body: { override_date, is_blocked, start_time?, end_time?, reason?, kind? }
 //
-// Writes an availability_blocks row (the ONE exceptions store).
+// Writes an availability_blocks row (the ONE exceptions store). kind is
+// 'time_off' (default: is_blocked writes 'unavailable', else 'available')
+// or 'travel': a manual travel block, always a block, labelled distinctly
+// on the calendar (Group 4 Slice D, item 175).
 // ─────────────────────────────────────────────────────────────────
 exports.createOverride = async (req, res, next) => {
   const helperId = req.user.id;
-  const { override_date, is_blocked = true, start_time = null, end_time = null, reason = null } = req.body || {};
+  const { override_date, is_blocked = true, start_time = null, end_time = null, reason = null, kind = 'time_off' } = req.body || {};
+
+  if (!['time_off', 'travel'].includes(kind)) {
+    return next(new AppError('kind must be time_off or travel', 400, 'validation_failed', {
+      kind: 'Must be time_off or travel',
+    }));
+  }
 
   if (!override_date || !/^\d{4}-\d{2}-\d{2}$/.test(override_date)) {
     return next(new AppError('override_date must be YYYY-MM-DD', 400, 'validation_failed', {
@@ -226,7 +235,7 @@ exports.createOverride = async (req, res, next) => {
          (helper_id, start_time, end_time, type, title, notes)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, helper_id, start_time, end_time, type, title, notes`,
-      [helperId, startIso, endIso, is_blocked ? 'unavailable' : 'available', reason, reason]
+      [helperId, startIso, endIso, kind === 'travel' ? 'travel' : (is_blocked ? 'unavailable' : 'available'), reason, reason]
     );
     res.status(201).json(blockToOverride(row, helperTimeZone));
   } catch (err) {

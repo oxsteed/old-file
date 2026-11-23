@@ -9,7 +9,7 @@ const logger = require('../utils/logger');
 const { validate, rules } = require('../utils/validate');
 const { AppError } = require('../middleware/errorHandler');
 
-const AVAILABILITY_TYPES = ['available', 'unavailable', 'busy'];
+const AVAILABILITY_TYPES = ['available', 'unavailable', 'busy', 'travel'];
 const VALID_CHANNELS = ['in_app', 'email', 'sms', 'push'];
 
 function parseDate(v) {

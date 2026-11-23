@@ -16586,7 +16586,16 @@
     "blocking": "Blocking…",
     "blockDay": "Block this day",
     "noOverrides": "No dates blocked yet.",
-    "unavailable": "Unavailable"
+    "unavailable": "Unavailable",
+    "blockKind": "Block type",
+    "kindTimeOff": "Time off",
+    "kindTravel": "Travel time",
+    "startTime": "Start time (optional)",
+    "endTime": "End time (optional)",
+    "allDay": "All day",
+    "travelAdded": "Travel time blocked.",
+    "blockTravel": "Block travel time",
+    "travelBlock": "Travel"
   },
   "cancellationSettings": {
     "pageTitle": "Payment & Cancellation Policies",
@@ -44448,7 +44457,9 @@
     "saveError": "Capacity could not be saved. Check the limits and retry.",
     "conflict": "Capacity changed on another device. Reload and review before saving.",
     "helper_daily_capacity": "This helper has reached their daily booking limit. Choose another day.",
-    "helper_travel_conflict": "This time does not leave the helper enough travel time. Choose another slot."
+    "helper_travel_conflict": "This time does not leave the helper enough travel time. Choose another slot.",
+    "buffer": "Turnaround time between appointments (minutes, 0–240)",
+    "helper_unavailable": "This helper is not available at that time. Choose another slot."
   },
   "helperDiscovery": {
     "title": "Opportunity distance",

@@ -927,6 +927,49 @@ exports.assignHelper = async (req, res, next) => {
       // revoked after bidding cannot be hired. Re-read inside the lock.
       await assertHelperCanBeHired(client, bid.helper_id);
 
+      // 1a. Availability (Group 4 Slice D, items 171-174): the hire must
+      // respect the helper's working hours, time-off/travel blocks, booking
+      // buffer, and daily job limit. The BidAcceptanceModal picker only
+      // reads free slots; the server re-validates here so a slot taken
+      // since the picker (or a job schedule outside working hours) fails
+      // the hire with a clear 409 instead of silently double-booking.
+      // The appointments advisory lock serializes concurrent hires for
+      // this helper; the capacity trigger stays the backstop on the
+      // appointment insert. No schedule on the job means the placeholder
+      // appointment below, which is not a real commitment, so nothing is
+      // checked in that case.
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`appointments:${bid.helper_id}`]);
+      const hireEtaMinutes = Math.min(480, Math.max(15, Math.round((parseFloat(bid.eta_hours) || 1) * 60)));
+      let hireWindow = null;
+      if (customerStart) {
+        hireWindow = { start: customerStart, end: customerEnd || new Date(customerStart.getTime() + 60 * 60_000), kind: 'slot' };
+      } else if (bid.scheduled_start_at) {
+        const scheduledStart = bid.scheduled_start_at instanceof Date
+          ? bid.scheduled_start_at
+          : new Date(bid.scheduled_start_at);
+        hireWindow = {
+          start: scheduledStart,
+          end: new Date(scheduledStart.getTime() + hireEtaMinutes * 60_000),
+          // Date-only schedules carry no meaningful clock time (migration
+          // 760 stores them at 09:00 UTC), so they get a day-level check.
+          kind: bid.scheduled_precision === 'datetime' ? 'slot' : 'day',
+        };
+      }
+      if (hireWindow) {
+        const availabilityService = require('../services/helperAvailabilityService');
+        const helperTimeZone = await availabilityService.getHelperTimeZone(client, bid.helper_id);
+        let slotCheck;
+        if (hireWindow.kind === 'slot') {
+          slotCheck = await availabilityService.isSlotFree(bid.helper_id, hireWindow.start.toISOString(), hireWindow.end.toISOString(), client, helperTimeZone);
+        } else {
+          slotCheck = await availabilityService.isDateAvailable(bid.helper_id, availabilityService.zonedDateStr(hireWindow.start, helperTimeZone), client);
+        }
+        if (!slotCheck.free) {
+          if (slotCheck.reason === 'daily_capacity') throw new AppError('This helper has reached their daily booking limit for that day.', 409, 'helper_daily_capacity');
+          throw new AppError('This helper is not available at that time.', 409, 'helper_unavailable', { reason: slotCheck.reason });
+        }
+      }
+
       // 2. Accept the bid atomically - only succeeds if it is still pending
       const acceptResult = await client.query(
         `UPDATE bids SET status = 'accepted', updated_at = NOW()
@@ -1064,25 +1107,19 @@ exports.assignHelper = async (req, res, next) => {
 
         let apptStart, apptEnd;
 
-        // Helper to clamp ETA → minutes (15…480) for appointment duration
-        const etaToMinutes = (h) => {
-          const n = parseFloat(h) || 1;
-          return Math.min(480, Math.max(15, Math.round(n * 60)));
-        };
-
-        if (customerStart) {
-          // Customer picked an exact slot via BidAcceptanceModal — use it directly.
-          apptStart = customerStart;
-          apptEnd   = customerEnd || new Date(customerStart.getTime() + 60 * 60_000);
-        } else if (jobRow.scheduled_start_at) {
-          // Canonical schedule (migration 760): date-only schedules are stored
-          // at 09:00 UTC with precision 'date', exact times with 'datetime'.
-          apptStart = jobRow.scheduled_start_at instanceof Date
-            ? jobRow.scheduled_start_at
-            : new Date(jobRow.scheduled_start_at);
-          apptEnd = new Date(apptStart.getTime() + etaToMinutes(acceptedBid.eta_hours) * 60_000);
+        if (hireWindow) {
+          // Resolved and availability-checked before the bid was accepted
+          // (step 1a); reuse the same window so the appointment matches
+          // the checked time exactly.
+          apptStart = hireWindow.start;
+          apptEnd = hireWindow.end;
         } else {
           // No schedule on the job — default to a week from now at 09:00 UTC.
+          // Helper to clamp ETA → minutes (15…480) for appointment duration
+          const etaToMinutes = (h) => {
+            const n = parseFloat(h) || 1;
+            return Math.min(480, Math.max(15, Math.round(n * 60)));
+          };
           apptStart = new Date();
           apptStart.setUTCDate(apptStart.getUTCDate() + 7);
           apptStart.setUTCHours(9, 0, 0, 0);
