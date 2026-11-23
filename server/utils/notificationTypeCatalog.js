@@ -402,6 +402,19 @@ const NOTIFICATION_TYPES = [
   { type: 'property_incident_summary', group: 'work' },
   { type: 'property_maintenance_due', group: 'work' },
   { type: 'property_budget_over', group: 'work' },
+  { type: 'restaurant_pickup_unclaimed', group: 'work' },
+  { type: 'restaurant_order_transfer_requested', group: 'work' },
+  { type: 'restaurant_order_transfer_decided', group: 'work' },
+  { type: 'restaurant_order_moved', group: 'work' },
+  { type: 'restaurant_equipment_down', group: 'work' },
+  { type: 'restaurant_location_emergency_closed', group: 'work' },
+  { type: 'restaurant_stock_notice', group: 'work' },
+  { type: 'restaurant_ticket_transferred', group: 'work' },
+  { type: 'restaurant_substitution_request', group: 'work' },
+  { type: 'restaurant_order_issue_escalated', group: 'work' },
+  { type: 'restaurant_order_late', group: 'work' },
+  { type: 'restaurant_incident_assigned', group: 'work' },
+  { type: 'restaurant_access_change_handoff', group: 'work' },
   // <<< Groups 5-6
 ];
 

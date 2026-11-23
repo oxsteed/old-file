@@ -164,6 +164,58 @@ const businessTeamNotifications = {
     title: t('Over budget', 'Presupuesto excedido', 'Budget dépassé', 'Bidjè depase', 'تجاوز الميزانية'),
     body: t('{property} is over its monthly maintenance budget.', '{property} superó su presupuesto mensual de mantenimiento.', '{property} dépasse son budget d’entretien mensuel.', '{property} depase bidjè antretyen chak mwa li.', 'تجاوز {property} ميزانية الصيانة الشهرية.'),
   },
+  restaurant_pickup_unclaimed: {
+    title: t('Pickup waiting', 'Pedido esperando', 'Commande en attente', 'Kòmand ap tann', 'طلب ينتظر الاستلام'),
+    body: t('Order {queue} has not been picked up.', 'El pedido {queue} no se ha recogido.', 'La commande {queue} n’a pas été récupérée.', 'Yo poko vin chèche kòmand {queue}.', 'لم يُستلم الطلب {queue} بعد.'),
+  },
+  restaurant_order_transfer_requested: {
+    title: t('Order transfer request', 'Solicitud de traslado de pedido', 'Demande de transfert de commande', 'Demann transfè kòmand', 'طلب نقل طلبية'),
+    body: t('Another store wants to move order {queue} to you.', 'Otra tienda quiere pasarte el pedido {queue}.', 'Un autre magasin veut vous transférer la commande {queue}.', 'Yon lòt magazen vle voye kòmand {queue} ba ou.', 'متجر آخر يريد نقل الطلب {queue} إليك.'),
+  },
+  restaurant_order_transfer_decided: {
+    title: t('Transfer answered', 'Traslado respondido', 'Transfert traité', 'Transfè a gen repons', 'تم الرد على النقل'),
+    body: t('The other store answered the transfer for order {queue}.', 'La otra tienda respondió al traslado del pedido {queue}.', 'L’autre magasin a répondu pour la commande {queue}.', 'Lòt magazen an reponn pou kòmand {queue}.', 'ردّ المتجر الآخر على نقل الطلب {queue}.'),
+  },
+  restaurant_order_moved: {
+    title: t('Your order moved', 'Tu pedido cambió de tienda', 'Votre commande a changé de magasin', 'Kòmand ou chanje magazen', 'تم نقل طلبك'),
+    body: t('Your order is now being prepared at another location. Check the pickup address.', 'Tu pedido se prepara ahora en otra tienda. Revisa la dirección de recogida.', 'Votre commande est préparée dans un autre magasin. Vérifiez l’adresse de retrait.', 'Kòmand ou ap prepare nan yon lòt kote. Tcheke adrès pou vin chèche l.', 'يتم تحضير طلبك الآن في فرع آخر. تحقق من عنوان الاستلام.'),
+  },
+  restaurant_equipment_down: {
+    title: t('Equipment down', 'Equipo fuera de servicio', 'Équipement en panne', 'Ekipman an pàn', 'معدات معطلة'),
+    body: t('{equipment} was reported down.', 'Se reportó {equipment} fuera de servicio.', '{equipment} a été signalé en panne.', 'Yo siyale {equipment} an pàn.', 'تم الإبلاغ عن تعطل {equipment}.'),
+  },
+  restaurant_location_emergency_closed: {
+    title: t('Store closed', 'Tienda cerrada', 'Magasin fermé', 'Magazen fèmen', 'تم إغلاق المتجر'),
+    body: t('{location} closed for an emergency.', '{location} cerró por una emergencia.', '{location} a fermé en urgence.', '{location} fèmen pou yon ijans.', 'أُغلق {location} بسبب حالة طارئة.'),
+  },
+  restaurant_stock_notice: {
+    title: t('Stock notice', 'Aviso de inventario', 'Alerte de stock', 'Avi sou stòk', 'إشعار مخزون'),
+    body: t('A teammate flagged stock at {location}.', 'Un compañero marcó un aviso de inventario en {location}.', 'Un collègue a signalé le stock à {location}.', 'Yon kolèg siyale stòk nan {location}.', 'أبلغ زميل عن المخزون في {location}.'),
+  },
+  restaurant_ticket_transferred: {
+    title: t('Ticket handed to you', 'Ticket asignado a ti', 'Ticket qui vous est confié', 'Tikè ba ou', 'تم تسليمك تذكرة'),
+    body: t('You now own ticket {queue}.', 'Ahora tienes el ticket {queue}.', 'Le ticket {queue} est maintenant à vous.', 'Tikè {queue} se pou ou kounye a.', 'التذكرة {queue} أصبحت مسؤوليتك.'),
+  },
+  restaurant_substitution_request: {
+    title: t('Substitution question', 'Pregunta de sustitución', 'Question de remplacement', 'Kesyon sou ranplasman', 'سؤال عن بديل'),
+    body: t('An item is out. Is {item} OK instead?', 'Un artículo se agotó. ¿Te sirve {item}?', 'Un article manque. {item} vous convient-il ?', 'Yon atik fini. Èske {item} bon pou ou?', 'نفد صنف. هل يناسبك {item} بدلاً منه؟'),
+  },
+  restaurant_order_issue_escalated: {
+    title: t('Order issue escalated', 'Problema de pedido escalado', 'Problème de commande transmis', 'Pwoblèm kòmand monte', 'تم تصعيد مشكلة طلب'),
+    body: t('Order {queue} needs a manager.', 'El pedido {queue} necesita un gerente.', 'La commande {queue} nécessite un responsable.', 'Kòmand {queue} bezwen yon manadjè.', 'الطلب {queue} يحتاج إلى مدير.'),
+  },
+  restaurant_order_late: {
+    title: t('Order running late', 'Pedido retrasado', 'Commande en retard', 'Kòmand an reta', 'طلب متأخر'),
+    body: t('Order {queue} is past its promised time.', 'El pedido {queue} pasó su hora prometida.', 'La commande {queue} a dépassé l’heure promise.', 'Kòmand {queue} depase lè yo te pwomèt la.', 'تجاوز الطلب {queue} الوقت الموعود.'),
+  },
+  restaurant_incident_assigned: {
+    title: t('Incident assigned', 'Incidente asignado', 'Incident attribué', 'Ensidan asiyen', 'تم إسناد حادث'),
+    body: t('You own the follow-up for {title}.', 'Tienes el seguimiento de {title}.', 'Vous êtes responsable du suivi de {title}.', 'Ou responsab swivi {title}.', 'أنت مسؤول عن متابعة {title}.'),
+  },
+  restaurant_access_change_handoff: {
+    title: t('Shift ended by access change', 'Turno cerrado por cambio de acceso', 'Service terminé suite à un changement d’accès', 'Chif fini akoz chanjman aksè', 'انتهت الوردية بسبب تغيير الصلاحيات'),
+    body: t('A teammate lost access to {location}; their tickets were released.', 'Un compañero perdió acceso a {location}; sus tickets se liberaron.', 'Un collègue a perdu l’accès à {location} ; ses tickets ont été libérés.', 'Yon kolèg pèdi aksè nan {location}; tikè l yo lage.', 'فقد زميل الوصول إلى {location}؛ تم تحرير تذاكره.'),
+  },
 };
 
 module.exports = { businessTeamNotifications, BUSINESS_TEAM_NOTIFICATION_TYPES: Object.keys(businessTeamNotifications) };

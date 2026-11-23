@@ -813,6 +813,7 @@ app.use('/api', require('./routes/statementDisputeMessages'));
 app.use('/api/restaurants/:restaurantId/credit-kiosks/:deviceId', oxsteedCreditKioskRoutes);
 app.use('/api/restaurants', restaurantSupportRoutes);
 app.use('/api/admin/restaurants/support', adminRestaurantSupportRoutes);
+app.use('/api/restaurants', require('./routes/restaurantPersona')); // Group 8 items 351-450
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/restaurants', require('./routes/storeHubs'));
 app.use('/api/restaurants', require('./routes/restaurantDevices'));

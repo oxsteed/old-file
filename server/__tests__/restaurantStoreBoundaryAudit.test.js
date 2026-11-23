@@ -97,6 +97,7 @@ const REVIEWED = {
   'services/businessOwner/expansionService.js': BUSINESS_LEVEL,
   'services/businessOwner/performanceService.js': BUSINESS_LEVEL,
   'services/businessOwner/workLeaveService.js': CUSTOMER_OR_SELF,
+  'services/restaurantPersona/ownerService.js': 'store-scoped through restaurantPersona/access storeIds()/location() (getLocationScope + assertLocationAccess); cross-store reports are owner/manager role-gated',
   'services/businessOwner/workStartService.js': CUSTOMER_OR_SELF,
   'controllers/adminFoodOrdersController.js': PLATFORM_ADMIN,
   'controllers/agentFoodRefundActions.js': PLATFORM_ADMIN,

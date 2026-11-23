@@ -3833,6 +3833,8 @@ exports.createOrder = async (req, res, next) => {
           });
         }
       }
+      // Items 369, 370, 393: holiday hours, pickup slot quotas, emergency closures.
+      await require('../services/restaurantPersona/ownerService').assertOrderAllowed(client, { restaurantId, locationId: orderLocationId, scheduledFor, timezone: orderTimezone });
       // F-11: daypart enforcement at the fulfillment instant (the scheduled
       // time for later orders, otherwise now), mirroring quoteOrder.
       const daypartInstant = scheduledFor ? new Date(scheduledFor) : new Date();
