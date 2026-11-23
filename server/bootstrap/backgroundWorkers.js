@@ -27,6 +27,7 @@ const { startConsultingNoShowFollowup } = require('../jobs/consultingNoShowFollo
 const { startConsultantPayoutSweeperJob } = require('../jobs/consultantPayoutSweeper'); // G10-1 consultant payout retry
 const { startBusinessAppointmentReminderJob } = require('../jobs/businessAppointmentReminders'); // Review P2-3-F04
 const { startBusinessAppointmentNoShowSweeper } = require('../jobs/businessAppointmentNoShowSweeper'); // Review P3-8-F03
+const { startRestaurantScheduledMenuSweeper } = require('../jobs/restaurantScheduledMenuSweeper'); // Groups 7-8 (358, 372)
 const { startCalendarReminderJob } = require('../jobs/calendarReminders');
 const { startDirectCalendarReminderJob } = require('../jobs/directCalendarReminders');
 const { startAffiliateCommissionBatchJob } = require('../jobs/affiliateCommissionBatch');
@@ -209,6 +210,7 @@ class BackgroundWorkers {
       this.handles.push(startDirectCalendarReminderJob());
       this.handles.push(startBusinessAppointmentReminderJob());
       this.handles.push(startBusinessAppointmentNoShowSweeper());
+      this.handles.push(startRestaurantScheduledMenuSweeper());
       this.handles.push(startAffiliateCommissionBatchJob());
       startScheduledDeletionJob();
       startTemplateExpiryJob();

@@ -88,6 +88,23 @@ describeDb('Group 8: restaurant persona', () => {
     expect((await request(app).get(`${O()}/unclaimed-pickups`).set(as(owner)).expect(200)).body.orders.length).toBe(1);
   });
 
+  test('358, 372: scheduled-menu sweeper applies due changes and alerts unclaimed pickups', async () => {
+    const { sweepScheduledMenus } = require('../jobs/restaurantScheduledMenuSweeper');
+    const { rows: [{ id: chId }] } = await pool.query(`INSERT INTO restaurant_scheduled_menu_changes(restaurant_id, menu_item_id, price_cents, effective_at, created_by) VALUES($1,$2,1500,NOW() - INTERVAL '1 minute',$3) RETURNING id`, [rid, itemId, owner]);
+    const o = await mkOrder({ status: 'ready', ready_at: new Date(Date.now() - 2 * 36e5).toISOString() });
+    const res = await sweepScheduledMenus();
+    expect(res.restaurants).toBeGreaterThanOrEqual(1);
+    expect(res.applied).toBeGreaterThanOrEqual(1);
+    expect(res.alerted).toBeGreaterThanOrEqual(1);
+    expect((await pool.query('SELECT price_cents FROM food_menu_items WHERE id=$1', [itemId])).rows[0].price_cents).toBe(1500);
+    expect((await pool.query("SELECT status FROM restaurant_scheduled_menu_changes WHERE id=$1", [chId])).rows[0].status).toBe('applied');
+    expect((await pool.query('SELECT unclaimed_alerted_at FROM food_orders WHERE id=$1', [o.id])).rows[0].unclaimed_alerted_at).toBeTruthy();
+    // Second tick is a no-op for this order: the alert marks before notifying.
+    const again = await sweepScheduledMenus();
+    expect((await pool.query('SELECT unclaimed_alerted_at FROM food_orders WHERE id=$1', [o.id])).rows[0].unclaimed_alerted_at).toBeTruthy();
+    expect(again.applied).toBe(0);
+  });
+
   test('401-450 team: shift start, readiness, pickup code, issues, stock notice, tickets, end of shift', async () => {
     await request(app).post(`${S()}/readiness`).set(as(cook)).send({ items: {} }).expect(409);
     expect((await request(app).post(`${S()}/start`).set(as(cook)).send({ location_id: locA }).expect(200)).body.started).toBe(true);
