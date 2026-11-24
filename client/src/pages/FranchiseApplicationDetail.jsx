@@ -22,6 +22,7 @@ import FranchiseStandards from './FranchiseStandards';
 import FranchiseBrandAssets from './FranchiseBrandAssets';
 import FranchiseComplianceChecklist from './FranchiseComplianceChecklist';
 import FranchiseExceptionSummary from './FranchiseExceptionSummary';
+import FranchiseLocationHealth from './FranchiseLocationHealth';
 import { useAuth } from '../hooks/useAuth';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
@@ -796,6 +797,10 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onUnlink={unlinkTicket}
         busy={busy}
       />
+
+      {/* Group 12 Slice 3f (627, D-328): the per-location health view —
+          status, KPIs, and compliance for each location. */}
+      <FranchiseLocationHealth health={detail.location_health || null} />
 
       {/* Group 12 Slice 3b (610, D-310): the operator-facing assignment history. */}
       <section className="fr-detail-card">

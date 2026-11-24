@@ -26,6 +26,7 @@ import FranchiseStandards from './FranchiseStandards';
 import FranchiseBrandAssets from './FranchiseBrandAssets';
 import FranchiseComplianceChecklist from './FranchiseComplianceChecklist';
 import FranchiseExceptionSummary from './FranchiseExceptionSummary';
+import FranchiseLocationHealth from './FranchiseLocationHealth';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -779,6 +780,12 @@ export default function FranchiseTerritoryOpsPage() {
               onLink={linkTicket}
               onUnlink={unlinkTicket}
             />
+          )}
+
+          {/* Group 12 Slice 3f (627, D-328): the per-location health view —
+              status, KPIs, and compliance for each location. */}
+          {boundaryDetail && (
+            <FranchiseLocationHealth health={boundaryDetail.location_health || null} />
           )}
 
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">

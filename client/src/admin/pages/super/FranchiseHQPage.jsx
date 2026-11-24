@@ -24,6 +24,7 @@ import FranchiseStandards from '../../../pages/FranchiseStandards';
 import FranchiseBrandAssets from '../../../pages/FranchiseBrandAssets';
 import FranchiseComplianceChecklist from '../../../pages/FranchiseComplianceChecklist';
 import FranchiseExceptionSummary from '../../../pages/FranchiseExceptionSummary';
+import FranchiseLocationHealth from '../../../pages/FranchiseLocationHealth';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -1873,6 +1874,10 @@ export default function FranchiseHQPage() {
                     summary={selectedBundle.exception_summary || null}
                     locations={selectedBundle.locations || []}
                   />
+
+                  {/* Group 12 Slice 3f (627, D-328): the per-location health
+                      view — read-only in HQ. */}
+                  <FranchiseLocationHealth health={selectedBundle.location_health || null} />
 
                   {/* Group 12 Slice 3d (620): the HQ announcement feed —
                       HQ posts and removes, operators read. */}

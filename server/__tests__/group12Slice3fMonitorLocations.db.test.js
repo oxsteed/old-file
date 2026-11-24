@@ -364,5 +364,181 @@ describeDb('Group 12 Slice 3f: Monitor locations (626-630)', () => {
         .expect(200);
       expect(bundle.body.exception_summary.total).toBe(0);
     });
+
+  describe('627: per-location health view', () => {
+    function healthFor(user, applicationId) {
+      return request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/location-health`)
+        .set('x-test-user', user.id);
+    }
+
+    async function addMilestone(admin, applicationId, locationId, title) {
+      const added = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${locationId}/milestones`)
+        .set('x-test-user', admin.id)
+        .send({ title })
+        .expect(201);
+      return added.body.locations[0].milestones[0].id;
+    }
+
+    test('a fresh location is attention: not launched, no manager, no milestones yet', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const locationId = await locationIdFor(operator, applicationId);
+
+      const health = await healthFor(operator, applicationId).expect(200);
+      expect(health.body.total).toBe(1);
+      expect(health.body.healthy).toBe(0);
+      expect(health.body.attention).toBe(1);
+      expect(health.body.at_risk).toBe(0);
+      const location = health.body.locations[0];
+      expect(location.id).toBe(locationId);
+      expect(location.health).toBe('attention');
+      expect(location.reasons).toEqual(expect.arrayContaining(['not_launched', 'no_manager']));
+      expect(location.milestones).toEqual({ total: 0, done: 0, blocked: 0 });
+      expect(location.services).toEqual({ total: 0, available: 0, unavailable: 0 });
+      expect(location.manager).toBeNull();
+      expect(location.launch_complete).toBe(false);
+      expect(location.exceptions).toEqual({ total: 0, open: 0, open_urgent: 0 });
+    });
+
+    test('a blocked milestone makes the location at risk; completing it clears the risk', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const locationId = await locationIdFor(operator, applicationId);
+      const milestoneId = await addMilestone(admin, applicationId, locationId, 'Sign the lease');
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/milestones/${milestoneId}/status`)
+        .set('x-test-user', operator.id)
+        .send({ status: 'blocked' })
+        .expect(200);
+
+      const atRisk = await healthFor(operator, applicationId).expect(200);
+      expect(atRisk.body.at_risk).toBe(1);
+      const location = atRisk.body.locations[0];
+      expect(location.health).toBe('at_risk');
+      expect(location.reasons).toContain('blocked_milestone');
+      expect(location.milestones).toEqual({ total: 1, done: 0, blocked: 1 });
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/milestones/${milestoneId}/status`)
+        .set('x-test-user', operator.id)
+        .send({ status: 'completed' })
+        .expect(200);
+
+      const cleared = await healthFor(operator, applicationId).expect(200);
+      expect(cleared.body.locations[0].health).toBe('attention');
+      expect(cleared.body.locations[0].reasons).not.toContain('blocked_milestone');
+      expect(cleared.body.locations[0].milestones).toEqual({ total: 1, done: 1, blocked: 0 });
+    });
+
+    test('an open urgent exception linked to the location makes it at risk; a low one only draws attention', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const locationId = await locationIdFor(operator, applicationId);
+      await addTicket(operator, { applicationId, locationId, priority: 'low' });
+
+      const attention = await healthFor(operator, applicationId).expect(200);
+      expect(attention.body.locations[0].health).toBe('attention');
+      expect(attention.body.locations[0].reasons).toContain('open_exception');
+      expect(attention.body.locations[0].reasons).not.toContain('open_urgent_exception');
+      expect(attention.body.locations[0].exceptions).toEqual({ total: 1, open: 1, open_urgent: 0 });
+
+      await addTicket(operator, { applicationId, locationId, priority: 'urgent' });
+      const atRisk = await healthFor(operator, applicationId).expect(200);
+      expect(atRisk.body.locations[0].health).toBe('at_risk');
+      expect(atRisk.body.locations[0].reasons).toContain('open_urgent_exception');
+      expect(atRisk.body.locations[0].exceptions).toEqual({ total: 2, open: 2, open_urgent: 1 });
+
+      // A ticket linked territory-wide does not sicken a location.
+      await addTicket(operator, { applicationId, priority: 'urgent' });
+      const still = await healthFor(operator, applicationId).expect(200);
+      expect(still.body.locations[0].exceptions).toEqual({ total: 2, open: 2, open_urgent: 1 });
+    });
+
+    test('a launched, confirmed, managed location with all services available is healthy', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const locationId = await locationIdFor(operator, applicationId);
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/services`)
+        .set('x-test-user', operator.id)
+        .send({ service_name: 'Plumbing', available: true })
+        .expect(201);
+      // Launching a location requires the application itself to be
+      // launched (the activation flow is covered by the 3c suite).
+      await db.query("UPDATE franchise_applications SET status = 'launched' WHERE id = $1", [applicationId]);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/launch`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/confirm-opening`)
+        .set('x-test-user', operator.id)
+        .send({ opened_date: '2026-11-24' })
+        .expect(201);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${locationId}/manager`)
+        .set('x-test-user', admin.id)
+        .send({ manager_user_id: operator.id })
+        .expect(201);
+
+      const health = await healthFor(operator, applicationId).expect(200);
+      expect(health.body.healthy).toBe(1);
+      const location = health.body.locations[0];
+      expect(location.health).toBe('healthy');
+      expect(location.reasons).toEqual([]);
+      expect(location.launch_complete).toBe(true);
+      expect(String(location.opened_date).slice(0, 10)).toBe('2026-11-24');
+      expect(location.manager.user_id).toBe(operator.id);
+      expect(location.services).toEqual({ total: 1, available: 1, unavailable: 0 });
+      expect(location.opening_team_count).toBe(0);
+
+      // Health rides the operator detail bundle and the HQ read.
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.location_health.healthy).toBe(1);
+      const adminHealth = await request(app)
+        .get(`/api/franchise/applications/${applicationId}/location-health`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(adminHealth.body.locations[0].health).toBe('healthy');
+    });
+
+    test('an unavailable service draws attention with its reason', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const locationId = await locationIdFor(operator, applicationId);
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/services`)
+        .set('x-test-user', operator.id)
+        .send({ service_name: 'Roofing', available: false, reason: 'No roofer yet' })
+        .expect(201);
+
+      const health = await healthFor(operator, applicationId).expect(200);
+      const location = health.body.locations[0];
+      expect(location.health).toBe('attention');
+      expect(location.reasons).toContain('unavailable_service');
+      expect(location.services).toEqual({ total: 1, available: 0, unavailable: 1 });
+    });
+
+    test('a stranger gets 404 and a non-operator applicant 403 on the health read', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+
+      await healthFor(stranger, applicationId).expect(404);
+      await healthFor(applicant, applicationId)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+    });
+  });
+
   });
 });

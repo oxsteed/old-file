@@ -463,6 +463,8 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3f (628, D-327): the service exception summary —
   // the territory's support tickets aggregated, derived on read.
   const exceptionSummary = await buildExceptionSummary(applicationId);
+  // Group 12 Slice 3f (627, D-328): the per-location health view.
+  const locationHealth = await buildLocationHealth(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -491,6 +493,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     standards,
     brand_assets: brandAssets,
     exception_summary: exceptionSummary,
+    location_health: locationHealth,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1089,6 +1092,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   const brandAssets = await fetchBrandAssets(applicationId);
   // Group 12 Slice 3f (628, D-327): the service exception summary.
   const exceptionSummary = await buildExceptionSummary(applicationId);
+  // Group 12 Slice 3f (627, D-328): the per-location health view.
+  const locationHealth = await buildLocationHealth(applicationId);
 
   return {
     application: {
@@ -1112,6 +1117,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     standards,
     brand_assets: brandAssets,
     exception_summary: exceptionSummary,
+    location_health: locationHealth,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — viewer perspective.
@@ -5805,6 +5811,127 @@ async function unlinkTicketFromTerritoryAsAdmin(req, res) {
   }
 }
 
+// 627 (D-328): the per-location health view. Health is derived on read
+// from the open locations (fetchOpenLocations) plus each location's
+// linked open exceptions (628) — never stored, so it can never drift
+// from the launch, milestone, service, manager, and ticket state.
+// at_risk: a blocked milestone, or an open urgent/high exception.
+// attention: not launched, no manager, any open exception, or any
+// unavailable service. healthy: launched and confirmed, manager
+// assigned, no open exceptions, no blocked milestones, every service
+// available. The brand-side store comparison is not reused: it is
+// brand-facing and not territory-scoped.
+async function buildLocationHealth(applicationId) {
+  const locations = await fetchOpenLocations(applicationId);
+  const { rows: exceptionRows } = await db.query(
+    `SELECT franchise_location_id AS location_id,
+            COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE status IN ${EXCEPTION_OPEN_SQL})::int AS open_count,
+            COUNT(*) FILTER (WHERE status IN ${EXCEPTION_OPEN_SQL}
+                               AND priority IN ('urgent', 'high'))::int AS open_urgent_count
+       FROM support_tickets
+      WHERE franchise_application_id = $1 AND franchise_location_id IS NOT NULL
+      GROUP BY franchise_location_id`,
+    [applicationId]
+  );
+  const exceptionsByLocation = new Map(
+    exceptionRows.map((row) => [String(row.location_id), row])
+  );
+  const healthLocations = locations.map((location) => {
+    const milestones = location.milestones || [];
+    const services = location.services || [];
+    const milestoneTotal = milestones.length;
+    const milestonesDone = milestones.filter((m) => m.status === 'completed').length;
+    const milestonesBlocked = milestones.filter((m) => m.status === 'blocked').length;
+    const servicesTotal = services.length;
+    const servicesAvailable = services.filter((s) => s.available).length;
+    const exceptions = exceptionsByLocation.get(String(location.id)) || { total: 0, open_count: 0, open_urgent_count: 0 };
+    const reasons = [];
+    if (milestonesBlocked > 0) reasons.push('blocked_milestone');
+    if (exceptions.open_urgent_count > 0) reasons.push('open_urgent_exception');
+    if (location.status !== 'launched') reasons.push('not_launched');
+    if (!location.manager) reasons.push('no_manager');
+    if (exceptions.open_count > 0) reasons.push('open_exception');
+    if (servicesTotal - servicesAvailable > 0) reasons.push('unavailable_service');
+    const health = milestonesBlocked > 0 || exceptions.open_urgent_count > 0
+      ? 'at_risk'
+      : reasons.length > 0
+        ? 'attention'
+        : 'healthy';
+    return {
+      id: location.id,
+      name: location.name,
+      city: location.city,
+      region: location.region,
+      country: location.country,
+      status: location.status,
+      launched_at: location.launched_at,
+      launch_complete: location.launch_complete,
+      opened_date: location.opening_confirmation?.opened_date || null,
+      manager: location.manager
+        ? {
+            user_id: location.manager.manager_user_id,
+            name: [location.manager.manager_first_name, location.manager.manager_last_name].filter(Boolean).join(' ') || location.manager.manager_email,
+            email: location.manager.manager_email,
+          }
+        : null,
+      opening_team_count: (location.opening_team || []).length,
+      milestones: { total: milestoneTotal, done: milestonesDone, blocked: milestonesBlocked },
+      services: { total: servicesTotal, available: servicesAvailable, unavailable: servicesTotal - servicesAvailable },
+      exceptions: { total: exceptions.total, open: exceptions.open_count, open_urgent: exceptions.open_urgent_count },
+      health,
+      reasons,
+    };
+  });
+  return {
+    application_id: applicationId,
+    total: healthLocations.length,
+    healthy: healthLocations.filter((l) => l.health === 'healthy').length,
+    attention: healthLocations.filter((l) => l.health === 'attention').length,
+    at_risk: healthLocations.filter((l) => l.health === 'at_risk').length,
+    locations: healthLocations,
+  };
+}
+
+async function getLocationHealth(req, res) {
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        return res.status(403).json({
+          error: 'Only the assigned operator can view location health.',
+          code: 'franchise_operator_only',
+        });
+      }
+    } finally {
+      client.release();
+    }
+    return res.json(await buildLocationHealth(id));
+  } catch (err) {
+    logger.error('Error loading franchise location health', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load location health.' });
+  }
+}
+
+async function getLocationHealthAsAdmin(req, res) {
+  const { id } = req.params;
+  try {
+    const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Franchise application not found.' });
+    }
+    return res.json(await buildLocationHealth(id));
+  } catch (err) {
+    logger.error('Error loading franchise location health as admin', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load location health.' });
+  }
+}
+
 async function getTerritoryCoverage(req, res) {
   const { id } = req.params;
   try {
@@ -6634,6 +6761,8 @@ module.exports = {
   getTerritoryCoverageAsAdmin,
   getExceptionSummary,
   getExceptionSummaryAsAdmin,
+  getLocationHealth,
+  getLocationHealthAsAdmin,
   linkTicketToTerritory,
   linkTicketToTerritoryAsAdmin,
   unlinkTicketFromTerritory,
