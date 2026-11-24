@@ -31,6 +31,7 @@ export const toolRentalsApi = {
     if (filters.radius !== null && filters.radius !== undefined) params.radius = filters.radius;
     if (filters.lat !== null && filters.lat !== undefined) params.lat = filters.lat;
     if (filters.lng !== null && filters.lng !== undefined) params.lng = filters.lng;
+    if (filters.ids) params.ids = filters.ids;
     if (filters.sort) params.sort = filters.sort;
     if (filters.limit) params.limit = filters.limit;
     if (filters.offset) params.offset = filters.offset;

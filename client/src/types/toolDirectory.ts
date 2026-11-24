@@ -167,6 +167,10 @@ export const ADJACENT_TOOL_CATEGORIES: Record<string, string[]> = {
 // server/routes/toolRentals.js VALID_CAPACITY_UNITS.
 export const TOOL_CAPACITY_UNITS = ['kg', 'lb', 'L', 'gal', 'W', 'kW', 'hp'] as const;
 
+// ─── Comparison cap (565) ────────────────────────────────────────────────────
+// Matches TOOL_COMPARE_MAX in server/routes/toolRentals.js.
+export const TOOL_COMPARE_MAX = 3;
+
 // ─── Conditions ──────────────────────────────────────────────────────────────
 
 export const TOOL_CONDITIONS = ['excellent', 'good', 'fair', 'poor'] as const;

@@ -35,11 +35,13 @@ import SortControls from '../components/toolDirectory/SortControls';
 import ActiveFilterTags from '../components/toolDirectory/ActiveFilterTags';
 import EmptyState from '../components/toolDirectory/EmptyState';
 import ToolDirectoryCard from '../components/toolDirectory/ToolDirectoryCard';
+import ToolCompareModal from '../components/toolDirectory/ToolCompareModal';
 import ToolDetailModal from '../components/ToolDetailModal';
 
 import {
   TOOL_TILES,
   DEFAULT_TOOL_FILTERS,
+  TOOL_COMPARE_MAX,
   countActiveToolFilters,
 } from '../types/toolDirectory';
 import { getToolTilesTranslated } from '../utils/toolRentalsTaxonomy';
@@ -429,6 +431,68 @@ const ToolRentalsBrowse = () => {
   const [selectedTool, setSelectedTool] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // 565: compare selection (up to TOOL_COMPARE_MAX), persisted so a
+  // refresh keeps the selection.
+  const [compareIds, setCompareIds] = useState(() => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('toolRentals.compare') || '[]');
+      return Array.isArray(parsed)
+        ? parsed.filter((n) => Number.isInteger(n)).slice(0, TOOL_COMPARE_MAX)
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareTools, setCompareTools] = useState([]);
+  const [compareLoading, setCompareLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('toolRentals.compare', JSON.stringify(compareIds));
+    } catch {
+      /* storage unavailable: selection lives for this visit only */
+    }
+  }, [compareIds]);
+
+  const toggleCompare = useCallback((tool) => {
+    setCompareIds((prev) => {
+      if (prev.includes(tool.id)) return prev.filter((id) => id !== tool.id);
+      if (prev.length >= TOOL_COMPARE_MAX) {
+        toast.error(t('toolRentalsDir.compareLimit'));
+        return prev;
+      }
+      return [...prev, tool.id];
+    });
+  }, [t]);
+
+  const openCompare = useCallback(async () => {
+    setCompareOpen(true);
+    setCompareLoading(true);
+    try {
+      const known = tools.filter((x) => compareIds.includes(x.id));
+      const missing = compareIds.filter((id) => !known.some((x) => x.id === id));
+      let fetched = [];
+      if (missing.length) fetched = await toolRentalsApi.browseTools({ ids: missing.join(',') });
+      const merged = [...known, ...fetched];
+      const ordered = compareIds
+        .map((id) => merged.find((x) => x.id === id))
+        .filter(Boolean);
+      if (ordered.length !== compareIds.length) {
+        // A selected listing went away (unavailable / held / deleted):
+        // drop it from the selection and say so.
+        setCompareIds(ordered.map((x) => x.id));
+        toast.error(t('toolRentalsDir.compareNotAvailable'));
+      }
+      setCompareTools(ordered);
+    } catch {
+      toast.error(t('errors.generic'));
+      setCompareTools(tools.filter((x) => compareIds.includes(x.id)));
+    } finally {
+      setCompareLoading(false);
+    }
+  }, [compareIds, tools, t]);
+
   const debounceRef = useRef(null);
   const isFirstLoad = useRef(true);
 
@@ -789,6 +853,9 @@ const ToolRentalsBrowse = () => {
                         onViewDetails={handleViewDetails}
                         onMessage={handleMessageOwner}
                         highlightCategory={boostedCategory}
+                        compareSelected={compareIds.includes(tool.id)}
+                        compareDisabled={!compareIds.includes(tool.id) && compareIds.length >= TOOL_COMPARE_MAX}
+                        onToggleCompare={toggleCompare}
                       />
                     </div>
                   ))}
@@ -835,6 +902,30 @@ const ToolRentalsBrowse = () => {
         />
       </FilterDrawer>
 
+      {/* Compare bar (565) */}
+      {compareIds.length > 0 && (
+        <div className="fixed bottom-4 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-3 bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl px-4 py-3">
+            <span className="text-sm text-gray-200">
+              {t('toolRentalsDir.compareBar', { count: compareIds.length })}
+            </span>
+            <button
+              onClick={openCompare}
+              disabled={compareIds.length < 2}
+              className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold transition-colors disabled:opacity-50" data-track="ui.654f39ee89.10"
+            >
+              {t('toolRentalsDir.compare')}
+            </button>
+            <button
+              onClick={() => setCompareIds([])}
+              className="px-3 py-2 rounded-xl border border-gray-700 text-gray-300 text-sm hover:bg-gray-800 transition-colors" data-track="ui.654f39ee89.11"
+            >
+              {t('toolRentalsDir.compareClear')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tool Detail Modal */}
       {selectedTool && (
         <ToolDetailModal
@@ -843,6 +934,23 @@ const ToolRentalsBrowse = () => {
           onClose={handleCloseModal}
           onMessage={handleMessageOwner}
           onViewProfile={handleViewProfile}
+        />
+      )}
+
+      {/* Compare modal (565) */}
+      {compareOpen && (
+        <ToolCompareModal
+          tools={compareTools}
+          loading={compareLoading}
+          onClose={() => setCompareOpen(false)}
+          onRemove={(toolId) => {
+            setCompareIds((prev) => prev.filter((id) => id !== toolId));
+            setCompareTools((prev) => prev.filter((x) => x.id !== toolId));
+          }}
+          onViewDetails={(tool) => {
+            setCompareOpen(false);
+            handleViewDetails(tool);
+          }}
         />
       )}
     </div>

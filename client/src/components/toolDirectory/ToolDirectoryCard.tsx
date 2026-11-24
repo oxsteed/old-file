@@ -24,6 +24,10 @@ interface ToolDirectoryCardProps {
   onMessage?: (ownerId: number) => void;
   /** When set, highlights the matching category on this card */
   highlightCategory?: string;
+  /** 565: compare selection state for this card */
+  compareSelected?: boolean;
+  compareDisabled?: boolean;
+  onToggleCompare?: (tool: ToolCardData) => void;
 }
 
 function normalizeCondition(c: string | undefined | null): ToolCondition | null {
@@ -51,6 +55,9 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
   onViewDetails,
   onMessage,
   highlightCategory,
+  compareSelected = false,
+  compareDisabled = false,
+  onToggleCompare,
 }) => {
   const { t } = useTranslation();
   const ownerName =
@@ -184,11 +191,12 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
                 ? t('toolRentalsDir.weightLabel', { value: Number(tool.weight_kg) })
                 : null,
               tool.size_length_cm != null
-                ? t('toolRentalsDir.sizeLabel', {
-                    length: Number(tool.size_length_cm),
-                    width: tool.size_width_cm != null ? Number(tool.size_width_cm) : '—',
-                    height: tool.size_height_cm != null ? Number(tool.size_height_cm) : '—',
-                  })
+                ? (() => {
+                    const dims = [tool.size_length_cm, tool.size_width_cm, tool.size_height_cm]
+                      .filter((v) => v != null)
+                      .map((v) => Number(v));
+                    return `${dims.join(' x ')} cm`;
+                  })()
                 : null,
             ].filter(Boolean).join(' · ')}
           </p>
@@ -280,6 +288,23 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Compare toggle (565) */}
+        {onToggleCompare && (
+          <label className="flex items-center gap-2 pt-1 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={compareSelected}
+              disabled={compareDisabled}
+              onChange={() => onToggleCompare(tool)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-brand-500 focus:ring-brand-500 focus:ring-offset-gray-900 cursor-pointer disabled:opacity-50"
+              aria-label={t('toolRentalsDir.compareAdd')} data-track="ui.8326ed7c64.4"
+            />
+            <span className={`text-xs transition-colors ${compareSelected ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
+              {t('toolRentalsDir.compareAdd')}
+            </span>
+          </label>
+        )}
 
         {/* Actions */}
         <div className="flex gap-2 pt-1 mt-auto">

@@ -154,6 +154,9 @@ const TOOL_RENTAL_ATTESTATION_VERSION = 'peer-rental-v1';
 const VALID_CONDITIONS = ['excellent', 'good', 'fair', 'poor'];
 // 563: capacity units. kg/lb = load, L/gal = volume, W/kW/hp = power.
 const VALID_CAPACITY_UNITS = ['kg', 'lb', 'L', 'gal', 'W', 'kW', 'hp'];
+// 565: side-by-side comparison cap. The client enforces the same cap
+// (TOOL_COMPARE_MAX in client/src/types/toolDirectory.ts).
+const TOOL_COMPARE_MAX = 3;
 const MAX_TOOL_NAME_LEN = 200;
 const MAX_TOOL_CATEGORY_LEN = 100;
 const MAX_TOOL_DESCRIPTION_LEN = 4000;
@@ -442,7 +445,7 @@ async function browseTools(req, res) {
   try {
     const { category, city, name, priceMin, priceMax, sort = 'newest', limit = 30, offset = 0, startDate, endDate,
       capacityMin, capacityUnit, weightMax, lengthMax, widthMax, heightMax,
-      lat, lng, radius } = req.query;
+      lat, lng, radius, ids } = req.query;
     // 562: both dates together, valid calendar dates, end after start.
     // A single date is not a rental range, so it is rejected rather than
     // silently treated as open-ended.
@@ -466,6 +469,24 @@ async function browseTools(req, res) {
     let where = 'WHERE t.is_available = $1';
     let idx = 2;
 
+    // 565: compare fetch. `ids` is a comma-separated list of 1-3 numeric
+    // listing ids; the rows come back in the requested order (see the
+    // ORDER BY override below) and still pass every public gate in this
+    // query (availability, owner status, moderation hold).
+    let idsFilter = null;
+    let idsIdx = null;
+    if (ids !== undefined) {
+      const parsed = String(ids).split(',').map((s) => s.trim()).filter(Boolean);
+      if (parsed.length === 0 || parsed.length > TOOL_COMPARE_MAX || parsed.some((s) => !/^\d+$/.test(s))) {
+        return res.status(400).json({
+          error: 'Invalid ids',
+          code: 'validation_failed',
+          fields: { ids: `Provide 1 to ${TOOL_COMPARE_MAX} numeric listing ids` },
+        });
+      }
+      idsFilter = parsed.map(Number);
+    }
+
     const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime, hasModerationHold, hasCapacityColumns, hasLocationColumns } = await getToolFields();
     // An admin moderation hold (e.g. safety recall) keeps the tool out of the
     // public listing even if the owner flips is_available back on.
@@ -474,6 +495,11 @@ async function browseTools(req, res) {
     if (category) { where += ` AND t.category ILIKE $${idx++}`; params.push(`%${category}%`); }
     if (city)     { where += ` AND t.location_city ILIKE $${idx++}`; params.push(`%${city}%`); }
     if (name)     { where += ` AND t.name ILIKE $${idx++}`; params.push(`%${name}%`); }
+    if (idsFilter) {
+      idsIdx = idx++;
+      params.push(idsFilter);
+      where += ` AND t.id = ANY($${idsIdx}::int[])`;
+    }
     if (priceMin) { where += ` AND t.daily_rate >= $${idx++}`; params.push(parseFloat(priceMin)); }
     if (priceMax) { where += ` AND t.daily_rate <= $${idx++}`; params.push(parseFloat(priceMax)); }
     // 563: capacity/size filters. A minimum capacity is meaningless without
@@ -562,6 +588,8 @@ async function browseTools(req, res) {
     // 564: an explicit distance sort orders nearest first; with a distance
     // filter and no explicit sort, nearest first is the default too.
     if (sort === 'distance' || (distanceFilter && req.query.sort === undefined)) orderBy = 'distance_miles ASC';
+    // 565: a compare fetch comes back in the requested id order.
+    if (idsFilter) orderBy = `array_position($${idsIdx}::int[], t.id)`;
 
     params.push(Math.min(parseInt(limit) || 30, 100));
     params.push(parseInt(offset) || 0);

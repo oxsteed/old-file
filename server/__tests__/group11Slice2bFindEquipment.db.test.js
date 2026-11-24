@@ -452,4 +452,41 @@ describeDb('Group 11 Slice 2b: Find equipment (562, 563, 564, 565)', () => {
       expect(Number(moved.body.tool.location_lng)).toBeCloseTo(AUSTIN.lng, 4);
     });
   });
+
+  describe('565: listing comparison', () => {
+    test('browse ?ids= returns the requested listings in the requested order', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const first = await insertTool(owner, { name: 'Compare A', daily_rate: 10 });
+      const second = await insertTool(owner, { name: 'Compare B', category: 'Cutting Tools', daily_rate: 20 });
+      const third = await insertTool(owner, { name: 'Compare C', category: 'Sanding & Finishing', daily_rate: 30 });
+      const res = await browse({ ids: `${third.id},${first.id}` }).expect(200);
+      expect(res.body.tools.map((t) => t.id)).toEqual([third.id, first.id]);
+      expect(res.body.tools[0].name).toBe('Compare C');
+      expect(res.body.tools[1].daily_rate).toBe('10.00');
+      const all = await browse({ ids: `${first.id},${second.id},${third.id}` }).expect(200);
+      expect(all.body.tools.map((t) => t.id)).toEqual([first.id, second.id, third.id]);
+    });
+
+    test('compare fetch still applies the public gates', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const visible = await insertTool(owner, { name: 'Visible drill' });
+      const hidden = await insertTool(owner, { name: 'Hidden drill', is_available: false });
+      const held = await insertTool(owner, { name: 'Held drill', moderation_hold: true });
+      const res = await browse({ ids: `${visible.id},${hidden.id},${held.id}` }).expect(200);
+      expect(res.body.tools.map((t) => t.id)).toEqual([visible.id]);
+    });
+
+    test('unknown ids return an empty list; bad ids are rejected', async () => {
+      const none = await browse({ ids: '987654321' }).expect(200);
+      expect(none.body.tools).toEqual([]);
+      await browse({ ids: '1,2,3,4' }).expect(400); // cap is 3
+      await browse({ ids: 'abc' }).expect(400);
+      await browse({ ids: '' }).expect(400);
+      await browse({ ids: '1.5' }).expect(400);
+      const bad = await browse({ ids: '1,2,3,4' }).expect(400);
+      expect(bad.body.code).toBe('validation_failed');
+    });
+  });
 });
