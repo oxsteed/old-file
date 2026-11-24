@@ -455,6 +455,12 @@ const MyBookingsPageContent = () => {
           <span className="booking-card-days">
             ({t('myBookings.daysCount', { count: calculateDays(booking.start_date, booking.end_date) })})
           </span>
+          {/* Group 11 item 574: pickup appointment time. */}
+          {booking.pickup_time && (
+            <span className="booking-card-pickup-time">
+              {t('toolRentals.pickupTimeLabel') || 'Pickup time'}: {formatTime(booking.pickup_time, locale)}
+            </span>
+          )}
         </div>
 
         {isOwner && booking.first_name && (

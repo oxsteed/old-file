@@ -34,6 +34,15 @@ function fmtCurrency(cents, currency = 'USD') {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 }).format(cents / 100);
 }
 
+// Group 11 item 574: pickup appointment time (TIME "HH:MM:SS" from the
+// booking row) rendered in the owner's locale.
+function fmtPickupTime(value) {
+  if (!value) return '';
+  const [h, m] = String(value).split(':').map(Number);
+  if (!Number.isFinite(h)) return String(value);
+  return new Date(2000, 0, 1, h, m || 0).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
 // 552: readiness checklist labels, in display order. Kept distinct from
 // the activation status above (D-262): readiness is completeness.
 const READINESS_CHECK_LABELS = Object.freeze({
@@ -227,7 +236,15 @@ function ToolOwnerDashboardContent() {
                             {b.tool_name || b.tool_title || `#${b.id}`}
                           </div>
                           <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                            {when ? new Date(when).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}
+                            {when ? (
+                              // Group 11 item 574: a pickup with an
+                              // appointment time shows the date + the real
+                              // time, not the midnight the date-only
+                              // start_date would otherwise render as.
+                              !isReturn && b.pickup_time
+                                ? `${new Date(when).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${fmtPickupTime(b.pickup_time)}`
+                                : new Date(when).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                            ) : ''}
                             {b.renter_name ? ` · ${b.renter_name}` : ''}
                           </div>
                         </div>

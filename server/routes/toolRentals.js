@@ -56,12 +56,14 @@ async function getToolFields() {
   if (_resolvedFields) return _resolvedFields;
   try {
     // Check optional tool_rentals columns (added in 078b, moderation_hold in 675,
-    // capacity/size/weight in the 563 migration, location in the 564 migration)
+    // capacity/size/weight in the 563 migration, location in the 564 migration,
+    // pickup window in the 574 migration)
     const { rows: trCols } = await pool.query(`
       SELECT column_name FROM information_schema.columns
        WHERE table_name = 'tool_rentals'
          AND column_name IN ('avg_rating', 'review_count', 'image_gallery', 'location_lat', 'location_lng', 'moderation_hold',
-           'capacity_value', 'capacity_unit', 'weight_kg', 'size_length_cm', 'size_width_cm', 'size_height_cm')
+           'capacity_value', 'capacity_unit', 'weight_kg', 'size_length_cm', 'size_width_cm', 'size_height_cm',
+           'pickup_window_start', 'pickup_window_end')
     `);
     const tr = new Set(trCols.map(r => r.column_name));
 
@@ -87,6 +89,8 @@ async function getToolFields() {
       tr.has('size_length_cm') ? 't.size_length_cm' : 'NULL::numeric AS size_length_cm',
       tr.has('size_width_cm') ? 't.size_width_cm' : 'NULL::numeric AS size_width_cm',
       tr.has('size_height_cm') ? 't.size_height_cm' : 'NULL::numeric AS size_height_cm',
+      tr.has('pickup_window_start') ? 't.pickup_window_start' : 'NULL::time AS pickup_window_start',
+      tr.has('pickup_window_end') ? 't.pickup_window_end' : 'NULL::time AS pickup_window_end',
     ].join(',\n  ');
 
     // Store which optional users columns are safe to select
@@ -103,7 +107,7 @@ async function getToolFields() {
     };
   } catch {
     _resolvedFields = {
-      toolFields: `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url, NULL::numeric AS location_lat, NULL::numeric AS location_lng, NULL::numeric AS capacity_value, NULL AS capacity_unit, NULL::numeric AS weight_kg, NULL::numeric AS size_length_cm, NULL::numeric AS size_width_cm, NULL::numeric AS size_height_cm`,
+      toolFields: `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url, NULL::numeric AS location_lat, NULL::numeric AS location_lng, NULL::numeric AS capacity_value, NULL AS capacity_unit, NULL::numeric AS weight_kg, NULL::numeric AS size_length_cm, NULL::numeric AS size_width_cm, NULL::numeric AS size_height_cm, NULL::time AS pickup_window_start, NULL::time AS pickup_window_end`,
       ownerRatingExpr: '0',
       hasAvatarUrl: false,
       hasResponseTime: false,
@@ -216,6 +220,17 @@ function parseCoordinate(value, field, min, max, errors) {
     return null;
   }
   return num;
+}
+
+// 574: pickup window times are HH:MM (24-hour). Blank means unset.
+function parseTimeOfDay(value, field, errors) {
+  if (value === undefined || value === null || value === '') return null;
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(text)) {
+    errors[field] = `${field} must be a time like 09:30`;
+    return null;
+  }
+  return text;
 }
 
 function cleanText(value, maxLen, field, errors, { required = false } = {}) {
@@ -385,6 +400,24 @@ function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
   const mergedLng = payload.location_lng ?? existing?.location_lng ?? null;
   if ((mergedLat != null) !== (mergedLng != null)) {
     errors.location_lat = 'location_lat and location_lng must be set together';
+  }
+
+  // 574: pickup window, same pair rule as capacity (merged with the
+  // stored row on partial updates). Blank means the owner sets no
+  // window and the renter may pick any time.
+  if (!partial || body.pickup_window_start !== undefined) {
+    payload.pickup_window_start = parseTimeOfDay(body.pickup_window_start, 'pickup_window_start', errors);
+  }
+  if (!partial || body.pickup_window_end !== undefined) {
+    payload.pickup_window_end = parseTimeOfDay(body.pickup_window_end, 'pickup_window_end', errors);
+  }
+  const mergedWindowStart = payload.pickup_window_start ?? existing?.pickup_window_start ?? null;
+  const mergedWindowEnd = payload.pickup_window_end ?? existing?.pickup_window_end ?? null;
+  if ((mergedWindowStart != null) !== (mergedWindowEnd != null)) {
+    errors.pickup_window_start = 'pickup_window_start and pickup_window_end must be set together';
+  }
+  if (mergedWindowStart != null && mergedWindowEnd != null && mergedWindowEnd <= mergedWindowStart) {
+    errors.pickup_window_end = 'pickup_window_end must be after pickup_window_start';
   }
 
   for (const field of ['is_available', 'requires_deposit', 'delivery_available', 'pickup_only']) {
@@ -732,6 +765,8 @@ router.post('/', authenticate, toolOwnerCapabilityGate, upload.single('image'), 
       'size_length_cm', 'size_width_cm', 'size_height_cm',
       // 564: pickup coordinates (migration 20261124011100).
       'location_lat', 'location_lng',
+      // 574: pickup window (migration 20261124014500).
+      'pickup_window_start', 'pickup_window_end',
     ];
     const insertValues = [
       req.user.id,
@@ -764,6 +799,8 @@ router.post('/', authenticate, toolOwnerCapabilityGate, upload.single('image'), 
       payload.size_height_cm ?? null,
       payload.location_lat ?? null,
       payload.location_lng ?? null,
+      payload.pickup_window_start ?? null,
+      payload.pickup_window_end ?? null,
     ];
     if (hasImageGallery && imageUrl) {
       insertColumns.push('image_gallery');
@@ -784,6 +821,7 @@ router.post('/', authenticate, toolOwnerCapabilityGate, upload.single('image'), 
                  capacity_value, capacity_unit, weight_kg,
                  size_length_cm, size_width_cm, size_height_cm,
                  location_lat, location_lng,
+                 pickup_window_start, pickup_window_end,
                  owner_attested_at, owner_attestation_version,
                  created_at, updated_at`,
       insertValues
@@ -823,7 +861,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
 
     // Fetch existing record first (ownership check)
     const existing = await pool.query(
-      'SELECT id, moderation_hold, capacity_value, capacity_unit, location_lat, location_lng FROM tool_rentals WHERE id = $1 AND user_id = $2',
+      'SELECT id, moderation_hold, capacity_value, capacity_unit, location_lat, location_lng, pickup_window_start, pickup_window_end FROM tool_rentals WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (!existing.rows.length) {
@@ -868,7 +906,12 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
     const locationSetSql = `
          location_lat = COALESCE($${locationBase}, location_lat),
          location_lng = COALESCE($${locationBase + 1}, location_lng),`;
-    const whereOffset = locationBase + 3; // two location params, then id, then user_id
+    // 574: pickup window sits after the location params.
+    const pickupWindowBase = locationBase + 2;
+    const pickupWindowSetSql = `
+         pickup_window_start = COALESCE($${pickupWindowBase}, pickup_window_start),
+         pickup_window_end = COALESCE($${pickupWindowBase + 1}, pickup_window_end),`;
+    const whereOffset = pickupWindowBase + 3; // two window params, then id, then user_id
 
     const result = await pool.query(
       `UPDATE tool_rentals SET
@@ -896,6 +939,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
          ${imageSetSql}
          ${capacitySetSql}
          ${locationSetSql}
+         ${pickupWindowSetSql}
          updated_at         = NOW()
        WHERE id = $${whereOffset - 1} AND user_id = $${whereOffset}
        RETURNING id, user_id, name, category, description,
@@ -907,6 +951,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
                  capacity_value, capacity_unit, weight_kg,
                  size_length_cm, size_width_cm, size_height_cm,
                  location_lat, location_lng,
+                 pickup_window_start, pickup_window_end,
                  owner_attested_at, owner_attestation_version,
                  created_at, updated_at`,
       [
@@ -939,6 +984,8 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
         payload.size_height_cm ?? null,
         payload.location_lat ?? null,
         payload.location_lng ?? null,
+        payload.pickup_window_start ?? null,
+        payload.pickup_window_end ?? null,
         id,
         req.user.id,
       ]

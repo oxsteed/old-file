@@ -511,4 +511,97 @@ describeDb('Group 11 Slice 2c: Reserve + Checkout (566, 568, 570, 571, 574, 575)
       expect(res.body.owner_identity).toEqual(expect.objectContaining({ status: 'pending', verified: false }));
     });
   });
+
+  describe('574: pickup appointment time slot', () => {
+    const createTool = (user, body) => request(app)
+      .post('/api/tool-rentals')
+      .set('x-test-user', user)
+      .send({
+        name: 'Generator',
+        category: 'Generators & Power',
+        description: 'Portable generator.',
+        daily_rate: 45,
+        location_city: 'Austin',
+        location_state: 'TX',
+        owner_attestation_accepted: true,
+        ...body,
+      });
+
+    test('owner sets a pickup window on the listing; a bad window is refused', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const res = await createTool(owner, { pickup_window_start: '09:00', pickup_window_end: '17:00' }).expect(201);
+      expect(String(res.body.tool.pickup_window_start).slice(0, 5)).toBe('09:00');
+      expect(String(res.body.tool.pickup_window_end).slice(0, 5)).toBe('17:00');
+      await createTool(owner, { pickup_window_start: '09:00' }).expect(400);
+      await createTool(owner, { pickup_window_start: '17:00', pickup_window_end: '09:00' }).expect(400);
+      await createTool(owner, { pickup_window_start: '9:30', pickup_window_end: '17:00' }).expect(400);
+      const bad = await createTool(owner, { pickup_window_start: '09:00' }).expect(400);
+      expect(bad.body.code).toBe('validation_failed');
+    });
+
+    test('browse returns the pickup window for the booking flow', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, {
+        name: 'Window drill', pickup_window_start: '08:00', pickup_window_end: '12:00',
+      });
+      const res = await request(app).get('/api/tool-rentals/browse').query({ name: 'Window drill' }).expect(200);
+      const found = res.body.tools.find((t) => t.id === tool.id);
+      expect(String(found.pickup_window_start).slice(0, 5)).toBe('08:00');
+      expect(String(found.pickup_window_end).slice(0, 5)).toBe('12:00');
+    });
+
+    test('renter picks a time inside the window; it is stored and frozen in the snapshot', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, {
+        name: 'Slot drill', pickup_window_start: '09:00', pickup_window_end: '17:00',
+      });
+      const res = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '09:30' });
+      expect(res.status).toBe(201);
+      expect(String(res.body.pickup_time).slice(0, 5)).toBe('09:30');
+      expect(res.body.agreement_snapshot.rental.pickupTime).toBe('09:30');
+      // Both booking lists show the slot.
+      const mine = await request(app).get('/api/tool-rentals/bookings/my').set('x-test-user', renter).expect(200);
+      expect(String(mine.body.find((b) => b.id === res.body.id).pickup_time).slice(0, 5)).toBe('09:30');
+      const receipt = await request(app)
+        .get(`/api/tool-rentals/bookings/${res.body.id}/receipt`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(String(receipt.body.booking.pickup_time).slice(0, 5)).toBe('09:30');
+    });
+
+    test('a time outside the window, a bad time, and a time on delivery are refused', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, {
+        name: 'Strict drill', pickup_window_start: '09:00', pickup_window_end: '17:00',
+      });
+      const outside = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '08:30' });
+      expect(outside.status).toBe(400);
+      expect(outside.body.code).toBe('validation_failed');
+      const late = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '17:30' });
+      expect(late.status).toBe(400);
+      const badFormat = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '9:30am' });
+      expect(badFormat.status).toBe(400);
+      const onDelivery = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '10:00', fulfillment: 'delivery' });
+      expect(onDelivery.status).toBe(400);
+    });
+
+    test('no window means any time works; no time means no slot', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Open drill' });
+      const withTime = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '07:00' });
+      expect(withTime.status).toBe(201);
+      expect(String(withTime.body.pickup_time).slice(0, 5)).toBe('07:00');
+      const withoutTime = await createBookingViaApi(renter, tool.id, '2026-12-13', '2026-12-15');
+      expect(withoutTime.status).toBe(201);
+      expect(withoutTime.body.pickup_time).toBeNull();
+    });
+  });
 });

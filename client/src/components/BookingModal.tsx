@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, DollarSign, ShieldAlert } from 'lucide-react';
+import { X, DollarSign, ShieldAlert, Clock } from 'lucide-react';
 import { toolRentalsApi } from '../api/toolRentals';
 import toast from 'react-hot-toast';
 import './BookingModal.css';
@@ -26,6 +26,8 @@ interface BookingModalProps {
     pickup_only?: boolean;
     delivery_available?: boolean;
     owner_id?: number;
+    pickup_window_start?: string | null;
+    pickup_window_end?: string | null;
   };
   isOpen: boolean;
   onClose: () => void;
@@ -39,6 +41,15 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [fulfillment, setFulfillment] = useState<'pickup' | 'delivery'>('pickup');
   const [bookedDates, setBookedDates] = useState<Array<{ start_date: string; end_date: string }>>([]);
+  // Group 11 item 574: pickup appointment time (HH:MM).
+  const [pickupTime, setPickupTime] = useState('');
+
+  const formatWindowTime = (value: string | null | undefined): string => {
+    if (!value) return '';
+    const [h, m] = value.split(':').map(Number);
+    if (!Number.isFinite(h)) return value;
+    return new Date(2000, 0, 1, h, m || 0).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
 
   // 554: delivery is offered only when the listing offers it and is not
   // pickup-only; pickup is always available.
@@ -113,6 +124,20 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
       return;
     }
 
+    // 574: the pickup time must fall inside the owner's window when the
+    // listing sets one; the server enforces the same rule.
+    if (fulfillment === 'pickup' && pickupTime) {
+      const windowStart = (tool.pickup_window_start || '').slice(0, 5);
+      const windowEnd = (tool.pickup_window_end || '').slice(0, 5);
+      if ((windowStart && pickupTime < windowStart) || (windowEnd && pickupTime > windowEnd)) {
+        toast.error(t('toolRentals.pickupTimeInvalid', {
+          start: formatWindowTime(tool.pickup_window_start),
+          end: formatWindowTime(tool.pickup_window_end),
+        }));
+        return;
+      }
+    }
+
     // Check for calendar conflicts
     for (const booking of bookedDates) {
       if (toolRentalDatesOverlap(startDate, endDate, booking.start_date, booking.end_date)) {
@@ -123,7 +148,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
 
     setLoading(true);
     try {
-      await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice, agreementAccepted, tool.equipment_version, fulfillment);
+      await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice, agreementAccepted, tool.equipment_version, fulfillment, fulfillment === 'pickup' ? (pickupTime || null) : null);
 
       toast.success(t('toolRentals.bookingConfirmed'));
       onClose();
@@ -221,6 +246,38 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
                 </p>
               )}
             </fieldset>
+
+            {/* 574: pickup appointment time, inside the owner's window
+                when the listing sets one. */}
+            {fulfillment === 'pickup' && (
+              <div className="booking-form-group">
+                <label htmlFor="pickup-time">{t('toolRentals.pickupTimeTitle')}</label>
+                <div className="booking-date-input">
+                  <Clock className="w-4 h-4" />
+                  <input
+                    id="pickup-time"
+                    type="time"
+                    value={pickupTime}
+                    onChange={(e) => setPickupTime(e.target.value)}
+                    min={(tool.pickup_window_start || '').slice(0, 5) || undefined}
+                    max={(tool.pickup_window_end || '').slice(0, 5) || undefined}
+                    disabled={loading}
+                  />
+                </div>
+                {tool.pickup_window_start && tool.pickup_window_end ? (
+                  <p className="booking-fulfillment-hint" role="note">
+                    {t('toolRentals.pickupWindowHint', {
+                      start: formatWindowTime(tool.pickup_window_start),
+                      end: formatWindowTime(tool.pickup_window_end),
+                    })}
+                  </p>
+                ) : (
+                  <p className="booking-fulfillment-hint" role="note">
+                    {t('toolRentals.pickupTimeHint')}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Price Summary */}
             {days > 0 && (

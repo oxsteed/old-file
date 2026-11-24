@@ -8,7 +8,7 @@ const { rentalIdentityStatus } = require('../utils/rentalIdentity');
 
 const TOOL_RENTAL_AGREEMENT_VERSION = 'peer-rental-v1';
 
-function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPrice, fulfillment }) {
+function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPrice, fulfillment, pickupTime }) {
   return {
     version: TOOL_RENTAL_AGREEMENT_VERSION,
     oxsteedRole: 'OxSteed provides tools for neighbors to document and coordinate rentals. OxSteed is not the tool owner, renter, inspector, insurer, or guarantor.',
@@ -41,6 +41,9 @@ function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPri
       dailyRate: Number(tool.daily_rate),
       totalPrice,
       fulfillment: fulfillment || 'pickup',
+      // Group 11 item 574: the pickup time-of-day, frozen with the rest
+      // of the agreement (null when the renter picked no time).
+      pickupTime: pickupTime || null,
     },
   };
 }
@@ -53,6 +56,11 @@ const createBooking = async (req, res, next) => {
     // Group 11 item 554: the renter chooses how they get the tool. Pickup
     // is always available; delivery only when the listing offers it.
     const fulfillment = req.body.fulfillment == null ? 'pickup' : req.body.fulfillment;
+    // Group 11 item 574: pickup appointment time (HH:MM, 24-hour).
+    // Optional; only meaningful for pickup fulfillment.
+    const pickupTime = req.body.pickupTime == null || req.body.pickupTime === ''
+      ? null
+      : String(req.body.pickupTime).trim();
 
     const fields = {};
     if (!toolId) fields.toolId = 'toolId is required';
@@ -60,6 +68,12 @@ const createBooking = async (req, res, next) => {
     if (!endDate) fields.endDate = 'endDate is required';
     if (fulfillment !== 'pickup' && fulfillment !== 'delivery') {
       fields.fulfillment = 'fulfillment must be pickup or delivery';
+    }
+    if (pickupTime !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(pickupTime)) {
+      fields.pickupTime = 'pickupTime must be a time like 09:30';
+    }
+    if (pickupTime !== null && fulfillment === 'delivery') {
+      fields.pickupTime = 'pickupTime only applies to pickup';
     }
     if (!renterAgreementAccepted) {
       fields.renterAgreementAccepted = 'You must accept the peer rental agreement before booking';
@@ -82,7 +96,8 @@ const createBooking = async (req, res, next) => {
               tr.daily_rate, tr.deposit_amount, tr.requires_deposit, tr.owner_rules,
               tr.owner_custom_terms, tr.owner_custom_terms_hash, tr.replacement_value,
               tr.is_available, tr.moderation_hold, tr.pickup_only, tr.delivery_available,
-              tr.accessories, tr.condition_checklist, tr.equipment_version
+              tr.accessories, tr.condition_checklist, tr.equipment_version,
+              tr.pickup_window_start, tr.pickup_window_end
          FROM tool_rentals tr
          JOIN users owner
            ON owner.id = tr.user_id
@@ -114,6 +129,16 @@ const createBooking = async (req, res, next) => {
     if (fulfillment === 'delivery' && (listedTool.pickup_only === true || listedTool.delivery_available !== true)) {
       throw new AppError('Delivery is not available for this tool', 409, 'fulfillment_not_available');
     }
+    // 574: when the owner set a pickup window, the renter's pickup time
+    // must fall inside it. Times compare lexicographically as HH:MM:SS.
+    if (pickupTime !== null && listedTool.pickup_window_start && listedTool.pickup_window_end) {
+      const picked = `${pickupTime}:00`;
+      const windowStart = String(listedTool.pickup_window_start);
+      const windowEnd = String(listedTool.pickup_window_end);
+      if (picked < windowStart || picked > windowEnd) {
+        throw new AppError('Pickup time is outside the owner pickup window', 400, 'validation_failed', { pickupTime: 'Pick a time inside the owner pickup window' });
+      }
+    }
     const dailyRate = parseFloat(listedTool.daily_rate);
     if (!Number.isFinite(dailyRate) || dailyRate <= 0) {
       throw new AppError('Tool cannot be booked online because pricing is not configured', 409, 'pricing_unavailable');
@@ -127,6 +152,7 @@ const createBooking = async (req, res, next) => {
       rentalDays,
       totalPrice,
       fulfillment,
+      pickupTime,
     });
 
     // Serialize bookings per tool before checking availability. The previous
@@ -157,10 +183,10 @@ const createBooking = async (req, res, next) => {
     const booking = await client.query(
       `INSERT INTO tool_rentals_bookings
          (tool_id, customer_id, owner_id, start_date, end_date, total_price,
-          agreement_snapshot, renter_acknowledged_at, renter_agreement_version)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+          agreement_snapshot, renter_acknowledged_at, renter_agreement_version, pickup_time)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9)
        RETURNING *`,
-      [toolId, userId, ownerId, startDate, endDate, totalPrice, agreementSnapshot, TOOL_RENTAL_AGREEMENT_VERSION]
+      [toolId, userId, ownerId, startDate, endDate, totalPrice, agreementSnapshot, TOOL_RENTAL_AGREEMENT_VERSION, pickupTime]
     );
 
     // Log analytics
