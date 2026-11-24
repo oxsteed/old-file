@@ -5,6 +5,16 @@
     "fulfillmentMoveBackTitle": "Move card fulfillment back",
     "fulfillmentMoveBackConfirm": "Move this card back to {{status}}? Use this only to correct a step that was marked before it happened. A card that is already active cannot be moved back."
   },
+  "cashier": {
+    "title": "Cashier",
+    "open": "Cashier",
+    "close": "Close",
+    "locationLabel": "Working location",
+    "locationHint": "Only locations this device is authorized for are listed. The paired location is the default.",
+    "locationPaired": "Paired location",
+    "loading": "Loading…",
+    "error": "Something went wrong. Try again."
+  },
   "creditApplyCustomerNote": "This application is for a business owner or helper applying for their business or profile to accept Credit. A customer needs no enrollment to spend Credit.",
   "creditApplyMyStatus": "Your applications",
   "creditApplyStatusActive": "Application active",

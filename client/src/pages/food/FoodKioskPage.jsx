@@ -33,6 +33,7 @@ import { FoodBrand } from "./foodShared";
 import { ItemModal } from "./FoodRestaurantPage";
 import FoodOrderConfirmation from "./FoodOrderConfirmation";
 import { kioskIdleResetMs } from "../../utils/kioskIdle";
+import CashierPanel from "./CashierPanel";
 import "../../styles/FoodPages.css";
 
 const CREDIT_DECLINES = new Set([
@@ -61,9 +62,16 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
   const { restaurantId } = useParams();
   const { t } = useTranslation();
   const { t: screenT } = useTranslation("common");
+  const { t: creditT } = useTranslation("credit");
   const f = (key, args) => screenT(`screens.${key}`, args);
   const storageScope = managed?.scope || `public-kiosk:${restaurantId}`;
-  const storeLocationId = managed?.device?.locationId || null;
+  // Group 13, 681 (D-382/D-388): the cashier's in-shift working location.
+  // Defaults to the paired location; the picker (CashierPanel) only offers
+  // locations the device is authorized for, so a bound device can only ever
+  // pick its paired location and pinnedLocation can never 409 on it.
+  const [pickedLocationId, setPickedLocationId] = useState(null);
+  const [cashierOpen, setCashierOpen] = useState(false);
+  const storeLocationId = pickedLocationId ?? managed?.device?.locationId ?? null;
   const creditStorageKey = managed?.device && !managed.captureOnly && !preview
     ? `${storageScope}:credit-attempt`
     : null;
@@ -441,6 +449,23 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
     );
   }
 
+  // Group 13 Slice 4g: the cashier surface. Only on a paired device —
+  // the public kiosk (no managed device) has no cashier.
+  if (cashierOpen && managed?.device) {
+    return (
+      <div ref={rootRef}>
+        <KioskOverlays rootRef={rootRef} offline={offline} />
+        <CashierPanel
+          restaurantId={restaurantId}
+          device={managed.device}
+          pickedLocationId={pickedLocationId}
+          onPickLocation={setPickedLocationId}
+          onClose={() => setCashierOpen(false)}
+        />
+      </div>
+    );
+  }
+
   if (step === "offline") {
     return (
       <div className="fd-kiosk-start" ref={rootRef}>
@@ -502,6 +527,19 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
         <FoodBrand size={84} />
         <h1>{data.restaurant.display_name}</h1>
         <p>{t("food.kiosk.touchToStart")}</p>
+        {managed?.device && (
+          <button
+            type="button"
+            className="fd-btn fd-btn-secondary"
+            onClick={(event) => {
+              event.stopPropagation();
+              setCashierOpen(true);
+            }}
+            data-track="ui.e23c624842.13"
+          >
+            {creditT("cashier.open")}
+          </button>
+        )}
         <KioskOverlays rootRef={rootRef} offline={offline} />
       </div>
     );
@@ -571,13 +609,25 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
       <div className="fd-screen-header">
         <FoodBrand size={36} />
         <h1 className="fd-screen-title">{data.restaurant.display_name}</h1>
-        <button
-          type="button"
-          className="fd-btn fd-btn-secondary fd-btn-sm"
-          onClick={resetAll} data-track="ui.e23c624842.6"
-        >
-          {t("food.kiosk.startOver")}
-        </button>
+        <span className="fd-row">
+          {managed?.device && (
+            <button
+              type="button"
+              className="fd-btn fd-btn-secondary fd-btn-sm"
+              onClick={() => setCashierOpen(true)}
+              data-track="ui.e23c624842.14"
+            >
+              {creditT("cashier.open")}
+            </button>
+          )}
+          <button
+            type="button"
+            className="fd-btn fd-btn-secondary fd-btn-sm"
+            onClick={resetAll} data-track="ui.e23c624842.6"
+          >
+            {t("food.kiosk.startOver")}
+          </button>
+        </span>
       </div>
 
       <div className="fd-kiosk-body">

@@ -5,6 +5,16 @@
     "fulfillmentMoveBackTitle": "Retroceder la entrega de la tarjeta",
     "fulfillmentMoveBackConfirm": "¿Mover esta tarjeta de nuevo a {{status}}? Usa esto solo para corregir un paso que se marcó antes de que ocurriera. Una tarjeta que ya está activa no se puede mover hacia atrás."
   },
+  "cashier": {
+    "title": "Cajero",
+    "open": "Cajero",
+    "close": "Cerrar",
+    "locationLabel": "Ubicación de trabajo",
+    "locationHint": "Solo se muestran las ubicaciones autorizadas para este dispositivo. La ubicación vinculada es la predeterminada.",
+    "locationPaired": "Ubicación vinculada",
+    "loading": "Cargando…",
+    "error": "Algo salió mal. Inténtalo de nuevo."
+  },
   "creditApplyCustomerNote": "Esta solicitud es para un dueño de negocio o ayudante que solicita que su negocio o perfil acepte Crédito. Un cliente no necesita inscripción para gastar Crédito.",
   "creditApplyMyStatus": "Tus solicitudes",
   "creditApplyStatusActive": "Solicitud activa",

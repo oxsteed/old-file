@@ -10,6 +10,7 @@
 const router = require('express').Router({ mergeParams: true });
 const rateLimit = require('express-rate-limit');
 const cardController = require('../controllers/oxsteedCreditCardController');
+const cashierController = require('../controllers/creditKioskCashierController');
 const { creditMutationLimiter, createStoreOption } = require('../middleware/rateLimiter');
 
 // Audit fix: kiosk endpoints get a per-device rate limit, not just the
@@ -34,6 +35,20 @@ function noStoreCreditResponse(_req, res, next) {
   res.set('Pragma', 'no-cache');
   next();
 }
+
+// Group 13 Slice 4g: the cashier surface (681-685). These routes use their
+// own device auth (credit_kiosk terminal or managed display kiosk) instead
+// of the redeem/cash-out credit_kiosk-only auth below, so they are
+// registered BEFORE the router.use that applies that auth to the rest.
+// 681: in-shift location picker — only the locations this device is
+// authorized for, defaulting to the paired location.
+router.get(
+  '/cashier/locations',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  cashierController.getLocations,
+);
 
 router.use(noStoreCreditResponse, cardController.authenticateCreditKiosk);
 

@@ -141,3 +141,16 @@ export const getDeviceCreditReceipt = (id, device, attemptId) =>
   api.get(`${base(id, device)}/screen-credit-orders/${encodeURIComponent(attemptId)}`,
     { ...deviceOptions(device), skipSessionRefresh: true },
   ).then((r) => r.data.receipt);
+
+// Group 13 Slice 4g: the cashier surface on the kiosk. Device-authenticated
+// (X-Device-Token) against the credit-kiosks routes, same as the credit
+// receipt read above.
+const cashierBase = (id, device) =>
+  `/restaurants/${id}/credit-kiosks/${device.id}/cashier`;
+
+// 681: locations this device is authorized for (paired location only when
+// the device is location-bound, else the restaurant's active locations).
+export const getCashierLocations = (id, device) =>
+  api.get(`${cashierBase(id, device)}/locations`,
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);

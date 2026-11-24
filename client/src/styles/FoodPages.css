@@ -3451,3 +3451,24 @@ input[type="color"].fd-settings-color {
   background: var(--fd-surface-muted, #f1f5f9);
   border-radius: 6px;
 }
+
+/* ── Kiosk cashier surface (Group 13, 681-685) ── */
+.fd-cashier-panel { max-width: 720px; margin: 0 auto; }
+.fd-cashier-section {
+  background: #1e293b; border: 1px solid #334155; border-radius: 14px;
+  padding: 1rem; margin-bottom: 1rem;
+}
+.fd-cashier-section h3 { margin: 0 0 0.6rem; font-size: 1rem; }
+.fd-cashier-note { color: #94a3b8; font-size: 0.85rem; margin: 0.4rem 0 0; }
+.fd-cashier-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.fd-cashier-list { list-style: none; margin: 0.6rem 0 0; padding: 0; }
+.fd-cashier-list li {
+  display: flex; justify-content: space-between; gap: 0.75rem;
+  padding: 0.55rem 0; border-top: 1px solid #334155; font-size: 0.92rem;
+}
+.fd-cashier-list li:first-child { border-top: 0; }
+.fd-cashier-check-pass { color: #4ade80; }
+.fd-cashier-check-fail { color: #f87171; }
+.fd-cashier-summary { display: flex; flex-wrap: wrap; gap: 1rem; }
+.fd-cashier-summary strong { display: block; font-size: 1.4rem; }
+.fd-cashier-summary span { color: #94a3b8; font-size: 0.82rem; }
