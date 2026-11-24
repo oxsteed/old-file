@@ -45,6 +45,7 @@ import {
   listOxsteedCreditWithdrawals,
   cancelOxsteedCreditWithdrawal,
   listOxsteedCreditTopups,
+  getConsentHistory,
   createOxsteedCreditRestaurantConversion,
   getRestaurantConversionEligibility,
   issueOxsteedCreditMoneyOutStepup,
@@ -109,6 +110,31 @@ function creditStatusLabel(value, t) {
     resolved: t('resolvedStatus'),
     rejected: t('rejectedStatus'),
   }[value] || t('statusUnknown');
+}
+
+// Group 13 Slice 4j (697): the consent history labels the stored type and
+// disclosure kind verbatim; an unknown value falls back to the stored
+// string itself rather than inventing a label.
+function consentTypeLabel(value, t) {
+  return {
+    terms_of_service: t('consentHistory.type.terms_of_service'),
+    privacy_policy: t('consentHistory.type.privacy_policy'),
+    tier3_payment_agreement: t('consentHistory.type.tier3_payment_agreement'),
+    background_check_consent: t('consentHistory.type.background_check_consent'),
+    w9_certification: t('consentHistory.type.w9_certification'),
+  }[value] || value;
+}
+
+function disclosureKindLabel(value, t) {
+  return {
+    short_form: t('consentHistory.disclosureKind.short_form'),
+    long_form: t('consentHistory.disclosureKind.long_form'),
+    fee_schedule: t('consentHistory.disclosureKind.fee_schedule'),
+    not_insured: t('consentHistory.disclosureKind.not_insured'),
+    safeguarding: t('consentHistory.disclosureKind.safeguarding'),
+    wage_payment_terms: t('consentHistory.disclosureKind.wage_payment_terms'),
+    error_resolution: t('consentHistory.disclosureKind.error_resolution'),
+  }[value] || value;
 }
 
 function transactionOrderPath(transaction) {
@@ -190,6 +216,10 @@ export default function OxsteedCreditPage() {
   const [viewingPeriod, setViewingPeriod] = useState(null);
   const [disputes, setDisputes] = useState([]);
   const [disputePagination, setDisputePagination] = useState(null);
+  // Group 13 Slice 4j (697): the customer's consent history, derived from
+  // the existing acceptance records; a failed load leaves the section
+  // empty rather than blocking the wallet.
+  const [consentHistory, setConsentHistory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -289,7 +319,7 @@ export default function OxsteedCreditPage() {
       // selected wallet first so a new currency cannot race the directory and
       // render a false empty state.
       const accountResult = await getOxsteedCreditAccount({ currencyCode: preferredCurrency });
-      const [partnerResult, holdResult, railResult, statementResult, disputeResult, limitResult, eligibilityResult, periodsResult] = await Promise.all([
+      const [partnerResult, holdResult, railResult, statementResult, disputeResult, limitResult, eligibilityResult, periodsResult, consentResult] = await Promise.all([
         getOxsteedCreditEligiblePartnerPage({ currencyCode: preferredCurrency, limit: 50, offset: 0 }),
         listOxsteedCreditHolds({ currencyCode: preferredCurrency, status: 'all', limit: 50, offset: 0 }).catch(() => null),
         getOxsteedCreditStatus().catch(() => null),
@@ -300,6 +330,7 @@ export default function OxsteedCreditPage() {
         // the dropdown unfiltered and the server gate still enforces.
         getRestaurantConversionEligibility().catch(() => null),
         getOxsteedCreditStatementPeriods({ currencyCode: preferredCurrency }).catch(() => []),
+        getConsentHistory().catch(() => null),
       ]);
       if (!isCurrentRequest()) return;
       setStatementPeriods(Array.isArray(periodsResult) ? periodsResult : []);
@@ -324,6 +355,7 @@ export default function OxsteedCreditPage() {
       }
       setDisputes(Array.isArray(disputeResult?.disputes) ? disputeResult.disputes : []);
       setDisputePagination(disputeResult?.pagination || null);
+      setConsentHistory(consentResult && Array.isArray(consentResult.consents) && Array.isArray(consentResult.disclosures) ? consentResult : null);
       if (statementResult) {
         setStatement(statementResult);
         setTransactions(Array.isArray(statementResult.transactions) ? statementResult.transactions : []);
@@ -1311,6 +1343,7 @@ export default function OxsteedCreditPage() {
                     </div>}
                   </div>
                 </div></article>)}</div>{disputePagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreDisputes} disabled={loadingMoreDisputes}><RefreshCw size={14} className={loadingMoreDisputes ? 'ox-credit-spin' : ''} /> {loadingMoreDisputes ? t('loadingOlderActivity') : t('loadOlderActivity')}</button>}</section>}
+              {consentHistory && <section className="ox-credit-panel" aria-labelledby="credit-consent-history-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('consentHistory.eyebrow')}</p><h2 id="credit-consent-history-heading">{t('consentHistory.title')}</h2></div></div><p className="ox-credit-panel-copy">{t('consentHistory.copy')}</p>{!consentHistory.consents.length && !consentHistory.disclosures.length ? <div className="ox-credit-empty"><ShieldCheck size={27} /><strong>{t('consentHistory.empty')}</strong></div> : <>{!!consentHistory.consents.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('consentHistory.consentsTitle')}</strong><span>{consentHistory.consents.length}</span></div><div className="ox-credit-hold-list">{consentHistory.consents.map((row, index) => <article key={`${row.consentType}-${row.acceptedAt}-${index}`}><div><strong>{consentTypeLabel(row.consentType, t)}</strong><span>{t('consentHistory.versionLabel', { version: row.version })}</span><small>{t('consentHistory.acceptedAtLabel', { date: dateTime(row.acceptedAt, t) })}</small></div></article>)}</div></div>}{!!consentHistory.disclosures.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('consentHistory.disclosuresTitle')}</strong><span>{consentHistory.disclosures.length}</span></div><div className="ox-credit-hold-list">{consentHistory.disclosures.map((row, index) => <article key={`${row.disclosureKind}-${row.acceptedAt}-${index}`}><div><strong>{disclosureKindLabel(row.disclosureKind, t)}</strong><span>{row.version !== null && row.version !== undefined ? t('consentHistory.versionLabel', { version: row.version }) : t('consentHistory.versionPending')}</span><small>{t('consentHistory.acceptedAtLabel', { date: dateTime(row.acceptedAt, t) })}</small></div></article>)}</div></div>}</>}</section>}
             </>
           )}
           <section className="ox-credit-panel ox-credit-error-policy" aria-labelledby="credit-error-policy-heading">

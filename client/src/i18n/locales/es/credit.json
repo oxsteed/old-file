@@ -2534,6 +2534,33 @@
   "failedTopupsCopy": "Estos pagos no se completaron y no se añadió dinero. Abre uno para reintentarlo.",
   "viewTopup": "Ver recarga",
   "requestedAt": "Solicitada {{date}}",
+  "consentHistory": {
+    "eyebrow": "Tus registros",
+    "title": "Historial de consentimientos",
+    "copy": "Cada aceptación de términos, privacidad y avisos registrada en esta cuenta, de la más reciente a la más antigua.",
+    "empty": "Aún no hay consentimientos registrados.",
+    "consentsTitle": "Términos y privacidad",
+    "disclosuresTitle": "Avisos de crédito",
+    "versionLabel": "Versión {{version}}",
+    "acceptedAtLabel": "Aceptado el {{date}}",
+    "versionPending": "Aceptado antes de que existiera una versión publicada",
+    "type": {
+      "terms_of_service": "Términos del servicio",
+      "privacy_policy": "Política de privacidad",
+      "tier3_payment_agreement": "Acuerdo de pago de nivel 3",
+      "background_check_consent": "Consentimiento de verificación de antecedentes",
+      "w9_certification": "Certificación W-9"
+    },
+    "disclosureKind": {
+      "short_form": "Aviso breve",
+      "long_form": "Aviso completo",
+      "fee_schedule": "Tabla de comisiones",
+      "not_insured": "Aviso de no asegurado",
+      "safeguarding": "Aviso de salvaguarda",
+      "wage_payment_terms": "Condiciones de pago de salarios",
+      "error_resolution": "Resolución de errores"
+    }
+  },
   "walletTopup": {
     "title": "Agregar dinero",
     "intro": "Agrega dinero a OxSteed Credit con tarjeta. Se acredita cuando se confirma el pago.",
@@ -2572,6 +2599,7 @@
     "viewRetry": "Ver el reintento",
     "retriedFrom": "Esta recarga reintenta una recarga anterior fallida.",
     "viewOriginal": "Ver la original"
+
   },
   "identityVerification": {
     "eyebrow": "Verificación de identidad",

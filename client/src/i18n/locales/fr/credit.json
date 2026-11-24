@@ -2534,6 +2534,33 @@
   "failedTopupsCopy": "Ces paiements n’ont pas abouti et aucun montant n’a été ajouté. Ouvrez-en un pour le réessayer.",
   "viewTopup": "Voir la recharge",
   "requestedAt": "Demandée le {{date}}",
+  "consentHistory": {
+    "eyebrow": "Vos dossiers",
+    "title": "Historique des consentements",
+    "copy": "Toutes les acceptations des conditions, de la confidentialité et des informations enregistrées pour ce compte, de la plus récente à la plus ancienne.",
+    "empty": "Aucun consentement enregistré pour le moment.",
+    "consentsTitle": "Conditions et confidentialité",
+    "disclosuresTitle": "Informations sur le crédit",
+    "versionLabel": "Version {{version}}",
+    "acceptedAtLabel": "Accepté le {{date}}",
+    "versionPending": "Accepté avant qu'une version publiée n'existe",
+    "type": {
+      "terms_of_service": "Conditions d'utilisation",
+      "privacy_policy": "Politique de confidentialité",
+      "tier3_payment_agreement": "Accord de paiement de niveau 3",
+      "background_check_consent": "Consentement à la vérification des antécédents",
+      "w9_certification": "Certification W-9"
+    },
+    "disclosureKind": {
+      "short_form": "Information abrégée",
+      "long_form": "Information détaillée",
+      "fee_schedule": "Barème des frais",
+      "not_insured": "Avis de non-assurance",
+      "safeguarding": "Information sur la protection des fonds",
+      "wage_payment_terms": "Conditions de paiement des salaires",
+      "error_resolution": "Résolution des erreurs"
+    }
+  },
   "walletTopup": {
     "title": "Ajouter de l'argent",
     "intro": "Ajoutez de l'argent à OxSteed Credit par carte. Il est crédité une fois le paiement confirmé.",
@@ -2572,6 +2599,7 @@
     "viewRetry": "Voir le nouvel essai",
     "retriedFrom": "Cette recharge réessaie une recharge antérieure échouée.",
     "viewOriginal": "Voir l’originale"
+
   },
   "identityVerification": {
     "eyebrow": "Vérification d'identité",

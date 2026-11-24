@@ -241,6 +241,12 @@ export const retryOxsteedCreditTopup = (topupId, idempotencyKey) =>
 export const listOxsteedCreditTopups = (params = {}) =>
   api.get('/oxsteed-credit/topups', { params }).then((response) => response.data?.topups || []);
 
+// Group 13 Slice 4j (697): the customer's own consent history — every
+// recorded terms/privacy acceptance plus the per-item disclosure
+// acceptances, newest first. Read-only; the server scopes it to the caller.
+export const getConsentHistory = () =>
+  api.get('/consent/history').then((response) => response.data);
+
 export const issueOxsteedCreditTopupStepup = (payload) =>
   api.post('/oxsteed-credit/stepup-challenges', payload).then((response) => response.data);
 

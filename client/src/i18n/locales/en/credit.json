@@ -2534,6 +2534,33 @@
   "failedTopupsCopy": "These payments did not go through and no money was added. Open one to retry it.",
   "viewTopup": "View top-up",
   "requestedAt": "Requested {{date}}",
+  "consentHistory": {
+    "eyebrow": "Your records",
+    "title": "Consent history",
+    "copy": "Every terms, privacy, and disclosure acceptance recorded for this account, newest first.",
+    "empty": "No consent acceptances recorded yet.",
+    "consentsTitle": "Terms and privacy",
+    "disclosuresTitle": "Credit disclosures",
+    "versionLabel": "Version {{version}}",
+    "acceptedAtLabel": "Accepted {{date}}",
+    "versionPending": "Accepted before a published version existed",
+    "type": {
+      "terms_of_service": "Terms of Service",
+      "privacy_policy": "Privacy Policy",
+      "tier3_payment_agreement": "Tier 3 payment agreement",
+      "background_check_consent": "Background check consent",
+      "w9_certification": "W-9 certification"
+    },
+    "disclosureKind": {
+      "short_form": "Short-form disclosure",
+      "long_form": "Long-form disclosure",
+      "fee_schedule": "Fee schedule",
+      "not_insured": "Not insured notice",
+      "safeguarding": "Safeguarding disclosure",
+      "wage_payment_terms": "Wage payment terms",
+      "error_resolution": "Error resolution"
+    }
+  },
   "walletTopup": {
     "title": "Add money",
     "intro": "Add money to OxSteed Credit with a card. It is credited once the payment clears.",
@@ -2572,6 +2599,7 @@
     "viewRetry": "View the retry",
     "retriedFrom": "This top-up retries an earlier failed top-up.",
     "viewOriginal": "View the original"
+
   },
   "identityVerification": {
     "eyebrow": "Identity check",

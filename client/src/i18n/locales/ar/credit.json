@@ -2534,6 +2534,33 @@
   "failedTopupsCopy": "لم تكتمل هذه المدفوعات ولم تتم إضافة أي مبلغ. افتح إحداها لإعادة المحاولة.",
   "viewTopup": "عرض عملية الشحن",
   "requestedAt": "طُلبت في {{date}}",
+  "consentHistory": {
+    "eyebrow": "سجلاتك",
+    "title": "سجل الموافقات",
+    "copy": "كل قبول للشروط والخصوصية والإفصاحات المسجل لهذا الحساب، من الأحدث إلى الأقدم.",
+    "empty": "لا توجد موافقات مسجلة بعد.",
+    "consentsTitle": "الشروط والخصوصية",
+    "disclosuresTitle": "إفصاحات الائتمان",
+    "versionLabel": "الإصدار {{version}}",
+    "acceptedAtLabel": "تم القبول في {{date}}",
+    "versionPending": "تم القبول قبل وجود نسخة منشورة",
+    "type": {
+      "terms_of_service": "شروط الخدمة",
+      "privacy_policy": "سياسة الخصوصية",
+      "tier3_payment_agreement": "اتفاقية الدفع من المستوى 3",
+      "background_check_consent": "الموافقة على التحقق من الخلفية",
+      "w9_certification": "شهادة W-9"
+    },
+    "disclosureKind": {
+      "short_form": "الإفصاح المختصر",
+      "long_form": "الإفصاح المطوّل",
+      "fee_schedule": "جدول الرسوم",
+      "not_insured": "إشعار عدم التأمين",
+      "safeguarding": "إفصاح الحماية",
+      "wage_payment_terms": "شروط دفع الأجور",
+      "error_resolution": "حل الأخطاء"
+    }
+  },
   "walletTopup": {
     "title": "إضافة رصيد",
     "intro": "أضف رصيدًا إلى OxSteed Credit بالبطاقة. تتم إضافته بعد تأكيد الدفع.",
@@ -2572,6 +2599,7 @@
     "viewRetry": "عرض المحاولة الجديدة",
     "retriedFrom": "عملية الشحن هذه تعيد محاولة عملية شحن سابقة فاشلة.",
     "viewOriginal": "عرض العملية الأصلية"
+
   },
   "identityVerification": {
     "eyebrow": "التحقق من الهوية",

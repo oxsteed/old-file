@@ -2534,6 +2534,33 @@
   "failedTopupsCopy": "Peman sa yo pa t pase epi okenn lajan pa t ajoute. Louvri youn pou w eseye l ankò.",
   "viewTopup": "Wè rechaj la",
   "requestedAt": "Mande {{date}}",
+  "consentHistory": {
+    "eyebrow": "Dosye ou yo",
+    "title": "Istorik konsantman",
+    "copy": "Tout akseptasyon kondisyon, vi prive, ak divilgasyon ki anrejistre pou kont sa a, soti nan pi resan an rive nan pi ansyen an.",
+    "empty": "Pa gen okenn akseptasyon konsantman anrejistre pou kounye a.",
+    "consentsTitle": "Kondisyon ak vi prive",
+    "disclosuresTitle": "Divilgasyon kredi",
+    "versionLabel": "Vèsyon {{version}}",
+    "acceptedAtLabel": "Aksepte {{date}}",
+    "versionPending": "Aksepte anvan yon vèsyon pibliye te egziste",
+    "type": {
+      "terms_of_service": "Kondisyon itilizasyon",
+      "privacy_policy": "Règleman sou vi prive",
+      "tier3_payment_agreement": "Akò peman nivo 3",
+      "background_check_consent": "Konsantman pou verifikasyon background",
+      "w9_certification": "Sètifikasyon W-9"
+    },
+    "disclosureKind": {
+      "short_form": "Divilgasyon kout",
+      "long_form": "Divilgasyon long",
+      "fee_schedule": "Orè frè yo",
+      "not_insured": "Avi ki pa asire",
+      "safeguarding": "Divilgasyon pwoteksyon",
+      "wage_payment_terms": "Kondisyon peman salè",
+      "error_resolution": "Rezolisyon erè"
+    }
+  },
   "walletTopup": {
     "title": "Ajoute lajan",
     "intro": "Ajoute lajan nan OxSteed Credit ak yon kat. Li antre lè peman an konfime.",
@@ -2572,6 +2599,7 @@
     "viewRetry": "Wè nouvo esè a",
     "retriedFrom": "Rechaj sa a ap eseye yon rechaj anvan ki te echwe ankò.",
     "viewOriginal": "Wè orijinal la"
+
   },
   "identityVerification": {
     "eyebrow": "Verifikasyon idantite",
