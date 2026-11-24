@@ -9552,7 +9552,11 @@ async function buildRecordsManifest(client, applicationId) {
   };
   const [documents, acknowledgments, training, exceptions, notes, activity] = await Promise.all([
     count('SELECT COUNT(*)::int AS n FROM franchise_application_documents WHERE application_id = $1'),
-    count('SELECT COUNT(*)::int AS n FROM franchise_standard_acknowledgments WHERE application_id = $1'),
+    // Acknowledgments carry no application id: they hang off the standard,
+    // so count the ones on this territory's own standards.
+    count(`SELECT COUNT(*)::int AS n FROM franchise_standard_acknowledgments a
+            JOIN franchise_standards s ON s.id = a.standard_id
+           WHERE s.application_id = $1`),
     count('SELECT COUNT(*)::int AS n FROM franchise_training_assignments WHERE application_id = $1'),
     count('SELECT COUNT(*)::int AS n FROM support_tickets WHERE franchise_application_id = $1'),
     count('SELECT COUNT(*)::int AS n FROM franchise_expansion_notes WHERE application_id = $1'),
@@ -9646,19 +9650,16 @@ async function handoffReadScope(client, applicationId, userId) {
     }
     return { status: 404, body: { error: 'Franchise application not found.' } };
   }
-  if (!owned.isAssociated && !(await isHandoffParty(client, applicationId, userId))) {
+  if (owned.isOperator) return { partyOnly: false };
+  if (await isTerritoryMember(client, applicationId, userId)) return { partyOnly: false };
+  if (await isHandoffParty(client, applicationId, userId)) return { partyOnly: true };
+  if (!owned.isAssociated) {
     return { status: 404, body: { error: 'Franchise application not found.' } };
   }
-  if (!owned.isOperator && !(await isTerritoryMember(client, applicationId, userId))
-    && !(await isHandoffParty(client, applicationId, userId))) {
-    return { status: 403, body: {
-      error: 'Only the assigned operator or a territory member can view this.',
-      code: 'franchise_operator_only',
-    } };
-  }
-  const partyOnly = !owned.isOperator
-    && !(await isTerritoryMember(client, applicationId, userId));
-  return { partyOnly };
+  return { status: 403, body: {
+    error: 'Only the assigned operator or a territory member can view this.',
+    code: 'franchise_operator_only',
+  } };
 }
 
 async function loadHandoffRow(client, applicationId, handoffId) {
