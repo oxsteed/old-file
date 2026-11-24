@@ -18,6 +18,7 @@ const STORE_TABLES = [
   'business_staff_shifts',
   'display_pairings',
   'food_orders',
+  'oxsteed_credit_kiosk_shifts',
   'restaurant_app_devices',
   'restaurant_audits',
   'restaurant_checklist_runs',
@@ -139,6 +140,13 @@ const REVIEWED = {
   'services/profileVisibilityActiveWork.js': CUSTOMER_OR_SELF,
   'services/restaurantDeliveryMarketplaceService.js': SCOPED_CALLER,
   'services/restaurantDeviceCredentials.js': DEVICE_BOUND,
+  // Group 13 slice 4g (681-685): every shift query is filtered by the
+  // authenticated kiosk device id, and the shift's restaurant/location
+  // come from the device record (paired location; migration 989) — the
+  // working location is validated against the authorized set derived
+  // server-side from that record, never from a client-sent id alone
+  // (D-383). No query reads across devices or restaurants.
+  'services/creditKioskCashier.js': DEVICE_BOUND,
   // Punch closeout (Phase 2): the close-of-day sweep closes forgotten
   // punches across ALL stores of one business, by design — either the
   // nightly system job or a business-level manager action (role-gated,
