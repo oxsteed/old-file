@@ -548,6 +548,65 @@ const getBookingReceipt = async (req, res, next) => {
   }
 };
 
+// Group 11 item 575 (D-260): distinct checkout acknowledgment at
+// pickup. The renter confirms receipt of the item as described, with
+// the pickup-phase condition report attached as evidence. Server
+// enforced: renter only, booking must be payment_confirmed, a pickup
+// report must exist, and the renter must have verified identity (571).
+// Idempotent: acknowledging twice returns the recorded acknowledgment.
+const acknowledgeCheckout = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.user.id;
+    const bookingQuery = await db.query(
+      'SELECT * FROM tool_rentals_bookings WHERE id = $1',
+      [bookingId]
+    );
+    const booking = bookingQuery.rows[0];
+    if (!booking) throw new AppError('Booking not found', 404, 'not_found');
+    if (booking.customer_id !== userId) {
+      if (booking.owner_id === userId) throw new AppError('Only the renter confirms pickup', 403, 'forbidden');
+      throw new AppError('Booking not found', 404, 'not_found');
+    }
+    if (booking.checkout_acknowledged_at) {
+      return res.json(booking);
+    }
+    if (booking.status !== 'payment_confirmed') {
+      throw new AppError('Pickup can only be confirmed once payment is confirmed', 409, 'state_conflict');
+    }
+    const identityQuery = await db.query(
+      `SELECT didit_status, didit_verified_at, identity_verified, id_verified
+         FROM users WHERE id = $1`,
+      [userId]
+    );
+    const identity = rentalIdentityStatus(identityQuery.rows[0]);
+    if (!identity.verified) {
+      throw new AppError('Complete identity verification before confirming pickup', 403, 'identity_not_verified');
+    }
+    const reportQuery = await db.query(
+      `SELECT id FROM equipment_reports
+        WHERE booking_id = $1 AND phase = 'pickup'
+        ORDER BY created_at DESC, id DESC LIMIT 1`,
+      [bookingId]
+    );
+    if (!reportQuery.rows[0]) {
+      throw new AppError('File the pickup condition report before confirming pickup', 409, 'pickup_report_required');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET checkout_acknowledged_at = NOW(),
+              checkout_acknowledged_by = $2,
+              checkout_report_id = $3
+        WHERE id = $1 AND checkout_acknowledged_at IS NULL
+        RETURNING *`,
+      [bookingId, userId, reportQuery.rows[0].id]
+    );
+    res.json(rows[0] || booking);
+  } catch (err) {
+    next(err);
+  }
+};
+
 const checkAvailability = async (req, res, next) => {
   try {
     const { toolId } = req.params;
@@ -567,4 +626,4 @@ const checkAvailability = async (req, res, next) => {
   }
 };
 
-module.exports = { createBooking, getMyBookings, getBookingsByOwner, updateBookingStatus, checkAvailability, approveBooking, declineBooking, getBookingReceipt };
+module.exports = { createBooking, getMyBookings, getBookingsByOwner, updateBookingStatus, checkAvailability, approveBooking, declineBooking, getBookingReceipt, acknowledgeCheckout };

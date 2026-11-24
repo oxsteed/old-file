@@ -143,6 +143,12 @@ export const toolRentalsApi = {
     window.URL.revokeObjectURL(url);
   },
 
+  // Group 11 item 575: checkout acknowledgment at pickup.
+  acknowledgeCheckout: async (bookingId) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/checkout-acknowledge`);
+    return response.data;
+  },
+
   // Group 11 item 568: explicit owner approve/decline, distinct from invoicing.
   approveBooking: async (bookingId) => {
     const response = await api.post(`/tool-rentals/bookings/${bookingId}/approve`);

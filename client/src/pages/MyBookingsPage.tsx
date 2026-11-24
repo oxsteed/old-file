@@ -83,6 +83,8 @@ interface Booking {
   agreement_snapshot?: { rental?: { fulfillment?: string } } | null;
   renter_identity?: { status: string; verified: boolean; verifiedAt?: string | null };
   owner_identity?: { status: string; verified: boolean; verifiedAt?: string | null };
+  checkout_acknowledged_at?: string | null;
+  checkout_report_id?: string | null;
 }
 
 const MyBookingsPageContent = () => {
@@ -319,6 +321,26 @@ const MyBookingsPageContent = () => {
 
   // Group 11 item 570: toggle the in-app confirmation receipt; fetch
   // once per booking, then reuse.
+  // Group 11 item 575: renter confirms receipt at pickup. The server
+  // enforces identity, payment_confirmed status and the pickup report;
+  // the client only surfaces the refusal reason.
+  const handleAcknowledgeCheckout = async (booking: Booking) => {
+    try {
+      await toolRentalsApi.acknowledgeCheckout(booking.id);
+      toast.success(t('toolRentals.pickupConfirmed') || 'Pickup confirmed');
+      loadBookings();
+    } catch (err: any) {
+      const code = err?.response?.data?.code;
+      if (code === 'identity_not_verified') {
+        toast.error(t('toolRentals.identityPickupBlocked') || 'Complete identity verification before pickup.');
+      } else if (code === 'pickup_report_required') {
+        toast.error(t('toolRentals.pickupReportRequired') || 'File the pickup condition report first, then confirm pickup.');
+      } else {
+        toast.error(t('toolRentals.checkoutAckFailed') || 'Could not record the pickup confirmation');
+      }
+    }
+  };
+
   const handleToggleReceipt = async (booking: Booking) => {
     const open = !receiptOpen[booking.id];
     setReceiptOpen((prev) => ({ ...prev, [booking.id]: open }));
@@ -361,6 +383,9 @@ const MyBookingsPageContent = () => {
           </div>
           {booking.pickup_time && (
             <div><dt>{t('toolRentals.receiptPickupTime') || 'Pickup time'}</dt><dd>{formatTime(booking.pickup_time, locale)}</dd></div>
+          )}
+          {booking.checkout_acknowledged_at && (
+            <div><dt>{t('toolRentals.receiptCheckout') || 'Pickup confirmed'}</dt><dd>{new Date(booking.checkout_acknowledged_at).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })}</dd></div>
           )}
           {fulfillment && (
             <div><dt>{t('toolRentals.receiptFulfillment') || 'How you get it'}</dt><dd>{t(`toolRentals.receiptFulfillment_${fulfillment}`) || fulfillment}</dd></div>
@@ -524,6 +549,30 @@ const MyBookingsPageContent = () => {
 
       {/* Group 11 item 571: identity status for both parties. */}
       {renderIdentityLine(booking, isOwner)}
+
+      {/* Group 11 item 575: checkout acknowledgment at pickup. The
+          renter confirms receipt; the pickup condition report is the
+          evidence and is shown in the booking panel above. */}
+      {booking.checkout_acknowledged_at ? (
+        <p className="booking-card-note">
+          {isOwner
+            ? (t('toolRentals.pickupConfirmedNoteOwner') || 'The renter confirmed pickup.')
+            : (t('toolRentals.pickupConfirmedNote') || 'You confirmed receipt of the item as described.')}
+          {' '}
+          {new Date(booking.checkout_acknowledged_at).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })}
+        </p>
+      ) : !isOwner && booking.status === 'payment_confirmed' && (
+        <div className="booking-card-actions">
+          <button
+            onClick={() => handleAcknowledgeCheckout(booking)}
+            disabled={booking.renter_identity ? !booking.renter_identity.verified : false}
+            title={booking.renter_identity && !booking.renter_identity.verified ? (t('toolRentals.identityPickupBlocked') || 'Complete identity verification before pickup.') : undefined}
+            className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.21"
+          >
+            {t('toolRentals.confirmPickup') || 'Confirm pickup'}
+          </button>
+        </div>
+      )}
 
       {Number(booking.deposit_amount || 0) > 0 && booking.deposit_status && booking.deposit_status !== 'none' && (
         <div className="booking-card-deposit" data-testid="booking-deposit">

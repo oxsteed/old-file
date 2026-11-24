@@ -1043,6 +1043,7 @@ router.get('/bookings/my', authenticate, toolBookingsController.getMyBookings);
 router.get('/bookings/owner', authenticate, toolBookingsController.getBookingsByOwner);
 router.post('/bookings/:bookingId/approve', authenticate, toolBookingsController.approveBooking);
 router.post('/bookings/:bookingId/decline', authenticate, toolBookingsController.declineBooking);
+router.post('/bookings/:bookingId/checkout-acknowledge', authenticate, toolBookingsController.acknowledgeCheckout);
 router.get('/bookings/:bookingId/receipt', authenticate, toolBookingsController.getBookingReceipt);
 router.get('/:toolId/availability', toolBookingsController.checkAvailability);
 router.put('/bookings/:bookingId', authenticate, toolBookingsController.updateBookingStatus);

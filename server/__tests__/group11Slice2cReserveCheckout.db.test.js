@@ -604,4 +604,75 @@ describeDb('Group 11 Slice 2c: Reserve + Checkout (566, 568, 570, 571, 574, 575)
       expect(withoutTime.body.pickup_time).toBeNull();
     });
   });
+
+  describe('575: checkout acknowledgment at pickup', () => {
+    const freshVerifiedAt = new Date().toISOString();
+
+    async function paidBookingWithReport({ renterIdentity = { diditStatus: 'verified', diditVerifiedAt: freshVerifiedAt }, withReport = true } = {}) {
+      const owner = await addUser();
+      const renter = await addUser('customer', renterIdentity);
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Checkout drill' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'payment_confirmed');
+      let report = null;
+      if (withReport) report = await insertPickupReport(booking.id, owner, 'pickup');
+      return { owner, renter, tool, booking, report };
+    }
+
+    const acknowledge = (userId, bookingId) => request(app)
+      .post(`/api/tool-rentals/bookings/${bookingId}/checkout-acknowledge`)
+      .set('x-test-user', userId);
+
+    test('verified renter acknowledges pickup; the report is attached as evidence', async () => {
+      const { owner, renter, booking, report } = await paidBookingWithReport();
+      const res = await acknowledge(renter, booking.id).expect(200);
+      expect(res.body.checkout_acknowledged_at).toBeTruthy();
+      expect(res.body.checkout_acknowledged_by).toBe(renter);
+      expect(res.body.checkout_report_id).toBe(report.id);
+      // Idempotent: acknowledging again returns the same record.
+      const again = await acknowledge(renter, booking.id).expect(200);
+      expect(again.body.checkout_acknowledged_at).toBe(res.body.checkout_acknowledged_at);
+      expect(again.body.checkout_report_id).toBe(report.id);
+      // Both booking lists show the acknowledgment.
+      const mine = await request(app).get('/api/tool-rentals/bookings/my').set('x-test-user', renter).expect(200);
+      expect(mine.body.find((b) => b.id === booking.id).checkout_acknowledged_at).toBeTruthy();
+      void owner;
+    });
+
+    test('an unverified or skipped renter cannot complete pickup', async () => {
+      const unverified = await paidBookingWithReport({ renterIdentity: { diditStatus: 'pending' } });
+      const blocked = await acknowledge(unverified.renter, unverified.booking.id);
+      expect(blocked.status).toBe(403);
+      expect(blocked.body.code).toBe('identity_not_verified');
+
+      const skipped = await paidBookingWithReport({ renterIdentity: { diditStatus: 'skipped' } });
+      const skippedRes = await acknowledge(skipped.renter, skipped.booking.id);
+      expect(skippedRes.status).toBe(403);
+      expect(skippedRes.body.code).toBe('identity_not_verified');
+    });
+
+    test('acknowledgment needs a pickup condition report first', async () => {
+      const { renter, booking } = await paidBookingWithReport({ withReport: false });
+      const res = await acknowledge(renter, booking.id);
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('pickup_report_required');
+    });
+
+    test('acknowledgment needs payment_confirmed, and only the renter can do it', async () => {
+      const owner = await addUser();
+      const renter = await addUser('customer', { diditStatus: 'verified', diditVerifiedAt: freshVerifiedAt });
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Early drill' });
+      const pending = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'pending');
+      await insertPickupReport(pending.id, owner, 'pickup');
+      const early = await acknowledge(renter, pending.id);
+      expect(early.status).toBe(409);
+      expect(early.body.code).toBe('state_conflict');
+
+      const paid = await paidBookingWithReport();
+      await acknowledge(paid.owner, paid.booking.id).expect(403);
+      const stranger = await addUser();
+      await acknowledge(stranger, paid.booking.id).expect(404);
+    });
+  });
 });
