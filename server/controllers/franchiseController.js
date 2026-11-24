@@ -502,6 +502,10 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3j (648, D-349): the training-escalation queue for
   // this territory — one live escalation per training item.
   const trainingEscalations = await fetchTrainingEscalations(applicationId);
+  // Group 12 Slice 3j (650, D-351): the territory's support history —
+  // derived from the existing records, newest first, with an outcome
+  // rollup. No duplicate history store.
+  const supportHistory = await buildSupportHistory(applicationId, { limit: 50 });
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -543,6 +547,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     policy_questions: policyQuestions,
     ops_appointments: opsAppointments,
     training_escalations: trainingEscalations,
+    support_history: supportHistory,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1175,6 +1180,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   const opsAppointments = await fetchOpsAppointments(applicationId);
   // Group 12 Slice 3j (648, D-349): the training-escalation queue.
   const trainingEscalations = await fetchTrainingEscalations(applicationId);
+  // Group 12 Slice 3j (650, D-351): the territory's support history.
+  const supportHistory = await buildSupportHistory(applicationId, { limit: 50 });
 
   return {
     application: {
@@ -1211,6 +1218,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     policy_questions: policyQuestions,
     ops_appointments: opsAppointments,
     training_escalations: trainingEscalations,
+    support_history: supportHistory,
     // Group 12 Slice 3h (640, D-340): HQ's own readiness fields,
     // surfaced read-only to the operator alongside their notes.
     hq_readiness_notes: {
@@ -7254,7 +7262,7 @@ async function createPolicyQuestionCore(client, applicationId, actorId, {
      VALUES ($1, $2, $3, $4, $5, $6, 'open', 'direct', $7, $8, $9::jsonb)
      RETURNING id, ticket_number, subject, category, priority, status,
                franchise_application_id AS application_id,
-               franchise_location_id AS location_id, created_at`,
+               franchise_location_id AS location_id, created_at, metadata`,
     [
       actorId,
       name,
@@ -8250,6 +8258,233 @@ async function listTerritoryCases(req, res, { asAdmin = false } = {}) {
 
 async function listTerritoryCasesAsAdmin(req, res) {
   return listTerritoryCases(req, res, { asAdmin: true });
+}
+
+// Group 12 Slice 3j (650, D-351): the franchise support history —
+// the full chronological history of the territory's support
+// interactions, derived from the existing records, never a duplicate
+// history store: ticket creation/resolution/closure, ticket replies
+// (non-internal follow-ups only — the intake message is the creation
+// event, internal notes never leave the server), escalations (631),
+// policy questions (646, their own event kind), operations
+// appointments (647: booked/confirmed/cancelled/completed), training
+// escalations and their resolutions (648), and verified corrective
+// actions (635). One derived read, newest first, with an outcome
+// rollup (open vs resolved cases, counts by kind).
+async function buildSupportHistory(applicationId, { limit = 100 } = {}) {
+  const { rows } = await db.query(
+    `SELECT * FROM (
+       SELECT
+         CASE WHEN t.category = 'policy_question' THEN 'policy_question_asked' ELSE 'ticket_created' END AS kind,
+         t.created_at AS at,
+         ('#' || t.ticket_number || ' — ' || t.subject) AS title,
+         t.category AS summary,
+         t.id AS ref_id,
+         t.ticket_number AS ticket_number,
+         t.name AS actor_name,
+         NULL::timestamptz AS starts_at
+         FROM support_tickets t
+        WHERE t.franchise_application_id = $1
+       UNION ALL
+       SELECT 'ticket_resolved' AS kind,
+         t.resolved_at AS at,
+         ('#' || t.ticket_number || ' — ' || t.subject) AS title,
+         'resolved' AS summary,
+         t.id AS ref_id, t.ticket_number, t.name AS actor_name,
+         NULL::timestamptz AS starts_at
+         FROM support_tickets t
+        WHERE t.franchise_application_id = $1 AND t.resolved_at IS NOT NULL
+       UNION ALL
+       SELECT 'ticket_closed' AS kind,
+         t.closed_at AS at,
+         ('#' || t.ticket_number || ' — ' || t.subject) AS title,
+         'closed' AS summary,
+         t.id AS ref_id, t.ticket_number, t.name AS actor_name,
+         NULL::timestamptz AS starts_at
+         FROM support_tickets t
+        WHERE t.franchise_application_id = $1 AND t.closed_at IS NOT NULL
+       UNION ALL
+       SELECT 'ticket_reply' AS kind,
+         m.created_at AS at,
+         ('#' || t.ticket_number || ' — ' || t.subject) AS title,
+         LEFT(m.content, 300) AS summary,
+         t.id AS ref_id, t.ticket_number,
+         COALESCE(m.sender_name, 'Support') AS actor_name,
+         NULL::timestamptz AS starts_at
+         FROM support_messages m
+         JOIN support_tickets t ON t.id = m.ticket_id
+        WHERE t.franchise_application_id = $1 AND NOT m.is_internal
+          AND EXISTS (
+            SELECT 1 FROM support_messages m2
+             WHERE m2.ticket_id = m.ticket_id
+               AND (m2.created_at, m2.id) < (m.created_at, m.id)
+          )
+       UNION ALL
+       SELECT 'escalation' AS kind,
+         e.created_at AS at,
+         ('#' || t.ticket_number || ' — ' || t.subject) AS title,
+         e.reason AS summary,
+         t.id AS ref_id, t.ticket_number,
+         COALESCE(NULLIF(CONCAT_WS(' ', u.first_name, u.last_name), ''), u.email) AS actor_name,
+         NULL::timestamptz AS starts_at
+         FROM franchise_ticket_escalations e
+         JOIN support_tickets t ON t.id = e.ticket_id
+         LEFT JOIN users u ON u.id = e.escalated_by
+        WHERE e.application_id = $1
+       UNION ALL
+       SELECT 'training_escalation' AS kind,
+         e.created_at AS at,
+         COALESCE(e.module_title, a.module_title) AS title,
+         e.reason AS summary,
+         e.id AS ref_id, NULL::int AS ticket_number,
+         COALESCE(NULLIF(CONCAT_WS(' ', u.first_name, u.last_name), ''), u.email) AS actor_name,
+         NULL::timestamptz AS starts_at
+         FROM franchise_training_escalations e
+         LEFT JOIN franchise_training_assignments a ON a.id = e.assignment_id
+         LEFT JOIN users u ON u.id = e.escalated_by
+        WHERE e.application_id = $1
+       UNION ALL
+       SELECT 'training_escalation_resolved' AS kind,
+         e.resolved_at AS at,
+         COALESCE(e.module_title, a.module_title) AS title,
+         e.resolution AS summary,
+         e.id AS ref_id, NULL::int AS ticket_number,
+         COALESCE(NULLIF(CONCAT_WS(' ', u.first_name, u.last_name), ''), u.email) AS actor_name,
+         NULL::timestamptz AS starts_at
+         FROM franchise_training_escalations e
+         LEFT JOIN franchise_training_assignments a ON a.id = e.assignment_id
+         LEFT JOIN users u ON u.id = e.resolved_by
+        WHERE e.application_id = $1 AND e.status = 'resolved' AND e.resolved_at IS NOT NULL
+       UNION ALL
+       SELECT 'appointment_booked' AS kind,
+         s.booked_at AS at,
+         COALESCE(s.title, 'Operations appointment') AS title,
+         NULL AS summary,
+         s.id AS ref_id, NULL::int AS ticket_number,
+         COALESCE(NULLIF(CONCAT_WS(' ', u.first_name, u.last_name), ''), u.email) AS actor_name,
+         s.starts_at AS starts_at
+         FROM franchise_ops_appointment_slots s
+         LEFT JOIN users u ON u.id = s.booked_by
+        WHERE s.application_id = $1 AND s.booked_at IS NOT NULL
+       UNION ALL
+       SELECT 'appointment_confirmed' AS kind,
+         s.confirmed_at AS at,
+         COALESCE(s.title, 'Operations appointment') AS title,
+         NULL AS summary,
+         s.id AS ref_id, NULL::int AS ticket_number,
+         COALESCE(NULLIF(CONCAT_WS(' ', u.first_name, u.last_name), ''), u.email) AS actor_name,
+         s.starts_at AS starts_at
+         FROM franchise_ops_appointment_slots s
+         LEFT JOIN users u ON u.id = s.confirmed_by
+        WHERE s.application_id = $1 AND s.confirmed_at IS NOT NULL
+       UNION ALL
+       SELECT 'appointment_cancelled' AS kind,
+         s.cancelled_at AS at,
+         COALESCE(s.title, 'Operations appointment') AS title,
+         s.cancel_reason AS summary,
+         s.id AS ref_id, NULL::int AS ticket_number,
+         COALESCE(NULLIF(CONCAT_WS(' ', u.first_name, u.last_name), ''), u.email) AS actor_name,
+         s.starts_at AS starts_at
+         FROM franchise_ops_appointment_slots s
+         LEFT JOIN users u ON u.id = s.cancelled_by
+        WHERE s.application_id = $1 AND s.cancelled_at IS NOT NULL
+       UNION ALL
+       SELECT 'appointment_completed' AS kind,
+         s.completed_at AS at,
+         COALESCE(s.title, 'Operations appointment') AS title,
+         NULL AS summary,
+         s.id AS ref_id, NULL::int AS ticket_number,
+         COALESCE(NULLIF(CONCAT_WS(' ', u.first_name, u.last_name), ''), u.email) AS actor_name,
+         s.starts_at AS starts_at
+         FROM franchise_ops_appointment_slots s
+         LEFT JOIN users u ON u.id = s.completed_by
+        WHERE s.application_id = $1 AND s.completed_at IS NOT NULL
+       UNION ALL
+       SELECT 'corrective_action_verified' AS kind,
+         a.reviewed_at AS at,
+         a.title AS title,
+         ('#' || t.ticket_number) AS summary,
+         a.id AS ref_id, t.ticket_number,
+         COALESCE(NULLIF(CONCAT_WS(' ', u.first_name, u.last_name), ''), u.email) AS actor_name,
+         NULL::timestamptz AS starts_at
+         FROM franchise_corrective_actions a
+         JOIN support_tickets t ON t.id = a.ticket_id
+         LEFT JOIN users u ON u.id = a.reviewed_by
+        WHERE a.application_id = $1 AND a.status = 'verified' AND a.reviewed_at IS NOT NULL
+     ) history
+     ORDER BY at DESC, ref_id DESC
+     LIMIT $2`,
+    [applicationId, limit]
+  );
+  const byKind = await db.query(
+    `SELECT kind, COUNT(*)::int AS count FROM (
+       SELECT 'ticket' AS kind FROM support_tickets WHERE franchise_application_id = $1
+       UNION ALL
+       SELECT 'training_escalation' FROM franchise_training_escalations WHERE application_id = $1
+       UNION ALL
+       SELECT 'appointment' FROM franchise_ops_appointment_slots WHERE application_id = $1
+     ) kinds GROUP BY kind ORDER BY kind`,
+    [applicationId]
+  );
+  const openCases = await db.query(
+    `SELECT
+       (SELECT COUNT(*)::int FROM support_tickets
+         WHERE franchise_application_id = $1 AND status IN ${EXCEPTION_OPEN_SQL})
+       + (SELECT COUNT(*)::int FROM franchise_training_escalations
+           WHERE application_id = $1 AND status IN ('open', 'in_progress')) AS open_count,
+       (SELECT COUNT(*)::int FROM support_tickets
+         WHERE franchise_application_id = $1 AND status IN ('resolved', 'closed'))
+       + (SELECT COUNT(*)::int FROM franchise_training_escalations
+           WHERE application_id = $1 AND status = 'resolved') AS resolved_count`,
+    [applicationId]
+  );
+  return {
+    application_id: applicationId,
+    history: rows,
+    total: rows.length,
+    summary: {
+      total_events: rows.length,
+      open_cases: openCases.rows[0]?.open_count || 0,
+      resolved_cases: openCases.rows[0]?.resolved_count || 0,
+      by_kind: byKind.rows,
+    },
+  };
+}
+
+async function getSupportHistory(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can view territory support history.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    return res.json(await buildSupportHistory(id));
+  } catch (err) {
+    logger.error('Error loading franchise support history', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load support history.' });
+  }
+}
+
+async function getSupportHistoryAsAdmin(req, res) {
+  return getSupportHistory(req, res, { asAdmin: true });
 }
 
 async function getLocationHealth(req, res) {
@@ -11860,6 +12095,8 @@ module.exports = {
   resolveTrainingEscalationAsAdmin,
   listTerritoryCases,
   listTerritoryCasesAsAdmin,
+  getSupportHistory,
+  getSupportHistoryAsAdmin,
   getCoverageTrend,
   getCoverageTrendAsAdmin,
   linkTicketToTerritory,

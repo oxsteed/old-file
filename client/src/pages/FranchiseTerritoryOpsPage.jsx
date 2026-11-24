@@ -42,6 +42,7 @@ import FranchisePolicyQuestions from './FranchisePolicyQuestions';
 import FranchiseOpsAppointments from './FranchiseOpsAppointments';
 import FranchiseTrainingEscalations from './FranchiseTrainingEscalations';
 import FranchiseTerritoryCases from './FranchiseTerritoryCases';
+import FranchiseSupportHistory from './FranchiseSupportHistory';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -1283,6 +1284,13 @@ export default function FranchiseTerritoryOpsPage() {
               onBook={bookOpsSlot}
               onCancelBooking={cancelOpsBooking}
             />
+          )}
+
+          {/* Group 12 Slice 3j (650, D-351): the franchise support
+              history — the territory's support interactions in
+              chronological order, derived from the records. */}
+          {boundaryDetail && (
+            <FranchiseSupportHistory history={boundaryDetail.support_history || null} />
           )}
 
           {/* Group 12 Slice 3j (649, D-350): the territory case tracker

@@ -41,6 +41,7 @@ import FranchisePolicyQuestions from '../../../pages/FranchisePolicyQuestions';
 import FranchiseOpsAppointments from '../../../pages/FranchiseOpsAppointments';
 import FranchiseTrainingEscalations from '../../../pages/FranchiseTrainingEscalations';
 import FranchiseTerritoryCases from '../../../pages/FranchiseTerritoryCases';
+import FranchiseSupportHistory from '../../../pages/FranchiseSupportHistory';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -2342,6 +2343,11 @@ export default function FranchiseHQPage() {
                     onCancelSlot={cancelOpsSlot}
                     busy={saving}
                   />
+
+                  {/* Group 12 Slice 3j (650, D-351): the franchise
+                      support history — the territory's support
+                      interactions in chronological order. */}
+                  <FranchiseSupportHistory history={selectedBundle.support_history || null} />
 
                   {/* Group 12 Slice 3j (649, D-350): the per-territory
                       case tracker — tickets, policy questions, training

@@ -96,6 +96,8 @@ const {
   resolveTrainingEscalationAsAdmin,
   listTerritoryCases,
   listTerritoryCasesAsAdmin,
+  getSupportHistory,
+  getSupportHistoryAsAdmin,
   getCoverageTrend,
   getCoverageTrendAsAdmin,
   linkTicketToTerritory,
@@ -246,6 +248,10 @@ router.get('/my-applications/:id/support-tickets', authenticate, requireFranchis
 // Group 12 Slice 3f (630): the territory coverage trend — coverage %
 // by day and by week over time, from the linked business's shifts (D-330).
 router.get('/my-applications/:id/coverage-trend', authenticate, requireFranchiseEnabled, getCoverageTrend);
+// Group 12 Slice 3j (650): the franchise support history — the full
+// chronological history of the territory's support interactions,
+// derived from the existing records, readable by the operator and HQ.
+router.get('/my-applications/:id/support-history', authenticate, requireFranchiseEnabled, getSupportHistory);
 // Group 12 Slice 3j (649): the territory case tracker — the
 // territory's cases (tickets, policy questions, training escalations,
 // handoffs) in one view, filterable by status, type, and location.
@@ -388,6 +394,8 @@ router.get('/applications/:id/exceptions', authenticate, requireAdmin, requirePe
 // Group 12 Slice 3f (627): HQ reads the per-location health view.
 router.get('/applications/:id/location-health', authenticate, requireAdmin, requirePermission('manage_operations'), getLocationHealthAsAdmin);
 // Group 12 Slice 3f (629): HQ reads the per-territory ticket queue.
+// Group 12 Slice 3j (650): HQ reads the per-territory support history.
+router.get('/applications/:id/support-history', authenticate, requireAdmin, requirePermission('manage_operations'), getSupportHistoryAsAdmin);
 // Group 12 Slice 3j (649): HQ reads the per-territory case tracker.
 router.get('/applications/:id/cases', authenticate, requireAdmin, requirePermission('manage_operations'), listTerritoryCasesAsAdmin);
 // Group 12 Slice 3j (648): HQ reads the per-territory training
