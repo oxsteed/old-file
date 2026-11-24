@@ -6738,6 +6738,10 @@
       "qualifications": "Cualificaciones",
       "credentials": "Credenciales",
       "yearsExperience": "Años de experiencia",
+      "equipmentOwned": "Equipo que posee",
+      "ownershipAttestation": "Propiedad",
+      "equipmentCondition": "Estado del equipo",
+      "pickupLocation": "Lugar de recogida",
       "area": {
         "country": "Código de país (2 letras)",
         "region": "Estado o región",
@@ -6750,7 +6754,13 @@
       "sole_prop": "Empresa individual",
       "corp": "Corporación",
       "partnership": "Sociedad",
-      "other": "Otro"
+      "other": "Otro",
+      "owned_outright": "Propio sin préstamo",
+      "owned_with_loan": "Propio con préstamo",
+      "borrowed_with_permission": "Prestado con permiso",
+      "excellent": "Excelente",
+      "good": "Bueno",
+      "fair": "Aceptable"
     },
     "fieldErrors": {
       "invalid": "Revisa esta respuesta.",
