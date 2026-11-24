@@ -28,6 +28,7 @@ import FranchiseComplianceChecklist from './FranchiseComplianceChecklist';
 import FranchiseExceptionSummary from './FranchiseExceptionSummary';
 import FranchiseLocationHealth from './FranchiseLocationHealth';
 import FranchiseTerritoryTickets from './FranchiseTerritoryTickets';
+import FranchiseCoverageTrend from './FranchiseCoverageTrend';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -227,6 +228,21 @@ export default function FranchiseTerritoryOpsPage() {
       .catch(() => { if (!cancelled) setTerritoryTickets([]); });
     return () => { cancelled = true; };
   }, [resolvedApplicationId, territoryBlocked, ticketStatus, ticketLocationId, ticketRefresh]);
+
+  // Group 12 Slice 3f (630): the territory coverage trend for the
+  // resolved territory — coverage % by day and by week over time.
+  const [coverageTrend, setCoverageTrend] = useState(null);
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setCoverageTrend(null);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/coverage-trend`)
+      .then((res) => { if (!cancelled) setCoverageTrend(res.data); })
+      .catch(() => { if (!cancelled) setCoverageTrend(null); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked]);
 
   // Group 12 Slice 3b (609): the operator updates a launch plan step's
   // status from the ops page; the detail is reloaded to reflect it.
@@ -757,6 +773,10 @@ export default function FranchiseTerritoryOpsPage() {
 
           {/* Group 12 Slice 3d (619): territory coverage planning. */}
           {boundaryDetail && <FranchiseCoveragePlan coverage={coverage} />}
+
+          {/* Group 12 Slice 3f (630, D-330): the territory coverage trend —
+              coverage % by day and by week over time. */}
+          {boundaryDetail && <FranchiseCoverageTrend trend={coverageTrend} />}
 
           {/* Group 12 Slice 3d (620): the HQ announcement feed. */}
           {boundaryDetail && (

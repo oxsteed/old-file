@@ -364,6 +364,7 @@ describeDb('Group 12 Slice 3f: Monitor locations (626-630)', () => {
         .expect(200);
       expect(bundle.body.exception_summary.total).toBe(0);
     });
+  });
 
   describe('627: per-location health view', () => {
     function healthFor(user, applicationId) {
@@ -655,5 +656,151 @@ describeDb('Group 12 Slice 3f: Monitor locations (626-630)', () => {
     });
   });
 
+
+  describe('630: shift coverage trends', () => {
+    function isoDate(offsetDays) {
+      const date = new Date();
+      date.setUTCHours(0, 0, 0, 0);
+      date.setUTCDate(date.getUTCDate() + offsetDays);
+      return date.toISOString().slice(0, 10);
+    }
+
+    async function addBusiness(owner) {
+      const { rows } = await db.query(
+        'INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id',
+        [owner.id, 'G12f Coverage Business'],
+      );
+      return rows[0].id;
+    }
+
+    async function addShift(businessId, userId, date, cancelled = false) {
+      await db.query(
+        `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label, cancelled_at)
+         VALUES ($1, $2, $3, '09:00', '17:00', 'crew', $4)`,
+        [businessId, userId, date, cancelled ? new Date().toISOString() : null],
+      );
+    }
+
+    async function linkBusiness(applicationId, businessId) {
+      await db.query('UPDATE franchise_applications SET linked_business_id = $1 WHERE id = $2', [businessId, applicationId]);
+    }
+
+    function trendFor(user, applicationId, query = '') {
+      return request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/coverage-trend${query}`)
+        .set('x-test-user', user.id);
+    }
+
+    test('without a linked business the trend says so explicitly', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+
+      const trend = await trendFor(operator, applicationId).expect(200);
+      expect(trend.body.linked_business_id).toBeNull();
+      expect(trend.body.days).toEqual([]);
+      expect(trend.body.weeks).toEqual([]);
+      expect(trend.body.coverage_pct).toBeNull();
+      expect(trend.body.from).toBe(isoDate(-27));
+      expect(trend.body.to).toBe(isoDate(0));
+    });
+
+    test('the default 28-day window buckets into weeks; cancelled shifts never count', async () => {
+      const operator = await addUser();
+      const other = await addUser();
+      const applicationId = await makeApplication(operator);
+      const businessId = await addBusiness(operator);
+      const otherBusinessId = await addBusiness(other);
+      await linkBusiness(applicationId, businessId);
+
+      // Covered: -27, -26, -25 (week 1: 3 of 7), -20 (week 2: 1 of 7),
+      // -1 and 0 (week 4: 2 of 7). A cancelled shift on -19 and a shift
+      // on another business on -18 must not count.
+      await addShift(businessId, operator.id, isoDate(-27));
+      await addShift(businessId, operator.id, isoDate(-26));
+      await addShift(businessId, operator.id, isoDate(-25));
+      await addShift(businessId, operator.id, isoDate(-20));
+      await addShift(businessId, operator.id, isoDate(-19), true);
+      await addShift(otherBusinessId, other.id, isoDate(-18));
+      await addShift(businessId, operator.id, isoDate(-1));
+      await addShift(businessId, operator.id, isoDate(0));
+      // Two staff on one day: still one covered day, staff 2.
+      await addShift(businessId, other.id, isoDate(0));
+
+      const trend = await trendFor(operator, applicationId).expect(200);
+      expect(trend.body.linked_business_id).toBe(businessId);
+      expect(trend.body.days).toHaveLength(28);
+      expect(trend.body.days.filter((d) => d.covered)).toHaveLength(6);
+      expect(trend.body.coverage_pct).toBe(21);
+      const today = trend.body.days.find((d) => d.date === isoDate(0));
+      expect(today).toMatchObject({ shifts: 2, staff: 2, covered: true });
+      const cancelledDay = trend.body.days.find((d) => d.date === isoDate(-19));
+      expect(cancelledDay).toMatchObject({ shifts: 0, staff: 0, covered: false });
+      const foreignDay = trend.body.days.find((d) => d.date === isoDate(-18));
+      expect(foreignDay).toMatchObject({ shifts: 0, covered: false });
+
+      expect(trend.body.weeks).toHaveLength(4);
+      expect(trend.body.weeks[0]).toMatchObject({ days: 7, covered_days: 3, coverage_pct: 43 });
+      expect(trend.body.weeks[1]).toMatchObject({ days: 7, covered_days: 1, coverage_pct: 14 });
+      expect(trend.body.weeks[2]).toMatchObject({ days: 7, covered_days: 0, coverage_pct: 0 });
+      expect(trend.body.weeks[3]).toMatchObject({ days: 7, covered_days: 2, coverage_pct: 29 });
+      expect(trend.body.weeks[0].week_start).toBe(isoDate(-27));
+      expect(trend.body.weeks[3].week_end).toBe(isoDate(0));
+    });
+
+    test('an explicit from/to window is respected, with a partial final week', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const businessId = await addBusiness(operator);
+      await linkBusiness(applicationId, businessId);
+      await addShift(businessId, operator.id, isoDate(-9));
+      await addShift(businessId, operator.id, isoDate(-5));
+
+      const trend = await trendFor(operator, applicationId, `?from=${isoDate(-9)}&to=${isoDate(0)}`).expect(200);
+      expect(trend.body.days).toHaveLength(10);
+      expect(trend.body.weeks).toHaveLength(2);
+      expect(trend.body.weeks[0]).toMatchObject({ days: 7, covered_days: 2, coverage_pct: 29 });
+      expect(trend.body.weeks[1]).toMatchObject({ days: 3, covered_days: 0, coverage_pct: 0 });
+      expect(trend.body.coverage_pct).toBe(20);
+    });
+
+    test('an invalid range and a range over 93 days are 400', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const businessId = await addBusiness(operator);
+      await linkBusiness(applicationId, businessId);
+
+      await trendFor(operator, applicationId, '?from=2026-13-01&to=2026-11-24')
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_coverage_trend_range'));
+      await trendFor(operator, applicationId, `?from=${isoDate(-10)}&to=${isoDate(-11)}`)
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_coverage_trend_range'));
+      await trendFor(operator, applicationId, `?from=${isoDate(-100)}&to=${isoDate(0)}`)
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('coverage_trend_range_too_long'));
+    });
+
+    test('a stranger gets 404, a non-operator applicant 403, HQ reads the trend', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+      const businessId = await addBusiness(operator);
+      await linkBusiness(applicationId, businessId);
+      await addShift(businessId, operator.id, isoDate(0));
+
+      await trendFor(stranger, applicationId).expect(404);
+      await trendFor(applicant, applicationId)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      const adminTrend = await request(app)
+        .get(`/api/franchise/applications/${applicationId}/coverage-trend`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(adminTrend.body.coverage_pct).toBe(4);
+      expect(adminTrend.body.days).toHaveLength(28);
+    });
   });
 });

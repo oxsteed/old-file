@@ -26,6 +26,7 @@ import FranchiseComplianceChecklist from '../../../pages/FranchiseComplianceChec
 import FranchiseExceptionSummary from '../../../pages/FranchiseExceptionSummary';
 import FranchiseLocationHealth from '../../../pages/FranchiseLocationHealth';
 import FranchiseTerritoryTickets from '../../../pages/FranchiseTerritoryTickets';
+import FranchiseCoverageTrend from '../../../pages/FranchiseCoverageTrend';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -206,6 +207,9 @@ export default function FranchiseHQPage() {
   // Group 12 Slice 3d (619): the territory coverage rollup for the
   // selected application, loaded with the bundle.
   const [coverage, setCoverage] = useState(null);
+  // Group 12 Slice 3f (630): the territory coverage trend for the
+  // selected application — coverage % over time, loaded with the bundle.
+  const [coverageTrend, setCoverageTrend] = useState(null);
   // Group 12 Slice 3f (629): the per-territory ticket queue for the
   // selected application — HQ sees each territory's open requests.
   const [territoryTickets, setTerritoryTickets] = useState([]);
@@ -305,6 +309,14 @@ export default function FranchiseHQPage() {
         setCoverage(coverageRes.data);
       } catch {
         setCoverage(null);
+      }
+      // Group 12 Slice 3f (630): the territory coverage trend for the
+      // selected application — read-only in HQ.
+      try {
+        const trendRes = await axios.get(`/franchise/applications/${id}/coverage-trend`);
+        setCoverageTrend(trendRes.data);
+      } catch {
+        setCoverageTrend(null);
       }
       setEditForm({
         status: bundle.application.status || 'inquiry',
@@ -1907,6 +1919,11 @@ export default function FranchiseHQPage() {
                   {/* Group 12 Slice 3d (619): territory coverage planning
                       — read-only rollup in HQ. */}
                   <FranchiseCoveragePlan coverage={coverage} />
+
+                  {/* Group 12 Slice 3f (630, D-330): the territory coverage
+                      trend — coverage % by day and by week over time,
+                      read-only in HQ. */}
+                  <FranchiseCoverageTrend trend={coverageTrend} />
 
                   {/* Group 12 Slice 3f (628, D-327): the service exception
                       summary — the territory's support tickets aggregated,

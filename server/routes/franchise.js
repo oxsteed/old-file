@@ -78,6 +78,8 @@ const {
   getLocationHealthAsAdmin,
   listTerritoryTickets,
   listTerritoryTicketsAsAdmin,
+  getCoverageTrend,
+  getCoverageTrendAsAdmin,
   linkTicketToTerritory,
   linkTicketToTerritoryAsAdmin,
   unlinkTicketFromTerritory,
@@ -163,6 +165,9 @@ router.get('/my-applications/:id/location-health', authenticate, requireFranchis
 // Group 12 Slice 3f (629): the territory ticket queue — the territory's
 // open support requests, filterable by status and location (D-329).
 router.get('/my-applications/:id/support-tickets', authenticate, requireFranchiseEnabled, listTerritoryTickets);
+// Group 12 Slice 3f (630): the territory coverage trend — coverage %
+// by day and by week over time, from the linked business's shifts (D-330).
+router.get('/my-applications/:id/coverage-trend', authenticate, requireFranchiseEnabled, getCoverageTrend);
 router.post('/my-applications/:id/support-tickets/:ticketId/link', authenticate, requireFranchiseEnabled, linkTicketToTerritory);
 router.post('/my-applications/:id/support-tickets/:ticketId/unlink', authenticate, requireFranchiseEnabled, unlinkTicketFromTerritory);
 // Group 12 Slice 3d (620): the operator reads the HQ announcement feed
@@ -224,6 +229,8 @@ router.get('/applications/:id/exceptions', authenticate, requireAdmin, requirePe
 router.get('/applications/:id/location-health', authenticate, requireAdmin, requirePermission('manage_operations'), getLocationHealthAsAdmin);
 // Group 12 Slice 3f (629): HQ reads the per-territory ticket queue.
 router.get('/applications/:id/support-tickets', authenticate, requireAdmin, requirePermission('manage_operations'), listTerritoryTicketsAsAdmin);
+// Group 12 Slice 3f (630): HQ reads the territory coverage trend.
+router.get('/applications/:id/coverage-trend', authenticate, requireAdmin, requirePermission('manage_operations'), getCoverageTrendAsAdmin);
 router.post('/applications/:id/support-tickets/:ticketId/link', authenticate, requireAdmin, requirePermission('manage_operations'), linkTicketToTerritoryAsAdmin);
 router.post('/applications/:id/support-tickets/:ticketId/unlink', authenticate, requireAdmin, requirePermission('manage_operations'), unlinkTicketFromTerritoryAsAdmin);
 // Group 12 Slice 3d (620): HQ posts and removes territory announcements.

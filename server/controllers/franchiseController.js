@@ -6035,6 +6035,140 @@ async function getLocationHealthAsAdmin(req, res) {
   }
 }
 
+// 630 (D-330): the territory coverage trend — the linked business's
+// staff shifts as a trend over time, never a new scheduling system. One
+// row per day (shifts, distinct staff, covered), 7-day buckets anchored
+// at the window start, and an overall coverage % for the window. Default
+// window is the 28 days ending today; ?from=/?to= override it, capped at
+// 93 days like the schedule forecast. Cancelled shifts never count; the
+// shift set matches the 619 rollup (non-cancelled shifts, drafts
+// included). No linked business is an explicit empty trend.
+const DATE_ONLY_RE_630 = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseCoverageTrendRange(query) {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const defaultFrom = new Date(today.getTime() - 27 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const defaultTo = today.toISOString().slice(0, 10);
+  const from = typeof query?.from === 'string' && query.from ? query.from : defaultFrom;
+  const to = typeof query?.to === 'string' && query.to ? query.to : defaultTo;
+  if (!DATE_ONLY_RE_630.test(from) || !DATE_ONLY_RE_630.test(to) || to < from) {
+    return { error: { status: 400, body: { error: 'from and to are required as YYYY-MM-DD with to on or after from.', code: 'invalid_coverage_trend_range' } } };
+  }
+  const rangeDays = Math.round(
+    (new Date(`${to}T12:00:00Z`) - new Date(`${from}T12:00:00Z`)) / 86400000
+  ) + 1;
+  if (rangeDays > 93) {
+    return { error: { status: 400, body: { error: 'Coverage trend range is capped at 93 days.', code: 'coverage_trend_range_too_long' } } };
+  }
+  return { from, to, rangeDays };
+}
+
+async function buildCoverageTrend(applicationId, { from, to, rangeDays }) {
+  const { rows: [application] } = await db.query(
+    'SELECT linked_business_id FROM franchise_applications WHERE id = $1',
+    [applicationId]
+  );
+  const businessId = application?.linked_business_id || null;
+  if (!businessId) {
+    return {
+      application_id: applicationId,
+      linked_business_id: null,
+      from,
+      to,
+      days: [],
+      weeks: [],
+      coverage_pct: null,
+    };
+  }
+  const { rows } = await db.query(
+    `SELECT shift_date, COUNT(*)::int AS shifts, COUNT(DISTINCT user_id)::int AS staff
+       FROM business_staff_shifts
+      WHERE business_id = $1 AND shift_date BETWEEN $2 AND $3
+        AND cancelled_at IS NULL
+      GROUP BY shift_date`,
+    [businessId, from, to]
+  );
+  const byDate = new Map(rows.map((row) => [new Date(row.shift_date).toISOString().slice(0, 10), row]));
+  const start = new Date(`${from}T00:00:00Z`);
+  const days = [];
+  for (let offset = 0; offset < rangeDays; offset += 1) {
+    const date = new Date(start.getTime() + offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const row = byDate.get(date);
+    days.push({
+      date,
+      shifts: row?.shifts || 0,
+      staff: row?.staff || 0,
+      covered: Boolean(row && row.shifts > 0),
+    });
+  }
+  const weeks = [];
+  for (let weekStart = 0; weekStart < rangeDays; weekStart += 7) {
+    const weekDays = days.slice(weekStart, weekStart + 7);
+    const coveredDays = weekDays.filter((day) => day.covered).length;
+    weeks.push({
+      week_start: weekDays[0].date,
+      week_end: weekDays[weekDays.length - 1].date,
+      days: weekDays.length,
+      covered_days: coveredDays,
+      coverage_pct: Math.round((coveredDays / weekDays.length) * 100),
+    });
+  }
+  const coveredDays = days.filter((day) => day.covered).length;
+  return {
+    application_id: applicationId,
+    linked_business_id: businessId,
+    from,
+    to,
+    days,
+    weeks,
+    coverage_pct: Math.round((coveredDays / days.length) * 100),
+  };
+}
+
+async function getCoverageTrend(req, res) {
+  const { id } = req.params;
+  const parsed = parseCoverageTrendRange(req.query);
+  if (parsed.error) return res.status(parsed.error.status).json(parsed.error.body);
+  try {
+    const client = await db.connect();
+    try {
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        return res.status(403).json({
+          error: 'Only the assigned operator can view territory coverage trends.',
+          code: 'franchise_operator_only',
+        });
+      }
+    } finally {
+      client.release();
+    }
+    return res.json(await buildCoverageTrend(id, parsed));
+  } catch (err) {
+    logger.error('Error loading franchise coverage trend', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load coverage trend.' });
+  }
+}
+
+async function getCoverageTrendAsAdmin(req, res) {
+  const { id } = req.params;
+  const parsed = parseCoverageTrendRange(req.query);
+  if (parsed.error) return res.status(parsed.error.status).json(parsed.error.body);
+  try {
+    const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Franchise application not found.' });
+    }
+    return res.json(await buildCoverageTrend(id, parsed));
+  } catch (err) {
+    logger.error('Error loading franchise coverage trend as admin', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load coverage trend.' });
+  }
+}
+
 async function getTerritoryCoverage(req, res) {
   const { id } = req.params;
   try {
@@ -6868,6 +7002,8 @@ module.exports = {
   getLocationHealthAsAdmin,
   listTerritoryTickets,
   listTerritoryTicketsAsAdmin,
+  getCoverageTrend,
+  getCoverageTrendAsAdmin,
   linkTicketToTerritory,
   linkTicketToTerritoryAsAdmin,
   unlinkTicketFromTerritory,
