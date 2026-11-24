@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { toolRentalsApi } from '../api/toolRentals';
 import { formatDate } from '../lib/format';
+import './ToolOwnerMaintainPanel.css';
 
 const CHECKLIST_LABELS = {
   condition_report_filed: 'toolRentals.checklistConditionReport',
@@ -146,10 +147,10 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
   if (!loaded) return null;
 
   return (
-    <section className="rounded-xl border" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
+    <section className="rounded-xl border tool-maintain-panel">
       <header className="px-5 pt-4 pb-2">
         <h3 className="text-sm font-semibold">{t('toolRentals.maintainTitle') || 'Maintain & review'}</h3>
-        <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+        <p className="text-[11px] tool-maintain-muted">
           {t('toolRentals.maintainSubtitle') || 'Maintenance schedule, safety documents, return-to-availability checks, and repeat renters.'}
         </p>
       </header>
@@ -167,14 +168,14 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
             <div>
               <h4 className="text-sm font-semibold">{t('toolRentals.maintenanceTitle') || 'Maintenance calendar'}</h4>
               {events.length === 0 ? (
-                <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>{t('toolRentals.maintenanceEmpty') || 'No maintenance scheduled yet.'}</p>
+                <p className="text-[11px] tool-maintain-muted">{t('toolRentals.maintenanceEmpty') || 'No maintenance scheduled yet.'}</p>
               ) : (
                 <ul className="divide-y">
                   {events.map((event) => (
                     <li key={event.id} className="py-2 flex items-center justify-between gap-3">
                       <div>
                         <div className="text-sm font-medium">{event.title}</div>
-                        <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                        <div className="text-[11px] tool-maintain-muted">
                           {formatDate(event.scheduled_date)} · {t(`toolRentals.maintenanceStatus_${event.status}`) || event.status}
                           {event.notes ? ` · ${event.notes}` : ''}
                         </div>
@@ -209,7 +210,7 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
             <div>
               <h4 className="text-sm font-semibold">{t('toolRentals.safetyDocsTitle') || 'Safety documentation'}</h4>
               {docs.length === 0 ? (
-                <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>{t('toolRentals.safetyDocsEmpty') || 'No safety documents uploaded yet. Renters see these on the listing.'}</p>
+                <p className="text-[11px] tool-maintain-muted">{t('toolRentals.safetyDocsEmpty') || 'No safety documents uploaded yet. Renters see these on the listing.'}</p>
               ) : (
                 <ul>
                   {docs.map((doc) => (
@@ -261,7 +262,7 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
         <div>
           <h4 className="text-sm font-semibold">{t('toolRentals.repeatRentersTitle') || 'Repeat renters'}</h4>
           {repeatRenters.length === 0 ? (
-            <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>{t('toolRentals.repeatRentersEmpty') || 'No renter has completed two rentals with you yet.'}</p>
+            <p className="text-[11px] tool-maintain-muted">{t('toolRentals.repeatRentersEmpty') || 'No renter has completed two rentals with you yet.'}</p>
           ) : (
             <ul className="divide-y">
               {repeatRenters.map((renter) => (
@@ -270,7 +271,7 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
                     {renter.first_name} {renter.last_name} · {t('toolRentals.repeatRentersCount', { count: renter.completed_bookings }) || `${renter.completed_bookings} completed rentals`}
                   </div>
                   {(renter.followups || []).map((f) => (
-                    <p key={f.id} className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                    <p key={f.id} className="text-[11px] tool-maintain-muted">
                       {formatDate(f.created_at)} · {f.note}
                     </p>
                   ))}

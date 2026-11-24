@@ -90,7 +90,7 @@ function BookingControls({data,send,url,busy,userId}){
    {evidenceError&&<p role="alert">{tr(evidenceError)}</p>}
   </div>}
   <ul>{data.reports.map(row=><li key={row.id}><strong>{tr(row.phase)} · {String(row.actor_id)===String(b.owner_id)?tr('owner'):tr('renter')} · v{row.version}</strong><p>{row.notes}</p><ul>{row.counts.map(item=><li key={item.name}>{item.name} × {item.quantity}</li>)}</ul><ul>{row.checklist.map(item=><li key={item.label}>{item.checked?'✓':'—'} {item.label}</li>)}</ul>
-   {evidenceFor(row.id).length>0&&<ul>{evidenceFor(row.id).map(photo=><li key={photo.id}><img src={photo.image_url} alt={tr('evidencePhoto')} style={{maxWidth:'160px',borderRadius:'8px'}}/></li>)}</ul>}
+   {evidenceFor(row.id).length>0&&<ul>{evidenceFor(row.id).map(photo=><li key={photo.id}><img src={photo.image_url} alt={tr('evidencePhoto')} className="equipment-evidence-photo"/></li>)}</ul>}
    {!!row.missing_items?.length&&<><h4>{tr('missing')}</h4><ul>{row.missing_items.map(item=><li key={item.name}>{item.name} × {item.quantity}</li>)}</ul>{row.resolved_at?<><p>{tr('resolved')}: {row.resolution}</p>
     {/* Group 11 item 590: the renter acknowledges the owner's missing-item
         resolution, or disputes it (which clears the resolution). */}
