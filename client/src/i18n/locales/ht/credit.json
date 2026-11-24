@@ -2004,6 +2004,7 @@
       "revoked": "Revoke",
       "expired": "Ekspire"
     },
+    "statusReason": "Rezon: {{reason}}",
     "fulfillment": {
       "pending": "An atant",
       "printed": "Enprime",
@@ -2023,7 +2024,9 @@
       "customerUuid": "UUID kliyan an obligatwa pou kreye yon kat.",
       "fulfillment": "Nou pa ka mete estati livrezon an ajou.",
       "revokeReason": "Yon rezon obligatwa pou revoke yon kat.",
-      "revoke": "Nou pa ka revoke kat sa a."
+      "revoke": "Nou pa ka revoke kat sa a.",
+      "freezeReason": "Yon rezon obligatwa pou jele yon kat.",
+      "freeze": "Nou pa ka jele kat sa a."
     },
     "success": {
       "physicalRequested": "Yo mande kat fizik la. N ap fè w konnen lè li voye.",
@@ -2037,7 +2040,8 @@
     },
     "confirm": {
       "reportLost": "Rapòte kat sa a pèdi oswa vòlè? Li pral dezaktive nèt epi, sof si ou anile, y ap kreye yon kat vityèl ranplasman touswit.",
-      "revoke": "Ki rezon pou revoke kat sa a ({{card}})?"
+      "revoke": "Ki rezon pou revoke kat sa a ({{card}})?",
+      "freeze": "Ki rezon pou jele kat sa a ({{card}})?"
     },
     "adminSuccess": {
       "alreadyIssued": "Yo te deja kreye kat sa a pou kle idempotans sa a.",
@@ -2045,7 +2049,9 @@
       "virtualIssued": "Yo kreye kat vityèl la epi aktive l touswit.",
       "moved": "Yo deplase kat la nan \"{{status}}\".",
       "alreadyRevoked": "Yo te deja revoke kat sa a.",
-      "revoked": "Kat la revoke."
+      "revoked": "Kat la revoke.",
+      "alreadyFrozen": "Kat sa a te deja jele.",
+      "frozen": "Kat la jele."
     },
     "security": {
       "title": "Verifye aksè",

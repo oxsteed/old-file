@@ -2079,6 +2079,7 @@
       "revoked": "Revoked",
       "expired": "Expired"
     },
+    "statusReason": "Reason: {{reason}}",
     "fulfillment": {
       "pending": "Pending",
       "printed": "Printed",
@@ -2098,7 +2099,9 @@
       "customerUuid": "A customer UUID is required to issue a card.",
       "fulfillment": "Unable to update fulfillment status.",
       "revokeReason": "A reason is required to revoke a card.",
-      "revoke": "Unable to revoke this card."
+      "revoke": "Unable to revoke this card.",
+      "freezeReason": "A reason is required to freeze a card.",
+      "freeze": "Unable to freeze this card."
     },
     "success": {
       "physicalRequested": "Physical card requested. We will notify you once it ships.",
@@ -2112,7 +2115,8 @@
     },
     "confirm": {
       "reportLost": "Report this card lost or stolen? It will be permanently disabled and, unless you cancel, a replacement virtual card will be issued immediately.",
-      "revoke": "Reason for revoking this card ({{card}})?"
+      "revoke": "Reason for revoking this card ({{card}})?",
+      "freeze": "Reason for freezing this card ({{card}})?"
     },
     "adminSuccess": {
       "alreadyIssued": "This card was already issued for that idempotency key.",
@@ -2120,7 +2124,9 @@
       "virtualIssued": "Virtual card issued and active immediately.",
       "moved": "Card moved to \"{{status}}\".",
       "alreadyRevoked": "This card was already revoked.",
-      "revoked": "Card revoked."
+      "revoked": "Card revoked.",
+      "alreadyFrozen": "This card was already frozen.",
+      "frozen": "Card frozen."
     },
     "moveBack": "Move back to {{status}}"
   },

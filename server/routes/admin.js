@@ -721,6 +721,7 @@ router.get('/super/oxsteed-credit/cards/:cardId/history', requireSuperAdmin, rej
 router.post('/super/oxsteed-credit/cards/:cardId/replacement/retry', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.retryAdminReplacement);
 router.post('/super/oxsteed-credit/cards/:cardId/fulfillment', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.updateAdminCardFulfillment);
 router.post('/super/oxsteed-credit/cards/:cardId/revoke', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.revokeAdminCard);
+router.post('/super/oxsteed-credit/cards/:cardId/freeze', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.freezeAdminCard);
 router.get('/super/oxsteed-credit/rail', requireSuperAdmin, oxsteedCreditCtrl.getAdminCreditRail);
 router.post('/super/oxsteed-credit/rail', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.updateAdminCreditRail);
 // Operator freeze on money initiation (external reconciliation, migration

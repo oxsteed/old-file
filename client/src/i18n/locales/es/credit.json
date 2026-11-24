@@ -2004,6 +2004,7 @@
       "revoked": "Revocada",
       "expired": "Caducada"
     },
+    "statusReason": "Motivo: {{reason}}",
     "fulfillment": {
       "pending": "Pendiente",
       "printed": "Impresa",
@@ -2023,7 +2024,9 @@
       "customerUuid": "Se necesita el UUID del cliente para emitir una tarjeta.",
       "fulfillment": "No se puede actualizar el estado del envío.",
       "revokeReason": "Se necesita un motivo para revocar una tarjeta.",
-      "revoke": "No se puede revocar esta tarjeta."
+      "revoke": "No se puede revocar esta tarjeta.",
+      "freezeReason": "Se necesita un motivo para congelar una tarjeta.",
+      "freeze": "No se puede congelar esta tarjeta."
     },
     "success": {
       "physicalRequested": "Tarjeta física solicitada. Te avisaremos cuando se envíe.",
@@ -2037,7 +2040,8 @@
     },
     "confirm": {
       "reportLost": "¿Reportar esta tarjeta como perdida o robada? Se desactivará permanentemente y, si no cancelas, se emitirá de inmediato una tarjeta virtual de reemplazo.",
-      "revoke": "¿Motivo para revocar esta tarjeta ({{card}})?"
+      "revoke": "¿Motivo para revocar esta tarjeta ({{card}})?",
+      "freeze": "¿Motivo para congelar esta tarjeta ({{card}})?"
     },
     "adminSuccess": {
       "alreadyIssued": "Esta tarjeta ya se emitió para esa clave de idempotencia.",
@@ -2045,7 +2049,9 @@
       "virtualIssued": "Tarjeta virtual emitida y activa de inmediato.",
       "moved": "Tarjeta movida a \"{{status}}\".",
       "alreadyRevoked": "Esta tarjeta ya estaba revocada.",
-      "revoked": "Tarjeta revocada."
+      "revoked": "Tarjeta revocada.",
+      "alreadyFrozen": "Esta tarjeta ya estaba congelada.",
+      "frozen": "Tarjeta congelada."
     },
     "security": {
       "title": "Verificar acceso",

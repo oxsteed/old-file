@@ -2004,6 +2004,7 @@
       "revoked": "Révoquée",
       "expired": "Expirée"
     },
+    "statusReason": "Motif : {{reason}}",
     "fulfillment": {
       "pending": "En attente",
       "printed": "Imprimée",
@@ -2023,7 +2024,9 @@
       "customerUuid": "L’UUID du client est requis pour émettre une carte.",
       "fulfillment": "Impossible de mettre à jour la livraison.",
       "revokeReason": "Un motif est requis pour révoquer une carte.",
-      "revoke": "Impossible de révoquer cette carte."
+      "revoke": "Impossible de révoquer cette carte.",
+      "freezeReason": "Un motif est requis pour geler une carte.",
+      "freeze": "Impossible de geler cette carte."
     },
     "success": {
       "physicalRequested": "Carte physique demandée. Nous vous informerons lors de l’expédition.",
@@ -2037,7 +2040,8 @@
     },
     "confirm": {
       "reportLost": "Signaler cette carte comme perdue ou volée ? Elle sera désactivée définitivement et, sauf annulation, une carte virtuelle de remplacement sera émise immédiatement.",
-      "revoke": "Motif de révocation de cette carte ({{card}}) ?"
+      "revoke": "Motif de révocation de cette carte ({{card}}) ?",
+      "freeze": "Motif du gel de cette carte ({{card}}) ?"
     },
     "adminSuccess": {
       "alreadyIssued": "Cette carte a déjà été émise pour cette clé d’idempotence.",
@@ -2045,7 +2049,9 @@
       "virtualIssued": "Carte virtuelle émise et activée immédiatement.",
       "moved": "Carte déplacée vers \"{{status}}\".",
       "alreadyRevoked": "Cette carte était déjà révoquée.",
-      "revoked": "Carte révoquée."
+      "revoked": "Carte révoquée.",
+      "alreadyFrozen": "Cette carte était déjà gelée.",
+      "frozen": "Carte gelée."
     },
     "security": {
       "title": "Vérifier l’accès",

@@ -527,6 +527,15 @@ function freezeCard(args) {
   return transitionCardStatus({ ...args, targetStatus: 'frozen', allowedFrom: ['active'] });
 }
 
+// D-363: the platform freeze. No admin freeze endpoint existed before
+// this slice (only admin revoke); this is the platform counterpart to the
+// customer freeze, so a platform freeze is possible at all and the 665
+// freeze notice can fire. freeze_origin records 'admin' via
+// transitionCardStatus, so the customer-only unfreeze guard holds.
+function adminFreezeCard(args) {
+  return transitionCardStatus({ ...args, targetStatus: 'frozen', allowedFrom: ['active'], isAdmin: true });
+}
+
 function unfreezeCard(args) {
   return cardSecurity.runVerified(args, 'unfreeze', async client => {
     const { rows } = await client.query(`UPDATE oxsteed_credit_cards SET status = 'active', freeze_origin = NULL, status_reason = NULL
@@ -953,6 +962,7 @@ module.exports = {
   markCardFulfillment,
   activatePhysicalCard,
   freezeCard,
+  adminFreezeCard,
   unfreezeCard,
   revokeCard,
   reportCardLostOrStolen,
