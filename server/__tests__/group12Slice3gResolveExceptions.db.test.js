@@ -502,4 +502,171 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .toEqual(expect.arrayContaining([operator.id, member.id]));
     });
   });
+
+  describe('633: corrective action checklist', () => {
+    async function setupTicketWithOwner() {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const member = await addUser();
+      await db.query(
+        `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+         VALUES ($1, 'Austin', 'TX', 4.9, 1, TRUE)`,
+        [member.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+        .set('x-test-user', operator.id)
+        .send({ helper_user_id: member.id, role: 'member' })
+        .expect(201);
+      const ticket = await addTicket(operator, { applicationId });
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/remediation`)
+        .set('x-test-user', operator.id)
+        .send({ owner_user_id: member.id, due_date: '2026-12-01' })
+        .expect(201);
+      return { operator, member, applicationId, ticket };
+    }
+
+    function createAction(user, applicationId, ticket, body, asAdmin = false) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/support-tickets/${ticket.ticket_number}/corrective-actions`
+        : `/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/corrective-actions`;
+      return request(app).post(base).set('x-test-user', user.id).send(body);
+    }
+
+    function moveAction(user, applicationId, actionId, status, asAdmin = false) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/corrective-actions/${actionId}/status`
+        : `/api/franchise/my-applications/${applicationId}/corrective-actions/${actionId}/status`;
+      return request(app).post(base).set('x-test-user', user.id).send({ status });
+    }
+
+    test('the operator creates an action linked to the remediation; it rides the per-ticket and territory lists', async () => {
+      const { operator, member, applicationId, ticket } = await setupTicketWithOwner();
+
+      const created = await createAction(operator, applicationId, ticket,
+        { title: 'Replace the fridge compressor', description: 'OEM part only' })
+        .expect(201);
+      expect(created.body.action.status).toBe('open');
+      expect(created.body.action.title).toBe('Replace the fridge compressor');
+      expect(created.body.action.remediation_owner_id).toBe(member.id);
+      expect(created.body.action.remediation_owner_name).toBeTruthy();
+      expect(String(created.body.action.remediation_due_date).slice(0, 10)).toBe('2026-12-01');
+      expect(created.body.action.evidence_count).toBe(0);
+
+      const perTicket = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/corrective-actions`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(perTicket.body.total).toBe(1);
+      const territory = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/corrective-actions`)
+        .set('x-test-user', member.id)
+        .expect(200);
+      expect(territory.body.total).toBe(1);
+
+      await createAction(operator, applicationId, ticket, {})
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('corrective_action_title_required'));
+    });
+
+    test('the owner walks open -> in_progress -> resolved; HQ verifies; verified is terminal', async () => {
+      const { operator, member, applicationId, ticket } = await setupTicketWithOwner();
+      const admin = await addUser('super_admin');
+      const created = await createAction(operator, applicationId, ticket, { title: 'Fix the leak' }).expect(201);
+      const actionId = created.body.action.id;
+
+      // An invalid jump is 409.
+      await moveAction(member, applicationId, actionId, 'resolved')
+        .expect(409)
+        .then((res) => expect(res.body.code).toBe('corrective_action_transition_invalid'));
+
+      const started = await moveAction(member, applicationId, actionId, 'in_progress').expect(200);
+      expect(started.body.action.status).toBe('in_progress');
+      // A same-status move is a no-op returning the row.
+      expect((await moveAction(member, applicationId, actionId, 'in_progress').expect(200)).body.action.status)
+        .toBe('in_progress');
+      const resolved = await moveAction(member, applicationId, actionId, 'resolved').expect(200);
+      expect(resolved.body.action.status).toBe('resolved');
+      expect(resolved.body.action.resolved_at).toBeTruthy();
+
+      // The owner cannot verify their own work.
+      await moveAction(member, applicationId, actionId, 'verified')
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('corrective_action_review_hq_only'));
+      const verified = await moveAction(admin, applicationId, actionId, 'verified', true).expect(200);
+      expect(verified.body.action.status).toBe('verified');
+
+      await moveAction(admin, applicationId, actionId, 'in_progress', true)
+        .expect(409)
+        .then((res) => expect(res.body.code).toBe('corrective_action_transition_invalid'));
+    });
+
+    test('a member who is not the remediation owner cannot move the action; HQ can move it back', async () => {
+      const { operator, member, applicationId, ticket } = await setupTicketWithOwner();
+      const admin = await addUser('super_admin');
+      const otherMember = await addUser();
+      await db.query(
+        `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+         VALUES ($1, 'Austin', 'TX', 4.9, 1, TRUE)`,
+        [otherMember.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+        .set('x-test-user', operator.id)
+        .send({ helper_user_id: otherMember.id, role: 'member' })
+        .expect(201);
+      const created = await createAction(operator, applicationId, ticket, { title: 'Repaint the sign' }).expect(201);
+      const actionId = created.body.action.id;
+
+      await moveAction(otherMember, applicationId, actionId, 'in_progress')
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('corrective_action_not_assignee'));
+      // The operator may also move it.
+      await moveAction(operator, applicationId, actionId, 'in_progress').expect(200);
+      await moveAction(member, applicationId, actionId, 'resolved').expect(200);
+      // HQ sends a resolved action back to in_progress.
+      const sentBack = await moveAction(admin, applicationId, actionId, 'in_progress', true).expect(200);
+      expect(sentBack.body.action.status).toBe('in_progress');
+      expect(sentBack.body.action.resolved_at).toBeNull();
+    });
+
+    test('status and mine filters narrow the list; a stranger gets 404 and an applicant 403', async () => {
+      const { operator, member, applicationId, ticket } = await setupTicketWithOwner();
+      const applicant = await addUser();
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+      const first = await createAction(operator, applicationId, ticket, { title: 'First fix' }).expect(201);
+      await createAction(operator, applicationId, ticket, { title: 'Second fix' }).expect(201);
+      await moveAction(member, applicationId, first.body.action.id, 'in_progress').expect(200);
+
+      const open = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/corrective-actions?status=open`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(open.body.total).toBe(1);
+      const mine = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/corrective-actions?mine=true`)
+        .set('x-test-user', member.id)
+        .expect(200);
+      expect(mine.body.total).toBe(2);
+      const notMine = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/corrective-actions?mine=true`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(notMine.body.total).toBe(0);
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/corrective-actions?status=bogus`)
+        .set('x-test-user', operator.id)
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_corrective_action_status'));
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/corrective-actions`)
+        .set('x-test-user', applicant.id)
+        .expect(403);
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/corrective-actions`)
+        .set('x-test-user', (await addUser()).id)
+        .expect(404);
+    });
+  });
 });

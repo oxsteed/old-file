@@ -6292,6 +6292,327 @@ async function listMyRemediations(req, res) {
   }
 }
 
+// 633 (D-333): the franchise corrective-action checklist. One list per
+// linked exception (ticket): create/list/update with the status workflow
+// open -> in_progress -> resolved -> verified, server-enforced (the
+// restaurant-audit workflow, territory-scoped). The assigned remediation
+// owner updates status; HQ verifies. An action links to the ticket's
+// remediation when one exists, so the owner is always derivable.
+const CORRECTIVE_ACTION_STATUSES = new Set(['open', 'in_progress', 'resolved', 'verified']);
+const CORRECTIVE_ACTION_TRANSITIONS = {
+  open: ['in_progress'],
+  in_progress: ['resolved'],
+  resolved: ['verified', 'in_progress'],
+  verified: [],
+};
+
+async function fetchCorrectiveActions(applicationId, { ticketId = null, status = null, ownerId = null } = {}) {
+  const conditions = ['a.application_id = $1'];
+  const params = [applicationId];
+  if (ticketId) {
+    params.push(ticketId);
+    conditions.push(`a.ticket_id = $${params.length}`);
+  }
+  if (status) {
+    params.push(status);
+    conditions.push(`a.status = $${params.length}`);
+  }
+  if (ownerId) {
+    params.push(ownerId);
+    conditions.push(`r.owner_user_id = $${params.length}`);
+  }
+  const { rows } = await db.query(
+    `SELECT a.*, t.ticket_number, t.subject AS ticket_subject,
+            r.id AS remediation_id, r.owner_user_id AS remediation_owner_id,
+            r.due_date AS remediation_due_date,
+            u.first_name AS owner_first_name, u.last_name AS owner_last_name,
+            u.email AS owner_email,
+            (SELECT COUNT(*)::int FROM franchise_action_evidence e WHERE e.action_id = a.id) AS evidence_count
+       FROM franchise_corrective_actions a
+       JOIN support_tickets t ON t.id = a.ticket_id
+       LEFT JOIN franchise_remediations r ON r.id = a.remediation_id
+       LEFT JOIN users u ON u.id = r.owner_user_id
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY a.created_at ASC, a.id ASC`,
+    params
+  );
+  return rows.map((row) => ({
+    ...row,
+    remediation_owner_name: row.remediation_owner_id
+      ? ([row.owner_first_name, row.owner_last_name].filter(Boolean).join(' ') || row.owner_email || null)
+      : null,
+  }));
+}
+
+async function loadTerritoryTicket(client, applicationId, ticketId) {
+  const ticket = await findTicketByIdOrNumber(
+    client, ticketId, 'id, ticket_number, user_id, franchise_application_id');
+  if (!ticket) {
+    return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
+  }
+  if (String(ticket.franchise_application_id) !== String(applicationId)) {
+    return { error: { status: 404, body: { error: 'Support ticket is not linked to this territory.', code: 'exception_not_found' } } };
+  }
+  return { ticket };
+}
+
+async function createCorrectiveActionCore(client, { applicationId, ticketId, title, description, remediationId, actorId }) {
+  const loaded = await loadTerritoryTicket(client, applicationId, ticketId);
+  if (loaded.error) return loaded;
+  const { ticket } = loaded;
+  let remediation = null;
+  if (remediationId) {
+    const { rows } = await client.query(
+      `SELECT id FROM franchise_remediations
+        WHERE id = $1 AND application_id = $2 AND ticket_id = $3`,
+      [remediationId, applicationId, ticket.id]
+    );
+    if (!rows.length) {
+      return { error: { status: 404, body: { error: 'Remediation not found for this exception.', code: 'corrective_action_remediation_not_found' } } };
+    }
+    remediation = rows[0];
+  } else {
+    const { rows } = await client.query(
+      `SELECT id FROM franchise_remediations
+        WHERE application_id = $1 AND ticket_id = $2`,
+      [applicationId, ticket.id]
+    );
+    remediation = rows[0] || null;
+  }
+  const { rows } = await client.query(
+    `INSERT INTO franchise_corrective_actions
+       (application_id, ticket_id, remediation_id, title, description, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [applicationId, ticket.id, remediation?.id || null, title, description || null, actorId]
+  );
+  await logActivity(client, applicationId, actorId, 'corrective_action_created',
+    `Corrective action added for ticket #${ticket.ticket_number}: ${title}.`,
+    { ticket_id: ticket.id, corrective_action_id: rows[0].id });
+  return { action: rows[0] };
+}
+
+async function createCorrectiveAction(req, res, { asAdmin = false } = {}) {
+  const { id, ticketId } = req.params;
+  if (!UUID_RE.test(ticketId) && !/^\d+$/.test(ticketId)) {
+    return res.status(404).json({ error: 'Support ticket not found.', code: 'ticket_not_found' });
+  }
+  const title = asTrimmed(req.body?.title);
+  if (!title) {
+    return res.status(400).json({ error: 'title is required.', code: 'corrective_action_title_required' });
+  }
+  if (title.length > 500) {
+    return res.status(400).json({ error: 'title must be at most 500 characters.', code: 'corrective_action_title_too_long' });
+  }
+  const description = asTrimmed(req.body?.description);
+  const remediationId = asTrimmed(req.body?.remediation_id) || null;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (!asAdmin) {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only the assigned operator can add corrective actions for territory exceptions.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const result = await createCorrectiveActionCore(client, {
+        applicationId: id, ticketId, title, description, remediationId, actorId: req.user?.id,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const actions = await fetchCorrectiveActions(id, { ticketId: result.action.ticket_id });
+      const action = actions.find((row) => row.id === result.action.id) || result.action;
+      return res.status(201).json({ action });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error creating franchise corrective action', { id, ticketId, err: err.message });
+    return res.status(500).json({ error: 'Failed to create corrective action.' });
+  }
+}
+
+async function createCorrectiveActionAsAdmin(req, res) {
+  return createCorrectiveAction(req, res, { asAdmin: true });
+}
+
+async function listCorrectiveActions(req, res, { asAdmin = false } = {}) {
+  const { id, ticketId } = req.params;
+  const status = asTrimmed(req.query?.status);
+  const mine = req.query?.mine === 'true';
+  if (status && !CORRECTIVE_ACTION_STATUSES.has(status)) {
+    return res.status(400).json({ error: 'status must be open, in_progress, resolved, or verified.', code: 'invalid_corrective_action_status' });
+  }
+  if (ticketId && !UUID_RE.test(ticketId) && !/^\d+$/.test(ticketId)) {
+    return res.status(404).json({ error: 'Support ticket not found.', code: 'ticket_not_found' });
+  }
+  try {
+    let ticketUuid = null;
+    if (ticketId) {
+      const client = await db.connect();
+      try {
+        const resolved = await loadTerritoryTicket(client, id, ticketId);
+        if (resolved.error) return res.status(resolved.error.status).json(resolved.error.body);
+        ticketUuid = resolved.ticket.id;
+      } finally {
+        client.release();
+      }
+    }
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const viewer = await loadTerritoryViewer(client, id, req.user?.id);
+        const blocked = territoryReadScope(viewer);
+        if (blocked) return res.status(blocked.status).json(blocked.body);
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    const actions = await fetchCorrectiveActions(id, {
+      ticketId: ticketUuid, status: status || null, ownerId: mine ? req.user?.id : null,
+    });
+    return res.json({ application_id: id, total: actions.length, corrective_actions: actions });
+  } catch (err) {
+    logger.error('Error listing franchise corrective actions', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to list corrective actions.' });
+  }
+}
+
+async function listCorrectiveActionsAsAdmin(req, res) {
+  return listCorrectiveActions(req, res, { asAdmin: true });
+}
+
+// 633 (D-333): the status move. The remediation owner, the territory
+// operator, or HQ may advance open -> in_progress and in_progress ->
+// resolved; only HQ may verify (resolved -> verified) or send an action
+// back (resolved -> in_progress). A member who is not the remediation
+// owner may not move someone else's action. A no-op (same status)
+// returns the row, like the restaurant workflow.
+async function updateCorrectiveActionStatusCore(client, { applicationId, actionId, status, actorId, asAdmin, isOperator }) {
+  const { rows } = await client.query(
+    `SELECT a.*, r.owner_user_id AS remediation_owner_id
+       FROM franchise_corrective_actions a
+       LEFT JOIN franchise_remediations r ON r.id = a.remediation_id
+      WHERE a.id = $1 AND a.application_id = $2`,
+    [actionId, applicationId]
+  );
+  const action = rows[0] || null;
+  if (!action) {
+    return { error: { status: 404, body: { error: 'Corrective action not found.', code: 'corrective_action_not_found' } } };
+  }
+  if (!CORRECTIVE_ACTION_STATUSES.has(status)) {
+    return { error: { status: 400, body: { error: 'status must be open, in_progress, resolved, or verified.', code: 'invalid_corrective_action_status' } } };
+  }
+  if (status === action.status) return { action };
+  if (!CORRECTIVE_ACTION_TRANSITIONS[action.status].includes(status)) {
+    return { error: { status: 409, body: { error: `A ${action.status} corrective action cannot move to ${status}.`, code: 'corrective_action_transition_invalid' } } };
+  }
+  if ((status === 'verified' || (action.status === 'resolved' && status === 'in_progress')) && !asAdmin) {
+    return { error: { status: 403, body: { error: 'Only headquarters can verify or send back a resolved corrective action.', code: 'corrective_action_review_hq_only' } } };
+  }
+  if (!asAdmin && !isOperator && action.remediation_owner_id
+    && String(action.remediation_owner_id) !== String(actorId)) {
+    return { error: { status: 403, body: { error: 'Only the assigned remediation owner can update this corrective action.', code: 'corrective_action_not_assignee' } } };
+  }
+  if (!asAdmin && !isOperator && !action.remediation_owner_id) {
+    return { error: { status: 403, body: { error: 'Only the assigned operator can update this corrective action.', code: 'corrective_action_not_assignee' } } };
+  }
+  const { rows: updated } = await client.query(
+    `UPDATE franchise_corrective_actions
+        SET status = $2::text,
+            resolved_at = CASE WHEN $2::text = 'resolved' THEN NOW()
+                               WHEN $2::text = 'in_progress' THEN NULL
+                               ELSE resolved_at END,
+            updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`,
+    [actionId, status]
+  );
+  await logActivity(client, applicationId, actorId, 'corrective_action_updated',
+    `Corrective action moved from ${action.status} to ${status}.`,
+    { corrective_action_id: actionId, ticket_id: action.ticket_id, from_status: action.status, to_status: status });
+  return { action: updated[0] };
+}
+
+async function updateCorrectiveActionStatus(req, res, { asAdmin = false } = {}) {
+  const { id, actionId } = req.params;
+  const status = asTrimmed(req.body?.status);
+  if (!UUID_RE.test(actionId)) {
+    return res.status(404).json({ error: 'Corrective action not found.', code: 'corrective_action_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      let isOperator = false;
+      if (!asAdmin) {
+        const viewer = await loadTerritoryViewer(client, id, req.user?.id);
+        const blocked = territoryReadScope(viewer);
+        if (blocked) {
+          await client.query('ROLLBACK');
+          return res.status(blocked.status).json(blocked.body);
+        }
+        isOperator = viewer.isOperator;
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const result = await updateCorrectiveActionStatusCore(client, {
+        applicationId: id, actionId, status, actorId: req.user?.id, asAdmin, isOperator,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const actions = await fetchCorrectiveActions(id, { ticketId: result.action.ticket_id });
+      const action = actions.find((row) => row.id === result.action.id) || result.action;
+      return res.json({ action });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise corrective action', { id, actionId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update corrective action.' });
+  }
+}
+
+async function updateCorrectiveActionStatusAsAdmin(req, res) {
+  return updateCorrectiveActionStatus(req, res, { asAdmin: true });
+}
+
 // 627 (D-328): the per-location health view. Health is derived on read
 // from the open locations (fetchOpenLocations) plus each location's
 // linked open exceptions (628) — never stored, so it can never drift
@@ -7481,6 +7802,12 @@ module.exports = {
   listRemediations,
   listRemediationsAsAdmin,
   listMyRemediations,
+  createCorrectiveAction,
+  createCorrectiveActionAsAdmin,
+  listCorrectiveActions,
+  listCorrectiveActionsAsAdmin,
+  updateCorrectiveActionStatus,
+  updateCorrectiveActionStatusAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
