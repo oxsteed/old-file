@@ -39,10 +39,33 @@ async function saveTool(toolId,userId,body){const value=policy(body);return with
 },'equipment_policy_save');}
 async function readBooking(bookingId,userId){
  const {row,owner}=await booking(pool,bookingId,userId);
- const {rows:reports}=await pool.query('SELECT r.*,m.items AS missing_items,m.resolved_at,m.resolution,m.version AS missing_version FROM equipment_reports r LEFT JOIN equipment_missing_accessories m ON m.report_id=r.id WHERE r.booking_id=$1 ORDER BY r.created_at,r.id LIMIT 200',[bookingId]);
+ const {rows:reports}=await pool.query('SELECT r.*,m.items AS missing_items,m.resolved_at,m.resolution,m.version AS missing_version,m.ack_status AS missing_ack_status FROM equipment_reports r LEFT JOIN equipment_missing_accessories m ON m.report_id=r.id WHERE r.booking_id=$1 ORDER BY r.created_at,r.id LIMIT 200',[bookingId]);
+ const {rows:evidence}=await pool.query("SELECT id,report_id,uploaded_by,image_url,created_at FROM tool_rental_report_evidence WHERE booking_id=$1 ORDER BY created_at,id LIMIT 200",[bookingId]);
  const {rows:extensions}=await pool.query('SELECT * FROM equipment_extensions WHERE booking_id=$1 ORDER BY created_at DESC LIMIT 50',[bookingId]);
  const {rows:followups}=await pool.query("SELECT id,notes,occurred_on FROM equipment_records WHERE booking_id=$1 AND kind='late_return_followup' ORDER BY created_at DESC LIMIT 100",[bookingId]);
- return {booking:{id:row.id,tool_id:row.tool_id,status:row.status,end_date:row.end_date,equipment:row.equipment_snapshot||{accessories:[],checklist:[],rules:''},owner_id:row.owner_id},owner,reports,extensions,followups};
+ return {booking:{id:row.id,tool_id:row.tool_id,status:row.status,end_date:row.end_date,equipment:row.equipment_snapshot||{accessories:[],checklist:[],rules:''},owner_id:row.owner_id},owner,reports,evidence,extensions,followups};
+}
+// 587: photo evidence on a condition/damage report. The image goes through
+// the same storage path as the listing gallery (uploadFile / getPublicUrl,
+// data-URL fallback when no storage is configured); only the URL is stored.
+async function addEvidence(bookingId,userId,body,file){
+ if(!file||!file.mimetype||!file.mimetype.startsWith('image/'))fail(400,'validation_failed');
+ if(!uuid(body?.report_id))fail(400,'validation_failed');
+ const {uploadFile,getPublicUrl}=require('../utils/storage');
+ const key=await uploadFile(file.buffer,'tool-rentals/evidence',file.originalname,file.mimetype);
+ let imageUrl=null;
+ if(key){imageUrl=getPublicUrl(key);if(!imageUrl){const {deleteFile}=require('../utils/storage');await deleteFile(key).catch(()=>{});fail(503,'unavailable');}}
+ if(!imageUrl){
+  if(file.size>2*1024*1024)fail(400,'validation_failed');
+  imageUrl=`data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+ }
+ return withTransaction(pool,async db=>{
+  const {row}=await booking(db,bookingId,userId,true);
+  const {rows:[report]}=await db.query('SELECT id FROM equipment_reports WHERE id=$1 AND booking_id=$2',[body.report_id,bookingId]);
+  if(!report)fail(404,'not_found');
+  void row;
+  return (await db.query('INSERT INTO tool_rental_report_evidence(report_id,booking_id,uploaded_by,image_url,storage_key) VALUES($1,$2,$3,$4,$5) RETURNING id,report_id,uploaded_by,image_url,created_at',[body.report_id,bookingId,userId,imageUrl,key||null])).rows[0];
+ },'equipment_evidence_add');
 }
 async function report(bookingId,userId,body){
  if(!['pickup','return'].includes(body?.phase)||!Number.isInteger(body.expectedVersion)||body.expectedVersion<0||!Array.isArray(body.counts)||!Array.isArray(body.checklist))fail(400,'validation_failed');const notes=text(body.notes);
@@ -67,7 +90,7 @@ async function report(bookingId,userId,body){
 async function resolveMissing(bookingId,userId,reportId,body){
  if(!uuid(reportId)||!Number.isInteger(body?.expectedVersion))fail(400,'validation_failed');const notes=text(body.notes);
  return withTransaction(pool,async db=>{const {owner}=await booking(db,bookingId,userId,true);if(!owner)fail(403,'access_required');
- const {rows:[row]}=await db.query('UPDATE equipment_missing_accessories m SET resolution=$4,resolved_at=NOW(),version=m.version+1 FROM equipment_reports r WHERE r.id=m.report_id AND r.booking_id=$1 AND m.report_id=$2 AND m.version=$3 AND m.resolved_at IS NULL RETURNING m.*',[bookingId,reportId,body.expectedVersion,notes]);if(!row)fail(409,'equipment_changed');return row;},'equipment_missing_resolve');
+ const {rows:[row]}=await db.query('UPDATE equipment_missing_accessories m SET resolution=$4,resolved_at=NOW(),version=m.version+1,ack_status=$5,acknowledged_by=NULL,acknowledged_at=NULL FROM equipment_reports r WHERE r.id=m.report_id AND r.booking_id=$1 AND m.report_id=$2 AND m.version=$3 AND m.resolved_at IS NULL RETURNING m.*',[bookingId,reportId,body.expectedVersion,notes,'pending']);if(!row)fail(409,'equipment_changed');return row;},'equipment_missing_resolve');
 }
 async function extend(bookingId,userId,body){
  const end=parseDateOnlyUTC(body?.end_date);if(!end||!uuid(body.requestId)||body.no_additional_charge!==true)fail(400,'validation_failed');
@@ -102,4 +125,4 @@ async function record(toolId,userId,body){
   return (await db.query('INSERT INTO equipment_records(tool_id,booking_id,actor_id,kind,notes,occurred_on) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[toolId,body.kind==='repair'?null:body.booking_id,userId,body.kind,notes,body.occurred_on])).rows[0];
  },'equipment_record_create');
 }
-module.exports={readTool,saveTool,readBooking,report,resolveMissing,extend,decideExtension,record};
+module.exports={readTool,saveTool,readBooking,report,resolveMissing,extend,decideExtension,record,addEvidence};

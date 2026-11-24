@@ -24,6 +24,7 @@ const toolReviewsController = require('../controllers/toolReviewsController');
 const toolBookingsController = require('../controllers/toolBookingsController');
 const toolAnalyticsController = require('../controllers/toolAnalyticsController');
 const toolNotificationsController = require('../controllers/toolNotificationsController');
+const toolRentalDisputesController = require('../controllers/toolRentalDisputesController');
 const paymentMethodController = require('../controllers/paymentMethodController');
 const invoiceController = require('../controllers/invoiceController');
 const userReportController = require('../controllers/userReportController');
@@ -843,7 +844,18 @@ router.get('/public/:id', async (req, res) => {
       [id],
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tool not found' });
-    return res.json({ tool: attachPublicOwnerNames(result.rows)[0] });
+    // Group 11 item 594: safety documents ride with the public listing so
+    // a renter can read them before booking.
+    let safetyDocuments = [];
+    try {
+      const { rows: docs } = await pool.query(
+        `SELECT id, tool_id, title, file_url, mime_type, created_at
+           FROM tool_rental_safety_documents WHERE tool_id = $1 ORDER BY created_at DESC`,
+        [id],
+      );
+      safetyDocuments = docs;
+    } catch { safetyDocuments = []; }
+    return res.json({ tool: { ...attachPublicOwnerNames(result.rows)[0], safety_documents: safetyDocuments } });
   } catch (err) {
     require('../utils/logger').error('[toolRentals] public get error:', err.message);
     return res.status(500).json({ error: 'Failed to fetch tool' });
@@ -877,6 +889,20 @@ router.get('/me', authenticate, async (req, res) => {
       }
     } catch { publicationBlocked = false; }
     const { computeListingReadiness } = require('../services/toolListingReadiness');
+    // Group 11 item 594: safety documents ride with the owner's rows.
+    let safetyByTool = new Map();
+    try {
+      const { rows: docs } = await pool.query(
+        `SELECT id, tool_id, title, file_url, mime_type, created_at
+           FROM tool_rental_safety_documents
+          WHERE tool_id = ANY($1::int[]) ORDER BY created_at DESC`,
+        [result.rows.map((t) => t.id)],
+      );
+      for (const doc of docs) {
+        if (!safetyByTool.has(doc.tool_id)) safetyByTool.set(doc.tool_id, []);
+        safetyByTool.get(doc.tool_id).push(doc);
+      }
+    } catch { safetyByTool = new Map(); }
     res.json({
       tools: result.rows.map((tool) => {
         const activationStatus = tool.moderation_hold === true
@@ -887,7 +913,7 @@ router.get('/me', authenticate, async (req, res) => {
               ? 'unavailable'
               : 'published';
         // 552: server-computed readiness checklist for the owner dashboard.
-        return { ...tool, publication_blocked: publicationBlocked, activation_status: activationStatus, readiness: computeListingReadiness(tool) };
+        return { ...tool, publication_blocked: publicationBlocked, activation_status: activationStatus, readiness: computeListingReadiness(tool), safety_documents: safetyByTool.get(tool.id) || [] };
       }),
     });
   } catch (err) {
@@ -1031,7 +1057,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
 
     // Fetch existing record first (ownership check)
     const existing = await pool.query(
-      'SELECT id, moderation_hold, capacity_value, capacity_unit, location_lat, location_lng, pickup_window_start, pickup_window_end, return_window_start, return_window_end FROM tool_rentals WHERE id = $1 AND user_id = $2',
+      'SELECT id, is_available, moderation_hold, capacity_value, capacity_unit, location_lat, location_lng, pickup_window_start, pickup_window_end, return_window_start, return_window_end FROM tool_rentals WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (!existing.rows.length) {
@@ -1042,6 +1068,21 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
     const { payload, errors } = normalizeToolPayload(req.body, { partial: true, existing: existing.rows[0] });
     if (Object.keys(errors).length) {
       return res.status(400).json({ error: 'Validation failed', code: 'validation_failed', fields: errors });
+    }
+    // Group 11 item 595: returning a tool to availability is gated on the
+    // server-side checklist (condition report filed for the last booking,
+    // no unresolved missing accessories, no open damage claim, cleaning
+    // confirmed). The client shows the checklist; the server enforces it.
+    if (payload.is_available === true && existing.rows[0].is_available === false) {
+      const cleaningConfirmed = req.body.cleaning_confirmed === true || req.body.cleaning_confirmed === 'true';
+      const checklist = await toolRentalDisputesController.computeAvailabilityChecklist(Number(id), cleaningConfirmed);
+      if (!checklist.complete) {
+        return res.status(409).json({
+          error: 'Return-to-availability checklist is incomplete',
+          code: 'availability_checklist_incomplete',
+          checks: checklist.checks,
+        });
+      }
     }
     if (underAdminHold) {
       // An admin moderation hold is independent of the owner's is_available
@@ -1238,12 +1279,47 @@ router.get('/bookings/:bookingId/recovery', authenticate, toolBookingsController
 router.post('/bookings/:bookingId/recovery/refund', authenticate, toolBookingsController.proposeRefundSettlement);
 router.post('/bookings/:bookingId/recovery/confirm', authenticate, toolBookingsController.confirmRefundSettlement);
 router.post('/bookings/:bookingId/recovery/settle', authenticate, toolBookingsController.settleRefundSettlement);
+// Group 11 item 586/590: dedicated damage claim (record-only, D-257).
+router.get('/bookings/:bookingId/damage-claims', authenticate, toolRentalDisputesController.listDamageClaims);
+router.post('/bookings/:bookingId/damage-claims', authenticate, toolRentalDisputesController.fileDamageClaim);
+router.post('/bookings/:bookingId/damage-claims/:claimId/resolve', authenticate, toolRentalDisputesController.resolveDamageClaim);
+router.post('/bookings/:bookingId/damage-claims/:claimId/acknowledge', authenticate, toolRentalDisputesController.acknowledgeDamageClaim);
+// Group 11 item 589: rental-specific escalation thread.
+router.get('/bookings/:bookingId/escalations', authenticate, toolRentalDisputesController.listEscalations);
+router.post('/bookings/:bookingId/escalations', authenticate, toolRentalDisputesController.openEscalation);
+router.post('/escalations/:escalationId/messages', authenticate, toolRentalDisputesController.postEscalationMessage);
+router.get('/admin/escalations', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminListEscalations);
+router.get('/admin/escalations/:escalationId', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminGetEscalation);
+router.post('/admin/escalations/:escalationId/messages', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminPostEscalationMessage);
+router.post('/admin/escalations/:escalationId/status', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminSetEscalationStatus);
+// Group 11 item 590: explicit acknowledgment of the missing-accessory (578)
+// and deposit (588) resolutions.
+router.post('/bookings/:bookingId/missing/:reportId/acknowledge', authenticate, toolRentalDisputesController.acknowledgeMissingResolution);
+router.post('/bookings/:bookingId/deposit/acknowledge', authenticate, toolRentalDisputesController.acknowledgeDepositResolution);
+// Group 11 item 591: maintenance calendar per tool.
+router.get('/:toolId/maintenance', authenticate, toolRentalDisputesController.listMaintenanceEvents);
+router.post('/:toolId/maintenance', authenticate, toolRentalDisputesController.createMaintenanceEvent);
+router.post('/:toolId/maintenance/:eventId/complete', authenticate, toolRentalDisputesController.completeMaintenanceEvent);
+router.post('/:toolId/maintenance/:eventId/cancel', authenticate, toolRentalDisputesController.cancelMaintenanceEvent);
+// Group 11 item 594: safety documents per listing.
+router.get('/:toolId/safety-documents', authenticate, toolRentalDisputesController.listSafetyDocuments);
+router.get('/:toolId/safety-documents/public', toolRentalDisputesController.listPublicSafetyDocuments);
+router.post('/:toolId/safety-documents', authenticate, upload.single('document'), validateFileUpload, toolRentalDisputesController.uploadSafetyDocument);
+router.delete('/:toolId/safety-documents/:docId', authenticate, toolRentalDisputesController.deleteSafetyDocument);
+router.get('/admin/tool-rentals/:toolId/safety-documents', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminListSafetyDocuments);
+// Group 11 item 595: return-to-availability checklist (read side; the
+// flip itself is gated server-side in PUT /:id below).
+router.get('/:toolId/availability-checklist', authenticate, toolRentalDisputesController.getAvailabilityChecklist);
+// Group 11 item 600: repeat renters + follow-up notes.
+router.get('/renters/repeat', authenticate, toolRentalDisputesController.listRepeatRenters);
+router.post('/renters/followups', authenticate, toolRentalDisputesController.recordFollowup);
 router.get('/bookings/:bookingId/receipt', authenticate, toolBookingsController.getBookingReceipt);
 router.get('/:toolId/availability', toolBookingsController.checkAvailability);
 router.put('/bookings/:bookingId', authenticate, toolBookingsController.updateBookingStatus);
 
 // ANALYTICS
 router.post('/analytics/track', authenticate, generalLimiter, toolAnalyticsController.trackEvent);
+router.get('/analytics/utilization', authenticate, toolAnalyticsController.getUtilization);
 router.get('/:toolId/analytics', toolAnalyticsController.getAnalytics);
 router.get('/analytics/top', toolAnalyticsController.getTopTools);
 router.get('/analytics/dashboard', authenticate, toolAnalyticsController.getOwnerDashboard);
