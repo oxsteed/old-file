@@ -3837,7 +3837,8 @@ function customerCreditStatementCsv(statement) {
 // reverse partner/treasury legs whose originals live outside the customer
 // wallet, so their link resolves to null rather than a dead link, while a
 // `refund` — the reversal a customer actually sees — resolves to the
-// `purchase` for the same order.
+// `purchase` its reference names (migration 476: the reference carries the
+// purchase transaction id; pre-476 rows may carry the order id instead).
 const REVERSAL_TRANSACTION_TYPES = Object.freeze([
   'settlement_reversal',
   'sub_bank_load_reversal',
@@ -3866,28 +3867,41 @@ function derivedReversalReasonCode(row) {
 
 async function resolveReversalOriginalTransactionId({ row, customerId, currency }) {
   const referenceId = typeof row.reference_id === 'string' ? row.reference_id.trim() : '';
-  // A refund reverses the purchase for the same order: same customer
-  // wallet, same currency, posted.
-  if (row.transaction_type === 'refund' && row.reference_type === 'food_order_refund' && referenceId) {
-    const { rows } = await pool.query(
-      `SELECT t.id
-         FROM oxsteed_credit_transactions t
-         JOIN oxsteed_credit_accounts a ON (a.id = t.debit_account_id OR a.id = t.credit_account_id)
-        WHERE t.transaction_type = 'purchase' AND t.reference_type = 'food_order'
-          AND t.reference_id = $1 AND t.status = 'posted'
-          AND a.account_type = 'customer_wallet' AND a.customer_id = $2
-          AND a.currency_code = $3 AND t.currency_code = $3
-        ORDER BY t.posted_at DESC NULLS LAST, t.created_at DESC
-        LIMIT 1`,
-      [referenceId, customerId, currency]
-    );
-    return rows[0] ? String(rows[0].id) : null;
+  // A refund reverses the purchase its reference names. Current postings
+  // (migration 476, refundCreditInTransaction) carry the purchase
+  // transaction id in the reference (reference_type
+  // 'oxsteed_credit_purchase'); pre-476 rows may instead carry the order
+  // id (reference_type 'food_order_refund'), resolved to the purchase for
+  // that order. Either way the link is exposed only when the original
+  // touches the caller's own wallet.
+  let candidateId = null;
+  if (row.transaction_type === 'refund' && referenceId) {
+    if (row.reference_type === 'oxsteed_credit_purchase' && UUID_PATTERN.test(referenceId)) {
+      candidateId = referenceId;
+    } else if (row.reference_type === 'food_order_refund') {
+      const { rows } = await pool.query(
+        `SELECT t.id
+           FROM oxsteed_credit_transactions t
+           JOIN oxsteed_credit_accounts a ON (a.id = t.debit_account_id OR a.id = t.credit_account_id)
+          WHERE t.transaction_type = 'purchase' AND t.reference_type = 'food_order'
+            AND t.reference_id = $1 AND t.status = 'posted'
+            AND a.account_type = 'customer_wallet' AND a.customer_id = $2
+            AND a.currency_code = $3 AND t.currency_code = $3
+          ORDER BY t.posted_at DESC NULLS LAST, t.created_at DESC
+          LIMIT 1`,
+        [referenceId, customerId, currency]
+      );
+      candidateId = rows[0] ? String(rows[0].id) : null;
+    }
+    if (candidateId) {
+      return isCustomerTransaction(candidateId, customerId, currency) ? candidateId : null;
+    }
+    return null;
   }
   // Settlement reversals carry the original settlement journal id in
   // metadata; sub-bank payout reversals carry the payout id, whose
   // original is the sub_bank_payout for that payout. Either way the link
   // is exposed only when the original touches the caller's own wallet.
-  let candidateId = null;
   const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
   if (row.transaction_type === 'settlement_reversal'
     && typeof metadata.originalTransactionId === 'string'
@@ -3907,6 +3921,12 @@ async function resolveReversalOriginalTransactionId({ row, customerId, currency 
     candidateId = rows[0] ? String(rows[0].id) : null;
   }
   if (!candidateId) return null;
+  return isCustomerTransaction(candidateId, customerId, currency) ? candidateId : null;
+}
+
+// A transaction is linkable for this customer only when the customer can
+// open it: it touches their own wallet, in the same currency, posted.
+async function isCustomerTransaction(transactionId, customerId, currency) {
   const { rows } = await pool.query(
     `SELECT t.id
        FROM oxsteed_credit_transactions t
@@ -3915,9 +3935,9 @@ async function resolveReversalOriginalTransactionId({ row, customerId, currency 
         AND a.account_type = 'customer_wallet' AND a.customer_id = $2
         AND a.currency_code = $3 AND t.currency_code = $3
       LIMIT 1`,
-    [candidateId, customerId, currency]
+    [transactionId, customerId, currency]
   );
-  return rows[0] ? String(rows[0].id) : null;
+  return Boolean(rows[0]);
 }
 
 async function describeCustomerCreditReversal({ row, customerId, currency }) {
