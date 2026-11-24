@@ -9,6 +9,8 @@
 //   never changes charges (D-257).
 // 580: cleaning instructions — owner-written field on the listing, shown
 //   at booking, frozen into the agreement snapshot.
+// 583: cancellation recovery — record-only refund settlement (propose /
+//   agree / settle); the money moves off-platform (D-257).
 describeDb('Group 11 Slice 2d: Return + Changes (576, 580, 583, 584)', () => {
   let db;
   let app;
@@ -415,6 +417,116 @@ describeDb('Group 11 Slice 2d: Return + Changes (576, 580, 583, 584)', () => {
       const res = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12');
       expect(res.status).toBe(201);
       expect(res.body.agreement_snapshot.tool.cleaningInstructions).toBeNull();
+    });
+  });
+
+  describe('583: cancellation recovery', () => {
+    async function cancelledBooking() {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Cancelled drill' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'cancelled');
+      return { owner, renter, tool, booking };
+    }
+
+    const propose = (userId, bookingId, body) => request(app)
+      .post(`/api/tool-rentals/bookings/${bookingId}/recovery/refund`)
+      .set('x-test-user', userId)
+      .send(body);
+
+    test('no recovery exists until one is recorded; both parties see the same record', async () => {
+      const { owner, renter, booking } = await cancelledBooking();
+      const empty = await request(app)
+        .get(`/api/tool-rentals/bookings/${booking.id}/recovery`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(empty.body.recovery).toBeNull();
+      const proposed = await propose(renter, booking.id, { amount: 18, direction: 'owner_to_renter', note: 'Half the rental back.' }).expect(200);
+      expect(proposed.body.recovery.refund_status).toBe('proposed');
+      expect(Number(proposed.body.recovery.refund_amount)).toBe(18);
+      expect(proposed.body.recovery.refund_direction).toBe('owner_to_renter');
+      expect(proposed.body.recovery.refund_note).toBe('Half the rental back.');
+      const asOwner = await request(app)
+        .get(`/api/tool-rentals/bookings/${booking.id}/recovery`)
+        .set('x-test-user', owner)
+        .expect(200);
+      expect(asOwner.body.recovery.id).toBe(proposed.body.recovery.id);
+      expect(asOwner.body.recovery.refund_status).toBe('proposed');
+    });
+
+    test('a stranger cannot read or propose a recovery', async () => {
+      const { renter, booking } = await cancelledBooking();
+      const stranger = await addUser();
+      await request(app)
+        .get(`/api/tool-rentals/bookings/${booking.id}/recovery`)
+        .set('x-test-user', stranger)
+        .expect(404);
+      await propose(stranger, booking.id, { amount: 5, direction: 'owner_to_renter' }).expect(404);
+      void renter;
+    });
+
+    test('invalid proposals are refused: over the total, a direction with amount 0, no direction with money', async () => {
+      const { renter, booking } = await cancelledBooking();
+      const over = await propose(renter, booking.id, { amount: 37, direction: 'owner_to_renter' });
+      expect(over.status).toBe(400);
+      expect(over.body.code).toBe('validation_failed');
+      const zeroWithDirection = await propose(renter, booking.id, { amount: 0, direction: 'owner_to_renter' });
+      expect(zeroWithDirection.status).toBe(400);
+      const moneyNoDirection = await propose(renter, booking.id, { amount: 10, direction: 'none' });
+      expect(moneyNoDirection.status).toBe(400);
+      // A zero-amount, no-direction proposal (nothing owed) is valid.
+      const waived = await propose(renter, booking.id, { amount: 0, direction: 'none', note: 'Nothing owed.' }).expect(200);
+      expect(waived.body.recovery.refund_status).toBe('proposed');
+      expect(Number(waived.body.recovery.refund_amount)).toBe(0);
+    });
+
+    test('recovery is only for cancelled bookings', async () => {
+      const { owner, renter, booking } = await paidBooking();
+      const res = await propose(renter, booking.id, { amount: 10, direction: 'owner_to_renter' });
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('state_conflict');
+      void owner;
+    });
+
+    test('the other party confirms, then either party marks it settled; the proposer cannot confirm', async () => {
+      const { owner, renter, booking } = await cancelledBooking();
+      await propose(renter, booking.id, { amount: 18, direction: 'owner_to_renter' }).expect(200);
+      // Settling before agreement is refused.
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/settle`)
+        .set('x-test-user', owner)
+        .expect(409);
+      // The proposer cannot confirm their own proposal.
+      const selfConfirm = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/confirm`)
+        .set('x-test-user', renter);
+      expect(selfConfirm.status).toBe(403);
+      // The owner confirms: agreed.
+      const agreed = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/confirm`)
+        .set('x-test-user', owner)
+        .expect(200);
+      expect(agreed.body.recovery.refund_status).toBe('agreed');
+      expect(agreed.body.recovery.agreed_at).toBeTruthy();
+      // A re-proposal after agreement is refused.
+      await propose(owner, booking.id, { amount: 5, direction: 'owner_to_renter' }).expect(409);
+      // Either party can mark it settled once the money moved off-platform.
+      const settled = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/recovery/settle`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(settled.body.recovery.refund_status).toBe('settled');
+      expect(settled.body.recovery.settled_at).toBeTruthy();
+    });
+
+    test('a new proposal replaces a still-proposed one', async () => {
+      const { owner, renter, booking } = await cancelledBooking();
+      await propose(renter, booking.id, { amount: 36, direction: 'owner_to_renter' }).expect(200);
+      const revised = await propose(owner, booking.id, { amount: 18, direction: 'owner_to_renter', note: 'Half back.' }).expect(200);
+      expect(Number(revised.body.recovery.refund_amount)).toBe(18);
+      expect(revised.body.recovery.refund_status).toBe('proposed');
+      expect(revised.body.recovery.proposed_by).toBe(owner);
     });
   });
 

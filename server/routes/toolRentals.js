@@ -1098,6 +1098,11 @@ router.post('/bookings/:bookingId/checkout-acknowledge', authenticate, toolBooki
 router.post('/bookings/:bookingId/return-reschedule', authenticate, toolBookingsController.proposeReturnReschedule);
 router.post('/bookings/:bookingId/return-reschedule/approve', authenticate, toolBookingsController.approveReturnReschedule);
 router.post('/bookings/:bookingId/return-reschedule/decline', authenticate, toolBookingsController.declineReturnReschedule);
+// Group 11 item 583: cancellation recovery (record-only refund agreement).
+router.get('/bookings/:bookingId/recovery', authenticate, toolBookingsController.getCancellationRecovery);
+router.post('/bookings/:bookingId/recovery/refund', authenticate, toolBookingsController.proposeRefundSettlement);
+router.post('/bookings/:bookingId/recovery/confirm', authenticate, toolBookingsController.confirmRefundSettlement);
+router.post('/bookings/:bookingId/recovery/settle', authenticate, toolBookingsController.settleRefundSettlement);
 router.get('/bookings/:bookingId/receipt', authenticate, toolBookingsController.getBookingReceipt);
 router.get('/:toolId/availability', toolBookingsController.checkAvailability);
 router.put('/bookings/:bookingId', authenticate, toolBookingsController.updateBookingStatus);

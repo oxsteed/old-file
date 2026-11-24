@@ -177,6 +177,27 @@ export const toolRentalsApi = {
     return response.data;
   },
 
+  // Group 11 item 583: cancellation recovery (record-only refund agreement).
+  getCancellationRecovery: async (bookingId) => {
+    const response = await api.get(`/tool-rentals/bookings/${bookingId}/recovery`);
+    return response.data;
+  },
+
+  proposeRefundSettlement: async (bookingId, { amount, direction, note }) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/recovery/refund`, { amount, direction, note });
+    return response.data;
+  },
+
+  confirmRefundSettlement: async (bookingId) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/recovery/confirm`);
+    return response.data;
+  },
+
+  settleRefundSettlement: async (bookingId) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/recovery/settle`);
+    return response.data;
+  },
+
   updateBookingStatus: async (bookingId, status, extra = {}) => {
     const response = await api.put(`/tool-rentals/bookings/${bookingId}`, { status, ...extra });
     return response.data;

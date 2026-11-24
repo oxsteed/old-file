@@ -790,6 +790,140 @@ const declineReturnReschedule = async (req, res, next) => {
   }
 };
 
+// Group 11 item 583 (D-257/D-278): cancellation recovery, record-only.
+// When a booking is cancelled, either party can record an agreed refund
+// settlement (amount + who pays whom + status) and the other party
+// confirms it; either party marks it settled once the money has moved
+// off-platform. The platform records the agreement and never moves money.
+async function loadBookingForRecovery(bookingId, userId) {
+  const bookingQuery = await db.query(
+    'SELECT * FROM tool_rentals_bookings WHERE id = $1',
+    [bookingId]
+  );
+  const booking = bookingQuery.rows[0];
+  if (!booking) throw new AppError('Booking not found', 404, 'not_found');
+  if (booking.customer_id !== userId && booking.owner_id !== userId) {
+    throw new AppError('Booking not found', 404, 'not_found');
+  }
+  return booking;
+}
+
+async function loadRecoveryRow(bookingId) {
+  const { rows } = await db.query(
+    'SELECT * FROM tool_rental_cancellation_recoveries WHERE booking_id = $1',
+    [bookingId]
+  );
+  return rows[0] || null;
+}
+
+const getCancellationRecovery = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    await loadBookingForRecovery(bookingId, req.user.id);
+    const recovery = await loadRecoveryRow(bookingId);
+    res.json({ recovery: recovery || null });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const proposeRefundSettlement = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await loadBookingForRecovery(bookingId, req.user.id);
+    if (booking.status !== 'cancelled') {
+      throw new AppError('A refund settlement can only be recorded for a cancelled booking', 409, 'state_conflict');
+    }
+    const amount = Number(req.body?.amount);
+    const direction = typeof req.body?.direction === 'string' ? req.body.direction.trim() : '';
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 2000) : null;
+    const fields = {};
+    if (!Number.isFinite(amount) || amount < 0) fields.amount = 'amount must be 0 or more';
+    // A refund covers the rental price at most; deposits are settled
+    // through the separate deposit flow (588), not here.
+    if (Number.isFinite(amount) && booking.total_price != null && amount > Number(booking.total_price)) {
+      fields.amount = 'amount cannot be more than the booking total';
+    }
+    if (amount === 0 && direction !== 'none') fields.direction = 'direction must be none when the amount is 0';
+    if (amount > 0 && !['owner_to_renter', 'renter_to_owner'].includes(direction)) {
+      fields.direction = 'direction must be owner_to_renter or renter_to_owner';
+    }
+    if (Object.keys(fields).length) throw new AppError('Validation failed', 400, 'validation_failed', fields);
+    const existing = await loadRecoveryRow(bookingId);
+    if (existing && existing.refund_status !== 'proposed') {
+      throw new AppError('This refund settlement is already agreed and cannot be re-proposed', 409, 'state_conflict');
+    }
+    // A new proposal replaces a still-proposed one; the other party
+    // confirms the latest proposal.
+    const { rows } = await db.query(
+      `INSERT INTO tool_rental_cancellation_recoveries
+         (booking_id, refund_amount, refund_direction, refund_status, refund_note, proposed_by)
+       VALUES ($1, $2, $3, 'proposed', $4, $5)
+       ON CONFLICT (booking_id) DO UPDATE
+          SET refund_amount = EXCLUDED.refund_amount,
+              refund_direction = EXCLUDED.refund_direction,
+              refund_status = 'proposed',
+              refund_note = EXCLUDED.refund_note,
+              proposed_by = EXCLUDED.proposed_by,
+              agreed_at = NULL,
+              settled_at = NULL,
+              updated_at = NOW()
+       RETURNING *`,
+      [bookingId, amount, direction, note || null, req.user.id]
+    );
+    res.json({ recovery: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const confirmRefundSettlement = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    await loadBookingForRecovery(bookingId, req.user.id);
+    const existing = await loadRecoveryRow(bookingId);
+    if (!existing || existing.refund_status !== 'proposed') {
+      throw new AppError('There is no proposed refund settlement to confirm', 409, 'state_conflict');
+    }
+    if (existing.proposed_by === req.user.id) {
+      throw new AppError('The other party must confirm the refund settlement', 403, 'forbidden');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rental_cancellation_recoveries
+          SET refund_status = 'agreed', agreed_at = NOW(), updated_at = NOW()
+        WHERE booking_id = $1 AND refund_status = 'proposed'
+        RETURNING *`,
+      [bookingId]
+    );
+    if (!rows[0]) throw new AppError('There is no proposed refund settlement to confirm', 409, 'state_conflict');
+    res.json({ recovery: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const settleRefundSettlement = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    await loadBookingForRecovery(bookingId, req.user.id);
+    const existing = await loadRecoveryRow(bookingId);
+    if (!existing || existing.refund_status !== 'agreed') {
+      throw new AppError('Only an agreed refund settlement can be marked settled', 409, 'state_conflict');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rental_cancellation_recoveries
+          SET refund_status = 'settled', settled_at = NOW(), updated_at = NOW()
+        WHERE booking_id = $1 AND refund_status = 'agreed'
+        RETURNING *`,
+      [bookingId]
+    );
+    if (!rows[0]) throw new AppError('Only an agreed refund settlement can be marked settled', 409, 'state_conflict');
+    res.json({ recovery: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const checkAvailability = async (req, res, next) => {
   try {
     const { toolId } = req.params;
@@ -809,4 +943,4 @@ const checkAvailability = async (req, res, next) => {
   }
 };
 
-module.exports = { createBooking, getMyBookings, getBookingsByOwner, updateBookingStatus, checkAvailability, approveBooking, declineBooking, getBookingReceipt, acknowledgeCheckout };
+module.exports = { createBooking, getMyBookings, getBookingsByOwner, updateBookingStatus, checkAvailability, approveBooking, declineBooking, getBookingReceipt, acknowledgeCheckout, proposeReturnReschedule, approveReturnReschedule, declineReturnReschedule, getCancellationRecovery, proposeRefundSettlement, confirmRefundSettlement, settleRefundSettlement };

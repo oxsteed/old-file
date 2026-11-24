@@ -117,6 +117,9 @@ const MyBookingsPageContent = () => {
   const [receiptLoading, setReceiptLoading] = useState<Record<number, boolean>>({});
   // Group 11 item 576: renter return-reschedule draft per booking.
   const [rescheduleDraft, setRescheduleDraft] = useState<Record<number, { date: string; time: string }>>({});
+  // Group 11 item 583: cancellation recovery record per cancelled booking.
+  const [recoveries, setRecoveries] = useState<Record<number, any>>({});
+  const [recoveryDraft, setRecoveryDraft] = useState<Record<number, { amount: string; direction: string; note: string }>>({});
 
   useEffect(() => {
     loadBookings();
@@ -136,6 +139,17 @@ const MyBookingsPageContent = () => {
       setMyBookings(myRentals);
       setOwnerBookings(toolBookings);
       setHelperBookings(Array.isArray(hbResponse.data?.data) ? hbResponse.data.data : []);
+      // Group 11 items 583/584: for every cancelled rental, load the
+      // recovery record (if any) and replacement suggestions for the
+      // original dates, so the recovery panel is ready on the card.
+      const cancelled = [...myRentals, ...toolBookings].filter((b: Booking) => b.status === 'cancelled');
+      const seen = new Set<number>();
+      await Promise.all(cancelled.filter((b: Booking) => !seen.has(b.id) && seen.add(b.id)).map(async (b: Booking) => {
+        try {
+          const { recovery } = await toolRentalsApi.getCancellationRecovery(b.id);
+          if (recovery) setRecoveries((prev) => ({ ...prev, [b.id]: recovery }));
+        } catch { /* no recovery recorded yet */ }
+        try {
     } catch (err) {
       setError(t('toolRentals.loadingError') || 'Failed to load bookings');
     } finally {
@@ -406,6 +420,53 @@ const MyBookingsPageContent = () => {
     }
   };
 
+  // Group 11 item 583: cancellation recovery. Either party proposes a
+  // refund settlement (record-only, D-257); the other party confirms it,
+  // and either party marks it settled once the money moved off-platform.
+  const handleProposeRefund = async (booking: Booking) => {
+    const draft = recoveryDraft[booking.id] || { amount: '', direction: 'owner_to_renter', note: '' };
+    const amount = Number(draft.amount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      toast.error(t('toolRentals.recoveryAmountRequired') || 'Enter a refund amount of 0 or more.');
+      return;
+    }
+    try {
+      const { recovery } = await toolRentalsApi.proposeRefundSettlement(booking.id, {
+        amount,
+        direction: amount === 0 ? 'none' : draft.direction,
+        note: draft.note || null,
+      });
+      setRecoveries((prev) => ({ ...prev, [booking.id]: recovery }));
+      toast.success(t('toolRentals.recoveryProposed') || 'Refund settlement proposed');
+      loadBookings();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t('toolRentals.recoveryFailed') || 'Could not record the refund settlement');
+    }
+  };
+
+  const handleConfirmRefund = async (booking: Booking) => {
+    try {
+      const { recovery } = await toolRentalsApi.confirmRefundSettlement(booking.id);
+      setRecoveries((prev) => ({ ...prev, [booking.id]: recovery }));
+      toast.success(t('toolRentals.recoveryAgreed') || 'Refund settlement agreed');
+      loadBookings();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t('toolRentals.recoveryFailed') || 'Could not confirm the refund settlement');
+    }
+  };
+
+  const handleSettleRefund = async (booking: Booking) => {
+    if (!window.confirm(t('toolRentals.recoverySettleConfirm') || 'Confirm the refund money has already moved between you off-platform?')) return;
+    try {
+      const { recovery } = await toolRentalsApi.settleRefundSettlement(booking.id);
+      setRecoveries((prev) => ({ ...prev, [booking.id]: recovery }));
+      toast.success(t('toolRentals.recoverySettled') || 'Refund marked settled');
+      loadBookings();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t('toolRentals.recoveryFailed') || 'Could not mark the refund settled');
+    }
+  };
+
   const handleToggleReceipt = async (booking: Booking) => {
     const open = !receiptOpen[booking.id];
     setReceiptOpen((prev) => ({ ...prev, [booking.id]: open }));
@@ -518,6 +579,102 @@ const MyBookingsPageContent = () => {
             </button>
           </div>
         )}
+      </div>
+    );
+  };
+
+  // Group 11 item 583: cancellation recovery (record-only refund
+  const renderRecoveryPanel = (booking: Booking) => {
+    const recovery = recoveries[booking.id];
+    const draft = recoveryDraft[booking.id] || { amount: '', direction: 'owner_to_renter', note: '' };
+    const isProposer = recovery?.proposed_by === user?.id;
+    return (
+      <div className="booking-card-note" data-testid={`booking-recovery-${booking.id}`}>
+        <h4>{t('toolRentals.recoveryTitle') || 'Cancellation recovery'}</h4>
+        {recovery ? (
+          <div>
+            <p>
+              {t('toolRentals.recoveryAmount') || 'Refund'}: ${Number(recovery.refund_amount || 0).toFixed(2)}
+              {' · '}
+              {t(`toolRentals.recoveryDirection_${recovery.refund_direction}`) || recovery.refund_direction}
+              {' · '}
+              {t(`toolRentals.recoveryStatus_${recovery.refund_status}`) || recovery.refund_status}
+            </p>
+            {recovery.refund_note && <p>{recovery.refund_note}</p>}
+            <p>{t('toolRentals.recoveryOffPlatformNote') || 'The platform only records this agreement. The money moves directly between you, off-platform.'}</p>
+            {recovery.refund_status === 'proposed' && !isProposer && (
+              <div className="booking-card-actions">
+                <button
+                  type="button"
+                  onClick={() => handleConfirmRefund(booking)}
+                  className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.26"
+                >
+                  {t('toolRentals.recoveryConfirm') || 'Agree to this refund'}
+                </button>
+              </div>
+            )}
+            {recovery.refund_status === 'proposed' && isProposer && (
+              <p>{t('toolRentals.recoveryWaitingOther') || 'Waiting for the other party to agree.'}</p>
+            )}
+            {recovery.refund_status === 'agreed' && (
+              <div className="booking-card-actions">
+                <button
+                  type="button"
+                  onClick={() => handleSettleRefund(booking)}
+                  className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.27"
+                >
+                  {t('toolRentals.recoverySettle') || 'Mark refund settled'}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <p>{t('toolRentals.recoveryNoRecord') || 'No refund agreement recorded yet.'}</p>
+            <p>{t('toolRentals.recoveryOffPlatformNote') || 'The platform only records this agreement. The money moves directly between you, off-platform.'}</p>
+            <div className="booking-card-actions">
+              <label>
+                {t('toolRentals.recoveryAmount') || 'Refund'}
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={Number(booking.total_price || 0)}
+                  value={draft.amount}
+                  onChange={(e) => setRecoveryDraft((prev) => ({ ...prev, [booking.id]: { ...draft, amount: e.target.value } }))}
+                />
+              </label>
+              <label>
+                {t('toolRentals.recoveryDirection') || 'Who pays whom'}
+                <select
+                  value={draft.direction}
+                  onChange={(e) => setRecoveryDraft((prev) => ({ ...prev, [booking.id]: { ...draft, direction: e.target.value } }))}
+                >
+                  <option value="owner_to_renter">{t('toolRentals.recoveryDirection_owner_to_renter') || 'Owner refunds renter'}</option>
+                  <option value="renter_to_owner">{t('toolRentals.recoveryDirection_renter_to_owner') || 'Renter pays owner'}</option>
+                </select>
+              </label>
+              <label>
+                {t('toolRentals.recoveryNote') || 'Note'}
+                <input
+                  type="text"
+                  maxLength={2000}
+                  value={draft.note}
+                  onChange={(e) => setRecoveryDraft((prev) => ({ ...prev, [booking.id]: { ...draft, note: e.target.value } }))}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => handleProposeRefund(booking)}
+                className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.28"
+              >
+                {t('toolRentals.recoveryPropose') || 'Propose refund'}
+              </button>
+            </div>
+          </div>
+        )}
+          {t('toolRentals.recoveryBrowseAgain') || 'Search for tools again'}
+        </Link>
       </div>
     );
   };
@@ -722,6 +879,9 @@ const MyBookingsPageContent = () => {
       {/* Group 11 item 576: return time + reschedule. Group 11 item 580:
           cleaning instructions at return, frozen in the snapshot. */}
       {renderReturnSection(booking, isOwner)}
+
+      {/* Group 11 item 583: cancellation recovery + 584 alternatives. */}
+      {booking.status === 'cancelled' && renderRecoveryPanel(booking)}
 
       {/* Group 11 item 575: checkout acknowledgment at pickup. The
           renter confirms receipt; the pickup condition report is the
