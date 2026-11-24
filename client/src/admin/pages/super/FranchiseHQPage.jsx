@@ -25,6 +25,7 @@ import FranchiseBrandAssets from '../../../pages/FranchiseBrandAssets';
 import FranchiseComplianceChecklist from '../../../pages/FranchiseComplianceChecklist';
 import FranchiseExceptionSummary from '../../../pages/FranchiseExceptionSummary';
 import FranchiseLocationHealth from '../../../pages/FranchiseLocationHealth';
+import FranchiseTerritoryTickets from '../../../pages/FranchiseTerritoryTickets';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -205,6 +206,12 @@ export default function FranchiseHQPage() {
   // Group 12 Slice 3d (619): the territory coverage rollup for the
   // selected application, loaded with the bundle.
   const [coverage, setCoverage] = useState(null);
+  // Group 12 Slice 3f (629): the per-territory ticket queue for the
+  // selected application — HQ sees each territory's open requests.
+  const [territoryTickets, setTerritoryTickets] = useState([]);
+  const [hqTicketStatus, setHqTicketStatus] = useState('open');
+  const [hqTicketLocationId, setHqTicketLocationId] = useState('');
+  const [hqTicketRefresh, setHqTicketRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -340,6 +347,40 @@ export default function FranchiseHQPage() {
       toast.error(t('adminFranchiseDetailFailed'));
     } finally {
       setDetailLoading(false);
+    }
+  }
+
+  // Group 12 Slice 3f (629): reload the per-territory ticket queue
+  // whenever the selected application or the queue filters change.
+  useEffect(() => {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) {
+      setTerritoryTickets([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams({ status: hqTicketStatus });
+    if (hqTicketLocationId) params.set('location_id', hqTicketLocationId);
+    axios.get(`/franchise/applications/${applicationId}/support-tickets?${params.toString()}`)
+      .then((res) => { if (!cancelled) setTerritoryTickets(res.data?.tickets ?? []); })
+      .catch(() => { if (!cancelled) setTerritoryTickets([]); });
+    return () => { cancelled = true; };
+  }, [selectedBundle, hqTicketStatus, hqTicketLocationId, hqTicketRefresh]);
+
+  // Group 12 Slice 3f (629): HQ unlinks a ticket from the territory;
+  // the bundle reload refreshes the exception summary and the queue.
+  async function unlinkTerritoryTicket(ticketId) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/support-tickets/${ticketId}/unlink`);
+      setHqTicketRefresh((v) => v + 1);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.exceptionUnlinkFailed'));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -1878,6 +1919,20 @@ export default function FranchiseHQPage() {
                   {/* Group 12 Slice 3f (627, D-328): the per-location health
                       view — read-only in HQ. */}
                   <FranchiseLocationHealth health={selectedBundle.location_health || null} />
+
+                  {/* Group 12 Slice 3f (629, D-329): the per-territory ticket
+                      queue — HQ sees this territory's open requests. */}
+                  <FranchiseTerritoryTickets
+                    tickets={territoryTickets}
+                    locations={selectedBundle.locations || []}
+                    status={hqTicketStatus}
+                    locationId={hqTicketLocationId}
+                    onStatusChange={setHqTicketStatus}
+                    onLocationChange={setHqTicketLocationId}
+                    canUnlink
+                    onUnlink={unlinkTerritoryTicket}
+                    busy={saving}
+                  />
 
                   {/* Group 12 Slice 3d (620): the HQ announcement feed —
                       HQ posts and removes, operators read. */}

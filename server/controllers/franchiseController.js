@@ -5444,9 +5444,27 @@ const EXCEPTION_OPEN_SQL = `('open', 'assigned', 'in_progress', 'waiting_user')`
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
 // The territory's tickets, newest first, each carrying its location link
-// (NULL location = territory-wide). `openOnly` restricts to exceptions
-// that are still open; `limit` caps the rows (the summary takes 5).
-async function fetchTerritoryTickets(applicationId, { openOnly = false, limit = 100 } = {}) {
+// (NULL location = territory-wide). `status` is 'all', 'open' (the four
+// open statuses), or one concrete status; `locationId` is one location,
+// 'unassigned' for territory-wide tickets, or null for every location.
+// `limit` caps the rows (the summary takes 5). Callers validate the
+// filters — this helper trusts them.
+async function fetchTerritoryTickets(applicationId, { status = 'all', locationId = null, limit = 100 } = {}) {
+  const conditions = ['t.franchise_application_id = $1'];
+  const params = [applicationId];
+  if (status === 'open') {
+    conditions.push(`t.status IN ${EXCEPTION_OPEN_SQL}`);
+  } else if (status !== 'all') {
+    params.push(status);
+    conditions.push(`t.status = $${params.length}`);
+  }
+  if (locationId === 'unassigned') {
+    conditions.push('t.franchise_location_id IS NULL');
+  } else if (locationId) {
+    params.push(locationId);
+    conditions.push(`t.franchise_location_id = $${params.length}`);
+  }
+  params.push(limit);
   const { rows } = await db.query(
     `SELECT t.id, t.ticket_number, t.subject, t.category, t.priority, t.status,
             t.user_id, t.name AS requester_name, t.email AS requester_email,
@@ -5456,11 +5474,10 @@ async function fetchTerritoryTickets(applicationId, { openOnly = false, limit = 
             l.name AS location_name
        FROM support_tickets t
        LEFT JOIN franchise_locations l ON l.id = t.franchise_location_id
-      WHERE t.franchise_application_id = $1
-        ${openOnly ? `AND t.status IN ${EXCEPTION_OPEN_SQL}` : ''}
+      WHERE ${conditions.join(' AND ')}
       ORDER BY t.created_at DESC, t.id DESC
-      LIMIT $2`,
-    [applicationId, limit]
+      LIMIT $${params.length}`,
+    params
   );
   return rows;
 }
@@ -5520,7 +5537,7 @@ async function buildExceptionSummary(applicationId) {
       [applicationId]
     ),
   ]);
-  const recentOpen = await fetchTerritoryTickets(applicationId, { openOnly: true, limit: 5 });
+  const recentOpen = await fetchTerritoryTickets(applicationId, { status: 'open', limit: 5 });
   const total = totals.rows[0] || {};
   return {
     application_id: applicationId,
@@ -5891,6 +5908,92 @@ async function buildLocationHealth(applicationId) {
     at_risk: healthLocations.filter((l) => l.health === 'at_risk').length,
     locations: healthLocations,
   };
+}
+
+const TICKET_STATUSES = new Set(['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed']);
+
+// 629 (D-329): the territory ticket queue — a filtered read over the
+// tickets linked to the territory (628). Defaults to open requests;
+// ?status=all (or one concrete status) and ?location_id= narrow it.
+// Every row carries its franchise link, so the queue never shows a
+// ticket without saying which application and location it belongs to.
+function parseTicketListQuery(req) {
+  const status = typeof req.query?.status === 'string' && req.query.status
+    ? req.query.status
+    : 'open';
+  if (status !== 'all' && status !== 'open' && !TICKET_STATUSES.has(status)) {
+    return { error: { status: 400, body: { error: 'status must be open, all, or a ticket status.', code: 'invalid_ticket_status' } } };
+  }
+  const locationId = typeof req.query?.location_id === 'string' && req.query.location_id
+    ? req.query.location_id
+    : null;
+  if (locationId && locationId !== 'unassigned' && !UUID_RE.test(locationId)) {
+    return { error: { status: 400, body: { error: 'location_id must be a location id or unassigned.', code: 'invalid_location_id' } } };
+  }
+  return { status, locationId };
+}
+
+async function listTerritoryTickets(req, res) {
+  const { id } = req.params;
+  const parsed = parseTicketListQuery(req);
+  if (parsed.error) return res.status(parsed.error.status).json(parsed.error.body);
+  try {
+    const client = await db.connect();
+    try {
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        return res.status(403).json({
+          error: 'Only the assigned operator can view territory support requests.',
+          code: 'franchise_operator_only',
+        });
+      }
+      if (parsed.locationId && parsed.locationId !== 'unassigned') {
+        const locationResult = await client.query(
+          `SELECT id FROM franchise_locations WHERE id = $1 AND application_id = $2`,
+          [parsed.locationId, id]
+        );
+        if (!locationResult.rows.length) {
+          return res.status(404).json({ error: 'Location not found in this territory.', code: 'location_not_found' });
+        }
+      }
+    } finally {
+      client.release();
+    }
+    const tickets = await fetchTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId });
+    return res.json({ application_id: id, tickets, total: tickets.length });
+  } catch (err) {
+    logger.error('Error loading franchise territory tickets', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load territory support requests.' });
+  }
+}
+
+async function listTerritoryTicketsAsAdmin(req, res) {
+  const { id } = req.params;
+  const parsed = parseTicketListQuery(req);
+  if (parsed.error) return res.status(parsed.error.status).json(parsed.error.body);
+  try {
+    const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Franchise application not found.' });
+    }
+    if (parsed.locationId && parsed.locationId !== 'unassigned') {
+      const locationResult = await db.query(
+        `SELECT id FROM franchise_locations WHERE id = $1 AND application_id = $2`,
+        [parsed.locationId, id]
+      );
+      if (!locationResult.rows.length) {
+        return res.status(404).json({ error: 'Location not found in this territory.', code: 'location_not_found' });
+      }
+    }
+    const tickets = await fetchTerritoryTickets(id, { status: parsed.status, locationId: parsed.locationId });
+    return res.json({ application_id: id, tickets, total: tickets.length });
+  } catch (err) {
+    logger.error('Error loading franchise territory tickets as admin', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load territory support requests.' });
+  }
 }
 
 async function getLocationHealth(req, res) {
@@ -6763,6 +6866,8 @@ module.exports = {
   getExceptionSummaryAsAdmin,
   getLocationHealth,
   getLocationHealthAsAdmin,
+  listTerritoryTickets,
+  listTerritoryTicketsAsAdmin,
   linkTicketToTerritory,
   linkTicketToTerritoryAsAdmin,
   unlinkTicketFromTerritory,

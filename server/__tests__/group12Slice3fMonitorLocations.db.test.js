@@ -540,5 +540,120 @@ describeDb('Group 12 Slice 3f: Monitor locations (626-630)', () => {
     });
   });
 
+
+  describe('629: open support requests', () => {
+    function queueFor(user, applicationId, query = '') {
+      return request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/support-tickets${query}`)
+        .set('x-test-user', user.id);
+    }
+
+    test('the queue defaults to open requests, newest first, each carrying its franchise link', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const locationId = await locationIdFor(operator, applicationId);
+      const older = await addTicket(operator, { applicationId, locationId, subject: 'Older request', priority: 'low' });
+      const newer = await addTicket(operator, { applicationId, subject: 'Newer request', priority: 'high' });
+      await addTicket(operator, { applicationId, status: 'resolved', subject: 'Already resolved' });
+
+      const queue = await queueFor(operator, applicationId).expect(200);
+      expect(queue.body.application_id).toBe(applicationId);
+      expect(queue.body.total).toBe(2);
+      expect(queue.body.tickets.map((t) => t.ticket_number)).toEqual([newer.ticket_number, older.ticket_number]);
+      const [first, second] = queue.body.tickets;
+      expect(first.application_id).toBe(applicationId);
+      expect(first.location_id).toBeNull();
+      expect(first.location_name).toBeNull();
+      expect(first.requester_name).toBe('Franchise Fixture');
+      expect(second.location_id).toBe(locationId);
+      expect(second.location_name).toBeTruthy();
+    });
+
+    test('status=all shows resolved tickets; a concrete status narrows to it; an unknown status is 400', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      await addTicket(operator, { applicationId, status: 'open' });
+      await addTicket(operator, { applicationId, status: 'resolved' });
+      await addTicket(operator, { applicationId, status: 'closed' });
+
+      expect((await queueFor(operator, applicationId, '?status=all').expect(200)).body.total).toBe(3);
+      const resolved = await queueFor(operator, applicationId, '?status=resolved').expect(200);
+      expect(resolved.body.total).toBe(1);
+      expect(resolved.body.tickets[0].status).toBe('resolved');
+      const closed = await queueFor(operator, applicationId, '?status=closed').expect(200);
+      expect(closed.body.total).toBe(1);
+      await queueFor(operator, applicationId, '?status=bogus')
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_ticket_status'));
+    });
+
+    test('the location filter narrows to one location or to territory-wide tickets, and refuses foreign locations', async () => {
+      const operator = await addUser();
+      const other = await addUser();
+      const applicationId = await makeApplication(operator);
+      const otherApplicationId = await makeApplication(other);
+      const locationId = await locationIdFor(operator, applicationId);
+      const foreignLocationId = await locationIdFor(other, otherApplicationId);
+      await addTicket(operator, { applicationId, locationId });
+      await addTicket(operator, { applicationId });
+      await addTicket(other, { applicationId: otherApplicationId, locationId: foreignLocationId });
+
+      const byLocation = await queueFor(operator, applicationId, `?location_id=${locationId}`).expect(200);
+      expect(byLocation.body.total).toBe(1);
+      expect(byLocation.body.tickets[0].location_id).toBe(locationId);
+      const unassigned = await queueFor(operator, applicationId, '?location_id=unassigned').expect(200);
+      expect(unassigned.body.total).toBe(1);
+      expect(unassigned.body.tickets[0].location_id).toBeNull();
+      await queueFor(operator, applicationId, `?location_id=${foreignLocationId}`)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('location_not_found'));
+      await queueFor(operator, applicationId, '?location_id=not-a-uuid')
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_location_id'));
+    });
+
+    test('another territory queue never leaks across, and HQ reads each per-territory queue', async () => {
+      const operator = await addUser();
+      const other = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const otherApplicationId = await makeApplication(other);
+      await addTicket(operator, { applicationId });
+      await addTicket(other, { applicationId: otherApplicationId });
+
+      expect((await queueFor(operator, applicationId).expect(200)).body.total).toBe(1);
+      expect((await queueFor(other, otherApplicationId).expect(200)).body.total).toBe(1);
+
+      const hqQueue = await request(app)
+        .get(`/api/franchise/applications/${applicationId}/support-tickets`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(hqQueue.body.total).toBe(1);
+      expect(hqQueue.body.tickets[0].application_id).toBe(applicationId);
+      const hqOther = await request(app)
+        .get(`/api/franchise/applications/${otherApplicationId}/support-tickets?status=all`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(hqOther.body.total).toBe(1);
+      await request(app)
+        .get(`/api/franchise/applications/${applicationId}/support-tickets`)
+        .set('x-test-user', operator.id)
+        .expect(403);
+    });
+
+    test('a stranger gets 404 and a non-operator applicant 403 on the queue', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+
+      await queueFor(stranger, applicationId).expect(404);
+      await queueFor(applicant, applicationId)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+    });
+  });
+
   });
 });

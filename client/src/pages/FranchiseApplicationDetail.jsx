@@ -23,6 +23,7 @@ import FranchiseBrandAssets from './FranchiseBrandAssets';
 import FranchiseComplianceChecklist from './FranchiseComplianceChecklist';
 import FranchiseExceptionSummary from './FranchiseExceptionSummary';
 import FranchiseLocationHealth from './FranchiseLocationHealth';
+import FranchiseTerritoryTickets from './FranchiseTerritoryTickets';
 import { useAuth } from '../hooks/useAuth';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
@@ -90,6 +91,26 @@ export default function FranchiseApplicationDetail({ applicationId }) {
   // Group 12 Slice 3b (606): decline-reason compose state.
   const [showDecline, setShowDecline] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
+
+  // Group 12 Slice 3f (629): the territory ticket queue for the
+  // operator dashboard — the territory's open support requests.
+  const [ticketStatus, setTicketStatus] = useState('open');
+  const [ticketLocationId, setTicketLocationId] = useState('');
+  const [territoryTickets, setTerritoryTickets] = useState([]);
+  const [ticketRefresh, setTicketRefresh] = useState(0);
+  useEffect(() => {
+    if (!detail || detail.application?.is_operator !== true) {
+      setTerritoryTickets([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams({ status: ticketStatus });
+    if (ticketLocationId) params.set('location_id', ticketLocationId);
+    api.get(`/franchise/my-applications/${applicationId}/support-tickets?${params.toString()}`)
+      .then((response) => { if (!cancelled) setTerritoryTickets(response.data?.tickets ?? []); })
+      .catch(() => { if (!cancelled) setTerritoryTickets([]); });
+    return () => { cancelled = true; };
+  }, [detail, applicationId, ticketStatus, ticketLocationId, ticketRefresh]);
 
   useEffect(() => {
     let cancelled = false;
@@ -403,6 +424,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     try {
       const response = await api.post(`/franchise/my-applications/${applicationId}/support-tickets/${ticketNumber}/link`, { location_id: locationId });
       setDetail((prev) => (prev ? { ...prev, exception_summary: response.data.exception_summary } : prev));
+      setTicketRefresh((v) => v + 1);
     } catch (err) {
       setError(err?.response?.data?.error || copy('exceptionLinkFailed'));
       throw err;
@@ -417,6 +439,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     try {
       const response = await api.post(`/franchise/my-applications/${applicationId}/support-tickets/${ticketId}/unlink`);
       setDetail((prev) => (prev ? { ...prev, exception_summary: response.data.exception_summary } : prev));
+      setTicketRefresh((v) => v + 1);
     } catch (err) {
       setError(err?.response?.data?.error || copy('exceptionUnlinkFailed'));
       throw err;
@@ -801,6 +824,19 @@ export default function FranchiseApplicationDetail({ applicationId }) {
       {/* Group 12 Slice 3f (627, D-328): the per-location health view —
           status, KPIs, and compliance for each location. */}
       <FranchiseLocationHealth health={detail.location_health || null} />
+
+      {/* Group 12 Slice 3f (629, D-329): the territory ticket queue. */}
+      <FranchiseTerritoryTickets
+        tickets={territoryTickets}
+        locations={detail.locations || []}
+        status={ticketStatus}
+        locationId={ticketLocationId}
+        onStatusChange={setTicketStatus}
+        onLocationChange={setTicketLocationId}
+        canUnlink={detail.application?.is_operator === true}
+        onUnlink={unlinkTicket}
+        busy={busy}
+      />
 
       {/* Group 12 Slice 3b (610, D-310): the operator-facing assignment history. */}
       <section className="fr-detail-card">
