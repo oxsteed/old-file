@@ -18,6 +18,7 @@ const { generalLimiter, invoiceLimiter, reportLimiter, termsLimiter } = require(
 const pool    = require('../db');
 const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
+const { parseDateOnlyUTC } = require('../utils/dateOnly');
 const toolFavoritesController = require('../controllers/toolFavoritesController');
 const toolReviewsController = require('../controllers/toolReviewsController');
 const toolBookingsController = require('../controllers/toolBookingsController');
@@ -340,10 +341,33 @@ router.get('/categories', async (req, res) => {
   }
 });
 
-// GET /api/tool-rentals/browse?category=&city=&name=&priceMin=&priceMax=&sort=&limit=30
+// GET /api/tool-rentals/browse?category=&city=&name=&priceMin=&priceMax=&sort=&limit=30&startDate=&endDate=
+// Group 11 item 562: a browse-level date filter. When startDate+endDate are
+// given, listings with an overlapping live booking (pending / invoice_sent /
+// payment_confirmed, same overlap rule as createBooking) are excluded, so
+// the renter only sees tools free for the whole requested range.
 async function browseTools(req, res) {
   try {
-    const { category, city, name, priceMin, priceMax, sort = 'newest', limit = 30, offset = 0 } = req.query;
+    const { category, city, name, priceMin, priceMax, sort = 'newest', limit = 30, offset = 0, startDate, endDate } = req.query;
+    // 562: both dates together, valid calendar dates, end after start.
+    // A single date is not a rental range, so it is rejected rather than
+    // silently treated as open-ended.
+    let dateRange = null;
+    if (startDate !== undefined || endDate !== undefined) {
+      const start = parseDateOnlyUTC(startDate);
+      const end = parseDateOnlyUTC(endDate);
+      if (!start || !end || end <= start) {
+        return res.status(400).json({
+          error: 'Invalid rental dates',
+          code: 'validation_failed',
+          fields: {
+            startDate: start ? undefined : 'Invalid date',
+            endDate: end && end > start ? undefined : 'End date must be after the start date',
+          },
+        });
+      }
+      dateRange = { startDate, endDate };
+    }
     const params = [true];
     let where = 'WHERE t.is_available = $1';
     let idx = 2;
@@ -358,6 +382,17 @@ async function browseTools(req, res) {
     if (name)     { where += ` AND t.name ILIKE $${idx++}`; params.push(`%${name}%`); }
     if (priceMin) { where += ` AND t.daily_rate >= $${idx++}`; params.push(parseFloat(priceMin)); }
     if (priceMax) { where += ` AND t.daily_rate <= $${idx++}`; params.push(parseFloat(priceMax)); }
+    if (dateRange) {
+      where += ` AND NOT EXISTS (
+        SELECT 1 FROM tool_rentals_bookings b
+         WHERE b.tool_id = t.id
+           AND b.status IN ('pending', 'invoice_sent', 'payment_confirmed')
+           AND b.start_date <= $${idx}
+           AND b.end_date >= $${idx + 1}
+      )`;
+      params.push(dateRange.endDate, dateRange.startDate);
+      idx += 2;
+    }
 
     let orderBy = 't.created_at DESC';
     if (sort === 'price-asc') orderBy = 't.daily_rate ASC';

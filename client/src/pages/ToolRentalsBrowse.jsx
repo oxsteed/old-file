@@ -324,6 +324,11 @@ function getInitialState() {
   const cityParam = params.get('city');
   if (cityParam) filters.city = cityParam;
 
+  const startParam = params.get('startDate');
+  const endParam = params.get('endDate');
+  if (startParam) filters.startDate = startParam;
+  if (endParam) filters.endDate = endParam;
+
   if (params.get('availableNow') === 'true') filters.availableNow = true;
   if (params.get('delivery') === 'true') filters.deliveryAvailable = true;
 
@@ -438,6 +443,10 @@ const ToolRentalsBrowse = () => {
         category: f.categories[0] || undefined,
         priceMin: f.priceRange ? f.priceRange[0] : undefined,
         priceMax: f.priceRange && f.priceRange[1] < 9999 ? f.priceRange[1] : undefined,
+        // 562: only send a complete, valid range; a half-filled or
+        // inverted range is ignored client-side (the server 400s it too).
+        startDate: f.startDate && f.endDate && f.endDate > f.startDate ? f.startDate : undefined,
+        endDate: f.startDate && f.endDate && f.endDate > f.startDate ? f.endDate : undefined,
       };
       const fetched = await toolRentalsApi.browseTools(params);
       setTools((prev) => append ? [...prev, ...fetched] : fetched);

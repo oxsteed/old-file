@@ -210,6 +210,10 @@ export interface ToolDirectoryFilters {
   priceRange: [number, number] | null;
   /** Free-text city filter; sent to the backend as `city` */
   city: string;
+  /** Rental dates (562): sent to the backend as `startDate`/`endDate`; both
+      together only, end after start. Empty string = no date filter. */
+  startDate: string;
+  endDate: string;
   /** Radius in miles around city; null = no restriction */
   radius: DistanceRadius;
   /** Quick toggles */
@@ -225,6 +229,8 @@ export const DEFAULT_TOOL_FILTERS: ToolDirectoryFilters = {
   conditions: [],
   priceRange: null,
   city: '',
+  startDate: '',
+  endDate: '',
   radius: null,
   availableNow: false,
   deliveryAvailable: false,
@@ -240,6 +246,7 @@ export function countActiveToolFilters(f: ToolDirectoryFilters): number {
   if (f.conditions.length)  n++;
   if (f.priceRange)         n++;
   if (f.city)               n++;
+  if (f.startDate || f.endDate) n++;
   if (f.radius !== null)    n++;
   if (f.availableNow)       n++;
   if (f.deliveryAvailable)  n++;

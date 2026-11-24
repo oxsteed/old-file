@@ -11,6 +11,7 @@ import {
   Truck,
   Wallet,
   Navigation,
+  Calendar,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ToolDirectoryFilters, ToolCondition, DistanceRadius } from '../../types/toolDirectory';
@@ -174,6 +175,43 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
             </button>
           </label>
         </div>
+
+        {/* ── Rental dates (562) ────────────────────────────────── */}
+        <FilterSection title={t('toolRentalsDir.rentalDates')} icon={Calendar}>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label htmlFor="tool-start-date" className="text-xs text-gray-500 mb-1.5 block">
+                {t('toolRentalsDir.startDateLabel')}
+              </label>
+              <input
+                id="tool-start-date"
+                type="date"
+                value={filters.startDate}
+                onChange={(e) => onChange({ startDate: e.target.value })}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="tool-end-date" className="text-xs text-gray-500 mb-1.5 block">
+                {t('toolRentalsDir.endDateLabel')}
+              </label>
+              <input
+                id="tool-end-date"
+                type="date"
+                value={filters.endDate}
+                min={filters.startDate || undefined}
+                onChange={(e) => onChange({ endDate: e.target.value })}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+          </div>
+          {filters.startDate && filters.endDate && filters.endDate <= filters.startDate && (
+            <p className="text-xs text-rose-400 mt-1.5">{t('toolRentalsDir.dateInvalid')}</p>
+          )}
+          {(filters.startDate || filters.endDate) && !(filters.startDate && filters.endDate) && (
+            <p className="text-xs text-gray-600 mt-1.5">{t('toolRentalsDir.dateBothRequired')}</p>
+          )}
+        </FilterSection>
 
         {/* ── Location ──────────────────────────────────────── */}
         <FilterSection title={t('toolRentalsDir.location')} icon={MapPin}>
