@@ -390,6 +390,63 @@ const declineBooking = async (req, res, next) => {
   }
 };
 
+// Group 11 item 570 (D-260): in-app confirmation receipt. What was
+// booked, the frozen terms, the approval state and the invoice (if one
+// was sent). Party-only: anyone else gets 404. No new email work: the
+// confirmation email already sends asynchronously at booking time.
+const getBookingReceipt = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.user.id;
+    const bookingResult = await db.query(
+      `SELECT b.*, tr.name AS tool_name, tr.category AS tool_category,
+              tr.brand AS tool_brand, tr.model AS tool_model,
+              tr.condition AS tool_condition, tr.daily_rate AS tool_daily_rate,
+              tr.replacement_value AS tool_replacement_value
+         FROM tool_rentals_bookings b
+         JOIN tool_rentals tr ON b.tool_id = tr.id
+        WHERE b.id = $1 AND (b.customer_id = $2 OR b.owner_id = $2)`,
+      [bookingId, userId]
+    );
+    if (!bookingResult.rows[0]) {
+      throw new AppError('Booking not found', 404, 'not_found');
+    }
+    const booking = bookingResult.rows[0];
+    const termsResult = await db.query(
+      `SELECT user_role, accepted_at FROM tool_rental_terms_acceptance WHERE booking_id = $1`,
+      [bookingId]
+    );
+    const terms = { customerAccepted: false, ownerAccepted: false, bothAccepted: false };
+    termsResult.rows.forEach((row) => {
+      if (row.user_role === 'customer') terms.customerAccepted = !!row.accepted_at;
+      if (row.user_role === 'owner') terms.ownerAccepted = !!row.accepted_at;
+    });
+    terms.bothAccepted = terms.customerAccepted && terms.ownerAccepted;
+    const invoiceResult = await db.query(
+      `SELECT id, invoice_number, status, total_amount, rental_amount, deposit_amount, created_at
+         FROM tool_rental_invoices WHERE booking_id = $1`,
+      [bookingId]
+    );
+    res.json({
+      booking,
+      tool: {
+        id: booking.tool_id,
+        name: booking.tool_name,
+        category: booking.tool_category,
+        brand: booking.tool_brand,
+        model: booking.tool_model,
+        condition: booking.tool_condition,
+        daily_rate: booking.tool_daily_rate,
+        replacement_value: booking.tool_replacement_value,
+      },
+      terms,
+      invoice: invoiceResult.rows[0] || null,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const checkAvailability = async (req, res, next) => {
   try {
     const { toolId } = req.params;
@@ -409,4 +466,4 @@ const checkAvailability = async (req, res, next) => {
   }
 };
 
-module.exports = { createBooking, getMyBookings, getBookingsByOwner, updateBookingStatus, checkAvailability, approveBooking, declineBooking };
+module.exports = { createBooking, getMyBookings, getBookingsByOwner, updateBookingStatus, checkAvailability, approveBooking, declineBooking, getBookingReceipt };

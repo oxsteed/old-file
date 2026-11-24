@@ -79,6 +79,8 @@ interface Booking {
   owner_approval?: 'pending' | 'approved' | 'declined';
   owner_approval_at?: string | null;
   owner_decline_reason?: string | null;
+  pickup_time?: string | null;
+  agreement_snapshot?: { rental?: { fulfillment?: string } } | null;
 }
 
 const MyBookingsPageContent = () => {
@@ -99,6 +101,10 @@ const MyBookingsPageContent = () => {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportBookingId, setReportBookingId] = useState<number | null>(null);
   const [reportOwnerId, setReportOwnerId] = useState<number | string | null>(null);
+  // Group 11 item 570: in-app confirmation receipt, loaded lazily per booking.
+  const [receiptOpen, setReceiptOpen] = useState<Record<number, boolean>>({});
+  const [receipts, setReceipts] = useState<Record<number, any>>({});
+  const [receiptLoading, setReceiptLoading] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     loadBookings();
@@ -309,6 +315,92 @@ const MyBookingsPageContent = () => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   };
 
+  // Group 11 item 570: toggle the in-app confirmation receipt; fetch
+  // once per booking, then reuse.
+  const handleToggleReceipt = async (booking: Booking) => {
+    const open = !receiptOpen[booking.id];
+    setReceiptOpen((prev) => ({ ...prev, [booking.id]: open }));
+    if (!open || receipts[booking.id]) return;
+    setReceiptLoading((prev) => ({ ...prev, [booking.id]: true }));
+    try {
+      const data = await toolRentalsApi.getBookingReceipt(booking.id);
+      setReceipts((prev) => ({ ...prev, [booking.id]: data }));
+    } catch {
+      toast.error(t('toolRentals.receiptLoadFailed') || 'Could not load the receipt');
+      setReceiptOpen((prev) => ({ ...prev, [booking.id]: false }));
+    } finally {
+      setReceiptLoading((prev) => ({ ...prev, [booking.id]: false }));
+    }
+  };
+
+  const handleDownloadInvoicePdf = async (invoice: { id: number; invoice_number?: string }) => {
+    try {
+      await toolRentalsApi.downloadInvoicePdf(invoice.id, invoice.invoice_number);
+    } catch {
+      toast.error(t('toolRentals.receiptLoadFailed') || 'Could not load the receipt');
+    }
+  };
+
+  const renderReceipt = (booking: Booking) => {
+    const receipt = receipts[booking.id];
+    if (!receiptOpen[booking.id]) return null;
+    if (receiptLoading[booking.id] || !receipt) {
+      return <p className="booking-card-note">{t('common.loading')}</p>;
+    }
+    const fulfillment = receipt.booking?.agreement_snapshot?.rental?.fulfillment;
+    return (
+      <div className="booking-receipt" data-testid={`booking-receipt-${booking.id}`}>
+        <h4>{t('toolRentals.receiptTitle') || 'Booking receipt'}</h4>
+        <dl>
+          <div><dt>{t('toolRentals.receiptTool') || 'Tool'}</dt><dd>{receipt.tool?.name || booking.name}</dd></div>
+          <div>
+            <dt>{t('toolRentals.receiptDates') || 'Rental dates'}</dt>
+            <dd>{formatDate(booking.start_date)} - {formatDate(booking.end_date)} ({t('myBookings.daysCount', { count: calculateDays(booking.start_date, booking.end_date) })})</dd>
+          </div>
+          {booking.pickup_time && (
+            <div><dt>{t('toolRentals.receiptPickupTime') || 'Pickup time'}</dt><dd>{formatTime(booking.pickup_time, locale)}</dd></div>
+          )}
+          {fulfillment && (
+            <div><dt>{t('toolRentals.receiptFulfillment') || 'How you get it'}</dt><dd>{t(`toolRentals.receiptFulfillment_${fulfillment}`) || fulfillment}</dd></div>
+          )}
+          <div><dt>{t('toolRentals.receiptTotal') || 'Total'}</dt><dd>${Number(booking.total_price || 0).toFixed(2)}</dd></div>
+          <div>
+            <dt>{t('toolRentals.receiptApproval') || 'Owner approval'}</dt>
+            <dd>{t(`toolRentals.receiptApproval_${booking.owner_approval || 'pending'}`) || booking.owner_approval || 'pending'}</dd>
+          </div>
+          <div>
+            <dt>{t('toolRentals.receiptTerms') || 'Terms'}</dt>
+            <dd>
+              {t('toolRentals.receiptTermsRenter') || 'Renter'}: {receipt.terms?.customerAccepted ? (t('toolRentals.receiptTermsAccepted') || 'Accepted') : (t('toolRentals.receiptTermsPending') || 'Not accepted yet')}
+              {' · '}
+              {t('toolRentals.receiptTermsOwner') || 'Owner'}: {receipt.terms?.ownerAccepted ? (t('toolRentals.receiptTermsAccepted') || 'Accepted') : (t('toolRentals.receiptTermsPending') || 'Not accepted yet')}
+            </dd>
+          </div>
+          <div>
+            <dt>{t('toolRentals.receiptInvoice') || 'Invoice'}</dt>
+            <dd>
+              {receipt.invoice ? (
+                <>
+                  {receipt.invoice.invoice_number} · {receipt.invoice.status} · ${Number(receipt.invoice.total_amount || 0).toFixed(2)}
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadInvoicePdf(receipt.invoice)}
+                    className="booking-receipt-pdf-link"
+                  >
+                    {t('toolRentals.receiptInvoiceDownload') || 'Download invoice PDF'}
+                  </button>
+                </>
+              ) : (
+                t('toolRentals.receiptNoInvoice') || 'No invoice sent yet.'
+              )}
+            </dd>
+          </div>
+        </dl>
+      </div>
+    );
+  };
+
   const renderBookingCard = (booking: Booking, isOwner: boolean = false) => (
     <div key={booking.id} className="booking-card">
       <EquipmentBookingPanel bookingId={booking.id}/>
@@ -479,6 +571,19 @@ const MyBookingsPageContent = () => {
           {t('toolRentals.returnConditionLabel') || 'Return condition:'} {booking.return_condition_note}
         </p>
       )}
+
+      {/* Group 11 item 570: in-app confirmation receipt. */}
+      <div className="booking-card-actions">
+        <button
+          onClick={() => handleToggleReceipt(booking)}
+          className="booking-action-btn booking-action-invoice" data-track="ui.5655b990ea.20"
+        >
+          {receiptOpen[booking.id]
+            ? (t('toolRentals.hideReceipt') || 'Hide receipt')
+            : (t('toolRentals.viewReceipt') || 'View receipt')}
+        </button>
+      </div>
+      {renderReceipt(booking)}
 
       {!isOwner && booking.status !== 'cancelled' && booking.status !== 'completed' && (
         <div className="booking-card-actions">

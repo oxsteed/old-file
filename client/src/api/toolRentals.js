@@ -126,6 +126,22 @@ export const toolRentalsApi = {
     return response.data;
   },
 
+  // Group 11 item 570: in-app confirmation receipt.
+  getBookingReceipt: async (bookingId) => {
+    const response = await api.get(`/tool-rentals/bookings/${bookingId}/receipt`);
+    return response.data;
+  },
+
+  downloadInvoicePdf: async (invoiceId, invoiceNumber) => {
+    const response = await api.get(`/tool-rentals/invoices/${invoiceId}/pdf`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${invoiceNumber || `invoice-${invoiceId}`}.pdf`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  },
+
   // Group 11 item 568: explicit owner approve/decline, distinct from invoicing.
   approveBooking: async (bookingId) => {
     const response = await api.post(`/tool-rentals/bookings/${bookingId}/approve`);
