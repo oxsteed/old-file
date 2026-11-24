@@ -427,16 +427,23 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
     // The territory endpoints sit behind the franchise capability gate
     // (enforce by default). The gate is off here so the roster scoping
     // itself is exercised, as in the 606 suite.
-    beforeAll(() => {
+    // The roster is a top-50 list ordered by rating, then reviews, so a
+    // helper only shows when it outranks the rows this shared slice DB
+    // accumulated from earlier runs. Each run starts its review counts
+    // above the previous maximum, so this run's helpers always sort in.
+    let helperSeq = 0;
+    beforeAll(async () => {
       process.env.ACCESS_FRANCHISE_ENFORCEMENT = 'off';
+      const { rows } = await db.query('SELECT COALESCE(MAX(total_reviews), 0) AS m FROM helper_profiles');
+      helperSeq = Number(rows[0].m) || 0;
     });
 
     async function addHelper(city = 'Austin', state = 'TX') {
       const id = await addUser();
       await db.query(
         `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
-         VALUES ($1, $2, $3, 4.9, 12, TRUE)`,
-        [id, city, state],
+         VALUES ($1, $2, $3, 4.9, $4, TRUE)`,
+        [id, city, state, ++helperSeq],
       );
       return id;
     }
@@ -645,6 +652,137 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
       expect(unflagged.opening_team).toBe(false);
       expect(unflagged.opening_team_role).toBeNull();
       expect(elsewhere).toBeTruthy();
+    });
+  });
+
+  describe('613: readiness review sign-off', () => {
+    function review(adminId, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/applications/${applicationId}/readiness-review`)
+        .set('x-test-user', adminId)
+        .send(body);
+    }
+
+    test('a passed review is the only path to ready, and it is recorded with actor + timestamp', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      // A bare admin status set to `ready` is refused.
+      const refused = await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ launch_readiness_status: 'ready' })
+        .expect(409);
+      expect(refused.body.code).toBe('readiness_requires_review');
+
+      const res = await review(admin, applicationId, { outcome: 'passed', notes: 'Site walk done.' }).expect(201);
+      expect(res.body.application.launch_readiness_status).toBe('ready');
+      expect(res.body.readiness_reviews).toHaveLength(1);
+      const [first] = res.body.readiness_reviews;
+      expect(first.outcome).toBe('passed');
+      expect(first.notes).toBe('Site walk done.');
+      expect(first.reviewer_id).toBe(admin);
+      expect(first.created_at).toBeTruthy();
+
+      // The operator sees outcome, notes, and date — never the reviewer.
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      expect(detail.body.readiness_reviews).toHaveLength(1);
+      expect(detail.body.readiness_reviews[0].reviewer_id).toBeUndefined();
+      expect(detail.body.readiness_reviews[0].outcome).toBe('passed');
+
+      // Re-saving an application that is already `ready` is a no-op, not
+      // a move, so the HQ edit form still saves.
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ launch_readiness_status: 'ready' })
+        .expect(200);
+    });
+
+    test('requesting changes needs reasons and sends readiness back to planning', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      await review(admin, applicationId, { outcome: 'changes_requested' }).expect(400);
+      await review(admin, applicationId, { outcome: 'changes_requested', notes: '   ' }).expect(400);
+
+      const res = await review(admin, applicationId, { outcome: 'changes_requested', notes: 'Staffing plan missing.' }).expect(201);
+      expect(res.body.application.launch_readiness_status).toBe('planning');
+      expect(res.body.readiness_reviews[0].outcome).toBe('changes_requested');
+
+      // A later passed review moves it back to ready.
+      const again = await review(admin, applicationId, { outcome: 'passed', notes: 'Staffing plan filed.' }).expect(201);
+      expect(again.body.application.launch_readiness_status).toBe('ready');
+      expect(again.body.readiness_reviews).toHaveLength(2);
+    });
+
+    test('review validation: unknown application, bad outcome, non-admin, closed application', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      await review(admin, '00000000-0000-0000-0000-000000000000', { outcome: 'passed' }).expect(404);
+      await review(admin, applicationId, { outcome: 'maybe' }).expect(400);
+      await review(applicant, applicationId, { outcome: 'passed' }).expect(403);
+
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'rejected' })
+        .expect(200);
+      const closed = await review(admin, applicationId, { outcome: 'passed' }).expect(409);
+      expect(closed.body.code).toBe('readiness_review_closed');
+    });
+
+    test('activation chain: without a passed review activation refuses; with one it launches', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      // Approve, train, sign, waive the fee, complete every checklist
+      // item — everything but the review.
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'approved', training_status: 'completed' })
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/agreement/sign`)
+        .set('x-test-user', applicant)
+        .send({ signed_by_name: 'Franchise Fixture' })
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/agreement/collect-fee`)
+        .set('x-test-user', admin)
+        .send({ waived: true, reason: 'Founding operator' })
+        .expect(200);
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      expect(bundle.body.checklist.length).toBeGreaterThan(0);
+      for (const item of bundle.body.checklist) {
+        await request(app)
+          .patch(`/api/franchise/applications/${applicationId}/checklist/${item.id}`)
+          .set('x-test-user', admin)
+          .send({ status: 'completed' })
+          .expect(200);
+      }
+
+      // No review yet: activation refuses on readiness.
+      const refused = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/activate-store`)
+        .set('x-test-user', admin)
+        .expect(409);
+      expect(refused.body.code).toBe('franchise_launch_not_ready');
+
+      // The passed review opens the gate; activation launches.
+      await review(admin, applicationId, { outcome: 'passed', notes: 'Ready to open.' }).expect(201);
+      const launched = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/activate-store`)
+        .set('x-test-user', admin)
+        .expect(201);
+      expect(launched.body.application.status).toBe('launched');
+      expect(launched.body.application.launched_at).toBeTruthy();
     });
   });
 });

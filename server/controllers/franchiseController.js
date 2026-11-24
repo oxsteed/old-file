@@ -1306,7 +1306,8 @@ async function updateFranchiseApplication(req, res) {
       }
 
       const before = await client.query(
-        `SELECT status, applicant_user_id, owner_user_id, linked_business_id, acceptance_status, email
+        `SELECT status, applicant_user_id, owner_user_id, linked_business_id, acceptance_status, email,
+                launch_readiness_status
            FROM franchise_applications
           WHERE id = $1`,
         [applicationId],
@@ -1314,6 +1315,20 @@ async function updateFranchiseApplication(req, res) {
       if (!before.rows.length) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+
+      // Group 12 Slice 3c (613, D-313): readiness moves to `ready` only
+      // through a passed readiness review (POST /readiness-review) —
+      // never through a bare admin status set. Re-saving an application
+      // that is already `ready` is a no-op, not a move, so it still
+      // passes (the HQ edit form always sends the current value).
+      if (body.launch_readiness_status === 'ready'
+        && before.rows[0].launch_readiness_status !== 'ready') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Launch readiness can only move to ready through a passed readiness review.',
+          code: 'readiness_requires_review',
+        });
       }
 
       const updateResult = await client.query(
@@ -3830,6 +3845,91 @@ async function removeOpeningTeamMemberAsAdmin(req, res) {
   }
 }
 
+/**
+ * POST /api/franchise/applications/:id/readiness-review (admin)
+ * 613 (D-313): HQ records a formal readiness review. A passed review is
+ * the only way readiness moves to `ready` (the bare admin status set
+ * refuses it — see updateFranchiseApplication); requesting changes sends
+ * readiness back to `planning` and needs reasons, so the operator knows
+ * what to fix. The review is recorded with the HQ reviewer and the time;
+ * the operator sees outcome, notes, and date, never the reviewer. A
+ * review on a launched, rejected, or archived application is a 409 —
+ * there is nothing left to review.
+ */
+async function submitReadinessReview(req, res) {
+  const outcome = asTrimmed(req.body?.outcome);
+  if (!READINESS_REVIEW_OUTCOMES.has(outcome)) {
+    return res.status(400).json({
+      error: 'outcome must be passed or changes_requested.',
+      code: 'invalid_readiness_outcome',
+    });
+  }
+  const notes = asTrimmed(req.body?.notes);
+  if (outcome === 'changes_requested' && !notes) {
+    return res.status(400).json({
+      error: 'Notes are required when requesting changes.',
+      code: 'readiness_review_notes_required',
+    });
+  }
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: appRows } = await client.query(
+        `SELECT id, status, launch_readiness_status
+           FROM franchise_applications WHERE id = $1 FOR UPDATE`,
+        [id]
+      );
+      if (!appRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (['launched', 'rejected', 'archived'].includes(appRows[0].status)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `This application is ${appRows[0].status}; readiness can no longer be reviewed.`,
+          code: 'readiness_review_closed',
+        });
+      }
+      const nextReadiness = outcome === 'passed' ? 'ready' : 'planning';
+      await client.query(
+        `INSERT INTO franchise_readiness_reviews
+           (application_id, reviewer_id, outcome, notes)
+         VALUES ($1, $2, $3, $4)`,
+        [id, req.user?.id || null, outcome, notes]
+      );
+      await client.query(
+        `UPDATE franchise_applications
+            SET launch_readiness_status = $2, updated_at = NOW()
+          WHERE id = $1`,
+        [id, nextReadiness]
+      );
+      await logActivity(
+        client,
+        id,
+        req.user?.id || null,
+        outcome === 'passed' ? 'readiness_review_passed' : 'readiness_review_changes_requested',
+        outcome === 'passed'
+          ? 'HQ readiness review passed; launch readiness is ready.'
+          : `HQ readiness review requested changes: ${notes}.`,
+        { outcome, notes: notes || null }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error submitting franchise readiness review', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to record readiness review.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -3868,6 +3968,7 @@ module.exports = {
   removeOpeningTeamMember,
   assignOpeningTeamMemberAsAdmin,
   removeOpeningTeamMemberAsAdmin,
+  submitReadinessReview,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

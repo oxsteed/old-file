@@ -22,7 +22,7 @@ import axios from '../../../api/axios';
 const STATUS_OPTIONS = ['inquiry', 'screening', 'application_review', 'diligence', 'agreement_pending', 'approved', 'rejected', 'archived', 'launched'];
 const AGREEMENT_OPTIONS = ['draft', 'sent', 'signed', 'waived'];
 const TRAINING_OPTIONS = ['not_started', 'scheduled', 'in_progress', 'completed'];
-const READINESS_OPTIONS = ['not_ready', 'planning', 'ready', 'launched'];
+const READINESS_OPTIONS = ['not_ready', 'planning', 'launched'];
 const CHECKLIST_OPTIONS = ['pending', 'in_progress', 'completed', 'blocked', 'waived'];
 
 // Group 12 Slice 3b (608, D-306): operator responsibility labels, localized
@@ -211,6 +211,8 @@ export default function FranchiseHQPage() {
   // Group 12 Slice 3c (611): HQ adds locations and their launch milestones.
   const [locationForm, setLocationForm] = useState({ name: '', city: '', region: '', country: '' });
   const [milestoneForm, setMilestoneForm] = useState({ location_id: '', title: '', due_date: '', owner_role: 'operator', launch_plan_step_id: '' });
+  // Group 12 Slice 3c (613): HQ records a formal readiness review.
+  const [reviewForm, setReviewForm] = useState({ outcome: 'passed', notes: '' });
   const [createForm, setCreateForm] = useState({
     first_name: '',
     last_name: '',
@@ -625,6 +627,30 @@ export default function FranchiseHQPage() {
     }
   }
 
+  // Group 12 Slice 3c (613): HQ records a readiness review — the only
+  // path that moves readiness to `ready`.
+  async function submitReadinessReview() {
+    if (!selectedApplication) return;
+    if (reviewForm.outcome === 'changes_requested' && !reviewForm.notes.trim()) {
+      toast.error(t('adminFranchiseReadinessReviewNotesRequired'));
+      return;
+    }
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/readiness-review`, {
+        outcome: reviewForm.outcome,
+        notes: reviewForm.notes.trim() || undefined,
+      });
+      setSelectedBundle(res.data);
+      setReviewForm({ outcome: 'passed', notes: '' });
+      toast.success(t('adminFranchiseReadinessReviewRecorded'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseReadinessReviewFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function updateChecklist(itemId, payload) {
     if (!selectedApplication) return;
     try {
@@ -823,6 +849,9 @@ export default function FranchiseHQPage() {
                         {TRAINING_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value, t)}</option>)}
                       </select>
                       <select style={fieldStyle} value={editForm.launch_readiness_status} onChange={(e) => setEditForm((v) => ({ ...v, launch_readiness_status: e.target.value }))}>
+                        {editForm.launch_readiness_status === 'ready' && (
+                          <option value="ready">{formatLabel('ready', t)}</option>
+                        )}
                         {READINESS_OPTIONS.map((value) => <option key={value} value={value}>{formatLabel(value, t)}</option>)}
                       </select>
                       <input style={fieldStyle} placeholder={t('adminFranchiseCountry')} value={editForm.desired_country} onChange={(e) => setEditForm((v) => ({ ...v, desired_country: e.target.value.toUpperCase() }))} />
@@ -832,6 +861,9 @@ export default function FranchiseHQPage() {
                       <input style={{ ...fieldStyle, gridColumn: '1 / -1' }} placeholder={t('adminFranchiseDesiredBrandName')} value={editForm.desired_brand_name} onChange={(e) => setEditForm((v) => ({ ...v, desired_brand_name: e.target.value }))} />
                       <input style={{ ...fieldStyle, gridColumn: '1 / -1' }} placeholder={t('adminFranchiseCurrentCompanyName')} value={editForm.current_company_name} onChange={(e) => setEditForm((v) => ({ ...v, current_company_name: e.target.value }))} />
                     </div>
+                    {/* Group 12 Slice 3c (613): `ready` is set by a passed
+                        readiness review, not from this form. */}
+                    <div className="frhq-row-meta">{t('adminFranchiseReadinessViaReview')}</div>
                     <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder={t('adminFranchiseTerritorySummary')} value={editForm.territory_summary} onChange={(e) => setEditForm((v) => ({ ...v, territory_summary: e.target.value }))} />
                     <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder={t('adminFranchiseMarketAssessment')} value={editForm.market_assessment} onChange={(e) => setEditForm((v) => ({ ...v, market_assessment: e.target.value }))} />
                     <textarea style={{ ...fieldStyle, minHeight: 90 }} placeholder={t('adminFranchiseHqRecommendation')} value={editForm.hq_recommendation} onChange={(e) => setEditForm((v) => ({ ...v, hq_recommendation: e.target.value }))} />
@@ -1400,6 +1432,46 @@ export default function FranchiseHQPage() {
                     </div>
                     <button type="button" className="frhq-btn-primary" disabled={saving || !milestoneForm.location_id || !milestoneForm.title.trim()} onClick={addMilestone}>
                       {t('adminFranchiseMilestoneAdd')}
+                    </button>
+                  </div>
+
+                  {/* Group 12 Slice 3c (613): HQ records a formal readiness
+                      review — the only path that moves readiness to `ready`. */}
+                  <div className="frhq-panel">
+                    <div className="frhq-panel-title">{t('adminFranchiseReadinessReviewTitle')}</div>
+                    <div className="frhq-row-meta">
+                      {t('adminFranchiseLaunchPlanReadiness')}: {formatLabel(selectedApplication.launch_readiness_status, t)}
+                    </div>
+                    {(selectedBundle.readiness_reviews || []).length > 0 && (
+                      <div className="frhq-list">
+                        {selectedBundle.readiness_reviews.map((review) => (
+                          <div key={review.id} className="frhq-row">
+                            <div>
+                              <div className="frhq-row-title">
+                                {review.outcome === 'passed' ? t('adminFranchiseReadinessReviewPassed') : t('adminFranchiseReadinessReviewChanges')}
+                              </div>
+                              {review.notes && <div className="frhq-row-meta">{review.notes}</div>}
+                              <div className="frhq-row-meta">{new Date(review.created_at).toLocaleString()}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="frhq-form-grid">
+                      <label className="frhq-field">
+                        <span className="frhq-label">{t('adminFranchiseReadinessReviewOutcome')}</span>
+                        <select className="frhq-input" value={reviewForm.outcome} onChange={(e) => setReviewForm((v) => ({ ...v, outcome: e.target.value }))}>
+                          <option value="passed">{t('adminFranchiseReadinessReviewPassed')}</option>
+                          <option value="changes_requested">{t('adminFranchiseReadinessReviewChanges')}</option>
+                        </select>
+                      </label>
+                      <label className="frhq-field">
+                        <span className="frhq-label">{t('adminFranchiseReadinessReviewNotes')}</span>
+                        <textarea className="frhq-input" rows={2} value={reviewForm.notes} onChange={(e) => setReviewForm((v) => ({ ...v, notes: e.target.value }))} />
+                      </label>
+                    </div>
+                    <button type="button" className="frhq-btn-primary" disabled={saving} onClick={submitReadinessReview}>
+                      {t('adminFranchiseReadinessReviewSubmit')}
                     </button>
                   </div>
 

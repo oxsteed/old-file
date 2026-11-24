@@ -51,6 +51,7 @@ const {
   removeOpeningTeamMember,
   assignOpeningTeamMemberAsAdmin,
   removeOpeningTeamMemberAsAdmin,
+  submitReadinessReview,
 } = require('../controllers/franchiseController');
 
 const {
@@ -111,6 +112,9 @@ router.delete('/applications/:id/locations/:locationId/milestones/:milestoneId',
 // Group 12 Slice 3c (612): HQ designates/removes opening-team members.
 router.post('/applications/:id/opening-team', authenticate, requireAdmin, requirePermission('manage_operations'), assignOpeningTeamMemberAsAdmin);
 router.delete('/applications/:id/opening-team/:memberId', authenticate, requireAdmin, requirePermission('manage_operations'), removeOpeningTeamMemberAsAdmin);
+// Group 12 Slice 3c (613): HQ records a formal readiness review — the
+// only path that moves readiness to `ready`.
+router.post('/applications/:id/readiness-review', authenticate, requireAdmin, requirePermission('manage_operations'), submitReadinessReview);
 router.put('/applications/:id/agreement', authenticate, requireAdmin, requirePermission('manage_operations'), upsertFranchiseAgreement);
 // Review P2-9-F09: the applicant signs from their own account (admins cannot
 // assert the applicant's signature). Authenticated, not admin-gated.

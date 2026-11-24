@@ -14,6 +14,7 @@ import './FranchiseApplicationDetail.css';
 import FranchiseBoundarySummary from './FranchiseBoundarySummary';
 import FranchiseLaunchPlan from './FranchiseLaunchPlan';
 import FranchiseOpenLocations from './FranchiseOpenLocations';
+import FranchiseReadinessReviews from './FranchiseReadinessReviews';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
 const DOC_CATEGORY_KEYS = {
@@ -509,6 +510,9 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onMilestoneStatusChange={updateMilestoneStatus}
         disabled={busy}
       />
+
+      {/* Group 12 Slice 3c (613): the formal readiness reviews. */}
+      <FranchiseReadinessReviews reviews={detail.readiness_reviews || []} />
 
       {/* Group 12 Slice 3b (610, D-310): the operator-facing assignment history. */}
       <section className="fr-detail-card">
