@@ -76,6 +76,9 @@ interface Booking {
   deposit_status?: 'none' | 'due' | 'held' | 'returned' | 'partially_withheld' | 'withheld';
   deposit_withheld_amount?: number | string | null;
   deposit_resolution_note?: string | null;
+  owner_approval?: 'pending' | 'approved' | 'declined';
+  owner_approval_at?: string | null;
+  owner_decline_reason?: string | null;
 }
 
 const MyBookingsPageContent = () => {
@@ -126,7 +129,14 @@ const MyBookingsPageContent = () => {
   // sending the first invoice. The acceptance is recorded server-side in
   // tool_rental_terms_acceptance (owner role); the invoice endpoint also
   // enforces it so the modal cannot be bypassed.
+  // Group 11 item 568 (D-258): approval precedes invoicing. The invoice
+  // endpoint enforces it server-side; the button stays disabled until
+  // the owner approves, so the flow is visible before the server refuses.
   const handleSendInvoice = async (booking: Booking) => {
+    if (booking.owner_approval !== 'approved') {
+      toast.error(t('toolRentals.approvalRequiredBeforeInvoice') || 'Approve this request before sending the invoice.');
+      return;
+    }
     try {
       const { data } = await api.get(`/tool-rentals/bookings/${booking.id}/terms-status`);
       if (data?.ownerAccepted) {
@@ -140,6 +150,37 @@ const MyBookingsPageContent = () => {
     }
     setTermsBookingId(booking.id);
     setTermsModalOpen(true);
+  };
+
+  // Group 11 item 568: explicit owner approve/decline, distinct from
+  // invoicing. Decline closes the request with a reason the renter sees.
+  const handleApproveBooking = async (booking: Booking) => {
+    try {
+      await toolRentalsApi.approveBooking(booking.id);
+      toast.success(t('toolRentals.approvalApproved') || 'Approved');
+      loadBookings();
+    } catch (err) {
+      toast.error(t('toolRentals.approvalFailed') || 'Could not approve the request');
+    }
+  };
+
+  const handleDeclineBooking = async (booking: Booking) => {
+    const reason = window.prompt(
+      t('toolRentals.declineReasonPrompt') || 'Why are you declining this request? The renter will see this reason.',
+      ''
+    );
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error(t('toolRentals.declineReasonPrompt') || 'Why are you declining this request? The renter will see this reason.');
+      return;
+    }
+    try {
+      await toolRentalsApi.declineBooking(booking.id, reason.trim());
+      toast.success(t('toolRentals.declineRequest') || 'Decline');
+      loadBookings();
+    } catch (err) {
+      toast.error(t('toolRentals.declineFailed') || 'Could not decline the request');
+    }
   };
 
   const handleStatusUpdate = async (bookingId: number, newStatus: string, extra: Record<string, unknown> = {}) => {
@@ -305,22 +346,53 @@ const MyBookingsPageContent = () => {
         )}
       </div>
 
+      {/* Group 11 item 568 (D-258): approval is a distinct step before
+          invoicing. The owner approves or declines the request; the
+          invoice button stays disabled until the request is approved. */}
       {isOwner && booking.status === 'pending' && (
         <div className="booking-card-actions">
           <button
+            onClick={() => handleApproveBooking(booking)}
+            className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.18"
+          >
+            {t('toolRentals.approveRequest') || 'Approve request'}
+          </button>
+          <button
+            onClick={() => handleDeclineBooking(booking)}
+            className="booking-action-btn booking-action-decline" data-track="ui.5655b990ea.19"
+          >
+            {t('toolRentals.declineRequest') || 'Decline request'}
+          </button>
+          <button
             onClick={() => handleSendInvoice(booking)}
+            disabled={booking.owner_approval !== 'approved'}
+            title={booking.owner_approval !== 'approved' ? (t('toolRentals.approvalRequiredBeforeInvoice') || 'Approve this request before sending the invoice.') : undefined}
             className="booking-action-btn booking-action-invoice" data-track="ui.5655b990ea.1"
           >
             <FileText className="w-4 h-4" />
             {t('toolRentals.sendInvoice') || 'Send Invoice'}
           </button>
-          <button
-            onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
-            className="booking-action-btn booking-action-decline" data-track="ui.5655b990ea.2"
-          >
-            {t('toolRentals.decline') || 'Decline'}
-          </button>
         </div>
+      )}
+
+      {booking.status === 'pending' && booking.owner_approval === 'approved' && (
+        <p className="booking-card-note">
+          {isOwner
+            ? (t('toolRentals.approvedNote') || 'You approved this request. You can now send the invoice.')
+            : (t('toolRentals.approvedNoteRenter') || 'The owner approved your request. The invoice is on its way.')}
+        </p>
+      )}
+
+      {!isOwner && booking.status === 'pending' && booking.owner_approval !== 'approved' && (
+        <p className="booking-card-note">
+          {t('toolRentals.awaitingApproval') || 'Waiting for the owner to approve this request.'}
+        </p>
+      )}
+
+      {booking.status === 'cancelled' && booking.owner_decline_reason && (
+        <p className="booking-card-note">
+          {t('toolRentals.declineReasonLabel') || 'Decline reason:'} {booking.owner_decline_reason}
+        </p>
       )}
 
       {Number(booking.deposit_amount || 0) > 0 && booking.deposit_status && booking.deposit_status !== 'none' && (

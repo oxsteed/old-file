@@ -126,6 +126,17 @@ export const toolRentalsApi = {
     return response.data;
   },
 
+  // Group 11 item 568: explicit owner approve/decline, distinct from invoicing.
+  approveBooking: async (bookingId) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/approve`);
+    return response.data;
+  },
+
+  declineBooking: async (bookingId, reason) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/decline`, { reason });
+    return response.data;
+  },
+
   updateBookingStatus: async (bookingId, status, extra = {}) => {
     const response = await api.put(`/tool-rentals/bookings/${bookingId}`, { status, ...extra });
     return response.data;

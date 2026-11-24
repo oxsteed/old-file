@@ -312,6 +312,84 @@ const updateBookingStatus = async (req, res, next) => {
   }
 };
 
+// Group 11 item 568 (D-258): explicit owner approval, distinct from
+// invoicing. The owner accepts the pending request first; only then can
+// the first invoice be sent (enforced in invoiceController). Decline
+// closes the request with a reason and notifies the renter. Both actions
+// are owner-only and server-enforced.
+async function loadBookingForOwnerApproval(bookingId, userId) {
+  const bookingQuery = await db.query(
+    'SELECT * FROM tool_rentals_bookings WHERE id = $1',
+    [bookingId]
+  );
+  const booking = bookingQuery.rows[0];
+  if (!booking) throw new AppError('Booking not found', 404, 'not_found');
+  if (booking.owner_id !== userId) {
+    // A party on the wrong side gets 403; anyone else gets 404 so the
+    // booking's existence is not leaked.
+    if (booking.customer_id === userId) throw new AppError('Only the tool owner can decide on this request', 403, 'forbidden');
+    throw new AppError('Booking not found', 404, 'not_found');
+  }
+  return booking;
+}
+
+const approveBooking = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await loadBookingForOwnerApproval(bookingId, req.user.id);
+    if (booking.status !== 'pending' || booking.owner_approval !== 'pending') {
+      throw new AppError('This request can no longer be approved', 409, 'state_conflict');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET owner_approval = 'approved', owner_approval_at = NOW()
+        WHERE id = $1 AND owner_approval = 'pending' AND status = 'pending'
+        RETURNING *`,
+      [bookingId]
+    );
+    if (!rows[0]) throw new AppError('This request can no longer be approved', 409, 'state_conflict');
+    res.json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const declineBooking = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+    if (!reason) {
+      throw new AppError('A decline reason is required', 400, 'validation_failed', { reason: 'Tell the renter why the request was declined' });
+    }
+    if (reason.length > 2000) {
+      throw new AppError('Decline reason is too long', 400, 'validation_failed', { reason: 'Keep the reason under 2000 characters' });
+    }
+    const booking = await loadBookingForOwnerApproval(bookingId, req.user.id);
+    if (booking.status !== 'pending' || booking.owner_approval !== 'pending') {
+      throw new AppError('This request can no longer be declined', 409, 'state_conflict');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET owner_approval = 'declined', owner_approval_at = NOW(),
+              owner_decline_reason = $2, status = 'cancelled'
+        WHERE id = $1 AND owner_approval = 'pending' AND status = 'pending'
+        RETURNING *`,
+      [bookingId, reason]
+    );
+    if (!rows[0]) throw new AppError('This request can no longer be declined', 409, 'state_conflict');
+    const updated = rows[0];
+    // Notify the renter, same as a cancellation (record-only; D-257).
+    const customerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [booking.customer_id]);
+    const toolData = await db.query('SELECT name FROM tool_rentals WHERE id = $1', [booking.tool_id]);
+    if (customerData.rows[0] && toolData.rows[0]) {
+      bookingEmailService.sendBookingDeclined(updated, toolData.rows[0], customerData.rows[0]);
+    }
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+};
+
 const checkAvailability = async (req, res, next) => {
   try {
     const { toolId } = req.params;
@@ -331,4 +409,4 @@ const checkAvailability = async (req, res, next) => {
   }
 };
 
-module.exports = { createBooking, getMyBookings, getBookingsByOwner, updateBookingStatus, checkAvailability };
+module.exports = { createBooking, getMyBookings, getBookingsByOwner, updateBookingStatus, checkAvailability, approveBooking, declineBooking };

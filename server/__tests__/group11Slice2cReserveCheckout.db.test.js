@@ -234,4 +234,147 @@ describeDb('Group 11 Slice 2c: Reserve + Checkout (566, 568, 570, 571, 574, 575)
       expect(clear.status).toBe(201);
     });
   });
+
+  describe('568: explicit owner approve/decline', () => {
+    async function insertPaymentMethod(ownerId) {
+      await db.query(
+        `INSERT INTO owner_payment_methods (owner_id, payment_type, payment_identifier)
+         VALUES ($1, 'venmo', '@owner') ON CONFLICT (owner_id) DO NOTHING`,
+        [ownerId],
+      );
+    }
+
+    async function insertTermsAcceptance(bookingId, userId) {
+      await db.query(
+        `INSERT INTO tool_rental_terms_acceptance (booking_id, user_id, user_role, terms_version, ip_address, user_agent)
+         VALUES ($1, $2, 'owner', '1.1', '127.0.0.1', 'test')`,
+        [bookingId, userId],
+      );
+    }
+
+    const attemptInvoice = (ownerId, bookingId) => request(app)
+      .post('/api/tool-rentals/invoices')
+      .set('x-test-user', ownerId)
+      .set('Idempotency-Key', randomUUID())
+      .send({ bookingId, deliveryMethod: 'in_platform' });
+
+    async function pendingRequest() {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Approval drill' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12');
+      return { owner, renter, tool, booking };
+    }
+
+    test('owner approves a pending request; a second approval is refused', async () => {
+      const { owner, booking } = await pendingRequest();
+      const res = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', owner)
+        .expect(200);
+      expect(res.body.owner_approval).toBe('approved');
+      expect(res.body.owner_approval_at).toBeTruthy();
+      expect(res.body.status).toBe('pending');
+      const again = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', owner)
+        .expect(409);
+      expect(again.body.code).toBe('state_conflict');
+    });
+
+    test('the renter cannot approve, and a stranger cannot approve', async () => {
+      const { owner, renter, booking } = await pendingRequest();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', renter)
+        .expect(403);
+      const stranger = await addUser();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', stranger)
+        .expect(404);
+      // The request is still pending and unapproved afterwards.
+      const { rows } = await db.query(
+        'SELECT owner_approval, status FROM tool_rentals_bookings WHERE id = $1', [booking.id],
+      );
+      expect(rows[0].owner_approval).toBe('pending');
+      expect(rows[0].status).toBe('pending');
+      void owner;
+    });
+
+    test('owner declines with a reason: the request closes and the reason is stored', async () => {
+      const { owner, renter, booking } = await pendingRequest();
+      const res = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/decline`)
+        .set('x-test-user', owner)
+        .send({ reason: 'Tool is out for repair that week.' })
+        .expect(200);
+      expect(res.body.owner_approval).toBe('declined');
+      expect(res.body.status).toBe('cancelled');
+      expect(res.body.owner_decline_reason).toBe('Tool is out for repair that week.');
+      // A declined request can no longer be approved or declined again.
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', owner)
+        .expect(409);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/decline`)
+        .set('x-test-user', owner)
+        .send({ reason: 'Changed my mind.' })
+        .expect(409);
+      void renter;
+    });
+
+    test('decline without a reason is refused, and the renter cannot decline', async () => {
+      const { owner, renter, booking } = await pendingRequest();
+      const noReason = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/decline`)
+        .set('x-test-user', owner)
+        .send({ reason: '   ' })
+        .expect(400);
+      expect(noReason.body.code).toBe('validation_failed');
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/decline`)
+        .set('x-test-user', renter)
+        .send({ reason: 'I changed my mind.' })
+        .expect(403);
+    });
+
+    test('the first invoice is refused until the owner approves, then issued', async () => {
+      const { owner, booking } = await pendingRequest();
+      await insertPaymentMethod(owner);
+      await insertTermsAcceptance(booking.id, owner);
+      // Approval gate fires before the terms/payment legs.
+      const blocked = await attemptInvoice(owner, booking.id);
+      expect(blocked.status).toBe(409);
+      expect(blocked.body.error).toBe('owner_approval_required');
+
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', owner)
+        .expect(200);
+      // Terms acceptance was already recorded, so the invoice issues.
+      const issued = await attemptInvoice(owner, booking.id);
+      expect(issued.status).toBe(200);
+      expect(issued.body.invoiceId).toBeTruthy();
+      expect(issued.body.invoiceNumber).toMatch(/^INV-/);
+      const { rows } = await db.query(
+        'SELECT status FROM tool_rentals_bookings WHERE id = $1', [booking.id],
+      );
+      expect(rows[0].status).toBe('invoice_sent');
+    });
+
+    test('approval alone does not bypass the terms gate', async () => {
+      const { owner, booking } = await pendingRequest();
+      await insertPaymentMethod(owner);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', owner)
+        .expect(200);
+      const res = await attemptInvoice(owner, booking.id);
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe('owner_terms_not_accepted');
+    });
+  });
 });

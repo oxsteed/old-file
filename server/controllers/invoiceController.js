@@ -158,6 +158,14 @@ const createInvoice = async (req, res) => {
       });
     }
 
+    // Group 11 item 568 (D-258): the owner must approve the request
+    // before the first invoice. Fail closed: an invoice request from a
+    // client that skipped the approval step is refused, not issued.
+    if (booking.owner_approval !== 'approved') {
+      client.release();
+      return res.status(409).json({ error: 'owner_approval_required' });
+    }
+
     // P3-12-F09: the owner must accept the per-booking rental terms before
     // the first invoice. Fail closed: an invoice request from a client that
     // skipped the terms modal is refused rather than silently issued.
