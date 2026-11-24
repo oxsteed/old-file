@@ -2387,6 +2387,11 @@
   "adminParticipantTypeRentalSeller": "Vandè lokasyon",
   "adminGuestCreditCaps": "Limit kredi pou vizitè (politik fiks)",
   "adminGuestCreditCapsDescription": "Vizitè yo ka depanse Kredi OxSteed jiska $25 pa kòmann, $50 pa jou, ak $200 pou tout lavi pa sesyon. Depans vizitè yo finanse apati de trezò platfòm nan. Limit sa yo fiks epi yo aplike pou tout patisipan yo.",
+  "pendingActivity": "Aktivite annatant",
+  "pendingTopups": "Rechaj annatant",
+  "pendingTopupsCopy": "Rechaj ki poko kredite. Lajan an ajoute sou balans ou yon fwa peman an konfime.",
+  "viewTopup": "Wè rechaj la",
+  "requestedAt": "Mande {{date}}",
   "walletTopup": {
     "title": "Ajoute lajan",
     "intro": "Ajoute lajan nan OxSteed Credit ak yon kat. Li antre lè peman an konfime.",
@@ -2406,7 +2411,12 @@
       "completed": "Kredite",
       "failed": "Echwe",
       "requires_attention": "Bezwen atansyon"
-    }
+    },
+    "viewingTitle": "Dosye rechaj la",
+    "viewingCopy": "Detay rechaj ou te louvri nan paj Kredi ou a.",
+    "viewingNotFound": "Rechaj sa a pa jwenn. Li ka pou yon lòt kont.",
+    "viewingLoading": "Ap chaje dosye rechaj la…",
+    "viewNewTopup": "Ajoute yon lòt montan"
   },
   "identityVerification": {
     "eyebrow": "Verifikasyon idantite",

@@ -2387,6 +2387,11 @@
   "adminParticipantTypeRentalSeller": "Vendeur de locations",
   "adminGuestCreditCaps": "Plafonds de crédit invité (politique fixe)",
   "adminGuestCreditCapsDescription": "Les invités peuvent dépenser du crédit OxSteed jusqu'à 25 $ par commande, 50 $ par jour et 200 $ à vie par session. Les dépenses des invités sont financées par la trésorerie de la plateforme. Ces plafonds sont fixes et s'appliquent à tous les participants.",
+  "pendingActivity": "Activité en attente",
+  "pendingTopups": "Recharges en attente",
+  "pendingTopupsCopy": "Recharges pas encore créditées. L'argent est ajouté à votre solde une fois le paiement confirmé.",
+  "viewTopup": "Voir la recharge",
+  "requestedAt": "Demandée le {{date}}",
   "walletTopup": {
     "title": "Ajouter de l'argent",
     "intro": "Ajoutez de l'argent à OxSteed Credit par carte. Il est crédité une fois le paiement confirmé.",
@@ -2406,7 +2411,12 @@
       "completed": "Crédité",
       "failed": "Échoué",
       "requires_attention": "Nécessite une attention"
-    }
+    },
+    "viewingTitle": "Détail de la recharge",
+    "viewingCopy": "Détails de la recharge ouverte depuis votre page Crédit.",
+    "viewingNotFound": "Cette recharge est introuvable. Elle appartient peut-être à un autre compte.",
+    "viewingLoading": "Chargement du détail de la recharge…",
+    "viewNewTopup": "Ajouter un autre montant"
   },
   "identityVerification": {
     "eyebrow": "Vérification d'identité",

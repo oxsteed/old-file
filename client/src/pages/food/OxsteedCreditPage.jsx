@@ -41,6 +41,7 @@ import {
   getOxsteedCreditTransferRecipient,
   listOxsteedCreditWithdrawals,
   cancelOxsteedCreditWithdrawal,
+  listOxsteedCreditTopups,
   createOxsteedCreditRestaurantConversion,
   getRestaurantConversionEligibility,
   issueOxsteedCreditMoneyOutStepup,
@@ -124,6 +125,17 @@ function holdStatusLabel(status, t) {
   }[status] || t('reservationStatus');
 }
 
+// Group 13 Slice 4b (657): top-up statuses reuse the walletTopup.status
+// labels the top-up panel already localizes.
+function topupStatusLabel(status, t) {
+  return {
+    pending: t('walletTopup.status.pending'),
+    completed: t('walletTopup.status.completed'),
+    failed: t('walletTopup.status.failed'),
+    requires_attention: t('walletTopup.status.requires_attention'),
+  }[status] || t('walletTopup.status.pending');
+}
+
 function holdTerminalDate(hold, t) {
   if (hold.status === 'captured' && hold.capturedAt) return t('capturedAt', { date: dateTime(hold.capturedAt, t) });
   if (['released', 'expired'].includes(hold.status) && hold.releasedAt) return t('releasedAt', { status: holdStatusLabel(hold.status, t), date: dateTime(hold.releasedAt, t) });
@@ -192,6 +204,8 @@ export default function OxsteedCreditPage() {
   const [withdrawals, setWithdrawals] = useState([]);
   const [createdWithdrawal, setCreatedWithdrawal] = useState(null);
   const [cancellingWithdrawalId, setCancellingWithdrawalId] = useState(null);
+  // Group 13 Slice 4b (657): pending top-ups on the pending-activity list.
+  const [pendingTopups, setPendingTopups] = useState([]);
   // Customer-to-customer transfer state.
   const [transferRecipientId, setTransferRecipientId] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
@@ -652,6 +666,22 @@ export default function OxsteedCreditPage() {
     loadWithdrawals();
   }, [loadWithdrawals]);
 
+  // Group 13 Slice 4b (657): pending top-ups are listed from the existing
+  // top-up read path; completed/failed top-ups stay out of the pending
+  // list and are visible on the Wallet page panel instead.
+  const loadPendingTopups = useCallback(async () => {
+    try {
+      const rows = await listOxsteedCreditTopups({ status: 'pending', limit: 25, offset: 0 });
+      setPendingTopups(Array.isArray(rows) ? rows : []);
+    } catch {
+      // Pending top-ups are non-critical; the page stays usable.
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPendingTopups();
+  }, [loadPendingTopups]);
+
   const refreshWithdrawalFeeQuote = (rawAmount) => {
     if (withdrawalQuoteTimerRef.current) clearTimeout(withdrawalQuoteTimerRef.current);
     const amountCents = parseCreditMajorAmount(rawAmount, selectedCurrency, railStatus?.currencyMetadata);
@@ -1068,6 +1098,8 @@ export default function OxsteedCreditPage() {
                   {accountStatus === 'active' && partners.length > 0 && <section className="ox-credit-panel ox-credit-authorize-panel" aria-labelledby="credit-authorize-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('customerAuthorization')}</p><h2 id="credit-authorize-heading">{t('authorizeInStorePayment')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('authorizeCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitHold}><label>{t('restaurant')}<select required value={holdPartnerId} onChange={(event) => { const nextPartnerId = event.target.value; const nextPartner = partners.find((partner) => String(partner.partnerId) === String(nextPartnerId)); setHoldPartnerId(nextPartnerId); setHoldOrderType(nextPartner?.allowedOrderTypes?.[0] || 'pickup'); }}><option value="">{t('selectRestaurant')}</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName}{partner.city ? ` · ${partner.city}` : ''}</option>)}</select></label><label>{t('orderType')}<select required value={holdOrderType} onChange={(event) => setHoldOrderType(event.target.value)}>{holdOrderTypes.map((type) => <option key={type} value={type}>{localizeCreditOrderType(type, t)}</option>)}</select></label><label>{t('amount')}<input required inputMode="decimal" value={holdAmount} onChange={(event) => setHoldAmount(event.target.value)} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><label>{t('purposeOptional')}<input value={holdPurpose} onChange={(event) => setHoldPurpose(event.target.value)} maxLength={100} placeholder={t('restaurantPurchase')} /></label><button type="submit" disabled={holdSubmitting}>{holdSubmitting ? t('creatingAuthorization') : t('createAuthorization')}</button></form>{createdHold?.id && <div className="ox-credit-created-hold"><strong>{t('holdIdInstruction')}</strong><code>{createdHold.id}</code><span>{t('holdDetails', { amount: money(createdHold.amountCents, createdHold.currencyCode || currency), date: dateTime(createdHold.expiresAt, t) })}</span><button type="button" onClick={copyHoldId}>{t('copyHoldId')}</button></div>}</section>}
 
               {!!holds.length && <section className="ox-credit-panel ox-credit-holds-panel"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reservationHistory')}</p><h2>{t('creditHolds')}</h2></div><span className="ox-credit-count">{holds.length}{holdPagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('holdsCopy')}</p>{!!activeHolds.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('activeReservations')}</strong><span>{activeHolds.length}</span></div><div className="ox-credit-hold-list">{activeHolds.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className="ox-credit-hold-status active">{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{!!holdHistory.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('completedReservations')}</strong><span>{holdHistory.length}</span></div><div className="ox-credit-hold-list">{holdHistory.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${hold.status}`}>{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{holdPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreHolds} disabled={loadingMoreHolds || refreshing}><RefreshCw size={14} className={loadingMoreHolds ? 'ox-credit-spin' : ''} /> {loadingMoreHolds ? t('loadingOlderHolds') : t('loadOlderHolds')}</button>}</section>}
+
+              {!!pendingTopups.length && <section className="ox-credit-panel ox-credit-topups-panel" aria-labelledby="credit-pending-topups-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('pendingActivity')}</p><h2 id="credit-pending-topups-heading">{t('pendingTopups')}</h2></div><span className="ox-credit-count">{pendingTopups.length}</span></div><p className="ox-credit-panel-copy">{t('pendingTopupsCopy')}</p><div className="ox-credit-hold-list">{pendingTopups.map((topup) => <article key={topup.id}><div><strong>{money(topup.amountCents, topup.currencyCode || currency)}</strong><span>{topupStatusLabel(topup.status, t)}</span><small>{t('requestedAt', { date: dateTime(topup.createdAt, t) })}{topup.expiresAt ? ` · ${t('expiresAt', { date: dateTime(topup.expiresAt, t) })}` : ''}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${topup.status}`}>{topupStatusLabel(topup.status, t)}</span><Link to={`/wallet?topupId=${encodeURIComponent(topup.id)}`} className="ox-credit-detail-link">{t('viewTopup')}</Link></div></article>)}</div></section>}
 
               {!!activeHolds.length && <section className="ox-credit-panel ox-credit-release-panel" aria-labelledby="credit-release-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('authorizationControls')}</p><h2 id="credit-release-heading">{t('unusedAuthorizations')}</h2></div></div><p className="ox-credit-panel-copy">{t('cancelAuthorizationCopy')}</p><div className="ox-credit-release-list">{activeHolds.map((hold) => <div key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{money(hold.amountCents, hold.currencyCode || currency)} · {holdTerminalDate(hold, t)}</span></div><button type="button" onClick={() => releaseHold(hold)} disabled={releasingHoldId === hold.id}>{releasingHoldId === hold.id ? t('releasing') : t('releaseHold')}</button></div>)}</div></section>}
 

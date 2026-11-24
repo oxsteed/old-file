@@ -2387,6 +2387,11 @@
   "adminParticipantTypeRentalSeller": "بائع الإيجارات",
   "adminGuestCreditCaps": "حدود ائتمان الضيوف (سياسة ثابتة)",
   "adminGuestCreditCapsDescription": "يمكن للضيوف إنفاق رصيد OxSteed حتى 25 دولارًا لكل طلب و50 دولارًا يوميًا و200 دولار مدى الحياة لكل جلسة. يتم تمويل إنفاق الضيوف من خزانة المنصة. هذه الحدود ثابتة وتنطبق على جميع المشاركين.",
+  "pendingActivity": "النشاط المعلّق",
+  "pendingTopups": "عمليات الشحن المعلّقة",
+  "pendingTopupsCopy": "عمليات شحن لم تُضف إلى رصيدك بعد. تُضاف الأموال إلى رصيدك فور تأكيد الدفع.",
+  "viewTopup": "عرض عملية الشحن",
+  "requestedAt": "طُلبت في {{date}}",
   "walletTopup": {
     "title": "إضافة رصيد",
     "intro": "أضف رصيدًا إلى OxSteed Credit بالبطاقة. تتم إضافته بعد تأكيد الدفع.",
@@ -2406,7 +2411,12 @@
       "completed": "تم الإيداع",
       "failed": "فشل",
       "requires_attention": "يحتاج إلى انتباه"
-    }
+    },
+    "viewingTitle": "سجل عملية الشحن",
+    "viewingCopy": "تفاصيل عملية الشحن التي فتحتها من صفحة رصيدك.",
+    "viewingNotFound": "تعذّر العثور على عملية الشحن هذه. قد تخص حسابًا آخر.",
+    "viewingLoading": "جارٍ تحميل سجل عملية الشحن…",
+    "viewNewTopup": "إضافة مبلغ مختلف"
   },
   "identityVerification": {
     "eyebrow": "التحقق من الهوية",

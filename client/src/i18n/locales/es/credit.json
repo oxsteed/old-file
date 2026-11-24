@@ -2387,6 +2387,11 @@
   "adminParticipantTypeRentalSeller": "Vendedor de alquileres",
   "adminGuestCreditCaps": "Límites de crédito para invitados (política fija)",
   "adminGuestCreditCapsDescription": "Los invitados pueden gastar Crédito OxSteed hasta $25 por pedido, $50 por día y $200 de por vida por sesión. El gasto de invitados se financia desde la tesorería de la plataforma. Estos límites son fijos y se aplican a todos los participantes.",
+  "pendingActivity": "Actividad pendiente",
+  "pendingTopups": "Recargas pendientes",
+  "pendingTopupsCopy": "Recargas que aún no se han acreditado. El dinero se suma a tu saldo cuando se confirme el pago.",
+  "viewTopup": "Ver recarga",
+  "requestedAt": "Solicitada {{date}}",
   "walletTopup": {
     "title": "Agregar dinero",
     "intro": "Agrega dinero a OxSteed Credit con tarjeta. Se acredita cuando se confirma el pago.",
@@ -2406,7 +2411,12 @@
       "completed": "Acreditado",
       "failed": "Fallido",
       "requires_attention": "Necesita atención"
-    }
+    },
+    "viewingTitle": "Registro de recarga",
+    "viewingCopy": "Detalles de la recarga que abriste desde tu página de Crédito.",
+    "viewingNotFound": "No se encontró esa recarga. Puede pertenecer a otra cuenta.",
+    "viewingLoading": "Cargando el registro de recarga…",
+    "viewNewTopup": "Agregar otro importe"
   },
   "identityVerification": {
     "eyebrow": "Verificación de identidad",

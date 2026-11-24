@@ -11,6 +11,7 @@ import {
 import { createBusinessCreditTopup, getBusinessCreditTopup } from '../../api/businesses';
 import { createStableIdempotencyKeyStore } from '../../lib/idempotency';
 import { formatCreditMinorUnits, parseCreditMajorAmount } from '../../lib/creditCurrency';
+import { formatCreditDateTime } from '../../lib/creditDateTime';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
 
 // Review P2-549: add money to OxSteed Credit by card. Mirrors the restaurant
@@ -78,13 +79,20 @@ function CardStep({ clientSecret, amountCents, currency, onConfirmed }) {
   );
 }
 
-// G-22: when businessFunding ({ businessId, members }) is passed, the panel
+// Group 13 Slice 4b (657): when businessFunding ({ businessId, members }) is passed, the panel
 // funds a named member's Credit from the business payment method: the
 // owner/manager pays with their own card and the member is credited.
 // The self-service flow (no businessFunding) is unchanged.
-export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = false, onCredited, businessFunding = null }) {
+// initialTopupId deep-links to one top-up record (from the Credit page's
+// pending top-ups list): the panel loads that record through the existing
+// GET /topups/:id read path and shows it read-only instead of the amount
+// form. A record the caller cannot read (another customer's top-up)
+// falls through to the amount form with a notice, never an error page.
+export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = false, onCredited, businessFunding = null, initialTopupId = null }) {
   const { t } = useTranslation('credit');
-  const [step, setStep] = useState('amount');
+  const [step, setStep] = useState(initialTopupId ? 'viewing' : 'amount');
+  const [viewedTopup, setViewedTopup] = useState(null);
+  const [viewedTopupError, setViewedTopupError] = useState(false);
   const [amount, setAmount] = useState('');
   const [amountCents, setAmountCents] = useState(0);
   const [memberId, setMemberId] = useState('');
@@ -103,8 +111,59 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
   }, []);
   useEffect(() => stopPolling, [stopPolling]);
 
+  function dateTime(value) {
+    return formatCreditDateTime(value, t('noDate'), t.lng);
+  }
+
+  function topupStatusLabel(status) {
+    return {
+      pending: t('walletTopup.status.pending'),
+      completed: t('walletTopup.status.completed'),
+      failed: t('walletTopup.status.failed'),
+      requires_attention: t('walletTopup.status.requires_attention'),
+    }[status] || t('walletTopup.status.pending');
+  }
+
+  // Deep-linked record view (657): load the named top-up once. The fetch
+  // reuses the same owner-scoped read the panel already polls after a
+  // creation, so a record belonging to someone else is simply not found.
+  useEffect(() => {
+    if (!initialTopupId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const record = businessFunding
+          ? (await getBusinessCreditTopup(businessFunding.businessId, initialTopupId))?.topup || null
+          : (await getOxsteedCreditTopup(initialTopupId))?.topup || null;
+        if (cancelled) return;
+        if (record) {
+          setViewedTopup(record);
+          setStep('viewing');
+        } else {
+          setViewedTopupError(true);
+          setStep('amount');
+        }
+      } catch {
+        if (!cancelled) {
+          setViewedTopupError(true);
+          setStep('amount');
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [initialTopupId, businessFunding]);
+
+  const clearViewing = () => {
+    stopPolling();
+    setViewedTopup(null);
+    setViewedTopupError(false);
+    setStep('amount');
+  };
+
   const reset = () => {
     stopPolling();
+    setViewedTopup(null);
+    setViewedTopupError(false);
     setStep('amount');
     setIntent(null);
     setChallengeId(null);
@@ -207,17 +266,31 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
     begin(amountCents, { stepupChallengeId: challengeId, stepupCode: code.trim() });
   };
 
+  const viewingTopup = step === 'viewing' ? viewedTopup : null;
   if (!stripePromise) return null;
 
   return (
     <section className="ox-credit-panel" aria-labelledby="wallet-topup-heading" data-testid="wallet-topup">
       <div className="ox-credit-panel-heading">
         <div>
-          <h2 id="wallet-topup-heading">{businessFunding ? t('walletTopup.businessTitle') : t('walletTopup.title')}</h2>
-          <p className="ox-credit-panel-copy">{businessFunding ? t('walletTopup.businessIntro') : t('walletTopup.intro')}</p>
+          <h2 id="wallet-topup-heading">{viewingTopup ? t('walletTopup.viewingTitle') : businessFunding ? t('walletTopup.businessTitle') : t('walletTopup.title')}</h2>
+          <p className="ox-credit-panel-copy">{viewingTopup ? t('walletTopup.viewingCopy') : businessFunding ? t('walletTopup.businessIntro') : t('walletTopup.intro')}</p>
         </div>
       </div>
+      {viewedTopupError && <p role="alert" className="credit-field-error">{t('walletTopup.viewingNotFound')}</p>}
       {message && <p role={message.tone === 'error' ? 'alert' : 'status'} className="credit-modal-subtitle">{message.text}</p>}
+      {step === 'viewing' && !viewingTopup && <p role="status" className="credit-modal-subtitle">{t('walletTopup.viewingLoading')}</p>}
+      {viewingTopup && (
+        <div>
+          <div className="ox-credit-hold-list">
+            <article>
+              <div><strong>{formatCreditMinorUnits(viewingTopup.amountCents, viewingTopup.currencyCode || currency)}</strong><span>{topupStatusLabel(viewingTopup.status)}</span><small>{t('requestedAt', { date: dateTime(viewingTopup.createdAt) })}{viewingTopup.expiresAt ? ` · ${t('expiresAt', { date: dateTime(viewingTopup.expiresAt) })}` : ''}</small></div>
+              <div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${viewingTopup.status}`}>{topupStatusLabel(viewingTopup.status)}</span></div>
+            </article>
+          </div>
+          <button type="button" className="credit-secondary" onClick={clearViewing} data-track-private>{t('walletTopup.viewNewTopup')}</button>
+        </div>
+      )}
       {step === 'amount' && (
         <form className="credit-form" onSubmit={submitAmount} data-track-private>
           {businessFunding && <>

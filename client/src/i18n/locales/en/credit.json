@@ -2387,6 +2387,11 @@
   "adminParticipantTypeRentalSeller": "Rental seller",
   "adminGuestCreditCaps": "Guest Credit caps (fixed policy)",
   "adminGuestCreditCapsDescription": "Guests can spend OxSteed Credit up to $25 per order, $50 per day, and $200 lifetime per session. Guest spend is funded from platform treasury. These caps are fixed and apply to all participants.",
+  "pendingActivity": "Pending activity",
+  "pendingTopups": "Pending top-ups",
+  "pendingTopupsCopy": "Top-ups that have not cleared yet. The money is added to your balance once the payment clears.",
+  "viewTopup": "View top-up",
+  "requestedAt": "Requested {{date}}",
   "walletTopup": {
     "title": "Add money",
     "intro": "Add money to OxSteed Credit with a card. It is credited once the payment clears.",
@@ -2406,7 +2411,12 @@
       "completed": "Credited",
       "failed": "Failed",
       "requires_attention": "Needs attention"
-    }
+    },
+    "viewingTitle": "Top-up record",
+    "viewingCopy": "Details of the top-up you opened from your Credit page.",
+    "viewingNotFound": "That top-up could not be found. It may belong to another account.",
+    "viewingLoading": "Loading top-up record…",
+    "viewNewTopup": "Add a different amount"
   },
   "identityVerification": {
     "eyebrow": "Identity check",
