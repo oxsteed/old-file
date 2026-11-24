@@ -386,4 +386,97 @@ describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', (
       expect(openStats.body.application.id).toBe(applicationId);
     });
   });
+  describe('607: assignment boundary summary', () => {
+    function addArea(adminId, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/applications/${applicationId}/areas`)
+        .set('x-test-user', adminId)
+        .send(body);
+    }
+
+    test('a new application seeds one included area from its territory fields; exclusivity defaults to false', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      expect(detail.body.territory_areas).toHaveLength(1);
+      const seeded = detail.body.territory_areas[0];
+      expect(seeded.country).toBe('US');
+      expect(seeded.region).toBe('Texas');
+      expect(seeded.city).toBe('Austin');
+      expect(seeded.area_type).toBe('included');
+      expect(detail.body.application.territory_exclusive).toBe(false);
+
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      expect(bundle.body.territory_areas).toHaveLength(1);
+      expect(bundle.body.agreement.territory_exclusive).toBe(false);
+    });
+
+    test('HQ adds included and excluded areas; the operator sees them read-only; exclusivity surfaces from the agreement', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      const added = await addArea(admin, applicationId, { country: 'US', region: 'Texas', city: 'Dallas', area_type: 'included' }).expect(201);
+      expect(added.body.territory_areas).toHaveLength(2);
+      const excluded = await addArea(admin, applicationId, { country: 'US', region: 'Texas', city: 'Houston', area_type: 'excluded' }).expect(201);
+      expect(excluded.body.territory_areas).toHaveLength(3);
+      expect(excluded.body.territory_areas.filter((area) => area.area_type === 'excluded')).toHaveLength(1);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      expect(detail.body.territory_areas.filter((area) => area.area_type === 'included')).toHaveLength(2);
+      expect(detail.body.territory_areas.find((area) => area.city === 'Houston').area_type).toBe('excluded');
+
+      // Exclusivity is the agreement flag, surfaced to the operator.
+      const agreement = await request(app)
+        .put(`/api/franchise/applications/${applicationId}/agreement`)
+        .set('x-test-user', admin)
+        .send({ territory_exclusive: true })
+        .expect(200);
+      expect(agreement.body.agreement.territory_exclusive).toBe(true);
+      const exclusiveDetail = await applicantDetail(applicant, applicationId).expect(200);
+      expect(exclusiveDetail.body.application.territory_exclusive).toBe(true);
+    });
+
+    test('HQ removes areas, but never the last included one; bad input and non-admins are refused', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      const added = await addArea(admin, applicationId, { country: 'US', region: 'Texas', city: 'Houston', area_type: 'excluded' }).expect(201);
+      const houston = added.body.territory_areas.find((area) => area.city === 'Houston');
+      const austin = added.body.territory_areas.find((area) => area.city === 'Austin');
+
+      const removed = await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/areas/${houston.id}`)
+        .set('x-test-user', admin)
+        .expect(200);
+      expect(removed.body.territory_areas).toHaveLength(1);
+
+      const lastIncluded = await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/areas/${austin.id}`)
+        .set('x-test-user', admin);
+      expect(lastIncluded.status).toBe(409);
+      expect(lastIncluded.body.code).toBe('boundary_last_included_area');
+
+      await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/areas/${randomUUID()}`)
+        .set('x-test-user', admin)
+        .expect(404);
+      await addArea(admin, applicationId, { country: 'XX', city: 'Nowhere' }).expect(400);
+      await addArea(admin, applicationId, { country: 'US', city: 'Dallas', area_type: 'partial' }).expect(400);
+      await addArea(applicant, applicationId, { country: 'US', city: 'Dallas' }).expect(403);
+      await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/areas/${austin.id}`)
+        .set('x-test-user', applicant)
+        .expect(403);
+
+      // The refused deletes changed nothing.
+      const after = await applicantDetail(applicant, applicationId).expect(200);
+      expect(after.body.territory_areas).toHaveLength(1);
+      expect(after.body.territory_areas[0].city).toBe('Austin');
+    });
+  });
+
 });

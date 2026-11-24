@@ -36,6 +36,8 @@ const {
   addAdminFollowupMessage,
   acknowledgeResponsibilityItem,
   respondToTerritoryOffer,
+  addTerritoryArea,
+  removeTerritoryArea,
 } = require('../controllers/franchiseController');
 
 const {
@@ -71,6 +73,9 @@ router.post('/applications/:id/interviews', authenticate, requireAdmin, requireP
 router.patch('/applications/:id/interviews/:slotId', authenticate, requireAdmin, requirePermission('manage_operations'), updateInterviewSlot);
 router.patch('/applications/:id/documents/:docId', authenticate, requireAdmin, requirePermission('manage_operations'), reviewApplicationDocument);
 router.post('/applications/:id/followup', authenticate, requireAdmin, requirePermission('manage_operations'), addAdminFollowupMessage);
+// Group 12 Slice 3b (607): HQ manages the structured boundary area list.
+router.post('/applications/:id/areas', authenticate, requireAdmin, requirePermission('manage_operations'), addTerritoryArea);
+router.delete('/applications/:id/areas/:areaId', authenticate, requireAdmin, requirePermission('manage_operations'), removeTerritoryArea);
 router.put('/applications/:id/agreement', authenticate, requireAdmin, requirePermission('manage_operations'), upsertFranchiseAgreement);
 // Review P2-9-F09: the applicant signs from their own account (admins cannot
 // assert the applicant's signature). Authenticated, not admin-gated.

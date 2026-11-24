@@ -218,6 +218,23 @@ async function seedChecklist(client, applicationId) {
   }
 }
 
+// Group 12 Slice 3b (607, D-294/D-308): seed the boundary with one
+// included area from the territory the applicant asked for. HQ refines the
+// list afterwards; the operator never edits it.
+async function seedTerritoryArea(client, applicationId, { country, region, city }) {
+  if (!country) return;
+  await client.query(
+    `INSERT INTO franchise_territory_areas
+       (application_id, country, region, city, area_type, sort_order)
+     SELECT $1, $2, $3, $4, 'included', 10
+      WHERE NOT EXISTS (
+        SELECT 1 FROM franchise_territory_areas
+         WHERE application_id = $1
+      )`,
+    [applicationId, country, region || null, city || null]
+  );
+}
+
 // Group 12 Slice 3b (608, D-306): seed the operator responsibility set on
 // every new application, same pattern as the HQ checklist above.
 async function seedResponsibilityItems(client, applicationId) {
@@ -330,6 +347,15 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     [applicationId]
   );
 
+  // Group 12 Slice 3b (607): the assignment boundary area list.
+  const areaResult = await db.query(
+    `SELECT *
+       FROM franchise_territory_areas
+      WHERE application_id = $1
+      ORDER BY sort_order, id`,
+    [applicationId]
+  );
+
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
@@ -346,6 +372,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     },
     checklist,
     responsibilities,
+    territory_areas: areaResult.rows,
     agreement: agreementResult.rows[0] || null,
     notes: notesResult.rows,
     activity: activityResult.rows,
@@ -439,7 +466,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult] = await Promise.all([
+  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -478,18 +505,39 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
         ORDER BY sort_order, id`,
       [applicationId]
     ),
+    // Group 12 Slice 3b (607): the assignment boundary area list.
+    db.query(
+      `SELECT *
+         FROM franchise_territory_areas
+        WHERE application_id = $1
+        ORDER BY sort_order, id`,
+      [applicationId]
+    ),
+    // Group 12 Slice 3b (607): exclusivity lives on the agreement; the
+    // operator sees the flag, never the agreement internals.
+    db.query(
+      `SELECT territory_exclusive
+         FROM franchise_agreements
+        WHERE application_id = $1
+        LIMIT 1`,
+      [applicationId]
+    ),
   ]);
 
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
 
   return {
-    application: applicationResult.rows[0],
+    application: {
+      ...applicationResult.rows[0],
+      territory_exclusive: agreementExclusiveResult.rows[0]?.territory_exclusive ?? false,
+    },
     interviews: interviewResult.rows,
     documents,
     document_categories: documentCategorySummary(documentResult.rows),
     shared_notes: sharedNotesResult.rows,
     followup: followupResult.rows,
     responsibilities: responsibilityResult.rows,
+    territory_areas: areaResult.rows,
   };
 }
 
@@ -637,6 +685,11 @@ async function createFranchiseApplication(req, res) {
 
       await seedChecklist(client, applicationId);
       await seedResponsibilityItems(client, applicationId);
+      await seedTerritoryArea(client, applicationId, {
+        country: desiredCountry,
+        region: desiredRegion,
+        city: desiredCity,
+      });
       await logActivity(
         client,
         applicationId,
@@ -1268,6 +1321,17 @@ async function upsertFranchiseAgreement(req, res) {
         return res.status(404).json({ error: 'Franchise application not found.' });
       }
 
+      // Group 12 Slice 3b (607): pre-existing defect — the INSERT below
+      // passed a NULL currency whenever the body omitted it, and Postgres
+      // raises the NOT NULL violation before ON CONFLICT can resolve it,
+      // so every HQ agreement save without a currency 500'd (the HQ form
+      // never sends one). Fall back to the stored currency, then USD.
+      const existingAgreement = await client.query(
+        `SELECT currency FROM franchise_agreements WHERE application_id = $1`,
+        [id]
+      );
+      const existingCurrency = existingAgreement.rows[0]?.currency || null;
+
       await client.query(
         `INSERT INTO franchise_agreements (
            application_id,
@@ -1321,7 +1385,7 @@ async function upsertFranchiseAgreement(req, res) {
           body.countersigned_by || req.user?.id || null,
           body.countersigned_at || null,
           asTrimmed(body.notes),
-          agreementCurrency,
+          agreementCurrency || existingCurrency || 'USD',
         ]
       );
 
@@ -2463,6 +2527,135 @@ async function respondToTerritoryOffer(req, res) {
   }
 }
 
+/**
+ * POST /api/franchise/applications/:id/areas (admin)
+ * 607 (D-294/D-308): HQ adds one area to the assignment boundary. The
+ * country must be a valid ISO-2 code; the type is included or excluded.
+ * At most 50 areas per application.
+ */
+async function addTerritoryArea(req, res) {
+  const areaType = asTrimmed(req.body?.area_type) || 'included';
+  if (!['included', 'excluded'].includes(areaType)) {
+    return res.status(400).json({ error: 'area_type must be included or excluded.', code: 'invalid_area_type' });
+  }
+  const countryRaw = asTrimmed(req.body?.country);
+  if (!countryRaw || !countriesUtil.isValidCountry(countryRaw)) {
+    return res.status(400).json({ error: 'country must be a valid ISO-2 country code.', code: 'invalid_area_country' });
+  }
+  const country = countriesUtil.normalizeCountry(countryRaw);
+  const region = asTrimmed(req.body?.region);
+  const city = asTrimmed(req.body?.city);
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows: countRows } = await client.query(
+        'SELECT COUNT(*)::int AS n FROM franchise_territory_areas WHERE application_id = $1',
+        [id]
+      );
+      if (countRows[0].n >= 50) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'This territory already has the maximum of 50 boundary areas.', code: 'boundary_area_limit' });
+      }
+      const { rows: maxRows } = await client.query(
+        'SELECT COALESCE(MAX(sort_order), 0)::int AS max_sort FROM franchise_territory_areas WHERE application_id = $1',
+        [id]
+      );
+      const { rows } = await client.query(
+        `INSERT INTO franchise_territory_areas
+           (application_id, country, region, city, area_type, sort_order, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [id, country, region, city, areaType, maxRows[0].max_sort + 10, req.user?.id || null]
+      );
+      await logActivity(
+        client,
+        id,
+        req.user?.id || null,
+        'boundary_area_added',
+        `Boundary area added: ${[city, region, country].filter(Boolean).join(', ')} (${areaType}).`,
+        { area_id: rows[0].id, country, region, city, area_type: areaType }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error adding franchise territory area', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to add boundary area.' });
+  }
+}
+
+/**
+ * DELETE /api/franchise/applications/:id/areas/:areaId (admin)
+ * 607 (D-308): HQ removes one area from the boundary. The last included
+ * area cannot be removed — a boundary must always name at least one
+ * included area.
+ */
+async function removeTerritoryArea(req, res) {
+  const { id, areaId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: areaRows } = await client.query(
+        `SELECT * FROM franchise_territory_areas WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+        [areaId, id]
+      );
+      const area = areaRows[0];
+      if (!area) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Boundary area not found.' });
+      }
+      if (area.area_type === 'included') {
+        const { rows: countRows } = await client.query(
+          `SELECT COUNT(*)::int AS n FROM franchise_territory_areas
+            WHERE application_id = $1 AND area_type = 'included'`,
+          [id]
+        );
+        if (countRows[0].n <= 1) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: 'The last included area cannot be removed; a boundary must name at least one included area.',
+            code: 'boundary_last_included_area',
+          });
+        }
+      }
+      await client.query('DELETE FROM franchise_territory_areas WHERE id = $1', [areaId]);
+      await logActivity(
+        client,
+        id,
+        req.user?.id || null,
+        'boundary_area_removed',
+        `Boundary area removed: ${[area.city, area.region, area.country].filter(Boolean).join(', ')} (${area.area_type}).`,
+        { area_id: areaId, country: area.country, region: area.region, city: area.city, area_type: area.area_type }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise territory area', { id, areaId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove boundary area.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -2486,6 +2679,8 @@ module.exports = {
   addAdminFollowupMessage,
   acknowledgeResponsibilityItem,
   respondToTerritoryOffer,
+  addTerritoryArea,
+  removeTerritoryArea,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

@@ -204,6 +204,8 @@ export default function FranchiseHQPage() {
   const [interviewForm, setInterviewForm] = useState({ starts_at: '', ends_at: '', interviewer_name: '', note: '' });
   const [docReasons, setDocReasons] = useState({});
   const [followupText, setFollowupText] = useState('');
+  // Group 12 Slice 3b (607): boundary area form state.
+  const [areaForm, setAreaForm] = useState({ country: '', region: '', city: '', area_type: 'included' });
   const [createForm, setCreateForm] = useState({
     first_name: '',
     last_name: '',
@@ -459,6 +461,42 @@ export default function FranchiseHQPage() {
       toast.success(t('adminFranchiseFollowupSent'));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseNoteFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3b (607): HQ adds/removes boundary areas. The
+  // exclusivity flag stays on the agreement form; areas are the list.
+  async function addArea() {
+    if (!selectedApplication || !areaForm.country.trim()) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/areas`, {
+        country: areaForm.country.trim().toUpperCase(),
+        region: areaForm.region.trim(),
+        city: areaForm.city.trim(),
+        area_type: areaForm.area_type,
+      });
+      setSelectedBundle(res.data);
+      setAreaForm({ country: '', region: '', city: '', area_type: 'included' });
+      toast.success(t('adminFranchiseAreaAdded'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseAreaFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeArea(areaId) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.delete(`/franchise/applications/${selectedApplication.id}/areas/${areaId}`);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseAreaRemoved'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseAreaFailed'));
     } finally {
       setSaving(false);
     }
@@ -944,6 +982,70 @@ export default function FranchiseHQPage() {
                     />
                     <button type="button" className="frhq-btn-primary" disabled={saving || !followupText.trim()} onClick={sendFollowup}>
                       {t('adminFranchiseFollowupSend')}
+                    </button>
+                  </div>
+
+                  {/* Group 12 Slice 3b (607): assignment boundary — the
+                      structured area list HQ edits; exclusivity lives on
+                      the agreement form above. */}
+                  <div className="frhq-panel">
+                    <div className="frhq-panel-title">{t('adminFranchiseBoundaryTitle')}</div>
+                    <div className="frhq-row-meta">
+                      {selectedBundle.agreement?.territory_exclusive
+                        ? t('adminFranchiseBoundaryExclusive')
+                        : t('adminFranchiseBoundaryNonExclusive')}
+                    </div>
+                    <div className="frhq-list">
+                      {(selectedBundle.territory_areas || []).length ? selectedBundle.territory_areas.map((area) => (
+                        <div key={area.id} className="frhq-row">
+                          <div>
+                            <div className="frhq-row-title">
+                              {[area.city, area.region, area.country].filter(Boolean).join(', ')}
+                            </div>
+                            <div className="frhq-row-meta">
+                              {area.area_type === 'excluded' ? t('adminFranchiseAreaExcluded') : t('adminFranchiseAreaIncluded')}
+                            </div>
+                          </div>
+                          <div className="frhq-row-actions">
+                            <button type="button" className="frhq-btn-reject" disabled={saving} onClick={() => removeArea(area.id)}>
+                              {t('adminFranchiseRemoveArea')}
+                            </button>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="frhq-empty">{t('adminFranchiseBoundaryEmpty')}</div>
+                      )}
+                    </div>
+                    <div className="frhq-form-grid">
+                      <input
+                        className="frhq-field"
+                        placeholder={t('adminFranchiseAreaCountry')}
+                        value={areaForm.country}
+                        onChange={(e) => setAreaForm((v) => ({ ...v, country: e.target.value.toUpperCase() }))}
+                      />
+                      <input
+                        className="frhq-field"
+                        placeholder={t('adminFranchiseAreaRegion')}
+                        value={areaForm.region}
+                        onChange={(e) => setAreaForm((v) => ({ ...v, region: e.target.value }))}
+                      />
+                      <input
+                        className="frhq-field"
+                        placeholder={t('adminFranchiseAreaCity')}
+                        value={areaForm.city}
+                        onChange={(e) => setAreaForm((v) => ({ ...v, city: e.target.value }))}
+                      />
+                      <select
+                        className="frhq-field"
+                        value={areaForm.area_type}
+                        onChange={(e) => setAreaForm((v) => ({ ...v, area_type: e.target.value }))}
+                      >
+                        <option value="included">{t('adminFranchiseAreaIncluded')}</option>
+                        <option value="excluded">{t('adminFranchiseAreaExcluded')}</option>
+                      </select>
+                    </div>
+                    <button type="button" className="frhq-btn-primary" disabled={saving || !areaForm.country.trim()} onClick={addArea}>
+                      {t('adminFranchiseAddArea')}
                     </button>
                   </div>
 

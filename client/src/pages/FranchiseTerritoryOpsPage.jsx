@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import PageShell from '../components/PageShell';
+import FranchiseBoundarySummary from './FranchiseBoundarySummary';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -96,6 +97,9 @@ export default function FranchiseTerritoryOpsPage() {
   const [helpers, setHelpers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
+  // Group 12 Slice 3b (607): the boundary summary rides the applicant
+  // detail endpoint, loaded for whichever territory the stats resolved.
+  const [boundaryDetail, setBoundaryDetail] = useState(null);
   // G-26: one franchisee, two territories. The operator picks which
   // territory to view; the choice travels as ?application_id=.
   const [applications, setApplications] = useState([]);
@@ -156,6 +160,20 @@ export default function FranchiseTerritoryOpsPage() {
     }
     load();
   }, [load, territoryBlocked]);
+
+  // Group 12 Slice 3b (607): boundary summary for the resolved territory.
+  const resolvedApplicationId = stats?.application?.id || null;
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setBoundaryDetail(null);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/franchise/my-applications/${resolvedApplicationId}`)
+      .then((res) => { if (!cancelled) setBoundaryDetail(res.data); })
+      .catch(() => { if (!cancelled) setBoundaryDetail(null); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked]);
 
   const app      = stats?.application ?? {};
   const kpis     = stats?.territory_kpis ?? {};
@@ -399,6 +417,16 @@ export default function FranchiseTerritoryOpsPage() {
           </div>
 
           {/* ── Helper roster ───────────────────────────────────────── */}
+          {/* Group 12 Slice 3b (607): the structured boundary summary for
+              the resolved territory (operator read-only). */}
+          {boundaryDetail && (
+            <FranchiseBoundarySummary
+              areas={boundaryDetail.territory_areas || []}
+              territoryExclusive={boundaryDetail.application?.territory_exclusive === true}
+              territorySummary={boundaryDetail.application?.territory_summary || null}
+            />
+          )}
+
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-200 flex items-center gap-2">

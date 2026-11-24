@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import './FranchiseApplicationDetail.css';
+import FranchiseBoundarySummary from './FranchiseBoundarySummary';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
 const DOC_CATEGORY_KEYS = {
@@ -281,6 +282,13 @@ export default function FranchiseApplicationDetail({ applicationId }) {
           <p className="fr-detail-empty">{copy('acceptanceNotOffered')}</p>
         )}
       </section>
+
+      {/* Group 12 Slice 3b (607): the structured boundary summary. */}
+      <FranchiseBoundarySummary
+        areas={detail.territory_areas || []}
+        territoryExclusive={detail.application?.territory_exclusive === true}
+        territorySummary={detail.application?.territory_summary || null}
+      />
 
       <section className="fr-detail-card">
         <div className="fr-detail-heading">
