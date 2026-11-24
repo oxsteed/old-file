@@ -158,12 +158,15 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
       debitAccountId: walletId, creditAccountId: partnerPayableId,
       referenceType: 'credit_kiosk_redemption', referenceId: String(kioskDevice.id),
       metadata: { kioskDeviceId: String(kioskDevice.id), cardId, cardLast4: '4242' },
+      // Explicit timestamps so the newest-first list order is deterministic.
+      createdAt: new Date(Date.now() - 3 * 60 * 1000),
     });
     cashOutTxId = await seedLedgerTx({
       type: 'cash_out', status: 'posted', amountCents: 1000,
       debitAccountId: walletId, creditAccountId: treasuryId,
       referenceType: 'credit_kiosk_cash_out', referenceId: String(kioskDevice.id),
       metadata: { kioskDeviceId: String(kioskDevice.id), cardId, cardLast4: '4242' },
+      createdAt: new Date(Date.now() - 2 * 60 * 1000),
     });
     // A kiosk credit order: the ledger purchase plus the food order that
     // carries the attempt id, queue number, and transaction link.
@@ -184,6 +187,7 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
         clientOrderId: `credit-kiosk:${kioskDevice.id}:${orderAttemptId}`,
         orderId,
       },
+      createdAt: new Date(Date.now() - 60 * 1000),
     });
     await pool.query(
       `UPDATE food_orders SET metadata = $2::jsonb WHERE id = $1`,
@@ -445,5 +449,39 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     const res = await request(app)
       .get(`/api/restaurants/${restaurantId}/credit-kiosks/${kioskDevice.id}/cashier/transactions?q=4242`);
     expect(res.status).toBe(401);
+  });
+
+  test('683: the unfiltered list is the device\'s authorized transactions, newest first', async () => {
+    const res = await cashierGet(kioskDevice, kioskToken, '/cashier/transactions');
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(4);
+    expect(res.body.transactions.map((tx) => tx.id)).toEqual([
+      orderTxId, cashOutTxId, redemptionTxId, yesterdayTxId,
+    ]);
+    expect(res.body.transactions.map((tx) => tx.kind)).toEqual([
+      'redemption', 'cash_out', 'redemption', 'redemption',
+    ]);
+  });
+
+  test('683: the list excludes another device\'s transactions and non-kiosk purchases', async () => {
+    const res = await cashierGet(kioskDevice, kioskToken, '/cashier/transactions');
+    const ids = res.body.transactions.map((tx) => tx.id);
+    expect(ids).not.toContain(otherDeviceTxId);
+    // The decoy purchase (same customer, same restaurant, no kioskDeviceId)
+    // is a real ledger row and still never appears for the device.
+    expect(res.body.transactions.some((tx) => tx.amountCents === 7700)).toBe(false);
+    // The other device sees only its own redemption.
+    const other = await cashierGet(otherDevice, otherToken, '/cashier/transactions');
+    expect(other.body.total).toBe(1);
+    expect(other.body.transactions.map((tx) => tx.id)).toEqual([otherDeviceTxId]);
+  });
+
+  test('683: the list paginates with a stable total', async () => {
+    const first = await cashierGet(kioskDevice, kioskToken, '/cashier/transactions?limit=2');
+    expect(first.body.transactions.map((tx) => tx.id)).toEqual([orderTxId, cashOutTxId]);
+    expect(first.body.total).toBe(4);
+    const rest = await cashierGet(kioskDevice, kioskToken, '/cashier/transactions?limit=2&offset=2');
+    expect(rest.body.transactions.map((tx) => tx.id)).toEqual([redemptionTxId, yesterdayTxId]);
+    expect(rest.body.total).toBe(4);
   });
 });

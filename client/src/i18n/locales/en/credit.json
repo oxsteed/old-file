@@ -28,7 +28,9 @@
     "orderLabel": "Order #{{id}}",
     "queueLabel": "Queue #{{number}}",
     "cardLabel": "Card ••{{last4}}",
-    "typeLabel": "Type"
+    "typeLabel": "Type",
+    "resultsCount": "{{count}} transactions",
+    "refresh": "Refresh"
   },
   "creditApplyCustomerNote": "This application is for a business owner or helper applying for their business or profile to accept Credit. A customer needs no enrollment to spend Credit.",
   "creditApplyMyStatus": "Your applications",

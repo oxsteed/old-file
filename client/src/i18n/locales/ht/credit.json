@@ -28,7 +28,9 @@
     "orderLabel": "Lòd #{{id}}",
     "queueLabel": "Ke #{{number}}",
     "cardLabel": "Kat ••{{last4}}",
-    "typeLabel": "Kalite"
+    "typeLabel": "Kalite",
+    "resultsCount": "{{count}} tranzaksyon",
+    "refresh": "Aktyalize"
   },
   "creditApplyCustomerNote": "Aplikasyon sa a se pou yon pwopriyetè biznis oswa yon edè k ap aplike pou biznis li oswa pwofil li aksepte Kredi. Yon kliyan pa bezwen okenn enskripsyon pou li depanse Kredi.",
   "creditApplyMyStatus": "Aplikasyon ou yo",

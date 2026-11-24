@@ -28,7 +28,9 @@
     "orderLabel": "الطلب #{{id}}",
     "queueLabel": "قائمة الانتظار #{{number}}",
     "cardLabel": "البطاقة ••{{last4}}",
-    "typeLabel": "النوع"
+    "typeLabel": "النوع",
+    "resultsCount": "{{count}} معاملة",
+    "refresh": "تحديث"
   },
   "creditApplyCustomerNote": "هذا الطلب لصاحب عمل أو مساعد يتقدّم ليقبل عمله أو ملفه الشخصي الائتمان. العميل لا يحتاج إلى أي تسجيل لإنفاق الائتمان.",
   "creditApplyMyStatus": "طلباتك",

@@ -28,7 +28,9 @@
     "orderLabel": "Pedido n.º {{id}}",
     "queueLabel": "Cola n.º {{number}}",
     "cardLabel": "Tarjeta ••{{last4}}",
-    "typeLabel": "Tipo"
+    "typeLabel": "Tipo",
+    "resultsCount": "{{count}} transacciones",
+    "refresh": "Actualizar"
   },
   "creditApplyCustomerNote": "Esta solicitud es para un dueño de negocio o ayudante que solicita que su negocio o perfil acepte Crédito. Un cliente no necesita inscripción para gastar Crédito.",
   "creditApplyMyStatus": "Tus solicitudes",

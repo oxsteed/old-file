@@ -28,7 +28,9 @@
     "orderLabel": "Commande n° {{id}}",
     "queueLabel": "File n° {{number}}",
     "cardLabel": "Carte ••{{last4}}",
-    "typeLabel": "Type"
+    "typeLabel": "Type",
+    "resultsCount": "{{count}} transactions",
+    "refresh": "Actualiser"
   },
   "creditApplyCustomerNote": "Cette demande concerne un propriétaire d’entreprise ou un aide qui demande que son entreprise ou son profil accepte le Crédit. Un client n’a besoin d’aucune inscription pour dépenser du Crédit.",
   "creditApplyMyStatus": "Vos demandes",

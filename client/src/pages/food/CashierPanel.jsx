@@ -4,7 +4,7 @@
 // closeout checklist. Device-authenticated; every read is scoped to the
 // paired device server-side, and the panel shows only what the device is
 // authorized for. No money moves here.
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatFoodMoney } from "../../api/food";
 import { getCashierLocations, listCashierTransactions } from "../../restaurantScreens/api";
@@ -44,8 +44,38 @@ export default function CashierPanel({
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [results, setResults] = useState(null);
+  const [resultTotal, setResultTotal] = useState(0);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState(null);
+  const mountedRef = useRef(true);
+
+  // 683: the authorized-transaction list loads unfiltered when the panel
+  // opens; the 684 lookup filters on top of the same read.
+  const loadTransactions = async (params) => {
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const data = await listCashierTransactions(restaurantId, device, params);
+      if (!mountedRef.current) return;
+      setResults(data.transactions || []);
+      setResultTotal(data.total ?? (data.transactions || []).length);
+    } catch {
+      if (!mountedRef.current) return;
+      setSearchError("error");
+      setResults(null);
+    } finally {
+      if (mountedRef.current) setSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+    loadTransactions({});
+    return () => {
+      mountedRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId, device]);
 
   const runSearch = async () => {
     const params = {};
@@ -61,17 +91,7 @@ export default function CashierPanel({
       params.amountCents = cents;
     }
     if (date) params.date = date;
-    setSearching(true);
-    setSearchError(null);
-    try {
-      const data = await listCashierTransactions(restaurantId, device, params);
-      setResults(data.transactions || []);
-    } catch {
-      setSearchError("error");
-      setResults(null);
-    } finally {
-      setSearching(false);
-    }
+    await loadTransactions(params);
   };
 
   const clearSearch = () => {
@@ -79,8 +99,7 @@ export default function CashierPanel({
     setType("");
     setAmount("");
     setDate("");
-    setResults(null);
-    setSearchError(null);
+    loadTransactions({});
   };
 
   useEffect(() => {
@@ -213,6 +232,15 @@ export default function CashierPanel({
             >
               {t("cashier.clear")}
             </button>
+            <button
+              type="button"
+              className="fd-btn fd-btn-secondary"
+              onClick={() => loadTransactions({})}
+              disabled={searching}
+              data-track="ui.e23c624842.17"
+            >
+              {t("cashier.refresh")}
+            </button>
           </div>
           {searchError && <p role="alert">{t(`cashier.${searchError}`)}</p>}
           {searching && <p>{t("cashier.loading")}</p>}
@@ -220,11 +248,14 @@ export default function CashierPanel({
             <p className="fd-cashier-note">{t("cashier.noTransactions")}</p>
           )}
           {results && results.length > 0 && (
-            <ul className="fd-cashier-list">
-              {results.map((tx) => (
-                <TransactionRow key={tx.id} transaction={tx} t={t} />
-              ))}
-            </ul>
+            <>
+              <p className="fd-cashier-note">{t("cashier.resultsCount", { count: resultTotal })}</p>
+              <ul className="fd-cashier-list">
+                {results.map((tx) => (
+                  <TransactionRow key={tx.id} transaction={tx} t={t} />
+                ))}
+              </ul>
+            </>
           )}
         </section>
       </div>
