@@ -19109,7 +19109,14 @@
     "servicesSaveFailed": "Impossible d’enregistrer le service. Veuillez réessayer.",
     "servicesLaunch": "Lancer l’emplacement",
     "servicesLaunchFailed": "Impossible de lancer l’emplacement. Veuillez réessayer.",
-    "servicesLaunchNeedsServices": "Ajoutez au moins un service disponible avant de lancer."
+    "servicesLaunchNeedsServices": "Ajoutez au moins un service disponible avant de lancer.",
+    "openingConfirmationTitle": "Confirmation d’ouverture",
+    "openingConfirmationOpened": "Ouvert le {{date}}",
+    "openingConfirmationLaunchComplete": "Lancement terminé",
+    "openingConfirmationDate": "Date d’ouverture",
+    "openingConfirmationNotes": "Notes (facultatif)",
+    "openingConfirmationConfirm": "Confirmer l’ouverture",
+    "openingConfirmationFailed": "Impossible de confirmer l’ouverture. Veuillez réessayer."
     },
     "businessOwner": {
       "newMessages": "Nouveaux messages",

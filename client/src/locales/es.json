@@ -19109,7 +19109,14 @@
     "servicesSaveFailed": "No se pudo guardar el servicio. Inténtalo de nuevo.",
     "servicesLaunch": "Lanzar ubicación",
     "servicesLaunchFailed": "No se pudo lanzar la ubicación. Inténtalo de nuevo.",
-    "servicesLaunchNeedsServices": "Añade al menos un servicio disponible antes de lanzar."
+    "servicesLaunchNeedsServices": "Añade al menos un servicio disponible antes de lanzar.",
+    "openingConfirmationTitle": "Confirmación de apertura",
+    "openingConfirmationOpened": "Abierto el {{date}}",
+    "openingConfirmationLaunchComplete": "Lanzamiento completo",
+    "openingConfirmationDate": "Fecha de apertura",
+    "openingConfirmationNotes": "Notas (opcional)",
+    "openingConfirmationConfirm": "Confirmar apertura",
+    "openingConfirmationFailed": "No se pudo confirmar la apertura. Inténtalo de nuevo."
     },
     "businessOwner": {
       "newMessages": "Nuevos mensajes",

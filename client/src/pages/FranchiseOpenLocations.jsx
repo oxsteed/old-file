@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { MapPin } from 'lucide-react';
 import FranchiseLocationServices from './FranchiseLocationServices';
+import FranchiseOpeningConfirmation from './FranchiseOpeningConfirmation';
 
 const MILESTONE_STATUS_KEYS = {
   pending: 'launchPlanStatusPending',
@@ -45,6 +46,7 @@ export default function FranchiseOpenLocations({
   onMilestoneStatusChange = null,
   onServiceSave = null,
   onLaunchLocation = null,
+  onConfirmOpening = null,
   disabled = false,
 }) {
   const { t } = useTranslation();
@@ -183,6 +185,14 @@ export default function FranchiseOpenLocations({
                   canEdit={Boolean(onServiceSave)}
                   onServiceSave={onServiceSave}
                   onLaunch={onLaunchLocation}
+                  disabled={disabled}
+                />
+
+                {/* Group 12 Slice 3c (615): the opening confirmation —
+                    the record that completes the launch. */}
+                <FranchiseOpeningConfirmation
+                  location={location}
+                  onConfirm={onConfirmOpening}
                   disabled={disabled}
                 />
               </div>

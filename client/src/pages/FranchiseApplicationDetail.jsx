@@ -233,6 +233,22 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     }
   }
 
+  // Group 12 Slice 3c (615): the operator confirms a launched location
+  // opened — the record that completes the launch.
+  async function confirmOpening(locationId, body) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/locations/${locationId}/confirm-opening`, body);
+      setDetail(response.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('openingConfirmationFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Group 12 Slice 3b (608): acknowledge one responsibility item.
   async function acknowledgeResponsibility(itemId) {
     setBusy(true);
@@ -540,6 +556,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onMilestoneStatusChange={updateMilestoneStatus}
         onServiceSave={saveLocationService}
         onLaunchLocation={launchLocation}
+        onConfirmOpening={confirmOpening}
         disabled={busy}
       />
 

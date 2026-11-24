@@ -56,6 +56,7 @@ const {
   upsertLocationServiceAsAdmin,
   launchLocation,
   launchLocationAsAdmin,
+  confirmOpening,
 } = require('../controllers/franchiseController');
 
 const {
@@ -92,6 +93,9 @@ router.delete('/my-applications/:id/opening-team/:memberId', authenticate, requi
 // availability checklist and launches a location on their own application.
 router.post('/my-applications/:id/locations/:locationId/services', authenticate, requireFranchiseEnabled, upsertLocationService);
 router.post('/my-applications/:id/locations/:locationId/launch', authenticate, requireFranchiseEnabled, launchLocation);
+// Group 12 Slice 3c (615): the operator confirms a location opened on
+// their own application — the record that completes the launch.
+router.post('/my-applications/:id/locations/:locationId/confirm-opening', authenticate, requireFranchiseEnabled, confirmOpening);
 router.get('/territory-stats',     authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryStats);
 router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryHelpers);
 

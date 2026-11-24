@@ -1015,4 +1015,180 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
       expect(hqLocation.status).toBe('launched');
     });
   });
+
+  describe('615: opening confirmation', () => {
+    async function addBusinessWithServices(ownerId, names = ['Plumbing']) {
+      const { rows: businessRows } = await db.query(
+        `INSERT INTO businesses (user_id, business_name)
+         VALUES ($1, 'Franchise Fixture Business') RETURNING id`,
+        [ownerId]
+      );
+      const businessId = businessRows[0].id;
+      const serviceIds = [];
+      for (const name of names) {
+        const { rows } = await db.query(
+          `INSERT INTO business_services (business_id, name, is_active)
+           VALUES ($1, $2, TRUE) RETURNING id`,
+          [businessId, name]
+        );
+        serviceIds.push(rows[0].id);
+      }
+      return { businessId, serviceIds };
+    }
+
+    async function linkBusiness(applicationId, businessId) {
+      await db.query(
+        'UPDATE franchise_applications SET linked_business_id = $1 WHERE id = $2',
+        [businessId, applicationId]
+      );
+    }
+
+    function review(adminId, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/applications/${applicationId}/readiness-review`)
+        .set('x-test-user', adminId)
+        .send(body);
+    }
+
+    async function launchApplication(applicant, admin, applicationId) {
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'approved', training_status: 'completed' })
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/agreement/sign`)
+        .set('x-test-user', applicant)
+        .send({ signed_by_name: 'Franchise Fixture' })
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/agreement/collect-fee`)
+        .set('x-test-user', admin)
+        .send({ waived: true, reason: 'Founding operator' })
+        .expect(200);
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      for (const item of bundle.body.checklist) {
+        await request(app)
+          .patch(`/api/franchise/applications/${applicationId}/checklist/${item.id}`)
+          .set('x-test-user', admin)
+          .send({ status: 'completed' })
+          .expect(200);
+      }
+      await review(admin, applicationId, { outcome: 'passed', notes: 'Ready to open.' }).expect(201);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/activate-store`)
+        .set('x-test-user', admin)
+        .expect(201);
+    }
+
+    function confirm(userId, applicationId, locationId, body) {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/confirm-opening`)
+        .set('x-test-user', userId)
+        .send(body);
+    }
+
+    test('the operator confirms a launched location; the launch is only complete once confirmed', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      const { businessId, serviceIds } = await addBusinessWithServices(applicant);
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const location = detail.body.locations[0];
+
+      // A planned location cannot be confirmed.
+      const early = await confirm(applicant, applicationId, location.id, { opened_date: '2026-11-24' }).expect(409);
+      expect(early.body.code).toBe('location_not_launched');
+
+      await launchApplication(applicant, admin, applicationId);
+      await linkBusiness(applicationId, businessId);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${location.id}/services`)
+        .set('x-test-user', applicant)
+        .send({ service_id: serviceIds[0], available: true })
+        .expect(201);
+      const launched = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${location.id}/launch`)
+        .set('x-test-user', applicant)
+        .expect(200);
+      const launchedLocation = launched.body.locations.find((entry) => entry.id === location.id);
+      expect(launchedLocation.status).toBe('launched');
+      expect(launchedLocation.launch_complete).toBe(false);
+
+      const confirmed = await confirm(applicant, applicationId, location.id, { opened_date: '2026-11-24', notes: 'Doors open.' }).expect(201);
+      const confirmedLocation = confirmed.body.locations.find((entry) => entry.id === location.id);
+      expect(confirmedLocation.launch_complete).toBe(true);
+      expect(confirmedLocation.opening_confirmation).toMatchObject({ notes: 'Doors open.' });
+      expect(confirmedLocation.opening_confirmation.opened_date).toMatch(/^2026-11-24/);
+      expect(confirmedLocation.opening_confirmation.confirmed_by).toBe(applicant);
+
+      // HQ sees the same confirmation in the bundle.
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      const bundleLocation = bundle.body.locations.find((entry) => entry.id === location.id);
+      expect(bundleLocation.opening_confirmation.notes).toBe('Doors open.');
+      expect(bundleLocation.launch_complete).toBe(true);
+
+      // Re-confirming corrects the record instead of adding a second one.
+      const corrected = await confirm(applicant, applicationId, location.id, { opened_date: '2026-11-25', notes: 'Corrected date.' }).expect(200);
+      const correctedLocation = corrected.body.locations.find((entry) => entry.id === location.id);
+      expect(correctedLocation.launch_complete).toBe(true);
+      expect(correctedLocation.opening_confirmation.opened_date).toMatch(/^2026-11-25/);
+      expect(correctedLocation.opening_confirmation.notes).toBe('Corrected date.');
+      const { rows } = await db.query(
+        'SELECT COUNT(*)::int AS n FROM franchise_opening_confirmations WHERE location_id = $1',
+        [location.id]
+      );
+      expect(rows[0].n).toBe(1);
+    });
+
+    test('confirmation validation: bad dates, unknown location, scoping', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      const { businessId, serviceIds } = await addBusinessWithServices(applicant);
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const location = detail.body.locations[0];
+
+      await launchApplication(applicant, admin, applicationId);
+      await linkBusiness(applicationId, businessId);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${location.id}/services`)
+        .set('x-test-user', applicant)
+        .send({ service_id: serviceIds[0], available: true })
+        .expect(201);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${location.id}/launch`)
+        .set('x-test-user', applicant)
+        .expect(200);
+
+      const missing = await confirm(applicant, applicationId, location.id, {}).expect(400);
+      expect(missing.body.code).toBe('invalid_opened_date');
+      const garbage = await confirm(applicant, applicationId, location.id, { opened_date: 'not-a-date' }).expect(400);
+      expect(garbage.body.code).toBe('invalid_opened_date');
+      const impossible = await confirm(applicant, applicationId, location.id, { opened_date: '2026-02-30' }).expect(400);
+      expect(impossible.body.code).toBe('invalid_opened_date');
+      await confirm(applicant, applicationId, '00000000-0000-0000-0000-000000000000', { opened_date: '2026-11-24' }).expect(404);
+
+      // The applicant record alone is not the operator; a stranger 404s;
+      // even an admin cannot confirm through the operator endpoint.
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant, applicationId]);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ owner_user_id: operator })
+        .expect(200);
+      const applicantOnly = await confirm(applicant, applicationId, location.id, { opened_date: '2026-11-24' });
+      expect(applicantOnly.status).toBe(403);
+      expect(applicantOnly.body.code).toBe('franchise_operator_only');
+      await confirm(stranger, applicationId, location.id, { opened_date: '2026-11-24' }).expect(404);
+      await confirm(admin, applicationId, location.id, { opened_date: '2026-11-24' }).expect(404);
+
+      // The reassigned operator confirms; the record lands.
+      const confirmed = await confirm(operator, applicationId, location.id, { opened_date: '2026-11-24' }).expect(201);
+      const confirmedLocation = confirmed.body.locations.find((entry) => entry.id === location.id);
+      expect(confirmedLocation.launch_complete).toBe(true);
+    });
+  });
 });

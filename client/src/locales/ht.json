@@ -19109,7 +19109,14 @@
     "servicesSaveFailed": "Pa t kapab anrejistre sèvis la. Tanpri eseye ankò.",
     "servicesLaunch": "Lanse kote a",
     "servicesLaunchFailed": "Pa t kapab lanse kote a. Tanpri eseye ankò.",
-    "servicesLaunchNeedsServices": "Ajoute omwen yon sèvis disponib anvan ou lanse."
+    "servicesLaunchNeedsServices": "Ajoute omwen yon sèvis disponib anvan ou lanse.",
+    "openingConfirmationTitle": "Konfimasyon ouvèti",
+    "openingConfirmationOpened": "Louvri {{date}}",
+    "openingConfirmationLaunchComplete": "Lansman an konplè",
+    "openingConfirmationDate": "Dat ouvèti a",
+    "openingConfirmationNotes": "Nòt (si ou vle)",
+    "openingConfirmationConfirm": "Konfime ouvèti a",
+    "openingConfirmationFailed": "Pa t kapab konfime ouvèti a. Tanpri eseye ankò."
     },
     "businessOwner": {
       "newMessages": "Nouvo mesaj",

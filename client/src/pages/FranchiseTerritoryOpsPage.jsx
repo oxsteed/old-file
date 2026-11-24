@@ -230,6 +230,19 @@ export default function FranchiseTerritoryOpsPage() {
     }
   }, [resolvedApplicationId, t]);
 
+  // Group 12 Slice 3c (615): the operator confirms a launched location
+  // opened from the ops page — the record that completes the launch.
+  const confirmOpening = useCallback(async (locationId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/locations/${locationId}/confirm-opening`, body);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
   // Group 12 Slice 3c (612): the operator designates a roster helper as
   // an opening-team member (or removes them) for the selected scope. The
   // roster reloads so the opening-team flags reflect the change.
@@ -526,6 +539,7 @@ export default function FranchiseTerritoryOpsPage() {
               onMilestoneStatusChange={updateMilestoneStatus}
               onServiceSave={saveLocationService}
               onLaunchLocation={launchLocation}
+              onConfirmOpening={confirmOpening}
             />
           )}
 

@@ -19109,7 +19109,14 @@
     "servicesSaveFailed": "Could not save the service. Please try again.",
     "servicesLaunch": "Launch location",
     "servicesLaunchFailed": "Could not launch the location. Please try again.",
-    "servicesLaunchNeedsServices": "Add at least one available service before launching."
+    "servicesLaunchNeedsServices": "Add at least one available service before launching.",
+    "openingConfirmationTitle": "Opening confirmation",
+    "openingConfirmationOpened": "Opened on {{date}}",
+    "openingConfirmationLaunchComplete": "Launch complete",
+    "openingConfirmationDate": "Opening date",
+    "openingConfirmationNotes": "Notes (optional)",
+    "openingConfirmationConfirm": "Confirm opening",
+    "openingConfirmationFailed": "Could not confirm the opening. Please try again."
     },
     "businessOwner": {
       "newMessages": "New messages",

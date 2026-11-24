@@ -4144,6 +4144,110 @@ async function launchLocationAsAdmin(req, res) {
   }
 }
 
+// Group 12 Slice 3c (615, D-315): the operator confirms a location
+// opened, with the date it opened and notes. Only a launched location
+// can be confirmed (409 `location_not_launched` otherwise); re-confirming
+// corrects the record instead of creating a second one (one confirmation
+// per location, UNIQUE on location_id). The launch is only complete once
+// a confirmation exists — `launch_complete` in fetchOpenLocations stays
+// false until then.
+function isValidDateString(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+async function confirmOpeningCore(client, { applicationId, locationId, openedDate, notes, actorId }) {
+  const { rows: locationRows } = await client.query(
+    `SELECT id, status FROM franchise_locations
+      WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+    [locationId, applicationId]
+  );
+  if (!locationRows.length) {
+    return { error: { status: 404, body: { error: 'Franchise location not found.' } } };
+  }
+  if (locationRows[0].status !== 'launched') {
+    return { error: { status: 409, body: { error: 'Only a launched location can be confirmed open.', code: 'location_not_launched' } } };
+  }
+  const { rows: existingRows } = await client.query(
+    `SELECT id FROM franchise_opening_confirmations WHERE location_id = $1`,
+    [locationId]
+  );
+  const isNew = !existingRows.length;
+  await client.query(
+    `INSERT INTO franchise_opening_confirmations
+       (application_id, location_id, confirmed_by, opened_date, notes)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (location_id)
+     DO UPDATE SET confirmed_by = EXCLUDED.confirmed_by,
+                   opened_date = EXCLUDED.opened_date,
+                   notes = EXCLUDED.notes`,
+    [applicationId, locationId, actorId, openedDate, notes || null]
+  );
+  await logActivity(
+    client,
+    applicationId,
+    actorId,
+    isNew ? 'opening_confirmed' : 'opening_confirmation_updated',
+    isNew
+      ? `Operator confirmed the location opened on ${openedDate}.`
+      : `Operator updated the opening confirmation to ${openedDate}.`,
+    { location_id: locationId, opened_date: openedDate }
+  );
+  return { isNew };
+}
+
+async function confirmOpening(req, res) {
+  const { id, locationId } = req.params;
+  const body = req.body || {};
+  if (!isValidDateString(body.opened_date)) {
+    return res.status(400).json({
+      error: 'opened_date must be a valid YYYY-MM-DD date.',
+      code: 'invalid_opened_date',
+    });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can confirm a location opening.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const result = await confirmOpeningCore(client, {
+        applicationId: id,
+        locationId,
+        openedDate: body.opened_date,
+        notes: asTrimmed(body.notes),
+        actorId: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      return res.status(result.isNew ? 201 : 200).json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error confirming franchise location opening', { id, locationId, err: err.message });
+    return res.status(500).json({ error: 'Failed to confirm opening.' });
+  }
+}
+
 /**
  * POST /api/franchise/applications/:id/readiness-review (admin)
  * 613 (D-313): HQ records a formal readiness review. A passed review is
@@ -4272,6 +4376,7 @@ module.exports = {
   upsertLocationServiceAsAdmin,
   launchLocation,
   launchLocationAsAdmin,
+  confirmOpening,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

@@ -19120,7 +19120,14 @@
     "servicesSaveFailed": "تعذّر حفظ الخدمة. يرجى المحاولة مرة أخرى.",
     "servicesLaunch": "إطلاق الموقع",
     "servicesLaunchFailed": "تعذّر إطلاق الموقع. يرجى المحاولة مرة أخرى.",
-    "servicesLaunchNeedsServices": "أضف خدمة متاحة واحدة على الأقل قبل الإطلاق."
+    "servicesLaunchNeedsServices": "أضف خدمة متاحة واحدة على الأقل قبل الإطلاق.",
+    "openingConfirmationTitle": "تأكيد الافتتاح",
+    "openingConfirmationOpened": "تم الافتتاح في {{date}}",
+    "openingConfirmationLaunchComplete": "اكتمل الإطلاق",
+    "openingConfirmationDate": "تاريخ الافتتاح",
+    "openingConfirmationNotes": "ملاحظات (اختياري)",
+    "openingConfirmationConfirm": "تأكيد الافتتاح",
+    "openingConfirmationFailed": "تعذّر تأكيد الافتتاح. يرجى المحاولة مرة أخرى."
     },
     "businessOwner": {
       "newMessages": "رسائل جديدة",

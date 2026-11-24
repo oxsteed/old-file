@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { SuggestDropdown } from '../../../components/SuggestDropdown';
 import FranchiseLocationServices from '../../../pages/FranchiseLocationServices';
+import FranchiseOpeningConfirmation from '../../../pages/FranchiseOpeningConfirmation';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -1382,6 +1383,10 @@ export default function FranchiseHQPage() {
                               onLaunch={launchLocation}
                               disabled={saving}
                             />
+                            {/* Group 12 Slice 3c (615): the opening
+                                confirmation, read-only in HQ — only the
+                                operator confirms a location opened. */}
+                            <FranchiseOpeningConfirmation location={location} />
                           </div>
                         </div>
                       )) : (
