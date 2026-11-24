@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { currentAuthEpoch } from '../api/authSessionEpoch';
 import { EquipmentBookingPanel } from '../components/EquipmentOperations';
+import RentalDisputesPanel from '../components/RentalDisputesPanel';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
@@ -906,6 +907,10 @@ const MyBookingsPageContent = () => {
 
       {/* Group 11 item 583: cancellation recovery + 584 alternatives. */}
       {booking.status === 'cancelled' && renderRecoveryPanel(booking)}
+
+      {/* Group 11 Slice 2e: damage claims (586), escalation threads (589)
+          and deposit acknowledgment (590) on every rental booking. */}
+      <RentalDisputesPanel booking={booking} isOwner={isOwner} currentUserId={user?.id} onChanged={loadBookings} />
 
       {/* Group 11 item 575: checkout acknowledgment at pickup. The
           renter confirms receipt; the pickup condition report is the
