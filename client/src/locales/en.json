@@ -19157,7 +19157,22 @@
     "trainingTasksStatusCompleted": "Completed",
     "trainingTasksCompletedOn": "Completed {{date}}",
     "trainingTasksDue": "Due {{date}}",
-    "trainingTasksTerritoryWide": "Whole territory"
+    "trainingTasksTerritoryWide": "Whole territory",
+    "coverageTitle": "Coverage plan",
+    "coverageSubtitle": "Shift coverage across the territory for the next 14 days, rolled up from the linked business.",
+    "coverageEmpty": "No coverage data yet.",
+    "coverageNoBusiness": "No business is linked to this territory yet, so there are no shifts to roll up.",
+    "coverageShifts": "Shifts",
+    "coverageStaff": "Staff",
+    "coverageGap": "Gap",
+    "coverageCovered": "Covered",
+    "coverageGapDays": "{{count}} days without coverage in the next 14 days",
+    "coverageLocationsTitle": "Coverage by location",
+    "coverageManager": "Manager",
+    "coverageNoManager": "No manager",
+    "coverageTeam": "{{count}} on the opening team",
+    "coverageLaunchComplete": "Launch complete",
+    "coverageLaunchPending": "Launch pending"
     },
     "businessOwner": {
       "newMessages": "New messages",

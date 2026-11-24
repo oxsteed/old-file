@@ -20,6 +20,7 @@ import FranchiseLaunchPlan from './FranchiseLaunchPlan';
 import FranchiseOpenLocations from './FranchiseOpenLocations';
 import FranchiseTerritoryInvitations from './FranchiseTerritoryInvitations';
 import FranchiseTrainingTasks from './FranchiseTrainingTasks';
+import FranchiseCoveragePlan from './FranchiseCoveragePlan';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -182,6 +183,21 @@ export default function FranchiseTerritoryOpsPage() {
     api.get(`/franchise/my-applications/${resolvedApplicationId}`)
       .then((res) => { if (!cancelled) setBoundaryDetail(res.data); })
       .catch(() => { if (!cancelled) setBoundaryDetail(null); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked]);
+
+  // Group 12 Slice 3d (619): the territory coverage rollup for the
+  // resolved territory — read-only, rolled up from the linked business.
+  const [coverage, setCoverage] = useState(null);
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setCoverage(null);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/coverage`)
+      .then((res) => { if (!cancelled) setCoverage(res.data); })
+      .catch(() => { if (!cancelled) setCoverage(null); });
     return () => { cancelled = true; };
   }, [resolvedApplicationId, territoryBlocked]);
 
@@ -660,6 +676,9 @@ export default function FranchiseTerritoryOpsPage() {
               onRemove={removeTraining}
             />
           )}
+
+          {/* Group 12 Slice 3d (619): territory coverage planning. */}
+          {boundaryDetail && <FranchiseCoveragePlan coverage={coverage} />}
 
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
             <div className="flex items-center justify-between mb-4">

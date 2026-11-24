@@ -19157,7 +19157,22 @@
     "trainingTasksStatusCompleted": "Completado",
     "trainingTasksCompletedOn": "Completado el {{date}}",
     "trainingTasksDue": "Vence el {{date}}",
-    "trainingTasksTerritoryWide": "Todo el territorio"
+    "trainingTasksTerritoryWide": "Todo el territorio",
+    "coverageTitle": "Plan de cobertura",
+    "coverageSubtitle": "Cobertura de turnos en todo el territorio durante los próximos 14 días, resumida del negocio vinculado.",
+    "coverageEmpty": "Aún no hay datos de cobertura.",
+    "coverageNoBusiness": "Aún no hay ningún negocio vinculado a este territorio, así que no hay turnos que resumir.",
+    "coverageShifts": "Turnos",
+    "coverageStaff": "Personal",
+    "coverageGap": "Hueco",
+    "coverageCovered": "Cubierto",
+    "coverageGapDays": "{{count}} días sin cobertura en los próximos 14 días",
+    "coverageLocationsTitle": "Cobertura por ubicación",
+    "coverageManager": "Gerente",
+    "coverageNoManager": "Sin gerente",
+    "coverageTeam": "{{count}} en el equipo de apertura",
+    "coverageLaunchComplete": "Lanzamiento completo",
+    "coverageLaunchPending": "Lanzamiento pendiente"
     },
     "businessOwner": {
       "newMessages": "Nuevos mensajes",

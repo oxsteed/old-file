@@ -18,6 +18,7 @@ import FranchiseLocationServices from '../../../pages/FranchiseLocationServices'
 import FranchiseOpeningConfirmation from '../../../pages/FranchiseOpeningConfirmation';
 import FranchiseTerritoryInvitations from '../../../pages/FranchiseTerritoryInvitations';
 import FranchiseTrainingTasks from '../../../pages/FranchiseTrainingTasks';
+import FranchiseCoveragePlan from '../../../pages/FranchiseCoveragePlan';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -195,6 +196,9 @@ export default function FranchiseHQPage() {
   }, [applications]);
   const [selectedId, setSelectedId] = useState(null);
   const [selectedBundle, setSelectedBundle] = useState(null);
+  // Group 12 Slice 3d (619): the territory coverage rollup for the
+  // selected application, loaded with the bundle.
+  const [coverage, setCoverage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -281,6 +285,14 @@ export default function FranchiseHQPage() {
       const res = await axios.get(`/franchise/applications/${id}`);
       const bundle = res.data;
       setSelectedBundle(bundle);
+      // Group 12 Slice 3d (619): the territory coverage rollup for the
+      // selected application — read-only in HQ.
+      try {
+        const coverageRes = await axios.get(`/franchise/applications/${id}/coverage`);
+        setCoverage(coverageRes.data);
+      } catch {
+        setCoverage(null);
+      }
       setEditForm({
         status: bundle.application.status || 'inquiry',
         agreement_status: bundle.application.agreement_status || 'draft',
@@ -1688,6 +1700,10 @@ export default function FranchiseHQPage() {
                     onRemove={removeTraining}
                     disabled={saving}
                   />
+
+                  {/* Group 12 Slice 3d (619): territory coverage planning
+                      — read-only rollup in HQ. */}
+                  <FranchiseCoveragePlan coverage={coverage} />
 
                   {/* Group 12 Slice 3c (613): HQ records a formal readiness
                       review — the only path that moves readiness to `ready`. */}

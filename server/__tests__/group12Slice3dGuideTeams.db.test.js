@@ -601,4 +601,137 @@ describeDb('Group 12 Slice 3d: Guide teams (616-620)', () => {
       expect(removed.body.training_assignments).toHaveLength(0);
     });
   });
+
+  describe('619: coverage planning', () => {
+    function isoDate(offsetDays) {
+      const date = new Date();
+      date.setUTCHours(0, 0, 0, 0);
+      date.setUTCDate(date.getUTCDate() + offsetDays);
+      return date.toISOString().slice(0, 10);
+    }
+
+    async function addBusiness(owner) {
+      const { rows } = await db.query(
+        'INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id',
+        [owner.id, 'G12d Coverage Business'],
+      );
+      return rows[0].id;
+    }
+
+    async function addShift(businessId, userId, date, cancelled = false) {
+      await db.query(
+        `INSERT INTO business_staff_shifts (business_id, user_id, shift_date, start_time, end_time, role_label, cancelled_at)
+         VALUES ($1, $2, $3, '09:00', '17:00', 'crew', $4)`,
+        [businessId, userId, date, cancelled ? new Date().toISOString() : null],
+      );
+    }
+
+    test('without a linked business the rollup says so explicitly, with locations listed', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+
+      const coverage = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/coverage`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(coverage.body.linked_business_id).toBeNull();
+      expect(coverage.body.days).toEqual([]);
+      expect(coverage.body.locations).toHaveLength(1);
+      expect(coverage.body.locations[0].manager).toBeNull();
+      expect(coverage.body.locations[0].opening_team_count).toBe(0);
+    });
+
+    test('14-day rollup counts shifts and staff per day, flags gaps, and ignores cancelled shifts', async () => {
+      const operator = await addUser();
+      const worker = await addUser();
+      const applicationId = await makeApplication(operator);
+      const businessId = await addBusiness(operator);
+      await db.query('UPDATE franchise_applications SET linked_business_id = $1 WHERE id = $2', [businessId, applicationId]);
+
+      // Today: two shifts, two staff. Tomorrow: one shift. Day +3: two
+      // shifts, one staff. Day +5: only a cancelled shift — still a gap.
+      await addShift(businessId, operator.id, isoDate(0));
+      await addShift(businessId, worker.id, isoDate(0));
+      await addShift(businessId, operator.id, isoDate(1));
+      await addShift(businessId, operator.id, isoDate(3));
+      await addShift(businessId, operator.id, isoDate(3));
+      await addShift(businessId, operator.id, isoDate(5), true);
+
+      const coverage = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/coverage`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(coverage.body.linked_business_id).toBe(businessId);
+      expect(coverage.body.coverage_start).toBe(isoDate(0));
+      expect(coverage.body.coverage_end).toBe(isoDate(13));
+      expect(coverage.body.days).toHaveLength(14);
+      const byDate = new Map(coverage.body.days.map((day) => [day.date, day]));
+      expect(byDate.get(isoDate(0))).toEqual({ date: isoDate(0), shifts: 2, staff: 2, gap: false });
+      expect(byDate.get(isoDate(1))).toEqual({ date: isoDate(1), shifts: 1, staff: 1, gap: false });
+      expect(byDate.get(isoDate(2))).toEqual({ date: isoDate(2), shifts: 0, staff: 0, gap: true });
+      expect(byDate.get(isoDate(3))).toEqual({ date: isoDate(3), shifts: 2, staff: 1, gap: false });
+      expect(byDate.get(isoDate(5))).toEqual({ date: isoDate(5), shifts: 0, staff: 0, gap: true });
+      expect(byDate.get(isoDate(13))).toEqual({ date: isoDate(13), shifts: 0, staff: 0, gap: true });
+    });
+
+    test('per-location coverage carries the manager and the opening-team count', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const locationId = (await applicantDetail(operator, applicationId).expect(200)).body.locations[0].id;
+
+      const helper = await addUser();
+      await db.query(
+        `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+         VALUES ($1, 'Austin', 'TX', 4.9, 1, TRUE)`,
+        [helper.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+        .set('x-test-user', operator.id)
+        .send({ helper_user_id: helper.id, location_id: locationId, role: 'member' })
+        .expect(201);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${locationId}/manager`)
+        .set('x-test-user', admin.id)
+        .send({ manager_user_id: operator.id })
+        .expect(201);
+
+      const coverage = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/coverage`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(coverage.body.locations).toHaveLength(1);
+      expect(coverage.body.locations[0].manager.user_id).toBe(operator.id);
+      expect(coverage.body.locations[0].manager.name).toBeTruthy();
+      expect(coverage.body.locations[0].opening_team_count).toBe(1);
+    });
+
+    test('coverage is operator- or HQ-only: applicant record gets 403, a stranger gets 404', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/coverage`)
+        .set('x-test-user', applicant.id)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/coverage`)
+        .set('x-test-user', stranger.id)
+        .expect(404);
+      await request(app)
+        .get(`/api/franchise/applications/${applicationId}/coverage`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      await request(app)
+        .get(`/api/franchise/applications/${applicationId}/coverage`)
+        .set('x-test-user', operator.id)
+        .expect(403);
+    });
+  });
 });

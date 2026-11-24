@@ -19168,7 +19168,22 @@
     "trainingTasksStatusCompleted": "مكتمل",
     "trainingTasksCompletedOn": "اكتمل في {{date}}",
     "trainingTasksDue": "يستحق في {{date}}",
-    "trainingTasksTerritoryWide": "الإقليم كاملًا"
+    "trainingTasksTerritoryWide": "الإقليم كاملًا",
+    "coverageTitle": "خطة التغطية",
+    "coverageSubtitle": "تغطية المناوبات في جميع أنحاء الإقليم للأيام الـ 14 القادمة، مجمّعة من النشاط التجاري المرتبط.",
+    "coverageEmpty": "لا توجد بيانات تغطية بعد.",
+    "coverageNoBusiness": "لم يتم ربط أي نشاط تجاري بهذا الإقليم بعد، لذا لا توجد مناوبات لتجميعها.",
+    "coverageShifts": "المناوبات",
+    "coverageStaff": "الموظفون",
+    "coverageGap": "فجوة",
+    "coverageCovered": "مغطى",
+    "coverageGapDays": "{{count}} أيام بلا تغطية في الأيام الـ 14 القادمة",
+    "coverageLocationsTitle": "التغطية حسب الموقع",
+    "coverageManager": "المدير",
+    "coverageNoManager": "بلا مدير",
+    "coverageTeam": "{{count}} في فريق الافتتاح",
+    "coverageLaunchComplete": "اكتمل الإطلاق",
+    "coverageLaunchPending": "الإطلاق معلّق"
     },
     "businessOwner": {
       "newMessages": "رسائل جديدة",

@@ -19157,7 +19157,22 @@
     "trainingTasksStatusCompleted": "Terminé",
     "trainingTasksCompletedOn": "Terminé le {{date}}",
     "trainingTasksDue": "Pour le {{date}}",
-    "trainingTasksTerritoryWide": "Tout le territoire"
+    "trainingTasksTerritoryWide": "Tout le territoire",
+    "coverageTitle": "Plan de couverture",
+    "coverageSubtitle": "Couverture des quarts dans tout le territoire pour les 14 prochains jours, regroupée à partir de l'entreprise liée.",
+    "coverageEmpty": "Aucune donnée de couverture pour l'instant.",
+    "coverageNoBusiness": "Aucune entreprise n'est encore liée à ce territoire, donc aucun quart à regrouper.",
+    "coverageShifts": "Quarts",
+    "coverageStaff": "Personnel",
+    "coverageGap": "Trou",
+    "coverageCovered": "Couvert",
+    "coverageGapDays": "{{count}} jours sans couverture dans les 14 prochains jours",
+    "coverageLocationsTitle": "Couverture par emplacement",
+    "coverageManager": "Responsable",
+    "coverageNoManager": "Sans responsable",
+    "coverageTeam": "{{count}} dans l'équipe d'ouverture",
+    "coverageLaunchComplete": "Lancement terminé",
+    "coverageLaunchPending": "Lancement en attente"
     },
     "businessOwner": {
       "newMessages": "Nouveaux messages",

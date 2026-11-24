@@ -19157,7 +19157,22 @@
     "trainingTasksStatusCompleted": "Konplè",
     "trainingTasksCompletedOn": "Konplè {{date}}",
     "trainingTasksDue": "Pou {{date}}",
-    "trainingTasksTerritoryWide": "Tout teritwa a"
+    "trainingTasksTerritoryWide": "Tout teritwa a",
+    "coverageTitle": "Plan kouvèti",
+    "coverageSubtitle": "Kouvèti chif nan tout teritwa a pou 14 jou kap vini yo, rasanble apati biznis ki lye a.",
+    "coverageEmpty": "Poko gen done kouvèti.",
+    "coverageNoBusiness": "Poko gen biznis ki lye ak teritwa sa a, kidonk pa gen chif pou rasanble.",
+    "coverageShifts": "Chif",
+    "coverageStaff": "Anplwaye",
+    "coverageGap": "Twou",
+    "coverageCovered": "Kouvri",
+    "coverageGapDays": "{{count}} jou san kouvèti nan 14 jou kap vini yo",
+    "coverageLocationsTitle": "Kouvèti pa lokal",
+    "coverageManager": "Manadjè",
+    "coverageNoManager": "San manadjè",
+    "coverageTeam": "{{count}} nan ekip ouvèti a",
+    "coverageLaunchComplete": "Lansman konplè",
+    "coverageLaunchPending": "Lansman an atant"
     },
     "businessOwner": {
       "newMessages": "Nouvo mesaj",
