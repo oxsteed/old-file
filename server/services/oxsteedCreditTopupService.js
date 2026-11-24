@@ -285,7 +285,7 @@ async function ensureStripeIntent({ topup, amount, currency, getStripe, fundedBy
   return intent.client_secret.trim();
 }
 
-async function createTopup({ customerId, amountCents, currencyCode, idempotencyKey, getStripe = defaultGetStripe, fundedBy = null }) {
+async function createTopup({ customerId, amountCents, currencyCode, idempotencyKey, getStripe = defaultGetStripe, fundedBy = null, retriedFromTopupId = null }) {
   if (!customerId) fail('Customer is required for a credit top-up', 'credit_topup_customer_required');
   const amount = validateTopupAmount(amountCents);
   const currency = assertSupportedCreditCurrency(currencyCode);
@@ -305,14 +305,15 @@ async function createTopup({ customerId, amountCents, currencyCode, idempotencyK
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_topups
          (customer_id, amount_cents, currency_code, status, idempotency_key, expires_at,
-          funded_by_user_id, funded_by_business_id, funding_reason)
-       VALUES ($1, $2, $3, 'pending', $4, NOW() + INTERVAL '30 minutes', $5, $6, $7)
+          funded_by_user_id, funded_by_business_id, funding_reason, retried_from_topup_id)
+       VALUES ($1, $2, $3, 'pending', $4, NOW() + INTERVAL '30 minutes', $5, $6, $7, $8)
        ON CONFLICT (idempotency_key) DO NOTHING
        RETURNING *`,
       [customerId, amount, currency, normalizedKey,
         fundedBy ? fundedBy.userId : null,
         fundedBy ? fundedBy.businessId : null,
-        fundedBy ? String(fundedBy.reason || '').slice(0, 500) : null]
+        fundedBy ? String(fundedBy.reason || '').slice(0, 500) : null,
+        retriedFromTopupId || null]
     );
     if (rows[0]) {
       if (fundedBy) {
@@ -435,6 +436,176 @@ async function getCustomerTopup({ customerId, topupId }) {
     [topupId, customerId]
   );
   return rows[0] || null;
+}
+
+// Group 13 Slice 4f (680, D-376/D-377/D-378/D-379): retry a failed top-up
+// from its own record.
+//
+// The retry is a NEW top-up row created through the existing `createTopup`
+// path with the same amount/currency (and, for a business-funded top-up,
+// the same funder, business, and reason) and a fresh idempotency key, so
+// the rail gate, the compliance gate, the step-up, and the Stripe intent
+// flow all apply unchanged — no new money executor, no gate bypassed.
+// The failed original is never mutated: it stays `failed` and visible,
+// linked to its retry by `retried_from_topup_id` (migration
+// 20261124161215), so the record view can show the retry link.
+//
+// Only `failed` can be retried. `requires_attention` means money may
+// already have moved at Stripe while the journal post failed, so a retry
+// could double-charge; that record needs human review, not a new attempt.
+// `pending`/`completed` are not retryable either.
+//
+// One retry per failed record (partial unique index on
+// `retried_from_topup_id`): a repeat retry replays the existing child
+// instead of starting a second attempt. A child that itself fails is
+// retried from the child, forming a chain — never by reviving the child
+// in place, and never by re-posting the original.
+async function getTopupRetryChild({ topupId }) {
+  if (!topupId) return null;
+  const { rows } = await pool.query(
+    `SELECT * FROM oxsteed_credit_topups WHERE retried_from_topup_id = $1`,
+    [topupId]
+  );
+  return rows[0] || null;
+}
+
+function stripBusinessKeyPrefix(storedKey, businessId) {
+  const prefix = `business-funded:${businessId}:`;
+  return String(storedKey || '').startsWith(prefix)
+    ? String(storedKey).slice(prefix.length)
+    : String(storedKey || '');
+}
+
+// Replays an existing retry child through the normal create path so a
+// pending child hands back its Stripe client secret (the intent is
+// retrieved, never re-created). A terminal child (completed, failed,
+// requires_attention) is returned as-is: a failed child is retried from
+// the child, not revived, and a requires_attention child must not move
+// money again.
+async function replayRetryChild({ child, fundedBy = null, getStripe }) {
+  if (!child) return null;
+  if (child.status !== 'pending') {
+    return { topup: child, clientSecret: null, replayed: true };
+  }
+  const idempotencyKey = fundedBy
+    ? stripBusinessKeyPrefix(child.idempotency_key, fundedBy.businessId)
+    : child.idempotency_key;
+  return createTopup({
+    customerId: child.customer_id,
+    amountCents: Number(child.amount_cents),
+    currencyCode: child.currency_code,
+    idempotencyKey,
+    getStripe,
+    fundedBy,
+  });
+}
+
+async function recordRetryAudit({ actorUserId, customerId, topup, original }) {
+  await pool.query(
+    `INSERT INTO oxsteed_credit_audit_events
+       (action_type, actor_user_id, customer_id, resource_type, resource_id, reason, after_state)
+     VALUES ('credit.topup.retried', $1, $2, 'credit_topup', $3, $4, $5::jsonb)`,
+    [
+      actorUserId,
+      customerId,
+      String(topup.id),
+      `Retry of failed top-up ${original.id}`,
+      JSON.stringify({
+        retriedFromTopupId: String(original.id),
+        amountCents: Number(topup.amount_cents),
+        currencyCode: topup.currency_code,
+      }),
+    ]
+  );
+}
+
+async function retryTopup({ customerId, topupId, idempotencyKey, getStripe = defaultGetStripe }) {
+  const original = await getCustomerTopup({ customerId, topupId });
+  if (!original) {
+    fail('Credit top-up not found', 'credit_topup_not_found', 404);
+  }
+  // A business-funded top-up is retried by its funder through the business
+  // path, with the same funder/business/reason. The recipient retrying it
+  // as self-service would silently change who pays.
+  if (original.funded_by_business_id) {
+    fail('A business-funded top-up can only be retried by the business that funded it', 'credit_topup_retry_funder_required', 403);
+  }
+  if (original.status !== 'failed') {
+    fail('Only a failed top-up can be retried', 'credit_topup_state_invalid', 409);
+  }
+  const existingChild = await getTopupRetryChild({ topupId: original.id });
+  if (existingChild) {
+    return replayRetryChild({ child: existingChild, getStripe });
+  }
+  try {
+    const result = await createTopup({
+      customerId,
+      amountCents: Number(original.amount_cents),
+      currencyCode: original.currency_code,
+      idempotencyKey,
+      getStripe,
+      retriedFromTopupId: original.id,
+    });
+    if (!result.replayed) {
+      await recordRetryAudit({ actorUserId: customerId, customerId, topup: result.topup, original });
+    }
+    return result;
+  } catch (err) {
+    // A concurrent retry won the one-child race: replay its child instead
+    // of failing the second caller or starting a second attempt.
+    if (err && err.code === '23505'
+      && err.constraint === 'idx_oxsteed_credit_topups_retried_from_unique') {
+      const child = await getTopupRetryChild({ topupId: original.id });
+      if (child) return replayRetryChild({ child, getStripe });
+    }
+    throw err;
+  }
+}
+
+async function retryBusinessTopup({ businessId, funderId, topupId, idempotencyKey, getStripe = defaultGetStripe }) {
+  const original = await getBusinessTopup({ businessId, topupId });
+  if (!original) {
+    fail('Credit top-up not found', 'credit_topup_not_found', 404);
+  }
+  if (original.status !== 'failed') {
+    fail('Only a failed top-up can be retried', 'credit_topup_state_invalid', 409);
+  }
+  const fundedBy = {
+    userId: funderId,
+    businessId,
+    reason: original.funding_reason || '',
+  };
+  const existingChild = await getTopupRetryChild({ topupId: original.id });
+  if (existingChild) {
+    return replayRetryChild({ child: existingChild, fundedBy, getStripe });
+  }
+  try {
+    const result = await createTopup({
+      customerId: original.customer_id,
+      amountCents: Number(original.amount_cents),
+      currencyCode: original.currency_code,
+      idempotencyKey,
+      getStripe,
+      fundedBy,
+      retriedFromTopupId: original.id,
+    });
+    if (!result.replayed) {
+      await recordRetryAudit({
+        actorUserId: funderId,
+        customerId: original.customer_id,
+        topup: result.topup,
+        original,
+      });
+    }
+    return result;
+  } catch (err) {
+    if (err && err.code === '23505'
+      && err.constraint === 'idx_oxsteed_credit_topups_retried_from_unique') {
+      const child = await getTopupRetryChild({ topupId: original.id });
+      if (child) return replayRetryChild({ child, fundedBy, getStripe });
+    }
+    throw err;
+  }
 }
 
 // R-3: resolve the actor for top-up settlement journal posts.
@@ -797,6 +968,9 @@ async function applyCreditTopupWebhookEvent({ type, object }) {
 module.exports = {
   MIN_TOPUP_CENTS,
   createTopup,
+  retryTopup,
+  retryBusinessTopup,
+  getTopupRetryChild,
   getTopupById,
   getCustomerTopup,
   getBusinessTopup,

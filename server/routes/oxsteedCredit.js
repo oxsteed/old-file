@@ -88,6 +88,9 @@ router.post(
 router.post('/topups', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), topupController.createTopup);
 router.get('/topups', topupController.listMyTopups);
 router.get('/topups/:id', topupController.getTopup);
+// Group 13, item 680 (D-376): retry a failed top-up from its own record —
+// same gates as creating a top-up, same existing creation path underneath.
+router.post('/topups/:id/retry', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), topupController.retryTopup);
 // Step-up challenge issuance for large top-ups (Phase 5 compliance).
 router.post('/stepup-challenges', creditMutationLimiter, rejectImpersonated, topupController.issueTopupStepupChallenge);
 

@@ -44,7 +44,18 @@ function formatTopup(topup) {
     expiresAt: topup.expires_at,
     createdAt: topup.created_at,
     updatedAt: topup.updated_at,
+    // Group 13 Slice 4f (680): the failed top-up this attempt retries, if
+    // any — so the record view can link the chain both ways.
+    retriedFromTopupId: topup.retried_from_topup_id ? String(topup.retried_from_topup_id) : null,
   };
+}
+
+// Group 13 Slice 4f (680): the retry attempt started from this top-up, if
+// any — the "retry link" on the failed record. Looked up only on single
+// record reads, never on lists.
+async function retryTopupIdFor(topupId) {
+  const child = await topupService.getTopupRetryChild({ topupId });
+  return child ? String(child.id) : null;
 }
 
 async function createTopup(req, res, next) {
@@ -108,7 +119,71 @@ async function getTopup(req, res, next) {
     if (!topup) {
       throw new AppError('Credit top-up not found', 404, 'credit_topup_not_found');
     }
-    res.json({ topup: formatTopup(topup) });
+    res.json({ topup: { ...formatTopup(topup), retryTopupId: await retryTopupIdFor(topup.id) } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Group 13 Slice 4f (680, D-376/D-377/D-378): retry a failed top-up from
+// its own record. The service creates a new attempt through the existing
+// createTopup path (same amount/currency, fresh idempotency key); the
+// compliance gate runs first here, exactly as on create, and the router
+// carries the same limiter / impersonation / checkout-restriction gates.
+async function retryTopup(req, res, next) {
+  try {
+    const customerId = req.user?.id;
+    if (!customerId) {
+      throw new AppError('Authentication is required', 401, 'auth_required');
+    }
+    const idempotencyKey = getIdempotencyKey(req);
+    const { requestIp, correlationId } = getRequestContext(req);
+
+    // The original's amount/currency are the retry's terms; the
+    // compliance gate re-runs for them before any persistent side effect.
+    const original = await topupService.getCustomerTopup({
+      customerId,
+      topupId: req.params.id,
+    });
+    if (!original) {
+      throw new AppError('Credit top-up not found', 404, 'credit_topup_not_found');
+    }
+    if (original.status !== 'failed') {
+      throw new AppError('Only a failed top-up can be retried', 409, 'credit_topup_state_invalid');
+    }
+    if (original.funded_by_business_id) {
+      throw new AppError('A business-funded top-up can only be retried by the business that funded it', 403, 'credit_topup_retry_funder_required');
+    }
+    if (topupRequiresStepup(Number(original.amount_cents))) {
+      await verifyStepupChallenge({
+        challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+        actorUserId: customerId,
+        actionType: 'topup',
+        code: req.body?.stepupCode || req.body?.stepup_code,
+        expectedAmountCents: Number(original.amount_cents),
+      });
+    }
+    await evaluateFundingCompliance({
+      customerId,
+      amountCents: Number(original.amount_cents),
+      currencyCode: original.currency_code,
+      fundingMethod: 'stripe_topup',
+      actorUserId: customerId,
+      requestIp,
+      correlationId,
+    });
+
+    const { topup, clientSecret, replayed } = await topupService.retryTopup({
+      customerId,
+      topupId: req.params.id,
+      idempotencyKey,
+    });
+
+    res.status(replayed ? 200 : 201).json({
+      topup: { ...formatTopup(topup), retryTopupId: null },
+      clientSecret,
+      replayed,
+    });
   } catch (err) {
     next(err);
   }
@@ -243,7 +318,70 @@ async function getBusinessTopup(req, res, next) {
     if (!access) throw new AppError('Business finance access is required.', 403, 'business_finance_required');
     const topup = await topupService.getBusinessTopup({ businessId, topupId: req.params.topupId });
     if (!topup) throw new AppError('Credit top-up not found', 404, 'credit_topup_not_found');
-    res.json({ topup: formatBusinessTopup(topup) });
+    res.json({ topup: { ...formatBusinessTopup(topup), retryTopupId: await retryTopupIdFor(topup.id) } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Group 13 Slice 4f (680, D-379): the funder retries a failed
+// business-funded top-up from its own record. Same funder, business, and
+// reason as the original (the service reuses the stored funding row);
+// the recipient cannot retry it as self-service. The compliance gate
+// re-runs for the recipient with the funder as actor, exactly as on
+// create, before any persistent side effect.
+async function retryBusinessTopup(req, res, next) {
+  try {
+    const businessId = Number(req.params.businessId);
+    const funderId = req.user?.id;
+    if (!Number.isSafeInteger(businessId) || !funderId) {
+      throw new AppError('A valid business is required', 400, 'validation_failed');
+    }
+    const access = await canManageBusinessFinance(funderId, businessId);
+    if (!access) {
+      throw new AppError('Only the business owner or a manager can fund member Credit.', 403, 'business_credit_fund_required');
+    }
+    const original = await topupService.getBusinessTopup({ businessId, topupId: req.params.topupId });
+    if (!original) {
+      throw new AppError('Credit top-up not found', 404, 'credit_topup_not_found');
+    }
+    if (original.status !== 'failed') {
+      throw new AppError('Only a failed top-up can be retried', 409, 'credit_topup_state_invalid');
+    }
+    const idempotencyKey = getIdempotencyKey(req);
+    const { requestIp, correlationId } = getRequestContext(req);
+
+    if (topupRequiresStepup(Number(original.amount_cents))) {
+      await verifyStepupChallenge({
+        challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+        actorUserId: funderId,
+        actionType: 'topup',
+        code: req.body?.stepupCode || req.body?.stepup_code,
+        expectedAmountCents: Number(original.amount_cents),
+      });
+    }
+    await evaluateFundingCompliance({
+      customerId: original.customer_id,
+      amountCents: Number(original.amount_cents),
+      currencyCode: original.currency_code,
+      fundingMethod: 'stripe_topup',
+      actorUserId: funderId,
+      requestIp,
+      correlationId,
+    });
+
+    const { topup, clientSecret, replayed } = await topupService.retryBusinessTopup({
+      businessId,
+      funderId,
+      topupId: req.params.topupId,
+      idempotencyKey,
+    });
+
+    res.status(replayed ? 200 : 201).json({
+      topup: { ...formatBusinessTopup(topup), retryTopupId: null },
+      clientSecret,
+      replayed,
+    });
   } catch (err) {
     next(err);
   }
@@ -305,9 +443,11 @@ async function issueTopupStepupChallenge(req, res, next) {
 module.exports = {
   createTopup,
   getTopup,
+  retryTopup,
   listMyTopups,
   issueTopupStepupChallenge,
   createBusinessTopup,
   getBusinessTopup,
+  retryBusinessTopup,
   listBusinessTopups,
 };

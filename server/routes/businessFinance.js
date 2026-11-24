@@ -45,6 +45,9 @@ router.get   ('/:businessId/jobs/:jobId/refund-requests', requireAuth, financeMe
 router.post  ('/:businessId/credit-topups',          requireAuth, financeMember, creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), topupController.createBusinessTopup);
 router.get   ('/:businessId/credit-topups',          requireAuth, financeMember, topupController.listBusinessTopups);
 router.get   ('/:businessId/credit-topups/:topupId', requireAuth, financeMember, topupController.getBusinessTopup);
+// Group 13, item 680 (D-379): the funder retries a failed business-funded
+// top-up from its own record — same gates as funding one.
+router.post  ('/:businessId/credit-topups/:topupId/retry', requireAuth, financeMember, creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), topupController.retryBusinessTopup);
 
 // Expenses
 router.get   ('/:businessId/expenses',               requireAuth, financeMember, financeRead, expenses.listExpenses);
