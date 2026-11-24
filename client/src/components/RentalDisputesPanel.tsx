@@ -175,17 +175,17 @@ export default function RentalDisputesPanel({ booking, isOwner, currentUserId, o
                     onChange={(e) => setResolveDraft((prev) => ({ ...prev, [claim.id]: { ...draft, reason: e.target.value } }))}
                   />
                 </label>
-                <button type="button" onClick={() => handleResolveClaim(claim)} className="booking-action-btn booking-action-approve">
+                <button type="button" onClick={() => handleResolveClaim(claim)} className="booking-action-btn booking-action-approve" data-track-private>
                   {t('toolRentals.damageClaimResolve') || 'Resolve claim'}
                 </button>
               </div>
             )}
             {claim.status !== 'open' && claim.ack_status === 'pending' && isFiler && (
               <div className="booking-card-actions">
-                <button type="button" onClick={() => handleAckClaim(claim, 'acknowledged')} className="booking-action-btn booking-action-approve">
+                <button type="button" onClick={() => handleAckClaim(claim, 'acknowledged')} className="booking-action-btn booking-action-approve" data-track-private>
                   {t('toolRentals.resolutionAcknowledge') || 'Accept resolution'}
                 </button>
-                <button type="button" onClick={() => handleAckClaim(claim, 'disputed')} className="booking-action-btn booking-action-decline">
+                <button type="button" onClick={() => handleAckClaim(claim, 'disputed')} className="booking-action-btn booking-action-decline" data-track-private>
                   {t('toolRentals.resolutionDispute') || 'Dispute resolution'}
                 </button>
               </div>
@@ -213,7 +213,7 @@ export default function RentalDisputesPanel({ booking, isOwner, currentUserId, o
               onChange={(e) => setClaimDraft((prev) => ({ ...prev, description: e.target.value }))}
             />
           </label>
-          <button type="button" onClick={handleFileClaim} className="booking-action-btn booking-action-approve">
+          <button type="button" onClick={handleFileClaim} className="booking-action-btn booking-action-approve" data-track-private>
             {t('toolRentals.damageClaimFile') || 'File damage claim'}
           </button>
           <p>{t('toolRentals.damageClaimOffPlatformNote') || 'The platform only records the claim. Any money moves directly between you, off-platform.'}</p>
@@ -223,10 +223,10 @@ export default function RentalDisputesPanel({ booking, isOwner, currentUserId, o
         <div>
           <p>{t('toolRentals.depositAckPrompt') || 'The owner resolved the deposit. Accept the decision, or dispute it.'}</p>
           <div className="booking-card-actions">
-            <button type="button" onClick={() => handleAckDeposit('acknowledged')} className="booking-action-btn booking-action-approve">
+            <button type="button" onClick={() => handleAckDeposit('acknowledged')} className="booking-action-btn booking-action-approve" data-track-private>
               {t('toolRentals.resolutionAcknowledge') || 'Accept resolution'}
             </button>
-            <button type="button" onClick={() => handleAckDeposit('disputed')} className="booking-action-btn booking-action-decline">
+            <button type="button" onClick={() => handleAckDeposit('disputed')} className="booking-action-btn booking-action-decline" data-track-private>
               {t('toolRentals.resolutionDispute') || 'Dispute resolution'}
             </button>
           </div>
@@ -258,7 +258,7 @@ export default function RentalDisputesPanel({ booking, isOwner, currentUserId, o
                   onChange={(e) => setEscReply((prev) => ({ ...prev, [esc.id]: e.target.value }))}
                 />
               </label>
-              <button type="button" onClick={() => handleEscReply(esc)} className="booking-action-btn booking-action-approve">
+              <button type="button" onClick={() => handleEscReply(esc)} className="booking-action-btn booking-action-approve" data-track-private>
                 {t('toolRentals.escalationSend') || 'Send'}
               </button>
             </div>
@@ -282,7 +282,7 @@ export default function RentalDisputesPanel({ booking, isOwner, currentUserId, o
             onChange={(e) => setEscDraft((prev) => ({ ...prev, message: e.target.value }))}
           />
         </label>
-        <button type="button" onClick={handleOpenEscalation} className="booking-action-btn booking-action-approve">
+        <button type="button" onClick={handleOpenEscalation} className="booking-action-btn booking-action-approve" data-track-private>
           {t('toolRentals.escalationOpen') || 'Open escalation'}
         </button>
       </div>

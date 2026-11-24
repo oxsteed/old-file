@@ -86,7 +86,7 @@ function BookingControls({data,send,url,busy,userId}){
       booking can attach a photo to any of its reports. */}
   {data.reports.length>0&&<div><label htmlFor={`${id}-evidence-report`}>{tr('evidenceReport')}</label><select id={`${id}-evidence-report`} value={evidenceReport} onChange={e=>setEvidenceReport(e.target.value)}><option value="">{tr('evidenceChooseReport')}</option>{data.reports.map(row=><option key={row.id} value={row.id}>{tr(row.phase)} · v{row.version}</option>)}</select>
    <label htmlFor={`${id}-evidence-file`}>{tr('evidencePhoto')}</label><input id={`${id}-evidence-file`} type="file" accept="image/*" onChange={e=>setEvidenceFile(e.target.files?.[0]||null)}/>
-   <button type="button" disabled={!evidenceReport||!evidenceFile||evidenceBusy} onClick={uploadEvidence}>{tr('evidenceUpload')}</button>
+   <button type="button" disabled={!evidenceReport||!evidenceFile||evidenceBusy} onClick={uploadEvidence} data-track="ui.8535e53f37.14">{tr('evidenceUpload')}</button>
    {evidenceError&&<p role="alert">{tr(evidenceError)}</p>}
   </div>}
   <ul>{data.reports.map(row=><li key={row.id}><strong>{tr(row.phase)} · {String(row.actor_id)===String(b.owner_id)?tr('owner'):tr('renter')} · v{row.version}</strong><p>{row.notes}</p><ul>{row.counts.map(item=><li key={item.name}>{item.name} × {item.quantity}</li>)}</ul><ul>{row.checklist.map(item=><li key={item.label}>{item.checked?'✓':'—'} {item.label}</li>)}</ul>
@@ -96,7 +96,7 @@ function BookingControls({data,send,url,busy,userId}){
         resolution, or disputes it (which clears the resolution). */}
     {row.missing_ack_status==='acknowledged'&&<p>{tr('resolutionAcknowledged')}</p>}
     {row.missing_ack_status==='disputed'&&<p>{tr('resolutionDisputed')}</p>}
-    {row.missing_ack_status==='pending'&&!data.owner&&<div><button type="button" onClick={()=>ackMissing(row.id,'acknowledged')}>{tr('acknowledgeResolution')}</button><button type="button" onClick={()=>ackMissing(row.id,'disputed')}>{tr('disputeResolution')}</button></div>}
+    {row.missing_ack_status==='pending'&&!data.owner&&<div><button type="button" onClick={()=>ackMissing(row.id,'acknowledged')} data-track="ui.8535e53f37.15">{tr('acknowledgeResolution')}</button><button type="button" onClick={()=>ackMissing(row.id,'disputed')} data-track="ui.8535e53f37.16">{tr('disputeResolution')}</button></div>}
    </>:data.owner&&<><label>{tr('resolution')}<input maxLength={2000} value={resolution} onChange={e=>setResolution(e.target.value)}/></label><button type="button" disabled={!resolution.trim()} onClick={async()=>{if(await send('post',`${url}/missing/${row.id}`,{notes:resolution,expectedVersion:row.missing_version}))setResolution('');}} data-track="ui.8535e53f37.7">{tr('resolve')}</button></>}</>}
   </li>)}</ul>
   <h3>{tr('extensions')}</h3><p>{tr('extensionHelp')}</p>

@@ -444,7 +444,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
                   <ul>
                     {safetyDocs.map((doc) => (
                       <li key={doc.id}>
-                        <a href={doc.file_url} target="_blank" rel="noreferrer">{doc.title}</a>
+                        <a href={doc.file_url} target="_blank" rel="noreferrer" data-track="ui.043dee9378.8">{doc.title}</a>
                       </li>
                     ))}
                   </ul>

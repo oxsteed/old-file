@@ -182,13 +182,13 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
                       </div>
                       {event.status === 'scheduled' && (
                         <div className="flex gap-2">
-                          <button type="button" onClick={() => handleCompleteEvent(event, false)} className="text-xs px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+                          <button type="button" onClick={() => handleCompleteEvent(event, false)} className="text-xs px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold" data-track="ui.e3cded4fbe.1">
                             {t('toolRentals.maintenanceComplete') || 'Mark done'}
                           </button>
-                          <button type="button" onClick={() => handleCompleteEvent(event, true)} className="text-xs px-2.5 py-1.5 rounded-md border font-semibold">
+                          <button type="button" onClick={() => handleCompleteEvent(event, true)} className="text-xs px-2.5 py-1.5 rounded-md border font-semibold" data-track="ui.e3cded4fbe.2">
                             {t('toolRentals.maintenanceCompleteRepair') || 'Done + repair record'}
                           </button>
-                          <button type="button" onClick={() => handleCancelEvent(event)} className="text-xs px-2.5 py-1.5 rounded-md border font-semibold">
+                          <button type="button" onClick={() => handleCancelEvent(event)} className="text-xs px-2.5 py-1.5 rounded-md border font-semibold" data-track="ui.e3cded4fbe.3">
                             {t('common.cancel') || 'Cancel'}
                           </button>
                         </div>
@@ -201,7 +201,7 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
                 <input type="text" maxLength={200} placeholder={t('toolRentals.maintenanceTitlePlaceholder') || 'What needs doing?'} value={eventDraft.title} onChange={(e) => setEventDraft((prev) => ({ ...prev, title: e.target.value }))} />
                 <input type="date" value={eventDraft.date} onChange={(e) => setEventDraft((prev) => ({ ...prev, date: e.target.value }))} />
                 <input type="text" maxLength={2000} placeholder={t('toolRentals.maintenanceNotesPlaceholder') || 'Notes (optional)'} value={eventDraft.notes} onChange={(e) => setEventDraft((prev) => ({ ...prev, notes: e.target.value }))} />
-                <button type="button" onClick={handleCreateEvent} className="text-xs px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+                <button type="button" onClick={handleCreateEvent} className="text-xs px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold" data-track="ui.e3cded4fbe.4">
                   {t('toolRentals.maintenanceSchedule') || 'Schedule maintenance'}
                 </button>
               </div>
@@ -215,8 +215,8 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
                 <ul>
                   {docs.map((doc) => (
                     <li key={doc.id} className="py-1 flex items-center justify-between gap-3">
-                      <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-sm text-orange-400 hover:text-orange-300">{doc.title}</a>
-                      <button type="button" onClick={async () => { await toolRentalsApi.deleteSafetyDocument(selected, doc.id).catch(() => {}); loadTool(selected); }} className="text-xs px-2 py-1 rounded-md border">
+                      <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-sm text-orange-400 hover:text-orange-300" data-track="ui.e3cded4fbe.5">{doc.title}</a>
+                      <button type="button" onClick={async () => { await toolRentalsApi.deleteSafetyDocument(selected, doc.id).catch(() => {}); loadTool(selected); }} className="text-xs px-2 py-1 rounded-md border" data-track="ui.e3cded4fbe.6">
                         {t('common.delete') || 'Delete'}
                       </button>
                     </li>
@@ -226,7 +226,7 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
               <div className="flex gap-2 flex-wrap mt-2">
                 <input type="text" maxLength={200} placeholder={t('toolRentals.safetyDocTitlePlaceholder') || 'Document title'} value={docTitle} onChange={(e) => setDocTitle(e.target.value)} />
                 <input type="file" accept="application/pdf,image/*" onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
-                <button type="button" disabled={!docFile || !docTitle.trim()} onClick={handleUploadDoc} className="text-xs px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+                <button type="button" disabled={!docFile || !docTitle.trim()} onClick={handleUploadDoc} className="text-xs px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold" data-track="ui.e3cded4fbe.7">
                   {t('toolRentals.safetyDocUpload') || 'Upload safety document'}
                 </button>
               </div>
@@ -244,13 +244,13 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
                   ))}
                 </ul>
                 <label className="flex items-center gap-2 mt-2 text-sm">
-                  <input type="checkbox" checked={cleaningConfirmed} onChange={(e) => setCleaningConfirmed(e.target.checked)} />
+                  <input type="checkbox" checked={cleaningConfirmed} onChange={(e) => setCleaningConfirmed(e.target.checked)} data-track="ui.e3cded4fbe.8" />
                   {t('toolRentals.checklistCleaningConfirm') || 'I confirm the tool is cleaned and ready.'}
                 </label>
                 <button
                   type="button"
                   onClick={handleFlipAvailability}
-                  className="mt-2 text-xs px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold"
+                  className="mt-2 text-xs px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold" data-track="ui.e3cded4fbe.9"
                 >
                   {t('toolRentals.checklistRestore') || 'Make available again'}
                 </button>
@@ -282,7 +282,7 @@ export default function ToolOwnerMaintainPanel({ tools = [] }) {
                       value={followupDraft[renter.renter_id] || ''}
                       onChange={(e) => setFollowupDraft((prev) => ({ ...prev, [renter.renter_id]: e.target.value }))}
                     />
-                    <button type="button" onClick={() => handleFollowup(renter)} className="text-xs px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+                    <button type="button" onClick={() => handleFollowup(renter)} className="text-xs px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white font-semibold" data-track="ui.e3cded4fbe.10">
                       {t('toolRentals.followupRecord') || 'Record follow-up'}
                     </button>
                     <Link to={`/messages?helperId=${encodeURIComponent(renter.renter_id)}`} className="text-xs px-2.5 py-1.5 rounded-md border font-semibold">
