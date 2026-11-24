@@ -795,4 +795,158 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .then((res) => expect(res.body.code).toBe('corrective_action_not_found'));
     });
   });
+
+  describe('635: resolution review', () => {
+    async function setupResolvedAction() {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const member = await addUser();
+      await db.query(
+        `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+         VALUES ($1, 'Austin', 'TX', 4.9, 1, TRUE)`,
+        [member.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+        .set('x-test-user', operator.id)
+        .send({ helper_user_id: member.id, role: 'member' })
+        .expect(201);
+      const ticket = await addTicket(operator, { applicationId });
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/remediation`)
+        .set('x-test-user', operator.id)
+        .send({ owner_user_id: member.id, due_date: '2026-12-01' })
+        .expect(201);
+      const created = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/corrective-actions`)
+        .set('x-test-user', operator.id)
+        .send({ title: 'Replace the compressor' })
+        .expect(201);
+      const action = created.body.action;
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/corrective-actions/${action.id}/status`)
+        .set('x-test-user', member.id)
+        .send({ status: 'in_progress' })
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/corrective-actions/${action.id}/status`)
+        .set('x-test-user', member.id)
+        .send({ status: 'resolved' })
+        .expect(200);
+      return { operator, member, applicationId, ticket, action };
+    }
+
+    function reviewAs(user, applicationId, actionId, body) {
+      return request(app)
+        .post(`/api/franchise/applications/${applicationId}/corrective-actions/${actionId}/review`)
+        .set('x-test-user', user.id)
+        .send(body);
+    }
+
+    function resolutionFor(user, applicationId, asAdmin = false) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/resolution`
+        : `/api/franchise/my-applications/${applicationId}/resolution`;
+      return request(app).get(base).set('x-test-user', user.id);
+    }
+
+    test('a resolved ticket with an unverified action awaits verification; HQ accept closes the exception', async () => {
+      const { operator, applicationId, ticket, action } = await setupResolvedAction();
+      const admin = await addUser('super_admin');
+      await db.query("UPDATE support_tickets SET status = 'resolved', resolved_at = NOW() WHERE id = $1", [ticket.id]);
+
+      const waiting = await resolutionFor(operator, applicationId).expect(200);
+      expect(waiting.body.total).toBe(1);
+      expect(waiting.body.awaiting_verification).toBe(1);
+      expect(waiting.body.resolved).toBe(0);
+      const [item] = waiting.body.items;
+      expect(item.exception_state).toBe('awaiting_verification');
+      expect(item.actions).toEqual({ total: 1, open: 0, in_progress: 0, resolved: 1, verified: 0 });
+      expect(item.remediation.owner_name).toBeTruthy();
+
+      const reviewed = await reviewAs(admin, applicationId, action.id, { decision: 'accept' }).expect(200);
+      expect(reviewed.body.action.status).toBe('verified');
+      expect(reviewed.body.exception_resolution.resolved).toBe(1);
+      expect(reviewed.body.exception_resolution.items[0].exception_state).toBe('resolved');
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.exception_resolution.resolved).toBe(1);
+    });
+
+    test('HQ reject sends the action back with a reason; a reason is required and only resolved actions can be reviewed', async () => {
+      const { operator, applicationId, action } = await setupResolvedAction();
+      const admin = await addUser('super_admin');
+
+      await reviewAs(admin, applicationId, action.id, { decision: 'reject' })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('resolution_review_reason_required'));
+      await reviewAs(admin, applicationId, action.id, { decision: 'maybe' })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_resolution_review_decision'));
+
+      const rejected = await reviewAs(admin, applicationId, action.id,
+        { decision: 'reject', reason: 'Photo shows the old part still fitted' })
+        .expect(200);
+      expect(rejected.body.action.status).toBe('in_progress');
+      expect(rejected.body.action.review_reason).toBe('Photo shows the old part still fitted');
+      expect(rejected.body.action.resolved_at).toBeNull();
+
+      // Now it is in_progress, so a second review is 409.
+      await reviewAs(admin, applicationId, action.id, { decision: 'accept' })
+        .expect(409)
+        .then((res) => expect(res.body.code).toBe('corrective_action_not_resolved'));
+      // And a non-admin cannot review at all (admin route).
+      await reviewAs(operator, applicationId, action.id, { decision: 'accept' })
+        .expect(403);
+    });
+
+    test('reopening a ticket reopens the exception, and it may escalate again', async () => {
+      const { operator, applicationId, ticket, action } = await setupResolvedAction();
+      const admin = await addUser('super_admin');
+      await db.query("UPDATE support_tickets SET status = 'resolved', resolved_at = NOW() WHERE id = $1", [ticket.id]);
+      await reviewAs(admin, applicationId, action.id, { decision: 'accept' }).expect(200);
+
+      let resolution = await resolutionFor(operator, applicationId).expect(200);
+      expect(resolution.body.items[0].exception_state).toBe('resolved');
+
+      // The generic reopen: status back to open, resolved_at cleared, a
+      // 'reopened' event recorded — the derived exception reopens.
+      await db.query("UPDATE support_tickets SET status = 'open', resolved_at = NULL, closed_at = NULL WHERE id = $1", [ticket.id]);
+      await db.query(
+        `INSERT INTO support_ticket_events (ticket_id, actor_id, event_type, before_status, after_status)
+         VALUES ($1, $2, 'reopened', 'resolved', 'open')`,
+        [ticket.id, operator.id],
+      );
+
+      resolution = await resolutionFor(operator, applicationId).expect(200);
+      expect(resolution.body.open).toBe(1);
+      expect(resolution.body.items[0].exception_state).toBe('open');
+
+      const escalated = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/escalate`)
+        .set('x-test-user', operator.id)
+        .send({ reason: 'Still broken after the fix' })
+        .expect(201);
+      expect(escalated.body.escalation.priority_after).toBe('urgent');
+    });
+
+    test('a resolved ticket with no actions is resolved; an open ticket with no actions is open', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const openTicket = await addTicket(operator, { applicationId, subject: 'Open one' });
+      const closedTicket = await addTicket(operator, { applicationId, status: 'closed', subject: 'Closed one' });
+
+      const resolution = await resolutionFor(operator, applicationId).expect(200);
+      expect(resolution.body.total).toBe(2);
+      const byNumber = new Map(resolution.body.items.map((item) => [item.ticket_number, item]));
+      expect(byNumber.get(openTicket.ticket_number).exception_state).toBe('open');
+      expect(byNumber.get(openTicket.ticket_number).actions.total).toBe(0);
+      expect(byNumber.get(closedTicket.ticket_number).exception_state).toBe('resolved');
+      expect(resolution.body.open).toBe(1);
+      expect(resolution.body.resolved).toBe(1);
+
+      const hq = await resolutionFor(await addUser('super_admin'), applicationId, true).expect(200);
+      expect(hq.body.total).toBe(2);
+    });
+  });
 });

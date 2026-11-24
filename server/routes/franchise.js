@@ -103,6 +103,9 @@ const {
   uploadActionEvidenceAsAdmin,
   listActionEvidence,
   listActionEvidenceAsAdmin,
+  reviewCorrectiveActionAsAdmin,
+  getExceptionResolution,
+  getExceptionResolutionAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
@@ -210,6 +213,9 @@ router.post('/my-applications/:id/corrective-actions/:actionId/status', authenti
 // to a corrective action through the vault upload path.
 router.post('/my-applications/:id/corrective-actions/:actionId/evidence', authenticate, requireFranchiseEnabled, upload.single('file'), validateFileUpload, uploadActionEvidence);
 router.get('/my-applications/:id/corrective-actions/:actionId/evidence', authenticate, requireFranchiseEnabled, listActionEvidence);
+// Group 12 Slice 3g (635): resolution review — the per-exception
+// resolution state, derived from ticket + corrective-action state.
+router.get('/my-applications/:id/resolution', authenticate, requireFranchiseEnabled, getExceptionResolution);
 // Group 12 Slice 3d (620): the operator reads the HQ announcement feed
 // and marks items read (idempotent).
 router.post('/my-applications/:id/announcements/:announcementId/read', authenticate, requireFranchiseEnabled, markAnnouncementRead);
@@ -291,6 +297,11 @@ router.post('/applications/:id/corrective-actions/:actionId/status', authenticat
 // corrective action.
 router.post('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), upload.single('file'), validateFileUpload, uploadActionEvidenceAsAdmin);
 router.get('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), listActionEvidenceAsAdmin);
+// Group 12 Slice 3g (635): HQ reviews a resolved corrective action
+// (accept = verified, reject = back to in_progress with a reason) and
+// reads the per-exception resolution state.
+router.post('/applications/:id/corrective-actions/:actionId/review', authenticate, requireAdmin, requirePermission('manage_operations'), reviewCorrectiveActionAsAdmin);
+router.get('/applications/:id/resolution', authenticate, requireAdmin, requirePermission('manage_operations'), getExceptionResolutionAsAdmin);
 // Group 12 Slice 3d (620): HQ posts and removes territory announcements.
 router.post('/applications/:id/announcements', authenticate, requireAdmin, requirePermission('manage_operations'), postAnnouncementAsAdmin);
 router.delete('/applications/:id/announcements/:announcementId', authenticate, requireAdmin, requirePermission('manage_operations'), deleteAnnouncementAsAdmin);

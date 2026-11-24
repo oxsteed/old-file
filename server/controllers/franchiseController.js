@@ -468,6 +468,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3g (632, D-332): the territory members with names —
   // the member picker for remediation assignment.
   const territoryMembers = await fetchTerritoryMembers(applicationId);
+  // Group 12 Slice 3g (635, D-335): the per-exception resolution state —
+  // derived on read, so it can never drift from ticket + action state.
+  const exceptionResolution = await buildExceptionResolution(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -498,6 +501,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     exception_summary: exceptionSummary,
     location_health: locationHealth,
     territory_members: territoryMembers,
+    exception_resolution: exceptionResolution,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1100,6 +1104,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   const locationHealth = await buildLocationHealth(applicationId);
   // Group 12 Slice 3g (632, D-332): the territory members with names.
   const territoryMembers = await fetchTerritoryMembers(applicationId);
+  // Group 12 Slice 3g (635, D-335): the per-exception resolution state.
+  const exceptionResolution = await buildExceptionResolution(applicationId);
 
   return {
     application: {
@@ -1125,6 +1131,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     exception_summary: exceptionSummary,
     location_health: locationHealth,
     territory_members: territoryMembers,
+    exception_resolution: exceptionResolution,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — viewer perspective.
@@ -6785,6 +6792,174 @@ async function listActionEvidenceAsAdmin(req, res) {
   return listActionEvidence(req, res, { asAdmin: true });
 }
 
+// 635 (D-335): resolution review. HQ reviews a resolved corrective
+// action: accept = verified, reject = back to in_progress with a reason.
+// The linked exception closes only when its actions are verified —
+// derived, never stored: an exception is `open` while its ticket is
+// open, `awaiting_verification` while its ticket is resolved/closed but
+// an action is still unverified, and `resolved` once the ticket is
+// resolved/closed and every action is verified (or there are no
+// actions). Reopening a ticket (the generic support reopen) flips its
+// status back to open, so the derived exception reopens with it —
+// no franchise code touches the generic reopen path.
+async function buildExceptionResolution(applicationId) {
+  const tickets = await fetchTerritoryTickets(applicationId, { status: 'all', limit: 500 });
+  const actions = await fetchCorrectiveActions(applicationId);
+  const remediations = await fetchRemediations(applicationId);
+  const actionsByTicket = new Map();
+  for (const action of actions) {
+    if (!actionsByTicket.has(action.ticket_id)) actionsByTicket.set(action.ticket_id, []);
+    actionsByTicket.get(action.ticket_id).push(action);
+  }
+  const remediationByTicket = new Map(remediations.map((row) => [row.ticket_id, row]));
+  const items = tickets.map((ticket) => {
+    const ticketActions = actionsByTicket.get(ticket.id) || [];
+    const counts = {
+      total: ticketActions.length,
+      open: ticketActions.filter((a) => a.status === 'open').length,
+      in_progress: ticketActions.filter((a) => a.status === 'in_progress').length,
+      resolved: ticketActions.filter((a) => a.status === 'resolved').length,
+      verified: ticketActions.filter((a) => a.status === 'verified').length,
+    };
+    const allVerified = ticketActions.length > 0
+      && ticketActions.every((a) => a.status === 'verified');
+    const ticketClosed = ['resolved', 'closed'].includes(ticket.status);
+    const exceptionState = !ticketClosed
+      ? 'open'
+      : (ticketActions.length && !allVerified ? 'awaiting_verification' : 'resolved');
+    const remediation = remediationByTicket.get(ticket.id) || null;
+    return {
+      ticket_id: ticket.id,
+      ticket_number: ticket.ticket_number,
+      subject: ticket.subject,
+      category: ticket.category,
+      priority: ticket.priority,
+      status: ticket.status,
+      location_id: ticket.location_id,
+      location_name: ticket.location_name,
+      exception_state: exceptionState,
+      actions: counts,
+      remediation: remediation
+        ? {
+            id: remediation.id,
+            owner_user_id: remediation.owner_user_id,
+            owner_name: remediation.owner_name,
+            due_date: remediation.due_date,
+          }
+        : null,
+    };
+  });
+  return {
+    application_id: applicationId,
+    total: items.length,
+    open: items.filter((item) => item.exception_state === 'open').length,
+    awaiting_verification: items.filter((item) => item.exception_state === 'awaiting_verification').length,
+    resolved: items.filter((item) => item.exception_state === 'resolved').length,
+    items,
+  };
+}
+
+async function reviewCorrectiveActionAsAdmin(req, res) {
+  const { id, actionId } = req.params;
+  if (!UUID_RE.test(actionId)) {
+    return res.status(404).json({ error: 'Corrective action not found.', code: 'corrective_action_not_found' });
+  }
+  const decision = asTrimmed(req.body?.decision);
+  if (!['accept', 'reject'].includes(decision)) {
+    return res.status(400).json({ error: "decision must be 'accept' or 'reject'.", code: 'invalid_resolution_review_decision' });
+  }
+  const reason = asTrimmed(req.body?.reason);
+  if (decision === 'reject' && !reason) {
+    return res.status(400).json({ error: 'A reason is required to send a corrective action back.', code: 'resolution_review_reason_required' });
+  }
+  if (reason && reason.length > 1000) {
+    return res.status(400).json({ error: 'The review reason must be at most 1000 characters.', code: 'resolution_review_reason_too_long' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const action = await loadTerritoryAction(client, id, actionId);
+      if (!action) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Corrective action not found.', code: 'corrective_action_not_found' });
+      }
+      if (action.status !== 'resolved') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Only a resolved corrective action can be reviewed.',
+          code: 'corrective_action_not_resolved',
+        });
+      }
+      const nextStatus = decision === 'accept' ? 'verified' : 'in_progress';
+      const { rows } = await client.query(
+        `UPDATE franchise_corrective_actions
+            SET status = $2::text,
+                review_reason = $3,
+                reviewed_by = $4,
+                reviewed_at = NOW(),
+                resolved_at = CASE WHEN $2::text = 'in_progress' THEN NULL ELSE resolved_at END,
+                updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [actionId, nextStatus, reason || null, req.user?.id || null]
+      );
+      await logActivity(client, id, req.user?.id || null, 'corrective_action_reviewed',
+        decision === 'accept'
+          ? 'Headquarters verified a corrective action.'
+          : `Headquarters sent a corrective action back: ${reason}.`,
+        { corrective_action_id: actionId, ticket_id: action.ticket_id, decision, reason: reason || null });
+      await client.query('COMMIT');
+      const actions = await fetchCorrectiveActions(id, { ticketId: action.ticket_id });
+      const presented = actions.find((row) => row.id === actionId) || rows[0];
+      const resolution = await buildExceptionResolution(id);
+      return res.json({ action: presented, exception_resolution: resolution });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error reviewing franchise corrective action', { id, actionId, err: err.message });
+    return res.status(500).json({ error: 'Failed to review corrective action.' });
+  }
+}
+
+async function getExceptionResolution(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const viewer = await loadTerritoryViewer(client, id, req.user?.id);
+        const blocked = territoryReadScope(viewer);
+        if (blocked) return res.status(blocked.status).json(blocked.body);
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    return res.json(await buildExceptionResolution(id));
+  } catch (err) {
+    logger.error('Error loading franchise exception resolution', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load exception resolution.' });
+  }
+}
+
+async function getExceptionResolutionAsAdmin(req, res) {
+  return getExceptionResolution(req, res, { asAdmin: true });
+}
+
 // 627 (D-328): the per-location health view. Health is derived on read
 // from the open locations (fetchOpenLocations) plus each location's
 // linked open exceptions (628) — never stored, so it can never drift
@@ -7984,6 +8159,9 @@ module.exports = {
   uploadActionEvidenceAsAdmin,
   listActionEvidence,
   listActionEvidenceAsAdmin,
+  reviewCorrectiveActionAsAdmin,
+  getExceptionResolution,
+  getExceptionResolutionAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
