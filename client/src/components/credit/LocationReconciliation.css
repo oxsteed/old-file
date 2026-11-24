@@ -1,0 +1,21 @@
+/* Group 13 Slice 4h: the location reconciliation section, shared by the
+   kiosk cashier panel and the HQ page. Tokens follow the credit
+   components (CardSecurity.css): light defaults with dark overrides. */
+.lrec-section { box-sizing: border-box; display: grid; gap: .8rem; padding: 1rem; border: 1px solid var(--border-color, #cbd5e1); border-radius: 1rem; background: var(--bg-primary, white); color: var(--text-primary, #0f172a); }
+.dark .lrec-section, [data-theme="dark"] .lrec-section { background: #111827; color: #f9fafb; border-color: #475569; }
+.lrec-section h3, .lrec-section h4 { margin: 0; }
+.lrec-section p { margin: 0; }
+.lrec-row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: end; }
+.lrec-field { display: grid; gap: .35rem; }
+.lrec-field label { font-size: .85rem; font-weight: 650; }
+.lrec-field input, .lrec-field select, .lrec-field textarea { box-sizing: border-box; padding: .55rem .7rem; border: 1px solid #94a3b8; border-radius: .5rem; background: transparent; color: inherit; font: inherit; }
+.lrec-field textarea { min-height: 4.5rem; resize: vertical; }
+.lrec-btn { padding: .55rem .8rem; border: 1px solid #94a3b8; border-radius: .5rem; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.lrec-btn:disabled { opacity: .5; cursor: default; }
+.lrec-btn:focus-visible, .lrec-field input:focus-visible, .lrec-field select:focus-visible, .lrec-field textarea:focus-visible { outline: 3px solid #ea580c; outline-offset: 3px; }
+.lrec-note { font-size: .9rem; opacity: .8; }
+.lrec-totals, .lrec-list, .lrec-adjustments, .lrec-annotations { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.lrec-totals li, .lrec-exception { padding: .6rem .75rem; border: 1px solid var(--border-color, #cbd5e1); border-radius: .6rem; }
+.dark .lrec-totals li, .dark .lrec-exception, [data-theme="dark"] .lrec-totals li, [data-theme="dark"] .lrec-exception { border-color: #475569; }
+.lrec-adjustments li, .lrec-annotations li { padding: .3rem 0; font-size: .92rem; }
+.lrec-check { display: flex; gap: .45rem; align-items: center; font-size: .92rem; }

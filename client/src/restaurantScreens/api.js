@@ -189,3 +189,40 @@ export const closeCashierShift = (id, device, shiftId) =>
   api.post(`${cashierBase(id, device)}/shifts/${encodeURIComponent(shiftId)}/close`, {},
     { ...deviceOptions(device), skipSessionRefresh: true },
   ).then((r) => r.data);
+
+// Group 13 Slice 4h (686-690): the location reconciliation surface on the
+// kiosk. Same device auth as the 4g cashier surface; every read is scoped
+// to the paired location server-side. No money moves here.
+export const getCashierReconciliationSummary = (id, device, params) =>
+  api.get(`${cashierBase(id, device)}/reconciliation/summary`,
+    { ...deviceOptions(device), params, skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const listCashierReconciliationExceptions = (id, device, params) =>
+  api.get(`${cashierBase(id, device)}/reconciliation/exceptions`,
+    { ...deviceOptions(device), params, skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const addCashierReconciliationAnnotation = (id, device, exceptionId, body) =>
+  api.post(`${cashierBase(id, device)}/reconciliation/exceptions/${encodeURIComponent(exceptionId)}/annotations`,
+    { body },
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const getCashierPeriodClose = (id, device, params) =>
+  api.get(`${cashierBase(id, device)}/reconciliation/period-close`,
+    { ...deviceOptions(device), params, skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const recordCashierPeriodClose = (id, device, params) =>
+  api.post(`${cashierBase(id, device)}/reconciliation/period-close`, params || {},
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const downloadCashierReconciliationExport = async (id, device, params) => {
+  const response = await api.get(`${cashierBase(id, device)}/reconciliation/export.csv`,
+    { ...deviceOptions(device), params, skipSessionRefresh: true, responseType: 'blob' });
+  const url = window.URL.createObjectURL(response.data);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `oxsteed-credit-reconciliation-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+};

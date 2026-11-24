@@ -68,7 +68,10 @@ function withUserScope(handler) {
 function withDeviceBodyScope(handler) {
   return async (req, res, next) => {
     try {
-      const scope = await deviceScope(req, req.body || {});
+      // POSTs carry the location in the body; accept it from the query
+      // too (body wins) so the annotation and review calls read the same
+      // way as the GETs.
+      const scope = await deviceScope(req, { ...(req.query || {}), ...(req.body || {}) });
       await handler(req, res, scope);
     } catch (error) {
       next(error);
@@ -79,7 +82,7 @@ function withDeviceBodyScope(handler) {
 function withUserBodyScope(handler) {
   return async (req, res, next) => {
     try {
-      const scope = await userScope(req, req.body || {});
+      const scope = await userScope(req, { ...(req.query || {}), ...(req.body || {}) });
       await handler(req, res, scope);
     } catch (error) {
       next(error);
@@ -137,6 +140,17 @@ async function exportCsv(req, res, scope) {
   res.send(result.csv);
 }
 
+// 686: the HQ location picker — every location of the caller's own
+// restaurant. No location scope to resolve here; requireRestaurantAccess
+// on the router already scoped the restaurant.
+async function listLocations(req, res, next) {
+  try {
+    res.json({ locations: await recon.listUserLocations(pool, scopedRestaurantId(req)) });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   // Device-door handlers (kiosk router mounts these behind
   // authenticateCashierKiosk + the per-device limiter).
@@ -150,6 +164,7 @@ module.exports = {
   // User-door handlers (credit-reconciliation router mounts these behind
   // authenticate + requireRestaurantAccess).
   userGetSummary: withUserScope(getSummary),
+  userListLocations: listLocations,
   userListExceptions: withUserScope(listExceptions),
   userListAnnotations: withUserScope(listAnnotations),
   userAddAnnotation: withUserBodyScope(addAnnotation),

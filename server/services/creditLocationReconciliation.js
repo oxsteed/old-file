@@ -164,6 +164,19 @@ async function resolveUserScope(client, { restaurantId, locationId, userId }) {
   };
 }
 
+// The user door's location list (686, HQ picker): every location of the
+// caller's own restaurant, primary first. requireRestaurantAccess has
+// already proven the restaurant belongs to the caller; the cashier door
+// needs no equivalent because the 681 picker lists the device's locations.
+async function listUserLocations(client, restaurantId) {
+  const { rows } = await client.query(
+    `SELECT id, name, status, is_primary FROM restaurant_locations
+      WHERE restaurant_id = $1 ORDER BY is_primary DESC, id`,
+    [Number(restaurantId)],
+  );
+  return rows.map(formatLocation);
+}
+
 async function getRestaurantPartnerId(client, restaurantId) {
   const { rows: [row] } = await client.query(
     `SELECT id FROM oxsteed_credit_partners WHERE restaurant_id = $1`,
@@ -1065,7 +1078,7 @@ async function buildLocationExportCsv(client, scope, params) {
 
 module.exports = {
   parseLocationId, parseCurrencyCode, parsePeriod, parseUuid,
-  resolveDeviceScope, resolveUserScope,
+  resolveDeviceScope, resolveUserScope, listUserLocations,
   getLocationSummary, listLocationExceptions, getLocationException,
   listAnnotations, addAnnotation,
   getPeriodCloseReview, recordPeriodCloseReview,

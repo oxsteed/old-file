@@ -14,7 +14,14 @@ import {
   getCurrentCashierShift,
   updateCashierShiftLocation,
   closeCashierShift,
+  getCashierReconciliationSummary,
+  listCashierReconciliationExceptions,
+  addCashierReconciliationAnnotation,
+  getCashierPeriodClose,
+  recordCashierPeriodClose,
+  downloadCashierReconciliationExport,
 } from "../../restaurantScreens/api";
+import LocationReconciliationSection from "../../components/credit/LocationReconciliationSection";
 
 function TransactionRow({ transaction: tx, t }) {
   return (
@@ -353,6 +360,30 @@ export default function CashierPanel({
           {!shiftData?.shift && !closedShift && (
             <p className="fd-cashier-note">{t("cashier.noShift")}</p>
           )}
+        </section>
+
+        <section className="fd-cashier-section" aria-labelledby="fd-cashier-reconciliation">
+          <LocationReconciliationSection
+            t={t}
+            formatMoney={formatFoodMoney}
+            locationId={activeLocationId}
+            locations={locations}
+            onPickLocation={handlePickLocation}
+            fetchers={{
+              getSummary: (params) => getCashierReconciliationSummary(restaurantId, device, params),
+              listExceptions: (params) => listCashierReconciliationExceptions(restaurantId, device, params),
+              addAnnotation: (exceptionId, body) => addCashierReconciliationAnnotation(restaurantId, device, exceptionId, body),
+              getPeriodClose: (params) => getCashierPeriodClose(restaurantId, device, params),
+              recordPeriodClose: (params) => recordCashierPeriodClose(restaurantId, device, params),
+              downloadExport: (params) => downloadCashierReconciliationExport(restaurantId, device, params),
+            }}
+            track={{
+              refresh: "ui.e23c624842.21",
+              export: "ui.e23c624842.22",
+              recordReview: "ui.e23c624842.23",
+              annotate: "ui.e23c624842.24",
+            }}
+          />
         </section>
 
         <section className="fd-cashier-section" aria-labelledby="fd-cashier-lookup">

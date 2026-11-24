@@ -59,6 +59,41 @@ export const getOxsteedCreditAccountDetails = (params = {}) =>
   api.get('/oxsteed-credit/account-details', { params })
     .then((response) => response.data?.details || null);
 
+// Group 13 Slice 4h (686-690): the participant/HQ door of the location
+// reconciliation surface. The caller reads only their own restaurant's
+// locations, server-enforced by requireRestaurantAccess; the admin
+// reconciliation workspace is untouched.
+export const listLocationReconciliationLocations = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/credit-reconciliation/locations`)
+    .then((response) => response.data?.locations || []);
+export const getLocationReconciliationSummary = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/credit-reconciliation/summary`, { params })
+    .then((response) => response.data);
+export const listLocationReconciliationExceptions = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/credit-reconciliation/exceptions`, { params })
+    .then((response) => response.data);
+export const addLocationReconciliationAnnotation = (restaurantId, exceptionId, body) =>
+  api.post(`/restaurants/${restaurantId}/credit-reconciliation/exceptions/${encodeURIComponent(exceptionId)}/annotations`, { body })
+    .then((response) => response.data);
+export const getLocationReconciliationPeriodClose = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/credit-reconciliation/period-close`, { params })
+    .then((response) => response.data);
+export const recordLocationReconciliationPeriodClose = (restaurantId, params = {}) =>
+  api.post(`/restaurants/${restaurantId}/credit-reconciliation/period-close`, params)
+    .then((response) => response.data);
+export const downloadLocationReconciliationExport = async (restaurantId, params = {}) => {
+  const response = await api.get(`/restaurants/${restaurantId}/credit-reconciliation/export.csv`,
+    { params, responseType: 'blob' });
+  const url = window.URL.createObjectURL(response.data);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `oxsteed-credit-reconciliation-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 export const getOxsteedCreditTransaction = (transactionId, params = {}) =>
   api.get(`/oxsteed-credit/transactions/${transactionId}`, { params }).then((response) => response.data?.transaction || null);
 

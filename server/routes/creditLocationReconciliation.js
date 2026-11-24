@@ -16,7 +16,9 @@ const controller = require('../controllers/creditLocationReconciliationControlle
 
 router.use(authenticate, requireRestaurantAccess());
 
+// 686: the HQ location picker — every location of the caller's own restaurant.
 // 686: the per-location reconciliation summary.
+router.get('/locations', controller.userListLocations);
 router.get('/summary', controller.userGetSummary);
 // 687/688: the location's exceptions, with matched adjustments and
 // annotations attached.

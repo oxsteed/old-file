@@ -186,6 +186,7 @@ const LogisticsPaymentsPage = lazyWithRetry(() => import('./pages/logistics/Logi
 const BusinessHubPage = lazyWithRetry(routeLoaders.businessWorkspace, { name: 'businessWorkspace' });
 const BusinessOnboardingPage = lazyWithRetry(() => import('./pages/BusinessOnboardingPage'));
 const CreditApplyPage = lazyWithRetry(() => import('./pages/CreditApplyPage'));
+const LocationReconciliationPage = lazyWithRetry(() => import('./pages/food/LocationReconciliationPage'));
 const VortexPage = lazyWithRetry(() => import('./pages/VortexPage'));
 const NetworkAppsPage = lazyWithRetry(() => import('./pages/NetworkAppsPage'));
 const AccessGateRecoveryPage = lazyWithRetry(() => import('./pages/AccessGateRecoveryPage'));
@@ -809,6 +810,10 @@ export default function App() {
                         route; membership is enforced by the portal's data
                         source (GET /food/my/restaurants) and by the staff API. */}
                     <Route path="/restaurants/:restaurantId/portal"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantEmployeePortalPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Group 13 Slice 4h: the HQ/participant door of the
+                        location reconciliation surface. The page reads only
+                        the caller's own restaurant; the server enforces it. */}
+                    <Route path="/restaurants/:restaurantId/credit-reconciliation" element={<Guarded><ProtectedRoute><RouteErrorBoundary><LocationReconciliationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurants/screens/:restaurantId/:screenRole" element={<RouteErrorBoundary><ManagedRestaurantScreen /></RouteErrorBoundary>} />
                     <Route path="/restaurants/kitchen/:restaurantId"   element={<DeviceOrStaffRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></DeviceOrStaffRoute>} />
                     {/* Public kitchen-tablet setup entry: no auth, no token. */}
