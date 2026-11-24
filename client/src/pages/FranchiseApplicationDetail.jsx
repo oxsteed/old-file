@@ -238,10 +238,10 @@ export default function FranchiseApplicationDetail({ applicationId }) {
             <p className="fr-detail-empty">{copy('acceptanceOffered')}</p>
             {!showDecline ? (
               <div className="fr-accept-actions">
-                <button type="button" className="fr-btn-primary" disabled={busy} onClick={() => answerAcceptance('accepted')}>
+                <button type="button" className="fr-btn-primary" disabled={busy} onClick={() => answerAcceptance('accepted')} data-track="ui.38155fa446.5">
                   {copy('acceptanceAccept')}
                 </button>
-                <button type="button" className="fr-btn-ghost" disabled={busy} onClick={() => setShowDecline(true)}>
+                <button type="button" className="fr-btn-ghost" disabled={busy} onClick={() => setShowDecline(true)} data-track="ui.38155fa446.6">
                   {copy('acceptanceDecline')}
                 </button>
               </div>
@@ -257,10 +257,10 @@ export default function FranchiseApplicationDetail({ applicationId }) {
                   rows={3}
                 />
                 <div className="fr-accept-actions">
-                  <button type="button" className="fr-btn-primary" disabled={busy || !declineReason.trim()} onClick={() => answerAcceptance('declined')}>
+                  <button type="button" className="fr-btn-primary" disabled={busy || !declineReason.trim()} onClick={() => answerAcceptance('declined')} data-track="ui.38155fa446.7">
                     {copy('acceptanceConfirmDecline')}
                   </button>
-                  <button type="button" className="fr-btn-ghost" disabled={busy} onClick={() => { setShowDecline(false); setDeclineReason(''); }}>
+                  <button type="button" className="fr-btn-ghost" disabled={busy} onClick={() => { setShowDecline(false); setDeclineReason(''); }} data-track="ui.38155fa446.8">
                     {copy('acceptanceCancel')}
                   </button>
                 </div>
@@ -461,7 +461,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
                         )}
                       </div>
                       {!acknowledged && (
-                        <button type="button" className="fr-btn-primary" disabled={busy} onClick={() => acknowledgeResponsibility(item.id)}>
+                        <button type="button" className="fr-btn-primary" disabled={busy} onClick={() => acknowledgeResponsibility(item.id)} data-track="ui.38155fa446.9">
                           {copy('responsibilityAcknowledge')}
                         </button>
                       )}
