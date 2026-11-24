@@ -28,6 +28,7 @@ export default function CardHistory({ cardId, fetchHistory, admin = false }) {
       <ol>{events.map(event => <li key={event.id}>
         <strong>{t(`cards.security.events.${event.action.replace('credit.card.', '')}`, { defaultValue: t('cards.security.activity') })}</strong>
         <p>{formatCreditDateTime(event.createdAt, t('cards.notAvailable'), i18n.resolvedLanguage)} · {t(`cards.security.actors.${event.actor}`)}</p>
+        {event.reason && <p>{t('cards.statusReason', { reason: event.reason })}</p>}
         {admin && <details><summary>{t('cards.security.evidence')}</summary>
           <p>{event.actorUserId} · {event.reason} · {event.correlationId} · {event.requestIp}</p>
           <pre>{JSON.stringify({ before: event.beforeState, after: event.afterState, metadata: event.metadata }, null, 2)}</pre>

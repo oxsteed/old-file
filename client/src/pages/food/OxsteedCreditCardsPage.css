@@ -25,6 +25,8 @@
 
 .ox-card-tile-meta { display: flex; flex-wrap: wrap; gap: 8px; color: #7d8b94; font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .04em; }
 
+.ox-card-status-reason { margin: 0; color: #7a4a12; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+
 .ox-card-activate, .ox-card-pin-form { display: flex; gap: 8px; }
 .ox-card-activate input, .ox-card-pin-form input { flex: 1; min-width: 0; min-height: 38px; padding: 0 10px; border: 1px solid rgba(16,37,63,.13); border-radius: 9px; color: #10253f; background: #fff; font: inherit; font-size: 12px; outline: none; }
 .ox-card-activate button, .ox-card-pin-form button { flex: 0 0 auto; min-height: 38px; padding: 0 12px; border: 0; border-radius: 9px; color: #fff; background: #d66e0c; font-size: 11px; font-weight: 850; cursor: pointer; }
