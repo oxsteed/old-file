@@ -114,6 +114,34 @@ async function getTopup(req, res, next) {
   }
 }
 
+// Group 13 Slice 4b (657): the customer's own top-ups, newest first.
+// Read-only; the router's authenticate + requireRole('customer') gate
+// applies and the service filters by the caller's id, so a customer sees
+// only their own top-ups. `status` filters to one top-up status
+// (pending/completed/failed/requires_attention); anything else is ignored
+// and the unfiltered list is returned.
+const CUSTOMER_TOPUP_STATUSES = new Set(['pending', 'completed', 'failed', 'requires_attention']);
+
+async function listMyTopups(req, res, next) {
+  try {
+    const customerId = req.user?.id;
+    if (!customerId) {
+      throw new AppError('Authentication is required', 401, 'auth_required');
+    }
+    const rawStatus = typeof req.query?.status === 'string' ? req.query.status.trim() : '';
+    const status = CUSTOMER_TOPUP_STATUSES.has(rawStatus) ? rawStatus : null;
+    const topups = await topupService.listCustomerTopups({
+      customerId,
+      status,
+      limit: req.query.limit,
+      offset: req.query.offset,
+    });
+    res.json({ topups: topups.map(formatTopup) });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ─── G-22: business-funded Credit ───────────────────────────────────────
 // "Business-funded Credit implemented: owner/manager initiates, names a
 // member, funds from the business payment method, with explicit
@@ -277,6 +305,7 @@ async function issueTopupStepupChallenge(req, res, next) {
 module.exports = {
   createTopup,
   getTopup,
+  listMyTopups,
   issueTopupStepupChallenge,
   createBusinessTopup,
   getBusinessTopup,

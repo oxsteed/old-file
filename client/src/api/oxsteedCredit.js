@@ -179,6 +179,9 @@ export const createOxsteedCreditTopup = (payload, idempotencyKey) =>
 export const getOxsteedCreditTopup = (topupId) =>
   api.get(`/oxsteed-credit/topups/${encodeURIComponent(topupId)}`).then((response) => response.data);
 
+export const listOxsteedCreditTopups = (params = {}) =>
+  api.get('/oxsteed-credit/topups', { params }).then((response) => response.data?.topups || []);
+
 export const issueOxsteedCreditTopupStepup = (payload) =>
   api.post('/oxsteed-credit/stepup-challenges', payload).then((response) => response.data);
 

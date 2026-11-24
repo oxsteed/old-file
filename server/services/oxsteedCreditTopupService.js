@@ -403,6 +403,31 @@ async function listBusinessTopups({ businessId, limit = 20, offset = 0 }) {
   return rows;
 }
 
+// Group 13 Slice 4b (657): the customer's own top-ups, newest first,
+// optionally filtered to one status. The credit page lists pending top-ups
+// from this read; it reuses the existing top-up rows and formatTopup — no
+// second top-up system. A customer sees only rows whose customer_id is
+// their own (self-service and business-funded top-ups alike: settlement
+// credits topup.customer_id either way).
+async function listCustomerTopups({ customerId, status = null, limit = 20, offset = 0 }) {
+  if (!customerId) return [];
+  const values = [customerId];
+  let where = 'customer_id = $1';
+  if (status) {
+    values.push(status);
+    where += ` AND status = $${values.length}`;
+  }
+  values.push(Math.min(Math.max(Number(limit) || 20, 1), 100), Math.max(Number(offset) || 0, 0));
+  const { rows } = await pool.query(
+    `SELECT * FROM oxsteed_credit_topups
+      WHERE ${where}
+      ORDER BY created_at DESC
+      LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    values
+  );
+  return rows;
+}
+
 async function getCustomerTopup({ customerId, topupId }) {
   if (!customerId || !topupId) return null;
   const { rows } = await pool.query(
@@ -776,6 +801,7 @@ module.exports = {
   getCustomerTopup,
   getBusinessTopup,
   listBusinessTopups,
+  listCustomerTopups,
   completeCreditTopupFromWebhook,
   failCreditTopupFromWebhook,
   applyCreditTopupWebhookEvent,

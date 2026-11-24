@@ -53,6 +53,7 @@ router.post('/disputes', creditMutationLimiter, rejectImpersonated, controller.o
 
 // Stripe top-ups (fiat money IN): create a top-up intent and read its status.
 router.post('/topups', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), topupController.createTopup);
+router.get('/topups', topupController.listMyTopups);
 router.get('/topups/:id', topupController.getTopup);
 // Step-up challenge issuance for large top-ups (Phase 5 compliance).
 router.post('/stepup-challenges', creditMutationLimiter, rejectImpersonated, topupController.issueTopupStepupChallenge);
