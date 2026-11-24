@@ -26,6 +26,9 @@ function Panel({kind,id,epoch,userId}){
  const url=`${BASE}/${kind}/${id}`;
  useEffect(()=>{const seq=++gen.current;setError('');api.get(url).then(({data:value})=>{if(!value?.[kind==='tools'?'tool':'booking'])throw new Error('Invalid equipment response');if(seq===gen.current&&isCurrentAuthEpoch(epoch))setData(value);}).catch(()=>{if(seq===gen.current&&isCurrentAuthEpoch(epoch)){setData(null);setError('loadError');}});return()=>{gen.current++;};},[url,epoch,reload]);
  useEffect(()=>{const refresh=()=>{gen.current++;setData(null);setReload(value=>value+1);};window.addEventListener(ACCESS_CHANGED_EVENT,refresh);return()=>window.removeEventListener(ACCESS_CHANGED_EVENT,refresh);},[]);
+ // Group 11 item 587/590: the booking panel refreshes after an evidence
+ // upload or a missing-resolution acknowledgment posted outside send().
+ useEffect(()=>{const refresh=()=>{gen.current++;setData(null);setReload(value=>value+1);};window.addEventListener('equipment-operations-refresh',refresh);return()=>window.removeEventListener('equipment-operations-refresh',refresh);},[]);
  async function send(method,path,body){if(busy)return false;const seq=gen.current;setBusy(true);setError('');setNotice('');try{await api[method](path,body);if(seq===gen.current&&isCurrentAuthEpoch(epoch)){setNotice('saved');setReload(value=>value+1);return true;}return false;}catch(err){if(seq===gen.current&&isCurrentAuthEpoch(epoch)){if([403,404].includes(err.response?.status))setData(null);setError(err.response?.data?.code==='equipment_calendar_conflict'?'conflict':err.response?.status===409?'changed':'saveError');}return false;}finally{if(isCurrentAuthEpoch(epoch))setBusy(false);}}
  return <div data-track-private aria-busy={busy}>{error&&<p role="alert">{tr(error)}</p>}<p role="status">{notice?tr(notice):''}</p>{!data&&!error&&<p role="status">{t('common.loading')}</p>}
   {data&&(kind==='tools'?<ToolControls data={data} send={send} url={url} busy={busy}/>:<BookingControls data={data} send={send} url={url} busy={busy} userId={userId}/>)}
@@ -51,6 +54,25 @@ function ToolControls({data,send,url,busy}){
 function BookingControls({data,send,url,busy,userId}){
  const {t}=useTranslation(),tr=key=>t(`equipmentOperations.${key}`),id=useId(),retry=useRef(null),b=data.booking,snapshot=b.equipment;
  const [phase,setPhase]=useState('pickup'),[counts,setCounts]=useState((snapshot.accessories||[]).map(item=>item.quantity)),[checks,setChecks]=useState((snapshot.checklist||[]).map(()=>false)),[notes,setNotes]=useState(''),[end,setEnd]=useState(''),[noCharge,setNoCharge]=useState(false),[resolution,setResolution]=useState(''),[followup,setFollowup]=useState('');
+ // Group 11 item 587: photo evidence attached to a condition report.
+ const [evidenceReport,setEvidenceReport]=useState(''),[evidenceFile,setEvidenceFile]=useState(null),[evidenceBusy,setEvidenceBusy]=useState(false),[evidenceError,setEvidenceError]=useState('');
+ const evidenceFor=(reportId)=>(data.evidence||[]).filter(row=>String(row.report_id)===String(reportId));
+ async function uploadEvidence(){
+  if(!evidenceReport||!evidenceFile||evidenceBusy)return;
+  setEvidenceBusy(true);setEvidenceError('');
+  try{
+   const form=new FormData();form.append('image',evidenceFile);form.append('report_id',evidenceReport);
+   await api.post(`${BASE}/bookings/${b.id}/evidence`,form);
+   setEvidenceFile(null);setEvidenceReport('');
+   window.dispatchEvent(new Event('equipment-operations-refresh'));
+  }catch(err){setEvidenceError(err.response?.data?.code==='validation_failed'?'evidenceInvalid':'evidenceFailed');}
+  finally{setEvidenceBusy(false);}
+ }
+ async function ackMissing(reportId,decision){
+  try{await api.post(`/tool-rentals/bookings/${b.id}/missing/${reportId}/acknowledge`,{decision});window.dispatchEvent(new Event('equipment-operations-refresh'));}
+  catch{/* the panel reload below surfaces the fresh state */}
+  window.dispatchEvent(new Event('equipment-operations-refresh'));
+ }
  const latest=data.reports.filter(row=>row.phase===phase&&String(row.actor_id)===String(userId)).reduce((n,row)=>Math.max(n,row.version),0);
  const canReport=['payment_confirmed','returned','completed'].includes(b.status),pending=data.extensions.some(row=>row.status==='pending');
  return <fieldset disabled={busy}><legend>{tr('booking')} {b.id}</legend><p>{tr('due')}: {formatDate(b.end_date)}</p><p>{tr('rules')}: {snapshot.rules||tr('none')}</p><p>{tr('reportHelp')}</p>
@@ -59,8 +81,23 @@ function BookingControls({data,send,url,busy,userId}){
    {(snapshot.checklist||[]).map((label,index)=><label key={label}><input type="checkbox" checked={checks[index]} onChange={e=>setChecks(current=>current.map((value,i)=>i===index?e.target.checked:value))} data-track="ui.8535e53f37.5"/>{label}</label>)}
    <label htmlFor={`${id}-notes`}>{tr('notes')}</label><textarea id={`${id}-notes`} maxLength={2000} value={notes} onChange={e=>setNotes(e.target.value)}/><button type="button" disabled={!notes.trim()||(phase==='pickup'&&b.status!=='payment_confirmed')} onClick={async()=>{if(await send('post',`${url}/reports`,{phase,counts,checklist:checks,notes,expectedVersion:latest}))setNotes('');}} data-track="ui.8535e53f37.6">{tr('saveReport')}</button>
   </>}
-  <h3>{tr('history')}</h3><ul>{data.reports.map(row=><li key={row.id}><strong>{tr(row.phase)} · {String(row.actor_id)===String(b.owner_id)?tr('owner'):tr('renter')} · v{row.version}</strong><p>{row.notes}</p><ul>{row.counts.map(item=><li key={item.name}>{item.name} × {item.quantity}</li>)}</ul><ul>{row.checklist.map(item=><li key={item.label}>{item.checked?'✓':'—'} {item.label}</li>)}</ul>
-   {!!row.missing_items?.length&&<><h4>{tr('missing')}</h4><ul>{row.missing_items.map(item=><li key={item.name}>{item.name} × {item.quantity}</li>)}</ul>{row.resolved_at?<p>{tr('resolved')}: {row.resolution}</p>:data.owner&&<><label>{tr('resolution')}<input maxLength={2000} value={resolution} onChange={e=>setResolution(e.target.value)}/></label><button type="button" disabled={!resolution.trim()} onClick={async()=>{if(await send('post',`${url}/missing/${row.id}`,{notes:resolution,expectedVersion:row.missing_version}))setResolution('');}} data-track="ui.8535e53f37.7">{tr('resolve')}</button></>}</>}
+  <h3>{tr('history')}</h3>
+  {/* Group 11 item 587: photo evidence on a report. Any party on the
+      booking can attach a photo to any of its reports. */}
+  {data.reports.length>0&&<div><label htmlFor={`${id}-evidence-report`}>{tr('evidenceReport')}</label><select id={`${id}-evidence-report`} value={evidenceReport} onChange={e=>setEvidenceReport(e.target.value)}><option value="">{tr('evidenceChooseReport')}</option>{data.reports.map(row=><option key={row.id} value={row.id}>{tr(row.phase)} · v{row.version}</option>)}</select>
+   <label htmlFor={`${id}-evidence-file`}>{tr('evidencePhoto')}</label><input id={`${id}-evidence-file`} type="file" accept="image/*" onChange={e=>setEvidenceFile(e.target.files?.[0]||null)}/>
+   <button type="button" disabled={!evidenceReport||!evidenceFile||evidenceBusy} onClick={uploadEvidence}>{tr('evidenceUpload')}</button>
+   {evidenceError&&<p role="alert">{tr(evidenceError)}</p>}
+  </div>}
+  <ul>{data.reports.map(row=><li key={row.id}><strong>{tr(row.phase)} · {String(row.actor_id)===String(b.owner_id)?tr('owner'):tr('renter')} · v{row.version}</strong><p>{row.notes}</p><ul>{row.counts.map(item=><li key={item.name}>{item.name} × {item.quantity}</li>)}</ul><ul>{row.checklist.map(item=><li key={item.label}>{item.checked?'✓':'—'} {item.label}</li>)}</ul>
+   {evidenceFor(row.id).length>0&&<ul>{evidenceFor(row.id).map(photo=><li key={photo.id}><img src={photo.image_url} alt={tr('evidencePhoto')} style={{maxWidth:'160px',borderRadius:'8px'}}/></li>)}</ul>}
+   {!!row.missing_items?.length&&<><h4>{tr('missing')}</h4><ul>{row.missing_items.map(item=><li key={item.name}>{item.name} × {item.quantity}</li>)}</ul>{row.resolved_at?<><p>{tr('resolved')}: {row.resolution}</p>
+    {/* Group 11 item 590: the renter acknowledges the owner's missing-item
+        resolution, or disputes it (which clears the resolution). */}
+    {row.missing_ack_status==='acknowledged'&&<p>{tr('resolutionAcknowledged')}</p>}
+    {row.missing_ack_status==='disputed'&&<p>{tr('resolutionDisputed')}</p>}
+    {row.missing_ack_status==='pending'&&!data.owner&&<div><button type="button" onClick={()=>ackMissing(row.id,'acknowledged')}>{tr('acknowledgeResolution')}</button><button type="button" onClick={()=>ackMissing(row.id,'disputed')}>{tr('disputeResolution')}</button></div>}
+   </>:data.owner&&<><label>{tr('resolution')}<input maxLength={2000} value={resolution} onChange={e=>setResolution(e.target.value)}/></label><button type="button" disabled={!resolution.trim()} onClick={async()=>{if(await send('post',`${url}/missing/${row.id}`,{notes:resolution,expectedVersion:row.missing_version}))setResolution('');}} data-track="ui.8535e53f37.7">{tr('resolve')}</button></>}</>}
   </li>)}</ul>
   <h3>{tr('extensions')}</h3><p>{tr('extensionHelp')}</p>
   {b.status==='payment_confirmed'&&<label><input type="checkbox" checked={noCharge} onChange={e=>setNoCharge(e.target.checked)} data-track="ui.8535e53f37.8"/>{tr('noCharge')}</label>}
