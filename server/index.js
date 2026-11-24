@@ -179,6 +179,7 @@ const foodRoutes = require('./routes/food');
 const promotionAnalyticsRoutes = require('./routes/promotionAnalytics');
 const oxsteedCreditRoutes = require('./routes/oxsteedCredit');
 const oxsteedCreditKioskRoutes = require('./routes/oxsteedCreditKiosk');
+const creditLocationReconciliationRoutes = require('./routes/creditLocationReconciliation');
 const mainAppRoutes = require('./routes/mainApp');
 const directRoutes = require('./routes/direct');
 const { sendDirectServiceAreaPage } = require('./routes/directServiceAreaPage');
@@ -811,6 +812,10 @@ app.use('/api', require('./routes/statementDisputeMessages'));
 // Device-authenticated OxSteed Credit kiosk hardware (redeem / cash-out),
 // scoped to a restaurant + paired device the same way POS/Kitchen/Display are.
 app.use('/api/restaurants/:restaurantId/credit-kiosks/:deviceId', oxsteedCreditKioskRoutes);
+// Group 13 Slice 4h (686-690): the participant/HQ door of the location
+// reconciliation surface — user-authenticated behind
+// requireRestaurantAccess, one restaurant's locations only.
+app.use('/api/restaurants/:restaurantId/credit-reconciliation', creditLocationReconciliationRoutes);
 app.use('/api/restaurants', restaurantSupportRoutes);
 app.use('/api/admin/restaurants/support', adminRestaurantSupportRoutes);
 app.use('/api/restaurants', require('./routes/restaurantPersona')); // Group 8 items 351-450

@@ -107,6 +107,62 @@ router.post(
   cashierController.closeShift,
 );
 
+// Group 13 Slice 4h: the location reconciliation surface (686-690) for
+// the cashier. Same device auth and per-device limiter as the 4g cashier
+// surface; the device's paired location is the scope. Registered before
+// the router.use below that applies the credit_kiosk-only auth to the
+// redeem/cash-out routes, like the other cashier routes above.
+const reconController = require('../controllers/creditLocationReconciliationController');
+router.get(
+  '/cashier/reconciliation/summary',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  reconController.deviceGetSummary,
+);
+router.get(
+  '/cashier/reconciliation/exceptions',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  reconController.deviceListExceptions,
+);
+router.get(
+  '/cashier/reconciliation/exceptions/:exceptionId/annotations',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  reconController.deviceListAnnotations,
+);
+router.post(
+  '/cashier/reconciliation/exceptions/:exceptionId/annotations',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  reconController.deviceAddAnnotation,
+);
+router.get(
+  '/cashier/reconciliation/period-close',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  reconController.deviceGetPeriodClose,
+);
+router.post(
+  '/cashier/reconciliation/period-close',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  reconController.deviceRecordPeriodClose,
+);
+router.get(
+  '/cashier/reconciliation/export.csv',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  reconController.deviceExportCsv,
+);
+
 router.use(noStoreCreditResponse, cardController.authenticateCreditKiosk);
 
 // Redeem an OxSteed Credit card at this restaurant's POS/kiosk (spend).

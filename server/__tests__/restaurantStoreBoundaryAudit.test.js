@@ -19,6 +19,7 @@ const STORE_TABLES = [
   'display_pairings',
   'food_orders',
   'oxsteed_credit_kiosk_shifts',
+  'oxsteed_credit_location_period_reviews',
   'restaurant_app_devices',
   'restaurant_audits',
   'restaurant_checklist_runs',
@@ -147,6 +148,14 @@ const REVIEWED = {
   // server-side from that record, never from a client-sent id alone
   // (D-383). No query reads across devices or restaurants.
   'services/creditKioskCashier.js': DEVICE_BOUND,
+  // Group 13 slice 4h (686-690): every read is filtered by the caller's
+  // resolved scope — the kiosk door reads only the authenticated device's
+  // paired location (resolveDeviceScope, D-383), the HQ door only
+  // locations of the restaurant requireRestaurantAccess resolved, with an
+  // explicit locationId validated against that set (D-391). The period
+  // reviews it writes carry the resolved restaurant/location, never a
+  // client-sent scope. No query reads across restaurants.
+  'services/creditLocationReconciliation.js': SCOPED_CALLER,
   // Punch closeout (Phase 2): the close-of-day sweep closes forgotten
   // punches across ALL stores of one business, by design — either the
   // nightly system job or a business-level manager action (role-gated,
