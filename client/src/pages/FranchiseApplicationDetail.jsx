@@ -2,10 +2,25 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CalendarClock,
+  Download,
+  FileText,
 } from 'lucide-react';
 import api from '../api/axios';
 import './FranchiseApplicationDetail.css';
 
+const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
+const DOC_CATEGORY_KEYS = {
+  identity: 'docIdentity',
+  entity: 'docEntity',
+  financials: 'docFinancials',
+  territory_plan: 'docTerritoryPlan',
+};
+const DOC_STATUS_KEYS = {
+  missing: 'docMissing',
+  pending: 'docPending',
+  accepted: 'docAccepted',
+  rejected: 'docRejected',
+};
 const INTERVIEW_STATUS_KEYS = {
   proposed: 'interviewProposedLabel',
   booked: 'interviewBookedLabel',
@@ -24,8 +39,14 @@ function formatDateTime(value) {
   });
 }
 
-// Group 12 Slice 3a (604): the applicant-facing interview section for
-// one franchise application. Loads the applicant
+function formatDate(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// Group 12 Slice 3a (604/603): the applicant-facing detail sections for
+// one franchise application — interview booking, the document checklist
+// with uploads. Loads the applicant
 // detail endpoint, which never carries internal notes.
 export default function FranchiseApplicationDetail({ applicationId }) {
   const { t } = useTranslation();
@@ -33,6 +54,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [uploadingCategory, setUploadingCategory] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,12 +96,31 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     }
   }
 
+  async function uploadDocument(category, file) {
+    if (!file) return;
+    setUploadingCategory(category);
+    setError('');
+    const form = new FormData();
+    form.append('category', category);
+    form.append('file', file);
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/documents`, form);
+      setDetail(response.data);
+    } catch {
+      setError(copy('docUploadFailed'));
+    } finally {
+      setUploadingCategory(null);
+    }
+  }
+
   if (!detail) return null;
 
   const interviews = detail.interviews || [];
   const booked = interviews.find((slot) => slot.status === 'booked');
   const proposed = interviews.filter((slot) => slot.status === 'proposed');
   const past = interviews.filter((slot) => ['completed', 'cancelled'].includes(slot.status));
+  const documents = detail.documents || [];
+  const categoryStatus = new Map((detail.document_categories || []).map((entry) => [entry.category, entry.status]));
 
   return (
     <div className="fr-detail">
@@ -143,6 +184,69 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         )}
       </section>
 
+      <section className="fr-detail-card">
+        <div className="fr-detail-heading">
+          <FileText size={16} className="fr-detail-heading-icon" />
+          <div>
+            <h2 className="fr-detail-title">{copy('documentsTitle')}</h2>
+            <p className="fr-detail-subtitle">{copy('documentsSubtitle')}</p>
+          </div>
+        </div>
+
+        <div className="fr-doc-list">
+          {DOCUMENT_CATEGORIES.map((category) => {
+            const status = categoryStatus.get(category) || 'missing';
+            const categoryDocs = documents.filter((doc) => doc.category === category);
+            const uploading = uploadingCategory === category;
+            return (
+              <div key={category} className="fr-doc-category">
+                <div className="fr-doc-category-head">
+                  <div>
+                    <div className="fr-doc-category-name">{copy(DOC_CATEGORY_KEYS[category])}</div>
+                    <span className={`fr-status-badge fr-status-${status}`}>{copy(DOC_STATUS_KEYS[status])}</span>
+                  </div>
+                  <label className="fr-doc-upload-label">
+                    <input
+                      type="file"
+                      className="fr-doc-file-input"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+                      disabled={uploading}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = '';
+                        if (file) uploadDocument(category, file);
+                      }}
+                    />
+                    {uploading ? copy('docUploading') : copy('docChooseFile')}
+                  </label>
+                </div>
+                {categoryDocs.length > 0 && (
+                  <ul className="fr-doc-files">
+                    {categoryDocs.map((doc) => (
+                      <li key={doc.id} className="fr-doc-file">
+                        <div>
+                          <div className="fr-doc-file-name">{doc.file_name}</div>
+                          <div className="fr-doc-file-meta">
+                            {copy(DOC_STATUS_KEYS[doc.status])} · {formatDate(doc.created_at)}
+                          </div>
+                          {doc.review_reason && (
+                            <div className="fr-doc-file-reason">{copy('docReviewReason')}: {doc.review_reason}</div>
+                          )}
+                        </div>
+                        {doc.download_url && (
+                          <a className="fr-doc-download" href={doc.download_url} target="_blank" rel="noreferrer">
+                            <Download size={14} /> {copy('docDownload')}
+                          </a>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
     </div>
   );

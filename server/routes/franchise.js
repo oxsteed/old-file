@@ -5,6 +5,8 @@ const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const { requireFranchiseCapability } = require('../middleware/requireAccess');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 
 // Audit fix: Franchise is launch-hidden. Gate the API to match the UI.
 // Default on since the all-launch flip (2026-11-04); explicit
@@ -28,6 +30,8 @@ const {
   updateInterviewSlot,
   bookInterviewSlot,
   cancelInterviewBooking,
+  uploadApplicationDocument,
+  reviewApplicationDocument,
 } = require('../controllers/franchiseController');
 
 const {
@@ -37,11 +41,12 @@ const {
 
 router.post('/applications', generalLimiter, requireFranchiseEnabled, createFranchiseApplication);
 router.get('/my-applications',     authenticate, requireFranchiseEnabled, listMyFranchiseApplications);
-// Group 12 Slice 3a (604): applicant detail — interview booking,
-// scoped to the applicant's own application.
+// Group 12 Slice 3a (604/603): applicant detail — interview booking +
+// document upload, scoped to the applicant's own application.
 router.get('/my-applications/:id', authenticate, requireFranchiseEnabled, getMyFranchiseApplication);
 router.post('/my-applications/:id/interviews/:slotId/book', authenticate, requireFranchiseEnabled, bookInterviewSlot);
 router.post('/my-applications/:id/interviews/:slotId/cancel', authenticate, requireFranchiseEnabled, cancelInterviewBooking);
+router.post('/my-applications/:id/documents', authenticate, requireFranchiseEnabled, upload.single('file'), validateFileUpload, uploadApplicationDocument);
 router.get('/territory-stats',     authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryStats);
 router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryHelpers);
 
@@ -50,9 +55,10 @@ router.get('/applications/:id', authenticate, requireAdmin, requirePermission('m
 router.patch('/applications/:id', authenticate, requireAdmin, requirePermission('manage_operations'), updateFranchiseApplication);
 router.post('/applications/:id/notes', authenticate, requireAdmin, requirePermission('manage_operations'), addFranchiseNote);
 router.patch('/applications/:id/checklist/:itemId', authenticate, requireAdmin, requirePermission('manage_operations'), updateChecklistItem);
-// Group 12 Slice 3a (604): HQ interview slots.
+// Group 12 Slice 3a (604/603): HQ interview slots and document review.
 router.post('/applications/:id/interviews', authenticate, requireAdmin, requirePermission('manage_operations'), proposeInterviewSlot);
 router.patch('/applications/:id/interviews/:slotId', authenticate, requireAdmin, requirePermission('manage_operations'), updateInterviewSlot);
+router.patch('/applications/:id/documents/:docId', authenticate, requireAdmin, requirePermission('manage_operations'), reviewApplicationDocument);
 router.put('/applications/:id/agreement', authenticate, requireAdmin, requirePermission('manage_operations'), upsertFranchiseAgreement);
 // Review P2-9-F09: the applicant signs from their own account (admins cannot
 // assert the applicant's signature). Authenticated, not admin-gated.

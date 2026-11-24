@@ -185,8 +185,10 @@ export default function FranchiseHQPage() {
   const [filters, setFilters] = useState({ status: '', country: '', agreement_status: '' });
   const [search, setSearch] = useState('');
   const [noteText, setNoteText] = useState('');
-// Group 12 Slice 3a (604): interview proposal form.
+// Group 12 Slice 3a (604/603): interview proposal form and per-document
+// review reasons.
   const [interviewForm, setInterviewForm] = useState({ starts_at: '', ends_at: '', interviewer_name: '', note: '' });
+  const [docReasons, setDocReasons] = useState({});
   const [createForm, setCreateForm] = useState({
     first_name: '',
     last_name: '',
@@ -407,6 +409,26 @@ export default function FranchiseHQPage() {
       toast.success(t('adminFranchiseInterviewUpdated'));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseInterviewFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function reviewDocument(docId, status) {
+    if (!selectedApplication) return;
+    const reason = (docReasons[docId] || '').trim();
+    if (status === 'rejected' && !reason) {
+      toast.error(t('adminFranchiseReviewReasonPlaceholder'));
+      return;
+    }
+    try {
+      setSaving(true);
+      const res = await axios.patch(`/franchise/applications/${selectedApplication.id}/documents/${docId}`, { status, reason });
+      setSelectedBundle(res.data);
+      setDocReasons((value) => ({ ...value, [docId]: '' }));
+      toast.success(t('adminFranchiseDocumentReviewed'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseDocumentReviewFailed'));
     } finally {
       setSaving(false);
     }
@@ -817,6 +839,46 @@ export default function FranchiseHQPage() {
                         </div>
                       )) : (
                         <div className="frhq-empty">{t('adminFranchiseNoInterviews')}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="frhq-panel">
+                    <div className="frhq-panel-title">{t('adminFranchiseDocumentsTitle')}</div>
+                    <div className="frhq-list">
+                      {(selectedBundle.documents || []).length ? selectedBundle.documents.map((doc) => (
+                        <div key={doc.id} className="frhq-row">
+                          <div>
+                            <div className="frhq-row-title">{doc.file_name}</div>
+                            <div className="frhq-row-meta">
+                              {t(`dashboards.franchise.${{ identity: 'docIdentity', entity: 'docEntity', financials: 'docFinancials', territory_plan: 'docTerritoryPlan' }[doc.category] || 'docIdentity'}`)} · {formatLabel(doc.status, t)} · {new Date(doc.created_at).toLocaleString()}
+                            </div>
+                            {doc.review_reason && <div className="frhq-row-meta">{doc.review_reason}</div>}
+                            {doc.download_url && (
+                              <a className="frhq-link" href={doc.download_url} target="_blank" rel="noreferrer">
+                                {t('adminFranchiseDownloadDocument')}
+                              </a>
+                            )}
+                          </div>
+                          <div className="frhq-doc-review">
+                            <input
+                              className="frhq-field"
+                              placeholder={t('adminFranchiseReviewReasonPlaceholder')}
+                              value={docReasons[doc.id] || ''}
+                              onChange={(e) => setDocReasons((v) => ({ ...v, [doc.id]: e.target.value }))}
+                            />
+                            <div className="frhq-row-actions">
+                              <button type="button" className="frhq-btn-accept" disabled={saving || doc.status === 'accepted'} onClick={() => reviewDocument(doc.id, 'accepted')}>
+                                {t('adminFranchiseAcceptDocument')}
+                              </button>
+                              <button type="button" className="frhq-btn-reject" disabled={saving || doc.status === 'rejected'} onClick={() => reviewDocument(doc.id, 'rejected')}>
+                                {t('adminFranchiseRejectDocument')}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="frhq-empty">{t('adminFranchiseNoDocuments')}</div>
                       )}
                     </div>
                   </div>

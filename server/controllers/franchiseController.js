@@ -2,6 +2,9 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const countriesUtil = require('../utils/countries');
 const access = require('../services/access/accessService');
+// Group 12 Slice 3a (603): applicant documents reuse the staff-document
+// vault storage pattern — private prefix, signed-URL downloads only.
+const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 
 const APPLICATION_STATUSES = new Set([
   'inquiry',
@@ -21,6 +24,9 @@ const READINESS_STATUSES = new Set(['not_ready', 'planning', 'ready', 'launched'
 const CHECKLIST_STATUSES = new Set(['pending', 'in_progress', 'completed', 'blocked', 'waived']);
 // Group 12 Slice 3a.
 const INTERVIEW_STATUSES = new Set(['proposed', 'booked', 'completed', 'cancelled']);
+const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
+const DOCUMENT_CATEGORY_SET = new Set(DOCUMENT_CATEGORIES);
+const DOCUMENT_REVIEW_STATUSES = new Set(['accepted', 'rejected']);
 const FRANCHISE_POLICY_VERSION = 'franchise-policy-1';
 
 const DEFAULT_CHECKLIST = [
@@ -268,9 +274,18 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     [applicationId]
   );
 
+  const documentResult = await db.query(
+    `SELECT *
+       FROM franchise_application_documents
+      WHERE application_id = $1
+      ORDER BY created_at DESC, id DESC`,
+    [applicationId]
+  );
+
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
+  const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
 
   return {
     application: {
@@ -283,12 +298,45 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     notes: notesResult.rows,
     activity: activityResult.rows,
     interviews: interviewResult.rows,
+    documents,
+    document_categories: documentCategorySummary(documentResult.rows),
   };
 }
 
-// Group 12 Slice 3a (604): the applicant-facing detail view — interviews
-// tracked on the application, scoped to the applicant's own rows.
-// Internal notes are never selected here — server-enforced (D-305).
+// Group 12 Slice 3a (603): per-category document status, derived from the
+// stored rows. `accepted` wins when any document in the category was
+// accepted; otherwise the latest document decides, so a re-upload after a
+// rejection reads `pending` again (D-304).
+function documentCategorySummary(documents) {
+  return DOCUMENT_CATEGORIES.map((category) => {
+    const inCategory = (documents || []).filter((doc) => doc.category === category);
+    let status = 'missing';
+    if (inCategory.length) {
+      status = inCategory.some((doc) => doc.status === 'accepted')
+        ? 'accepted'
+        : inCategory[0].status;
+    }
+    return { category, status, count: inCategory.length };
+  });
+}
+
+// Group 12 Slice 3a (603): vault-style presentation — a signed download URL
+// minted at read time (600s), never a public path. The storage key itself
+// is stripped from the payload. When no signing secret is configured the
+// row still reads, flagged `download_unavailable`, instead of failing.
+async function presentFranchiseDocument(doc) {
+  const { storage_key, ...rest } = doc;
+  try {
+    const downloadUrl = await getSignedDownloadUrl(storage_key, 600);
+    return { ...rest, download_url: downloadUrl, download_unavailable: false };
+  } catch (_err) {
+    return { ...rest, download_url: null, download_unavailable: true };
+  }
+}
+
+// Group 12 Slice 3a (604/603): the applicant-facing detail view. Same
+// application, but scoped to the applicant's own rows only: interviews and
+// documents. Internal notes are never selected here — server-enforced (D-305).
 async function fetchApplicantApplicationDetail(applicationId, userId) {
   const applicationResult = await db.query(
     `SELECT
@@ -332,7 +380,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult] = await Promise.all([
+  const [interviewResult, documentResult] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -340,12 +388,22 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
         ORDER BY starts_at ASC, id ASC`,
       [applicationId]
     ),
+    db.query(
+      `SELECT *
+         FROM franchise_application_documents
+        WHERE application_id = $1
+        ORDER BY created_at DESC, id DESC`,
+      [applicationId]
+    ),
   ]);
 
+  const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
 
   return {
     application: applicationResult.rows[0],
     interviews: interviewResult.rows,
+    documents,
+    document_categories: documentCategorySummary(documentResult.rows),
   };
 }
 
@@ -1556,8 +1614,8 @@ async function activateFranchiseStore(req, res) {
 
 /**
  * GET /api/franchise/my-applications/:id
- * Group 12 Slice 3a (604): the applicant's own detail view —
- * interviews tracked on the application.
+ * Group 12 Slice 3a (604/603): the applicant's own detail view —
+ * interviews and the document checklist.
  * Internal notes are never returned (D-305).
  */
 async function getMyFranchiseApplication(req, res) {
@@ -1908,6 +1966,140 @@ async function cancelInterviewBooking(req, res) {
   }
 }
 
+/**
+ * POST /api/franchise/my-applications/:id/documents
+ * 603 (D-296/D-302): the applicant uploads a document for one of the four
+ * categories. Stored through the staff-document vault path (`uploadFile`
+ * into the private `franchise-documents/` prefix, signed-URL downloads
+ * only). Multer + validateFileUpload run before this handler (10MB, pdf /
+ * doc / docx / images).
+ */
+async function uploadApplicationDocument(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const category = asTrimmed(req.body?.category);
+  if (!DOCUMENT_CATEGORY_SET.has(category)) {
+    return res.status(400).json({
+      error: 'category must be one of identity, entity, financials, territory_plan.',
+      code: 'invalid_document_category',
+    });
+  }
+  if (!req.file?.buffer) {
+    return res.status(400).json({ error: 'A document file is required.', code: 'file_required' });
+  }
+
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOwnedApplication(client, req.params.id, req.user.id);
+      if (!owned) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const storageKey = await uploadFile(
+        req.file.buffer,
+        `franchise-documents/${req.params.id}`,
+        req.file.originalname || 'document',
+        req.file.detectedMime || req.file.mimetype
+      );
+      if (!storageKey) {
+        await client.query('ROLLBACK');
+        return res.status(500).json({ error: 'Failed to store document.' });
+      }
+      const { rows } = await client.query(
+        `INSERT INTO franchise_application_documents
+           (application_id, category, file_name, storage_key, mime_type, file_size_bytes, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [
+          req.params.id,
+          category,
+          req.file.originalname || 'document',
+          storageKey,
+          req.file.detectedMime || req.file.mimetype || null,
+          req.file.size || null,
+          req.user.id,
+        ]
+      );
+      await logActivity(
+        client,
+        req.params.id,
+        req.user.id,
+        'document_uploaded',
+        `Applicant uploaded a ${category} document (${rows[0].file_name}).`,
+        { document_id: rows[0].id, category }
+      );
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(req.params.id, req.user.id);
+      return res.status(201).json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error uploading franchise document', { id: req.params.id, err: err.message });
+    return res.status(500).json({ error: 'Failed to upload document.' });
+  }
+}
+
+/**
+ * PATCH /api/franchise/applications/:id/documents/:docId (admin)
+ * 603: HQ reviews one applicant document. A rejection needs a reason so the
+ * applicant knows what to fix; the reason is shown to the applicant.
+ */
+async function reviewApplicationDocument(req, res) {
+  const body = req.body || {};
+  const nextStatus = asTrimmed(body.status);
+  if (!DOCUMENT_REVIEW_STATUSES.has(nextStatus)) {
+    return res.status(400).json({ error: 'status must be accepted or rejected.', code: 'invalid_document_status' });
+  }
+  const reason = asTrimmed(body.reason);
+  if (nextStatus === 'rejected' && !reason) {
+    return res.status(400).json({ error: 'A reason is required to reject a document.', code: 'document_rejection_reason_required' });
+  }
+
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `UPDATE franchise_application_documents
+            SET status = $3, review_reason = $4, reviewed_by = $5, reviewed_at = NOW(), updated_at = NOW()
+          WHERE id = $1 AND application_id = $2
+          RETURNING *`,
+        [req.params.docId, req.params.id, nextStatus, reason, req.user?.id || null]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Document not found.' });
+      }
+      await logActivity(
+        client,
+        req.params.id,
+        req.user?.id || null,
+        'document_reviewed',
+        `Document ${rows[0].file_name} ${nextStatus}${reason ? `: ${reason}` : ''}.`,
+        { document_id: rows[0].id, category: rows[0].category, status: nextStatus }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(req.params.id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error reviewing franchise document', { id: req.params.id, docId: req.params.docId, err: err.message });
+    return res.status(500).json({ error: 'Failed to review document.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -1925,6 +2117,8 @@ module.exports = {
   updateInterviewSlot,
   bookInterviewSlot,
   cancelInterviewBooking,
+  uploadApplicationDocument,
+  reviewApplicationDocument,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

@@ -1,6 +1,6 @@
 'use strict';
 
-// Group 12 Slice 3a acceptance: Enter program (604).
+// Group 12 Slice 3a acceptance: Enter program (604, 603).
 // Runs against a dedicated fresh database (credit_statement_test_g12a) so
 // slice-local fixtures never pollute the shared credit_statement_test DB.
 //
@@ -8,6 +8,10 @@
 //   on the application, the applicant books one, status tracked on the
 //   application. One booked slot per application (D-303); an applicant
 //   cancel returns the slot to `proposed`.
+// 603: applicant document checklist (D-296/D-302) — identity, entity,
+//   financials (capital proof), territory plan; applicant uploads per item
+//   through the staff-document vault path (private `franchise-documents/`
+//   prefix, signed-URL downloads only); admin accepts/rejects with a
 //   reason; per-category status is derived (D-304).
 
 jest.unmock('pg');
@@ -80,8 +84,9 @@ jest.mock('../middleware/validateFileUpload', () => (req, res, next) => next());
 
 const describeDb = dbUrl ? describe : describe.skip;
 
+const PDF_BYTES = Buffer.from('%PDF-1.4\n% test franchise document\n', 'utf8');
 
-describeDb('Group 12 Slice 3a: Enter program (604)', () => {
+describeDb('Group 12 Slice 3a: Enter program (604, 603)', () => {
   let db;
   let app;
 
@@ -291,5 +296,99 @@ describeDb('Group 12 Slice 3a: Enter program (604)', () => {
     });
   });
 
+  describe('603: applicant document checklist', () => {
+    function uploadDoc(applicantId, applicationId, category, filename = 'id.pdf') {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/documents`)
+        .set('x-test-user', applicantId)
+        .field('category', category)
+        .attach('file', PDF_BYTES, filename);
+    }
+
+    test('applicant uploads per category; admin accepts; per-category status is derived', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      const uploaded = await uploadDoc(applicant, applicationId, 'identity').expect(201);
+      expect(uploaded.body.documents).toHaveLength(1);
+      const doc = uploaded.body.documents[0];
+      expect(doc.category).toBe('identity');
+      expect(doc.status).toBe('pending');
+      expect(doc.storage_key).toBeUndefined();
+      expect(typeof doc.download_url).toBe('string');
+      expect(doc.download_url).toContain('/api/storage/files/franchise-documents/');
+      const identityCategory = uploaded.body.document_categories.find((entry) => entry.category === 'identity');
+      expect(identityCategory.status).toBe('pending');
+      expect(uploaded.body.document_categories.find((entry) => entry.category === 'entity').status).toBe('missing');
+
+      const reviewed = await request(app)
+        .patch(`/api/franchise/applications/${applicationId}/documents/${doc.id}`)
+        .set('x-test-user', admin)
+        .send({ status: 'accepted' })
+        .expect(200);
+      expect(reviewed.body.documents[0].status).toBe('accepted');
+      expect(reviewed.body.document_categories.find((entry) => entry.category === 'identity').status).toBe('accepted');
+    });
+
+    test('rejection needs a reason, shows it to the applicant, and a re-upload reads pending again', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      const uploaded = await uploadDoc(applicant, applicationId, 'financials', 'capital.pdf').expect(201);
+      const doc = uploaded.body.documents[0];
+
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}/documents/${doc.id}`)
+        .set('x-test-user', admin)
+        .send({ status: 'rejected' })
+        .expect(400);
+
+      const rejected = await request(app)
+        .patch(`/api/franchise/applications/${applicationId}/documents/${doc.id}`)
+        .set('x-test-user', admin)
+        .send({ status: 'rejected', reason: 'Bank statement is older than 90 days.' })
+        .expect(200);
+      expect(rejected.body.documents[0].status).toBe('rejected');
+      expect(rejected.body.documents[0].review_reason).toBe('Bank statement is older than 90 days.');
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      expect(detail.body.document_categories.find((entry) => entry.category === 'financials').status).toBe('rejected');
+      expect(detail.body.documents[0].review_reason).toBe('Bank statement is older than 90 days.');
+
+      const reuploaded = await uploadDoc(applicant, applicationId, 'financials', 'capital-new.pdf').expect(201);
+      expect(reuploaded.body.document_categories.find((entry) => entry.category === 'financials').status).toBe('pending');
+      expect(reuploaded.body.documents).toHaveLength(2);
+    });
+
+    test('invalid category, missing file, stranger upload, and non-admin review are refused', async () => {
+      const applicant = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      await uploadDoc(applicant, applicationId, 'passport').expect(400);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/documents`)
+        .set('x-test-user', applicant)
+        .field('category', 'identity')
+        .expect(400);
+      await uploadDoc(stranger, applicationId, 'identity').expect(404);
+
+      const uploaded = await uploadDoc(applicant, applicationId, 'entity').expect(201);
+      const doc = uploaded.body.documents[0];
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}/documents/${doc.id}`)
+        .set('x-test-user', applicant)
+        .send({ status: 'accepted' })
+        .expect(403);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}/documents/${randomUUID()}`)
+        .set('x-test-user', admin)
+        .send({ status: 'accepted' })
+        .expect(404);
+    });
+  });
 
 });
