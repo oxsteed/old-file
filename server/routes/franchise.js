@@ -38,6 +38,10 @@ const {
   respondToTerritoryOffer,
   addTerritoryArea,
   removeTerritoryArea,
+  addLaunchPlanStep,
+  updateLaunchPlanStep,
+  removeLaunchPlanStep,
+  updateLaunchPlanStepStatus,
 } = require('../controllers/franchiseController');
 
 const {
@@ -60,6 +64,9 @@ router.post('/my-applications/:id/responsibilities/:itemId/acknowledge', authent
 // Group 12 Slice 3b (606): the operator accepts or declines a territory
 // offer on their own application.
 router.post('/my-applications/:id/acceptance', authenticate, requireFranchiseEnabled, respondToTerritoryOffer);
+// Group 12 Slice 3b (609): the operator updates one launch plan step's
+// status on their own application.
+router.post('/my-applications/:id/launch-plan/:stepId/status', authenticate, requireFranchiseEnabled, updateLaunchPlanStepStatus);
 router.get('/territory-stats',     authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryStats);
 router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryHelpers);
 
@@ -76,6 +83,10 @@ router.post('/applications/:id/followup', authenticate, requireAdmin, requirePer
 // Group 12 Slice 3b (607): HQ manages the structured boundary area list.
 router.post('/applications/:id/areas', authenticate, requireAdmin, requirePermission('manage_operations'), addTerritoryArea);
 router.delete('/applications/:id/areas/:areaId', authenticate, requireAdmin, requirePermission('manage_operations'), removeTerritoryArea);
+// Group 12 Slice 3b (609): HQ manages the territory launch plan steps.
+router.post('/applications/:id/launch-plan', authenticate, requireAdmin, requirePermission('manage_operations'), addLaunchPlanStep);
+router.patch('/applications/:id/launch-plan/:stepId', authenticate, requireAdmin, requirePermission('manage_operations'), updateLaunchPlanStep);
+router.delete('/applications/:id/launch-plan/:stepId', authenticate, requireAdmin, requirePermission('manage_operations'), removeLaunchPlanStep);
 router.put('/applications/:id/agreement', authenticate, requireAdmin, requirePermission('manage_operations'), upsertFranchiseAgreement);
 // Review P2-9-F09: the applicant signs from their own account (admins cannot
 // assert the applicant's signature). Authenticated, not admin-gated.

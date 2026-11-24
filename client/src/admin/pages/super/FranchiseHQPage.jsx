@@ -206,6 +206,8 @@ export default function FranchiseHQPage() {
   const [followupText, setFollowupText] = useState('');
   // Group 12 Slice 3b (607): boundary area form state.
   const [areaForm, setAreaForm] = useState({ country: '', region: '', city: '', area_type: 'included' });
+  // Group 12 Slice 3b (609): launch plan step form state.
+  const [planForm, setPlanForm] = useState({ title: '', description: '', due_date: '', owner_role: 'operator' });
   const [createForm, setCreateForm] = useState({
     first_name: '',
     last_name: '',
@@ -497,6 +499,55 @@ export default function FranchiseHQPage() {
       toast.success(t('adminFranchiseAreaRemoved'));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseAreaFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3b (609): HQ manages the launch plan steps.
+  async function addPlanStep() {
+    if (!selectedApplication || !planForm.title.trim()) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/launch-plan`, {
+        title: planForm.title.trim(),
+        description: planForm.description.trim(),
+        due_date: planForm.due_date || undefined,
+        owner_role: planForm.owner_role,
+      });
+      setSelectedBundle(res.data);
+      setPlanForm({ title: '', description: '', due_date: '', owner_role: 'operator' });
+      toast.success(t('adminFranchiseLaunchPlanAdded'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLaunchPlanFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updatePlanStep(stepId, payload) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.patch(`/franchise/applications/${selectedApplication.id}/launch-plan/${stepId}`, payload);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseLaunchPlanUpdated'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLaunchPlanFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removePlanStep(stepId) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.delete(`/franchise/applications/${selectedApplication.id}/launch-plan/${stepId}`);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseLaunchPlanRemoved'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLaunchPlanFailed'));
     } finally {
       setSaving(false);
     }
@@ -1046,6 +1097,86 @@ export default function FranchiseHQPage() {
                     </div>
                     <button type="button" className="frhq-btn-primary" disabled={saving || !areaForm.country.trim()} onClick={addArea}>
                       {t('adminFranchiseAddArea')}
+                    </button>
+                  </div>
+
+                  {/* Group 12 Slice 3b (609): territory launch plan — HQ
+                      manages steps; the operator updates step status. */}
+                  <div className="frhq-panel">
+                    <div className="frhq-panel-title">{t('adminFranchiseLaunchPlanTitle')}</div>
+                    <div className="frhq-row-meta">
+                      {t('adminFranchiseLaunchPlanReadiness')}: {formatLabel(selectedApplication.launch_readiness_status, t)}
+                    </div>
+                    <div className="frhq-list">
+                      {(selectedBundle.launch_plan_steps || []).length ? selectedBundle.launch_plan_steps.map((step) => (
+                        <div key={step.id} className="frhq-row">
+                          <div>
+                            <div className="frhq-row-title">{step.title}</div>
+                            {step.description && <div className="frhq-row-meta">{step.description}</div>}
+                            <div className="frhq-row-meta">
+                              {formatLabel(step.owner_role, t)}
+                              {step.due_date ? ` · ${new Date(step.due_date).toLocaleDateString()}` : ''}
+                              {' · '}
+                              {formatLabel(step.status, t)}
+                            </div>
+                          </div>
+                          <div className="frhq-row-actions">
+                            <select
+                              className="frhq-field"
+                              value={step.status}
+                              disabled={saving}
+                              onChange={(e) => updatePlanStep(step.id, { status: e.target.value })}
+                            >
+                              {['pending', 'in_progress', 'completed', 'blocked'].map((status) => (
+                                <option key={status} value={status}>{formatLabel(status, t)}</option>
+                              ))}
+                            </select>
+                            <button type="button" className="frhq-btn-reject" disabled={saving} onClick={() => removePlanStep(step.id)}>
+                              {t('adminFranchiseLaunchPlanDelete')}
+                            </button>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="frhq-empty">{t('adminFranchiseLaunchPlanEmpty')}</div>
+                      )}
+                    </div>
+                    <div className="frhq-form-grid">
+                      <input
+                        className="frhq-field frhq-field-full"
+                        placeholder={t('adminFranchiseLaunchPlanAddTitle')}
+                        value={planForm.title}
+                        onChange={(e) => setPlanForm((v) => ({ ...v, title: e.target.value }))}
+                      />
+                      <textarea
+                        className="frhq-field frhq-field-full"
+                        placeholder={t('adminFranchiseLaunchPlanDescription')}
+                        value={planForm.description}
+                        onChange={(e) => setPlanForm((v) => ({ ...v, description: e.target.value }))}
+                      />
+                      <label className="frhq-label">
+                        {t('adminFranchiseLaunchPlanDueDate')}
+                        <input
+                          type="date"
+                          className="frhq-field"
+                          value={planForm.due_date}
+                          onChange={(e) => setPlanForm((v) => ({ ...v, due_date: e.target.value }))}
+                        />
+                      </label>
+                      <label className="frhq-label">
+                        {t('adminFranchiseLaunchPlanOwner')}
+                        <select
+                          className="frhq-field"
+                          value={planForm.owner_role}
+                          onChange={(e) => setPlanForm((v) => ({ ...v, owner_role: e.target.value }))}
+                        >
+                          <option value="operator">{t('dashboards.franchise.launchPlanOwnerOperator')}</option>
+                          <option value="hq">{t('dashboards.franchise.launchPlanOwnerHq')}</option>
+                          <option value="shared">{t('dashboards.franchise.launchPlanOwnerShared')}</option>
+                        </select>
+                      </label>
+                    </div>
+                    <button type="button" className="frhq-btn-primary" disabled={saving || !planForm.title.trim()} onClick={addPlanStep}>
+                      {t('adminFranchiseLaunchPlanAdd')}
                     </button>
                   </div>
 

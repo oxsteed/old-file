@@ -218,6 +218,20 @@ async function seedChecklist(client, applicationId) {
   }
 }
 
+// Group 12 Slice 3b (609, D-309): the default launch plan steps. Dates
+// and owners are filled in by HQ afterwards; `milestone_id` stays NULL
+// until the 611 location milestones exist and plug in.
+const DEFAULT_LAUNCH_PLAN_STEPS = [
+  ['confirm_boundary', 'Confirm territory boundary and exclusivity', 'Review the boundary summary and exclusivity with HQ.', 'operator', 10],
+  ['complete_training', 'Complete operator training', 'Finish the training programme for your territory.', 'operator', 20],
+  ['secure_location', 'Secure the first location', 'Sign the first location inside your territory.', 'operator', 30],
+  ['recruit_team', 'Recruit the opening team', 'Hire the opening team for the first location.', 'operator', 40],
+  ['confirm_opening_date', 'Confirm the opening date with HQ', 'Agree the launch date and readiness review with HQ.', 'shared', 50],
+];
+
+const LAUNCH_PLAN_STATUSES = new Set(['pending', 'in_progress', 'completed', 'blocked']);
+const LAUNCH_PLAN_OWNER_ROLES = new Set(['operator', 'hq', 'shared']);
+
 // Group 12 Slice 3b (607, D-294/D-308): seed the boundary with one
 // included area from the territory the applicant asked for. HQ refines the
 // list afterwards; the operator never edits it.
@@ -233,6 +247,28 @@ async function seedTerritoryArea(client, applicationId, { country, region, city 
       )`,
     [applicationId, country, region || null, city || null]
   );
+}
+
+// Group 12 Slice 3b (609, D-309): seed the default launch plan steps on
+// every new application. Guarded so a second seed is a no-op. (The guard
+// is a separate SELECT: reusing the code parameter inside an INSERT ...
+// SELECT ... WHERE NOT EXISTS makes Postgres deduce inconsistent types
+// for it.)
+async function seedLaunchPlanSteps(client, applicationId) {
+  for (const [code, title, description, ownerRole, sortOrder] of DEFAULT_LAUNCH_PLAN_STEPS) {
+    const { rows } = await client.query(
+      `SELECT 1 FROM franchise_launch_plan_steps
+        WHERE application_id = $1 AND code = $2 LIMIT 1`,
+      [applicationId, code]
+    );
+    if (rows.length) continue;
+    await client.query(
+      `INSERT INTO franchise_launch_plan_steps
+         (application_id, code, title, description, owner_role, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [applicationId, code, title, description, ownerRole, sortOrder]
+    );
+  }
 }
 
 // Group 12 Slice 3b (608, D-306): seed the operator responsibility set on
@@ -356,6 +392,15 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     [applicationId]
   );
 
+  // Group 12 Slice 3b (609): the territory launch plan steps.
+  const launchPlanResult = await db.query(
+    `SELECT *
+       FROM franchise_launch_plan_steps
+      WHERE application_id = $1
+      ORDER BY sort_order, id`,
+    [applicationId]
+  );
+
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
@@ -373,6 +418,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     checklist,
     responsibilities,
     territory_areas: areaResult.rows,
+    launch_plan_steps: launchPlanResult.rows,
     agreement: agreementResult.rows[0] || null,
     notes: notesResult.rows,
     activity: activityResult.rows,
@@ -466,7 +512,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult] = await Promise.all([
+  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -522,6 +568,14 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
         LIMIT 1`,
       [applicationId]
     ),
+    // Group 12 Slice 3b (609): the territory launch plan steps.
+    db.query(
+      `SELECT *
+         FROM franchise_launch_plan_steps
+        WHERE application_id = $1
+        ORDER BY sort_order, id`,
+      [applicationId]
+    ),
   ]);
 
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
@@ -538,6 +592,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     followup: followupResult.rows,
     responsibilities: responsibilityResult.rows,
     territory_areas: areaResult.rows,
+    launch_plan_steps: launchPlanResult.rows,
   };
 }
 
@@ -690,6 +745,7 @@ async function createFranchiseApplication(req, res) {
         region: desiredRegion,
         city: desiredCity,
       });
+      await seedLaunchPlanSteps(client, applicationId);
       await logActivity(
         client,
         applicationId,
@@ -2656,6 +2712,279 @@ async function removeTerritoryArea(req, res) {
   }
 }
 
+function parseDueDate(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return undefined;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return String(value);
+}
+
+/**
+ * POST /api/franchise/applications/:id/launch-plan (admin)
+ * 609 (D-309): HQ adds a launch plan step. The title is required; the due
+ * date, when given, must be a YYYY-MM-DD date; the owner is operator, HQ,
+ * or shared. Custom steps carry no code; seeded steps keep theirs.
+ */
+async function addLaunchPlanStep(req, res) {
+  const title = asTrimmed(req.body?.title);
+  if (!title) {
+    return res.status(400).json({ error: 'title is required.', code: 'launch_plan_title_required' });
+  }
+  const ownerRole = asTrimmed(req.body?.owner_role) || 'operator';
+  if (!LAUNCH_PLAN_OWNER_ROLES.has(ownerRole)) {
+    return res.status(400).json({ error: 'owner_role must be operator, hq, or shared.', code: 'invalid_launch_plan_owner' });
+  }
+  const dueDate = parseDueDate(req.body?.due_date);
+  if (dueDate === undefined) {
+    return res.status(400).json({ error: 'due_date must be a YYYY-MM-DD date.', code: 'invalid_launch_plan_due_date' });
+  }
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows: maxRows } = await client.query(
+        'SELECT COALESCE(MAX(sort_order), 0)::int AS max_sort FROM franchise_launch_plan_steps WHERE application_id = $1',
+        [id]
+      );
+      const { rows } = await client.query(
+        `INSERT INTO franchise_launch_plan_steps
+           (application_id, title, description, due_date, owner_role, sort_order, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [id, title, asTrimmed(req.body?.description), dueDate, ownerRole, maxRows[0].max_sort + 10, req.user?.id || null]
+      );
+      await logActivity(
+        client,
+        id,
+        req.user?.id || null,
+        'launch_plan_step_added',
+        `Launch plan step added: "${title}".`,
+        { step_id: rows[0].id, owner_role: ownerRole, due_date: dueDate }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error adding franchise launch plan step', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to add launch plan step.' });
+  }
+}
+
+/**
+ * PATCH /api/franchise/applications/:id/launch-plan/:stepId (admin)
+ * 609: HQ edits a launch plan step — title, description, due date, owner,
+ * status, or order. At least one field must change.
+ */
+async function updateLaunchPlanStep(req, res) {
+  const body = req.body || {};
+  const { id, stepId } = req.params;
+  const updates = [];
+  const values = [];
+  let idx = 1;
+  if (body.title !== undefined) {
+    const title = asTrimmed(body.title);
+    if (!title) {
+      return res.status(400).json({ error: 'title must not be empty.', code: 'launch_plan_title_required' });
+    }
+    updates.push(`title = $${idx++}`);
+    values.push(title);
+  }
+  if (body.description !== undefined) {
+    updates.push(`description = $${idx++}`);
+    values.push(asTrimmed(body.description));
+  }
+  if (body.due_date !== undefined) {
+    const dueDate = parseDueDate(body.due_date);
+    if (dueDate === undefined) {
+      return res.status(400).json({ error: 'due_date must be a YYYY-MM-DD date.', code: 'invalid_launch_plan_due_date' });
+    }
+    updates.push(`due_date = $${idx++}`);
+    values.push(dueDate);
+  }
+  if (body.owner_role !== undefined) {
+    if (!LAUNCH_PLAN_OWNER_ROLES.has(asTrimmed(body.owner_role))) {
+      return res.status(400).json({ error: 'owner_role must be operator, hq, or shared.', code: 'invalid_launch_plan_owner' });
+    }
+    updates.push(`owner_role = $${idx++}`);
+    values.push(asTrimmed(body.owner_role));
+  }
+  if (body.status !== undefined) {
+    if (!LAUNCH_PLAN_STATUSES.has(asTrimmed(body.status))) {
+      return res.status(400).json({ error: 'status must be pending, in_progress, completed, or blocked.', code: 'invalid_launch_plan_status' });
+    }
+    updates.push(`status = $${idx++}`);
+    values.push(asTrimmed(body.status));
+  }
+  if (body.sort_order !== undefined) {
+    const sortOrder = parseInt(body.sort_order, 10);
+    if (!Number.isFinite(sortOrder)) {
+      return res.status(400).json({ error: 'sort_order must be an integer.', code: 'invalid_launch_plan_sort' });
+    }
+    updates.push(`sort_order = $${idx++}`);
+    values.push(sortOrder);
+  }
+  if (!updates.length) {
+    return res.status(400).json({ error: 'No launch plan updates supplied.', code: 'launch_plan_no_updates' });
+  }
+
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      values.push(stepId);
+      values.push(id);
+      const { rows } = await client.query(
+        `UPDATE franchise_launch_plan_steps
+            SET ${updates.join(', ')}, updated_at = NOW()
+          WHERE id = $${idx++} AND application_id = $${idx++}
+          RETURNING *`,
+        values
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Launch plan step not found.' });
+      }
+      await logActivity(
+        client,
+        id,
+        req.user?.id || null,
+        'launch_plan_step_updated',
+        `Launch plan step "${rows[0].title}" updated to ${rows[0].status}.`,
+        { step_id: stepId, status: rows[0].status }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise launch plan step', { id, stepId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update launch plan step.' });
+  }
+}
+
+/**
+ * DELETE /api/franchise/applications/:id/launch-plan/:stepId (admin)
+ * 609: HQ removes a launch plan step. The step history stays in the
+ * activity log.
+ */
+async function removeLaunchPlanStep(req, res) {
+  const { id, stepId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `DELETE FROM franchise_launch_plan_steps
+          WHERE id = $1 AND application_id = $2
+          RETURNING title`,
+        [stepId, id]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Launch plan step not found.' });
+      }
+      await logActivity(
+        client,
+        id,
+        req.user?.id || null,
+        'launch_plan_step_removed',
+        `Launch plan step removed: "${rows[0].title}".`,
+        { step_id: stepId }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise launch plan step', { id, stepId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove launch plan step.' });
+  }
+}
+
+/**
+ * POST /api/franchise/my-applications/:id/launch-plan/:stepId/status
+ * 609 (D-309): the operator updates one plan step's status on their own
+ * application. Status only — title, dates, and owners stay HQ-owned.
+ * A stranger gets the same 404 as a missing application.
+ */
+async function updateLaunchPlanStepStatus(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const nextStatus = asTrimmed(req.body?.status);
+  if (!LAUNCH_PLAN_STATUSES.has(nextStatus)) {
+    return res.status(400).json({
+      error: 'status must be pending, in_progress, completed, or blocked.',
+      code: 'invalid_launch_plan_status',
+    });
+  }
+  const { id, stepId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOwnedApplication(client, id, req.user.id);
+      if (!owned) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows } = await client.query(
+        `UPDATE franchise_launch_plan_steps
+            SET status = $3, updated_at = NOW()
+          WHERE id = $1 AND application_id = $2
+          RETURNING *`,
+        [stepId, id, nextStatus]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Launch plan step not found.' });
+      }
+      await logActivity(
+        client,
+        id,
+        req.user.id,
+        'launch_plan_step_updated',
+        `Operator updated launch plan step "${rows[0].title}" to ${nextStatus}.`,
+        { step_id: stepId, status: nextStatus }
+      );
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise launch plan step status', { id, stepId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update launch plan step.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -2681,6 +3010,10 @@ module.exports = {
   respondToTerritoryOffer,
   addTerritoryArea,
   removeTerritoryArea,
+  addLaunchPlanStep,
+  updateLaunchPlanStep,
+  removeLaunchPlanStep,
+  updateLaunchPlanStepStatus,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

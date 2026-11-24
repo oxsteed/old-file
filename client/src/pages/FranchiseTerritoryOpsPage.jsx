@@ -16,6 +16,7 @@ import {
 import api from '../api/axios';
 import PageShell from '../components/PageShell';
 import FranchiseBoundarySummary from './FranchiseBoundarySummary';
+import FranchiseLaunchPlan from './FranchiseLaunchPlan';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -174,6 +175,18 @@ export default function FranchiseTerritoryOpsPage() {
       .catch(() => { if (!cancelled) setBoundaryDetail(null); });
     return () => { cancelled = true; };
   }, [resolvedApplicationId, territoryBlocked]);
+
+  // Group 12 Slice 3b (609): the operator updates a launch plan step's
+  // status from the ops page; the detail is reloaded to reflect it.
+  const updateLaunchPlanStatus = useCallback(async (stepId, status) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/launch-plan/${stepId}/status`, { status });
+      setBoundaryDetail(res.data);
+    } catch {
+      setError(t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
 
   const app      = stats?.application ?? {};
   const kpis     = stats?.territory_kpis ?? {};
@@ -424,6 +437,15 @@ export default function FranchiseTerritoryOpsPage() {
               areas={boundaryDetail.territory_areas || []}
               territoryExclusive={boundaryDetail.application?.territory_exclusive === true}
               territorySummary={boundaryDetail.application?.territory_summary || null}
+            />
+          )}
+
+          {/* Group 12 Slice 3b (609): the territory launch plan. */}
+          {boundaryDetail && (
+            <FranchiseLaunchPlan
+              steps={boundaryDetail.launch_plan_steps || []}
+              readinessStatus={boundaryDetail.application?.launch_readiness_status || null}
+              onStatusChange={updateLaunchPlanStatus}
             />
           )}
 

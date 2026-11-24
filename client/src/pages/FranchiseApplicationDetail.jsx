@@ -11,6 +11,7 @@ import {
 import api from '../api/axios';
 import './FranchiseApplicationDetail.css';
 import FranchiseBoundarySummary from './FranchiseBoundarySummary';
+import FranchiseLaunchPlan from './FranchiseLaunchPlan';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
 const DOC_CATEGORY_KEYS = {
@@ -167,6 +168,20 @@ export default function FranchiseApplicationDetail({ applicationId }) {
       setDeclineReason('');
     } catch {
       setError(copy('acceptanceFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Group 12 Slice 3b (609): update one launch plan step's status.
+  async function updateLaunchPlanStatus(stepId, status) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/launch-plan/${stepId}/status`, { status });
+      setDetail(response.data);
+    } catch {
+      setError(copy('launchPlanStatusFailed'));
     } finally {
       setBusy(false);
     }
@@ -460,6 +475,14 @@ export default function FranchiseApplicationDetail({ applicationId }) {
           <p className="fr-detail-empty">{copy('responsibilitiesEmpty')}</p>
         )}
       </section>
+
+      {/* Group 12 Slice 3b (609): the territory launch plan. */}
+      <FranchiseLaunchPlan
+        steps={detail.launch_plan_steps || []}
+        readinessStatus={detail.application?.launch_readiness_status || null}
+        onStatusChange={updateLaunchPlanStatus}
+        disabled={busy}
+      />
 
       <section className="fr-detail-card">
         <div className="fr-detail-heading">

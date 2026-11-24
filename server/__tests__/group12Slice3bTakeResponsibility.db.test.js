@@ -479,4 +479,142 @@ describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', (
     });
   });
 
+  describe('609: territory launch plan', () => {
+    const EXPECTED_CODES = [
+      'confirm_boundary',
+      'complete_training',
+      'secure_location',
+      'recruit_team',
+      'confirm_opening_date',
+    ];
+
+    test('a new application seeds the five default steps, pending, with owners and no milestone link yet', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      expect(detail.body.launch_plan_steps).toHaveLength(5);
+      expect(detail.body.launch_plan_steps.map((step) => step.code)).toEqual(EXPECTED_CODES);
+      expect(detail.body.launch_plan_steps.every((step) => step.status === 'pending')).toBe(true);
+      expect(detail.body.launch_plan_steps.every((step) => step.milestone_id === null)).toBe(true);
+      expect(detail.body.launch_plan_steps.find((step) => step.code === 'confirm_opening_date').owner_role).toBe('shared');
+      expect(detail.body.launch_plan_steps.find((step) => step.code === 'secure_location').owner_role).toBe('operator');
+
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      expect(bundle.body.launch_plan_steps).toHaveLength(5);
+    });
+
+    test('HQ adds, edits, and removes steps; bad input and non-admins are refused', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      const added = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/launch-plan`)
+        .set('x-test-user', admin)
+        .send({ title: 'Open the first store', description: 'First store opening.', due_date: '2026-12-01', owner_role: 'hq' })
+        .expect(201);
+      expect(added.body.launch_plan_steps).toHaveLength(6);
+      const custom = added.body.launch_plan_steps.find((step) => step.title === 'Open the first store');
+      expect(custom.code).toBeNull();
+      // pg returns DATE columns as ISO timestamps; the date part is the contract.
+      expect(String(custom.due_date).slice(0, 10)).toBe('2026-12-01');
+      expect(custom.owner_role).toBe('hq');
+      expect(custom.milestone_id).toBeNull();
+
+      const updated = await request(app)
+        .patch(`/api/franchise/applications/${applicationId}/launch-plan/${custom.id}`)
+        .set('x-test-user', admin)
+        .send({ status: 'in_progress', due_date: '2026-12-15' })
+        .expect(200);
+      const edited = updated.body.launch_plan_steps.find((step) => step.id === custom.id);
+      expect(edited.status).toBe('in_progress');
+      expect(String(edited.due_date).slice(0, 10)).toBe('2026-12-15');
+
+      const removed = await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/launch-plan/${custom.id}`)
+        .set('x-test-user', admin)
+        .expect(200);
+      expect(removed.body.launch_plan_steps).toHaveLength(5);
+
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/launch-plan`)
+        .set('x-test-user', admin)
+        .send({ description: 'No title.' })
+        .expect(400);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/launch-plan`)
+        .set('x-test-user', admin)
+        .send({ title: 'Bad owner', owner_role: 'vendor' })
+        .expect(400);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/launch-plan`)
+        .set('x-test-user', admin)
+        .send({ title: 'Bad date', due_date: '15/12/2026' })
+        .expect(400);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/launch-plan`)
+        .set('x-test-user', applicant)
+        .send({ title: 'Operator adding steps' })
+        .expect(403);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}/launch-plan/${randomUUID()}`)
+        .set('x-test-user', admin)
+        .send({ status: 'completed' })
+        .expect(404);
+      const seeded = removed.body.launch_plan_steps[0];
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}/launch-plan/${seeded.id}`)
+        .set('x-test-user', admin)
+        .send({ status: 'done' })
+        .expect(400);
+    });
+
+    test('the operator updates step status on their own application; strangers get 404', async () => {
+      const applicant = await addUser();
+      const stranger = await addUser();
+      const applicationId = await makeApplication(applicant);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const step = detail.body.launch_plan_steps.find((entry) => entry.code === 'secure_location');
+
+      const updated = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/launch-plan/${step.id}/status`)
+        .set('x-test-user', applicant)
+        .send({ status: 'in_progress' })
+        .expect(200);
+      expect(updated.body.launch_plan_steps.find((entry) => entry.id === step.id).status).toBe('in_progress');
+
+      const completed = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/launch-plan/${step.id}/status`)
+        .set('x-test-user', applicant)
+        .send({ status: 'completed' })
+        .expect(200);
+      expect(completed.body.launch_plan_steps.find((entry) => entry.id === step.id).status).toBe('completed');
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/launch-plan/${step.id}/status`)
+        .set('x-test-user', stranger)
+        .send({ status: 'pending' })
+        .expect(404);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/launch-plan/${step.id}/status`)
+        .set('x-test-user', applicant)
+        .send({ status: 'done' })
+        .expect(400);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/launch-plan/${randomUUID()}/status`)
+        .set('x-test-user', applicant)
+        .send({ status: 'pending' })
+        .expect(404);
+
+      const { rows } = await db.query(
+        "SELECT event_type FROM franchise_activity_log WHERE application_id = $1 AND event_type = 'launch_plan_step_updated' ORDER BY created_at ASC",
+        [applicationId],
+      );
+      expect(rows).toHaveLength(2);
+    });
+  });
+
 });
