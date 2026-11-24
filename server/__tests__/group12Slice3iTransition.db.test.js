@@ -317,6 +317,23 @@ describeDb('Group 12 Slice 3i: Transition (641-645)', () => {
       expect(detail.body.handoffs.checklist.items).toHaveLength(5);
     });
 
+    test('the incoming operator can be named by email: resolved server-side, own email is the same 400, unknown email 404', async () => {
+      const operator = await addUser();
+      const incoming = await addUser();
+      const applicationId = await makeApprovedApplication(operator);
+      await initiateAs(operator, applicationId, { incoming_operator_email: 'nobody@example.invalid' })
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('handoff_incoming_not_found'));
+      await initiateAs(operator, applicationId, { incoming_operator_email: operator.email })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('handoff_incoming_same_operator'));
+      const created = await initiateAs(operator, applicationId, {
+        incoming_operator_email: incoming.email.toUpperCase(),
+        reason: 'Email lookup is case-insensitive',
+      }).expect(201);
+      expect(created.body.handoff.incoming_operator_id).toBe(incoming.id);
+    });
+
     test('initiation grants nothing: the incoming operator sees only the handoff row, never the territory', async () => {
       const operator = await addUser();
       const incoming = await addUser();

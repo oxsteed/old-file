@@ -9676,10 +9676,17 @@ async function loadHandoffRow(client, applicationId, handoffId) {
 // that moves anything (D-341/D-346).
 async function createHandoff(req, res) {
   const { id } = req.params;
-  const incomingOperatorId = asTrimmed(req.body?.incoming_operator_id);
+  let incomingOperatorId = asTrimmed(req.body?.incoming_operator_id);
+  const incomingEmail = asTrimmed(req.body?.incoming_operator_email);
   const reason = asTrimmed(req.body?.reason);
-  if (!incomingOperatorId || !UUID_RE.test(incomingOperatorId)) {
+  if (!incomingOperatorId && !incomingEmail) {
+    return res.status(400).json({ error: 'incoming_operator_id or incoming_operator_email is required.', code: 'handoff_incoming_required' });
+  }
+  if (incomingOperatorId && !UUID_RE.test(incomingOperatorId)) {
     return res.status(400).json({ error: 'incoming_operator_id is required.', code: 'handoff_incoming_required' });
+  }
+  if (incomingEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(incomingEmail)) {
+    return res.status(400).json({ error: 'incoming_operator_email must be a valid email address.', code: 'handoff_incoming_email_invalid' });
   }
   if (reason && reason.length > 1000) {
     return res.status(400).json({ error: 'reason must be at most 1000 characters.', code: 'handoff_reason_too_long' });
@@ -9710,22 +9717,28 @@ async function createHandoff(req, res) {
           code: 'handoff_territory_not_active',
         });
       }
-      if (String(incomingOperatorId) === String(req.user?.id)) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({
-          error: 'The incoming operator must be someone other than the outgoing operator.',
-          code: 'handoff_incoming_same_operator',
-        });
-      }
       const { rows: userRows } = await client.query(
-        'SELECT id FROM users WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL',
-        [incomingOperatorId]
+        incomingOperatorId
+          ? 'SELECT id FROM users WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL'
+          : 'SELECT id FROM users WHERE lower(email) = lower($1) AND is_active = TRUE AND deleted_at IS NULL',
+        [incomingOperatorId || incomingEmail]
       );
       if (!userRows.length) {
         await client.query('ROLLBACK');
         return res.status(404).json({
           error: 'The incoming operator must be an active account.',
           code: 'handoff_incoming_not_found',
+        });
+      }
+      incomingOperatorId = userRows[0].id;
+      // The same-operator check runs after email resolution, so naming
+      // your own email is the same 400 as naming your own id — the
+      // table CHECK would otherwise turn it into a 500.
+      if (String(incomingOperatorId) === String(req.user?.id)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: 'The incoming operator must be someone other than the outgoing operator.',
+          code: 'handoff_incoming_same_operator',
         });
       }
       const { rows: pendingRows } = await client.query(

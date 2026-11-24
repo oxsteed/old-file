@@ -36,6 +36,8 @@ import FranchiseTerritoryCapacity from './FranchiseTerritoryCapacity';
 import FranchiseTrainingPlanner from './FranchiseTrainingPlanner';
 import FranchiseLaunchDependencies from './FranchiseLaunchDependencies';
 import FranchiseExpansionNotes from './FranchiseExpansionNotes';
+import FranchiseHandoff from './FranchiseHandoff';
+import FranchiseContactDirectory from './FranchiseContactDirectory';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -360,6 +362,73 @@ export default function FranchiseTerritoryOpsPage() {
     if (!resolvedApplicationId) return;
     try {
       await api.delete(`/franchise/my-applications/${resolvedApplicationId}/expansion-notes/${noteId}`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  // Group 12 Slice 3i (641/642/644): the operator initiates a handoff to
+  // a named incoming operator and cancels a pending one; HQ approval is
+  // the only path that moves anything, so these calls only ever create or
+  // cancel the pending record. The transfer log loads on demand.
+  const initiateHandoff = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/handoffs`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const cancelHandoff = useCallback(async (handoffId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/handoffs/${handoffId}/cancel`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const loadHandoffTransfers = useCallback(async (handoffId) => {
+    if (!resolvedApplicationId) return [];
+    const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}/handoffs/${handoffId}/transfers`);
+    return res.data.transfers || [];
+  }, [resolvedApplicationId]);
+
+  // Group 12 Slice 3i (643): the operator maintains the territory's
+  // contact directory — roster-linked entries and manual entries.
+  const addDirectoryContact = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/contact-directory`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const updateDirectoryContact = useCallback(async (entryId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.patch(`/franchise/my-applications/${resolvedApplicationId}/contact-directory/${entryId}`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const removeDirectoryContact = useCallback(async (entryId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.delete(`/franchise/my-applications/${resolvedApplicationId}/contact-directory/${entryId}`);
       await reloadBoundaryDetail();
     } catch (err) {
       setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
@@ -1084,6 +1153,33 @@ export default function FranchiseTerritoryOpsPage() {
               onAdd={addExpansionNote}
               onUpdate={updateExpansionNote}
               onRemove={removeExpansionNote}
+            />
+          )}
+
+          {/* Group 12 Slice 3i (641/642/644, D-341/D-342/D-344): operator
+              handoff — the operator initiates, HQ approves; only approval
+              transfers open issues and records. The operator never reviews
+              here; review happens from the HQ page. */}
+          {boundaryDetail && (
+            <FranchiseHandoff
+              handoffs={boundaryDetail.handoffs || null}
+              members={boundaryDetail.territory_members || []}
+              canInitiate={boundaryDetail.application?.owner_user_id === user?.id}
+              onInitiate={initiateHandoff}
+              onCancel={cancelHandoff}
+              onLoadTransfers={loadHandoffTransfers}
+            />
+          )}
+
+          {/* Group 12 Slice 3i (643, D-343): the contact directory — the
+              operator maintains it; HQ reads the same list. */}
+          {boundaryDetail && (
+            <FranchiseContactDirectory
+              directory={boundaryDetail.contact_directory || null}
+              canWrite={boundaryDetail.application?.owner_user_id === user?.id}
+              onAdd={addDirectoryContact}
+              onUpdate={updateDirectoryContact}
+              onRemove={removeDirectoryContact}
             />
           )}
 

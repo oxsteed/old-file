@@ -123,6 +123,11 @@ export default function FranchiseApplicantDashboard() {
   const copy = (key, options) => t(`dashboards.franchise.${key}`, options);
   const [applications, setApplications] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  // Group 12 Slice 3i (644, D-344): handoffs naming the viewer — the
+  // incoming operator's pre-approval view of the handoff record, and
+  // the outgoing operator's record after the move. Handoff rows only,
+  // never territory records.
+  const [myHandoffs, setMyHandoffs] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,6 +141,15 @@ export default function FranchiseApplicantDashboard() {
         if (cancelled) return;
         setApplications([]);
         setLoaded(true);
+      });
+    api.get('/franchise/my-handoffs')
+      .then((response) => {
+        if (cancelled) return;
+        setMyHandoffs(Array.isArray(response.data?.handoffs) ? response.data.handoffs : []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setMyHandoffs([]);
       });
     return () => {
       cancelled = true;
@@ -315,6 +329,34 @@ export default function FranchiseApplicantDashboard() {
         </section>
 
         <FranchiseApplicationDetail applicationId={primary.id} />
+
+        {/* Group 12 Slice 3i (644, D-344): handoffs naming the viewer —
+            the incoming operator sees the handoff record here before
+            approval, never the territory itself. */}
+        {myHandoffs.length > 0 && (
+          <section className="rounded-[28px] border overflow-hidden border-[var(--color-border)] bg-[var(--color-card-bg)]">
+            <header className="px-6 py-4 border-b border-[var(--color-border)]">
+              <h2 className="text-lg font-semibold">{copy('handoffTitle')}</h2>
+              <p className="text-sm text-[var(--color-text-muted)]">{copy('handoffSubtitle')}</p>
+            </header>
+            <div className="divide-y divide-[rgba(148,163,184,0.12)]">
+              {myHandoffs.map((handoff) => (
+                <div key={handoff.id} className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <div className="font-semibold">
+                      {copy('handoffFromTo', { from: handoff.outgoing_operator_name || '—', to: handoff.incoming_operator_name || '—' })}
+                    </div>
+                    <div className="text-sm text-[var(--color-text-muted)]">
+                      {[handoff.territory_city, handoff.territory_region, handoff.territory_country].filter(Boolean).join(', ')}
+                      {handoff.reason ? ` · ${handoff.reason}` : ''}
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold">{copy(`handoffStatus_${handoff.status}`)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {sortedApplications.length > 1 && (
           <section className="rounded-[28px] border overflow-hidden" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
