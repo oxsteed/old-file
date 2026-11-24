@@ -39,6 +39,7 @@ import FranchiseExpansionNotes from './FranchiseExpansionNotes';
 import FranchiseHandoff from './FranchiseHandoff';
 import FranchiseContactDirectory from './FranchiseContactDirectory';
 import FranchisePolicyQuestions from './FranchisePolicyQuestions';
+import FranchiseOpsAppointments from './FranchiseOpsAppointments';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -444,6 +445,30 @@ export default function FranchiseTerritoryOpsPage() {
     if (!resolvedApplicationId) return;
     try {
       await api.post(`/franchise/my-applications/${resolvedApplicationId}/policy-questions`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  // Group 12 Slice 3j (647, D-348): the operator books or cancels a
+  // dedicated HQ operations appointment for the territory.
+  const bookOpsSlot = useCallback(async (slotId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/ops-appointments/${slotId}/book`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const cancelOpsBooking = useCallback(async (slotId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/ops-appointments/${slotId}/cancel`);
       await reloadBoundaryDetail();
     } catch (err) {
       setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
@@ -1195,6 +1220,18 @@ export default function FranchiseTerritoryOpsPage() {
               onAdd={addDirectoryContact}
               onUpdate={updateDirectoryContact}
               onRemove={removeDirectoryContact}
+            />
+          )}
+
+          {/* Group 12 Slice 3j (647, D-348): dedicated HQ operations
+              appointments — the operator books one; HQ confirms it. */}
+          {boundaryDetail && (
+            <FranchiseOpsAppointments
+              slots={boundaryDetail.ops_appointments || []}
+              currentUserId={user?.id}
+              canBook={boundaryDetail.application?.owner_user_id === user?.id}
+              onBook={bookOpsSlot}
+              onCancelBooking={cancelOpsBooking}
             />
           )}
 

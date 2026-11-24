@@ -496,6 +496,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // support tickets with category 'policy_question', with the territory
   // context attached from creation.
   const policyQuestions = await fetchPolicyQuestions(applicationId);
+  // Group 12 Slice 3j (647, D-348): the dedicated HQ operations
+  // appointment slots for this territory — never the consulting flow.
+  const opsAppointments = await fetchOpsAppointments(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -535,6 +538,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     handoffs,
     contact_directory: contactDirectory,
     policy_questions: policyQuestions,
+    ops_appointments: opsAppointments,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1162,6 +1166,9 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   const contactDirectory = await buildContactDirectory(applicationId);
   // Group 12 Slice 3j (646, D-347): the territory's policy questions.
   const policyQuestions = await fetchPolicyQuestions(applicationId);
+  // Group 12 Slice 3j (647, D-348): the dedicated HQ operations
+  // appointment slots for this territory.
+  const opsAppointments = await fetchOpsAppointments(applicationId);
 
   return {
     application: {
@@ -1196,6 +1203,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     handoffs,
     contact_directory: contactDirectory,
     policy_questions: policyQuestions,
+    ops_appointments: opsAppointments,
     // Group 12 Slice 3h (640, D-340): HQ's own readiness fields,
     // surfaced read-only to the operator alongside their notes.
     hq_readiness_notes: {
@@ -7390,6 +7398,368 @@ async function listPolicyQuestionsAsAdmin(req, res) {
   return listPolicyQuestions(req, res, { asAdmin: true });
 }
 
+// Group 12 Slice 3j (647, D-348): dedicated HQ operations appointments
+// — NOT the consulting flow (D-300). HQ publishes ops slots per
+// territory; the operator books one for their territory; HQ confirms
+// or cancels; HQ marks a confirmed appointment completed. A slot is
+// proposed (available), booked, confirmed, completed, or cancelled
+// (terminal). One live booking per operator per territory — the
+// interview rule (604) applied to operations — so a second booking
+// while one is live is 409. Booking, confirmation, completion, and
+// cancellation timestamps are kept on the row so the support history
+// (650) derives its appointment events from this record alone.
+async function fetchOpsAppointments(applicationId) {
+  const { rows } = await db.query(
+    `SELECT s.*,
+            bu.first_name AS booked_by_first_name, bu.last_name AS booked_by_last_name,
+            bu.email AS booked_by_email,
+            cu.first_name AS confirmed_by_first_name, cu.last_name AS confirmed_by_last_name,
+            pu.first_name AS completed_by_first_name, pu.last_name AS completed_by_last_name,
+            xu.first_name AS cancelled_by_first_name, xu.last_name AS cancelled_by_last_name
+       FROM franchise_ops_appointment_slots s
+       LEFT JOIN users bu ON bu.id = s.booked_by
+       LEFT JOIN users cu ON cu.id = s.confirmed_by
+       LEFT JOIN users pu ON pu.id = s.completed_by
+       LEFT JOIN users xu ON xu.id = s.cancelled_by
+      WHERE s.application_id = $1
+      ORDER BY s.starts_at ASC, s.id ASC`,
+    [applicationId]
+  );
+  const nameOf = (row, prefix) => [row[`${prefix}_first_name`], row[`${prefix}_last_name`]]
+    .filter(Boolean).join(' ') || row[`${prefix}_email`] || null;
+  return rows.map((row) => ({
+    ...row,
+    booked_by_name: nameOf(row, 'booked_by'),
+    confirmed_by_name: nameOf(row, 'confirmed_by'),
+    completed_by_name: nameOf(row, 'completed_by'),
+    cancelled_by_name: nameOf(row, 'cancelled_by'),
+  }));
+}
+
+function parseOpsSlotBody(body) {
+  const startsAt = parseInterviewDate(body.starts_at);
+  const endsAt = parseInterviewDate(body.ends_at);
+  if (!startsAt) {
+    return { error: { status: 400, body: { error: 'starts_at is required and must be a valid date.', code: 'invalid_ops_slot_start' } } };
+  }
+  if (startsAt.getTime() <= Date.now()) {
+    return { error: { status: 400, body: { error: 'Operations slots must start in the future.', code: 'ops_slot_start_in_past' } } };
+  }
+  if (body.ends_at !== undefined && body.ends_at !== null && body.ends_at !== '' && !endsAt) {
+    return { error: { status: 400, body: { error: 'ends_at must be a valid date.', code: 'invalid_ops_slot_end' } } };
+  }
+  if (endsAt && endsAt.getTime() <= startsAt.getTime()) {
+    return { error: { status: 400, body: { error: 'ends_at must be after starts_at.', code: 'invalid_ops_slot_end' } } };
+  }
+  return { startsAt, endsAt };
+}
+
+async function publishOpsSlotAsAdmin(req, res) {
+  const { id } = req.params;
+  const parsed = parseOpsSlotBody(req.body || {});
+  if (parsed.error) return res.status(parsed.error.status).json(parsed.error.body);
+  const title = asTrimmed(req.body?.title);
+  const note = asTrimmed(req.body?.note);
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows } = await client.query(
+        `INSERT INTO franchise_ops_appointment_slots
+           (application_id, title, starts_at, ends_at, note, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [id, title || null, parsed.startsAt.toISOString(), parsed.endsAt ? parsed.endsAt.toISOString() : null, note || null, req.user?.id || null]
+      );
+      await logActivity(client, id, req.user?.id || null, 'ops_slot_proposed',
+        `Operations appointment slot proposed for ${parsed.startsAt.toISOString()}.`,
+        { slot_id: rows[0].id });
+      await client.query('COMMIT');
+      const opsAppointments = await fetchOpsAppointments(id);
+      return res.status(201).json({ slot: rows[0], ops_appointments: opsAppointments, total: opsAppointments.length });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error publishing franchise operations slot', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to publish the operations slot.' });
+  }
+}
+
+async function loadOpsSlot(client, applicationId, slotId) {
+  const { rows } = await client.query(
+    `SELECT * FROM franchise_ops_appointment_slots
+      WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+    [slotId, applicationId]
+  );
+  return rows[0] || null;
+}
+
+async function bookOpsSlot(req, res) {
+  const { id, slotId } = req.params;
+  if (!UUID_RE.test(slotId)) {
+    return res.status(404).json({ error: 'Operations appointment not found.', code: 'ops_slot_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can book an operations appointment.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const slot = await loadOpsSlot(client, id, slotId);
+      if (!slot) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Operations appointment not found.', code: 'ops_slot_not_found' });
+      }
+      if (slot.status !== 'proposed' || new Date(slot.starts_at).getTime() <= Date.now()) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'This operations slot can no longer be booked.', code: 'ops_slot_not_bookable' });
+      }
+      const { rows: live } = await client.query(
+        `SELECT id FROM franchise_ops_appointment_slots
+          WHERE application_id = $1 AND booked_by = $2 AND status IN ('booked', 'confirmed')
+          LIMIT 1`,
+        [id, req.user?.id]
+      );
+      if (live.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'You already have a live operations appointment for this territory.',
+          code: 'ops_appointment_already_booked',
+        });
+      }
+      const { rows } = await client.query(
+        `UPDATE franchise_ops_appointment_slots
+            SET status = 'booked', booked_by = $1, booked_at = NOW(), updated_at = NOW()
+          WHERE id = $2 AND application_id = $3
+          RETURNING *`,
+        [req.user?.id, slotId, id]
+      );
+      await logActivity(client, id, req.user?.id, 'ops_appointment_booked',
+        `Operations appointment booked for ${slot.starts_at.toISOString().slice(0, 10)}.`,
+        { slot_id: slotId });
+      await client.query('COMMIT');
+      const opsAppointments = await fetchOpsAppointments(id);
+      return res.status(201).json({ slot: rows[0], ops_appointments: opsAppointments, total: opsAppointments.length });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error booking franchise operations appointment', { id, slotId, err: err.message });
+    return res.status(500).json({ error: 'Failed to book the operations appointment.' });
+  }
+}
+
+async function cancelOpsBooking(req, res) {
+  const { id, slotId } = req.params;
+  if (!UUID_RE.test(slotId)) {
+    return res.status(404).json({ error: 'Operations appointment not found.', code: 'ops_slot_not_found' });
+  }
+  const reason = asTrimmed(req.body?.reason) || null;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can cancel an operations appointment.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const slot = await loadOpsSlot(client, id, slotId);
+      if (!slot) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Operations appointment not found.', code: 'ops_slot_not_found' });
+      }
+      if (!['booked', 'confirmed'].includes(slot.status)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'This operations appointment cannot be cancelled.', code: 'ops_appointment_not_booked' });
+      }
+      if (String(slot.booked_by) !== String(req.user?.id)) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the operator who booked this appointment can cancel it.',
+          code: 'ops_appointment_not_yours',
+        });
+      }
+      const { rows } = await client.query(
+        `UPDATE franchise_ops_appointment_slots
+            SET status = 'cancelled', cancelled_by = $1, cancelled_at = NOW(),
+                cancel_reason = $2, updated_at = NOW()
+          WHERE id = $3 AND application_id = $4
+          RETURNING *`,
+        [req.user?.id, reason, slotId, id]
+      );
+      await logActivity(client, id, req.user?.id, 'ops_appointment_cancelled',
+        'Operations appointment cancelled by the operator.',
+        { slot_id: slotId });
+      await client.query('COMMIT');
+      const opsAppointments = await fetchOpsAppointments(id);
+      return res.json({ slot: rows[0], ops_appointments: opsAppointments, total: opsAppointments.length });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error cancelling franchise operations appointment', { id, slotId, err: err.message });
+    return res.status(500).json({ error: 'Failed to cancel the operations appointment.' });
+  }
+}
+
+// 647 (D-348): HQ moves a slot through its lifecycle. Confirm only from
+// booked; complete only from confirmed; cancel from proposed, booked, or
+// confirmed. Completed/cancelled are terminal.
+async function updateOpsSlotAsAdmin(req, res, transition) {
+  const { id, slotId } = req.params;
+  if (!UUID_RE.test(slotId)) {
+    return res.status(404).json({ error: 'Operations appointment not found.', code: 'ops_slot_not_found' });
+  }
+  const reason = asTrimmed(req.body?.reason) || null;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const slot = await loadOpsSlot(client, id, slotId);
+      if (!slot) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Operations appointment not found.', code: 'ops_slot_not_found' });
+      }
+      let setClause;
+      let eventType;
+      let eventSummary;
+      if (transition === 'confirm') {
+        if (slot.status !== 'booked') {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'Only a booked operations appointment can be confirmed.', code: 'ops_slot_not_booked' });
+        }
+        setClause = `status = 'confirmed', confirmed_by = $1, confirmed_at = NOW()`;
+        eventType = 'ops_appointment_confirmed';
+        eventSummary = 'Operations appointment confirmed by headquarters.';
+      } else if (transition === 'complete') {
+        if (slot.status !== 'confirmed') {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'Only a confirmed operations appointment can be completed.', code: 'ops_slot_not_confirmed' });
+        }
+        setClause = `status = 'completed', completed_by = $1, completed_at = NOW()`;
+        eventType = 'ops_appointment_completed';
+        eventSummary = 'Operations appointment completed.';
+      } else {
+        if (!['proposed', 'booked', 'confirmed'].includes(slot.status)) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'This operations appointment cannot be cancelled.', code: 'ops_slot_terminal' });
+        }
+        setClause = `status = 'cancelled', cancelled_by = $1, cancelled_at = NOW(), cancel_reason = $2`;
+        eventType = 'ops_appointment_cancelled';
+        eventSummary = 'Operations appointment cancelled by headquarters.';
+      }
+      const { rows } = await client.query(
+        `UPDATE franchise_ops_appointment_slots
+            SET ${setClause}, updated_at = NOW()
+          WHERE id = $${transition === 'cancel' ? 3 : 2} AND application_id = $${transition === 'cancel' ? 4 : 3}
+          RETURNING *`,
+        transition === 'cancel'
+          ? [req.user?.id, reason, slotId, id]
+          : [req.user?.id, slotId, id]
+      );
+      await logActivity(client, id, req.user?.id, eventType, eventSummary, { slot_id: slotId });
+      await client.query('COMMIT');
+      const opsAppointments = await fetchOpsAppointments(id);
+      return res.json({ slot: rows[0], ops_appointments: opsAppointments, total: opsAppointments.length });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise operations appointment as admin', { id, slotId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update the operations appointment.' });
+  }
+}
+
+async function confirmOpsSlotAsAdmin(req, res) {
+  return updateOpsSlotAsAdmin(req, res, 'confirm');
+}
+
+async function completeOpsSlotAsAdmin(req, res) {
+  return updateOpsSlotAsAdmin(req, res, 'complete');
+}
+
+async function cancelOpsSlotAsAdmin(req, res) {
+  return updateOpsSlotAsAdmin(req, res, 'cancel');
+}
+
+async function listOpsAppointments(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can view territory operations appointments.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    const opsAppointments = await fetchOpsAppointments(id);
+    return res.json({ application_id: id, ops_appointments: opsAppointments, total: opsAppointments.length });
+  } catch (err) {
+    logger.error('Error listing franchise operations appointments', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load operations appointments.' });
+  }
+}
+
+async function listOpsAppointmentsAsAdmin(req, res) {
+  return listOpsAppointments(req, res, { asAdmin: true });
+}
+
 async function getLocationHealth(req, res) {
   const { id } = req.params;
   try {
@@ -10983,6 +11353,14 @@ module.exports = {
   createPolicyQuestion,
   listPolicyQuestions,
   listPolicyQuestionsAsAdmin,
+  publishOpsSlotAsAdmin,
+  bookOpsSlot,
+  cancelOpsBooking,
+  confirmOpsSlotAsAdmin,
+  completeOpsSlotAsAdmin,
+  cancelOpsSlotAsAdmin,
+  listOpsAppointments,
+  listOpsAppointmentsAsAdmin,
   getCoverageTrend,
   getCoverageTrendAsAdmin,
   linkTicketToTerritory,

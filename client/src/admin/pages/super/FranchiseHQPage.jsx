@@ -38,6 +38,7 @@ import FranchiseHandoff from '../../../pages/FranchiseHandoff';
 import FranchiseContactDirectory from '../../../pages/FranchiseContactDirectory';
 import FranchiseAccessRemoval from '../../../pages/FranchiseAccessRemoval';
 import FranchisePolicyQuestions from '../../../pages/FranchisePolicyQuestions';
+import FranchiseOpsAppointments from '../../../pages/FranchiseOpsAppointments';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -423,6 +424,50 @@ export default function FranchiseHQPage() {
       .catch(() => { if (!cancelled) setHqCorrectiveActions([]); });
     return () => { cancelled = true; };
   }, [selectedBundle, hqResolutionRefresh]);
+
+  // Group 12 Slice 3j (647): HQ publishes dedicated operations slots
+  // and moves them through confirm/complete/cancel.
+  async function publishOpsSlot(body) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/ops-appointments`, body);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.opsPublishFailed'));
+      throw new Error(t('dashboards.franchise.opsPublishFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateOpsSlot(slotId, transition) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/ops-appointments/${slotId}/${transition}`);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.opsUpdateFailed'));
+      throw new Error(t('dashboards.franchise.opsUpdateFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmOpsSlot(slotId) {
+    await updateOpsSlot(slotId, 'confirm');
+  }
+
+  async function completeOpsSlot(slotId) {
+    await updateOpsSlot(slotId, 'complete');
+  }
+
+  async function cancelOpsSlot(slotId) {
+    await updateOpsSlot(slotId, 'cancel');
+  }
 
   // Group 12 Slice 3g (631): HQ escalates a linked exception for the
   // territory.
@@ -2227,6 +2272,20 @@ export default function FranchiseHQPage() {
                     onLocationChange={setHqTicketLocationId}
                     canUnlink
                     onUnlink={unlinkTerritoryTicket}
+                    busy={saving}
+                  />
+
+                  {/* Group 12 Slice 3j (647, D-348): dedicated HQ
+                      operations appointments — HQ publishes slots and
+                      confirms, completes, or cancels them. */}
+                  <FranchiseOpsAppointments
+                    slots={selectedBundle.ops_appointments || []}
+                    canPublish
+                    canManage
+                    onPublish={publishOpsSlot}
+                    onConfirm={confirmOpsSlot}
+                    onComplete={completeOpsSlot}
+                    onCancelSlot={cancelOpsSlot}
                     busy={saving}
                   />
 

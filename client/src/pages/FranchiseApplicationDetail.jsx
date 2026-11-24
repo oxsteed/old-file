@@ -32,6 +32,7 @@ import FranchiseTrainingPlanner from './FranchiseTrainingPlanner';
 import FranchiseLaunchDependencies from './FranchiseLaunchDependencies';
 import FranchiseExpansionNotes from './FranchiseExpansionNotes';
 import FranchisePolicyQuestions from './FranchisePolicyQuestions';
+import FranchiseOpsAppointments from './FranchiseOpsAppointments';
 import { useAuth } from '../hooks/useAuth';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
@@ -498,6 +499,36 @@ export default function FranchiseApplicationDetail({ applicationId }) {
       await reloadDetail();
     } catch (err) {
       setError(err?.response?.data?.error || copy('policyAskFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Group 12 Slice 3j (647, D-348): the operator books or cancels a
+  // dedicated HQ operations appointment for the territory.
+  async function bookOpsSlot(slotId) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/franchise/my-applications/${applicationId}/ops-appointments/${slotId}/book`);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('opsBookFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelOpsBooking(slotId) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/franchise/my-applications/${applicationId}/ops-appointments/${slotId}/cancel`);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('opsCancelFailed'));
       throw err;
     } finally {
       setBusy(false);
@@ -1060,6 +1091,17 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onLocationChange={setTicketLocationId}
         canUnlink={detail.application?.is_operator === true}
         onUnlink={unlinkTicket}
+        busy={busy}
+      />
+
+      {/* Group 12 Slice 3j (647, D-348): dedicated HQ operations
+          appointments — the operator books one; HQ confirms it. */}
+      <FranchiseOpsAppointments
+        slots={detail.ops_appointments || []}
+        currentUserId={user?.id}
+        canBook={detail.application?.is_operator === true}
+        onBook={bookOpsSlot}
+        onCancelBooking={cancelOpsBooking}
         busy={busy}
       />
 

@@ -81,6 +81,14 @@ const {
   createPolicyQuestion,
   listPolicyQuestions,
   listPolicyQuestionsAsAdmin,
+  publishOpsSlotAsAdmin,
+  bookOpsSlot,
+  cancelOpsBooking,
+  confirmOpsSlotAsAdmin,
+  completeOpsSlotAsAdmin,
+  cancelOpsSlotAsAdmin,
+  listOpsAppointments,
+  listOpsAppointmentsAsAdmin,
   getCoverageTrend,
   getCoverageTrendAsAdmin,
   linkTicketToTerritory,
@@ -231,6 +239,12 @@ router.get('/my-applications/:id/support-tickets', authenticate, requireFranchis
 // Group 12 Slice 3f (630): the territory coverage trend — coverage %
 // by day and by week over time, from the linked business's shifts (D-330).
 router.get('/my-applications/:id/coverage-trend', authenticate, requireFranchiseEnabled, getCoverageTrend);
+// Group 12 Slice 3j (647): dedicated HQ operations appointments — the
+// operator books a published slot for their territory; HQ confirms or
+// cancels; never the consulting flow (D-300).
+router.get('/my-applications/:id/ops-appointments', authenticate, requireFranchiseEnabled, listOpsAppointments);
+router.post('/my-applications/:id/ops-appointments/:slotId/book', authenticate, requireFranchiseEnabled, bookOpsSlot);
+router.post('/my-applications/:id/ops-appointments/:slotId/cancel', authenticate, requireFranchiseEnabled, cancelOpsBooking);
 // Group 12 Slice 3j (646): franchise-scoped policy questions — the
 // operator asks a policy question tied to the territory (and optionally
 // a standard); HQ answers in-thread on the ticket. A policy question IS
@@ -358,6 +372,13 @@ router.get('/applications/:id/exceptions', authenticate, requireAdmin, requirePe
 // Group 12 Slice 3f (627): HQ reads the per-location health view.
 router.get('/applications/:id/location-health', authenticate, requireAdmin, requirePermission('manage_operations'), getLocationHealthAsAdmin);
 // Group 12 Slice 3f (629): HQ reads the per-territory ticket queue.
+// Group 12 Slice 3j (647): HQ publishes dedicated operations slots
+// and moves them through confirm/complete/cancel.
+router.get('/applications/:id/ops-appointments', authenticate, requireAdmin, requirePermission('manage_operations'), listOpsAppointmentsAsAdmin);
+router.post('/applications/:id/ops-appointments', authenticate, requireAdmin, requirePermission('manage_operations'), publishOpsSlotAsAdmin);
+router.post('/applications/:id/ops-appointments/:slotId/confirm', authenticate, requireAdmin, requirePermission('manage_operations'), confirmOpsSlotAsAdmin);
+router.post('/applications/:id/ops-appointments/:slotId/complete', authenticate, requireAdmin, requirePermission('manage_operations'), completeOpsSlotAsAdmin);
+router.post('/applications/:id/ops-appointments/:slotId/cancel', authenticate, requireAdmin, requirePermission('manage_operations'), cancelOpsSlotAsAdmin);
 // Group 12 Slice 3j (646): HQ reads the per-territory policy-question
 // queue — the same list the operator sees — and answers in-thread.
 router.get('/applications/:id/policy-questions', authenticate, requireAdmin, requirePermission('manage_operations'), listPolicyQuestionsAsAdmin);
