@@ -3827,11 +3827,118 @@ function customerCreditStatementCsv(statement) {
   return `\ufeff${lines.join('\r\n')}\r\n`;
 }
 
+// Group 13 Slice 4b (659): reversal explanation on the customer
+// transaction detail. The ledger already carries what explains a reversal —
+// the stored `reason` column (migrations 468/487; required on settlement
+// reversals, generated on payout reversals) and the posting metadata — so
+// no new stored reason field is added. The original transaction is resolved
+// from the same existing data and is only exposed when the caller can open
+// it (it touches their own wallet): the three labeled reversal types
+// reverse partner/treasury legs whose originals live outside the customer
+// wallet, so their link resolves to null rather than a dead link, while a
+// `refund` — the reversal a customer actually sees — resolves to the
+// `purchase` for the same order.
+const REVERSAL_TRANSACTION_TYPES = Object.freeze([
+  'settlement_reversal',
+  'sub_bank_load_reversal',
+  'sub_bank_payout_reversal',
+]);
+const UUID_PATTERN = /^[0-9a-fA-F-]{36}$/;
+
+function storedReversalReason(row) {
+  const reason = typeof row.reason === 'string' ? row.reason.trim() : '';
+  if (!reason || reason === LEGACY_CREDIT_REASON) return null;
+  return reason;
+}
+
+function derivedReversalReasonCode(row) {
+  const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+  if (row.transaction_type === 'sub_bank_load_reversal') {
+    if (metadata.foodWalletReferenceType === 'credit_derisk') return 'derisk';
+    if (metadata.foodWalletReferenceType === 'credit_refund') return 'refund';
+    return 'load_reversal';
+  }
+  if (row.transaction_type === 'sub_bank_payout_reversal') return 'payout_reversed';
+  if (row.transaction_type === 'settlement_reversal') return 'settlement';
+  if (row.transaction_type === 'refund') return 'purchase_refund';
+  return null;
+}
+
+async function resolveReversalOriginalTransactionId({ row, customerId, currency }) {
+  const referenceId = typeof row.reference_id === 'string' ? row.reference_id.trim() : '';
+  // A refund reverses the purchase for the same order: same customer
+  // wallet, same currency, posted.
+  if (row.transaction_type === 'refund' && row.reference_type === 'food_order_refund' && referenceId) {
+    const { rows } = await pool.query(
+      `SELECT t.id
+         FROM oxsteed_credit_transactions t
+         JOIN oxsteed_credit_accounts a ON (a.id = t.debit_account_id OR a.id = t.credit_account_id)
+        WHERE t.transaction_type = 'purchase' AND t.reference_type = 'food_order'
+          AND t.reference_id = $1 AND t.status = 'posted'
+          AND a.account_type = 'customer_wallet' AND a.customer_id = $2
+          AND a.currency_code = $3 AND t.currency_code = $3
+        ORDER BY t.posted_at DESC NULLS LAST, t.created_at DESC
+        LIMIT 1`,
+      [referenceId, customerId, currency]
+    );
+    return rows[0] ? String(rows[0].id) : null;
+  }
+  // Settlement reversals carry the original settlement journal id in
+  // metadata; sub-bank payout reversals carry the payout id, whose
+  // original is the sub_bank_payout for that payout. Either way the link
+  // is exposed only when the original touches the caller's own wallet.
+  let candidateId = null;
+  const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+  if (row.transaction_type === 'settlement_reversal'
+    && typeof metadata.originalTransactionId === 'string'
+    && UUID_PATTERN.test(metadata.originalTransactionId)) {
+    candidateId = metadata.originalTransactionId;
+  } else if (row.transaction_type === 'sub_bank_payout_reversal'
+    && typeof metadata.payout_id === 'string' && metadata.payout_id.trim()) {
+    const { rows } = await pool.query(
+      `SELECT t.id
+         FROM oxsteed_credit_transactions t
+        WHERE t.transaction_type = 'sub_bank_payout' AND t.reference_type = 'restaurant_payout'
+          AND t.reference_id = $1 AND t.status = 'posted'
+        ORDER BY t.posted_at DESC NULLS LAST, t.created_at DESC
+        LIMIT 1`,
+      [metadata.payout_id.trim()]
+    );
+    candidateId = rows[0] ? String(rows[0].id) : null;
+  }
+  if (!candidateId) return null;
+  const { rows } = await pool.query(
+    `SELECT t.id
+       FROM oxsteed_credit_transactions t
+       JOIN oxsteed_credit_accounts a ON (a.id = t.debit_account_id OR a.id = t.credit_account_id)
+      WHERE t.id = $1 AND t.status = 'posted'
+        AND a.account_type = 'customer_wallet' AND a.customer_id = $2
+        AND a.currency_code = $3 AND t.currency_code = $3
+      LIMIT 1`,
+    [candidateId, customerId, currency]
+  );
+  return rows[0] ? String(rows[0].id) : null;
+}
+
+async function describeCustomerCreditReversal({ row, customerId, currency }) {
+  const isReversal = REVERSAL_TRANSACTION_TYPES.includes(row.transaction_type)
+    || row.transaction_type === 'refund';
+  if (!isReversal) {
+    return { isReversal: false, reversalReason: null, reversalReasonCode: null, originalTransactionId: null };
+  }
+  return {
+    isReversal: true,
+    reversalReason: storedReversalReason(row),
+    reversalReasonCode: derivedReversalReasonCode(row),
+    originalTransactionId: await resolveReversalOriginalTransactionId({ row, customerId, currency }),
+  };
+}
+
 async function getCustomerCreditTransaction(customerId, transactionId, currencyCode = CREDIT_CURRENCY) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   const { rows } = await pool.query(
     `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
-            t.reference_type, t.reference_id, t.description, t.posted_at, t.created_at,
+            t.reference_type, t.reference_id, t.description, t.reason, t.metadata, t.posted_at, t.created_at,
             CASE WHEN t.debit_account_id = a.id THEN 'debit' ELSE 'credit' END AS direction,
             CASE WHEN t.debit_account_id = a.id THEN ca.partner_id ELSE da.partner_id END AS related_partner_id,
             (SELECT e.balance_after_cents
@@ -3854,12 +3961,14 @@ async function getCustomerCreditTransaction(customerId, transactionId, currencyC
     [transactionId, customerId, currency]
   );
   if (!rows[0]) throw new AppError('Credit transaction not found', 404, 'credit_transaction_not_found');
+  const reversal = await describeCustomerCreditReversal({ row: rows[0], customerId, currency });
   return {
     transaction: {
       ...formatCustomerCreditTransaction(rows[0]),
       balanceAfterCents: rows[0].balance_after_cents === null || rows[0].balance_after_cents === undefined
         ? null
         : Number(rows[0].balance_after_cents),
+      ...reversal,
     },
   };
 }
@@ -4333,6 +4442,9 @@ module.exports = {
   getCustomerCreditAccountDetails,
   customerCreditStatementCsv,
   getCustomerCreditTransaction,
+  // Group 13 Slice 4b (659): pure reversal derivation, unit-tested without a DB.
+  storedReversalReason,
+  derivedReversalReasonCode,
   loadCustomerCredit,
   postJournalTransaction,
   purchaseWithCreditInTransaction,
