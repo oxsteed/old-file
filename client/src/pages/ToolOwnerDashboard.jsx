@@ -241,10 +241,13 @@ function ToolOwnerDashboardContent() {
                               // appointment time shows the date + the real
                               // time, not the midnight the date-only
                               // start_date would otherwise render as.
-                              !isReturn && b.pickup_time
-                                ? `${new Date(when).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${fmtPickupTime(b.pickup_time)}`
+                              // Group 11 item 576: same for a return with
+                              // a return time.
+                              (!isReturn && b.pickup_time) || (isReturn && b.return_time)
+                                ? `${new Date(when).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${fmtPickupTime(isReturn ? b.return_time : b.pickup_time)}`
                                 : new Date(when).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
                             ) : ''}
+                            {isReturn && b.return_reschedule_status === 'proposed' ? ` · ${t('dashboards.toolOwner.returnRescheduleProposed')}` : ''}
                             {b.renter_name ? ` · ${b.renter_name}` : ''}
                           </div>
                         </div>

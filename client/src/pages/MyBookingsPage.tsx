@@ -80,7 +80,13 @@ interface Booking {
   owner_approval_at?: string | null;
   owner_decline_reason?: string | null;
   pickup_time?: string | null;
-  agreement_snapshot?: { rental?: { fulfillment?: string } } | null;
+  // Group 11 item 576: return time + reschedule state.
+  return_time?: string | null;
+  return_reschedule_status?: 'none' | 'proposed' | 'approved' | 'declined';
+  return_reschedule_proposed_end_date?: string | null;
+  return_reschedule_proposed_time?: string | null;
+  return_reschedule_reason?: string | null;
+  agreement_snapshot?: { rental?: { fulfillment?: string; returnTime?: string | null }; tool?: { cleaningInstructions?: string | null } } | null;
   renter_identity?: { status: string; verified: boolean; verifiedAt?: string | null };
   owner_identity?: { status: string; verified: boolean; verifiedAt?: string | null };
   checkout_acknowledged_at?: string | null;
@@ -109,6 +115,8 @@ const MyBookingsPageContent = () => {
   const [receiptOpen, setReceiptOpen] = useState<Record<number, boolean>>({});
   const [receipts, setReceipts] = useState<Record<number, any>>({});
   const [receiptLoading, setReceiptLoading] = useState<Record<number, boolean>>({});
+  // Group 11 item 576: renter return-reschedule draft per booking.
+  const [rescheduleDraft, setRescheduleDraft] = useState<Record<number, { date: string; time: string }>>({});
 
   useEffect(() => {
     loadBookings();
@@ -341,6 +349,63 @@ const MyBookingsPageContent = () => {
     }
   };
 
+  // Group 11 item 576: return reschedule. The renter proposes a new
+  // return date/time; the owner approves or declines. Approval never
+  // changes the charges (D-257); the server enforces that and the
+  // calendar overlap check.
+  const handleProposeReturnReschedule = async (booking: Booking) => {
+    const draft = rescheduleDraft[booking.id] || { date: '', time: '' };
+    if (!draft.date) {
+      toast.error(t('toolRentals.returnRescheduleDateRequired') || 'Pick a new return date first.');
+      return;
+    }
+    try {
+      await toolRentalsApi.proposeReturnReschedule(booking.id, { proposedEndDate: draft.date, proposedTime: draft.time || null });
+      toast.success(t('toolRentals.returnRescheduleProposed') || 'Return reschedule proposed');
+      loadBookings();
+    } catch (err: any) {
+      const code = err?.response?.data?.code;
+      if (code === 'return_reschedule_pending') {
+        toast.error(t('toolRentals.returnReschedulePending') || 'A return reschedule is already waiting for the owner.');
+      } else {
+        toast.error(err?.response?.data?.error || t('toolRentals.returnRescheduleFailed') || 'Could not propose the new return date');
+      }
+    }
+  };
+
+  const handleApproveReturnReschedule = async (booking: Booking) => {
+    try {
+      await toolRentalsApi.approveReturnReschedule(booking.id);
+      toast.success(t('toolRentals.returnRescheduleApproved') || 'New return date approved');
+      loadBookings();
+    } catch (err: any) {
+      if (err?.response?.data?.code === 'conflict') {
+        toast.error(t('toolRentals.returnRescheduleConflict') || 'The new return date overlaps another booking for this tool.');
+      } else {
+        toast.error(t('toolRentals.returnRescheduleFailed') || 'Could not approve the new return date');
+      }
+    }
+  };
+
+  const handleDeclineReturnReschedule = async (booking: Booking) => {
+    const reason = window.prompt(
+      t('toolRentals.returnRescheduleDeclinePrompt') || 'Why does the new return date not work? The renter will see this reason.',
+      ''
+    );
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error(t('toolRentals.returnRescheduleDeclinePrompt') || 'Why does the new return date not work? The renter will see this reason.');
+      return;
+    }
+    try {
+      await toolRentalsApi.declineReturnReschedule(booking.id, reason.trim());
+      toast.success(t('toolRentals.returnRescheduleDeclined') || 'Return reschedule declined');
+      loadBookings();
+    } catch {
+      toast.error(t('toolRentals.returnRescheduleFailed') || 'Could not decline the new return date');
+    }
+  };
+
   const handleToggleReceipt = async (booking: Booking) => {
     const open = !receiptOpen[booking.id];
     setReceiptOpen((prev) => ({ ...prev, [booking.id]: open }));
@@ -365,6 +430,87 @@ const MyBookingsPageContent = () => {
     }
   };
 
+  // Group 11 item 576: return time + reschedule. The renter proposes a
+  // new return date/time while the booking is paid; the owner decides.
+    const proposedDate = booking.return_reschedule_proposed_end_date;
+    const proposedTime = booking.return_reschedule_proposed_time;
+    const status = booking.return_reschedule_status || 'none';
+    const draft = rescheduleDraft[booking.id] || { date: '', time: '' };
+    const showReturnInfo = booking.status === 'payment_confirmed' || booking.status === 'returned';
+    if (!showReturnInfo) return null;
+    return (
+      <div className="booking-card-note" data-testid={`booking-return-${booking.id}`}>
+        {booking.return_time && (
+          <p>
+            {t('toolRentals.returnTimeLabel') || 'Return time'}: {formatTime(booking.return_time, locale)}
+            {' · '}
+            {formatDate(booking.end_date)}
+          </p>
+        )}
+            {t('toolRentals.returnRescheduleProposedNote') || 'A new return date was proposed'}: {proposedDate ? formatDate(proposedDate) : ''}
+            {proposedTime ? ` · ${formatTime(proposedTime, locale)}` : ''}
+            {' · '}
+            {t('toolRentals.returnRescheduleNoCharge') || 'No extra charge.'}
+          </p>
+        )}
+        {status === 'approved' && (
+          <p>{t('toolRentals.returnRescheduleApprovedNote') || 'The owner approved the new return date.'}</p>
+        )}
+        {status === 'declined' && booking.return_reschedule_reason && (
+          <p>
+            {t('toolRentals.returnRescheduleDeclinedNote') || 'The owner declined the new return date:'} {booking.return_reschedule_reason}
+          </p>
+        )}
+        {!isOwner && status !== 'proposed' && booking.status === 'payment_confirmed' && (
+          <div className="booking-card-actions">
+            <label>
+              {t('toolRentals.returnRescheduleNewDate') || 'New return date'}
+              <input
+                type="date"
+                min={booking.start_date}
+                value={draft.date}
+                onChange={(e) => setRescheduleDraft((prev) => ({ ...prev, [booking.id]: { ...draft, date: e.target.value } }))}
+              />
+            </label>
+            <label>
+              {t('toolRentals.returnTimeTitle') || 'Return time'}
+              <input
+                type="time"
+                value={draft.time}
+                onChange={(e) => setRescheduleDraft((prev) => ({ ...prev, [booking.id]: { ...draft, time: e.target.value } }))}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => handleProposeReturnReschedule(booking)}
+              className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.23"
+            >
+              {t('toolRentals.returnReschedulePropose') || 'Propose new return date'}
+            </button>
+          </div>
+        )}
+        {isOwner && status === 'proposed' && (
+          <div className="booking-card-actions">
+            <button
+              type="button"
+              onClick={() => handleApproveReturnReschedule(booking)}
+              className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.24"
+            >
+              {t('toolRentals.returnRescheduleApprove') || 'Approve new return date'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeclineReturnReschedule(booking)}
+              className="booking-action-btn booking-action-decline" data-track="ui.5655b990ea.25"
+            >
+              {t('toolRentals.returnRescheduleDecline') || 'Decline new return date'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderReceipt = (booking: Booking) => {
     const receipt = receipts[booking.id];
     if (!receiptOpen[booking.id]) return null;
@@ -383,6 +529,9 @@ const MyBookingsPageContent = () => {
           </div>
           {booking.pickup_time && (
             <div><dt>{t('toolRentals.receiptPickupTime') || 'Pickup time'}</dt><dd>{formatTime(booking.pickup_time, locale)}</dd></div>
+          )}
+          {booking.return_time && (
+            <div><dt>{t('toolRentals.receiptReturnTime') || 'Return time'}</dt><dd>{formatTime(booking.return_time, locale)}</dd></div>
           )}
           {booking.checkout_acknowledged_at && (
             <div><dt>{t('toolRentals.receiptCheckout') || 'Pickup confirmed'}</dt><dd>{new Date(booking.checkout_acknowledged_at).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })}</dd></div>
@@ -486,6 +635,12 @@ const MyBookingsPageContent = () => {
               {t('toolRentals.pickupTimeLabel') || 'Pickup time'}: {formatTime(booking.pickup_time, locale)}
             </span>
           )}
+          {/* Group 11 item 576: return appointment time. */}
+          {booking.return_time && (
+            <span className="booking-card-pickup-time">
+              {t('toolRentals.returnTimeLabel') || 'Return time'}: {formatTime(booking.return_time, locale)}
+            </span>
+          )}
         </div>
 
         {isOwner && booking.first_name && (
@@ -550,6 +705,7 @@ const MyBookingsPageContent = () => {
       {/* Group 11 item 571: identity status for both parties. */}
       {renderIdentityLine(booking, isOwner)}
 
+      {/* Group 11 item 576: return time + reschedule. Group 11 item 580:
       {/* Group 11 item 575: checkout acknowledgment at pickup. The
           renter confirms receipt; the pickup condition report is the
           evidence and is shown in the booking panel above. */}

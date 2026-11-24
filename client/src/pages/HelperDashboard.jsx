@@ -449,7 +449,7 @@ export default function HelperDashboard() {
   const [catLookup, setCatLookup] = useState([]);
   const [toolCatLookup, setToolCatLookup] = useState([]);
   const emptySkill = { skill_name:'', category:'', hourly_rate:'', years_exp:'', description:'', is_available:true };
-  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', replacement_value:'', owner_rules:'', owner_custom_terms:'', owner_attestation_accepted:false, condition:'good', brand:'', model:'', image_url:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'', location_lat:'', location_lng:'', capacity_value:'', capacity_unit:'', weight_kg:'', size_length_cm:'', size_width_cm:'', size_height_cm:'', pickup_window_start:'', pickup_window_end:'' };
+  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', replacement_value:'', owner_rules:'', owner_custom_terms:'', owner_attestation_accepted:false, condition:'good', brand:'', model:'', image_url:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'', location_lat:'', location_lng:'', capacity_value:'', capacity_unit:'', weight_kg:'', size_length_cm:'', size_width_cm:'', size_height_cm:'', pickup_window_start:'', pickup_window_end:'', return_window_start:'', return_window_end:'', cleaning_instructions:'' };
   const [skillForm, setSkillForm] = useState(emptySkill);
   const [toolForm, setToolForm]   = useState(emptyTool);
   const [toolImageFile, setToolImageFile] = useState(null);
@@ -547,7 +547,7 @@ export default function HelperDashboard() {
   };
   const openEditTool = (tool) => {
     setEditingTool(tool);
-    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', replacement_value:tool.replacement_value||'', owner_rules:tool.owner_rules||'', owner_custom_terms:tool.owner_custom_terms||'', owner_attestation_accepted:false, condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', image_url:tool.image_url||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'', location_lat:tool.location_lat??'', location_lng:tool.location_lng??'', capacity_value:tool.capacity_value??'', capacity_unit:tool.capacity_unit||'', weight_kg:tool.weight_kg??'', size_length_cm:tool.size_length_cm??'', size_width_cm:tool.size_width_cm??'', size_height_cm:tool.size_height_cm??'', pickup_window_start:tool.pickup_window_start?String(tool.pickup_window_start).slice(0,5):'', pickup_window_end:tool.pickup_window_end?String(tool.pickup_window_end).slice(0,5):'' });
+    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', replacement_value:tool.replacement_value||'', owner_rules:tool.owner_rules||'', owner_custom_terms:tool.owner_custom_terms||'', owner_attestation_accepted:false, condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', image_url:tool.image_url||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'', location_lat:tool.location_lat??'', location_lng:tool.location_lng??'', capacity_value:tool.capacity_value??'', capacity_unit:tool.capacity_unit||'', weight_kg:tool.weight_kg??'', size_length_cm:tool.size_length_cm??'', size_width_cm:tool.size_width_cm??'', size_height_cm:tool.size_height_cm??'', pickup_window_start:tool.pickup_window_start?String(tool.pickup_window_start).slice(0,5):'', pickup_window_end:tool.pickup_window_end?String(tool.pickup_window_end).slice(0,5):'', return_window_start:tool.return_window_start?String(tool.return_window_start).slice(0,5):'', return_window_end:tool.return_window_end?String(tool.return_window_end).slice(0,5):'', cleaning_instructions:tool.cleaning_instructions||'' });
     setToolImageFile(null);
     setToolImagePreview(tool.image_url||'');
     setShowToolModal(true);
@@ -589,6 +589,9 @@ export default function HelperDashboard() {
     // 574: pickup window is a pair; blank means no window. End after start.
     if ((toolForm.pickup_window_start !== '') !== (toolForm.pickup_window_end !== '')) throw new Error(t('dashboard.skillsTools.pickupWindowPairInvalid', { defaultValue: 'Enter both a pickup window start and end, or leave both blank' }));
     if (toolForm.pickup_window_start !== '' && toolForm.pickup_window_end <= toolForm.pickup_window_start) throw new Error(t('dashboard.skillsTools.pickupWindowOrderInvalid', { defaultValue: 'Pickup window end must be after the start' }));
+    // 576: return window is a pair; blank means no window. End after start.
+    if ((toolForm.return_window_start !== '') !== (toolForm.return_window_end !== '')) throw new Error(t('dashboard.skillsTools.returnWindowPairInvalid', { defaultValue: 'Enter both a return window start and end, or leave both blank' }));
+    if (toolForm.return_window_start !== '' && toolForm.return_window_end <= toolForm.return_window_start) throw new Error(t('dashboard.skillsTools.returnWindowOrderInvalid', { defaultValue: 'Return window end must be after the start' }));
     if (!toolForm.owner_attestation_accepted) throw new Error(t('dashboard.skillsTools.ownerAttestationRequired', { defaultValue: 'Confirm the peer rental acknowledgement before listing this tool' }));
 
     return {
@@ -2778,6 +2781,11 @@ export default function HelperDashboard() {
           <div className="grid grid-cols-2 gap-3">
             <Input label={t('dashboard.skillsTools.pickupWindowStartLabel')} type="time" value={toolForm.pickup_window_start} onChange={e=>setToolForm(p=>({...p,pickup_window_start:e.target.value}))}/>
             <Input label={t('dashboard.skillsTools.pickupWindowEndLabel')} type="time" value={toolForm.pickup_window_end} onChange={e=>setToolForm(p=>({...p,pickup_window_end:e.target.value}))}/>
+          </div>
+          {/* 576: owner return window; renters pick a return time inside it. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('dashboard.skillsTools.returnWindowStartLabel')} type="time" value={toolForm.return_window_start} onChange={e=>setToolForm(p=>({...p,return_window_start:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.returnWindowEndLabel')} type="time" value={toolForm.return_window_end} onChange={e=>setToolForm(p=>({...p,return_window_end:e.target.value}))}/>
           </div>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.descriptionOptLabel')}</label>

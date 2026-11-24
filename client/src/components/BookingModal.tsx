@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { X, DollarSign, ShieldAlert, Clock } from 'lucide-react';
 import { toolRentalsApi } from '../api/toolRentals';
 import toast from 'react-hot-toast';
@@ -28,6 +29,9 @@ interface BookingModalProps {
     owner_id?: number;
     pickup_window_start?: string | null;
     pickup_window_end?: string | null;
+    // Group 11 item 576: owner daily return window.
+    return_window_start?: string | null;
+    return_window_end?: string | null;
   };
   isOpen: boolean;
   onClose: () => void;
@@ -43,6 +47,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
   const [bookedDates, setBookedDates] = useState<Array<{ start_date: string; end_date: string }>>([]);
   // Group 11 item 574: pickup appointment time (HH:MM).
   const [pickupTime, setPickupTime] = useState('');
+  // Group 11 item 576: return appointment time (HH:MM).
+  const [returnTime, setReturnTime] = useState('');
 
   const formatWindowTime = (value: string | null | undefined): string => {
     if (!value) return '';
@@ -138,6 +144,20 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
       }
     }
 
+    // 576: the return time must fall inside the owner's return window
+    // when the listing sets one; the server enforces the same rule.
+    if (returnTime) {
+      const windowStart = (tool.return_window_start || '').slice(0, 5);
+      const windowEnd = (tool.return_window_end || '').slice(0, 5);
+      if ((windowStart && returnTime < windowStart) || (windowEnd && returnTime > windowEnd)) {
+        toast.error(t('toolRentals.returnTimeInvalid', {
+          start: formatWindowTime(tool.return_window_start),
+          end: formatWindowTime(tool.return_window_end),
+        }));
+        return;
+      }
+    }
+
     // Check for calendar conflicts
     for (const booking of bookedDates) {
       if (toolRentalDatesOverlap(startDate, endDate, booking.start_date, booking.end_date)) {
@@ -148,7 +168,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
 
     setLoading(true);
     try {
-      await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice, agreementAccepted, tool.equipment_version, fulfillment, fulfillment === 'pickup' ? (pickupTime || null) : null);
+      await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice, agreementAccepted, tool.equipment_version, fulfillment, fulfillment === 'pickup' ? (pickupTime || null) : null, returnTime || null);
 
       toast.success(t('toolRentals.bookingConfirmed'));
       onClose();
@@ -157,6 +177,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
         toast.error(t('equipmentOperations.changed'));
       } else if (err.response?.data?.code === 'fulfillment_not_available') {
         toast.error(t('toolRentals.fulfillmentNotAvailable'));
+      } else if (err.response?.data?.code === 'conflict') {
       } else if (err.response?.status === 409) {
         toast.error(t('toolRentals.dateConflict'));
       } else {
@@ -279,7 +300,36 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
               </div>
             )}
 
-            {/* Price Summary */}
+            {/* 576: return appointment time. The tool always comes back
+                for a handoff, so this applies to pickup and delivery. */}
+            <div className="booking-form-group">
+              <label htmlFor="return-time">{t('toolRentals.returnTimeTitle')}</label>
+              <div className="booking-date-input">
+                <Clock className="w-4 h-4" />
+                <input
+                  id="return-time"
+                  type="time"
+                  value={returnTime}
+                  onChange={(e) => setReturnTime(e.target.value)}
+                  min={(tool.return_window_start || '').slice(0, 5) || undefined}
+                  max={(tool.return_window_end || '').slice(0, 5) || undefined}
+                  disabled={loading}
+                />
+              </div>
+              {tool.return_window_start && tool.return_window_end ? (
+                <p className="booking-fulfillment-hint" role="note">
+                  {t('toolRentals.returnWindowHint', {
+                    start: formatWindowTime(tool.return_window_start),
+                    end: formatWindowTime(tool.return_window_end),
+                  })}
+                </p>
+              ) : (
+                <p className="booking-fulfillment-hint" role="note">
+                  {t('toolRentals.returnTimeHint')}
+                </p>
+              )}
+            </div>
+
             {days > 0 && (
               <div className="booking-price-summary">
                 <div className="booking-price-row">

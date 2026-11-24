@@ -92,7 +92,7 @@ export const toolRentalsApi = {
   },
 
   // BOOKINGS
-  createBooking: async (toolId, startDate, endDate, totalPrice, renterAgreementAccepted = false, equipmentVersion, fulfillment = 'pickup', pickupTime = null) => {
+  createBooking: async (toolId, startDate, endDate, totalPrice, renterAgreementAccepted = false, equipmentVersion, fulfillment = 'pickup', pickupTime = null, returnTime = null) => {
     const response = await api.post(`/tool-rentals/bookings`, {
       toolId,
       startDate,
@@ -102,6 +102,7 @@ export const toolRentalsApi = {
       equipmentVersion,
       fulfillment,
       pickupTime,
+      returnTime,
     });
     return response.data;
   },
@@ -157,6 +158,22 @@ export const toolRentalsApi = {
 
   declineBooking: async (bookingId, reason) => {
     const response = await api.post(`/tool-rentals/bookings/${bookingId}/decline`, { reason });
+    return response.data;
+  },
+
+  // Group 11 item 576: return reschedule (renter proposes, owner decides).
+  proposeReturnReschedule: async (bookingId, { proposedEndDate, proposedTime }) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/return-reschedule`, { proposedEndDate, proposedTime });
+    return response.data;
+  },
+
+  approveReturnReschedule: async (bookingId) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/return-reschedule/approve`);
+    return response.data;
+  },
+
+  declineReturnReschedule: async (bookingId, reason) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/return-reschedule/decline`, { reason });
     return response.data;
   },
 

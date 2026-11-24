@@ -8,7 +8,7 @@ const { rentalIdentityStatus } = require('../utils/rentalIdentity');
 
 const TOOL_RENTAL_AGREEMENT_VERSION = 'peer-rental-v1';
 
-function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPrice, fulfillment, pickupTime }) {
+function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPrice, fulfillment, pickupTime, returnTime }) {
   return {
     version: TOOL_RENTAL_AGREEMENT_VERSION,
     oxsteedRole: 'OxSteed provides tools for neighbors to document and coordinate rentals. OxSteed is not the tool owner, renter, inspector, insurer, or guarantor.',
@@ -44,6 +44,8 @@ function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPri
       // Group 11 item 574: the pickup time-of-day, frozen with the rest
       // of the agreement (null when the renter picked no time).
       pickupTime: pickupTime || null,
+      // Group 11 item 576: the return time-of-day, frozen the same way.
+      returnTime: returnTime || null,
     },
   };
 }
@@ -61,6 +63,12 @@ const createBooking = async (req, res, next) => {
     const pickupTime = req.body.pickupTime == null || req.body.pickupTime === ''
       ? null
       : String(req.body.pickupTime).trim();
+    // Group 11 item 576: return appointment time (HH:MM, 24-hour).
+    // Optional; applies to every fulfillment type, since the tool always
+    // comes back for a handoff.
+    const returnTime = req.body.returnTime == null || req.body.returnTime === ''
+      ? null
+      : String(req.body.returnTime).trim();
 
     const fields = {};
     if (!toolId) fields.toolId = 'toolId is required';
@@ -71,6 +79,9 @@ const createBooking = async (req, res, next) => {
     }
     if (pickupTime !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(pickupTime)) {
       fields.pickupTime = 'pickupTime must be a time like 09:30';
+    }
+    if (returnTime !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(returnTime)) {
+      fields.returnTime = 'returnTime must be a time like 09:30';
     }
     if (pickupTime !== null && fulfillment === 'delivery') {
       fields.pickupTime = 'pickupTime only applies to pickup';
@@ -97,7 +108,8 @@ const createBooking = async (req, res, next) => {
               tr.owner_custom_terms, tr.owner_custom_terms_hash, tr.replacement_value,
               tr.is_available, tr.moderation_hold, tr.pickup_only, tr.delivery_available,
               tr.accessories, tr.condition_checklist, tr.equipment_version,
-              tr.pickup_window_start, tr.pickup_window_end
+              tr.pickup_window_start, tr.pickup_window_end,
+              tr.return_window_start, tr.return_window_end, tr.cleaning_instructions
          FROM tool_rentals tr
          JOIN users owner
            ON owner.id = tr.user_id
@@ -139,6 +151,16 @@ const createBooking = async (req, res, next) => {
         throw new AppError('Pickup time is outside the owner pickup window', 400, 'validation_failed', { pickupTime: 'Pick a time inside the owner pickup window' });
       }
     }
+    // 576: the same window rule for the return time, against the owner's
+    // daily return window when one is set.
+    if (returnTime !== null && listedTool.return_window_start && listedTool.return_window_end) {
+      const picked = `${returnTime}:00`;
+      const windowStart = String(listedTool.return_window_start);
+      const windowEnd = String(listedTool.return_window_end);
+      if (picked < windowStart || picked > windowEnd) {
+        throw new AppError('Return time is outside the owner return window', 400, 'validation_failed', { returnTime: 'Pick a time inside the owner return window' });
+      }
+    }
     const dailyRate = parseFloat(listedTool.daily_rate);
     if (!Number.isFinite(dailyRate) || dailyRate <= 0) {
       throw new AppError('Tool cannot be booked online because pricing is not configured', 409, 'pricing_unavailable');
@@ -153,6 +175,7 @@ const createBooking = async (req, res, next) => {
       totalPrice,
       fulfillment,
       pickupTime,
+      returnTime,
     });
 
     // Serialize bookings per tool before checking availability. The previous
@@ -183,10 +206,10 @@ const createBooking = async (req, res, next) => {
     const booking = await client.query(
       `INSERT INTO tool_rentals_bookings
          (tool_id, customer_id, owner_id, start_date, end_date, total_price,
-          agreement_snapshot, renter_acknowledged_at, renter_agreement_version, pickup_time)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9)
+          agreement_snapshot, renter_acknowledged_at, renter_agreement_version, pickup_time, return_time)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10)
        RETURNING *`,
-      [toolId, userId, ownerId, startDate, endDate, totalPrice, agreementSnapshot, TOOL_RENTAL_AGREEMENT_VERSION, pickupTime]
+      [toolId, userId, ownerId, startDate, endDate, totalPrice, agreementSnapshot, TOOL_RENTAL_AGREEMENT_VERSION, pickupTime, returnTime]
     );
 
     // Log analytics
@@ -602,6 +625,163 @@ const acknowledgeCheckout = async (req, res, next) => {
       [bookingId, userId, reportQuery.rows[0].id]
     );
     res.json(rows[0] || booking);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Group 11 item 576 (D-276): return reschedule. The renter proposes a
+// new return date/time; the owner approves or declines. Changing the
+// return date never changes charges (D-257, no-charge only): approval
+// moves end_date (and return_time) and leaves total_price alone.
+// Approval re-checks the calendar so the new return date cannot
+// double-book the tool; the proposal is decided owner-only.
+function timeWithinWindow(time, windowStart, windowEnd) {
+  if (!windowStart || !windowEnd) return true;
+  const picked = `${time}:00`;
+  return picked >= String(windowStart) && picked <= String(windowEnd);
+}
+
+async function loadBookingForReturnReschedule(bookingId, userId, { ownerOnly = false } = {}) {
+  const bookingQuery = await db.query(
+    'SELECT * FROM tool_rentals_bookings WHERE id = $1',
+    [bookingId]
+  );
+  const booking = bookingQuery.rows[0];
+  if (!booking) throw new AppError('Booking not found', 404, 'not_found');
+  const isOwner = booking.owner_id === userId;
+  const isCustomer = booking.customer_id === userId;
+  if (ownerOnly) {
+    if (!isOwner) {
+      if (isCustomer) throw new AppError('Only the tool owner can decide a return reschedule', 403, 'forbidden');
+      throw new AppError('Booking not found', 404, 'not_found');
+    }
+  } else if (!isCustomer) {
+    if (isOwner) throw new AppError('Only the renter can propose a return reschedule', 403, 'forbidden');
+    throw new AppError('Booking not found', 404, 'not_found');
+  }
+  return booking;
+}
+
+const proposeReturnReschedule = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await loadBookingForReturnReschedule(bookingId, req.user.id);
+    if (booking.status !== 'payment_confirmed') {
+      throw new AppError('The return can only be rescheduled once payment is confirmed', 409, 'state_conflict');
+    }
+    if (booking.return_reschedule_status === 'proposed') {
+      throw new AppError('A return reschedule is already waiting for the owner', 409, 'return_reschedule_pending');
+    }
+    const proposedEndDate = typeof req.body?.proposedEndDate === 'string' ? req.body.proposedEndDate.trim() : '';
+    const proposedTime = req.body?.proposedTime == null || req.body.proposedTime === ''
+      ? null
+      : String(req.body.proposedTime).trim();
+    const fields = {};
+    const end = parseDateOnlyUTC(proposedEndDate);
+    if (!end) fields.proposedEndDate = 'Proposed return date is required and must be a valid date';
+    else {
+      // booking.start_date comes back from pg as a Date, not a string.
+      const startRaw = booking.start_date instanceof Date
+        ? booking.start_date.toISOString().slice(0, 10)
+        : String(booking.start_date).slice(0, 10);
+      const start = parseDateOnlyUTC(startRaw);
+      if (start && end <= start) fields.proposedEndDate = 'The new return date must be after the pickup date';
+    }
+    if (proposedTime !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(proposedTime)) {
+      fields.proposedTime = 'proposedTime must be a time like 09:30';
+    }
+    if (Object.keys(fields).length) throw new AppError('Validation failed', 400, 'validation_failed', fields);
+    const toolQuery = await db.query(
+      'SELECT return_window_start, return_window_end FROM tool_rentals WHERE id = $1',
+      [booking.tool_id]
+    );
+    const tool = toolQuery.rows[0];
+    if (proposedTime !== null && tool && !timeWithinWindow(proposedTime, tool.return_window_start, tool.return_window_end)) {
+      throw new AppError('Return time is outside the owner return window', 400, 'validation_failed', { proposedTime: 'Pick a time inside the owner return window' });
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET return_reschedule_status = 'proposed',
+              return_reschedule_proposed_end_date = $2,
+              return_reschedule_proposed_time = $3,
+              return_reschedule_proposed_by = $4,
+              return_reschedule_proposed_at = NOW(),
+              return_reschedule_decided_at = NULL,
+              return_reschedule_reason = NULL
+        WHERE id = $1
+        RETURNING *`,
+      [bookingId, proposedEndDate, proposedTime, req.user.id]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const approveReturnReschedule = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await loadBookingForReturnReschedule(bookingId, req.user.id, { ownerOnly: true });
+    if (booking.return_reschedule_status !== 'proposed' || !booking.return_reschedule_proposed_end_date) {
+      throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
+    }
+    const proposedEnd = booking.return_reschedule_proposed_end_date;
+    // The new return date must not double-book the tool: any other live
+    // booking overlapping the extended range blocks approval.
+    const overlap = await db.query(
+      `SELECT COUNT(*) AS overlap_count FROM tool_rentals_bookings
+        WHERE tool_id = $1 AND id <> $2
+          AND status IN ('pending', 'invoice_sent', 'payment_confirmed')
+          AND start_date <= $3
+          AND end_date >= $4`,
+      [booking.tool_id, bookingId, proposedEnd, booking.start_date]
+    );
+    if (parseInt(overlap.rows[0].overlap_count, 10) > 0) {
+      throw new AppError('The new return date overlaps another booking for this tool', 409, 'conflict');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET end_date = $2,
+              return_time = COALESCE($3, return_time),
+              return_reschedule_status = 'approved',
+              return_reschedule_decided_at = NOW()
+        WHERE id = $1 AND return_reschedule_status = 'proposed'
+        RETURNING *`,
+      [bookingId, proposedEnd, booking.return_reschedule_proposed_time]
+    );
+    if (!rows[0]) throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
+    res.json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const declineReturnReschedule = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+    if (!reason) {
+      throw new AppError('A decline reason is required', 400, 'validation_failed', { reason: 'Tell the renter why the new return date does not work' });
+    }
+    if (reason.length > 2000) {
+      throw new AppError('Decline reason is too long', 400, 'validation_failed', { reason: 'Keep the reason under 2000 characters' });
+    }
+    const booking = await loadBookingForReturnReschedule(bookingId, req.user.id, { ownerOnly: true });
+    if (booking.return_reschedule_status !== 'proposed') {
+      throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET return_reschedule_status = 'declined',
+              return_reschedule_decided_at = NOW(),
+              return_reschedule_reason = $2
+        WHERE id = $1 AND return_reschedule_status = 'proposed'
+        RETURNING *`,
+      [bookingId, reason]
+    );
+    if (!rows[0]) throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
+    res.json(rows[0]);
   } catch (err) {
     next(err);
   }
