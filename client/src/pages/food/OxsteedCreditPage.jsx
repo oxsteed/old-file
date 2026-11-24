@@ -31,6 +31,8 @@ import {
   getOxsteedCreditTransactionPage,
   openOxsteedCreditDispute,
   getOxsteedCreditDisputePage,
+  listOxsteedCreditDisputeEvidence,
+  submitOxsteedCreditDisputeEvidence,
   createOxsteedCreditHold,
   releaseOxsteedCreditHold,
   reauthorizeOxsteedCreditHold,
@@ -137,6 +139,20 @@ function topupStatusLabel(status, t) {
   }[status] || t('walletTopup.status.pending');
 }
 
+// Group 13 Slice 4e (673, D-370): the customer view exposes the stored
+// adjustment status verbatim; the page labels pending/approved as Pending,
+// applied as Applied, and rejected/cancelled as Not applied. There is no
+// 'reversed' state in the adjustment records.
+function adjustmentStatusLabel(status, t) {
+  return {
+    pending: t('disputeAdjustmentPending'),
+    approved: t('disputeAdjustmentPending'),
+    applied: t('disputeAdjustmentApplied'),
+    rejected: t('disputeAdjustmentNotApplied'),
+    cancelled: t('disputeAdjustmentNotApplied'),
+  }[status] || t('disputeAdjustmentPending');
+}
+
 function holdTerminalDate(hold, t) {
   if (hold.status === 'captured' && hold.capturedAt) return t('capturedAt', { date: dateTime(hold.capturedAt, t) });
   if (['released', 'expired'].includes(hold.status) && hold.releasedAt) return t('releasedAt', { status: holdStatusLabel(hold.status, t), date: dateTime(hold.releasedAt, t) });
@@ -197,6 +213,15 @@ export default function OxsteedCreditPage() {
   const [disputeReason, setDisputeReason] = useState('incorrect_amount');
   const [disputeDescription, setDisputeDescription] = useState('');
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+  // Group 13 Slice 4e (673/674): per-dispute adjustment state rides the
+  // dispute list itself; evidence is loaded lazily per case when the
+  // customer opens its evidence section.
+  const [evidenceByDispute, setEvidenceByDispute] = useState({});
+  const [evidenceOpenId, setEvidenceOpenId] = useState(null);
+  const [evidenceLoadingId, setEvidenceLoadingId] = useState(null);
+  const [evidenceNote, setEvidenceNote] = useState('');
+  const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceSubmitting, setEvidenceSubmitting] = useState(false);
   // Phase 6 money-out state.
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [withdrawalFeeQuote, setWithdrawalFeeQuote] = useState(null);
@@ -669,6 +694,56 @@ export default function OxsteedCreditPage() {
       toast.error(safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       setDisputeSubmitting(false);
+    }
+  };
+
+  // Group 13 Slice 4e (674): load a case's evidence when the customer
+  // opens its evidence section, and attach a note and/or one file to
+  // their own open dispute. Only open/in_review disputes offer the form;
+  // the server enforces the same window and ownership.
+  const toggleDisputeEvidence = async (dispute) => {
+    if (evidenceOpenId === dispute.id) {
+      setEvidenceOpenId(null);
+      return;
+    }
+    setEvidenceOpenId(dispute.id);
+    setEvidenceNote('');
+    setEvidenceFile(null);
+    if (evidenceByDispute[dispute.id] || evidenceLoadingId === dispute.id) return;
+    setEvidenceLoadingId(dispute.id);
+    try {
+      const evidence = await listOxsteedCreditDisputeEvidence(dispute.id);
+      setEvidenceByDispute((current) => ({ ...current, [dispute.id]: evidence }));
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
+    } finally {
+      setEvidenceLoadingId(null);
+    }
+  };
+
+  const submitDisputeEvidence = async (event, dispute) => {
+    event.preventDefault();
+    if (!evidenceNote.trim() && !evidenceFile) return;
+    setEvidenceSubmitting(true);
+    try {
+      const formData = new FormData();
+      if (evidenceNote.trim()) formData.append('note', evidenceNote.trim());
+      if (evidenceFile) formData.append('file', evidenceFile);
+      const idempotencyKey = globalThis.crypto?.randomUUID?.()
+        || `credit-dispute-evidence-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      await submitOxsteedCreditDisputeEvidence(dispute.id, formData, idempotencyKey);
+      const evidence = await listOxsteedCreditDisputeEvidence(dispute.id);
+      setEvidenceByDispute((current) => ({ ...current, [dispute.id]: evidence }));
+      const refreshedDisputes = await getOxsteedCreditDisputePage({ limit: 50, offset: 0 });
+      setDisputes(Array.isArray(refreshedDisputes?.disputes) ? refreshedDisputes.disputes : []);
+      setDisputePagination(refreshedDisputes?.pagination || null);
+      toast.success(t('disputeEvidenceSubmitted'));
+      setEvidenceNote('');
+      setEvidenceFile(null);
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
+    } finally {
+      setEvidenceSubmitting(false);
     }
   };
 
@@ -1199,7 +1274,24 @@ export default function OxsteedCreditPage() {
                   <div className="ox-credit-security-note"><AlertCircle size={15} /> {t('needHelpTransaction')} <Link to="/support/escalation">{t('contactSupport')}</Link></div>
                 </section>
               </div>
-              {disputes.length > 0 && <section className="ox-credit-panel ox-credit-dispute-history"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reviewHistory')}</p><h2>{t('yourCreditDisputes')}</h2></div><span className="ox-credit-count">{disputes.length}{disputePagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('disputesCopy')}</p><div className="ox-credit-dispute-list">{disputes.map((dispute) => <article key={dispute.id}><div><div className="ox-credit-dispute-title"><strong>{dispute.restaurantName || t('ledgerEntry')}</strong><span className={`ox-credit-dispute-status ${dispute.status}`}>{creditStatusLabel(dispute.status, t)}</span></div><span>{disputeReasonLabel(dispute.reasonCode, t)}</span>{dispute.amountCents !== null && dispute.amountCents !== undefined && <small>{money(dispute.amountCents, dispute.currencyCode || currency)} · {transactionLabel({ transactionType: dispute.transactionType }, t)}</small>}<small>{t('opened', { date: dateTime(dispute.openedAt, t), id: dispute.transactionId })}</small><p>{dispute.description}</p>{dispute.resolution && <em>{t('resolution', { value: dispute.resolution })}</em>}</div></article>)}</div>{disputePagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreDisputes} disabled={loadingMoreDisputes}><RefreshCw size={14} className={loadingMoreDisputes ? 'ox-credit-spin' : ''} /> {loadingMoreDisputes ? t('loadingOlderActivity') : t('loadOlderActivity')}</button>}</section>}
+              {disputes.length > 0 && <section className="ox-credit-panel ox-credit-dispute-history"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reviewHistory')}</p><h2>{t('yourCreditDisputes')}</h2></div><span className="ox-credit-count">{disputes.length}{disputePagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('disputesCopy')}</p><div className="ox-credit-dispute-list">{disputes.map((dispute) => <article key={dispute.id}><div><div className="ox-credit-dispute-title"><strong>{dispute.restaurantName || t('ledgerEntry')}</strong><span className={`ox-credit-dispute-status ${dispute.status}`}>{creditStatusLabel(dispute.status, t)}</span></div><span>{disputeReasonLabel(dispute.reasonCode, t)}</span>{dispute.amountCents !== null && dispute.amountCents !== undefined && <small>{money(dispute.amountCents, dispute.currencyCode || currency)} · {transactionLabel({ transactionType: dispute.transactionType }, t)}</small>}<small>{t('opened', { date: dateTime(dispute.openedAt, t), id: dispute.transactionId })}</small><p>{dispute.description}</p>{dispute.resolution && <em>{t('resolution', { value: dispute.resolution })}</em>}
+                  {(dispute.adjustments?.length > 0 || Number(dispute.provisionalCreditCents || 0) > 0 || dispute.resolutionEntries?.compensation) && <div className="ox-credit-dispute-adjustments"><strong>{t('disputeAdjustmentsTitle')}</strong>
+                    {Number(dispute.provisionalCreditCents || 0) > 0 && <span>{t('disputeProvisionalCreditLine', { amount: money(dispute.provisionalCreditCents, dispute.currencyCode || currency) })}</span>}
+                    {dispute.resolutionEntries?.compensation && <span>{t('disputeCompensationLine', { amount: money(dispute.resolutionEntries.compensation.amountCents, dispute.currencyCode || currency), date: dateTime(dispute.resolutionEntries.compensation.decidedAt, t) })}</span>}
+                    {(dispute.adjustments || []).map((adjustment) => <div key={adjustment.id} className="ox-credit-dispute-adjustment"><span>{money(adjustment.amountCents, adjustment.currencyCode || currency)} · {adjustmentStatusLabel(adjustment.status, t)}</span><small>{adjustment.appliedAt ? t('disputeAdjustmentAppliedAt', { date: dateTime(adjustment.appliedAt, t) }) : adjustment.decidedAt ? t('disputeAdjustmentDecidedAt', { date: dateTime(adjustment.decidedAt, t) }) : t('disputeAdjustmentProposedAt', { date: dateTime(adjustment.proposedAt, t) })}</small></div>)}
+                  </div>}
+                  <div className="ox-credit-dispute-evidence">
+                    <button type="button" className="ox-credit-evidence-toggle" onClick={() => toggleDisputeEvidence(dispute)}>{evidenceOpenId === dispute.id ? t('disputeEvidenceHide') : t('disputeEvidenceShow', { count: dispute.evidenceCount || 0 })}</button>
+                    {evidenceOpenId === dispute.id && <div className="ox-credit-evidence-body">
+                      {evidenceLoadingId === dispute.id ? <span>{t('loadingOlderActivity')}</span> : ((evidenceByDispute[dispute.id] || []).length === 0 ? <span>{t('disputeEvidenceEmpty')}</span> : (evidenceByDispute[dispute.id] || []).map((item) => <div key={item.id} className="ox-credit-evidence-item">{item.kind === 'file' ? <a href={item.downloadUrl} target="_blank" rel="noreferrer">{t('disputeEvidenceDownload', { filename: item.originalFilename })}</a> : <span>{item.note}</span>}{item.kind === 'file' && item.note && <span>{item.note}</span>}<small>{dateTime(item.submittedAt, t)}</small></div>))}
+                      {['open', 'in_review'].includes(dispute.status) && <form className="ox-credit-evidence-form" onSubmit={(event) => submitDisputeEvidence(event, dispute)}>
+                        <label><span>{t('disputeEvidenceNoteLabel')}</span><textarea value={evidenceNote} onChange={(event) => setEvidenceNote(event.target.value)} maxLength={2000} rows={2} placeholder={t('disputeEvidenceNotePlaceholder')} /></label>
+                        <label><span>{t('disputeEvidenceFileLabel')}</span><input type="file" accept="image/*,.pdf,.txt,.doc,.docx" onChange={(event) => setEvidenceFile(event.target.files?.[0] || null)} /></label>
+                        <div><button type="submit" disabled={evidenceSubmitting || (!evidenceNote.trim() && !evidenceFile)}>{evidenceSubmitting ? t('submitting') : t('disputeEvidenceSubmit')}</button></div>
+                      </form>}
+                    </div>}
+                  </div>
+                </div></article>)}</div>{disputePagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreDisputes} disabled={loadingMoreDisputes}><RefreshCw size={14} className={loadingMoreDisputes ? 'ox-credit-spin' : ''} /> {loadingMoreDisputes ? t('loadingOlderActivity') : t('loadOlderActivity')}</button>}</section>}
             </>
           )}
           <section className="ox-credit-panel ox-credit-error-policy" aria-labelledby="credit-error-policy-heading">

@@ -89,6 +89,19 @@ export const getOxsteedCreditDisputePage = (params = {}) =>
   api.get('/oxsteed-credit/disputes', { params })
     .then((response) => response.data || { disputes: [], pagination: { limit: 25, offset: 0, hasMore: false, nextOffset: null } });
 
+// Group 13, item 674 (D-371/D-372/D-373): customer evidence on their own
+// open dispute. The submit takes a FormData body (note and/or one file)
+// plus an idempotency key; the list returns signed download URLs minted
+// at read time — the storage key never leaves the server.
+export const listOxsteedCreditDisputeEvidence = (disputeId) =>
+  api.get(`/oxsteed-credit/disputes/${encodeURIComponent(disputeId)}/evidence`)
+    .then((response) => response.data?.evidence || []);
+
+export const submitOxsteedCreditDisputeEvidence = (disputeId, formData, idempotencyKey) =>
+  api.post(`/oxsteed-credit/disputes/${encodeURIComponent(disputeId)}/evidence`, formData, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((response) => response.data);
+
 // -- OxSteed Credit money OUT (Phase 6) -----------------------------------
 // Withdrawals to the customer's connected bank account, restaurant credit
 // conversions, and fee quotes shown before confirming.
