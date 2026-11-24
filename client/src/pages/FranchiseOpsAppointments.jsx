@@ -143,7 +143,7 @@ export default function FranchiseOpsAppointments({
                     className="fr-btn-primary"
                     disabled={busy || hasLiveBooking}
                     title={hasLiveBooking ? copy('opsLiveBooking') : undefined}
-                    onClick={() => run(onBook, slot.id)}
+                    onClick={() => run(onBook, slot.id)} data-track="ui.172bdf14c6.1"
                   >
                     {copy('opsBook')}
                   </button>
@@ -153,7 +153,7 @@ export default function FranchiseOpsAppointments({
                     type="button"
                     className="fr-btn-ghost"
                     disabled={busy}
-                    onClick={() => run(onCancelBooking, slot.id)}
+                    onClick={() => run(onCancelBooking, slot.id)} data-track="ui.172bdf14c6.2"
                   >
                     {copy('opsCancelBooking')}
                   </button>
@@ -163,7 +163,7 @@ export default function FranchiseOpsAppointments({
                     type="button"
                     className="fr-btn-primary"
                     disabled={busy}
-                    onClick={() => run(onConfirm, slot.id)}
+                    onClick={() => run(onConfirm, slot.id)} data-track="ui.172bdf14c6.3"
                   >
                     {copy('opsConfirm')}
                   </button>
@@ -173,7 +173,7 @@ export default function FranchiseOpsAppointments({
                     type="button"
                     className="fr-btn-primary"
                     disabled={busy}
-                    onClick={() => run(onComplete, slot.id)}
+                    onClick={() => run(onComplete, slot.id)} data-track="ui.172bdf14c6.4"
                   >
                     {copy('opsComplete')}
                   </button>
@@ -183,7 +183,7 @@ export default function FranchiseOpsAppointments({
                     type="button"
                     className="fr-btn-ghost"
                     disabled={busy}
-                    onClick={() => run(onCancelSlot, slot.id)}
+                    onClick={() => run(onCancelSlot, slot.id)} data-track="ui.172bdf14c6.5"
                   >
                     {copy('opsCancelSlot')}
                   </button>
@@ -196,7 +196,7 @@ export default function FranchiseOpsAppointments({
       {actionError && <p className="fr-detail-error">{actionError}</p>}
 
       {canPublish && onPublish && (
-        <form onSubmit={submitPublish} className="fr-doc-list">
+        <form onSubmit={submitPublish} className="fr-doc-list" data-track="ui.172bdf14c6.6">
           <div>
             <label className="fr-detail-list-label" htmlFor="ops-publish-title">
               {copy('opsPublishTitle')}
@@ -247,7 +247,7 @@ export default function FranchiseOpsAppointments({
             />
           </div>
           <div>
-            <button type="submit" className="fr-btn-primary" disabled={busy || !startsAt}>
+            <button type="submit" className="fr-btn-primary" disabled={busy || !startsAt} data-track="ui.172bdf14c6.7">
               {copy('opsPublish')}
             </button>
           </div>

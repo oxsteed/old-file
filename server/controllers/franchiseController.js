@@ -8105,7 +8105,7 @@ const CASE_STATUSES = new Set([
 function parseCaseListQuery(req) {
   const status = typeof req.query?.status === 'string' && req.query.status
     ? req.query.status
-    : 'all';
+    : 'open';
   if (status !== 'all' && status !== 'open' && !CASE_STATUSES.has(status)) {
     return { error: { status: 400, body: { error: 'status must be open, all, or a case status.', code: 'invalid_case_status' } } };
   }

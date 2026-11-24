@@ -146,7 +146,7 @@ export default function FranchiseTrainingEscalations({
                         type="button"
                         className="fr-btn-ghost"
                         disabled={busy}
-                        onClick={() => resolve(escalation.id, 'in_progress')}
+                        onClick={() => resolve(escalation.id, 'in_progress')} data-track="ui.15782b1562.1"
                       >
                         {copy('trainingEscStart')}
                       </button>
@@ -154,7 +154,7 @@ export default function FranchiseTrainingEscalations({
                         type="button"
                         className="fr-btn-primary"
                         disabled={busy || !(resolutionById[escalation.id] || '').trim()}
-                        onClick={() => resolve(escalation.id, 'resolved')}
+                        onClick={() => resolve(escalation.id, 'resolved')} data-track="ui.15782b1562.2"
                       >
                         {copy('trainingEscResolve')}
                       </button>
@@ -172,7 +172,7 @@ export default function FranchiseTrainingEscalations({
       {resolveError && <p className="fr-detail-error">{resolveError}</p>}
 
       {canEscalate && onEscalate && (
-        <form onSubmit={submit} className="fr-doc-list">
+        <form onSubmit={submit} className="fr-doc-list" data-track="ui.15782b1562.3">
           <div>
             <label className="fr-detail-list-label" htmlFor="training-esc-assignment">
               {copy('trainingEscAssignmentLabel')}
@@ -261,7 +261,7 @@ export default function FranchiseTrainingEscalations({
             <button
               type="submit"
               className="fr-btn-primary"
-              disabled={busy || !reason.trim() || (!assignmentId && (!memberUserId || !moduleTitle.trim()))}
+              disabled={busy || !reason.trim() || (!assignmentId && (!memberUserId || !moduleTitle.trim()))} data-track="ui.15782b1562.4"
             >
               {copy('trainingEscSubmit')}
             </button>

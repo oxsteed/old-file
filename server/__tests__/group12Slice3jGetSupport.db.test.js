@@ -238,7 +238,7 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
     return new Date(Date.now() + hoursFromNow * 60 * 60 * 1000).toISOString();
   }
 
-  async function publishSlot(admin, applicationId, { hoursFromNow = 48, title = 'Opening walkthrough' } = {}) {
+  function publishSlot(admin, applicationId, { hoursFromNow = 48, title = 'Opening walkthrough' } = {}) {
     return request(app)
       .post(`/api/franchise/applications/${applicationId}/ops-appointments`)
       .set('x-test-user', admin.id)
@@ -281,6 +281,7 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
   describe('646: policy question intake', () => {
     test('the operator asks a policy question tied to territory, location, and standard: ticket with category policy_question, question as first message, rides the bundle', async () => {
       const operator = await addUser();
+      const admin = await addUser('super_admin');
       const applicationId = await makeApprovedApplication(operator);
       const locationId = await locationIdFor(operator, applicationId);
       const guideId = await addGuide('Royalty reporting', 'Operations');
@@ -343,7 +344,7 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .expect(403)
         .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
       await askPolicyQuestion(stranger, applicationId, { subject: 'S', question: 'Q?' }).expect(404);
-      await askPolicyQuestion(operator, applicationId, { subject: 'S', question: 'Q?' })
+      await askPolicyQuestion(operator, applicationId, { question: 'Q?' })
         .expect(400)
         .then((res) => expect(res.body.code).toBe('policy_question_subject_required'));
       await askPolicyQuestion(operator, applicationId, { subject: 'S' })
@@ -774,6 +775,13 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
         .set('x-test-user', operator.id)
         .send({ title: 'Replace the compressor', remediation_id: remediation.id })
         .expect(201);
+      // Corrective actions move open -> in_progress -> resolved, then HQ
+      // reviews the resolved action into verified.
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/corrective-actions/${action.body.action.id}/status`)
+        .set('x-test-user', operator.id)
+        .send({ status: 'in_progress' })
+        .expect(200);
       await request(app)
         .post(`/api/franchise/my-applications/${applicationId}/corrective-actions/${action.body.action.id}/status`)
         .set('x-test-user', operator.id)
@@ -836,9 +844,9 @@ describeDb('Group 12 Slice 3j: Get support (646-650)', () => {
       expect(kinds.filter((kind) => kind === 'ticket_reply')).toHaveLength(1);
       expect(history.body.history.find((event) => event.kind === 'ticket_reply').summary)
         .toContain('technician is on the way');
-      // Outcome rollup: the fridge ticket is still open, the training
-      // escalation is resolved.
-      expect(history.body.summary.open_cases).toBe(1);
+      // Outcome rollup: the fridge ticket and the policy question are
+      // still open; the training escalation is resolved.
+      expect(history.body.summary.open_cases).toBe(2);
       expect(history.body.summary.resolved_cases).toBe(1);
 
       // It rides both bundles, and HQ reads the same history.

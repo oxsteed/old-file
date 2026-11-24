@@ -109,7 +109,7 @@ export default function FranchisePolicyQuestions({
       )}
 
       {canAsk && onAsk && (
-        <form onSubmit={submit} className="fr-doc-list">
+        <form onSubmit={submit} className="fr-doc-list" data-track="ui.6d7b95f774.1">
           <div>
             <label className="fr-detail-list-label" htmlFor="policy-question-subject">
               {copy('policySubjectLabel')}
@@ -171,7 +171,7 @@ export default function FranchisePolicyQuestions({
             </select>
           </div>
           <div>
-            <button type="submit" className="fr-btn-primary" disabled={busy || !subject.trim() || !question.trim()}>
+            <button type="submit" className="fr-btn-primary" disabled={busy || !subject.trim() || !question.trim()} data-track="ui.6d7b95f774.2">
               {copy('policyAsk')}
             </button>
           </div>
