@@ -19,6 +19,7 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import { currentAuthEpoch } from '../api/authSessionEpoch';
 import { EquipmentOwnerWorkspace } from '../components/EquipmentOperations';
+import ToolOwnerMaintainPanel from '../components/ToolOwnerMaintainPanel';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
@@ -112,6 +113,10 @@ function ToolOwnerDashboardContent() {
       <Navbar />
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
         <EquipmentOwnerWorkspace tools={listings}/>
+        {/* Group 11 Slice 2e: maintenance calendar (591), safety docs
+            (594), return-to-availability checklist (595), repeat renters
+            (600). */}
+        <ToolOwnerMaintainPanel tools={listings} />
         <section className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">

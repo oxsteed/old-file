@@ -55,6 +55,15 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
   // are already booked.
   const [alternatives, setAlternatives] = useState<Array<{ id: number; name: string; daily_rate: number; distance_miles?: number | null }>>([]);
   const [alternativesLoading, setAlternativesLoading] = useState(false);
+  // Group 11 item 594: safety documents the owner uploaded for this
+  // listing, shown to the renter before booking.
+  const [safetyDocs, setSafetyDocs] = useState<Array<{ id: string; title: string; file_url: string }>>([]);
+  React.useEffect(() => {
+    if (!isOpen || !tool?.id) return;
+    toolRentalsApi.getPublicSafetyDocuments(tool.id)
+      .then((r) => setSafetyDocs(r.documents || []))
+      .catch(() => setSafetyDocs([]));
+  }, [isOpen, tool?.id]);
 
   const formatWindowTime = (value: string | null | undefined): string => {
     if (!value) return '';
@@ -426,6 +435,19 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
               {tool.cleaning_instructions && (
                 <div className="booking-peer-tool-snapshot">
                   <p><strong>{t('toolRentals.cleaningInstructionsTitle')}:</strong> {tool.cleaning_instructions}</p>
+                </div>
+              )}
+              {/* Group 11 item 594: safety documents for this listing. */}
+              {safetyDocs.length > 0 && (
+                <div className="booking-peer-tool-snapshot">
+                  <p><strong>{t('toolRentals.safetyDocsTitle')}:</strong></p>
+                  <ul>
+                    {safetyDocs.map((doc) => (
+                      <li key={doc.id}>
+                        <a href={doc.file_url} target="_blank" rel="noreferrer">{doc.title}</a>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
               {tool.owner_custom_terms && (
