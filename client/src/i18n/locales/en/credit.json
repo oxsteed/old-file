@@ -96,7 +96,21 @@
     "settlementApprovalNote": "This review does not approve the settlement. Settlement still needs two different admins.",
     "recordReview": "Record period review",
     "backToCredit": "Back to OxSteed Credit",
-    "noLocations": "This restaurant has no locations."
+    "noLocations": "This restaurant has no locations.",
+    "checklistTitle": "Reconciliation checklist",
+    "checklistStatusOpen": "Open",
+    "checklistStatusMatched": "Matched",
+    "checklistStatusClosed": "Closed",
+    "checklistStepReviewSummary": "Review summary",
+    "checklistStepReviewDifferences": "Review differences",
+    "checklistStepMatchAdjustments": "Match adjustments",
+    "checklistStepAnnotateDifferences": "Annotate differences",
+    "checklistStepRecordPeriodClose": "Record period close",
+    "checklistStepDone": "Done",
+    "checklistStepPending": "Pending",
+    "closeoutPackage": "Download closeout package",
+    "closeoutPackageDownloading": "Preparing package…",
+    "closeoutPackageNote": "The package bundles the summary, differences, matched adjustments, and annotations for this period."
   },
   "creditApplyCustomerNote": "This application is for a business owner or helper applying for their business or profile to accept Credit. A customer needs no enrollment to spend Credit.",
   "creditApplyMyStatus": "Your applications",
@@ -521,6 +535,17 @@
       "uploadError": "The file could not be uploaded. Please try again.",
       "uploading": "Uploading…",
       "viewAttachment": "View attachment"
+    },
+    "entryAnnotations": {
+      "title": "Shared annotations",
+      "sharedNote": "Visible to everyone who can read this statement. Annotations cannot be edited or deleted.",
+      "noAnnotations": "No annotations yet.",
+      "addAnnotation": "Add annotation",
+      "annotationPlaceholder": "Add context for the next reviewer…",
+      "saving": "Saving…",
+      "loadError": "Annotations could not be loaded.",
+      "saveError": "Your annotation could not be saved.",
+      "authorUnknown": "Unknown author"
     },
     "exportHistory": {
       "backToExport": "Back to export",
@@ -1745,6 +1770,7 @@
   "agentAdjQueueCustomer": "Wallet",
   "agentAdjQueueProposedAt": "Proposed",
   "agentAdjQueueReason": "Reason",
+  "agentAdjQueueReadOnlyNote": "You have read-only access to this queue. Approvals, rejections, and cancellations need the manage-financials grant.",
   "adminPendingActionQueue": "Pending action queue",
   "adminPendingActionQueueDescription": "Money-moving actions queued by one admin wait here for a different admin to approve. Approving needs a fresh verification code; rejecting needs a reason. Nothing executes until a second identity approves it.",
   "adminDisputeStatusFilter": "Dispute status filter",

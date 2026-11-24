@@ -96,7 +96,21 @@
     "settlementApprovalNote": "Esta revisi\u00f3n no aprueba la liquidaci\u00f3n. La liquidaci\u00f3n a\u00fan necesita dos administradores distintos.",
     "recordReview": "Registrar revisi\u00f3n del per\u00edodo",
     "backToCredit": "Volver a OxSteed Credit",
-    "noLocations": "Este restaurante no tiene ubicaciones."
+    "noLocations": "Este restaurante no tiene ubicaciones.",
+    "checklistTitle": "Lista de verificación de conciliación",
+    "checklistStatusOpen": "Abierta",
+    "checklistStatusMatched": "Conciliada",
+    "checklistStatusClosed": "Cerrada",
+    "checklistStepReviewSummary": "Revisar el resumen",
+    "checklistStepReviewDifferences": "Revisar las diferencias",
+    "checklistStepMatchAdjustments": "Vincular ajustes",
+    "checklistStepAnnotateDifferences": "Anotar las diferencias",
+    "checklistStepRecordPeriodClose": "Registrar el cierre del período",
+    "checklistStepDone": "Hecho",
+    "checklistStepPending": "Pendiente",
+    "closeoutPackage": "Descargar el paquete de cierre",
+    "closeoutPackageDownloading": "Preparando el paquete…",
+    "closeoutPackageNote": "El paquete reúne el resumen, las diferencias, los ajustes vinculados y las anotaciones de este período."
   },
   "creditApplyCustomerNote": "Esta solicitud es para un dueño de negocio o ayudante que solicita que su negocio o perfil acepte Crédito. Un cliente no necesita inscripción para gastar Crédito.",
   "creditApplyMyStatus": "Tus solicitudes",
@@ -521,6 +535,17 @@
       "uploadError": "El archivo no pudo subirse. Inténtalo de nuevo.",
       "uploading": "Subiendo…",
       "viewAttachment": "Ver adjunto"
+    },
+    "entryAnnotations": {
+      "title": "Anotaciones compartidas",
+      "sharedNote": "Visible para todas las personas que pueden leer este estado de cuenta. Las anotaciones no se pueden editar ni eliminar.",
+      "noAnnotations": "Aún no hay anotaciones.",
+      "addAnnotation": "Agregar anotación",
+      "annotationPlaceholder": "Agrega contexto para la próxima persona que revise…",
+      "saving": "Guardando…",
+      "loadError": "No se pudieron cargar las anotaciones.",
+      "saveError": "No se pudo guardar tu anotación.",
+      "authorUnknown": "Autor desconocido"
     },
     "exportHistory": {
       "backToExport": "Volver a la exportación",
@@ -1747,6 +1772,7 @@
   "agentAdjQueueCustomer": "Billetera",
   "agentAdjQueueProposedAt": "Propuesto",
   "agentAdjQueueReason": "Motivo",
+  "agentAdjQueueReadOnlyNote": "Tienes acceso de solo lectura a esta cola. Las aprobaciones, los rechazos y las cancelaciones requieren el permiso manage-financials.",
   "adminPendingActionQueue": "Acciones pendientes",
   "adminPendingActionQueueDescription": "Las acciones que mueven dinero solicitadas por un administrador esperan aquí a que otro administrador las apruebe. Aprobar requiere un código de verificación nuevo; rechazar requiere un motivo. Nada se ejecuta hasta que una segunda identidad lo aprueba.",
   "adminDisputeStatusFilter": "Filtro de estado de disputa",

@@ -13,6 +13,17 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "./LocationReconciliation.css";
 
+// 709 (D-426): the derived checklist step keys, in server order, mapped to
+// their labels. The checklist is computed live server-side — no stored
+// check-offs — and its overall status walks open -> matched -> closed.
+const CHECKLIST_STEP_LABEL_KEYS = {
+  review_summary: "checklistStepReviewSummary",
+  review_differences: "checklistStepReviewDifferences",
+  match_adjustments: "checklistStepMatchAdjustments",
+  annotate_differences: "checklistStepAnnotateDifferences",
+  record_period_close: "checklistStepRecordPeriodClose",
+};
+
 function ExceptionCard({ exception, t, formatMoney, onAnnotate, trackAnnotate }) {
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
@@ -113,6 +124,12 @@ export default function LocationReconciliationSection({
   const [exceptions, setExceptions] = useState(null);
   const [showResolved, setShowResolved] = useState(false);
   const [periodClose, setPeriodClose] = useState(null);
+  // 709/710: the derived checklist and the closeout download are optional
+  // fetchers — the HQ door (LocationReconciliationPage) passes them, the
+  // kiosk door (CashierPanel) does not, and the section renders without
+  // them. The checklist never approves a settlement.
+  const [checklist, setChecklist] = useState(null);
+  const [downloadingPackage, setDownloadingPackage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [recording, setRecording] = useState(false);
@@ -136,15 +153,20 @@ export default function LocationReconciliationSection({
     setError(null);
     try {
       const params = periodParams();
-      const [summaryData, exceptionData, periodCloseData] = await Promise.all([
+      const checklistPromise = fetchers.getChecklist
+        ? fetchers.getChecklist(params).catch(() => null)
+        : Promise.resolve(null);
+      const [summaryData, exceptionData, periodCloseData, checklistData] = await Promise.all([
         fetchers.getSummary(params),
         fetchers.listExceptions(showResolved ? { ...params, status: "resolved" } : params),
         fetchers.getPeriodClose(params),
+        checklistPromise,
       ]);
       if (!mountedRef.current) return;
       setSummary(summaryData);
       setExceptions(exceptionData.exceptions || []);
       setPeriodClose(periodCloseData);
+      setChecklist(checklistData);
     } catch {
       if (mountedRef.current) {
         setError("error");
@@ -193,6 +215,22 @@ export default function LocationReconciliationSection({
       if (mountedRef.current) setError("error");
     } finally {
       if (mountedRef.current) setExporting(false);
+    }
+  };
+
+  // 710 (D-427): the closeout evidence package is a synchronous
+  // per-request ZIP over the already-posted records; every download
+  // re-authorizes the caller, so there is no stored job to resume.
+  const handleDownloadCloseoutPackage = async () => {
+    if (!fetchers.downloadCloseoutPackage) return;
+    setDownloadingPackage(true);
+    setError(null);
+    try {
+      await fetchers.downloadCloseoutPackage(periodParams());
+    } catch {
+      if (mountedRef.current) setError("error");
+    } finally {
+      if (mountedRef.current) setDownloadingPackage(false);
     }
   };
 
@@ -349,6 +387,38 @@ export default function LocationReconciliationSection({
                   {t("reconciliation.recordReview")}
                 </button>
               </div>
+            </>
+          )}
+
+          {fetchers.getChecklist && checklist && (
+            <>
+              <h4>{t("reconciliation.checklistTitle")}</h4>
+              <p>
+                {t(`reconciliation.checklistStatus${checklist.status === "closed" ? "Closed" : checklist.status === "matched" ? "Matched" : "Open"}`)}
+              </p>
+              <ul className="lrec-totals">
+                {(checklist.steps || []).map((step) => (
+                  <li key={step.key}>
+                    {t(`reconciliation.${CHECKLIST_STEP_LABEL_KEYS[step.key] || "checklistStepReviewSummary"}`)}
+                    {` · ${step.status === "done" ? t("reconciliation.checklistStepDone") : t("reconciliation.checklistStepPending")}`}
+                  </li>
+                ))}
+              </ul>
+              <p className="lrec-note">{t("reconciliation.settlementApprovalNote")}</p>
+              {fetchers.downloadCloseoutPackage && (
+                <div className="lrec-row">
+                  <button
+                    type="button"
+                    className="lrec-btn"
+                    onClick={handleDownloadCloseoutPackage}
+                    disabled={downloadingPackage}
+                    data-track={track?.closeoutPackage} data-track-private
+                  >
+                    {downloadingPackage ? t("reconciliation.closeoutPackageDownloading") : t("reconciliation.closeoutPackage")}
+                  </button>
+                </div>
+              )}
+              <p className="lrec-note">{t("reconciliation.closeoutPackageNote")}</p>
             </>
           )}
         </>

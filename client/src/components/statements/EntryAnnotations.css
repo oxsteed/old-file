@@ -1,0 +1,84 @@
+.sea-annotations {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 1rem;
+  background: var(--card, transparent);
+}
+.sea-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 1rem;
+}
+.sea-muted {
+  color: var(--muted-text, #6b7280);
+  font-size: 0.875rem;
+}
+.sea-error {
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+.sea-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.sea-item {
+  border-top: 1px solid var(--border, #e5e7eb);
+  padding-top: 0.75rem;
+}
+.sea-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.sea-meta {
+  margin: 0.25rem 0 0;
+  color: var(--muted-text, #6b7280);
+  font-size: 0.8rem;
+}
+.sea-form {
+  margin-top: 0.75rem;
+}
+.sea-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.sea-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.sea-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 8px;
+  padding: 0.6rem;
+  font: inherit;
+  resize: vertical;
+}
+.sea-actions {
+  margin-top: 0.6rem;
+  display: flex;
+  gap: 0.5rem;
+}
+.sea-actions button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  background: #ea580c;
+  color: #fff;
+}
+.sea-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

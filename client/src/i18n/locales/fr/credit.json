@@ -96,7 +96,21 @@
     "settlementApprovalNote": "Cette r\u00e9vision n'approuve pas le r\u00e8glement. Le r\u00e8glement n\u00e9cessite toujours deux administrateurs diff\u00e9rents.",
     "recordReview": "Enregistrer la r\u00e9vision de la p\u00e9riode",
     "backToCredit": "Retour \u00e0 OxSteed Credit",
-    "noLocations": "Ce restaurant n'a aucun emplacement."
+    "noLocations": "Ce restaurant n'a aucun emplacement.",
+    "checklistTitle": "Liste de contrôle de rapprochement",
+    "checklistStatusOpen": "Ouverte",
+    "checklistStatusMatched": "Rapprochée",
+    "checklistStatusClosed": "Clôturée",
+    "checklistStepReviewSummary": "Examiner le résumé",
+    "checklistStepReviewDifferences": "Examiner les écarts",
+    "checklistStepMatchAdjustments": "Rapprocher les ajustements",
+    "checklistStepAnnotateDifferences": "Annoter les écarts",
+    "checklistStepRecordPeriodClose": "Enregistrer la clôture de la période",
+    "checklistStepDone": "Terminé",
+    "checklistStepPending": "En attente",
+    "closeoutPackage": "Télécharger le dossier de clôture",
+    "closeoutPackageDownloading": "Préparation du dossier…",
+    "closeoutPackageNote": "Le dossier regroupe le résumé, les écarts, les ajustements rapprochés et les annotations de cette période."
   },
   "creditApplyCustomerNote": "Cette demande concerne un propriétaire d’entreprise ou un aide qui demande que son entreprise ou son profil accepte le Crédit. Un client n’a besoin d’aucune inscription pour dépenser du Crédit.",
   "creditApplyMyStatus": "Vos demandes",
@@ -521,6 +535,17 @@
       "uploadError": "Le fichier n’a pas pu être téléversé. Veuillez réessayer.",
       "uploading": "Téléversement…",
       "viewAttachment": "Voir la pièce jointe"
+    },
+    "entryAnnotations": {
+      "title": "Annotations partagées",
+      "sharedNote": "Visible par toutes les personnes autorisées à lire ce relevé. Les annotations ne peuvent pas être modifiées ni supprimées.",
+      "noAnnotations": "Aucune annotation pour le moment.",
+      "addAnnotation": "Ajouter une annotation",
+      "annotationPlaceholder": "Ajoutez du contexte pour la prochaine personne qui examinera…",
+      "saving": "Enregistrement…",
+      "loadError": "Impossible de charger les annotations.",
+      "saveError": "Votre annotation n’a pas pu être enregistrée.",
+      "authorUnknown": "Auteur inconnu"
     },
     "exportHistory": {
       "backToExport": "Retour à l’export",
@@ -1747,6 +1772,7 @@
   "agentAdjQueueCustomer": "Portefeuille",
   "agentAdjQueueProposedAt": "Proposé",
   "agentAdjQueueReason": "Motif",
+  "agentAdjQueueReadOnlyNote": "Vous avez un accès en lecture seule à cette file. Les approbations, les rejets et les annulations exigent l’autorisation manage-financials.",
   "adminPendingActionQueue": "Actions en attente",
   "adminPendingActionQueueDescription": "Les actions qui déplacent de l'argent, demandées par un administrateur, attendent ici l'approbation d'un autre administrateur. Approuver exige un nouveau code de vérification ; rejeter exige un motif. Rien ne s'exécute tant qu'une seconde identité ne l'a pas approuvé.",
   "adminDisputeStatusFilter": "Filtre de statut des litiges",

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Fragment, lazy, Suspense, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link, useSearchParams, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
@@ -62,6 +62,7 @@ import {
   completeBusinessOnboarding,
   getAnalytics,
   listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
+  linkInvoicePayment, getInvoicePayments,
   getTax, refreshTax, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
   inviteMember, revokeMember, resendMemberInvite, expireMemberInvite, listJobRoles,
@@ -2191,6 +2192,7 @@ function BusinessHubInner() {
               invoicesLoading ? <p className="bh-loading">{t('businessHub.loadingInvoices')}</p> :
               <InvoicesTab
                 data={invoiceData}
+                businessId={bizId}
                 currency={currency}
                 onNew={() => { setForm(DEFAULT_INV_FORM); setFormErr(''); setModal('add-inv'); }}
                 onEdit={inv => {
@@ -2841,11 +2843,148 @@ function KPI({ label, value, cls, sub }) {
   );
 }
 
+// ── Matched payments for one invoice (706, D-423) ─────────────────────────
+// Manual links only, never auto-matching: the owner names an existing
+// payment record (a Stripe intent, a Credit transaction, or a manual
+// bank/cheque reference) and the server verifies the link. Linking never
+// changes amount_paid, status, or paid_at — POST .../pay stays the only
+// writer of those.
+const INVOICE_PAYMENT_TYPES = ['stripe_payment_intent', 'credit_transaction', 'manual_reference'];
+
+function InvoiceMatchedPayments({ businessId, invoice, currency }) {
+  const { t } = useTranslation();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [paymentType, setPaymentType] = useState('manual_reference');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [amount, setAmount] = useState('');
+  const [linkError, setLinkError] = useState('');
+  const [linking, setLinking] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      setData(await getInvoicePayments(businessId, invoice.id));
+    } catch (e) {
+      setLoadError(e?.response?.data?.error || t('businessHub.invoiceMatchedPaymentsError'));
+    } finally {
+      setLoading(false);
+    }
+  }, [businessId, invoice.id, t]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleLink = async (event) => {
+    event.preventDefault();
+    setLinkError('');
+    setNotice('');
+    const parsed = parseFloat(amount);
+    if (!paymentReference.trim() || !Number.isFinite(parsed) || parsed <= 0) {
+      setLinkError(t('businessHub.invoiceLinkPaymentInvalid'));
+      return;
+    }
+    setLinking(true);
+    try {
+      await linkInvoicePayment(businessId, invoice.id, {
+        paymentType,
+        paymentReference: paymentReference.trim(),
+        amount: parsed,
+      });
+      setPaymentReference('');
+      setAmount('');
+      setNotice(t('businessHub.invoiceLinkPaymentSuccess'));
+      await load();
+    } catch (e) {
+      setLinkError(e?.response?.data?.error || t('businessHub.invoiceLinkPaymentFailed'));
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const paymentTypeLabel = (type) => {
+    if (type === 'stripe_payment_intent') return t('businessHub.invoiceLinkPaymentTypeStripe');
+    if (type === 'credit_transaction') return t('businessHub.invoiceLinkPaymentTypeCredit');
+    return t('businessHub.invoiceLinkPaymentTypeManual');
+  };
+
+  const canLink = invoice.status !== 'cancelled';
+
+  return (
+    <div className="bh-invpay-panel">
+      <h3 className="bh-invpay-title">{t('businessHub.invoiceMatchedPaymentsTitle', { num: invoice.invoice_number })}</h3>
+      {loading ? <p>{t('businessHub.invoiceMatchedPaymentsLoading')}</p> : loadError ? <p role="alert">{loadError}</p> : data && (
+        <>
+          <p className="bh-invpay-totals">
+            {t('businessHub.invoiceLinkedTotal', { amount: fmt$(data.linkedTotal, data.invoice?.currencyCode || currency) })}
+            {' · '}
+            {t('businessHub.invoicePaidTotal', { amount: fmt$(data.invoice?.amountPaid, data.invoice?.currencyCode || currency) })}
+            {' · '}
+            {t('businessHub.invoiceRemaining', { amount: fmt$(data.remaining, data.invoice?.currencyCode || currency) })}
+            {' · '}
+            {data.fullyMatched ? t('businessHub.invoiceFullyMatched') : t('businessHub.invoiceNotFullyMatched')}
+          </p>
+          {(data.payments || []).length === 0 ? (
+            <p className="bh-invpay-empty">{t('businessHub.invoiceNoLinkedPayments')}</p>
+          ) : (
+            <table className="bh-table">
+              <thead>
+                <tr>
+                  <th>{t('businessHub.invoiceLinkPaymentType')}</th>
+                  <th>{t('businessHub.invoiceLinkPaymentReference')}</th>
+                  <th className="num">{t('businessHub.colTotal')}</th>
+                  <th>{t('businessHub.colDue')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.payments.map((payment) => (
+                  <tr key={payment.id}>
+                    <td>{paymentTypeLabel(payment.paymentType)}</td>
+                    <td className="bh-invpay-ref">{payment.paymentReference}</td>
+                    <td className="num">{fmt$(payment.amount, payment.currencyCode || currency)}</td>
+                    <td className="bh-invpay-date">{fmtDate(payment.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
+      {canLink && (
+        <form onSubmit={handleLink} className="bh-invpay-form" data-track="ui.83b215c0c9.113">
+          <div className="bh-field bh-invpay-type-field">
+            <label>{t('businessHub.invoiceLinkPaymentType')}</label>
+            <select value={paymentType} onChange={(event) => setPaymentType(event.target.value)} disabled={linking}>
+              {INVOICE_PAYMENT_TYPES.map((type) => (
+                <option key={type} value={type}>{paymentTypeLabel(type)}</option>
+              ))}
+            </select>
+          </div>
+          <div className="bh-field bh-invpay-ref-field">
+            <label>{t('businessHub.invoiceLinkPaymentReference')}</label>
+            <input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} disabled={linking} maxLength={255} />
+          </div>
+          <div className="bh-field bh-invpay-amount-field">
+            <label>{t('businessHub.invoiceLinkPaymentAmount')}</label>
+            <input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} disabled={linking} min="0.01" step="0.01" />
+          </div>
+          <button type="submit" className="bh-btn primary sm" disabled={linking} data-track="ui.83b215c0c9.114">{t('businessHub.invoiceLinkPaymentSubmit')}</button>
+        </form>
+      )}
+      {linkError && <p role="alert" className="bh-invpay-error">{linkError}</p>}
+      {notice && <p role="status" className="bh-invpay-notice">{notice}</p>}
+    </div>
+  );
+}
+
 // ── Invoices tab ──────────────────────────────────────────────────────────────
-function InvoicesTab({ data, onNew, onEdit, onPay, onDelete, onSend, currency }) {
+function InvoicesTab({ data, businessId, onNew, onEdit, onPay, onDelete, onSend, currency }) {
   const { t } = useTranslation();
   const invoices = data?.invoices || [];
   const summary  = data?.summary  || {};
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState(null);
 
   const statusLabel = (status) => {
     const map = {
@@ -2888,7 +3027,8 @@ function InvoicesTab({ data, onNew, onEdit, onPay, onDelete, onSend, currency })
               </thead>
               <tbody>
                 {invoices.map(inv => (
-                  <tr key={inv.id}>
+                  <Fragment key={inv.id}>
+                  <tr>
                     <td style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{inv.invoice_number}</td>
                     <td>
                       <div>{inv.client_name}</div>
@@ -2907,8 +3047,13 @@ function InvoicesTab({ data, onNew, onEdit, onPay, onDelete, onSend, currency })
                       )}
                       <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onEdit(inv)} data-track="ui.83b215c0c9.53">{t('businessHub.btnEdit')}</button>
                       <button className="bh-btn sm danger" onClick={() => onDelete(inv)} data-track="ui.83b215c0c9.54">{t('businessHub.btnDelete')}</button>
+                      <button className="bh-btn sm bh-invpay-toggle" onClick={() => setExpandedInvoiceId(expandedInvoiceId === inv.id ? null : inv.id)} data-track="ui.83b215c0c9.115">{t('businessHub.invoiceMatchedPayments')}</button>
                     </td>
                   </tr>
+                  {expandedInvoiceId === inv.id && (
+                    <tr><td colSpan={7}><InvoiceMatchedPayments businessId={businessId} invoice={inv} currency={currency} /></td></tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

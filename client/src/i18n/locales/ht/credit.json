@@ -96,7 +96,21 @@
     "settlementApprovalNote": "Revizyon sa a pa apwouve r\u00e8gleman an. R\u00e8gleman an toujou bezwen de administrat\u00e8 diferan.",
     "recordReview": "Anrejistre revizyon pery\u00f2d la",
     "backToCredit": "Retounen nan OxSteed Credit",
-    "noLocations": "Restoran sa a pa gen okenn kote."
+    "noLocations": "Restoran sa a pa gen okenn kote.",
+    "checklistTitle": "Lis verifikasyon rekonsilyasyon",
+    "checklistStatusOpen": "Louvri",
+    "checklistStatusMatched": "Lye",
+    "checklistStatusClosed": "Fèmen",
+    "checklistStepReviewSummary": "Revize rezime a",
+    "checklistStepReviewDifferences": "Revize diferans yo",
+    "checklistStepMatchAdjustments": "Lye ajisteman yo",
+    "checklistStepAnnotateDifferences": "Anote diferans yo",
+    "checklistStepRecordPeriodClose": "Anrejistre fèmti peryòd la",
+    "checklistStepDone": "Fèt",
+    "checklistStepPending": "An atant",
+    "closeoutPackage": "Telechaje pake fèmti a",
+    "closeoutPackageDownloading": "Y ap prepare pake a…",
+    "closeoutPackageNote": "Pake a gen ladan l rezime a, diferans yo, ajisteman ki lye yo, ak anotasyon peryòd sa a."
   },
   "creditApplyCustomerNote": "Aplikasyon sa a se pou yon pwopriyetè biznis oswa yon edè k ap aplike pou biznis li oswa pwofil li aksepte Kredi. Yon kliyan pa bezwen okenn enskripsyon pou li depanse Kredi.",
   "creditApplyMyStatus": "Aplikasyon ou yo",
@@ -521,6 +535,17 @@
       "uploadError": "Fichye a pa t ka telechaje. Tanpri eseye ankò.",
       "uploading": "Ap telechaje…",
       "viewAttachment": "Wè fichye ki tache a"
+    },
+    "entryAnnotations": {
+      "title": "Anotasyon pataje",
+      "sharedNote": "Tout moun ki ka li deklarasyon sa a ka wè yo. Anotasyon yo pa ka modifye ni efase.",
+      "noAnnotations": "Pa gen anotasyon pou kounye a.",
+      "addAnnotation": "Ajoute yon anotasyon",
+      "annotationPlaceholder": "Ajoute kontèks pou pwochen moun k ap revize a…",
+      "saving": "Y ap anrejistre…",
+      "loadError": "Anotasyon yo pa t kapab chaje.",
+      "saveError": "Anotasyon ou an pa t kapab anrejistre.",
+      "authorUnknown": "Otè enkoni"
     },
     "exportHistory": {
       "backToExport": "Retounen nan ekspòtasyon",
@@ -1747,6 +1772,7 @@
   "agentAdjQueueCustomer": "Bous",
   "agentAdjQueueProposedAt": "Pwopoze",
   "agentAdjQueueReason": "Rezon",
+  "agentAdjQueueReadOnlyNote": "Ou gen aksè lekti sèlman nan fil sa a. Apwobasyon, rejè ak anilasyon yo mande otorizasyon manage-financials la.",
   "adminPendingActionQueue": "Aksyon k ap tann",
   "adminPendingActionQueueDescription": "Aksyon k ap deplase lajan yon administratè mande yo ap tann isit la pou yon lòt administratè apwouve yo. Pou apwouve fòk gen yon nouvo kòd verifikasyon; pou rejte fòk gen yon rezon. Anyen pa egzekite jiskaske yon dezyèm moun apwouve l.",
   "adminDisputeStatusFilter": "Filtè estati diskisyon",

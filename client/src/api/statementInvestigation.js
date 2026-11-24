@@ -35,3 +35,16 @@ export function listStatementCases(documentId, entryId, { signal } = {}) {
   return api.get(`${entryBase(documentId, entryId)}/cases`, { signal })
     .then((response) => response.data);
 }
+
+// Group 14 Slice 5b (708, D-425): shared annotations on a statement entry.
+// Append-only and visible to every reader authorized for the document —
+// unlike the private per-user entry notes, which stay owner-only.
+export function listEntryAnnotations(documentId, entryId, { signal } = {}) {
+  return api.get(`${entryBase(documentId, entryId)}/annotations`, { signal })
+    .then((response) => response.data);
+}
+
+export function addEntryAnnotation(documentId, entryId, { body = '' } = {}) {
+  return api.post(entryBase(documentId, entryId) + '/annotations', { body })
+    .then((response) => response.data);
+}

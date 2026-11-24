@@ -44,10 +44,15 @@ test('canCancelAdjustment is true only for the proposer (withdraw own proposal)'
 
 test('endpoint builders produce the agent credit-adjustment paths', () => {
   const id = '44444444-4444-4444-4444-444444444444';
-  assert.equal(AGENT_ADJUSTMENT_ENDPOINTS.pending, '/api/agent/credit-adjustments/pending');
-  assert.equal(AGENT_ADJUSTMENT_ENDPOINTS.approve(id), `/api/agent/credit-adjustments/${id}/approve`);
-  assert.equal(AGENT_ADJUSTMENT_ENDPOINTS.reject(id), `/api/agent/credit-adjustments/${id}/reject`);
-  assert.equal(AGENT_ADJUSTMENT_ENDPOINTS.cancel(id), `/api/agent/credit-adjustments/${id}/cancel`);
+  // D-428: the literals are relative to the shared adminApi baseURL (/api),
+  // so they must not carry their own /api prefix — '/api/agent/...' used to
+  // double-prefix to '/api/api/agent/...' and 404 every queue call.
+  assert.equal(AGENT_ADJUSTMENT_ENDPOINTS.pending, '/agent/credit-adjustments/pending');
+  assert.equal(AGENT_ADJUSTMENT_ENDPOINTS.detail(id), `/agent/credit-adjustments/${id}`);
+  assert.equal(AGENT_ADJUSTMENT_ENDPOINTS.stepup, '/agent/credit-adjustments/stepup-challenges');
+  assert.equal(AGENT_ADJUSTMENT_ENDPOINTS.approve(id), `/agent/credit-adjustments/${id}/approve`);
+  assert.equal(AGENT_ADJUSTMENT_ENDPOINTS.reject(id), `/agent/credit-adjustments/${id}/reject`);
+  assert.equal(AGENT_ADJUSTMENT_ENDPOINTS.cancel(id), `/agent/credit-adjustments/${id}/cancel`);
 });
 
 test('signedAmountLabel prefixes the sign outside the formatted money', () => {

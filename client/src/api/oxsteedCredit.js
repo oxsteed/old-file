@@ -94,6 +94,26 @@ export const downloadLocationReconciliationExport = async (restaurantId, params 
   window.URL.revokeObjectURL(url);
 };
 
+// Group 14 Slice 5b (709/710, D-426/D-427): the derived reconciliation
+// checklist (open -> matched -> closed) and the closeout evidence package
+// (a synchronous per-request ZIP over the already-posted records). Neither
+// approves a settlement; the package re-authorizes on every download.
+export const getLocationReconciliationChecklist = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/credit-reconciliation/checklist`, { params })
+    .then((response) => response.data);
+export const downloadLocationReconciliationCloseoutPackage = async (restaurantId, params = {}) => {
+  const response = await api.post(`/restaurants/${restaurantId}/credit-reconciliation/closeout-package`,
+    params, { responseType: 'blob' });
+  const url = window.URL.createObjectURL(response.data);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `oxsteed-credit-closeout-${new Date().toISOString().slice(0, 10)}.zip`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 export const getOxsteedCreditTransaction = (transactionId, params = {}) =>
   api.get(`/oxsteed-credit/transactions/${transactionId}`, { params }).then((response) => response.data?.transaction || null);
 

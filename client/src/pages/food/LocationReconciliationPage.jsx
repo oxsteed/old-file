@@ -16,6 +16,8 @@ import {
   getLocationReconciliationPeriodClose,
   recordLocationReconciliationPeriodClose,
   downloadLocationReconciliationExport,
+  getLocationReconciliationChecklist,
+  downloadLocationReconciliationCloseoutPackage,
 } from "../../api/oxsteedCredit";
 import LocationReconciliationSection from "../../components/credit/LocationReconciliationSection";
 import "./OxsteedCreditPage.css";
@@ -67,6 +69,8 @@ export default function LocationReconciliationPage() {
             getPeriodClose: (params) => getLocationReconciliationPeriodClose(restaurantId, params),
             recordPeriodClose: (params) => recordLocationReconciliationPeriodClose(restaurantId, params),
             downloadExport: (params) => downloadLocationReconciliationExport(restaurantId, params),
+            getChecklist: (params) => getLocationReconciliationChecklist(restaurantId, params),
+            downloadCloseoutPackage: (params) => downloadLocationReconciliationCloseoutPackage(restaurantId, params),
           }}
           track={{}}
         />

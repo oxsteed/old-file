@@ -43,6 +43,16 @@ export const sendInvoice     = (id, invId)     => api.post(`/businesses/${id}/in
 export const markInvoicePaid = (id, invId, amount) => api.post(`/businesses/${id}/invoices/${invId}/pay`, { amount }).then(r => r.data?.invoice);
 export const deleteInvoice   = (id, invId)     => api.delete(`/businesses/${id}/invoices/${invId}`).then(r => r.data);
 
+// Group 14 Slice 5b (706, D-423): invoice-to-payment matching is a manual
+// link, never auto-matching. Link an existing payment record to an invoice
+// and read the invoice paired with its linked payments plus the
+// linked/paid/remaining totals. Linking never changes amount_paid, status,
+// or paid_at — POST .../pay stays the only writer of those.
+export const linkInvoicePayment = (id, invId, payload) =>
+  api.post(`/businesses/${id}/invoices/${invId}/link-payment`, payload).then(r => r.data?.payment);
+export const getInvoicePayments = (id, invId) =>
+  api.get(`/businesses/${id}/invoices/${invId}/payments`).then(r => r.data);
+
 // ── Tax estimates ─────────────────────────────────────────────────────────────
 export const getTax          = (id)            => api.get(`/businesses/${id}/tax`).then(r => r.data);
 export const refreshTax      = (id)            => api.post(`/businesses/${id}/tax/refresh`).then(r => r.data);
