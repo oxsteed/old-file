@@ -460,6 +460,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3e (623): the brand asset store — the franchise-wide
   // assets plus this territory's own.
   const brandAssets = await fetchBrandAssets(applicationId);
+  // Group 12 Slice 3f (628, D-327): the service exception summary —
+  // the territory's support tickets aggregated, derived on read.
+  const exceptionSummary = await buildExceptionSummary(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -487,6 +490,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     announcements,
     standards,
     brand_assets: brandAssets,
+    exception_summary: exceptionSummary,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1083,6 +1087,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   // viewer's own acknowledgment state) and the brand asset store.
   const standards = await fetchFranchiseStandards(applicationId, { userId });
   const brandAssets = await fetchBrandAssets(applicationId);
+  // Group 12 Slice 3f (628, D-327): the service exception summary.
+  const exceptionSummary = await buildExceptionSummary(applicationId);
 
   return {
     application: {
@@ -1105,6 +1111,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     announcements,
     standards,
     brand_assets: brandAssets,
+    exception_summary: exceptionSummary,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — viewer perspective.
@@ -5421,6 +5428,383 @@ async function buildTerritoryCoverage(applicationId) {
   };
 }
 
+// ── Group 12 Slice 3f (626-630): monitor locations ──────────────────────────
+// 628 (D-327): the service exception summary. An exception IS a support
+// ticket attached to a territory — no parallel exception store (D-293).
+// The attachment is two nullable columns on support_tickets; the summary
+// below derives on read, so it can never drift from the tickets.
+const EXCEPTION_OPEN_STATUSES = ['open', 'assigned', 'in_progress', 'waiting_user'];
+const EXCEPTION_OPEN_SQL = `('open', 'assigned', 'in_progress', 'waiting_user')`;
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+
+// The territory's tickets, newest first, each carrying its location link
+// (NULL location = territory-wide). `openOnly` restricts to exceptions
+// that are still open; `limit` caps the rows (the summary takes 5).
+async function fetchTerritoryTickets(applicationId, { openOnly = false, limit = 100 } = {}) {
+  const { rows } = await db.query(
+    `SELECT t.id, t.ticket_number, t.subject, t.category, t.priority, t.status,
+            t.user_id, t.name AS requester_name, t.email AS requester_email,
+            t.created_at, t.updated_at, t.resolved_at,
+            t.franchise_application_id AS application_id,
+            t.franchise_location_id AS location_id,
+            l.name AS location_name
+       FROM support_tickets t
+       LEFT JOIN franchise_locations l ON l.id = t.franchise_location_id
+      WHERE t.franchise_application_id = $1
+        ${openOnly ? `AND t.status IN ${EXCEPTION_OPEN_SQL}` : ''}
+      ORDER BY t.created_at DESC, t.id DESC
+      LIMIT $2`,
+    [applicationId, limit]
+  );
+  return rows;
+}
+
+// 628 (D-327): the exception summary — totals, open/urgent counts, the
+// breakdowns by status, category, and priority, the per-location split,
+// the oldest open exception, and the five most recent open tickets so
+// the summary is actionable without a second fetch.
+async function buildExceptionSummary(applicationId) {
+  const [totals, byStatus, byCategory, byPriority, byLocation] = await Promise.all([
+    db.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE status IN ${EXCEPTION_OPEN_SQL})::int AS open_count,
+              COUNT(*) FILTER (WHERE status IN ('resolved', 'closed'))::int AS closed_count,
+              COUNT(*) FILTER (WHERE status IN ${EXCEPTION_OPEN_SQL}
+                                 AND priority IN ('urgent', 'high'))::int AS open_urgent_count,
+              MIN(created_at) FILTER (WHERE status IN ${EXCEPTION_OPEN_SQL}) AS oldest_open_at
+         FROM support_tickets
+        WHERE franchise_application_id = $1`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT status, COUNT(*)::int AS count
+         FROM support_tickets
+        WHERE franchise_application_id = $1
+        GROUP BY status
+        ORDER BY count DESC, status ASC`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT category, COUNT(*)::int AS count
+         FROM support_tickets
+        WHERE franchise_application_id = $1
+        GROUP BY category
+        ORDER BY count DESC, category ASC`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT priority, COUNT(*)::int AS count
+         FROM support_tickets
+        WHERE franchise_application_id = $1
+        GROUP BY priority
+        ORDER BY count DESC, priority ASC`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT t.franchise_location_id AS location_id, l.name AS location_name,
+              COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE t.status IN ${EXCEPTION_OPEN_SQL})::int AS open_count,
+              COUNT(*) FILTER (WHERE t.status IN ${EXCEPTION_OPEN_SQL}
+                                 AND t.priority IN ('urgent', 'high'))::int AS open_urgent_count
+         FROM support_tickets t
+         LEFT JOIN franchise_locations l ON l.id = t.franchise_location_id
+        WHERE t.franchise_application_id = $1
+        GROUP BY t.franchise_location_id, l.name
+        ORDER BY open_count DESC, total DESC, location_name ASC NULLS LAST`,
+      [applicationId]
+    ),
+  ]);
+  const recentOpen = await fetchTerritoryTickets(applicationId, { openOnly: true, limit: 5 });
+  const total = totals.rows[0] || {};
+  return {
+    application_id: applicationId,
+    total: total.total || 0,
+    open_count: total.open_count || 0,
+    closed_count: total.closed_count || 0,
+    open_urgent_count: total.open_urgent_count || 0,
+    oldest_open_at: total.oldest_open_at || null,
+    by_status: byStatus.rows,
+    by_category: byCategory.rows,
+    by_priority: byPriority.rows,
+    by_location: byLocation.rows,
+    recent_open: recentOpen,
+  };
+}
+
+async function getExceptionSummary(req, res) {
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        return res.status(403).json({
+          error: 'Only the assigned operator can view territory exceptions.',
+          code: 'franchise_operator_only',
+        });
+      }
+    } finally {
+      client.release();
+    }
+    return res.json(await buildExceptionSummary(id));
+  } catch (err) {
+    logger.error('Error loading franchise exception summary', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load exception summary.' });
+  }
+}
+
+async function getExceptionSummaryAsAdmin(req, res) {
+  const { id } = req.params;
+  try {
+    const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Franchise application not found.' });
+    }
+    return res.json(await buildExceptionSummary(id));
+  } catch (err) {
+    logger.error('Error loading franchise exception summary as admin', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load exception summary.' });
+  }
+}
+
+// 628 (D-327): a ticket is addressed by its UUID or by the ticket
+// number the operator sees (e.g. 1001) — the link form only ever has
+// the number, so both resolve here.
+async function findTicketByIdOrNumber(client, ticketParam, columns) {
+  if (UUID_RE.test(ticketParam)) {
+    const { rows } = await client.query(
+      `SELECT ${columns} FROM support_tickets WHERE id = $1`,
+      [ticketParam]
+    );
+    return rows[0] || null;
+  }
+  if (/^\d+$/.test(ticketParam)) {
+    const { rows } = await client.query(
+      `SELECT ${columns} FROM support_tickets WHERE ticket_number = $1`,
+      [Number(ticketParam)]
+    );
+    return rows[0] || null;
+  }
+  return null;
+}
+
+// 628 (D-327): attach a ticket to a territory. The operator links only
+// their own tickets (a stranger's ticket is the same 404 as a missing
+// one, so ticket ownership never leaks); HQ links any ticket. The
+// location, when given, must belong to the territory. The link is
+// recorded in the territory activity log, so the exception has a
+// provenance trail (610).
+async function linkTerritoryTicket(client, applicationId, ticketId, locationId, actorId, { ownerOnly }) {
+  const ticket = await findTicketByIdOrNumber(client, ticketId, 'id, ticket_number, user_id');
+  if (!ticket || (ownerOnly && String(ticket.user_id) !== String(actorId))) {
+    return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
+  }
+  if (locationId) {
+    const locationResult = await client.query(
+      `SELECT id FROM franchise_locations WHERE id = $1 AND application_id = $2`,
+      [locationId, applicationId]
+    );
+    if (!locationResult.rows.length) {
+      return { error: { status: 404, body: { error: 'Location not found in this territory.', code: 'location_not_found' } } };
+    }
+  }
+  const { rows } = await client.query(
+    `UPDATE support_tickets
+        SET franchise_application_id = $1, franchise_location_id = $2
+      WHERE id = $3
+      RETURNING id, ticket_number`,
+    [applicationId, locationId, ticket.id]
+  );
+  await logActivity(client, applicationId, actorId, 'ticket_linked',
+    `Ticket #${rows[0].ticket_number} linked to the territory.`,
+    { ticket_id: ticketId, location_id: locationId });
+  return { ticket: rows[0] };
+}
+
+async function linkTicketToTerritory(req, res) {
+  const { id, ticketId } = req.params;
+  if (!UUID_RE.test(ticketId) && !/^\d+$/.test(ticketId)) {
+    return res.status(404).json({ error: 'Support ticket not found.', code: 'ticket_not_found' });
+  }
+  const locationId = asTrimmed(req.body?.location_id) || null;
+  if (locationId && !UUID_RE.test(locationId)) {
+    return res.status(404).json({ error: 'Location not found in this territory.', code: 'location_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can link tickets to the territory.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const linked = await linkTerritoryTicket(client, id, ticketId, locationId, req.user?.id, { ownerOnly: true });
+      if (linked.error) {
+        await client.query('ROLLBACK');
+        return res.status(linked.error.status).json(linked.error.body);
+      }
+      await client.query('COMMIT');
+      const summary = await buildExceptionSummary(id);
+      return res.json({ ticket: linked.ticket, exception_summary: summary });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error linking ticket to franchise territory', { id, ticketId, err: err.message });
+    return res.status(500).json({ error: 'Failed to link ticket to the territory.' });
+  }
+}
+
+async function linkTicketToTerritoryAsAdmin(req, res) {
+  const { id, ticketId } = req.params;
+  if (!UUID_RE.test(ticketId) && !/^\d+$/.test(ticketId)) {
+    return res.status(404).json({ error: 'Support ticket not found.', code: 'ticket_not_found' });
+  }
+  const locationId = asTrimmed(req.body?.location_id) || null;
+  if (locationId && !UUID_RE.test(locationId)) {
+    return res.status(404).json({ error: 'Location not found in this territory.', code: 'location_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const linked = await linkTerritoryTicket(client, id, ticketId, locationId, req.user?.id, { ownerOnly: false });
+      if (linked.error) {
+        await client.query('ROLLBACK');
+        return res.status(linked.error.status).json(linked.error.body);
+      }
+      await client.query('COMMIT');
+      const summary = await buildExceptionSummary(id);
+      return res.json({ ticket: linked.ticket, exception_summary: summary });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error linking ticket to franchise territory as admin', { id, ticketId, err: err.message });
+    return res.status(500).json({ error: 'Failed to link ticket to the territory.' });
+  }
+}
+
+// 628 (D-327): detach a ticket from a territory — the exception leaves
+// the summary, the ticket itself is untouched.
+async function unlinkTerritoryTicket(client, applicationId, ticketId, actorId, { ownerOnly }) {
+  const ticket = await findTicketByIdOrNumber(
+    client, ticketId, 'id, ticket_number, user_id, franchise_application_id');
+  if (!ticket
+    || String(ticket.franchise_application_id) !== String(applicationId)
+    || (ownerOnly && String(ticket.user_id) !== String(actorId))) {
+    return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
+  }
+  const { rows } = await client.query(
+    `UPDATE support_tickets
+        SET franchise_application_id = NULL, franchise_location_id = NULL
+      WHERE id = $1
+      RETURNING id, ticket_number`,
+    [ticket.id]
+  );
+  await logActivity(client, applicationId, actorId, 'ticket_unlinked',
+    `Ticket #${rows[0].ticket_number} unlinked from the territory.`,
+    { ticket_id: ticketId });
+  return { ticket: rows[0] };
+}
+
+async function unlinkTicketFromTerritory(req, res) {
+  const { id, ticketId } = req.params;
+  if (!UUID_RE.test(ticketId) && !/^\d+$/.test(ticketId)) {
+    return res.status(404).json({ error: 'Support ticket not found.', code: 'ticket_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can unlink tickets from the territory.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const unlinked = await unlinkTerritoryTicket(client, id, ticketId, req.user?.id, { ownerOnly: true });
+      if (unlinked.error) {
+        await client.query('ROLLBACK');
+        return res.status(unlinked.error.status).json(unlinked.error.body);
+      }
+      await client.query('COMMIT');
+      const summary = await buildExceptionSummary(id);
+      return res.json({ ticket: unlinked.ticket, exception_summary: summary });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error unlinking ticket from franchise territory', { id, ticketId, err: err.message });
+    return res.status(500).json({ error: 'Failed to unlink ticket from the territory.' });
+  }
+}
+
+async function unlinkTicketFromTerritoryAsAdmin(req, res) {
+  const { id, ticketId } = req.params;
+  if (!UUID_RE.test(ticketId) && !/^\d+$/.test(ticketId)) {
+    return res.status(404).json({ error: 'Support ticket not found.', code: 'ticket_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const unlinked = await unlinkTerritoryTicket(client, id, ticketId, req.user?.id, { ownerOnly: false });
+      if (unlinked.error) {
+        await client.query('ROLLBACK');
+        return res.status(unlinked.error.status).json(unlinked.error.body);
+      }
+      await client.query('COMMIT');
+      const summary = await buildExceptionSummary(id);
+      return res.json({ ticket: unlinked.ticket, exception_summary: summary });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error unlinking ticket from franchise territory as admin', { id, ticketId, err: err.message });
+    return res.status(500).json({ error: 'Failed to unlink ticket from the territory.' });
+  }
+}
+
 async function getTerritoryCoverage(req, res) {
   const { id } = req.params;
   try {
@@ -6248,6 +6632,12 @@ module.exports = {
   removeTrainingAssignmentAsAdmin,
   getTerritoryCoverage,
   getTerritoryCoverageAsAdmin,
+  getExceptionSummary,
+  getExceptionSummaryAsAdmin,
+  linkTicketToTerritory,
+  linkTicketToTerritoryAsAdmin,
+  unlinkTicketFromTerritory,
+  unlinkTicketFromTerritoryAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,

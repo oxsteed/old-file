@@ -72,6 +72,12 @@ const {
   removeTrainingAssignmentAsAdmin,
   getTerritoryCoverage,
   getTerritoryCoverageAsAdmin,
+  getExceptionSummary,
+  getExceptionSummaryAsAdmin,
+  linkTicketToTerritory,
+  linkTicketToTerritoryAsAdmin,
+  unlinkTicketFromTerritory,
+  unlinkTicketFromTerritoryAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
@@ -143,6 +149,12 @@ router.delete('/my-applications/:id/training/:assignmentId', authenticate, requi
 // Group 12 Slice 3d (619): territory coverage planning — read-only
 // rollup over the linked business's staff shifts.
 router.get('/my-applications/:id/coverage', authenticate, requireFranchiseEnabled, getTerritoryCoverage);
+// Group 12 Slice 3f (628): the service exception summary — the
+// territory's support tickets aggregated (D-327) — and the link/unlink
+// endpoints that attach a ticket to the territory.
+router.get('/my-applications/:id/exceptions', authenticate, requireFranchiseEnabled, getExceptionSummary);
+router.post('/my-applications/:id/support-tickets/:ticketId/link', authenticate, requireFranchiseEnabled, linkTicketToTerritory);
+router.post('/my-applications/:id/support-tickets/:ticketId/unlink', authenticate, requireFranchiseEnabled, unlinkTicketFromTerritory);
 // Group 12 Slice 3d (620): the operator reads the HQ announcement feed
 // and marks items read (idempotent).
 router.post('/my-applications/:id/announcements/:announcementId/read', authenticate, requireFranchiseEnabled, markAnnouncementRead);
@@ -195,6 +207,11 @@ router.post('/applications/:id/training/:assignmentId/complete', authenticate, r
 router.delete('/applications/:id/training/:assignmentId', authenticate, requireAdmin, requirePermission('manage_operations'), removeTrainingAssignmentAsAdmin);
 // Group 12 Slice 3d (619): HQ reads the territory coverage rollup.
 router.get('/applications/:id/coverage', authenticate, requireAdmin, requirePermission('manage_operations'), getTerritoryCoverageAsAdmin);
+// Group 12 Slice 3f (628): HQ reads the exception summary and links or
+// unlinks any ticket to the territory.
+router.get('/applications/:id/exceptions', authenticate, requireAdmin, requirePermission('manage_operations'), getExceptionSummaryAsAdmin);
+router.post('/applications/:id/support-tickets/:ticketId/link', authenticate, requireAdmin, requirePermission('manage_operations'), linkTicketToTerritoryAsAdmin);
+router.post('/applications/:id/support-tickets/:ticketId/unlink', authenticate, requireAdmin, requirePermission('manage_operations'), unlinkTicketFromTerritoryAsAdmin);
 // Group 12 Slice 3d (620): HQ posts and removes territory announcements.
 router.post('/applications/:id/announcements', authenticate, requireAdmin, requirePermission('manage_operations'), postAnnouncementAsAdmin);
 router.delete('/applications/:id/announcements/:announcementId', authenticate, requireAdmin, requirePermission('manage_operations'), deleteAnnouncementAsAdmin);

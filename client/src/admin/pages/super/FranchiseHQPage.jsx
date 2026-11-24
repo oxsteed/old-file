@@ -23,6 +23,7 @@ import FranchiseAnnouncements from '../../../pages/FranchiseAnnouncements';
 import FranchiseStandards from '../../../pages/FranchiseStandards';
 import FranchiseBrandAssets from '../../../pages/FranchiseBrandAssets';
 import FranchiseComplianceChecklist from '../../../pages/FranchiseComplianceChecklist';
+import FranchiseExceptionSummary from '../../../pages/FranchiseExceptionSummary';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -1864,6 +1865,14 @@ export default function FranchiseHQPage() {
                   {/* Group 12 Slice 3d (619): territory coverage planning
                       — read-only rollup in HQ. */}
                   <FranchiseCoveragePlan coverage={coverage} />
+
+                  {/* Group 12 Slice 3f (628, D-327): the service exception
+                      summary — the territory's support tickets aggregated,
+                      read-only in HQ. */}
+                  <FranchiseExceptionSummary
+                    summary={selectedBundle.exception_summary || null}
+                    locations={selectedBundle.locations || []}
+                  />
 
                   {/* Group 12 Slice 3d (620): the HQ announcement feed —
                       HQ posts and removes, operators read. */}

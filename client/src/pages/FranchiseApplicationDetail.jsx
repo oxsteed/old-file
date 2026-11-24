@@ -21,6 +21,7 @@ import FranchiseAnnouncements from './FranchiseAnnouncements';
 import FranchiseStandards from './FranchiseStandards';
 import FranchiseBrandAssets from './FranchiseBrandAssets';
 import FranchiseComplianceChecklist from './FranchiseComplianceChecklist';
+import FranchiseExceptionSummary from './FranchiseExceptionSummary';
 import { useAuth } from '../hooks/useAuth';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
@@ -392,6 +393,37 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     }
   }
 
+  // Group 12 Slice 3f (628, D-327): link or unlink a support ticket
+  // to the territory. The link response carries the fresh exception
+  // summary, which replaces the one on the detail payload.
+  async function linkTicket(ticketNumber, locationId) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/support-tickets/${ticketNumber}/link`, { location_id: locationId });
+      setDetail((prev) => (prev ? { ...prev, exception_summary: response.data.exception_summary } : prev));
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('exceptionLinkFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function unlinkTicket(ticketId) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/support-tickets/${ticketId}/unlink`);
+      setDetail((prev) => (prev ? { ...prev, exception_summary: response.data.exception_summary } : prev));
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('exceptionUnlinkFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Group 12 Slice 3e (622): acknowledge a standard's current version
   // with a drawn e-signature (multipart FormData).
   async function acknowledgeStandard(standardId, formData) {
@@ -752,6 +784,18 @@ export default function FranchiseApplicationDetail({ applicationId }) {
 
       {/* Group 12 Slice 3e (624): the operator compliance checklist. */}
       <FranchiseComplianceChecklist checklist={detail.compliance_checklist || null} />
+
+      {/* Group 12 Slice 3f (628, D-327): the service exception summary —
+          the territory's support tickets aggregated; the operator links
+          their own tickets by ticket number. */}
+      <FranchiseExceptionSummary
+        summary={detail.exception_summary || null}
+        locations={detail.locations || []}
+        canLink={detail.application?.is_operator === true}
+        onLink={linkTicket}
+        onUnlink={unlinkTicket}
+        busy={busy}
+      />
 
       {/* Group 12 Slice 3b (610, D-310): the operator-facing assignment history. */}
       <section className="fr-detail-card">

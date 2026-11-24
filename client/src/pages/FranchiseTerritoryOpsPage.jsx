@@ -25,6 +25,7 @@ import FranchiseAnnouncements from './FranchiseAnnouncements';
 import FranchiseStandards from './FranchiseStandards';
 import FranchiseBrandAssets from './FranchiseBrandAssets';
 import FranchiseComplianceChecklist from './FranchiseComplianceChecklist';
+import FranchiseExceptionSummary from './FranchiseExceptionSummary';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -354,6 +355,31 @@ export default function FranchiseTerritoryOpsPage() {
       setBoundaryDetail(res.data);
     } catch (err) {
       setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3f (628, D-327): link or unlink a support ticket
+  // to the territory; the fresh exception summary replaces the one on
+  // the boundary detail.
+  const linkTicket = useCallback(async (ticketNumber, locationId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/support-tickets/${ticketNumber}/link`, { location_id: locationId });
+      setBoundaryDetail((prev) => (prev ? { ...prev, exception_summary: res.data.exception_summary } : prev));
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  const unlinkTicket = useCallback(async (ticketId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/support-tickets/${ticketId}/unlink`);
+      setBoundaryDetail((prev) => (prev ? { ...prev, exception_summary: res.data.exception_summary } : prev));
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
     }
   }, [resolvedApplicationId, t]);
 
@@ -740,6 +766,19 @@ export default function FranchiseTerritoryOpsPage() {
               acknowledgment state, and readiness. */}
           {boundaryDetail && (
             <FranchiseComplianceChecklist checklist={boundaryDetail.compliance_checklist || null} />
+          )}
+
+          {/* Group 12 Slice 3f (628, D-327): the service exception summary —
+              the territory's support tickets aggregated; the operator links
+              their own tickets by ticket number. */}
+          {boundaryDetail && (
+            <FranchiseExceptionSummary
+              summary={boundaryDetail.exception_summary || null}
+              locations={boundaryDetail.locations || []}
+              canLink
+              onLink={linkTicket}
+              onUnlink={unlinkTicket}
+            />
           )}
 
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
