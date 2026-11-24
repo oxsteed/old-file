@@ -53,6 +53,7 @@ const { verifyStepupChallenge } = require('./stepupChallengeService');
 const {
   activateParticipantInTransaction,
   activatePartnerWithGuards,
+  notifyParticipantStatusChange,
 } = require('./oxsteedCreditParticipantService');
 // Review P2-1-F07: dispute provisional credit and compensated resolutions
 // bypassed maker-checker. They now execute as pending-action types below.
@@ -663,7 +664,20 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
  */
 async function decidePendingAction(params) {
   await assertCreditRailEnabled(pool);
-  return decidePendingActionCore(params, { oversightOnly: false });
+  const result = await decidePendingActionCore(params, { oversightOnly: false });
+  // Group 13 (694): the maker-checker activation path runs the executor
+  // inside the decision transaction, so the notice fires here, after the
+  // commit — never inside the executor. A replayed approval (already
+  // decided) sends nothing. Same helper and idempotency key as the
+  // direct activateParticipant wrapper, so the two paths cannot double
+  // notify one activation.
+  if (result?.pendingAction?.actionType === 'credit_participant_activation'
+    && result.pendingAction.status === 'approved'
+    && !result.replayed
+    && result.result?.participant) {
+    await notifyParticipantStatusChange(result.result.participant, { previousStatus: 'pending' });
+  }
+  return result;
 }
 
 /**

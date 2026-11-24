@@ -225,4 +225,152 @@ describeDb('Group 13 Slice 4i: understand limits (691-695)', () => {
     expect(calls.nextCalled).toBe(true);
     expect(calls.status).toBeNull();
   });
+
+  // 694: apply notifies the applicant that the application is pending.
+  // The live apply call cannot run on a migrated database — the HELD
+  // 488 defect (creditParticipantMe.db.test.js): apply inserts the
+  // partner row with created_by = the applicant and the 488 trigger
+  // requires an active administrator creator. Widening that guard is a
+  // money-control call awaiting Emile, so this test proves the exact
+  // notice the apply wrapper sends (same helper, same arguments) against
+  // an admin-seeded pending participant instead of driving the broken
+  // insert. The enroll and activation tests below prove the live hooks.
+  test('694: apply notice — a pending participant notifies its owner of the pending status', async () => {
+    const { notifyParticipantStatusChange } = require('../services/oxsteedCreditParticipantService');
+    const owner = await makeUser();
+    const { rows: [business] } = await pool.query(
+      `INSERT INTO businesses (user_id, business_name, is_primary, is_active)
+       VALUES ($1, 'Fixture Business', TRUE, TRUE) RETURNING id`,
+      [owner.id],
+    );
+    const participant = await seedParticipant({
+      participantType: 'business', businessId: business.id, status: 'pending', diditVerified: false,
+    });
+    const { formatParticipant } = require('../services/oxsteedCreditParticipantService');
+    await notifyParticipantStatusChange(formatParticipant(participant), { previousStatus: null });
+    const notes = await notificationsFor(owner.id, 'credit_participant_status_changed');
+    expect(notes).toHaveLength(1);
+    expect(notes[0].title).toBeTruthy();
+    expect(notes[0].body).toContain('pending');
+    expect(notes[0].data.status).toBe('pending');
+    expect(notes[0].data.participant_id).toBe(String(participant.id));
+    expect(notes[0].action_url).toBe('/credit/apply');
+  });
+
+  test('694: a repeated notice for the same transition replays instead of duplicating', async () => {
+    const { notifyParticipantStatusChange, formatParticipant } = require('../services/oxsteedCreditParticipantService');
+    const owner = await makeUser();
+    const { rows: [business] } = await pool.query(
+      `INSERT INTO businesses (user_id, business_name, is_primary, is_active)
+       VALUES ($1, 'Fixture Business', TRUE, TRUE) RETURNING id`,
+      [owner.id],
+    );
+    const participant = await seedParticipant({
+      participantType: 'business', businessId: business.id, status: 'pending', diditVerified: false,
+    });
+    const formatted = formatParticipant(participant);
+    await notifyParticipantStatusChange(formatted, { previousStatus: null });
+    await notifyParticipantStatusChange(formatted, { previousStatus: null });
+    expect(await notificationsFor(owner.id, 'credit_participant_status_changed')).toHaveLength(1);
+  });
+
+  // 694: admin enrollment notifies the enrolled subject.
+  test('694: enroll notifies the enrolled subject of the pending status', async () => {
+    const { enrollParticipant } = require('../services/oxsteedCreditParticipantService');
+    const subject = await makeUser();
+    const result = await enrollParticipant({
+      actorUserId: admin.id, participantType: 'helper', subjectUserId: subject.id,
+    });
+    expect(result.participant.status).toBe('pending');
+    const notes = await notificationsFor(subject.id, 'credit_participant_status_changed');
+    expect(notes).toHaveLength(1);
+    expect(notes[0].title).toBeTruthy();
+    expect(notes[0].body).toContain('pending');
+    expect(notes[0].data.status).toBe('pending');
+  });
+
+  // 694: maker-checker activation notifies the subject after the
+  // checker's approval commits — the real decide path, not the wrapper.
+  test('694: maker-checker activation notifies the subject of the active status', async () => {
+    const { requestPendingAction, decidePendingAction } = require('../services/oxsteedCreditPendingActionService');
+    const maker = await makeUser('super_admin');
+    const checker = await makeUser('super_admin');
+    const owner = await makeUser();
+    const { rows: [business] } = await pool.query(
+      `INSERT INTO businesses (user_id, business_name, is_primary, is_active)
+       VALUES ($1, 'Fixture Business', TRUE, TRUE) RETURNING id`,
+      [owner.id],
+    );
+    const participant = await seedParticipant({
+      participantType: 'business', businessId: business.id, status: 'pending', diditVerified: true,
+    });
+    const requested = await requestPendingAction({
+      actionType: 'credit_participant_activation',
+      payload: { participantId: String(participant.id), reason: 'approve' },
+      requestedBy: maker.id,
+      idempotencyKey: `g13i-activate-${participant.id}`,
+    });
+    expect(requested.executed).toBe(false);
+    const decided = await decidePendingAction({
+      actionId: requested.pendingAction.id,
+      decidedBy: checker.id,
+      decision: 'approve',
+      reason: 'verified',
+      stepupChallengeId: 'c1',
+      stepupCode: '123456',
+    });
+    expect(decided.pendingAction.status).toBe('approved');
+    expect(decided.result.participant.status).toBe('active');
+    const notes = await notificationsFor(owner.id, 'credit_participant_status_changed');
+    expect(notes).toHaveLength(1);
+    expect(notes[0].title).toBeTruthy();
+    expect(notes[0].body).toContain('active');
+    expect(notes[0].data.status).toBe('active');
+    expect(notes[0].data.previous_status).toBe('pending');
+  });
+
+  // 694: a wallet account status flip is the customer-side eligibility
+  // change, and it notifies the wallet holder.
+  test('694: suspending a wallet account notifies the holder; a same-status repeat does not', async () => {
+    const creditService = require('../services/oxsteedCreditService');
+    const customer = await makeUser();
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await creditService.ensureAccount(client, { accountType: 'customer_wallet', customerId: customer.id, currencyCode: 'USD' });
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    const suspended = await creditService.updateCustomerCreditAccountStatus({
+      customerId: customer.id, status: 'suspended', actorUserId: admin.id, reason: 'test suspension',
+    });
+    expect(suspended.replayed).toBe(false);
+    expect(suspended.account.status).toBe('suspended');
+    let notes = await notificationsFor(customer.id, 'credit_participant_status_changed');
+    expect(notes).toHaveLength(1);
+    expect(notes[0].title).toBeTruthy();
+    expect(notes[0].body).toContain('suspended');
+    expect(notes[0].data.account_status).toBe('suspended');
+    expect(notes[0].data.kind).toBe('wallet_account');
+    expect(notes[0].action_url).toBe('/oxsteed-credit');
+
+    const replay = await creditService.updateCustomerCreditAccountStatus({
+      customerId: customer.id, status: 'suspended', actorUserId: admin.id, reason: 'test suspension',
+    });
+    expect(replay.replayed).toBe(true);
+    notes = await notificationsFor(customer.id, 'credit_participant_status_changed');
+    expect(notes).toHaveLength(1);
+
+    const reactivated = await creditService.updateCustomerCreditAccountStatus({
+      customerId: customer.id, status: 'active', actorUserId: admin.id, reason: 'test reactivation',
+    });
+    expect(reactivated.replayed).toBe(false);
+    notes = await notificationsFor(customer.id, 'credit_participant_status_changed');
+    expect(notes).toHaveLength(2);
+    expect(notes[1].data.account_status).toBe('active');
+  });
 });

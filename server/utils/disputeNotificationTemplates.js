@@ -40,6 +40,15 @@ exports.disputeNotifications = {
     title: t('Your OxSteed Credit card was revoked', 'Tu tarjeta OxSteed Credit fue revocada', 'Votre carte OxSteed Credit a été révoquée', 'Kat OxSteed Credit ou a anile', 'تم إلغاء بطاقة OxSteed Credit الخاصة بك'),
     body: t('OxSteed revoked your Credit card. It can no longer be used. You can request a replacement from your cards page.', 'OxSteed revocó tu tarjeta de Crédito. Ya no se puede usar. Puedes solicitar un reemplazo desde tu página de tarjetas.', 'OxSteed a révoqué votre carte Crédit. Elle ne peut plus être utilisée. Vous pouvez demander un remplacement depuis votre page de cartes.', 'OxSteed anile kat Kredi ou. Ou pa ka itilize l ankò. Ou ka mande yon ranplasman sou paj kat ou.', 'ألغت OxSteed بطاقة الرصيد الخاصة بك. لم يعد بالإمكان استخدامها. يمكنك طلب بطاقة بديلة من صفحة بطاقاتك.'),
   },
+  // Group 13 (694, D-401/D-402): one type for every participant
+  // eligibility/status change. The caller appends the new state and what
+  // it means in English after this localized body, the same shape as the
+  // card-frozen reason append (D-362); the machine-readable status rides
+  // in data.
+  credit_participant_status_changed: {
+    title: t('Your OxSteed Credit status changed', 'Tu estado de Crédito OxSteed cambió', 'Votre statut Crédit OxSteed a changé', 'Estati Kredi OxSteed ou a chanje', 'تغيّرت حالة رصيد OxSteed الخاص بك'),
+    body: t('Your OxSteed Credit eligibility or participation status changed. Open your application to see the new status and what it means.', 'Tu elegibilidad o estado de participación de Crédito OxSteed cambió. Abre tu solicitud para ver el nuevo estado y lo que significa.', 'Votre éligibilité ou votre statut de participation au Crédit OxSteed a changé. Ouvrez votre demande pour voir le nouveau statut et ce qu’il signifie.', 'Elijibilite oswa estati patisipasyon Kredi OxSteed ou a chanje. Louvri aplikasyon ou pou wè nouvo estati a ak sa li vle di.', 'تغيّرت أهليتك أو حالة مشاركتك في رصيد OxSteed. افتح طلبك لمعرفة الحالة الجديدة وما تعنيه.'),
+  },
   payment_dispute_updated: {
     title: t('Your refund request was updated', 'Tu solicitud de reembolso se actualizó', 'Votre demande de remboursement a été mise à jour', 'Demann ranbousman ou a mete ajou', 'تم تحديث طلب الاسترداد الخاص بك'),
     body: t('Our team made a decision on your refund request. Open your support tickets for details.', 'Nuestro equipo tomó una decisión sobre tu solicitud de reembolso. Abre tus tickets de soporte para ver los detalles.', 'Notre équipe a pris une décision sur votre demande de remboursement. Ouvrez vos tickets d’assistance pour les détails.', 'Ekip nou an pran yon desizyon sou demann ranbousman ou. Louvri tikè sipò ou yo pou detay.', 'اتخذ فريقنا قرارًا بشأن طلب الاسترداد. افتح تذاكر الدعم للتفاصيل.'),

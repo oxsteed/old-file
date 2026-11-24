@@ -2818,7 +2818,7 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
   const currency = assertSupportedCreditCurrency(currencyCode);
   if (!['active', 'suspended', 'closed'].includes(normalizedStatus)) throw new AppError('Invalid credit account status', 400, 'credit_account_status_invalid');
   if (!normalizeString(reason, 2)) throw new AppError('A reason is required when changing a credit account status', 400, 'credit_account_status_reason_required');
-  return withTransaction(pool, async (client) => {
+  const result = await withTransaction(pool, async (client) => {
     const account = await findCustomerAccount(client, customerId, currency, true);
     if (!account) throw new AppError('Customer credit account was not found', 404, 'credit_account_not_found');
     if (account.status === normalizedStatus) return { account: formatAccount(account), replayed: true };
@@ -2838,6 +2838,49 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
     );
     return { account: formatAccount(rows[0]), replayed: false };
   }, 'credit_update_customer_status');
+  // Group 13 (694): the wallet holder hears when their account status
+  // flips — that flip is the customer-side eligibility change (a
+  // suspended or closed wallet is ineligible to spend). Best-effort
+  // after commit, like the participant notice; a replay (same status)
+  // sends nothing.
+  if (result && !result.replayed) {
+    await notifyCreditAccountStatusChange(customerId, result.account);
+  }
+  return result;
+}
+
+/**
+ * Group 13 (694, D-401/D-402): wallet account status notice. Same type
+ * as the participant notice (`credit_participant_status_changed`) — the
+ * wallet holder is the same persona's customer surface, and the data
+ * distinguishes the kind. The idempotency key binds the account, the new
+ * status, and the row's updated_at, so a retry of the same flip replays
+ * while a later flip (suspended -> active -> suspended) notifies again.
+ */
+const CREDIT_ACCOUNT_STATUS_NOTICE_COPY = {
+  active: 'Your Credit wallet is active again. You can spend and receive Credit as before.',
+  suspended: 'Your Credit wallet is suspended. You cannot spend or receive Credit until it is reactivated. Contact support if you think this is a mistake.',
+  closed: 'Your Credit wallet is closed. Contact support if you need help.',
+};
+
+async function notifyCreditAccountStatusChange(customerId, account) {
+  try {
+    const status = account?.status;
+    const copy = CREDIT_ACCOUNT_STATUS_NOTICE_COPY[status];
+    if (!copy) return;
+    const { sendNotification } = require('./notificationService');
+    const updatedAt = account.updatedAt ? new Date(account.updatedAt).getTime() : 0;
+    await sendNotification({
+      userId: customerId,
+      type: 'credit_participant_status_changed',
+      body: copy,
+      data: { account_id: String(account.accountId), account_status: status, kind: 'wallet_account' },
+      action_url: '/oxsteed-credit',
+      idempotencyKey: `credit-account:${account.accountId}:${status}:${updatedAt}`,
+    });
+  } catch (err) {
+    logger.warn('Credit account status notification failed', { customerId, error: err.message });
+  }
 }
 
 async function createCreditHoldInTransaction(client, { customerId, partnerId, participantId = null, surface = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, requestIp, expiresAt, metadata = {} }) {

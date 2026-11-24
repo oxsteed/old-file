@@ -291,6 +291,8 @@ const NOTIFICATION_TYPES = [
   { type: 'credit_cashout_paid', group: 'credit' },
   { type: 'credit_card_frozen', group: 'credit' },
   { type: 'credit_card_revoked', group: 'credit' },
+  // Group 13 (694, D-401/D-402): participant eligibility/status change.
+  { type: 'credit_participant_status_changed', group: 'credit' },
   { type: 'credit_dispute_provisional_credit', group: 'credit' },
   { type: 'credit_dispute_resolved', group: 'credit' },
   { type: 'credit_dispute_updated', group: 'credit' },

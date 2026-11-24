@@ -41,6 +41,7 @@
  */
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { insertAudit, transitionPartner } = require('./oxsteedCreditAdminService');
@@ -138,6 +139,78 @@ function buildActivationChecklist(participant, { approvalRequested = false } = {
 }
 
 /**
+ * Group 13 (694, D-401/D-402): eligibility/status change notice.
+ * One notification type (`credit_participant_status_changed`, group
+ * `credit`) for every participant status change that exists today —
+ * apply/enroll (none -> pending) and activation (pending -> active).
+ * There is no suspend/revoke transition in this service to hook (that
+ * missing transition is survey defect 1 / item 700 territory), and
+ * partner transitions (`transitionPartner`) never touch
+ * `credit_participants`, so neither sends a participant notice here.
+ * Identity-verdict flips already notify via
+ * `credit_identity_verification_approved`/`_rejected` (D-403).
+ *
+ * Best-effort after commit, following the dispute-notice pattern: a
+ * failed send is logged and never blocks or rolls back the transition.
+ * The idempotency key binds the participant, the new status, and the
+ * row's updated_at, so a retry of the same transition replays silently
+ * while a genuinely new transition (a new row, or a new updated_at)
+ * notifies again. The localized template body is generic; the caller
+ * appends the new state and what it means in English after it, the
+ * same shape as the card-frozen reason append (D-362).
+ */
+const PARTICIPANT_STATUS_NOTICE_COPY = {
+  pending: 'Your application is now pending review. We will notify you when a decision is made.',
+  active: 'Your participation is now active. You can accept OxSteed Credit on your approved surfaces.',
+};
+
+async function resolveParticipantUserIds(client, participant) {
+  const ids = [];
+  if (participant.userId) ids.push(String(participant.userId));
+  if (participant.businessId) {
+    const { rows } = await client.query(
+      `SELECT user_id FROM businesses WHERE id = $1`,
+      [Number(participant.businessId)],
+    );
+    if (rows[0]?.user_id) ids.push(String(rows[0].user_id));
+  }
+  if (participant.restaurantId) {
+    const { rows } = await client.query(
+      `SELECT owner_user_id FROM food_restaurants WHERE id = $1`,
+      [Number(participant.restaurantId)],
+    );
+    if (rows[0]?.owner_user_id) ids.push(String(rows[0].owner_user_id));
+  }
+  return [...new Set(ids)];
+}
+
+async function notifyParticipantStatusChange(participant, { previousStatus = null } = {}) {
+  try {
+    const status = participant?.status;
+    const copy = PARTICIPANT_STATUS_NOTICE_COPY[status];
+    if (!copy) return;
+    const userIds = await resolveParticipantUserIds(pool, participant);
+    if (!userIds.length) return;
+    const { sendNotification } = require('./notificationService');
+    const updatedAt = participant.updatedAt ? new Date(participant.updatedAt).getTime() : 0;
+    for (const userId of userIds) {
+      await sendNotification({
+        userId,
+        type: 'credit_participant_status_changed',
+        body: copy,
+        data: { participant_id: String(participant.participantId), status, previous_status: previousStatus || null },
+        action_url: '/credit/apply',
+        idempotencyKey: `credit-participant:${participant.participantId}:${status}:${updatedAt}`,
+      });
+    }
+  } catch (err) {
+    logger.warn('Credit participant status notification failed', {
+      participantId: participant?.participantId, error: err.message,
+    });
+  }
+}
+
+/**
  * Defensive guard: the sibling agent owns the credit_participants
  * migration. Fail with a clear code (not a raw 42P01) when it has not
  * landed yet.
@@ -222,7 +295,7 @@ async function applyForCreditParticipation({ userId, participantType, businessId
   if (!ENROLLABLE_TYPES.has(normalizedType)) {
     throw new AppError('participantType must be an enrollable type (business, helper, or merchant)', 400, 'credit_apply_type_invalid');
   }
-  return withTransaction(pool, async (client) => {
+  const result = await withTransaction(pool, async (client) => {
     await assertCreditParticipantsReady(client);
 
     // Sibling schema: exactly one subject column per type.
@@ -313,6 +386,12 @@ async function applyForCreditParticipation({ userId, participantType, businessId
     });
     return { participant: formatParticipant(participantRows[0]), partnerId: String(partnerId), replayed: false };
   }, 'credit_participant_apply');
+  // Group 13 (694): the applicant hears about the new pending status.
+  // A replayed duplicate application sends nothing.
+  if (result && !result.replayed) {
+    await notifyParticipantStatusChange(result.participant, { previousStatus: null });
+  }
+  return result;
 }
 
 /**
@@ -325,7 +404,7 @@ async function enrollParticipant({ actorUserId, participantType, businessId, sub
   if (!ENROLLABLE_TYPES.has(normalizedType)) {
     throw new AppError('participantType is invalid', 400, 'credit_participant_type_invalid');
   }
-  return withTransaction(pool, async (client) => {
+  const result = await withTransaction(pool, async (client) => {
     await assertCreditParticipantsReady(client);
     const surfaces = normalizeSurfaces(allowedSurfaces);
     // Sibling schema: exactly one subject column per type.
@@ -382,6 +461,11 @@ async function enrollParticipant({ actorUserId, participantType, businessId, sub
     });
     return { participant: formatParticipant(participantRows[0]), partnerId: String(partnerId) };
   }, 'credit_participant_enroll');
+  // Group 13 (694): the enrolled subject hears about the new pending status.
+  if (result?.participant) {
+    await notifyParticipantStatusChange(result.participant, { previousStatus: null });
+  }
+  return result;
 }
 
 /**
@@ -550,9 +634,17 @@ async function activateParticipantInTransaction(client, { participantId, actorUs
 }
 
 async function activateParticipant({ participantId, actorUserId, reason, requestIp, correlationId }) {
-  return withTransaction(pool, async (client) =>
+  const result = await withTransaction(pool, async (client) =>
     activateParticipantInTransaction(client, { participantId, actorUserId, reason, requestIp, correlationId }),
   'credit_participant_activate');
+  // Group 13 (694): the activated subject hears about the new active
+  // status. A replay (already active) sends nothing. The maker-checker
+  // path does not call this wrapper — it is notified from
+  // decidePendingAction instead (same helper, same idempotency key).
+  if (result && !result.replayed) {
+    await notifyParticipantStatusChange(result.participant, { previousStatus: 'pending' });
+  }
+  return result;
 }
 
 /**
@@ -596,4 +688,5 @@ module.exports = {
   activateParticipant,
   activateParticipantInTransaction,
   activatePartnerWithGuards,
+  notifyParticipantStatusChange,
 };
