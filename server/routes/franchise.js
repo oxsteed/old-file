@@ -78,6 +78,9 @@ const {
   getLocationHealthAsAdmin,
   listTerritoryTickets,
   listTerritoryTicketsAsAdmin,
+  createPolicyQuestion,
+  listPolicyQuestions,
+  listPolicyQuestionsAsAdmin,
   getCoverageTrend,
   getCoverageTrendAsAdmin,
   linkTicketToTerritory,
@@ -228,6 +231,12 @@ router.get('/my-applications/:id/support-tickets', authenticate, requireFranchis
 // Group 12 Slice 3f (630): the territory coverage trend — coverage %
 // by day and by week over time, from the linked business's shifts (D-330).
 router.get('/my-applications/:id/coverage-trend', authenticate, requireFranchiseEnabled, getCoverageTrend);
+// Group 12 Slice 3j (646): franchise-scoped policy questions — the
+// operator asks a policy question tied to the territory (and optionally
+// a standard); HQ answers in-thread on the ticket. A policy question IS
+// a ticket with category 'policy_question', never a parallel inbox.
+router.post('/my-applications/:id/policy-questions', authenticate, requireFranchiseEnabled, createPolicyQuestion);
+router.get('/my-applications/:id/policy-questions', authenticate, requireFranchiseEnabled, listPolicyQuestions);
 router.post('/my-applications/:id/support-tickets/:ticketId/link', authenticate, requireFranchiseEnabled, linkTicketToTerritory);
 router.post('/my-applications/:id/support-tickets/:ticketId/unlink', authenticate, requireFranchiseEnabled, unlinkTicketFromTerritory);
 // Group 12 Slice 3g (631): territory-scoped escalation — the operator
@@ -349,6 +358,9 @@ router.get('/applications/:id/exceptions', authenticate, requireAdmin, requirePe
 // Group 12 Slice 3f (627): HQ reads the per-location health view.
 router.get('/applications/:id/location-health', authenticate, requireAdmin, requirePermission('manage_operations'), getLocationHealthAsAdmin);
 // Group 12 Slice 3f (629): HQ reads the per-territory ticket queue.
+// Group 12 Slice 3j (646): HQ reads the per-territory policy-question
+// queue — the same list the operator sees — and answers in-thread.
+router.get('/applications/:id/policy-questions', authenticate, requireAdmin, requirePermission('manage_operations'), listPolicyQuestionsAsAdmin);
 router.get('/applications/:id/support-tickets', authenticate, requireAdmin, requirePermission('manage_operations'), listTerritoryTicketsAsAdmin);
 // Group 12 Slice 3f (630): HQ reads the territory coverage trend.
 router.get('/applications/:id/coverage-trend', authenticate, requireAdmin, requirePermission('manage_operations'), getCoverageTrendAsAdmin);

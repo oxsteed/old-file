@@ -492,6 +492,10 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // directory, both visible to HQ on the same bundle.
   const handoffs = await buildHandoffs(applicationId);
   const contactDirectory = await buildContactDirectory(applicationId);
+  // Group 12 Slice 3j (646, D-347): the territory's policy questions —
+  // support tickets with category 'policy_question', with the territory
+  // context attached from creation.
+  const policyQuestions = await fetchPolicyQuestions(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -530,6 +534,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     expansion_notes: expansionNotes,
     handoffs,
     contact_directory: contactDirectory,
+    policy_questions: policyQuestions,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1155,6 +1160,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   // stranger (a named incoming operator reads it via /my-handoffs).
   const handoffs = await buildHandoffs(applicationId);
   const contactDirectory = await buildContactDirectory(applicationId);
+  // Group 12 Slice 3j (646, D-347): the territory's policy questions.
+  const policyQuestions = await fetchPolicyQuestions(applicationId);
 
   return {
     application: {
@@ -1188,6 +1195,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     expansion_notes: expansionNotes,
     handoffs,
     contact_directory: contactDirectory,
+    policy_questions: policyQuestions,
     // Group 12 Slice 3h (640, D-340): HQ's own readiness fields,
     // surfaced read-only to the operator alongside their notes.
     hq_readiness_notes: {
@@ -5526,7 +5534,7 @@ const UUID_RE = /^[0-9a-f-]{36}$/i;
 // 'unassigned' for territory-wide tickets, or null for every location.
 // `limit` caps the rows (the summary takes 5). Callers validate the
 // filters — this helper trusts them.
-async function fetchTerritoryTickets(applicationId, { status = 'all', locationId = null, limit = 100 } = {}) {
+async function fetchTerritoryTickets(applicationId, { status = 'all', locationId = null, limit = 100, category = null } = {}) {
   const conditions = ['t.franchise_application_id = $1'];
   const params = [applicationId];
   if (status === 'open') {
@@ -5534,6 +5542,10 @@ async function fetchTerritoryTickets(applicationId, { status = 'all', locationId
   } else if (status !== 'all') {
     params.push(status);
     conditions.push(`t.status = $${params.length}`);
+  }
+  if (category) {
+    params.push(category);
+    conditions.push(`t.category = $${params.length}`);
   }
   if (locationId === 'unassigned') {
     conditions.push('t.franchise_location_id IS NULL');
@@ -5545,7 +5557,7 @@ async function fetchTerritoryTickets(applicationId, { status = 'all', locationId
   const { rows } = await db.query(
     `SELECT t.id, t.ticket_number, t.subject, t.category, t.priority, t.status,
             t.user_id, t.name AS requester_name, t.email AS requester_email,
-            t.created_at, t.updated_at, t.resolved_at,
+            t.created_at, t.updated_at, t.resolved_at, t.metadata,
             t.franchise_application_id AS application_id,
             t.franchise_location_id AS location_id,
             l.name AS location_name
@@ -7189,6 +7201,193 @@ async function listTerritoryTicketsAsAdmin(req, res) {
     logger.error('Error loading franchise territory tickets as admin', { id, err: err.message });
     return res.status(500).json({ error: 'Failed to load territory support requests.' });
   }
+}
+
+// Group 12 Slice 3j (646, D-347): the franchise-scoped policy-question
+// intake. A policy question IS a support ticket with category
+// 'policy_question' — it reuses the ticket machinery (thread, reply,
+// reopen, the 629 queue, the 628 summary) instead of a parallel inbox.
+// It is created through this franchise endpoint, never through the
+// generic POST /support/request: the generic intake allowlists its
+// categories and has no territory context, so a policy question filed
+// there would downgrade to 'general' and never reach the HQ franchise
+// queue. The ticket carries the territory link (and, when given, the
+// location and the standard it asks about, 621) from creation, so HQ
+// sees the full context in its queue and answers in-thread via the
+// generic ticket reply. The question itself is the ticket's first
+// message.
+const POLICY_QUESTION_CATEGORY = 'policy_question';
+const POLICY_QUESTION_PRIORITIES = new Set(['low', 'normal', 'high', 'urgent']);
+
+async function fetchPolicyQuestions(applicationId) {
+  return fetchTerritoryTickets(applicationId, { status: 'all', category: POLICY_QUESTION_CATEGORY, limit: 100 });
+}
+
+async function createPolicyQuestionCore(client, applicationId, actorId, {
+  subject, question, locationId, standardId, priority,
+}) {
+  const { rows: actorRows } = await client.query(
+    'SELECT first_name, last_name, email FROM users WHERE id = $1',
+    [actorId]
+  );
+  const actor = actorRows[0] || {};
+  const name = [actor.first_name, actor.last_name].filter(Boolean).join(' ') || actor.email || 'Franchise operator';
+  const { rows: ticketRows } = await client.query(
+    `INSERT INTO support_tickets
+       (user_id, name, email, subject, category, priority, status, source,
+        franchise_application_id, franchise_location_id, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, 'open', 'direct', $7, $8, $9::jsonb)
+     RETURNING id, ticket_number, subject, category, priority, status,
+               franchise_application_id AS application_id,
+               franchise_location_id AS location_id, created_at`,
+    [
+      actorId,
+      name,
+      actor.email || '',
+      subject,
+      POLICY_QUESTION_CATEGORY,
+      priority,
+      applicationId,
+      locationId,
+      JSON.stringify(standardId ? { standard_id: standardId } : {}),
+    ]
+  );
+  const ticket = ticketRows[0];
+  await client.query(
+    `INSERT INTO support_messages
+       (ticket_id, sender_id, sender_name, sender_email, content,
+        sender_language, is_internal, is_from_admin)
+     VALUES ($1, $2, $3, $4, $5, 'en', false, false)`,
+    [ticket.id, actorId, name, actor.email || '', question]
+  );
+  await logActivity(client, applicationId, actorId, 'policy_question_asked',
+    `Policy question #${ticket.ticket_number} asked: ${subject}.`,
+    { ticket_id: ticket.id, standard_id: standardId || null, location_id: locationId || null });
+  return ticket;
+}
+
+async function createPolicyQuestion(req, res) {
+  const { id } = req.params;
+  const body = req.body || {};
+  const subject = asTrimmed(body.subject);
+  const question = asTrimmed(body.question);
+  const locationId = asTrimmed(body.location_id) || null;
+  const standardId = asTrimmed(body.standard_id) || null;
+  const priority = typeof body.priority === 'string' && POLICY_QUESTION_PRIORITIES.has(body.priority)
+    ? body.priority
+    : 'normal';
+  if (!subject) {
+    return res.status(400).json({ error: 'A subject is required for a policy question.', code: 'policy_question_subject_required' });
+  }
+  if (subject.length > 500) {
+    return res.status(400).json({ error: 'The subject must be at most 500 characters.', code: 'policy_question_subject_too_long' });
+  }
+  if (!question) {
+    return res.status(400).json({ error: 'A question is required for a policy question.', code: 'policy_question_required' });
+  }
+  if (question.length > 5000) {
+    return res.status(400).json({ error: 'The question must be at most 5000 characters.', code: 'policy_question_too_long' });
+  }
+  if (locationId && !UUID_RE.test(locationId)) {
+    return res.status(404).json({ error: 'Location not found in this territory.', code: 'location_not_found' });
+  }
+  if (standardId && !UUID_RE.test(standardId)) {
+    return res.status(404).json({ error: 'Standard not found for this territory.', code: 'standard_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can ask a policy question for the territory.',
+          code: 'franchise_operator_only',
+        });
+      }
+      if (locationId) {
+        const locationResult = await client.query(
+          `SELECT id FROM franchise_locations WHERE id = $1 AND application_id = $2`,
+          [locationId, id]
+        );
+        if (!locationResult.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Location not found in this territory.', code: 'location_not_found' });
+        }
+      }
+      if (standardId) {
+        const standardResult = await client.query(
+          `SELECT id FROM franchise_standards
+            WHERE id = $1 AND (application_id IS NULL OR application_id = $2)`,
+          [standardId, id]
+        );
+        if (!standardResult.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Standard not found for this territory.', code: 'standard_not_found' });
+        }
+      }
+      const ticket = await createPolicyQuestionCore(client, id, req.user?.id, {
+        subject, question, locationId, standardId, priority,
+      });
+      await client.query('COMMIT');
+      const policyQuestions = await fetchPolicyQuestions(id);
+      return res.status(201).json({ ticket, policy_questions: policyQuestions, total: policyQuestions.length });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error asking franchise policy question', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to ask the policy question.' });
+  }
+}
+
+// 646 (D-347): the HQ franchise queue for policy questions — the same
+// territory-scoped list the operator sees, so HQ answers from the same
+// context. HQ answers in-thread on the ticket itself (the generic
+// ticket reply), never here: the answer belongs to the ticket thread.
+async function listPolicyQuestions(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can view territory policy questions.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    const policyQuestions = await fetchPolicyQuestions(id);
+    return res.json({ application_id: id, policy_questions: policyQuestions, total: policyQuestions.length });
+  } catch (err) {
+    logger.error('Error listing franchise policy questions', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load policy questions.' });
+  }
+}
+
+async function listPolicyQuestionsAsAdmin(req, res) {
+  return listPolicyQuestions(req, res, { asAdmin: true });
 }
 
 async function getLocationHealth(req, res) {
@@ -10781,6 +10980,9 @@ module.exports = {
   getLocationHealthAsAdmin,
   listTerritoryTickets,
   listTerritoryTicketsAsAdmin,
+  createPolicyQuestion,
+  listPolicyQuestions,
+  listPolicyQuestionsAsAdmin,
   getCoverageTrend,
   getCoverageTrendAsAdmin,
   linkTicketToTerritory,

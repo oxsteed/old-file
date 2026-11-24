@@ -38,6 +38,7 @@ import FranchiseLaunchDependencies from './FranchiseLaunchDependencies';
 import FranchiseExpansionNotes from './FranchiseExpansionNotes';
 import FranchiseHandoff from './FranchiseHandoff';
 import FranchiseContactDirectory from './FranchiseContactDirectory';
+import FranchisePolicyQuestions from './FranchisePolicyQuestions';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -429,6 +430,20 @@ export default function FranchiseTerritoryOpsPage() {
     if (!resolvedApplicationId) return;
     try {
       await api.delete(`/franchise/my-applications/${resolvedApplicationId}/contact-directory/${entryId}`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  // Group 12 Slice 3j (646, D-347): the operator asks a policy question
+  // for the territory — a ticket with category 'policy_question' — and
+  // HQ answers in-thread on the ticket.
+  const askPolicyQuestion = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/policy-questions`, body);
       await reloadBoundaryDetail();
     } catch (err) {
       setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
@@ -1180,6 +1195,19 @@ export default function FranchiseTerritoryOpsPage() {
               onAdd={addDirectoryContact}
               onUpdate={updateDirectoryContact}
               onRemove={removeDirectoryContact}
+            />
+          )}
+
+          {/* Group 12 Slice 3j (646, D-347): franchise-scoped policy
+              questions — the operator asks, HQ answers in-thread on the
+              ticket. */}
+          {boundaryDetail && (
+            <FranchisePolicyQuestions
+              questions={boundaryDetail.policy_questions || []}
+              locations={boundaryDetail.locations || []}
+              standards={boundaryDetail.standards || []}
+              canAsk={boundaryDetail.application?.owner_user_id === user?.id}
+              onAsk={askPolicyQuestion}
             />
           )}
 

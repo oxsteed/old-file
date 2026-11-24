@@ -37,6 +37,7 @@ import FranchiseExpansionNotes from '../../../pages/FranchiseExpansionNotes';
 import FranchiseHandoff from '../../../pages/FranchiseHandoff';
 import FranchiseContactDirectory from '../../../pages/FranchiseContactDirectory';
 import FranchiseAccessRemoval from '../../../pages/FranchiseAccessRemoval';
+import FranchisePolicyQuestions from '../../../pages/FranchisePolicyQuestions';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -2227,6 +2228,15 @@ export default function FranchiseHQPage() {
                     canUnlink
                     onUnlink={unlinkTerritoryTicket}
                     busy={saving}
+                  />
+
+                  {/* Group 12 Slice 3j (646, D-347): the per-territory
+                      policy-question queue — HQ answers in-thread on the
+                      ticket, never here. */}
+                  <FranchisePolicyQuestions
+                    questions={selectedBundle.policy_questions || []}
+                    locations={selectedBundle.locations || []}
+                    standards={selectedBundle.standards || []}
                   />
 
                   {/* Group 12 Slice 3g (631, D-331): the per-territory

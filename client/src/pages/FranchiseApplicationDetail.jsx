@@ -31,6 +31,7 @@ import FranchiseTerritoryCapacity from './FranchiseTerritoryCapacity';
 import FranchiseTrainingPlanner from './FranchiseTrainingPlanner';
 import FranchiseLaunchDependencies from './FranchiseLaunchDependencies';
 import FranchiseExpansionNotes from './FranchiseExpansionNotes';
+import FranchisePolicyQuestions from './FranchisePolicyQuestions';
 import { useAuth } from '../hooks/useAuth';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
@@ -484,6 +485,22 @@ export default function FranchiseApplicationDetail({ applicationId }) {
       setDetail(response.data);
     } catch {
       // The list refresh still runs; the bundle reload is best-effort.
+    }
+  }
+
+  // Group 12 Slice 3j (646, D-347): the operator asks a policy question
+  // for the territory; HQ answers in-thread on the ticket.
+  async function askPolicyQuestion(body) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/franchise/my-applications/${applicationId}/policy-questions`, body);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('policyAskFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -1043,6 +1060,17 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onLocationChange={setTicketLocationId}
         canUnlink={detail.application?.is_operator === true}
         onUnlink={unlinkTicket}
+        busy={busy}
+      />
+
+      {/* Group 12 Slice 3j (646, D-347): franchise-scoped policy
+          questions — the operator asks, HQ answers in-thread. */}
+      <FranchisePolicyQuestions
+        questions={detail.policy_questions || []}
+        locations={detail.locations || []}
+        standards={detail.standards || []}
+        canAsk={detail.application?.is_operator === true}
+        onAsk={askPolicyQuestion}
         busy={busy}
       />
 
