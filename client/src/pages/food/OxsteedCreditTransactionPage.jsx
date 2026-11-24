@@ -47,7 +47,25 @@ function transactionLabel(transaction, t) {
     conversion_credit: t('transactionConversionCredit'),
     expiration: t('transactionExpiration'),
     chargeback: t('transactionChargeback'),
+    settlement: t('transactionSettlement'),
+    settlement_reversal: t('transactionSettlementReversal'),
+    sub_bank_load_reversal: t('transactionSubBankLoadReversal'),
+    sub_bank_payout_reversal: t('transactionSubBankPayoutReversal'),
   }[transaction?.transactionType] || t('transactionActivity');
+}
+
+// Group 13 Slice 4b (659): localized explanation for a reversal whose
+// stored reason is absent. The server prefers the stored reason verbatim;
+// this covers the derived codes only.
+function reversalReasonText(transaction, t) {
+  return {
+    purchase_refund: t('reversalReasonPurchaseRefund'),
+    refund: t('reversalReasonLoadRefund'),
+    derisk: t('reversalReasonLoadDerisk'),
+    load_reversal: t('reversalReasonLoadReversal'),
+    payout_reversed: t('reversalReasonPayoutReversed'),
+    settlement: t('reversalReasonSettlement'),
+  }[transaction?.reversalReasonCode] || null;
 }
 
 function referenceLabel(value, t) {
@@ -94,6 +112,11 @@ export default function OxsteedCreditTransactionPage() {
   const positive = transaction?.direction === 'credit';
   const currency = transaction?.currencyCode || currencyCode;
   const orderPath = transaction?.orderId ? `/food/orders/${transaction.orderId}` : null;
+  // Group 13 Slice 4b (659): the server only exposes an original transaction
+  // the customer can open, so this link never dead-ends.
+  const originalPath = transaction?.originalTransactionId
+    ? `/oxsteed-credit/transactions/${encodeURIComponent(transaction.originalTransactionId)}?currency=${encodeURIComponent(currency)}`
+    : null;
 
   return (
     <>
@@ -143,6 +166,8 @@ export default function OxsteedCreditTransactionPage() {
                     {orderPath && <div><span>{t('foodOrder')}</span><strong><Link to={orderPath}>{t('viewOrder')} #{transaction.orderId} <ExternalLink size={13} /></Link></strong></div>}
                     <div><span>{t('referenceType')}</span><strong>{referenceLabel(transaction.referenceType, t)}</strong></div>
                     <div><span>{t('referenceId')}</span><strong className="ox-credit-detail-code">{transaction.referenceId || t('notProvided')}</strong></div>
+                    {transaction.isReversal && <div><span>{t('reversalReason')}</span><strong>{transaction.reversalReason || reversalReasonText(transaction, t) || transaction.description || t('ledgerEntry')}</strong></div>}
+                    {transaction.isReversal && originalPath && <div><span>{t('originalTransaction')}</span><strong><Link to={originalPath}>{t('viewOriginalTransaction')} <ExternalLink size={13} /></Link></strong></div>}
                   </div>
                 </section>
 
