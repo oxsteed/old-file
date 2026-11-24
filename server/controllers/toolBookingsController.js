@@ -6,7 +6,7 @@ const { parseDateOnlyUTC } = require('../utils/dateOnly');
 
 const TOOL_RENTAL_AGREEMENT_VERSION = 'peer-rental-v1';
 
-function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPrice }) {
+function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPrice, fulfillment }) {
   return {
     version: TOOL_RENTAL_AGREEMENT_VERSION,
     oxsteedRole: 'OxSteed provides tools for neighbors to document and coordinate rentals. OxSteed is not the tool owner, renter, inspector, insurer, or guarantor.',
@@ -38,6 +38,7 @@ function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPri
       rentalDays,
       dailyRate: Number(tool.daily_rate),
       totalPrice,
+      fulfillment: fulfillment || 'pickup',
     },
   };
 }
@@ -47,11 +48,17 @@ const createBooking = async (req, res, next) => {
   try {
     const { toolId, startDate, endDate, renterAgreementAccepted } = req.body;
     const userId = req.user.id;
+    // Group 11 item 554: the renter chooses how they get the tool. Pickup
+    // is always available; delivery only when the listing offers it.
+    const fulfillment = req.body.fulfillment == null ? 'pickup' : req.body.fulfillment;
 
     const fields = {};
     if (!toolId) fields.toolId = 'toolId is required';
     if (!startDate) fields.startDate = 'startDate is required';
     if (!endDate) fields.endDate = 'endDate is required';
+    if (fulfillment !== 'pickup' && fulfillment !== 'delivery') {
+      fields.fulfillment = 'fulfillment must be pickup or delivery';
+    }
     if (!renterAgreementAccepted) {
       fields.renterAgreementAccepted = 'You must accept the peer rental agreement before booking';
     }
@@ -72,12 +79,14 @@ const createBooking = async (req, res, next) => {
       `SELECT tr.id, tr.user_id AS owner_id, tr.name, tr.category, tr.brand, tr.model, tr.condition,
               tr.daily_rate, tr.deposit_amount, tr.requires_deposit, tr.owner_rules,
               tr.owner_custom_terms, tr.owner_custom_terms_hash, tr.replacement_value,
-              tr.is_available, tr.moderation_hold,tr.accessories,tr.condition_checklist,tr.equipment_version
+              tr.is_available, tr.moderation_hold, tr.pickup_only, tr.delivery_available,
+              tr.accessories, tr.condition_checklist, tr.equipment_version
          FROM tool_rentals tr
          JOIN users owner
            ON owner.id = tr.user_id
           AND owner.is_active = TRUE
           AND owner.deleted_at IS NULL
+          AND owner.email_verified = TRUE
         WHERE tr.id = $1`,
       [toolId]
     );
@@ -95,6 +104,14 @@ const createBooking = async (req, res, next) => {
     if (listedTool.moderation_hold) {
       throw new AppError('Tool is under admin review and cannot be booked', 409, 'state_conflict');
     }
+    // 554: pickup eligibility. Delivery is refused when the listing is
+    // pickup-only or does not offer delivery; pickup is always allowed.
+    // (The owner's email_verified flag is re-checked in the join above:
+    // the same gate browse/public already apply, so a listing hidden from
+    // browse cannot be booked by direct id.)
+    if (fulfillment === 'delivery' && (listedTool.pickup_only === true || listedTool.delivery_available !== true)) {
+      throw new AppError('Delivery is not available for this tool', 409, 'fulfillment_not_available');
+    }
     const dailyRate = parseFloat(listedTool.daily_rate);
     if (!Number.isFinite(dailyRate) || dailyRate <= 0) {
       throw new AppError('Tool cannot be booked online because pricing is not configured', 409, 'pricing_unavailable');
@@ -107,14 +124,18 @@ const createBooking = async (req, res, next) => {
       endDate,
       rentalDays,
       totalPrice,
+      fulfillment,
     });
 
     // Serialize bookings per tool before checking availability. The previous
     // check ran before BEGIN, allowing concurrent requests to both pass.
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`tool-rental:${toolId}`]);
-    const currentTool=await client.query('SELECT equipment_version,is_available,moderation_hold FROM tool_rentals WHERE id=$1 FOR SHARE',[toolId]);
+    const currentTool=await client.query('SELECT equipment_version,is_available,moderation_hold,pickup_only,delivery_available FROM tool_rentals WHERE id=$1 FOR SHARE',[toolId]);
     if(!currentTool.rows[0]||currentTool.rows[0].is_available===false||currentTool.rows[0].moderation_hold)throw new AppError('Tool unavailable',409,'state_conflict');
+    // 554: re-check fulfillment under the per-tool lock; the flags may have
+    // changed between the first read and the lock.
+    if (fulfillment === 'delivery' && (currentTool.rows[0].pickup_only === true || currentTool.rows[0].delivery_available !== true)) throw new AppError('Delivery is not available for this tool',409,'fulfillment_not_available');
     if(Number(currentTool.rows[0].equipment_version)>1 && (req.body.equipmentVersion!==currentTool.rows[0].equipment_version || listedTool.equipment_version!==currentTool.rows[0].equipment_version))throw new AppError('Review the current equipment rules before booking',409,'equipment_changed');
 
     // Check for calendar conflicts (overlapping confirmed/pending bookings)

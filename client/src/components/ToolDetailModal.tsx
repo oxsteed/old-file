@@ -24,6 +24,8 @@ interface ToolDetailModalProps {
     owner_custom_terms?: string;
     weekly_rate?: number;
     monthly_rate?: number;
+    pickup_only?: boolean;
+    delivery_available?: boolean;
     image_url?: string;
     description?: string;
     is_available: boolean;

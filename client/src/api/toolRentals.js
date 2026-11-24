@@ -80,7 +80,7 @@ export const toolRentalsApi = {
   },
 
   // BOOKINGS
-  createBooking: async (toolId, startDate, endDate, totalPrice, renterAgreementAccepted = false, equipmentVersion) => {
+  createBooking: async (toolId, startDate, endDate, totalPrice, renterAgreementAccepted = false, equipmentVersion, fulfillment = 'pickup') => {
     const response = await api.post(`/tool-rentals/bookings`, {
       toolId,
       startDate,
@@ -88,6 +88,7 @@ export const toolRentalsApi = {
       totalPrice,
       renterAgreementAccepted,
       equipmentVersion,
+      fulfillment,
     });
     return response.data;
   },

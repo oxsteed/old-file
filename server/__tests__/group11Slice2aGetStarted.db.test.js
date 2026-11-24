@@ -313,4 +313,68 @@ describeDb('Group 11 Slice 2a: Get started (551, 552, 554, 555)', () => {
       expect(mine).toMatchObject({ publication_blocked: false, activation_status: 'unavailable' });
     });
   });
+
+  describe('554: pickup eligibility check', () => {
+    const book = (toolId, renter, body) => request(app)
+      .post('/api/tool-rentals/bookings')
+      .set('x-test-user', renter)
+      .send({
+        toolId,
+        startDate: '2030-06-01',
+        endDate: '2030-06-03',
+        renterAgreementAccepted: true,
+        ...body,
+      });
+
+    test('delivery is refused on a pickup-only listing, pickup succeeds', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      const tool = await insertTool(owner, { pickup_only: true, delivery_available: false });
+      const refused = await book(tool.id, renter, { fulfillment: 'delivery' }).expect(409);
+      expect(refused.body.code).toBe('fulfillment_not_available');
+      const ok = await book(tool.id, renter, { fulfillment: 'pickup' }).expect(201);
+      expect(ok.body.agreement_snapshot.rental.fulfillment).toBe('pickup');
+    });
+
+    test('delivery succeeds when the listing offers it and is not pickup-only', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      const tool = await insertTool(owner, { pickup_only: false, delivery_available: true });
+      const ok = await book(tool.id, renter, { fulfillment: 'delivery' }).expect(201);
+      expect(ok.body.agreement_snapshot.rental.fulfillment).toBe('delivery');
+    });
+
+    test('pickup-only wins even when delivery_available is also set', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      const tool = await insertTool(owner, { pickup_only: true, delivery_available: true });
+      const refused = await book(tool.id, renter, { fulfillment: 'delivery' }).expect(409);
+      expect(refused.body.code).toBe('fulfillment_not_available');
+    });
+
+    test('no fulfillment defaults to pickup', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      const tool = await insertTool(owner);
+      const ok = await book(tool.id, renter, {}).expect(201);
+      expect(ok.body.agreement_snapshot.rental.fulfillment).toBe('pickup');
+    });
+
+    test('an unknown fulfillment value is a validation error', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      const tool = await insertTool(owner);
+      const res = await book(tool.id, renter, { fulfillment: 'courier' }).expect(400);
+      expect(res.body.code).toBe('validation_failed');
+    });
+
+    test('a listing whose owner lost email verification cannot be booked by direct id', async () => {
+      const owner = await addUser();
+      await db.query('UPDATE users SET email_verified = FALSE WHERE id = $1', [owner]);
+      const renter = await addUser();
+      const tool = await insertTool(owner);
+      const res = await book(tool.id, renter, { fulfillment: 'pickup' }).expect(404);
+      expect(res.body.code).toBe('not_found');
+    });
+  });
 });

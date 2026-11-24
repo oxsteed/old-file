@@ -22,6 +22,8 @@ interface BookingModalProps {
     condition?: string;
     brand?: string;
     model?: string;
+    pickup_only?: boolean;
+    delivery_available?: boolean;
     owner_id?: number;
   };
   isOpen: boolean;
@@ -34,7 +36,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
   const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [fulfillment, setFulfillment] = useState<'pickup' | 'delivery'>('pickup');
   const [bookedDates, setBookedDates] = useState<Array<{ start_date: string; end_date: string }>>([]);
+
+  // 554: delivery is offered only when the listing offers it and is not
+  // pickup-only; pickup is always available.
+  const deliveryAvailable = tool.delivery_available === true && tool.pickup_only !== true;
 
   // Load booked dates on mount
   React.useEffect(() => {
@@ -100,6 +107,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
       return;
     }
 
+    // 554: refuse an unavailable fulfillment choice before submit; the
+    // server re-checks the same flags and returns fulfillment_not_available.
+    if (fulfillment === 'delivery' && !deliveryAvailable) {
+      toast.error(t('toolRentals.fulfillmentNotAvailable'));
+      return;
+    }
+
     // Check for calendar conflicts
     for (const booking of bookedDates) {
       if (toolRentalDatesOverlap(startDate, endDate, booking.start_date, booking.end_date)) {
@@ -110,13 +124,15 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
 
     setLoading(true);
     try {
-      await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice, agreementAccepted, tool.equipment_version);
+      await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice, agreementAccepted, tool.equipment_version, fulfillment);
 
       toast.success(t('toolRentals.bookingConfirmed'));
       onClose();
     } catch (err: any) {
       if (err.response?.data?.code === 'equipment_changed') {
         toast.error(t('equipmentOperations.changed'));
+      } else if (err.response?.data?.code === 'fulfillment_not_available') {
+        toast.error(t('toolRentals.fulfillmentNotAvailable'));
       } else if (err.response?.status === 409) {
         toast.error(t('toolRentals.dateConflict'));
       } else {
@@ -180,6 +196,40 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
                 />
               </div>
             </div>
+
+            {/* 554: pickup / delivery choice, enforced server-side. */}
+            <fieldset className="booking-form-group">
+              <legend>{t('toolRentals.fulfillmentTitle')}</legend>
+              <label className="booking-fulfillment-option">
+                <input
+                  type="radio"
+                  name="fulfillment"
+                  value="pickup"
+                  checked={fulfillment === 'pickup'}
+                  onChange={() => setFulfillment('pickup')}
+                  disabled={loading}
+                  data-track="ui.043dee9378.5"
+                />
+                <span>{t('toolRentals.fulfillmentPickup')}</span>
+              </label>
+              <label className="booking-fulfillment-option">
+                <input
+                  type="radio"
+                  name="fulfillment"
+                  value="delivery"
+                  checked={fulfillment === 'delivery'}
+                  onChange={() => setFulfillment('delivery')}
+                  disabled={loading || !deliveryAvailable}
+                  data-track="ui.043dee9378.6"
+                />
+                <span>{t('toolRentals.fulfillmentDelivery')}</span>
+              </label>
+              {!deliveryAvailable && (
+                <p className="booking-fulfillment-hint" role="note">
+                  {tool.pickup_only ? t('toolRentals.fulfillmentPickupOnly') : t('toolRentals.fulfillmentDeliveryUnavailable')}
+                </p>
+              )}
+            </fieldset>
 
             {/* Price Summary */}
             {days > 0 && (
