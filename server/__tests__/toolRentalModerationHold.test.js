@@ -23,6 +23,9 @@ jest.mock('../middleware/auth', () => ({
 
 jest.mock('../middleware/upload', () => ({
   single: () => (_req, _res, next) => next(),
+  // 559: the gallery add endpoint uses upload.array; the real multer
+  // object provides it, so the stub must too.
+  array: () => (_req, _res, next) => next(),
 }));
 
 jest.mock('../middleware/validateFileUpload', () => (_req, _res, next) => next());

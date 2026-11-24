@@ -324,6 +324,8 @@ export interface ToolCardData {
   size_width_cm?: number | string | null;
   size_height_cm?: number | string | null;
   image_url?: string | null;
+  // 559: full gallery; the first photo is the cover (image_url).
+  image_gallery?: string[] | null;
   owner_name?: string | null;
   first_name?: string | null;
   last_name?: string | null;

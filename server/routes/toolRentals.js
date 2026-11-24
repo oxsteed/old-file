@@ -84,6 +84,12 @@ async function getToolFields() {
       tr.has('image_gallery')
         ? `CASE WHEN t.image_gallery IS NOT NULL AND array_length(t.image_gallery, 1) > 0 THEN t.image_gallery[1] ELSE NULL END AS image_url`
         : 'NULL AS image_url',
+      // 559: the full gallery rides with every listing read (browse,
+      // public, alternatives, owner rows) so the client can render the
+      // thumbnail strip; image_url above stays the cover (first photo).
+      tr.has('image_gallery')
+        ? 'COALESCE(t.image_gallery, ARRAY[]::text[]) AS image_gallery'
+        : 'NULL::text[] AS image_gallery',
       tr.has('location_lat') ? 't.location_lat' : 'NULL::numeric AS location_lat',
       tr.has('location_lng') ? 't.location_lng' : 'NULL::numeric AS location_lng',
       tr.has('capacity_value') ? 't.capacity_value' : 'NULL::numeric AS capacity_value',
@@ -113,7 +119,7 @@ async function getToolFields() {
     };
   } catch {
     _resolvedFields = {
-      toolFields: `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url, NULL::numeric AS location_lat, NULL::numeric AS location_lng, NULL::numeric AS capacity_value, NULL AS capacity_unit, NULL::numeric AS weight_kg, NULL::numeric AS size_length_cm, NULL::numeric AS size_width_cm, NULL::numeric AS size_height_cm, NULL::time AS pickup_window_start, NULL::time AS pickup_window_end, NULL::time AS return_window_start, NULL::time AS return_window_end, NULL AS cleaning_instructions`,
+      toolFields: `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url, NULL::text[] AS image_gallery, NULL::numeric AS location_lat, NULL::numeric AS location_lng, NULL::numeric AS capacity_value, NULL AS capacity_unit, NULL::numeric AS weight_kg, NULL::numeric AS size_length_cm, NULL::numeric AS size_width_cm, NULL::numeric AS size_height_cm, NULL::time AS pickup_window_start, NULL::time AS pickup_window_end, NULL::time AS return_window_start, NULL::time AS return_window_end, NULL AS cleaning_instructions`,
       ownerRatingExpr: '0',
       hasAvatarUrl: false,
       hasResponseTime: false,
@@ -167,6 +173,10 @@ const VALID_CAPACITY_UNITS = ['kg', 'lb', 'L', 'gal', 'W', 'kW', 'hp'];
 // 565: side-by-side comparison cap. The client enforces the same cap
 // (TOOL_COMPARE_MAX in client/src/types/toolDirectory.ts).
 const TOOL_COMPARE_MAX = 3;
+// 559 (D-290): a listing gallery holds at most 8 photos. The first photo
+// is the cover (surfaced as image_url); the cap keeps the TEXT[] column,
+// the browse payload and the owner editor all bounded.
+const MAX_GALLERY_PHOTOS = 8;
 const MAX_TOOL_NAME_LEN = 200;
 const MAX_TOOL_CATEGORY_LEN = 100;
 const MAX_TOOL_DESCRIPTION_LEN = 4000;
@@ -312,6 +322,85 @@ async function resolveToolImageUrl(req) {
     throw err;
   }
   return { url: imageUrl, key: null };
+}
+
+// 559 (D-290): per-file version of the single-image upload path above
+// (same storage call, same data-URL fallback for unconfigured storage).
+// The gallery add endpoint stores one uploaded file at a time through it;
+// the caller owns deleting the returned key when the write fails.
+async function resolveGalleryImageFile(file) {
+  if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+    const err = new Error('Gallery photos must be images');
+    err.status = 400;
+    throw err;
+  }
+  const key = await uploadFile(file.buffer, 'tool-rentals', file.originalname, file.mimetype);
+  if (key) {
+    const url = getPublicUrl(key);
+    if (!url) {
+      await deleteFile(key).catch((cleanupError) => {
+        require('../utils/logger').warn('[toolRentals] failed to clean up gallery image without public URL', {
+          key,
+          error: cleanupError.message,
+        });
+      });
+      const err = new Error('Gallery photo URL unavailable');
+      err.status = 503;
+      throw err;
+    }
+    return { url, key };
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    const err = new Error('Gallery photo is too large. Configure file storage or upload an image under 2MB.');
+    err.status = 400;
+    throw err;
+  }
+  return { url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`, key: null };
+}
+
+// 559: owner-only gallery load. A stranger (or another owner) gets the
+// same 404 as PUT /:id, so gallery membership never leaks.
+async function loadOwnedToolGallery(toolId, userId) {
+  const id = Number(toolId);
+  if (!Number.isInteger(id) || id < 1) return { error: 'invalid' };
+  const { rows } = await pool.query(
+    'SELECT id, user_id, image_gallery FROM tool_rentals WHERE id = $1',
+    [id],
+  );
+  const tool = rows[0];
+  if (!tool || String(tool.user_id) !== String(userId)) return { error: 'not_found' };
+  return { tool, gallery: Array.isArray(tool.image_gallery) ? tool.image_gallery : [] };
+}
+
+function galleryResponse(toolId, gallery) {
+  return {
+    tool_id: toolId,
+    image_gallery: gallery,
+    image_url: gallery.length ? gallery[0] : null,
+  };
+}
+
+function parseGalleryOrder(body, storedGallery) {
+  if (!body || !Array.isArray(body.image_gallery)) return { error: 'image_gallery must be an array of photo URLs' };
+  if (body.image_gallery.length > MAX_GALLERY_PHOTOS) {
+    return { error: `A listing can have up to ${MAX_GALLERY_PHOTOS} photos` };
+  }
+  const seen = new Set();
+  for (const entry of body.image_gallery) {
+    if (typeof entry !== 'string' || !entry.trim() || entry.trim().length > 2048) {
+      return { error: 'image_gallery must be an array of photo URLs' };
+    }
+    const url = entry.trim();
+    try {
+      new URL(url);
+    } catch {
+      return { error: 'image_gallery must be an array of photo URLs' };
+    }
+    if (seen.has(url)) return { error: 'image_gallery must not repeat a photo' };
+    if (!storedGallery.includes(url)) return { error: 'image_gallery can only reorder photos already in the gallery' };
+    seen.add(url);
+  }
+  return { gallery: body.image_gallery.map((entry) => entry.trim()) };
 }
 
 function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
@@ -870,11 +959,10 @@ router.get('/public/:id', async (req, res) => {
 // tool_owner.list_equipment grant (same gate POST/PUT apply).
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const { toolFields, hasImageGallery, hasModerationHold } = await getToolFields();
-    const galleryExpr = hasImageGallery ? 't.image_gallery' : 'NULL::text[] AS image_gallery';
+    const { toolFields, hasModerationHold } = await getToolFields();
     const holdExpr = hasModerationHold ? 't.moderation_hold' : 'FALSE AS moderation_hold';
     const result = await pool.query(
-      `SELECT ${toolFields}, ${galleryExpr}, ${holdExpr}
+      `SELECT ${toolFields}, ${holdExpr}
          FROM tool_rentals t
         WHERE t.user_id = $1
         ORDER BY t.created_at DESC`,
@@ -1057,7 +1145,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
 
     // Fetch existing record first (ownership check)
     const existing = await pool.query(
-      'SELECT id, is_available, moderation_hold, capacity_value, capacity_unit, location_lat, location_lng, pickup_window_start, pickup_window_end, return_window_start, return_window_end FROM tool_rentals WHERE id = $1 AND user_id = $2',
+      'SELECT id, is_available, moderation_hold, image_gallery, capacity_value, capacity_unit, location_lat, location_lng, pickup_window_start, pickup_window_end, return_window_start, return_window_end FROM tool_rentals WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (!existing.rows.length) {
@@ -1095,10 +1183,23 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
     const imageUrl = imageResult.url;
     uploadedKey = imageResult.key;
     const removeImage = hasImageGallery ? parseBoolean(req.body.remove_image) : false;
+    // 559: a single image uploaded on edit becomes the new cover (first
+    // photo) instead of replacing the gallery: the old ARRAY[new] wiped
+    // every other photo on any edit. Removing still clears the gallery.
+    const existingGallery = Array.isArray(existing.rows[0].image_gallery)
+      ? existing.rows[0].image_gallery
+      : [];
+    const newGallery = !hasImageGallery
+      ? null
+      : removeImage
+        ? []
+        : imageUrl
+          ? [imageUrl, ...existingGallery.filter((url) => url !== imageUrl)].slice(0, MAX_GALLERY_PHOTOS)
+          : null;
     const imageSetSql = hasImageGallery
       ? `image_gallery = CASE
            WHEN $21::boolean THEN '{}'::text[]
-           WHEN $22::text IS NOT NULL THEN ARRAY[$22::text]
+           WHEN $22::text[] IS NOT NULL THEN $22::text[]
            ELSE image_gallery
          END,`
       : '';
@@ -1198,7 +1299,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
         payload.owner_custom_terms_hash ?? null,
         payload.replacement_value ?? null,
         !!payload.owner_attestation_accepted,
-        ...(hasImageGallery ? [removeImage, imageUrl] : []),
+        ...(hasImageGallery ? [removeImage, newGallery] : []),
         payload.capacity_value ?? null,
         payload.capacity_unit ?? null,
         payload.weight_kg ?? null,
@@ -1307,6 +1408,78 @@ router.get('/:toolId/safety-documents/public', toolRentalDisputesController.list
 router.post('/:toolId/safety-documents', authenticate, upload.single('document'), validateFileUpload, toolRentalDisputesController.uploadSafetyDocument);
 router.delete('/:toolId/safety-documents/:docId', authenticate, toolRentalDisputesController.deleteSafetyDocument);
 router.get('/admin/tool-rentals/:toolId/safety-documents', authenticate, requireAdmin, requirePermission('moderate_content'), toolRentalDisputesController.adminListSafetyDocuments);
+// Group 11 item 559: multi-photo gallery management (D-290). Owner-only,
+// server-enforced via loadOwnedToolGallery (stranger 404). Photos are
+// stored through the same upload path as the single listing image
+// (resolveGalleryImageFile: uploadFile/getPublicUrl, data-URL fallback
+// when no storage is configured). The first photo is the cover
+// (image_url); reorder moves the cover, removing it promotes the next.
+router.post('/:toolId/gallery', authenticate, upload.array('images', MAX_GALLERY_PHOTOS), validateFileUpload, async (req, res) => {
+  const uploadedKeys = [];
+  try {
+    const { hasImageGallery } = await getToolFields();
+    if (!hasImageGallery) return res.status(503).json({ error: 'Photo gallery is unavailable', code: 'unavailable' });
+    const loaded = await loadOwnedToolGallery(req.params.toolId, req.user.id);
+    if (loaded.error === 'invalid') return res.status(400).json({ error: 'Invalid tool id', code: 'validation_failed' });
+    if (loaded.error) return res.status(404).json({ error: 'Tool not found' });
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (!files.length) return res.status(400).json({ error: 'Choose at least one photo', code: 'validation_failed' });
+    if (loaded.gallery.length + files.length > MAX_GALLERY_PHOTOS) {
+      return res.status(400).json({ error: `A listing can have up to ${MAX_GALLERY_PHOTOS} photos`, code: 'gallery_full' });
+    }
+    const urls = [];
+    for (const file of files) {
+      const stored = await resolveGalleryImageFile(file);
+      if (stored.key) uploadedKeys.push(stored.key);
+      urls.push(stored.url);
+    }
+    const gallery = [...loaded.gallery, ...urls];
+    await pool.query('UPDATE tool_rentals SET image_gallery = $1, updated_at = NOW() WHERE id = $2', [gallery, loaded.tool.id]);
+    uploadedKeys.length = 0;
+    return res.status(201).json(galleryResponse(loaded.tool.id, gallery));
+  } catch (err) {
+    for (const key of uploadedKeys) {
+      await deleteFile(key).catch(() => {});
+    }
+    require('../utils/logger').error('[toolRentals] gallery add error:', err.message);
+    return res.status(err.status || 500).json({ error: err.status ? err.message : 'Failed to add photos' });
+  }
+});
+router.put('/:toolId/gallery', authenticate, async (req, res) => {
+  try {
+    const { hasImageGallery } = await getToolFields();
+    if (!hasImageGallery) return res.status(503).json({ error: 'Photo gallery is unavailable', code: 'unavailable' });
+    const loaded = await loadOwnedToolGallery(req.params.toolId, req.user.id);
+    if (loaded.error === 'invalid') return res.status(400).json({ error: 'Invalid tool id', code: 'validation_failed' });
+    if (loaded.error) return res.status(404).json({ error: 'Tool not found' });
+    const parsed = parseGalleryOrder(req.body, loaded.gallery);
+    if (parsed.error) return res.status(400).json({ error: parsed.error, code: 'validation_failed' });
+    await pool.query('UPDATE tool_rentals SET image_gallery = $1, updated_at = NOW() WHERE id = $2', [parsed.gallery, loaded.tool.id]);
+    return res.json(galleryResponse(loaded.tool.id, parsed.gallery));
+  } catch (err) {
+    require('../utils/logger').error('[toolRentals] gallery reorder error:', err.message);
+    return res.status(500).json({ error: 'Failed to update photos' });
+  }
+});
+router.delete('/:toolId/gallery/:index', authenticate, async (req, res) => {
+  try {
+    const { hasImageGallery } = await getToolFields();
+    if (!hasImageGallery) return res.status(503).json({ error: 'Photo gallery is unavailable', code: 'unavailable' });
+    const loaded = await loadOwnedToolGallery(req.params.toolId, req.user.id);
+    if (loaded.error === 'invalid') return res.status(400).json({ error: 'Invalid tool id', code: 'validation_failed' });
+    if (loaded.error) return res.status(404).json({ error: 'Tool not found' });
+    const index = Number(req.params.index);
+    if (!Number.isInteger(index) || index < 0 || index >= loaded.gallery.length) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    const gallery = loaded.gallery.filter((_, i) => i !== index);
+    await pool.query('UPDATE tool_rentals SET image_gallery = $1, updated_at = NOW() WHERE id = $2', [gallery, loaded.tool.id]);
+    return res.json(galleryResponse(loaded.tool.id, gallery));
+  } catch (err) {
+    require('../utils/logger').error('[toolRentals] gallery remove error:', err.message);
+    return res.status(500).json({ error: 'Failed to remove photo' });
+  }
+});
 // Group 11 item 595: return-to-availability checklist (read side; the
 // flip itself is gated server-side in PUT /:id below).
 router.get('/:toolId/availability-checklist', authenticate, toolRentalDisputesController.getAvailabilityChecklist);

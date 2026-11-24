@@ -449,11 +449,18 @@ export default function HelperDashboard() {
   const [catLookup, setCatLookup] = useState([]);
   const [toolCatLookup, setToolCatLookup] = useState([]);
   const emptySkill = { skill_name:'', category:'', hourly_rate:'', years_exp:'', description:'', is_available:true };
-  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', replacement_value:'', owner_rules:'', owner_custom_terms:'', owner_attestation_accepted:false, condition:'good', brand:'', model:'', image_url:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'', location_lat:'', location_lng:'', capacity_value:'', capacity_unit:'', weight_kg:'', size_length_cm:'', size_width_cm:'', size_height_cm:'', pickup_window_start:'', pickup_window_end:'', return_window_start:'', return_window_end:'', cleaning_instructions:'' };
+  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', replacement_value:'', owner_rules:'', owner_custom_terms:'', owner_attestation_accepted:false, condition:'good', brand:'', model:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'', location_lat:'', location_lng:'', capacity_value:'', capacity_unit:'', weight_kg:'', size_length_cm:'', size_width_cm:'', size_height_cm:'', pickup_window_start:'', pickup_window_end:'', return_window_start:'', return_window_end:'', cleaning_instructions:'' };
   const [skillForm, setSkillForm] = useState(emptySkill);
   const [toolForm, setToolForm]   = useState(emptyTool);
-  const [toolImageFile, setToolImageFile] = useState(null);
-  const [toolImagePreview, setToolImagePreview] = useState('');
+  // 559: gallery editor state. toolGalleryUrls holds the listing's stored
+  // photos (editing); toolGalleryNewFiles holds pending files for a new
+  // listing (uploaded right after create). The first photo is the cover.
+  const [toolGalleryUrls, setToolGalleryUrls] = useState([]);
+  const [toolGalleryNewFiles, setToolGalleryNewFiles] = useState([]);
+  const toolGalleryItems = [
+    ...toolGalleryUrls.map((url) => ({ key: `stored-${url}`, url, kind: 'stored' })),
+    ...toolGalleryNewFiles.map((entry, index) => ({ key: `new-${index}-${entry.file.name}`, url: entry.preview, kind: 'pending' })),
+  ];
 
   const fetchMySkills = useCallback(async () => {
     setSkillsLoading(true);
@@ -541,15 +548,18 @@ export default function HelperDashboard() {
     setEditingTool(null);
     setToolCatLookup([]);
     setToolForm(emptyTool);
-    setToolImageFile(null);
-    setToolImagePreview('');
+    setToolGalleryUrls([]);
+    setToolGalleryNewFiles([]);
     setShowToolModal(true);
   };
   const openEditTool = (tool) => {
     setEditingTool(tool);
-    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', replacement_value:tool.replacement_value||'', owner_rules:tool.owner_rules||'', owner_custom_terms:tool.owner_custom_terms||'', owner_attestation_accepted:false, condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', image_url:tool.image_url||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'', location_lat:tool.location_lat??'', location_lng:tool.location_lng??'', capacity_value:tool.capacity_value??'', capacity_unit:tool.capacity_unit||'', weight_kg:tool.weight_kg??'', size_length_cm:tool.size_length_cm??'', size_width_cm:tool.size_width_cm??'', size_height_cm:tool.size_height_cm??'', pickup_window_start:tool.pickup_window_start?String(tool.pickup_window_start).slice(0,5):'', pickup_window_end:tool.pickup_window_end?String(tool.pickup_window_end).slice(0,5):'', return_window_start:tool.return_window_start?String(tool.return_window_start).slice(0,5):'', return_window_end:tool.return_window_end?String(tool.return_window_end).slice(0,5):'', cleaning_instructions:tool.cleaning_instructions||'' });
-    setToolImageFile(null);
-    setToolImagePreview(tool.image_url||'');
+    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', replacement_value:tool.replacement_value||'', owner_rules:tool.owner_rules||'', owner_custom_terms:tool.owner_custom_terms||'', owner_attestation_accepted:false, condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'', location_lat:tool.location_lat??'', location_lng:tool.location_lng??'', capacity_value:tool.capacity_value??'', capacity_unit:tool.capacity_unit||'', weight_kg:tool.weight_kg??'', size_length_cm:tool.size_length_cm??'', size_width_cm:tool.size_width_cm??'', size_height_cm:tool.size_height_cm??'', pickup_window_start:tool.pickup_window_start?String(tool.pickup_window_start).slice(0,5):'', pickup_window_end:tool.pickup_window_end?String(tool.pickup_window_end).slice(0,5):'', return_window_start:tool.return_window_start?String(tool.return_window_start).slice(0,5):'', return_window_end:tool.return_window_end?String(tool.return_window_end).slice(0,5):'', cleaning_instructions:tool.cleaning_instructions||'' });
+    // 559: the editor works on the stored gallery (first photo = cover).
+    setToolGalleryUrls(Array.isArray(tool.image_gallery) && tool.image_gallery.length > 0
+      ? [...tool.image_gallery]
+      : (tool.image_url ? [tool.image_url] : []));
+    setToolGalleryNewFiles([]);
     setShowToolModal(true);
   };
   const buildToolPayload = () => {
@@ -625,29 +635,116 @@ export default function HelperDashboard() {
     Object.entries(payload).forEach(([key, value]) => {
       if (value !== undefined && value !== null) formData.append(key, String(value));
     });
-    if (toolImageFile) {
-      formData.append('image', toolImageFile);
-    } else if (payload.image_url) {
-      formData.append('image_url', payload.image_url);
-    }
-    if (editingTool?.image_url && !toolImagePreview && !toolImageFile) {
-      formData.append('remove_image', 'true');
+    // 559: on create, the first pending photo rides the existing single
+    // image upload (it becomes the cover); the rest upload to the gallery
+    // right after create in handleSaveTool. On edit the gallery editor
+    // already saved every photo change, so no image fields are sent and
+    // the gallery is left untouched.
+    if (!editingTool && toolGalleryNewFiles.length > 0) {
+      formData.append('image', toolGalleryNewFiles[0].file);
     }
     return formData;
   };
-  const handleToolImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error(t('dashboard.skillsTools.toolImageInvalid', { defaultValue: 'Choose a JPG, PNG, GIF, or WebP image.' }));
+  // 559: gallery editor actions. On an existing listing every change
+  // applies immediately through the gallery endpoints; on a new listing
+  // the files stay pending until the listing exists.
+  const handleGalleryFilesChange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    const valid = [];
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        toast.error(t('dashboard.skillsTools.toolImageInvalid', { defaultValue: 'Choose a JPG, PNG, GIF, or WebP image.' }));
+        continue;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(t('dashboard.skillsTools.toolImageTooLarge', { defaultValue: 'Tool photo must be 10MB or smaller.' }));
+        continue;
+      }
+      valid.push(file);
+    }
+    if (!valid.length) return;
+    if (toolGalleryUrls.length + toolGalleryNewFiles.length + valid.length > 8) {
+      toast.error(t('dashboard.skillsTools.toolGalleryTooMany'));
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error(t('dashboard.skillsTools.toolImageTooLarge', { defaultValue: 'Tool photo must be 10MB or smaller.' }));
-      return;
+    if (editingTool) {
+      try {
+        const form = new FormData();
+        valid.forEach((file) => form.append('images', file));
+        const res = await api.post(`/tool-rentals/${editingTool.id}/gallery`, form);
+        setToolGalleryUrls(res.data?.image_gallery || []);
+        toast.success(t('dashboard.skillsTools.toolGallerySaved'));
+      } catch { toast.error(t('dashboard.skillsTools.toolGallerySaveFailed')); }
+    } else {
+      setToolGalleryNewFiles((prev) => [...prev, ...valid.map((file) => ({ file, preview: URL.createObjectURL(file) }))]);
     }
-    setToolImageFile(file);
-    setToolImagePreview(URL.createObjectURL(file));
+  };
+  const handleGalleryRemove = async (index) => {
+    if (index < toolGalleryUrls.length) {
+      if (editingTool) {
+        try {
+          const res = await api.delete(`/tool-rentals/${editingTool.id}/gallery/${index}`);
+          setToolGalleryUrls(res.data?.image_gallery || []);
+          toast.success(t('dashboard.skillsTools.toolGallerySaved'));
+        } catch { toast.error(t('dashboard.skillsTools.toolGallerySaveFailed')); }
+      } else {
+        setToolGalleryUrls((prev) => prev.filter((_, i) => i !== index));
+      }
+    } else {
+      const fileIndex = index - toolGalleryUrls.length;
+      setToolGalleryNewFiles((prev) => {
+        const removed = prev[fileIndex];
+        if (removed) URL.revokeObjectURL(removed.preview);
+        return prev.filter((_, i) => i !== fileIndex);
+      });
+    }
+  };
+  const handleGalleryMove = async (index, direction) => {
+    const target = index + direction;
+    if (target < 0 || target >= toolGalleryItems.length) return;
+    if (index < toolGalleryUrls.length && target < toolGalleryUrls.length) {
+      const next = [...toolGalleryUrls];
+      [next[index], next[target]] = [next[target], next[index]];
+      if (editingTool) {
+        try {
+          const res = await api.put(`/tool-rentals/${editingTool.id}/gallery`, { image_gallery: next });
+          setToolGalleryUrls(res.data?.image_gallery || []);
+        } catch { toast.error(t('dashboard.skillsTools.toolGallerySaveFailed')); }
+      } else {
+        setToolGalleryUrls(next);
+      }
+    } else if (index >= toolGalleryUrls.length && target >= toolGalleryUrls.length) {
+      const from = index - toolGalleryUrls.length;
+      const to = target - toolGalleryUrls.length;
+      setToolGalleryNewFiles((prev) => {
+        const next = [...prev];
+        [next[from], next[to]] = [next[to], next[from]];
+        return next;
+      });
+    }
+  };
+  const handleGallerySetCover = async (index) => {
+    if (index === 0) return;
+    if (index < toolGalleryUrls.length) {
+      const next = [toolGalleryUrls[index], ...toolGalleryUrls.filter((_, i) => i !== index)];
+      if (editingTool) {
+        try {
+          const res = await api.put(`/tool-rentals/${editingTool.id}/gallery`, { image_gallery: next });
+          setToolGalleryUrls(res.data?.image_gallery || []);
+        } catch { toast.error(t('dashboard.skillsTools.toolGallerySaveFailed')); }
+      } else {
+        setToolGalleryUrls(next);
+      }
+    } else {
+      const fileIndex = index - toolGalleryUrls.length;
+      setToolGalleryNewFiles((prev) => {
+        const item = prev[fileIndex];
+        if (!item) return prev;
+        return [item, ...prev.filter((_, i) => i !== fileIndex)];
+      });
+    }
   };
   const handleSaveTool = async (e) => {
     e.preventDefault();
@@ -658,14 +755,23 @@ export default function HelperDashboard() {
         await api.put(`/tool-rentals/${editingTool.id}`, formData);
         toast.success(t('helperDashboard.tools.updated'));
       } else {
-        await api.post('/tool-rentals', formData);
+        const created = await api.post('/tool-rentals', formData);
+        const createdId = created.data?.tool?.id;
+        if (createdId && toolGalleryNewFiles.length > 1) {
+          try {
+            const form = new FormData();
+            toolGalleryNewFiles.slice(1).forEach(({ file }) => form.append('images', file));
+            await api.post(`/tool-rentals/${createdId}/gallery`, form);
+          } catch { toast.error(t('dashboard.skillsTools.toolGallerySaveFailed')); }
+        }
         toast.success(t('helperDashboard.tools.listed'));
       }
       setShowToolModal(false);
       setEditingTool(null);
       setToolForm(emptyTool);
-      setToolImageFile(null);
-      setToolImagePreview('');
+      toolGalleryNewFiles.forEach(({ preview }) => URL.revokeObjectURL(preview));
+      setToolGalleryNewFiles([]);
+      setToolGalleryUrls([]);
       fetchMyTools();
     } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.tools.saveFailed')); }
   };
@@ -2693,38 +2799,53 @@ export default function HelperDashboard() {
       </Modal>
 
       {/* Add / Edit Tool Modal - upgraded with richer fields */}
-      <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);setToolCatLookup([]);setToolImageFile(null);setToolImagePreview('');}} title={editingTool ? t('dashboard.skillsTools.modalEditTool') : t('dashboard.skillsTools.modalAddTool')}>
+      <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);setToolCatLookup([]);toolGalleryNewFiles.forEach(({ preview }) => URL.revokeObjectURL(preview));setToolGalleryNewFiles([]);setToolGalleryUrls([]);}} title={editingTool ? t('dashboard.skillsTools.modalEditTool') : t('dashboard.skillsTools.modalAddTool')}>
         <form onSubmit={handleSaveTool} className="space-y-4" data-track="ui.2144c8cfa1.59">
           <Input label={t('dashboard.skillsTools.toolNameLabel')} required maxLength={200} placeholder={t('dashboard.skillsTools.toolNamePlaceholder')} value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">
-              {t('dashboard.skillsTools.toolPhotoLabel', { defaultValue: 'Tool photo' })}
+              {t('dashboard.skillsTools.toolGalleryLabel')}
             </label>
-            <div className="flex gap-3 items-stretch">
-              <div className="w-28 h-24 rounded-xl border border-gray-700 bg-gray-800 overflow-hidden flex items-center justify-center flex-shrink-0">
-                {toolImagePreview ? (
-                  <img src={toolImagePreview} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-[10px] text-gray-500 text-center px-3">{t('dashboard.skillsTools.toolPhotoEmpty', { defaultValue: 'No photo yet' })}</span>
-                )}
+            <p className="text-xs text-gray-500">
+              {t('dashboard.skillsTools.toolGalleryHint')}
+            </p>
+            {toolGalleryItems.length === 0 ? (
+              <p className="text-xs text-gray-500 mt-2">{t('dashboard.skillsTools.toolGalleryEmpty')}</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                {toolGalleryItems.map((item, index) => (
+                  <div key={item.key} className="rounded-xl border border-gray-700 bg-gray-800 overflow-hidden">
+                    <div className="relative aspect-square">
+                      <img src={item.url} alt="" className="w-full h-full object-cover" />
+                      {index === 0 && (
+                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-black/60 text-white text-[10px]">{t('toolRentals.galleryCover')}</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleGalleryRemove(index)}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-xs leading-none"
+                        aria-label={t('dashboard.skillsTools.toolGalleryRemove')} data-track="ui.2144c8cfa1.60"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between px-1 py-1">
+                      <button type="button" disabled={index === 0} onClick={() => handleGalleryMove(index, -1)} className="text-gray-300 disabled:opacity-30 px-1" aria-label={t('dashboard.skillsTools.toolGalleryMoveLeft')} data-track="ui.2144c8cfa1.69">‹</button>
+                      <button type="button" disabled={index === 0} onClick={() => handleGallerySetCover(index)} className="text-[10px] text-gray-400 hover:text-white disabled:opacity-0 text-center leading-tight px-1" data-track="ui.2144c8cfa1.70">{t('dashboard.skillsTools.toolGallerySetCover')}</button>
+                      <button type="button" disabled={index === toolGalleryItems.length - 1} onClick={() => handleGalleryMove(index, 1)} className="text-gray-300 disabled:opacity-30 px-1" aria-label={t('dashboard.skillsTools.toolGalleryMoveRight')} data-track="ui.2144c8cfa1.71">›</button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex-1 min-w-0">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  onChange={handleToolImageChange}
-                  className="block w-full text-xs text-gray-400 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-orange-600"
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  {t('dashboard.skillsTools.toolPhotoHint', { defaultValue: 'Add a clear photo so renters can inspect the tool before booking.' })}
-                </p>
-                {toolImagePreview&&(
-                  <button type="button" onClick={()=>{setToolImageFile(null);setToolImagePreview('');setToolForm(p=>({...p,image_url:''}));}} className="text-xs text-red-400 hover:text-red-300 mt-2" data-track="ui.2144c8cfa1.60">
-                    {t('common.remove', { defaultValue: 'Remove' })}
-                  </button>
-                )}
-              </div>
-            </div>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              multiple
+              onChange={handleGalleryFilesChange}
+              className="block w-full text-xs text-gray-400 mt-2 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-orange-600"
+              aria-label={t('dashboard.skillsTools.toolGalleryAdd')}
+            />
           </div>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.categoryLabel')}</label>

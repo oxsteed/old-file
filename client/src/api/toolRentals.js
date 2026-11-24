@@ -328,6 +328,26 @@ export const toolRentalsApi = {
     return response.data;
   },
 
+  // Group 11 item 559: multi-photo gallery management (D-290). The first
+  // photo is the cover (image_url); reorder moves the cover, removing it
+  // promotes the next photo. Owner-only on the server.
+  addGalleryPhotos: async (toolId, files) => {
+    const form = new FormData();
+    for (const file of files) form.append('images', file);
+    const response = await api.post(`/tool-rentals/${toolId}/gallery`, form);
+    return response.data;
+  },
+
+  reorderGallery: async (toolId, imageGallery) => {
+    const response = await api.put(`/tool-rentals/${toolId}/gallery`, { image_gallery: imageGallery });
+    return response.data;
+  },
+
+  removeGalleryPhoto: async (toolId, index) => {
+    const response = await api.delete(`/tool-rentals/${toolId}/gallery/${index}`);
+    return response.data;
+  },
+
   // ANALYTICS
   trackEvent: async (toolId, eventType, metadata) => {
     return api.post('/tool-rentals/analytics/track', { toolId, eventType, metadata }).catch(() => null);

@@ -113,6 +113,14 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
           </span>
         )}
 
+        {/* 559: gallery size badge — the card shows the cover; the detail
+            modal renders the full gallery. */}
+        {Array.isArray(tool.image_gallery) && tool.image_gallery.length > 1 && (
+          <span className="absolute bottom-2.5 end-3 inline-flex items-center gap-1 px-2 py-0.5 bg-gray-900/80 text-gray-200 border border-gray-700 rounded-full text-xs font-medium backdrop-blur-sm">
+            {t('toolRentalsDir.galleryPhotoCount', { count: tool.image_gallery.length })}
+          </span>
+        )}
+
         {/* Favorite button */}
         <div className="absolute top-2.5 end-3 z-10">
           <ToolFavoriteButton toolId={tool.id} />
