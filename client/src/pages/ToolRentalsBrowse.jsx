@@ -329,6 +329,21 @@ function getInitialState() {
   if (startParam) filters.startDate = startParam;
   if (endParam) filters.endDate = endParam;
 
+  const capacityMinParam = params.get('capacityMin');
+  if (capacityMinParam !== null && Number.isFinite(Number(capacityMinParam))) {
+    filters.capacityMin = Number(capacityMinParam);
+  }
+  const capacityUnitParam = params.get('capacityUnit');
+  if (capacityUnitParam) filters.capacityUnit = capacityUnitParam;
+  const weightMaxParam = params.get('weightMax');
+  if (weightMaxParam !== null && Number.isFinite(Number(weightMaxParam))) filters.weightMax = Number(weightMaxParam);
+  const lengthMaxParam = params.get('lengthMax');
+  if (lengthMaxParam !== null && Number.isFinite(Number(lengthMaxParam))) filters.lengthMax = Number(lengthMaxParam);
+  const widthMaxParam = params.get('widthMax');
+  if (widthMaxParam !== null && Number.isFinite(Number(widthMaxParam))) filters.widthMax = Number(widthMaxParam);
+  const heightMaxParam = params.get('heightMax');
+  if (heightMaxParam !== null && Number.isFinite(Number(heightMaxParam))) filters.heightMax = Number(heightMaxParam);
+
   if (params.get('availableNow') === 'true') filters.availableNow = true;
   if (params.get('delivery') === 'true') filters.deliveryAvailable = true;
 
@@ -447,6 +462,14 @@ const ToolRentalsBrowse = () => {
         // inverted range is ignored client-side (the server 400s it too).
         startDate: f.startDate && f.endDate && f.endDate > f.startDate ? f.startDate : undefined,
         endDate: f.startDate && f.endDate && f.endDate > f.startDate ? f.endDate : undefined,
+        // 563: a minimum capacity needs its unit to mean anything; without
+        // the unit the server 400s, so only send a complete pair.
+        capacityMin: f.capacityMin !== null && f.capacityUnit ? f.capacityMin : undefined,
+        capacityUnit: f.capacityUnit || undefined,
+        weightMax: f.weightMax !== null ? f.weightMax : undefined,
+        lengthMax: f.lengthMax !== null ? f.lengthMax : undefined,
+        widthMax: f.widthMax !== null ? f.widthMax : undefined,
+        heightMax: f.heightMax !== null ? f.heightMax : undefined,
       };
       const fetched = await toolRentalsApi.browseTools(params);
       setTools((prev) => append ? [...prev, ...fetched] : fetched);

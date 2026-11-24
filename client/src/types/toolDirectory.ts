@@ -162,6 +162,11 @@ export const ADJACENT_TOOL_CATEGORIES: Record<string, string[]> = {
   'Diagnostic Equipment':     ['Electrical Tools', 'HVAC Tools', 'Plumbing Tools'],
 };
 
+// ─── Capacity units (563) ────────────────────────────────────────────────────
+// kg/lb = load, L/gal = volume, W/kW/hp = power. Matches
+// server/routes/toolRentals.js VALID_CAPACITY_UNITS.
+export const TOOL_CAPACITY_UNITS = ['kg', 'lb', 'L', 'gal', 'W', 'kW', 'hp'] as const;
+
 // ─── Conditions ──────────────────────────────────────────────────────────────
 
 export const TOOL_CONDITIONS = ['excellent', 'good', 'fair', 'poor'] as const;
@@ -214,6 +219,16 @@ export interface ToolDirectoryFilters {
       together only, end after start. Empty string = no date filter. */
   startDate: string;
   endDate: string;
+  /** Minimum capacity (563); capacityUnit must be set with it. */
+  capacityMin: number | null;
+  /** Capacity unit for capacityMin; '' = any unit (unit-only filter). */
+  capacityUnit: string;
+  /** Maximum weight in kg (563); null = no restriction. */
+  weightMax: number | null;
+  /** Maximum dimensions in cm (563); null = no restriction. */
+  lengthMax: number | null;
+  widthMax: number | null;
+  heightMax: number | null;
   /** Radius in miles around city; null = no restriction */
   radius: DistanceRadius;
   /** Quick toggles */
@@ -231,6 +246,12 @@ export const DEFAULT_TOOL_FILTERS: ToolDirectoryFilters = {
   city: '',
   startDate: '',
   endDate: '',
+  capacityMin: null,
+  capacityUnit: '',
+  weightMax: null,
+  lengthMax: null,
+  widthMax: null,
+  heightMax: null,
   radius: null,
   availableNow: false,
   deliveryAvailable: false,
@@ -247,6 +268,8 @@ export function countActiveToolFilters(f: ToolDirectoryFilters): number {
   if (f.priceRange)         n++;
   if (f.city)               n++;
   if (f.startDate || f.endDate) n++;
+  if (f.capacityMin !== null || f.capacityUnit) n++;
+  if (f.weightMax !== null || f.lengthMax !== null || f.widthMax !== null || f.heightMax !== null) n++;
   if (f.radius !== null)    n++;
   if (f.availableNow)       n++;
   if (f.deliveryAvailable)  n++;
@@ -279,6 +302,14 @@ export interface ToolCardData {
   pickup_only?: boolean;
   location_city?: string | null;
   location_state?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
+  capacity_value?: number | string | null;
+  capacity_unit?: string | null;
+  weight_kg?: number | string | null;
+  size_length_cm?: number | string | null;
+  size_width_cm?: number | string | null;
+  size_height_cm?: number | string | null;
   image_url?: string | null;
   owner_name?: string | null;
   first_name?: string | null;

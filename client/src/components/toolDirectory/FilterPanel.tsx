@@ -12,12 +12,14 @@ import {
   Wallet,
   Navigation,
   Calendar,
+  Ruler,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ToolDirectoryFilters, ToolCondition, DistanceRadius } from '../../types/toolDirectory';
 import {
   TOOL_CATEGORIES,
   TOOL_CONDITIONS,
+  TOOL_CAPACITY_UNITS,
   TOOL_PRICE_PRESETS,
   DISTANCE_RADIUS_OPTIONS,
   countActiveToolFilters,
@@ -211,6 +213,83 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
           {(filters.startDate || filters.endDate) && !(filters.startDate && filters.endDate) && (
             <p className="text-xs text-gray-600 mt-1.5">{t('toolRentalsDir.dateBothRequired')}</p>
           )}
+        </FilterSection>
+
+        {/* ── Capacity & size (563) ───────────────────────────── */}
+        <FilterSection title={t('toolRentalsDir.capacitySize')} icon={Ruler} defaultOpen={false}>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label htmlFor="tool-capacity-min" className="text-xs text-gray-500 mb-1.5 block">
+                  {t('toolRentalsDir.capacityMinLabel')}
+                </label>
+                <input
+                  id="tool-capacity-min"
+                  type="number"
+                  min={0}
+                  value={filters.capacityMin ?? ''}
+                  onChange={(e) => onChange({ capacityMin: e.target.value === '' ? null : Number(e.target.value) })}
+                  placeholder="0"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+              </div>
+              <div className="flex-1">
+                <label htmlFor="tool-capacity-unit" className="text-xs text-gray-500 mb-1.5 block">
+                  {t('toolRentalsDir.capacityUnitLabel')}
+                </label>
+                <select
+                  id="tool-capacity-unit"
+                  value={filters.capacityUnit}
+                  onChange={(e) => onChange({ capacityUnit: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+                >
+                  <option value="">{t('toolRentalsDir.capacityAnyUnit')}</option>
+                  {TOOL_CAPACITY_UNITS.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {filters.capacityMin !== null && !filters.capacityUnit && (
+              <p className="text-xs text-amber-400">{t('toolRentalsDir.capacityUnitRequired')}</p>
+            )}
+            <div>
+              <label htmlFor="tool-weight-max" className="text-xs text-gray-500 mb-1.5 block">
+                {t('toolRentalsDir.weightMaxLabel')}
+              </label>
+              <input
+                id="tool-weight-max"
+                type="number"
+                min={0}
+                value={filters.weightMax ?? ''}
+                onChange={(e) => onChange({ weightMax: e.target.value === '' ? null : Number(e.target.value) })}
+                placeholder="0"
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { key: 'lengthMax', label: t('toolRentalsDir.lengthMaxLabel') },
+                { key: 'widthMax', label: t('toolRentalsDir.widthMaxLabel') },
+                { key: 'heightMax', label: t('toolRentalsDir.heightMaxLabel') },
+              ] as const).map(({ key, label }) => (
+                <div key={key}>
+                  <label htmlFor={`tool-${key}`} className="text-xs text-gray-500 mb-1.5 block">
+                    {label}
+                  </label>
+                  <input
+                    id={`tool-${key}`}
+                    type="number"
+                    min={0}
+                    value={filters[key] ?? ''}
+                    onChange={(e) => onChange({ [key]: e.target.value === '' ? null : Number(e.target.value) } as Partial<ToolDirectoryFilters>)}
+                    placeholder="0"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
         </FilterSection>
 
         {/* ── Location ──────────────────────────────────────── */}

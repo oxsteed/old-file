@@ -55,11 +55,13 @@ let _resolvedFields = null;
 async function getToolFields() {
   if (_resolvedFields) return _resolvedFields;
   try {
-    // Check optional tool_rentals columns (added in 078b, moderation_hold in 675)
+    // Check optional tool_rentals columns (added in 078b, moderation_hold in 675,
+    // capacity/size/weight in the 563 migration, location in the 564 migration)
     const { rows: trCols } = await pool.query(`
       SELECT column_name FROM information_schema.columns
        WHERE table_name = 'tool_rentals'
-         AND column_name IN ('avg_rating', 'review_count', 'image_gallery', 'location_lat', 'location_lng', 'moderation_hold')
+         AND column_name IN ('avg_rating', 'review_count', 'image_gallery', 'location_lat', 'location_lng', 'moderation_hold',
+           'capacity_value', 'capacity_unit', 'weight_kg', 'size_length_cm', 'size_width_cm', 'size_height_cm')
     `);
     const tr = new Set(trCols.map(r => r.column_name));
 
@@ -79,6 +81,12 @@ async function getToolFields() {
         : 'NULL AS image_url',
       tr.has('location_lat') ? 't.location_lat' : 'NULL::numeric AS location_lat',
       tr.has('location_lng') ? 't.location_lng' : 'NULL::numeric AS location_lng',
+      tr.has('capacity_value') ? 't.capacity_value' : 'NULL::numeric AS capacity_value',
+      tr.has('capacity_unit') ? 't.capacity_unit' : 'NULL AS capacity_unit',
+      tr.has('weight_kg') ? 't.weight_kg' : 'NULL::numeric AS weight_kg',
+      tr.has('size_length_cm') ? 't.size_length_cm' : 'NULL::numeric AS size_length_cm',
+      tr.has('size_width_cm') ? 't.size_width_cm' : 'NULL::numeric AS size_width_cm',
+      tr.has('size_height_cm') ? 't.size_height_cm' : 'NULL::numeric AS size_height_cm',
     ].join(',\n  ');
 
     // Store which optional users columns are safe to select
@@ -89,15 +97,18 @@ async function getToolFields() {
       hasResponseTime: uc.has('avg_response_time_hours'),
       hasImageGallery: tr.has('image_gallery'),
       hasModerationHold: tr.has('moderation_hold'),
+      hasCapacityColumns: tr.has('capacity_value') && tr.has('capacity_unit') && tr.has('weight_kg')
+        && tr.has('size_length_cm') && tr.has('size_width_cm') && tr.has('size_height_cm'),
     };
   } catch {
     _resolvedFields = {
-      toolFields: `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url, NULL::numeric AS location_lat, NULL::numeric AS location_lng`,
+      toolFields: `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url, NULL::numeric AS location_lat, NULL::numeric AS location_lng, NULL::numeric AS capacity_value, NULL AS capacity_unit, NULL::numeric AS weight_kg, NULL::numeric AS size_length_cm, NULL::numeric AS size_width_cm, NULL::numeric AS size_height_cm`,
       ownerRatingExpr: '0',
       hasAvatarUrl: false,
       hasResponseTime: false,
       hasImageGallery: false,
       hasModerationHold: false,
+      hasCapacityColumns: false,
     };
   }
   return _resolvedFields;
@@ -139,6 +150,8 @@ const SEED_TOOL_CATEGORIES = [
 
 const TOOL_RENTAL_ATTESTATION_VERSION = 'peer-rental-v1';
 const VALID_CONDITIONS = ['excellent', 'good', 'fair', 'poor'];
+// 563: capacity units. kg/lb = load, L/gal = volume, W/kW/hp = power.
+const VALID_CAPACITY_UNITS = ['kg', 'lb', 'L', 'gal', 'W', 'kW', 'hp'];
 const MAX_TOOL_NAME_LEN = 200;
 const MAX_TOOL_CATEGORY_LEN = 100;
 const MAX_TOOL_DESCRIPTION_LEN = 4000;
@@ -165,6 +178,24 @@ function parseMoney(value, field, errors, { required = false, positive = false }
     return null;
   }
   return Number(num.toFixed(2));
+}
+
+function parseNonNegativeNumber(value, field, errors, { max = 1000000 } = {}) {
+  if (value === undefined || value === null || value === '') return null;
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    errors[field] = `${field} must be a number`;
+    return null;
+  }
+  if (num < 0) {
+    errors[field] = `${field} cannot be negative`;
+    return null;
+  }
+  if (num > max) {
+    errors[field] = `${field} is too high`;
+    return null;
+  }
+  return num;
 }
 
 function cleanText(value, maxLen, field, errors, { required = false } = {}) {
@@ -242,7 +273,7 @@ async function resolveToolImageUrl(req) {
   return { url: imageUrl, key: null };
 }
 
-function normalizeToolPayload(body, { partial = false } = {}) {
+function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
   const errors = {};
   const payload = {};
 
@@ -293,6 +324,33 @@ function normalizeToolPayload(body, { partial = false } = {}) {
     if (payload.condition && !VALID_CONDITIONS.includes(payload.condition)) {
       errors.condition = 'Invalid condition value';
     }
+  }
+
+  // 563: capacity is a value+unit pair; weight and dimensions are plain
+  // non-negative measures. A blank value means "not provided" (and on a
+  // partial update leaves the stored value alone, like the money fields).
+  if (!partial || body.capacity_value !== undefined) {
+    payload.capacity_value = parseNonNegativeNumber(body.capacity_value, 'capacity_value', errors);
+  }
+  if (!partial || body.capacity_unit !== undefined) {
+    const unit = typeof body.capacity_unit === 'string' ? body.capacity_unit.trim() : '';
+    payload.capacity_unit = unit || null;
+    if (payload.capacity_unit && !VALID_CAPACITY_UNITS.includes(payload.capacity_unit)) {
+      errors.capacity_unit = 'Invalid capacity unit';
+    }
+  }
+  for (const field of ['weight_kg', 'size_length_cm', 'size_width_cm', 'size_height_cm']) {
+    if (!partial || body[field] !== undefined) {
+      payload[field] = parseNonNegativeNumber(body[field], field, errors);
+    }
+  }
+  // The pair is validated on the merged row: a partial update that sets a
+  // value inherits the stored unit (and vice versa), so an edit that does
+  // not touch capacity can never break the pair.
+  const mergedCapacityValue = payload.capacity_value ?? existing?.capacity_value ?? null;
+  const mergedCapacityUnit = payload.capacity_unit ?? existing?.capacity_unit ?? null;
+  if ((mergedCapacityValue != null) !== (mergedCapacityUnit != null)) {
+    errors.capacity_unit = 'capacity_unit is required when a capacity is set';
   }
 
   for (const field of ['is_available', 'requires_deposit', 'delivery_available', 'pickup_only']) {
@@ -348,7 +406,8 @@ router.get('/categories', async (req, res) => {
 // the renter only sees tools free for the whole requested range.
 async function browseTools(req, res) {
   try {
-    const { category, city, name, priceMin, priceMax, sort = 'newest', limit = 30, offset = 0, startDate, endDate } = req.query;
+    const { category, city, name, priceMin, priceMax, sort = 'newest', limit = 30, offset = 0, startDate, endDate,
+      capacityMin, capacityUnit, weightMax, lengthMax, widthMax, heightMax } = req.query;
     // 562: both dates together, valid calendar dates, end after start.
     // A single date is not a rental range, so it is rejected rather than
     // silently treated as open-ended.
@@ -372,7 +431,7 @@ async function browseTools(req, res) {
     let where = 'WHERE t.is_available = $1';
     let idx = 2;
 
-    const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime, hasModerationHold } = await getToolFields();
+    const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime, hasModerationHold, hasCapacityColumns } = await getToolFields();
     // An admin moderation hold (e.g. safety recall) keeps the tool out of the
     // public listing even if the owner flips is_available back on.
     if (hasModerationHold) where += ' AND NOT t.moderation_hold';
@@ -382,6 +441,39 @@ async function browseTools(req, res) {
     if (name)     { where += ` AND t.name ILIKE $${idx++}`; params.push(`%${name}%`); }
     if (priceMin) { where += ` AND t.daily_rate >= $${idx++}`; params.push(parseFloat(priceMin)); }
     if (priceMax) { where += ` AND t.daily_rate <= $${idx++}`; params.push(parseFloat(priceMax)); }
+    // 563: capacity/size filters. A minimum capacity is meaningless without
+    // its unit (10 kg is not 10 lb), so capacityMin requires capacityUnit.
+    const capacityFilters = { capacityMin, capacityUnit, weightMax, lengthMax, widthMax, heightMax };
+    if (Object.values(capacityFilters).some((v) => v !== undefined)) {
+      if (!hasCapacityColumns) {
+        return res.status(400).json({ error: 'Capacity filters are unavailable', code: 'unavailable' });
+      }
+      const badNumber = (value) => {
+        const n = Number(value);
+        return !Number.isFinite(n) || n < 0;
+      };
+      const filterErrors = {};
+      if (capacityUnit !== undefined && !VALID_CAPACITY_UNITS.includes(capacityUnit)) {
+        filterErrors.capacityUnit = 'Invalid capacity unit';
+      }
+      if (capacityMin !== undefined && (badNumber(capacityMin) || !capacityUnit)) {
+        filterErrors.capacityMin = capacityUnit ? 'Invalid capacity minimum' : 'capacityUnit is required with capacityMin';
+      }
+      for (const field of ['weightMax', 'lengthMax', 'widthMax', 'heightMax']) {
+        if (capacityFilters[field] !== undefined && badNumber(capacityFilters[field])) {
+          filterErrors[field] = 'Invalid value';
+        }
+      }
+      if (Object.keys(filterErrors).length) {
+        return res.status(400).json({ error: 'Invalid capacity filters', code: 'validation_failed', fields: filterErrors });
+      }
+      if (capacityUnit) { where += ` AND t.capacity_unit = $${idx++}`; params.push(capacityUnit); }
+      if (capacityMin !== undefined) { where += ` AND t.capacity_value >= $${idx++}`; params.push(Number(capacityMin)); }
+      if (weightMax !== undefined) { where += ` AND t.weight_kg <= $${idx++}`; params.push(Number(weightMax)); }
+      if (lengthMax !== undefined) { where += ` AND t.size_length_cm <= $${idx++}`; params.push(Number(lengthMax)); }
+      if (widthMax !== undefined) { where += ` AND t.size_width_cm <= $${idx++}`; params.push(Number(widthMax)); }
+      if (heightMax !== undefined) { where += ` AND t.size_height_cm <= $${idx++}`; params.push(Number(heightMax)); }
+    }
     if (dateRange) {
       where += ` AND NOT EXISTS (
         SELECT 1 FROM tool_rentals_bookings b
@@ -534,6 +626,9 @@ router.post('/', authenticate, toolOwnerCapabilityGate, upload.single('image'), 
       'location_city', 'location_state', 'owner_rules', 'owner_custom_terms',
       'owner_custom_terms_hash', 'replacement_value',
       'owner_attested_at', 'owner_attestation_version',
+      // 563: capacity / size / weight (migration 20261124011000).
+      'capacity_value', 'capacity_unit', 'weight_kg',
+      'size_length_cm', 'size_width_cm', 'size_height_cm',
     ];
     const insertValues = [
       req.user.id,
@@ -558,6 +653,12 @@ router.post('/', authenticate, toolOwnerCapabilityGate, upload.single('image'), 
       payload.replacement_value,
       new Date(),
       TOOL_RENTAL_ATTESTATION_VERSION,
+      payload.capacity_value ?? null,
+      payload.capacity_unit ?? null,
+      payload.weight_kg ?? null,
+      payload.size_length_cm ?? null,
+      payload.size_width_cm ?? null,
+      payload.size_height_cm ?? null,
     ];
     if (hasImageGallery && imageUrl) {
       insertColumns.push('image_gallery');
@@ -575,6 +676,8 @@ router.post('/', authenticate, toolOwnerCapabilityGate, upload.single('image'), 
                  requires_deposit, delivery_available, pickup_only,
                  location_city, location_state, owner_rules, owner_custom_terms,
                  owner_custom_terms_hash, replacement_value,
+                 capacity_value, capacity_unit, weight_kg,
+                 size_length_cm, size_width_cm, size_height_cm,
                  owner_attested_at, owner_attestation_version,
                  created_at, updated_at`,
       insertValues
@@ -614,7 +717,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
 
     // Fetch existing record first (ownership check)
     const existing = await pool.query(
-      'SELECT id, moderation_hold FROM tool_rentals WHERE id = $1 AND user_id = $2',
+      'SELECT id, moderation_hold, capacity_value, capacity_unit FROM tool_rentals WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (!existing.rows.length) {
@@ -622,7 +725,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
     }
     const underAdminHold = existing.rows[0].moderation_hold === true;
 
-    const { payload, errors } = normalizeToolPayload(req.body, { partial: true });
+    const { payload, errors } = normalizeToolPayload(req.body, { partial: true, existing: existing.rows[0] });
     if (Object.keys(errors).length) {
       return res.status(400).json({ error: 'Validation failed', code: 'validation_failed', fields: errors });
     }
@@ -644,7 +747,17 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
            ELSE image_gallery
          END,`
       : '';
-    const whereOffset = hasImageGallery ? 24 : 22;
+    // 563: capacity columns sit after the image params, so their positions
+    // shift by two when the gallery column exists.
+    const capacityBase = hasImageGallery ? 23 : 21;
+    const capacitySetSql = `
+         capacity_value = COALESCE($${capacityBase}, capacity_value),
+         capacity_unit  = COALESCE($${capacityBase + 1}, capacity_unit),
+         weight_kg      = COALESCE($${capacityBase + 2}, weight_kg),
+         size_length_cm = COALESCE($${capacityBase + 3}, size_length_cm),
+         size_width_cm  = COALESCE($${capacityBase + 4}, size_width_cm),
+         size_height_cm = COALESCE($${capacityBase + 5}, size_height_cm),`;
+    const whereOffset = capacityBase + 7; // six capacity params, then id, then user_id
 
     const result = await pool.query(
       `UPDATE tool_rentals SET
@@ -670,6 +783,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
          owner_attested_at  = CASE WHEN $20::boolean THEN NOW() ELSE owner_attested_at END,
          owner_attestation_version = CASE WHEN $20::boolean THEN '${TOOL_RENTAL_ATTESTATION_VERSION}' ELSE owner_attestation_version END,
          ${imageSetSql}
+         ${capacitySetSql}
          updated_at         = NOW()
        WHERE id = $${whereOffset - 1} AND user_id = $${whereOffset}
        RETURNING id, user_id, name, category, description,
@@ -678,6 +792,8 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
                  requires_deposit, delivery_available, pickup_only,
                  location_city, location_state, owner_rules, owner_custom_terms,
                  owner_custom_terms_hash, replacement_value,
+                 capacity_value, capacity_unit, weight_kg,
+                 size_length_cm, size_width_cm, size_height_cm,
                  owner_attested_at, owner_attestation_version,
                  created_at, updated_at`,
       [
@@ -702,6 +818,12 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
         payload.replacement_value ?? null,
         !!payload.owner_attestation_accepted,
         ...(hasImageGallery ? [removeImage, imageUrl] : []),
+        payload.capacity_value ?? null,
+        payload.capacity_unit ?? null,
+        payload.weight_kg ?? null,
+        payload.size_length_cm ?? null,
+        payload.size_width_cm ?? null,
+        payload.size_height_cm ?? null,
         id,
         req.user.id,
       ]

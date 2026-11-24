@@ -172,6 +172,27 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
           <p className="text-xs text-gray-400 leading-relaxed line-clamp-2">{tool.description}</p>
         )}
 
+        {/* Capacity / size specs (563) */}
+        {(tool.capacity_value != null || tool.weight_kg != null || tool.size_length_cm != null) && (
+          <p className="text-xs text-gray-400 leading-relaxed">
+            {[
+              tool.capacity_value != null && tool.capacity_unit
+                ? t('toolRentalsDir.capacityLabel', { value: Number(tool.capacity_value), unit: tool.capacity_unit })
+                : null,
+              tool.weight_kg != null
+                ? t('toolRentalsDir.weightLabel', { value: Number(tool.weight_kg) })
+                : null,
+              tool.size_length_cm != null
+                ? t('toolRentalsDir.sizeLabel', {
+                    length: Number(tool.size_length_cm),
+                    width: tool.size_width_cm != null ? Number(tool.size_width_cm) : '—',
+                    height: tool.size_height_cm != null ? Number(tool.size_height_cm) : '—',
+                  })
+                : null,
+            ].filter(Boolean).join(' · ')}
+          </p>
+        )}
+
         {/* Rate breakdown */}
         {((tool.weekly_rate && tool.weekly_rate > 0) || (tool.monthly_rate && tool.monthly_rate > 0)) && (
           <ul className="space-y-1" aria-label={t('toolRentalsDir.rateBreakdownAria')}>

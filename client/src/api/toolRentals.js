@@ -22,6 +22,12 @@ export const toolRentalsApi = {
     if (filters.priceMax) params.priceMax = filters.priceMax;
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
+    if (filters.capacityMin !== null && filters.capacityMin !== undefined) params.capacityMin = filters.capacityMin;
+    if (filters.capacityUnit) params.capacityUnit = filters.capacityUnit;
+    if (filters.weightMax !== null && filters.weightMax !== undefined) params.weightMax = filters.weightMax;
+    if (filters.lengthMax !== null && filters.lengthMax !== undefined) params.lengthMax = filters.lengthMax;
+    if (filters.widthMax !== null && filters.widthMax !== undefined) params.widthMax = filters.widthMax;
+    if (filters.heightMax !== null && filters.heightMax !== undefined) params.heightMax = filters.heightMax;
     if (filters.sort) params.sort = filters.sort;
     if (filters.limit) params.limit = filters.limit;
     if (filters.offset) params.offset = filters.offset;

@@ -33,6 +33,7 @@ import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/Dashbo
 import HelperCapabilitiesCatalog from '../components/HelperCapabilitiesCatalog';
 import QuoteHistoryPanel from '../components/messaging/QuoteHistoryPanel';
 import { listAssignedMaintenanceRequests } from '../api/maintenanceRequests';
+import { TOOL_CAPACITY_UNITS } from '../types/toolDirectory';
 import '../components/messaging/SharedMessengerShell.css';
 import '../styles/HelperDashboard.css';
 
@@ -448,7 +449,7 @@ export default function HelperDashboard() {
   const [catLookup, setCatLookup] = useState([]);
   const [toolCatLookup, setToolCatLookup] = useState([]);
   const emptySkill = { skill_name:'', category:'', hourly_rate:'', years_exp:'', description:'', is_available:true };
-  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', replacement_value:'', owner_rules:'', owner_custom_terms:'', owner_attestation_accepted:false, condition:'good', brand:'', model:'', image_url:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'' };
+  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', replacement_value:'', owner_rules:'', owner_custom_terms:'', owner_attestation_accepted:false, condition:'good', brand:'', model:'', image_url:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'', capacity_value:'', capacity_unit:'', weight_kg:'', size_length_cm:'', size_width_cm:'', size_height_cm:'' };
   const [skillForm, setSkillForm] = useState(emptySkill);
   const [toolForm, setToolForm]   = useState(emptyTool);
   const [toolImageFile, setToolImageFile] = useState(null);
@@ -546,7 +547,7 @@ export default function HelperDashboard() {
   };
   const openEditTool = (tool) => {
     setEditingTool(tool);
-    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', replacement_value:tool.replacement_value||'', owner_rules:tool.owner_rules||'', owner_custom_terms:tool.owner_custom_terms||'', owner_attestation_accepted:false, condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', image_url:tool.image_url||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'' });
+    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', replacement_value:tool.replacement_value||'', owner_rules:tool.owner_rules||'', owner_custom_terms:tool.owner_custom_terms||'', owner_attestation_accepted:false, condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', image_url:tool.image_url||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'', capacity_value:tool.capacity_value??'', capacity_unit:tool.capacity_unit||'', weight_kg:tool.weight_kg??'', size_length_cm:tool.size_length_cm??'', size_width_cm:tool.size_width_cm??'', size_height_cm:tool.size_height_cm??'' });
     setToolImageFile(null);
     setToolImagePreview(tool.image_url||'');
     setShowToolModal(true);
@@ -556,6 +557,13 @@ export default function HelperDashboard() {
     const hourlyRate = toolForm.hourly_rate === '' ? null : Number(toolForm.hourly_rate);
     const depositAmount = toolForm.deposit_amount === '' ? null : Number(toolForm.deposit_amount);
     const replacementValue = toolForm.replacement_value === '' ? null : Number(toolForm.replacement_value);
+    // 563: capacity is a value+unit pair; weight and dimensions are plain
+    // non-negative measures. Blank means unset (null on create).
+    const capacityValue = toolForm.capacity_value === '' ? null : Number(toolForm.capacity_value);
+    const weightKg = toolForm.weight_kg === '' ? null : Number(toolForm.weight_kg);
+    const sizeLength = toolForm.size_length_cm === '' ? null : Number(toolForm.size_length_cm);
+    const sizeWidth = toolForm.size_width_cm === '' ? null : Number(toolForm.size_width_cm);
+    const sizeHeight = toolForm.size_height_cm === '' ? null : Number(toolForm.size_height_cm);
 
     if (!toolForm.name.trim()) throw new Error(t('dashboard.skillsTools.toolNameRequired', { defaultValue: 'Tool name is required' }));
     if (!toolForm.category.trim()) throw new Error(t('dashboard.skillsTools.toolCategoryRequired', { defaultValue: 'Tool category is required' }));
@@ -565,6 +573,13 @@ export default function HelperDashboard() {
     if (toolForm.deposit_amount !== '' && (!Number.isFinite(depositAmount) || depositAmount < 0)) throw new Error(t('dashboard.skillsTools.depositInvalid', { defaultValue: 'Deposit cannot be negative' }));
     if (toolForm.replacement_value !== '' && (!Number.isFinite(replacementValue) || replacementValue < 0)) throw new Error(t('dashboard.skillsTools.replacementInvalid', { defaultValue: 'Replacement value cannot be negative' }));
     if (toolForm.requires_deposit && !(depositAmount > 0)) throw new Error(t('dashboard.skillsTools.depositRequired', { defaultValue: 'Enter a deposit amount or turn off required deposit' }));
+    if (toolForm.capacity_value !== '' && (!Number.isFinite(capacityValue) || capacityValue < 0)) throw new Error(t('dashboard.skillsTools.capacityInvalid', { defaultValue: 'Capacity must be 0 or more' }));
+    if ((toolForm.capacity_value !== '') !== (toolForm.capacity_unit !== '')) throw new Error(t('dashboard.skillsTools.capacityPairInvalid', { defaultValue: 'Enter both a capacity value and a unit, or leave both blank' }));
+    if (toolForm.capacity_unit !== '' && !TOOL_CAPACITY_UNITS.includes(toolForm.capacity_unit)) throw new Error(t('dashboard.skillsTools.capacityInvalid', { defaultValue: 'Capacity must be 0 or more' }));
+    if (toolForm.weight_kg !== '' && (!Number.isFinite(weightKg) || weightKg < 0)) throw new Error(t('dashboard.skillsTools.weightInvalid', { defaultValue: 'Weight must be 0 or more' }));
+    if ((toolForm.size_length_cm !== '' && (!Number.isFinite(sizeLength) || sizeLength < 0))
+      || (toolForm.size_width_cm !== '' && (!Number.isFinite(sizeWidth) || sizeWidth < 0))
+      || (toolForm.size_height_cm !== '' && (!Number.isFinite(sizeHeight) || sizeHeight < 0))) throw new Error(t('dashboard.skillsTools.sizeInvalid', { defaultValue: 'Dimensions must be 0 or more' }));
     if (!toolForm.owner_attestation_accepted) throw new Error(t('dashboard.skillsTools.ownerAttestationRequired', { defaultValue: 'Confirm the peer rental acknowledgement before listing this tool' }));
 
     return {
@@ -582,6 +597,12 @@ export default function HelperDashboard() {
       hourly_rate: hourlyRate,
       deposit_amount: depositAmount,
       replacement_value: replacementValue,
+      capacity_value: capacityValue,
+      capacity_unit: toolForm.capacity_unit || null,
+      weight_kg: weightKg,
+      size_length_cm: sizeLength,
+      size_width_cm: sizeWidth,
+      size_height_cm: sizeHeight,
       owner_attestation_accepted: toolForm.owner_attestation_accepted,
     };
   };
@@ -2711,6 +2732,21 @@ export default function HelperDashboard() {
           <div className="grid grid-cols-2 gap-3">
             <Input label={t('dashboard.skillsTools.brandOptLabel')} maxLength={100} placeholder={t('dashboard.skillsTools.brandPlaceholder')} value={toolForm.brand} onChange={e=>setToolForm(p=>({...p,brand:e.target.value}))}/>
             <Input label={t('dashboard.skillsTools.modelOptLabel')} maxLength={100} placeholder={t('dashboard.skillsTools.modelPlaceholder')} value={toolForm.model} onChange={e=>setToolForm(p=>({...p,model:e.target.value}))}/>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('dashboard.skillsTools.capacityValueLabel')} type="number" step="0.01" min="0" placeholder="0" value={toolForm.capacity_value} onChange={e=>setToolForm(p=>({...p,capacity_value:e.target.value}))}/>
+            <Select label={t('dashboard.skillsTools.capacityUnitLabel')} value={toolForm.capacity_unit} onChange={e=>setToolForm(p=>({...p,capacity_unit:e.target.value}))}>
+              <option value="">{t('dashboard.skillsTools.capacityUnitNone')}</option>
+              {TOOL_CAPACITY_UNITS.map((u)=>(<option key={u} value={u}>{u}</option>))}
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('dashboard.skillsTools.weightKgLabel')} type="number" step="0.01" min="0" placeholder="0" value={toolForm.weight_kg} onChange={e=>setToolForm(p=>({...p,weight_kg:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.sizeLengthLabel')} type="number" step="0.01" min="0" placeholder="0" value={toolForm.size_length_cm} onChange={e=>setToolForm(p=>({...p,size_length_cm:e.target.value}))}/>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('dashboard.skillsTools.sizeWidthLabel')} type="number" step="0.01" min="0" placeholder="0" value={toolForm.size_width_cm} onChange={e=>setToolForm(p=>({...p,size_width_cm:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.sizeHeightLabel')} type="number" step="0.01" min="0" placeholder="0" value={toolForm.size_height_cm} onChange={e=>setToolForm(p=>({...p,size_height_cm:e.target.value}))}/>
           </div>
           <Select label={t('dashboard.skillsTools.conditionLabel')} value={toolForm.condition} onChange={e=>setToolForm(p=>({...p,condition:e.target.value}))}>
             <option value="excellent">{t('dashboard.skillsTools.conditionExcellent')}</option><option value="good">{t('dashboard.skillsTools.conditionGood')}</option><option value="fair">{t('dashboard.skillsTools.conditionFair')}</option>

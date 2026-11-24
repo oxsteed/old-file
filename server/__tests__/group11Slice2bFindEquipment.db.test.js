@@ -230,4 +230,115 @@ describeDb('Group 11 Slice 2b: Find equipment (562, 563, 564, 565)', () => {
       expect(bad.body.code).toBe('validation_failed');
     });
   });
+
+  describe('563: capacity and size filters', () => {
+    const createTool = (user, body) => request(app)
+      .post('/api/tool-rentals')
+      .set('x-test-user', user)
+      .send({
+        name: 'Generator',
+        category: 'Generators & Power',
+        description: 'Portable generator.',
+        daily_rate: 45,
+        location_city: 'Austin',
+        location_state: 'TX',
+        owner_attestation_accepted: true,
+        ...body,
+      });
+
+    test('create stores capacity/size/weight and browse returns them', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const res = await createTool(owner, {
+        capacity_value: 2200, capacity_unit: 'W', weight_kg: 28,
+        size_length_cm: 60, size_width_cm: 40, size_height_cm: 45,
+      }).expect(201);
+      expect(res.body.tool.capacity_value).toBe('2200.00');
+      expect(res.body.tool.capacity_unit).toBe('W');
+      expect(res.body.tool.weight_kg).toBe('28.00');
+      expect(res.body.tool.size_length_cm).toBe('60.00');
+      const browseRes = await browse({ name: 'Generator' }).expect(200);
+      const found = browseRes.body.tools.find((t) => t.id === res.body.tool.id);
+      expect(found.capacity_value).toBe('2200.00');
+      expect(found.capacity_unit).toBe('W');
+      expect(found.weight_kg).toBe('28.00');
+    });
+
+    test('capacity value without a unit, a bad unit, and a negative weight are rejected', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      await createTool(owner, { capacity_value: 10 }).expect(400);
+      await createTool(owner, { capacity_value: 10, capacity_unit: 'furlongs' }).expect(400);
+      await createTool(owner, { capacity_value: 10, capacity_unit: 'kg', weight_kg: -1 }).expect(400);
+      const bad = await createTool(owner, { capacity_value: 10 }).expect(400);
+      expect(bad.body.code).toBe('validation_failed');
+      expect(bad.body.fields.capacity_unit).toMatch(/required/);
+    });
+
+    test('browse filters by minimum capacity with unit, max weight, and max length', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const big = await insertTool(owner, {
+        name: 'Big generator', category: 'Generators & Power',
+        capacity_value: 3000, capacity_unit: 'W', weight_kg: 45, size_length_cm: 80,
+      });
+      const small = await insertTool(owner, {
+        name: 'Small generator', category: 'Generators & Power',
+        capacity_value: 1000, capacity_unit: 'W', weight_kg: 12, size_length_cm: 40,
+      });
+      const heavyKg = await insertTool(owner, {
+        name: 'Heavy hoist', category: 'Lifting & Material Handling',
+        capacity_value: 500, capacity_unit: 'kg', weight_kg: 120, size_length_cm: 150,
+      });
+
+      const byCapacity = await browse({ capacityMin: 2000, capacityUnit: 'W' }).expect(200);
+      const capIds = byCapacity.body.tools.map((t) => t.id);
+      expect(capIds).toContain(big.id);
+      expect(capIds).not.toContain(small.id);
+      expect(capIds).not.toContain(heavyKg.id); // different unit: kg is not W
+
+      const byWeight = await browse({ weightMax: 20 }).expect(200);
+      const weightIds = byWeight.body.tools.map((t) => t.id);
+      expect(weightIds).toContain(small.id);
+      expect(weightIds).not.toContain(big.id);
+      expect(weightIds).not.toContain(heavyKg.id);
+
+      const byLength = await browse({ lengthMax: 50 }).expect(200);
+      const lengthIds = byLength.body.tools.map((t) => t.id);
+      expect(lengthIds).toContain(small.id);
+      expect(lengthIds).not.toContain(big.id);
+
+      const byUnitOnly = await browse({ capacityUnit: 'kg' }).expect(200);
+      const unitIds = byUnitOnly.body.tools.map((t) => t.id);
+      expect(unitIds).toContain(heavyKg.id);
+      expect(unitIds).not.toContain(big.id);
+
+      await browse({ capacityMin: 10 }).expect(400); // unit required
+      await browse({ capacityMin: 10, capacityUnit: 'furlongs' }).expect(400);
+      await browse({ weightMax: -5 }).expect(400);
+      await browse({ weightMax: 'heavy' }).expect(400);
+    });
+
+    test('partial update inherits the stored unit for the pair check', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const noCapacity = await insertTool(owner, { name: 'Plain drill' });
+      // Value alone with no stored unit: rejected.
+      await request(app).put(`/api/tool-rentals/${noCapacity.id}`)
+        .set('x-test-user', owner)
+        .send({ capacity_value: 5 }).expect(400);
+      // Value + unit together: accepted.
+      const set = await request(app).put(`/api/tool-rentals/${noCapacity.id}`)
+        .set('x-test-user', owner)
+        .send({ capacity_value: 5, capacity_unit: 'kg' }).expect(200);
+      expect(set.body.tool.capacity_value).toBe('5.00');
+      expect(set.body.tool.capacity_unit).toBe('kg');
+      // Value alone now inherits the stored unit: accepted.
+      const bumped = await request(app).put(`/api/tool-rentals/${noCapacity.id}`)
+        .set('x-test-user', owner)
+        .send({ capacity_value: 8 }).expect(200);
+      expect(bumped.body.tool.capacity_value).toBe('8.00');
+      expect(bumped.body.tool.capacity_unit).toBe('kg');
+    });
+  });
 });
