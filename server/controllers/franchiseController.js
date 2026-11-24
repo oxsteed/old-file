@@ -5,7 +5,7 @@ const countriesUtil = require('../utils/countries');
 const access = require('../services/access/accessService');
 // Group 12 Slice 3a (603): applicant documents reuse the staff-document
 // vault storage pattern — private prefix, signed-URL downloads only.
-const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
+const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 
 const APPLICATION_STATUSES = new Set([
   'inquiry',
@@ -454,6 +454,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // franchise-wide standards plus this territory's own. HQ sees the
   // full acknowledgment list (622).
   const standards = await fetchFranchiseStandards(applicationId, { includeAcknowledgments: true });
+  // Group 12 Slice 3e (623): the brand asset store — the franchise-wide
+  // assets plus this territory's own.
+  const brandAssets = await fetchBrandAssets(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -480,6 +483,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     training_assignments: trainingAssignments,
     announcements,
     standards,
+    brand_assets: brandAssets,
     readiness_reviews: readinessReviews,
     agreement: agreementResult.rows[0] || null,
     notes: notesResult.rows,
@@ -830,6 +834,40 @@ async function presentFranchiseDocument(doc) {
   }
 }
 
+// Group 12 Slice 3e (623, D-324): vault-style presentation for brand
+// assets — a signed download URL minted at read time (600s), never a
+// public path. The storage key itself is stripped from the payload.
+// When no signing secret is configured the row still reads, flagged
+// `download_unavailable`, instead of failing.
+async function presentFranchiseBrandAsset(asset) {
+  const { storage_key, ...rest } = asset;
+  try {
+    const downloadUrl = await getSignedDownloadUrl(storage_key, 600);
+    return { ...rest, download_url: downloadUrl, download_unavailable: false };
+  } catch (_err) {
+    return { ...rest, download_url: null, download_unavailable: true };
+  }
+}
+
+// Group 12 Slice 3e (623, D-324): the brand assets visible to a
+// territory — the franchise-wide assets plus its own. Passing a null
+// application id returns the franchise-wide assets only (same
+// predicate shape as the standards fetcher).
+async function fetchBrandAssets(applicationId) {
+  const { rows } = await db.query(
+    `SELECT *
+       FROM franchise_brand_assets
+      WHERE application_id IS NULL OR application_id = $1
+      ORDER BY application_id NULLS FIRST, created_at DESC, id DESC`,
+    [applicationId]
+  );
+  const presented = await Promise.all(rows.map(presentFranchiseBrandAsset));
+  return presented.map((asset) => ({
+    ...asset,
+    scope: asset.application_id ? 'territory' : 'franchise',
+  }));
+}
+
 // Group 12 Slice 3a (604/603/605): the applicant-facing detail view. Same
 // application, but scoped to the applicant's own rows only: shared notes
 // (visibility = 'shared'), interviews, documents, and the follow-up thread.
@@ -1001,6 +1039,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     // Group 12 Slice 3e (621/622): the franchise standards library,
     // with the viewer's own acknowledgment state per standard.
     standards: await fetchFranchiseStandards(applicationId, { userId }),
+    // Group 12 Slice 3e (623): the brand asset store.
+    brand_assets: await fetchBrandAssets(applicationId),
     readiness_reviews: readinessReviews,
     activity: activityResult.rows,
   };
@@ -5855,6 +5895,169 @@ async function publishFranchiseStandardVersionWide(req, res) {
   }
 }
 
+// Group 12 Slice 3e (623, D-324): HQ uploads a brand asset for one
+// territory (applicationId set) or franchise-wide (null). The file
+// uploads through the existing upload path into the private
+// `franchise-brand-assets/` prefix before the row is written; a failed
+// upload never creates a row.
+async function uploadFranchiseBrandAssetCore(req, res, { applicationId }) {
+  if (!req.file?.buffer?.length) {
+    return res.status(400).json({ error: 'A file is required.', code: 'brand_asset_file_required' });
+  }
+  const name = (asTrimmed(req.body?.name) || req.file.originalname || 'Brand asset').slice(0, 200);
+  const description = asTrimmed(req.body?.description);
+  let storageKey = null;
+  try {
+    storageKey = await uploadFile(
+      req.file.buffer,
+      `franchise-brand-assets/${applicationId || 'franchise'}`,
+      req.file.originalname,
+      req.file.detectedMime || req.file.mimetype,
+    );
+    if (!storageKey) {
+      return res.status(502).json({ error: 'Brand asset upload failed.', code: 'upload_failed' });
+    }
+  } catch (err) {
+    logger.error('Error uploading franchise brand asset', { applicationId, err: err.message });
+    return res.status(502).json({ error: 'Brand asset upload failed.', code: 'upload_failed' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (applicationId) {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [applicationId]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const { rows } = await client.query(
+        `INSERT INTO franchise_brand_assets
+           (application_id, name, description, storage_key, file_name, content_type, file_size_bytes, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [applicationId, name, description, storageKey, req.file.originalname,
+          req.file.detectedMime || req.file.mimetype || null, req.file.size || null, req.user?.id || null]
+      );
+      if (applicationId) {
+        await logActivity(client, applicationId, req.user?.id || null, 'brand_asset_uploaded',
+          `HQ uploaded a brand asset: ${name}.`, { brand_asset_id: rows[0].id });
+      }
+      await client.query('COMMIT');
+      if (applicationId) {
+        const bundle = await fetchFranchiseApplicationBundle(applicationId);
+        return res.status(201).json(bundle);
+      }
+      const brandAssets = await fetchBrandAssets(null);
+      return res.status(201).json({ brand_assets: brandAssets });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error saving franchise brand asset', { applicationId, err: err.message });
+    return res.status(500).json({ error: 'Failed to upload brand asset.' });
+  }
+}
+
+async function uploadFranchiseBrandAsset(req, res) {
+  return uploadFranchiseBrandAssetCore(req, res, { applicationId: req.params.id });
+}
+
+async function uploadFranchiseBrandAssetWide(req, res) {
+  return uploadFranchiseBrandAssetCore(req, res, { applicationId: null });
+}
+
+async function listFranchiseBrandAssetsWide(req, res) {
+  try {
+    const brandAssets = await fetchBrandAssets(null);
+    return res.json({ brand_assets: brandAssets });
+  } catch (err) {
+    logger.error('Error listing franchise-wide brand assets', { err: err.message });
+    return res.status(500).json({ error: 'Failed to list brand assets.' });
+  }
+}
+
+async function deleteFranchiseBrandAssetCore(client, { applicationId, assetId }) {
+  const { rows } = await client.query(
+    `DELETE FROM franchise_brand_assets
+      WHERE id = $1 AND (
+        ($2::uuid IS NULL AND application_id IS NULL) OR application_id = $2
+      )
+      RETURNING storage_key, name`,
+    [assetId, applicationId]
+  );
+  if (!rows.length) {
+    return { error: { status: 404, body: { error: 'Brand asset not found.', code: 'brand_asset_not_found' } } };
+  }
+  return { storageKey: rows[0].storage_key, name: rows[0].name };
+}
+
+async function deleteFranchiseBrandAsset(req, res) {
+  const { id, assetId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await deleteFranchiseBrandAssetCore(client, { applicationId: id, assetId });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await logActivity(client, id, req.user?.id || null, 'brand_asset_removed',
+        `HQ removed a brand asset: ${result.name}.`, { brand_asset_id: assetId });
+      await client.query('COMMIT');
+      // The stored file is best-effort: a failed storage delete never
+      // fails the removal — the row is gone and the key is unreferenced.
+      try { await deleteFile(result.storageKey); } catch (err) {
+        logger.warn('Franchise brand asset file delete failed', { assetId, err: err.message });
+      }
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise brand asset', { id, assetId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove brand asset.' });
+  }
+}
+
+async function deleteFranchiseBrandAssetWide(req, res) {
+  const { assetId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await deleteFranchiseBrandAssetCore(client, { applicationId: null, assetId });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      try { await deleteFile(result.storageKey); } catch (err) {
+        logger.warn('Franchise brand asset file delete failed', { assetId, err: err.message });
+      }
+      const brandAssets = await fetchBrandAssets(null);
+      return res.json({ brand_assets: brandAssets });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise-wide brand asset', { assetId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove brand asset.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -5925,6 +6128,11 @@ module.exports = {
   acknowledgeFranchiseStandard,
   publishFranchiseStandardVersion,
   publishFranchiseStandardVersionWide,
+  uploadFranchiseBrandAsset,
+  uploadFranchiseBrandAssetWide,
+  listFranchiseBrandAssetsWide,
+  deleteFranchiseBrandAsset,
+  deleteFranchiseBrandAssetWide,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

@@ -19,6 +19,7 @@ import FranchiseTerritoryInvitations from './FranchiseTerritoryInvitations';
 import FranchiseTrainingTasks from './FranchiseTrainingTasks';
 import FranchiseAnnouncements from './FranchiseAnnouncements';
 import FranchiseStandards from './FranchiseStandards';
+import FranchiseBrandAssets from './FranchiseBrandAssets';
 import { useAuth } from '../hooks/useAuth';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
@@ -744,6 +745,9 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onAcknowledge={acknowledgeStandard}
         disabled={busy}
       />
+
+      {/* Group 12 Slice 3e (623): the brand asset store. */}
+      <FranchiseBrandAssets assets={detail.brand_assets || []} />
 
       {/* Group 12 Slice 3b (610, D-310): the operator-facing assignment history. */}
       <section className="fr-detail-card">

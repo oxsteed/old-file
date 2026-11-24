@@ -21,6 +21,7 @@ import FranchiseTrainingTasks from '../../../pages/FranchiseTrainingTasks';
 import FranchiseCoveragePlan from '../../../pages/FranchiseCoveragePlan';
 import FranchiseAnnouncements from '../../../pages/FranchiseAnnouncements';
 import FranchiseStandards from '../../../pages/FranchiseStandards';
+import FranchiseBrandAssets from '../../../pages/FranchiseBrandAssets';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -937,6 +938,47 @@ export default function FranchiseHQPage() {
     }
   }
 
+  // Group 12 Slice 3e (623): HQ uploads a brand asset for this territory
+  // or franchise-wide (multipart FormData), and removes assets. A
+  // franchise-wide upload returns the wide list, so the bundle is
+  // reloaded to show it.
+  async function uploadBrandAsset({ formData, scope }) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      if (scope === 'franchise') {
+        await axios.post('/franchise/brand-assets', formData);
+        await loadDetail(selectedApplication.id);
+      } else {
+        const res = await axios.post(`/franchise/applications/${selectedApplication.id}/brand-assets`, formData);
+        setSelectedBundle(res.data);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLoadFailed'));
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteBrandAsset(asset) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      if (asset.scope === 'franchise') {
+        await axios.delete(`/franchise/brand-assets/${asset.id}`);
+        await loadDetail(selectedApplication.id);
+      } else {
+        const res = await axios.delete(`/franchise/applications/${selectedApplication.id}/brand-assets/${asset.id}`);
+        setSelectedBundle(res.data);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLoadFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function updateChecklist(itemId, payload) {
     if (!selectedApplication) return;
     try {
@@ -1824,6 +1866,18 @@ export default function FranchiseHQPage() {
                     onCurate={curateStandard}
                     onRemove={removeStandard}
                     onPublishVersion={publishStandardVersion}
+                    disabled={saving}
+                  />
+
+                  {/* Group 12 Slice 3e (623): the brand asset store — HQ
+                      uploads and removes brand assets, per territory or
+                      franchise-wide. */}
+                  <FranchiseBrandAssets
+                    assets={selectedBundle.brand_assets || []}
+                    canUpload
+                    canDelete
+                    onUpload={uploadBrandAsset}
+                    onDelete={deleteBrandAsset}
                     disabled={saving}
                   />
 

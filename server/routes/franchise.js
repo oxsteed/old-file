@@ -83,6 +83,11 @@ const {
   acknowledgeFranchiseStandard,
   publishFranchiseStandardVersion,
   publishFranchiseStandardVersionWide,
+  uploadFranchiseBrandAsset,
+  uploadFranchiseBrandAssetWide,
+  listFranchiseBrandAssetsWide,
+  deleteFranchiseBrandAsset,
+  deleteFranchiseBrandAssetWide,
 } = require('../controllers/franchiseController');
 
 const {
@@ -205,6 +210,13 @@ router.delete('/applications/:id/standards/:standardId', authenticate, requireAd
 // the policy-change event 622 acknowledges and 625 reminds about.
 router.post('/applications/:id/standards/:standardId/version', authenticate, requireAdmin, requirePermission('manage_operations'), publishFranchiseStandardVersion);
 router.post('/standards/:standardId/version', authenticate, requireAdmin, requirePermission('manage_operations'), publishFranchiseStandardVersionWide);
+// Group 12 Slice 3e (623): HQ uploads and removes brand assets —
+// per territory or franchise-wide — through the vault upload path.
+router.get('/brand-assets', authenticate, requireAdmin, requirePermission('manage_operations'), listFranchiseBrandAssetsWide);
+router.post('/brand-assets', authenticate, requireAdmin, requirePermission('manage_operations'), upload.single('file'), validateFileUpload, uploadFranchiseBrandAssetWide);
+router.delete('/brand-assets/:assetId', authenticate, requireAdmin, requirePermission('manage_operations'), deleteFranchiseBrandAssetWide);
+router.post('/applications/:id/brand-assets', authenticate, requireAdmin, requirePermission('manage_operations'), upload.single('file'), validateFileUpload, uploadFranchiseBrandAsset);
+router.delete('/applications/:id/brand-assets/:assetId', authenticate, requireAdmin, requirePermission('manage_operations'), deleteFranchiseBrandAsset);
 router.put('/applications/:id/agreement', authenticate, requireAdmin, requirePermission('manage_operations'), upsertFranchiseAgreement);
 // Review P2-9-F09: the applicant signs from their own account (admins cannot
 // assert the applicant's signature). Authenticated, not admin-gated.

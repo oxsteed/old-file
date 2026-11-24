@@ -121,6 +121,7 @@ describeDb('Group 12 Slice 3e: Follow standards (621-625)', () => {
   beforeEach(async () => {
     await db.query('DELETE FROM franchise_standard_acknowledgments');
     await db.query('DELETE FROM franchise_standards');
+    await db.query('DELETE FROM franchise_brand_assets');
   });
 
   async function addUser(role = 'customer') {
@@ -556,6 +557,135 @@ describeDb('Group 12 Slice 3e: Follow standards (621-625)', () => {
       expect(detail.body.standards.find((row) => row.id === standard.id).version).toBe(2);
       const otherDetail = await applicantDetail(otherOperator, otherApplicationId).expect(200);
       expect(otherDetail.body.standards.find((row) => row.id === standard.id).version).toBe(2);
+    });
+  });
+
+  describe('623: brand asset access', () => {
+    function uploadAs(user, applicationId, file = PDF_BYTES, filename = 'brand-guide.pdf', fields = {}) {
+      const req = request(app)
+        .post(`/api/franchise/applications/${applicationId}/brand-assets`)
+        .set('x-test-user', user.id);
+      if (file) req.attach('file', file, filename);
+      for (const [key, value] of Object.entries(fields)) req.field(key, value);
+      return req;
+    }
+
+    test('HQ uploads a territory asset; it rides the bundle and the operator detail with a signed download URL', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+
+      const uploaded = await uploadAs(admin, applicationId, PDF_BYTES, 'brand-guide.pdf', {
+        name: 'Brand guide 2026', description: 'The brand book.',
+      }).expect(201);
+      expect(uploaded.body.brand_assets).toHaveLength(1);
+      const asset = uploaded.body.brand_assets[0];
+      expect(asset.name).toBe('Brand guide 2026');
+      expect(asset.description).toBe('The brand book.');
+      expect(asset.file_name).toBe('brand-guide.pdf');
+      expect(asset.scope).toBe('territory');
+      expect(asset.storage_key).toBeUndefined();
+      expect(asset.download_url).toBeTruthy();
+      expect(asset.download_unavailable).toBe(false);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.brand_assets).toHaveLength(1);
+      expect(detail.body.brand_assets[0].name).toBe('Brand guide 2026');
+      expect(detail.body.brand_assets[0].download_url).toBeTruthy();
+
+      const stored = await db.query(
+        'SELECT storage_key FROM franchise_brand_assets WHERE id = $1', [asset.id],
+      );
+      expect(stored.rows[0].storage_key).toMatch(/^franchise-brand-assets\//);
+    });
+
+    test('the name defaults to the file name when omitted; a franchise-wide asset appears in every territory', async () => {
+      const operator = await addUser();
+      const otherOperator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const otherApplicationId = await makeApplication(otherOperator);
+
+      const uploaded = await request(app)
+        .post('/api/franchise/brand-assets')
+        .set('x-test-user', admin.id)
+        .attach('file', PDF_BYTES, 'logo-pack.pdf')
+        .expect(201);
+      expect(uploaded.body.brand_assets).toHaveLength(1);
+      expect(uploaded.body.brand_assets[0].name).toBe('logo-pack.pdf');
+      expect(uploaded.body.brand_assets[0].scope).toBe('franchise');
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.brand_assets.map((row) => row.name)).toEqual(['logo-pack.pdf']);
+      const otherDetail = await applicantDetail(otherOperator, otherApplicationId).expect(200);
+      expect(otherDetail.body.brand_assets.map((row) => row.name)).toEqual(['logo-pack.pdf']);
+    });
+
+    test('missing file and non-admin upload are refused', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+
+      await uploadAs(admin, applicationId, null).expect(400)
+        .then((res) => expect(res.body.code).toBe('brand_asset_file_required'));
+      await uploadAs(operator, applicationId).expect(403);
+      await request(app)
+        .post('/api/franchise/brand-assets')
+        .set('x-test-user', operator.id)
+        .attach('file', PDF_BYTES, 'logo.pdf')
+        .expect(403);
+      await request(app)
+        .get('/api/franchise/brand-assets')
+        .set('x-test-user', operator.id)
+        .expect(403);
+    });
+
+    test('HQ deletes a territory asset; deleting again is a 404 and the operator detail loses it', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const uploaded = await uploadAs(admin, applicationId).expect(201);
+      const assetId = uploaded.body.brand_assets[0].id;
+
+      const removed = await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/brand-assets/${assetId}`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(removed.body.brand_assets).toHaveLength(0);
+
+      await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/brand-assets/${assetId}`)
+        .set('x-test-user', admin.id)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('brand_asset_not_found'));
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.brand_assets).toHaveLength(0);
+    });
+
+    test('deleting a franchise-wide asset removes it from every territory', async () => {
+      const operator = await addUser();
+      const otherOperator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const otherApplicationId = await makeApplication(otherOperator);
+      const uploaded = await request(app)
+        .post('/api/franchise/brand-assets')
+        .set('x-test-user', admin.id)
+        .attach('file', PDF_BYTES, 'wide-logo.pdf')
+        .expect(201);
+      const assetId = uploaded.body.brand_assets[0].id;
+
+      const removed = await request(app)
+        .delete(`/api/franchise/brand-assets/${assetId}`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(removed.body.brand_assets).toHaveLength(0);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.brand_assets).toHaveLength(0);
+      const otherDetail = await applicantDetail(otherOperator, otherApplicationId).expect(200);
+      expect(otherDetail.body.brand_assets).toHaveLength(0);
     });
   });
 });
