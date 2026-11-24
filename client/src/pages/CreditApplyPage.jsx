@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CheckCircle2, AlertTriangle, Clock, Loader2, XCircle } from 'lucide-react';
 import { getCsrfToken } from '../api/csrfToken';
 import api from '../api/axios';
+import CreditDomainRecoveryLinks from '../components/credit/CreditDomainRecoveryLinks';
 
 const SURFACE_OPTIONS = ['food_online', 'food_pos', 'chat', 'jobs', 'direct', 'qr', 'subscriptions', 'delivery', 'consulting', 'invoices', 'products', 'rentals'];
 
@@ -208,6 +209,9 @@ export default function CreditApplyPage() {
             </div>
           ))}
         </div>
+      )}
+      {participants.some((participant) => participant.status === 'suspended' || participant.status === 'revoked') && (
+        <CreditDomainRecoveryLinks />
       )}
       {participants.length === 0 && (
         <div className="space-y-2 rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-4">

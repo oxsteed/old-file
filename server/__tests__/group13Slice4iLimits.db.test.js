@@ -374,3 +374,74 @@ describeDb('Group 13 Slice 4i: understand limits (691-695)', () => {
     expect(notes[1].data.account_status).toBe('active');
   });
 });
+
+// 695: recovery links are copy + wiring, not server behavior, so they are
+// pinned by static checks (no database needed): the keys exist in all
+// five credit catalogs with real translations, the component links to
+// the three existing paths, and both pages render it only where a
+// restricted or revoked state is shown.
+describe('Group 13 Slice 4i: domain recovery links (695)', () => {
+  const fs = require('fs');
+  const path = require('path');
+
+  const RECOVERY_KEYS = [
+    'creditDomainRecoveryTitle',
+    'creditDomainRecoveryIntro',
+    'creditDomainRecoveryReapply',
+    'creditDomainRecoveryAppeal',
+    'creditDomainRecoverySupport',
+  ];
+
+  test('695: recovery copy exists in all five credit catalogs, translated', () => {
+    const catalogs = {};
+    for (const locale of ['en', 'es', 'fr', 'ht', 'ar']) {
+      const file = path.join(__dirname, '..', '..', 'client', 'src', 'i18n', 'locales', locale, 'credit.json');
+      catalogs[locale] = JSON.parse(fs.readFileSync(file, 'utf8'));
+    }
+    for (const key of RECOVERY_KEYS) {
+      for (const locale of ['en', 'es', 'fr', 'ht', 'ar']) {
+        const value = catalogs[locale][key];
+        expect(typeof value).toBe('string');
+        expect(value.length).toBeGreaterThan(0);
+      }
+      // verify:i18n forbids a key byte-identical to English in es/fr/ht/ar
+      // for strings of 25 characters or more.
+      if (catalogs.en[key].length >= 25) {
+        for (const locale of ['es', 'fr', 'ht', 'ar']) {
+          expect(catalogs[locale][key]).not.toBe(catalogs.en[key]);
+        }
+      }
+    }
+  });
+
+  test('695: the recovery component links re-apply, appeal, and support', () => {
+    const component = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'client', 'src', 'components', 'credit', 'CreditDomainRecoveryLinks.jsx'),
+      'utf8',
+    );
+    expect(component).toContain('to="/credit/apply"');
+    expect(component).toContain('to="/wallet"');
+    expect(component).toContain('to="/support/escalation"');
+    for (const key of RECOVERY_KEYS) {
+      expect(component).toContain(`t('${key}')`);
+    }
+  });
+
+  test('695: the apply page shows recovery links for suspended/revoked participants only', () => {
+    const page = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'CreditApplyPage.jsx'),
+      'utf8',
+    );
+    expect(page).toContain('CreditDomainRecoveryLinks');
+    expect(page).toContain(`participant.status === 'suspended' || participant.status === 'revoked'`);
+  });
+
+  test('695: the wallet page shows recovery links when the account is not active', () => {
+    const page = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'client', 'src', 'pages', 'food', 'OxsteedCreditPage.jsx'),
+      'utf8',
+    );
+    expect(page).toContain('CreditDomainRecoveryLinks');
+    expect(page).toMatch(/accountStatus !== 'active' \? <>.*<CreditDomainRecoveryLinks \/>/s);
+  });
+});
