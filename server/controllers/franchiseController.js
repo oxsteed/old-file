@@ -6,6 +6,9 @@ const access = require('../services/access/accessService');
 // Group 12 Slice 3a (603): applicant documents reuse the staff-document
 // vault storage pattern — private prefix, signed-URL downloads only.
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
+// Group 12 Slice 3e (625, D-326): policy change reminders — sent when a
+// standard's version is published and on HQ's manual remind.
+const { sendFranchiseStandardReminders } = require('../jobs/franchiseStandardReminders');
 
 const APPLICATION_STATUSES = new Set([
   'inquiry',
@@ -5924,6 +5927,14 @@ async function publishFranchiseStandardVersion(req, res) {
       await logActivity(client, id, req.user?.id || null, 'standard_version_published',
         `HQ published franchise standard version ${result.standard.version}.`, { standard_id: standardId, version: result.standard.version });
       await client.query('COMMIT');
+      // Group 12 Slice 3e (625, D-326): the version change reminds the
+      // members who have not yet acknowledged the new version,
+      // immediately. A reminder failure never fails the publish.
+      try {
+        await sendFranchiseStandardReminders({ force: true, standardId });
+      } catch (err) {
+        logger.error('Error sending franchise standard reminders', { id, standardId, err: err.message });
+      }
       const bundle = await fetchFranchiseApplicationBundle(id);
       return res.json(bundle);
     } catch (err) {
@@ -5950,6 +5961,14 @@ async function publishFranchiseStandardVersionWide(req, res) {
         return res.status(result.error.status).json(result.error.body);
       }
       await client.query('COMMIT');
+      // Group 12 Slice 3e (625, D-326): the version change reminds the
+      // members of every territory who have not yet acknowledged the new
+      // version, immediately. A reminder failure never fails the publish.
+      try {
+        await sendFranchiseStandardReminders({ force: true, standardId });
+      } catch (err) {
+        logger.error('Error sending franchise standard reminders', { standardId, err: err.message });
+      }
       const standards = await fetchFranchiseStandards(null);
       return res.json({ standards });
     } catch (err) {
@@ -5961,6 +5980,49 @@ async function publishFranchiseStandardVersionWide(req, res) {
   } catch (err) {
     logger.error('Error publishing franchise-wide standard version', { standardId, err: err.message });
     return res.status(500).json({ error: 'Failed to publish franchise standard version.' });
+  }
+}
+
+// Group 12 Slice 3e (625, D-326): HQ manually re-sends the policy
+// change reminder for one standard, now. This is an explicit HQ
+// action, so it bypasses the daily 24h dedupe (force) — the members
+// who have not yet acknowledged the current version are reminded
+// again. Members who already acknowledged are never reminded.
+async function remindFranchiseStandard(req, res) {
+  const { id, standardId } = req.params;
+  try {
+    const { rows } = await db.query(
+      `SELECT id FROM franchise_standards WHERE id = $1 AND application_id = $2`,
+      [standardId, id]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Franchise standard not found.', code: 'standard_not_found' });
+    }
+    const { reminded } = await sendFranchiseStandardReminders({ force: true, standardId });
+    const bundle = await fetchFranchiseApplicationBundle(id);
+    return res.json({ ...bundle, reminded_user_ids: reminded });
+  } catch (err) {
+    logger.error('Error sending franchise standard reminder', { id, standardId, err: err.message });
+    return res.status(500).json({ error: 'Failed to send franchise standard reminder.' });
+  }
+}
+
+async function remindFranchiseStandardWide(req, res) {
+  const { standardId } = req.params;
+  try {
+    const { rows } = await db.query(
+      `SELECT id FROM franchise_standards WHERE id = $1 AND application_id IS NULL`,
+      [standardId]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Franchise standard not found.', code: 'standard_not_found' });
+    }
+    const { reminded } = await sendFranchiseStandardReminders({ force: true, standardId });
+    const standards = await fetchFranchiseStandards(null);
+    return res.json({ standards, reminded_user_ids: reminded });
+  } catch (err) {
+    logger.error('Error sending franchise-wide standard reminder', { standardId, err: err.message });
+    return res.status(500).json({ error: 'Failed to send franchise standard reminder.' });
   }
 }
 
@@ -6197,6 +6259,8 @@ module.exports = {
   acknowledgeFranchiseStandard,
   publishFranchiseStandardVersion,
   publishFranchiseStandardVersionWide,
+  remindFranchiseStandard,
+  remindFranchiseStandardWide,
   uploadFranchiseBrandAsset,
   uploadFranchiseBrandAssetWide,
   listFranchiseBrandAssetsWide,

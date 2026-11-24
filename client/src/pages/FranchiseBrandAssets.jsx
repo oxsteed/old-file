@@ -70,7 +70,7 @@ export default function FranchiseBrandAssets({
       </div>
 
       {canUpload && onUpload && (
-        <form key={formKey} onSubmit={submit} className="fr-doc-list">
+        <form key={formKey} onSubmit={submit} className="fr-doc-list" data-track="ui.5947482b51.1">
           <div>
             <label className="fr-detail-list-label" htmlFor="fr-brand-asset-file">{copy('brandAssetsFileLabel')}</label>
             <input
@@ -121,7 +121,7 @@ export default function FranchiseBrandAssets({
           </div>
           {formError && <p className="fr-detail-empty">{formError}</p>}
           <div>
-            <button type="submit" className="fr-btn-primary" disabled={disabled || !file}>
+            <button type="submit" className="fr-btn-primary" disabled={disabled || !file} data-track="ui.5947482b51.2">
               {copy('brandAssetsUpload')}
             </button>
           </div>
@@ -153,7 +153,7 @@ export default function FranchiseBrandAssets({
                   className="fr-btn-primary"
                   href={asset.download_url}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noreferrer" data-track="ui.5947482b51.3"
                 >
                   {copy('brandAssetsDownload')}
                 </a>
@@ -165,7 +165,7 @@ export default function FranchiseBrandAssets({
                   type="button"
                   className="fr-btn-primary"
                   disabled={disabled}
-                  onClick={() => onDelete(asset)}
+                  onClick={() => onDelete(asset)} data-track="ui.5947482b51.4"
                 >
                   {copy('brandAssetsDelete')}
                 </button>

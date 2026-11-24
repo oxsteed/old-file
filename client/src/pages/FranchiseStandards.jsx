@@ -46,14 +46,14 @@ function StandardAckForm({ standard, disabled = false, onAcknowledge }) {
   }
 
   return (
-    <form onSubmit={submit} className="fr-doc-list">
+    <form onSubmit={submit} className="fr-doc-list" data-track="ui.38c01b89e3.1">
       <div>
         <span className="fr-detail-list-label">{copy('standardsSignatureLabel')}</span>
         <SignaturePad onChange={setSignature} disabled={disabled || busy} />
       </div>
       {formError && <p className="fr-detail-empty">{formError}</p>}
       <div>
-        <button type="submit" className="fr-btn-primary" disabled={disabled || busy || !signature}>
+        <button type="submit" className="fr-btn-primary" disabled={disabled || busy || !signature} data-track="ui.38c01b89e3.2">
           {copy('standardsAcknowledge', { version: standard.version })}
         </button>
       </div>
@@ -73,10 +73,12 @@ export default function FranchiseStandards({
   canRemove = false,
   canAcknowledge = false,
   canPublishVersion = false,
+  canRemind = false,
   onCurate = null,
   onRemove = null,
   onAcknowledge = null,
   onPublishVersion = null,
+  onRemind = null,
   disabled = false,
 }) {
   const { t } = useTranslation();
@@ -128,7 +130,7 @@ export default function FranchiseStandards({
       </div>
 
       {canCurate && onCurate && (
-        <form onSubmit={submit} className="fr-doc-list">
+        <form onSubmit={submit} className="fr-doc-list" data-track="ui.38c01b89e3.3">
           <div>
             <label className="fr-detail-list-label" htmlFor="fr-standard-guide">{copy('standardsCurateGuideLabel')}</label>
             {guides === null ? (
@@ -176,7 +178,7 @@ export default function FranchiseStandards({
           </div>
           {formError && <p className="fr-detail-empty">{formError}</p>}
           <div>
-            <button type="submit" className="fr-btn-primary" disabled={disabled || !guideId.trim()}>
+            <button type="submit" className="fr-btn-primary" disabled={disabled || !guideId.trim()} data-track="ui.38c01b89e3.4">
               {copy('standardsCurateSubmit')}
             </button>
           </div>
@@ -231,9 +233,23 @@ export default function FranchiseStandards({
                   type="button"
                   className="fr-btn-primary"
                   disabled={disabled}
-                  onClick={() => onPublishVersion(standard)}
+                  onClick={() => onPublishVersion(standard)} data-track="ui.38c01b89e3.5"
                 >
                   {copy('standardsPublishVersion')}
+                </button>
+              )}
+              {/* Group 12 Slice 3e (625): HQ re-sends the policy change
+                  reminder now, for members who have not yet acknowledged
+                  the current version. Hidden once everyone acknowledged. */}
+              {canRemind && onRemind
+                && (standard.member_count ?? 0) > (standard.acknowledged_count ?? 0) && (
+                <button
+                  type="button"
+                  className="fr-btn-primary"
+                  disabled={disabled}
+                  onClick={() => onRemind(standard)} data-track="ui.38c01b89e3.6"
+                >
+                  {copy('standardsRemindNow')}
                 </button>
               )}
               {canRemove && onRemove && (
@@ -241,7 +257,7 @@ export default function FranchiseStandards({
                   type="button"
                   className="fr-btn-primary"
                   disabled={disabled}
-                  onClick={() => onRemove(standard)}
+                  onClick={() => onRemove(standard)} data-track="ui.38c01b89e3.7"
                 >
                   {copy('standardsRemove')}
                 </button>

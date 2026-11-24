@@ -906,6 +906,24 @@ const T = {
       ar: 'عرضك على "{jobTitle}" ينتهي خلال أقل من 24 ساعة. راجعه قبل الموعد النهائي.',
     },
   },
+  // Group 12 Slice 3e (625): a franchise standard was updated to a new
+  // version; the member has not yet acknowledged it.
+  franchise_standard_updated: {
+    title: {
+      en: 'A franchise standard changed',
+      fr: 'Un standard de franchise a changé',
+      es: 'Un estándar de franquicia cambió',
+      ht: 'Yon estanda franchiz chanje',
+      ar: 'تغيّر أحد معايير الامتياز',
+    },
+    body: {
+      en: '"{standardTitle}" was updated to version {version}. Please review and acknowledge it.',
+      fr: '« {standardTitle} » a été mis à jour vers la version {version}. Veuillez le relire et le confirmer.',
+      es: '«{standardTitle}» se actualizó a la versión {version}. Revísalo y confírmalo, por favor.',
+      ht: '«{standardTitle}» te mete ajou nan vèsyon {version}. Tanpri reli li epi konfime li.',
+      ar: 'تم تحديث «{standardTitle}» إلى الإصدار {version}. يُرجى مراجعته وتأكيده.',
+    },
+  },
   // G-6/G-7: book-for-another invite, site-contact status link, and the
   // booker's notice that the recipient responded.
   booking_recipient_invite: {

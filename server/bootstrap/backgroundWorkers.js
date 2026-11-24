@@ -39,6 +39,7 @@ const { startRestaurantPunchCloseoutJob } = require('../jobs/restaurantPunchClos
 const { startRestaurantScheduledReportsJob } = require('../jobs/restaurantScheduledReportsJob'); // Phase 7 scheduled reports
 const { startRestaurantRetentionJob } = require('../jobs/restaurantRetentionJob'); // Phase 7 retention/erasure
 const { startFranchiseRoyaltyRedriveJob } = require('../jobs/franchiseRoyaltyRedriveJob'); // Background-jobs audit #45 royalty re-drive
+const { startFranchiseStandardReminderJob } = require('../jobs/franchiseStandardReminders'); // Group 12 Slice 3e (625) policy change reminders
 const { startCareersJobs } = require('../jobs/careersJobs');
 const { startChatQuoteExpiryJob } = require('../jobs/chatQuoteExpiryJob');
 const { startQuoteDeadlineNoticesJob } = require('../jobs/quoteDeadlineNotices');
@@ -225,6 +226,7 @@ class BackgroundWorkers {
       startRestaurantScheduledReportsJob();
       startRestaurantRetentionJob();
       startFranchiseRoyaltyRedriveJob();
+      startFranchiseStandardReminderJob();
       startCareersJobs();
       startChatQuoteExpiryJob();
       startQuoteDeadlineNoticesJob();

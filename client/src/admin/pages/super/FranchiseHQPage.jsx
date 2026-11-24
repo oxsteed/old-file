@@ -939,6 +939,28 @@ export default function FranchiseHQPage() {
     }
   }
 
+  // Group 12 Slice 3e (625): HQ re-sends the policy change reminder for
+  // a standard, now — an explicit HQ action that bypasses the daily 24h
+  // dedupe. A franchise-wide remind returns the wide list, so the
+  // bundle is reloaded to show it.
+  async function remindStandard(standard) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      if (standard.scope === 'franchise') {
+        await axios.post(`/franchise/standards/${standard.id}/remind`);
+        await loadDetail(selectedApplication.id);
+      } else {
+        const res = await axios.post(`/franchise/applications/${selectedApplication.id}/standards/${standard.id}/remind`);
+        setSelectedBundle(res.data);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLoadFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // Group 12 Slice 3e (623): HQ uploads a brand asset for this territory
   // or franchise-wide (multipart FormData), and removes assets. A
   // franchise-wide upload returns the wide list, so the bundle is
@@ -1854,19 +1876,21 @@ export default function FranchiseHQPage() {
                     disabled={saving}
                   />
 
-                  {/* Group 12 Slice 3e (621/622): the franchise standards
+                  {/* Group 12 Slice 3e (621/622/625): the franchise standards
                       library — HQ curates Learn guides as franchise-wide
                       or per-territory standards, publishes new versions,
-                      and removes them; the acknowledgment list rides the
-                      bundle. */}
+                      re-sends policy change reminders, and removes them;
+                      the acknowledgment list rides the bundle. */}
                   <FranchiseStandards
                     standards={selectedBundle.standards || []}
                     canCurate
                     canRemove
                     canPublishVersion
+                    canRemind
                     onCurate={curateStandard}
                     onRemove={removeStandard}
                     onPublishVersion={publishStandardVersion}
+                    onRemind={remindStandard}
                     disabled={saving}
                   />
 

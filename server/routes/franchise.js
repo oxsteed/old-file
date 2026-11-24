@@ -83,6 +83,8 @@ const {
   acknowledgeFranchiseStandard,
   publishFranchiseStandardVersion,
   publishFranchiseStandardVersionWide,
+  remindFranchiseStandard,
+  remindFranchiseStandardWide,
   uploadFranchiseBrandAsset,
   uploadFranchiseBrandAssetWide,
   listFranchiseBrandAssetsWide,
@@ -210,6 +212,11 @@ router.delete('/applications/:id/standards/:standardId', authenticate, requireAd
 // the policy-change event 622 acknowledges and 625 reminds about.
 router.post('/applications/:id/standards/:standardId/version', authenticate, requireAdmin, requirePermission('manage_operations'), publishFranchiseStandardVersion);
 router.post('/standards/:standardId/version', authenticate, requireAdmin, requirePermission('manage_operations'), publishFranchiseStandardVersionWide);
+// Group 12 Slice 3e (625): HQ manually re-sends the policy change
+// reminder for one standard, now — an explicit HQ action that bypasses
+// the daily 24h dedupe.
+router.post('/applications/:id/standards/:standardId/remind', authenticate, requireAdmin, requirePermission('manage_operations'), remindFranchiseStandard);
+router.post('/standards/:standardId/remind', authenticate, requireAdmin, requirePermission('manage_operations'), remindFranchiseStandardWide);
 // Group 12 Slice 3e (623): HQ uploads and removes brand assets —
 // per territory or franchise-wide — through the vault upload path.
 router.get('/brand-assets', authenticate, requireAdmin, requirePermission('manage_operations'), listFranchiseBrandAssetsWide);

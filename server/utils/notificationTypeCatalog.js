@@ -32,6 +32,8 @@ const NOTIFICATION_TYPES = [
   { type: 'bid_accepted', group: 'work' },
   // Group 4 Slice B (164): 24h bid-expiry reminder from bidDeadlineNotices.
   { type: 'bid_deadline_reminder', group: 'work' },
+  // Group 12 Slice 3e (625): franchise standard version change reminder.
+  { type: 'franchise_standard_updated', group: 'work' },
   { type: 'bid_received', group: 'work' },
   { type: 'bid_reconfirmed', group: 'work' },
   // Group 4 Slice C (166-170): counterparty notices for the helper-quote

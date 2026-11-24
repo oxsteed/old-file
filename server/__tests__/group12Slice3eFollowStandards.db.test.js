@@ -120,6 +120,7 @@ describeDb('Group 12 Slice 3e: Follow standards (621-625)', () => {
   // database persists across runs.
   beforeEach(async () => {
     await db.query('DELETE FROM franchise_standard_acknowledgments');
+    await db.query('DELETE FROM franchise_standard_reminders');
     await db.query('DELETE FROM franchise_standards');
     await db.query('DELETE FROM franchise_brand_assets');
   });
@@ -839,6 +840,206 @@ describeDb('Group 12 Slice 3e: Follow standards (621-625)', () => {
       expect(standardItem(afterList, standard.id).version).toBe(2);
       expect(afterList.items.find((item) => item.kind === 'team').done).toBe(false);
       expect(afterList.done).toBe(1);
+    });
+  });
+
+  describe('625: policy change reminders', () => {
+    const { sendNotification } = require('../services/notificationService');
+    const { sendFranchiseStandardReminders } = require('../jobs/franchiseStandardReminders');
+
+    async function curateStandard(admin, applicationId, guideTitle = 'Food safety basics') {
+      const guideId = await addGuide(guideTitle);
+      const curated = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards`)
+        .set('x-test-user', admin.id)
+        .send({ guide_id: guideId })
+        .expect(201);
+      return curated.body.standards.find((row) => row.guide_id === guideId);
+    }
+
+    function acknowledgeAs(user, applicationId, standardId, version) {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/standards/${standardId}/acknowledge`)
+        .set('x-test-user', user.id)
+        .attach('signature', PNG_BYTES, 'signature.png')
+        .field('version', String(version));
+    }
+
+    async function publishVersion(admin, applicationId, standardId) {
+      return request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards/${standardId}/version`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+    }
+
+    async function reminderRows(standardId) {
+      const { rows } = await db.query(
+        `SELECT user_id, version FROM franchise_standard_reminders WHERE standard_id = $1`,
+        [standardId]
+      );
+      return rows;
+    }
+
+    beforeEach(() => { sendNotification.mockClear(); });
+
+    test('publishing a new version immediately reminds the members who have not acknowledged it', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+
+      await publishVersion(admin, applicationId, standard.id);
+
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+      const call = sendNotification.mock.calls[0][0];
+      expect(call.userId).toBe(operator.id);
+      expect(call.type).toBe('franchise_standard_updated');
+      expect(call.data.params.version).toBe(2);
+      expect(call.data.params.standardTitle).toBe('Food safety basics');
+      expect(call.data.standard_id).toBe(standard.id);
+      expect(call.idempotencyKey).toContain(`v2`);
+      const rows = await reminderRows(standard.id);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].user_id).toBe(operator.id);
+      expect(rows[0].version).toBe(2);
+    });
+
+    test('publishing does not remind a member who already acknowledged the new version, and a reminder failure never fails the publish', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+
+      await publishVersion(admin, applicationId, standard.id);
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+      await acknowledgeAs(operator, applicationId, standard.id, 2).expect(201);
+      sendNotification.mockClear();
+
+      sendNotification.mockRejectedValueOnce(new Error('notify down'));
+      await publishVersion(admin, applicationId, standard.id);
+      // The publish itself still succeeds; the failed reminder is
+      // swallowed and logged, never a 500.
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+      expect(sendNotification.mock.calls[0][0].data.params.version).toBe(3);
+
+      sendNotification.mockClear();
+      await acknowledgeAs(operator, applicationId, standard.id, 3).expect(201);
+      // Acknowledged the current version: the sweeper has nothing to
+      // remind this member about, even with no ledger row for it.
+      const sweep = await sendFranchiseStandardReminders({ db });
+      expect(sweep.reminded).toEqual([]);
+      expect(sendNotification).not.toHaveBeenCalled();
+    });
+
+    test('the daily sweeper sends at most once per person per version per day and skips acknowledged members', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+
+      const first = await sendFranchiseStandardReminders({ db });
+      expect(first.reminded).toEqual([operator.id]);
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+
+      const second = await sendFranchiseStandardReminders({ db });
+      expect(second.reminded).toEqual([]);
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+
+      await acknowledgeAs(operator, applicationId, standard.id, 1).expect(201);
+      // Even with the 24h window cleared, an acknowledged member is
+      // never reminded again about that version.
+      await db.query('DELETE FROM franchise_standard_reminders WHERE standard_id = $1', [standard.id]);
+      const third = await sendFranchiseStandardReminders({ db });
+      expect(third.reminded).toEqual([]);
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+    });
+
+    test('the sweeper only ever reminds about the current version', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+
+      await sendFranchiseStandardReminders({ db });
+      expect(sendNotification.mock.calls[0][0].data.params.version).toBe(1);
+      await publishVersion(admin, applicationId, standard.id);
+      sendNotification.mockClear();
+      await db.query('DELETE FROM franchise_standard_reminders WHERE standard_id = $1', [standard.id]);
+
+      await sendFranchiseStandardReminders({ db });
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+      expect(sendNotification.mock.calls[0][0].data.params.version).toBe(2);
+      const versions = sendNotification.mock.calls.map((args) => args[0].data.params.version);
+      expect(versions).not.toContain(1);
+    });
+
+    test('HQ manual remind re-sends now (bypassing the daily dedupe) and stops once acknowledged', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+
+      const first = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards/${standard.id}/remind`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(first.body.reminded_user_ids).toEqual([operator.id]);
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+
+      const second = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards/${standard.id}/remind`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(second.body.reminded_user_ids).toEqual([operator.id]);
+      expect(sendNotification).toHaveBeenCalledTimes(2);
+
+      await acknowledgeAs(operator, applicationId, standard.id, 1).expect(201);
+      const third = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards/${standard.id}/remind`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(third.body.reminded_user_ids).toEqual([]);
+      expect(sendNotification).toHaveBeenCalledTimes(2);
+    });
+
+    test('publishing a franchise-wide standard reminds the members of every territory', async () => {
+      const operator = await addUser();
+      const otherOperator = await addUser();
+      const admin = await addUser('super_admin');
+      await makeApplication(operator);
+      await makeApplication(otherOperator);
+      const guideId = await addGuide('Franchise-wide safety');
+      const curated = await request(app)
+        .post('/api/franchise/standards')
+        .set('x-test-user', admin.id)
+        .send({ guide_id: guideId })
+        .expect(201);
+      const standard = curated.body.standards.find((row) => row.guide_id === guideId);
+
+      await request(app)
+        .post(`/api/franchise/standards/${standard.id}/version`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+
+      // Territories from earlier tests in this suite persist in the
+      // shared DB, so assert inclusion (not exact equality): both of
+      // this test's operators are reminded, each exactly once.
+      const remindedIds = sendNotification.mock.calls.map((args) => args[0].userId);
+      expect(remindedIds).toContain(operator.id);
+      expect(remindedIds).toContain(otherOperator.id);
+      expect(new Set(remindedIds).size).toBe(remindedIds.length);
+      expect(sendNotification.mock.calls[0][0].type).toBe('franchise_standard_updated');
+    });
+
+    test('the HQ remind endpoint 404s for an unknown standard', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards/${randomUUID()}/remind`)
+        .set('x-test-user', admin.id)
+        .expect(404);
+      expect(sendNotification).not.toHaveBeenCalled();
     });
   });
 });
