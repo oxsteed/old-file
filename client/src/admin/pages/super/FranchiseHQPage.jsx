@@ -40,6 +40,7 @@ import FranchiseAccessRemoval from '../../../pages/FranchiseAccessRemoval';
 import FranchisePolicyQuestions from '../../../pages/FranchisePolicyQuestions';
 import FranchiseOpsAppointments from '../../../pages/FranchiseOpsAppointments';
 import FranchiseTrainingEscalations from '../../../pages/FranchiseTrainingEscalations';
+import FranchiseTerritoryCases from '../../../pages/FranchiseTerritoryCases';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -402,6 +403,28 @@ export default function FranchiseHQPage() {
       .catch(() => { if (!cancelled) setTerritoryTickets([]); });
     return () => { cancelled = true; };
   }, [selectedBundle, hqTicketStatus, hqTicketLocationId, hqTicketRefresh]);
+
+  // Group 12 Slice 3j (649): the per-territory case tracker for HQ —
+  // the territory's cases in one view, filterable by status, type, and
+  // location.
+  const [hqCases, setHqCases] = useState([]);
+  const [hqCaseStatus, setHqCaseStatus] = useState('open');
+  const [hqCaseType, setHqCaseType] = useState('all');
+  const [hqCaseLocationId, setHqCaseLocationId] = useState('');
+  useEffect(() => {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) {
+      setHqCases([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams({ status: hqCaseStatus, type: hqCaseType });
+    if (hqCaseLocationId) params.set('location_id', hqCaseLocationId);
+    axios.get(`/franchise/applications/${applicationId}/cases?${params.toString()}`)
+      .then((res) => { if (!cancelled) setHqCases(res.data?.cases ?? []); })
+      .catch(() => { if (!cancelled) setHqCases([]); });
+    return () => { cancelled = true; };
+  }, [selectedBundle, hqCaseStatus, hqCaseType, hqCaseLocationId]);
 
   // Group 12 Slice 3g (631-635): the exception resolution lists for the
   // selected application — the escalation queue and the corrective-action
@@ -2317,6 +2340,21 @@ export default function FranchiseHQPage() {
                     onConfirm={confirmOpsSlot}
                     onComplete={completeOpsSlot}
                     onCancelSlot={cancelOpsSlot}
+                    busy={saving}
+                  />
+
+                  {/* Group 12 Slice 3j (649, D-350): the per-territory
+                      case tracker — tickets, policy questions, training
+                      escalations, and handoffs in one view. */}
+                  <FranchiseTerritoryCases
+                    cases={hqCases}
+                    locations={selectedBundle.locations || []}
+                    status={hqCaseStatus}
+                    type={hqCaseType}
+                    locationId={hqCaseLocationId}
+                    onStatusChange={setHqCaseStatus}
+                    onTypeChange={setHqCaseType}
+                    onLocationChange={setHqCaseLocationId}
                     busy={saving}
                   />
 

@@ -8079,6 +8079,179 @@ async function resolveTrainingEscalationAsAdmin(req, res) {
   }
 }
 
+// Group 12 Slice 3j (649, D-350): the territory case tracker — the
+// territory's cases in one view, filterable by status, type, and
+// location. Derived, never stored (no new case table): it unions the
+// territory's linked tickets (policy questions surface as their own
+// type), its training escalations, and its handoff records, newest
+// first. Built on the 629 queue and the 628 summary — the ticket rows
+// are the same rows the queue returns, so a case never disagrees with
+// its queue entry. Handoffs carry no location: a concrete location
+// filter excludes them, `unassigned` includes them as territory-wide.
+const CASE_TYPES = new Set(['ticket', 'policy_question', 'training_escalation', 'handoff']);
+const CASE_STATUSES = new Set([
+  'open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed',
+  'pending', 'approved', 'rejected', 'cancelled',
+]);
+
+function parseCaseListQuery(req) {
+  const status = typeof req.query?.status === 'string' && req.query.status
+    ? req.query.status
+    : 'all';
+  if (status !== 'all' && status !== 'open' && !CASE_STATUSES.has(status)) {
+    return { error: { status: 400, body: { error: 'status must be open, all, or a case status.', code: 'invalid_case_status' } } };
+  }
+  const type = typeof req.query?.type === 'string' && req.query.type
+    ? req.query.type
+    : 'all';
+  if (type !== 'all' && !CASE_TYPES.has(type)) {
+    return { error: { status: 400, body: { error: 'type must be all, ticket, policy_question, training_escalation, or handoff.', code: 'invalid_case_type' } } };
+  }
+  const locationId = typeof req.query?.location_id === 'string' && req.query.location_id
+    ? req.query.location_id
+    : null;
+  if (locationId && locationId !== 'unassigned' && !UUID_RE.test(locationId)) {
+    return { error: { status: 400, body: { error: 'location_id must be a location id or unassigned.', code: 'invalid_location_id' } } };
+  }
+  return { status, type, locationId };
+}
+
+async function buildTerritoryCases(applicationId, { status = 'all', type = 'all', locationId = null, limit = 100 } = {}) {
+  const conditions = [];
+  const params = [applicationId];
+  if (type !== 'all') {
+    params.push(type);
+    conditions.push(`kind = $${params.length}`);
+  }
+  if (status === 'open') {
+    conditions.push(`((kind IN ('ticket', 'policy_question') AND status IN ${EXCEPTION_OPEN_SQL})
+      OR (kind = 'training_escalation' AND status IN ('open', 'in_progress'))
+      OR (kind = 'handoff' AND status = 'pending'))`);
+  } else if (status !== 'all') {
+    params.push(status);
+    conditions.push(`status = $${params.length}`);
+  }
+  if (locationId === 'unassigned') {
+    conditions.push('location_id IS NULL');
+  } else if (locationId) {
+    params.push(locationId);
+    conditions.push(`location_id = $${params.length}`);
+  }
+  params.push(limit);
+  const { rows } = await db.query(
+    `SELECT * FROM (
+       SELECT
+         CASE WHEN t.category = 'policy_question' THEN 'policy_question' ELSE 'ticket' END AS kind,
+         t.id AS id,
+         t.subject AS title,
+         t.category AS summary,
+         t.status AS status,
+         t.created_at AS created_at,
+         t.franchise_location_id AS location_id,
+         l.name AS location_name,
+         t.ticket_number AS ticket_number,
+         t.priority AS priority,
+         t.name AS actor_name
+         FROM support_tickets t
+         LEFT JOIN franchise_locations l ON l.id = t.franchise_location_id
+        WHERE t.franchise_application_id = $1
+       UNION ALL
+       SELECT 'training_escalation' AS kind,
+         e.id AS id,
+         COALESCE(e.module_title, a.module_title) AS title,
+         e.reason AS summary,
+         e.status AS status,
+         e.created_at AS created_at,
+         COALESCE(e.location_id, a.location_id) AS location_id,
+         l.name AS location_name,
+         NULL::int AS ticket_number,
+         NULL AS priority,
+         COALESCE(NULLIF(CONCAT_WS(' ', u.first_name, u.last_name), ''), u.email) AS actor_name
+         FROM franchise_training_escalations e
+         LEFT JOIN franchise_training_assignments a ON a.id = e.assignment_id
+         LEFT JOIN franchise_locations l ON l.id = COALESCE(e.location_id, a.location_id)
+         LEFT JOIN users u ON u.id = e.escalated_by
+        WHERE e.application_id = $1
+       UNION ALL
+       SELECT 'handoff' AS kind,
+         h.id AS id,
+         ('Handoff to ' || COALESCE(NULLIF(CONCAT_WS(' ', inc.first_name, inc.last_name), ''), inc.email)) AS title,
+         h.reason AS summary,
+         h.status AS status,
+         h.created_at AS created_at,
+         NULL::uuid AS location_id,
+         NULL AS location_name,
+         NULL::int AS ticket_number,
+         NULL AS priority,
+         COALESCE(NULLIF(CONCAT_WS(' ', out.first_name, out.last_name), ''), out.email) AS actor_name
+         FROM franchise_handoffs h
+         LEFT JOIN users inc ON inc.id = h.incoming_operator_id
+         LEFT JOIN users out ON out.id = h.outgoing_operator_id
+        WHERE h.application_id = $1
+     ) cases
+     ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
+     ORDER BY created_at DESC, id DESC
+     LIMIT $${params.length}`,
+    params
+  );
+  return rows;
+}
+
+async function listTerritoryCases(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  const parsed = parseCaseListQuery(req);
+  if (parsed.error) return res.status(parsed.error.status).json(parsed.error.body);
+  try {
+    const client = await db.connect();
+    try {
+      if (!asAdmin) {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can view territory cases.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      if (parsed.locationId && parsed.locationId !== 'unassigned') {
+        const locationResult = await client.query(
+          `SELECT id FROM franchise_locations WHERE id = $1 AND application_id = $2`,
+          [parsed.locationId, id]
+        );
+        if (!locationResult.rows.length) {
+          return res.status(404).json({ error: 'Location not found in this territory.', code: 'location_not_found' });
+        }
+      }
+    } finally {
+      client.release();
+    }
+    const cases = await buildTerritoryCases(id, {
+      status: parsed.status, type: parsed.type, locationId: parsed.locationId,
+    });
+    return res.json({
+      application_id: id,
+      cases,
+      total: cases.length,
+      filters: { status: parsed.status, type: parsed.type, location_id: parsed.locationId },
+    });
+  } catch (err) {
+    logger.error('Error listing franchise territory cases', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load territory cases.' });
+  }
+}
+
+async function listTerritoryCasesAsAdmin(req, res) {
+  return listTerritoryCases(req, res, { asAdmin: true });
+}
+
 async function getLocationHealth(req, res) {
   const { id } = req.params;
   try {
@@ -11685,6 +11858,8 @@ module.exports = {
   listTrainingEscalations,
   listTrainingEscalationsAsAdmin,
   resolveTrainingEscalationAsAdmin,
+  listTerritoryCases,
+  listTerritoryCasesAsAdmin,
   getCoverageTrend,
   getCoverageTrendAsAdmin,
   linkTicketToTerritory,

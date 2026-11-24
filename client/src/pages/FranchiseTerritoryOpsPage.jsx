@@ -41,6 +41,7 @@ import FranchiseContactDirectory from './FranchiseContactDirectory';
 import FranchisePolicyQuestions from './FranchisePolicyQuestions';
 import FranchiseOpsAppointments from './FranchiseOpsAppointments';
 import FranchiseTrainingEscalations from './FranchiseTrainingEscalations';
+import FranchiseTerritoryCases from './FranchiseTerritoryCases';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -220,6 +221,27 @@ export default function FranchiseTerritoryOpsPage() {
       .catch(() => { if (!cancelled) setCoverage(null); });
     return () => { cancelled = true; };
   }, [resolvedApplicationId, territoryBlocked]);
+
+  // Group 12 Slice 3j (649): the territory case tracker — the
+  // territory's cases in one view, filterable by status, type, and
+  // location. Derived from the existing records, never a new store.
+  const [caseStatus, setCaseStatus] = useState('open');
+  const [caseType, setCaseType] = useState('all');
+  const [caseLocationId, setCaseLocationId] = useState('');
+  const [territoryCases, setTerritoryCases] = useState([]);
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setTerritoryCases([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams({ status: caseStatus, type: caseType });
+    if (caseLocationId) params.set('location_id', caseLocationId);
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/cases?${params.toString()}`)
+      .then((res) => { if (!cancelled) setTerritoryCases(res.data?.cases ?? []); })
+      .catch(() => { if (!cancelled) setTerritoryCases([]); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked, caseStatus, caseType, caseLocationId]);
 
   // Group 12 Slice 3f (629): the territory ticket queue — the
   // territory's open support requests, filterable by status and location.
@@ -1260,6 +1282,22 @@ export default function FranchiseTerritoryOpsPage() {
               canBook={boundaryDetail.application?.owner_user_id === user?.id}
               onBook={bookOpsSlot}
               onCancelBooking={cancelOpsBooking}
+            />
+          )}
+
+          {/* Group 12 Slice 3j (649, D-350): the territory case tracker
+              — tickets, policy questions, training escalations, and
+              handoffs in one view. */}
+          {boundaryDetail && (
+            <FranchiseTerritoryCases
+              cases={territoryCases}
+              locations={boundaryDetail.locations || []}
+              status={caseStatus}
+              type={caseType}
+              locationId={caseLocationId}
+              onStatusChange={setCaseStatus}
+              onTypeChange={setCaseType}
+              onLocationChange={setCaseLocationId}
             />
           )}
 

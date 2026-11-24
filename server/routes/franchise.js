@@ -94,6 +94,8 @@ const {
   listTrainingEscalations,
   listTrainingEscalationsAsAdmin,
   resolveTrainingEscalationAsAdmin,
+  listTerritoryCases,
+  listTerritoryCasesAsAdmin,
   getCoverageTrend,
   getCoverageTrendAsAdmin,
   linkTicketToTerritory,
@@ -244,6 +246,10 @@ router.get('/my-applications/:id/support-tickets', authenticate, requireFranchis
 // Group 12 Slice 3f (630): the territory coverage trend — coverage %
 // by day and by week over time, from the linked business's shifts (D-330).
 router.get('/my-applications/:id/coverage-trend', authenticate, requireFranchiseEnabled, getCoverageTrend);
+// Group 12 Slice 3j (649): the territory case tracker — the
+// territory's cases (tickets, policy questions, training escalations,
+// handoffs) in one view, filterable by status, type, and location.
+router.get('/my-applications/:id/cases', authenticate, requireFranchiseEnabled, listTerritoryCases);
 // Group 12 Slice 3j (648): training escalation — the operator (or HQ)
 // escalates a training issue/gap to HQ with the training context
 // attached; one live escalation per training item.
@@ -382,6 +388,8 @@ router.get('/applications/:id/exceptions', authenticate, requireAdmin, requirePe
 // Group 12 Slice 3f (627): HQ reads the per-location health view.
 router.get('/applications/:id/location-health', authenticate, requireAdmin, requirePermission('manage_operations'), getLocationHealthAsAdmin);
 // Group 12 Slice 3f (629): HQ reads the per-territory ticket queue.
+// Group 12 Slice 3j (649): HQ reads the per-territory case tracker.
+router.get('/applications/:id/cases', authenticate, requireAdmin, requirePermission('manage_operations'), listTerritoryCasesAsAdmin);
 // Group 12 Slice 3j (648): HQ reads the per-territory training
 // escalation queue, escalates a gap itself, and resolves escalations.
 router.get('/applications/:id/training-escalations', authenticate, requireAdmin, requirePermission('manage_operations'), listTrainingEscalationsAsAdmin);
