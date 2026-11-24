@@ -31,6 +31,11 @@ import FranchiseTerritoryTickets from './FranchiseTerritoryTickets';
 import FranchiseCoverageTrend from './FranchiseCoverageTrend';
 import FranchiseExceptionEscalations from './FranchiseExceptionEscalations';
 import FranchiseExceptionResolution from './FranchiseExceptionResolution';
+import FranchiseCandidateLocations from './FranchiseCandidateLocations';
+import FranchiseTerritoryCapacity from './FranchiseTerritoryCapacity';
+import FranchiseTrainingPlanner from './FranchiseTrainingPlanner';
+import FranchiseLaunchDependencies from './FranchiseLaunchDependencies';
+import FranchiseExpansionNotes from './FranchiseExpansionNotes';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -279,6 +284,88 @@ export default function FranchiseTerritoryOpsPage() {
       // The list refresh above still runs; the bundle reload is best-effort.
     }
   }, [resolvedApplicationId]);
+
+  // Group 12 Slice 3h (636-640): plan development — reload the territory
+  // detail bundle after a planning mutation (candidates, notes).
+  const reloadBoundaryDetail = useCallback(async () => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}`);
+      setBoundaryDetail(res.data);
+    } catch {
+      setError(t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3h (636): the operator proposes a candidate location,
+  // moves one through review, and removes a scouting candidate.
+  const proposeCandidate = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/candidate-locations`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const updateCandidateStatus = useCallback(async (candidateId, status) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.patch(`/franchise/my-applications/${resolvedApplicationId}/candidate-locations/${candidateId}`, { status });
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const removeCandidate = useCallback(async (candidateId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.delete(`/franchise/my-applications/${resolvedApplicationId}/candidate-locations/${candidateId}`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  // Group 12 Slice 3h (640): the operator records, edits, and removes
+  // expansion readiness notes for the territory or one location.
+  const addExpansionNote = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/expansion-notes`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const updateExpansionNote = useCallback(async (noteId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.patch(`/franchise/my-applications/${resolvedApplicationId}/expansion-notes/${noteId}`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const removeExpansionNote = useCallback(async (noteId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.delete(`/franchise/my-applications/${resolvedApplicationId}/expansion-notes/${noteId}`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
 
   // Group 12 Slice 3g (631): the operator escalates a linked exception
   // with a reason; the fresh summary replaces the one on the detail.
@@ -950,6 +1037,53 @@ export default function FranchiseTerritoryOpsPage() {
               onLocationChange={setTicketLocationId}
               canUnlink
               onUnlink={unlinkTicket}
+            />
+          )}
+
+          {/* Group 12 Slice 3h (636, D-336): the candidate location
+              tracker — locations inside the territory the operator is
+              scouting; the operator proposes and submits for review. */}
+          {boundaryDetail && (
+            <FranchiseCandidateLocations
+              candidates={boundaryDetail.candidate_locations || null}
+              canPropose
+              onPropose={proposeCandidate}
+              onStatusChange={updateCandidateStatus}
+              onRemove={removeCandidate}
+            />
+          )}
+
+          {/* Group 12 Slice 3h (637, D-337): the territory capacity view —
+              a structured per-area capacity view, no map. Read-only here;
+              HQ sets the targets. */}
+          {boundaryDetail && (
+            <FranchiseTerritoryCapacity capacity={boundaryDetail.territory_capacity || null} />
+          )}
+
+          {/* Group 12 Slice 3h (638, D-338): the training resource planner —
+              who needs what training by when, and how much is covered. */}
+          {boundaryDetail && (
+            <FranchiseTrainingPlanner planner={boundaryDetail.training_planner || null} />
+          )}
+
+          {/* Group 12 Slice 3h (639, D-339): the launch dependency overview —
+              per-location dependencies with blocked/blocking status. */}
+          {boundaryDetail && (
+            <FranchiseLaunchDependencies dependencies={boundaryDetail.launch_dependencies || null} />
+          )}
+
+          {/* Group 12 Slice 3h (640, D-340): expansion readiness notes —
+              the operator's notes per territory or location, shown next
+              to HQ's own readiness fields (read-only here). */}
+          {boundaryDetail && (
+            <FranchiseExpansionNotes
+              notes={boundaryDetail.expansion_notes || null}
+              hqNotes={boundaryDetail.hq_readiness_notes || null}
+              locations={boundaryDetail.locations || []}
+              canWrite
+              onAdd={addExpansionNote}
+              onUpdate={updateExpansionNote}
+              onRemove={removeExpansionNote}
             />
           )}
 

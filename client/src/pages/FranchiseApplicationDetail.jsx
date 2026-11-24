@@ -26,6 +26,11 @@ import FranchiseLocationHealth from './FranchiseLocationHealth';
 import FranchiseTerritoryTickets from './FranchiseTerritoryTickets';
 import FranchiseExceptionEscalations from './FranchiseExceptionEscalations';
 import FranchiseExceptionResolution from './FranchiseExceptionResolution';
+import FranchiseCandidateLocations from './FranchiseCandidateLocations';
+import FranchiseTerritoryCapacity from './FranchiseTerritoryCapacity';
+import FranchiseTrainingPlanner from './FranchiseTrainingPlanner';
+import FranchiseLaunchDependencies from './FranchiseLaunchDependencies';
+import FranchiseExpansionNotes from './FranchiseExpansionNotes';
 import { useAuth } from '../hooks/useAuth';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
@@ -563,6 +568,94 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     return response.data?.evidence ?? [];
   }
 
+  // Group 12 Slice 3h (636): the operator proposes a candidate location,
+  // moves one through review, and removes a scouting candidate.
+  async function proposeCandidate(body) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/franchise/my-applications/${applicationId}/candidate-locations`, body);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('candidateProposeFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateCandidateStatus(candidateId, status) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.patch(`/franchise/my-applications/${applicationId}/candidate-locations/${candidateId}`, { status });
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('candidateUpdateFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeCandidate(candidateId) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.delete(`/franchise/my-applications/${applicationId}/candidate-locations/${candidateId}`);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('candidateRemoveFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Group 12 Slice 3h (640): the operator records, edits, and removes
+  // expansion readiness notes for the territory or one location.
+  async function addExpansionNote(body) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/franchise/my-applications/${applicationId}/expansion-notes`, body);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('notesAddFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateExpansionNote(noteId, body) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.patch(`/franchise/my-applications/${applicationId}/expansion-notes/${noteId}`, body);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('notesUpdateFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeExpansionNote(noteId) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.delete(`/franchise/my-applications/${applicationId}/expansion-notes/${noteId}`);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('notesRemoveFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Group 12 Slice 3e (622): acknowledge a standard's current version
   // with a drawn e-signature (multipart FormData).
   async function acknowledgeStandard(standardId, formData) {
@@ -977,6 +1070,38 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onUpdateActionStatus={updateCorrectiveActionStatus}
         onUploadEvidence={uploadEvidence}
         onLoadEvidence={loadEvidence}
+        busy={busy}
+      />
+
+      {/* Group 12 Slice 3h (636, D-336): the candidate location tracker. */}
+      <FranchiseCandidateLocations
+        candidates={detail.candidate_locations || null}
+        canPropose={detail.application?.is_operator === true}
+        onPropose={proposeCandidate}
+        onStatusChange={updateCandidateStatus}
+        onRemove={removeCandidate}
+        busy={busy}
+      />
+
+      {/* Group 12 Slice 3h (637, D-337): the territory capacity view. */}
+      <FranchiseTerritoryCapacity capacity={detail.territory_capacity || null} />
+
+      {/* Group 12 Slice 3h (638, D-338): the training resource planner. */}
+      <FranchiseTrainingPlanner planner={detail.training_planner || null} />
+
+      {/* Group 12 Slice 3h (639, D-339): the launch dependency overview. */}
+      <FranchiseLaunchDependencies dependencies={detail.launch_dependencies || null} />
+
+      {/* Group 12 Slice 3h (640, D-340): expansion readiness notes — the
+          operator's notes next to HQ's own readiness fields. */}
+      <FranchiseExpansionNotes
+        notes={detail.expansion_notes || null}
+        hqNotes={detail.hq_readiness_notes || null}
+        locations={detail.locations || []}
+        canWrite={detail.application?.is_operator === true}
+        onAdd={addExpansionNote}
+        onUpdate={updateExpansionNote}
+        onRemove={removeExpansionNote}
         busy={busy}
       />
 

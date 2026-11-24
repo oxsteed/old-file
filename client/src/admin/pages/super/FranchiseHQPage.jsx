@@ -29,6 +29,11 @@ import FranchiseTerritoryTickets from '../../../pages/FranchiseTerritoryTickets'
 import FranchiseCoverageTrend from '../../../pages/FranchiseCoverageTrend';
 import FranchiseExceptionEscalations from '../../../pages/FranchiseExceptionEscalations';
 import FranchiseExceptionResolution from '../../../pages/FranchiseExceptionResolution';
+import FranchiseCandidateLocations from '../../../pages/FranchiseCandidateLocations';
+import FranchiseTerritoryCapacity from '../../../pages/FranchiseTerritoryCapacity';
+import FranchiseTrainingPlanner from '../../../pages/FranchiseTrainingPlanner';
+import FranchiseLaunchDependencies from '../../../pages/FranchiseLaunchDependencies';
+import FranchiseExpansionNotes from '../../../pages/FranchiseExpansionNotes';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -512,6 +517,70 @@ export default function FranchiseHQPage() {
     } catch {
       toast.error(t('dashboards.franchise.actionReviewFailed'));
       throw new Error(t('dashboards.franchise.actionReviewFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3h (636): HQ proposes a candidate location, reviews
+  // one (shortlist / approve / reject / reopen), and removes one.
+  async function proposeTerritoryCandidate(body) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/candidate-locations`, body);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.candidateProposeFailed'));
+      throw new Error(t('dashboards.franchise.candidateProposeFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateTerritoryCandidateStatus(candidateId, status) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.patch(`/franchise/applications/${applicationId}/candidate-locations/${candidateId}`, { status });
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.candidateUpdateFailed'));
+      throw new Error(t('dashboards.franchise.candidateUpdateFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeTerritoryCandidate(candidateId) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.delete(`/franchise/applications/${applicationId}/candidate-locations/${candidateId}`);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.candidateRemoveFailed'));
+      throw new Error(t('dashboards.franchise.candidateRemoveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3h (637): HQ sets the target location count for one
+  // structured boundary area.
+  async function setTerritoryCapacityTarget(areaId, targetLocations) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/capacity-targets`, { area_id: areaId, target_locations: targetLocations });
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.capacityTargetFailed'));
+      throw new Error(t('dashboards.franchise.capacityTargetFailed'));
     } finally {
       setSaving(false);
     }
@@ -2119,6 +2188,50 @@ export default function FranchiseHQPage() {
                     onLoadEvidence={loadTerritoryEvidence}
                     onReview={reviewTerritoryCorrectiveAction}
                     busy={saving}
+                  />
+
+                  {/* Group 12 Slice 3h (636, D-336): the candidate location
+                      tracker — HQ proposes and reviews locations inside
+                      the territory. */}
+                  <FranchiseCandidateLocations
+                    candidates={selectedBundle.candidate_locations || null}
+                    canPropose
+                    canReview
+                    onPropose={proposeTerritoryCandidate}
+                    onStatusChange={updateTerritoryCandidateStatus}
+                    onRemove={removeTerritoryCandidate}
+                    busy={saving}
+                  />
+
+                  {/* Group 12 Slice 3h (637, D-337): the territory capacity
+                      view — HQ sets the target per boundary area. */}
+                  <FranchiseTerritoryCapacity
+                    capacity={selectedBundle.territory_capacity || null}
+                    canSetTarget
+                    onSetTarget={setTerritoryCapacityTarget}
+                    busy={saving}
+                  />
+
+                  {/* Group 12 Slice 3h (638, D-338): the training resource
+                      planner — read-only in HQ. */}
+                  <FranchiseTrainingPlanner planner={selectedBundle.training_planner || null} />
+
+                  {/* Group 12 Slice 3h (639, D-339): the launch dependency
+                      overview — read-only in HQ. */}
+                  <FranchiseLaunchDependencies dependencies={selectedBundle.launch_dependencies || null} />
+
+                  {/* Group 12 Slice 3h (640, D-340): expansion readiness
+                      notes — the operator's notes next to HQ's own
+                      readiness fields, in one view. HQ never writes
+                      operator notes. */}
+                  <FranchiseExpansionNotes
+                    notes={selectedBundle.expansion_notes || null}
+                    hqNotes={{
+                      market_assessment: selectedBundle.application?.market_assessment || null,
+                      hq_recommendation: selectedBundle.application?.hq_recommendation || null,
+                      risk_notes: selectedBundle.application?.risk_notes || null,
+                    }}
+                    locations={selectedBundle.locations || []}
                   />
 
                   {/* Group 12 Slice 3d (620): the HQ announcement feed —
