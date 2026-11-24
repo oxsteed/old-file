@@ -124,7 +124,7 @@ const ToolRentalCalendar: React.FC<ToolRentalCalendarProps> = ({
           onClick={() => moveMonth(-1)}
           disabled={disabled || prevDisabled}
           aria-label={t('toolRentals.calendarPrevMonth')}
-          className="tool-rental-calendar-nav"
+          className="tool-rental-calendar-nav" data-track="ui.c314c71ea9.1"
         >
           ‹
         </button>
@@ -134,7 +134,7 @@ const ToolRentalCalendar: React.FC<ToolRentalCalendarProps> = ({
           onClick={() => moveMonth(1)}
           disabled={disabled}
           aria-label={t('toolRentals.calendarNextMonth')}
-          className="tool-rental-calendar-nav"
+          className="tool-rental-calendar-nav" data-track="ui.c314c71ea9.2"
         >
           ›
         </button>
@@ -166,7 +166,7 @@ const ToolRentalCalendar: React.FC<ToolRentalCalendarProps> = ({
               disabled={disabled || past || booked}
               onClick={() => handleDayClick(cell.date)}
               className={className}
-              title={booked ? t('toolRentals.calendarBooked') : undefined}
+              title={booked ? t('toolRentals.calendarBooked') : undefined} data-track="ui.c314c71ea9.3"
             >
               {cell.day}
             </button>
@@ -197,7 +197,7 @@ const ToolRentalCalendar: React.FC<ToolRentalCalendarProps> = ({
           type="button"
           onClick={() => { setBlockedNotice(false); onChange('', ''); }}
           disabled={disabled}
-          className="tool-rental-calendar-clear"
+          className="tool-rental-calendar-clear" data-track="ui.c314c71ea9.4"
         >
           {t('toolRentals.calendarClear')}
         </button>

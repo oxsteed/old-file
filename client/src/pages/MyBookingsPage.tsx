@@ -413,7 +413,7 @@ const MyBookingsPageContent = () => {
                   <button
                     type="button"
                     onClick={() => handleDownloadInvoicePdf(receipt.invoice)}
-                    className="booking-receipt-pdf-link"
+                    className="booking-receipt-pdf-link" data-track="ui.5655b990ea.22"
                   >
                     {t('toolRentals.receiptInvoiceDownload') || 'Download invoice PDF'}
                   </button>
@@ -567,7 +567,7 @@ const MyBookingsPageContent = () => {
             onClick={() => handleAcknowledgeCheckout(booking)}
             disabled={booking.renter_identity ? !booking.renter_identity.verified : false}
             title={booking.renter_identity && !booking.renter_identity.verified ? (t('toolRentals.identityPickupBlocked') || 'Complete identity verification before pickup.') : undefined}
-            className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.21"
+            className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.21" data-track-private
           >
             {t('toolRentals.confirmPickup') || 'Confirm pickup'}
           </button>
