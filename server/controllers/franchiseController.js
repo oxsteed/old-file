@@ -610,9 +610,11 @@ async function fetchTerritoryInvitations(applicationId) {
   const { rows } = await db.query(
     `SELECT i.id, i.application_id, i.email, i.role, i.status,
             i.invited_by, i.expires_at, i.responded_at, i.created_at,
-            u.email AS invited_by_email
+            u.email AS invited_by_email,
+            iu.id AS invitee_user_id
        FROM franchise_territory_invitations i
        LEFT JOIN users u ON u.id = i.invited_by
+       LEFT JOIN users iu ON lower(iu.email) = lower(i.email)
       WHERE i.application_id = $1
       ORDER BY i.created_at DESC, i.id DESC`,
     [applicationId]

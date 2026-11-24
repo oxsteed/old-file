@@ -332,4 +332,94 @@ describeDb('Group 12 Slice 3d: Guide teams (616-620)', () => {
       expect(cancelled.body.territory_invitations[0].status).toBe('cancelled');
     });
   });
+
+  describe('617: location manager assignments', () => {
+    function assignManager(admin, applicationId, locationId, managerUserId) {
+      return request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${locationId}/manager`)
+        .set('x-test-user', admin.id)
+        .send({ manager_user_id: managerUserId });
+    }
+
+    test('HQ assigns the operator as manager; the manager rides the location on both payloads', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+
+      const assigned = await assignManager(admin, applicationId,
+        (await applicantDetail(operator, applicationId).expect(200)).body.locations[0].id,
+        operator.id).expect(201);
+      const location = assigned.body.locations[0];
+      expect(location.manager.manager_user_id).toBe(operator.id);
+      expect(location.manager.manager_email).toBe(operator.email);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.locations[0].manager.manager_user_id).toBe(operator.id);
+    });
+
+    test('HQ assigns an accepted invitee; a pending invitee and a stranger are not members', async () => {
+      const operator = await addUser();
+      const invitee = await addUser();
+      const pendingInvitee = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const locationId = (await applicantDetail(operator, applicationId).expect(200)).body.locations[0].id;
+
+      const { token } = await inviteAsOperator(operator, applicationId, invitee.email);
+      await acceptInvite(invitee, token).expect(200);
+      await inviteAsOperator(operator, applicationId, pendingInvitee.email);
+
+      await assignManager(admin, applicationId, locationId, invitee.id).expect(201);
+
+      await assignManager(admin, applicationId, locationId, pendingInvitee.id).expect(404)
+        .then((res) => expect(res.body.code).toBe('location_manager_not_member'));
+      await assignManager(admin, applicationId, locationId, stranger.id).expect(404)
+        .then((res) => expect(res.body.code).toBe('location_manager_not_member'));
+    });
+
+    test('reassignment replaces the manager (one per location); removal clears it and a second removal is a 404', async () => {
+      const operator = await addUser();
+      const invitee = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const locationId = (await applicantDetail(operator, applicationId).expect(200)).body.locations[0].id;
+      const { token } = await inviteAsOperator(operator, applicationId, invitee.email);
+      await acceptInvite(invitee, token).expect(200);
+
+      await assignManager(admin, applicationId, locationId, operator.id).expect(201);
+      const reassigned = await assignManager(admin, applicationId, locationId, invitee.id).expect(201);
+      expect(reassigned.body.locations[0].manager.manager_user_id).toBe(invitee.id);
+      const managers = await db.query(
+        'SELECT COUNT(*)::int AS n FROM franchise_location_managers WHERE location_id = $1', [locationId]);
+      expect(managers.rows[0].n).toBe(1);
+
+      const removed = await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/locations/${locationId}/manager`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(removed.body.locations[0].manager).toBeNull();
+
+      await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/locations/${locationId}/manager`)
+        .set('x-test-user', admin.id)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('location_manager_not_assigned'));
+    });
+
+    test('manager assignment is HQ-only: the operator gets 403 on the admin endpoint', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const locationId = (await applicantDetail(operator, applicationId).expect(200)).body.locations[0].id;
+
+      await assignManager(operator, applicationId, locationId, operator.id).expect(403);
+      await request(app)
+        .post(`/api/franchise/applications/00000000-0000-0000-0000-000000000000/locations/${locationId}/manager`)
+        .set('x-test-user', admin.id)
+        .send({ manager_user_id: operator.id })
+        .expect(404);
+      await assignManager(admin, applicationId, '00000000-0000-0000-0000-000000000000', operator.id).expect(404);
+    });
+  });
 });

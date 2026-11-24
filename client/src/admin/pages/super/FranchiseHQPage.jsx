@@ -716,6 +716,74 @@ export default function FranchiseHQPage() {
     }
   }
 
+  // Group 12 Slice 3d (617): the territory members HQ can pick a
+  // location manager from — the operator, accepted invitees, and the
+  // opening-team helpers. Deduped by user id.
+  const [managerPick, setManagerPick] = useState({});
+  function territoryMembers() {
+    if (!selectedBundle) return [];
+    const byId = new Map();
+    const app = selectedBundle.application || {};
+    if (app.owner_user_id) {
+      byId.set(app.owner_user_id, {
+        user_id: app.owner_user_id,
+        name: [app.owner_first_name, app.owner_last_name].filter(Boolean).join(' ') || app.owner_email || app.owner_user_id,
+        email: app.owner_email || '',
+      });
+    }
+    (selectedBundle.territory_invitations || [])
+      .filter((invite) => invite.status === 'accepted' && invite.invitee_user_id)
+      .forEach((invite) => {
+        if (!byId.has(invite.invitee_user_id)) {
+          byId.set(invite.invitee_user_id, { user_id: invite.invitee_user_id, name: invite.email, email: invite.email });
+        }
+      });
+    const teams = [
+      ...(selectedBundle.opening_team || []),
+      ...((selectedBundle.locations || []).flatMap((location) => location.opening_team || [])),
+    ];
+    teams.forEach((member) => {
+      if (member.helper_user_id && !byId.has(member.helper_user_id)) {
+        byId.set(member.helper_user_id, {
+          user_id: member.helper_user_id,
+          name: [member.helper_first_name, member.helper_last_name].filter(Boolean).join(' ') || member.helper_email,
+          email: member.helper_email || '',
+        });
+      }
+    });
+    return [...byId.values()];
+  }
+
+  async function assignLocationManager(locationId) {
+    if (!selectedApplication) return;
+    const managerUserId = managerPick[locationId];
+    if (!managerUserId) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/locations/${locationId}/manager`, { manager_user_id: managerUserId });
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseLocationManagerAssigned'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLocationManagerFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeLocationManager(locationId) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.delete(`/franchise/applications/${selectedApplication.id}/locations/${locationId}/manager`);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseLocationManagerRemoved'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLocationManagerFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function updateChecklist(itemId, payload) {
     if (!selectedApplication) return;
     try {
@@ -1375,6 +1443,43 @@ export default function FranchiseHQPage() {
                                 )).join(', ')}
                               </div>
                             )}
+                            {/* Group 12 Slice 3d (617): the location
+                                manager — HQ-only assignment from the
+                                territory members; the operator sees the
+                                manager read-only on the location card. */}
+                            <div className="frhq-row-meta">
+                              {t('dashboards.franchise.locationManagerTitle')}: {location.manager
+                                ? `${[location.manager.manager_first_name, location.manager.manager_last_name].filter(Boolean).join(' ') || location.manager.manager_email} (${location.manager.manager_email})`
+                                : t('dashboards.franchise.locationManagerNone')}
+                            </div>
+                            <div className="frhq-form-grid">
+                              <label className="frhq-label">
+                                {t('dashboards.franchise.locationManagerTitle')}
+                                <select
+                                  className="frhq-field"
+                                  value={managerPick[location.id] || ''}
+                                  disabled={saving}
+                                  onChange={(e) => setManagerPick((v) => ({ ...v, [location.id]: e.target.value }))}
+                                >
+                                  <option value="">{t('dashboards.franchise.locationManagerChoose')}</option>
+                                  {territoryMembers().map((member) => (
+                                    <option key={member.user_id} value={member.user_id}>
+                                      {member.name}{member.email && member.name !== member.email ? ` (${member.email})` : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+                            <div className="frhq-row-actions">
+                              <button type="button" className="frhq-btn-primary" disabled={saving || !managerPick[location.id]} onClick={() => assignLocationManager(location.id)}>
+                                {t('dashboards.franchise.locationManagerAssign')}
+                              </button>
+                              {location.manager && (
+                                <button type="button" className="frhq-btn-reject" disabled={saving} onClick={() => removeLocationManager(location.id)}>
+                                  {t('dashboards.franchise.locationManagerRemove')}
+                                </button>
+                              )}
+                            </div>
                             {(location.milestones || []).length ? location.milestones.map((milestone) => (
                               <div key={milestone.id} className="frhq-row">
                                 <div>

@@ -19132,7 +19132,12 @@
     "territoryInviteStatusAccepted": "Aksepte",
     "territoryInviteStatusDeclined": "Refize",
     "territoryInviteStatusCancelled": "Anile",
-    "territoryInviteStatusExpired": "Ekspire"
+    "territoryInviteStatusExpired": "Ekspire",
+    "locationManagerTitle": "Manadjè lokal la",
+    "locationManagerNone": "Poko gen manadjè pou lokal sa a. Katye jeneral la bay manadjè lokal la.",
+    "locationManagerAssign": "Bay manadjè a",
+    "locationManagerRemove": "Retire manadjè a",
+    "locationManagerChoose": "Chwazi yon manm teritwa a"
     },
     "businessOwner": {
       "newMessages": "Nouvo mesaj",
@@ -34998,6 +35003,9 @@
   "adminFranchiseTerritoryInviteSent": "Envitasyon teritwa a voye.",
   "adminFranchiseTerritoryInviteCancelled": "Envitasyon teritwa a anile.",
   "adminFranchiseTerritoryInviteFailed": "Pa t kapab anrejistre envitasyon teritwa a.",
+  "adminFranchiseLocationManagerAssigned": "Manadjè lokal la bay.",
+  "adminFranchiseLocationManagerRemoved": "Manadjè lokal la retire.",
+  "adminFranchiseLocationManagerFailed": "Pa t kapab anrejistre manadjè lokal la.",
   "adminFranchiseLocationFailed": "Yo pa t kapab anrejistre lokasyon an. Tanpri eseye ankò.",
   "adminFranchiseMilestoneTitle": "Tit etap la",
   "adminFranchiseMilestonePlanStepNone": "Pa gen etap ki lye",

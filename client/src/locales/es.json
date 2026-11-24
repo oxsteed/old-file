@@ -19132,7 +19132,12 @@
     "territoryInviteStatusAccepted": "Aceptado",
     "territoryInviteStatusDeclined": "Rechazado",
     "territoryInviteStatusCancelled": "Cancelado",
-    "territoryInviteStatusExpired": "Caducado"
+    "territoryInviteStatusExpired": "Caducado",
+    "locationManagerTitle": "Gerente de la ubicación",
+    "locationManagerNone": "Aún no hay gerente asignado. La sede asigna al gerente de la ubicación.",
+    "locationManagerAssign": "Asignar gerente",
+    "locationManagerRemove": "Quitar gerente",
+    "locationManagerChoose": "Elige un miembro del territorio"
     },
     "businessOwner": {
       "newMessages": "Nuevos mensajes",
@@ -34998,6 +35003,9 @@
   "adminFranchiseTerritoryInviteSent": "Invitación al territorio enviada.",
   "adminFranchiseTerritoryInviteCancelled": "Invitación al territorio cancelada.",
   "adminFranchiseTerritoryInviteFailed": "No se pudo guardar la invitación al territorio.",
+  "adminFranchiseLocationManagerAssigned": "Gerente de la ubicación asignado.",
+  "adminFranchiseLocationManagerRemoved": "Gerente de la ubicación quitado.",
+  "adminFranchiseLocationManagerFailed": "No se pudo guardar el gerente de la ubicación.",
   "adminFranchiseLocationFailed": "No se pudo guardar la ubicación. Inténtalo de nuevo.",
   "adminFranchiseMilestoneTitle": "Título del hito",
   "adminFranchiseMilestonePlanStepNone": "Sin paso vinculado",

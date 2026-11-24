@@ -19132,7 +19132,12 @@
     "territoryInviteStatusAccepted": "Accepted",
     "territoryInviteStatusDeclined": "Declined",
     "territoryInviteStatusCancelled": "Cancelled",
-    "territoryInviteStatusExpired": "Expired"
+    "territoryInviteStatusExpired": "Expired",
+    "locationManagerTitle": "Location manager",
+    "locationManagerNone": "No manager assigned yet. HQ assigns the location manager.",
+    "locationManagerAssign": "Assign manager",
+    "locationManagerRemove": "Remove manager",
+    "locationManagerChoose": "Choose a territory member"
     },
     "businessOwner": {
       "newMessages": "New messages",
@@ -34998,6 +35003,9 @@
   "adminFranchiseTerritoryInviteSent": "Territory invite sent.",
   "adminFranchiseTerritoryInviteCancelled": "Territory invite cancelled.",
   "adminFranchiseTerritoryInviteFailed": "Could not save the territory invite.",
+  "adminFranchiseLocationManagerAssigned": "Location manager assigned.",
+  "adminFranchiseLocationManagerRemoved": "Location manager removed.",
+  "adminFranchiseLocationManagerFailed": "Could not save the location manager.",
   "adminFranchiseLocationFailed": "Could not save the location. Please try again.",
   "adminFranchiseMilestoneTitle": "Milestone title",
   "adminFranchiseMilestonePlanStepNone": "No linked step",

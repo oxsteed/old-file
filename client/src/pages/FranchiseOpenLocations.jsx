@@ -167,6 +167,26 @@ export default function FranchiseOpenLocations({
                   </ul>
                 )}
 
+                {/* Group 12 Slice 3d (617): this location's manager —
+                    HQ-assigned, read-only for the operator. */}
+                <div className="fr-detail-list-label">{copy('locationManagerTitle')}</div>
+                {location.manager ? (
+                  <ul className="fr-doc-files">
+                    <li className="fr-doc-file">
+                      <div>
+                        <div className="fr-doc-file-name">
+                          {[location.manager.manager_first_name, location.manager.manager_last_name].filter(Boolean).join(' ') || location.manager.manager_email}
+                        </div>
+                        {location.manager.manager_email && (
+                          <div className="fr-doc-file-meta">{location.manager.manager_email}</div>
+                        )}
+                      </div>
+                    </li>
+                  </ul>
+                ) : (
+                  <p className="fr-detail-empty">{copy('locationManagerNone')}</p>
+                )}
+
                 {/* Group 12 Slice 3c (612): this launch's opening team. */}
                 <div className="fr-detail-list-label">{copy('openingTeamTitle')}</div>
                 {(location.opening_team || []).length > 0 ? (

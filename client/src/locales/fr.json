@@ -19132,7 +19132,12 @@
     "territoryInviteStatusAccepted": "Accepté",
     "territoryInviteStatusDeclined": "Refusé",
     "territoryInviteStatusCancelled": "Annulé",
-    "territoryInviteStatusExpired": "Expiré"
+    "territoryInviteStatusExpired": "Expiré",
+    "locationManagerTitle": "Responsable de l'emplacement",
+    "locationManagerNone": "Aucun responsable assigné pour l'instant. Le siège assigne le responsable de l'emplacement.",
+    "locationManagerAssign": "Assigner le responsable",
+    "locationManagerRemove": "Retirer le responsable",
+    "locationManagerChoose": "Choisir un membre du territoire"
     },
     "businessOwner": {
       "newMessages": "Nouveaux messages",
@@ -34998,6 +35003,9 @@
   "adminFranchiseTerritoryInviteSent": "Invitation au territoire envoyée.",
   "adminFranchiseTerritoryInviteCancelled": "Invitation au territoire annulée.",
   "adminFranchiseTerritoryInviteFailed": "Impossible d'enregistrer l'invitation au territoire.",
+  "adminFranchiseLocationManagerAssigned": "Responsable de l'emplacement assigné.",
+  "adminFranchiseLocationManagerRemoved": "Responsable de l'emplacement retiré.",
+  "adminFranchiseLocationManagerFailed": "Impossible d'enregistrer le responsable de l'emplacement.",
   "adminFranchiseLocationFailed": "Impossible d'enregistrer l'emplacement. Veuillez réessayer.",
   "adminFranchiseMilestoneTitle": "Titre du jalon",
   "adminFranchiseMilestonePlanStepNone": "Aucune étape liée",
