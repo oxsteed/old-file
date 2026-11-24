@@ -20,6 +20,7 @@ import FranchiseTerritoryInvitations from '../../../pages/FranchiseTerritoryInvi
 import FranchiseTrainingTasks from '../../../pages/FranchiseTrainingTasks';
 import FranchiseCoveragePlan from '../../../pages/FranchiseCoveragePlan';
 import FranchiseAnnouncements from '../../../pages/FranchiseAnnouncements';
+import FranchiseStandards from '../../../pages/FranchiseStandards';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -868,6 +869,47 @@ export default function FranchiseHQPage() {
       toast.success(t('adminFranchiseAnnouncementRemoved'));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseAnnouncementFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3e (621): HQ curates the franchise standards library —
+  // a Learn guide becomes a standard for this territory, or franchise-wide
+  // (every territory). A franchise-wide curate returns the wide list, so
+  // the bundle is reloaded to show it.
+  async function curateStandard(body) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      if (body.scope === 'franchise') {
+        await axios.post('/franchise/standards', { guide_id: body.guide_id });
+        await loadDetail(selectedApplication.id);
+      } else {
+        const res = await axios.post(`/franchise/applications/${selectedApplication.id}/standards`, { guide_id: body.guide_id });
+        setSelectedBundle(res.data);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLoadFailed'));
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeStandard(standard) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      if (standard.scope === 'franchise') {
+        await axios.delete(`/franchise/standards/${standard.id}`);
+        await loadDetail(selectedApplication.id);
+      } else {
+        const res = await axios.delete(`/franchise/applications/${selectedApplication.id}/standards/${standard.id}`);
+        setSelectedBundle(res.data);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLoadFailed'));
     } finally {
       setSaving(false);
     }
@@ -1744,6 +1786,18 @@ export default function FranchiseHQPage() {
                     canManage
                     onPost={postAnnouncement}
                     onDelete={deleteAnnouncement}
+                    disabled={saving}
+                  />
+
+                  {/* Group 12 Slice 3e (621): the franchise standards
+                      library — HQ curates Learn guides as franchise-wide
+                      or per-territory standards and removes them. */}
+                  <FranchiseStandards
+                    standards={selectedBundle.standards || []}
+                    canCurate
+                    canRemove
+                    onCurate={curateStandard}
+                    onRemove={removeStandard}
                     disabled={saving}
                   />
 

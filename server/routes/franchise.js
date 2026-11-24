@@ -75,6 +75,11 @@ const {
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
+  curateFranchiseStandard,
+  curateFranchiseStandardWide,
+  listFranchiseStandardsWide,
+  removeFranchiseStandard,
+  removeFranchiseStandardWide,
 } = require('../controllers/franchiseController');
 
 const {
@@ -183,6 +188,13 @@ router.get('/applications/:id/coverage', authenticate, requireAdmin, requirePerm
 // Group 12 Slice 3d (620): HQ posts and removes territory announcements.
 router.post('/applications/:id/announcements', authenticate, requireAdmin, requirePermission('manage_operations'), postAnnouncementAsAdmin);
 router.delete('/applications/:id/announcements/:announcementId', authenticate, requireAdmin, requirePermission('manage_operations'), deleteAnnouncementAsAdmin);
+// Group 12 Slice 3e (621): HQ curates the franchise standards library —
+// Learn guides as franchise-wide or per-territory standards.
+router.get('/standards', authenticate, requireAdmin, requirePermission('manage_operations'), listFranchiseStandardsWide);
+router.post('/standards', authenticate, requireAdmin, requirePermission('manage_operations'), curateFranchiseStandardWide);
+router.delete('/standards/:standardId', authenticate, requireAdmin, requirePermission('manage_operations'), removeFranchiseStandardWide);
+router.post('/applications/:id/standards', authenticate, requireAdmin, requirePermission('manage_operations'), curateFranchiseStandard);
+router.delete('/applications/:id/standards/:standardId', authenticate, requireAdmin, requirePermission('manage_operations'), removeFranchiseStandard);
 router.put('/applications/:id/agreement', authenticate, requireAdmin, requirePermission('manage_operations'), upsertFranchiseAgreement);
 // Review P2-9-F09: the applicant signs from their own account (admins cannot
 // assert the applicant's signature). Authenticated, not admin-gated.

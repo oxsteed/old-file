@@ -22,6 +22,7 @@ import FranchiseTerritoryInvitations from './FranchiseTerritoryInvitations';
 import FranchiseTrainingTasks from './FranchiseTrainingTasks';
 import FranchiseCoveragePlan from './FranchiseCoveragePlan';
 import FranchiseAnnouncements from './FranchiseAnnouncements';
+import FranchiseStandards from './FranchiseStandards';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -699,6 +700,13 @@ export default function FranchiseTerritoryOpsPage() {
               canRead
               onMarkRead={markAnnouncementRead}
             />
+          )}
+
+          {/* Group 12 Slice 3e (621): the franchise standards library —
+              franchise-wide standards plus this territory's own, browsed
+              from the territory ops page. */}
+          {boundaryDetail && (
+            <FranchiseStandards standards={boundaryDetail.standards || []} />
           )}
 
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">

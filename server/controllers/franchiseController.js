@@ -450,6 +450,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   const territoryInvitations = await fetchTerritoryInvitations(applicationId);
   const trainingAssignments = await fetchTrainingAssignments(applicationId);
   const announcements = await fetchAnnouncements(applicationId, { includeReadCounts: true });
+  // Group 12 Slice 3e (621): the franchise standards library — the
+  // franchise-wide standards plus this territory's own.
+  const standards = await fetchFranchiseStandards(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -475,6 +478,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     territory_invitations: territoryInvitations,
     training_assignments: trainingAssignments,
     announcements,
+    standards,
     readiness_reviews: readinessReviews,
     agreement: agreementResult.rows[0] || null,
     notes: notesResult.rows,
@@ -678,6 +682,31 @@ async function fetchAnnouncements(applicationId, { userId = null, includeReadCou
     expired: Boolean(row.expires_at) && new Date(row.expires_at).getTime() <= now,
     read_count: readCounts.get(row.id) || 0,
     read_by_me: readByMe.has(row.id),
+  }));
+}
+
+// Group 12 Slice 3e (621, D-321): the franchise standards library —
+// franchise-scoped views over the Learn guides catalog. A territory
+// sees the franchise-wide standards (application_id NULL) plus its own
+// territory standards; the guide title/category ride along from
+// learn_guides so the operator never sees a bare guide id. Passing a
+// null application id returns the franchise-wide standards only: the
+// `application_id IS NULL OR application_id = $1` predicate keeps
+// franchise-wide rows (TRUE OR NULL) and drops territory rows
+// (FALSE OR NULL) when $1 is NULL.
+async function fetchFranchiseStandards(applicationId) {
+  const { rows } = await db.query(
+    `SELECT s.*, g.title AS guide_title, g.category AS guide_category,
+            g.difficulty AS guide_difficulty, g.minutes AS guide_minutes
+       FROM franchise_standards s
+       LEFT JOIN learn_guides g ON g.id = s.guide_id
+      WHERE s.application_id IS NULL OR s.application_id = $1
+      ORDER BY s.application_id NULLS FIRST, s.created_at ASC, s.id ASC`,
+    [applicationId]
+  );
+  return rows.map((row) => ({
+    ...row,
+    scope: row.application_id ? 'territory' : 'franchise',
   }));
 }
 
@@ -903,6 +932,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     territory_invitations: territoryInvitations,
     training_assignments: trainingAssignments,
     announcements,
+    // Group 12 Slice 3e (621): the franchise standards library.
+    standards: await fetchFranchiseStandards(applicationId),
     readiness_reviews: readinessReviews,
     activity: activityResult.rows,
   };
@@ -5381,6 +5412,186 @@ async function markAnnouncementRead(req, res) {
   }
 }
 
+// Group 12 Slice 3e (621, D-321): HQ curates a Learn guide as a
+// franchise standard, either for one territory (applicationId set) or
+// franchise-wide (applicationId null). The guide must be a published
+// Learn guide; a guide is a standard at most once per scope.
+async function curateFranchiseStandardCore(client, { applicationId, guideId, curatedBy }) {
+  const { rows: guideRows } = await client.query(
+    `SELECT id FROM learn_guides WHERE id = $1 AND status = 'published'`,
+    [guideId]
+  );
+  if (!guideRows.length) {
+    return { error: { status: 404, body: { error: 'Learn guide not found.', code: 'standard_guide_not_found' } } };
+  }
+  const { rows: existing } = await client.query(
+    `SELECT id FROM franchise_standards
+      WHERE guide_id = $1 AND (
+        ($2::uuid IS NULL AND application_id IS NULL) OR application_id = $2
+      )`,
+    [guideId, applicationId]
+  );
+  if (existing.length) {
+    return { error: { status: 409, body: { error: 'That guide is already a franchise standard for this scope.', code: 'standard_already_curated' } } };
+  }
+  const { rows } = await client.query(
+    `INSERT INTO franchise_standards (application_id, guide_id, curated_by)
+     VALUES ($1, $2, $3)
+     RETURNING *`,
+    [applicationId, guideId, curatedBy]
+  );
+  return { standard: rows[0] };
+}
+
+async function curateFranchiseStandard(req, res) {
+  const { id } = req.params;
+  const guideId = asTrimmed(req.body?.guide_id);
+  if (!guideId) {
+    return res.status(400).json({ error: 'guide_id is required.', code: 'standard_guide_required' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const result = await curateFranchiseStandardCore(client, {
+        applicationId: id, guideId, curatedBy: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await logActivity(client, id, req.user?.id || null, 'standard_curated',
+        `HQ curated a franchise standard from Learn guide ${guideId}.`, { standard_id: result.standard.id, guide_id: guideId });
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error curating franchise standard', { id, guideId, err: err.message });
+    return res.status(500).json({ error: 'Failed to curate franchise standard.' });
+  }
+}
+
+async function curateFranchiseStandardWide(req, res) {
+  const guideId = asTrimmed(req.body?.guide_id);
+  if (!guideId) {
+    return res.status(400).json({ error: 'guide_id is required.', code: 'standard_guide_required' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await curateFranchiseStandardCore(client, {
+        applicationId: null, guideId, curatedBy: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const standards = await fetchFranchiseStandards(null);
+      return res.status(201).json({ standards });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error curating franchise-wide standard', { guideId, err: err.message });
+    return res.status(500).json({ error: 'Failed to curate franchise standard.' });
+  }
+}
+
+async function listFranchiseStandardsWide(req, res) {
+  try {
+    const standards = await fetchFranchiseStandards(null);
+    return res.json({ standards });
+  } catch (err) {
+    logger.error('Error listing franchise-wide standards', { err: err.message });
+    return res.status(500).json({ error: 'Failed to list franchise standards.' });
+  }
+}
+
+async function removeFranchiseStandardCore(client, { applicationId, standardId }) {
+  const { rows } = await client.query(
+    `DELETE FROM franchise_standards
+      WHERE id = $1 AND (
+        ($2::uuid IS NULL AND application_id IS NULL) OR application_id = $2
+      )
+      RETURNING guide_id`,
+    [standardId, applicationId]
+  );
+  if (!rows.length) {
+    return { error: { status: 404, body: { error: 'Franchise standard not found.', code: 'standard_not_found' } } };
+  }
+  return { guideId: rows[0].guide_id };
+}
+
+async function removeFranchiseStandard(req, res) {
+  const { id, standardId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await removeFranchiseStandardCore(client, { applicationId: id, standardId });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await logActivity(client, id, req.user?.id || null, 'standard_removed',
+        `HQ removed a franchise standard (Learn guide ${result.guideId}).`, { standard_id: standardId, guide_id: result.guideId });
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise standard', { id, standardId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove franchise standard.' });
+  }
+}
+
+async function removeFranchiseStandardWide(req, res) {
+  const { standardId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await removeFranchiseStandardCore(client, { applicationId: null, standardId });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const standards = await fetchFranchiseStandards(null);
+      return res.json({ standards });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise-wide standard', { standardId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove franchise standard.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -5443,6 +5654,11 @@ module.exports = {
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
+  curateFranchiseStandard,
+  curateFranchiseStandardWide,
+  listFranchiseStandardsWide,
+  removeFranchiseStandard,
+  removeFranchiseStandardWide,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,
