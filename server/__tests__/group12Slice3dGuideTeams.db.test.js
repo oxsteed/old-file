@@ -734,4 +734,135 @@ describeDb('Group 12 Slice 3d: Guide teams (616-620)', () => {
         .expect(403);
     });
   });
+
+  describe('620: territory announcement feed', () => {
+    function postAnnouncementAs(admin, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/applications/${applicationId}/announcements`)
+        .set('x-test-user', admin.id)
+        .send(body);
+    }
+
+    test('HQ posts an announcement; the operator sees it unread, HQ sees the read count', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+
+      const posted = await postAnnouncementAs(admin, applicationId, {
+        title: 'New brand guidelines', body: 'Please read the updated brand guide.',
+      }).expect(201);
+      expect(posted.body.announcements).toHaveLength(1);
+      expect(posted.body.announcements[0].title).toBe('New brand guidelines');
+      expect(posted.body.announcements[0].read_count).toBe(0);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.announcements).toHaveLength(1);
+      expect(detail.body.announcements[0].read_by_me).toBe(false);
+      expect(detail.body.announcements[0].expired).toBe(false);
+    });
+
+    test('operator marks an announcement read; marking again is idempotent', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const posted = await postAnnouncementAs(admin, applicationId, {
+        title: 'New brand guidelines', body: 'Please read the updated brand guide.',
+      }).expect(201);
+      const announcementId = posted.body.announcements[0].id;
+
+      const read = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/announcements/${announcementId}/read`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(read.body.announcements[0].read_by_me).toBe(true);
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/announcements/${announcementId}/read`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      expect(bundle.body.announcements[0].read_count).toBe(1);
+    });
+
+    test('an expired announcement hides from the operator feed but stays visible to HQ', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const past = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+      await postAnnouncementAs(admin, applicationId, {
+        title: 'Old news', body: 'This already expired.', expires_at: past,
+      }).expect(201);
+      await postAnnouncementAs(admin, applicationId, {
+        title: 'Current news', body: 'Still live.', expires_at: future,
+      }).expect(201);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.announcements.map((row) => row.title)).toEqual(['Current news']);
+
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      expect(bundle.body.announcements).toHaveLength(2);
+      const expired = bundle.body.announcements.find((row) => row.title === 'Old news');
+      expect(expired.expired).toBe(true);
+    });
+
+    test('posting validates title, body, and expiry; the operator cannot post or delete', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+
+      await postAnnouncementAs(admin, applicationId, { body: 'No title.' }).expect(400)
+        .then((res) => expect(res.body.code).toBe('announcement_title_required'));
+      await postAnnouncementAs(admin, applicationId, { title: 'No body.' }).expect(400)
+        .then((res) => expect(res.body.code).toBe('announcement_body_required'));
+      await postAnnouncementAs(admin, applicationId, {
+        title: 'Bad expiry', body: 'x', expires_at: 'not-a-date',
+      }).expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_announcement_expiry'));
+
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/announcements`)
+        .set('x-test-user', operator.id)
+        .send({ title: 'Nope', body: 'Operators cannot post.' })
+        .expect(403);
+      await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/announcements/00000000-0000-0000-0000-000000000000`)
+        .set('x-test-user', operator.id)
+        .expect(403);
+    });
+
+    test('HQ deletes an announcement; deleting again is a 404, and a stranger cannot mark read', async () => {
+      const operator = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const posted = await postAnnouncementAs(admin, applicationId, {
+        title: 'To remove', body: 'Bye.',
+      }).expect(201);
+      const announcementId = posted.body.announcements[0].id;
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/announcements/${announcementId}/read`)
+        .set('x-test-user', stranger.id)
+        .expect(404);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/announcements/00000000-0000-0000-0000-000000000000/read`)
+        .set('x-test-user', operator.id)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('announcement_not_found'));
+
+      const removed = await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/announcements/${announcementId}`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(removed.body.announcements).toHaveLength(0);
+
+      await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/announcements/${announcementId}`)
+        .set('x-test-user', admin.id)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('announcement_not_found'));
+    });
+  });
 });

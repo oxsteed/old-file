@@ -17,6 +17,7 @@ import FranchiseOpenLocations from './FranchiseOpenLocations';
 import FranchiseReadinessReviews from './FranchiseReadinessReviews';
 import FranchiseTerritoryInvitations from './FranchiseTerritoryInvitations';
 import FranchiseTrainingTasks from './FranchiseTrainingTasks';
+import FranchiseAnnouncements from './FranchiseAnnouncements';
 import { useAuth } from '../hooks/useAuth';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
@@ -360,6 +361,20 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     }
   }
 
+  // Group 12 Slice 3d (620): the operator marks an HQ announcement read.
+  async function markAnnouncementRead(announcementId) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/announcements/${announcementId}/read`);
+      setDetail(response.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('announcementsPostFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Group 12 Slice 3b (608): acknowledge one responsibility item.
   async function acknowledgeResponsibility(itemId) {
     setBusy(true);
@@ -693,6 +708,14 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onAssign={assignTraining}
         onComplete={completeTraining}
         onRemove={removeTraining}
+        disabled={busy}
+      />
+
+      {/* Group 12 Slice 3d (620): the HQ announcement feed. */}
+      <FranchiseAnnouncements
+        announcements={detail.announcements || []}
+        canRead={detail.application?.is_operator === true}
+        onMarkRead={markAnnouncementRead}
         disabled={busy}
       />
 

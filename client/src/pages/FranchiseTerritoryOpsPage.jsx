@@ -21,6 +21,7 @@ import FranchiseOpenLocations from './FranchiseOpenLocations';
 import FranchiseTerritoryInvitations from './FranchiseTerritoryInvitations';
 import FranchiseTrainingTasks from './FranchiseTrainingTasks';
 import FranchiseCoveragePlan from './FranchiseCoveragePlan';
+import FranchiseAnnouncements from './FranchiseAnnouncements';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -353,6 +354,17 @@ export default function FranchiseTerritoryOpsPage() {
     }
   }, [resolvedApplicationId, t]);
 
+  // Group 12 Slice 3d (620): the operator marks an HQ announcement read.
+  const markAnnouncementRead = useCallback(async (announcementId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/announcements/${announcementId}/read`);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
   // Group 12 Slice 3c (612): the operator designates a roster helper as
   // an opening-team member (or removes them) for the selected scope. The
   // roster reloads so the opening-team flags reflect the change.
@@ -679,6 +691,15 @@ export default function FranchiseTerritoryOpsPage() {
 
           {/* Group 12 Slice 3d (619): territory coverage planning. */}
           {boundaryDetail && <FranchiseCoveragePlan coverage={coverage} />}
+
+          {/* Group 12 Slice 3d (620): the HQ announcement feed. */}
+          {boundaryDetail && (
+            <FranchiseAnnouncements
+              announcements={boundaryDetail.announcements || []}
+              canRead
+              onMarkRead={markAnnouncementRead}
+            />
+          )}
 
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
             <div className="flex items-center justify-between mb-4">

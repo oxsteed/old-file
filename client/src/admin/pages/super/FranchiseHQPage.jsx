@@ -19,6 +19,7 @@ import FranchiseOpeningConfirmation from '../../../pages/FranchiseOpeningConfirm
 import FranchiseTerritoryInvitations from '../../../pages/FranchiseTerritoryInvitations';
 import FranchiseTrainingTasks from '../../../pages/FranchiseTrainingTasks';
 import FranchiseCoveragePlan from '../../../pages/FranchiseCoveragePlan';
+import FranchiseAnnouncements from '../../../pages/FranchiseAnnouncements';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -837,6 +838,36 @@ export default function FranchiseHQPage() {
       toast.success(t('adminFranchiseTrainingRemoved'));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseTrainingFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3d (620): HQ posts and removes territory announcements.
+  async function postAnnouncement(body) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/announcements`, body);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseAnnouncementPosted'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseAnnouncementFailed'));
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteAnnouncement(announcementId) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.delete(`/franchise/applications/${selectedApplication.id}/announcements/${announcementId}`);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseAnnouncementRemoved'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseAnnouncementFailed'));
     } finally {
       setSaving(false);
     }
@@ -1704,6 +1735,17 @@ export default function FranchiseHQPage() {
                   {/* Group 12 Slice 3d (619): territory coverage planning
                       — read-only rollup in HQ. */}
                   <FranchiseCoveragePlan coverage={coverage} />
+
+                  {/* Group 12 Slice 3d (620): the HQ announcement feed —
+                      HQ posts and removes, operators read. */}
+                  <FranchiseAnnouncements
+                    announcements={selectedBundle.announcements || []}
+                    canPost
+                    canManage
+                    onPost={postAnnouncement}
+                    onDelete={deleteAnnouncement}
+                    disabled={saving}
+                  />
 
                   {/* Group 12 Slice 3c (613): HQ records a formal readiness
                       review — the only path that moves readiness to `ready`. */}
