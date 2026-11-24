@@ -11,6 +11,7 @@ import {
   Truck,
   Wallet,
   HelpCircle,
+  Navigation,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ToolCardData, ToolCondition } from '../../types/toolDirectory';
@@ -236,6 +237,12 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
             {tool.location_city || t('toolRentalsDir.locationUnknown')}
             {tool.location_state ? `, ${tool.location_state}` : ''}
           </span>
+          {tool.distance_miles != null && (
+            <span className="flex items-center gap-1 text-emerald-400">
+              <Navigation className="w-3 h-3" aria-hidden="true" />
+              {t('toolRentalsDir.distanceLabel', { distance: Number(tool.distance_miles).toFixed(1) })}
+            </span>
+          )}
           {tool.avg_response_time_hours ? (
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" aria-hidden="true" />

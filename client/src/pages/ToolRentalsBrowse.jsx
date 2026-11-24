@@ -343,6 +343,12 @@ function getInitialState() {
   if (widthMaxParam !== null && Number.isFinite(Number(widthMaxParam))) filters.widthMax = Number(widthMaxParam);
   const heightMaxParam = params.get('heightMax');
   if (heightMaxParam !== null && Number.isFinite(Number(heightMaxParam))) filters.heightMax = Number(heightMaxParam);
+  const radiusParam = params.get('radius');
+  if (radiusParam !== null && Number.isFinite(Number(radiusParam))) filters.radius = Number(radiusParam);
+  const latParam = params.get('lat');
+  if (latParam !== null && Number.isFinite(Number(latParam))) filters.lat = Number(latParam);
+  const lngParam = params.get('lng');
+  if (lngParam !== null && Number.isFinite(Number(lngParam))) filters.lng = Number(lngParam);
 
   if (params.get('availableNow') === 'true') filters.availableNow = true;
   if (params.get('delivery') === 'true') filters.deliveryAvailable = true;
@@ -381,6 +387,9 @@ function applyClientSort(tools, sort, boostedCategory) {
       case 'price-desc':   return Number(b.daily_rate || 0) - Number(a.daily_rate || 0);
       case 'most-popular': return Number(b.review_count || 0) - Number(a.review_count || 0);
       case 'highest-rated':return Number(b.avg_rating || 0) - Number(a.avg_rating || 0);
+      // 564: distance order comes from the server (haversine); the client
+      // keeps that order instead of re-sorting.
+      case 'distance':     return 0;
       case 'newest':
       default: {
         const tA = new Date(a.created_at || 0).getTime() || 0;
@@ -449,8 +458,11 @@ const ToolRentalsBrowse = () => {
   const load = useCallback(async (f, s, offset, append = false) => {
     setLoadState('loading');
     try {
+      const hasLocation = f.lat !== null && f.lng !== null && f.radius !== null;
       const params = {
-        sort: s,
+        // 564: a distance sort needs a location; without one, fall back to
+        // newest instead of sending a sort the server 400s.
+        sort: s === 'distance' && !hasLocation ? 'newest' : s,
         limit: PAGE_SIZE,
         offset,
         name: f.query || undefined,
@@ -470,6 +482,11 @@ const ToolRentalsBrowse = () => {
         lengthMax: f.lengthMax !== null ? f.lengthMax : undefined,
         widthMax: f.widthMax !== null ? f.widthMax : undefined,
         heightMax: f.heightMax !== null ? f.heightMax : undefined,
+        // 564: the radius is only sent together with a location; the
+        // server 400s a partial distance filter.
+        radius: hasLocation ? f.radius : undefined,
+        lat: hasLocation ? f.lat : undefined,
+        lng: hasLocation ? f.lng : undefined,
       };
       const fetched = await toolRentalsApi.browseTools(params);
       setTools((prev) => append ? [...prev, ...fetched] : fetched);

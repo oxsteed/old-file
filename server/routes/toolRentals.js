@@ -99,6 +99,7 @@ async function getToolFields() {
       hasModerationHold: tr.has('moderation_hold'),
       hasCapacityColumns: tr.has('capacity_value') && tr.has('capacity_unit') && tr.has('weight_kg')
         && tr.has('size_length_cm') && tr.has('size_width_cm') && tr.has('size_height_cm'),
+      hasLocationColumns: tr.has('location_lat') && tr.has('location_lng'),
     };
   } catch {
     _resolvedFields = {
@@ -109,6 +110,7 @@ async function getToolFields() {
       hasImageGallery: false,
       hasModerationHold: false,
       hasCapacityColumns: false,
+      hasLocationColumns: false,
     };
   }
   return _resolvedFields;
@@ -193,6 +195,21 @@ function parseNonNegativeNumber(value, field, errors, { max = 1000000 } = {}) {
   }
   if (num > max) {
     errors[field] = `${field} is too high`;
+    return null;
+  }
+  return num;
+}
+
+// 564: pickup coordinates. A latitude/longitude pair or neither.
+function parseCoordinate(value, field, min, max, errors) {
+  if (value === undefined || value === null || value === '') return null;
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    errors[field] = `${field} must be a number`;
+    return null;
+  }
+  if (num < min || num > max) {
+    errors[field] = `${field} is out of range`;
     return null;
   }
   return num;
@@ -353,6 +370,20 @@ function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
     errors.capacity_unit = 'capacity_unit is required when a capacity is set';
   }
 
+  // 564: pickup coordinates, same pair rule as capacity (merged with the
+  // stored row on partial updates).
+  if (!partial || body.location_lat !== undefined) {
+    payload.location_lat = parseCoordinate(body.location_lat, 'location_lat', -90, 90, errors);
+  }
+  if (!partial || body.location_lng !== undefined) {
+    payload.location_lng = parseCoordinate(body.location_lng, 'location_lng', -180, 180, errors);
+  }
+  const mergedLat = payload.location_lat ?? existing?.location_lat ?? null;
+  const mergedLng = payload.location_lng ?? existing?.location_lng ?? null;
+  if ((mergedLat != null) !== (mergedLng != null)) {
+    errors.location_lat = 'location_lat and location_lng must be set together';
+  }
+
   for (const field of ['is_available', 'requires_deposit', 'delivery_available', 'pickup_only']) {
     if (!partial || body[field] !== undefined) {
       payload[field] = parseBoolean(body[field]);
@@ -404,10 +435,14 @@ router.get('/categories', async (req, res) => {
 // given, listings with an overlapping live booking (pending / invoice_sent /
 // payment_confirmed, same overlap rule as createBooking) are excluded, so
 // the renter only sees tools free for the whole requested range.
+// Group 11 item 564: a pickup distance filter. lat+lng+radius (miles) keep
+// only listings within the radius, computed with haversine in SQL; results
+// carry distance_miles and, with no explicit sort, come back nearest first.
 async function browseTools(req, res) {
   try {
     const { category, city, name, priceMin, priceMax, sort = 'newest', limit = 30, offset = 0, startDate, endDate,
-      capacityMin, capacityUnit, weightMax, lengthMax, widthMax, heightMax } = req.query;
+      capacityMin, capacityUnit, weightMax, lengthMax, widthMax, heightMax,
+      lat, lng, radius } = req.query;
     // 562: both dates together, valid calendar dates, end after start.
     // A single date is not a rental range, so it is rejected rather than
     // silently treated as open-ended.
@@ -431,7 +466,7 @@ async function browseTools(req, res) {
     let where = 'WHERE t.is_available = $1';
     let idx = 2;
 
-    const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime, hasModerationHold, hasCapacityColumns } = await getToolFields();
+    const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime, hasModerationHold, hasCapacityColumns, hasLocationColumns } = await getToolFields();
     // An admin moderation hold (e.g. safety recall) keeps the tool out of the
     // public listing even if the owner flips is_available back on.
     if (hasModerationHold) where += ' AND NOT t.moderation_hold';
@@ -474,6 +509,41 @@ async function browseTools(req, res) {
       if (widthMax !== undefined) { where += ` AND t.size_width_cm <= $${idx++}`; params.push(Number(widthMax)); }
       if (heightMax !== undefined) { where += ` AND t.size_height_cm <= $${idx++}`; params.push(Number(heightMax)); }
     }
+    // 564: pickup distance filter. lat+lng+radius arrive together (a radius
+    // without a point, or a point without a radius, is a 400); listings
+    // without coordinates never match an active distance filter. Distance is
+    // haversine in SQL, miles, with the acos argument clamped so float
+    // error on coincident points cannot push it out of [-1, 1]. The same
+    // lat/lng placeholders are reused in the SELECT and the WHERE, so the
+    // values are bound once.
+    let distanceSelect = '';
+    let distanceFilter = null;
+    if (lat !== undefined || lng !== undefined || radius !== undefined) {
+      const latN = Number(lat);
+      const lngN = Number(lng);
+      const radiusN = Number(radius);
+      const distanceErrors = {};
+      if (!Number.isFinite(latN) || latN < -90 || latN > 90) distanceErrors.lat = 'Invalid latitude';
+      if (!Number.isFinite(lngN) || lngN < -180 || lngN > 180) distanceErrors.lng = 'Invalid longitude';
+      if (!Number.isFinite(radiusN) || radiusN <= 0 || radiusN > 500) distanceErrors.radius = 'Invalid radius';
+      if (Object.keys(distanceErrors).length) {
+        return res.status(400).json({ error: 'Invalid distance filter', code: 'validation_failed', fields: distanceErrors });
+      }
+      if (!hasLocationColumns) {
+        return res.status(400).json({ error: 'Distance filter is unavailable', code: 'unavailable' });
+      }
+      distanceFilter = { lat: latN, lng: lngN, radius: radiusN };
+      const latIdx = idx++;
+      const lngIdx = idx++;
+      const radiusIdx = idx++;
+      params.push(latN, lngN, radiusN);
+      const haversine = `(3959 * acos(LEAST(1, GREATEST(-1, cos(radians($${latIdx})) * cos(radians(t.location_lat)) * cos(radians(t.location_lng) - radians($${lngIdx})) + sin(radians($${latIdx})) * sin(radians(t.location_lat))))))`;
+      distanceSelect = `, ${haversine} AS distance_miles`;
+      where += ` AND t.location_lat IS NOT NULL AND t.location_lng IS NOT NULL AND ${haversine} <= $${radiusIdx}`;
+    }
+    if (sort === 'distance' && !distanceFilter) {
+      return res.status(400).json({ error: 'Invalid sort', code: 'validation_failed', fields: { sort: 'distance sort requires lat, lng and radius' } });
+    }
     if (dateRange) {
       where += ` AND NOT EXISTS (
         SELECT 1 FROM tool_rentals_bookings b
@@ -489,12 +559,15 @@ async function browseTools(req, res) {
     let orderBy = 't.created_at DESC';
     if (sort === 'price-asc') orderBy = 't.daily_rate ASC';
     if (sort === 'price-desc') orderBy = 't.daily_rate DESC';
+    // 564: an explicit distance sort orders nearest first; with a distance
+    // filter and no explicit sort, nearest first is the default too.
+    if (sort === 'distance' || (distanceFilter && req.query.sort === undefined)) orderBy = 'distance_miles ASC';
 
     params.push(Math.min(parseInt(limit) || 30, 100));
     params.push(parseInt(offset) || 0);
 
     const result = await pool.query(
-      `SELECT ${toolFields},
+      `SELECT ${toolFields}${distanceSelect},
               ${buildUserFields(hasAvatarUrl, hasResponseTime)},
               t.user_id AS owner_id,
               ${ownerRatingExpr} AS owner_rating
@@ -629,6 +702,8 @@ router.post('/', authenticate, toolOwnerCapabilityGate, upload.single('image'), 
       // 563: capacity / size / weight (migration 20261124011000).
       'capacity_value', 'capacity_unit', 'weight_kg',
       'size_length_cm', 'size_width_cm', 'size_height_cm',
+      // 564: pickup coordinates (migration 20261124011100).
+      'location_lat', 'location_lng',
     ];
     const insertValues = [
       req.user.id,
@@ -659,6 +734,8 @@ router.post('/', authenticate, toolOwnerCapabilityGate, upload.single('image'), 
       payload.size_length_cm ?? null,
       payload.size_width_cm ?? null,
       payload.size_height_cm ?? null,
+      payload.location_lat ?? null,
+      payload.location_lng ?? null,
     ];
     if (hasImageGallery && imageUrl) {
       insertColumns.push('image_gallery');
@@ -678,6 +755,7 @@ router.post('/', authenticate, toolOwnerCapabilityGate, upload.single('image'), 
                  owner_custom_terms_hash, replacement_value,
                  capacity_value, capacity_unit, weight_kg,
                  size_length_cm, size_width_cm, size_height_cm,
+                 location_lat, location_lng,
                  owner_attested_at, owner_attestation_version,
                  created_at, updated_at`,
       insertValues
@@ -717,7 +795,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
 
     // Fetch existing record first (ownership check)
     const existing = await pool.query(
-      'SELECT id, moderation_hold, capacity_value, capacity_unit FROM tool_rentals WHERE id = $1 AND user_id = $2',
+      'SELECT id, moderation_hold, capacity_value, capacity_unit, location_lat, location_lng FROM tool_rentals WHERE id = $1 AND user_id = $2',
       [id, req.user.id]
     );
     if (!existing.rows.length) {
@@ -757,7 +835,12 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
          size_length_cm = COALESCE($${capacityBase + 3}, size_length_cm),
          size_width_cm  = COALESCE($${capacityBase + 4}, size_width_cm),
          size_height_cm = COALESCE($${capacityBase + 5}, size_height_cm),`;
-    const whereOffset = capacityBase + 7; // six capacity params, then id, then user_id
+    // 564: pickup coordinates sit after the capacity params.
+    const locationBase = capacityBase + 6;
+    const locationSetSql = `
+         location_lat = COALESCE($${locationBase}, location_lat),
+         location_lng = COALESCE($${locationBase + 1}, location_lng),`;
+    const whereOffset = locationBase + 3; // two location params, then id, then user_id
 
     const result = await pool.query(
       `UPDATE tool_rentals SET
@@ -784,6 +867,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
          owner_attestation_version = CASE WHEN $20::boolean THEN '${TOOL_RENTAL_ATTESTATION_VERSION}' ELSE owner_attestation_version END,
          ${imageSetSql}
          ${capacitySetSql}
+         ${locationSetSql}
          updated_at         = NOW()
        WHERE id = $${whereOffset - 1} AND user_id = $${whereOffset}
        RETURNING id, user_id, name, category, description,
@@ -794,6 +878,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
                  owner_custom_terms_hash, replacement_value,
                  capacity_value, capacity_unit, weight_kg,
                  size_length_cm, size_width_cm, size_height_cm,
+                 location_lat, location_lng,
                  owner_attested_at, owner_attestation_version,
                  created_at, updated_at`,
       [
@@ -824,6 +909,8 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
         payload.size_length_cm ?? null,
         payload.size_width_cm ?? null,
         payload.size_height_cm ?? null,
+        payload.location_lat ?? null,
+        payload.location_lng ?? null,
         id,
         req.user.id,
       ]

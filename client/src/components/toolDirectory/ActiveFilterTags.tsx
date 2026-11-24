@@ -72,7 +72,7 @@ const ActiveFilterTags: React.FC<ActiveFilterTagsProps> = ({ filters, onChange }
     tags.push({ key: 'height', label: t('toolRentalsDir.heightTag', { value: filters.heightMax }), onRemove: () => onChange({ heightMax: null }) });
 
   if (filters.radius !== null)
-    tags.push({ key: 'radius', label: t('toolRentalsDir.radiusMi', { miles: filters.radius }), onRemove: () => onChange({ radius: null }) });
+    tags.push({ key: 'radius', label: t('toolRentalsDir.radiusMi', { miles: filters.radius }), onRemove: () => onChange({ radius: null, lat: null, lng: null }) });
 
   if (filters.priceRange) {
     const [min, max] = filters.priceRange;

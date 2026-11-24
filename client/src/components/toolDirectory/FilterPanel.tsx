@@ -97,6 +97,7 @@ const CheckboxRow: React.FC<{
 const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset }) => {
   const { t } = useTranslation();
   const activeCount = countActiveToolFilters(filters);
+  const [locationError, setLocationError] = useState(false);
 
   const toggleArrayItem = <T extends string>(
     arr: T[],
@@ -344,6 +345,81 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               {filters.radius !== null && (
                 <p className="text-xs text-gray-600 mt-1.5">{t('toolRentalsDir.radiusNote')}</p>
               )}
+              {/* 564: the renter's point for the distance filter. The radius
+                  buttons above were dead UI until now: the radius is only
+                  sent to the server together with lat/lng. */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (!navigator.geolocation) {
+                      setLocationError(true);
+                      return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setLocationError(false);
+                        onChange({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                      },
+                      () => setLocationError(true),
+                      { timeout: 10000 },
+                    );
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700 transition-colors" data-track="ui.5fb231fcea.10"
+                >
+                  <Navigation className="w-3 h-3" aria-hidden="true" />
+                  {t('toolRentalsDir.useMyLocation')}
+                </button>
+                {(filters.lat !== null || filters.lng !== null) && (
+                  <button
+                    onClick={() => onChange({ lat: null, lng: null })}
+                    className="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700 transition-colors" data-track="ui.5fb231fcea.11"
+                  >
+                    {t('toolRentalsDir.clearLocation')}
+                  </button>
+                )}
+              </div>
+              {filters.lat !== null && filters.lng !== null && (
+                <p className="text-xs text-gray-500 mt-1.5">
+                  {t('toolRentalsDir.locationSet', { lat: filters.lat.toFixed(4), lng: filters.lng.toFixed(4) })}
+                </p>
+              )}
+              {locationError && (
+                <p className="text-xs text-amber-400 mt-1.5">{t('toolRentalsDir.locationUnavailable')}</p>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="tool-lat-filter" className="text-xs text-gray-500 mb-1.5 block">
+                    {t('toolRentalsDir.locationLatShort')}
+                  </label>
+                  <input
+                    id="tool-lat-filter"
+                    type="number"
+                    step="any"
+                    min={-90}
+                    max={90}
+                    value={filters.lat ?? ''}
+                    onChange={(e) => onChange({ lat: e.target.value === '' ? null : Number(e.target.value) })}
+                    placeholder="30.27"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="tool-lng-filter" className="text-xs text-gray-500 mb-1.5 block">
+                    {t('toolRentalsDir.locationLngShort')}
+                  </label>
+                  <input
+                    id="tool-lng-filter"
+                    type="number"
+                    step="any"
+                    min={-180}
+                    max={180}
+                    value={filters.lng ?? ''}
+                    onChange={(e) => onChange({ lng: e.target.value === '' ? null : Number(e.target.value) })}
+                    placeholder="-97.74"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </FilterSection>

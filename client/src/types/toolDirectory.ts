@@ -179,7 +179,8 @@ export type ToolSortOption =
   | 'price-asc'
   | 'price-desc'
   | 'most-popular'
-  | 'highest-rated';
+  | 'highest-rated'
+  | 'distance';
 
 export const TOOL_SORT_OPTIONS: ToolSortOption[] = [
   'newest',
@@ -187,6 +188,7 @@ export const TOOL_SORT_OPTIONS: ToolSortOption[] = [
   'price-desc',
   'most-popular',
   'highest-rated',
+  'distance',
 ];
 
 // ─── Distance / price presets ────────────────────────────────────────────────
@@ -231,6 +233,9 @@ export interface ToolDirectoryFilters {
   heightMax: number | null;
   /** Radius in miles around city; null = no restriction */
   radius: DistanceRadius;
+  /** Renter location for the distance filter (564); null = not set. */
+  lat: number | null;
+  lng: number | null;
   /** Quick toggles */
   availableNow: boolean;
   deliveryAvailable: boolean;
@@ -253,6 +258,8 @@ export const DEFAULT_TOOL_FILTERS: ToolDirectoryFilters = {
   widthMax: null,
   heightMax: null,
   radius: null,
+  lat: null,
+  lng: null,
   availableNow: false,
   deliveryAvailable: false,
   requiresDeposit: null,
@@ -271,6 +278,7 @@ export function countActiveToolFilters(f: ToolDirectoryFilters): number {
   if (f.capacityMin !== null || f.capacityUnit) n++;
   if (f.weightMax !== null || f.lengthMax !== null || f.widthMax !== null || f.heightMax !== null) n++;
   if (f.radius !== null)    n++;
+  if (f.lat !== null || f.lng !== null) n++;
   if (f.availableNow)       n++;
   if (f.deliveryAvailable)  n++;
   if (f.requiresDeposit !== null) n++;
@@ -304,6 +312,7 @@ export interface ToolCardData {
   location_state?: string | null;
   location_lat?: number | null;
   location_lng?: number | null;
+  distance_miles?: number | string | null;
   capacity_value?: number | string | null;
   capacity_unit?: string | null;
   weight_kg?: number | string | null;

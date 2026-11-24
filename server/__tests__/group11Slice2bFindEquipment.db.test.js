@@ -341,4 +341,115 @@ describeDb('Group 11 Slice 2b: Find equipment (562, 563, 564, 565)', () => {
       expect(bumped.body.tool.capacity_unit).toBe('kg');
     });
   });
+
+  describe('564: pickup distance filter', () => {
+    // Austin TX; Houston is ~146 mi away, Dallas ~195 mi.
+    const AUSTIN = { lat: 30.2672, lng: -97.7431 };
+    const HOUSTON = { lat: 29.7604, lng: -95.3698 };
+    const DALLAS = { lat: 32.7767, lng: -96.7970 };
+
+    const createTool = (user, body) => request(app)
+      .post('/api/tool-rentals')
+      .set('x-test-user', user)
+      .send({
+        name: 'Generator',
+        category: 'Generators & Power',
+        description: 'Portable generator.',
+        daily_rate: 45,
+        location_city: 'Austin',
+        location_state: 'TX',
+        owner_attestation_accepted: true,
+        ...body,
+      });
+
+    test('create stores pickup coordinates and rejects a lone or out-of-range coordinate', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const res = await createTool(owner, { location_lat: AUSTIN.lat, location_lng: AUSTIN.lng }).expect(201);
+      expect(Number(res.body.tool.location_lat)).toBeCloseTo(AUSTIN.lat, 4);
+      expect(Number(res.body.tool.location_lng)).toBeCloseTo(AUSTIN.lng, 4);
+      await createTool(owner, { location_lat: AUSTIN.lat }).expect(400);
+      await createTool(owner, { location_lat: 91, location_lng: 0 }).expect(400);
+      await createTool(owner, { location_lat: 0, location_lng: 181 }).expect(400);
+      const bad = await createTool(owner, { location_lat: AUSTIN.lat }).expect(400);
+      expect(bad.body.code).toBe('validation_failed');
+    });
+
+    test('browse within a radius returns only nearby listings, nearest first, with distance_miles', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const near = await insertTool(owner, {
+        name: 'Near drill', location_city: 'Austin',
+        location_lat: AUSTIN.lat, location_lng: AUSTIN.lng,
+      });
+      const houston = await insertTool(owner, {
+        name: 'Houston saw', category: 'Cutting Tools', location_city: 'Houston',
+        location_lat: HOUSTON.lat, location_lng: HOUSTON.lng,
+      });
+      const dallas = await insertTool(owner, {
+        name: 'Dallas sander', category: 'Sanding & Finishing', location_city: 'Dallas',
+        location_lat: DALLAS.lat, location_lng: DALLAS.lng,
+      });
+      const noCoords = await insertTool(owner, { name: 'Nowhere wrench', location_city: 'Austin' });
+
+      // Fixtures from earlier tests share this database, so scope every
+      // assertion to the three listings created here.
+      const inScope = (rows) => rows.filter((t) => [near.id, houston.id, dallas.id].includes(t.id));
+      const distanceOf = (rows, id) => Number(rows.find((t) => t.id === id).distance_miles);
+
+      const tight = await browse({ lat: AUSTIN.lat, lng: AUSTIN.lng, radius: 10 }).expect(200);
+      expect(inScope(tight.body.tools).map((t) => t.id)).toEqual([near.id]);
+      expect(distanceOf(tight.body.tools, near.id)).toBeLessThan(0.1);
+
+      const mid = await browse({ lat: AUSTIN.lat, lng: AUSTIN.lng, radius: 160 }).expect(200);
+      const midIds = inScope(mid.body.tools).map((t) => t.id);
+      expect(midIds).toEqual([near.id, houston.id]);
+      expect(distanceOf(mid.body.tools, houston.id)).toBeGreaterThan(130);
+      expect(distanceOf(mid.body.tools, houston.id)).toBeLessThan(160);
+      expect(mid.body.tools.map((t) => t.id)).not.toContain(noCoords.id); // no coordinates: never matches
+
+      const wide = await browse({ lat: AUSTIN.lat, lng: AUSTIN.lng, radius: 250 }).expect(200);
+      expect(inScope(wide.body.tools).map((t) => t.id)).toEqual([near.id, houston.id, dallas.id]);
+      expect(distanceOf(wide.body.tools, dallas.id)).toBeGreaterThan(180);
+      expect(distanceOf(wide.body.tools, dallas.id)).toBeLessThan(210);
+
+      // Explicit distance sort agrees with the default order under a filter.
+      const sorted = await browse({ lat: AUSTIN.lat, lng: AUSTIN.lng, radius: 250, sort: 'distance' }).expect(200);
+      expect(inScope(sorted.body.tools).map((t) => t.id)).toEqual([near.id, houston.id, dallas.id]);
+
+      // Without a distance filter, no distance_miles is computed.
+      const plain = await browse().expect(200);
+      const plainNear = plain.body.tools.find((t) => t.id === near.id);
+      expect(plainNear.distance_miles).toBeUndefined();
+    });
+
+    test('incomplete or invalid distance filters are rejected', async () => {
+      await browse({ radius: 10 }).expect(400);
+      await browse({ lat: AUSTIN.lat, lng: AUSTIN.lng }).expect(400);
+      await browse({ lat: 91, lng: 0, radius: 10 }).expect(400);
+      await browse({ lat: AUSTIN.lat, lng: AUSTIN.lng, radius: 0 }).expect(400);
+      await browse({ lat: AUSTIN.lat, lng: AUSTIN.lng, radius: 501 }).expect(400);
+      await browse({ sort: 'distance' }).expect(400);
+      const bad = await browse({ lat: AUSTIN.lat, lng: AUSTIN.lng, radius: 0 }).expect(400);
+      expect(bad.body.code).toBe('validation_failed');
+    });
+
+    test('partial update inherits the stored coordinate for the pair check', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Plain drill' });
+      await request(app).put(`/api/tool-rentals/${tool.id}`)
+        .set('x-test-user', owner)
+        .send({ location_lat: AUSTIN.lat }).expect(400);
+      const set = await request(app).put(`/api/tool-rentals/${tool.id}`)
+        .set('x-test-user', owner)
+        .send({ location_lat: AUSTIN.lat, location_lng: AUSTIN.lng }).expect(200);
+      expect(Number(set.body.tool.location_lat)).toBeCloseTo(AUSTIN.lat, 4);
+      const moved = await request(app).put(`/api/tool-rentals/${tool.id}`)
+        .set('x-test-user', owner)
+        .send({ location_lat: HOUSTON.lat }).expect(200);
+      expect(Number(moved.body.tool.location_lat)).toBeCloseTo(HOUSTON.lat, 4);
+      expect(Number(moved.body.tool.location_lng)).toBeCloseTo(AUSTIN.lng, 4);
+    });
+  });
 });

@@ -28,6 +28,9 @@ export const toolRentalsApi = {
     if (filters.lengthMax !== null && filters.lengthMax !== undefined) params.lengthMax = filters.lengthMax;
     if (filters.widthMax !== null && filters.widthMax !== undefined) params.widthMax = filters.widthMax;
     if (filters.heightMax !== null && filters.heightMax !== undefined) params.heightMax = filters.heightMax;
+    if (filters.radius !== null && filters.radius !== undefined) params.radius = filters.radius;
+    if (filters.lat !== null && filters.lat !== undefined) params.lat = filters.lat;
+    if (filters.lng !== null && filters.lng !== undefined) params.lng = filters.lng;
     if (filters.sort) params.sort = filters.sort;
     if (filters.limit) params.limit = filters.limit;
     if (filters.offset) params.offset = filters.offset;
