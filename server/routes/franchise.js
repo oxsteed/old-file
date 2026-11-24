@@ -88,6 +88,11 @@ const {
   escalateTicketAsAdmin,
   listEscalations,
   listEscalationsAsAdmin,
+  setRemediation,
+  setRemediationAsAdmin,
+  listRemediations,
+  listRemediationsAsAdmin,
+  listMyRemediations,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
@@ -178,6 +183,12 @@ router.post('/my-applications/:id/support-tickets/:ticketId/unlink', authenticat
 // escalates a linked exception with a reason; HQ sees the queue.
 router.post('/my-applications/:id/support-tickets/:ticketId/escalate', authenticate, requireFranchiseEnabled, escalateTicket);
 router.get('/my-applications/:id/escalations', authenticate, requireFranchiseEnabled, listEscalations);
+// Group 12 Slice 3g (632): franchise remediation assignment — the
+// operator assigns a territory member as the remediation owner for a
+// linked exception, with a due date; the owner sees their assignments.
+router.post('/my-applications/:id/support-tickets/:ticketId/remediation', authenticate, requireFranchiseEnabled, setRemediation);
+router.get('/my-applications/:id/remediations', authenticate, requireFranchiseEnabled, listRemediations);
+router.get('/my-remediations', authenticate, requireFranchiseEnabled, listMyRemediations);
 // Group 12 Slice 3d (620): the operator reads the HQ announcement feed
 // and marks items read (idempotent).
 router.post('/my-applications/:id/announcements/:announcementId/read', authenticate, requireFranchiseEnabled, markAnnouncementRead);
@@ -245,6 +256,10 @@ router.post('/applications/:id/support-tickets/:ticketId/unlink', authenticate, 
 // per-territory escalation queue.
 router.post('/applications/:id/support-tickets/:ticketId/escalate', authenticate, requireAdmin, requirePermission('manage_operations'), escalateTicketAsAdmin);
 router.get('/applications/:id/escalations', authenticate, requireAdmin, requirePermission('manage_operations'), listEscalationsAsAdmin);
+// Group 12 Slice 3g (632): HQ assigns the remediation owner for a linked
+// exception and reads the territory's remediations.
+router.post('/applications/:id/support-tickets/:ticketId/remediation', authenticate, requireAdmin, requirePermission('manage_operations'), setRemediationAsAdmin);
+router.get('/applications/:id/remediations', authenticate, requireAdmin, requirePermission('manage_operations'), listRemediationsAsAdmin);
 // Group 12 Slice 3d (620): HQ posts and removes territory announcements.
 router.post('/applications/:id/announcements', authenticate, requireAdmin, requirePermission('manage_operations'), postAnnouncementAsAdmin);
 router.delete('/applications/:id/announcements/:announcementId', authenticate, requireAdmin, requirePermission('manage_operations'), deleteAnnouncementAsAdmin);

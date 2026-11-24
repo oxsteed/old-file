@@ -465,6 +465,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   const exceptionSummary = await buildExceptionSummary(applicationId);
   // Group 12 Slice 3f (627, D-328): the per-location health view.
   const locationHealth = await buildLocationHealth(applicationId);
+  // Group 12 Slice 3g (632, D-332): the territory members with names —
+  // the member picker for remediation assignment.
+  const territoryMembers = await fetchTerritoryMembers(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -494,6 +497,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     brand_assets: brandAssets,
     exception_summary: exceptionSummary,
     location_health: locationHealth,
+    territory_members: territoryMembers,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1094,6 +1098,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   const exceptionSummary = await buildExceptionSummary(applicationId);
   // Group 12 Slice 3f (627, D-328): the per-location health view.
   const locationHealth = await buildLocationHealth(applicationId);
+  // Group 12 Slice 3g (632, D-332): the territory members with names.
+  const territoryMembers = await fetchTerritoryMembers(applicationId);
 
   return {
     application: {
@@ -1118,6 +1124,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     brand_assets: brandAssets,
     exception_summary: exceptionSummary,
     location_health: locationHealth,
+    territory_members: territoryMembers,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — viewer perspective.
@@ -6023,6 +6030,268 @@ async function listEscalationsAsAdmin(req, res) {
   return listEscalations(req, res, { asAdmin: true });
 }
 
+// 632 (D-332): remediation owner assignment. One remediation per linked
+// exception (ticket): an owner who must be a territory member — checked
+// against live rows, never a role label — plus a due date. Set by HQ or
+// the territory operator, for any linked ticket in the territory (not
+// just the operator's own tickets); reassigning replaces the row. The
+// owner sees their assignments via GET /franchise/my-remediations and
+// the ?mine=true filter on the territory list.
+async function loadTerritoryViewer(client, applicationId, userId) {
+  const owned = await loadOperatorApplication(client, applicationId, userId);
+  if (!owned.application) {
+    return { application: null, isOperator: false, isMember: false, isAssociated: false };
+  }
+  const isMember = owned.isOperator
+    ? true
+    : await isTerritoryMember(client, applicationId, userId);
+  return {
+    application: owned.application,
+    isOperator: owned.isOperator,
+    isMember,
+    isAssociated: owned.isAssociated || isMember,
+  };
+}
+
+// Member-aware reads (632-635): a stranger gets 404, an applicant who is
+// neither the operator nor a territory member gets 403, the operator and
+// any territory member may read. Returns null when the read is allowed.
+function territoryReadScope(viewer) {
+  if (!viewer.application || !viewer.isAssociated) {
+    return { status: 404, body: { error: 'Franchise application not found.' } };
+  }
+  if (!viewer.isOperator && !viewer.isMember) {
+    return { status: 403, body: {
+      error: 'Only the assigned operator or a territory member can view this.',
+      code: 'franchise_operator_only',
+    } };
+  }
+  return null;
+}
+
+// 632 (D-332): the territory members with names — the operator, anyone
+// who accepted a territory invite, or an opening-team helper. The member
+// picker for remediation assignment (and the bundle) draws from this,
+// never from a role label.
+async function fetchTerritoryMembers(applicationId) {
+  const { rows } = await db.query(
+    `SELECT u.id AS user_id, u.first_name, u.last_name, u.email, 'operator' AS kind
+       FROM franchise_applications fa
+       JOIN users u ON u.id = fa.owner_user_id
+      WHERE fa.id = $1 AND fa.owner_user_id IS NOT NULL
+     UNION
+     SELECT iu.id, iu.first_name, iu.last_name, iu.email, 'invitee' AS kind
+       FROM franchise_territory_invitations i
+       JOIN users iu ON lower(iu.email) = lower(i.email)
+      WHERE i.application_id = $1 AND i.status = 'accepted'
+     UNION
+     SELECT hu.id, hu.first_name, hu.last_name, hu.email, 'helper' AS kind
+       FROM franchise_opening_team_members m
+       JOIN users hu ON hu.id = m.helper_user_id
+      WHERE m.application_id = $1
+      ORDER BY kind, last_name, first_name`,
+    [applicationId]
+  );
+  return rows.map((row) => ({
+    ...row,
+    name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email,
+  }));
+}
+
+async function fetchRemediations(applicationId, { ownerId = null } = {}) {
+  const conditions = ['r.application_id = $1'];
+  const params = [applicationId];
+  if (ownerId) {
+    params.push(ownerId);
+    conditions.push(`r.owner_user_id = $${params.length}`);
+  }
+  const { rows } = await db.query(
+    `SELECT r.*, t.ticket_number, t.subject, t.category, t.priority, t.status,
+            t.franchise_location_id AS location_id, l.name AS location_name,
+            u.first_name AS owner_first_name, u.last_name AS owner_last_name,
+            u.email AS owner_email
+       FROM franchise_remediations r
+       JOIN support_tickets t ON t.id = r.ticket_id
+       LEFT JOIN franchise_locations l ON l.id = t.franchise_location_id
+       LEFT JOIN users u ON u.id = r.owner_user_id
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY r.due_date ASC, r.created_at DESC, r.id DESC`,
+    params
+  );
+  return rows.map((row) => ({
+    ...row,
+    owner_name: [row.owner_first_name, row.owner_last_name].filter(Boolean).join(' ')
+      || row.owner_email || null,
+  }));
+}
+
+async function setRemediationCore(client, { applicationId, ticketId, ownerUserId, dueDate, actorId }) {
+  const ticket = await findTicketByIdOrNumber(
+    client, ticketId, 'id, ticket_number, user_id, franchise_application_id');
+  if (!ticket) {
+    return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
+  }
+  if (String(ticket.franchise_application_id) !== String(applicationId)) {
+    return { error: { status: 404, body: { error: 'Support ticket is not linked to this territory.', code: 'exception_not_found' } } };
+  }
+  const { rows: userRows } = await client.query(
+    'SELECT id FROM users WHERE id = $1 AND is_active = TRUE', [ownerUserId]
+  );
+  if (!userRows.length) {
+    return { error: { status: 404, body: { error: 'Remediation owner not found.', code: 'remediation_owner_not_found' } } };
+  }
+  if (!(await isTerritoryMember(client, applicationId, ownerUserId))) {
+    return { error: { status: 404, body: { error: 'The remediation owner must be a member of this territory.', code: 'remediation_owner_not_member' } } };
+  }
+  if (!isValidDateString(dueDate)) {
+    return { error: { status: 400, body: { error: 'due_date must be a valid YYYY-MM-DD date.', code: 'invalid_remediation_due_date' } } };
+  }
+  const { rows: existing } = await client.query(
+    'SELECT id FROM franchise_remediations WHERE application_id = $1 AND ticket_id = $2',
+    [applicationId, ticket.id]
+  );
+  const { rows } = await client.query(
+    `INSERT INTO franchise_remediations
+       (application_id, ticket_id, owner_user_id, due_date, assigned_by)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (application_id, ticket_id)
+     DO UPDATE SET owner_user_id = EXCLUDED.owner_user_id,
+                   due_date = EXCLUDED.due_date,
+                   assigned_by = EXCLUDED.assigned_by,
+                   updated_at = NOW()
+     RETURNING *`,
+    [applicationId, ticket.id, ownerUserId, dueDate, actorId]
+  );
+  await logActivity(client, applicationId, actorId, 'remediation_assigned',
+    `Remediation for ticket #${ticket.ticket_number} assigned to a territory member, due ${dueDate}.`,
+    { ticket_id: ticket.id, remediation_id: rows[0].id, owner_user_id: ownerUserId, due_date: dueDate });
+  return { remediation: rows[0], created: !existing.length, ticket };
+}
+
+async function setRemediation(req, res, { asAdmin = false } = {}) {
+  const { id, ticketId } = req.params;
+  if (!UUID_RE.test(ticketId) && !/^\d+$/.test(ticketId)) {
+    return res.status(404).json({ error: 'Support ticket not found.', code: 'ticket_not_found' });
+  }
+  const ownerUserId = asTrimmed(req.body?.owner_user_id);
+  if (!ownerUserId) {
+    return res.status(400).json({ error: 'owner_user_id is required.', code: 'remediation_owner_required' });
+  }
+  const dueDate = asTrimmed(req.body?.due_date);
+  if (!dueDate) {
+    return res.status(400).json({ error: 'due_date is required.', code: 'remediation_due_date_required' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (!asAdmin) {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only the assigned operator can assign remediation for territory exceptions.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const result = await setRemediationCore(client, {
+        applicationId: id, ticketId, ownerUserId, dueDate, actorId: req.user?.id,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const remediations = await fetchRemediations(id);
+      const remediation = remediations.find((row) => row.id === result.remediation.id) || result.remediation;
+      return res.status(result.created ? 201 : 200).json({ remediation });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error assigning franchise remediation', { id, ticketId, err: err.message });
+    return res.status(500).json({ error: 'Failed to assign remediation.' });
+  }
+}
+
+async function setRemediationAsAdmin(req, res) {
+  return setRemediation(req, res, { asAdmin: true });
+}
+
+async function listRemediations(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  const mine = req.query?.mine === 'true';
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const viewer = await loadTerritoryViewer(client, id, req.user?.id);
+        const blocked = territoryReadScope(viewer);
+        if (blocked) return res.status(blocked.status).json(blocked.body);
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    const remediations = await fetchRemediations(id, { ownerId: mine ? req.user?.id : null });
+    return res.json({ application_id: id, total: remediations.length, remediations });
+  } catch (err) {
+    logger.error('Error listing franchise remediations', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to list remediations.' });
+  }
+}
+
+async function listRemediationsAsAdmin(req, res) {
+  return listRemediations(req, res, { asAdmin: true });
+}
+
+// 632 (D-332): the remediations assigned to the viewer, across all
+// territories — the assigned owner's own list, no application scoping.
+async function listMyRemediations(req, res) {
+  try {
+    const { rows } = await db.query(
+      `SELECT r.*, t.ticket_number, t.subject, t.category, t.priority, t.status,
+              t.franchise_location_id AS location_id, l.name AS location_name,
+              u.first_name AS owner_first_name, u.last_name AS owner_last_name,
+              u.email AS owner_email
+         FROM franchise_remediations r
+         JOIN support_tickets t ON t.id = r.ticket_id
+         LEFT JOIN franchise_locations l ON l.id = t.franchise_location_id
+         LEFT JOIN users u ON u.id = r.owner_user_id
+        WHERE r.owner_user_id = $1
+        ORDER BY r.due_date ASC, r.created_at DESC, r.id DESC`,
+      [req.user?.id]
+    );
+    const remediations = rows.map((row) => ({
+      ...row,
+      owner_name: [row.owner_first_name, row.owner_last_name].filter(Boolean).join(' ')
+        || row.owner_email || null,
+    }));
+    return res.json({ total: remediations.length, remediations });
+  } catch (err) {
+    logger.error('Error listing my franchise remediations', { err: err.message });
+    return res.status(500).json({ error: 'Failed to list my remediations.' });
+  }
+}
+
 // 627 (D-328): the per-location health view. Health is derived on read
 // from the open locations (fetchOpenLocations) plus each location's
 // linked open exceptions (628) — never stored, so it can never drift
@@ -7207,6 +7476,11 @@ module.exports = {
   escalateTicketAsAdmin,
   listEscalations,
   listEscalationsAsAdmin,
+  setRemediation,
+  setRemediationAsAdmin,
+  listRemediations,
+  listRemediationsAsAdmin,
+  listMyRemediations,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,

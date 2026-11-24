@@ -315,4 +315,191 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .expect(403);
     });
   });
+
+  describe('632: remediation owner assignment', () => {
+    async function addMember(operator, applicationId, existing = null) {
+      const member = existing || await addUser();
+      // Opening-team designation requires a helper profile (3c).
+      await db.query(
+        `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+         VALUES ($1, 'Austin', 'TX', 4.9, 1, TRUE)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [member.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+        .set('x-test-user', operator.id)
+        .send({ helper_user_id: member.id, role: 'member' })
+        .expect(201);
+      return member;
+    }
+
+    function assignFor(user, applicationId, ticket, body) {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/remediation`)
+        .set('x-test-user', user.id)
+        .send(body);
+    }
+
+    test('the operator assigns a territory member with a due date; reassigning replaces the row', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const member = await addMember(operator, applicationId);
+      const ticket = await addTicket(operator, { applicationId });
+
+      const assigned = await assignFor(operator, applicationId, ticket,
+        { owner_user_id: member.id, due_date: '2026-12-01' })
+        .expect(201);
+      expect(assigned.body.remediation.owner_user_id).toBe(member.id);
+      expect(assigned.body.remediation.owner_name).toBeTruthy();
+      expect(String(assigned.body.remediation.due_date).slice(0, 10)).toBe('2026-12-01');
+      expect(assigned.body.remediation.ticket_id).toBe(ticket.id);
+      expect(assigned.body.remediation.ticket_number).toBe(ticket.ticket_number);
+
+      const reassigned = await assignFor(operator, applicationId, ticket,
+        { owner_user_id: operator.id, due_date: '2026-12-15' })
+        .expect(200);
+      expect(reassigned.body.remediation.owner_user_id).toBe(operator.id);
+      expect(String(reassigned.body.remediation.due_date).slice(0, 10)).toBe('2026-12-15');
+
+      const { rows } = await db.query(
+        'SELECT COUNT(*)::int AS n FROM franchise_remediations WHERE ticket_id = $1', [ticket.id]);
+      expect(rows[0].n).toBe(1);
+
+      const list = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/remediations`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(list.body.total).toBe(1);
+      expect(list.body.remediations[0].owner_user_id).toBe(operator.id);
+    });
+
+    test('the owner sees their assignments across territories; ?mine=true narrows the territory list', async () => {
+      const operator = await addUser();
+      const otherOperator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const otherApplicationId = await makeApplication(otherOperator);
+      const member = await addMember(operator, applicationId);
+      const ticket = await addTicket(operator, { applicationId });
+      const otherTicket = await addTicket(otherOperator, { applicationId: otherApplicationId });
+
+      await assignFor(operator, applicationId, ticket, { owner_user_id: member.id, due_date: '2026-12-01' }).expect(201);
+      // The member joins the second territory's opening team too, so HQ
+      // may assign them there as well.
+      await addMember(otherOperator, otherApplicationId, member);
+      await request(app)
+        .post(`/api/franchise/applications/${otherApplicationId}/support-tickets/${otherTicket.ticket_number}/remediation`)
+        .set('x-test-user', (await addUser('super_admin')).id)
+        .send({ owner_user_id: member.id, due_date: '2026-12-02' })
+        .expect(201);
+
+      // The member is not the operator of the second territory, so HQ
+      // assigned them there — my-remediations still finds both rows.
+      const mine = await request(app)
+        .get('/api/franchise/my-remediations')
+        .set('x-test-user', member.id)
+        .expect(200);
+      expect(mine.body.total).toBe(2);
+      expect(mine.body.remediations.map((r) => r.application_id).sort())
+        .toEqual([applicationId, otherApplicationId].sort());
+
+      const narrowed = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/remediations?mine=true`)
+        .set('x-test-user', member.id)
+        .expect(200);
+      expect(narrowed.body.total).toBe(1);
+      const notMine = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/remediations?mine=true`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(notMine.body.total).toBe(0);
+    });
+
+    test('a non-member cannot be assigned, and a bad due date is 400', async () => {
+      const operator = await addUser();
+      const outsider = await addUser();
+      const applicationId = await makeApplication(operator);
+      const ticket = await addTicket(operator, { applicationId });
+
+      await assignFor(operator, applicationId, ticket, { owner_user_id: outsider.id, due_date: '2026-12-01' })
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('remediation_owner_not_member'));
+      await assignFor(operator, applicationId, ticket, { owner_user_id: operator.id, due_date: 'not-a-date' })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_remediation_due_date'));
+      await assignFor(operator, applicationId, ticket, { owner_user_id: operator.id })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('remediation_due_date_required'));
+      await assignFor(operator, applicationId, ticket, { due_date: '2026-12-01' })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('remediation_owner_required'));
+
+      const list = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/remediations`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(list.body.total).toBe(0);
+    });
+
+    test('the operator can assign remediation for a ticket filed by another member; HQ assigns and reads', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+      const ticket = await addTicket(applicant, { applicationId });
+
+      const assigned = await assignFor(operator, applicationId, ticket,
+        { owner_user_id: operator.id, due_date: '2026-12-01' })
+        .expect(201);
+      expect(assigned.body.remediation.ticket_id).toBe(ticket.id);
+
+      const hqList = await request(app)
+        .get(`/api/franchise/applications/${applicationId}/remediations`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(hqList.body.total).toBe(1);
+
+      const member = await addMember(operator, applicationId);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/support-tickets/${ticket.ticket_number}/remediation`)
+        .set('x-test-user', admin.id)
+        .send({ owner_user_id: member.id, due_date: '2026-12-05' })
+        .expect(200);
+
+      // A territory member may read the list; an applicant who is
+      // neither operator nor member gets 403; a stranger gets 404.
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/remediations`)
+        .set('x-test-user', member.id)
+        .expect(200);
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/remediations`)
+        .set('x-test-user', applicant.id)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/remediations`)
+        .set('x-test-user', (await addUser()).id)
+        .expect(404);
+    });
+
+    test('territory_members rides both bundles and names the operator and the member', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const member = await addMember(operator, applicationId);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      const memberIds = (detail.body.territory_members || []).map((m) => m.user_id);
+      expect(memberIds).toContain(operator.id);
+      expect(memberIds).toContain(member.id);
+      const admin = await addUser('super_admin');
+      const bundle = await request(app)
+        .get(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect((bundle.body.territory_members || []).map((m) => m.user_id))
+        .toEqual(expect.arrayContaining([operator.id, member.id]));
+    });
+  });
 });
