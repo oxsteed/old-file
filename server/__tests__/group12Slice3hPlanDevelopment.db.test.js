@@ -352,4 +352,198 @@ describeDb('Group 12 Slice 3h: Plan development (636-640)', () => {
       await listAs(operator, applicationId, '', true).expect(403);
     });
   });
+
+  describe('637: territory capacity map', () => {
+    function capacityAs(user, applicationId, asAdmin = false) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/capacity`
+        : `/api/franchise/my-applications/${applicationId}/capacity`;
+      return request(app).get(base).set('x-test-user', user.id);
+    }
+
+    async function addArea(admin, applicationId, body) {
+      const res = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/areas`)
+        .set('x-test-user', admin.id)
+        .send(body)
+        .expect(201);
+      return res.body.territory_areas || res.body.areas || [];
+    }
+
+    test('the seeded area carries the seeded location as planned, with no target and no utilization', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+
+      const capacity = await capacityAs(operator, applicationId).expect(200);
+      expect(capacity.body.application_id).toBe(applicationId);
+      expect(capacity.body.totals.areas).toBe(1);
+      expect(capacity.body.totals.target_locations).toBeNull();
+      expect(capacity.body.totals.utilization_pct).toBeNull();
+      expect(capacity.body.totals.planned_locations).toBe(1);
+      expect(capacity.body.totals.open_locations).toBe(0);
+      const austin = capacity.body.areas.find((area) => area.city === 'Austin');
+      expect(austin).toBeTruthy();
+      expect(austin.target_locations).toBeNull();
+      expect(austin.utilization_pct).toBeNull();
+      expect(austin.planned_locations).toBe(1);
+      const unassigned = capacity.body.areas.find((area) => area.area_type === 'unassigned');
+      expect(unassigned.planned_locations).toBe(0);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.territory_capacity.totals.planned_locations).toBe(1);
+    });
+
+    test('HQ sets a target per area; utilization follows open plus approved candidates', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      const areaId = detail.body.territory_areas[0].id;
+
+      const set = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/capacity-targets`)
+        .set('x-test-user', admin.id)
+        .send({ area_id: areaId, target_locations: 4 })
+        .expect(200);
+      expect(set.body.capacity_target.target_locations).toBe(4);
+      expect(set.body.territory_capacity.totals.target_locations).toBe(4);
+      expect(set.body.territory_capacity.totals.utilization_pct).toBe(0);
+
+      // An approved candidate in the same city counts toward utilization.
+      const created = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/candidate-locations`)
+        .set('x-test-user', operator.id)
+        .send({ proposed_name: 'Austin second site', city: 'Austin', country: 'US' })
+        .expect(201);
+      const candidateId = created.body.candidate_location.id;
+      await request(app)
+        .patch(`/api/franchise/my-applications/${applicationId}/candidate-locations/${candidateId}`)
+        .set('x-test-user', operator.id)
+        .send({ status: 'shortlisted' })
+        .expect(200);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}/candidate-locations/${candidateId}`)
+        .set('x-test-user', admin.id)
+        .send({ status: 'approved' })
+        .expect(200);
+
+      let capacity = await capacityAs(operator, applicationId).expect(200);
+      const austin = capacity.body.areas.find((area) => area.city === 'Austin');
+      expect(austin.candidates.approved).toBe(1);
+      expect(austin.utilization_pct).toBe(25);
+      expect(capacity.body.totals.utilization_pct).toBe(25);
+
+      // Re-setting the target replaces it (upsert).
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/capacity-targets`)
+        .set('x-test-user', admin.id)
+        .send({ area_id: areaId, target_locations: 2 })
+        .expect(200);
+      capacity = await capacityAs(operator, applicationId).expect(200);
+      expect(capacity.body.totals.utilization_pct).toBe(50);
+
+      // The operator cannot set a target (admin route).
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/capacity-targets`)
+        .set('x-test-user', operator.id)
+        .send({ area_id: areaId, target_locations: 9 })
+        .expect(403);
+    });
+
+    test('region and country matching, and the unassigned bucket', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+
+      // A region-only area (no city) catches other Texas cities by region.
+      await addArea(admin, applicationId, { country: 'US', region: 'Texas' });
+      // A country-only area catches other countries by country.
+      await addArea(admin, applicationId, { country: 'CA' });
+
+      const propose = (name, city, region, country) => request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/candidate-locations`)
+        .set('x-test-user', operator.id)
+        .send({ proposed_name: name, city, region, country });
+      await propose('Dallas site', 'Dallas', 'Texas', 'US').expect(201);
+      await propose('Toronto site', 'Toronto', 'Ontario', 'CA').expect(201);
+      await propose('Lyon site', 'Lyon', 'Auvergne', 'FR').expect(201);
+
+      const capacity = await capacityAs(operator, applicationId).expect(200);
+      const byKey = new Map(capacity.body.areas.map((area) => [
+        area.area_id ? `${area.city || ''}|${area.region || ''}|${area.country || ''}` : 'unassigned', area,
+      ]));
+      expect(byKey.get('Dallas|Texas|US')).toBeUndefined();
+      const texasRegion = capacity.body.areas.find((area) => !area.city && area.region === 'Texas');
+      expect(texasRegion.candidates.total).toBe(1);
+      const canada = capacity.body.areas.find((area) => !area.city && !area.region && area.country === 'CA');
+      expect(canada.candidates.total).toBe(1);
+      const unassigned = capacity.body.areas.find((area) => area.area_type === 'unassigned');
+      expect(unassigned.candidates.total).toBe(1);
+      expect(capacity.body.totals.candidates.total).toBe(3);
+    });
+
+    test('staffing and exception load ride the matched area', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const locationId = await locationIdFor(operator, applicationId);
+      const member = await addOpeningTeamMember(operator, applicationId);
+      await db.query(
+        `INSERT INTO franchise_opening_team_members (application_id, location_id, helper_user_id, role)
+         VALUES ($1, $2, $3, 'member')`,
+        [applicationId, locationId, member.id],
+      );
+      await db.query(
+        `INSERT INTO support_tickets
+           (user_id, name, email, subject, category, priority, status, source,
+            franchise_application_id, franchise_location_id)
+         VALUES ($1, $2, $3, 'Oven down', 'general', 'normal', 'open', 'widget', $4, $5)`,
+        [operator.id, 'Franchise Fixture', operator.email, applicationId, locationId],
+      );
+
+      const capacity = await capacityAs(operator, applicationId).expect(200);
+      const austin = capacity.body.areas.find((area) => area.city === 'Austin');
+      expect(austin.team_members).toBe(1);
+      expect(austin.open_exceptions).toBe(1);
+      expect(capacity.body.totals.team_members).toBe(2);
+      expect(capacity.body.totals.open_exceptions).toBe(1);
+    });
+
+    test('target validation and scoping: bad targets 400, foreign areas 404, stranger 404, applicant 403', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      const areaId = detail.body.territory_areas[0].id;
+
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/capacity-targets`)
+        .set('x-test-user', admin.id)
+        .send({ area_id: areaId, target_locations: 0 })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_capacity_target'));
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/capacity-targets`)
+        .set('x-test-user', admin.id)
+        .send({ area_id: areaId, target_locations: 2.5 })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_capacity_target'));
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/capacity-targets`)
+        .set('x-test-user', admin.id)
+        .send({ area_id: '00000000-0000-0000-0000-000000000000', target_locations: 3 })
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('area_not_found'));
+
+      await capacityAs(stranger, applicationId).expect(404);
+      await capacityAs(applicant, applicationId)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      const hq = await capacityAs(admin, applicationId, true).expect(200);
+      expect(hq.body.totals.planned_locations).toBe(1);
+      await capacityAs(operator, applicationId, true).expect(403);
+    });
+  });
 });

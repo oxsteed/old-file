@@ -474,6 +474,10 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3h (636, D-336): the candidate locations inside this
   // territory — what the territory is scouting, shortlisted, or decided.
   const candidateLocations = await buildCandidateLocations(applicationId);
+  // Group 12 Slice 3h (637, D-337): the structured per-area capacity
+  // view — targets, open/planned/candidate load, staffing and exception
+  // load per boundary area. Derived on read, no map.
+  const territoryCapacity = await buildTerritoryCapacity(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -506,6 +510,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     territory_members: territoryMembers,
     exception_resolution: exceptionResolution,
     candidate_locations: candidateLocations,
+    territory_capacity: territoryCapacity,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1113,6 +1118,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   // Group 12 Slice 3h (636, D-336): the candidate locations inside this
   // territory.
   const candidateLocations = await buildCandidateLocations(applicationId);
+  // Group 12 Slice 3h (637, D-337): the structured per-area capacity view.
+  const territoryCapacity = await buildTerritoryCapacity(applicationId);
 
   return {
     application: {
@@ -1140,6 +1147,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     territory_members: territoryMembers,
     exception_resolution: exceptionResolution,
     candidate_locations: candidateLocations,
+    territory_capacity: territoryCapacity,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — viewer perspective.
@@ -8499,6 +8507,256 @@ async function deleteCandidateLocationAsAdmin(req, res) {
   return deleteCandidateLocation(req, res, { asAdmin: true });
 }
 
+// 637 (D-337): the territory capacity view — a structured per-area
+// capacity view, NOT a geographic map (D-294: the boundary is a
+// structured area list). For each boundary area: the HQ-set target
+// location count, the open/planned locations matched to the area, the
+// candidates in each status, the staffing load (opening-team members +
+// managers on those locations), and the open-exception load. Matching is
+// by city first, then region, then country (case-insensitive); locations
+// and candidates that match no area land in the unassigned bucket.
+// Everything here is derived on read from existing territory data — the
+// only stored figure is the HQ target per area.
+function matchAreaId(area, place) {
+  const norm = (value) => String(value || '').trim().toLowerCase();
+  const city = norm(place.city);
+  const region = norm(place.region);
+  const country = norm(place.country);
+  if (city && norm(area.city) === city) return 3;
+  if (region && !area.city && norm(area.region) === region) return 2;
+  if (country && !area.city && !area.region && norm(area.country) === country) return 1;
+  return 0;
+}
+
+async function buildTerritoryCapacity(applicationId) {
+  const [areaResult, targetResult, exceptionResult] = await Promise.all([
+    db.query(
+      `SELECT * FROM franchise_territory_areas
+        WHERE application_id = $1
+        ORDER BY sort_order ASC, id ASC`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT * FROM franchise_capacity_targets WHERE application_id = $1`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT franchise_location_id AS location_id,
+              COUNT(*) FILTER (WHERE status IN ${EXCEPTION_OPEN_SQL})::int AS open_count
+         FROM support_tickets
+        WHERE franchise_application_id = $1 AND franchise_location_id IS NOT NULL
+        GROUP BY franchise_location_id`,
+      [applicationId]
+    ),
+  ]);
+  const areas = areaResult.rows;
+  const includedAreas = areas.filter((area) => area.area_type === 'included');
+  const targetsByArea = new Map(
+    targetResult.rows.map((row) => [String(row.area_id), row.target_locations])
+  );
+  const exceptionsByLocation = new Map(
+    exceptionResult.rows.map((row) => [String(row.location_id), row.open_count])
+  );
+  const locations = await fetchOpenLocations(applicationId);
+  const candidates = await fetchCandidateLocations(applicationId);
+
+  const emptyCounts = () => ({
+    open_locations: 0,
+    planned_locations: 0,
+    team_members: 0,
+    managers: 0,
+    open_exceptions: 0,
+    candidates: { total: 0, scouting: 0, shortlisted: 0, approved: 0, rejected: 0 },
+  });
+  const areaViews = areas.map((area) => ({
+    area_id: area.id,
+    country: area.country,
+    region: area.region,
+    city: area.city,
+    area_type: area.area_type,
+    target_locations: targetsByArea.get(String(area.id)) ?? null,
+    utilization_pct: null,
+    ...emptyCounts(),
+  }));
+  const areaById = new Map(areaViews.map((view) => [String(view.area_id), view]));
+  const unassigned = {
+    area_id: null,
+    country: null,
+    region: null,
+    city: null,
+    area_type: 'unassigned',
+    target_locations: null,
+    utilization_pct: null,
+    ...emptyCounts(),
+  };
+  const matchView = (place) => {
+    let best = null;
+    let bestScore = 0;
+    for (const area of includedAreas) {
+      const score = matchAreaId(area, place);
+      if (score > bestScore) {
+        bestScore = score;
+        best = areaById.get(String(area.id));
+      }
+    }
+    return best || unassigned;
+  };
+
+  let territoryTeam = 0;
+  for (const location of locations) {
+    const view = matchView(location);
+    if (location.status === 'launched') view.open_locations += 1;
+    else view.planned_locations += 1;
+    view.team_members += (location.opening_team || []).length;
+    if (location.manager) view.managers += 1;
+    view.open_exceptions += exceptionsByLocation.get(String(location.id)) || 0;
+  }
+  // The territory-wide opening team (no location) belongs to no single
+  // area: it counts in the territory totals only, never in an area.
+  const territoryWideTeam = await fetchTerritoryOpeningTeam(applicationId);
+  territoryTeam = territoryWideTeam.length;
+  for (const candidate of candidates) {
+    const view = matchView(candidate);
+    view.candidates.total += 1;
+    if (Object.prototype.hasOwnProperty.call(view.candidates, candidate.status)) {
+      view.candidates[candidate.status] += 1;
+    }
+  }
+  const finishView = (view) => {
+    const committed = view.open_locations + view.candidates.approved;
+    view.utilization_pct = view.target_locations
+      ? Math.round((committed / view.target_locations) * 100)
+      : null;
+    return view;
+  };
+  const views = [...areaViews.map(finishView), finishView(unassigned)];
+  const sum = (pick) => views.reduce((total, view) => total + pick(view), 0);
+  const targetTotal = areaViews.reduce((total, view) => total + (view.target_locations || 0), 0);
+  const openTotal = sum((view) => view.open_locations);
+  const approvedTotal = sum((view) => view.candidates.approved);
+  return {
+    application_id: applicationId,
+    areas: views,
+    totals: {
+      areas: includedAreas.length,
+      target_locations: targetTotal || null,
+      open_locations: openTotal,
+      planned_locations: sum((view) => view.planned_locations),
+      candidates: {
+        total: sum((view) => view.candidates.total),
+        scouting: sum((view) => view.candidates.scouting),
+        shortlisted: sum((view) => view.candidates.shortlisted),
+        approved: approvedTotal,
+        rejected: sum((view) => view.candidates.rejected),
+      },
+      team_members: sum((view) => view.team_members) + territoryTeam,
+      territory_team_members: territoryTeam,
+      managers: sum((view) => view.managers),
+      open_exceptions: sum((view) => view.open_exceptions),
+      utilization_pct: targetTotal
+        ? Math.round(((openTotal + approvedTotal) / targetTotal) * 100)
+        : null,
+    },
+  };
+}
+
+async function getTerritoryCapacity(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can view territory capacity.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    return res.json(await buildTerritoryCapacity(id));
+  } catch (err) {
+    logger.error('Error loading franchise territory capacity', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load territory capacity.' });
+  }
+}
+
+async function getTerritoryCapacityAsAdmin(req, res) {
+  return getTerritoryCapacity(req, res, { asAdmin: true });
+}
+
+// 637 (D-337): HQ sets the target location count for one structured
+// boundary area. Upsert: setting a target again replaces it. The target
+// is a planning figure only — it never gates launches or approvals.
+async function setCapacityTargetAsAdmin(req, res) {
+  const { id } = req.params;
+  const areaId = asTrimmed(req.body?.area_id);
+  const target = req.body?.target_locations;
+  if (!areaId || !UUID_RE.test(areaId)) {
+    return res.status(404).json({ error: 'Territory area not found.', code: 'area_not_found' });
+  }
+  if (!Number.isInteger(target) || target < 1 || target > 1000) {
+    return res.status(400).json({
+      error: 'target_locations must be a whole number between 1 and 1000.',
+      code: 'invalid_capacity_target',
+    });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows: areaRows } = await client.query(
+        `SELECT * FROM franchise_territory_areas WHERE id = $1 AND application_id = $2`,
+        [areaId, id]
+      );
+      if (!areaRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Territory area not found.', code: 'area_not_found' });
+      }
+      const { rows } = await client.query(
+        `INSERT INTO franchise_capacity_targets
+           (application_id, area_id, target_locations, set_by)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (application_id, area_id)
+         DO UPDATE SET target_locations = EXCLUDED.target_locations,
+                       set_by = EXCLUDED.set_by,
+                       updated_at = NOW()
+         RETURNING *`,
+        [id, areaId, target, req.user?.id || null]
+      );
+      await logActivity(client, id, req.user?.id || null, 'capacity_target_set',
+        `HQ set the capacity target for ${[areaRows[0].city, areaRows[0].region, areaRows[0].country].filter(Boolean).join(', ')} to ${target} locations.`,
+        { area_id: areaId, target_locations: target });
+      await client.query('COMMIT');
+      return res.json({ capacity_target: rows[0], territory_capacity: await buildTerritoryCapacity(id) });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error setting franchise capacity target', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to set capacity target.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -8600,6 +8858,9 @@ module.exports = {
   updateCandidateLocationAsAdmin,
   deleteCandidateLocation,
   deleteCandidateLocationAsAdmin,
+  getTerritoryCapacity,
+  getTerritoryCapacityAsAdmin,
+  setCapacityTargetAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
