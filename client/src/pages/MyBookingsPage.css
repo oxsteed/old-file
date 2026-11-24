@@ -669,3 +669,17 @@
   font-size: inherit;
   text-decoration: underline;
 }
+
+/* Group 11 item 571: identity status line */
+.booking-card-identity {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 12px;
+  color: var(--app-text-muted, #6b7280);
+}
+.booking-identity-link {
+  color: #ea580c;
+  font-weight: 600;
+}

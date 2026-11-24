@@ -3,6 +3,8 @@ const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const bookingEmailService = require('../services/bookingEmailService');
 const { parseDateOnlyUTC } = require('../utils/dateOnly');
+// Group 11 item 571 (D-259): identity is the platform Didit state.
+const { rentalIdentityStatus } = require('../utils/rentalIdentity');
 
 const TOOL_RENTAL_AGREEMENT_VERSION = 'peer-rental-v1';
 
@@ -199,14 +201,40 @@ const getMyBookings = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const result = await db.query(
-      `SELECT b.*, tr.name, tr.daily_rate
+      `SELECT b.*, tr.name, tr.daily_rate,
+              cu.didit_status AS renter_didit_status,
+              cu.didit_verified_at AS renter_didit_verified_at,
+              cu.identity_verified AS renter_identity_verified,
+              cu.id_verified AS renter_id_verified,
+              ou.didit_status AS owner_didit_status,
+              ou.didit_verified_at AS owner_didit_verified_at,
+              ou.identity_verified AS owner_identity_verified,
+              ou.id_verified AS owner_id_verified
        FROM tool_rentals_bookings b
        JOIN tool_rentals tr ON b.tool_id = tr.id
+       JOIN users cu ON b.customer_id = cu.id
+       JOIN users ou ON b.owner_id = ou.id
        WHERE b.customer_id = $1
        ORDER BY b.created_at DESC`,
       [userId]
     );
-    res.json(result.rows);
+    // Group 11 item 571: identity status for both parties on every
+    // booking (Didit state; 'skipped' is not verified).
+    res.json(result.rows.map((row) => ({
+      ...row,
+      renter_identity: rentalIdentityStatus({
+        didit_status: row.renter_didit_status,
+        didit_verified_at: row.renter_didit_verified_at,
+        identity_verified: row.renter_identity_verified,
+        id_verified: row.renter_id_verified,
+      }),
+      owner_identity: rentalIdentityStatus({
+        didit_status: row.owner_didit_status,
+        didit_verified_at: row.owner_didit_verified_at,
+        identity_verified: row.owner_identity_verified,
+        id_verified: row.owner_id_verified,
+      }),
+    })));
   } catch (err) {
     next(err);
   }
@@ -216,15 +244,39 @@ const getBookingsByOwner = async (req, res, next) => {
   try {
     const ownerId = req.user.id;
     const result = await db.query(
-      `SELECT b.*, tr.name, u.first_name, u.last_name
+      `SELECT b.*, tr.name, u.first_name, u.last_name,
+              cu.didit_status AS renter_didit_status,
+              cu.didit_verified_at AS renter_didit_verified_at,
+              cu.identity_verified AS renter_identity_verified,
+              cu.id_verified AS renter_id_verified,
+              ou.didit_status AS owner_didit_status,
+              ou.didit_verified_at AS owner_didit_verified_at,
+              ou.identity_verified AS owner_identity_verified,
+              ou.id_verified AS owner_id_verified
        FROM tool_rentals_bookings b
        JOIN tool_rentals tr ON b.tool_id = tr.id
        JOIN users u ON b.customer_id = u.id
+       JOIN users cu ON b.customer_id = cu.id
+       JOIN users ou ON b.owner_id = ou.id
        WHERE b.owner_id = $1
        ORDER BY b.created_at DESC`,
       [ownerId]
     );
-    res.json(result.rows);
+    res.json(result.rows.map((row) => ({
+      ...row,
+      renter_identity: rentalIdentityStatus({
+        didit_status: row.renter_didit_status,
+        didit_verified_at: row.renter_didit_verified_at,
+        identity_verified: row.renter_identity_verified,
+        id_verified: row.renter_id_verified,
+      }),
+      owner_identity: rentalIdentityStatus({
+        didit_status: row.owner_didit_status,
+        didit_verified_at: row.owner_didit_verified_at,
+        identity_verified: row.owner_identity_verified,
+        id_verified: row.owner_id_verified,
+      }),
+    })));
   } catch (err) {
     next(err);
   }
@@ -402,9 +454,19 @@ const getBookingReceipt = async (req, res, next) => {
       `SELECT b.*, tr.name AS tool_name, tr.category AS tool_category,
               tr.brand AS tool_brand, tr.model AS tool_model,
               tr.condition AS tool_condition, tr.daily_rate AS tool_daily_rate,
-              tr.replacement_value AS tool_replacement_value
+              tr.replacement_value AS tool_replacement_value,
+              cu.didit_status AS renter_didit_status,
+              cu.didit_verified_at AS renter_didit_verified_at,
+              cu.identity_verified AS renter_identity_verified,
+              cu.id_verified AS renter_id_verified,
+              ou.didit_status AS owner_didit_status,
+              ou.didit_verified_at AS owner_didit_verified_at,
+              ou.identity_verified AS owner_identity_verified,
+              ou.id_verified AS owner_id_verified
          FROM tool_rentals_bookings b
          JOIN tool_rentals tr ON b.tool_id = tr.id
+         JOIN users cu ON b.customer_id = cu.id
+         JOIN users ou ON b.owner_id = ou.id
         WHERE b.id = $1 AND (b.customer_id = $2 OR b.owner_id = $2)`,
       [bookingId, userId]
     );
@@ -441,6 +503,19 @@ const getBookingReceipt = async (req, res, next) => {
       },
       terms,
       invoice: invoiceResult.rows[0] || null,
+      // Group 11 item 571: identity status for both parties.
+      renter_identity: rentalIdentityStatus({
+        didit_status: booking.renter_didit_status,
+        didit_verified_at: booking.renter_didit_verified_at,
+        identity_verified: booking.renter_identity_verified,
+        id_verified: booking.renter_id_verified,
+      }),
+      owner_identity: rentalIdentityStatus({
+        didit_status: booking.owner_didit_status,
+        didit_verified_at: booking.owner_didit_verified_at,
+        identity_verified: booking.owner_identity_verified,
+        id_verified: booking.owner_id_verified,
+      }),
     });
   } catch (err) {
     next(err);

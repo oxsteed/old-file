@@ -81,6 +81,8 @@ interface Booking {
   owner_decline_reason?: string | null;
   pickup_time?: string | null;
   agreement_snapshot?: { rental?: { fulfillment?: string } } | null;
+  renter_identity?: { status: string; verified: boolean; verifiedAt?: string | null };
+  owner_identity?: { status: string; verified: boolean; verifiedAt?: string | null };
 }
 
 const MyBookingsPageContent = () => {
@@ -401,6 +403,33 @@ const MyBookingsPageContent = () => {
     );
   };
 
+  // Group 11 item 571 (D-259): identity is the platform Didit state.
+  // Shown to both parties; a renter who has not verified cannot
+  // complete pickup (enforced server-side on the acknowledgment).
+  const renderIdentityLine = (booking: Booking, isOwnerView: boolean) => {
+    const identityStatusLabel = (status: string) =>
+      t(`toolRentals.identity_${status}`) || status;
+    return (
+      <div className="booking-card-identity">
+        <span>
+          {isOwnerView
+            ? `${t('toolRentals.identityRenter') || 'Renter identity'}: ${identityStatusLabel(booking.renter_identity?.status || 'not_started')}`
+            : `${t('toolRentals.identityTitle') || 'Identity check'}: ${identityStatusLabel(booking.renter_identity?.status || 'not_started')}`}
+        </span>
+        {!isOwnerView && booking.renter_identity && !booking.renter_identity.verified && (
+          <Link to="/verify-identity" className="booking-identity-link">
+            {t('toolRentals.identityVerifyNow') || 'Verify your identity'}
+          </Link>
+        )}
+        {!isOwnerView && (
+          <span>
+            {`${t('toolRentals.identityOwner') || 'Owner identity'}: ${identityStatusLabel(booking.owner_identity?.status || 'not_started')}`}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   const renderBookingCard = (booking: Booking, isOwner: boolean = false) => (
     <div key={booking.id} className="booking-card">
       <EquipmentBookingPanel bookingId={booking.id}/>
@@ -486,6 +515,9 @@ const MyBookingsPageContent = () => {
           {t('toolRentals.declineReasonLabel') || 'Decline reason:'} {booking.owner_decline_reason}
         </p>
       )}
+
+      {/* Group 11 item 571: identity status for both parties. */}
+      {renderIdentityLine(booking, isOwner)}
 
       {Number(booking.deposit_amount || 0) > 0 && booking.deposit_status && booking.deposit_status !== 'none' && (
         <div className="booking-card-deposit" data-testid="booking-deposit">

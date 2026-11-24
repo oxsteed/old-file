@@ -434,4 +434,81 @@ describeDb('Group 11 Slice 2c: Reserve + Checkout (566, 568, 570, 571, 574, 575)
       expect(res.body.booking.status).toBe('invoice_sent');
     });
   });
+
+  describe('571: identity check status', () => {
+    const freshVerifiedAt = new Date().toISOString();
+    const staleVerifiedAt = new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString();
+
+    test('booking lists carry the Didit identity status for both parties', async () => {
+      const owner = await addUser();
+      const renter = await addUser('customer', { diditStatus: 'verified', diditVerifiedAt: freshVerifiedAt });
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Identity drill' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12');
+
+      const asRenter = await request(app)
+        .get('/api/tool-rentals/bookings/my')
+        .set('x-test-user', renter)
+        .expect(200);
+      const mine = asRenter.body.find((b) => b.id === booking.id);
+      expect(mine.renter_identity).toEqual(
+        expect.objectContaining({ status: 'verified', verified: true }),
+      );
+      expect(mine.owner_identity).toEqual(
+        expect.objectContaining({ status: 'pending', verified: false }),
+      );
+
+      const asOwner = await request(app)
+        .get('/api/tool-rentals/bookings/owner')
+        .set('x-test-user', owner)
+        .expect(200);
+      const theirs = asOwner.body.find((b) => b.id === booking.id);
+      expect(theirs.renter_identity).toEqual(
+        expect.objectContaining({ status: 'verified', verified: true }),
+      );
+    });
+
+    test('skipped and stale verifications do not count as verified', async () => {
+      const owner = await addUser();
+      const skipped = await addUser('customer', { diditStatus: 'skipped' });
+      const stale = await addUser('customer', { diditStatus: 'verified', diditVerifiedAt: staleVerifiedAt });
+      const failed = await addUser('customer', { diditStatus: 'failed' });
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Identity drill 2' });
+      const bSkipped = await insertBooking(tool.id, skipped, owner, '2026-12-10', '2026-12-12');
+      const bStale = await insertBooking(tool.id, stale, owner, '2026-12-13', '2026-12-15');
+      const bFailed = await insertBooking(tool.id, failed, owner, '2026-12-16', '2026-12-18');
+
+      const byId = async (userId) => {
+        const res = await request(app)
+          .get('/api/tool-rentals/bookings/my')
+          .set('x-test-user', userId)
+          .expect(200);
+        return new Map(res.body.map((b) => [b.id, b.renter_identity]));
+      };
+      expect((await byId(skipped)).get(bSkipped.id)).toEqual(
+        expect.objectContaining({ status: 'skipped', verified: false }),
+      );
+      expect((await byId(stale)).get(bStale.id)).toEqual(
+        expect.objectContaining({ status: 'expired', verified: false }),
+      );
+      expect((await byId(failed)).get(bFailed.id)).toEqual(
+        expect.objectContaining({ status: 'failed', verified: false }),
+      );
+    });
+
+    test('the receipt carries both parties identity status', async () => {
+      const owner = await addUser();
+      const renter = await addUser('customer', { diditStatus: 'verified', diditVerifiedAt: freshVerifiedAt });
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Identity drill 3' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12');
+      const res = await request(app)
+        .get(`/api/tool-rentals/bookings/${booking.id}/receipt`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(res.body.renter_identity).toEqual(expect.objectContaining({ status: 'verified', verified: true }));
+      expect(res.body.owner_identity).toEqual(expect.objectContaining({ status: 'pending', verified: false }));
+    });
+  });
 });
