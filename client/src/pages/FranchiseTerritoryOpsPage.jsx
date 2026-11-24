@@ -366,6 +366,19 @@ export default function FranchiseTerritoryOpsPage() {
     }
   }, [resolvedApplicationId, t]);
 
+  // Group 12 Slice 3e (622): the operator acknowledges a standard's
+  // current version with a drawn e-signature (multipart FormData).
+  const acknowledgeStandard = useCallback(async (standardId, formData) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/standards/${standardId}/acknowledge`, formData);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
   // Group 12 Slice 3c (612): the operator designates a roster helper as
   // an opening-team member (or removes them) for the selected scope. The
   // roster reloads so the opening-team flags reflect the change.
@@ -702,11 +715,16 @@ export default function FranchiseTerritoryOpsPage() {
             />
           )}
 
-          {/* Group 12 Slice 3e (621): the franchise standards library —
+          {/* Group 12 Slice 3e (621/622): the franchise standards library —
               franchise-wide standards plus this territory's own, browsed
-              from the territory ops page. */}
+              from the territory ops page; the operator acknowledges each
+              version with a drawn signature. */}
           {boundaryDetail && (
-            <FranchiseStandards standards={boundaryDetail.standards || []} />
+            <FranchiseStandards
+              standards={boundaryDetail.standards || []}
+              canAcknowledge
+              onAcknowledge={acknowledgeStandard}
+            />
           )}
 
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">

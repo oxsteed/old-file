@@ -390,6 +390,22 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     }
   }
 
+  // Group 12 Slice 3e (622): acknowledge a standard's current version
+  // with a drawn e-signature (multipart FormData).
+  async function acknowledgeStandard(standardId, formData) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/standards/${standardId}/acknowledge`, formData);
+      setDetail(response.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('standardsAcknowledgeFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!detail) return null;
 
   const interviews = detail.interviews || [];
@@ -720,8 +736,14 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         disabled={busy}
       />
 
-      {/* Group 12 Slice 3e (621): the franchise standards library. */}
-      <FranchiseStandards standards={detail.standards || []} />
+      {/* Group 12 Slice 3e (621/622): the franchise standards library;
+          the operator acknowledges each version with a drawn signature. */}
+      <FranchiseStandards
+        standards={detail.standards || []}
+        canAcknowledge={detail.application?.is_operator === true}
+        onAcknowledge={acknowledgeStandard}
+        disabled={busy}
+      />
 
       {/* Group 12 Slice 3b (610, D-310): the operator-facing assignment history. */}
       <section className="fr-detail-card">

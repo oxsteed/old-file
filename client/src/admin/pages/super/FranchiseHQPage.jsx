@@ -915,6 +915,28 @@ export default function FranchiseHQPage() {
     }
   }
 
+  // Group 12 Slice 3e (622): HQ publishes a new version of a standard —
+  // the policy-change event members must acknowledge (and 625 reminds
+  // about). A franchise-wide publish returns the wide list, so the
+  // bundle is reloaded to show it.
+  async function publishStandardVersion(standard) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      if (standard.scope === 'franchise') {
+        await axios.post(`/franchise/standards/${standard.id}/version`);
+        await loadDetail(selectedApplication.id);
+      } else {
+        const res = await axios.post(`/franchise/applications/${selectedApplication.id}/standards/${standard.id}/version`);
+        setSelectedBundle(res.data);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLoadFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function updateChecklist(itemId, payload) {
     if (!selectedApplication) return;
     try {
@@ -1789,15 +1811,19 @@ export default function FranchiseHQPage() {
                     disabled={saving}
                   />
 
-                  {/* Group 12 Slice 3e (621): the franchise standards
+                  {/* Group 12 Slice 3e (621/622): the franchise standards
                       library — HQ curates Learn guides as franchise-wide
-                      or per-territory standards and removes them. */}
+                      or per-territory standards, publishes new versions,
+                      and removes them; the acknowledgment list rides the
+                      bundle. */}
                   <FranchiseStandards
                     standards={selectedBundle.standards || []}
                     canCurate
                     canRemove
+                    canPublishVersion
                     onCurate={curateStandard}
                     onRemove={removeStandard}
+                    onPublishVersion={publishStandardVersion}
                     disabled={saving}
                   />
 

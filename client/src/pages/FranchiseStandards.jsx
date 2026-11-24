@@ -2,7 +2,64 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookOpen } from 'lucide-react';
 import api from '../api/axios';
+import SignaturePad from '../components/SignaturePad';
 import './FranchiseApplicationDetail.css';
+
+function formatDate(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+// Group 12 Slice 3e (622, D-323): the drawn-signature acknowledgment
+// form for one standard — the member signs the standard's current
+// version. The pad emits a PNG data URL; the form posts it as
+// multipart `signature` with the version, reusing the SOP read-and-sign
+// pattern.
+function StandardAckForm({ standard, disabled = false, onAcknowledge }) {
+  const { t } = useTranslation();
+  const copy = (key, options) => t(`dashboards.franchise.${key}`, options);
+  const [signature, setSignature] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!signature || !onAcknowledge) return;
+    setBusy(true);
+    setFormError('');
+    try {
+      const blob = await (await fetch(signature)).blob();
+      const form = new FormData();
+      form.append('signature', blob, 'signature.png');
+      form.append('version', String(standard.version));
+      await onAcknowledge(standard.id, form);
+      setSignature(null);
+    } catch (err) {
+      setFormError(err?.response?.data?.error || copy('standardsAcknowledgeFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="fr-doc-list">
+      <div>
+        <span className="fr-detail-list-label">{copy('standardsSignatureLabel')}</span>
+        <SignaturePad onChange={setSignature} disabled={disabled || busy} />
+      </div>
+      {formError && <p className="fr-detail-empty">{formError}</p>}
+      <div>
+        <button type="submit" className="fr-btn-primary" disabled={disabled || busy || !signature}>
+          {copy('standardsAcknowledge', { version: standard.version })}
+        </button>
+      </div>
+    </form>
+  );
+}
 
 // Group 12 Slice 3e (621, D-321): the franchise standards library —
 // franchise-scoped views over the Learn guides catalog. Operators
@@ -14,8 +71,12 @@ export default function FranchiseStandards({
   standards = [],
   canCurate = false,
   canRemove = false,
+  canAcknowledge = false,
+  canPublishVersion = false,
   onCurate = null,
   onRemove = null,
+  onAcknowledge = null,
+  onPublishVersion = null,
   disabled = false,
 }) {
   const { t } = useTranslation();
@@ -138,10 +199,43 @@ export default function FranchiseStandards({
                   {' · '}
                   {copy('standardsVersion', { version: standard.version })}
                 </div>
+                <div className="fr-doc-file-meta">
+                  {standard.acknowledged_by_me
+                    ? copy('standardsAcknowledged', { version: standard.version, date: formatDate(standard.my_acknowledged_at) })
+                    : copy('standardsNotAcknowledged')}
+                  {typeof standard.member_count === 'number' && standard.member_count > 0 && (
+                    <>
+                      {' · '}
+                      {copy('standardsAckCount', { count: standard.acknowledged_count ?? 0, total: standard.member_count })}
+                    </>
+                  )}
+                </div>
+                {(standard.acknowledgments || []).length > 0 && (
+                  <div className="fr-doc-file-meta">
+                    {copy('standardsAckListTitle')}
+                    {': '}
+                    {standard.acknowledgments.map((ack) => (
+                      `${ack.user_name} (${copy('standardsAckVersion', { version: ack.version })}, ${formatDate(ack.acknowledged_at)})`
+                    )).join(' · ')}
+                  </div>
+                )}
+                {canAcknowledge && onAcknowledge && !standard.acknowledged_by_me && (
+                  <StandardAckForm standard={standard} disabled={disabled} onAcknowledge={onAcknowledge} />
+                )}
               </div>
               <span className="fr-status-badge fr-status-pending">
                 {standard.scope === 'franchise' ? copy('standardsScopeFranchise') : copy('standardsScopeTerritory')}
               </span>
+              {canPublishVersion && onPublishVersion && (
+                <button
+                  type="button"
+                  className="fr-btn-primary"
+                  disabled={disabled}
+                  onClick={() => onPublishVersion(standard)}
+                >
+                  {copy('standardsPublishVersion')}
+                </button>
+              )}
               {canRemove && onRemove && (
                 <button
                   type="button"

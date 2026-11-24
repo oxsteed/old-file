@@ -119,6 +119,7 @@ describeDb('Group 12 Slice 3e: Follow standards (621-625)', () => {
   // so each test starts from an empty standards set: the suite
   // database persists across runs.
   beforeEach(async () => {
+    await db.query('DELETE FROM franchise_standard_acknowledgments');
     await db.query('DELETE FROM franchise_standards');
   });
 
@@ -343,6 +344,218 @@ describeDb('Group 12 Slice 3e: Follow standards (621-625)', () => {
         .resolves.toMatchObject({ body: { standards: [] } });
       const otherDetail = await applicantDetail(otherOperator, otherApplicationId).expect(200);
       expect(otherDetail.body.standards).toHaveLength(0);
+    });
+  });
+
+  describe('622: version acknowledgment', () => {
+    async function curateStandard(admin, applicationId, guideTitle = 'Food safety basics') {
+      const guideId = await addGuide(guideTitle);
+      const curated = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards`)
+        .set('x-test-user', admin.id)
+        .send({ guide_id: guideId })
+        .expect(201);
+      return curated.body.standards.find((row) => row.guide_id === guideId);
+    }
+
+    async function inviteAsOperator(operator, applicationId, email, role = 'member') {
+      const res = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/invitations`)
+        .set('x-test-user', operator.id)
+        .send({ email, role })
+        .expect(201);
+      const invite = res.body.territory_invitations.find((row) => row.email === email.toLowerCase());
+      expect(invite).toBeDefined();
+      return { invite, token: res.body.new_invite_token };
+    }
+
+    function acceptInvite(invitee, token, response = 'accepted') {
+      return request(app)
+        .post(`/api/franchise/invitations/${token}/respond`)
+        .set('x-test-user', invitee.id)
+        .set('x-test-email', invitee.email)
+        .send({ response });
+    }
+
+    function acknowledgeAs(user, applicationId, standardId, version, file = PNG_BYTES) {
+      const req = request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/standards/${standardId}/acknowledge`)
+        .set('x-test-user', user.id);
+      if (file) req.attach('signature', file, 'signature.png');
+      return req.field('version', String(version));
+    }
+
+    test('operator acknowledges the current version with a drawn signature; the ack rides the detail and the HQ list', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+
+      const acked = await acknowledgeAs(operator, applicationId, standard.id, 1).expect(201);
+      const mine = acked.body.standards.find((row) => row.id === standard.id);
+      expect(mine.acknowledged_by_me).toBe(true);
+      expect(mine.my_acknowledged_at).toBeTruthy();
+      expect(mine.acknowledged_count).toBe(1);
+      expect(mine.member_count).toBe(1);
+      expect(mine.acknowledgments).toBeUndefined();
+
+      const stored = await db.query(
+        'SELECT signature_storage_key FROM franchise_standard_acknowledgments WHERE standard_id = $1 AND user_id = $2 AND version = 1',
+        [standard.id, operator.id],
+      );
+      expect(stored.rows).toHaveLength(1);
+      expect(stored.rows[0].signature_storage_key).toMatch(/franchise-standards\/signatures\//);
+
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      const bundled = bundle.body.standards.find((row) => row.id === standard.id);
+      expect(bundled.acknowledgments).toHaveLength(1);
+      expect(bundled.acknowledgments[0].user_email).toBe(operator.email);
+      expect(bundled.acknowledgments[0].version).toBe(1);
+      expect(bundled.acknowledgments[0].has_signature).toBe(true);
+      expect(bundled.acknowledgments[0].signature_storage_key).toBeUndefined();
+    });
+
+    test('re-acknowledging the same version is idempotent, not a second row', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+
+      await acknowledgeAs(operator, applicationId, standard.id, 1).expect(201);
+      await acknowledgeAs(operator, applicationId, standard.id, 1).expect(200);
+      const stored = await db.query(
+        'SELECT COUNT(*)::int AS n FROM franchise_standard_acknowledgments WHERE standard_id = $1',
+        [standard.id],
+      );
+      expect(stored.rows[0].n).toBe(1);
+    });
+
+    test('stale version, missing signature, non-PNG signature, and missing version are refused', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+
+      await acknowledgeAs(operator, applicationId, standard.id, 2).expect(409)
+        .then((res) => expect(res.body.code).toBe('standard_version_conflict'));
+      await acknowledgeAs(operator, applicationId, standard.id, 1, null).expect(400)
+        .then((res) => expect(res.body.code).toBe('signature_required'));
+      await acknowledgeAs(operator, applicationId, standard.id, 1, Buffer.from('not a png')).expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_signature'));
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/standards/${standard.id}/acknowledge`)
+        .set('x-test-user', operator.id)
+        .attach('signature', PNG_BYTES, 'signature.png')
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('standard_version_required'));
+    });
+
+    test('an accepted invitee can acknowledge; the applicant record alone gets 403, a stranger gets 404', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const invitee = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+      const standard = await curateStandard(admin, applicationId);
+
+      const { token } = await inviteAsOperator(operator, applicationId, invitee.email);
+      await acceptInvite(invitee, token).expect(200);
+
+      await acknowledgeAs(invitee, applicationId, standard.id, 1).expect(201);
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      const mine = detail.body.standards.find((row) => row.id === standard.id);
+      expect(mine.acknowledged_count).toBe(1);
+      expect(mine.member_count).toBe(2);
+
+      await acknowledgeAs(applicant, applicationId, standard.id, 1).expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_standard_acknowledge_not_member'));
+      await acknowledgeAs(stranger, applicationId, standard.id, 1).expect(404);
+    });
+
+    test('HQ publishes a new version; the old acknowledgment no longer counts and v1 cannot be acknowledged', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+      await acknowledgeAs(operator, applicationId, standard.id, 1).expect(201);
+
+      const published = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards/${standard.id}/version`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      const bumped = published.body.standards.find((row) => row.id === standard.id);
+      expect(bumped.version).toBe(2);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      const mine = detail.body.standards.find((row) => row.id === standard.id);
+      expect(mine.acknowledged_by_me).toBe(false);
+      expect(mine.acknowledged_count).toBe(0);
+
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      const bundled = bundle.body.standards.find((row) => row.id === standard.id);
+      expect(bundled.acknowledgments).toHaveLength(1);
+      expect(bundled.acknowledgments[0].version).toBe(1);
+
+      await acknowledgeAs(operator, applicationId, standard.id, 1).expect(409)
+        .then((res) => expect(res.body.code).toBe('standard_version_conflict'));
+      await acknowledgeAs(operator, applicationId, standard.id, 2).expect(201);
+      const detailAfter = await applicantDetail(operator, applicationId).expect(200);
+      expect(detailAfter.body.standards.find((row) => row.id === standard.id).acknowledged_count).toBe(1);
+    });
+
+    test('publishing validates the standard and the caller; a standard from another territory is not addressable', async () => {
+      const operator = await addUser();
+      const otherOperator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const otherApplicationId = await makeApplication(otherOperator);
+      const standard = await curateStandard(admin, applicationId);
+      const otherStandard = await curateStandard(admin, otherApplicationId);
+
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards/${otherStandard.id}/version`)
+        .set('x-test-user', admin.id)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('standard_not_found'));
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards/00000000-0000-0000-0000-000000000000/version`)
+        .set('x-test-user', admin.id)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('standard_not_found'));
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards/${standard.id}/version`)
+        .set('x-test-user', operator.id)
+        .expect(403);
+      await acknowledgeAs(otherOperator, otherApplicationId, standard.id, 1).expect(404)
+        .then((res) => expect(res.body.code).toBe('standard_not_found'));
+    });
+
+    test('a franchise-wide standard publishes from the wide endpoint and every territory sees the new version', async () => {
+      const operator = await addUser();
+      const otherOperator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const otherApplicationId = await makeApplication(otherOperator);
+      const guideId = await addGuide('Wide brand standard');
+      const curated = await request(app)
+        .post('/api/franchise/standards')
+        .set('x-test-user', admin.id)
+        .send({ guide_id: guideId })
+        .expect(201);
+      const standard = curated.body.standards[0];
+
+      const published = await request(app)
+        .post(`/api/franchise/standards/${standard.id}/version`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(published.body.standards[0].version).toBe(2);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.standards.find((row) => row.id === standard.id).version).toBe(2);
+      const otherDetail = await applicantDetail(otherOperator, otherApplicationId).expect(200);
+      expect(otherDetail.body.standards.find((row) => row.id === standard.id).version).toBe(2);
     });
   });
 });

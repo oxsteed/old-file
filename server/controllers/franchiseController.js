@@ -451,8 +451,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   const trainingAssignments = await fetchTrainingAssignments(applicationId);
   const announcements = await fetchAnnouncements(applicationId, { includeReadCounts: true });
   // Group 12 Slice 3e (621): the franchise standards library — the
-  // franchise-wide standards plus this territory's own.
-  const standards = await fetchFranchiseStandards(applicationId);
+  // franchise-wide standards plus this territory's own. HQ sees the
+  // full acknowledgment list (622).
+  const standards = await fetchFranchiseStandards(applicationId, { includeAcknowledgments: true });
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -694,7 +695,7 @@ async function fetchAnnouncements(applicationId, { userId = null, includeReadCou
 // `application_id IS NULL OR application_id = $1` predicate keeps
 // franchise-wide rows (TRUE OR NULL) and drops territory rows
 // (FALSE OR NULL) when $1 is NULL.
-async function fetchFranchiseStandards(applicationId) {
+async function fetchFranchiseStandards(applicationId, { userId = null, includeAcknowledgments = false } = {}) {
   const { rows } = await db.query(
     `SELECT s.*, g.title AS guide_title, g.category AS guide_category,
             g.difficulty AS guide_difficulty, g.minutes AS guide_minutes
@@ -704,10 +705,75 @@ async function fetchFranchiseStandards(applicationId) {
       ORDER BY s.application_id NULLS FIRST, s.created_at ASC, s.id ASC`,
     [applicationId]
   );
-  return rows.map((row) => ({
-    ...row,
-    scope: row.application_id ? 'territory' : 'franchise',
-  }));
+  if (!rows.length) return [];
+  // Group 12 Slice 3e (622, D-323): acknowledgment state per standard —
+  // who acknowledged the CURRENT version, and (for the viewer) whether
+  // they did. The signature storage key never leaves the server; the
+  // list carries has_signature only.
+  const ids = rows.map((row) => row.id);
+  const ackResult = await db.query(
+    `SELECT a.*, u.first_name AS user_first_name, u.last_name AS user_last_name,
+            u.email AS user_email
+       FROM franchise_standard_acknowledgments a
+       JOIN users u ON u.id = a.user_id
+      WHERE a.standard_id = ANY($1::uuid[])
+      ORDER BY a.acknowledged_at DESC, a.id DESC`,
+    [ids]
+  );
+  const acksByStandard = new Map(ids.map((id) => [id, []]));
+  for (const ack of ackResult.rows) {
+    if (acksByStandard.has(ack.standard_id)) acksByStandard.get(ack.standard_id).push(ack);
+  }
+  const memberIds = await fetchTerritoryMemberIds(applicationId);
+  return rows.map((row) => {
+    const acks = acksByStandard.get(row.id) || [];
+    const currentAcks = acks.filter((ack) => ack.version === row.version);
+    const myAck = userId
+      ? currentAcks.find((ack) => String(ack.user_id) === String(userId)) || null
+      : null;
+    const presentable = {
+      ...row,
+      scope: row.application_id ? 'territory' : 'franchise',
+      acknowledged_count: new Set(currentAcks.map((ack) => String(ack.user_id))).size,
+      member_count: memberIds.length,
+      acknowledged_by_me: Boolean(myAck),
+      my_acknowledged_at: myAck ? myAck.acknowledged_at : null,
+    };
+    if (includeAcknowledgments) {
+      presentable.acknowledgments = acks.map((ack) => ({
+        id: ack.id,
+        user_id: ack.user_id,
+        user_name: [ack.user_first_name, ack.user_last_name].filter(Boolean).join(' ') || ack.user_email,
+        user_email: ack.user_email,
+        version: ack.version,
+        acknowledged_at: ack.acknowledged_at,
+        has_signature: Boolean(ack.signature_storage_key),
+      }));
+    }
+    return presentable;
+  });
+}
+
+// Group 12 Slice 3e (622/624/625): the territory member ids — the
+// assigned operator, anyone who accepted a territory invite, or an
+// opening-team helper. Same membership as isTerritoryMember, listed
+// instead of tested, so acknowledgment counts and reminder targets
+// cover exactly the people the territory owes a standard to.
+async function fetchTerritoryMemberIds(applicationId) {
+  if (!applicationId) return [];
+  const { rows } = await db.query(
+    `SELECT owner_user_id AS user_id FROM franchise_applications
+      WHERE id = $1 AND owner_user_id IS NOT NULL
+     UNION
+     SELECT iu.id FROM franchise_territory_invitations i
+       JOIN users iu ON lower(iu.email) = lower(i.email)
+      WHERE i.application_id = $1 AND i.status = 'accepted'
+     UNION
+     SELECT helper_user_id FROM franchise_opening_team_members
+      WHERE application_id = $1`,
+    [applicationId]
+  );
+  return rows.map((row) => row.user_id);
 }
 
 // Group 12 Slice 3d (616/617/618): who counts as a territory member —
@@ -932,8 +998,9 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     territory_invitations: territoryInvitations,
     training_assignments: trainingAssignments,
     announcements,
-    // Group 12 Slice 3e (621): the franchise standards library.
-    standards: await fetchFranchiseStandards(applicationId),
+    // Group 12 Slice 3e (621/622): the franchise standards library,
+    // with the viewer's own acknowledgment state per standard.
+    standards: await fetchFranchiseStandards(applicationId, { userId }),
     readiness_reviews: readinessReviews,
     activity: activityResult.rows,
   };
@@ -5592,6 +5659,202 @@ async function removeFranchiseStandardWide(req, res) {
   }
 }
 
+// Group 12 Slice 3e (622, D-323): version acknowledgment — a territory
+// member acknowledges a standard's current version with a drawn
+// e-signature (PNG, reusing the SOP read-and-sign pattern). The
+// signature uploads through the existing upload path before the
+// transaction; the version must match the standard's current version
+// (409 otherwise), and re-acknowledging the same version returns the
+// existing row instead of a second one. Group 12 Slice 3e (625) wires
+// the policy-change reminder into the publish handlers below.
+const PNG_MAGIC = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+const MAX_SIGNATURE_BYTES = 2 * 1024 * 1024;
+
+async function acknowledgeFranchiseStandard(req, res) {
+  const { id, standardId } = req.params;
+  const version = Number.parseInt(req.body?.version, 10);
+  if (!req.file?.buffer?.length) {
+    return res.status(400).json({ error: 'A drawn signature is required to acknowledge.', code: 'signature_required' });
+  }
+  if (req.file.buffer.length > MAX_SIGNATURE_BYTES) {
+    return res.status(413).json({ error: 'Signature too large.', code: 'signature_too_large' });
+  }
+  if (req.file.buffer.length < 8 || !req.file.buffer.subarray(0, 8).equals(PNG_MAGIC)) {
+    return res.status(400).json({ error: 'PNG signature required.', code: 'invalid_signature' });
+  }
+  if (!Number.isInteger(version) || version < 1) {
+    return res.status(400).json({ error: 'version is required.', code: 'standard_version_required' });
+  }
+  let signatureKey = null;
+  try {
+    signatureKey = await uploadFile(
+      req.file.buffer,
+      `franchise-standards/signatures/${req.user.id}`,
+      `signature-standard${standardId}-v${version}.png`,
+      'image/png',
+    );
+    if (!signatureKey) {
+      return res.status(502).json({ error: 'Signature upload failed.', code: 'upload_failed' });
+    }
+  } catch (err) {
+    logger.error('Error uploading franchise standard signature', { id, standardId, err: err.message });
+    return res.status(502).json({ error: 'Signature upload failed.', code: 'upload_failed' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: appRows } = await client.query(
+        `SELECT id, applicant_user_id, owner_user_id
+           FROM franchise_applications WHERE id = $1`,
+        [id]
+      );
+      if (!appRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const application = appRows[0];
+      const isMember = await isTerritoryMember(client, id, req.user?.id);
+      if (!isMember) {
+        await client.query('ROLLBACK');
+        const isAssociated = String(application.applicant_user_id) === String(req.user?.id)
+          || String(application.owner_user_id) === String(req.user?.id);
+        if (isAssociated) {
+          return res.status(403).json({
+            error: 'Only territory members can acknowledge franchise standards.',
+            code: 'franchise_standard_acknowledge_not_member',
+          });
+        }
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows: standardRows } = await client.query(
+        `SELECT * FROM franchise_standards
+          WHERE id = $1 AND (application_id IS NULL OR application_id = $2)
+          FOR UPDATE`,
+        [standardId, id]
+      );
+      if (!standardRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise standard not found.', code: 'standard_not_found' });
+      }
+      const standard = standardRows[0];
+      if (standard.version !== version) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'That standard version changed; review the current version first.',
+          code: 'standard_version_conflict',
+        });
+      }
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`,
+        [`franchise-standard-sign:${standardId}:${req.user.id}:${version}`]
+      );
+      const { rows: existingRows } = await client.query(
+        `SELECT id FROM franchise_standard_acknowledgments
+          WHERE standard_id = $1 AND user_id = $2 AND version = $3`,
+        [standardId, req.user.id, version]
+      );
+      let isNew = false;
+      if (!existingRows.length) {
+        await client.query(
+          `INSERT INTO franchise_standard_acknowledgments
+             (standard_id, user_id, version, signature_storage_key)
+           VALUES ($1, $2, $3, $4)`,
+          [standardId, req.user.id, version, signatureKey]
+        );
+        await logActivity(client, id, req.user?.id || null, 'standard_acknowledged',
+          `Acknowledged franchise standard version ${version}.`, { standard_id: standardId, version });
+        isNew = true;
+      }
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      return res.status(isNew ? 201 : 200).json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error acknowledging franchise standard', { id, standardId, err: err.message });
+    return res.status(500).json({ error: 'Failed to acknowledge franchise standard.' });
+  }
+}
+
+async function publishFranchiseStandardVersionCore(client, { applicationId, standardId }) {
+  const { rows } = await client.query(
+    `UPDATE franchise_standards SET version = version + 1, updated_at = NOW()
+      WHERE id = $1 AND (
+        ($2::uuid IS NULL AND application_id IS NULL) OR application_id = $2
+      )
+      RETURNING *`,
+    [standardId, applicationId]
+  );
+  if (!rows.length) {
+    return { error: { status: 404, body: { error: 'Franchise standard not found.', code: 'standard_not_found' } } };
+  }
+  return { standard: rows[0] };
+}
+
+async function publishFranchiseStandardVersion(req, res) {
+  const { id, standardId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const result = await publishFranchiseStandardVersionCore(client, { applicationId: id, standardId });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await logActivity(client, id, req.user?.id || null, 'standard_version_published',
+        `HQ published franchise standard version ${result.standard.version}.`, { standard_id: standardId, version: result.standard.version });
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error publishing franchise standard version', { id, standardId, err: err.message });
+    return res.status(500).json({ error: 'Failed to publish franchise standard version.' });
+  }
+}
+
+async function publishFranchiseStandardVersionWide(req, res) {
+  const { standardId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await publishFranchiseStandardVersionCore(client, { applicationId: null, standardId });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const standards = await fetchFranchiseStandards(null);
+      return res.json({ standards });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error publishing franchise-wide standard version', { standardId, err: err.message });
+    return res.status(500).json({ error: 'Failed to publish franchise standard version.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -5659,6 +5922,9 @@ module.exports = {
   listFranchiseStandardsWide,
   removeFranchiseStandard,
   removeFranchiseStandardWide,
+  acknowledgeFranchiseStandard,
+  publishFranchiseStandardVersion,
+  publishFranchiseStandardVersionWide,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,
