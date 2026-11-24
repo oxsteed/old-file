@@ -6,7 +6,26 @@
 // authorized for. No money moves here.
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getCashierLocations } from "../../restaurantScreens/api";
+import { formatFoodMoney } from "../../api/food";
+import { getCashierLocations, listCashierTransactions } from "../../restaurantScreens/api";
+
+function TransactionRow({ transaction: tx, t }) {
+  return (
+    <li>
+      <div>
+        <strong>{t(`cashier.type${tx.kind === "cash_out" ? "CashOut" : tx.kind === "refund" ? "Refund" : "Redemption"}`)}</strong>
+        {tx.orderId && ` · ${t("cashier.orderLabel", { id: tx.orderId })}`}
+        {tx.queueNumber != null && ` · ${t("cashier.queueLabel", { number: tx.queueNumber })}`}
+        {tx.cardLast4 && ` · ${t("cashier.cardLabel", { last4: tx.cardLast4 })}`}
+        <div className="fd-cashier-note">
+          {new Date(tx.createdAt).toLocaleString()}
+          {tx.status !== "posted" ? ` · ${tx.status}` : ""}
+        </div>
+      </div>
+      <strong>{formatFoodMoney(tx.amountCents, tx.currencyCode)}</strong>
+    </li>
+  );
+}
 
 export default function CashierPanel({
   restaurantId,
@@ -19,6 +38,50 @@ export default function CashierPanel({
   const [locations, setLocations] = useState(null);
   const [defaultLocationId, setDefaultLocationId] = useState(null);
   const [error, setError] = useState(null);
+  // 684: transaction lookup.
+  const [query, setQuery] = useState("");
+  const [type, setType] = useState("");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState("");
+  const [results, setResults] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(null);
+
+  const runSearch = async () => {
+    const params = {};
+    const trimmed = query.trim();
+    if (trimmed) params.q = trimmed;
+    if (type) params.type = type;
+    if (amount.trim()) {
+      const cents = Math.round(Number.parseFloat(amount) * 100);
+      if (!Number.isSafeInteger(cents) || cents <= 0) {
+        setSearchError("error");
+        return;
+      }
+      params.amountCents = cents;
+    }
+    if (date) params.date = date;
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const data = await listCashierTransactions(restaurantId, device, params);
+      setResults(data.transactions || []);
+    } catch {
+      setSearchError("error");
+      setResults(null);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setQuery("");
+    setType("");
+    setAmount("");
+    setDate("");
+    setResults(null);
+    setSearchError(null);
+  };
 
   useEffect(() => {
     let live = true;
@@ -81,6 +144,87 @@ export default function CashierPanel({
               </div>
               <p className="fd-cashier-note">{t("cashier.locationHint")}</p>
             </>
+          )}
+        </section>
+
+        <section className="fd-cashier-section" aria-labelledby="fd-cashier-lookup">
+          <h3 id="fd-cashier-lookup">{t("cashier.lookupTitle")}</h3>
+          <div className="fd-field">
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t("cashier.searchPlaceholder")}
+              aria-label={t("cashier.searchPlaceholder")}
+              maxLength={120}
+            />
+          </div>
+          <div className="fd-cashier-row">
+            <div className="fd-field">
+              <label htmlFor="fd-cashier-type">{t("cashier.typeLabel")}</label>
+              <select
+                id="fd-cashier-type"
+                value={type}
+                onChange={(event) => setType(event.target.value)}
+              >
+                <option value="">{t("cashier.typeAll")}</option>
+                <option value="redemption">{t("cashier.typeRedemption")}</option>
+                <option value="cash_out">{t("cashier.typeCashOut")}</option>
+                <option value="refund">{t("cashier.typeRefund")}</option>
+              </select>
+            </div>
+            <div className="fd-field">
+              <label htmlFor="fd-cashier-amount">{t("cashier.amountLabel")}</label>
+              <input
+                id="fd-cashier-amount"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+              />
+            </div>
+            <div className="fd-field">
+              <label htmlFor="fd-cashier-date">{t("cashier.dateLabel")}</label>
+              <input
+                id="fd-cashier-date"
+                type="date"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+              />
+            </div>
+          </div>
+          <div className="fd-cashier-row">
+            <button
+              type="button"
+              className="fd-btn"
+              onClick={runSearch}
+              disabled={searching}
+              data-track="ui.e23c624842.15"
+            >
+              {t("cashier.search")}
+            </button>
+            <button
+              type="button"
+              className="fd-btn fd-btn-secondary"
+              onClick={clearSearch}
+              data-track="ui.e23c624842.16"
+            >
+              {t("cashier.clear")}
+            </button>
+          </div>
+          {searchError && <p role="alert">{t(`cashier.${searchError}`)}</p>}
+          {searching && <p>{t("cashier.loading")}</p>}
+          {results && results.length === 0 && (
+            <p className="fd-cashier-note">{t("cashier.noTransactions")}</p>
+          )}
+          {results && results.length > 0 && (
+            <ul className="fd-cashier-list">
+              {results.map((tx) => (
+                <TransactionRow key={tx.id} transaction={tx} t={t} />
+              ))}
+            </ul>
           )}
         </section>
       </div>

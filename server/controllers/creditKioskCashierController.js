@@ -18,6 +18,14 @@ function parsePositiveInt(value, fieldName = 'id') {
   return parsed;
 }
 
+function parseUuid(value, fieldName) {
+  const normalized = typeof value === 'string' ? value.trim() : null;
+  if (!normalized || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)) {
+    throw new AppError(`Invalid ${fieldName}`, 400, `invalid_${fieldName}`);
+  }
+  return normalized;
+}
+
 function cashierDeviceRole(device) {
   return device?.config?.screenRole || device?.mode || null;
 }
@@ -62,4 +70,37 @@ async function getLocations(req, res, next) {
   }
 }
 
-module.exports = { authenticateCashierKiosk, getLocations };
+// 684: cashier lookup over the device's authorized transactions — by
+// attempt id, transaction id, card last-4, order, or queue number (D-387).
+// The same endpoint serves the 683 list with no filters.
+async function listTransactions(req, res, next) {
+  try {
+    const result = await cashier.listKioskTransactions(pool, {
+      deviceId: req.cashierKioskDevice.id,
+      q: req.query.q || null,
+      kind: req.query.type || null,
+      amountCents: req.query.amountCents ?? null,
+      date: req.query.date || null,
+      limit: req.query.limit ?? null,
+      offset: req.query.offset ?? null,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getTransaction(req, res, next) {
+  try {
+    const transactionId = parseUuid(req.params.transactionId, 'transactionId');
+    res.json({
+      transaction: await cashier.getKioskTransaction(pool, {
+        deviceId: req.cashierKioskDevice.id, transactionId,
+      }),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { authenticateCashierKiosk, getLocations, listTransactions, getTransaction };

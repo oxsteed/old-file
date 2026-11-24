@@ -50,8 +50,25 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
   let queueDevice;
   let queueToken;
 
+  let walletId;
+  let partnerPayableId;
+  let treasuryId;
+  let partnerId;
+  let agreementId;
+  let customerId;
+  let cardId;
+  let redemptionTxId;
+  let cashOutTxId;
+  let orderTxId;
+  let orderId;
+  let orderAttemptId;
+  let orderQueueNumber;
+  let otherDeviceTxId;
+  let yesterdayTxId;
+
   beforeAll(async () => {
     pool = require('../db');
+    const creditService = require('../services/oxsteedCreditService');
     app = express();
     app.use(express.json());
     // The real kiosk router, mounted exactly as in server/index.js, so the
@@ -68,8 +85,8 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     );
     businessId = business.id;
     const { rows: [restaurant] } = await pool.query(
-      `INSERT INTO food_restaurants (business_id, owner_user_id, display_name)
-       VALUES ($1, $2, 'Fixture Kitchen') RETURNING id`,
+      `INSERT INTO food_restaurants (business_id, owner_user_id, display_name, status)
+       VALUES ($1, $2, 'Fixture Kitchen', 'active') RETURNING id`,
       [business.id, owner.id],
     );
     restaurantId = restaurant.id;
@@ -102,6 +119,128 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     ({ device: queueDevice, token: queueToken } = await makeDevice({
       locationId: locPrimary, appKey: 'display', config: { screenRole: 'queue' },
     }));
+
+    // 684 fixtures: the ledger accounts and the kiosk redemption records
+    // the lookup reads. Directions follow the ledger integrity trigger
+    // (migration 20261027110000): purchases debit the customer wallet and
+    // credit the partner payable; cash-outs debit the wallet and credit
+    // the platform treasury.
+    const customer = await makeUser();
+    customerId = customer.id;
+    // Migration 488: partner rows require an active administrator creator.
+    const admin = await makeUser('super_admin');
+    const { rows: [partner] } = await pool.query(
+      `INSERT INTO oxsteed_credit_partners (restaurant_id, status, created_by)
+       VALUES ($1, 'active', $2) RETURNING id`,
+      [restaurantId, admin.id],
+    );
+    partnerId = partner.id;
+    // Purchases require an active partner agreement (ledger guard), and an
+    // active agreement requires a second-admin approval record (481).
+    const approver = await makeUser('super_admin');
+    const { rows: [agreement] } = await pool.query(
+      `INSERT INTO oxsteed_credit_partner_agreements (partner_id, version, status, starts_at, created_by, approved_by)
+       VALUES ($1, 1, 'active', NOW(), $2, $3) RETURNING id`,
+      [partner.id, admin.id, approver.id],
+    );
+    agreementId = agreement.id;
+    walletId = await ensureCreditAccount({ accountType: 'customer_wallet', customerId: customer.id });
+    partnerPayableId = await ensureCreditAccount({ accountType: 'partner_payable', partnerId });
+    treasuryId = await ensureCreditAccount({ accountType: 'platform_treasury' });
+    const { rows: [card] } = await pool.query(
+      `INSERT INTO oxsteed_credit_cards (customer_id, account_id, card_type, status, credential_hash, credential_last4, idempotency_key)
+       VALUES ($1, $2, 'virtual', 'active', $3, '4242', $4) RETURNING id`,
+      [customer.id, walletId, crypto.createHash('sha256').update(`g13g-card-${customer.id}`).digest('hex'), `g13g-card-${customer.id}`],
+    );
+    cardId = card.id;
+    redemptionTxId = await seedLedgerTx({
+      type: 'purchase', status: 'posted', amountCents: 2500,
+      debitAccountId: walletId, creditAccountId: partnerPayableId,
+      referenceType: 'credit_kiosk_redemption', referenceId: String(kioskDevice.id),
+      metadata: { kioskDeviceId: String(kioskDevice.id), cardId, cardLast4: '4242' },
+    });
+    cashOutTxId = await seedLedgerTx({
+      type: 'cash_out', status: 'posted', amountCents: 1000,
+      debitAccountId: walletId, creditAccountId: treasuryId,
+      referenceType: 'credit_kiosk_cash_out', referenceId: String(kioskDevice.id),
+      metadata: { kioskDeviceId: String(kioskDevice.id), cardId, cardLast4: '4242' },
+    });
+    // A kiosk credit order: the ledger purchase plus the food order that
+    // carries the attempt id, queue number, and transaction link.
+    orderAttemptId = crypto.randomUUID();
+    orderQueueNumber = 42;
+    const { rows: [order] } = await pool.query(
+      `INSERT INTO food_orders (restaurant_id, business_id, customer_id, location_id, subtotal_cents, total_cents, currency_code, queue_number, payment_status, order_source, fulfillment_type)
+       VALUES ($1, $2, $3, $4, 1800, 1800, 'USD', $5, 'paid', 'kiosk', 'dine_in') RETURNING id`,
+      [restaurantId, businessId, customer.id, locPrimary, orderQueueNumber],
+    );
+    orderId = order.id;
+    orderTxId = await seedLedgerTx({
+      type: 'purchase', status: 'posted', amountCents: 1800,
+      debitAccountId: walletId, creditAccountId: partnerPayableId,
+      referenceType: 'food_order', referenceId: String(orderId),
+      metadata: {
+        kioskDeviceId: String(kioskDevice.id), cardId,
+        clientOrderId: `credit-kiosk:${kioskDevice.id}:${orderAttemptId}`,
+        orderId,
+      },
+    });
+    await pool.query(
+      `UPDATE food_orders SET metadata = $2::jsonb WHERE id = $1`,
+      [orderId, JSON.stringify({
+        clientOrderId: `credit-kiosk:${kioskDevice.id}:${orderAttemptId}`,
+        creditKioskDeviceId: String(kioskDevice.id),
+        oxsteedCreditTransactionId: orderTxId,
+      })],
+    );
+    // Records that must never appear for this device: another device's
+    // redemption, a non-kiosk purchase, and a transaction from yesterday
+    // (used by the date filter). The ledger only allows status 'posted'
+    // (migration 641), so there is no pending-transaction state to seed.
+    otherDeviceTxId = await seedLedgerTx({
+      type: 'purchase', status: 'posted', amountCents: 9900,
+      debitAccountId: walletId, creditAccountId: partnerPayableId,
+      referenceType: 'credit_kiosk_redemption', referenceId: String(otherDevice.id),
+      metadata: { kioskDeviceId: String(otherDevice.id), cardId, cardLast4: '4242' },
+    });
+    // A real second order, owned by the same customer: its purchase
+    // carries no kioskDeviceId, so it must never appear for the device.
+    const { rows: [decoyOrder] } = await pool.query(
+      `INSERT INTO food_orders (restaurant_id, business_id, customer_id, location_id, subtotal_cents, total_cents, currency_code, queue_number, payment_status, order_source, fulfillment_type)
+       VALUES ($1, $2, $3, $4, 7700, 7700, 'USD', 43, 'paid', 'web', 'pickup') RETURNING id`,
+      [restaurantId, businessId, customer.id, locPrimary],
+    );
+    const decoyOrderId = decoyOrder.id;
+    await seedLedgerTx({
+      type: 'purchase', status: 'posted', amountCents: 7700,
+      debitAccountId: walletId, creditAccountId: partnerPayableId,
+      referenceType: 'food_order', referenceId: String(decoyOrderId),
+      metadata: { orderId: decoyOrderId },
+    });
+    yesterdayTxId = await seedLedgerTx({
+      type: 'purchase', status: 'posted', amountCents: 500,
+      debitAccountId: walletId, creditAccountId: partnerPayableId,
+      referenceType: 'credit_kiosk_redemption', referenceId: String(kioskDevice.id),
+      metadata: { kioskDeviceId: String(kioskDevice.id), cardId, cardLast4: '4242' },
+      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+
+    async function ensureCreditAccount({ accountType, customerId = null, partnerId: pid = null }) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const account = await creditService.ensureAccount(client, {
+          accountType, customerId, partnerId: pid, currencyCode: 'USD',
+        });
+        await client.query('COMMIT');
+        return account.id;
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
   });
 
   afterAll(async () => {
@@ -147,6 +286,31 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     );
     expect(registry?.status).toBe('active');
     return { device, token };
+  }
+
+  async function seedLedgerTx({
+    type, status = 'posted', amountCents, debitAccountId, creditAccountId,
+    referenceType, referenceId, metadata, createdAt = null,
+    // Migration 477: actor_type 'customer' must resolve to an active
+    // customer user, so purchases carry the cardholder as actor_user_id.
+    actorType = type === 'purchase' ? 'customer' : 'kiosk',
+    actorUserId = type === 'purchase' ? customerId : null,
+    // Purchases also require an active partner agreement on the row.
+    partnerId: txPartnerId = type === 'purchase' ? partnerId : null,
+    agreementId: txAgreementId = type === 'purchase' ? agreementId : null,
+  }) {
+    const id = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO oxsteed_credit_transactions
+         (id, transaction_type, status, debit_account_id, credit_account_id,
+          amount_cents, currency_code, idempotency_key, reference_type, reference_id,
+          actor_type, actor_user_id, partner_id, agreement_id, metadata, posted_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'USD', $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, COALESCE($16, NOW()))`,
+      [id, type, status, debitAccountId, creditAccountId, amountCents,
+        `g13g-${id}`, referenceType, referenceId, actorType, actorUserId, txPartnerId, txAgreementId,
+        JSON.stringify(metadata), status === 'posted' ? (createdAt || new Date()) : null, createdAt],
+    );
+    return id;
   }
 
   const cashierGet = (device, token, path) => request(app)
@@ -218,6 +382,68 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     const res = await request(app)
       .get(`/api/restaurants/${restaurantId + 9999}/credit-kiosks/${kioskDevice.id}/cashier/locations`)
       .set('X-Device-Token', kioskToken);
+    expect(res.status).toBe(401);
+  });
+
+  test('684: lookup by card last-4 finds this device\'s card transactions, including the order purchase via the card join', async () => {
+    const res = await cashierGet(kioskDevice, kioskToken, '/cashier/transactions?q=4242');
+    expect(res.status).toBe(200);
+    const ids = res.body.transactions.map((tx) => tx.id);
+    expect(ids).toEqual(expect.arrayContaining([redemptionTxId, cashOutTxId, orderTxId, yesterdayTxId]));
+    expect(ids).not.toContain(otherDeviceTxId);
+    expect(res.body.transactions.every((tx) => tx.cardLast4 === '4242')).toBe(true);
+  });
+
+  test('684: lookup by bare attempt id finds only the kiosk credit order', async () => {
+    const res = await cashierGet(kioskDevice, kioskToken, `/cashier/transactions?q=${orderAttemptId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.transactions).toHaveLength(1);
+    expect(res.body.transactions[0]).toMatchObject({
+      id: orderTxId, kind: 'redemption', attemptId: orderAttemptId,
+      orderId: String(orderId), queueNumber: orderQueueNumber, amountCents: 1800,
+    });
+  });
+
+  test('684: lookup by full attempt key and by transaction id both resolve', async () => {
+    const byKey = await cashierGet(kioskDevice, kioskToken, `/cashier/transactions?q=credit-kiosk:${kioskDevice.id}:${orderAttemptId}`);
+    expect(byKey.body.transactions.map((tx) => tx.id)).toEqual([orderTxId]);
+    const byId = await cashierGet(kioskDevice, kioskToken, `/cashier/transactions?q=${redemptionTxId}`);
+    expect(byId.body.transactions.map((tx) => tx.id)).toEqual([redemptionTxId]);
+    const byQueue = await cashierGet(kioskDevice, kioskToken, '/cashier/transactions?q=42');
+    expect(byQueue.body.transactions.map((tx) => tx.id)).toContain(orderTxId);
+  });
+
+  test('684: type, amount, and date filters narrow the device\'s transactions', async () => {
+    const cashOuts = await cashierGet(kioskDevice, kioskToken, '/cashier/transactions?type=cash_out');
+    expect(cashOuts.body.transactions.map((tx) => tx.id)).toEqual([cashOutTxId]);
+    const redemptions = await cashierGet(kioskDevice, kioskToken, '/cashier/transactions?type=redemption');
+    expect(redemptions.body.transactions.map((tx) => tx.id))
+      .toEqual(expect.arrayContaining([redemptionTxId, orderTxId, yesterdayTxId]));
+    expect(redemptions.body.transactions.map((tx) => tx.id)).not.toContain(cashOutTxId);
+    const byAmount = await cashierGet(kioskDevice, kioskToken, '/cashier/transactions?amountCents=2500');
+    expect(byAmount.body.transactions.map((tx) => tx.id)).toEqual([redemptionTxId]);
+    const today = new Date().toISOString().slice(0, 10);
+    const todayRows = await cashierGet(kioskDevice, kioskToken, `/cashier/transactions?date=${today}`);
+    expect(todayRows.body.transactions.map((tx) => tx.id)).not.toContain(yesterdayTxId);
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const yesterdayRows = await cashierGet(kioskDevice, kioskToken, `/cashier/transactions?date=${yesterday}`);
+    expect(yesterdayRows.body.transactions.map((tx) => tx.id)).toEqual([yesterdayTxId]);
+  });
+
+  test('684: a single transaction reads by id; another device\'s is 404, not 403', async () => {
+    const res = await cashierGet(kioskDevice, kioskToken, `/cashier/transactions/${cashOutTxId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.transaction).toMatchObject({ id: cashOutTxId, kind: 'cash_out', amountCents: 1000 });
+    const other = await cashierGet(kioskDevice, kioskToken, `/cashier/transactions/${otherDeviceTxId}`);
+    expect(other.status).toBe(404);
+    expect(other.body.code).toBe('credit_kiosk_transaction_not_found');
+    const missing = await cashierGet(kioskDevice, kioskToken, `/cashier/transactions/${crypto.randomUUID()}`);
+    expect(missing.status).toBe(404);
+  });
+
+  test('684: lookup without a device token is 401', async () => {
+    const res = await request(app)
+      .get(`/api/restaurants/${restaurantId}/credit-kiosks/${kioskDevice.id}/cashier/transactions?q=4242`);
     expect(res.status).toBe(401);
   });
 });

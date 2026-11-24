@@ -50,6 +50,23 @@ router.get(
   cashierController.getLocations,
 );
 
+// 684: cashier transaction lookup (683: the same read with no filters is
+// the authorized-transaction list). Always scoped to the device.
+router.get(
+  '/cashier/transactions',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  cashierController.listTransactions,
+);
+router.get(
+  '/cashier/transactions/:transactionId',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  cashierController.getTransaction,
+);
+
 router.use(noStoreCreditResponse, cardController.authenticateCreditKiosk);
 
 // Redeem an OxSteed Credit card at this restaurant's POS/kiosk (spend).

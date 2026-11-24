@@ -148,9 +148,20 @@ export const getDeviceCreditReceipt = (id, device, attemptId) =>
 const cashierBase = (id, device) =>
   `/restaurants/${id}/credit-kiosks/${device.id}/cashier`;
 
-// 681: locations this device is authorized for (paired location only when
-// the device is location-bound, else the restaurant's active locations).
+// 681: locations this device is authorized for (the paired location
+// alone; a device with no binding authorizes nothing).
 export const getCashierLocations = (id, device) =>
   api.get(`${cashierBase(id, device)}/locations`,
     { ...deviceOptions(device), skipSessionRefresh: true },
   ).then((r) => r.data);
+
+// 684: cashier transaction lookup over the device's authorized
+// transactions (683: the same read with no filters is the list).
+export const listCashierTransactions = (id, device, params) =>
+  api.get(`${cashierBase(id, device)}/transactions`,
+    { ...deviceOptions(device), params, skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const getCashierTransaction = (id, device, transactionId) =>
+  api.get(`${cashierBase(id, device)}/transactions/${encodeURIComponent(transactionId)}`,
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data.transaction);
