@@ -5024,23 +5024,20 @@ async function completeTrainingAssignment(req, res, { asAdmin = false } = {}) {
       // The assignee marks their own training complete (an accepted
       // invitee is a member, not the operator, so they are admitted here
       // even though the operator-only loaders would 404 them); the
-      // operator (or HQ) may also mark it complete. Anyone else gets
-      // 403 — a stranger gets 404 above via the assignment lookup only
-      // when the application itself is theirs to see, so check the
-      // operator scope explicitly for non-assignees.
-      if (!asAdmin && String(assignment.assignee_user_id) !== String(req.user?.id)) {
-        const owned = await loadOperatorApplication(client, id, req.user?.id);
+      // operator (or HQ) may also mark it complete. A stranger gets 404,
+      // an associated non-operator (the applicant record) gets 403.
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      const callerIsOperator = owned.isOperator;
+      const callerIsAssignee = String(assignment.assignee_user_id) === String(req.user?.id);
+      if (!asAdmin && !callerIsAssignee && !callerIsOperator) {
+        await client.query('ROLLBACK');
         if (!owned.application || !owned.isAssociated) {
-          await client.query('ROLLBACK');
           return res.status(404).json({ error: 'Franchise application not found.' });
         }
-        if (!owned.isOperator) {
-          await client.query('ROLLBACK');
-          return res.status(403).json({
-            error: 'Only the assignee or the assigned operator can mark training complete.',
-            code: 'training_complete_forbidden',
-          });
-        }
+        return res.status(403).json({
+          error: 'Only the assignee or the assigned operator can mark training complete.',
+          code: 'training_complete_forbidden',
+        });
       }
       if (assignment.status !== 'completed') {
         await client.query(
@@ -5058,8 +5055,16 @@ async function completeTrainingAssignment(req, res, { asAdmin = false } = {}) {
         const bundle = await fetchFranchiseApplicationBundle(id);
         return res.json(bundle);
       }
-      const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
-      return res.json(detail);
+      if (callerIsOperator) {
+        const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+        return res.json(detail);
+      }
+      // The assignee is not the operator, so the operator detail payload
+      // is not theirs to see — return the updated assignment instead.
+      const { rows: updatedRows } = await db.query(
+        'SELECT * FROM franchise_training_assignments WHERE id = $1', [assignmentId]
+      );
+      return res.json({ assignment: updatedRows[0] });
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

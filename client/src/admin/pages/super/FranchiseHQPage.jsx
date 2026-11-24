@@ -17,6 +17,7 @@ import { SuggestDropdown } from '../../../components/SuggestDropdown';
 import FranchiseLocationServices from '../../../pages/FranchiseLocationServices';
 import FranchiseOpeningConfirmation from '../../../pages/FranchiseOpeningConfirmation';
 import FranchiseTerritoryInvitations from '../../../pages/FranchiseTerritoryInvitations';
+import FranchiseTrainingTasks from '../../../pages/FranchiseTrainingTasks';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -779,6 +780,51 @@ export default function FranchiseHQPage() {
       toast.success(t('adminFranchiseLocationManagerRemoved'));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseLocationManagerFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3d (618): HQ assigns training to a territory member,
+  // marks it complete, and removes assignments.
+  async function assignTraining(body) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/training`, body);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseTrainingAssigned'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseTrainingFailed'));
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function completeTraining(assignmentId) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/training/${assignmentId}/complete`);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseTrainingCompleted'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseTrainingFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeTraining(assignmentId) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.delete(`/franchise/applications/${selectedApplication.id}/training/${assignmentId}`);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseTrainingRemoved'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseTrainingFailed'));
     } finally {
       setSaving(false);
     }
@@ -1626,6 +1672,20 @@ export default function FranchiseHQPage() {
                     canInvite
                     onInvite={inviteTerritoryMember}
                     onCancel={cancelTerritoryInvite}
+                    disabled={saving}
+                  />
+
+                  {/* Group 12 Slice 3d (618): territory training
+                      distribution — HQ assigns, completes, and removes. */}
+                  <FranchiseTrainingTasks
+                    assignments={selectedBundle.training_assignments || []}
+                    members={territoryMembers()}
+                    locations={selectedBundle.locations || []}
+                    canAssign
+                    canComplete
+                    onAssign={assignTraining}
+                    onComplete={completeTraining}
+                    onRemove={removeTraining}
                     disabled={saving}
                   />
 

@@ -16,6 +16,8 @@ import FranchiseLaunchPlan from './FranchiseLaunchPlan';
 import FranchiseOpenLocations from './FranchiseOpenLocations';
 import FranchiseReadinessReviews from './FranchiseReadinessReviews';
 import FranchiseTerritoryInvitations from './FranchiseTerritoryInvitations';
+import FranchiseTrainingTasks from './FranchiseTrainingTasks';
+import { useAuth } from '../hooks/useAuth';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
 const DOC_CATEGORY_KEYS = {
@@ -72,6 +74,7 @@ function formatDate(value) {
 // detail endpoint, which never carries internal notes.
 export default function FranchiseApplicationDetail({ applicationId }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const copy = (key, options) => t(`dashboards.franchise.${key}`, options);
   const [detail, setDetail] = useState(null);
   const [reply, setReply] = useState('');
@@ -275,6 +278,83 @@ export default function FranchiseApplicationDetail({ applicationId }) {
       setDetail(response.data);
     } catch (err) {
       setError(err?.response?.data?.error || copy('territoryInvitesFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Group 12 Slice 3d (617/618): the territory members — the operator,
+  // accepted invitees, and the opening-team helpers.
+  function territoryMembers() {
+    if (!detail) return [];
+    const byId = new Map();
+    if (user?.id) {
+      byId.set(user.id, {
+        user_id: user.id,
+        name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email || user.id,
+        email: user.email || '',
+      });
+    }
+    (detail.territory_invitations || [])
+      .filter((invite) => invite.status === 'accepted' && invite.invitee_user_id)
+      .forEach((invite) => {
+        if (!byId.has(invite.invitee_user_id)) {
+          byId.set(invite.invitee_user_id, { user_id: invite.invitee_user_id, name: invite.email, email: invite.email });
+        }
+      });
+    const teams = [
+      ...(detail.opening_team || []),
+      ...((detail.locations || []).flatMap((location) => location.opening_team || [])),
+    ];
+    teams.forEach((member) => {
+      if (member.helper_user_id && !byId.has(member.helper_user_id)) {
+        byId.set(member.helper_user_id, {
+          user_id: member.helper_user_id,
+          name: [member.helper_first_name, member.helper_last_name].filter(Boolean).join(' ') || member.helper_email,
+          email: member.helper_email || '',
+        });
+      }
+    });
+    return [...byId.values()];
+  }
+
+  // Group 12 Slice 3d (618): assign training to a territory member,
+  // mark it complete, and remove assignments.
+  async function assignTraining(body) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/training`, body);
+      setDetail(response.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('trainingTasksAssignFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function completeTraining(assignmentId) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/training/${assignmentId}/complete`);
+      setDetail(response.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('trainingTasksAssignFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeTraining(assignmentId) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.delete(`/franchise/my-applications/${applicationId}/training/${assignmentId}`);
+      setDetail(response.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('trainingTasksAssignFailed'));
     } finally {
       setBusy(false);
     }
@@ -600,6 +680,19 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         canInvite={detail.application?.is_operator === true}
         onInvite={inviteTerritoryMember}
         onCancel={cancelTerritoryInvite}
+        disabled={busy}
+      />
+
+      {/* Group 12 Slice 3d (618): territory training distribution. */}
+      <FranchiseTrainingTasks
+        assignments={detail.training_assignments || []}
+        members={territoryMembers()}
+        locations={detail.locations || []}
+        canAssign={detail.application?.is_operator === true}
+        canComplete={detail.application?.is_operator === true}
+        onAssign={assignTraining}
+        onComplete={completeTraining}
+        onRemove={removeTraining}
         disabled={busy}
       />
 

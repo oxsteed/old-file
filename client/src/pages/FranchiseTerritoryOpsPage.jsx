@@ -19,6 +19,7 @@ import FranchiseBoundarySummary from './FranchiseBoundarySummary';
 import FranchiseLaunchPlan from './FranchiseLaunchPlan';
 import FranchiseOpenLocations from './FranchiseOpenLocations';
 import FranchiseTerritoryInvitations from './FranchiseTerritoryInvitations';
+import FranchiseTrainingTasks from './FranchiseTrainingTasks';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -261,6 +262,75 @@ export default function FranchiseTerritoryOpsPage() {
     if (!resolvedApplicationId) return;
     try {
       const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/invitations/${inviteId}/cancel`);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3d (617/618): the territory members — the operator,
+  // accepted invitees, and the opening-team helpers. Used to pick
+  // training assignees (and, in HQ, location managers).
+  const territoryMembers = useCallback(() => {
+    if (!boundaryDetail) return [];
+    const byId = new Map();
+    if (user?.id) {
+      byId.set(user.id, {
+        user_id: user.id,
+        name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email || user.id,
+        email: user.email || '',
+      });
+    }
+    (boundaryDetail.territory_invitations || [])
+      .filter((invite) => invite.status === 'accepted' && invite.invitee_user_id)
+      .forEach((invite) => {
+        if (!byId.has(invite.invitee_user_id)) {
+          byId.set(invite.invitee_user_id, { user_id: invite.invitee_user_id, name: invite.email, email: invite.email });
+        }
+      });
+    const teams = [
+      ...(boundaryDetail.opening_team || []),
+      ...((boundaryDetail.locations || []).flatMap((location) => location.opening_team || [])),
+    ];
+    teams.forEach((member) => {
+      if (member.helper_user_id && !byId.has(member.helper_user_id)) {
+        byId.set(member.helper_user_id, {
+          user_id: member.helper_user_id,
+          name: [member.helper_first_name, member.helper_last_name].filter(Boolean).join(' ') || member.helper_email,
+          email: member.helper_email || '',
+        });
+      }
+    });
+    return [...byId.values()];
+  }, [boundaryDetail, user]);
+
+  // Group 12 Slice 3d (618): the operator assigns training to a
+  // territory member, marks it complete, and removes assignments.
+  const assignTraining = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/training`, body);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  const completeTraining = useCallback(async (assignmentId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/training/${assignmentId}/complete`);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  const removeTraining = useCallback(async (assignmentId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.delete(`/franchise/my-applications/${resolvedApplicationId}/training/${assignmentId}`);
       setBoundaryDetail(res.data);
     } catch (err) {
       setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
@@ -574,6 +644,20 @@ export default function FranchiseTerritoryOpsPage() {
               canInvite
               onInvite={inviteTerritoryMember}
               onCancel={cancelTerritoryInvite}
+            />
+          )}
+
+          {/* Group 12 Slice 3d (618): territory training distribution. */}
+          {boundaryDetail && (
+            <FranchiseTrainingTasks
+              assignments={boundaryDetail.training_assignments || []}
+              members={territoryMembers()}
+              locations={boundaryDetail.locations || []}
+              canAssign
+              canComplete
+              onAssign={assignTraining}
+              onComplete={completeTraining}
+              onRemove={removeTraining}
             />
           )}
 

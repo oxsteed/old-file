@@ -422,4 +422,183 @@ describeDb('Group 12 Slice 3d: Guide teams (616-620)', () => {
       await assignManager(admin, applicationId, '00000000-0000-0000-0000-000000000000', operator.id).expect(404);
     });
   });
+
+  describe('618: training task distribution', () => {
+    async function setupTraining() {
+      const operator = await addUser();
+      const invitee = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const locationId = (await applicantDetail(operator, applicationId).expect(200)).body.locations[0].id;
+      const { token } = await inviteAsOperator(operator, applicationId, invitee.email);
+      await acceptInvite(invitee, token).expect(200);
+      return { operator, invitee, admin, applicationId, locationId };
+    }
+
+    function assignTrainingAs(user, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training`)
+        .set('x-test-user', user.id)
+        .send(body);
+    }
+
+    test('operator assigns training to themself and to an accepted invitee; assignments ride both payloads', async () => {
+      const { operator, invitee, admin, applicationId, locationId } = await setupTraining();
+
+      const assigned = await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_title: 'Food safety basics',
+      }).expect(201);
+      expect(assigned.body.training_assignments).toHaveLength(1);
+      expect(assigned.body.training_assignments[0].module_title).toBe('Food safety basics');
+      expect(assigned.body.training_assignments[0].status).toBe('assigned');
+      expect(assigned.body.training_assignments[0].assignee_email).toBe(operator.email);
+
+      const assigned2 = await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: invitee.id, module_title: 'Customer service',
+        location_id: locationId, due_date: '2026-12-15',
+      }).expect(201);
+      expect(assigned2.body.training_assignments).toHaveLength(2);
+      const inviteeAssignment = assigned2.body.training_assignments.find(
+        (row) => row.assignee_user_id === invitee.id);
+      expect(inviteeAssignment.location_id).toBe(locationId);
+      expect(String(inviteeAssignment.due_date).slice(0, 10)).toBe('2026-12-15');
+
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      expect(bundle.body.training_assignments).toHaveLength(2);
+    });
+
+    test('non-members, unknown users, duplicates, and bad input are refused', async () => {
+      const { operator, applicationId, locationId } = await setupTraining();
+      const stranger = await addUser();
+
+      await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: stranger.id, module_title: 'Food safety basics',
+      }).expect(404)
+        .then((res) => expect(res.body.code).toBe('training_assignee_not_member'));
+      await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: '00000000-0000-0000-0000-000000000000', module_title: 'Food safety basics',
+      }).expect(404)
+        .then((res) => expect(res.body.code).toBe('training_assignee_not_found'));
+      await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_title: 'Food safety basics',
+        module_id: 999999999,
+      }).expect(404)
+        .then((res) => expect(res.body.code).toBe('training_module_not_found'));
+      await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id,
+      }).expect(400)
+        .then((res) => expect(res.body.code).toBe('training_module_title_required'));
+      await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_title: 'Food safety basics', due_date: '15/12/2026',
+      }).expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_training_due_date'));
+
+      await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_title: 'Food safety basics',
+      }).expect(201);
+      await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_title: 'Food safety basics',
+      }).expect(409)
+        .then((res) => expect(res.body.code).toBe('training_already_assigned'));
+      // The same title at a different location is a different scope.
+      await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_title: 'Food safety basics', location_id: locationId,
+      }).expect(201);
+    });
+
+    test('the assignee marks their own training complete; the operator can too; strangers get 404', async () => {
+      const { operator, invitee, applicationId } = await setupTraining();
+      const stranger = await addUser();
+      const assigned = await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: invitee.id, module_title: 'Customer service',
+      }).expect(201);
+      const assignmentId = assigned.body.training_assignments.find(
+        (row) => row.assignee_user_id === invitee.id).id;
+
+      // The assignee is not the operator, so the response carries the
+      // updated assignment instead of the operator detail payload.
+      const completed = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training/${assignmentId}/complete`)
+        .set('x-test-user', invitee.id)
+        .expect(200);
+      expect(completed.body.assignment.status).toBe('completed');
+      expect(completed.body.assignment.completed_at).toBeTruthy();
+
+      // Completing again is idempotent, not an error.
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training/${assignmentId}/complete`)
+        .set('x-test-user', invitee.id)
+        .expect(200);
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training/${assignmentId}/complete`)
+        .set('x-test-user', stranger.id)
+        .expect(404);
+
+      const assigned2 = await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_title: 'Food safety basics',
+      }).expect(201);
+      const assignment2Id = assigned2.body.training_assignments.find(
+        (row) => row.assignee_user_id === operator.id).id;
+      // The invitee cannot complete someone else's training.
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training/${assignment2Id}/complete`)
+        .set('x-test-user', invitee.id)
+        .expect(404);
+      // The operator completes it.
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training/${assignment2Id}/complete`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+    });
+
+    test('operator removes an assignment; a second removal is a 404', async () => {
+      const { operator, applicationId } = await setupTraining();
+      const assigned = await assignTrainingAs(operator, applicationId, {
+        assignee_user_id: operator.id, module_title: 'Food safety basics',
+      }).expect(201);
+      const assignmentId = assigned.body.training_assignments[0].id;
+
+      const removed = await request(app)
+        .delete(`/api/franchise/my-applications/${applicationId}/training/${assignmentId}`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(removed.body.training_assignments).toHaveLength(0);
+
+      await request(app)
+        .delete(`/api/franchise/my-applications/${applicationId}/training/${assignmentId}`)
+        .set('x-test-user', operator.id)
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('training_assignment_not_found'));
+    });
+
+    test('HQ assigns, completes, and removes training; a non-admin cannot use the HQ endpoints', async () => {
+      const { operator, invitee, admin, applicationId } = await setupTraining();
+
+      const assigned = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/training`)
+        .set('x-test-user', admin.id)
+        .send({ assignee_user_id: invitee.id, module_title: 'Customer service' })
+        .expect(201);
+      const assignmentId = assigned.body.training_assignments[0].id;
+
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/training`)
+        .set('x-test-user', operator.id)
+        .send({ assignee_user_id: invitee.id, module_title: 'Other module' })
+        .expect(403);
+
+      const completed = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/training/${assignmentId}/complete`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(completed.body.training_assignments[0].status).toBe('completed');
+
+      const removed = await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/training/${assignmentId}`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(removed.body.training_assignments).toHaveLength(0);
+    });
+  });
 });
