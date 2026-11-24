@@ -688,4 +688,157 @@ describeDb('Group 12 Slice 3e: Follow standards (621-625)', () => {
       expect(otherDetail.body.brand_assets).toHaveLength(0);
     });
   });
+
+  describe('624: operator compliance checklist', () => {
+    async function curateStandard(admin, applicationId, guideTitle = 'Food safety basics') {
+      const guideId = await addGuide(guideTitle);
+      const curated = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards`)
+        .set('x-test-user', admin.id)
+        .send({ guide_id: guideId })
+        .expect(201);
+      return curated.body.standards.find((row) => row.guide_id === guideId);
+    }
+
+    function acknowledgeAs(user, applicationId, standardId, version) {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/standards/${standardId}/acknowledge`)
+        .set('x-test-user', user.id)
+        .attach('signature', PNG_BYTES, 'signature.png')
+        .field('version', String(version));
+    }
+
+    async function inviteAsOperator(operator, applicationId, email) {
+      const res = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/invitations`)
+        .set('x-test-user', operator.id)
+        .send({ email, role: 'member' })
+        .expect(201);
+      return res.body.new_invite_token;
+    }
+
+    function acceptInvite(invitee, token) {
+      return request(app)
+        .post(`/api/franchise/invitations/${token}/respond`)
+        .set('x-test-user', invitee.id)
+        .set('x-test-email', invitee.email)
+        .send({ response: 'accepted' });
+    }
+
+    function standardItem(checklist, standardId) {
+      return checklist.items.find((item) => item.standard_id === standardId);
+    }
+
+    test('with no standards the checklist is the readiness item alone, pending', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      const checklist = detail.body.compliance_checklist;
+      expect(checklist.total).toBe(1);
+      expect(checklist.done).toBe(0);
+      expect(checklist.items).toHaveLength(1);
+      expect(checklist.items[0].kind).toBe('readiness');
+      expect(checklist.items[0].done).toBe(false);
+      expect(checklist.items[0].readiness_status).toBe('not_ready');
+    });
+
+    test('curating a standard adds its item plus the team rollup; acknowledging checks both', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+
+      const before = await applicantDetail(operator, applicationId).expect(200);
+      const beforeList = before.body.compliance_checklist;
+      expect(beforeList.total).toBe(3);
+      expect(beforeList.done).toBe(0);
+      const standardBefore = standardItem(beforeList, standard.id);
+      expect(standardBefore.kind).toBe('standard');
+      expect(standardBefore.done).toBe(false);
+      expect(standardBefore.acknowledged_count).toBe(0);
+      expect(standardBefore.member_count).toBe(1);
+      expect(standardBefore.version).toBe(1);
+      const teamBefore = beforeList.items.find((item) => item.kind === 'team');
+      expect(teamBefore.done).toBe(false);
+      expect(teamBefore.pending_standards).toBe(1);
+
+      await acknowledgeAs(operator, applicationId, standard.id, 1).expect(201);
+
+      const after = await applicantDetail(operator, applicationId).expect(200);
+      const afterList = after.body.compliance_checklist;
+      expect(afterList.done).toBe(2);
+      expect(standardItem(afterList, standard.id).done).toBe(true);
+      expect(afterList.items.find((item) => item.kind === 'team').done).toBe(true);
+
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      const bundleList = bundle.body.compliance_checklist;
+      expect(bundleList.done).toBe(2);
+      expect(standardItem(bundleList, standard.id).done).toBe(true);
+      expect(bundleList.items.find((item) => item.kind === 'team').done).toBe(true);
+    });
+
+    test('the team item stays pending until every member acknowledges, in both perspectives', async () => {
+      const operator = await addUser();
+      const invitee = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+      const token = await inviteAsOperator(operator, applicationId, invitee.email);
+      await acceptInvite(invitee, token).expect(200);
+
+      await acknowledgeAs(operator, applicationId, standard.id, 1).expect(201);
+
+      // Viewer perspective: my standard item is checked, the team item is not.
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      const viewerList = detail.body.compliance_checklist;
+      expect(standardItem(viewerList, standard.id).done).toBe(true);
+      expect(standardItem(viewerList, standard.id).acknowledged_count).toBe(1);
+      expect(standardItem(viewerList, standard.id).member_count).toBe(2);
+      expect(viewerList.items.find((item) => item.kind === 'team').done).toBe(false);
+      expect(viewerList.done).toBe(1);
+
+      // Team perspective (HQ): the standard item itself is not done yet.
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      const teamList = bundle.body.compliance_checklist;
+      expect(standardItem(teamList, standard.id).done).toBe(false);
+      expect(teamList.items.find((item) => item.kind === 'team').done).toBe(false);
+
+      await acknowledgeAs(invitee, applicationId, standard.id, 1).expect(201);
+      const bundleAfter = await adminBundle(admin, applicationId).expect(200);
+      expect(standardItem(bundleAfter.body.compliance_checklist, standard.id).done).toBe(true);
+      expect(bundleAfter.body.compliance_checklist.items.find((item) => item.kind === 'team').done).toBe(true);
+    });
+
+    test('a passed readiness review checks the readiness item; a new version unchecks the standard item', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const standard = await curateStandard(admin, applicationId);
+      await acknowledgeAs(operator, applicationId, standard.id, 1).expect(201);
+
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/readiness-review`)
+        .set('x-test-user', admin.id)
+        .send({ outcome: 'passed' })
+        .expect(201);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      const checklist = detail.body.compliance_checklist;
+      expect(checklist.done).toBe(3);
+      expect(checklist.items.find((item) => item.kind === 'readiness').done).toBe(true);
+      expect(checklist.items.find((item) => item.kind === 'readiness').readiness_status).toBe('ready');
+
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/standards/${standard.id}/version`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      const afterPublish = await applicantDetail(operator, applicationId).expect(200);
+      const afterList = afterPublish.body.compliance_checklist;
+      expect(standardItem(afterList, standard.id).done).toBe(false);
+      expect(standardItem(afterList, standard.id).version).toBe(2);
+      expect(afterList.items.find((item) => item.kind === 'team').done).toBe(false);
+      expect(afterList.done).toBe(1);
+    });
+  });
 });

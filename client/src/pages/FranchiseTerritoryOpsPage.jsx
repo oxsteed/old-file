@@ -24,6 +24,7 @@ import FranchiseCoveragePlan from './FranchiseCoveragePlan';
 import FranchiseAnnouncements from './FranchiseAnnouncements';
 import FranchiseStandards from './FranchiseStandards';
 import FranchiseBrandAssets from './FranchiseBrandAssets';
+import FranchiseComplianceChecklist from './FranchiseComplianceChecklist';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -732,6 +733,13 @@ export default function FranchiseTerritoryOpsPage() {
               operators browse and download from the territory ops page. */}
           {boundaryDetail && (
             <FranchiseBrandAssets assets={boundaryDetail.brand_assets || []} />
+          )}
+
+          {/* Group 12 Slice 3e (624): the operator compliance checklist —
+              standards compliance derived from the library, the
+              acknowledgment state, and readiness. */}
+          {boundaryDetail && (
+            <FranchiseComplianceChecklist checklist={boundaryDetail.compliance_checklist || null} />
           )}
 
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">

@@ -484,6 +484,14 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     announcements,
     standards,
     brand_assets: brandAssets,
+    // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
+    // derived from the standards library, the acknowledgment state, and
+    // readiness — team perspective for HQ.
+    compliance_checklist: buildComplianceChecklist({
+      standards,
+      readinessStatus: applicationResult.rows[0].launch_readiness_status,
+      perspective: 'team',
+    }),
     readiness_reviews: readinessReviews,
     agreement: agreementResult.rows[0] || null,
     notes: notesResult.rows,
@@ -780,6 +788,58 @@ async function fetchTerritoryMemberIds(applicationId) {
   return rows.map((row) => row.user_id);
 }
 
+// Group 12 Slice 3e (624, D-325): the operator compliance checklist —
+// derived, never stored. One item per current standard, one team
+// rollup item (every member acknowledged every current standard), and
+// one launch-readiness item. The operator "checks" a standard item by
+// acknowledging its current version (622); readiness is HQ-owned. The
+// viewer perspective marks a standard done when the viewer acknowledged
+// it; the team perspective (HQ) marks it done only when every member
+// acknowledged it. This is the standards-compliance checklist —
+// distinct from the HQ intake checklist (603), whose items stay
+// admin-only.
+function buildComplianceChecklist({ standards, readinessStatus, perspective }) {
+  const standardItems = (standards || []).map((standard) => {
+    const done = perspective === 'team'
+      ? standard.member_count > 0 && (standard.acknowledged_count ?? 0) >= standard.member_count
+      : Boolean(standard.acknowledged_by_me);
+    return {
+      code: `standard:${standard.id}`,
+      kind: 'standard',
+      standard_id: standard.id,
+      guide_id: standard.guide_id,
+      guide_title: standard.guide_title || standard.guide_id,
+      version: standard.version,
+      done,
+      acknowledged_count: standard.acknowledged_count ?? 0,
+      member_count: standard.member_count ?? 0,
+    };
+  });
+  // The team rollup is always team-perspective, in both views: it is
+  // done only when every member acknowledged every current standard.
+  // (The per-standard item above is the one that changes with
+  // perspective — viewer: did I acknowledge; team: did everyone.)
+  const teamDoneFor = (standard) => standard.member_count > 0
+    && (standard.acknowledged_count ?? 0) >= standard.member_count;
+  const items = [...standardItems];
+  if ((standards || []).length) {
+    items.push({
+      code: 'team_acknowledgments',
+      kind: 'team',
+      done: standards.every(teamDoneFor),
+      pending_standards: standards.filter((standard) => !teamDoneFor(standard)).length,
+    });
+  }
+  items.push({
+    code: 'launch_readiness',
+    kind: 'readiness',
+    done: ['ready', 'launched'].includes(readinessStatus),
+    readiness_status: readinessStatus || null,
+  });
+  const doneCount = items.filter((item) => item.done).length;
+  return { items, done: doneCount, total: items.length };
+}
+
 // Group 12 Slice 3d (616/617/618): who counts as a territory member —
 // the assigned operator, anyone who accepted a territory invite, or an
 // opening-team helper. Membership is the gate for manager assignment
@@ -1016,6 +1076,10 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   ]);
 
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
+  // Group 12 Slice 3e (621/622/623): the standards library (with the
+  // viewer's own acknowledgment state) and the brand asset store.
+  const standards = await fetchFranchiseStandards(applicationId, { userId });
+  const brandAssets = await fetchBrandAssets(applicationId);
 
   return {
     application: {
@@ -1036,11 +1100,16 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     territory_invitations: territoryInvitations,
     training_assignments: trainingAssignments,
     announcements,
-    // Group 12 Slice 3e (621/622): the franchise standards library,
-    // with the viewer's own acknowledgment state per standard.
-    standards: await fetchFranchiseStandards(applicationId, { userId }),
-    // Group 12 Slice 3e (623): the brand asset store.
-    brand_assets: await fetchBrandAssets(applicationId),
+    standards,
+    brand_assets: brandAssets,
+    // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
+    // derived from the standards library, the acknowledgment state, and
+    // readiness — viewer perspective.
+    compliance_checklist: buildComplianceChecklist({
+      standards,
+      readinessStatus: applicationResult.rows[0].launch_readiness_status,
+      perspective: 'viewer',
+    }),
     readiness_reviews: readinessReviews,
     activity: activityResult.rows,
   };

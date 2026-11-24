@@ -22,6 +22,7 @@ import FranchiseCoveragePlan from '../../../pages/FranchiseCoveragePlan';
 import FranchiseAnnouncements from '../../../pages/FranchiseAnnouncements';
 import FranchiseStandards from '../../../pages/FranchiseStandards';
 import FranchiseBrandAssets from '../../../pages/FranchiseBrandAssets';
+import FranchiseComplianceChecklist from '../../../pages/FranchiseComplianceChecklist';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -1880,6 +1881,10 @@ export default function FranchiseHQPage() {
                     onDelete={deleteBrandAsset}
                     disabled={saving}
                   />
+
+                  {/* Group 12 Slice 3e (624): the operator compliance
+                      checklist — team perspective for HQ. */}
+                  <FranchiseComplianceChecklist checklist={selectedBundle.compliance_checklist || null} />
 
                   {/* Group 12 Slice 3c (613): HQ records a formal readiness
                       review — the only path that moves readiness to `ready`. */}
