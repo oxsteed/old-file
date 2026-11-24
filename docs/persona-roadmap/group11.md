@@ -56,17 +56,17 @@ Emile's ten claimed items (557, 558, 572, 573, 577, 578, 581, 582, 585, 593) wer
 | 594 | Safety documentation | EXISTS | Safety document upload per listing (`tool_rental_safety_documents`, migration `20261124030000`): PDF/image, owner-uploaded through the listing-gallery upload path, listed on the public listing and in `BookingModal` for renters, on the owner's rows, and in the admin moderation view (`GET /admin/tool-rentals/:toolId/safety-documents`). Acceptance: `server/__tests__/group11Slice2eDisputesMaintainReview.db.test.js` (594: 2 tests) on `credit_statement_test_g11e`. | verified — built 2026-11-23 (Slice 2e) |
 | 595 | Return-to-availability checklist | EXISTS | Checklist gating the return to availability, server-enforced on `PUT /tool-rentals/:id` (409 `availability_checklist_incomplete` with the failing checks): return-phase condition report for the last rental (vacuous when never rented), no unresolved missing accessories, no open damage claim, cleaning confirmed. Checklist shown in the owner dashboard with a confirm-cleaning + restore action. Acceptance: `server/__tests__/group11Slice2eDisputesMaintainReview.db.test.js` (595: 3 tests) on `credit_statement_test_g11e`. | verified — built 2026-11-23 (Slice 2e) |
 | 596 | Rental history | EXISTS | `GET /bookings/my` + `GET /bookings/owner` (`server/routes/toolRentals.js:695-696`); both lists rendered in `MyBookingsPage.tsx`. | verified |
-| 597 | Utilization report | BUILD | Analytics tracks views, favorites, inquiries, bookings, revenue (`toolAnalyticsController.js`, `getOwnerDashboard`) but no booked-days / available-days utilization ratio. | todo |
+| 597 | Utilization report | EXISTS | Utilization per tool in the analytics view (`GET /tool-rentals/analytics/utilization`, `toolAnalyticsController.js:getUtilization`): booked days (live bookings overlapping the period) vs available days (days in the period, default last 30, max 365), per tool plus an overall ratio. Acceptance: `server/__tests__/group11Slice2eDisputesMaintainReview.db.test.js` (597: 1 test) on `credit_statement_test_g11e`. | verified — built 2026-11-23 (Slice 2e) |
 | 598 | Listing demand summary | EXISTS | Per-tool views, favorites, inquiries, completed bookings, revenue (`getOwnerDashboard`, `toolAnalyticsController.js:79-206`) rendered in `client/src/pages/ToolRentalsAnalytics.tsx` (incl. top-tools endpoint). | verified |
 | 599 | Permitted earnings summary | PARTIAL | Gross revenue (monthly + per-tool) in analytics (`getOwnerDashboard`); last-30-day gross earnings tile in `ToolOwnerDashboard.jsx` (client-derived, `deriveToolOwnerStats`). Gross-only per D-261/D-289: no settlement leg is built in this slice while payments are off-platform (D-257). The analytics page now states the gross-only basis next to the utilization table. | verified — gross only; settlement leg deferred (D-261, D-289) |
 | 600 | Repeat renter follow-up | EXISTS | Repeat renters identified per owner (2+ completed bookings, `GET /tool-rentals/renters/repeat`), listed in the owner dashboard with their follow-up notes; follow-up records a note server-side (`tool_rental_followups`) and the panel links into the existing messages thread with that renter (`/messages?helperId=<renterId>`, D-288). Acceptance: `server/__tests__/group11Slice2eDisputesMaintainReview.db.test.js` (600: 1 test) on `credit_statement_test_g11e`. | verified — built 2026-11-23 (Slice 2e) |
 
 ## Counts
 
-- EXISTS: 21 (553, 556, 557, 558, 560, 561, 567, 569, 572, 573, 577, 578, 579, 581, 582, 585, 588, 592, 593, 596, 598)
-- PARTIAL: 16 (551, 554, 555, 559, 566, 568, 570, 574, 575, 576, 583, 586, 587, 589, 590, 599)
-- BUILD: 13 (552, 562, 563, 564, 565, 571, 580, 584, 591, 594, 595, 597, 600)
-- Total: 50. Emile's ten claimed items: 10/10 verified EXISTS.
+- EXISTS: 48 (551-558, 560-598, 600)
+- PARTIAL: 2 (559, 599)
+- BUILD: 0
+- Total: 50. Emile's ten claimed items: 10/10 verified EXISTS. Group 11 (551-600) complete as of Slice 2e, 2026-11-23: the only remaining PARTIAL rows are 559 (multi-photo gallery management UI still unverified) and 599 (gross-only per D-261/D-289, settlement leg deferred while payments are off-platform). (Counts block reconciled against the rows above in Slice 2e; earlier slices had moved items to EXISTS without updating this block.)
 
 ## Next step
 
