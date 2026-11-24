@@ -11,6 +11,75 @@
 //   at booking, frozen into the agreement snapshot.
 // 583: cancellation recovery — record-only refund settlement (propose /
 //   agree / settle); the money moves off-platform (D-257).
+// 584: replacement listing suggestions — same category, free for the
+//   requested dates, nearest first, excluding the unavailable listing.
+
+jest.unmock('pg');
+jest.unmock('../db');
+jest.unmock('../utils/transaction');
+
+const { randomUUID } = require('node:crypto');
+const express = require('express');
+const request = require('supertest');
+
+const dbUrl = process.env.GROUP11_SLICE2D_TEST_DATABASE_URL;
+if (dbUrl) {
+  const url = new URL(dbUrl);
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)
+    || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
+    || url.pathname !== '/credit_statement_test_g11d') {
+    throw new Error('Group 11 Slice 2d DB tests require the loopback credit_statement_test_g11d database');
+  }
+  process.env.DATABASE_URL = dbUrl;
+}
+
+const mockRoles = new Map();
+jest.mock('../middleware/auth', () => {
+  const authenticate = (req, res, next) => {
+    const id = req.get('x-test-user');
+    if (!id) return res.sendStatus(401);
+    req.user = {
+      id,
+      role: mockRoles.get(id) || 'customer',
+      email: req.get('x-test-email') || `g11d-${id}@example.invalid`,
+      email_verified: !req.get('x-test-unverified'),
+    };
+    return next();
+  };
+  return { authenticate, authenticateIfPresent: (req, res, next) => (
+    req.get('x-test-user') ? authenticate(req, res, next) : next()
+  ) };
+});
+jest.mock('../middleware/adminAuth', () => ({
+  ...jest.requireActual('../middleware/adminAuth'),
+  requireAdmin: (req, res, next) => {
+    if (req.user?.role !== 'super_admin') return res.sendStatus(403);
+    req.isSuper = true;
+    return next();
+  },
+}));
+jest.mock('../utils/email', () => ({
+  sendEmail: jest.fn().mockResolvedValue({ success: true }),
+  sendEmailOrThrow: jest.fn().mockResolvedValue({ success: true }),
+}));
+jest.mock('../services/notificationService', () => ({
+  sendNotification: jest.fn().mockResolvedValue({ success: true }),
+}));
+jest.mock('../services/bookingEmailService', () => ({
+  sendBookingConfirmation: jest.fn(),
+  sendBookingApproved: jest.fn(),
+  sendBookingDeclined: jest.fn(),
+}));
+jest.mock('../growth/emit', () => ({
+  emitDomainEvent: jest.fn().mockResolvedValue(undefined),
+  commerceEventProps: (value) => value,
+}));
+jest.mock('../utils/invoiceEmail', () => ({
+  sendInvoiceEmail: jest.fn().mockResolvedValue({ success: true }),
+}));
+
+const describeDb = dbUrl ? describe : describe.skip;
+
 describeDb('Group 11 Slice 2d: Return + Changes (576, 580, 583, 584)', () => {
   let db;
   let app;
@@ -530,4 +599,101 @@ describeDb('Group 11 Slice 2d: Return + Changes (576, 580, 583, 584)', () => {
     });
   });
 
+  describe('584: replacement listing suggestions', () => {
+    async function scenario() {
+      const owner = await addUser();
+      const owner2 = await addUser();
+      await grantToolOwner(owner);
+      await grantToolOwner(owner2);
+      const unavailable = await insertTool(owner, { name: 'Booked drill', category: 'Power Tools' });
+      const freeSame = await insertTool(owner2, {
+        name: 'Free drill', category: 'Power Tools',
+        location_lat: 30.27, location_lng: -97.74,
+      });
+      const freeNear = await insertTool(owner2, {
+        name: 'Near drill', category: 'Power Tools',
+        location_lat: 30.28, location_lng: -97.75,
+      });
+      const freeFar = await insertTool(owner2, {
+        name: 'Far drill', category: 'Power Tools',
+        location_lat: 31.5, location_lng: -99.0,
+      });
+      const bookedSame = await insertTool(owner2, { name: 'Taken drill', category: 'Power Tools' });
+      const otherCategory = await insertTool(owner2, { name: 'Saw', category: 'Cutting Tools' });
+      const hidden = await insertTool(owner2, { name: 'Hidden drill', category: 'Power Tools', is_available: false });
+      return { owner, owner2, unavailable, freeSame, freeNear, freeFar, bookedSame, otherCategory, hidden };
+    }
+
+    const alternatives = (toolId, query) => request(app)
+      .get(`/api/tool-rentals/${toolId}/alternatives`)
+      .query(query);
+
+    test('suggests same-category tools free for the dates, excluding the tool itself and booked ones', async () => {
+      const s = await scenario();
+      const renter = await addUser();
+      // The requested tool is booked for the dates, and so is one alternative.
+      await insertBooking(s.unavailable.id, renter, s.owner, '2026-12-10', '2026-12-12', 'payment_confirmed');
+      await insertBooking(s.bookedSame.id, renter, s.owner2, '2026-12-10', '2026-12-12', 'payment_confirmed');
+      const res = await alternatives(s.unavailable.id, { startDate: '2026-12-10', endDate: '2026-12-12' }).expect(200);
+      const ids = res.body.tools.map((t) => t.id);
+      expect(ids).toContain(s.freeSame.id);
+      expect(ids).toContain(s.freeNear.id);
+      expect(ids).toContain(s.freeFar.id);
+      expect(ids).not.toContain(s.unavailable.id);
+      expect(ids).not.toContain(s.bookedSame.id);
+      expect(ids).not.toContain(s.otherCategory.id);
+      expect(ids).not.toContain(s.hidden.id);
+    });
+
+    test('a cancelled booking does not block an alternative', async () => {
+      const s = await scenario();
+      const renter = await addUser();
+      await insertBooking(s.freeSame.id, renter, s.owner2, '2026-12-10', '2026-12-12', 'cancelled');
+      const res = await alternatives(s.unavailable.id, { startDate: '2026-12-10', endDate: '2026-12-12' }).expect(200);
+      expect(res.body.tools.map((t) => t.id)).toContain(s.freeSame.id);
+    });
+
+    test('with a point, alternatives come back nearest first with distances', async () => {
+      // This scenario uses its own coordinate cluster, far from the
+      // (30.27, -97.74) point the other scenarios share, with a tight
+      // radius, so distance ties from earlier scenarios cannot crowd
+      // these tools out of the result.
+      const owner = await addUser();
+      const owner2 = await addUser();
+      await grantToolOwner(owner);
+      await grantToolOwner(owner2);
+      const unavailable = await insertTool(owner, { name: 'Booked drill', category: 'Power Tools' });
+      const freeSame = await insertTool(owner2, {
+        name: 'Free drill', category: 'Power Tools', location_lat: 35.0, location_lng: -100.0,
+      });
+      const freeNear = await insertTool(owner2, {
+        name: 'Near drill', category: 'Power Tools', location_lat: 35.01, location_lng: -100.01,
+      });
+      const freeFar = await insertTool(owner2, {
+        name: 'Far drill', category: 'Power Tools', location_lat: 36.0, location_lng: -101.0,
+      });
+      const res = await alternatives(unavailable.id, {
+        startDate: '2026-12-10', endDate: '2026-12-12',
+        lat: 35.0, lng: -100.0, radius: 100, limit: 10,
+      }).expect(200);
+      const mine = res.body.tools.filter((t) => [freeSame.id, freeNear.id, freeFar.id].includes(t.id));
+      expect(mine.map((t) => t.name)).toEqual(['Free drill', 'Near drill', 'Far drill']);
+      expect(Number(mine[0].distance_miles)).toBeCloseTo(0, 1);
+      expect(Number(mine[1].distance_miles)).toBeLessThan(Number(mine[2].distance_miles));
+    });
+
+    test('limit is honored and invalid input is refused', async () => {
+      const s = await scenario();
+      const limited = await alternatives(s.unavailable.id, { startDate: '2026-12-10', endDate: '2026-12-12', limit: 1 }).expect(200);
+      expect(limited.body.tools).toHaveLength(1);
+      await alternatives(s.unavailable.id, { startDate: '2026-12-10' }).expect(400);
+      await alternatives(s.unavailable.id, { startDate: '2026-12-12', endDate: '2026-12-10' }).expect(400);
+      await alternatives(s.unavailable.id, { startDate: '2026-02-30', endDate: '2026-03-02' }).expect(400);
+      await alternatives(999999, { startDate: '2026-12-10', endDate: '2026-12-12' }).expect(404);
+      const partialDistance = await alternatives(s.unavailable.id, {
+        startDate: '2026-12-10', endDate: '2026-12-12', lat: 30.27, lng: -97.74,
+      });
+      expect(partialDistance.status).toBe(400);
+    });
+  });
 });

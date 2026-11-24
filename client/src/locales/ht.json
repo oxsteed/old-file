@@ -13600,6 +13600,8 @@
     "recoveryStatus_proposed": "Pwopoze",
     "recoveryStatus_agreed": "Dakò",
     "recoveryStatus_settled": "Regle",
+    "alternativesTitle": "Zouti ki sanble pou dat sa yo",
+    "alternativesHint": "Zouti sa yo lib pou dat ou te chwazi yo.",
     "confirmPickup": "Konfime ranmase a",
     "pickupConfirmed": "Ranmase konfime",
     "pickupConfirmedNote": "Ou konfime ou te resevwa atik la jan li te dekri a.",

@@ -795,6 +795,7 @@ const declineReturnReschedule = async (req, res, next) => {
 // settlement (amount + who pays whom + status) and the other party
 // confirms it; either party marks it settled once the money has moved
 // off-platform. The platform records the agreement and never moves money.
+// Rebooking is a fresh booking, offered through the 584 alternatives.
 async function loadBookingForRecovery(bookingId, userId) {
   const bookingQuery = await db.query(
     'SELECT * FROM tool_rentals_bookings WHERE id = $1',

@@ -3,6 +3,8 @@
 --   booking, and a renter-proposed / owner-decided return reschedule.
 -- 580: owner-written cleaning instructions on the listing.
 -- 583: record-only cancellation recovery (refund agreement) per booking.
+-- 584: no new table; alternatives are a read query over tool_rentals.
+-- Additive only; safe to run twice. No money movement (D-257): the
 -- recovery records an agreed refund settlement; the money moves
 -- off-platform, and a reschedule never changes charges.
 

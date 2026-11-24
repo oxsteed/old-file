@@ -51,6 +51,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
   const [pickupTime, setPickupTime] = useState('');
   // Group 11 item 576: return appointment time (HH:MM).
   const [returnTime, setReturnTime] = useState('');
+  // Group 11 item 584: replacement suggestions when the requested dates
+  // are already booked.
+  const [alternatives, setAlternatives] = useState<Array<{ id: number; name: string; daily_rate: number; distance_miles?: number | null }>>([]);
+  const [alternativesLoading, setAlternativesLoading] = useState(false);
 
   const formatWindowTime = (value: string | null | undefined): string => {
     if (!value) return '';
@@ -164,6 +168,17 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
     for (const booking of bookedDates) {
       if (toolRentalDatesOverlap(startDate, endDate, booking.start_date, booking.end_date)) {
         toast.error(t('toolRentals.dateConflict'));
+        // 584: the dates are taken; offer replacement listings for the
+        // same dates instead of leaving the renter at a dead end.
+        setAlternativesLoading(true);
+        try {
+          const found = await toolRentalsApi.getAlternatives(tool.id, { startDate, endDate });
+          setAlternatives(found);
+        } catch {
+          setAlternatives([]);
+        } finally {
+          setAlternativesLoading(false);
+        }
         return;
       }
     }
@@ -180,6 +195,18 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
       } else if (err.response?.data?.code === 'fulfillment_not_available') {
         toast.error(t('toolRentals.fulfillmentNotAvailable'));
       } else if (err.response?.data?.code === 'conflict') {
+        // 584: the dates are taken; offer replacement listings for the
+        // same dates instead of leaving the renter at a dead end.
+        toast.error(t('toolRentals.dateConflict'));
+        setAlternativesLoading(true);
+        try {
+          const found = await toolRentalsApi.getAlternatives(tool.id, { startDate, endDate });
+          setAlternatives(found);
+        } catch {
+          setAlternatives([]);
+        } finally {
+          setAlternativesLoading(false);
+        }
       } else if (err.response?.status === 409) {
         toast.error(t('toolRentals.dateConflict'));
       } else {
@@ -332,6 +359,29 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
               )}
             </div>
 
+            {/* 584: replacement suggestions when the requested dates are
+                already booked for this tool. */}
+            {alternatives.length > 0 && (
+              <div className="booking-form-group" data-testid="booking-alternatives">
+                <h3>{t('toolRentals.alternativesTitle')}</h3>
+                <p className="booking-fulfillment-hint" role="note">
+                  {t('toolRentals.alternativesHint')}
+                </p>
+                <ul>
+                  {alternatives.map((alt) => (
+                    <li key={alt.id}>
+                      <Link to={`/tool-rentals/${alt.id}`} onClick={onClose} data-track="ui.043dee9378.7">
+                        {alt.name} · ${Number(alt.daily_rate).toFixed(2)}/day
+                        {alt.distance_miles != null ? ` · ${Number(alt.distance_miles).toFixed(1)} mi` : ''}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {alternativesLoading && (
+              <p className="booking-fulfillment-hint" role="status">{t('common.loading')}</p>
+            )}
             {days > 0 && (
               <div className="booking-price-summary">
                 <div className="booking-price-row">

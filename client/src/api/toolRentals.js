@@ -107,6 +107,18 @@ export const toolRentalsApi = {
     return response.data;
   },
 
+  // Group 11 item 584: replacement listing suggestions for a tool that
+  // is unavailable for the requested dates.
+  getAlternatives: async (toolId, { startDate, endDate, lat, lng, radius, limit } = {}) => {
+    const params = { startDate, endDate };
+    if (lat !== undefined && lat !== null) params.lat = lat;
+    if (lng !== undefined && lng !== null) params.lng = lng;
+    if (radius !== undefined && radius !== null) params.radius = radius;
+    if (limit) params.limit = limit;
+    const response = await api.get(`/tool-rentals/${toolId}/alternatives`, { params });
+    return response.data.tools || [];
+  },
+
   getAvailability: async (toolId) => {
     const response = await api.get(`/tool-rentals/${toolId}/availability`);
     return response.data;

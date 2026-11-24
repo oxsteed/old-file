@@ -120,6 +120,8 @@ const MyBookingsPageContent = () => {
   // Group 11 item 583: cancellation recovery record per cancelled booking.
   const [recoveries, setRecoveries] = useState<Record<number, any>>({});
   const [recoveryDraft, setRecoveryDraft] = useState<Record<number, { amount: string; direction: string; note: string }>>({});
+  // Group 11 item 584: replacement suggestions per cancelled booking.
+  const [bookingAlternatives, setBookingAlternatives] = useState<Record<number, any[]>>({});
 
   useEffect(() => {
     loadBookings();
@@ -150,6 +152,10 @@ const MyBookingsPageContent = () => {
           if (recovery) setRecoveries((prev) => ({ ...prev, [b.id]: recovery }));
         } catch { /* no recovery recorded yet */ }
         try {
+          const alts = await toolRentalsApi.getAlternatives(b.tool_id, { startDate: b.start_date, endDate: b.end_date });
+          setBookingAlternatives((prev) => ({ ...prev, [b.id]: alts }));
+        } catch { /* alternatives unavailable */ }
+      }));
     } catch (err) {
       setError(t('toolRentals.loadingError') || 'Failed to load bookings');
     } finally {
@@ -584,9 +590,11 @@ const MyBookingsPageContent = () => {
   };
 
   // Group 11 item 583: cancellation recovery (record-only refund
+  // agreement) + Group 11 item 584: replacement suggestions for rebook.
   const renderRecoveryPanel = (booking: Booking) => {
     const recovery = recoveries[booking.id];
     const draft = recoveryDraft[booking.id] || { amount: '', direction: 'owner_to_renter', note: '' };
+    const alternatives = bookingAlternatives[booking.id] || [];
     const isProposer = recovery?.proposed_by === user?.id;
     return (
       <div className="booking-card-note" data-testid={`booking-recovery-${booking.id}`}>
@@ -673,6 +681,22 @@ const MyBookingsPageContent = () => {
             </div>
           </div>
         )}
+        {alternatives.length > 0 && (
+          <div>
+            <h4>{t('toolRentals.alternativesTitle') || 'Similar tools for these dates'}</h4>
+            <ul>
+              {alternatives.map((alt: any) => (
+                <li key={alt.id}>
+                  <Link to={`/tool-rentals/${alt.id}`}>
+                    {alt.name} · ${Number(alt.daily_rate).toFixed(2)}/day
+                    {alt.distance_miles != null ? ` · ${Number(alt.distance_miles).toFixed(1)} mi` : ''}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <Link to="/tool-rentals" className="booking-action-btn booking-action-invoice">
           {t('toolRentals.recoveryBrowseAgain') || 'Search for tools again'}
         </Link>
       </div>

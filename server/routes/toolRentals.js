@@ -683,6 +683,141 @@ async function browseTools(req, res) {
 router.get('/', browseTools);
 router.get('/browse', browseTools);
 
+// Group 11 item 584 (D-279): replacement listing suggestions. When a
+// listing is unavailable for the requested dates (or a booking is
+// cancelled), suggest alternatives: same category, free for the whole
+// requested range (the 562 NOT EXISTS availability join), nearest first
+// when a point is given (the 564 haversine), excluding the listing
+// itself. The alternatives pass the same public gates as browse.
+async function getToolAlternatives(req, res) {
+  try {
+    const toolId = parseInt(req.params.toolId, 10);
+    if (!Number.isInteger(toolId) || toolId < 1) {
+      return res.status(400).json({ error: 'Invalid tool id', code: 'validation_failed' });
+    }
+    const { startDate, endDate, lat, lng, radius } = req.query;
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 5), 10);
+    const start = parseDateOnlyUTC(startDate);
+    const end = parseDateOnlyUTC(endDate);
+    if (!start || !end || end <= start) {
+      return res.status(400).json({
+        error: 'Invalid rental dates',
+        code: 'validation_failed',
+        fields: {
+          startDate: start ? undefined : 'Invalid date',
+          endDate: end && end > start ? undefined : 'End date must be after the start date',
+        },
+      });
+    }
+    const toolResult = await pool.query(
+      'SELECT id, category FROM tool_rentals WHERE id = $1',
+      [toolId]
+    );
+    if (!toolResult.rows.length) {
+      return res.status(404).json({ error: 'Tool not found' });
+    }
+    const category = toolResult.rows[0].category;
+    const { toolFields, ownerRatingExpr, hasAvatarUrl, hasResponseTime, hasModerationHold, hasLocationColumns } = await getToolFields();
+
+    // 564: optional distance filter/ordering. lat+lng+radius arrive
+    // together; a partial set is a 400, like browse.
+    let distanceSelect = '';
+    let distanceFilter = null;
+    const params = [category, toolId, endDate, startDate];
+    let idx = 5;
+    if (lat !== undefined || lng !== undefined || radius !== undefined) {
+      const latN = Number(lat);
+      const lngN = Number(lng);
+      const radiusN = Number(radius);
+      const distanceErrors = {};
+      if (!Number.isFinite(latN) || latN < -90 || latN > 90) distanceErrors.lat = 'Invalid latitude';
+      if (!Number.isFinite(lngN) || lngN < -180 || lngN > 180) distanceErrors.lng = 'Invalid longitude';
+      if (!Number.isFinite(radiusN) || radiusN <= 0 || radiusN > 500) distanceErrors.radius = 'Invalid radius';
+      if (Object.keys(distanceErrors).length) {
+        return res.status(400).json({ error: 'Invalid distance filter', code: 'validation_failed', fields: distanceErrors });
+      }
+      if (!hasLocationColumns) {
+        return res.status(400).json({ error: 'Distance filter is unavailable', code: 'unavailable' });
+      }
+      distanceFilter = { lat: latN, lng: lngN, radius: radiusN };
+      const latIdx = idx++;
+      const lngIdx = idx++;
+      const radiusIdx = idx++;
+      params.push(latN, lngN, radiusN);
+      const haversine = `(3959 * acos(LEAST(1, GREATEST(-1, cos(radians($${latIdx})) * cos(radians(t.location_lat)) * cos(radians(t.location_lng) - radians($${lngIdx})) + sin(radians($${latIdx})) * sin(radians(t.location_lat))))))`;
+      distanceSelect = `, ${haversine} AS distance_miles`;
+      params.push(limit);
+      const limitIdx = idx++;
+      const result = await pool.query(
+        `SELECT ${toolFields}${distanceSelect},
+                ${buildUserFields(hasAvatarUrl, hasResponseTime)},
+                t.user_id AS owner_id,
+                ${ownerRatingExpr} AS owner_rating
+           FROM tool_rentals t
+           JOIN users u ON u.id = t.user_id
+           LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
+          WHERE t.is_available = TRUE
+            AND t.category = $1
+            AND t.id <> $2
+            ${hasModerationHold ? 'AND NOT t.moderation_hold' : ''}
+            AND t.location_lat IS NOT NULL AND t.location_lng IS NOT NULL
+            AND ${haversine} <= $${radiusIdx}
+            AND NOT EXISTS (
+              SELECT 1 FROM tool_rentals_bookings b
+               WHERE b.tool_id = t.id
+                 AND b.status IN ('pending', 'invoice_sent', 'payment_confirmed')
+                 AND b.start_date <= $3
+                 AND b.end_date >= $4
+            )
+            AND u.is_active = TRUE
+            AND u.deleted_at IS NULL
+            AND u.email_verified = TRUE
+            AND u.onboarding_completed = TRUE
+          ORDER BY distance_miles ASC
+          LIMIT $${limitIdx}`,
+        params
+      );
+      return res.json({ tools: attachPublicOwnerNames(result.rows) });
+    }
+    void distanceFilter;
+    params.push(limit);
+    const limitIdx = idx++;
+    const result = await pool.query(
+      `SELECT ${toolFields}${distanceSelect},
+              ${buildUserFields(hasAvatarUrl, hasResponseTime)},
+              t.user_id AS owner_id,
+              ${ownerRatingExpr} AS owner_rating
+         FROM tool_rentals t
+         JOIN users u ON u.id = t.user_id
+         LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
+        WHERE t.is_available = TRUE
+          AND t.category = $1
+          AND t.id <> $2
+          ${hasModerationHold ? 'AND NOT t.moderation_hold' : ''}
+          AND NOT EXISTS (
+            SELECT 1 FROM tool_rentals_bookings b
+             WHERE b.tool_id = t.id
+               AND b.status IN ('pending', 'invoice_sent', 'payment_confirmed')
+               AND b.start_date <= $3
+               AND b.end_date >= $4
+          )
+          AND u.is_active = TRUE
+          AND u.deleted_at IS NULL
+          AND u.email_verified = TRUE
+          AND u.onboarding_completed = TRUE
+        ORDER BY t.created_at DESC
+        LIMIT $${limitIdx}`,
+      params
+    );
+    res.json({ tools: attachPublicOwnerNames(result.rows) });
+  } catch (err) {
+    require('../utils/logger').error('[toolRentals] alternatives error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch alternatives' });
+  }
+}
+
+router.get('/:toolId/alternatives', getToolAlternatives);
+
 // GET /api/tool-rentals/public/:id - single listing for deep links (Discover, etc.)
 router.get('/public/:id', async (req, res) => {
   try {
