@@ -185,10 +185,12 @@ export default function FranchiseHQPage() {
   const [filters, setFilters] = useState({ status: '', country: '', agreement_status: '' });
   const [search, setSearch] = useState('');
   const [noteText, setNoteText] = useState('');
-// Group 12 Slice 3a (604/603): interview proposal form and per-document
-// review reasons.
+  const [noteVisibility, setNoteVisibility] = useState('internal');
+  // Group 12 Slice 3a (604/603/605): interview proposal form, per-document
+  // review reasons, and the decision follow-up reply box.
   const [interviewForm, setInterviewForm] = useState({ starts_at: '', ends_at: '', interviewer_name: '', note: '' });
   const [docReasons, setDocReasons] = useState({});
+  const [followupText, setFollowupText] = useState('');
   const [createForm, setCreateForm] = useState({
     first_name: '',
     last_name: '',
@@ -369,7 +371,7 @@ export default function FranchiseHQPage() {
     if (!selectedApplication || !noteText.trim()) return;
     try {
       setSaving(true);
-      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/notes`, { note_text: noteText });
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/notes`, { note_text: noteText, visibility: noteVisibility });
       setSelectedBundle(res.data);
       setNoteText('');
       toast.success(t('adminFranchiseNoteAdded'));
@@ -429,6 +431,21 @@ export default function FranchiseHQPage() {
       toast.success(t('adminFranchiseDocumentReviewed'));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseDocumentReviewFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function sendFollowup() {
+    if (!selectedApplication || !followupText.trim()) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/followup`, { body: followupText.trim() });
+      setSelectedBundle(res.data);
+      setFollowupText('');
+      toast.success(t('adminFranchiseFollowupSent'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseNoteFailed'));
     } finally {
       setSaving(false);
     }
@@ -758,12 +775,19 @@ export default function FranchiseHQPage() {
                     <div style={{ ...panel, padding: 22, display: 'grid', gap: 12 }}>
                       <div style={{ fontSize: '1.08rem', fontWeight: 700, color: '#f8fafc' }}>{t('adminFranchiseInternalNotes')}</div>
                       <textarea style={{ ...fieldStyle, minHeight: 92 }} placeholder={t('adminFranchiseNotesPlaceholder')} value={noteText} onChange={(e) => setNoteText(e.target.value)} />
+                      <div className="frhq-note-visibility">
+                        <span>{t('adminFranchiseNoteVisibility')}</span>
+                        <select className="frhq-field" value={noteVisibility} onChange={(e) => setNoteVisibility(e.target.value)}>
+                          <option value="internal">{t('adminFranchiseNoteInternal')}</option>
+                          <option value="shared">{t('adminFranchiseNoteShared')}</option>
+                        </select>
+                      </div>
                       <button type="button" disabled={saving || !noteText.trim()} onClick={addNote} style={{ border: 'none', borderRadius: 14, background: 'linear-gradient(135deg, #0ea5e9, #2563eb)', color: 'white', padding: '10px 16px', fontWeight: 700, cursor: 'pointer' }}>{t('adminFranchiseAddNote')}</button>
                       <div style={{ display: 'grid', gap: 10, maxHeight: 260, overflowY: 'auto' }}>
                         {selectedBundle.notes.length ? selectedBundle.notes.map((note) => (
                           <div key={note.id} style={{ borderRadius: 16, padding: 14, background: 'rgba(2, 6, 23, 0.56)', border: '1px solid rgba(148, 163, 184, 0.12)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 8, color: '#94a3b8', fontSize: '0.78rem' }}>
-                              <span>{note.admin_email || t('adminFranchiseSystem')}</span>
+                              <span>{note.admin_email || t('adminFranchiseSystem')} · {note.visibility === 'shared' ? t('adminFranchiseNoteShared') : t('adminFranchiseNoteInternal')}</span>
                               <span>{new Date(note.created_at).toLocaleString()}</span>
                             </div>
                             <div style={{ color: '#e5e7eb', fontSize: '0.9rem', lineHeight: 1.55 }}>{note.note_text}</div>
@@ -883,6 +907,32 @@ export default function FranchiseHQPage() {
                     </div>
                   </div>
 
+                  <div className="frhq-panel">
+                    <div className="frhq-panel-title">{t('adminFranchiseFollowupTitle')}</div>
+                    <div className="frhq-list">
+                      {(selectedBundle.followup || []).length ? selectedBundle.followup.map((message) => (
+                        <div key={message.id} className="frhq-row">
+                          <div>
+                            <div className="frhq-row-meta">
+                              {message.author_role === 'admin' ? t('adminFranchiseFollowupFromHq') : t('adminFranchiseFollowupFromApplicant')} · {new Date(message.created_at).toLocaleString()}
+                            </div>
+                            <div className="frhq-row-body">{message.body}</div>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="frhq-empty">{t('adminFranchiseFollowupEmpty')}</div>
+                      )}
+                    </div>
+                    <textarea
+                      className="frhq-field"
+                      placeholder={t('adminFranchiseFollowupPlaceholder')}
+                      value={followupText}
+                      onChange={(e) => setFollowupText(e.target.value)}
+                    />
+                    <button type="button" className="frhq-btn-primary" disabled={saving || !followupText.trim()} onClick={sendFollowup}>
+                      {t('adminFranchiseFollowupSend')}
+                    </button>
+                  </div>
                 </section>
               </>
             )}

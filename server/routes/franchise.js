@@ -32,6 +32,8 @@ const {
   cancelInterviewBooking,
   uploadApplicationDocument,
   reviewApplicationDocument,
+  addApplicantFollowupMessage,
+  addAdminFollowupMessage,
 } = require('../controllers/franchiseController');
 
 const {
@@ -41,12 +43,13 @@ const {
 
 router.post('/applications', generalLimiter, requireFranchiseEnabled, createFranchiseApplication);
 router.get('/my-applications',     authenticate, requireFranchiseEnabled, listMyFranchiseApplications);
-// Group 12 Slice 3a (604/603): applicant detail — interview booking +
-// document upload, scoped to the applicant's own application.
+// Group 12 Slice 3a: applicant detail + interview booking + document
+// upload + follow-up replies, all scoped to the applicant's own application.
 router.get('/my-applications/:id', authenticate, requireFranchiseEnabled, getMyFranchiseApplication);
 router.post('/my-applications/:id/interviews/:slotId/book', authenticate, requireFranchiseEnabled, bookInterviewSlot);
 router.post('/my-applications/:id/interviews/:slotId/cancel', authenticate, requireFranchiseEnabled, cancelInterviewBooking);
 router.post('/my-applications/:id/documents', authenticate, requireFranchiseEnabled, upload.single('file'), validateFileUpload, uploadApplicationDocument);
+router.post('/my-applications/:id/followup', authenticate, requireFranchiseEnabled, addApplicantFollowupMessage);
 router.get('/territory-stats',     authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryStats);
 router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryHelpers);
 
@@ -55,10 +58,11 @@ router.get('/applications/:id', authenticate, requireAdmin, requirePermission('m
 router.patch('/applications/:id', authenticate, requireAdmin, requirePermission('manage_operations'), updateFranchiseApplication);
 router.post('/applications/:id/notes', authenticate, requireAdmin, requirePermission('manage_operations'), addFranchiseNote);
 router.patch('/applications/:id/checklist/:itemId', authenticate, requireAdmin, requirePermission('manage_operations'), updateChecklistItem);
-// Group 12 Slice 3a (604/603): HQ interview slots and document review.
+// Group 12 Slice 3a: HQ interview slots, document review, follow-up replies.
 router.post('/applications/:id/interviews', authenticate, requireAdmin, requirePermission('manage_operations'), proposeInterviewSlot);
 router.patch('/applications/:id/interviews/:slotId', authenticate, requireAdmin, requirePermission('manage_operations'), updateInterviewSlot);
 router.patch('/applications/:id/documents/:docId', authenticate, requireAdmin, requirePermission('manage_operations'), reviewApplicationDocument);
+router.post('/applications/:id/followup', authenticate, requireAdmin, requirePermission('manage_operations'), addAdminFollowupMessage);
 router.put('/applications/:id/agreement', authenticate, requireAdmin, requirePermission('manage_operations'), upsertFranchiseAgreement);
 // Review P2-9-F09: the applicant signs from their own account (admins cannot
 // assert the applicant's signature). Authenticated, not admin-gated.

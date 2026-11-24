@@ -1,6 +1,6 @@
 'use strict';
 
-// Group 12 Slice 3a acceptance: Enter program (604, 603).
+// Group 12 Slice 3a acceptance: Enter program (604, 603, 605).
 // Runs against a dedicated fresh database (credit_statement_test_g12a) so
 // slice-local fixtures never pollute the shared credit_statement_test DB.
 //
@@ -13,6 +13,9 @@
 //   through the staff-document vault path (private `franchise-documents/`
 //   prefix, signed-URL downloads only); admin accepts/rejects with a
 //   reason; per-category status is derived (D-304).
+// 605: decision follow-up (D-301/D-305) — `shared` notes surface to the
+//   applicant, `internal` notes never do (server-enforced); applicant and
+//   HQ reply in a dedicated follow-up thread.
 
 jest.unmock('pg');
 jest.unmock('../db');
@@ -86,7 +89,7 @@ const describeDb = dbUrl ? describe : describe.skip;
 
 const PDF_BYTES = Buffer.from('%PDF-1.4\n% test franchise document\n', 'utf8');
 
-describeDb('Group 12 Slice 3a: Enter program (604, 603)', () => {
+describeDb('Group 12 Slice 3a: Enter program (604, 603, 605)', () => {
   let db;
   let app;
 
@@ -391,4 +394,80 @@ describeDb('Group 12 Slice 3a: Enter program (604, 603)', () => {
     });
   });
 
+  describe('605: decision follow-up', () => {
+    test('shared notes surface to the applicant; internal notes never do', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/notes`)
+        .set('x-test-user', admin)
+        .send({ note_text: 'Internal: capital looks thin, verify before diligence.', visibility: 'internal' })
+        .expect(201);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/notes`)
+        .set('x-test-user', admin)
+        .send({ note_text: 'Shared: your application moved to diligence. We will contact you within 5 days.', visibility: 'shared' })
+        .expect(201);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      expect(detail.body.shared_notes).toHaveLength(1);
+      expect(detail.body.shared_notes[0].note_text).toContain('moved to diligence');
+      const detailText = JSON.stringify(detail.body);
+      expect(detailText).not.toContain('capital looks thin');
+      expect(detail.body).not.toHaveProperty('notes');
+
+      // The admin bundle still carries both notes.
+      const bundle = await request(app)
+        .get(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .expect(200);
+      expect(bundle.body.notes).toHaveLength(2);
+    });
+
+    test('applicant and HQ reply in one thread; strangers and empty bodies are refused', async () => {
+      const applicant = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      const fromApplicant = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/followup`)
+        .set('x-test-user', applicant)
+        .send({ body: 'Thanks for the update. When is the interview?' })
+        .expect(201);
+      expect(fromApplicant.body.followup).toHaveLength(1);
+      expect(fromApplicant.body.followup[0].author_role).toBe('applicant');
+      expect(fromApplicant.body.followup[0].body).toContain('When is the interview');
+
+      const fromAdmin = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/followup`)
+        .set('x-test-user', admin)
+        .send({ body: 'We proposed two slots on your dashboard — pick the one that suits you.' })
+        .expect(201);
+      expect(fromAdmin.body.followup).toHaveLength(2);
+      expect(fromAdmin.body.followup[1].author_role).toBe('admin');
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      expect(detail.body.followup).toHaveLength(2);
+      expect(detail.body.followup.map((message) => message.author_role)).toEqual(['applicant', 'admin']);
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/followup`)
+        .set('x-test-user', stranger)
+        .send({ body: 'Hello?' })
+        .expect(404);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/followup`)
+        .set('x-test-user', applicant)
+        .send({ body: '   ' })
+        .expect(400);
+      await request(app)
+        .post(`/api/franchise/applications/${randomUUID()}/followup`)
+        .set('x-test-user', admin)
+        .send({ body: 'No such application.' })
+        .expect(404);
+    });
+  });
 });

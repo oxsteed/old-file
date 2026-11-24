@@ -4,6 +4,7 @@ import {
   CalendarClock,
   Download,
   FileText,
+  MessageSquare,
 } from 'lucide-react';
 import api from '../api/axios';
 import './FranchiseApplicationDetail.css';
@@ -44,14 +45,15 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-// Group 12 Slice 3a (604/603): the applicant-facing detail sections for
+// Group 12 Slice 3a (604/603/605): the applicant-facing detail sections for
 // one franchise application — interview booking, the document checklist
-// with uploads. Loads the applicant
+// with uploads, and the decision follow-up thread. Loads the applicant
 // detail endpoint, which never carries internal notes.
 export default function FranchiseApplicationDetail({ applicationId }) {
   const { t } = useTranslation();
   const copy = (key, options) => t(`dashboards.franchise.${key}`, options);
   const [detail, setDetail] = useState(null);
+  const [reply, setReply] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [uploadingCategory, setUploadingCategory] = useState(null);
@@ -113,6 +115,21 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     }
   }
 
+  async function sendReply() {
+    if (!reply.trim()) return;
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/followup`, { body: reply.trim() });
+      setDetail(response.data);
+      setReply('');
+    } catch {
+      setError(copy('followupSendFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!detail) return null;
 
   const interviews = detail.interviews || [];
@@ -121,6 +138,8 @@ export default function FranchiseApplicationDetail({ applicationId }) {
   const past = interviews.filter((slot) => ['completed', 'cancelled'].includes(slot.status));
   const documents = detail.documents || [];
   const categoryStatus = new Map((detail.document_categories || []).map((entry) => [entry.category, entry.status]));
+  const sharedNotes = detail.shared_notes || [];
+  const followup = detail.followup || [];
 
   return (
     <div className="fr-detail">
@@ -248,6 +267,58 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         </div>
       </section>
 
+      <section className="fr-detail-card">
+        <div className="fr-detail-heading">
+          <MessageSquare size={16} className="fr-detail-heading-icon" />
+          <div>
+            <h2 className="fr-detail-title">{copy('followupTitle')}</h2>
+            <p className="fr-detail-subtitle">{copy('followupSubtitle')}</p>
+          </div>
+        </div>
+
+        {sharedNotes.length > 0 && (
+          <div className="fr-followup-block">
+            <div className="fr-detail-list-label">{copy('sharedNotesTitle')}</div>
+            {sharedNotes.map((note) => (
+              <div key={note.id} className="fr-followup-message fr-followup-message-hq">
+                <div className="fr-followup-author">{copy('followupNoteLabel')} · {formatDate(note.created_at)}</div>
+                <div className="fr-followup-body">{note.note_text}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="fr-followup-block">
+          {followup.length === 0 && sharedNotes.length === 0 ? (
+            <p className="fr-detail-empty">{copy('followupEmpty')}</p>
+          ) : (
+            followup.map((message) => (
+              <div
+                key={message.id}
+                className={`fr-followup-message ${message.author_role === 'applicant' ? 'fr-followup-message-you' : 'fr-followup-message-hq'}`}
+              >
+                <div className="fr-followup-author">
+                  {message.author_role === 'applicant' ? copy('followupFromYou') : copy('followupFromHq')} · {formatDate(message.created_at)}
+                </div>
+                <div className="fr-followup-body">{message.body}</div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="fr-followup-compose">
+          <textarea
+            className="fr-followup-input"
+            value={reply}
+            onChange={(event) => setReply(event.target.value)}
+            placeholder={copy('followupPlaceholder')}
+            rows={3}
+          />
+          <button type="button" className="fr-btn-primary" disabled={busy || !reply.trim()} onClick={sendReply}>
+            {copy('followupSend')}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

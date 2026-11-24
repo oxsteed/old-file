@@ -282,6 +282,14 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     [applicationId]
   );
 
+  const followupResult = await db.query(
+    `SELECT ffm.*, u.email AS author_email, u.first_name AS author_first_name, u.last_name AS author_last_name
+       FROM franchise_followup_messages ffm
+       LEFT JOIN users u ON u.id = ffm.author_id
+      WHERE ffm.application_id = $1
+      ORDER BY ffm.created_at ASC, ffm.id ASC`,
+    [applicationId]
+  );
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -300,6 +308,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     interviews: interviewResult.rows,
     documents,
     document_categories: documentCategorySummary(documentResult.rows),
+    followup: followupResult.rows,
   };
 }
 
@@ -334,9 +343,10 @@ async function presentFranchiseDocument(doc) {
   }
 }
 
-// Group 12 Slice 3a (604/603): the applicant-facing detail view. Same
-// application, but scoped to the applicant's own rows only: interviews and
-// documents. Internal notes are never selected here — server-enforced (D-305).
+// Group 12 Slice 3a (604/603/605): the applicant-facing detail view. Same
+// application, but scoped to the applicant's own rows only: shared notes
+// (visibility = 'shared'), interviews, documents, and the follow-up thread.
+// Internal notes are never selected here — server-enforced (D-301/D-305).
 async function fetchApplicantApplicationDetail(applicationId, userId) {
   const applicationResult = await db.query(
     `SELECT
@@ -380,7 +390,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult, documentResult] = await Promise.all([
+  const [interviewResult, documentResult, sharedNotesResult, followupResult] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -395,6 +405,22 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
         ORDER BY created_at DESC, id DESC`,
       [applicationId]
     ),
+    db.query(
+      `SELECT fan.*, u.email AS admin_email, u.first_name AS admin_first_name, u.last_name AS admin_last_name
+         FROM franchise_application_notes fan
+         LEFT JOIN users u ON u.id = fan.admin_id
+        WHERE fan.application_id = $1 AND fan.visibility = 'shared'
+        ORDER BY fan.created_at ASC, fan.id ASC`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT ffm.*, u.email AS author_email, u.first_name AS author_first_name, u.last_name AS author_last_name
+         FROM franchise_followup_messages ffm
+         LEFT JOIN users u ON u.id = ffm.author_id
+        WHERE ffm.application_id = $1
+        ORDER BY ffm.created_at ASC, ffm.id ASC`,
+      [applicationId]
+    ),
   ]);
 
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
@@ -404,6 +430,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     interviews: interviewResult.rows,
     documents,
     document_categories: documentCategorySummary(documentResult.rows),
+    shared_notes: sharedNotesResult.rows,
+    followup: followupResult.rows,
   };
 }
 
@@ -1614,9 +1642,9 @@ async function activateFranchiseStore(req, res) {
 
 /**
  * GET /api/franchise/my-applications/:id
- * Group 12 Slice 3a (604/603): the applicant's own detail view —
- * interviews and the document checklist.
- * Internal notes are never returned (D-305).
+ * Group 12 Slice 3a (604/603/605): the applicant's own detail view —
+ * interviews, document checklist, shared notes, and the follow-up thread.
+ * Internal notes are never returned (D-301/D-305).
  */
 async function getMyFranchiseApplication(req, res) {
   if (!req.user?.id) {
@@ -2100,6 +2128,83 @@ async function reviewApplicationDocument(req, res) {
   }
 }
 
+/**
+ * POST /api/franchise/my-applications/:id/followup (applicant) and
+ * POST /api/franchise/applications/:id/followup (admin)
+ * 605 (D-301): replies in the decision follow-up thread. The thread is the
+ * shared surface: HQ `shared` notes are read-only to the applicant, and
+ * both sides reply here. Bodies are capped at 5000 characters.
+ */
+async function addFollowupMessageAs(req, res, authorRole) {
+  const body = asTrimmed(req.body?.body);
+  if (!body) {
+    return res.status(400).json({ error: 'body is required.', code: 'followup_body_required' });
+  }
+  if (body.length > 5000) {
+    return res.status(400).json({ error: 'Follow-up messages are limited to 5000 characters.', code: 'followup_body_too_long' });
+  }
+
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (authorRole === 'applicant') {
+        const owned = await loadOwnedApplication(client, req.params.id, req.user.id);
+        if (!owned) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [req.params.id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      await client.query(
+        `INSERT INTO franchise_followup_messages
+           (application_id, author_role, author_id, body)
+         VALUES ($1, $2, $3, $4)`,
+        [req.params.id, authorRole, req.user?.id || null, body]
+      );
+      await logActivity(
+        client,
+        req.params.id,
+        req.user?.id || null,
+        'followup_message_added',
+        authorRole === 'applicant' ? 'Applicant replied in the decision follow-up.' : 'HQ replied in the decision follow-up.',
+        { author_role: authorRole }
+      );
+      await client.query('COMMIT');
+      if (authorRole === 'applicant') {
+        const detail = await fetchApplicantApplicationDetail(req.params.id, req.user.id);
+        return res.status(201).json(detail);
+      }
+      const bundle = await fetchFranchiseApplicationBundle(req.params.id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error adding franchise follow-up message', { id: req.params.id, err: err.message });
+    return res.status(500).json({ error: 'Failed to send follow-up message.' });
+  }
+}
+
+async function addApplicantFollowupMessage(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  return addFollowupMessageAs(req, res, 'applicant');
+}
+
+async function addAdminFollowupMessage(req, res) {
+  return addFollowupMessageAs(req, res, 'admin');
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -2119,6 +2224,8 @@ module.exports = {
   cancelInterviewBooking,
   uploadApplicationDocument,
   reviewApplicationDocument,
+  addApplicantFollowupMessage,
+  addAdminFollowupMessage,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,
