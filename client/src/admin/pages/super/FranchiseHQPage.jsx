@@ -39,6 +39,7 @@ import FranchiseContactDirectory from '../../../pages/FranchiseContactDirectory'
 import FranchiseAccessRemoval from '../../../pages/FranchiseAccessRemoval';
 import FranchisePolicyQuestions from '../../../pages/FranchisePolicyQuestions';
 import FranchiseOpsAppointments from '../../../pages/FranchiseOpsAppointments';
+import FranchiseTrainingEscalations from '../../../pages/FranchiseTrainingEscalations';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -424,6 +425,23 @@ export default function FranchiseHQPage() {
       .catch(() => { if (!cancelled) setHqCorrectiveActions([]); });
     return () => { cancelled = true; };
   }, [selectedBundle, hqResolutionRefresh]);
+
+  // Group 12 Slice 3j (648): HQ resolves a training escalation — a
+  // resolution note is required, and a resolved escalation is terminal.
+  async function resolveTrainingEscalation(escalationId, body) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/training-escalations/${escalationId}/resolve`, body);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.trainingEscResolveFailed'));
+      throw new Error(t('dashboards.franchise.trainingEscResolveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // Group 12 Slice 3j (647): HQ publishes dedicated operations slots
   // and moves them through confirm/complete/cancel.
@@ -2272,6 +2290,19 @@ export default function FranchiseHQPage() {
                     onLocationChange={setHqTicketLocationId}
                     canUnlink
                     onUnlink={unlinkTerritoryTicket}
+                    busy={saving}
+                  />
+
+                  {/* Group 12 Slice 3j (648, D-349): the per-territory
+                      training-escalation queue — HQ resolves each one
+                      with a resolution note. */}
+                  <FranchiseTrainingEscalations
+                    escalations={selectedBundle.training_escalations || []}
+                    assignments={selectedBundle.training_assignments || []}
+                    members={selectedBundle.territory_members || []}
+                    locations={selectedBundle.locations || []}
+                    canResolve
+                    onResolve={resolveTrainingEscalation}
                     busy={saving}
                   />
 

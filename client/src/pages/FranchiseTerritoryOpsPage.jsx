@@ -40,6 +40,7 @@ import FranchiseHandoff from './FranchiseHandoff';
 import FranchiseContactDirectory from './FranchiseContactDirectory';
 import FranchisePolicyQuestions from './FranchisePolicyQuestions';
 import FranchiseOpsAppointments from './FranchiseOpsAppointments';
+import FranchiseTrainingEscalations from './FranchiseTrainingEscalations';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -469,6 +470,19 @@ export default function FranchiseTerritoryOpsPage() {
     if (!resolvedApplicationId) return;
     try {
       await api.post(`/franchise/my-applications/${resolvedApplicationId}/ops-appointments/${slotId}/cancel`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  // Group 12 Slice 3j (648, D-349): the operator escalates a training
+  // issue/gap to HQ — on an assignment, or named by member + module.
+  const escalateTraining = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/training-escalations`, body);
       await reloadBoundaryDetail();
     } catch (err) {
       setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
@@ -1220,6 +1234,20 @@ export default function FranchiseTerritoryOpsPage() {
               onAdd={addDirectoryContact}
               onUpdate={updateDirectoryContact}
               onRemove={removeDirectoryContact}
+            />
+          )}
+
+          {/* Group 12 Slice 3j (648, D-349): training escalation — a
+              training issue/gap raised to HQ with the training context
+              attached. */}
+          {boundaryDetail && (
+            <FranchiseTrainingEscalations
+              escalations={boundaryDetail.training_escalations || []}
+              assignments={boundaryDetail.training_assignments || []}
+              members={boundaryDetail.territory_members || []}
+              locations={boundaryDetail.locations || []}
+              canEscalate={boundaryDetail.application?.owner_user_id === user?.id}
+              onEscalate={escalateTraining}
             />
           )}
 

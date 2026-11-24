@@ -33,6 +33,7 @@ import FranchiseLaunchDependencies from './FranchiseLaunchDependencies';
 import FranchiseExpansionNotes from './FranchiseExpansionNotes';
 import FranchisePolicyQuestions from './FranchisePolicyQuestions';
 import FranchiseOpsAppointments from './FranchiseOpsAppointments';
+import FranchiseTrainingEscalations from './FranchiseTrainingEscalations';
 import { useAuth } from '../hooks/useAuth';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
@@ -529,6 +530,22 @@ export default function FranchiseApplicationDetail({ applicationId }) {
       await reloadDetail();
     } catch (err) {
       setError(err?.response?.data?.error || copy('opsCancelFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Group 12 Slice 3j (648, D-349): the operator escalates a training
+  // issue/gap to HQ.
+  async function escalateTraining(body) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/franchise/my-applications/${applicationId}/training-escalations`, body);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('trainingEscFailed'));
       throw err;
     } finally {
       setBusy(false);
@@ -1091,6 +1108,18 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onLocationChange={setTicketLocationId}
         canUnlink={detail.application?.is_operator === true}
         onUnlink={unlinkTicket}
+        busy={busy}
+      />
+
+      {/* Group 12 Slice 3j (648, D-349): training escalation — a training
+          issue/gap raised to HQ with the training context attached. */}
+      <FranchiseTrainingEscalations
+        escalations={detail.training_escalations || []}
+        assignments={detail.training_assignments || []}
+        members={detail.territory_members || []}
+        locations={detail.locations || []}
+        canEscalate={detail.application?.is_operator === true}
+        onEscalate={escalateTraining}
         busy={busy}
       />
 

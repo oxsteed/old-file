@@ -89,6 +89,11 @@ const {
   cancelOpsSlotAsAdmin,
   listOpsAppointments,
   listOpsAppointmentsAsAdmin,
+  escalateTraining,
+  escalateTrainingAsAdmin,
+  listTrainingEscalations,
+  listTrainingEscalationsAsAdmin,
+  resolveTrainingEscalationAsAdmin,
   getCoverageTrend,
   getCoverageTrendAsAdmin,
   linkTicketToTerritory,
@@ -239,6 +244,11 @@ router.get('/my-applications/:id/support-tickets', authenticate, requireFranchis
 // Group 12 Slice 3f (630): the territory coverage trend — coverage %
 // by day and by week over time, from the linked business's shifts (D-330).
 router.get('/my-applications/:id/coverage-trend', authenticate, requireFranchiseEnabled, getCoverageTrend);
+// Group 12 Slice 3j (648): training escalation — the operator (or HQ)
+// escalates a training issue/gap to HQ with the training context
+// attached; one live escalation per training item.
+router.post('/my-applications/:id/training-escalations', authenticate, requireFranchiseEnabled, escalateTraining);
+router.get('/my-applications/:id/training-escalations', authenticate, requireFranchiseEnabled, listTrainingEscalations);
 // Group 12 Slice 3j (647): dedicated HQ operations appointments — the
 // operator books a published slot for their territory; HQ confirms or
 // cancels; never the consulting flow (D-300).
@@ -372,6 +382,11 @@ router.get('/applications/:id/exceptions', authenticate, requireAdmin, requirePe
 // Group 12 Slice 3f (627): HQ reads the per-location health view.
 router.get('/applications/:id/location-health', authenticate, requireAdmin, requirePermission('manage_operations'), getLocationHealthAsAdmin);
 // Group 12 Slice 3f (629): HQ reads the per-territory ticket queue.
+// Group 12 Slice 3j (648): HQ reads the per-territory training
+// escalation queue, escalates a gap itself, and resolves escalations.
+router.get('/applications/:id/training-escalations', authenticate, requireAdmin, requirePermission('manage_operations'), listTrainingEscalationsAsAdmin);
+router.post('/applications/:id/training-escalations', authenticate, requireAdmin, requirePermission('manage_operations'), escalateTrainingAsAdmin);
+router.post('/applications/:id/training-escalations/:escalationId/resolve', authenticate, requireAdmin, requirePermission('manage_operations'), resolveTrainingEscalationAsAdmin);
 // Group 12 Slice 3j (647): HQ publishes dedicated operations slots
 // and moves them through confirm/complete/cancel.
 router.get('/applications/:id/ops-appointments', authenticate, requireAdmin, requirePermission('manage_operations'), listOpsAppointmentsAsAdmin);

@@ -499,6 +499,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3j (647, D-348): the dedicated HQ operations
   // appointment slots for this territory — never the consulting flow.
   const opsAppointments = await fetchOpsAppointments(applicationId);
+  // Group 12 Slice 3j (648, D-349): the training-escalation queue for
+  // this territory — one live escalation per training item.
+  const trainingEscalations = await fetchTrainingEscalations(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -539,6 +542,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     contact_directory: contactDirectory,
     policy_questions: policyQuestions,
     ops_appointments: opsAppointments,
+    training_escalations: trainingEscalations,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1169,6 +1173,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   // Group 12 Slice 3j (647, D-348): the dedicated HQ operations
   // appointment slots for this territory.
   const opsAppointments = await fetchOpsAppointments(applicationId);
+  // Group 12 Slice 3j (648, D-349): the training-escalation queue.
+  const trainingEscalations = await fetchTrainingEscalations(applicationId);
 
   return {
     application: {
@@ -1204,6 +1210,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     contact_directory: contactDirectory,
     policy_questions: policyQuestions,
     ops_appointments: opsAppointments,
+    training_escalations: trainingEscalations,
     // Group 12 Slice 3h (640, D-340): HQ's own readiness fields,
     // surfaced read-only to the operator alongside their notes.
     hq_readiness_notes: {
@@ -7760,6 +7767,318 @@ async function listOpsAppointmentsAsAdmin(req, res) {
   return listOpsAppointments(req, res, { asAdmin: true });
 }
 
+// Group 12 Slice 3j (648, D-349): training escalation — a training
+// issue/gap raised to HQ, with the training context attached. The
+// escalation is recorded ON the underlying training context, the 631
+// pattern: tied to a training assignment when there is one (the member,
+// module, and location come from the assignment), otherwise to a member
+// + module (+ location) named in the request. One live escalation
+// (open/in_progress) per assignment, or per member + module + location
+// when unassigned (409). HQ sees a training-escalation queue per
+// territory and resolves it; the operator escalates and reads.
+async function fetchTrainingEscalations(applicationId) {
+  const { rows } = await db.query(
+    `SELECT e.*,
+            a.module_title AS assignment_module_title,
+            a.location_id AS assignment_location_id,
+            m.first_name AS member_first_name, m.last_name AS member_last_name,
+            m.email AS member_email,
+            l.name AS location_name,
+            u.first_name AS escalated_by_first_name, u.last_name AS escalated_by_last_name,
+            u.email AS escalated_by_email,
+            r.first_name AS resolved_by_first_name, r.last_name AS resolved_by_last_name
+       FROM franchise_training_escalations e
+       LEFT JOIN franchise_training_assignments a ON a.id = e.assignment_id
+       LEFT JOIN users m ON m.id = e.member_user_id
+       LEFT JOIN franchise_locations l ON l.id = e.location_id
+       LEFT JOIN users u ON u.id = e.escalated_by
+       LEFT JOIN users r ON r.id = e.resolved_by
+      WHERE e.application_id = $1
+      ORDER BY e.created_at DESC, e.id DESC`,
+    [applicationId]
+  );
+  const nameOf = (row, prefix) => [row[`${prefix}_first_name`], row[`${prefix}_last_name`]]
+    .filter(Boolean).join(' ') || row[`${prefix}_email`] || null;
+  return rows.map((row) => ({
+    ...row,
+    module_title: row.module_title || row.assignment_module_title || null,
+    location_id: row.location_id || row.assignment_location_id || null,
+    member_name: nameOf(row, 'member'),
+    escalated_by_name: nameOf(row, 'escalated_by'),
+    resolved_by_name: nameOf(row, 'resolved_by'),
+  }));
+}
+
+async function escalateTrainingCore(client, applicationId, actorId, {
+  assignmentId, memberUserId, moduleTitle, locationId, reason,
+}) {
+  let memberId = memberUserId || null;
+  let module = moduleTitle || null;
+  let location = locationId || null;
+  if (assignmentId) {
+    const { rows: assignmentRows } = await client.query(
+      `SELECT id, assignee_user_id, module_title, location_id
+         FROM franchise_training_assignments
+        WHERE id = $1 AND application_id = $2`,
+      [assignmentId, applicationId]
+    );
+    const assignment = assignmentRows[0];
+    if (!assignment) {
+      return { error: { status: 404, body: { error: 'Training assignment not found in this territory.', code: 'training_assignment_not_found' } } };
+    }
+    memberId = assignment.assignee_user_id;
+    module = assignment.module_title;
+    location = assignment.location_id;
+    const { rows: live } = await client.query(
+      `SELECT id FROM franchise_training_escalations
+        WHERE assignment_id = $1 AND status IN ('open', 'in_progress') LIMIT 1`,
+      [assignmentId]
+    );
+    if (live.length) {
+      return { error: { status: 409, body: { error: 'This training assignment already has a live escalation.', code: 'training_already_escalated' } } };
+    }
+  } else {
+    if (!memberId) {
+      return { error: { status: 400, body: { error: 'A territory member is required to escalate a training gap.', code: 'training_member_required' } } };
+    }
+    if (!module) {
+      return { error: { status: 400, body: { error: 'A training module is required to escalate a training gap.', code: 'training_module_required' } } };
+    }
+    if (!(await isTerritoryMember(client, applicationId, memberId))) {
+      return { error: { status: 404, body: { error: 'Member not found in this territory.', code: 'training_member_not_found' } } };
+    }
+    if (location) {
+      const locationResult = await client.query(
+        `SELECT id FROM franchise_locations WHERE id = $1 AND application_id = $2`,
+        [location, applicationId]
+      );
+      if (!locationResult.rows.length) {
+        return { error: { status: 404, body: { error: 'Location not found in this territory.', code: 'location_not_found' } } };
+      }
+    }
+    const { rows: live } = await client.query(
+      `SELECT id FROM franchise_training_escalations
+        WHERE assignment_id IS NULL AND member_user_id = $1 AND module_title = $2
+          AND location_id IS NOT DISTINCT FROM $3 AND status IN ('open', 'in_progress')
+        LIMIT 1`,
+      [memberId, module, location]
+    );
+    if (live.length) {
+      return { error: { status: 409, body: { error: 'This training gap already has a live escalation.', code: 'training_already_escalated' } } };
+    }
+  }
+  const { rows } = await client.query(
+    `INSERT INTO franchise_training_escalations
+       (application_id, assignment_id, member_user_id, module_title,
+        location_id, reason, escalated_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+    [applicationId, assignmentId || null, memberId, module, location, reason, actorId]
+  );
+  await logActivity(client, applicationId, actorId, 'training_escalated',
+    `Training escalation raised for ${module || 'a training gap'}.`,
+    { escalation_id: rows[0].id, assignment_id: assignmentId || null });
+  return { escalation: rows[0] };
+}
+
+async function escalateTraining(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  const body = req.body || {};
+  const reason = asTrimmed(body.reason);
+  const assignmentId = asTrimmed(body.assignment_id) || null;
+  const memberUserId = asTrimmed(body.member_user_id) || null;
+  const moduleTitle = asTrimmed(body.module_title) || null;
+  const locationId = asTrimmed(body.location_id) || null;
+  if (!reason) {
+    return res.status(400).json({ error: 'A reason is required to escalate a training gap.', code: 'training_reason_required' });
+  }
+  if (reason.length > 1000) {
+    return res.status(400).json({ error: 'The escalation reason must be at most 1000 characters.', code: 'training_reason_too_long' });
+  }
+  if (moduleTitle && moduleTitle.length > 255) {
+    return res.status(400).json({ error: 'The module title must be at most 255 characters.', code: 'training_module_too_long' });
+  }
+  if (assignmentId && !UUID_RE.test(assignmentId)) {
+    return res.status(404).json({ error: 'Training assignment not found in this territory.', code: 'training_assignment_not_found' });
+  }
+  if (memberUserId && !UUID_RE.test(memberUserId)) {
+    return res.status(404).json({ error: 'Member not found in this territory.', code: 'training_member_not_found' });
+  }
+  if (locationId && !UUID_RE.test(locationId)) {
+    return res.status(404).json({ error: 'Location not found in this territory.', code: 'location_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (!asAdmin) {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only the assigned operator can escalate a training gap.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const escalated = await escalateTrainingCore(client, id, req.user?.id, {
+        assignmentId, memberUserId, moduleTitle, locationId, reason,
+      });
+      if (escalated.error) {
+        await client.query('ROLLBACK');
+        return res.status(escalated.error.status).json(escalated.error.body);
+      }
+      await client.query('COMMIT');
+      const trainingEscalations = await fetchTrainingEscalations(id);
+      return res.status(201).json({
+        training_escalation: escalated.escalation,
+        training_escalations: trainingEscalations,
+        total: trainingEscalations.length,
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error escalating franchise training gap', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to escalate the training gap.' });
+  }
+}
+
+async function escalateTrainingAsAdmin(req, res) {
+  return escalateTraining(req, res, { asAdmin: true });
+}
+
+async function listTrainingEscalations(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can view territory training escalations.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    const trainingEscalations = await fetchTrainingEscalations(id);
+    return res.json({ application_id: id, training_escalations: trainingEscalations, total: trainingEscalations.length });
+  } catch (err) {
+    logger.error('Error listing franchise training escalations', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load training escalations.' });
+  }
+}
+
+async function listTrainingEscalationsAsAdmin(req, res) {
+  return listTrainingEscalations(req, res, { asAdmin: true });
+}
+
+// 648 (D-349): HQ resolves a training escalation. Resolving needs a
+// resolution note — an escalation never closes silently — and a resolved
+// escalation is terminal. HQ may also move one to in_progress while
+// working it. The operator never resolves their own escalation.
+async function resolveTrainingEscalationAsAdmin(req, res) {
+  const { id, escalationId } = req.params;
+  if (!UUID_RE.test(escalationId)) {
+    return res.status(404).json({ error: 'Training escalation not found.', code: 'training_escalation_not_found' });
+  }
+  const status = asTrimmed(req.body?.status);
+  const resolution = asTrimmed(req.body?.resolution) || null;
+  if (!['in_progress', 'resolved'].includes(status)) {
+    return res.status(400).json({ error: 'status must be in_progress or resolved.', code: 'invalid_training_escalation_status' });
+  }
+  if (status === 'resolved' && !resolution) {
+    return res.status(400).json({ error: 'A resolution note is required to resolve a training escalation.', code: 'training_resolution_required' });
+  }
+  if (resolution && resolution.length > 2000) {
+    return res.status(400).json({ error: 'The resolution must be at most 2000 characters.', code: 'training_resolution_too_long' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows: escalationRows } = await client.query(
+        `SELECT * FROM franchise_training_escalations
+          WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+        [escalationId, id]
+      );
+      const escalation = escalationRows[0];
+      if (!escalation) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Training escalation not found.', code: 'training_escalation_not_found' });
+      }
+      if (escalation.status === 'resolved') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'This training escalation is already resolved.', code: 'training_escalation_resolved' });
+      }
+      const { rows } = await client.query(
+        status === 'resolved'
+          ? `UPDATE franchise_training_escalations
+                SET status = 'resolved', resolution = $1, resolved_by = $2,
+                    resolved_at = NOW(), updated_at = NOW()
+              WHERE id = $3 AND application_id = $4 RETURNING *`
+          : `UPDATE franchise_training_escalations
+                SET status = 'in_progress', updated_at = NOW()
+              WHERE id = $1 AND application_id = $2 RETURNING *`,
+        status === 'resolved'
+          ? [resolution, req.user?.id, escalationId, id]
+          : [escalationId, id]
+      );
+      await logActivity(client, id, req.user?.id,
+        status === 'resolved' ? 'training_escalation_resolved' : 'training_escalation_in_progress',
+        status === 'resolved'
+          ? `Training escalation resolved: ${resolution}.`
+          : 'Training escalation moved to in progress by headquarters.',
+        { escalation_id: escalationId });
+      await client.query('COMMIT');
+      const trainingEscalations = await fetchTrainingEscalations(id);
+      return res.json({
+        training_escalation: rows[0],
+        training_escalations: trainingEscalations,
+        total: trainingEscalations.length,
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error resolving franchise training escalation as admin', { id, escalationId, err: err.message });
+    return res.status(500).json({ error: 'Failed to resolve the training escalation.' });
+  }
+}
+
 async function getLocationHealth(req, res) {
   const { id } = req.params;
   try {
@@ -11361,6 +11680,11 @@ module.exports = {
   cancelOpsSlotAsAdmin,
   listOpsAppointments,
   listOpsAppointmentsAsAdmin,
+  escalateTraining,
+  escalateTrainingAsAdmin,
+  listTrainingEscalations,
+  listTrainingEscalationsAsAdmin,
+  resolveTrainingEscalationAsAdmin,
   getCoverageTrend,
   getCoverageTrendAsAdmin,
   linkTicketToTerritory,
