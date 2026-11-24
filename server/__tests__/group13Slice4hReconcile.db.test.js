@@ -642,6 +642,15 @@ describeDb('Group 13 Slice 4h: reconcile accounts (686-690)', () => {
     expect(queueBoard.body.code).toBe('credit_kiosk_cashier_device_required');
   });
 
+  test('686: HQ lists both locations of its own restaurant, and another restaurant is 404', async () => {
+    const res = await hqGet(owner, restaurantId, '/locations');
+    expect(res.status).toBe(200);
+    expect(res.body.locations.map((entry) => entry.name).sort()).toEqual(['Downtown', 'Uptown']);
+    expect(res.body.locations.find((entry) => entry.name === 'Downtown').isPrimary).toBe(true);
+    const foreign = await hqGet(owner, restaurant2Id, '/locations');
+    expect(foreign.status).toBe(404);
+  });
+
   test('686: HQ sees the location totals plus the other locations of its own restaurant', async () => {
     const res = await hqGet(owner, restaurantId, `/summary?${periodQuery}&locationId=${locPrimary}`);
     expect(res.status).toBe(200);
