@@ -75,7 +75,7 @@ export default function FranchiseTrainingTasks({
       </div>
 
       {canAssign && onAssign && (
-        <form onSubmit={submit} className="fr-doc-list">
+        <form onSubmit={submit} className="fr-doc-list" data-track="ui.2f0c638a8f.1">
           <div>
             <label className="fr-detail-list-label" htmlFor="fr-training-assignee">{copy('trainingTasksAssigneeLabel')}</label>
             <select
@@ -134,7 +134,7 @@ export default function FranchiseTrainingTasks({
           </div>
           {formError && <p className="fr-detail-empty">{formError}</p>}
           <div>
-            <button type="submit" className="fr-btn-primary" disabled={disabled || !assigneeId || !moduleTitle.trim()}>
+            <button type="submit" className="fr-btn-primary" disabled={disabled || !assigneeId || !moduleTitle.trim()} data-track="ui.2f0c638a8f.2">
               {copy('trainingTasksAssign')}
             </button>
           </div>
@@ -178,7 +178,7 @@ export default function FranchiseTrainingTasks({
                     type="button"
                     className="fr-btn-primary"
                     disabled={disabled}
-                    onClick={() => onComplete(assignment.id)}
+                    onClick={() => onComplete(assignment.id)} data-track="ui.2f0c638a8f.3"
                   >
                     {copy('trainingTasksComplete')}
                   </button>
@@ -188,7 +188,7 @@ export default function FranchiseTrainingTasks({
                     type="button"
                     className="fr-btn-primary"
                     disabled={disabled}
-                    onClick={() => onRemove(assignment.id)}
+                    onClick={() => onRemove(assignment.id)} data-track="ui.2f0c638a8f.4"
                   >
                     {copy('trainingTasksRemove')}
                   </button>

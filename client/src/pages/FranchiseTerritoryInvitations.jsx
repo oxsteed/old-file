@@ -69,7 +69,7 @@ export default function FranchiseTerritoryInvitations({
       </div>
 
       {canInvite && onInvite && (
-        <form onSubmit={submit} className="fr-doc-list">
+        <form onSubmit={submit} className="fr-doc-list" data-track="ui.bc1d7a34f9.1">
           <div>
             <label className="fr-detail-list-label" htmlFor="fr-territory-invite-email">{copy('territoryInvitesEmailLabel')}</label>
             <input
@@ -98,7 +98,7 @@ export default function FranchiseTerritoryInvitations({
           </div>
           {formError && <p className="fr-detail-empty">{formError}</p>}
           <div>
-            <button type="submit" className="fr-btn-primary" disabled={disabled || !email.trim()}>
+            <button type="submit" className="fr-btn-primary" disabled={disabled || !email.trim()} data-track="ui.bc1d7a34f9.2">
               {copy('territoryInvitesSend')}
             </button>
           </div>
@@ -133,7 +133,7 @@ export default function FranchiseTerritoryInvitations({
                   type="button"
                   className="fr-btn-primary"
                   disabled={disabled}
-                  onClick={() => onCancel(invite.id)}
+                  onClick={() => onCancel(invite.id)} data-track="ui.bc1d7a34f9.3"
                 >
                   {copy('territoryInvitesCancel')}
                 </button>

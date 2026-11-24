@@ -64,7 +64,7 @@ export default function FranchiseAnnouncements({
       </div>
 
       {canPost && onPost && (
-        <form onSubmit={submit} className="fr-doc-list">
+        <form onSubmit={submit} className="fr-doc-list" data-track="ui.ce2dcd8808.1">
           <div>
             <label className="fr-detail-list-label" htmlFor="fr-announcement-title">{copy('announcementsPostTitle')}</label>
             <input
@@ -104,7 +104,7 @@ export default function FranchiseAnnouncements({
           </div>
           {formError && <p className="fr-detail-empty">{formError}</p>}
           <div>
-            <button type="submit" className="fr-btn-primary" disabled={disabled || !title.trim() || !body.trim()}>
+            <button type="submit" className="fr-btn-primary" disabled={disabled || !title.trim() || !body.trim()} data-track="ui.ce2dcd8808.2">
               {copy('announcementsPost')}
             </button>
           </div>
@@ -148,7 +148,7 @@ export default function FranchiseAnnouncements({
                   type="button"
                   className="fr-btn-primary"
                   disabled={disabled}
-                  onClick={() => onMarkRead(announcement.id)}
+                  onClick={() => onMarkRead(announcement.id)} data-track="ui.ce2dcd8808.3"
                 >
                   {copy('announcementsMarkRead')}
                 </button>
@@ -158,7 +158,7 @@ export default function FranchiseAnnouncements({
                   type="button"
                   className="fr-btn-primary"
                   disabled={disabled}
-                  onClick={() => onDelete(announcement.id)}
+                  onClick={() => onDelete(announcement.id)} data-track="ui.ce2dcd8808.4"
                 >
                   {copy('announcementsDelete')}
                 </button>
