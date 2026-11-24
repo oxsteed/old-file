@@ -40,6 +40,22 @@ const DEFAULT_CHECKLIST = [
   ['launch_readiness', 'Launch readiness and opening checklist', 'operations', 80],
 ];
 
+// Group 12 Slice 3b (608, D-306): the fixed operator responsibility set.
+// These are the responsibilities the operator accepts for their territory.
+// They are NOT the HQ intake checklist above: those 8 items are HQ process
+// steps, these 8 are what the operator signs up to do. Labels are stored
+// in English; the client renders the localized label by code.
+const DEFAULT_RESPONSIBILITIES = [
+  ['operate_territory', 'Operate the territory to OxSteed standards', 10],
+  ['brand_standards', 'Uphold brand standards and customer experience', 20],
+  ['recruit_train_team', 'Recruit and train the opening team', 30],
+  ['comply_local_law', 'Comply with local laws and licensing', 40],
+  ['report_performance', 'Report performance and keep records current', 50],
+  ['honor_agreement_fees', 'Honor the agreement fee and royalty terms', 60],
+  ['protect_brand_assets', 'Protect brand assets and confidential information', 70],
+  ['resolve_customer_issues', 'Resolve customer issues in the territory promptly', 80],
+];
+
 function asTrimmed(value) {
   if (value === null || value === undefined) return null;
   const trimmed = String(value).trim();
@@ -202,6 +218,20 @@ async function seedChecklist(client, applicationId) {
   }
 }
 
+// Group 12 Slice 3b (608, D-306): seed the operator responsibility set on
+// every new application, same pattern as the HQ checklist above.
+async function seedResponsibilityItems(client, applicationId) {
+  for (const [code, label, sortOrder] of DEFAULT_RESPONSIBILITIES) {
+    await client.query(
+      `INSERT INTO franchise_responsibility_items
+         (application_id, code, label, sort_order)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (application_id, code) DO NOTHING`,
+      [applicationId, code, label, sortOrder]
+    );
+  }
+}
+
 async function logActivity(client, applicationId, actorId, eventType, eventSummary, metadata = {}) {
   await client.query(
     `INSERT INTO franchise_activity_log
@@ -291,17 +321,31 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     [applicationId]
   );
 
+  // Group 12 Slice 3b (608): the operator responsibility checklist.
+  const responsibilityResult = await db.query(
+    `SELECT *
+       FROM franchise_responsibility_items
+      WHERE application_id = $1
+      ORDER BY sort_order, id`,
+    [applicationId]
+  );
+
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
+  const responsibilities = responsibilityResult.rows;
+  const acknowledgedResponsibilities = responsibilities.filter((item) => item.status === 'acknowledged').length;
 
   return {
     application: {
       ...applicationResult.rows[0],
       checklist_total: checklist.length,
       checklist_completed: completedChecklist,
+      responsibility_total: responsibilities.length,
+      responsibility_acknowledged: acknowledgedResponsibilities,
     },
     checklist,
+    responsibilities,
     agreement: agreementResult.rows[0] || null,
     notes: notesResult.rows,
     activity: activityResult.rows,
@@ -390,7 +434,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult, documentResult, sharedNotesResult, followupResult] = await Promise.all([
+  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -421,6 +465,14 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
         ORDER BY ffm.created_at ASC, ffm.id ASC`,
       [applicationId]
     ),
+    // Group 12 Slice 3b (608): the operator responsibility checklist.
+    db.query(
+      `SELECT *
+         FROM franchise_responsibility_items
+        WHERE application_id = $1
+        ORDER BY sort_order, id`,
+      [applicationId]
+    ),
   ]);
 
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
@@ -432,6 +484,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     document_categories: documentCategorySummary(documentResult.rows),
     shared_notes: sharedNotesResult.rows,
     followup: followupResult.rows,
+    responsibilities: responsibilityResult.rows,
   };
 }
 
@@ -578,6 +631,7 @@ async function createFranchiseApplication(req, res) {
       );
 
       await seedChecklist(client, applicationId);
+      await seedResponsibilityItems(client, applicationId);
       await logActivity(
         client,
         applicationId,
@@ -2205,6 +2259,68 @@ async function addAdminFollowupMessage(req, res) {
   return addFollowupMessageAs(req, res, 'admin');
 }
 
+/**
+ * POST /api/franchise/my-applications/:id/responsibilities/:itemId/acknowledge
+ * 608 (D-306): the operator acknowledges one responsibility item on their
+ * own application. Scoped like the other applicant mutations: a stranger
+ * gets the same 404 as a missing application. Acknowledging twice is a
+ * no-op success — the second call changes nothing and logs nothing.
+ */
+async function acknowledgeResponsibilityItem(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const { id, itemId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOwnedApplication(client, id, req.user.id);
+      if (!owned) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows: itemRows } = await client.query(
+        `SELECT * FROM franchise_responsibility_items
+          WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+        [itemId, id]
+      );
+      const item = itemRows[0];
+      if (!item) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Responsibility item not found.' });
+      }
+      if (item.status !== 'acknowledged') {
+        await client.query(
+          `UPDATE franchise_responsibility_items
+              SET status = 'acknowledged', acknowledged_by = $2, acknowledged_at = NOW(), updated_at = NOW()
+            WHERE id = $1`,
+          [itemId, req.user.id]
+        );
+        await logActivity(
+          client,
+          id,
+          req.user.id,
+          'responsibility_acknowledged',
+          `Operator acknowledged responsibility "${item.label}".`,
+          { responsibility_id: itemId, code: item.code }
+        );
+      }
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error acknowledging franchise responsibility', { id, itemId, err: err.message });
+    return res.status(500).json({ error: 'Failed to acknowledge responsibility.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -2226,6 +2342,7 @@ module.exports = {
   reviewApplicationDocument,
   addApplicantFollowupMessage,
   addAdminFollowupMessage,
+  acknowledgeResponsibilityItem,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

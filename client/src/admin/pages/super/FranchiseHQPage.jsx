@@ -25,6 +25,19 @@ const TRAINING_OPTIONS = ['not_started', 'scheduled', 'in_progress', 'completed'
 const READINESS_OPTIONS = ['not_ready', 'planning', 'ready', 'launched'];
 const CHECKLIST_OPTIONS = ['pending', 'in_progress', 'completed', 'blocked', 'waived'];
 
+// Group 12 Slice 3b (608, D-306): operator responsibility labels, localized
+// by code under dashboards.franchise (same keys as the operator dashboard).
+const RESPONSIBILITY_LABEL_KEYS = {
+  operate_territory: 'respOperateTerritory',
+  brand_standards: 'respBrandStandards',
+  recruit_train_team: 'respRecruitTrainTeam',
+  comply_local_law: 'respComplyLocalLaw',
+  report_performance: 'respReportPerformance',
+  honor_agreement_fees: 'respHonorAgreementFees',
+  protect_brand_assets: 'respProtectBrandAssets',
+  resolve_customer_issues: 'respResolveCustomerIssues',
+};
+
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 const pageShell = {
@@ -932,6 +945,41 @@ export default function FranchiseHQPage() {
                     <button type="button" className="frhq-btn-primary" disabled={saving || !followupText.trim()} onClick={sendFollowup}>
                       {t('adminFranchiseFollowupSend')}
                     </button>
+                  </div>
+
+                  {/* Group 12 Slice 3b (608): operator responsibility checklist,
+                      read-only in HQ — the operator acknowledges each item. */}
+                  <div className="frhq-panel">
+                    <div className="frhq-panel-title">{t('adminFranchiseResponsibilitiesTitle')}</div>
+                    <div className="frhq-row-meta">
+                      {t('adminFranchiseResponsibilitiesProgress', {
+                        done: (selectedBundle.responsibilities || []).filter((item) => item.status === 'acknowledged').length,
+                        total: (selectedBundle.responsibilities || []).length,
+                      })}
+                    </div>
+                    <div className="frhq-list">
+                      {(selectedBundle.responsibilities || []).length ? selectedBundle.responsibilities.map((item) => (
+                        <div key={item.id} className="frhq-row">
+                          <div>
+                            <div className="frhq-row-title">
+                              {RESPONSIBILITY_LABEL_KEYS[item.code]
+                                ? t(`dashboards.franchise.${RESPONSIBILITY_LABEL_KEYS[item.code]}`)
+                                : item.label}
+                            </div>
+                            <div className="frhq-row-meta">
+                              {item.status === 'acknowledged'
+                                ? t('adminFranchiseResponsibilityAcknowledged')
+                                : t('adminFranchiseResponsibilityPending')}
+                              {item.status === 'acknowledged' && item.acknowledged_at
+                                ? ` · ${new Date(item.acknowledged_at).toLocaleString()}`
+                                : ''}
+                            </div>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="frhq-empty">{t('adminFranchiseNoResponsibilities')}</div>
+                      )}
+                    </div>
                   </div>
                 </section>
               </>

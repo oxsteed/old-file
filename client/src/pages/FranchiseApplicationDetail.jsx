@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CalendarClock,
+  CheckCircle2,
   Download,
   FileText,
   MessageSquare,
+  ShieldCheck,
 } from 'lucide-react';
 import api from '../api/axios';
 import './FranchiseApplicationDetail.css';
@@ -27,6 +29,19 @@ const INTERVIEW_STATUS_KEYS = {
   booked: 'interviewBookedLabel',
   completed: 'interviewCompleted',
   cancelled: 'interviewCancelled',
+};
+// Group 12 Slice 3b (608, D-306): the fixed operator responsibility set.
+// Labels are localized by code; the stored English label is the fallback
+// only when a code has no locale key.
+const RESPONSIBILITY_KEYS = {
+  operate_territory: 'respOperateTerritory',
+  brand_standards: 'respBrandStandards',
+  recruit_train_team: 'respRecruitTrainTeam',
+  comply_local_law: 'respComplyLocalLaw',
+  report_performance: 'respReportPerformance',
+  honor_agreement_fees: 'respHonorAgreementFees',
+  protect_brand_assets: 'respProtectBrandAssets',
+  resolve_customer_issues: 'respResolveCustomerIssues',
 };
 
 function formatDateTime(value) {
@@ -130,6 +145,20 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     }
   }
 
+  // Group 12 Slice 3b (608): acknowledge one responsibility item.
+  async function acknowledgeResponsibility(itemId) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/responsibilities/${itemId}/acknowledge`);
+      setDetail(response.data);
+    } catch {
+      setError(copy('responsibilityAcknowledgeFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!detail) return null;
 
   const interviews = detail.interviews || [];
@@ -140,6 +169,8 @@ export default function FranchiseApplicationDetail({ applicationId }) {
   const categoryStatus = new Map((detail.document_categories || []).map((entry) => [entry.category, entry.status]));
   const sharedNotes = detail.shared_notes || [];
   const followup = detail.followup || [];
+  const responsibilities = detail.responsibilities || [];
+  const acknowledgedCount = responsibilities.filter((item) => item.status === 'acknowledged').length;
 
   return (
     <div className="fr-detail">
@@ -265,6 +296,55 @@ export default function FranchiseApplicationDetail({ applicationId }) {
             );
           })}
         </div>
+      </section>
+
+      {/* Group 12 Slice 3b (608): the operator responsibility checklist.
+          Each responsibility is acknowledged by the operator; HQ sees the
+          same list and progress in the admin bundle. */}
+      <section className="fr-detail-card">
+        <div className="fr-detail-heading">
+          <ShieldCheck size={16} className="fr-detail-heading-icon" />
+          <div>
+            <h2 className="fr-detail-title">{copy('responsibilitiesTitle')}</h2>
+            <p className="fr-detail-subtitle">{copy('responsibilitiesSubtitle')}</p>
+          </div>
+        </div>
+
+        {responsibilities.length > 0 ? (
+          <>
+            <div className="fr-detail-list-label">
+              {copy('responsibilityProgress', { done: acknowledgedCount, total: responsibilities.length })}
+            </div>
+            <div className="fr-doc-list">
+              {responsibilities.map((item) => {
+                const acknowledged = item.status === 'acknowledged';
+                return (
+                  <div key={item.id} className="fr-doc-category">
+                    <div className="fr-doc-category-head">
+                      <div>
+                        <div className="fr-doc-category-name">{RESPONSIBILITY_KEYS[item.code] ? copy(RESPONSIBILITY_KEYS[item.code]) : item.label}</div>
+                        <span className={`fr-status-badge ${acknowledged ? 'fr-status-accepted' : 'fr-status-pending'}`}>
+                          {acknowledged ? copy('responsibilityAcknowledged') : copy('responsibilityPending')}
+                        </span>
+                        {acknowledged && item.acknowledged_at && (
+                          <div className="fr-doc-file-meta">{formatDate(item.acknowledged_at)}</div>
+                        )}
+                      </div>
+                      {!acknowledged && (
+                        <button type="button" className="fr-btn-primary" disabled={busy} onClick={() => acknowledgeResponsibility(item.id)}>
+                          {copy('responsibilityAcknowledge')}
+                        </button>
+                      )}
+                      {acknowledged && <CheckCircle2 size={18} className="fr-detail-heading-icon" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <p className="fr-detail-empty">{copy('responsibilitiesEmpty')}</p>
+        )}
       </section>
 
       <section className="fr-detail-card">

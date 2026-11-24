@@ -34,6 +34,7 @@ const {
   reviewApplicationDocument,
   addApplicantFollowupMessage,
   addAdminFollowupMessage,
+  acknowledgeResponsibilityItem,
 } = require('../controllers/franchiseController');
 
 const {
@@ -50,6 +51,9 @@ router.post('/my-applications/:id/interviews/:slotId/book', authenticate, requir
 router.post('/my-applications/:id/interviews/:slotId/cancel', authenticate, requireFranchiseEnabled, cancelInterviewBooking);
 router.post('/my-applications/:id/documents', authenticate, requireFranchiseEnabled, upload.single('file'), validateFileUpload, uploadApplicationDocument);
 router.post('/my-applications/:id/followup', authenticate, requireFranchiseEnabled, addApplicantFollowupMessage);
+// Group 12 Slice 3b (608): the operator acknowledges one responsibility
+// item on their own application.
+router.post('/my-applications/:id/responsibilities/:itemId/acknowledge', authenticate, requireFranchiseEnabled, acknowledgeResponsibilityItem);
 router.get('/territory-stats',     authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryStats);
 router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryHelpers);
 
