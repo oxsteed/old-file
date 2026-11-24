@@ -2432,6 +2432,8 @@
   "pendingActivity": "Actividad pendiente",
   "pendingTopups": "Recargas pendientes",
   "pendingTopupsCopy": "Recargas que aún no se han acreditado. El dinero se suma a tu saldo cuando se confirme el pago.",
+  "failedTopups": "Recargas fallidas",
+  "failedTopupsCopy": "Estos pagos no se completaron y no se añadió dinero. Abre uno para reintentarlo.",
   "viewTopup": "Ver recarga",
   "requestedAt": "Solicitada {{date}}",
   "walletTopup": {
@@ -2458,7 +2460,20 @@
     "viewingCopy": "Detalles de la recarga que abriste desde tu página de Crédito.",
     "viewingNotFound": "No se encontró esa recarga. Puede pertenecer a otra cuenta.",
     "viewingLoading": "Cargando el registro de recarga…",
-    "viewNewTopup": "Agregar otro importe"
+    "viewNewTopup": "Agregar otro importe",
+    "pendingVsPosted": "Una recarga queda pendiente hasta que se confirme el pago con tu tarjeta. Mientras está pendiente, el dinero aún no está en tu saldo. Llega cuando la recarga aparece como Acreditada.",
+    "statusExplanation": {
+      "pending": "Tu pago aún se está procesando. El dinero todavía no está en tu saldo y no puedes gastarlo. Llega en cuanto se confirme el pago. Si sigue pendiente después de 30 minutos, la recarga vence y falla.",
+      "completed": "Tu pago se confirmó y el dinero ya está en tu saldo. Ya puedes gastarlo.",
+      "failed": "Tu pago no se completó y no se añadió dinero. Tu saldo no cambió. Puedes reintentar esta recarga desde este registro; el reintento inicia un nuevo pago por el mismo importe.",
+      "requires_attention": "Recibimos tu pago, pero aún no pudimos añadirlo a tu saldo. Nuestro equipo ya fue avisado y lo está revisando. No inicies una nueva recarga por el mismo importe hasta que se resuelva."
+    },
+    "retryTopup": "Reintentar esta recarga",
+    "retryingTopup": "Reintentando…",
+    "retryExists": "Ya se inició un reintento para esta recarga.",
+    "viewRetry": "Ver el reintento",
+    "retriedFrom": "Esta recarga reintenta una recarga anterior fallida.",
+    "viewOriginal": "Ver la original"
   },
   "identityVerification": {
     "eyebrow": "Verificación de identidad",

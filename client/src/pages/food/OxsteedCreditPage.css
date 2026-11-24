@@ -238,6 +238,11 @@
 .ox-credit-load-more:disabled { opacity: .55; cursor: wait; }
 .ox-credit-detail-link { display: inline-flex; align-items: center; gap: 4px; color: var(--oc-teal); font-size: 10px; font-weight: 850; text-decoration: none; }
 .ox-credit-detail-link:hover { color: var(--oc-teal-deep); text-decoration: underline; }
+/* Group 13 Slice 4f (680): the top-up panel's view-retry / view-original
+   links are buttons carrying the detail-link class (same pattern as the
+   statement actions below); strip the native button chrome so they read
+   as links. */
+button.ox-credit-detail-link { background: none; border: 0; cursor: pointer; padding: 0; font: inherit; }
 .ox-credit-dispute-form { display: grid; gap: 9px; margin: 15px 23px 20px; padding: 14px; border: 1px solid rgba(214,110,12,.24); border-radius: 15px; background: var(--oc-warm-surface); }
 .ox-credit-dispute-form strong { color: var(--oc-ink); font-size: 13px; }
 .ox-credit-dispute-form > span { color: var(--oc-muted); font-size: 11px; line-height: 1.45; }

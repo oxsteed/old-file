@@ -7,8 +7,9 @@ import {
   createOxsteedCreditTopup,
   getOxsteedCreditTopup,
   issueOxsteedCreditTopupStepup,
+  retryOxsteedCreditTopup,
 } from '../../api/oxsteedCredit';
-import { createBusinessCreditTopup, getBusinessCreditTopup } from '../../api/businesses';
+import { createBusinessCreditTopup, getBusinessCreditTopup, retryBusinessCreditTopup } from '../../api/businesses';
 import { createStableIdempotencyKeyStore } from '../../lib/idempotency';
 import { formatCreditMinorUnits, parseCreditMajorAmount } from '../../lib/creditCurrency';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
@@ -101,6 +102,7 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
   const [code, setCode] = useState('');
   const [intent, setIntent] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [message, setMessage] = useState(null);
   const keysRef = useRef(createStableIdempotencyKeyStore());
   const timerRef = useRef(null);
@@ -124,34 +126,50 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
     }[status] || t('walletTopup.status.pending');
   }
 
+  // Group 13 Slice 4f (679): what each top-up status means for this
+  // record — when the value lands and what happens while it is pending.
+  // Derived from the status alone; the record's own facts (amount, expiry)
+  // sit beside it.
+  function topupStatusExplanation(status) {
+    return {
+      pending: t('walletTopup.statusExplanation.pending'),
+      completed: t('walletTopup.statusExplanation.completed'),
+      failed: t('walletTopup.statusExplanation.failed'),
+      requires_attention: t('walletTopup.statusExplanation.requires_attention'),
+    }[status] || t('walletTopup.statusExplanation.pending');
+  }
+
+  // Load one top-up record into the read-only view (657 deep link, 680
+  // retry/original links). A record the caller cannot read falls through
+  // to the amount form with a notice, never an error page.
+  const loadRecord = useCallback(async (recordId) => {
+    try {
+      const record = businessFunding
+        ? (await getBusinessCreditTopup(businessFunding.businessId, recordId))?.topup || null
+        : (await getOxsteedCreditTopup(recordId))?.topup || null;
+      if (record) {
+        setViewedTopup(record);
+        setViewedTopupError(false);
+        setStep('viewing');
+        return true;
+      }
+      setViewedTopupError(true);
+      setStep('amount');
+      return false;
+    } catch {
+      setViewedTopupError(true);
+      setStep('amount');
+      return false;
+    }
+  }, [businessFunding]);
+
   // Deep-linked record view (657): load the named top-up once. The fetch
   // reuses the same owner-scoped read the panel already polls after a
   // creation, so a record belonging to someone else is simply not found.
   useEffect(() => {
     if (!initialTopupId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const record = businessFunding
-          ? (await getBusinessCreditTopup(businessFunding.businessId, initialTopupId))?.topup || null
-          : (await getOxsteedCreditTopup(initialTopupId))?.topup || null;
-        if (cancelled) return;
-        if (record) {
-          setViewedTopup(record);
-          setStep('viewing');
-        } else {
-          setViewedTopupError(true);
-          setStep('amount');
-        }
-      } catch {
-        if (!cancelled) {
-          setViewedTopupError(true);
-          setStep('amount');
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [initialTopupId, businessFunding]);
+    loadRecord(initialTopupId);
+  }, [initialTopupId, loadRecord]);
 
   const clearViewing = () => {
     stopPolling();
@@ -266,6 +284,41 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
     begin(amountCents, { stepupChallengeId: challengeId, stepupCode: code.trim() });
   };
 
+  // Group 13 Slice 4f (680): retry the failed record being viewed. The
+  // key is fresh per attempt (a random UUID, never the creation key); the
+  // server links the new attempt to this record and replays an existing
+  // retry instead of starting a second one. On a fresh attempt the card
+  // step collects payment exactly like a new top-up; a replayed attempt
+  // just polls until the webhook credits it.
+  const retryViewedTopup = async () => {
+    if (!viewedTopup || viewedTopup.status !== 'failed' || retrying) return;
+    setRetrying(true);
+    try {
+      const key = globalThis.crypto?.randomUUID
+        ? `credit-topup-retry:${globalThis.crypto.randomUUID()}`
+        : `credit-topup-retry:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+      const result = businessFunding
+        ? await retryBusinessCreditTopup(businessFunding.businessId, viewedTopup.id, key)
+        : await retryOxsteedCreditTopup(viewedTopup.id, key);
+      const retryId = result?.topup?.id;
+      if (!retryId) throw new Error('topup-retry-missing');
+      const cents = Number(result.topup.amountCents) || 0;
+      setAmountCents(cents);
+      setViewedTopup(result.topup);
+      if (result.replayed || !result.clientSecret) {
+        if (result.replayed) setMessage({ tone: 'info', text: t('walletTopup.retryExists') });
+        poll(retryId, cents);
+      } else {
+        setIntent({ topupId: retryId, clientSecret: result.clientSecret });
+        setStep('card');
+      }
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('restaurantTopups.createFailed')));
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   const viewingTopup = step === 'viewing' ? viewedTopup : null;
   if (!stripePromise) return null;
 
@@ -288,6 +341,19 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
               <div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${viewingTopup.status}`}>{topupStatusLabel(viewingTopup.status)}</span></div>
             </article>
           </div>
+          <p className="ox-credit-panel-copy">{topupStatusExplanation(viewingTopup.status)}</p>
+          {viewingTopup.retriedFromTopupId && (
+            <p className="ox-credit-panel-copy">{t('walletTopup.retriedFrom')} <button type="button" className="ox-credit-detail-link" onClick={() => loadRecord(viewingTopup.retriedFromTopupId)} data-track-private>{t('walletTopup.viewOriginal')}</button></p>
+          )}
+          {viewingTopup.status === 'failed' && (
+            viewingTopup.retryTopupId ? (
+              <p className="ox-credit-panel-copy">{t('walletTopup.retryExists')} <button type="button" className="ox-credit-detail-link" onClick={() => loadRecord(viewingTopup.retryTopupId)} data-track-private>{t('walletTopup.viewRetry')}</button></p>
+            ) : (
+              <button type="button" className="credit-primary" onClick={retryViewedTopup} disabled={retrying} data-track-private>
+                {retrying ? t('walletTopup.retryingTopup') : t('walletTopup.retryTopup')}
+              </button>
+            )
+          )}
           <button type="button" className="credit-secondary" onClick={clearViewing} data-track-private>{t('walletTopup.viewNewTopup')}</button>
         </div>
       )}
@@ -324,6 +390,7 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
               </button>
             ))}
           </div>
+          <p className="ox-credit-panel-copy">{t('walletTopup.pendingVsPosted')}</p>
           <button type="submit" className="credit-primary" disabled={disabled || submitting} data-track-private>
             {submitting ? t('restaurantTopups.processing') : t('restaurantTopups.continue')}
           </button>

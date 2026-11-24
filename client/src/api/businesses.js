@@ -79,6 +79,11 @@ export const createBusinessCreditTopup = (businessId, payload, idempotencyKey) =
   api.post(`/businesses/${businessId}/credit-topups`, payload, { headers: { 'Idempotency-Key': idempotencyKey } }).then(r => r.data);
 export const getBusinessCreditTopup = (businessId, topupId) =>
   api.get(`/businesses/${businessId}/credit-topups/${encodeURIComponent(topupId)}`).then(r => r.data);
+
+// Group 13 Slice 4f (680): the funder retries a failed business-funded
+// top-up from its own record, with the same funder/business/reason.
+export const retryBusinessCreditTopup = (businessId, topupId, idempotencyKey) =>
+  api.post(`/businesses/${businessId}/credit-topups/${encodeURIComponent(topupId)}/retry`, {}, { headers: { 'Idempotency-Key': idempotencyKey } }).then(r => r.data);
 export const listBusinessCreditTopups = (businessId) =>
   api.get(`/businesses/${businessId}/credit-topups`).then(r => r.data?.topups || []);
 

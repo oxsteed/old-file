@@ -197,6 +197,12 @@ export const createOxsteedCreditTopup = (payload, idempotencyKey) =>
 export const getOxsteedCreditTopup = (topupId) =>
   api.get(`/oxsteed-credit/topups/${encodeURIComponent(topupId)}`).then((response) => response.data);
 
+// Group 13 Slice 4f (680): retry a failed top-up from its own record. The
+// idempotency key must be fresh per retry attempt; the server links the new
+// attempt to the failed original and replays an existing retry.
+export const retryOxsteedCreditTopup = (topupId, idempotencyKey) =>
+  api.post(`/oxsteed-credit/topups/${encodeURIComponent(topupId)}/retry`, {}, { headers: { 'Idempotency-Key': idempotencyKey } }).then((response) => response.data);
+
 export const listOxsteedCreditTopups = (params = {}) =>
   api.get('/oxsteed-credit/topups', { params }).then((response) => response.data?.topups || []);
 

@@ -2432,6 +2432,8 @@
   "pendingActivity": "Pending activity",
   "pendingTopups": "Pending top-ups",
   "pendingTopupsCopy": "Top-ups that have not cleared yet. The money is added to your balance once the payment clears.",
+  "failedTopups": "Failed top-ups",
+  "failedTopupsCopy": "These payments did not go through and no money was added. Open one to retry it.",
   "viewTopup": "View top-up",
   "requestedAt": "Requested {{date}}",
   "walletTopup": {
@@ -2458,7 +2460,20 @@
     "viewingCopy": "Details of the top-up you opened from your Credit page.",
     "viewingNotFound": "That top-up could not be found. It may belong to another account.",
     "viewingLoading": "Loading top-up record…",
-    "viewNewTopup": "Add a different amount"
+    "viewNewTopup": "Add a different amount",
+    "pendingVsPosted": "A top-up stays pending until your card payment clears. While it is pending, the money is not in your balance yet. It lands when the top-up shows as Credited.",
+    "statusExplanation": {
+      "pending": "Your payment is still being processed. The money is not in your balance yet and you cannot spend it. It lands as soon as the payment clears. If it is still pending after 30 minutes, the top-up expires and fails.",
+      "completed": "Your payment cleared and the money is in your balance. You can spend it now.",
+      "failed": "Your payment did not go through and no money was added. Your balance is unchanged. You can retry this top-up from this record; the retry starts a new payment for the same amount.",
+      "requires_attention": "We received your payment but could not add it to your balance yet. Our team has been alerted and is looking into it. Do not start a new top-up for the same amount until this is resolved."
+    },
+    "retryTopup": "Retry this top-up",
+    "retryingTopup": "Retrying…",
+    "retryExists": "A retry was already started for this top-up.",
+    "viewRetry": "View the retry",
+    "retriedFrom": "This top-up retries an earlier failed top-up.",
+    "viewOriginal": "View the original"
   },
   "identityVerification": {
     "eyebrow": "Identity check",

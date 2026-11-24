@@ -2432,6 +2432,8 @@
   "pendingActivity": "Activité en attente",
   "pendingTopups": "Recharges en attente",
   "pendingTopupsCopy": "Recharges pas encore créditées. L'argent est ajouté à votre solde une fois le paiement confirmé.",
+  "failedTopups": "Recharges échouées",
+  "failedTopupsCopy": "Ces paiements n’ont pas abouti et aucun montant n’a été ajouté. Ouvrez-en un pour le réessayer.",
   "viewTopup": "Voir la recharge",
   "requestedAt": "Demandée le {{date}}",
   "walletTopup": {
@@ -2458,7 +2460,20 @@
     "viewingCopy": "Détails de la recharge ouverte depuis votre page Crédit.",
     "viewingNotFound": "Cette recharge est introuvable. Elle appartient peut-être à un autre compte.",
     "viewingLoading": "Chargement du détail de la recharge…",
-    "viewNewTopup": "Ajouter un autre montant"
+    "viewNewTopup": "Ajouter un autre montant",
+    "pendingVsPosted": "Une recharge reste en attente jusqu’à la confirmation du paiement par carte. Tant qu’elle est en attente, l’argent n’est pas encore sur votre solde. Il y arrive dès que la recharge s’affiche comme Créditée.",
+    "statusExplanation": {
+      "pending": "Votre paiement est en cours de traitement. L’argent n’est pas encore sur votre solde et vous ne pouvez pas le dépenser. Il y arrive dès que le paiement est confirmé. S’il est toujours en attente après 30 minutes, la recharge expire et échoue.",
+      "completed": "Votre paiement a été confirmé et l’argent est sur votre solde. Vous pouvez le dépenser dès maintenant.",
+      "failed": "Votre paiement n’a pas abouti et aucun montant n’a été ajouté. Votre solde est inchangé. Vous pouvez réessayer cette recharge depuis cette fiche ; le nouvel essai lance un nouveau paiement du même montant.",
+      "requires_attention": "Nous avons bien reçu votre paiement, mais nous n’avons pas encore pu l’ajouter à votre solde. Notre équipe a été alertée et examine le cas. Ne lancez pas une nouvelle recharge du même montant avant sa résolution."
+    },
+    "retryTopup": "Réessayer cette recharge",
+    "retryingTopup": "Nouvel essai…",
+    "retryExists": "Un nouvel essai a déjà été lancé pour cette recharge.",
+    "viewRetry": "Voir le nouvel essai",
+    "retriedFrom": "Cette recharge réessaie une recharge antérieure échouée.",
+    "viewOriginal": "Voir l’originale"
   },
   "identityVerification": {
     "eyebrow": "Vérification d'identité",

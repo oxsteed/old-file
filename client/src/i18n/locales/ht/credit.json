@@ -2432,6 +2432,8 @@
   "pendingActivity": "Aktivite annatant",
   "pendingTopups": "Rechaj annatant",
   "pendingTopupsCopy": "Rechaj ki poko kredite. Lajan an ajoute sou balans ou yon fwa peman an konfime.",
+  "failedTopups": "Rechaj ki echwe",
+  "failedTopupsCopy": "Peman sa yo pa t pase epi okenn lajan pa t ajoute. Louvri youn pou w eseye l ankò.",
   "viewTopup": "Wè rechaj la",
   "requestedAt": "Mande {{date}}",
   "walletTopup": {
@@ -2458,7 +2460,20 @@
     "viewingCopy": "Detay rechaj ou te louvri nan paj Kredi ou a.",
     "viewingNotFound": "Rechaj sa a pa jwenn. Li ka pou yon lòt kont.",
     "viewingLoading": "Ap chaje dosye rechaj la…",
-    "viewNewTopup": "Ajoute yon lòt montan"
+    "viewNewTopup": "Ajoute yon lòt montan",
+    "pendingVsPosted": "Yon rechaj rete annatant jiskaske peman kat ou a konfime. Pandan li annatant, lajan an poko nan balans ou. Li rive lè rechaj la parèt kòm Kredite.",
+    "statusExplanation": {
+      "pending": "Peman ou a ap trete toujou. Lajan an poko nan balans ou epi ou pa ka depanse l. Li rive touswit apre peman an konfime. Si li rete annatant apre 30 minit, rechaj la ekspire epi li echwe.",
+      "completed": "Peman ou a konfime epi lajan an nan balans ou. Ou ka depanse l kounye a.",
+      "failed": "Peman ou a pa t pase epi okenn lajan pa t ajoute. Balans ou pa chanje. Ou ka eseye rechaj sa a ankò depi nan dosye sa a; nouvo esè a kòmanse yon nouvo peman pou menm montan an.",
+      "requires_attention": "Nou te resevwa peman ou a, men nou poko ka ajoute l nan balans ou. Ekip nou an deja avèti epi l ap gade sa. Pa kòmanse yon nouvo rechaj pou menm montan an jiskaske sa rezoud."
+    },
+    "retryTopup": "Eseye rechaj sa a ankò",
+    "retryingTopup": "N ap eseye ankò…",
+    "retryExists": "Yo te deja kòmanse yon nouvo esè pou rechaj sa a.",
+    "viewRetry": "Wè nouvo esè a",
+    "retriedFrom": "Rechaj sa a ap eseye yon rechaj anvan ki te echwe ankò.",
+    "viewOriginal": "Wè orijinal la"
   },
   "identityVerification": {
     "eyebrow": "Verifikasyon idantite",
