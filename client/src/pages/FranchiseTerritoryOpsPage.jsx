@@ -29,6 +29,8 @@ import FranchiseExceptionSummary from './FranchiseExceptionSummary';
 import FranchiseLocationHealth from './FranchiseLocationHealth';
 import FranchiseTerritoryTickets from './FranchiseTerritoryTickets';
 import FranchiseCoverageTrend from './FranchiseCoverageTrend';
+import FranchiseExceptionEscalations from './FranchiseExceptionEscalations';
+import FranchiseExceptionResolution from './FranchiseExceptionResolution';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -243,6 +245,110 @@ export default function FranchiseTerritoryOpsPage() {
       .catch(() => { if (!cancelled) setCoverageTrend(null); });
     return () => { cancelled = true; };
   }, [resolvedApplicationId, territoryBlocked]);
+
+  // Group 12 Slice 3g (631-635): the exception resolution lists — the
+  // escalation queue and the corrective-action checklist for the
+  // resolved territory. The resolution state itself rides the boundary
+  // detail; these lists are the working surface on top of it.
+  const [escalations, setEscalations] = useState([]);
+  const [correctiveActions, setCorrectiveActions] = useState([]);
+  const [resolutionRefresh, setResolutionRefresh] = useState(0);
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setEscalations([]);
+      setCorrectiveActions([]);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/escalations`)
+      .then((res) => { if (!cancelled) setEscalations(res.data?.escalations ?? []); })
+      .catch(() => { if (!cancelled) setEscalations([]); });
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/corrective-actions`)
+      .then((res) => { if (!cancelled) setCorrectiveActions(res.data?.corrective_actions ?? []); })
+      .catch(() => { if (!cancelled) setCorrectiveActions([]); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked, resolutionRefresh]);
+
+  const refreshResolution = useCallback(async () => {
+    if (!resolvedApplicationId) return;
+    setResolutionRefresh((v) => v + 1);
+    try {
+      const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}`);
+      setBoundaryDetail(res.data);
+    } catch {
+      // The list refresh above still runs; the bundle reload is best-effort.
+    }
+  }, [resolvedApplicationId]);
+
+  // Group 12 Slice 3g (631): the operator escalates a linked exception
+  // with a reason; the fresh summary replaces the one on the detail.
+  const escalateTicket = useCallback(async (ticketNumber, reason) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/support-tickets/${ticketNumber}/escalate`, { reason });
+      setBoundaryDetail((prev) => (prev ? { ...prev, exception_summary: res.data.exception_summary } : prev));
+      await refreshResolution();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, refreshResolution, t]);
+
+  // Group 12 Slice 3g (632): the operator assigns a remediation owner
+  // for a linked exception.
+  const assignRemediation = useCallback(async (ticketId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/support-tickets/${ticketId}/remediation`, body);
+      await refreshResolution();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, refreshResolution, t]);
+
+  // Group 12 Slice 3g (633): the operator adds a corrective action and
+  // moves one through its status workflow.
+  const createCorrectiveAction = useCallback(async (ticketId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/support-tickets/${ticketId}/corrective-actions`, body);
+      await refreshResolution();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, refreshResolution, t]);
+
+  const updateCorrectiveActionStatus = useCallback(async (actionId, status) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/corrective-actions/${actionId}/status`, { status });
+      await refreshResolution();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, refreshResolution, t]);
+
+  // Group 12 Slice 3g (634): evidence upload (multipart) and read for
+  // one corrective action.
+  const uploadEvidence = useCallback(async (actionId, formData) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/corrective-actions/${actionId}/evidence`, formData);
+      await refreshResolution();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, refreshResolution, t]);
+
+  const loadEvidence = useCallback(async (actionId) => {
+    if (!resolvedApplicationId) return [];
+    const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}/corrective-actions/${actionId}/evidence`);
+    return res.data?.evidence ?? [];
+  }, [resolvedApplicationId]);
 
   // Group 12 Slice 3b (609): the operator updates a launch plan step's
   // status from the ops page; the detail is reloaded to reflect it.
@@ -844,6 +950,38 @@ export default function FranchiseTerritoryOpsPage() {
               onLocationChange={setTicketLocationId}
               canUnlink
               onUnlink={unlinkTicket}
+            />
+          )}
+
+          {/* Group 12 Slice 3g (631, D-331): the per-territory escalation
+              queue — the operator escalates a linked exception with a
+              reason; HQ sees the same queue. */}
+          {boundaryDetail && (
+            <FranchiseExceptionEscalations
+              escalations={escalations}
+              canEscalate
+              onEscalate={escalateTicket}
+            />
+          )}
+
+          {/* Group 12 Slice 3g (632-635, D-332/D-333/D-334/D-335): resolve
+              exceptions — remediation assignment, the corrective-action
+              checklist, evidence, and the derived resolution state.
+              HQ review happens from the HQ page, not here. */}
+          {boundaryDetail && (
+            <FranchiseExceptionResolution
+              resolution={boundaryDetail.exception_resolution || null}
+              correctiveActions={correctiveActions}
+              members={boundaryDetail.territory_members || []}
+              canAssign
+              canCreateAction
+              canUpdateAction
+              canUploadEvidence
+              onAssignRemediation={assignRemediation}
+              onCreateAction={createCorrectiveAction}
+              onUpdateActionStatus={updateCorrectiveActionStatus}
+              onUploadEvidence={uploadEvidence}
+              onLoadEvidence={loadEvidence}
             />
           )}
 

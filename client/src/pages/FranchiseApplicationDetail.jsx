@@ -24,6 +24,8 @@ import FranchiseComplianceChecklist from './FranchiseComplianceChecklist';
 import FranchiseExceptionSummary from './FranchiseExceptionSummary';
 import FranchiseLocationHealth from './FranchiseLocationHealth';
 import FranchiseTerritoryTickets from './FranchiseTerritoryTickets';
+import FranchiseExceptionEscalations from './FranchiseExceptionEscalations';
+import FranchiseExceptionResolution from './FranchiseExceptionResolution';
 import { useAuth } from '../hooks/useAuth';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
@@ -448,6 +450,119 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     }
   }
 
+  // Group 12 Slice 3g (631-635): the exception resolution lists — the
+  // escalation queue and the corrective-action checklist. The resolution
+  // state itself rides the detail payload; these lists are the working
+  // surface on top of it.
+  const [escalations, setEscalations] = useState([]);
+  const [correctiveActions, setCorrectiveActions] = useState([]);
+  const [resolutionRefresh, setResolutionRefresh] = useState(0);
+  useEffect(() => {
+    if (!detail || detail.application?.is_operator !== true) {
+      setEscalations([]);
+      setCorrectiveActions([]);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/franchise/my-applications/${applicationId}/escalations`)
+      .then((response) => { if (!cancelled) setEscalations(response.data?.escalations ?? []); })
+      .catch(() => { if (!cancelled) setEscalations([]); });
+    api.get(`/franchise/my-applications/${applicationId}/corrective-actions`)
+      .then((response) => { if (!cancelled) setCorrectiveActions(response.data?.corrective_actions ?? []); })
+      .catch(() => { if (!cancelled) setCorrectiveActions([]); });
+    return () => { cancelled = true; };
+  }, [detail, applicationId, resolutionRefresh]);
+
+  async function reloadDetail() {
+    try {
+      const response = await api.get(`/franchise/my-applications/${applicationId}`);
+      setDetail(response.data);
+    } catch {
+      // The list refresh still runs; the bundle reload is best-effort.
+    }
+  }
+
+  async function escalateTicket(ticketNumber, reason) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/support-tickets/${ticketNumber}/escalate`, { reason });
+      setDetail((prev) => (prev ? { ...prev, exception_summary: response.data.exception_summary } : prev));
+      setResolutionRefresh((v) => v + 1);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('escalationFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function assignRemediation(ticketId, body) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/franchise/my-applications/${applicationId}/support-tickets/${ticketId}/remediation`, body);
+      setResolutionRefresh((v) => v + 1);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('remediationFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createCorrectiveAction(ticketId, body) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/franchise/my-applications/${applicationId}/support-tickets/${ticketId}/corrective-actions`, body);
+      setResolutionRefresh((v) => v + 1);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('actionAddFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateCorrectiveActionStatus(actionId, status) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/franchise/my-applications/${applicationId}/corrective-actions/${actionId}/status`, { status });
+      setResolutionRefresh((v) => v + 1);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('actionUpdateFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function uploadEvidence(actionId, formData) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/franchise/my-applications/${applicationId}/corrective-actions/${actionId}/evidence`, formData);
+      setResolutionRefresh((v) => v + 1);
+      await reloadDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('evidenceUploadFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadEvidence(actionId) {
+    const response = await api.get(`/franchise/my-applications/${applicationId}/corrective-actions/${actionId}/evidence`);
+    return response.data?.evidence ?? [];
+  }
+
   // Group 12 Slice 3e (622): acknowledge a standard's current version
   // with a drawn e-signature (multipart FormData).
   async function acknowledgeStandard(standardId, formData) {
@@ -835,6 +950,33 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onLocationChange={setTicketLocationId}
         canUnlink={detail.application?.is_operator === true}
         onUnlink={unlinkTicket}
+        busy={busy}
+      />
+
+      {/* Group 12 Slice 3g (631, D-331): the per-territory escalation queue. */}
+      <FranchiseExceptionEscalations
+        escalations={escalations}
+        canEscalate={detail.application?.is_operator === true}
+        onEscalate={escalateTicket}
+        busy={busy}
+      />
+
+      {/* Group 12 Slice 3g (632-635, D-332/D-333/D-334/D-335): resolve
+          exceptions — remediation, corrective actions, evidence, and the
+          derived resolution state. HQ review happens from the HQ page. */}
+      <FranchiseExceptionResolution
+        resolution={detail.exception_resolution || null}
+        correctiveActions={correctiveActions}
+        members={detail.territory_members || []}
+        canAssign={detail.application?.is_operator === true}
+        canCreateAction={detail.application?.is_operator === true}
+        canUpdateAction={detail.application?.is_operator === true}
+        canUploadEvidence={detail.application?.is_operator === true}
+        onAssignRemediation={assignRemediation}
+        onCreateAction={createCorrectiveAction}
+        onUpdateActionStatus={updateCorrectiveActionStatus}
+        onUploadEvidence={uploadEvidence}
+        onLoadEvidence={loadEvidence}
         busy={busy}
       />
 

@@ -27,6 +27,8 @@ import FranchiseExceptionSummary from '../../../pages/FranchiseExceptionSummary'
 import FranchiseLocationHealth from '../../../pages/FranchiseLocationHealth';
 import FranchiseTerritoryTickets from '../../../pages/FranchiseTerritoryTickets';
 import FranchiseCoverageTrend from '../../../pages/FranchiseCoverageTrend';
+import FranchiseExceptionEscalations from '../../../pages/FranchiseExceptionEscalations';
+import FranchiseExceptionResolution from '../../../pages/FranchiseExceptionResolution';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -378,6 +380,142 @@ export default function FranchiseHQPage() {
       .catch(() => { if (!cancelled) setTerritoryTickets([]); });
     return () => { cancelled = true; };
   }, [selectedBundle, hqTicketStatus, hqTicketLocationId, hqTicketRefresh]);
+
+  // Group 12 Slice 3g (631-635): the exception resolution lists for the
+  // selected application — the escalation queue and the corrective-action
+  // checklist. The resolution state itself rides the bundle.
+  const [hqEscalations, setHqEscalations] = useState([]);
+  const [hqCorrectiveActions, setHqCorrectiveActions] = useState([]);
+  const [hqResolutionRefresh, setHqResolutionRefresh] = useState(0);
+  useEffect(() => {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) {
+      setHqEscalations([]);
+      setHqCorrectiveActions([]);
+      return undefined;
+    }
+    let cancelled = false;
+    axios.get(`/franchise/applications/${applicationId}/escalations`)
+      .then((res) => { if (!cancelled) setHqEscalations(res.data?.escalations ?? []); })
+      .catch(() => { if (!cancelled) setHqEscalations([]); });
+    axios.get(`/franchise/applications/${applicationId}/corrective-actions`)
+      .then((res) => { if (!cancelled) setHqCorrectiveActions(res.data?.corrective_actions ?? []); })
+      .catch(() => { if (!cancelled) setHqCorrectiveActions([]); });
+    return () => { cancelled = true; };
+  }, [selectedBundle, hqResolutionRefresh]);
+
+  // Group 12 Slice 3g (631): HQ escalates a linked exception for the
+  // territory.
+  async function escalateTerritoryTicket(ticketNumber, reason) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/support-tickets/${ticketNumber}/escalate`, { reason });
+      setHqResolutionRefresh((v) => v + 1);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.escalationFailed'));
+      throw new Error(t('dashboards.franchise.escalationFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3g (632): HQ assigns a remediation owner for a
+  // linked exception.
+  async function assignTerritoryRemediation(ticketId, body) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/support-tickets/${ticketId}/remediation`, body);
+      setHqResolutionRefresh((v) => v + 1);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.remediationFailed'));
+      throw new Error(t('dashboards.franchise.remediationFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3g (633): HQ adds a corrective action and moves one
+  // through its status workflow (including verify / send back).
+  async function createTerritoryCorrectiveAction(ticketId, body) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/support-tickets/${ticketId}/corrective-actions`, body);
+      setHqResolutionRefresh((v) => v + 1);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.actionAddFailed'));
+      throw new Error(t('dashboards.franchise.actionAddFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateTerritoryCorrectiveActionStatus(actionId, status) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/corrective-actions/${actionId}/status`, { status });
+      setHqResolutionRefresh((v) => v + 1);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.actionUpdateFailed'));
+      throw new Error(t('dashboards.franchise.actionUpdateFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3g (634): HQ uploads evidence (multipart) and reads
+  // it back for one corrective action.
+  async function uploadTerritoryEvidence(actionId, formData) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/corrective-actions/${actionId}/evidence`, formData);
+      setHqResolutionRefresh((v) => v + 1);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.evidenceUploadFailed'));
+      throw new Error(t('dashboards.franchise.evidenceUploadFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function loadTerritoryEvidence(actionId) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return [];
+    const res = await axios.get(`/franchise/applications/${applicationId}/corrective-actions/${actionId}/evidence`);
+    return res.data?.evidence ?? [];
+  }
+
+  // Group 12 Slice 3g (635): HQ reviews a resolved corrective action —
+  // accept verifies it, reject sends it back with a reason.
+  async function reviewTerritoryCorrectiveAction(actionId, { decision, reason }) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/corrective-actions/${actionId}/review`, { decision, reason });
+      setHqResolutionRefresh((v) => v + 1);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.actionReviewFailed'));
+      throw new Error(t('dashboards.franchise.actionReviewFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // Group 12 Slice 3f (629): HQ unlinks a ticket from the territory;
   // the bundle reload refreshes the exception summary and the queue.
@@ -1948,6 +2086,38 @@ export default function FranchiseHQPage() {
                     onLocationChange={setHqTicketLocationId}
                     canUnlink
                     onUnlink={unlinkTerritoryTicket}
+                    busy={saving}
+                  />
+
+                  {/* Group 12 Slice 3g (631, D-331): the per-territory
+                      escalation queue — HQ escalates a linked exception
+                      and reads the queue. */}
+                  <FranchiseExceptionEscalations
+                    escalations={hqEscalations}
+                    canEscalate
+                    onEscalate={escalateTerritoryTicket}
+                    busy={saving}
+                  />
+
+                  {/* Group 12 Slice 3g (632-635, D-332/D-333/D-334/D-335):
+                      resolve exceptions — HQ assigns remediation, adds
+                      and moves corrective actions, uploads evidence, and
+                      reviews resolved actions. */}
+                  <FranchiseExceptionResolution
+                    resolution={selectedBundle.exception_resolution || null}
+                    correctiveActions={hqCorrectiveActions}
+                    members={selectedBundle.territory_members || []}
+                    canAssign
+                    canCreateAction
+                    canUpdateAction
+                    canUploadEvidence
+                    canReview
+                    onAssignRemediation={assignTerritoryRemediation}
+                    onCreateAction={createTerritoryCorrectiveAction}
+                    onUpdateActionStatus={updateTerritoryCorrectiveActionStatus}
+                    onUploadEvidence={uploadTerritoryEvidence}
+                    onLoadEvidence={loadTerritoryEvidence}
+                    onReview={reviewTerritoryCorrectiveAction}
                     busy={saving}
                   />
 
