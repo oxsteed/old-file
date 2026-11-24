@@ -117,6 +117,8 @@ const {
   getTerritoryCapacity,
   getTerritoryCapacityAsAdmin,
   setCapacityTargetAsAdmin,
+  getTrainingPlanner,
+  getTrainingPlannerAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
@@ -227,6 +229,9 @@ router.get('/my-applications/:id/corrective-actions/:actionId/evidence', authent
 // Group 12 Slice 3g (635): resolution review — the per-exception
 // resolution state, derived from ticket + corrective-action state.
 router.get('/my-applications/:id/resolution', authenticate, requireFranchiseEnabled, getExceptionResolution);
+// Group 12 Slice 3h (638): the training resource planner — who needs
+// what training by when, derived from assignments, roster, and Learn.
+router.get('/my-applications/:id/training-planner', authenticate, requireFranchiseEnabled, getTrainingPlanner);
 // Group 12 Slice 3h (637): the territory capacity view — a structured
 // per-area capacity view (no map), derived from territory data.
 router.get('/my-applications/:id/capacity', authenticate, requireFranchiseEnabled, getTerritoryCapacity);
@@ -317,6 +322,8 @@ router.post('/applications/:id/corrective-actions/:actionId/status', authenticat
 // corrective action.
 router.post('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), upload.single('file'), validateFileUpload, uploadActionEvidenceAsAdmin);
 router.get('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), listActionEvidenceAsAdmin);
+// Group 12 Slice 3h (638): HQ reads the training resource planner.
+router.get('/applications/:id/training-planner', authenticate, requireAdmin, requirePermission('manage_operations'), getTrainingPlannerAsAdmin);
 // Group 12 Slice 3h (637): HQ reads the capacity view and sets the
 // target location count per structured boundary area.
 router.get('/applications/:id/capacity', authenticate, requireAdmin, requirePermission('manage_operations'), getTerritoryCapacityAsAdmin);

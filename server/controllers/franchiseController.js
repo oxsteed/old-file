@@ -478,6 +478,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // view — targets, open/planned/candidate load, staffing and exception
   // load per boundary area. Derived on read, no map.
   const territoryCapacity = await buildTerritoryCapacity(applicationId);
+  // Group 12 Slice 3h (638, D-338): the training resource planner — who
+  // needs what training by when, and how much is covered. Derived.
+  const trainingPlanner = await buildTrainingPlanner(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -511,6 +514,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     exception_resolution: exceptionResolution,
     candidate_locations: candidateLocations,
     territory_capacity: territoryCapacity,
+    training_planner: trainingPlanner,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1120,6 +1124,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   const candidateLocations = await buildCandidateLocations(applicationId);
   // Group 12 Slice 3h (637, D-337): the structured per-area capacity view.
   const territoryCapacity = await buildTerritoryCapacity(applicationId);
+  // Group 12 Slice 3h (638, D-338): the training resource planner.
+  const trainingPlanner = await buildTrainingPlanner(applicationId);
 
   return {
     application: {
@@ -1148,6 +1154,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     exception_resolution: exceptionResolution,
     candidate_locations: candidateLocations,
     territory_capacity: territoryCapacity,
+    training_planner: trainingPlanner,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — viewer perspective.
@@ -8757,6 +8764,213 @@ async function setCapacityTargetAsAdmin(req, res) {
   }
 }
 
+// 638 (D-338): the training resource planner — who needs what training
+// by when, and how much of the required training is covered. Derived on
+// read from the territory's training assignments (618), its roster, and
+// the Learn program catalogue: no second training system is built
+// (D-292/D-317). A member's required training is the set of modules
+// assigned to them; a location's required training is the set assigned
+// for that location (territory-wide assignments count for every
+// location's team). Learn programs link by category: an assignment
+// category that matches an active Learn program category surfaces that
+// program as the place to take the training. Overdue means a due date in
+// the past on an assignment that is not completed.
+function trainingPlannerDateOnly(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+async function buildTrainingPlanner(applicationId) {
+  const [members, assignments, locations, programs] = await Promise.all([
+    fetchTerritoryMembers(applicationId),
+    fetchTrainingAssignments(applicationId),
+    fetchOpenLocations(applicationId),
+    db.query(
+      `SELECT slug, category FROM learn_programs WHERE is_active = TRUE ORDER BY slug ASC`
+    ).then((result) => result.rows),
+  ]);
+  const today = new Date().toISOString().slice(0, 10);
+  const programsByCategory = new Map();
+  for (const program of programs) {
+    if (!programsByCategory.has(program.category)) programsByCategory.set(program.category, []);
+    programsByCategory.get(program.category).push(program.slug);
+  }
+  const memberById = new Map(members.map((member) => [String(member.user_id), member]));
+  const presentAssignment = (assignment) => {
+    const dueDate = trainingPlannerDateOnly(assignment.due_date);
+    return {
+      id: assignment.id,
+      location_id: assignment.location_id,
+      assignee_user_id: assignment.assignee_user_id,
+      assignee_name: [assignment.assignee_first_name, assignment.assignee_last_name].filter(Boolean).join(' ')
+        || assignment.assignee_email || null,
+      module_id: assignment.module_id,
+      module_title: assignment.module_title,
+      category: assignment.category,
+      learn_programs: assignment.category ? (programsByCategory.get(assignment.category) || []) : [],
+      due_date: dueDate,
+      status: assignment.status,
+      overdue: Boolean(dueDate) && dueDate < today && assignment.status !== 'completed',
+      completed_at: assignment.completed_at || null,
+    };
+  };
+  const presented = assignments.map(presentAssignment);
+  const byMember = new Map(members.map((member) => [String(member.user_id), []]));
+  for (const assignment of presented) {
+    if (byMember.has(String(assignment.assignee_user_id))) {
+      byMember.get(String(assignment.assignee_user_id)).push(assignment);
+    }
+  }
+  const memberPlans = members.map((member) => {
+    const mine = byMember.get(String(member.user_id)) || [];
+    const dueDates = mine.filter((a) => a.due_date).map((a) => a.due_date).sort();
+    return {
+      user_id: member.user_id,
+      name: member.name,
+      email: member.email,
+      kind: member.kind,
+      assignments: mine,
+      assigned: mine.filter((a) => a.status === 'assigned').length,
+      in_progress: mine.filter((a) => a.status === 'in_progress').length,
+      completed: mine.filter((a) => a.status === 'completed').length,
+      overdue: mine.filter((a) => a.overdue).length,
+      next_due_date: dueDates[0] || null,
+      has_no_training: mine.length === 0,
+    };
+  });
+  const locationPlans = locations.map((location) => {
+    const team = [
+      ...(location.opening_team || []).map((row) => ({
+        user_id: row.helper_user_id,
+        name: [row.helper_first_name, row.helper_last_name].filter(Boolean).join(' ') || row.helper_email,
+        role: row.role,
+      })),
+    ];
+    if (location.manager) {
+      team.push({ user_id: location.manager.manager_user_id, name: location.manager.name, role: 'manager' });
+    }
+    const teamIds = new Set(team.map((row) => String(row.user_id)));
+    const forLocation = presented.filter((a) => String(a.location_id) === String(location.id));
+    const territoryWide = presented.filter((a) => !a.location_id);
+    // A location's required training is everything assigned for that
+    // location, plus the territory-wide assignments of its own team.
+    const teamAssignments = [
+      ...forLocation,
+      ...territoryWide.filter((a) => teamIds.has(String(a.assignee_user_id))),
+    ];
+    const modules = [...new Set(teamAssignments.map((a) => a.module_title))];
+    const withoutTraining = team.filter((row) => !(byMember.get(String(row.user_id)) || []).length)
+      .map((row) => ({ user_id: row.user_id, name: row.name }));
+    const total = teamAssignments.length;
+    const done = teamAssignments.filter((a) => a.status === 'completed').length;
+    return {
+      location_id: location.id,
+      location_name: location.name,
+      status: location.status,
+      team,
+      team_size: team.length,
+      assignments: { total, completed: done, overdue: teamAssignments.filter((a) => a.overdue).length },
+      completion_pct: total ? Math.round((done / total) * 100) : null,
+      modules,
+      members_without_training: withoutTraining,
+    };
+  });
+  const modulesByTitle = new Map();
+  for (const assignment of presented) {
+    if (!modulesByTitle.has(assignment.module_title)) {
+      modulesByTitle.set(assignment.module_title, {
+        module_title: assignment.module_title,
+        category: assignment.category,
+        learn_programs: assignment.learn_programs,
+        assignees: [],
+        completed: 0,
+      });
+    }
+    const row = modulesByTitle.get(assignment.module_title);
+    if (!row.assignees.some((a) => String(a.user_id) === String(assignment.assignee_user_id))) {
+      row.assignees.push({ user_id: assignment.assignee_user_id, name: assignment.assignee_name });
+    }
+    if (assignment.status === 'completed') row.completed += 1;
+  }
+  const modulePlans = [...modulesByTitle.values()].map((row) => ({
+    ...row,
+    assigned: row.assignees.length,
+    coverage_pct: row.assignees.length
+      ? Math.round((row.completed / presented.filter((a) => a.module_title === row.module_title).length) * 100)
+      : null,
+  }));
+  const gaps = [];
+  for (const member of memberPlans) {
+    if (member.has_no_training) {
+      gaps.push({ kind: 'no_training', user_id: member.user_id, name: member.name, detail: null });
+    }
+    for (const assignment of member.assignments.filter((a) => a.overdue)) {
+      gaps.push({
+        kind: 'overdue',
+        user_id: member.user_id,
+        name: member.name,
+        detail: `${assignment.module_title} (due ${assignment.due_date})`,
+      });
+    }
+  }
+  const total = presented.length;
+  const completed = presented.filter((a) => a.status === 'completed').length;
+  return {
+    application_id: applicationId,
+    totals: {
+      members: members.length,
+      assignments: total,
+      completed,
+      completion_pct: total ? Math.round((completed / total) * 100) : null,
+      overdue: presented.filter((a) => a.overdue).length,
+      members_without_training: memberPlans.filter((m) => m.has_no_training).length,
+    },
+    members: memberPlans,
+    locations: locationPlans,
+    modules: modulePlans,
+    gaps,
+    learn_programs: programs.map((program) => ({ slug: program.slug, category: program.category })),
+  };
+}
+
+async function getTrainingPlanner(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can view the training planner.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    return res.json(await buildTrainingPlanner(id));
+  } catch (err) {
+    logger.error('Error loading franchise training planner', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load training planner.' });
+  }
+}
+
+async function getTrainingPlannerAsAdmin(req, res) {
+  return getTrainingPlanner(req, res, { asAdmin: true });
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -8861,6 +9075,8 @@ module.exports = {
   getTerritoryCapacity,
   getTerritoryCapacityAsAdmin,
   setCapacityTargetAsAdmin,
+  getTrainingPlanner,
+  getTrainingPlannerAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,

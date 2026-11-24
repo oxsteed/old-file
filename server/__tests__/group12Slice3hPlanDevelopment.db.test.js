@@ -546,4 +546,162 @@ describeDb('Group 12 Slice 3h: Plan development (636-640)', () => {
       await capacityAs(operator, applicationId, true).expect(403);
     });
   });
+
+  describe('638: training resource planner', () => {
+    function plannerAs(user, applicationId, asAdmin = false) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/training-planner`
+        : `/api/franchise/my-applications/${applicationId}/training-planner`;
+      return request(app).get(base).set('x-test-user', user.id);
+    }
+
+    function assignAs(user, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training`)
+        .set('x-test-user', user.id)
+        .send(body);
+    }
+
+    test('with no assignments the planner names the gap: every member has no training', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const member = await addOpeningTeamMember(operator, applicationId);
+      const locationId = await locationIdFor(operator, applicationId);
+      await db.query(
+        `INSERT INTO franchise_opening_team_members (application_id, location_id, helper_user_id, role)
+         VALUES ($1, $2, $3, 'member')`,
+        [applicationId, locationId, member.id],
+      );
+
+      const planner = await plannerAs(operator, applicationId).expect(200);
+      expect(planner.body.totals.members).toBe(2);
+      expect(planner.body.totals.assignments).toBe(0);
+      expect(planner.body.totals.completion_pct).toBeNull();
+      expect(planner.body.totals.members_without_training).toBe(2);
+      expect(planner.body.members.every((m) => m.has_no_training)).toBe(true);
+      expect(planner.body.gaps.filter((g) => g.kind === 'no_training')).toHaveLength(2);
+      expect(planner.body.locations).toHaveLength(1);
+      expect(planner.body.locations[0].completion_pct).toBeNull();
+      expect(planner.body.locations[0].members_without_training).toHaveLength(1);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.training_planner.totals.members).toBe(2);
+    });
+
+    test('assignments land on the member, the location, and the module row with due dates', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const member = await addOpeningTeamMember(operator, applicationId);
+      const locationId = await locationIdFor(operator, applicationId);
+
+      const assigned = await assignAs(operator, applicationId, {
+        assignee_user_id: member.id,
+        location_id: locationId,
+        module_title: 'Food Safety Basics',
+        category: 'food_safety',
+        due_date: '2026-12-20',
+      }).expect(201);
+      expect(assigned.body.training_assignment || assigned.body.assignment || assigned.body).toBeTruthy();
+
+      const planner = await plannerAs(operator, applicationId).expect(200);
+      expect(planner.body.totals.assignments).toBe(1);
+      expect(planner.body.totals.completion_pct).toBe(0);
+      const memberPlan = planner.body.members.find((m) => m.user_id === member.id);
+      expect(memberPlan.assigned).toBe(1);
+      expect(memberPlan.next_due_date).toBe('2026-12-20');
+      expect(memberPlan.has_no_training).toBe(false);
+      const locationPlan = planner.body.locations[0];
+      expect(locationPlan.assignments.total).toBe(1);
+      expect(locationPlan.completion_pct).toBe(0);
+      expect(locationPlan.modules).toContain('Food Safety Basics');
+      expect(locationPlan.members_without_training).toHaveLength(0);
+      const moduleRow = planner.body.modules.find((m) => m.module_title === 'Food Safety Basics');
+      expect(moduleRow.assigned).toBe(1);
+      expect(moduleRow.coverage_pct).toBe(0);
+      expect(moduleRow.category).toBe('food_safety');
+    });
+
+    test('completing an assignment covers it; a past-due assignment is an overdue gap', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const member = await addOpeningTeamMember(operator, applicationId);
+      const locationId = await locationIdFor(operator, applicationId);
+
+      const first = await assignAs(operator, applicationId, {
+        assignee_user_id: member.id,
+        location_id: locationId,
+        module_title: 'Food Safety Basics',
+        category: 'food_safety',
+        due_date: '2026-12-20',
+      }).expect(201);
+      const firstId = (first.body.training_assignment || first.body.assignment
+        || first.body.training_assignments?.[0] || {}).id
+        || (await db.query(
+          `SELECT id FROM franchise_training_assignments WHERE application_id = $1 AND module_title = $2`,
+          [applicationId, 'Food Safety Basics'])).rows[0].id;
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training/${firstId}/complete`)
+        .set('x-test-user', member.id)
+        .expect(200);
+
+      await assignAs(operator, applicationId, {
+        assignee_user_id: member.id,
+        location_id: locationId,
+        module_title: 'Kitchen Cleaning',
+        category: 'cleaning',
+        due_date: '2020-01-15',
+      }).expect(201);
+
+      const planner = await plannerAs(operator, applicationId).expect(200);
+      expect(planner.body.totals.assignments).toBe(2);
+      expect(planner.body.totals.completed).toBe(1);
+      expect(planner.body.totals.completion_pct).toBe(50);
+      expect(planner.body.totals.overdue).toBe(1);
+      const memberPlan = planner.body.members.find((m) => m.user_id === member.id);
+      expect(memberPlan.completed).toBe(1);
+      expect(memberPlan.overdue).toBe(1);
+      expect(planner.body.gaps.filter((g) => g.kind === 'overdue')).toHaveLength(1);
+      expect(planner.body.gaps.find((g) => g.kind === 'overdue').detail).toContain('Kitchen Cleaning');
+      const moduleRow = planner.body.modules.find((m) => m.module_title === 'Food Safety Basics');
+      expect(moduleRow.coverage_pct).toBe(100);
+    });
+
+    test('an active Learn program in the assignment category links onto the module row', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const member = await addOpeningTeamMember(operator, applicationId);
+      await db.query(
+        `INSERT INTO learn_programs (slug, category, is_active) VALUES ('food-safety-101', 'food_safety', TRUE)
+         ON CONFLICT (slug) DO UPDATE SET is_active = TRUE`,
+      );
+      await assignAs(operator, applicationId, {
+        assignee_user_id: member.id,
+        module_title: 'Food Safety Basics',
+        category: 'food_safety',
+        due_date: '2026-12-20',
+      }).expect(201);
+
+      const planner = await plannerAs(operator, applicationId).expect(200);
+      const moduleRow = planner.body.modules.find((m) => m.module_title === 'Food Safety Basics');
+      expect(moduleRow.learn_programs).toContain('food-safety-101');
+      expect(planner.body.learn_programs.map((p) => p.slug)).toContain('food-safety-101');
+    });
+
+    test('a stranger gets 404, a non-operator applicant 403, HQ reads the planner', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+
+      await plannerAs(stranger, applicationId).expect(404);
+      await plannerAs(applicant, applicationId)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      const hq = await plannerAs(admin, applicationId, true).expect(200);
+      expect(hq.body.totals.members).toBe(1);
+      await plannerAs(operator, applicationId, true).expect(403);
+    });
+  });
 });
