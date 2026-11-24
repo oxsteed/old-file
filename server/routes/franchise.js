@@ -126,6 +126,24 @@ const {
   getExpansionNotesAsAdmin,
   updateExpansionNote,
   deleteExpansionNote,
+  listMyHandoffs,
+  createHandoff,
+  getHandoffs,
+  getHandoffsAsAdmin,
+  getHandoff,
+  getHandoffAsAdmin,
+  cancelHandoff,
+  cancelHandoffAsAdmin,
+  reviewHandoffAsAdmin,
+  listHandoffTransfers,
+  listHandoffTransfersAsAdmin,
+  createContactDirectoryEntry,
+  getContactDirectory,
+  getContactDirectoryAsAdmin,
+  updateContactDirectoryEntry,
+  deleteContactDirectoryEntry,
+  removeTerritoryAccessAsAdmin,
+  listAccessRemovalsAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
@@ -258,6 +276,21 @@ router.get('/my-applications/:id/candidate-locations', authenticate, requireFran
 router.post('/my-applications/:id/candidate-locations', authenticate, requireFranchiseEnabled, createCandidateLocation);
 router.patch('/my-applications/:id/candidate-locations/:candidateId', authenticate, requireFranchiseEnabled, updateCandidateLocation);
 router.delete('/my-applications/:id/candidate-locations/:candidateId', authenticate, requireFranchiseEnabled, deleteCandidateLocation);
+// Group 12 Slice 3i (641-645): operator transition — one handoff flow.
+// The outgoing operator initiates (641); HQ approves or rejects; only
+// approval transfers open issues (642) and records (644) and revokes the
+// outgoing operator's access (645). The contact directory (643) is
+// operator-maintained; HQ reads the same directory.
+router.get('/my-handoffs', authenticate, requireFranchiseEnabled, listMyHandoffs);
+router.post('/my-applications/:id/handoffs', authenticate, requireFranchiseEnabled, createHandoff);
+router.get('/my-applications/:id/handoffs', authenticate, requireFranchiseEnabled, getHandoffs);
+router.get('/my-applications/:id/handoffs/:handoffId', authenticate, requireFranchiseEnabled, getHandoff);
+router.post('/my-applications/:id/handoffs/:handoffId/cancel', authenticate, requireFranchiseEnabled, cancelHandoff);
+router.get('/my-applications/:id/handoffs/:handoffId/transfers', authenticate, requireFranchiseEnabled, listHandoffTransfers);
+router.get('/my-applications/:id/contact-directory', authenticate, requireFranchiseEnabled, getContactDirectory);
+router.post('/my-applications/:id/contact-directory', authenticate, requireFranchiseEnabled, createContactDirectoryEntry);
+router.patch('/my-applications/:id/contact-directory/:entryId', authenticate, requireFranchiseEnabled, updateContactDirectoryEntry);
+router.delete('/my-applications/:id/contact-directory/:entryId', authenticate, requireFranchiseEnabled, deleteContactDirectoryEntry);
 // Group 12 Slice 3d (620): the operator reads the HQ announcement feed
 // and marks items read (idempotent).
 router.post('/my-applications/:id/announcements/:announcementId/read', authenticate, requireFranchiseEnabled, markAnnouncementRead);
@@ -339,6 +372,19 @@ router.post('/applications/:id/corrective-actions/:actionId/status', authenticat
 // corrective action.
 router.post('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), upload.single('file'), validateFileUpload, uploadActionEvidenceAsAdmin);
 router.get('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), listActionEvidenceAsAdmin);
+// Group 12 Slice 3i (641/642/644/645): HQ reviews a pending handoff
+// (approve executes the transfer; reject needs a reason), reads the
+// transfer log, cancels a pending handoff, and reads the contact
+// directory. HQ also removes a territory member's access explicitly,
+// with an audit entry (645).
+router.get('/applications/:id/handoffs', authenticate, requireAdmin, requirePermission('manage_operations'), getHandoffsAsAdmin);
+router.get('/applications/:id/handoffs/:handoffId', authenticate, requireAdmin, requirePermission('manage_operations'), getHandoffAsAdmin);
+router.post('/applications/:id/handoffs/:handoffId/review', authenticate, requireAdmin, requirePermission('manage_operations'), reviewHandoffAsAdmin);
+router.post('/applications/:id/handoffs/:handoffId/cancel', authenticate, requireAdmin, requirePermission('manage_operations'), cancelHandoffAsAdmin);
+router.get('/applications/:id/handoffs/:handoffId/transfers', authenticate, requireAdmin, requirePermission('manage_operations'), listHandoffTransfersAsAdmin);
+router.get('/applications/:id/contact-directory', authenticate, requireAdmin, requirePermission('manage_operations'), getContactDirectoryAsAdmin);
+router.post('/applications/:id/access-removals', authenticate, requireAdmin, requirePermission('manage_operations'), removeTerritoryAccessAsAdmin);
+router.get('/applications/:id/access-removals', authenticate, requireAdmin, requirePermission('manage_operations'), listAccessRemovalsAsAdmin);
 // Group 12 Slice 3h (640): HQ reads the operator's expansion readiness
 // notes alongside its own admin readiness fields.
 router.get('/applications/:id/expansion-notes', authenticate, requireAdmin, requirePermission('manage_operations'), getExpansionNotesAsAdmin);

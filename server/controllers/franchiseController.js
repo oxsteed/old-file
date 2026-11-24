@@ -487,6 +487,11 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3h (640, D-340): the operator-authored expansion
   // readiness notes, read by HQ alongside its own admin fields.
   const expansionNotes = await buildExpansionNotes(applicationId);
+  // Group 12 Slice 3i (641/643, D-341/D-343): the operator handoff flow
+  // (with its live checklist) and the operator-maintained contact
+  // directory, both visible to HQ on the same bundle.
+  const handoffs = await buildHandoffs(applicationId);
+  const contactDirectory = await buildContactDirectory(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -523,6 +528,8 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     training_planner: trainingPlanner,
     launch_dependencies: launchDependencies,
     expansion_notes: expansionNotes,
+    handoffs,
+    contact_directory: contactDirectory,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1142,6 +1149,12 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   // Group 12 Slice 3h (640, D-340): the operator-authored expansion
   // readiness notes.
   const expansionNotes = await buildExpansionNotes(applicationId);
+  // Group 12 Slice 3i (641/643, D-341/D-343): the handoff flow and the
+  // contact directory ride the operator detail too — the detail is
+  // applicant-or-operator only, so the handoff record never leaks to a
+  // stranger (a named incoming operator reads it via /my-handoffs).
+  const handoffs = await buildHandoffs(applicationId);
+  const contactDirectory = await buildContactDirectory(applicationId);
 
   return {
     application: {
@@ -1173,6 +1186,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     training_planner: trainingPlanner,
     launch_dependencies: launchDependencies,
     expansion_notes: expansionNotes,
+    handoffs,
+    contact_directory: contactDirectory,
     // Group 12 Slice 3h (640, D-340): HQ's own readiness fields,
     // surfaced read-only to the operator alongside their notes.
     hq_readiness_notes: {
@@ -9443,6 +9458,1250 @@ async function deleteExpansionNote(req, res) {
   }
 }
 
+// ── Group 12 Slice 3i (641-645, D-341..D-346): transition ────────────────
+// One operator handoff flow: the outgoing operator initiates (641), HQ
+// approves or rejects; only approval transfers open issues (642), hands
+// the records over by access/visibility (644), and revokes the outgoing
+// operator's access through syncFranchiseGrant (645). The contact
+// directory (643) is operator-maintained; explicit HQ removal of a
+// territory member's access (645) is audited separately.
+
+const HANDOFF_STATUSES = new Set(['pending', 'approved', 'rejected', 'cancelled']);
+const HANDOFF_ACTIVE_STATUSES = new Set(['approved', 'launched']);
+
+// 641 (D-341): the handoff checklist is derived on read from live state —
+// open exceptions, open corrective actions, unacknowledged standards
+// (team perspective), pending training, open locations — never stored, so
+// it can never drift. The approval transaction snapshots it onto the
+// handoff row as the audit record.
+async function buildHandoffChecklist(applicationId) {
+  const [exceptionSummary, standards, trainingResult, locationResult, actionResult] = await Promise.all([
+    buildExceptionSummary(applicationId),
+    fetchFranchiseStandards(applicationId),
+    db.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE status <> 'completed')::int AS pending
+         FROM franchise_training_assignments WHERE application_id = $1`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE status = 'planned')::int AS planned
+         FROM franchise_locations WHERE application_id = $1`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT COUNT(*) FILTER (WHERE status IN ('open', 'in_progress'))::int AS open_count,
+              COUNT(*) FILTER (WHERE status = 'resolved')::int AS awaiting_verification
+         FROM franchise_corrective_actions WHERE application_id = $1`,
+      [applicationId]
+    ),
+  ]);
+  const compliance = buildComplianceChecklist({
+    standards,
+    readinessStatus: null,
+    perspective: 'team',
+  });
+  const unacknowledged = compliance.items
+    .filter((item) => item.kind === 'standard' && !item.done).length;
+  const training = trainingResult.rows[0] || {};
+  const locations = locationResult.rows[0] || {};
+  const actions = actionResult.rows[0] || {};
+  const items = [
+    {
+      code: 'open_exceptions',
+      count: exceptionSummary.open_count || 0,
+      open_urgent_count: exceptionSummary.open_urgent_count || 0,
+      total: exceptionSummary.total || 0,
+    },
+    {
+      code: 'open_corrective_actions',
+      count: actions.open_count || 0,
+      awaiting_verification: actions.awaiting_verification || 0,
+    },
+    {
+      code: 'unacknowledged_standards',
+      count: unacknowledged,
+      total_standards: (standards || []).length,
+    },
+    {
+      code: 'pending_training',
+      count: training.pending || 0,
+      total: training.total || 0,
+    },
+    {
+      code: 'open_locations',
+      count: locations.planned || 0,
+      total: locations.total || 0,
+    },
+  ];
+  return {
+    items,
+    open_count: items.reduce((sum, item) => sum + (item.count || 0), 0),
+  };
+}
+
+// 644 (D-344): the records manifest — counts of the territory's records at
+// transfer time. No file is moved or duplicated: the manifest plus the
+// handoff row is the audit trail, and the incoming operator sees the same
+// per-application records once they become owner.
+async function buildRecordsManifest(client, applicationId) {
+  const count = async (sql) => {
+    const { rows } = await client.query(sql, [applicationId]);
+    return rows[0]?.n || 0;
+  };
+  const [documents, acknowledgments, training, exceptions, notes, activity] = await Promise.all([
+    count('SELECT COUNT(*)::int AS n FROM franchise_application_documents WHERE application_id = $1'),
+    count('SELECT COUNT(*)::int AS n FROM franchise_standard_acknowledgments WHERE application_id = $1'),
+    count('SELECT COUNT(*)::int AS n FROM franchise_training_assignments WHERE application_id = $1'),
+    count('SELECT COUNT(*)::int AS n FROM support_tickets WHERE franchise_application_id = $1'),
+    count('SELECT COUNT(*)::int AS n FROM franchise_expansion_notes WHERE application_id = $1'),
+    count('SELECT COUNT(*)::int AS n FROM franchise_activity_log WHERE application_id = $1'),
+  ]);
+  return { documents, standard_acknowledgments: acknowledgments, training_assignments: training, exceptions, expansion_notes: notes, activity_entries: activity };
+}
+
+function presentHandoff(row) {
+  return {
+    id: row.id,
+    application_id: row.application_id,
+    outgoing_operator_id: row.outgoing_operator_id,
+    outgoing_operator_name: [row.outgoing_first_name, row.outgoing_last_name].filter(Boolean).join(' ') || row.outgoing_email || null,
+    outgoing_operator_email: row.outgoing_email || null,
+    incoming_operator_id: row.incoming_operator_id,
+    incoming_operator_name: [row.incoming_first_name, row.incoming_last_name].filter(Boolean).join(' ') || row.incoming_email || null,
+    incoming_operator_email: row.incoming_email || null,
+    status: row.status,
+    reason: row.reason,
+    checklist_snapshot: row.checklist_snapshot || null,
+    records_snapshot: row.records_snapshot || null,
+    decided_by: row.decided_by,
+    decided_by_name: [row.decided_first_name, row.decided_last_name].filter(Boolean).join(' ') || row.decided_email || null,
+    decided_at: row.decided_at,
+    decision_reason: row.decision_reason,
+    completed_at: row.completed_at,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+async function fetchHandoffs(applicationId, { partyUserId = null } = {}) {
+  const conditions = ['h.application_id = $1'];
+  const params = [applicationId];
+  if (partyUserId) {
+    params.push(partyUserId);
+    conditions.push(`(h.outgoing_operator_id = $2 OR h.incoming_operator_id = $2)`);
+  }
+  const { rows } = await db.query(
+    `SELECT h.*,
+            o.first_name AS outgoing_first_name, o.last_name AS outgoing_last_name, o.email AS outgoing_email,
+            i.first_name AS incoming_first_name, i.last_name AS incoming_last_name, i.email AS incoming_email,
+            d.first_name AS decided_first_name, d.last_name AS decided_last_name, d.email AS decided_email
+       FROM franchise_handoffs h
+       LEFT JOIN users o ON o.id = h.outgoing_operator_id
+       LEFT JOIN users i ON i.id = h.incoming_operator_id
+       LEFT JOIN users d ON d.id = h.decided_by
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY h.created_at DESC, h.id DESC`,
+    params
+  );
+  return Promise.all(rows.map(presentHandoff));
+}
+
+async function buildHandoffs(applicationId) {
+  const handoffs = await fetchHandoffs(applicationId);
+  const checklist = await buildHandoffChecklist(applicationId);
+  return {
+    application_id: applicationId,
+    total: handoffs.length,
+    pending: handoffs.filter((handoff) => handoff.status === 'pending').length,
+    handoffs,
+    checklist,
+  };
+}
+
+async function isHandoffParty(client, applicationId, userId) {
+  if (!userId) return false;
+  const { rows } = await client.query(
+    `SELECT 1 FROM franchise_handoffs
+      WHERE application_id = $1
+        AND (outgoing_operator_id = $2 OR incoming_operator_id = $2)
+      LIMIT 1`,
+    [applicationId, userId]
+  );
+  return rows.length > 0;
+}
+
+// Handoff read scope: HQ reads everything; the operator and any territory
+// member read the full list; a named party (outgoing/incoming) who is
+// neither reads only the handoffs naming them — the incoming operator
+// sees the handoff record before approval, never the territory itself.
+// A stranger gets 404, an associated non-operator applicant 403.
+async function handoffReadScope(client, applicationId, userId) {
+  const owned = await loadOperatorApplication(client, applicationId, userId);
+  if (!owned.application) {
+    if (await isHandoffParty(client, applicationId, userId)) {
+      return { partyOnly: true };
+    }
+    return { status: 404, body: { error: 'Franchise application not found.' } };
+  }
+  if (!owned.isAssociated && !(await isHandoffParty(client, applicationId, userId))) {
+    return { status: 404, body: { error: 'Franchise application not found.' } };
+  }
+  if (!owned.isOperator && !(await isTerritoryMember(client, applicationId, userId))
+    && !(await isHandoffParty(client, applicationId, userId))) {
+    return { status: 403, body: {
+      error: 'Only the assigned operator or a territory member can view this.',
+      code: 'franchise_operator_only',
+    } };
+  }
+  const partyOnly = !owned.isOperator
+    && !(await isTerritoryMember(client, applicationId, userId));
+  return { partyOnly };
+}
+
+async function loadHandoffRow(client, applicationId, handoffId) {
+  const { rows } = await client.query(
+    'SELECT * FROM franchise_handoffs WHERE id = $1 AND application_id = $2',
+    [handoffId, applicationId]
+  );
+  return rows[0] || null;
+}
+
+// 641: the outgoing operator initiates a handoff to a named incoming
+// operator. Initiation creates a pending record only — it grants nothing,
+// changes no owner, and touches no issue. HQ approval is the only path
+// that moves anything (D-341/D-346).
+async function createHandoff(req, res) {
+  const { id } = req.params;
+  const incomingOperatorId = asTrimmed(req.body?.incoming_operator_id);
+  const reason = asTrimmed(req.body?.reason);
+  if (!incomingOperatorId || !UUID_RE.test(incomingOperatorId)) {
+    return res.status(400).json({ error: 'incoming_operator_id is required.', code: 'handoff_incoming_required' });
+  }
+  if (reason && reason.length > 1000) {
+    return res.status(400).json({ error: 'reason must be at most 1000 characters.', code: 'handoff_reason_too_long' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can initiate a handoff.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const { rows: appRows } = await client.query(
+        'SELECT status FROM franchise_applications WHERE id = $1', [id]
+      );
+      if (!HANDOFF_ACTIVE_STATUSES.has(appRows[0].status)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'A handoff can only start once the territory is approved or launched.',
+          code: 'handoff_territory_not_active',
+        });
+      }
+      if (String(incomingOperatorId) === String(req.user?.id)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: 'The incoming operator must be someone other than the outgoing operator.',
+          code: 'handoff_incoming_same_operator',
+        });
+      }
+      const { rows: userRows } = await client.query(
+        'SELECT id FROM users WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL',
+        [incomingOperatorId]
+      );
+      if (!userRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({
+          error: 'The incoming operator must be an active account.',
+          code: 'handoff_incoming_not_found',
+        });
+      }
+      const { rows: pendingRows } = await client.query(
+        `SELECT id FROM franchise_handoffs
+          WHERE application_id = $1 AND status = 'pending' LIMIT 1`,
+        [id]
+      );
+      if (pendingRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'This territory already has a handoff awaiting HQ review.',
+          code: 'handoff_already_pending',
+        });
+      }
+      const { rows } = await client.query(
+        `INSERT INTO franchise_handoffs
+           (application_id, outgoing_operator_id, incoming_operator_id, reason, created_by)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [id, req.user?.id, incomingOperatorId, reason, req.user?.id || null]
+      );
+      await logActivity(client, id, req.user?.id || null, 'handoff_initiated',
+        'Operator initiated a handoff; awaiting HQ review. Nothing has moved yet.',
+        { handoff_id: rows[0].id, incoming_operator_id: incomingOperatorId });
+      await client.query('COMMIT');
+      const handoffs = await buildHandoffs(id);
+      const handoff = handoffs.handoffs.find((row) => row.id === rows[0].id) || rows[0];
+      return res.status(201).json({ handoff, handoffs });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error initiating franchise handoff', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to initiate handoff.' });
+  }
+}
+
+async function getHandoffs(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const scope = await handoffReadScope(client, id, req.user?.id);
+        if (scope.status) return res.status(scope.status).json(scope.body);
+        const handoffs = await fetchHandoffs(id, { partyUserId: scope.partyOnly ? req.user?.id : null });
+        const checklist = await buildHandoffChecklist(id);
+        return res.json({
+          application_id: id,
+          total: handoffs.length,
+          pending: handoffs.filter((handoff) => handoff.status === 'pending').length,
+          handoffs,
+          checklist,
+        });
+      } finally {
+        client.release();
+      }
+    }
+    const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Franchise application not found.' });
+    }
+    return res.json(await buildHandoffs(id));
+  } catch (err) {
+    logger.error('Error listing franchise handoffs', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to list handoffs.' });
+  }
+}
+
+async function getHandoffsAsAdmin(req, res) {
+  return getHandoffs(req, res, { asAdmin: true });
+}
+
+async function getHandoff(req, res, { asAdmin = false } = {}) {
+  const { id, handoffId } = req.params;
+  if (!UUID_RE.test(handoffId)) {
+    return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+  }
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const scope = await handoffReadScope(client, id, req.user?.id);
+        if (scope.status) return res.status(scope.status).json(scope.body);
+        const row = await loadHandoffRow(client, id, handoffId);
+        if (!row) return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+        if (scope.partyOnly
+          && String(row.outgoing_operator_id) !== String(req.user?.id)
+          && String(row.incoming_operator_id) !== String(req.user?.id)) {
+          return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+        }
+        const handoffs = await fetchHandoffs(id);
+        return res.json({ handoff: handoffs.find((h) => h.id === handoffId) || row });
+      } finally {
+        client.release();
+      }
+    }
+    const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Franchise application not found.' });
+    }
+    const handoffs = await fetchHandoffs(id);
+    const handoff = handoffs.find((row) => row.id === handoffId);
+    if (!handoff) return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+    return res.json({ handoff });
+  } catch (err) {
+    logger.error('Error loading franchise handoff', { id, handoffId, err: err.message });
+    return res.status(500).json({ error: 'Failed to load handoff.' });
+  }
+}
+
+async function getHandoffAsAdmin(req, res) {
+  return getHandoff(req, res, { asAdmin: true });
+}
+
+// The outgoing operator (or HQ) cancels a pending handoff. Cancelling
+// changes nothing else: no owner, grant, or issue ever moved while the
+// handoff was pending, so there is nothing to undo.
+async function cancelHandoff(req, res, { asAdmin = false } = {}) {
+  const { id, handoffId } = req.params;
+  if (!UUID_RE.test(handoffId)) {
+    return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (!asAdmin) {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only the assigned operator can cancel a handoff.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const row = await loadHandoffRow(client, id, handoffId);
+      if (!row) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+      }
+      if (row.status !== 'pending') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Only a pending handoff can be cancelled.',
+          code: 'handoff_not_pending',
+        });
+      }
+      await client.query(
+        `UPDATE franchise_handoffs
+            SET status = 'cancelled', decided_by = $2, decided_at = NOW(), updated_at = NOW()
+          WHERE id = $1`,
+        [handoffId, req.user?.id || null]
+      );
+      await logActivity(client, id, req.user?.id || null, 'handoff_cancelled',
+        'A pending handoff was cancelled; the territory stays with its operator.',
+        { handoff_id: handoffId });
+      await client.query('COMMIT');
+      return res.json({ handoffs: await buildHandoffs(id) });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error cancelling franchise handoff', { id, handoffId, err: err.message });
+    return res.status(500).json({ error: 'Failed to cancel handoff.' });
+  }
+}
+
+async function cancelHandoffAsAdmin(req, res) {
+  return cancelHandoff(req, res, { asAdmin: true });
+}
+
+// 642 (D-342): the transfer, executed only inside the approval
+// transaction. Remediations owned by the outgoing operator move to the
+// incoming operator with due dates preserved; corrective actions move
+// with their remediation (their owner is derived from it); escalations
+// move as a responsibility note — the ticket itself is never reassigned.
+// Every moved issue writes a franchise_handoff_transfers row first.
+async function executeHandoffTransfer(client, { handoffId, applicationId, outgoingId, incomingId, actorId }) {
+  const transfers = [];
+  const logTransfer = async (row) => {
+    const { rows } = await client.query(
+      `INSERT INTO franchise_handoff_transfers
+         (handoff_id, application_id, kind, ticket_id, remediation_id, action_id,
+          from_user_id, to_user_id, due_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [handoffId, applicationId, row.kind, row.ticket_id || null, row.remediation_id || null,
+        row.action_id || null, row.from_user_id || null, row.to_user_id || null, row.due_date || null]
+    );
+    transfers.push(rows[0]);
+  };
+
+  const { rows: remediations } = await client.query(
+    `SELECT * FROM franchise_remediations
+      WHERE application_id = $1 AND owner_user_id = $2`,
+    [applicationId, outgoingId]
+  );
+  for (const remediation of remediations) {
+    await client.query(
+      `UPDATE franchise_remediations
+          SET owner_user_id = $2, assigned_by = $3, updated_at = NOW()
+        WHERE id = $1`,
+      [remediation.id, incomingId, actorId || null]
+    );
+    await logTransfer({
+      kind: 'remediation',
+      ticket_id: remediation.ticket_id,
+      remediation_id: remediation.id,
+      from_user_id: outgoingId,
+      to_user_id: incomingId,
+      due_date: remediation.due_date,
+    });
+  }
+  const remediationIds = new Set(remediations.map((row) => String(row.id)));
+
+  const { rows: actions } = await client.query(
+    `SELECT a.*, r.owner_user_id AS remediation_owner
+       FROM franchise_corrective_actions a
+       LEFT JOIN franchise_remediations r ON r.id = a.remediation_id
+      WHERE a.application_id = $1 AND a.status IN ('open', 'in_progress', 'resolved')`,
+    [applicationId]
+  );
+  for (const action of actions) {
+    if (action.remediation_id && !remediationIds.has(String(action.remediation_id))) continue;
+    if (!action.remediation_id && String(action.created_by) !== String(outgoingId)) continue;
+    await logTransfer({
+      kind: 'corrective_action',
+      ticket_id: action.ticket_id,
+      remediation_id: action.remediation_id || null,
+      action_id: action.id,
+      from_user_id: action.remediation_id ? outgoingId : action.created_by,
+      to_user_id: incomingId,
+      due_date: action.remediation_id
+        ? (remediations.find((r) => String(r.id) === String(action.remediation_id)) || {}).due_date || null
+        : null,
+    });
+  }
+
+  const { rows: escalations } = await client.query(
+    `SELECT * FROM franchise_ticket_escalations
+      WHERE application_id = $1 AND escalated_by = $2`,
+    [applicationId, outgoingId]
+  );
+  for (const escalation of escalations) {
+    await logTransfer({
+      kind: 'escalation',
+      ticket_id: escalation.ticket_id,
+      from_user_id: outgoingId,
+      to_user_id: incomingId,
+    });
+  }
+  return transfers;
+}
+
+async function fetchHandoffTransfers(applicationId, handoffId) {
+  const { rows } = await db.query(
+    `SELECT t.*, tk.ticket_number, tk.subject,
+            fu.first_name AS from_first_name, fu.last_name AS from_last_name, fu.email AS from_email,
+            tu.first_name AS to_first_name, tu.last_name AS to_last_name, tu.email AS to_email
+       FROM franchise_handoff_transfers t
+       LEFT JOIN support_tickets tk ON tk.id = t.ticket_id
+       LEFT JOIN users fu ON fu.id = t.from_user_id
+       LEFT JOIN users tu ON tu.id = t.to_user_id
+      WHERE t.application_id = $1 AND t.handoff_id = $2
+      ORDER BY t.created_at DESC, t.id DESC`,
+    [applicationId, handoffId]
+  );
+  return rows.map((row) => ({
+    ...row,
+    from_name: [row.from_first_name, row.from_last_name].filter(Boolean).join(' ') || row.from_email || null,
+    to_name: [row.to_first_name, row.to_last_name].filter(Boolean).join(' ') || row.to_email || null,
+  }));
+}
+
+// 641/642/644/645: HQ reviews a pending handoff. Approval executes the
+// whole transition in one transaction — owner change, grant sync (the
+// outgoing operator's per-territory grant is revoked here and only here),
+// open-issue transfer, records manifest — so a handoff can never be
+// half-applied. Rejection needs a reason and moves nothing.
+async function reviewHandoffAsAdmin(req, res) {
+  const { id, handoffId } = req.params;
+  if (!UUID_RE.test(handoffId)) {
+    return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+  }
+  const decision = asTrimmed(req.body?.decision);
+  const reason = asTrimmed(req.body?.reason);
+  if (decision !== 'approve' && decision !== 'reject') {
+    return res.status(400).json({ error: "decision must be 'approve' or 'reject'.", code: 'invalid_handoff_decision' });
+  }
+  if (decision === 'reject' && !reason) {
+    return res.status(400).json({ error: 'A reason is required to reject a handoff.', code: 'handoff_decision_reason_required' });
+  }
+  if (reason && reason.length > 1000) {
+    return res.status(400).json({ error: 'reason must be at most 1000 characters.', code: 'handoff_reason_too_long' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: appRows } = await client.query(
+        'SELECT id, status, owner_user_id, linked_business_id FROM franchise_applications WHERE id = $1 FOR UPDATE',
+        [id]
+      );
+      if (!appRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const application = appRows[0];
+      const { rows: handoffRows } = await client.query(
+        'SELECT * FROM franchise_handoffs WHERE id = $1 AND application_id = $2 FOR UPDATE',
+        [handoffId, id]
+      );
+      if (!handoffRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+      }
+      const handoff = handoffRows[0];
+      if (handoff.status !== 'pending') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Only a pending handoff can be decided.',
+          code: 'handoff_not_pending',
+        });
+      }
+      if (String(handoff.outgoing_operator_id) !== String(application.owner_user_id)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'The outgoing operator is no longer the territory operator.',
+          code: 'handoff_operator_changed',
+        });
+      }
+
+      if (decision === 'reject') {
+        await client.query(
+          `UPDATE franchise_handoffs
+              SET status = 'rejected', decided_by = $2, decided_at = NOW(),
+                  decision_reason = $3, updated_at = NOW()
+            WHERE id = $1`,
+          [handoffId, req.user?.id || null, reason]
+        );
+        await logActivity(client, id, req.user?.id || null, 'handoff_rejected',
+          'HQ rejected a handoff; the territory stays with its operator.',
+          { handoff_id: handoffId, decision_reason: reason });
+        await client.query('COMMIT');
+        return res.json({ handoffs: await buildHandoffs(id) });
+      }
+
+      // Approval: re-check the incoming operator is still an active
+      // account at decision time, not just at initiation time.
+      const { rows: incomingRows } = await client.query(
+        'SELECT id FROM users WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL',
+        [handoff.incoming_operator_id]
+      );
+      if (!incomingRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'The incoming operator is no longer an active account.',
+          code: 'handoff_incoming_unavailable',
+        });
+      }
+      if (!HANDOFF_ACTIVE_STATUSES.has(application.status)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'The territory is no longer approved or launched.',
+          code: 'handoff_territory_not_active',
+        });
+      }
+
+      const checklistSnapshot = await buildHandoffChecklist(id);
+      const recordsSnapshot = await buildRecordsManifest(client, id);
+      const transfers = await executeHandoffTransfer(client, {
+        handoffId,
+        applicationId: id,
+        outgoingId: handoff.outgoing_operator_id,
+        incomingId: handoff.incoming_operator_id,
+        actorId: req.user?.id || null,
+      });
+      await client.query(
+        `UPDATE franchise_applications
+            SET owner_user_id = $2, updated_at = NOW()
+          WHERE id = $1`,
+        [id, handoff.incoming_operator_id]
+      );
+      await syncFranchiseGrant(client, {
+        applicationId: id,
+        ownerUserId: handoff.incoming_operator_id,
+        status: application.status,
+        linkedBusinessId: application.linked_business_id,
+        actorId: req.user?.id || null,
+        revokeUserIds: [handoff.outgoing_operator_id],
+      });
+      await client.query(
+        `UPDATE franchise_handoffs
+            SET status = 'approved', decided_by = $2, decided_at = NOW(),
+                decision_reason = $3, checklist_snapshot = $4::jsonb,
+                records_snapshot = $5::jsonb, completed_at = NOW(), updated_at = NOW()
+          WHERE id = $1`,
+        [handoffId, req.user?.id || null, reason,
+          JSON.stringify(checklistSnapshot), JSON.stringify(recordsSnapshot)]
+      );
+      await logActivity(client, id, req.user?.id || null, 'handoff_approved',
+        `HQ approved the handoff; the territory moves to the incoming operator with ${transfers.length} open issue(s) transferred.`,
+        { handoff_id: handoffId, incoming_operator_id: handoff.incoming_operator_id,
+          transfers: transfers.length });
+      await logActivity(client, id, req.user?.id || null, 'handoff_records_transferred',
+        'Territory records (documents, acknowledgments, training, exceptions, notes) now visible to the incoming operator; no files were moved.',
+        { handoff_id: handoffId, records: recordsSnapshot });
+      await client.query('COMMIT');
+      const handoffs = await buildHandoffs(id);
+      return res.json({
+        handoff: handoffs.handoffs.find((row) => row.id === handoffId),
+        handoffs,
+        transfers: await fetchHandoffTransfers(id, handoffId),
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error reviewing franchise handoff', { id, handoffId, err: err.message });
+    return res.status(500).json({ error: 'Failed to review handoff.' });
+  }
+}
+
+async function listHandoffTransfers(req, res, { asAdmin = false } = {}) {
+  const { id, handoffId } = req.params;
+  if (!UUID_RE.test(handoffId)) {
+    return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+  }
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const scope = await handoffReadScope(client, id, req.user?.id);
+        if (scope.status) return res.status(scope.status).json(scope.body);
+        const row = await loadHandoffRow(client, id, handoffId);
+        if (!row) return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+        if (scope.partyOnly
+          && String(row.outgoing_operator_id) !== String(req.user?.id)
+          && String(row.incoming_operator_id) !== String(req.user?.id)) {
+          return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+        }
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows: handoffRows } = await db.query(
+        'SELECT id FROM franchise_handoffs WHERE id = $1 AND application_id = $2',
+        [handoffId, id]
+      );
+      if (!handoffRows.length) {
+        return res.status(404).json({ error: 'Handoff not found.', code: 'handoff_not_found' });
+      }
+    }
+    const transfers = await fetchHandoffTransfers(id, handoffId);
+    return res.json({ application_id: id, handoff_id: handoffId, total: transfers.length, transfers });
+  } catch (err) {
+    logger.error('Error listing handoff transfers', { id, handoffId, err: err.message });
+    return res.status(500).json({ error: 'Failed to list handoff transfers.' });
+  }
+}
+
+async function listHandoffTransfersAsAdmin(req, res) {
+  return listHandoffTransfers(req, res, { asAdmin: true });
+}
+
+// 644: handoffs naming the viewer — the incoming operator's pre-approval
+// view of the handoff record, and the outgoing operator's record after
+// the move. This lists handoff rows only, never territory records.
+async function listMyHandoffs(req, res) {
+  try {
+    const { rows } = await db.query(
+      `SELECT h.*,
+              fa.desired_city, fa.desired_region, fa.desired_country, fa.status AS application_status,
+              o.first_name AS outgoing_first_name, o.last_name AS outgoing_last_name, o.email AS outgoing_email,
+              i.first_name AS incoming_first_name, i.last_name AS incoming_last_name, i.email AS incoming_email,
+              d.first_name AS decided_first_name, d.last_name AS decided_last_name, d.email AS decided_email
+         FROM franchise_handoffs h
+         JOIN franchise_applications fa ON fa.id = h.application_id
+         LEFT JOIN users o ON o.id = h.outgoing_operator_id
+         LEFT JOIN users i ON i.id = h.incoming_operator_id
+         LEFT JOIN users d ON d.id = h.decided_by
+        WHERE h.outgoing_operator_id = $1 OR h.incoming_operator_id = $1
+        ORDER BY h.created_at DESC, h.id DESC`,
+      [req.user?.id]
+    );
+    const handoffs = rows.map((row) => ({
+      ...presentHandoff(row),
+      territory_city: row.desired_city,
+      territory_region: row.desired_region,
+      territory_country: row.desired_country,
+      application_status: row.application_status,
+    }));
+    return res.json({ total: handoffs.length, handoffs });
+  } catch (err) {
+    logger.error('Error listing my franchise handoffs', { err: err.message });
+    return res.status(500).json({ error: 'Failed to list my handoffs.' });
+  }
+}
+
+// ── 643: contact directory ──────────────────────────────────────────────────
+
+function presentDirectoryEntry(row) {
+  const linked = Boolean(row.contact_user_id);
+  return {
+    id: row.id,
+    application_id: row.application_id,
+    contact_user_id: row.contact_user_id,
+    name: linked
+      ? ([row.user_first_name, row.user_last_name].filter(Boolean).join(' ') || row.user_email || null)
+      : row.name,
+    email: linked ? row.user_email : row.email,
+    phone: row.phone,
+    role: row.role,
+    notes: row.notes,
+    source: linked ? 'roster' : 'manual',
+    created_by: row.created_by,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+async function fetchContactDirectoryEntries(applicationId) {
+  const { rows } = await db.query(
+    `SELECT d.*,
+            u.first_name AS user_first_name, u.last_name AS user_last_name, u.email AS user_email
+       FROM franchise_contact_directory d
+       LEFT JOIN users u ON u.id = d.contact_user_id
+      WHERE d.application_id = $1
+      ORDER BY d.created_at ASC, d.id ASC`,
+    [applicationId]
+  );
+  return rows.map(presentDirectoryEntry);
+}
+
+async function buildContactDirectory(applicationId) {
+  const entries = await fetchContactDirectoryEntries(applicationId);
+  const roster = await fetchTerritoryMembers(applicationId);
+  const listedUserIds = new Set(entries.filter((e) => e.contact_user_id).map((e) => String(e.contact_user_id)));
+  return {
+    application_id: applicationId,
+    total: entries.length,
+    entries,
+    roster: roster.map((member) => ({ ...member, listed: listedUserIds.has(String(member.user_id)) })),
+  };
+}
+
+function validateDirectoryFields(body, { manual, partial = false }) {
+  const phone = asTrimmed(body?.phone);
+  const role = asTrimmed(body?.role);
+  const notes = asTrimmed(body?.notes);
+  if (phone && phone.length > 50) {
+    return { error: { status: 400, body: { error: 'phone must be at most 50 characters.', code: 'contact_phone_too_long' } } };
+  }
+  if (role && role.length > 100) {
+    return { error: { status: 400, body: { error: 'role must be at most 100 characters.', code: 'contact_role_too_long' } } };
+  }
+  if (notes && notes.length > 1000) {
+    return { error: { status: 400, body: { error: 'notes must be at most 1000 characters.', code: 'contact_notes_too_long' } } };
+  }
+  if (manual) {
+    const name = asTrimmed(body?.name);
+    const email = asTrimmed(body?.email);
+    if (!partial && !name) {
+      return { error: { status: 400, body: { error: 'name is required.', code: 'contact_name_required' } } };
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { error: { status: 400, body: { error: 'email must be a valid email address.', code: 'contact_email_invalid' } } };
+    }
+    if (!partial && !email) {
+      return { error: { status: 400, body: { error: 'email must be a valid email address.', code: 'contact_email_invalid' } } };
+    }
+    return { value: { name, email, phone, role, notes } };
+  }
+  return { value: { phone, role, notes } };
+}
+
+async function createContactDirectoryEntry(req, res) {
+  const { id } = req.params;
+  const contactUserId = asTrimmed(req.body?.contact_user_id);
+  const manual = !contactUserId;
+  const validated = validateDirectoryFields(req.body, { manual });
+  if (validated.error) return res.status(validated.error.status).json(validated.error.body);
+  if (contactUserId && !UUID_RE.test(contactUserId)) {
+    return res.status(404).json({ error: 'Territory member not found.', code: 'contact_member_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can maintain the contact directory.',
+          code: 'franchise_operator_only',
+        });
+      }
+      if (contactUserId) {
+        if (!(await isTerritoryMember(client, id, contactUserId))) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({
+            error: 'The contact must be a member of this territory.',
+            code: 'contact_member_not_found',
+          });
+        }
+        const { rows: existing } = await client.query(
+          `SELECT id FROM franchise_contact_directory
+            WHERE application_id = $1 AND contact_user_id = $2`,
+          [id, contactUserId]
+        );
+        if (existing.length) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: 'That territory member is already in the contact directory.',
+            code: 'contact_already_listed',
+          });
+        }
+      }
+      const { rows } = await client.query(
+        `INSERT INTO franchise_contact_directory
+           (application_id, contact_user_id, name, email, phone, role, notes, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [id, contactUserId || null, validated.value.name || null, validated.value.email || null,
+          validated.value.phone, validated.value.role, validated.value.notes, req.user?.id || null]
+      );
+      await logActivity(client, id, req.user?.id || null, 'contact_directory_added',
+        contactUserId ? 'Operator added a territory member to the contact directory.' : 'Operator added a contact to the directory.',
+        { contact_directory_id: rows[0].id, contact_user_id: contactUserId || null });
+      await client.query('COMMIT');
+      const directory = await buildContactDirectory(id);
+      const entry = directory.entries.find((row) => row.id === rows[0].id) || rows[0];
+      return res.status(201).json({ contact: entry, contact_directory: directory });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error adding franchise directory contact', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to add contact.' });
+  }
+}
+
+async function getContactDirectory(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const viewer = await loadTerritoryViewer(client, id, req.user?.id);
+        const blocked = territoryReadScope(viewer);
+        if (blocked) return res.status(blocked.status).json(blocked.body);
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    return res.json(await buildContactDirectory(id));
+  } catch (err) {
+    logger.error('Error loading franchise contact directory', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load contact directory.' });
+  }
+}
+
+async function getContactDirectoryAsAdmin(req, res) {
+  return getContactDirectory(req, res, { asAdmin: true });
+}
+
+async function updateContactDirectoryEntry(req, res) {
+  const { id, entryId } = req.params;
+  if (!UUID_RE.test(entryId)) {
+    return res.status(404).json({ error: 'Contact not found.', code: 'contact_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can maintain the contact directory.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const { rows: existing } = await client.query(
+        'SELECT * FROM franchise_contact_directory WHERE id = $1 AND application_id = $2',
+        [entryId, id]
+      );
+      if (!existing.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Contact not found.', code: 'contact_not_found' });
+      }
+      const manual = !existing[0].contact_user_id;
+      const validated = validateDirectoryFields(req.body, { manual, partial: true });
+      if (validated.error) {
+        await client.query('ROLLBACK');
+        return res.status(validated.error.status).json(validated.error.body);
+      }
+      const updates = [];
+      const values = [];
+      let idx = 1;
+      const set = (column, value) => {
+        updates.push(`${column} = $${idx++}`);
+        values.push(value);
+      };
+      if (manual && validated.value.name !== undefined) set('name', validated.value.name);
+      if (manual && validated.value.email !== undefined) set('email', validated.value.email);
+      if (req.body?.phone !== undefined) set('phone', validated.value.phone);
+      if (req.body?.role !== undefined) set('role', validated.value.role);
+      if (req.body?.notes !== undefined) set('notes', validated.value.notes);
+      if (!updates.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'No valid updates supplied.', code: 'contact_no_updates' });
+      }
+      values.push(entryId, id);
+      const { rows } = await client.query(
+        `UPDATE franchise_contact_directory
+            SET ${updates.join(', ')}, updated_at = NOW()
+          WHERE id = $${idx++} AND application_id = $${idx}
+          RETURNING *`,
+        values
+      );
+      await client.query('COMMIT');
+      const directory = await buildContactDirectory(id);
+      const entry = directory.entries.find((row) => row.id === entryId) || rows[0];
+      return res.json({ contact: entry, contact_directory: directory });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise directory contact', { id, entryId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update contact.' });
+  }
+}
+
+async function deleteContactDirectoryEntry(req, res) {
+  const { id, entryId } = req.params;
+  if (!UUID_RE.test(entryId)) {
+    return res.status(404).json({ error: 'Contact not found.', code: 'contact_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can maintain the contact directory.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const { rows } = await client.query(
+        `DELETE FROM franchise_contact_directory
+          WHERE id = $1 AND application_id = $2 RETURNING id`,
+        [entryId, id]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Contact not found.', code: 'contact_not_found' });
+      }
+      await logActivity(client, id, req.user?.id || null, 'contact_directory_removed',
+        'Operator removed a contact from the directory.', { contact_directory_id: entryId });
+      await client.query('COMMIT');
+      return res.json({ contact_directory: await buildContactDirectory(id) });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise directory contact', { id, entryId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove contact.' });
+  }
+}
+
+// ── 645: explicit HQ removal of a territory member's access ────────────────
+// The missing half of 645, verified firsthand: revocation already exists
+// server-side (syncFranchiseGrant on status/owner change), but there is no
+// explicit removal action, no UI, and no audit surface. This endpoint is
+// that action: it removes the member's membership (accepted invitation
+// cancelled, opening-team row deleted), revokes any per-territory grant
+// the member holds, and writes the audit row. The operator is never
+// removed here — operator access ends only through a completed handoff
+// (or an HQ owner change), so removing the operator is 409.
+async function removeTerritoryAccessAsAdmin(req, res) {
+  const { id } = req.params;
+  const userId = asTrimmed(req.body?.user_id);
+  const reason = asTrimmed(req.body?.reason);
+  if (!userId || !UUID_RE.test(userId)) {
+    return res.status(400).json({ error: 'user_id is required.', code: 'access_removal_user_required' });
+  }
+  if (!reason) {
+    return res.status(400).json({ error: 'A reason is required to remove territory access.', code: 'access_removal_reason_required' });
+  }
+  if (reason.length > 1000) {
+    return res.status(400).json({ error: 'reason must be at most 1000 characters.', code: 'access_removal_reason_too_long' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: appRows } = await client.query(
+        'SELECT id, owner_user_id, status, linked_business_id FROM franchise_applications WHERE id = $1',
+        [id]
+      );
+      if (!appRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (String(appRows[0].owner_user_id) === String(userId)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'The operator cannot be removed this way; use a handoff or reassign the territory.',
+          code: 'access_removal_use_handoff',
+        });
+      }
+      const { rows: userRows } = await client.query(
+        'SELECT id, email FROM users WHERE id = $1', [userId]
+      );
+      if (!userRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'User not found.', code: 'access_removal_user_not_found' });
+      }
+      const email = userRows[0].email;
+      const { rows: inviteRows } = await client.query(
+        `SELECT id FROM franchise_territory_invitations
+          WHERE application_id = $1 AND lower(email) = lower($2) AND status = 'accepted'`,
+        [id, email || '']
+      );
+      const { rows: teamRows } = await client.query(
+        `SELECT id FROM franchise_opening_team_members
+          WHERE application_id = $1 AND helper_user_id = $2`,
+        [id, userId]
+      );
+      if (!inviteRows.length && !teamRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({
+          error: 'That user is not a member of this territory.',
+          code: 'access_removal_not_member',
+        });
+      }
+      const membershipKind = inviteRows.length ? 'invitee' : 'helper';
+      if (inviteRows.length) {
+        await client.query(
+          `UPDATE franchise_territory_invitations
+              SET status = 'cancelled', updated_at = NOW()
+            WHERE application_id = $1 AND lower(email) = lower($2) AND status = 'accepted'`,
+          [id, email || '']
+        );
+      }
+      if (teamRows.length) {
+        await client.query(
+          `DELETE FROM franchise_opening_team_members
+            WHERE application_id = $1 AND helper_user_id = $2`,
+          [id, userId]
+        );
+      }
+      // Belt and braces: revoke any per-territory grant the member holds
+      // (members normally hold none — only the operator does — but a
+      // removal must never leave a grant behind).
+      const { rows: revoked } = await client.query(
+        `UPDATE access_grants
+            SET status = 'revoked', status_changed_at = NOW(), status_changed_by = $2,
+                status_reason_code = 'territory_assignment_ended', version = version + 1,
+                updated_at = NOW()
+          WHERE user_id = $1 AND capability = 'franchise.operate'
+            AND subject_type = 'franchise_application' AND subject_id = $3
+            AND status IN ('active', 'suspended')
+          RETURNING user_id`,
+        [userId, req.user?.id || null, String(id)]
+      );
+      if (revoked.length) await access.bumpProjection(client, userId);
+      const { rows } = await client.query(
+        `INSERT INTO franchise_access_removals
+           (application_id, user_id, membership_kind, reason, removed_by)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [id, userId, membershipKind, reason, req.user?.id || null]
+      );
+      await logActivity(client, id, req.user?.id || null, 'territory_access_removed',
+        `HQ removed a territory member's access (${membershipKind}).`,
+        { access_removal_id: rows[0].id, user_id: userId, membership_kind: membershipKind, reason });
+      await client.query('COMMIT');
+      return res.status(201).json({ access_removal: rows[0] });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise territory access', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove territory access.' });
+  }
+}
+
+async function listAccessRemovalsAsAdmin(req, res) {
+  const { id } = req.params;
+  try {
+    const { rows: appRows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+    if (!appRows.length) {
+      return res.status(404).json({ error: 'Franchise application not found.' });
+    }
+    const { rows } = await db.query(
+      `SELECT r.*,
+              u.first_name, u.last_name, u.email,
+              rb.first_name AS removed_by_first_name, rb.last_name AS removed_by_last_name,
+              rb.email AS removed_by_email
+         FROM franchise_access_removals r
+         LEFT JOIN users u ON u.id = r.user_id
+         LEFT JOIN users rb ON rb.id = r.removed_by
+        WHERE r.application_id = $1
+        ORDER BY r.created_at DESC, r.id DESC`,
+      [id]
+    );
+    const removals = rows.map((row) => ({
+      ...row,
+      user_name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email || null,
+      removed_by_name: [row.removed_by_first_name, row.removed_by_last_name].filter(Boolean).join(' ')
+        || row.removed_by_email || null,
+    }));
+    return res.json({ application_id: id, total: removals.length, access_removals: removals });
+  } catch (err) {
+    logger.error('Error listing franchise access removals', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to list access removals.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -9574,6 +10833,24 @@ module.exports = {
   listFranchiseBrandAssetsWide,
   deleteFranchiseBrandAsset,
   deleteFranchiseBrandAssetWide,
+  listMyHandoffs,
+  createHandoff,
+  getHandoffs,
+  getHandoffsAsAdmin,
+  getHandoff,
+  getHandoffAsAdmin,
+  cancelHandoff,
+  cancelHandoffAsAdmin,
+  reviewHandoffAsAdmin,
+  listHandoffTransfers,
+  listHandoffTransfersAsAdmin,
+  createContactDirectoryEntry,
+  getContactDirectory,
+  getContactDirectoryAsAdmin,
+  updateContactDirectoryEntry,
+  deleteContactDirectoryEntry,
+  removeTerritoryAccessAsAdmin,
+  listAccessRemovalsAsAdmin,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,
