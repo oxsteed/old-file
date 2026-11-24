@@ -34,6 +34,9 @@ import FranchiseTerritoryCapacity from '../../../pages/FranchiseTerritoryCapacit
 import FranchiseTrainingPlanner from '../../../pages/FranchiseTrainingPlanner';
 import FranchiseLaunchDependencies from '../../../pages/FranchiseLaunchDependencies';
 import FranchiseExpansionNotes from '../../../pages/FranchiseExpansionNotes';
+import FranchiseHandoff from '../../../pages/FranchiseHandoff';
+import FranchiseContactDirectory from '../../../pages/FranchiseContactDirectory';
+import FranchiseAccessRemoval from '../../../pages/FranchiseAccessRemoval';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -223,6 +226,9 @@ export default function FranchiseHQPage() {
   const [hqTicketStatus, setHqTicketStatus] = useState('open');
   const [hqTicketLocationId, setHqTicketLocationId] = useState('');
   const [hqTicketRefresh, setHqTicketRefresh] = useState(0);
+  // Group 12 Slice 3i (645): the explicit HQ removals of a territory
+  // member's access for the selected application — the audit list.
+  const [accessRemovals, setAccessRemovals] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -324,6 +330,14 @@ export default function FranchiseHQPage() {
         setCoverageTrend(trendRes.data);
       } catch {
         setCoverageTrend(null);
+      }
+      // Group 12 Slice 3i (645): the explicit access-removal audit list
+      // for the selected application — read-only in HQ.
+      try {
+        const removalsRes = await axios.get(`/franchise/applications/${id}/access-removals`);
+        setAccessRemovals(removalsRes.data);
+      } catch {
+        setAccessRemovals(null);
       }
       setEditForm({
         status: bundle.application.status || 'inquiry',
@@ -564,6 +578,63 @@ export default function FranchiseHQPage() {
     } catch {
       toast.error(t('dashboards.franchise.candidateRemoveFailed'));
       throw new Error(t('dashboards.franchise.candidateRemoveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3i (641/642/644): HQ reviews a pending handoff
+  // (approve executes the transfer; reject needs a reason) and cancels
+  // one. The transfer log loads on demand from the handoff card.
+  async function reviewTerritoryHandoff(handoffId, { decision, reason }) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/handoffs/${handoffId}/review`, { decision, reason });
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.handoffReviewFailed'));
+      throw new Error(t('dashboards.franchise.handoffReviewFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function cancelTerritoryHandoff(handoffId) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/handoffs/${handoffId}/cancel`);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.handoffCancelFailed'));
+      throw new Error(t('dashboards.franchise.handoffCancelFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function loadTerritoryHandoffTransfers(handoffId) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return [];
+    const res = await axios.get(`/franchise/applications/${applicationId}/handoffs/${handoffId}/transfers`);
+    return res.data.transfers || [];
+  }
+
+  // Group 12 Slice 3i (645): HQ explicitly removes a territory member's
+  // access, with a reason; the audit list reloads with the bundle.
+  async function removeTerritoryAccess(body) {
+    const applicationId = selectedBundle?.application?.id;
+    if (!applicationId) return;
+    setSaving(true);
+    try {
+      await axios.post(`/franchise/applications/${applicationId}/access-removals`, body);
+      await loadDetail(applicationId);
+    } catch {
+      toast.error(t('dashboards.franchise.accessRemovalFailed'));
+      throw new Error(t('dashboards.franchise.accessRemovalFailed'));
     } finally {
       setSaving(false);
     }
@@ -2232,6 +2303,38 @@ export default function FranchiseHQPage() {
                       risk_notes: selectedBundle.application?.risk_notes || null,
                     }}
                     locations={selectedBundle.locations || []}
+                  />
+
+                  {/* Group 12 Slice 3i (641/642/644, D-341/D-342/D-344):
+                      operator handoff — HQ approves or rejects a pending
+                      handoff here; approval executes the transfer. */}
+                  <FranchiseHandoff
+                    handoffs={selectedBundle.handoffs || null}
+                    members={selectedBundle.territory_members || []}
+                    canReview
+                    onCancel={cancelTerritoryHandoff}
+                    onReview={reviewTerritoryHandoff}
+                    onLoadTransfers={loadTerritoryHandoffTransfers}
+                    busy={saving}
+                  />
+
+                  {/* Group 12 Slice 3i (643, D-343): the contact
+                      directory — the operator maintains it; HQ reads the
+                      same list, never writes it. */}
+                  <FranchiseContactDirectory
+                    directory={selectedBundle.contact_directory || null}
+                  />
+
+                  {/* Group 12 Slice 3i (645, D-345): explicit HQ removal
+                      of a territory member's access, with the audit list.
+                      The operator is never listed: operator access ends
+                      only through a completed handoff. */}
+                  <FranchiseAccessRemoval
+                    members={selectedBundle.territory_members || []}
+                    ownerUserId={selectedBundle.application?.owner_user_id || null}
+                    removals={accessRemovals}
+                    onRemove={removeTerritoryAccess}
+                    busy={saving}
                   />
 
                   {/* Group 12 Slice 3d (620): the HQ announcement feed —
