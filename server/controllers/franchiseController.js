@@ -484,6 +484,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3h (639, D-339): the launch dependency overview —
   // per-location dependencies with blocked/blocking status. Derived.
   const launchDependencies = await buildLaunchDependencies(applicationId);
+  // Group 12 Slice 3h (640, D-340): the operator-authored expansion
+  // readiness notes, read by HQ alongside its own admin fields.
+  const expansionNotes = await buildExpansionNotes(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -519,6 +522,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     territory_capacity: territoryCapacity,
     training_planner: trainingPlanner,
     launch_dependencies: launchDependencies,
+    expansion_notes: expansionNotes,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -985,6 +989,9 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
         fa.agreement_status,
         fa.training_status,
         fa.launch_readiness_status,
+        fa.risk_notes,
+        fa.hq_recommendation,
+        fa.market_assessment,
         fa.available_capital_cents,
         fa.liquid_capital_cents,
         fa.linked_business_id,
@@ -1132,6 +1139,9 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   const trainingPlanner = await buildTrainingPlanner(applicationId);
   // Group 12 Slice 3h (639, D-339): the launch dependency overview.
   const launchDependencies = await buildLaunchDependencies(applicationId);
+  // Group 12 Slice 3h (640, D-340): the operator-authored expansion
+  // readiness notes.
+  const expansionNotes = await buildExpansionNotes(applicationId);
 
   return {
     application: {
@@ -1162,6 +1172,14 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     territory_capacity: territoryCapacity,
     training_planner: trainingPlanner,
     launch_dependencies: launchDependencies,
+    expansion_notes: expansionNotes,
+    // Group 12 Slice 3h (640, D-340): HQ's own readiness fields,
+    // surfaced read-only to the operator alongside their notes.
+    hq_readiness_notes: {
+      market_assessment: applicationResult.rows[0].market_assessment || null,
+      hq_recommendation: applicationResult.rows[0].hq_recommendation || null,
+      risk_notes: applicationResult.rows[0].risk_notes || null,
+    },
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — viewer perspective.
@@ -9196,6 +9214,235 @@ async function getLaunchDependenciesAsAdmin(req, res) {
   return getLaunchDependencies(req, res, { asAdmin: true });
 }
 
+// 640 (D-340): expansion readiness notes. The admin readiness fields
+// (risk_notes, hq_recommendation, market_assessment) already exist on
+// the application and are HQ-written; this is the missing half —
+// operator-authored notes per territory (location_id NULL) or per
+// location, stored in franchise_expansion_notes. The admin fields are
+// NOT duplicated here: the operator detail carries them read-only as
+// hq_readiness_notes, and HQ reads both sets in one view. Notes belong
+// to the territory, so the assigned operator may edit or remove any of
+// them; HQ never writes operator notes.
+async function fetchExpansionNotes(applicationId) {
+  const { rows } = await db.query(
+    `SELECT n.*, l.name AS location_name,
+            u.first_name AS author_first_name, u.last_name AS author_last_name,
+            u.email AS author_email
+       FROM franchise_expansion_notes n
+       LEFT JOIN franchise_locations l ON l.id = n.location_id
+       LEFT JOIN users u ON u.id = n.author_user_id
+      WHERE n.application_id = $1
+      ORDER BY n.created_at DESC, n.id DESC`,
+    [applicationId]
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    application_id: row.application_id,
+    location_id: row.location_id,
+    location_name: row.location_name || null,
+    author_user_id: row.author_user_id,
+    author_name: [row.author_first_name, row.author_last_name].filter(Boolean).join(' ')
+      || row.author_email || null,
+    body: row.body,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }));
+}
+
+async function buildExpansionNotes(applicationId) {
+  const notes = await fetchExpansionNotes(applicationId);
+  return { application_id: applicationId, total: notes.length, notes };
+}
+
+function validateExpansionNoteBody(body) {
+  const text = asTrimmed(body?.body);
+  if (!text) return { error: { status: 400, body: { error: 'body is required.', code: 'expansion_note_body_required' } } };
+  if (text.length > 2000) return { error: { status: 400, body: { error: 'body must be at most 2000 characters.', code: 'expansion_note_too_long' } } };
+  return { value: text };
+}
+
+async function createExpansionNote(req, res) {
+  const validated = validateExpansionNoteBody(req.body);
+  if (validated.error) return res.status(validated.error.status).json(validated.error.body);
+  const { id } = req.params;
+  const locationId = asTrimmed(req.body?.location_id) || null;
+  if (locationId && !UUID_RE.test(locationId)) {
+    return res.status(404).json({ error: 'Franchise location not found.', code: 'location_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can record expansion readiness notes.',
+          code: 'franchise_operator_only',
+        });
+      }
+      if (locationId) {
+        const location = await loadLocation(client, id, locationId);
+        if (!location) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise location not found.', code: 'location_not_found' });
+        }
+      }
+      const { rows } = await client.query(
+        `INSERT INTO franchise_expansion_notes
+           (application_id, location_id, author_user_id, body)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *`,
+        [id, locationId, req.user?.id || null, validated.value]
+      );
+      await logActivity(client, id, req.user?.id || null, 'expansion_note_added',
+        locationId ? 'Operator added an expansion readiness note for a location.' : 'Operator added an expansion readiness note for the territory.',
+        { expansion_note_id: rows[0].id, location_id: locationId });
+      await client.query('COMMIT');
+      const expansionNotes = await buildExpansionNotes(id);
+      const created = expansionNotes.notes.find((row) => row.id === rows[0].id) || rows[0];
+      return res.status(201).json({ expansion_note: created, expansion_notes: expansionNotes });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error adding franchise expansion note', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to add expansion note.' });
+  }
+}
+
+async function getExpansionNotes(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const viewer = await loadTerritoryViewer(client, id, req.user?.id);
+        const blocked = territoryReadScope(viewer);
+        if (blocked) return res.status(blocked.status).json(blocked.body);
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    return res.json(await buildExpansionNotes(id));
+  } catch (err) {
+    logger.error('Error loading franchise expansion notes', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load expansion notes.' });
+  }
+}
+
+async function getExpansionNotesAsAdmin(req, res) {
+  return getExpansionNotes(req, res, { asAdmin: true });
+}
+
+async function updateExpansionNote(req, res) {
+  const validated = validateExpansionNoteBody(req.body);
+  if (validated.error) return res.status(validated.error.status).json(validated.error.body);
+  const { id, noteId } = req.params;
+  if (!UUID_RE.test(noteId)) {
+    return res.status(404).json({ error: 'Expansion note not found.', code: 'expansion_note_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can edit expansion readiness notes.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const { rows } = await client.query(
+        `UPDATE franchise_expansion_notes
+            SET body = $2, updated_at = NOW()
+          WHERE id = $1 AND application_id = $3
+          RETURNING *`,
+        [noteId, validated.value, id]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Expansion note not found.', code: 'expansion_note_not_found' });
+      }
+      await client.query('COMMIT');
+      const expansionNotes = await buildExpansionNotes(id);
+      const updated = expansionNotes.notes.find((row) => row.id === noteId) || rows[0];
+      return res.json({ expansion_note: updated, expansion_notes: expansionNotes });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise expansion note', { id, noteId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update expansion note.' });
+  }
+}
+
+async function deleteExpansionNote(req, res) {
+  const { id, noteId } = req.params;
+  if (!UUID_RE.test(noteId)) {
+    return res.status(404).json({ error: 'Expansion note not found.', code: 'expansion_note_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can remove expansion readiness notes.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const { rows } = await client.query(
+        `DELETE FROM franchise_expansion_notes
+          WHERE id = $1 AND application_id = $2 RETURNING id`,
+        [noteId, id]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Expansion note not found.', code: 'expansion_note_not_found' });
+      }
+      await logActivity(client, id, req.user?.id || null, 'expansion_note_removed',
+        'Operator removed an expansion readiness note.', { expansion_note_id: noteId });
+      await client.query('COMMIT');
+      return res.json({ expansion_notes: await buildExpansionNotes(id) });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise expansion note', { id, noteId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove expansion note.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -9304,6 +9551,11 @@ module.exports = {
   getTrainingPlannerAsAdmin,
   getLaunchDependencies,
   getLaunchDependenciesAsAdmin,
+  createExpansionNote,
+  getExpansionNotes,
+  getExpansionNotesAsAdmin,
+  updateExpansionNote,
+  deleteExpansionNote,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,

@@ -121,6 +121,11 @@ const {
   getTrainingPlannerAsAdmin,
   getLaunchDependencies,
   getLaunchDependenciesAsAdmin,
+  createExpansionNote,
+  getExpansionNotes,
+  getExpansionNotesAsAdmin,
+  updateExpansionNote,
+  deleteExpansionNote,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
@@ -231,6 +236,13 @@ router.get('/my-applications/:id/corrective-actions/:actionId/evidence', authent
 // Group 12 Slice 3g (635): resolution review — the per-exception
 // resolution state, derived from ticket + corrective-action state.
 router.get('/my-applications/:id/resolution', authenticate, requireFranchiseEnabled, getExceptionResolution);
+// Group 12 Slice 3h (640): expansion readiness notes — the operator
+// records readiness notes per territory or location; HQ reads them
+// alongside its own admin fields.
+router.get('/my-applications/:id/expansion-notes', authenticate, requireFranchiseEnabled, getExpansionNotes);
+router.post('/my-applications/:id/expansion-notes', authenticate, requireFranchiseEnabled, createExpansionNote);
+router.patch('/my-applications/:id/expansion-notes/:noteId', authenticate, requireFranchiseEnabled, updateExpansionNote);
+router.delete('/my-applications/:id/expansion-notes/:noteId', authenticate, requireFranchiseEnabled, deleteExpansionNote);
 // Group 12 Slice 3h (639): the launch dependency overview — per-location
 // dependencies with blocked/blocking status, derived from existing state.
 router.get('/my-applications/:id/launch-dependencies', authenticate, requireFranchiseEnabled, getLaunchDependencies);
@@ -327,6 +339,9 @@ router.post('/applications/:id/corrective-actions/:actionId/status', authenticat
 // corrective action.
 router.post('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), upload.single('file'), validateFileUpload, uploadActionEvidenceAsAdmin);
 router.get('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), listActionEvidenceAsAdmin);
+// Group 12 Slice 3h (640): HQ reads the operator's expansion readiness
+// notes alongside its own admin readiness fields.
+router.get('/applications/:id/expansion-notes', authenticate, requireAdmin, requirePermission('manage_operations'), getExpansionNotesAsAdmin);
 // Group 12 Slice 3h (639): HQ reads the launch dependency overview.
 router.get('/applications/:id/launch-dependencies', authenticate, requireAdmin, requirePermission('manage_operations'), getLaunchDependenciesAsAdmin);
 // Group 12 Slice 3h (638): HQ reads the training resource planner.

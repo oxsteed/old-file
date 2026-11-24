@@ -896,4 +896,161 @@ describeDb('Group 12 Slice 3h: Plan development (636-640)', () => {
       await depsAs(operator, applicationId, true).expect(403);
     });
   });
+
+  describe('640: expansion readiness notes', () => {
+    function notesAs(user, applicationId, asAdmin = false) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/expansion-notes`
+        : `/api/franchise/my-applications/${applicationId}/expansion-notes`;
+      return request(app).get(base).set('x-test-user', user.id);
+    }
+
+    function createNoteAs(user, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/expansion-notes`)
+        .set('x-test-user', user.id)
+        .send(body);
+    }
+
+    test('the operator records territory and per-location notes; they ride the bundle', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const locationId = await locationIdFor(operator, applicationId);
+
+      const territory = await createNoteAs(operator, applicationId,
+        { body: 'Round Rock site looks ready for a second look in Q1.' }).expect(201);
+      expect(territory.body.expansion_note.body).toContain('Round Rock');
+      expect(territory.body.expansion_note.location_id).toBeNull();
+      expect(territory.body.expansion_note.author_name).toBeTruthy();
+      const perLocation = await createNoteAs(operator, applicationId,
+        { body: 'Fit-out vendor confirmed for January.', location_id: locationId }).expect(201);
+      expect(perLocation.body.expansion_note.location_id).toBe(locationId);
+      expect(perLocation.body.expansion_notes.total).toBe(2);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.expansion_notes.total).toBe(2);
+      expect(detail.body.expansion_notes.notes[0].location_name).toBeTruthy();
+      // HQ's admin fields ride the operator detail read-only, empty
+      // until HQ writes them.
+      expect(detail.body.hq_readiness_notes).toEqual({
+        market_assessment: null,
+        hq_recommendation: null,
+        risk_notes: null,
+      });
+    });
+
+    test('the operator edits and removes a note; validation rejects an empty or foreign note', async () => {
+      const operator = await addUser();
+      const otherOperator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const otherApplicationId = await makeApplication(otherOperator);
+      const otherLocationId = await locationIdFor(otherOperator, otherApplicationId);
+      const created = await createNoteAs(operator, applicationId, { body: 'First draft note.' }).expect(201);
+      const noteId = created.body.expansion_note.id;
+
+      await createNoteAs(operator, applicationId, {})
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('expansion_note_body_required'));
+      await createNoteAs(operator, applicationId, { body: 'x'.repeat(2001) })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('expansion_note_too_long'));
+      await createNoteAs(operator, applicationId, { body: 'Wrong territory.', location_id: otherLocationId })
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('location_not_found'));
+
+      const updated = await request(app)
+        .patch(`/api/franchise/my-applications/${applicationId}/expansion-notes/${noteId}`)
+        .set('x-test-user', operator.id)
+        .send({ body: 'Revised note.' })
+        .expect(200);
+      expect(updated.body.expansion_note.body).toBe('Revised note.');
+      const removed = await request(app)
+        .delete(`/api/franchise/my-applications/${applicationId}/expansion-notes/${noteId}`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(removed.body.expansion_notes.total).toBe(0);
+      await request(app)
+        .patch(`/api/franchise/my-applications/${applicationId}/expansion-notes/${noteId}`)
+        .set('x-test-user', operator.id)
+        .send({ body: 'Gone.' })
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('expansion_note_not_found'));
+    });
+
+    test('HQ reads operator notes alongside its own admin fields in one bundle', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      await createNoteAs(operator, applicationId, { body: 'Operator view: market is heating up.' }).expect(201);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin.id)
+        .send({
+          market_assessment: 'Strong demand in North Austin.',
+          hq_recommendation: 'Proceed to shortlist.',
+          risk_notes: 'Watch the lease escalation clause.',
+        })
+        .expect(200);
+
+      const hqNotes = await notesAs(admin, applicationId, true).expect(200);
+      expect(hqNotes.body.total).toBe(1);
+      expect(hqNotes.body.notes[0].body).toContain('heating up');
+      const bundle = await request(app)
+        .get(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(bundle.body.expansion_notes.total).toBe(1);
+      expect(bundle.body.application.market_assessment).toBe('Strong demand in North Austin.');
+      expect(bundle.body.application.hq_recommendation).toBe('Proceed to shortlist.');
+      expect(bundle.body.application.risk_notes).toBe('Watch the lease escalation clause.');
+
+      // The operator sees HQ's fields read-only next to their own notes.
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.hq_readiness_notes.market_assessment).toBe('Strong demand in North Austin.');
+      expect(detail.body.hq_readiness_notes.hq_recommendation).toBe('Proceed to shortlist.');
+      expect(detail.body.hq_readiness_notes.risk_notes).toBe('Watch the lease escalation clause.');
+    });
+
+    test('a territory member may read the notes; an applicant gets 403 and a stranger 404', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+      const member = await addOpeningTeamMember(operator, applicationId);
+      await createNoteAs(operator, applicationId, { body: 'Shared with the team.' }).expect(201);
+
+      await notesAs(member, applicationId).expect(200)
+        .then((res) => expect(res.body.total).toBe(1));
+      await notesAs(applicant, applicationId)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      await notesAs(stranger, applicationId).expect(404);
+      await notesAs(admin, applicationId, true).expect(200);
+      // A member may read but not write: a member is neither the
+      // applicant nor the operator, so a write attempt gets the same 404
+      // as a stranger (existence is not leaked to non-operators).
+      await createNoteAs(member, applicationId, { body: 'Member tries to write.' })
+        .expect(404);
+    });
+
+    test('a non-operator applicant cannot write notes, and HQ has no operator-note write route', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+
+      await createNoteAs(applicant, applicationId, { body: 'Applicant try.' })
+        .expect(403);
+      const notes = await notesAs(operator, applicationId).expect(200);
+      expect(notes.body.total).toBe(0);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/expansion-notes`)
+        .set('x-test-user', admin.id)
+        .send({ body: 'HQ try.' })
+        .expect(404);
+    });
+  });
 });
