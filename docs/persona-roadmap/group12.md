@@ -65,9 +65,9 @@ Money note: unlike Group 11 (D-257: rental money off-platform, record-only), fra
 
 ## Counts
 
-- EXISTS: 6 (601, 602, 603, 604, 605, 626)
-- PARTIAL: 29 (606, 607, 609, 610, 612, 613, 615, 616, 617, 618, 619, 621, 622, 624, 627, 629, 630, 631, 632, 633, 634, 635, 640, 643, 645, 646, 647, 649, 650)
-- BUILD: 15 (608, 611, 614, 620, 623, 625, 628, 636, 637, 638, 639, 641, 642, 644, 648)
+- EXISTS: 10 (601, 602, 603, 604, 605, 626, 627, 628, 629, 630)
+- PARTIAL: 26 (606, 607, 609, 610, 612, 613, 615, 616, 617, 618, 619, 621, 622, 624, 631, 632, 633, 634, 635, 640, 643, 645, 646, 647, 649, 650)
+- BUILD: 14 (608, 611, 614, 620, 623, 625, 636, 637, 638, 639, 641, 642, 644, 648)
 - Total: 50. Group 12 is the thinnest group surveyed so far in one respect: the intake pipeline (601-602) and the territory KPI rollup (626) are genuinely shipped, but the whole operator-after-launch surface (606-650) is mostly PARTIAL-by-reuse or BUILD — the territory operator has two pages (applicant dashboard + territory ops) and almost everything past launch is either an HQ/admin surface, a generic support/business/restaurant surface, or missing.
 
 ## Next step
