@@ -704,4 +704,196 @@ describeDb('Group 12 Slice 3h: Plan development (636-640)', () => {
       await plannerAs(operator, applicationId, true).expect(403);
     });
   });
+
+  describe('639: launch dependency overview', () => {
+    function depsAs(user, applicationId, asAdmin = false) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/launch-dependencies`
+        : `/api/franchise/my-applications/${applicationId}/launch-dependencies`;
+      return request(app).get(base).set('x-test-user', user.id);
+    }
+
+    function depOf(view, code) {
+      return view.dependencies.find((d) => d.code === code);
+    }
+
+    test('a fresh territory is blocked on agreement and services, pending on the rest', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+
+      const deps = await depsAs(operator, applicationId).expect(200);
+      expect(deps.body.total).toBe(1);
+      expect(deps.body.blocked).toBe(1);
+      expect(deps.body.ready).toBe(0);
+      const [view] = deps.body.locations;
+      expect(view.overall).toBe('blocked');
+      expect(view.ready_to_launch).toBe(false);
+      expect(depOf(view, 'agreement').status).toBe('blocked');
+      expect(depOf(view, 'agreement').blocks_launch).toBe(true);
+      expect(depOf(view, 'services').status).toBe('blocked');
+      expect(depOf(view, 'milestones').status).toBe('pending');
+      expect(depOf(view, 'training').status).toBe('pending');
+      expect(depOf(view, 'staffing').status).toBe('pending');
+      expect(depOf(view, 'readiness').status).toBe('pending');
+      expect(depOf(view, 'compliance').status).toBe('satisfied');
+      expect(depOf(view, 'exceptions').status).toBe('satisfied');
+      expect(view.blocked_dependencies).toEqual(expect.arrayContaining(['agreement', 'services']));
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.launch_dependencies.total).toBe(1);
+    });
+
+    test('signing the agreement and adding an available service clears the blocks to pending', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const locationId = await locationIdFor(operator, applicationId);
+      await db.query("UPDATE franchise_applications SET agreement_status = 'signed' WHERE id = $1", [applicationId]);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/services`)
+        .set('x-test-user', operator.id)
+        .send({ service_name: 'Dine-in', available: true })
+        .expect(201);
+
+      const deps = await depsAs(operator, applicationId).expect(200);
+      const [view] = deps.body.locations;
+      expect(view.overall).toBe('pending');
+      expect(view.blocked_dependencies).toHaveLength(0);
+      expect(depOf(view, 'agreement').status).toBe('satisfied');
+      expect(depOf(view, 'services').status).toBe('satisfied');
+      expect(depOf(view, 'services').detail).toContain('1/1');
+    });
+
+    test('a blocked milestone blocks the location; completing it clears the block', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const locationId = await locationIdFor(operator, applicationId);
+      const created = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${locationId}/milestones`)
+        .set('x-test-user', admin.id)
+        .send({ title: 'Fit-out complete', owner_role: 'operator' })
+        .expect(201);
+      const milestoneId = (created.body.milestones || created.body.locations?.[0]?.milestones || [])
+        .find((m) => m.title === 'Fit-out complete')?.id
+        || (await db.query(
+          `SELECT id FROM franchise_location_milestones WHERE application_id = $1 AND title = $2`,
+          [applicationId, 'Fit-out complete'])).rows[0].id;
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/milestones/${milestoneId}/status`)
+        .set('x-test-user', operator.id)
+        .send({ status: 'blocked' })
+        .expect(200);
+      let deps = await depsAs(operator, applicationId).expect(200);
+      expect(deps.body.locations[0].overall).toBe('blocked');
+      expect(depOf(deps.body.locations[0], 'milestones').status).toBe('blocked');
+      expect(depOf(deps.body.locations[0], 'milestones').detail).toContain('1 milestone(s) blocked');
+
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/milestones/${milestoneId}/status`)
+        .set('x-test-user', operator.id)
+        .send({ status: 'completed' })
+        .expect(200);
+      deps = await depsAs(operator, applicationId).expect(200);
+      expect(depOf(deps.body.locations[0], 'milestones').status).toBe('satisfied');
+      expect(deps.body.locations[0].overall).toBe('blocked');
+    });
+
+    test('an open urgent exception blocks; resolving the ticket clears it, and a full pass reads ready', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const locationId = await locationIdFor(operator, applicationId);
+      const member = await addOpeningTeamMember(operator, applicationId);
+      await db.query("UPDATE franchise_applications SET agreement_status = 'signed' WHERE id = $1", [applicationId]);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/services`)
+        .set('x-test-user', operator.id)
+        .send({ service_name: 'Dine-in', available: true })
+        .expect(201);
+      const { rows: [ticket] } = await db.query(
+        `INSERT INTO support_tickets
+           (user_id, name, email, subject, category, priority, status, source,
+            franchise_application_id, franchise_location_id)
+         VALUES ($1, $2, $3, 'Oven down', 'general', 'urgent', 'open', 'widget', $4, $5)
+         RETURNING id`,
+        [operator.id, 'Franchise Fixture', operator.email, applicationId, locationId],
+      );
+
+      let deps = await depsAs(operator, applicationId).expect(200);
+      expect(depOf(deps.body.locations[0], 'exceptions').status).toBe('blocked');
+      expect(deps.body.locations[0].overall).toBe('blocked');
+
+      await db.query("UPDATE support_tickets SET status = 'resolved', resolved_at = NOW() WHERE id = $1", [ticket.id]);
+      deps = await depsAs(operator, applicationId).expect(200);
+      expect(depOf(deps.body.locations[0], 'exceptions').status).toBe('satisfied');
+
+      // Finish the rest: manager, training complete, readiness passed.
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${locationId}/manager`)
+        .set('x-test-user', admin.id)
+        .send({ manager_user_id: member.id })
+        .expect(201);
+      await db.query(
+        `INSERT INTO franchise_opening_team_members (application_id, location_id, helper_user_id, role)
+         VALUES ($1, $2, $3, 'member')`,
+        [applicationId, locationId, member.id],
+      );
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training`)
+        .set('x-test-user', operator.id)
+        .send({ assignee_user_id: member.id, location_id: locationId, module_title: 'Food Safety Basics', category: 'food_safety' })
+        .expect(201);
+      const { rows: [assignment] } = await db.query(
+        `SELECT id FROM franchise_training_assignments WHERE application_id = $1`, [applicationId]);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/training/${assignment.id}/complete`)
+        .set('x-test-user', member.id)
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/readiness-review`)
+        .set('x-test-user', admin.id)
+        .send({ outcome: 'passed', notes: 'Ready to open.' })
+        .expect(201);
+      const milestone = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${locationId}/milestones`)
+        .set('x-test-user', admin.id)
+        .send({ title: 'Fit-out complete', owner_role: 'operator' })
+        .expect(201);
+      const milestoneId = (milestone.body.milestones || milestone.body.locations?.[0]?.milestones || [])
+        .find((m) => m.title === 'Fit-out complete')?.id
+        || (await db.query(
+          `SELECT id FROM franchise_location_milestones WHERE application_id = $1 AND title = $2`,
+          [applicationId, 'Fit-out complete'])).rows[0].id;
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/milestones/${milestoneId}/status`)
+        .set('x-test-user', operator.id)
+        .send({ status: 'completed' })
+        .expect(200);
+
+      deps = await depsAs(operator, applicationId).expect(200);
+      const [view] = deps.body.locations;
+      expect(view.dependencies.every((d) => d.status === 'satisfied')).toBe(true);
+      expect(view.overall).toBe('ready');
+      expect(view.ready_to_launch).toBe(true);
+      expect(deps.body.ready).toBe(1);
+    });
+
+    test('a stranger gets 404, a non-operator applicant 403, HQ reads the overview', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+
+      await depsAs(stranger, applicationId).expect(404);
+      await depsAs(applicant, applicationId)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      const hq = await depsAs(admin, applicationId, true).expect(200);
+      expect(hq.body.total).toBe(1);
+      await depsAs(operator, applicationId, true).expect(403);
+    });
+  });
 });

@@ -481,6 +481,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3h (638, D-338): the training resource planner — who
   // needs what training by when, and how much is covered. Derived.
   const trainingPlanner = await buildTrainingPlanner(applicationId);
+  // Group 12 Slice 3h (639, D-339): the launch dependency overview —
+  // per-location dependencies with blocked/blocking status. Derived.
+  const launchDependencies = await buildLaunchDependencies(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -515,6 +518,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     candidate_locations: candidateLocations,
     territory_capacity: territoryCapacity,
     training_planner: trainingPlanner,
+    launch_dependencies: launchDependencies,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1126,6 +1130,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   const territoryCapacity = await buildTerritoryCapacity(applicationId);
   // Group 12 Slice 3h (638, D-338): the training resource planner.
   const trainingPlanner = await buildTrainingPlanner(applicationId);
+  // Group 12 Slice 3h (639, D-339): the launch dependency overview.
+  const launchDependencies = await buildLaunchDependencies(applicationId);
 
   return {
     application: {
@@ -1155,6 +1161,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     candidate_locations: candidateLocations,
     territory_capacity: territoryCapacity,
     training_planner: trainingPlanner,
+    launch_dependencies: launchDependencies,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — viewer perspective.
@@ -8971,6 +8978,224 @@ async function getTrainingPlannerAsAdmin(req, res) {
   return getTrainingPlanner(req, res, { asAdmin: true });
 }
 
+// 639 (D-339): the launch dependency overview — per location, the
+// dependencies a launch needs (agreement, training, staffing,
+// milestones, compliance, readiness, services, exceptions), each with a
+// blocked/pending/satisfied status derived from existing state. There is
+// no dependency graph store: every dependency reads the state its own
+// slice already owns (609/611/613/614/617/618/624/628), so the overview
+// can never drift from it. A dependency is `blocked` only when it stops
+// a launch (unsigned agreement, a blocked milestone, no available
+// service, an open urgent exception); anything merely incomplete is
+// `pending`. A location is ready to launch only when every dependency
+// is satisfied.
+async function buildLaunchDependencies(applicationId) {
+  const { rows: [application] } = await db.query(
+    `SELECT agreement_status, launch_readiness_status
+       FROM franchise_applications WHERE id = $1`,
+    [applicationId]
+  );
+  const [locations, assignments, standards] = await Promise.all([
+    fetchOpenLocations(applicationId),
+    fetchTrainingAssignments(applicationId),
+    fetchFranchiseStandards(applicationId),
+  ]);
+  const standardsDone = (standards || []).length === 0
+    || (standards || []).every((standard) => standard.member_count > 0
+      && (standard.acknowledged_count ?? 0) >= standard.member_count);
+  const agreementSatisfied = ['signed', 'waived'].includes(application?.agreement_status);
+  const readinessSatisfied = ['ready', 'launched'].includes(application?.launch_readiness_status);
+
+  const locationViews = locations.map((location) => {
+    const milestones = location.milestones || [];
+    const services = location.services || [];
+    const team = location.opening_team || [];
+    const teamIds = new Set(team.map((row) => String(row.helper_user_id)));
+    const locationAssignments = assignments.filter(
+      (a) => String(a.location_id) === String(location.id)
+    );
+    const teamWideAssignments = assignments.filter(
+      (a) => !a.location_id && teamIds.has(String(a.assignee_user_id))
+    );
+    const training = [...locationAssignments, ...teamWideAssignments];
+    const trainingDone = training.length > 0 && training.every((a) => a.status === 'completed');
+    const trainingPending = training.length > 0 && !trainingDone;
+    const milestonesBlocked = milestones.filter((m) => m.status === 'blocked').length;
+    const milestonesDone = milestones.length > 0 && milestones.every((m) => m.status === 'completed');
+    const servicesAvailable = services.filter((s) => s.available).length;
+
+    const dependencies = [
+      {
+        code: 'agreement',
+        status: agreementSatisfied ? 'satisfied' : 'blocked',
+        blocks_launch: !agreementSatisfied,
+        detail: agreementSatisfied
+          ? `Agreement ${application.agreement_status}.`
+          : `Agreement is ${application?.agreement_status || 'not set'}; it must be signed or waived before launch.`,
+      },
+      {
+        code: 'training',
+        status: trainingDone ? 'satisfied' : 'pending',
+        blocks_launch: false,
+        detail: training.length === 0
+          ? 'No training assigned for this location yet.'
+          : trainingPending
+            ? `${training.filter((a) => a.status === 'completed').length}/${training.length} training assignments completed.`
+            : `${training.length}/${training.length} training assignments completed.`,
+      },
+      {
+        code: 'staffing',
+        status: location.manager && team.length > 0 ? 'satisfied' : 'pending',
+        blocks_launch: false,
+        detail: location.manager && team.length > 0
+          ? `Manager assigned with ${team.length} opening-team member(s).`
+          : !location.manager && team.length === 0
+            ? 'No manager and no opening team assigned yet.'
+            : !location.manager
+              ? 'No manager assigned yet.'
+              : 'No opening team assigned yet.',
+      },
+      {
+        code: 'milestones',
+        status: milestonesBlocked > 0 ? 'blocked' : milestonesDone ? 'satisfied' : 'pending',
+        blocks_launch: milestonesBlocked > 0,
+        detail: milestones.length === 0
+          ? 'No launch milestones for this location yet.'
+          : milestonesBlocked > 0
+            ? `${milestonesBlocked} milestone(s) blocked.`
+            : `${milestones.filter((m) => m.status === 'completed').length}/${milestones.length} milestones completed.`,
+      },
+      {
+        code: 'compliance',
+        status: standardsDone ? 'satisfied' : 'pending',
+        blocks_launch: false,
+        detail: (standards || []).length === 0
+          ? 'No franchise standards curated for this territory yet.'
+          : standardsDone
+            ? 'Every member acknowledged every current standard.'
+            : 'Not every member acknowledged every current standard yet.',
+      },
+      {
+        code: 'readiness',
+        status: readinessSatisfied ? 'satisfied' : 'pending',
+        blocks_launch: false,
+        detail: readinessSatisfied
+          ? `Launch readiness is ${application.launch_readiness_status}.`
+          : `Launch readiness is ${application?.launch_readiness_status || 'not set'}; a passed HQ review is required.`,
+      },
+      {
+        code: 'services',
+        status: servicesAvailable > 0 ? 'satisfied' : 'blocked',
+        blocks_launch: servicesAvailable === 0,
+        detail: servicesAvailable > 0
+          ? `${servicesAvailable}/${services.length} service(s) available.`
+          : 'No service is available at this location yet.',
+      },
+      {
+        code: 'exceptions',
+        // Finished below from the ticket aggregation: an open urgent or
+        // high exception blocks the launch, any other open exception is
+        // pending, none is satisfied.
+        status: 'pending',
+        blocks_launch: false,
+        detail: '',
+      },
+    ];
+    return { location, dependencies };
+  });
+
+  // Exceptions are not on the location bundle rows, so fetch them here
+  // (the same aggregation buildLocationHealth uses) and finish the
+  // exception dependency per location.
+  const { rows: exceptionRows } = await db.query(
+    `SELECT franchise_location_id AS location_id,
+            COUNT(*) FILTER (WHERE status IN ${EXCEPTION_OPEN_SQL})::int AS open_count,
+            COUNT(*) FILTER (WHERE status IN ${EXCEPTION_OPEN_SQL}
+                               AND priority IN ('urgent', 'high'))::int AS open_urgent_count
+       FROM support_tickets
+      WHERE franchise_application_id = $1 AND franchise_location_id IS NOT NULL
+      GROUP BY franchise_location_id`,
+    [applicationId]
+  );
+  const exceptionsByLocation = new Map(
+    exceptionRows.map((row) => [String(row.location_id), row])
+  );
+  const views = locationViews.map(({ location, dependencies }) => {
+    const counts = exceptionsByLocation.get(String(location.id))
+      || { open_count: 0, open_urgent_count: 0 };
+    const exceptionDep = dependencies.find((d) => d.code === 'exceptions');
+    exceptionDep.status = counts.open_urgent_count > 0
+      ? 'blocked'
+      : counts.open_count > 0 ? 'pending' : 'satisfied';
+    exceptionDep.blocks_launch = counts.open_urgent_count > 0;
+    exceptionDep.detail = counts.open_count === 0
+      ? 'No open exceptions linked to this location.'
+      : counts.open_urgent_count > 0
+        ? `${counts.open_urgent_count} open urgent or high exception(s) linked to this location.`
+        : `${counts.open_count} open exception(s) linked to this location.`;
+    const blocked = dependencies.filter((d) => d.status === 'blocked').map((d) => d.code);
+    const pending = dependencies.filter((d) => d.status === 'pending').map((d) => d.code);
+    const overall = blocked.length > 0
+      ? 'blocked'
+      : pending.length > 0 ? 'pending' : 'ready';
+    return {
+      location_id: location.id,
+      location_name: location.name,
+      location_status: location.status,
+      launch_complete: location.launch_complete,
+      overall,
+      ready_to_launch: overall === 'ready',
+      blocked_dependencies: blocked,
+      pending_dependencies: pending,
+      dependencies,
+    };
+  });
+  return {
+    application_id: applicationId,
+    total: views.length,
+    ready: views.filter((v) => v.overall === 'ready').length,
+    pending: views.filter((v) => v.overall === 'pending').length,
+    blocked: views.filter((v) => v.overall === 'blocked').length,
+    locations: views,
+  };
+}
+
+async function getLaunchDependencies(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can view launch dependencies.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    return res.json(await buildLaunchDependencies(id));
+  } catch (err) {
+    logger.error('Error loading franchise launch dependencies', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load launch dependencies.' });
+  }
+}
+
+async function getLaunchDependenciesAsAdmin(req, res) {
+  return getLaunchDependencies(req, res, { asAdmin: true });
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -9077,6 +9302,8 @@ module.exports = {
   setCapacityTargetAsAdmin,
   getTrainingPlanner,
   getTrainingPlannerAsAdmin,
+  getLaunchDependencies,
+  getLaunchDependenciesAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
