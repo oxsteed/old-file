@@ -32,6 +32,14 @@ exports.disputeNotifications = {
     title: t('Your Credit dispute was decided', 'Se decidió tu disputa de Crédito', 'Votre litige Crédit a été tranché', 'Yo deside sou diskisyon Kredi ou', 'تم البت في نزاع الرصيد الخاص بك'),
     body: t('A decision was made on your OxSteed Credit dispute. Check your wallet for any compensation.', 'Se tomó una decisión sobre tu disputa de Crédito OxSteed. Revisa tu billetera por cualquier compensación.', 'Une décision a été prise sur votre litige Crédit OxSteed. Consultez votre portefeuille pour toute compensation.', 'Yo pran yon desizyon sou diskisyon Kredi OxSteed ou. Gade pòtfèy ou pou nenpòt konpansasyon.', 'تم اتخاذ قرار بشأن نزاع رصيد OxSteed. راجع محفظتك لأي تعويض.'),
   },
+  credit_card_frozen: {
+    title: t('Your OxSteed Credit card was frozen', 'Tu tarjeta OxSteed Credit fue congelada', 'Votre carte OxSteed Credit a été gelée', 'Kat OxSteed Credit ou a jele', 'تم تجميد بطاقة OxSteed Credit الخاصة بك'),
+    body: t('OxSteed froze your Credit card. You can review it on your cards page.', 'OxSteed congeló tu tarjeta de Crédito. Puedes revisarla en tu página de tarjetas.', 'OxSteed a gelé votre carte Crédit. Vous pouvez la consulter sur votre page de cartes.', 'OxSteed jele kat Kredi ou. Ou ka revize l sou paj kat ou.', 'جمّدت OxSteed بطاقة الرصيد الخاصة بك. يمكنك مراجعتها على صفحة بطاقاتك.'),
+  },
+  credit_card_revoked: {
+    title: t('Your OxSteed Credit card was revoked', 'Tu tarjeta OxSteed Credit fue revocada', 'Votre carte OxSteed Credit a été révoquée', 'Kat OxSteed Credit ou a anile', 'تم إلغاء بطاقة OxSteed Credit الخاصة بك'),
+    body: t('OxSteed revoked your Credit card. It can no longer be used. You can request a replacement from your cards page.', 'OxSteed revocó tu tarjeta de Crédito. Ya no se puede usar. Puedes solicitar un reemplazo desde tu página de tarjetas.', 'OxSteed a révoqué votre carte Crédit. Elle ne peut plus être utilisée. Vous pouvez demander un remplacement depuis votre page de cartes.', 'OxSteed anile kat Kredi ou. Ou pa ka itilize l ankò. Ou ka mande yon ranplasman sou paj kat ou.', 'ألغت OxSteed بطاقة الرصيد الخاصة بك. لم يعد بالإمكان استخدامها. يمكنك طلب بطاقة بديلة من صفحة بطاقاتك.'),
+  },
   payment_dispute_updated: {
     title: t('Your refund request was updated', 'Tu solicitud de reembolso se actualizó', 'Votre demande de remboursement a été mise à jour', 'Demann ranbousman ou a mete ajou', 'تم تحديث طلب الاسترداد الخاص بك'),
     body: t('Our team made a decision on your refund request. Open your support tickets for details.', 'Nuestro equipo tomó una decisión sobre tu solicitud de reembolso. Abre tus tickets de soporte para ver los detalles.', 'Notre équipe a pris une décision sur votre demande de remboursement. Ouvrez vos tickets d’assistance pour les détails.', 'Ekip nou an pran yon desizyon sou demann ranbousman ou. Louvri tikè sipò ou yo pou detay.', 'اتخذ فريقنا قرارًا بشأن طلب الاسترداد. افتح تذاكر الدعم للتفاصيل.'),

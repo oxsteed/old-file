@@ -51,7 +51,10 @@ async function listHistory({ cardId, customerId, limit = 25, offset = 0, isAdmin
     id: String(row.id), action: row.action_type, createdAt: row.created_at,
     actor: row.actor_user_id === row.customer_id ? 'you' : row.actor_user_id ? 'staff' : 'system',
     ...(isAdmin ? { actorUserId: row.actor_user_id, reason: row.reason, correlationId: row.correlation_id,
-      requestIp: row.request_ip, beforeState: row.before_state, afterState: row.after_state, metadata: row.metadata } : {}),
+      requestIp: row.request_ip, beforeState: row.before_state, afterState: row.after_state, metadata: row.metadata }
+      // D-364: the customer sees the reason on a platform suspension event
+      // (frozen/revoked); every other event keeps the reason admin-only.
+      : ['credit.card.frozen', 'credit.card.revoked'].includes(row.action_type) ? { reason: row.reason } : {}),
   })), pagination: { limit: size, offset: start, hasMore: rows.length > size, nextOffset: rows.length > size ? start + size : null } };
 }
 

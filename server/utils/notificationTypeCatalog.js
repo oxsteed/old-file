@@ -289,6 +289,8 @@ const NOTIFICATION_TYPES = [
   { type: 'restaurant_temperature_breach', group: 'restaurant' },
   { type: 'credit_cashout_failed', group: 'credit' },
   { type: 'credit_cashout_paid', group: 'credit' },
+  { type: 'credit_card_frozen', group: 'credit' },
+  { type: 'credit_card_revoked', group: 'credit' },
   { type: 'credit_dispute_provisional_credit', group: 'credit' },
   { type: 'credit_dispute_resolved', group: 'credit' },
   { type: 'credit_dispute_updated', group: 'credit' },
