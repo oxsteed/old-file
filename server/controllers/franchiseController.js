@@ -512,7 +512,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult] = await Promise.all([
+  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -576,6 +576,19 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
         ORDER BY sort_order, id`,
       [applicationId]
     ),
+    // Group 12 Slice 3b (610, D-310): the operator-facing assignment
+    // history — the activity log, newest first, without metadata (which
+    // can carry raw admin request bodies) and without the actor. Internal
+    // note events are excluded; a shared note's arrival is still shown.
+    db.query(
+      `SELECT id, event_type, event_summary, created_at
+         FROM franchise_activity_log
+        WHERE application_id = $1
+          AND NOT (event_type = 'note_added' AND metadata ->> 'visibility' = 'internal')
+        ORDER BY created_at DESC, id DESC
+        LIMIT 50`,
+      [applicationId]
+    ),
   ]);
 
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
@@ -593,6 +606,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     responsibilities: responsibilityResult.rows,
     territory_areas: areaResult.rows,
     launch_plan_steps: launchPlanResult.rows,
+    activity: activityResult.rows,
   };
 }
 

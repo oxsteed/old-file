@@ -1969,24 +1969,78 @@
     "invitedGoal": "Join your invited team",
     "invitedGoalHelp": "Create your customer account and verify your email. Then review and respond to your invitation.",
     "personas": {
-      "customer": { "title": "Hire local help", "description": "Post a job, find trusted help, and order food." },
-      "helper": { "title": "Offer services", "description": "Build a service profile, respond to opportunities, and get paid." },
-      "businessOwner": { "title": "Run a business", "description": "Create a business presence and manage its work." },
-      "businessTeam": { "title": "Join a business team", "description": "Work for an invited business with scoped tools." },
-      "restaurantOwner": { "title": "Run a restaurant", "description": "Set up a restaurant and manage its operations." },
-      "restaurantTeam": { "title": "Work at a restaurant", "description": "Use only the tools assigned to your restaurant location." },
-      "logistics": { "title": "Move goods and deliveries", "description": "Coordinate shipping, delivery, or dispatch work." },
-      "consultant": { "title": "Consult for clients", "description": "Share expertise and accept approved paying engagements." },
-      "equipmentOwner": { "title": "List equipment", "description": "Offer tools and equipment for approved local use." },
-      "franchise": { "title": "Operate a franchise", "description": "Track franchise territory enrollment and operating setup." },
-      "investorReporting": { "title": "View investor reporting", "description": "Request reporting access for eligible entities. This never enables investing." },
-      "creditParticipant": { "title": "Participate in OxSteed Credit", "description": "Follow the Credit program enrollment and eligibility path." },
-      "partnerAffiliate": { "title": "Partner or refer", "description": "Join an approved partner or affiliate program." },
-      "workforceLearning": { "title": "Learn or teach", "description": "Join workforce, learning, or instructor programs." },
-      "reviewer": { "title": "Review applications", "description": "Request internal reviewer provisioning for authorized work." },
-      "supportAgent": { "title": "Support customers", "description": "Request internal support-agent provisioning." },
-      "operationsStaff": { "title": "Run operations", "description": "Request authorized internal operations access." },
-      "deviceServiceAccount": { "title": "Connect a device or service", "description": "Use administrator-provisioned nonhuman credentials, not a personal account." }
+      "customer": {
+        "title": "Hire local help",
+        "description": "Post a job, find trusted help, and order food."
+      },
+      "helper": {
+        "title": "Offer services",
+        "description": "Build a service profile, respond to opportunities, and get paid."
+      },
+      "businessOwner": {
+        "title": "Run a business",
+        "description": "Create a business presence and manage its work."
+      },
+      "businessTeam": {
+        "title": "Join a business team",
+        "description": "Work for an invited business with scoped tools."
+      },
+      "restaurantOwner": {
+        "title": "Run a restaurant",
+        "description": "Set up a restaurant and manage its operations."
+      },
+      "restaurantTeam": {
+        "title": "Work at a restaurant",
+        "description": "Use only the tools assigned to your restaurant location."
+      },
+      "logistics": {
+        "title": "Move goods and deliveries",
+        "description": "Coordinate shipping, delivery, or dispatch work."
+      },
+      "consultant": {
+        "title": "Consult for clients",
+        "description": "Share expertise and accept approved paying engagements."
+      },
+      "equipmentOwner": {
+        "title": "List equipment",
+        "description": "Offer tools and equipment for approved local use."
+      },
+      "franchise": {
+        "title": "Operate a franchise",
+        "description": "Track franchise territory enrollment and operating setup."
+      },
+      "investorReporting": {
+        "title": "View investor reporting",
+        "description": "Request reporting access for eligible entities. This never enables investing."
+      },
+      "creditParticipant": {
+        "title": "Participate in OxSteed Credit",
+        "description": "Follow the Credit program enrollment and eligibility path."
+      },
+      "partnerAffiliate": {
+        "title": "Partner or refer",
+        "description": "Join an approved partner or affiliate program."
+      },
+      "workforceLearning": {
+        "title": "Learn or teach",
+        "description": "Join workforce, learning, or instructor programs."
+      },
+      "reviewer": {
+        "title": "Review applications",
+        "description": "Request internal reviewer provisioning for authorized work."
+      },
+      "supportAgent": {
+        "title": "Support customers",
+        "description": "Request internal support-agent provisioning."
+      },
+      "operationsStaff": {
+        "title": "Run operations",
+        "description": "Request authorized internal operations access."
+      },
+      "deviceServiceAccount": {
+        "title": "Connect a device or service",
+        "description": "Use administrator-provisioned nonhuman credentials, not a personal account."
+      }
     },
     "admission": {
       "baseline": "Customer access is available immediately.",
@@ -15487,36 +15541,35 @@
     "timeOff": "Your Time Off",
     "blockedDateAdded": "Blocked date added",
     "blockedDateRemoved": "Blocked date removed",
-    "dateRequired": "Please select a date"
-  ,
-  "yourTime": "Your time",
-  "rescheduleProposed": "Reschedule proposed",
-  "rescheduleAccepted": "Reschedule accepted",
-  "rescheduleDeclined": "Reschedule declined",
-  "rescheduleWithdrawn": "Reschedule withdrawn",
-  "rescheduleTitle": "Propose a new time",
-  "rescheduleCurrent": "Current appointment: {{date}} at {{time}}",
-  "pickDate": "Pick a date",
-  "pickTime": "Pick a time",
-  "rescheduleReason": "Reason (optional)",
-  "rescheduleReasonPlaceholder": "Why are you proposing a new time?",
-  "rescheduleCanonicalNote": "Times are shown in your time zone; the booking is kept in the consultant's zone ({{zone}}).",
-  "proposeNewTime": "Propose new time",
-  "cancelTitle": "Cancel this appointment",
-  "cancelReason": "Reason",
-  "cancelReasonPlaceholder": "Why is this appointment being cancelled?",
-  "requestRefund": "Request a refund for this appointment",
-  "cancelNote": "Both you and the consultant will be notified. Refunds are handled separately by an administrator.",
-  "cancelled": "Appointment cancelled",
-  "cancelSession": "Cancel appointment",
-  "confirmAttendance": "Confirm attendance",
-  "attendanceConfirmed": "Attendance confirmed",
-  "attendanceConfirmedByYou": "You confirmed attendance",
-  "attendanceConfirmedByClient": "Client confirmed attendance",
-  "attendanceConfirmedByConsultant": "Consultant confirmed attendance",
-  "accept": "Accept",
-  "decline": "Decline",
-  "withdraw": "Withdraw"
+    "dateRequired": "Please select a date",
+    "yourTime": "Your time",
+    "rescheduleProposed": "Reschedule proposed",
+    "rescheduleAccepted": "Reschedule accepted",
+    "rescheduleDeclined": "Reschedule declined",
+    "rescheduleWithdrawn": "Reschedule withdrawn",
+    "rescheduleTitle": "Propose a new time",
+    "rescheduleCurrent": "Current appointment: {{date}} at {{time}}",
+    "pickDate": "Pick a date",
+    "pickTime": "Pick a time",
+    "rescheduleReason": "Reason (optional)",
+    "rescheduleReasonPlaceholder": "Why are you proposing a new time?",
+    "rescheduleCanonicalNote": "Times are shown in your time zone; the booking is kept in the consultant's zone ({{zone}}).",
+    "proposeNewTime": "Propose new time",
+    "cancelTitle": "Cancel this appointment",
+    "cancelReason": "Reason",
+    "cancelReasonPlaceholder": "Why is this appointment being cancelled?",
+    "requestRefund": "Request a refund for this appointment",
+    "cancelNote": "Both you and the consultant will be notified. Refunds are handled separately by an administrator.",
+    "cancelled": "Appointment cancelled",
+    "cancelSession": "Cancel appointment",
+    "confirmAttendance": "Confirm attendance",
+    "attendanceConfirmed": "Attendance confirmed",
+    "attendanceConfirmedByYou": "You confirmed attendance",
+    "attendanceConfirmedByClient": "Client confirmed attendance",
+    "attendanceConfirmedByConsultant": "Consultant confirmed attendance",
+    "accept": "Accept",
+    "decline": "Decline",
+    "withdraw": "Withdraw"
   },
   "regionForm": {
     "boundaryTypes": {
@@ -16440,34 +16493,34 @@
       "chargeAccepted": "You accepted the charge.",
       "chargeDeclined": "You declined the charge.",
       "chargeRespondFailed": "Could not send your response.",
-        "authority": {
-          "booker": {
-            "0": "Manage the booking",
-            "1": "Invite or replace a recipient, site contact, or sponsor",
-            "2": "Share the receipt"
-          },
-          "recipient": {
-            "0": "Read this booking",
-            "1": "Accept or decline the visit",
-            "2": "Cancel the booking",
-            "3": "Acknowledge completion",
-            "4": "Share feedback"
-          },
-          "siteContact": {
-            "0": "Read the visit status",
-            "1": "Coordinate site access",
-            "2": "Confirm handoff",
-            "3": "Message in the booking chat"
-          },
-          "sponsor": {
-            "0": "Preview the sponsored amount",
-            "1": "Accept or decline",
-            "2": "Pay with your own card",
-            "3": "Approve or decline additional charges"
-          }
+      "authority": {
+        "booker": {
+          "0": "Manage the booking",
+          "1": "Invite or replace a recipient, site contact, or sponsor",
+          "2": "Share the receipt"
         },
-        "scopeSite": "Site",
-        "scopeDescription": "Details"
+        "recipient": {
+          "0": "Read this booking",
+          "1": "Accept or decline the visit",
+          "2": "Cancel the booking",
+          "3": "Acknowledge completion",
+          "4": "Share feedback"
+        },
+        "siteContact": {
+          "0": "Read the visit status",
+          "1": "Coordinate site access",
+          "2": "Confirm handoff",
+          "3": "Message in the booking chat"
+        },
+        "sponsor": {
+          "0": "Preview the sponsored amount",
+          "1": "Accept or decline",
+          "2": "Pay with your own card",
+          "3": "Approve or decline additional charges"
+        }
+      },
+      "scopeSite": "Site",
+      "scopeDescription": "Details"
     },
     "breakdownPayerBooker": "Booker",
     "paymentStatusPaid": "Paid",
@@ -16480,104 +16533,104 @@
     "paymentStatusExpired": "Expired",
     "paymentStatusVoided": "Voided",
     "paymentStatusRequested": "Requested",
-  "additionalChargeSuffix": "(additional charge)"
+    "additionalChargeSuffix": "(additional charge)"
   },
   "household": {
-      "title": "Household",
-      "subtitle": "Invite delegates to help manage visits, addresses, and care plans. Delegates never pay and never see payment details.",
-      "loading": "Loading household...",
-      "loadFailed": "Could not load the household.",
-      "actionFailed": "That did not work. Try again.",
-      "exportButton": "Export history",
-      "tabs": {
-        "delegations": "Delegations",
-        "calendar": "Calendar",
-        "addresses": "Addresses",
-        "contacts": "Contacts",
-        "templates": "Templates",
-        "tasks": "Tasks",
-        "approvals": "Spending",
-        "documents": "Documents"
-      },
-      "inviteTitle": "Invite a delegate",
-      "emailLabel": "Delegate email",
-      "emailPlaceholder": "delegate@example.com",
-      "coordinatorLabel": "Family coordinator",
-      "scopesLabel": "What this delegate may do",
-      "inviteButton": "Send invitation",
-      "invitationsTitle": "Invitations for you",
-      "accept": "Accept",
-      "decline": "Decline",
-      "delegationsTitle": "Delegates",
-      "noDelegations": "No delegates yet.",
-      "coordinatorBadge": "coordinator",
-      "daysLeft": "Expires in {{count}} days",
-      "expiresSoon": "Expires soon",
-      "scopePreview": "Scope preview",
-      "viewActivity": "Activity",
-      "renew": "Renew",
-      "revoke": "Revoke",
-      "reinvite": "Re-invite",
-      "makeCoordinator": "Make coordinator",
-      "revokeReason": "Revoked by the owner",
-      "calendarTitle": "Shared calendar",
-      "noVisits": "No upcoming visits.",
-      "checklistProgress": "{{done}} of {{total}} checks done",
-      "readinessConfirmed": "Ready confirmed",
-      "confirmReadiness": "Confirm ready",
-      "remind": "Remind",
-      "addressesTitle": "Household address book",
-      "manageInSettings": "Manage addresses in Settings",
-      "noAddresses": "No shared addresses yet.",
-      "entryPreset": "Entry preset",
-      "contactsTitle": "Alternate contacts",
-      "nameLabel": "Name",
-      "phoneLabel": "Phone",
-      "relationshipLabel": "Relationship",
-      "emergencyLabel": "Emergency contact",
-      "addContact": "Add contact",
-      "archive": "Archive",
-      "noContacts": "No contacts yet.",
-      "emergencyBadge": "emergency",
-      "templatesTitle": "Recurring appointment templates",
-      "templateNameLabel": "Template name",
-      "serviceLabel": "Service",
-      "frequencyLabel": "Frequency",
-      "addTemplate": "Add template",
-      "delete": "Delete",
-      "noTemplates": "No templates yet.",
-      "tasksTitle": "Maintenance plans",
-      "overdue": "Overdue",
-      "dueSoon": "Due soon",
-      "upcoming": "Upcoming",
-      "kindLabel": "Kind",
-      "taskTitleLabel": "Title",
-      "dueLabel": "Due date",
-      "addTask": "Add plan",
-      "complete": "Mark done",
-      "noTasks": "No open plans.",
-      "approvalsTitle": "Spending approvals",
-      "approvalsNote": "A delegate asks, the owner decides. Approving never charges anything.",
-      "amountLabel": "Amount (cents)",
-      "reasonLabel": "Reason",
-      "requestApproval": "Request approval",
-      "approve": "Approve",
-      "deny": "Deny",
-      "noApprovals": "No requests yet.",
-      "documentsTitle": "Document vault",
-      "bodyLabel": "Details",
-      "addDocument": "Add document",
-      "noDocuments": "No documents yet.",
-      "scopes": {
-        "book": "Book visits",
-        "schedule": "Schedule visits",
-        "prepare": "Prepare visits",
-        "coordinate": "Coordinate people",
-        "view_records": "Read records",
-        "manage_addresses": "Manage addresses",
-        "manage_tasks": "Manage plans",
-        "view_calendar": "View calendar only"
-      }
+    "title": "Household",
+    "subtitle": "Invite delegates to help manage visits, addresses, and care plans. Delegates never pay and never see payment details.",
+    "loading": "Loading household...",
+    "loadFailed": "Could not load the household.",
+    "actionFailed": "That did not work. Try again.",
+    "exportButton": "Export history",
+    "tabs": {
+      "delegations": "Delegations",
+      "calendar": "Calendar",
+      "addresses": "Addresses",
+      "contacts": "Contacts",
+      "templates": "Templates",
+      "tasks": "Tasks",
+      "approvals": "Spending",
+      "documents": "Documents"
+    },
+    "inviteTitle": "Invite a delegate",
+    "emailLabel": "Delegate email",
+    "emailPlaceholder": "delegate@example.com",
+    "coordinatorLabel": "Family coordinator",
+    "scopesLabel": "What this delegate may do",
+    "inviteButton": "Send invitation",
+    "invitationsTitle": "Invitations for you",
+    "accept": "Accept",
+    "decline": "Decline",
+    "delegationsTitle": "Delegates",
+    "noDelegations": "No delegates yet.",
+    "coordinatorBadge": "coordinator",
+    "daysLeft": "Expires in {{count}} days",
+    "expiresSoon": "Expires soon",
+    "scopePreview": "Scope preview",
+    "viewActivity": "Activity",
+    "renew": "Renew",
+    "revoke": "Revoke",
+    "reinvite": "Re-invite",
+    "makeCoordinator": "Make coordinator",
+    "revokeReason": "Revoked by the owner",
+    "calendarTitle": "Shared calendar",
+    "noVisits": "No upcoming visits.",
+    "checklistProgress": "{{done}} of {{total}} checks done",
+    "readinessConfirmed": "Ready confirmed",
+    "confirmReadiness": "Confirm ready",
+    "remind": "Remind",
+    "addressesTitle": "Household address book",
+    "manageInSettings": "Manage addresses in Settings",
+    "noAddresses": "No shared addresses yet.",
+    "entryPreset": "Entry preset",
+    "contactsTitle": "Alternate contacts",
+    "nameLabel": "Name",
+    "phoneLabel": "Phone",
+    "relationshipLabel": "Relationship",
+    "emergencyLabel": "Emergency contact",
+    "addContact": "Add contact",
+    "archive": "Archive",
+    "noContacts": "No contacts yet.",
+    "emergencyBadge": "emergency",
+    "templatesTitle": "Recurring appointment templates",
+    "templateNameLabel": "Template name",
+    "serviceLabel": "Service",
+    "frequencyLabel": "Frequency",
+    "addTemplate": "Add template",
+    "delete": "Delete",
+    "noTemplates": "No templates yet.",
+    "tasksTitle": "Maintenance plans",
+    "overdue": "Overdue",
+    "dueSoon": "Due soon",
+    "upcoming": "Upcoming",
+    "kindLabel": "Kind",
+    "taskTitleLabel": "Title",
+    "dueLabel": "Due date",
+    "addTask": "Add plan",
+    "complete": "Mark done",
+    "noTasks": "No open plans.",
+    "approvalsTitle": "Spending approvals",
+    "approvalsNote": "A delegate asks, the owner decides. Approving never charges anything.",
+    "amountLabel": "Amount (cents)",
+    "reasonLabel": "Reason",
+    "requestApproval": "Request approval",
+    "approve": "Approve",
+    "deny": "Deny",
+    "noApprovals": "No requests yet.",
+    "documentsTitle": "Document vault",
+    "bodyLabel": "Details",
+    "addDocument": "Add document",
+    "noDocuments": "No documents yet.",
+    "scopes": {
+      "book": "Book visits",
+      "schedule": "Schedule visits",
+      "prepare": "Prepare visits",
+      "coordinate": "Coordinate people",
+      "view_records": "Read records",
+      "manage_addresses": "Manage addresses",
+      "manage_tasks": "Manage plans",
+      "view_calendar": "View calendar only"
+    }
   },
   "verifyEmail": {
     "title": "Verify your email",
@@ -18663,7 +18716,11 @@
       "expenses": "Expenses",
       "net": "Net",
       "empty": "No expenses recorded yet.",
-      "filter": { "all": "All", "expense": "Expenses", "income": "Income" }
+      "filter": {
+        "all": "All",
+        "expense": "Expenses",
+        "income": "Income"
+      }
     },
     "goals": {
       "title": "Goals",
@@ -18677,7 +18734,11 @@
       "subtitle": "Everything waiting for you at home, in one place.",
       "empty": "No tasks waiting.",
       "completed": "Completed",
-      "filter": { "all": "All", "open": "Open", "completed": "Completed" },
+      "filter": {
+        "all": "All",
+        "open": "Open",
+        "completed": "Completed"
+      },
       "calendarTitle": "Home care calendar",
       "prevMonth": "Previous month",
       "nextMonth": "Next month",
@@ -18991,6 +19052,9 @@
       "launchPlanStatusBlocked": "Blocked",
       "launchPlanChangeStatus": "Change status",
       "launchPlanStatusFailed": "Could not update the step. Please try again.",
+      "historyTitle": "Assignment history",
+      "historySubtitle": "Every step of your assignment, from application to launch.",
+      "historyEmpty": "No assignment history yet.",
       "launchPlanEmpty": "No launch plan steps yet.",
       "launchPlanStepConfirmBoundary": "Confirm territory boundary and exclusivity",
       "launchPlanStepConfirmBoundaryDesc": "Review the boundary summary and exclusivity with HQ.",
@@ -19166,13 +19230,12 @@
     "emptyStat1Value": "Discovery, direction, and package fit",
     "emptyStat1Label": "Starts with clarity",
     "emptyPreviewTitle": "What this portal becomes after purchase",
-    "emptyEyebrow": "Business launch consulting"
-  ,
-  "schedulePanelTitle": "Your appointment",
-  "pendingProposals": "Reschedule proposed",
-  "proposedByYou": "Proposed by you",
-  "proposedByConsultant": "Proposed by your consultant",
-  "proposedByOxsteed": "Proposed by OxSteed"
+    "emptyEyebrow": "Business launch consulting",
+    "schedulePanelTitle": "Your appointment",
+    "pendingProposals": "Reschedule proposed",
+    "proposedByYou": "Proposed by you",
+    "proposedByConsultant": "Proposed by your consultant",
+    "proposedByOxsteed": "Proposed by OxSteed"
   },
   "logistics": {
     "forms": {
@@ -21678,9 +21741,8 @@
   "adminConsultingSessionDetail": {
     "confirm": {
       "complete": "Mark this session as completed? A follow-up email will be sent to the customer with action items.",
-      "noShow": "Mark this session as a no-show? A follow-up email will be sent to the customer offering to reschedule."
-    ,
-    "cancel": "Cancel this session? The appointment and the session will be cancelled together and both parties notified."
+      "noShow": "Mark this session as a no-show? A follow-up email will be sent to the customer offering to reschedule.",
+      "cancel": "Cancel this session? The appointment and the session will be cancelled together and both parties notified."
     },
     "toast": {
       "loadConsultantsFailed": "Failed to load consultants",
@@ -21695,15 +21757,13 @@
       "statusUpdateFailed": "Failed to update status",
       "noteRequired": "Please enter a note",
       "notesSaved": "Notes saved successfully",
-      "saveNotesFailed": "Failed to save notes"
-    ,
-    "sessionNotStarted": "This session has not started yet, so it cannot be marked complete.",
-    "cancelled": "Session cancelled.",
-    "cancelFailed": "Could not cancel the session."
-    }
-  ,
-  "cancelSession": "Cancel session",
-  "cancelHint": "Cancels the appointment and the session together, and notifies both parties. Refunds stay on the refund endpoint."
+      "saveNotesFailed": "Failed to save notes",
+      "sessionNotStarted": "This session has not started yet, so it cannot be marked complete.",
+      "cancelled": "Session cancelled.",
+      "cancelFailed": "Could not cancel the session."
+    },
+    "cancelSession": "Cancel session",
+    "cancelHint": "Cancels the appointment and the session together, and notifies both parties. Refunds stay on the refund endpoint."
   },
   "adminConsultingScheduler": {
     "loading": "Loading sessions...",
@@ -22542,7 +22602,14 @@
       "exceptionsTitle": "Exception summary",
       "exceptionsOpenCount": "{{count}} open exceptions on this shipment",
       "exceptionsEmpty": "No exceptions recorded for this shipment.",
-      "exceptionKinds": {"issue": "Issue", "return": "Return", "reschedule": "Reschedule", "failed_attempt": "Failed attempt", "delay_escalation": "Delay escalation", "pickup_mismatch": "Pickup count mismatch"},
+      "exceptionKinds": {
+        "issue": "Issue",
+        "return": "Return",
+        "reschedule": "Reschedule",
+        "failed_attempt": "Failed attempt",
+        "delay_escalation": "Delay escalation",
+        "pickup_mismatch": "Pickup count mismatch"
+      },
       "documentsTitle": "Documents",
       "documentsEmpty": "No documents for this delivery yet.",
       "documentProof": "Proof of delivery ({{type}})",
@@ -22554,8 +22621,16 @@
       "disputeTitle": "Disputes",
       "disputeSubtitle": "Dispute a completed assignment. Resolving a dispute never moves money by itself.",
       "disputeSubject": "Dispute subject",
-      "disputeSubjects": {"payout_amount": "Payout amount", "assignment_facts": "Assignment facts", "rating": "Rating"},
-      "disputeStatuses": {"open": "Open", "under_review": "Under review", "resolved": "Resolved"},
+      "disputeSubjects": {
+        "payout_amount": "Payout amount",
+        "assignment_facts": "Assignment facts",
+        "rating": "Rating"
+      },
+      "disputeStatuses": {
+        "open": "Open",
+        "under_review": "Under review",
+        "resolved": "Resolved"
+      },
       "disputeDescription": "What happened",
       "disputeSubmit": "File a dispute",
       "disputeSubmitted": "Dispute filed.",
@@ -23013,8 +23088,8 @@
         "supportTitle": "Need help?",
         "supportHint": "Contact delivery support about this shipment.",
         "backHome": "Back to OxSteed home",
-      "documentsTitle": "Delivery documents",
-      "documentsEmpty": "No documents shared for this delivery."
+        "documentsTitle": "Delivery documents",
+        "documentsEmpty": "No documents shared for this delivery."
       },
       "milestones": {
         "placed": "Delivery requested",
@@ -24451,427 +24526,443 @@
     "workspace": {
       "title": "Investments",
       "intro": "One workspace for verified reports, eligible opportunities, and your contributions and statements.",
-      "reports": { "title": "Reports", "description": "Review verified entity performance, updates, and reporting records for the relationships you are authorized to view." },
-      "opportunities": { "title": "Investment opportunities", "description": "Explore published opportunities from eligible entities. Review the terms and eligibility before requesting participation." },
-      "contributions": { "title": "Contributions and statements", "description": "Review your OxSteed Credit contributions, allocations, agreements, statements, and immutable activity history." },
-      "actions": { "open": "Open", "setup": "Complete setup" },
-      "status": { "available": "Available", "readOnly": "Read-only", "setup": "Setup required" }
-    },
-      "entity": {
-        "raise": {
-          "title": "Raise capital",
-          "intro": "Apply to raise capital from investors for one of your businesses. Your application stays private until a reviewer approves it for publication.",
-          "documentsNotice": "Do not include sensitive identity or financial documents in this form. Those go through restricted verification and document flows, never in a public opportunity description.",
-          "business": {
-            "label": "Business",
-            "choose": "Choose a business",
-            "empty": {
-              "title": "No business to raise for",
-              "copy": "You do not represent a business yet. Create a business first, then come back to raise capital."
-            }
-          },
-          "authority": {
-            "label": "I am authorized to represent this entity and to submit this fundraising application on its behalf.",
-            "hint": "Only an owner, manager, or authorized representative of the business can raise capital for it."
-          },
-          "sections": {
-            "entity": {
-              "title": "Entity",
-              "hint": "Who is raising, and under what authority."
-            },
-            "raise": {
-              "title": "The raise",
-              "hint": "Funding purpose, target, and terms. Revenue share only, United States only."
-            },
-            "details": {
-              "title": "Entity details",
-              "hint": "Supporting information for reviewers and investors. Keep it factual; forecasts and promises of returns do not belong here."
-            },
-            "agreement": {
-              "title": "Agreement",
-              "hint": "The controlling agreement investors accept. The exact version accepted at commit time governs the commitment."
-            }
-          },
-          "form": {
-            "title": {
-              "label": "Opportunity title"
-            },
-            "purpose": {
-              "label": "Funding purpose",
-              "hint": "What the business does and why it is raising."
-            },
-            "target": {
-              "label": "Target amount (USD)",
-              "hint": "The full amount the raise aims to collect."
-            },
-            "minimum": {
-              "label": "Minimum contribution (USD)",
-              "hint": "The smallest amount one investor can commit. It cannot be more than the target."
-            },
-            "deadline": {
-              "label": "Deadline",
-              "hint": "Closing is all-or-nothing: the target, the deadline, and approved closing conditions must all be met."
-            },
-            "valuation": {
-              "label": "Valuation rule",
-              "hint": "How the revenue share is calculated, for example a percentage of monthly revenue."
-            },
-            "useOfProceeds": {
-              "label": "Use of proceeds"
-            },
-            "intermediary": {
-              "label": "Intermediary reference",
-              "hint": "Reference for the registered intermediary, if one is assigned already."
-            },
-            "legal": {
-              "label": "Legal entity details, business activity, and operating history",
-              "hint": "Legal form, jurisdiction, what the business does, and how long it has operated."
-            },
-            "financials": {
-              "label": "Financial information",
-              "hint": "Summary financials that support the raise. Do not paste sensitive documents here."
-            },
-            "ownership": {
-              "label": "Ownership information"
-            },
-            "risks": {
-              "label": "Material risks"
-            },
-            "relatedParties": {
-              "label": "Related-party relationships",
-              "hint": "Any relationship between the entity, its owners, and other parties that an investor should know about."
-            },
-            "agreement": {
-              "label": "Agreement text"
-            }
-          },
-          "submit": "Create private draft",
-          "creating": "Creating draft...",
-          "created": {
-            "title": "Private draft created",
-            "copy": "This draft is private. Only you and reviewers can see it.",
-            "target": "Target {{amount}}"
-          },
-          "preview": {
-            "title": "Investor preview",
-            "hint": "How investors will see this opportunity once it is published."
-          },
-          "submitReview": "Submit for review",
-          "submitReviewNote": "Submission does not publish the opportunity. A reviewer must approve it first, and publication is a separate step.",
-          "submitted": {
-            "copy": "Submitted for review. The opportunity is not published."
-          },
-          "manageLink": "Manage this raise",
-          "error": {
-            "loadFailed": "Could not load your businesses. Please try again.",
-            "createFailed": "Could not create the draft. Please try again.",
-            "agreementFailed": "The draft was created, but the agreement version could not be saved. Add it from the manage page.",
-            "submitFailed": "Could not submit for review. Please try again."
-          },
-          "errors": {
-            "business": "Choose a business for this raise.",
-            "authority": "Confirm that you are authorized to represent this entity.",
-            "title": "An opportunity title is required.",
-            "purpose": "A funding purpose is required.",
-            "target": "Enter a valid target amount greater than zero.",
-            "minimum": "The minimum contribution must be between zero and the target.",
-            "deadline": "Choose a future deadline.",
-            "valuation": "A valuation rule is required.",
-            "useOfProceeds": "Describe the use of proceeds.",
-            "agreement": "Agreement text is required."
-          }
-        },
-        "edit": {
-          "title": "Edit draft raise",
-          "intro": "Change the draft fields below. Saving keeps the opportunity a private draft. Agreement text is managed from the manage page, and saving never publishes anything.",
-          "draftNotice": "This draft is private. Only you and reviewers can see it. Saving changes never publishes the opportunity.",
-          "save": "Save draft changes",
-          "saving": "Saving draft...",
-          "saved": {
-            "title": "Draft saved",
-            "copy": "Your changes are saved. The draft is still private."
-          },
-          "notEditable": {
-            "copy": "Only a draft can be edited directly. Once submitted, changes go through the amendment process with investor notice and reconfirmation."
-          },
-          "error": {
-            "loadFailed": "Could not load this draft. Please try again.",
-            "saveFailed": "Could not save the draft. Please try again.",
-            "amendmentRequired": "Only a draft can be edited directly. This opportunity has already moved forward, so changes go through the amendment process."
-          }
-        },
-        "raises": {
-          "title": "My raises",
-          "intro": "Your entity fundraising applications, from private draft to published raise.",
-          "newRaise": "Start a new raise",
-          "error": {
-            "loadFailed": "Could not load your raises. Please try again."
-          },
-          "empty": {
-            "title": "No raises yet",
-            "copy": "Start a new raise to apply for capital for one of your businesses."
-          },
-          "card": {
-            "target": "Target {{amount}}",
-            "committed": "Committed {{amount}}",
-            "completed": "Completed {{amount}}",
-            "progress": "{{percent}}% funded",
-            "deadline": "Deadline {{date}}",
-            "manage": "Manage",
-            "edit": "Edit draft",
-            "viewPublic": "View public page"
-          }
-        },
-        "manage": {
-          "title": "Manage raise",
-          "error": {
-            "loadFailed": "Could not load this raise. Please try again.",
-            "actionFailed": "That action could not be completed. Please try again.",
-            "previewFailed": "Could not load the investor preview. Please try again."
-          },
-          "status": {
-            "title": "Fundraising status",
-            "target": "Target {{amount}}",
-            "committed": "Committed {{amount}}",
-            "completed": "Completed {{amount}}",
-            "progress": "{{percent}}% funded",
-            "deadline": "Deadline {{date}}",
-            "conditionsApproved": "Closing conditions approved.",
-            "closedAt": "Closed {{date}}"
-          },
-          "submitted": "Submitted for review. The opportunity is not published.",
-          "preview": {
-            "button": "Show investor preview"
-          },
-          "questions": {
-            "title": "Investor questions",
-            "hint": "Questions from applicants and investors in this opportunity. Answer them here.",
-            "empty": {
-              "title": "No questions yet",
-              "copy": "Investor questions will appear here when they arrive."
-            },
-            "answerLabel": "Your answer",
-            "answerButton": "Send answer",
-            "answered": "Answer sent.",
-            "answeredLabel": "Answered",
-            "answerRequired": "Write an answer before sending."
-          },
-          "updates": {
-            "title": "Updates and reporting schedule",
-            "hint": "Publish updates for investors. A missed due date shows as overdue and never disappears.",
-            "empty": {
-              "title": "No updates yet",
-              "copy": "Create the first update for this raise."
-            },
-            "required": "An update title and body are required.",
-            "created": "Update created as a draft.",
-            "published": "Update published.",
-            "publish": "Publish",
-            "overdue": "Overdue since {{date}}",
-            "status": {
-              "draft": "Draft",
-              "published": "Published",
-              "overdue": "Overdue"
-            },
-            "form": {
-              "title": "Update title",
-              "body": "Update",
-              "due": "Due date",
-              "dueHint": "When this update is due to investors.",
-              "submit": "Create update"
-            }
-          },
-          "amendments": {
-            "title": "Material changes",
-            "hint": "Terms cannot change silently after commitments exist. A material change goes through this controlled process: draft, investor notice, then reconfirmation.",
-            "empty": {
-              "title": "No amendments",
-              "copy": "No material changes have been proposed for this opportunity."
-            },
-            "required": "Describe the change before creating the amendment.",
-            "created": "Amendment draft created.",
-            "proposed": "Amendment proposed. Investor notice has been sent.",
-            "untitled": "Amendment",
-            "proposedState": "Notice sent {{sent}}. Investors must reconfirm by {{deadline}}.",
-          "effectiveState": "Effective. The changes were applied to the opportunity.",
-          "rejectedState": "Rejected by a reviewer.",
-            "deadlineRequired": "Choose a future reconfirmation deadline.",
-            "status": {
-              "draft": "Draft",
-              "proposed": "Proposed",
-              "effective": "Effective",
-              "withdrawn": "Withdrawn",
-              "rejected": "Rejected"
-            },
-            "form": {
-              "summary": "What changes",
-              "summaryHint": "Describe the material change in plain language.",
-              "version": "New agreement version",
-              "versionHint": "Choose the agreement version the change moves investors to, if any.",
-              "noNewVersion": "No new agreement version",
-              "submit": "Create amendment"
-            },
-            "propose": {
-              "deadline": "Reconfirmation deadline",
-              "button": "Propose and notify investors"
-            }
-          },
-          "agreements": {
-            "title": "Agreement versions",
-            "hint": "The exact agreement versions investors accept. A commitment records the exact version accepted.",
-            "empty": {
-              "title": "No agreement version yet",
-              "copy": "Add the first agreement version. An opportunity cannot be approved without one."
-            },
-            "required": "Agreement text is required.",
-            "created": "Agreement version created.",
-          "current": "Current version",
-            "form": {
-              "body": "Agreement text",
-              "submit": "Add agreement version"
-            }
-          },
-          "obligations": {
-            "title": "After closing: reporting and obligations",
-            "hint": "The raise is closed. These obligations stay with the entity.",
-            "item1": "Publish updates on the reporting schedule above. Missed updates show as overdue.",
-            "item2": "Pay distributions through the approved settlement flow. No distribution is promised to investors.",
-            "item3": "Keep records of the raise, the agreements accepted, and all reports."
-          }
-        }
+      "reports": {
+        "title": "Reports",
+        "description": "Review verified entity performance, updates, and reporting records for the relationships you are authorized to view."
       },
-      "review": {
-        "title": "Invest review queue",
-        "intro": "Participation applications, opportunity publish reviews, closing approvals, and proceeds release. Each queue shows only what your review permissions cover.",
-        "empty": "No review queues are available for your permissions.",
-        "emptyType": "Nothing is waiting in this queue.",
-        "select": "Choose an item to review it.",
-        "tabs": {
-          "applications": "Applications",
-          "opportunities": "Opportunities",
-          "amendments": "Amendments",
-          "closing": "Closing",
-          "proceeds": "Proceeds"
+      "opportunities": {
+        "title": "Investment opportunities",
+        "description": "Explore published opportunities from eligible entities. Review the terms and eligibility before requesting participation."
+      },
+      "contributions": {
+        "title": "Contributions and statements",
+        "description": "Review your OxSteed Credit contributions, allocations, agreements, statements, and immutable activity history."
+      },
+      "actions": {
+        "open": "Open",
+        "setup": "Complete setup"
+      },
+      "status": {
+        "available": "Available",
+        "readOnly": "Read-only",
+        "setup": "Setup required"
+      }
+    },
+    "entity": {
+      "raise": {
+        "title": "Raise capital",
+        "intro": "Apply to raise capital from investors for one of your businesses. Your application stays private until a reviewer approves it for publication.",
+        "documentsNotice": "Do not include sensitive identity or financial documents in this form. Those go through restricted verification and document flows, never in a public opportunity description.",
+        "business": {
+          "label": "Business",
+          "choose": "Choose a business",
+          "empty": {
+            "title": "No business to raise for",
+            "copy": "You do not represent a business yet. Create a business first, then come back to raise capital."
+          }
+        },
+        "authority": {
+          "label": "I am authorized to represent this entity and to submit this fundraising application on its behalf.",
+          "hint": "Only an owner, manager, or authorized representative of the business can raise capital for it."
+        },
+        "sections": {
+          "entity": {
+            "title": "Entity",
+            "hint": "Who is raising, and under what authority."
+          },
+          "raise": {
+            "title": "The raise",
+            "hint": "Funding purpose, target, and terms. Revenue share only, United States only."
+          },
+          "details": {
+            "title": "Entity details",
+            "hint": "Supporting information for reviewers and investors. Keep it factual; forecasts and promises of returns do not belong here."
+          },
+          "agreement": {
+            "title": "Agreement",
+            "hint": "The controlling agreement investors accept. The exact version accepted at commit time governs the commitment."
+          }
+        },
+        "form": {
+          "title": {
+            "label": "Opportunity title"
+          },
+          "purpose": {
+            "label": "Funding purpose",
+            "hint": "What the business does and why it is raising."
+          },
+          "target": {
+            "label": "Target amount (USD)",
+            "hint": "The full amount the raise aims to collect."
+          },
+          "minimum": {
+            "label": "Minimum contribution (USD)",
+            "hint": "The smallest amount one investor can commit. It cannot be more than the target."
+          },
+          "deadline": {
+            "label": "Deadline",
+            "hint": "Closing is all-or-nothing: the target, the deadline, and approved closing conditions must all be met."
+          },
+          "valuation": {
+            "label": "Valuation rule",
+            "hint": "How the revenue share is calculated, for example a percentage of monthly revenue."
+          },
+          "useOfProceeds": {
+            "label": "Use of proceeds"
+          },
+          "intermediary": {
+            "label": "Intermediary reference",
+            "hint": "Reference for the registered intermediary, if one is assigned already."
+          },
+          "legal": {
+            "label": "Legal entity details, business activity, and operating history",
+            "hint": "Legal form, jurisdiction, what the business does, and how long it has operated."
+          },
+          "financials": {
+            "label": "Financial information",
+            "hint": "Summary financials that support the raise. Do not paste sensitive documents here."
+          },
+          "ownership": {
+            "label": "Ownership information"
+          },
+          "risks": {
+            "label": "Material risks"
+          },
+          "relatedParties": {
+            "label": "Related-party relationships",
+            "hint": "Any relationship between the entity, its owners, and other parties that an investor should know about."
+          },
+          "agreement": {
+            "label": "Agreement text"
+          }
+        },
+        "submit": "Create private draft",
+        "creating": "Creating draft...",
+        "created": {
+          "title": "Private draft created",
+          "copy": "This draft is private. Only you and reviewers can see it.",
+          "target": "Target {{amount}}"
+        },
+        "preview": {
+          "title": "Investor preview",
+          "hint": "How investors will see this opportunity once it is published."
+        },
+        "submitReview": "Submit for review",
+        "submitReviewNote": "Submission does not publish the opportunity. A reviewer must approve it first, and publication is a separate step.",
+        "submitted": {
+          "copy": "Submitted for review. The opportunity is not published."
+        },
+        "manageLink": "Manage this raise",
+        "error": {
+          "loadFailed": "Could not load your businesses. Please try again.",
+          "createFailed": "Could not create the draft. Please try again.",
+          "agreementFailed": "The draft was created, but the agreement version could not be saved. Add it from the manage page.",
+          "submitFailed": "Could not submit for review. Please try again."
         },
         "errors": {
-          "loadFailed": "Could not load the review queue. Please try again.",
-          "generic": "That review action could not be completed. Please try again.",
-          "notPermitted": "You do not have an investment review permission, so this queue is empty for you.",
-          "selfApproval": "You cannot review your own application, opportunity, or closing. Another reviewer must decide.",
-          "versionConflict": "This item changed since it was loaded. It has been reloaded; review the latest version and try again.",
-          "proceedsBlocked": "Proceeds cannot release yet. The opportunity must be closed with approved closing conditions first.",
-          "noAgreement": "This opportunity cannot be approved without an agreement version.",
-          "transitionInvalid": "This item cannot move to that state from where it is now.",
-          "reconfirmationPending": "Some investors have not reconfirmed this amendment yet. Wait for reconfirmation, or for the reconfirmation deadline to pass, before making it effective.",
-          "escrowNothingPending": "No pending escrow expectation for this commitment. It may already be confirmed."
-        },
-        "actions": {
-          "approve": "Approve",
-          "decline": "Decline",
-          "needsInformation": "Needs information",
-          "claim": "Claim for review",
-          "publish": "Publish"
-        },
-        "application": {
-          "applicant": "Applicant",
-          "identity": "Identity verified",
-          "authority": "Authority verified",
-          "agreementAccepted": "Agreement accepted",
-          "version": "Expected version",
-          "eligibility": "Eligibility",
-          "note": "Review note",
-          "confirmIdentity": "Identity verified",
-          "confirmAuthority": "Authority verified",
-          "no": "No",
-          "noteRequired": "A note is required when asking for more information.",
-          "verifyRequired": "Approval requires identity and authority verification."
-        },
-        "opportunity": {
-          "target": "Target",
-          "minimum": "Minimum contribution",
-          "committed": "Committed",
-          "progress": "{{percent}}% funded",
-          "purpose": "Funding purpose",
-          "valuation": "Valuation rule",
-          "useOfProceeds": "Use of proceeds",
-          "version": "Expected version",
-          "details": "Entity details",
-          "detail": {
-            "legalDetails": "Legal details",
-            "financials": "Financials",
-            "ownership": "Ownership",
-            "risks": "Risks",
-            "relatedParties": "Related parties"
-          },
-          "decideTitle": "Review decision",
-          "note": "Review note",
-          "verifiedItems": "Verified items (one per line)",
-          "publishNote": "Publication is separate from approval. The entity representative cannot publish their own opportunity."
-        },
-        "closing": {
-          "title": "Closing",
-          "conditionsApproved": "Closing conditions approved {{date}}.",
-          "conditionsPending": "Closing conditions are not approved yet.",
-          "reviewApproved": "Review approved by {{approver}}.",
-          "reviewPending": "Closing review is not approved yet.",
-          "executionApproved": "Execution approved by {{approver}}.",
-          "executionPending": "Closing execution is not approved yet.",
-          "gateOff": "Live commitments are off. Close, proceeds release, and distributions are inert until the live commitment gate is approved for a pilot.",
-          "note": "Closing note",
-          "approveConditions": "Approve closing conditions",
-          "approveReview": "Approve review stage",
-          "approveExecution": "Approve execution stage",
-          "close": "Close opportunity",
-          "separateApprovers": "Review and execution need different approvers, and neither can be the entity representative. Only the approved execution approver can execute the close.",
-          "currentVersionOnly": "Closing captures only commitments on the current agreement version. Commitments on an older version stay reserved and must be cancelled separately."
-        },
-        "proceeds": {
-          "title": "Proceeds and distributions",
-          "release": "Release proceeds",
-          "blockedNote": "Proceeds release stays blocked until the opportunity is closed with approved closing conditions."
-        },
-        "amendments": {
-          "changes": "Proposed changes",
-          "reconfirmationTitle": "Investor reconfirmation",
-          "reconfirmation": "{{reconfirmed}} of {{total}} investors reconfirmed, {{pending}} still to reconfirm.",
-          "reconfirmationPendingUsers": "Awaiting reconfirmation (investor user ids):",
-          "reconfirmationNone": "This amendment carries no new agreement version, so there is nothing to reconfirm.",
-          "deadline": "Reconfirmation deadline: {{date}}",
-          "note": "Review note",
-          "makeEffective": "Mark effective",
-          "reject": "Reject",
-          "effectiveNote": "Making an amendment effective applies its changes to the opportunity and makes its new agreement version the current one. Rejection applies nothing."
-        },
-        "failClose": {
-          "title": "Unsuccessful closing",
-          "copy": "Fail-close releases every still-reserved commitment back to its original Credit lots and marks the opportunity unsuccessful. Use it when the raise will not close.",
-          "reason": "Reason",
-          "button": "Fail-close opportunity",
-          "note": "A fail-closed opportunity cannot be reopened. The hourly sweeper does this automatically for raises past deadline with the target unmet."
-        },
-        "distributions": {
-          "position": "Position",
-          "choosePosition": "Choose a position",
-          "amount": "Distribution amount (USD)",
-          "submit": "Request distribution",
-          "empty": "No positions exist for this opportunity yet.",
-          "required": "Choose a position and enter a valid amount.",
-          "queued": "Distribution queued. A second admin must approve it in Money Approvals before any Credit moves.",
-          "dualApprovalNote": "Distributions need a second admin approval. Nothing is credited until then, and the total cannot exceed the opportunity proceeds."
-        },
-        "escrow": {
-          "title": "Partner escrow confirmation",
-          "copy": "Record the partner’s confirmation that the committed funds for a position are held in escrow. The close leaves this pending on purpose: only explicit partner input confirms it.",
-          "position": "Position",
-          "choosePosition": "Choose a position",
-          "partnerRefLabel": "Partner reference",
-          "partnerRefPlaceholder": "Partner confirmation reference",
-          "noteLabel": "Note",
-          "confirm": "Confirm escrow",
-          "confirmed": "Escrow confirmed for this commitment.",
-          "partnerRefRequired": "A partner reference is required."
+          "business": "Choose a business for this raise.",
+          "authority": "Confirm that you are authorized to represent this entity.",
+          "title": "An opportunity title is required.",
+          "purpose": "A funding purpose is required.",
+          "target": "Enter a valid target amount greater than zero.",
+          "minimum": "The minimum contribution must be between zero and the target.",
+          "deadline": "Choose a future deadline.",
+          "valuation": "A valuation rule is required.",
+          "useOfProceeds": "Describe the use of proceeds.",
+          "agreement": "Agreement text is required."
         }
       },
+      "edit": {
+        "title": "Edit draft raise",
+        "intro": "Change the draft fields below. Saving keeps the opportunity a private draft. Agreement text is managed from the manage page, and saving never publishes anything.",
+        "draftNotice": "This draft is private. Only you and reviewers can see it. Saving changes never publishes the opportunity.",
+        "save": "Save draft changes",
+        "saving": "Saving draft...",
+        "saved": {
+          "title": "Draft saved",
+          "copy": "Your changes are saved. The draft is still private."
+        },
+        "notEditable": {
+          "copy": "Only a draft can be edited directly. Once submitted, changes go through the amendment process with investor notice and reconfirmation."
+        },
+        "error": {
+          "loadFailed": "Could not load this draft. Please try again.",
+          "saveFailed": "Could not save the draft. Please try again.",
+          "amendmentRequired": "Only a draft can be edited directly. This opportunity has already moved forward, so changes go through the amendment process."
+        }
+      },
+      "raises": {
+        "title": "My raises",
+        "intro": "Your entity fundraising applications, from private draft to published raise.",
+        "newRaise": "Start a new raise",
+        "error": {
+          "loadFailed": "Could not load your raises. Please try again."
+        },
+        "empty": {
+          "title": "No raises yet",
+          "copy": "Start a new raise to apply for capital for one of your businesses."
+        },
+        "card": {
+          "target": "Target {{amount}}",
+          "committed": "Committed {{amount}}",
+          "completed": "Completed {{amount}}",
+          "progress": "{{percent}}% funded",
+          "deadline": "Deadline {{date}}",
+          "manage": "Manage",
+          "edit": "Edit draft",
+          "viewPublic": "View public page"
+        }
+      },
+      "manage": {
+        "title": "Manage raise",
+        "error": {
+          "loadFailed": "Could not load this raise. Please try again.",
+          "actionFailed": "That action could not be completed. Please try again.",
+          "previewFailed": "Could not load the investor preview. Please try again."
+        },
+        "status": {
+          "title": "Fundraising status",
+          "target": "Target {{amount}}",
+          "committed": "Committed {{amount}}",
+          "completed": "Completed {{amount}}",
+          "progress": "{{percent}}% funded",
+          "deadline": "Deadline {{date}}",
+          "conditionsApproved": "Closing conditions approved.",
+          "closedAt": "Closed {{date}}"
+        },
+        "submitted": "Submitted for review. The opportunity is not published.",
+        "preview": {
+          "button": "Show investor preview"
+        },
+        "questions": {
+          "title": "Investor questions",
+          "hint": "Questions from applicants and investors in this opportunity. Answer them here.",
+          "empty": {
+            "title": "No questions yet",
+            "copy": "Investor questions will appear here when they arrive."
+          },
+          "answerLabel": "Your answer",
+          "answerButton": "Send answer",
+          "answered": "Answer sent.",
+          "answeredLabel": "Answered",
+          "answerRequired": "Write an answer before sending."
+        },
+        "updates": {
+          "title": "Updates and reporting schedule",
+          "hint": "Publish updates for investors. A missed due date shows as overdue and never disappears.",
+          "empty": {
+            "title": "No updates yet",
+            "copy": "Create the first update for this raise."
+          },
+          "required": "An update title and body are required.",
+          "created": "Update created as a draft.",
+          "published": "Update published.",
+          "publish": "Publish",
+          "overdue": "Overdue since {{date}}",
+          "status": {
+            "draft": "Draft",
+            "published": "Published",
+            "overdue": "Overdue"
+          },
+          "form": {
+            "title": "Update title",
+            "body": "Update",
+            "due": "Due date",
+            "dueHint": "When this update is due to investors.",
+            "submit": "Create update"
+          }
+        },
+        "amendments": {
+          "title": "Material changes",
+          "hint": "Terms cannot change silently after commitments exist. A material change goes through this controlled process: draft, investor notice, then reconfirmation.",
+          "empty": {
+            "title": "No amendments",
+            "copy": "No material changes have been proposed for this opportunity."
+          },
+          "required": "Describe the change before creating the amendment.",
+          "created": "Amendment draft created.",
+          "proposed": "Amendment proposed. Investor notice has been sent.",
+          "untitled": "Amendment",
+          "proposedState": "Notice sent {{sent}}. Investors must reconfirm by {{deadline}}.",
+          "effectiveState": "Effective. The changes were applied to the opportunity.",
+          "rejectedState": "Rejected by a reviewer.",
+          "deadlineRequired": "Choose a future reconfirmation deadline.",
+          "status": {
+            "draft": "Draft",
+            "proposed": "Proposed",
+            "effective": "Effective",
+            "withdrawn": "Withdrawn",
+            "rejected": "Rejected"
+          },
+          "form": {
+            "summary": "What changes",
+            "summaryHint": "Describe the material change in plain language.",
+            "version": "New agreement version",
+            "versionHint": "Choose the agreement version the change moves investors to, if any.",
+            "noNewVersion": "No new agreement version",
+            "submit": "Create amendment"
+          },
+          "propose": {
+            "deadline": "Reconfirmation deadline",
+            "button": "Propose and notify investors"
+          }
+        },
+        "agreements": {
+          "title": "Agreement versions",
+          "hint": "The exact agreement versions investors accept. A commitment records the exact version accepted.",
+          "empty": {
+            "title": "No agreement version yet",
+            "copy": "Add the first agreement version. An opportunity cannot be approved without one."
+          },
+          "required": "Agreement text is required.",
+          "created": "Agreement version created.",
+          "current": "Current version",
+          "form": {
+            "body": "Agreement text",
+            "submit": "Add agreement version"
+          }
+        },
+        "obligations": {
+          "title": "After closing: reporting and obligations",
+          "hint": "The raise is closed. These obligations stay with the entity.",
+          "item1": "Publish updates on the reporting schedule above. Missed updates show as overdue.",
+          "item2": "Pay distributions through the approved settlement flow. No distribution is promised to investors.",
+          "item3": "Keep records of the raise, the agreements accepted, and all reports."
+        }
+      }
+    },
+    "review": {
+      "title": "Invest review queue",
+      "intro": "Participation applications, opportunity publish reviews, closing approvals, and proceeds release. Each queue shows only what your review permissions cover.",
+      "empty": "No review queues are available for your permissions.",
+      "emptyType": "Nothing is waiting in this queue.",
+      "select": "Choose an item to review it.",
+      "tabs": {
+        "applications": "Applications",
+        "opportunities": "Opportunities",
+        "amendments": "Amendments",
+        "closing": "Closing",
+        "proceeds": "Proceeds"
+      },
+      "errors": {
+        "loadFailed": "Could not load the review queue. Please try again.",
+        "generic": "That review action could not be completed. Please try again.",
+        "notPermitted": "You do not have an investment review permission, so this queue is empty for you.",
+        "selfApproval": "You cannot review your own application, opportunity, or closing. Another reviewer must decide.",
+        "versionConflict": "This item changed since it was loaded. It has been reloaded; review the latest version and try again.",
+        "proceedsBlocked": "Proceeds cannot release yet. The opportunity must be closed with approved closing conditions first.",
+        "noAgreement": "This opportunity cannot be approved without an agreement version.",
+        "transitionInvalid": "This item cannot move to that state from where it is now.",
+        "reconfirmationPending": "Some investors have not reconfirmed this amendment yet. Wait for reconfirmation, or for the reconfirmation deadline to pass, before making it effective.",
+        "escrowNothingPending": "No pending escrow expectation for this commitment. It may already be confirmed."
+      },
+      "actions": {
+        "approve": "Approve",
+        "decline": "Decline",
+        "needsInformation": "Needs information",
+        "claim": "Claim for review",
+        "publish": "Publish"
+      },
+      "application": {
+        "applicant": "Applicant",
+        "identity": "Identity verified",
+        "authority": "Authority verified",
+        "agreementAccepted": "Agreement accepted",
+        "version": "Expected version",
+        "eligibility": "Eligibility",
+        "note": "Review note",
+        "confirmIdentity": "Identity verified",
+        "confirmAuthority": "Authority verified",
+        "no": "No",
+        "noteRequired": "A note is required when asking for more information.",
+        "verifyRequired": "Approval requires identity and authority verification."
+      },
+      "opportunity": {
+        "target": "Target",
+        "minimum": "Minimum contribution",
+        "committed": "Committed",
+        "progress": "{{percent}}% funded",
+        "purpose": "Funding purpose",
+        "valuation": "Valuation rule",
+        "useOfProceeds": "Use of proceeds",
+        "version": "Expected version",
+        "details": "Entity details",
+        "detail": {
+          "legalDetails": "Legal details",
+          "financials": "Financials",
+          "ownership": "Ownership",
+          "risks": "Risks",
+          "relatedParties": "Related parties"
+        },
+        "decideTitle": "Review decision",
+        "note": "Review note",
+        "verifiedItems": "Verified items (one per line)",
+        "publishNote": "Publication is separate from approval. The entity representative cannot publish their own opportunity."
+      },
+      "closing": {
+        "title": "Closing",
+        "conditionsApproved": "Closing conditions approved {{date}}.",
+        "conditionsPending": "Closing conditions are not approved yet.",
+        "reviewApproved": "Review approved by {{approver}}.",
+        "reviewPending": "Closing review is not approved yet.",
+        "executionApproved": "Execution approved by {{approver}}.",
+        "executionPending": "Closing execution is not approved yet.",
+        "gateOff": "Live commitments are off. Close, proceeds release, and distributions are inert until the live commitment gate is approved for a pilot.",
+        "note": "Closing note",
+        "approveConditions": "Approve closing conditions",
+        "approveReview": "Approve review stage",
+        "approveExecution": "Approve execution stage",
+        "close": "Close opportunity",
+        "separateApprovers": "Review and execution need different approvers, and neither can be the entity representative. Only the approved execution approver can execute the close.",
+        "currentVersionOnly": "Closing captures only commitments on the current agreement version. Commitments on an older version stay reserved and must be cancelled separately."
+      },
+      "proceeds": {
+        "title": "Proceeds and distributions",
+        "release": "Release proceeds",
+        "blockedNote": "Proceeds release stays blocked until the opportunity is closed with approved closing conditions."
+      },
+      "amendments": {
+        "changes": "Proposed changes",
+        "reconfirmationTitle": "Investor reconfirmation",
+        "reconfirmation": "{{reconfirmed}} of {{total}} investors reconfirmed, {{pending}} still to reconfirm.",
+        "reconfirmationPendingUsers": "Awaiting reconfirmation (investor user ids):",
+        "reconfirmationNone": "This amendment carries no new agreement version, so there is nothing to reconfirm.",
+        "deadline": "Reconfirmation deadline: {{date}}",
+        "note": "Review note",
+        "makeEffective": "Mark effective",
+        "reject": "Reject",
+        "effectiveNote": "Making an amendment effective applies its changes to the opportunity and makes its new agreement version the current one. Rejection applies nothing."
+      },
+      "failClose": {
+        "title": "Unsuccessful closing",
+        "copy": "Fail-close releases every still-reserved commitment back to its original Credit lots and marks the opportunity unsuccessful. Use it when the raise will not close.",
+        "reason": "Reason",
+        "button": "Fail-close opportunity",
+        "note": "A fail-closed opportunity cannot be reopened. The hourly sweeper does this automatically for raises past deadline with the target unmet."
+      },
+      "distributions": {
+        "position": "Position",
+        "choosePosition": "Choose a position",
+        "amount": "Distribution amount (USD)",
+        "submit": "Request distribution",
+        "empty": "No positions exist for this opportunity yet.",
+        "required": "Choose a position and enter a valid amount.",
+        "queued": "Distribution queued. A second admin must approve it in Money Approvals before any Credit moves.",
+        "dualApprovalNote": "Distributions need a second admin approval. Nothing is credited until then, and the total cannot exceed the opportunity proceeds."
+      },
+      "escrow": {
+        "title": "Partner escrow confirmation",
+        "copy": "Record the partner’s confirmation that the committed funds for a position are held in escrow. The close leaves this pending on purpose: only explicit partner input confirms it.",
+        "position": "Position",
+        "choosePosition": "Choose a position",
+        "partnerRefLabel": "Partner reference",
+        "partnerRefPlaceholder": "Partner confirmation reference",
+        "noteLabel": "Note",
+        "confirm": "Confirm escrow",
+        "confirmed": "Escrow confirmed for this commitment.",
+        "partnerRefRequired": "A partner reference is required."
+      }
+    },
     "application": {
       "agreementAccepted": "The agreement version was accepted and recorded.",
       "choose": {
@@ -25841,26 +25932,25 @@
       "step2Body": "The agreed OxSteed referral cut is copied onto the lead at assignment time, so your share and the platform share stay locked for that referral.",
       "step3Title": "3. Pipeline execution",
       "step3Body": "Use your dashboard to move leads from intro to discovery, proposal, engagement, and completion while keeping OxSteed in the loop."
-    }
-  ,
-  "sessions": {
-    "label": "Appointments",
-    "title": "Your sessions",
-    "description": "Confirmed appointments with clients, including reschedule proposals, attendance, and cancellation.",
-    "loading": "Loading sessions…",
-    "emptyTitle": "No sessions yet",
-    "emptyDescription": "Once a client books a session with you, it will appear here with its time, proposals, and attendance.",
-    "clientFallback": "Client",
-    "pendingProposals": "Reschedule proposed",
-    "proposedBy": "Proposed by {{role}}",
-    "status": {
-      "pending_confirmation": "Awaiting confirmation",
-      "confirmed": "Confirmed",
-      "completed": "Completed",
-      "no_show": "No-show",
-      "cancelled": "Cancelled"
-    }
-  },
+    },
+    "sessions": {
+      "label": "Appointments",
+      "title": "Your sessions",
+      "description": "Confirmed appointments with clients, including reschedule proposals, attendance, and cancellation.",
+      "loading": "Loading sessions…",
+      "emptyTitle": "No sessions yet",
+      "emptyDescription": "Once a client books a session with you, it will appear here with its time, proposals, and attendance.",
+      "clientFallback": "Client",
+      "pendingProposals": "Reschedule proposed",
+      "proposedBy": "Proposed by {{role}}",
+      "status": {
+        "pending_confirmation": "Awaiting confirmation",
+        "confirmed": "Confirmed",
+        "completed": "Completed",
+        "no_show": "No-show",
+        "cancelled": "Cancelled"
+      }
+    },
     "engagements": {
       "label": "Engagements",
       "title": "Milestone board",
@@ -25871,7 +25961,7 @@
     "title": "Engagement proposal",
     "show": "Show",
     "hide": "Hide",
-    "loading": "Loading\u2026",
+    "loading": "Loading…",
     "loadError": "Failed to load proposals.",
     "saveError": "Failed to save the draft.",
     "draftSaved": "Draft saved.",
@@ -25907,7 +25997,7 @@
     "exclusionsHint": "Name what is not included, so the client never assumes it is.",
     "addExclusion": "Add exclusion",
     "removeExclusion": "Remove exclusion",
-    "exclusionPlaceholder": "Not included: \u2026",
+    "exclusionPlaceholder": "Not included: …",
     "saveDraft": "Save draft",
     "cancelEdit": "Cancel",
     "newVersion": "Draft a new proposal version",
@@ -29513,80 +29603,80 @@
           "mixedCurrency": "Mixed currencies",
           "convertedTotal": "Converted total ({{currency}})"
         },
-      "fx": {
-        "convertedTitle": "Converted totals",
-        "title": "Exchange rates and reporting currency",
-        "hint": "Converted totals use stored rates only. Enter rates an admin recorded or imported; a currency with no stored rate is flagged, never guessed.",
-        "reportingCurrency": "Reporting currency: {{currency}}",
-        "rateDate": "Rate date: {{date}}",
-        "defaultPolicy": "Default policy",
-        "missingRate": "No stored rate for {{currencies}}; converted total is not shown.",
-        "convertedTotal": "converted total",
-        "rate": "rate {{rate}} on {{date}}",
-        "noRate": "no stored rate",
-        "staleRate": "Converted figures use a stored rate from {{date}}, {{days}} days old. Rates are entered manually, so check that the rate is still current.",
-        "reportingCurrencyLabel": "Reporting currency",
-        "rateSourceLabel": "Rate source",
-        "sourceStored": "Stored rates",
-        "sourceAdmin": "Admin-entered",
-        "sourceImport": "Imported",
-        "rateDateModeLabel": "Rate date",
-        "modePeriodEnd": "Period end",
-        "modeRateDate": "Fixed date",
-        "rateDateLabel": "Rate date",
-        "baseLabel": "From currency",
-        "quoteLabel": "To currency",
-        "rateLabel": "Rate",
-        "addRate": "Add rate",
-        "policySaved": "FX policy saved.",
-        "policyError": "Could not save the FX policy.",
-        "rateSaved": "Rate saved.",
-        "rateError": "Could not save the rate."
-      },
-      "laborPolicies": {
-        "title": "Per-store labor policies",
-        "hint": "Set overtime rules per store. A store without its own policy uses the restaurant-level fallback.",
-        "none": "No stores yet.",
-        "store": "Store",
-        "source": "Source",
-        "weeklyThreshold": "Weekly overtime threshold (hours)",
-        "multiplier": "Overtime multiplier",
-        "breakAfter": "Break after (minutes)",
-        "saved": "Labor policy saved.",
-        "saveError": "Could not save the labor policy."
-      },
-      "payRuns": {
-        "title": "Pay runs awaiting HQ approval",
-        "hint": "Finalized pay runs wait for a second approver here. The person who finalized a run cannot approve it.",
-        "none": "No finalized pay runs are waiting for approval.",
-        "stores": "{{count}} stores",
-        "approve": "Approve",
-        "approved": "Pay run approved.",
-        "approveError": "Could not approve the pay run."
-      },
-      "borrows": {
-        "title": "Inter-store labor borrowing",
-        "hint": "Borrow a worker from one store to cover a shift at another. The requester cannot approve their own request.",
-        "worker": "Worker",
-        "selectWorker": "Choose a worker",
-        "homeStore": "Home store",
-        "borrowStore": "Borrowing store",
-        "selectStore": "Choose a store",
-        "start": "Start",
-        "end": "End",
-        "request": "Request borrow",
-        "requested": "Borrow requested.",
-        "requestError": "Could not request the borrow.",
-        "approve": "Approve",
-        "decline": "Decline",
-        "approved": "Borrow approved.",
-        "declined": "Borrow declined.",
-        "reviewError": "Could not review the borrow.",
-        "rosterTitle": "Shared roster",
-        "shifts": "{{count}} shifts",
-        "borrowed": "{{count}} borrows",
-        "overnight": "ends next day"
-      }
+        "fx": {
+          "convertedTitle": "Converted totals",
+          "title": "Exchange rates and reporting currency",
+          "hint": "Converted totals use stored rates only. Enter rates an admin recorded or imported; a currency with no stored rate is flagged, never guessed.",
+          "reportingCurrency": "Reporting currency: {{currency}}",
+          "rateDate": "Rate date: {{date}}",
+          "defaultPolicy": "Default policy",
+          "missingRate": "No stored rate for {{currencies}}; converted total is not shown.",
+          "convertedTotal": "converted total",
+          "rate": "rate {{rate}} on {{date}}",
+          "noRate": "no stored rate",
+          "staleRate": "Converted figures use a stored rate from {{date}}, {{days}} days old. Rates are entered manually, so check that the rate is still current.",
+          "reportingCurrencyLabel": "Reporting currency",
+          "rateSourceLabel": "Rate source",
+          "sourceStored": "Stored rates",
+          "sourceAdmin": "Admin-entered",
+          "sourceImport": "Imported",
+          "rateDateModeLabel": "Rate date",
+          "modePeriodEnd": "Period end",
+          "modeRateDate": "Fixed date",
+          "rateDateLabel": "Rate date",
+          "baseLabel": "From currency",
+          "quoteLabel": "To currency",
+          "rateLabel": "Rate",
+          "addRate": "Add rate",
+          "policySaved": "FX policy saved.",
+          "policyError": "Could not save the FX policy.",
+          "rateSaved": "Rate saved.",
+          "rateError": "Could not save the rate."
+        },
+        "laborPolicies": {
+          "title": "Per-store labor policies",
+          "hint": "Set overtime rules per store. A store without its own policy uses the restaurant-level fallback.",
+          "none": "No stores yet.",
+          "store": "Store",
+          "source": "Source",
+          "weeklyThreshold": "Weekly overtime threshold (hours)",
+          "multiplier": "Overtime multiplier",
+          "breakAfter": "Break after (minutes)",
+          "saved": "Labor policy saved.",
+          "saveError": "Could not save the labor policy."
+        },
+        "payRuns": {
+          "title": "Pay runs awaiting HQ approval",
+          "hint": "Finalized pay runs wait for a second approver here. The person who finalized a run cannot approve it.",
+          "none": "No finalized pay runs are waiting for approval.",
+          "stores": "{{count}} stores",
+          "approve": "Approve",
+          "approved": "Pay run approved.",
+          "approveError": "Could not approve the pay run."
+        },
+        "borrows": {
+          "title": "Inter-store labor borrowing",
+          "hint": "Borrow a worker from one store to cover a shift at another. The requester cannot approve their own request.",
+          "worker": "Worker",
+          "selectWorker": "Choose a worker",
+          "homeStore": "Home store",
+          "borrowStore": "Borrowing store",
+          "selectStore": "Choose a store",
+          "start": "Start",
+          "end": "End",
+          "request": "Request borrow",
+          "requested": "Borrow requested.",
+          "requestError": "Could not request the borrow.",
+          "approve": "Approve",
+          "decline": "Decline",
+          "approved": "Borrow approved.",
+          "declined": "Borrow declined.",
+          "reviewError": "Could not review the borrow.",
+          "rosterTitle": "Shared roster",
+          "shifts": "{{count}} shifts",
+          "borrowed": "{{count}} borrows",
+          "overnight": "ends next day"
+        }
       },
       "brandHq": {
         "title": "Brand HQ",
@@ -29636,128 +29726,128 @@
         "attach": "Attach restaurant",
         "attachSuccess": "Restaurant attached to brand",
         "attachError": "Could not attach restaurant",
-      "fx": {
-        "convertedTitle": "Converted totals",
-        "title": "Brand exchange rates and reporting currency",
-        "hint": "Converted brand totals use stored rates only. Enter rates an admin recorded or imported; a currency with no stored rate is flagged, never guessed.",
-        "savePolicy": "Save policy",
-        "reportingCurrency": "Reporting currency: {{currency}}",
-        "rateDate": "Rate date: {{date}}",
-        "defaultPolicy": "Default policy",
-        "missingRate": "No stored rate for {{currencies}}; converted total is not shown.",
-        "convertedTotal": "converted total",
-        "rate": "rate {{rate}} on {{date}}",
-        "noRate": "no stored rate",
-        "staleRate": "Converted figures use a stored rate from {{date}}, {{days}} days old. Rates are entered manually, so check that the rate is still current.",
-        "reportingCurrencyLabel": "Reporting currency",
-        "rateSourceLabel": "Rate source",
-        "sourceStored": "Stored rates",
-        "sourceAdmin": "Admin-entered",
-        "sourceImport": "Imported",
-        "rateDateModeLabel": "Rate date",
-        "modePeriodEnd": "Period end",
-        "modeRateDate": "Fixed date",
-        "rateDateLabel": "Rate date",
-        "baseLabel": "From currency",
-        "quoteLabel": "To currency",
-        "rateLabel": "Rate",
-        "addRate": "Add rate",
-        "policySaved": "FX policy saved.",
-        "policyError": "Could not save the FX policy.",
-        "rateSaved": "Rate saved.",
-        "rateError": "Could not save the rate."
-      },
-      "rollouts": {
-        "title": "Staged menu rollouts",
-        "hint": "Roll a menu out to pilot restaurants first, then to every remaining target. Only one rollout can be open at a time.",
-        "pilotRestaurants": "Pilot restaurants",
-        "targetRestaurants": "Target restaurants",
-        "create": "Create rollout",
-        "created": "Rollout created.",
-        "createError": "Could not create the rollout.",
-        "advanced": "Rollout advanced.",
-        "advanceError": "Could not advance the rollout.",
-        "cancelled": "Rollout cancelled.",
-        "cancelError": "Could not cancel the rollout.",
-        "stage": "Stage: {{stage}}",
-        "pilotCount": "pilot",
-        "targetCount": "targets",
-        "advancePilot": "Publish to pilot",
-        "advanceAll": "Publish to all targets",
-        "cancel": "Cancel"
-      },
-      "consolidations": {
-        "title": "Consolidated pay runs",
-        "hint": "Group finalized pay runs from the same pay period into one consolidation. Finalizing and approving need two different people.",
-        "noFinalized": "No finalized pay runs in this window.",
-        "selectRuns": "Finalized pay runs",
-        "create": "Create consolidation",
-        "created": "Consolidation created.",
-        "createError": "Could not create the consolidation.",
-        "members": "runs",
-        "finalize": "Finalize",
-        "approve": "Approve",
-        "void": "Void",
-        "finalized": "Consolidation finalized.",
-        "approved": "Consolidation approved.",
-        "voided": "Consolidation voided.",
-        "voidRequested": "Void requested. A second payroll manager must approve it.",
-        "voidApprove": "Approve void",
-        "voidApproved": "Consolidation voided.",
-        "voidPending": "Void requested. This consolidation waits for a second payroll manager to approve the void.",
-        "actionError": "Could not update the consolidation.",
-        "viewDetails": "View details",
-        "detailTitle": "Consolidation #{{id}}",
-        "detailError": "Could not load the consolidation.",
-        "finalizedAt": "Finalized {{date}}",
-        "approvedAt": "Approved {{date}}",
-        "memberRun": "Pay run #{{id}}",
-        "closeDetails": "Close details"
-      },
-      "franchise": {
-        "title": "Franchise report",
-        "loadError": "Could not load the franchise report.",
-        "reportingCurrency": "Reporting currency: {{currency}}",
-        "rateDate": "Rate date: {{date}}",
-        "defaultPolicy": "Default policy",
-        "missingRates": "No stored rate for {{currencies}}",
-        "storeCol": "Store",
-        "salesCol": "Sales",
-        "royaltyCol": "Royalty",
-        "marketingCol": "Marketing fee",
-        "agreementCol": "Agreement",
-        "noAgreement": "No agreement",
-        "royaltyBps": "Royalty {{bps}} bps",
-        "marketingBps": "Marketing {{bps}} bps",
-        "accrualCol": "Accrual",
-        "accrualFailedCount": "{{count}} failed",
-        "accrualStatus": {
-          "accrued": "Accrued",
-          "failed": "Failed",
-          "pending": "Pending"
+        "fx": {
+          "convertedTitle": "Converted totals",
+          "title": "Brand exchange rates and reporting currency",
+          "hint": "Converted brand totals use stored rates only. Enter rates an admin recorded or imported; a currency with no stored rate is flagged, never guessed.",
+          "savePolicy": "Save policy",
+          "reportingCurrency": "Reporting currency: {{currency}}",
+          "rateDate": "Rate date: {{date}}",
+          "defaultPolicy": "Default policy",
+          "missingRate": "No stored rate for {{currencies}}; converted total is not shown.",
+          "convertedTotal": "converted total",
+          "rate": "rate {{rate}} on {{date}}",
+          "noRate": "no stored rate",
+          "staleRate": "Converted figures use a stored rate from {{date}}, {{days}} days old. Rates are entered manually, so check that the rate is still current.",
+          "reportingCurrencyLabel": "Reporting currency",
+          "rateSourceLabel": "Rate source",
+          "sourceStored": "Stored rates",
+          "sourceAdmin": "Admin-entered",
+          "sourceImport": "Imported",
+          "rateDateModeLabel": "Rate date",
+          "modePeriodEnd": "Period end",
+          "modeRateDate": "Fixed date",
+          "rateDateLabel": "Rate date",
+          "baseLabel": "From currency",
+          "quoteLabel": "To currency",
+          "rateLabel": "Rate",
+          "addRate": "Add rate",
+          "policySaved": "FX policy saved.",
+          "policyError": "Could not save the FX policy.",
+          "rateSaved": "Rate saved.",
+          "rateError": "Could not save the rate."
         },
-        "totalsSales": "Sales",
-        "totalsRoyalty": "Royalty",
-        "totalsMarketing": "Marketing",
-        "totalsInitial": "Initial fees",
-        "mappings": {
-          "title": "Store agreements",
-          "hint": "Each store is assigned to one franchise agreement. A store without an agreement reports its sales with no royalty.",
-          "unmappedTitle": "Stores without an agreement",
-          "ambiguousTitle": "Agreements to confirm",
-          "ambiguousHint": "These stores were assigned from overlapping territories. Confirm the agreement is correct.",
-          "ambiguousCount": "{{count}} agreements matched this store",
-          "selectAgreement": "Select an agreement",
-          "assign": "Assign",
-          "change": "Change",
-          "unassign": "Remove",
-          "assigned": "Agreement assigned.",
-          "removed": "Agreement removed.",
-          "assignError": "Could not assign the agreement.",
-          "removeError": "Could not remove the agreement.",
-          "noStores": "No stores in this brand yet."
+        "rollouts": {
+          "title": "Staged menu rollouts",
+          "hint": "Roll a menu out to pilot restaurants first, then to every remaining target. Only one rollout can be open at a time.",
+          "pilotRestaurants": "Pilot restaurants",
+          "targetRestaurants": "Target restaurants",
+          "create": "Create rollout",
+          "created": "Rollout created.",
+          "createError": "Could not create the rollout.",
+          "advanced": "Rollout advanced.",
+          "advanceError": "Could not advance the rollout.",
+          "cancelled": "Rollout cancelled.",
+          "cancelError": "Could not cancel the rollout.",
+          "stage": "Stage: {{stage}}",
+          "pilotCount": "pilot",
+          "targetCount": "targets",
+          "advancePilot": "Publish to pilot",
+          "advanceAll": "Publish to all targets",
+          "cancel": "Cancel"
+        },
+        "consolidations": {
+          "title": "Consolidated pay runs",
+          "hint": "Group finalized pay runs from the same pay period into one consolidation. Finalizing and approving need two different people.",
+          "noFinalized": "No finalized pay runs in this window.",
+          "selectRuns": "Finalized pay runs",
+          "create": "Create consolidation",
+          "created": "Consolidation created.",
+          "createError": "Could not create the consolidation.",
+          "members": "runs",
+          "finalize": "Finalize",
+          "approve": "Approve",
+          "void": "Void",
+          "finalized": "Consolidation finalized.",
+          "approved": "Consolidation approved.",
+          "voided": "Consolidation voided.",
+          "voidRequested": "Void requested. A second payroll manager must approve it.",
+          "voidApprove": "Approve void",
+          "voidApproved": "Consolidation voided.",
+          "voidPending": "Void requested. This consolidation waits for a second payroll manager to approve the void.",
+          "actionError": "Could not update the consolidation.",
+          "viewDetails": "View details",
+          "detailTitle": "Consolidation #{{id}}",
+          "detailError": "Could not load the consolidation.",
+          "finalizedAt": "Finalized {{date}}",
+          "approvedAt": "Approved {{date}}",
+          "memberRun": "Pay run #{{id}}",
+          "closeDetails": "Close details"
+        },
+        "franchise": {
+          "title": "Franchise report",
+          "loadError": "Could not load the franchise report.",
+          "reportingCurrency": "Reporting currency: {{currency}}",
+          "rateDate": "Rate date: {{date}}",
+          "defaultPolicy": "Default policy",
+          "missingRates": "No stored rate for {{currencies}}",
+          "storeCol": "Store",
+          "salesCol": "Sales",
+          "royaltyCol": "Royalty",
+          "marketingCol": "Marketing fee",
+          "agreementCol": "Agreement",
+          "noAgreement": "No agreement",
+          "royaltyBps": "Royalty {{bps}} bps",
+          "marketingBps": "Marketing {{bps}} bps",
+          "accrualCol": "Accrual",
+          "accrualFailedCount": "{{count}} failed",
+          "accrualStatus": {
+            "accrued": "Accrued",
+            "failed": "Failed",
+            "pending": "Pending"
+          },
+          "totalsSales": "Sales",
+          "totalsRoyalty": "Royalty",
+          "totalsMarketing": "Marketing",
+          "totalsInitial": "Initial fees",
+          "mappings": {
+            "title": "Store agreements",
+            "hint": "Each store is assigned to one franchise agreement. A store without an agreement reports its sales with no royalty.",
+            "unmappedTitle": "Stores without an agreement",
+            "ambiguousTitle": "Agreements to confirm",
+            "ambiguousHint": "These stores were assigned from overlapping territories. Confirm the agreement is correct.",
+            "ambiguousCount": "{{count}} agreements matched this store",
+            "selectAgreement": "Select an agreement",
+            "assign": "Assign",
+            "change": "Change",
+            "unassign": "Remove",
+            "assigned": "Agreement assigned.",
+            "removed": "Agreement removed.",
+            "assignError": "Could not assign the agreement.",
+            "removeError": "Could not remove the agreement.",
+            "noStores": "No stores in this brand yet."
+          }
         }
-      }
       },
       "storeHub": {
         "title": "In-store hub",
@@ -37946,7 +38036,7 @@
     "sectionMessageHistory": "Message History",
     "emptyMessages": "No messages sent yet",
     "messageErrorLine": "Error: {{error}}",
-      "consultantReply": "Consultant reply",
+    "consultantReply": "Consultant reply",
     "closeButton": "Close"
   },
   "adminAdminAccounts": {
@@ -44906,7 +44996,6 @@
     "bidExpired": "This bid has expired.",
     "bidExpires": "Bid expires {{date}}",
     "reviewChanges": "Review job changes and reconfirm your bid"
-
   },
   "quoteWorkspace": {
     "title": "Itemized quotes",

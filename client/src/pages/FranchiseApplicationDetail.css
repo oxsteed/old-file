@@ -95,6 +95,36 @@
   gap: 10px;
 }
 
+/* Group 12 Slice 3b (610): the operator-facing assignment history. */
+.fr-history-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fr-history-item {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fr-history-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.fr-history-when {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.fr-history-summary {
+  font-size: 0.95rem;
+}
+
 .fr-interview-row {
   border-radius: 18px;
   border: 1px solid var(--color-border);

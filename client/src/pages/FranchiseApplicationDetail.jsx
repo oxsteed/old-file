@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Download,
   FileText,
+  History,
   MessageSquare,
   ShieldCheck,
 } from 'lucide-react';
@@ -483,6 +484,30 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         onStatusChange={updateLaunchPlanStatus}
         disabled={busy}
       />
+
+      {/* Group 12 Slice 3b (610, D-310): the operator-facing assignment history. */}
+      <section className="fr-detail-card">
+        <div className="fr-detail-heading">
+          <History size={16} className="fr-detail-heading-icon" />
+          <div>
+            <h2 className="fr-detail-title">{copy('historyTitle')}</h2>
+            <p className="fr-detail-subtitle">{copy('historySubtitle')}</p>
+          </div>
+        </div>
+
+        {(detail.activity || []).length > 0 ? (
+          <ul className="fr-history-list">
+            {(detail.activity || []).map((event) => (
+              <li key={event.id} className="fr-history-item">
+                <div className="fr-history-when">{formatDateTime(event.created_at)}</div>
+                <div className="fr-history-summary">{event.event_summary}</div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="fr-detail-empty">{copy('historyEmpty')}</p>
+        )}
+      </section>
 
       <section className="fr-detail-card">
         <div className="fr-detail-heading">

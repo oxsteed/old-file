@@ -1969,24 +1969,78 @@
     "invitedGoal": "Únete al equipo que te invitó",
     "invitedGoalHelp": "Crea tu cuenta de cliente y verifica tu correo electrónico. Después revisa y responde a tu invitación.",
     "personas": {
-      "customer": { "title": "Contratar ayuda local", "description": "Publica un trabajo, encuentra ayuda y pide comida." },
-      "helper": { "title": "Ofrecer servicios", "description": "Crea un perfil, responde a oportunidades y recibe pagos." },
-      "businessOwner": { "title": "Administrar un negocio", "description": "Crea una presencia comercial y gestiona su trabajo." },
-      "businessTeam": { "title": "Unirse a un equipo empresarial", "description": "Trabaja para un negocio invitado con herramientas delimitadas." },
-      "restaurantOwner": { "title": "Administrar un restaurante", "description": "Configura un restaurante y gestiona sus operaciones." },
-      "restaurantTeam": { "title": "Trabajar en un restaurante", "description": "Usa solo las herramientas de tu ubicación asignada." },
-      "logistics": { "title": "Mover mercancías y entregas", "description": "Coordina envíos, entregas o despachos." },
-      "consultant": { "title": "Asesorar clientes", "description": "Comparte experiencia y acepta trabajos aprobados." },
-      "equipmentOwner": { "title": "Publicar equipos", "description": "Ofrece herramientas y equipos para uso local aprobado." },
-      "franchise": { "title": "Operar una franquicia", "description": "Sigue la inscripción territorial y la preparación operativa." },
-      "investorReporting": { "title": "Ver informes de inversión", "description": "Solicita informes; no permite invertir." },
-      "creditParticipant": { "title": "Participar en OxSteed Credit", "description": "Sigue la inscripción y elegibilidad del programa." },
-      "partnerAffiliate": { "title": "Ser socio o afiliado", "description": "Únete a un programa aprobado de socios." },
-      "workforceLearning": { "title": "Aprender o enseñar", "description": "Únete a programas de trabajo o aprendizaje." },
-      "reviewer": { "title": "Revisar solicitudes", "description": "Solicita provisión interna para trabajo autorizado." },
-      "supportAgent": { "title": "Ayudar a clientes", "description": "Solicita provisión interna como agente de soporte." },
-      "operationsStaff": { "title": "Gestionar operaciones", "description": "Solicita acceso interno de operaciones." },
-      "deviceServiceAccount": { "title": "Conectar un dispositivo o servicio", "description": "Usa credenciales no humanas provistas por un administrador." }
+      "customer": {
+        "title": "Contratar ayuda local",
+        "description": "Publica un trabajo, encuentra ayuda y pide comida."
+      },
+      "helper": {
+        "title": "Ofrecer servicios",
+        "description": "Crea un perfil, responde a oportunidades y recibe pagos."
+      },
+      "businessOwner": {
+        "title": "Administrar un negocio",
+        "description": "Crea una presencia comercial y gestiona su trabajo."
+      },
+      "businessTeam": {
+        "title": "Unirse a un equipo empresarial",
+        "description": "Trabaja para un negocio invitado con herramientas delimitadas."
+      },
+      "restaurantOwner": {
+        "title": "Administrar un restaurante",
+        "description": "Configura un restaurante y gestiona sus operaciones."
+      },
+      "restaurantTeam": {
+        "title": "Trabajar en un restaurante",
+        "description": "Usa solo las herramientas de tu ubicación asignada."
+      },
+      "logistics": {
+        "title": "Mover mercancías y entregas",
+        "description": "Coordina envíos, entregas o despachos."
+      },
+      "consultant": {
+        "title": "Asesorar clientes",
+        "description": "Comparte experiencia y acepta trabajos aprobados."
+      },
+      "equipmentOwner": {
+        "title": "Publicar equipos",
+        "description": "Ofrece herramientas y equipos para uso local aprobado."
+      },
+      "franchise": {
+        "title": "Operar una franquicia",
+        "description": "Sigue la inscripción territorial y la preparación operativa."
+      },
+      "investorReporting": {
+        "title": "Ver informes de inversión",
+        "description": "Solicita informes; no permite invertir."
+      },
+      "creditParticipant": {
+        "title": "Participar en OxSteed Credit",
+        "description": "Sigue la inscripción y elegibilidad del programa."
+      },
+      "partnerAffiliate": {
+        "title": "Ser socio o afiliado",
+        "description": "Únete a un programa aprobado de socios."
+      },
+      "workforceLearning": {
+        "title": "Aprender o enseñar",
+        "description": "Únete a programas de trabajo o aprendizaje."
+      },
+      "reviewer": {
+        "title": "Revisar solicitudes",
+        "description": "Solicita provisión interna para trabajo autorizado."
+      },
+      "supportAgent": {
+        "title": "Ayudar a clientes",
+        "description": "Solicita provisión interna como agente de soporte."
+      },
+      "operationsStaff": {
+        "title": "Gestionar operaciones",
+        "description": "Solicita acceso interno de operaciones."
+      },
+      "deviceServiceAccount": {
+        "title": "Conectar un dispositivo o servicio",
+        "description": "Usa credenciales no humanas provistas por un administrador."
+      }
     },
     "admission": {
       "baseline": "El acceso de cliente está disponible de inmediato.",
@@ -15487,36 +15541,35 @@
     "timeOff": "Tu Tiempo Libre",
     "blockedDateAdded": "Fecha bloqueada agregada",
     "blockedDateRemoved": "Fecha bloqueada eliminada",
-    "dateRequired": "Por favor selecciona una fecha"
-  ,
-  "yourTime": "Tu hora",
-  "rescheduleProposed": "Reprogramación propuesta",
-  "rescheduleAccepted": "Reprogramación aceptada",
-  "rescheduleDeclined": "Reprogramación rechazada",
-  "rescheduleWithdrawn": "Reprogramación retirada",
-  "rescheduleTitle": "Proponer una nueva hora",
-  "rescheduleCurrent": "Cita actual: {{date}} a las {{time}}",
-  "pickDate": "Elige una fecha",
-  "pickTime": "Elige una hora",
-  "rescheduleReason": "Motivo (opcional)",
-  "rescheduleReasonPlaceholder": "¿Por qué propones una nueva hora?",
-  "rescheduleCanonicalNote": "Las horas se muestran en tu zona horaria; la reserva se guarda en la zona horaria del consultor ({{zone}}).",
-  "proposeNewTime": "Proponer nueva hora",
-  "cancelTitle": "Cancelar esta cita",
-  "cancelReason": "Motivo",
-  "cancelReasonPlaceholder": "¿Por qué se cancela esta cita?",
-  "requestRefund": "Solicitar un reembolso por esta cita",
-  "cancelNote": "Tanto tú como el consultor recibirán una notificación. Los reembolsos los gestiona un administrador por separado.",
-  "cancelled": "Cita cancelada",
-  "cancelSession": "Cancelar cita",
-  "confirmAttendance": "Confirmar asistencia",
-  "attendanceConfirmed": "Asistencia confirmada",
-  "attendanceConfirmedByYou": "Confirmaste tu asistencia",
-  "attendanceConfirmedByClient": "El cliente confirmó su asistencia",
-  "attendanceConfirmedByConsultant": "El consultor confirmó su asistencia",
-  "accept": "Aceptar",
-  "decline": "Rechazar",
-  "withdraw": "Retirar"
+    "dateRequired": "Por favor selecciona una fecha",
+    "yourTime": "Tu hora",
+    "rescheduleProposed": "Reprogramación propuesta",
+    "rescheduleAccepted": "Reprogramación aceptada",
+    "rescheduleDeclined": "Reprogramación rechazada",
+    "rescheduleWithdrawn": "Reprogramación retirada",
+    "rescheduleTitle": "Proponer una nueva hora",
+    "rescheduleCurrent": "Cita actual: {{date}} a las {{time}}",
+    "pickDate": "Elige una fecha",
+    "pickTime": "Elige una hora",
+    "rescheduleReason": "Motivo (opcional)",
+    "rescheduleReasonPlaceholder": "¿Por qué propones una nueva hora?",
+    "rescheduleCanonicalNote": "Las horas se muestran en tu zona horaria; la reserva se guarda en la zona horaria del consultor ({{zone}}).",
+    "proposeNewTime": "Proponer nueva hora",
+    "cancelTitle": "Cancelar esta cita",
+    "cancelReason": "Motivo",
+    "cancelReasonPlaceholder": "¿Por qué se cancela esta cita?",
+    "requestRefund": "Solicitar un reembolso por esta cita",
+    "cancelNote": "Tanto tú como el consultor recibirán una notificación. Los reembolsos los gestiona un administrador por separado.",
+    "cancelled": "Cita cancelada",
+    "cancelSession": "Cancelar cita",
+    "confirmAttendance": "Confirmar asistencia",
+    "attendanceConfirmed": "Asistencia confirmada",
+    "attendanceConfirmedByYou": "Confirmaste tu asistencia",
+    "attendanceConfirmedByClient": "El cliente confirmó su asistencia",
+    "attendanceConfirmedByConsultant": "El consultor confirmó su asistencia",
+    "accept": "Aceptar",
+    "decline": "Rechazar",
+    "withdraw": "Retirar"
   },
   "regionForm": {
     "boundaryTypes": {
@@ -17182,34 +17235,34 @@
       "chargeAccepted": "Aceptó el cargo.",
       "chargeDeclined": "Rechazó el cargo.",
       "chargeRespondFailed": "No se pudo enviar su respuesta.",
-        "authority": {
-          "booker": {
-            "0": "Gestionar la reserva",
-            "1": "Invitar o reemplazar a un destinatario, contacto en el lugar o patrocinador",
-            "2": "Compartir recibo"
-          },
-          "recipient": {
-            "0": "Ver esta reserva",
-            "1": "Aceptar o rechazar la visita",
-            "2": "Cancelar la reserva",
-            "3": "Confirmar la finalización",
-            "4": "Compartir comentarios"
-          },
-          "siteContact": {
-            "0": "Ver el estado de la visita",
-            "1": "Coordinar el acceso al lugar",
-            "2": "Confirmar la entrega",
-            "3": "Enviar mensajes en el chat de la reserva"
-          },
-          "sponsor": {
-            "0": "Ver el monto patrocinado",
-            "1": "Aceptar o rechazar",
-            "2": "Pagar con tu propia tarjeta",
-            "3": "Aprobar o rechazar cargos adicionales"
-          }
+      "authority": {
+        "booker": {
+          "0": "Gestionar la reserva",
+          "1": "Invitar o reemplazar a un destinatario, contacto en el lugar o patrocinador",
+          "2": "Compartir recibo"
         },
-        "scopeSite": "Lugar",
-        "scopeDescription": "Detalles"
+        "recipient": {
+          "0": "Ver esta reserva",
+          "1": "Aceptar o rechazar la visita",
+          "2": "Cancelar la reserva",
+          "3": "Confirmar la finalización",
+          "4": "Compartir comentarios"
+        },
+        "siteContact": {
+          "0": "Ver el estado de la visita",
+          "1": "Coordinar el acceso al lugar",
+          "2": "Confirmar la entrega",
+          "3": "Enviar mensajes en el chat de la reserva"
+        },
+        "sponsor": {
+          "0": "Ver el monto patrocinado",
+          "1": "Aceptar o rechazar",
+          "2": "Pagar con tu propia tarjeta",
+          "3": "Aprobar o rechazar cargos adicionales"
+        }
+      },
+      "scopeSite": "Lugar",
+      "scopeDescription": "Detalles"
     },
     "breakdownPayerBooker": "Quien reserva",
     "paymentStatusPaid": "Pagado",
@@ -17222,104 +17275,104 @@
     "paymentStatusExpired": "Vencido",
     "paymentStatusVoided": "Anulado",
     "paymentStatusRequested": "Solicitado",
-  "additionalChargeSuffix": "(cargo adicional)"
+    "additionalChargeSuffix": "(cargo adicional)"
   },
   "household": {
-      "title": "Hogar",
-      "subtitle": "Invita delegados para ayudar a gestionar visitas, direcciones y planes de cuidado. Los delegados nunca pagan ni ven detalles de pago.",
-      "loading": "Cargando el hogar...",
-      "loadFailed": "No se pudo cargar el hogar.",
-      "actionFailed": "No funcionó. Inténtalo de nuevo.",
-      "exportButton": "Exportar historial",
-      "tabs": {
-        "delegations": "Delegaciones",
-        "calendar": "Calendario",
-        "addresses": "Direcciones",
-        "contacts": "Contactos",
-        "templates": "Plantillas",
-        "tasks": "Tareas",
-        "approvals": "Gastos",
-        "documents": "Documentos"
-      },
-      "inviteTitle": "Invitar a un delegado",
-      "emailLabel": "Correo del delegado",
-      "emailPlaceholder": "delegado@ejemplo.com",
-      "coordinatorLabel": "Coordinador familiar",
-      "scopesLabel": "Lo que este delegado puede hacer",
-      "inviteButton": "Enviar invitación",
-      "invitationsTitle": "Invitaciones para ti",
-      "accept": "Aceptar",
-      "decline": "Rechazar",
-      "delegationsTitle": "Delegados",
-      "noDelegations": "Aún no hay delegados.",
-      "coordinatorBadge": "coordinador",
-      "daysLeft": "Vence en {{count}} días",
-      "expiresSoon": "Vence pronto",
-      "scopePreview": "Vista de alcance",
-      "viewActivity": "Actividad",
-      "renew": "Renovar",
-      "revoke": "Revocar",
-      "reinvite": "Volver a invitar",
-      "makeCoordinator": "Hacer coordinador",
-      "revokeReason": "Revocado por el propietario",
-      "calendarTitle": "Calendario compartido",
-      "noVisits": "No hay visitas próximas.",
-      "checklistProgress": "{{done}} de {{total}} puntos listos",
-      "readinessConfirmed": "Listo confirmado",
-      "confirmReadiness": "Confirmar listo",
-      "remind": "Recordar",
-      "addressesTitle": "Libreta de direcciones del hogar",
-      "manageInSettings": "Gestionar direcciones en Ajustes",
-      "noAddresses": "Aún no hay direcciones compartidas.",
-      "entryPreset": "Acceso predefinido",
-      "contactsTitle": "Contactos alternos",
-      "nameLabel": "Nombre",
-      "phoneLabel": "Teléfono",
-      "relationshipLabel": "Relación",
-      "emergencyLabel": "Contacto de emergencia",
-      "addContact": "Agregar contacto",
-      "archive": "Archivar",
-      "noContacts": "Aún no hay contactos.",
-      "emergencyBadge": "emergencia",
-      "templatesTitle": "Plantillas de citas recurrentes",
-      "templateNameLabel": "Nombre de plantilla",
-      "serviceLabel": "Servicio",
-      "frequencyLabel": "Frecuencia",
-      "addTemplate": "Agregar plantilla",
-      "delete": "Eliminar",
-      "noTemplates": "Aún no hay plantillas.",
-      "tasksTitle": "Planes de mantenimiento",
-      "overdue": "Vencido",
-      "dueSoon": "Pronto",
-      "upcoming": "Próximo",
-      "kindLabel": "Tipo",
-      "taskTitleLabel": "Título",
-      "dueLabel": "Fecha límite",
-      "addTask": "Agregar plan",
-      "complete": "Marcar hecho",
-      "noTasks": "No hay planes abiertos.",
-      "approvalsTitle": "Aprobaciones de gasto",
-      "approvalsNote": "Un delegado pide, el propietario decide. Aprobar nunca cobra nada.",
-      "amountLabel": "Monto (centavos)",
-      "reasonLabel": "Motivo",
-      "requestApproval": "Solicitar aprobación",
-      "approve": "Aprobar",
-      "deny": "Rechazar",
-      "noApprovals": "Aún no hay solicitudes.",
-      "documentsTitle": "Bóveda de documentos",
-      "bodyLabel": "Detalles",
-      "addDocument": "Agregar documento",
-      "noDocuments": "Aún no hay documentos.",
-      "scopes": {
-        "book": "Reservar visitas",
-        "schedule": "Programar visitas",
-        "prepare": "Preparar visitas",
-        "coordinate": "Coordinar personas",
-        "view_records": "Leer registros",
-        "manage_addresses": "Gestionar direcciones",
-        "manage_tasks": "Gestionar planes",
-        "view_calendar": "Solo ver calendario"
-      }
+    "title": "Hogar",
+    "subtitle": "Invita delegados para ayudar a gestionar visitas, direcciones y planes de cuidado. Los delegados nunca pagan ni ven detalles de pago.",
+    "loading": "Cargando el hogar...",
+    "loadFailed": "No se pudo cargar el hogar.",
+    "actionFailed": "No funcionó. Inténtalo de nuevo.",
+    "exportButton": "Exportar historial",
+    "tabs": {
+      "delegations": "Delegaciones",
+      "calendar": "Calendario",
+      "addresses": "Direcciones",
+      "contacts": "Contactos",
+      "templates": "Plantillas",
+      "tasks": "Tareas",
+      "approvals": "Gastos",
+      "documents": "Documentos"
+    },
+    "inviteTitle": "Invitar a un delegado",
+    "emailLabel": "Correo del delegado",
+    "emailPlaceholder": "delegado@ejemplo.com",
+    "coordinatorLabel": "Coordinador familiar",
+    "scopesLabel": "Lo que este delegado puede hacer",
+    "inviteButton": "Enviar invitación",
+    "invitationsTitle": "Invitaciones para ti",
+    "accept": "Aceptar",
+    "decline": "Rechazar",
+    "delegationsTitle": "Delegados",
+    "noDelegations": "Aún no hay delegados.",
+    "coordinatorBadge": "coordinador",
+    "daysLeft": "Vence en {{count}} días",
+    "expiresSoon": "Vence pronto",
+    "scopePreview": "Vista de alcance",
+    "viewActivity": "Actividad",
+    "renew": "Renovar",
+    "revoke": "Revocar",
+    "reinvite": "Volver a invitar",
+    "makeCoordinator": "Hacer coordinador",
+    "revokeReason": "Revocado por el propietario",
+    "calendarTitle": "Calendario compartido",
+    "noVisits": "No hay visitas próximas.",
+    "checklistProgress": "{{done}} de {{total}} puntos listos",
+    "readinessConfirmed": "Listo confirmado",
+    "confirmReadiness": "Confirmar listo",
+    "remind": "Recordar",
+    "addressesTitle": "Libreta de direcciones del hogar",
+    "manageInSettings": "Gestionar direcciones en Ajustes",
+    "noAddresses": "Aún no hay direcciones compartidas.",
+    "entryPreset": "Acceso predefinido",
+    "contactsTitle": "Contactos alternos",
+    "nameLabel": "Nombre",
+    "phoneLabel": "Teléfono",
+    "relationshipLabel": "Relación",
+    "emergencyLabel": "Contacto de emergencia",
+    "addContact": "Agregar contacto",
+    "archive": "Archivar",
+    "noContacts": "Aún no hay contactos.",
+    "emergencyBadge": "emergencia",
+    "templatesTitle": "Plantillas de citas recurrentes",
+    "templateNameLabel": "Nombre de plantilla",
+    "serviceLabel": "Servicio",
+    "frequencyLabel": "Frecuencia",
+    "addTemplate": "Agregar plantilla",
+    "delete": "Eliminar",
+    "noTemplates": "Aún no hay plantillas.",
+    "tasksTitle": "Planes de mantenimiento",
+    "overdue": "Vencido",
+    "dueSoon": "Pronto",
+    "upcoming": "Próximo",
+    "kindLabel": "Tipo",
+    "taskTitleLabel": "Título",
+    "dueLabel": "Fecha límite",
+    "addTask": "Agregar plan",
+    "complete": "Marcar hecho",
+    "noTasks": "No hay planes abiertos.",
+    "approvalsTitle": "Aprobaciones de gasto",
+    "approvalsNote": "Un delegado pide, el propietario decide. Aprobar nunca cobra nada.",
+    "amountLabel": "Monto (centavos)",
+    "reasonLabel": "Motivo",
+    "requestApproval": "Solicitar aprobación",
+    "approve": "Aprobar",
+    "deny": "Rechazar",
+    "noApprovals": "Aún no hay solicitudes.",
+    "documentsTitle": "Bóveda de documentos",
+    "bodyLabel": "Detalles",
+    "addDocument": "Agregar documento",
+    "noDocuments": "Aún no hay documentos.",
+    "scopes": {
+      "book": "Reservar visitas",
+      "schedule": "Programar visitas",
+      "prepare": "Preparar visitas",
+      "coordinate": "Coordinar personas",
+      "view_records": "Leer registros",
+      "manage_addresses": "Gestionar direcciones",
+      "manage_tasks": "Gestionar planes",
+      "view_calendar": "Solo ver calendario"
+    }
   },
   "checkout": {
     "title": "Verificar",
@@ -18663,7 +18716,11 @@
       "expenses": "Gastos",
       "net": "Neto",
       "empty": "Aún no hay gastos registrados.",
-      "filter": { "all": "Todo", "expense": "Gastos", "income": "Ingresos" }
+      "filter": {
+        "all": "Todo",
+        "expense": "Gastos",
+        "income": "Ingresos"
+      }
     },
     "goals": {
       "title": "Metas",
@@ -18677,7 +18734,11 @@
       "subtitle": "Todo lo pendiente en casa, en un solo lugar.",
       "empty": "No hay tareas pendientes.",
       "completed": "Completada",
-      "filter": { "all": "Todo", "open": "Abiertas", "completed": "Completadas" },
+      "filter": {
+        "all": "Todo",
+        "open": "Abiertas",
+        "completed": "Completadas"
+      },
       "calendarTitle": "Calendario de cuidado del hogar",
       "prevMonth": "Mes anterior",
       "nextMonth": "Mes siguiente",
@@ -18991,6 +19052,9 @@
       "launchPlanStatusBlocked": "Bloqueado",
       "launchPlanChangeStatus": "Cambiar estado",
       "launchPlanStatusFailed": "No se pudo actualizar el paso. Inténtalo de nuevo.",
+      "historyTitle": "Historial de la asignación",
+      "historySubtitle": "Cada paso de tu asignación, desde la solicitud hasta el lanzamiento.",
+      "historyEmpty": "Aún no hay historial de la asignación.",
       "launchPlanEmpty": "Aún no hay pasos del plan de lanzamiento.",
       "launchPlanStepConfirmBoundary": "Confirmar el límite del territorio y la exclusividad",
       "launchPlanStepConfirmBoundaryDesc": "Revisa el resumen del límite y la exclusividad con la sede.",
@@ -19166,13 +19230,12 @@
     "emptyStat1Value": "Descubrimiento, dirección y ajuste del paquete",
     "emptyStat1Label": "Empieza con claridad",
     "emptyPreviewTitle": "En qué se convierte este portal después de la compra",
-    "emptyEyebrow": "Consultoría de lanzamiento de negocios"
-  ,
-  "schedulePanelTitle": "Tu cita",
-  "pendingProposals": "Reprogramación propuesta",
-  "proposedByYou": "Propuesta por ti",
-  "proposedByConsultant": "Propuesta por tu consultor",
-  "proposedByOxsteed": "Propuesta por OxSteed"
+    "emptyEyebrow": "Consultoría de lanzamiento de negocios",
+    "schedulePanelTitle": "Tu cita",
+    "pendingProposals": "Reprogramación propuesta",
+    "proposedByYou": "Propuesta por ti",
+    "proposedByConsultant": "Propuesta por tu consultor",
+    "proposedByOxsteed": "Propuesta por OxSteed"
   },
   "logistics": {
     "forms": {
@@ -21678,9 +21741,8 @@
   "adminConsultingSessionDetail": {
     "confirm": {
       "complete": "¿Marcar esta sesión como completada? Se enviará un correo de seguimiento al cliente con elementos de acción.",
-      "noShow": "¿Marcar esta sesión como inasistencia? Se enviará un correo de seguimiento al cliente para ofrecer reprogramar."
-    ,
-    "cancel": "¿Cancelar esta sesión? La cita y la sesión se cancelarán juntas y se notificará a ambas partes."
+      "noShow": "¿Marcar esta sesión como inasistencia? Se enviará un correo de seguimiento al cliente para ofrecer reprogramar.",
+      "cancel": "¿Cancelar esta sesión? La cita y la sesión se cancelarán juntas y se notificará a ambas partes."
     },
     "toast": {
       "loadConsultantsFailed": "No se pudieron cargar los consultores",
@@ -21695,15 +21757,13 @@
       "statusUpdateFailed": "No se pudo actualizar el estado",
       "noteRequired": "Ingresa una nota",
       "notesSaved": "Notas guardadas correctamente",
-      "saveNotesFailed": "No se pudieron guardar las notas"
-    ,
-    "sessionNotStarted": "Esta sesión aún no ha comenzado, por lo que no se puede marcar como completada.",
-    "cancelled": "Sesión cancelada.",
-    "cancelFailed": "No se pudo cancelar la sesión."
-    }
-  ,
-  "cancelSession": "Cancelar sesión",
-  "cancelHint": "Cancela la cita y la sesión juntas, y notifica a ambas partes. Los reembolsos siguen en el endpoint de reembolsos."
+      "saveNotesFailed": "No se pudieron guardar las notas",
+      "sessionNotStarted": "Esta sesión aún no ha comenzado, por lo que no se puede marcar como completada.",
+      "cancelled": "Sesión cancelada.",
+      "cancelFailed": "No se pudo cancelar la sesión."
+    },
+    "cancelSession": "Cancelar sesión",
+    "cancelHint": "Cancela la cita y la sesión juntas, y notifica a ambas partes. Los reembolsos siguen en el endpoint de reembolsos."
   },
   "adminConsultingScheduler": {
     "loading": "Cargando sesiones...",
@@ -22542,7 +22602,14 @@
       "exceptionsTitle": "Resumen de excepciones",
       "exceptionsOpenCount": "{{count}} excepciones abiertas en este envío",
       "exceptionsEmpty": "No hay excepciones registradas para este envío.",
-      "exceptionKinds": {"issue": "Incidencia", "return": "Devolución", "reschedule": "Reprogramación", "failed_attempt": "Intento fallido", "delay_escalation": "Escalación por retraso", "pickup_mismatch": "Diferencia en el conteo de recogida"},
+      "exceptionKinds": {
+        "issue": "Incidencia",
+        "return": "Devolución",
+        "reschedule": "Reprogramación",
+        "failed_attempt": "Intento fallido",
+        "delay_escalation": "Escalación por retraso",
+        "pickup_mismatch": "Diferencia en el conteo de recogida"
+      },
       "documentsTitle": "Documentos",
       "documentsEmpty": "Aún no hay documentos para esta entrega.",
       "documentProof": "Prueba de entrega ({{type}})",
@@ -22554,8 +22621,16 @@
       "disputeTitle": "Disputas",
       "disputeSubtitle": "Disputa una asignación completada. Resolver una disputa nunca mueve dinero por sí sola.",
       "disputeSubject": "Motivo de la disputa",
-      "disputeSubjects": {"payout_amount": "Monto del pago", "assignment_facts": "Datos de la asignación", "rating": "Calificación"},
-      "disputeStatuses": {"open": "Abierta", "under_review": "En revisión", "resolved": "Resuelta"},
+      "disputeSubjects": {
+        "payout_amount": "Monto del pago",
+        "assignment_facts": "Datos de la asignación",
+        "rating": "Calificación"
+      },
+      "disputeStatuses": {
+        "open": "Abierta",
+        "under_review": "En revisión",
+        "resolved": "Resuelta"
+      },
       "disputeDescription": "Qué sucedió",
       "disputeSubmit": "Presentar una disputa",
       "disputeSubmitted": "Disputa presentada.",
@@ -23013,8 +23088,8 @@
         "supportTitle": "¿Necesitas ayuda?",
         "supportHint": "Contacta al soporte de entregas sobre este envío.",
         "backHome": "Volver al inicio de OxSteed",
-      "documentsTitle": "Documentos de entrega",
-      "documentsEmpty": "No hay documentos compartidos para esta entrega."
+        "documentsTitle": "Documentos de entrega",
+        "documentsEmpty": "No hay documentos compartidos para esta entrega."
       },
       "milestones": {
         "placed": "Entrega solicitada",
@@ -24451,427 +24526,443 @@
     "workspace": {
       "title": "Inversiones",
       "intro": "Un espacio para informes verificados, oportunidades elegibles y tus contribuciones y estados de cuenta.",
-      "reports": { "title": "Informes", "description": "Consulta el rendimiento verificado de las entidades, sus actualizaciones y los informes que estás autorizado a ver." },
-      "opportunities": { "title": "Oportunidades de inversión", "description": "Explora oportunidades publicadas por entidades elegibles y revisa sus condiciones antes de solicitar participar." },
-      "contributions": { "title": "Contribuciones y estados de cuenta", "description": "Consulta tus contribuciones en OxSteed Credit, asignaciones, acuerdos, estados de cuenta y actividad inmutable." },
-      "actions": { "open": "Abrir", "setup": "Completar configuración" },
-      "status": { "available": "Disponible", "readOnly": "Solo lectura", "setup": "Configuración requerida" }
-    },
-      "entity": {
-        "raise": {
-          "title": "Recaudar capital",
-          "intro": "Solicite recaudar capital de inversores para uno de sus negocios. Su solicitud se mantiene privada hasta que un revisor la apruebe para su publicación.",
-          "documentsNotice": "No incluya documentos sensibles de identidad o financieros en este formulario. Esos van por los flujos restringidos de verificación y documentos, nunca en la descripción pública de una oportunidad.",
-          "business": {
-            "label": "Negocio",
-            "choose": "Elija un negocio",
-            "empty": {
-              "title": "No hay negocio para recaudar",
-              "copy": "Aún no representa a un negocio. Cree un negocio primero y luego vuelva para recaudar capital."
-            }
-          },
-          "authority": {
-            "label": "Estoy autorizado para representar a esta entidad y presentar esta solicitud de recaudación en su nombre.",
-            "hint": "Solo el propietario, gerente o representante autorizado del negocio puede recaudar capital para él."
-          },
-          "sections": {
-            "entity": {
-              "title": "Entidad",
-              "hint": "Quién recauda y con qué autoridad."
-            },
-            "raise": {
-              "title": "La recaudación",
-              "hint": "Propósito de financiación, objetivo y términos. Solo participación en ingresos, solo Estados Unidos."
-            },
-            "details": {
-              "title": "Detalles de la entidad",
-              "hint": "Información de apoyo para revisores e inversores. Sea factual; las proyecciones y promesas de rendimiento no pertenecen aquí."
-            },
-            "agreement": {
-              "title": "Acuerdo",
-              "hint": "El acuerdo rector que aceptan los inversores. La versión exacta aceptada al comprometerse rige el compromiso."
-            }
-          },
-          "form": {
-            "title": {
-              "label": "Título de la oportunidad"
-            },
-            "purpose": {
-              "label": "Propósito de la financiación",
-              "hint": "Qué hace el negocio y por qué recauda."
-            },
-            "target": {
-              "label": "Monto objetivo (USD)",
-              "hint": "El monto total que la recaudación busca reunir."
-            },
-            "minimum": {
-              "label": "Aporte mínimo (USD)",
-              "hint": "El monto más pequeño que un inversor puede comprometer. No puede ser mayor que el objetivo."
-            },
-            "deadline": {
-              "label": "Fecha límite",
-              "hint": "El cierre es todo o nada: el objetivo, la fecha límite y las condiciones de cierre aprobadas deben cumplirse."
-            },
-            "valuation": {
-              "label": "Regla de valoración",
-              "hint": "Cómo se calcula la participación en ingresos, por ejemplo un porcentaje de los ingresos mensuales."
-            },
-            "useOfProceeds": {
-              "label": "Uso de los fondos"
-            },
-            "intermediary": {
-              "label": "Referencia del intermediario",
-              "hint": "Referencia del intermediario registrado, si ya hay uno asignado."
-            },
-            "legal": {
-              "label": "Detalles legales de la entidad, actividad comercial e historial operativo",
-              "hint": "Forma legal, jurisdicción, qué hace el negocio y cuánto tiempo lleva operando."
-            },
-            "financials": {
-              "label": "Información financiera",
-              "hint": "Resumen financiero que respalda la recaudación. No pegue documentos sensibles aquí."
-            },
-            "ownership": {
-              "label": "Información de propiedad"
-            },
-            "risks": {
-              "label": "Riesgos materiales"
-            },
-            "relatedParties": {
-              "label": "Relaciones con partes relacionadas",
-              "hint": "Cualquier relación entre la entidad, sus propietarios y otras partes que un inversor debería conocer."
-            },
-            "agreement": {
-              "label": "Texto del acuerdo"
-            }
-          },
-          "submit": "Crear borrador privado",
-          "creating": "Creando borrador...",
-          "created": {
-            "title": "Borrador privado creado",
-            "copy": "Este borrador es privado. Solo usted y los revisores pueden verlo.",
-            "target": "Objetivo {{amount}}"
-          },
-          "preview": {
-            "title": "Vista previa para inversores",
-            "hint": "Cómo verán los inversores esta oportunidad una vez publicada."
-          },
-          "submitReview": "Enviar para revisión",
-          "submitReviewNote": "El envío no publica la oportunidad. Un revisor debe aprobarla primero, y la publicación es un paso aparte.",
-          "submitted": {
-            "copy": "Enviado para revisión. La oportunidad no está publicada."
-          },
-          "manageLink": "Gestionar esta recaudación",
-          "error": {
-            "loadFailed": "No se pudieron cargar sus negocios. Inténtelo de nuevo.",
-            "createFailed": "No se pudo crear el borrador. Inténtelo de nuevo.",
-            "agreementFailed": "El borrador se creó, pero no se pudo guardar la versión del acuerdo. Agréguela desde la página de gestión.",
-            "submitFailed": "No se pudo enviar para revisión. Inténtelo de nuevo."
-          },
-          "errors": {
-            "business": "Elija un negocio para esta recaudación.",
-            "authority": "Confirme que está autorizado para representar a esta entidad.",
-            "title": "Se requiere un título para la oportunidad.",
-            "purpose": "Se requiere un propósito de financiación.",
-            "target": "Ingrese un monto objetivo válido mayor que cero.",
-            "minimum": "El aporte mínimo debe estar entre cero y el objetivo.",
-            "deadline": "Elija una fecha límite futura.",
-            "valuation": "Se requiere una regla de valoración.",
-            "useOfProceeds": "Describa el uso de los fondos.",
-            "agreement": "Se requiere el texto del acuerdo."
-          }
-        },
-        "edit": {
-          "title": "Editar borrador de recaudación",
-          "intro": "Cambie los campos del borrador a continuación. Al guardar, la oportunidad sigue siendo un borrador privado. El texto del acuerdo se gestiona desde la página de gestión, y guardar nunca publica nada.",
-          "draftNotice": "Este borrador es privado. Solo usted y los revisores pueden verlo. Guardar cambios nunca publica la oportunidad.",
-          "save": "Guardar cambios del borrador",
-          "saving": "Guardando borrador...",
-          "saved": {
-            "title": "Borrador guardado",
-            "copy": "Sus cambios se guardaron. El borrador sigue siendo privado."
-          },
-          "notEditable": {
-            "copy": "Solo un borrador se puede editar directamente. Una vez enviado, los cambios pasan por el proceso de enmienda con aviso a los inversores y reconfirmación."
-          },
-          "error": {
-            "loadFailed": "No se pudo cargar este borrador. Inténtelo de nuevo.",
-            "saveFailed": "No se pudo guardar el borrador. Inténtelo de nuevo.",
-            "amendmentRequired": "Solo un borrador se puede editar directamente. Esta oportunidad ya avanzó, así que los cambios pasan por el proceso de enmienda."
-          }
-        },
-        "raises": {
-          "title": "Mis recaudaciones",
-          "intro": "Sus solicitudes de recaudación de capital, desde el borrador privado hasta la recaudación publicada.",
-          "newRaise": "Iniciar una nueva recaudación",
-          "error": {
-            "loadFailed": "No se pudieron cargar sus recaudaciones. Inténtelo de nuevo."
-          },
-          "empty": {
-            "title": "Aún no hay recaudaciones",
-            "copy": "Inicie una nueva recaudación para solicitar capital para uno de sus negocios."
-          },
-          "card": {
-            "target": "Objetivo {{amount}}",
-            "committed": "Comprometido {{amount}}",
-            "completed": "Completado {{amount}}",
-            "progress": "{{percent}}% financiado",
-            "deadline": "Fecha límite {{date}}",
-            "manage": "Gestionar",
-            "edit": "Editar borrador",
-            "viewPublic": "Ver página pública"
-          }
-        },
-        "manage": {
-          "title": "Gestionar recaudación",
-          "error": {
-            "loadFailed": "No se pudo cargar esta recaudación. Inténtelo de nuevo.",
-            "actionFailed": "No se pudo completar esa acción. Inténtelo de nuevo.",
-            "previewFailed": "No se pudo cargar la vista previa para inversores. Inténtelo de nuevo."
-          },
-          "status": {
-            "title": "Estado de la recaudación",
-            "target": "Objetivo {{amount}}",
-            "committed": "Comprometido {{amount}}",
-            "completed": "Completado {{amount}}",
-            "progress": "{{percent}}% financiado",
-            "deadline": "Fecha límite {{date}}",
-            "conditionsApproved": "Condiciones de cierre aprobadas.",
-            "closedAt": "Cerrada {{date}}"
-          },
-          "submitted": "Enviado para revisión. La oportunidad no está publicada.",
-          "preview": {
-            "button": "Mostrar vista previa para inversores"
-          },
-          "questions": {
-            "title": "Preguntas de inversores",
-            "hint": "Preguntas de solicitantes e inversores en esta oportunidad. Respóndalas aquí.",
-            "empty": {
-              "title": "Aún no hay preguntas",
-              "copy": "Las preguntas de los inversores aparecerán aquí cuando lleguen."
-            },
-            "answerLabel": "Su respuesta",
-            "answerButton": "Enviar respuesta",
-            "answered": "Respuesta enviada.",
-            "answeredLabel": "Respondida",
-            "answerRequired": "Escriba una respuesta antes de enviar."
-          },
-          "updates": {
-            "title": "Actualizaciones y calendario de informes",
-            "hint": "Publique actualizaciones para los inversores. Una fecha límite perdida se muestra como vencida y nunca desaparece.",
-            "empty": {
-              "title": "Aún no hay actualizaciones",
-              "copy": "Cree la primera actualización para esta recaudación."
-            },
-            "required": "Se requieren el título y el cuerpo de la actualización.",
-            "created": "Actualización creada como borrador.",
-            "published": "Actualización publicada.",
-            "publish": "Publicar",
-            "overdue": "Vencida desde {{date}}",
-            "status": {
-              "draft": "Borrador",
-              "published": "Publicada",
-              "overdue": "Vencida"
-            },
-            "form": {
-              "title": "Título de la actualización",
-              "body": "Actualización",
-              "due": "Fecha de vencimiento",
-              "dueHint": "Cuándo se debe esta actualización a los inversores.",
-              "submit": "Crear actualización"
-            }
-          },
-          "amendments": {
-            "title": "Cambios materiales",
-            "hint": "Los términos no pueden cambiar en silencio después de que existan compromisos. Un cambio material pasa por este proceso controlado: borrador, aviso a los inversores y luego reconfirmación.",
-            "empty": {
-              "title": "No hay enmiendas",
-              "copy": "No se han propuesto cambios materiales para esta oportunidad."
-            },
-            "required": "Describa el cambio antes de crear la enmienda.",
-            "created": "Borrador de enmienda creado.",
-            "proposed": "Enmienda propuesta. Se ha enviado el aviso a los inversores.",
-            "untitled": "Enmienda",
-            "proposedState": "Aviso enviado {{sent}}. Los inversores deben reconfirmar antes del {{deadline}}.",
-          "effectiveState": "Vigente. Los cambios se aplicaron a la oportunidad.",
-          "rejectedState": "Rechazada por un revisor.",
-            "deadlineRequired": "Elija una fecha límite futura para la reconfirmación.",
-            "status": {
-              "draft": "Borrador",
-              "proposed": "Propuesta",
-              "effective": "Vigente",
-              "withdrawn": "Retirada",
-              "rejected": "Rechazada"
-            },
-            "form": {
-              "summary": "Qué cambia",
-              "summaryHint": "Describa el cambio material en lenguaje sencillo.",
-              "version": "Nueva versión del acuerdo",
-              "versionHint": "Elija la versión del acuerdo a la que pasan los inversores, si la hay.",
-              "noNewVersion": "Sin nueva versión del acuerdo",
-              "submit": "Crear enmienda"
-            },
-            "propose": {
-              "deadline": "Fecha límite de reconfirmación",
-              "button": "Proponer y avisar a los inversores"
-            }
-          },
-          "agreements": {
-            "title": "Versiones del acuerdo",
-            "hint": "Las versiones exactas del acuerdo que aceptan los inversores. Un compromiso registra la versión exacta aceptada.",
-            "empty": {
-              "title": "Aún no hay versión del acuerdo",
-              "copy": "Agregue la primera versión del acuerdo. Una oportunidad no puede aprobarse sin una."
-            },
-            "required": "Se requiere el texto del acuerdo.",
-            "created": "Versión del acuerdo creada.",
-          "current": "Versión vigente",
-            "form": {
-              "body": "Texto del acuerdo",
-              "submit": "Agregar versión del acuerdo"
-            }
-          },
-          "obligations": {
-            "title": "Después del cierre: informes y obligaciones",
-            "hint": "La recaudación está cerrada. Estas obligaciones quedan con la entidad.",
-            "item1": "Publique actualizaciones según el calendario de informes. Las actualizaciones perdidas se muestran como vencidas.",
-            "item2": "Pague las distribuciones por el flujo de liquidación aprobado. Ninguna distribución está prometida a los inversores.",
-            "item3": "Conserve los registros de la recaudación, los acuerdos aceptados y todos los informes."
-          }
-        }
+      "reports": {
+        "title": "Informes",
+        "description": "Consulta el rendimiento verificado de las entidades, sus actualizaciones y los informes que estás autorizado a ver."
       },
-      "review": {
-        "title": "Cola de revisión de inversiones",
-        "intro": "Solicitudes de participación, revisiones de publicación de oportunidades, aprobaciones de cierre y liberación de fondos. Cada cola muestra solo lo que cubren sus permisos de revisión.",
-        "empty": "No hay colas de revisión disponibles para sus permisos.",
-        "emptyType": "No hay nada esperando en esta cola.",
-        "select": "Elija un elemento para revisarlo.",
-        "tabs": {
-          "applications": "Solicitudes",
-          "opportunities": "Oportunidades",
-          "amendments": "Enmiendas",
-          "closing": "Cierre",
-          "proceeds": "Fondos"
+      "opportunities": {
+        "title": "Oportunidades de inversión",
+        "description": "Explora oportunidades publicadas por entidades elegibles y revisa sus condiciones antes de solicitar participar."
+      },
+      "contributions": {
+        "title": "Contribuciones y estados de cuenta",
+        "description": "Consulta tus contribuciones en OxSteed Credit, asignaciones, acuerdos, estados de cuenta y actividad inmutable."
+      },
+      "actions": {
+        "open": "Abrir",
+        "setup": "Completar configuración"
+      },
+      "status": {
+        "available": "Disponible",
+        "readOnly": "Solo lectura",
+        "setup": "Configuración requerida"
+      }
+    },
+    "entity": {
+      "raise": {
+        "title": "Recaudar capital",
+        "intro": "Solicite recaudar capital de inversores para uno de sus negocios. Su solicitud se mantiene privada hasta que un revisor la apruebe para su publicación.",
+        "documentsNotice": "No incluya documentos sensibles de identidad o financieros en este formulario. Esos van por los flujos restringidos de verificación y documentos, nunca en la descripción pública de una oportunidad.",
+        "business": {
+          "label": "Negocio",
+          "choose": "Elija un negocio",
+          "empty": {
+            "title": "No hay negocio para recaudar",
+            "copy": "Aún no representa a un negocio. Cree un negocio primero y luego vuelva para recaudar capital."
+          }
+        },
+        "authority": {
+          "label": "Estoy autorizado para representar a esta entidad y presentar esta solicitud de recaudación en su nombre.",
+          "hint": "Solo el propietario, gerente o representante autorizado del negocio puede recaudar capital para él."
+        },
+        "sections": {
+          "entity": {
+            "title": "Entidad",
+            "hint": "Quién recauda y con qué autoridad."
+          },
+          "raise": {
+            "title": "La recaudación",
+            "hint": "Propósito de financiación, objetivo y términos. Solo participación en ingresos, solo Estados Unidos."
+          },
+          "details": {
+            "title": "Detalles de la entidad",
+            "hint": "Información de apoyo para revisores e inversores. Sea factual; las proyecciones y promesas de rendimiento no pertenecen aquí."
+          },
+          "agreement": {
+            "title": "Acuerdo",
+            "hint": "El acuerdo rector que aceptan los inversores. La versión exacta aceptada al comprometerse rige el compromiso."
+          }
+        },
+        "form": {
+          "title": {
+            "label": "Título de la oportunidad"
+          },
+          "purpose": {
+            "label": "Propósito de la financiación",
+            "hint": "Qué hace el negocio y por qué recauda."
+          },
+          "target": {
+            "label": "Monto objetivo (USD)",
+            "hint": "El monto total que la recaudación busca reunir."
+          },
+          "minimum": {
+            "label": "Aporte mínimo (USD)",
+            "hint": "El monto más pequeño que un inversor puede comprometer. No puede ser mayor que el objetivo."
+          },
+          "deadline": {
+            "label": "Fecha límite",
+            "hint": "El cierre es todo o nada: el objetivo, la fecha límite y las condiciones de cierre aprobadas deben cumplirse."
+          },
+          "valuation": {
+            "label": "Regla de valoración",
+            "hint": "Cómo se calcula la participación en ingresos, por ejemplo un porcentaje de los ingresos mensuales."
+          },
+          "useOfProceeds": {
+            "label": "Uso de los fondos"
+          },
+          "intermediary": {
+            "label": "Referencia del intermediario",
+            "hint": "Referencia del intermediario registrado, si ya hay uno asignado."
+          },
+          "legal": {
+            "label": "Detalles legales de la entidad, actividad comercial e historial operativo",
+            "hint": "Forma legal, jurisdicción, qué hace el negocio y cuánto tiempo lleva operando."
+          },
+          "financials": {
+            "label": "Información financiera",
+            "hint": "Resumen financiero que respalda la recaudación. No pegue documentos sensibles aquí."
+          },
+          "ownership": {
+            "label": "Información de propiedad"
+          },
+          "risks": {
+            "label": "Riesgos materiales"
+          },
+          "relatedParties": {
+            "label": "Relaciones con partes relacionadas",
+            "hint": "Cualquier relación entre la entidad, sus propietarios y otras partes que un inversor debería conocer."
+          },
+          "agreement": {
+            "label": "Texto del acuerdo"
+          }
+        },
+        "submit": "Crear borrador privado",
+        "creating": "Creando borrador...",
+        "created": {
+          "title": "Borrador privado creado",
+          "copy": "Este borrador es privado. Solo usted y los revisores pueden verlo.",
+          "target": "Objetivo {{amount}}"
+        },
+        "preview": {
+          "title": "Vista previa para inversores",
+          "hint": "Cómo verán los inversores esta oportunidad una vez publicada."
+        },
+        "submitReview": "Enviar para revisión",
+        "submitReviewNote": "El envío no publica la oportunidad. Un revisor debe aprobarla primero, y la publicación es un paso aparte.",
+        "submitted": {
+          "copy": "Enviado para revisión. La oportunidad no está publicada."
+        },
+        "manageLink": "Gestionar esta recaudación",
+        "error": {
+          "loadFailed": "No se pudieron cargar sus negocios. Inténtelo de nuevo.",
+          "createFailed": "No se pudo crear el borrador. Inténtelo de nuevo.",
+          "agreementFailed": "El borrador se creó, pero no se pudo guardar la versión del acuerdo. Agréguela desde la página de gestión.",
+          "submitFailed": "No se pudo enviar para revisión. Inténtelo de nuevo."
         },
         "errors": {
-          "loadFailed": "No se pudo cargar la cola de revisión. Inténtelo de nuevo.",
-          "generic": "No se pudo completar esa acción de revisión. Inténtelo de nuevo.",
-          "notPermitted": "No tiene un permiso de revisión de inversiones, así que esta cola está vacía para usted.",
-          "selfApproval": "No puede revisar su propia solicitud, oportunidad o cierre. Otro revisor debe decidir.",
-          "versionConflict": "Este elemento cambió desde que se cargó. Se ha recargado; revise la versión más reciente e inténtelo de nuevo.",
-          "proceedsBlocked": "Los fondos aún no pueden liberarse. La oportunidad debe estar cerrada con las condiciones de cierre aprobadas primero.",
-          "noAgreement": "Esta oportunidad no puede aprobarse sin una versión del acuerdo.",
-          "transitionInvalid": "Este elemento no puede pasar a ese estado desde donde está ahora.",
-          "reconfirmationPending": "Algunos inversores aún no han reconfirmado esta enmienda. Espere la reconfirmación o a que pase el plazo de reconfirmación antes de hacerla efectiva.",
-          "escrowNothingPending": "No hay ninguna expectativa de depósito pendiente para este compromiso. Es posible que ya esté confirmada."
-        },
-        "actions": {
-          "approve": "Aprobar",
-          "decline": "Rechazar",
-          "needsInformation": "Necesita información",
-          "claim": "Tomar para revisión",
-          "publish": "Publicar"
-        },
-        "application": {
-          "applicant": "Solicitante",
-          "identity": "Identidad verificada",
-          "authority": "Autoridad verificada",
-          "agreementAccepted": "Acuerdo aceptado",
-          "version": "Versión esperada",
-          "eligibility": "Elegibilidad",
-          "note": "Nota de revisión",
-          "confirmIdentity": "Identidad verificada",
-          "confirmAuthority": "Autoridad verificada",
-          "no": "No",
-          "noteRequired": "Se requiere una nota al pedir más información.",
-          "verifyRequired": "La aprobación requiere verificación de identidad y autoridad."
-        },
-        "opportunity": {
-          "target": "Objetivo",
-          "minimum": "Aporte mínimo",
-          "committed": "Comprometido",
-          "progress": "{{percent}}% financiado",
-          "purpose": "Propósito de la financiación",
-          "valuation": "Regla de valoración",
-          "useOfProceeds": "Uso de los fondos",
-          "version": "Versión esperada",
-          "details": "Detalles de la entidad",
-          "detail": {
-            "legalDetails": "Detalles legales",
-            "financials": "Finanzas",
-            "ownership": "Propiedad",
-            "risks": "Riesgos",
-            "relatedParties": "Partes relacionadas"
-          },
-          "decideTitle": "Decisión de revisión",
-          "note": "Nota de revisión",
-          "verifiedItems": "Elementos verificados (uno por línea)",
-          "publishNote": "La publicación es aparte de la aprobación. El representante de la entidad no puede publicar su propia oportunidad."
-        },
-        "closing": {
-          "title": "Cierre",
-          "conditionsApproved": "Condiciones de cierre aprobadas {{date}}.",
-          "conditionsPending": "Las condiciones de cierre aún no están aprobadas.",
-          "reviewApproved": "Revisión aprobada por {{approver}}.",
-          "reviewPending": "La revisión de cierre aún no está aprobada.",
-          "executionApproved": "Ejecución aprobada por {{approver}}.",
-          "executionPending": "La ejecución de cierre aún no está aprobada.",
-          "gateOff": "Los compromisos en vivo están desactivados. El cierre, la liberación de fondos y las distribuciones están inactivos hasta que se apruebe la puerta de compromisos en vivo para un piloto.",
-          "note": "Nota de cierre",
-          "approveConditions": "Aprobar condiciones de cierre",
-          "approveReview": "Aprobar etapa de revisión",
-          "approveExecution": "Aprobar etapa de ejecución",
-          "close": "Cerrar oportunidad",
-          "separateApprovers": "La revisión y la ejecución necesitan aprobadores distintos, y ninguno puede ser el representante de la entidad. Solo el aprobador de ejecución aprobado puede ejecutar el cierre.",
-          "currentVersionOnly": "El cierre solo captura los compromisos de la versión actual del acuerdo. Los compromisos de una versión anterior quedan reservados y deben cancelarse por separado."
-        },
-        "proceeds": {
-          "title": "Fondos y distribuciones",
-          "release": "Liberar fondos",
-          "blockedNote": "La liberación de fondos se mantiene bloqueada hasta que la oportunidad esté cerrada con las condiciones de cierre aprobadas."
-        },
-        "amendments": {
-          "changes": "Cambios propuestos",
-          "reconfirmationTitle": "Reconfirmación del inversor",
-          "reconfirmation": "{{reconfirmed}} de {{total}} inversores reconfirmaron, {{pending}} aún pendientes.",
-          "reconfirmationPendingUsers": "Pendientes de reconfirmación (identificadores de usuario del inversor):",
-          "reconfirmationNone": "Esta enmienda no incluye una nueva versión del acuerdo, así que no hay nada que reconfirmar.",
-          "deadline": "Fecha límite de reconfirmación: {{date}}",
-          "note": "Nota de revisión",
-          "makeEffective": "Marcar como vigente",
-          "reject": "Rechazar",
-          "effectiveNote": "Hacer vigente una enmienda aplica sus cambios a la oportunidad y convierte su nueva versión del acuerdo en la vigente. El rechazo no aplica nada."
-        },
-        "failClose": {
-          "title": "Cierre sin éxito",
-          "copy": "El cierre sin éxito devuelve cada compromiso aún reservado a sus lotes de crédito originales y marca la oportunidad como sin éxito. Úselo cuando la recaudación no se cerrará.",
-          "reason": "Motivo",
-          "button": "Cerrar la oportunidad sin éxito",
-          "note": "Una oportunidad cerrada sin éxito no se puede reabrir. El proceso automático por hora lo hace por las recaudaciones vencidas sin alcanzar el objetivo."
-        },
-        "distributions": {
-          "position": "Posición",
-          "choosePosition": "Elija una posición",
-          "amount": "Monto de la distribución (USD)",
-          "submit": "Solicitar distribución",
-          "empty": "Aún no hay posiciones para esta oportunidad.",
-          "required": "Elija una posición e ingrese un monto válido.",
-          "queued": "Distribución en cola. Un segundo administrador debe aprobarla en Aprobaciones de dinero antes de que se mueva algún Crédito.",
-          "dualApprovalNote": "Las distribuciones necesitan la aprobación de un segundo administrador. No se acredita nada hasta entonces, y el total no puede superar los ingresos de la oportunidad."
-        },
-        "escrow": {
-          "title": "Confirmación de depósito en garantía del socio",
-          "copy": "Registre la confirmación del socio de que los fondos comprometidos de una posición están en depósito en garantía. El cierre lo deja pendiente a propósito: solo la confirmación explícita del socio lo confirma.",
-          "position": "Posición",
-          "choosePosition": "Elija una posición",
-          "partnerRefLabel": "Referencia del socio",
-          "partnerRefPlaceholder": "Referencia de confirmación del socio",
-          "noteLabel": "Nota",
-          "confirm": "Confirmar depósito",
-          "confirmed": "Depósito confirmado para este compromiso.",
-          "partnerRefRequired": "Se requiere una referencia del socio."
+          "business": "Elija un negocio para esta recaudación.",
+          "authority": "Confirme que está autorizado para representar a esta entidad.",
+          "title": "Se requiere un título para la oportunidad.",
+          "purpose": "Se requiere un propósito de financiación.",
+          "target": "Ingrese un monto objetivo válido mayor que cero.",
+          "minimum": "El aporte mínimo debe estar entre cero y el objetivo.",
+          "deadline": "Elija una fecha límite futura.",
+          "valuation": "Se requiere una regla de valoración.",
+          "useOfProceeds": "Describa el uso de los fondos.",
+          "agreement": "Se requiere el texto del acuerdo."
         }
       },
+      "edit": {
+        "title": "Editar borrador de recaudación",
+        "intro": "Cambie los campos del borrador a continuación. Al guardar, la oportunidad sigue siendo un borrador privado. El texto del acuerdo se gestiona desde la página de gestión, y guardar nunca publica nada.",
+        "draftNotice": "Este borrador es privado. Solo usted y los revisores pueden verlo. Guardar cambios nunca publica la oportunidad.",
+        "save": "Guardar cambios del borrador",
+        "saving": "Guardando borrador...",
+        "saved": {
+          "title": "Borrador guardado",
+          "copy": "Sus cambios se guardaron. El borrador sigue siendo privado."
+        },
+        "notEditable": {
+          "copy": "Solo un borrador se puede editar directamente. Una vez enviado, los cambios pasan por el proceso de enmienda con aviso a los inversores y reconfirmación."
+        },
+        "error": {
+          "loadFailed": "No se pudo cargar este borrador. Inténtelo de nuevo.",
+          "saveFailed": "No se pudo guardar el borrador. Inténtelo de nuevo.",
+          "amendmentRequired": "Solo un borrador se puede editar directamente. Esta oportunidad ya avanzó, así que los cambios pasan por el proceso de enmienda."
+        }
+      },
+      "raises": {
+        "title": "Mis recaudaciones",
+        "intro": "Sus solicitudes de recaudación de capital, desde el borrador privado hasta la recaudación publicada.",
+        "newRaise": "Iniciar una nueva recaudación",
+        "error": {
+          "loadFailed": "No se pudieron cargar sus recaudaciones. Inténtelo de nuevo."
+        },
+        "empty": {
+          "title": "Aún no hay recaudaciones",
+          "copy": "Inicie una nueva recaudación para solicitar capital para uno de sus negocios."
+        },
+        "card": {
+          "target": "Objetivo {{amount}}",
+          "committed": "Comprometido {{amount}}",
+          "completed": "Completado {{amount}}",
+          "progress": "{{percent}}% financiado",
+          "deadline": "Fecha límite {{date}}",
+          "manage": "Gestionar",
+          "edit": "Editar borrador",
+          "viewPublic": "Ver página pública"
+        }
+      },
+      "manage": {
+        "title": "Gestionar recaudación",
+        "error": {
+          "loadFailed": "No se pudo cargar esta recaudación. Inténtelo de nuevo.",
+          "actionFailed": "No se pudo completar esa acción. Inténtelo de nuevo.",
+          "previewFailed": "No se pudo cargar la vista previa para inversores. Inténtelo de nuevo."
+        },
+        "status": {
+          "title": "Estado de la recaudación",
+          "target": "Objetivo {{amount}}",
+          "committed": "Comprometido {{amount}}",
+          "completed": "Completado {{amount}}",
+          "progress": "{{percent}}% financiado",
+          "deadline": "Fecha límite {{date}}",
+          "conditionsApproved": "Condiciones de cierre aprobadas.",
+          "closedAt": "Cerrada {{date}}"
+        },
+        "submitted": "Enviado para revisión. La oportunidad no está publicada.",
+        "preview": {
+          "button": "Mostrar vista previa para inversores"
+        },
+        "questions": {
+          "title": "Preguntas de inversores",
+          "hint": "Preguntas de solicitantes e inversores en esta oportunidad. Respóndalas aquí.",
+          "empty": {
+            "title": "Aún no hay preguntas",
+            "copy": "Las preguntas de los inversores aparecerán aquí cuando lleguen."
+          },
+          "answerLabel": "Su respuesta",
+          "answerButton": "Enviar respuesta",
+          "answered": "Respuesta enviada.",
+          "answeredLabel": "Respondida",
+          "answerRequired": "Escriba una respuesta antes de enviar."
+        },
+        "updates": {
+          "title": "Actualizaciones y calendario de informes",
+          "hint": "Publique actualizaciones para los inversores. Una fecha límite perdida se muestra como vencida y nunca desaparece.",
+          "empty": {
+            "title": "Aún no hay actualizaciones",
+            "copy": "Cree la primera actualización para esta recaudación."
+          },
+          "required": "Se requieren el título y el cuerpo de la actualización.",
+          "created": "Actualización creada como borrador.",
+          "published": "Actualización publicada.",
+          "publish": "Publicar",
+          "overdue": "Vencida desde {{date}}",
+          "status": {
+            "draft": "Borrador",
+            "published": "Publicada",
+            "overdue": "Vencida"
+          },
+          "form": {
+            "title": "Título de la actualización",
+            "body": "Actualización",
+            "due": "Fecha de vencimiento",
+            "dueHint": "Cuándo se debe esta actualización a los inversores.",
+            "submit": "Crear actualización"
+          }
+        },
+        "amendments": {
+          "title": "Cambios materiales",
+          "hint": "Los términos no pueden cambiar en silencio después de que existan compromisos. Un cambio material pasa por este proceso controlado: borrador, aviso a los inversores y luego reconfirmación.",
+          "empty": {
+            "title": "No hay enmiendas",
+            "copy": "No se han propuesto cambios materiales para esta oportunidad."
+          },
+          "required": "Describa el cambio antes de crear la enmienda.",
+          "created": "Borrador de enmienda creado.",
+          "proposed": "Enmienda propuesta. Se ha enviado el aviso a los inversores.",
+          "untitled": "Enmienda",
+          "proposedState": "Aviso enviado {{sent}}. Los inversores deben reconfirmar antes del {{deadline}}.",
+          "effectiveState": "Vigente. Los cambios se aplicaron a la oportunidad.",
+          "rejectedState": "Rechazada por un revisor.",
+          "deadlineRequired": "Elija una fecha límite futura para la reconfirmación.",
+          "status": {
+            "draft": "Borrador",
+            "proposed": "Propuesta",
+            "effective": "Vigente",
+            "withdrawn": "Retirada",
+            "rejected": "Rechazada"
+          },
+          "form": {
+            "summary": "Qué cambia",
+            "summaryHint": "Describa el cambio material en lenguaje sencillo.",
+            "version": "Nueva versión del acuerdo",
+            "versionHint": "Elija la versión del acuerdo a la que pasan los inversores, si la hay.",
+            "noNewVersion": "Sin nueva versión del acuerdo",
+            "submit": "Crear enmienda"
+          },
+          "propose": {
+            "deadline": "Fecha límite de reconfirmación",
+            "button": "Proponer y avisar a los inversores"
+          }
+        },
+        "agreements": {
+          "title": "Versiones del acuerdo",
+          "hint": "Las versiones exactas del acuerdo que aceptan los inversores. Un compromiso registra la versión exacta aceptada.",
+          "empty": {
+            "title": "Aún no hay versión del acuerdo",
+            "copy": "Agregue la primera versión del acuerdo. Una oportunidad no puede aprobarse sin una."
+          },
+          "required": "Se requiere el texto del acuerdo.",
+          "created": "Versión del acuerdo creada.",
+          "current": "Versión vigente",
+          "form": {
+            "body": "Texto del acuerdo",
+            "submit": "Agregar versión del acuerdo"
+          }
+        },
+        "obligations": {
+          "title": "Después del cierre: informes y obligaciones",
+          "hint": "La recaudación está cerrada. Estas obligaciones quedan con la entidad.",
+          "item1": "Publique actualizaciones según el calendario de informes. Las actualizaciones perdidas se muestran como vencidas.",
+          "item2": "Pague las distribuciones por el flujo de liquidación aprobado. Ninguna distribución está prometida a los inversores.",
+          "item3": "Conserve los registros de la recaudación, los acuerdos aceptados y todos los informes."
+        }
+      }
+    },
+    "review": {
+      "title": "Cola de revisión de inversiones",
+      "intro": "Solicitudes de participación, revisiones de publicación de oportunidades, aprobaciones de cierre y liberación de fondos. Cada cola muestra solo lo que cubren sus permisos de revisión.",
+      "empty": "No hay colas de revisión disponibles para sus permisos.",
+      "emptyType": "No hay nada esperando en esta cola.",
+      "select": "Elija un elemento para revisarlo.",
+      "tabs": {
+        "applications": "Solicitudes",
+        "opportunities": "Oportunidades",
+        "amendments": "Enmiendas",
+        "closing": "Cierre",
+        "proceeds": "Fondos"
+      },
+      "errors": {
+        "loadFailed": "No se pudo cargar la cola de revisión. Inténtelo de nuevo.",
+        "generic": "No se pudo completar esa acción de revisión. Inténtelo de nuevo.",
+        "notPermitted": "No tiene un permiso de revisión de inversiones, así que esta cola está vacía para usted.",
+        "selfApproval": "No puede revisar su propia solicitud, oportunidad o cierre. Otro revisor debe decidir.",
+        "versionConflict": "Este elemento cambió desde que se cargó. Se ha recargado; revise la versión más reciente e inténtelo de nuevo.",
+        "proceedsBlocked": "Los fondos aún no pueden liberarse. La oportunidad debe estar cerrada con las condiciones de cierre aprobadas primero.",
+        "noAgreement": "Esta oportunidad no puede aprobarse sin una versión del acuerdo.",
+        "transitionInvalid": "Este elemento no puede pasar a ese estado desde donde está ahora.",
+        "reconfirmationPending": "Algunos inversores aún no han reconfirmado esta enmienda. Espere la reconfirmación o a que pase el plazo de reconfirmación antes de hacerla efectiva.",
+        "escrowNothingPending": "No hay ninguna expectativa de depósito pendiente para este compromiso. Es posible que ya esté confirmada."
+      },
+      "actions": {
+        "approve": "Aprobar",
+        "decline": "Rechazar",
+        "needsInformation": "Necesita información",
+        "claim": "Tomar para revisión",
+        "publish": "Publicar"
+      },
+      "application": {
+        "applicant": "Solicitante",
+        "identity": "Identidad verificada",
+        "authority": "Autoridad verificada",
+        "agreementAccepted": "Acuerdo aceptado",
+        "version": "Versión esperada",
+        "eligibility": "Elegibilidad",
+        "note": "Nota de revisión",
+        "confirmIdentity": "Identidad verificada",
+        "confirmAuthority": "Autoridad verificada",
+        "no": "No",
+        "noteRequired": "Se requiere una nota al pedir más información.",
+        "verifyRequired": "La aprobación requiere verificación de identidad y autoridad."
+      },
+      "opportunity": {
+        "target": "Objetivo",
+        "minimum": "Aporte mínimo",
+        "committed": "Comprometido",
+        "progress": "{{percent}}% financiado",
+        "purpose": "Propósito de la financiación",
+        "valuation": "Regla de valoración",
+        "useOfProceeds": "Uso de los fondos",
+        "version": "Versión esperada",
+        "details": "Detalles de la entidad",
+        "detail": {
+          "legalDetails": "Detalles legales",
+          "financials": "Finanzas",
+          "ownership": "Propiedad",
+          "risks": "Riesgos",
+          "relatedParties": "Partes relacionadas"
+        },
+        "decideTitle": "Decisión de revisión",
+        "note": "Nota de revisión",
+        "verifiedItems": "Elementos verificados (uno por línea)",
+        "publishNote": "La publicación es aparte de la aprobación. El representante de la entidad no puede publicar su propia oportunidad."
+      },
+      "closing": {
+        "title": "Cierre",
+        "conditionsApproved": "Condiciones de cierre aprobadas {{date}}.",
+        "conditionsPending": "Las condiciones de cierre aún no están aprobadas.",
+        "reviewApproved": "Revisión aprobada por {{approver}}.",
+        "reviewPending": "La revisión de cierre aún no está aprobada.",
+        "executionApproved": "Ejecución aprobada por {{approver}}.",
+        "executionPending": "La ejecución de cierre aún no está aprobada.",
+        "gateOff": "Los compromisos en vivo están desactivados. El cierre, la liberación de fondos y las distribuciones están inactivos hasta que se apruebe la puerta de compromisos en vivo para un piloto.",
+        "note": "Nota de cierre",
+        "approveConditions": "Aprobar condiciones de cierre",
+        "approveReview": "Aprobar etapa de revisión",
+        "approveExecution": "Aprobar etapa de ejecución",
+        "close": "Cerrar oportunidad",
+        "separateApprovers": "La revisión y la ejecución necesitan aprobadores distintos, y ninguno puede ser el representante de la entidad. Solo el aprobador de ejecución aprobado puede ejecutar el cierre.",
+        "currentVersionOnly": "El cierre solo captura los compromisos de la versión actual del acuerdo. Los compromisos de una versión anterior quedan reservados y deben cancelarse por separado."
+      },
+      "proceeds": {
+        "title": "Fondos y distribuciones",
+        "release": "Liberar fondos",
+        "blockedNote": "La liberación de fondos se mantiene bloqueada hasta que la oportunidad esté cerrada con las condiciones de cierre aprobadas."
+      },
+      "amendments": {
+        "changes": "Cambios propuestos",
+        "reconfirmationTitle": "Reconfirmación del inversor",
+        "reconfirmation": "{{reconfirmed}} de {{total}} inversores reconfirmaron, {{pending}} aún pendientes.",
+        "reconfirmationPendingUsers": "Pendientes de reconfirmación (identificadores de usuario del inversor):",
+        "reconfirmationNone": "Esta enmienda no incluye una nueva versión del acuerdo, así que no hay nada que reconfirmar.",
+        "deadline": "Fecha límite de reconfirmación: {{date}}",
+        "note": "Nota de revisión",
+        "makeEffective": "Marcar como vigente",
+        "reject": "Rechazar",
+        "effectiveNote": "Hacer vigente una enmienda aplica sus cambios a la oportunidad y convierte su nueva versión del acuerdo en la vigente. El rechazo no aplica nada."
+      },
+      "failClose": {
+        "title": "Cierre sin éxito",
+        "copy": "El cierre sin éxito devuelve cada compromiso aún reservado a sus lotes de crédito originales y marca la oportunidad como sin éxito. Úselo cuando la recaudación no se cerrará.",
+        "reason": "Motivo",
+        "button": "Cerrar la oportunidad sin éxito",
+        "note": "Una oportunidad cerrada sin éxito no se puede reabrir. El proceso automático por hora lo hace por las recaudaciones vencidas sin alcanzar el objetivo."
+      },
+      "distributions": {
+        "position": "Posición",
+        "choosePosition": "Elija una posición",
+        "amount": "Monto de la distribución (USD)",
+        "submit": "Solicitar distribución",
+        "empty": "Aún no hay posiciones para esta oportunidad.",
+        "required": "Elija una posición e ingrese un monto válido.",
+        "queued": "Distribución en cola. Un segundo administrador debe aprobarla en Aprobaciones de dinero antes de que se mueva algún Crédito.",
+        "dualApprovalNote": "Las distribuciones necesitan la aprobación de un segundo administrador. No se acredita nada hasta entonces, y el total no puede superar los ingresos de la oportunidad."
+      },
+      "escrow": {
+        "title": "Confirmación de depósito en garantía del socio",
+        "copy": "Registre la confirmación del socio de que los fondos comprometidos de una posición están en depósito en garantía. El cierre lo deja pendiente a propósito: solo la confirmación explícita del socio lo confirma.",
+        "position": "Posición",
+        "choosePosition": "Elija una posición",
+        "partnerRefLabel": "Referencia del socio",
+        "partnerRefPlaceholder": "Referencia de confirmación del socio",
+        "noteLabel": "Nota",
+        "confirm": "Confirmar depósito",
+        "confirmed": "Depósito confirmado para este compromiso.",
+        "partnerRefRequired": "Se requiere una referencia del socio."
+      }
+    },
     "application": {
       "agreementAccepted": "La versión del acuerdo fue aceptada y registrada.",
       "choose": {
@@ -25841,26 +25932,25 @@
       "step2Body": "La comisión OxSteed acordada se copia en el lead al asignarlo, manteniendo tu parte y la parte de la plataforma fijadas para ese lead.",
       "step3Title": "3. Ejecución del pipeline",
       "step3Body": "Usa tu panel para pasar leads de introducción a descubrimiento, propuesta, engagement y finalización mientras mantienes a OxSteed informado."
-    }
-  ,
-  "sessions": {
-    "label": "Citas",
-    "title": "Tus sesiones",
-    "description": "Citas confirmadas con clientes, incluidas propuestas de reprogramación, asistencia y cancelación.",
-    "loading": "Cargando sesiones…",
-    "emptyTitle": "Aún no hay sesiones",
-    "emptyDescription": "Cuando un cliente reserve una sesión contigo, aparecerá aquí con su hora, propuestas y asistencia.",
-    "clientFallback": "Cliente",
-    "pendingProposals": "Reprogramación propuesta",
-    "proposedBy": "Propuesta por {{role}}",
-    "status": {
-      "pending_confirmation": "En espera de confirmación",
-      "confirmed": "Confirmada",
-      "completed": "Completada",
-      "no_show": "No asistió",
-      "cancelled": "Cancelada"
-    }
-  },
+    },
+    "sessions": {
+      "label": "Citas",
+      "title": "Tus sesiones",
+      "description": "Citas confirmadas con clientes, incluidas propuestas de reprogramación, asistencia y cancelación.",
+      "loading": "Cargando sesiones…",
+      "emptyTitle": "Aún no hay sesiones",
+      "emptyDescription": "Cuando un cliente reserve una sesión contigo, aparecerá aquí con su hora, propuestas y asistencia.",
+      "clientFallback": "Cliente",
+      "pendingProposals": "Reprogramación propuesta",
+      "proposedBy": "Propuesta por {{role}}",
+      "status": {
+        "pending_confirmation": "En espera de confirmación",
+        "confirmed": "Confirmada",
+        "completed": "Completada",
+        "no_show": "No asistió",
+        "cancelled": "Cancelada"
+      }
+    },
     "engagements": {
       "label": "Compromisos",
       "title": "Tablero de hitos",
@@ -25871,18 +25961,18 @@
     "title": "Propuesta de trabajo",
     "show": "Mostrar",
     "hide": "Ocultar",
-    "loading": "Cargando\u2026",
+    "loading": "Cargando…",
     "loadError": "No se pudieron cargar las propuestas.",
     "saveError": "No se pudo guardar el borrador.",
     "draftSaved": "Borrador guardado.",
     "sent": "Propuesta enviada al cliente.",
     "withdrawn": "Propuesta retirada.",
-    "sentVersion": "Versi\u00f3n {{version}} enviada",
-    "draftVersion": "Borrador versi\u00f3n {{version}}",
-    "newTitle": "Nueva versi\u00f3n de propuesta",
+    "sentVersion": "Versión {{version}} enviada",
+    "draftVersion": "Borrador versión {{version}}",
+    "newTitle": "Nueva versión de propuesta",
     "editTitle": "Editar borrador",
-    "formHint": "Una propuesta enviada no se puede editar. Env\u00eda una nueva versi\u00f3n; reemplaza la que ya tiene el cliente.",
-    "fieldTitle": "T\u00edtulo",
+    "formHint": "Una propuesta enviada no se puede editar. Envía una nueva versión; reemplaza la que ya tiene el cliente.",
+    "fieldTitle": "Título",
     "titlePlaceholder": "Trabajo de lanzamiento de negocio",
     "fieldScope": "Resumen del alcance",
     "scopePlaceholder": "Lo que cubre el trabajo, en lenguaje sencillo.",
@@ -25890,9 +25980,9 @@
     "deliverablesTitle": "Entregables",
     "addDeliverable": "Agregar entregable",
     "removeDeliverable": "Quitar entregable",
-    "deliverableTitlePlaceholder": "T\u00edtulo del entregable",
+    "deliverableTitlePlaceholder": "Título del entregable",
     "deliverableType": "Tipo",
-    "deliverableDue": "Fecha l\u00edmite",
+    "deliverableDue": "Fecha límite",
     "deliverableDescriptionPlaceholder": "Lo que recibe el cliente.",
     "deliverableTypes": {
       "sop": "Procedimiento",
@@ -25904,16 +25994,16 @@
       "other": "Otro"
     },
     "exclusionsTitle": "Exclusiones del alcance",
-    "exclusionsHint": "Indica lo que no est\u00e1 incluido, para que el cliente nunca lo suponga.",
-    "addExclusion": "Agregar exclusi\u00f3n",
-    "removeExclusion": "Quitar exclusi\u00f3n",
-    "exclusionPlaceholder": "No incluido: \u2026",
+    "exclusionsHint": "Indica lo que no está incluido, para que el cliente nunca lo suponga.",
+    "addExclusion": "Agregar exclusión",
+    "removeExclusion": "Quitar exclusión",
+    "exclusionPlaceholder": "No incluido: …",
     "saveDraft": "Guardar borrador",
     "cancelEdit": "Cancelar",
-    "newVersion": "Redactar una nueva versi\u00f3n de propuesta",
+    "newVersion": "Redactar una nueva versión de propuesta",
     "historyTitle": "Historial de versiones",
-    "historyEmpty": "A\u00fan no hay propuestas. Redacta la primera versi\u00f3n para dejar el trabajo por escrito.",
-    "versionLabel": "Versi\u00f3n {{version}}",
+    "historyEmpty": "Aún no hay propuestas. Redacta la primera versión para dejar el trabajo por escrito.",
+    "versionLabel": "Versión {{version}}",
     "versionMeta": "{{count}} entregables",
     "decidedOn": "decidido el {{date}}",
     "dueLabel": "vence el {{date}}",
@@ -25930,18 +26020,18 @@
       "withdrawn": "Retirada",
       "superseded": "Reemplazada"
     },
-    "clientOnly": "Las propuestas son visibles para el due\u00f1o de la solicitud.",
-    "clientEmpty": "A\u00fan no hay propuesta. Tu consultor enviar\u00e1 una aqu\u00ed cuando el alcance est\u00e9 acordado.",
-    "approved": "Propuesta aprobada. El trabajo est\u00e1 acordado.",
-    "rejected": "Propuesta rechazada. Tu consultor puede enviar una versi\u00f3n revisada.",
+    "clientOnly": "Las propuestas son visibles para el dueño de la solicitud.",
+    "clientEmpty": "Aún no hay propuesta. Tu consultor enviará una aquí cuando el alcance esté acordado.",
+    "approved": "Propuesta aprobada. El trabajo está acordado.",
+    "rejected": "Propuesta rechazada. Tu consultor puede enviar una versión revisada.",
     "approve": "Aprobar propuesta",
     "reject": "Pedir cambios",
     "rejectConfirm": "Enviar rechazo",
-    "rejectReasonLabel": "\u00bfQu\u00e9 debe cambiar?",
-    "rejectReasonPlaceholder": "Dile a tu consultor qu\u00e9 cambiar, para que la pr\u00f3xima versi\u00f3n lo haga bien.",
-    "rejectReasonRequired": "Dile al consultor qu\u00e9 cambiar (al menos 10 caracteres).",
-    "decisionReason": "Nota de decisi\u00f3n: {{reason}}",
-    "adminEmpty": "A\u00fan no hay propuesta para esta solicitud."
+    "rejectReasonLabel": "¿Qué debe cambiar?",
+    "rejectReasonPlaceholder": "Dile a tu consultor qué cambiar, para que la próxima versión lo haga bien.",
+    "rejectReasonRequired": "Dile al consultor qué cambiar (al menos 10 caracteres).",
+    "decisionReason": "Nota de decisión: {{reason}}",
+    "adminEmpty": "Aún no hay propuesta para esta solicitud."
   },
   "consultantDeliverable": {
     "title": "Tablero de hitos",
@@ -26016,27 +26106,27 @@
     "pause": "Pausar el trabajo",
     "paused": "Trabajo pausado.",
     "resumed": "Trabajo reanudado.",
-    "pausedNotice": "Este trabajo est\u00e1 en pausa. El trabajo de hitos y la aprobaci\u00f3n de cambios est\u00e1n en espera hasta que se reanude.",
-    "pauseReasonPlaceholder": "\u00bfPor qu\u00e9 pausar? (al menos 10 caracteres)",
+    "pausedNotice": "Este trabajo está en pausa. El trabajo de hitos y la aprobación de cambios están en espera hasta que se reanude.",
+    "pauseReasonPlaceholder": "¿Por qué pausar? (al menos 10 caracteres)",
     "requestType": "Tipo de cambio",
     "types": {
-      "scope_revision": "Revisi\u00f3n de alcance",
+      "scope_revision": "Revisión de alcance",
       "deadline_adjustment": "Ajuste de plazo",
       "additional_fee": "Tarifa adicional"
     },
     "milestone": "Hito",
     "wholeEngagement": "Todo el trabajo",
-    "newTitlePlaceholder": "Nuevo t\u00edtulo del hito (opcional)",
-    "newDescriptionPlaceholder": "Nuevo alcance o descripci\u00f3n",
-    "newDueDate": "Nueva fecha l\u00edmite",
-    "amountPlaceholder": "Tarifa adicional en d\u00f3lares",
-    "reasonPlaceholder": "\u00bfPor qu\u00e9 es necesario este cambio? (al menos 10 caracteres)",
+    "newTitlePlaceholder": "Nuevo título del hito (opcional)",
+    "newDescriptionPlaceholder": "Nuevo alcance o descripción",
+    "newDueDate": "Nueva fecha límite",
+    "amountPlaceholder": "Tarifa adicional en dólares",
+    "reasonPlaceholder": "¿Por qué es necesario este cambio? (al menos 10 caracteres)",
     "submitRequest": "Enviar solicitud de cambio",
     "requested": "Solicitud de cambio enviada.",
     "approved": "Solicitud de cambio aprobada.",
     "rejected": "Solicitud de cambio rechazada.",
     "withdrawn": "Solicitud de cambio retirada.",
-    "empty": "A\u00fan no hay cambios.",
+    "empty": "Aún no hay cambios.",
     "status": {
       "pending": "pendiente",
       "approved": "aprobada",
@@ -26048,7 +26138,7 @@
       "consultant": "consultor",
       "client": "cliente"
     },
-    "decisionReason": "Decisi\u00f3n: {{reason}}",
+    "decisionReason": "Decisión: {{reason}}",
     "rejectReasonPlaceholder": "Motivo del rechazo (obligatorio)",
     "approve": "Aprobar",
     "reject": "Rechazar",
@@ -28874,80 +28964,80 @@
           "mixedCurrency": "Monedas mixtas",
           "convertedTotal": "Total convertido ({{currency}})"
         },
-      "fx": {
-        "convertedTitle": "Totales convertidos",
-        "title": "Tipos de cambio y moneda de informe",
-        "hint": "Los totales convertidos usan solo tasas guardadas. Ingrese tasas registradas o importadas por un administrador; una moneda sin tasa guardada se marca, nunca se estima.",
-        "reportingCurrency": "Moneda de informe: {{currency}}",
-        "rateDate": "Fecha de la tasa: {{date}}",
-        "defaultPolicy": "Política predeterminada",
-        "missingRate": "No hay tasa guardada para {{currencies}}; el total convertido no se muestra.",
-        "convertedTotal": "total convertido",
-        "rate": "tasa {{rate}} el {{date}}",
-        "noRate": "sin tasa guardada",
-        "staleRate": "Las cifras convertidas usan una tasa guardada del {{date}}, de hace {{days}} días. Las tasas se ingresan manualmente, así que comprueba que la tasa siga vigente.",
-        "reportingCurrencyLabel": "Moneda de informe",
-        "rateSourceLabel": "Origen de la tasa",
-        "sourceStored": "Tasas guardadas",
-        "sourceAdmin": "Ingresadas por el administrador",
-        "sourceImport": "Importadas",
-        "rateDateModeLabel": "Fecha de la tasa",
-        "modePeriodEnd": "Fin del período",
-        "modeRateDate": "Fecha fija",
-        "rateDateLabel": "Fecha de la tasa",
-        "baseLabel": "Moneda de origen",
-        "quoteLabel": "Moneda de destino",
-        "rateLabel": "Tasa",
-        "addRate": "Agregar tasa",
-        "policySaved": "Política de cambio guardada.",
-        "policyError": "No se pudo guardar la política de cambio.",
-        "rateSaved": "Tasa guardada.",
-        "rateError": "No se pudo guardar la tasa."
-      },
-      "laborPolicies": {
-        "title": "Políticas laborales por tienda",
-        "hint": "Establezca reglas de horas extra por tienda. Una tienda sin política propia usa la política general del restaurante.",
-        "none": "Aún no hay tiendas.",
-        "store": "Tienda",
-        "source": "Origen",
-        "weeklyThreshold": "Umbral semanal de horas extra (horas)",
-        "multiplier": "Multiplicador de horas extra",
-        "breakAfter": "Descanso después de (minutos)",
-        "saved": "Política laboral guardada.",
-        "saveError": "No se pudo guardar la política laboral."
-      },
-      "payRuns": {
-        "title": "Nóminas pendientes de aprobación de HQ",
-        "hint": "Las nóminas finalizadas esperan un segundo aprobador aquí. Quien finalizó una nómina no puede aprobarla.",
-        "none": "No hay nóminas finalizadas esperando aprobación.",
-        "stores": "{{count}} tiendas",
-        "approve": "Aprobar",
-        "approved": "Nómina aprobada.",
-        "approveError": "No se pudo aprobar la nómina."
-      },
-      "borrows": {
-        "title": "Préstamo de personal entre tiendas",
-        "hint": "Tome prestado un trabajador de una tienda para cubrir un turno en otra. Quien solicita no puede aprobar su propia solicitud.",
-        "worker": "Trabajador",
-        "selectWorker": "Elija un trabajador",
-        "homeStore": "Tienda de origen",
-        "borrowStore": "Tienda que recibe",
-        "selectStore": "Elija una tienda",
-        "start": "Inicio",
-        "end": "Fin",
-        "request": "Solicitar préstamo",
-        "requested": "Préstamo solicitado.",
-        "requestError": "No se pudo solicitar el préstamo.",
-        "approve": "Aprobar",
-        "decline": "Rechazar",
-        "approved": "Préstamo aprobado.",
-        "declined": "Préstamo rechazado.",
-        "reviewError": "No se pudo revisar el préstamo.",
-        "rosterTitle": "Plantilla compartida",
-        "shifts": "{{count}} turnos",
-        "borrowed": "{{count}} préstamos",
-        "overnight": "termina al día siguiente"
-      }
+        "fx": {
+          "convertedTitle": "Totales convertidos",
+          "title": "Tipos de cambio y moneda de informe",
+          "hint": "Los totales convertidos usan solo tasas guardadas. Ingrese tasas registradas o importadas por un administrador; una moneda sin tasa guardada se marca, nunca se estima.",
+          "reportingCurrency": "Moneda de informe: {{currency}}",
+          "rateDate": "Fecha de la tasa: {{date}}",
+          "defaultPolicy": "Política predeterminada",
+          "missingRate": "No hay tasa guardada para {{currencies}}; el total convertido no se muestra.",
+          "convertedTotal": "total convertido",
+          "rate": "tasa {{rate}} el {{date}}",
+          "noRate": "sin tasa guardada",
+          "staleRate": "Las cifras convertidas usan una tasa guardada del {{date}}, de hace {{days}} días. Las tasas se ingresan manualmente, así que comprueba que la tasa siga vigente.",
+          "reportingCurrencyLabel": "Moneda de informe",
+          "rateSourceLabel": "Origen de la tasa",
+          "sourceStored": "Tasas guardadas",
+          "sourceAdmin": "Ingresadas por el administrador",
+          "sourceImport": "Importadas",
+          "rateDateModeLabel": "Fecha de la tasa",
+          "modePeriodEnd": "Fin del período",
+          "modeRateDate": "Fecha fija",
+          "rateDateLabel": "Fecha de la tasa",
+          "baseLabel": "Moneda de origen",
+          "quoteLabel": "Moneda de destino",
+          "rateLabel": "Tasa",
+          "addRate": "Agregar tasa",
+          "policySaved": "Política de cambio guardada.",
+          "policyError": "No se pudo guardar la política de cambio.",
+          "rateSaved": "Tasa guardada.",
+          "rateError": "No se pudo guardar la tasa."
+        },
+        "laborPolicies": {
+          "title": "Políticas laborales por tienda",
+          "hint": "Establezca reglas de horas extra por tienda. Una tienda sin política propia usa la política general del restaurante.",
+          "none": "Aún no hay tiendas.",
+          "store": "Tienda",
+          "source": "Origen",
+          "weeklyThreshold": "Umbral semanal de horas extra (horas)",
+          "multiplier": "Multiplicador de horas extra",
+          "breakAfter": "Descanso después de (minutos)",
+          "saved": "Política laboral guardada.",
+          "saveError": "No se pudo guardar la política laboral."
+        },
+        "payRuns": {
+          "title": "Nóminas pendientes de aprobación de HQ",
+          "hint": "Las nóminas finalizadas esperan un segundo aprobador aquí. Quien finalizó una nómina no puede aprobarla.",
+          "none": "No hay nóminas finalizadas esperando aprobación.",
+          "stores": "{{count}} tiendas",
+          "approve": "Aprobar",
+          "approved": "Nómina aprobada.",
+          "approveError": "No se pudo aprobar la nómina."
+        },
+        "borrows": {
+          "title": "Préstamo de personal entre tiendas",
+          "hint": "Tome prestado un trabajador de una tienda para cubrir un turno en otra. Quien solicita no puede aprobar su propia solicitud.",
+          "worker": "Trabajador",
+          "selectWorker": "Elija un trabajador",
+          "homeStore": "Tienda de origen",
+          "borrowStore": "Tienda que recibe",
+          "selectStore": "Elija una tienda",
+          "start": "Inicio",
+          "end": "Fin",
+          "request": "Solicitar préstamo",
+          "requested": "Préstamo solicitado.",
+          "requestError": "No se pudo solicitar el préstamo.",
+          "approve": "Aprobar",
+          "decline": "Rechazar",
+          "approved": "Préstamo aprobado.",
+          "declined": "Préstamo rechazado.",
+          "reviewError": "No se pudo revisar el préstamo.",
+          "rosterTitle": "Plantilla compartida",
+          "shifts": "{{count}} turnos",
+          "borrowed": "{{count}} préstamos",
+          "overnight": "termina al día siguiente"
+        }
       },
       "brandHq": {
         "title": "Central de marca",
@@ -28997,128 +29087,128 @@
         "attach": "Añadir restaurante",
         "attachSuccess": "Restaurante añadido a la marca",
         "attachError": "No se pudo añadir el restaurante",
-      "fx": {
-        "convertedTitle": "Totales convertidos",
-        "title": "Tipos de cambio y moneda de informe de la marca",
-        "hint": "Los totales convertidos de la marca usan solo tasas guardadas. Ingrese tasas registradas o importadas por un administrador; una moneda sin tasa guardada se marca, nunca se estima.",
-        "savePolicy": "Guardar política",
-        "reportingCurrency": "Moneda de informe: {{currency}}",
-        "rateDate": "Fecha de la tasa: {{date}}",
-        "defaultPolicy": "Política predeterminada",
-        "missingRate": "No hay tasa guardada para {{currencies}}; el total convertido no se muestra.",
-        "convertedTotal": "total convertido",
-        "rate": "tasa {{rate}} el {{date}}",
-        "noRate": "sin tasa guardada",
-        "staleRate": "Las cifras convertidas usan una tasa guardada del {{date}}, de hace {{days}} días. Las tasas se ingresan manualmente, así que comprueba que la tasa siga vigente.",
-        "reportingCurrencyLabel": "Moneda de informe",
-        "rateSourceLabel": "Origen de la tasa",
-        "sourceStored": "Tasas guardadas",
-        "sourceAdmin": "Ingresadas por el administrador",
-        "sourceImport": "Importadas",
-        "rateDateModeLabel": "Fecha de la tasa",
-        "modePeriodEnd": "Fin del período",
-        "modeRateDate": "Fecha fija",
-        "rateDateLabel": "Fecha de la tasa",
-        "baseLabel": "Moneda de origen",
-        "quoteLabel": "Moneda de destino",
-        "rateLabel": "Tasa",
-        "addRate": "Agregar tasa",
-        "policySaved": "Política de cambio guardada.",
-        "policyError": "No se pudo guardar la política de cambio.",
-        "rateSaved": "Tasa guardada.",
-        "rateError": "No se pudo guardar la tasa."
-      },
-      "rollouts": {
-        "title": "Lanzamientos escalonados de menú",
-        "hint": "Lance un menú primero en los restaurantes piloto y luego en todos los demás destinos. Solo puede haber un lanzamiento abierto a la vez.",
-        "pilotRestaurants": "Restaurantes piloto",
-        "targetRestaurants": "Restaurantes destino",
-        "create": "Crear lanzamiento",
-        "created": "Lanzamiento creado.",
-        "createError": "No se pudo crear el lanzamiento.",
-        "advanced": "Lanzamiento avanzado.",
-        "advanceError": "No se pudo avanzar el lanzamiento.",
-        "cancelled": "Lanzamiento cancelado.",
-        "cancelError": "No se pudo cancelar el lanzamiento.",
-        "stage": "Etapa: {{stage}}",
-        "pilotCount": "piloto",
-        "targetCount": "destinos",
-        "advancePilot": "Publicar en piloto",
-        "advanceAll": "Publicar en todos los destinos",
-        "cancel": "Cancelar"
-      },
-      "consolidations": {
-        "title": "Nóminas consolidadas",
-        "hint": "Agrupe nóminas finalizadas del mismo período de pago en una consolidación. Finalizar y aprobar requieren dos personas distintas.",
-        "noFinalized": "No hay nóminas finalizadas en este período.",
-        "selectRuns": "Nóminas finalizadas",
-        "create": "Crear consolidación",
-        "created": "Consolidación creada.",
-        "createError": "No se pudo crear la consolidación.",
-        "members": "nóminas",
-        "finalize": "Finalizar",
-        "approve": "Aprobar",
-        "void": "Anular",
-        "finalized": "Consolidación finalizada.",
-        "approved": "Consolidación aprobada.",
-        "voided": "Consolidación anulada.",
-        "voidRequested": "Anulación solicitada. Otro gerente de nómina debe aprobarla.",
-        "voidApprove": "Aprobar anulación",
-        "voidApproved": "Consolidación anulada.",
-        "voidPending": "Anulación solicitada. Esta consolidación espera la aprobación de otro gerente de nómina.",
-        "actionError": "No se pudo actualizar la consolidación.",
-        "viewDetails": "Ver detalle",
-        "detailTitle": "Consolidación n.º {{id}}",
-        "detailError": "No se pudo cargar la consolidación.",
-        "finalizedAt": "Finalizada {{date}}",
-        "approvedAt": "Aprobada {{date}}",
-        "memberRun": "Nómina n.º {{id}}",
-        "closeDetails": "Cerrar detalle"
-      },
-      "franchise": {
-        "title": "Informe de franquicia",
-        "loadError": "No se pudo cargar el informe de franquicia.",
-        "reportingCurrency": "Moneda de informe: {{currency}}",
-        "rateDate": "Fecha de la tasa: {{date}}",
-        "defaultPolicy": "Política predeterminada",
-        "missingRates": "No hay tasa guardada para {{currencies}}",
-        "storeCol": "Tienda",
-        "salesCol": "Ventas",
-        "royaltyCol": "Regalía",
-        "marketingCol": "Cuota de marketing",
-        "agreementCol": "Acuerdo",
-        "noAgreement": "Sin acuerdo",
-        "royaltyBps": "Regalía {{bps}} pb",
-        "marketingBps": "Marketing {{bps}} pb",
-        "accrualCol": "Devengo",
-        "accrualFailedCount": "{{count}} fallidos",
-        "accrualStatus": {
-          "accrued": "Devengado",
-          "failed": "Fallido",
-          "pending": "Pendiente"
+        "fx": {
+          "convertedTitle": "Totales convertidos",
+          "title": "Tipos de cambio y moneda de informe de la marca",
+          "hint": "Los totales convertidos de la marca usan solo tasas guardadas. Ingrese tasas registradas o importadas por un administrador; una moneda sin tasa guardada se marca, nunca se estima.",
+          "savePolicy": "Guardar política",
+          "reportingCurrency": "Moneda de informe: {{currency}}",
+          "rateDate": "Fecha de la tasa: {{date}}",
+          "defaultPolicy": "Política predeterminada",
+          "missingRate": "No hay tasa guardada para {{currencies}}; el total convertido no se muestra.",
+          "convertedTotal": "total convertido",
+          "rate": "tasa {{rate}} el {{date}}",
+          "noRate": "sin tasa guardada",
+          "staleRate": "Las cifras convertidas usan una tasa guardada del {{date}}, de hace {{days}} días. Las tasas se ingresan manualmente, así que comprueba que la tasa siga vigente.",
+          "reportingCurrencyLabel": "Moneda de informe",
+          "rateSourceLabel": "Origen de la tasa",
+          "sourceStored": "Tasas guardadas",
+          "sourceAdmin": "Ingresadas por el administrador",
+          "sourceImport": "Importadas",
+          "rateDateModeLabel": "Fecha de la tasa",
+          "modePeriodEnd": "Fin del período",
+          "modeRateDate": "Fecha fija",
+          "rateDateLabel": "Fecha de la tasa",
+          "baseLabel": "Moneda de origen",
+          "quoteLabel": "Moneda de destino",
+          "rateLabel": "Tasa",
+          "addRate": "Agregar tasa",
+          "policySaved": "Política de cambio guardada.",
+          "policyError": "No se pudo guardar la política de cambio.",
+          "rateSaved": "Tasa guardada.",
+          "rateError": "No se pudo guardar la tasa."
         },
-        "totalsSales": "Ventas",
-        "totalsRoyalty": "Regalía",
-        "totalsMarketing": "Marketing",
-        "totalsInitial": "Cuotas iniciales",
-        "mappings": {
-          "title": "Acuerdos por tienda",
-          "hint": "Cada tienda está asignada a un acuerdo de franquicia. Una tienda sin acuerdo reporta sus ventas sin regalías.",
-          "unmappedTitle": "Tiendas sin acuerdo",
-          "ambiguousTitle": "Acuerdos por confirmar",
-          "ambiguousHint": "Estas tiendas se asignaron desde territorios superpuestos. Confirme que el acuerdo es correcto.",
-          "ambiguousCount": "{{count}} acuerdos coincidían con esta tienda",
-          "selectAgreement": "Seleccione un acuerdo",
-          "assign": "Asignar",
-          "change": "Cambiar",
-          "unassign": "Quitar",
-          "assigned": "Acuerdo asignado.",
-          "removed": "Acuerdo eliminado.",
-          "assignError": "No se pudo asignar el acuerdo.",
-          "removeError": "No se pudo quitar el acuerdo.",
-          "noStores": "Aún no hay tiendas en esta marca."
+        "rollouts": {
+          "title": "Lanzamientos escalonados de menú",
+          "hint": "Lance un menú primero en los restaurantes piloto y luego en todos los demás destinos. Solo puede haber un lanzamiento abierto a la vez.",
+          "pilotRestaurants": "Restaurantes piloto",
+          "targetRestaurants": "Restaurantes destino",
+          "create": "Crear lanzamiento",
+          "created": "Lanzamiento creado.",
+          "createError": "No se pudo crear el lanzamiento.",
+          "advanced": "Lanzamiento avanzado.",
+          "advanceError": "No se pudo avanzar el lanzamiento.",
+          "cancelled": "Lanzamiento cancelado.",
+          "cancelError": "No se pudo cancelar el lanzamiento.",
+          "stage": "Etapa: {{stage}}",
+          "pilotCount": "piloto",
+          "targetCount": "destinos",
+          "advancePilot": "Publicar en piloto",
+          "advanceAll": "Publicar en todos los destinos",
+          "cancel": "Cancelar"
+        },
+        "consolidations": {
+          "title": "Nóminas consolidadas",
+          "hint": "Agrupe nóminas finalizadas del mismo período de pago en una consolidación. Finalizar y aprobar requieren dos personas distintas.",
+          "noFinalized": "No hay nóminas finalizadas en este período.",
+          "selectRuns": "Nóminas finalizadas",
+          "create": "Crear consolidación",
+          "created": "Consolidación creada.",
+          "createError": "No se pudo crear la consolidación.",
+          "members": "nóminas",
+          "finalize": "Finalizar",
+          "approve": "Aprobar",
+          "void": "Anular",
+          "finalized": "Consolidación finalizada.",
+          "approved": "Consolidación aprobada.",
+          "voided": "Consolidación anulada.",
+          "voidRequested": "Anulación solicitada. Otro gerente de nómina debe aprobarla.",
+          "voidApprove": "Aprobar anulación",
+          "voidApproved": "Consolidación anulada.",
+          "voidPending": "Anulación solicitada. Esta consolidación espera la aprobación de otro gerente de nómina.",
+          "actionError": "No se pudo actualizar la consolidación.",
+          "viewDetails": "Ver detalle",
+          "detailTitle": "Consolidación n.º {{id}}",
+          "detailError": "No se pudo cargar la consolidación.",
+          "finalizedAt": "Finalizada {{date}}",
+          "approvedAt": "Aprobada {{date}}",
+          "memberRun": "Nómina n.º {{id}}",
+          "closeDetails": "Cerrar detalle"
+        },
+        "franchise": {
+          "title": "Informe de franquicia",
+          "loadError": "No se pudo cargar el informe de franquicia.",
+          "reportingCurrency": "Moneda de informe: {{currency}}",
+          "rateDate": "Fecha de la tasa: {{date}}",
+          "defaultPolicy": "Política predeterminada",
+          "missingRates": "No hay tasa guardada para {{currencies}}",
+          "storeCol": "Tienda",
+          "salesCol": "Ventas",
+          "royaltyCol": "Regalía",
+          "marketingCol": "Cuota de marketing",
+          "agreementCol": "Acuerdo",
+          "noAgreement": "Sin acuerdo",
+          "royaltyBps": "Regalía {{bps}} pb",
+          "marketingBps": "Marketing {{bps}} pb",
+          "accrualCol": "Devengo",
+          "accrualFailedCount": "{{count}} fallidos",
+          "accrualStatus": {
+            "accrued": "Devengado",
+            "failed": "Fallido",
+            "pending": "Pendiente"
+          },
+          "totalsSales": "Ventas",
+          "totalsRoyalty": "Regalía",
+          "totalsMarketing": "Marketing",
+          "totalsInitial": "Cuotas iniciales",
+          "mappings": {
+            "title": "Acuerdos por tienda",
+            "hint": "Cada tienda está asignada a un acuerdo de franquicia. Una tienda sin acuerdo reporta sus ventas sin regalías.",
+            "unmappedTitle": "Tiendas sin acuerdo",
+            "ambiguousTitle": "Acuerdos por confirmar",
+            "ambiguousHint": "Estas tiendas se asignaron desde territorios superpuestos. Confirme que el acuerdo es correcto.",
+            "ambiguousCount": "{{count}} acuerdos coincidían con esta tienda",
+            "selectAgreement": "Seleccione un acuerdo",
+            "assign": "Asignar",
+            "change": "Cambiar",
+            "unassign": "Quitar",
+            "assigned": "Acuerdo asignado.",
+            "removed": "Acuerdo eliminado.",
+            "assignError": "No se pudo asignar el acuerdo.",
+            "removeError": "No se pudo quitar el acuerdo.",
+            "noStores": "Aún no hay tiendas en esta marca."
+          }
         }
-      }
       },
       "storeHub": {
         "title": "Hub en tienda",
@@ -37946,7 +38036,7 @@
     "sectionMessageHistory": "Historial de mensajes",
     "emptyMessages": "Aún no se han enviado mensajes",
     "messageErrorLine": "Error: {{error}}",
-      "consultantReply": "Respuesta del consultor",
+    "consultantReply": "Respuesta del consultor",
     "closeButton": "Cerrar"
   },
   "adminAdminAccounts": {
@@ -44906,7 +44996,6 @@
     "bidExpired": "Esta oferta ha caducado.",
     "bidExpires": "La oferta caduca el {{date}}",
     "reviewChanges": "Revisar cambios del trabajo y reconfirmar la oferta"
-
   },
   "quoteWorkspace": {
     "title": "Presupuestos detallados",

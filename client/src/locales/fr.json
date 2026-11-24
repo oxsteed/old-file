@@ -1969,24 +1969,78 @@
     "invitedGoal": "Rejoindre l’équipe qui vous a invité",
     "invitedGoalHelp": "Créez votre compte client et vérifiez votre adresse e-mail. Ensuite, consultez votre invitation et répondez-y.",
     "personas": {
-      "customer": { "title": "Trouver de l'aide locale", "description": "Publiez une demande, trouvez de l'aide et commandez à manger." },
-      "helper": { "title": "Proposer des services", "description": "Créez un profil, répondez aux opportunités et soyez payé." },
-      "businessOwner": { "title": "Gérer une entreprise", "description": "Créez votre présence et gérez votre activité." },
-      "businessTeam": { "title": "Rejoindre une équipe", "description": "Travaillez pour une entreprise invitée avec des outils limités." },
-      "restaurantOwner": { "title": "Gérer un restaurant", "description": "Configurez un restaurant et gérez ses opérations." },
-      "restaurantTeam": { "title": "Travailler dans un restaurant", "description": "Utilisez uniquement les outils de votre établissement." },
-      "logistics": { "title": "Transport et livraison", "description": "Coordonnez les expéditions, livraisons et dispatchs." },
-      "consultant": { "title": "Conseiller des clients", "description": "Partagez votre expertise dans des missions approuvées." },
-      "equipmentOwner": { "title": "Proposer du matériel", "description": "Proposez des outils et équipements à la location." },
-      "franchise": { "title": "Opérer une franchise", "description": "Suivez l'inscription du territoire et la préparation." },
-      "investorReporting": { "title": "Voir les rapports d'investissement", "description": "Demandez des rapports éligibles; cela n'autorise jamais l'investissement." },
-      "creditParticipant": { "title": "Participer à OxSteed Credit", "description": "Suivez l'inscription et l'éligibilité du programme." },
-      "partnerAffiliate": { "title": "Partenaire ou affilié", "description": "Rejoignez un programme partenaire approuvé." },
-      "workforceLearning": { "title": "Apprendre ou enseigner", "description": "Rejoignez un programme de travail ou d'apprentissage." },
-      "reviewer": { "title": "Examiner les demandes", "description": "Demandez l'accès interne nécessaire à ce travail." },
-      "supportAgent": { "title": "Aider les clients", "description": "Demandez l'accès interne d'agent support." },
-      "operationsStaff": { "title": "Gérer les opérations", "description": "Demandez un accès interne aux opérations." },
-      "deviceServiceAccount": { "title": "Connecter un appareil ou service", "description": "Utilisez des identifiants non humains fournis par un administrateur." }
+      "customer": {
+        "title": "Trouver de l'aide locale",
+        "description": "Publiez une demande, trouvez de l'aide et commandez à manger."
+      },
+      "helper": {
+        "title": "Proposer des services",
+        "description": "Créez un profil, répondez aux opportunités et soyez payé."
+      },
+      "businessOwner": {
+        "title": "Gérer une entreprise",
+        "description": "Créez votre présence et gérez votre activité."
+      },
+      "businessTeam": {
+        "title": "Rejoindre une équipe",
+        "description": "Travaillez pour une entreprise invitée avec des outils limités."
+      },
+      "restaurantOwner": {
+        "title": "Gérer un restaurant",
+        "description": "Configurez un restaurant et gérez ses opérations."
+      },
+      "restaurantTeam": {
+        "title": "Travailler dans un restaurant",
+        "description": "Utilisez uniquement les outils de votre établissement."
+      },
+      "logistics": {
+        "title": "Transport et livraison",
+        "description": "Coordonnez les expéditions, livraisons et dispatchs."
+      },
+      "consultant": {
+        "title": "Conseiller des clients",
+        "description": "Partagez votre expertise dans des missions approuvées."
+      },
+      "equipmentOwner": {
+        "title": "Proposer du matériel",
+        "description": "Proposez des outils et équipements à la location."
+      },
+      "franchise": {
+        "title": "Opérer une franchise",
+        "description": "Suivez l'inscription du territoire et la préparation."
+      },
+      "investorReporting": {
+        "title": "Voir les rapports d'investissement",
+        "description": "Demandez des rapports éligibles; cela n'autorise jamais l'investissement."
+      },
+      "creditParticipant": {
+        "title": "Participer à OxSteed Credit",
+        "description": "Suivez l'inscription et l'éligibilité du programme."
+      },
+      "partnerAffiliate": {
+        "title": "Partenaire ou affilié",
+        "description": "Rejoignez un programme partenaire approuvé."
+      },
+      "workforceLearning": {
+        "title": "Apprendre ou enseigner",
+        "description": "Rejoignez un programme de travail ou d'apprentissage."
+      },
+      "reviewer": {
+        "title": "Examiner les demandes",
+        "description": "Demandez l'accès interne nécessaire à ce travail."
+      },
+      "supportAgent": {
+        "title": "Aider les clients",
+        "description": "Demandez l'accès interne d'agent support."
+      },
+      "operationsStaff": {
+        "title": "Gérer les opérations",
+        "description": "Demandez un accès interne aux opérations."
+      },
+      "deviceServiceAccount": {
+        "title": "Connecter un appareil ou service",
+        "description": "Utilisez des identifiants non humains fournis par un administrateur."
+      }
     },
     "admission": {
       "baseline": "L'accès client est disponible immédiatement.",
@@ -15487,36 +15541,35 @@
     "timeOff": "Votre temps libre",
     "blockedDateAdded": "Date bloquée ajoutée",
     "blockedDateRemoved": "Date bloquée supprimée",
-    "dateRequired": "Veuillez sélectionner une date"
-  ,
-  "yourTime": "Votre heure",
-  "rescheduleProposed": "Report proposé",
-  "rescheduleAccepted": "Report accepté",
-  "rescheduleDeclined": "Report refusé",
-  "rescheduleWithdrawn": "Report retiré",
-  "rescheduleTitle": "Proposer un nouvel horaire",
-  "rescheduleCurrent": "Rendez-vous actuel : {{date}} à {{time}}",
-  "pickDate": "Choisir une date",
-  "pickTime": "Choisir une heure",
-  "rescheduleReason": "Motif (facultatif)",
-  "rescheduleReasonPlaceholder": "Pourquoi proposez-vous un nouvel horaire ?",
-  "rescheduleCanonicalNote": "Les heures sont affichées dans votre fuseau horaire ; la réservation reste dans celui du consultant ({{zone}}).",
-  "proposeNewTime": "Proposer un nouvel horaire",
-  "cancelTitle": "Annuler ce rendez-vous",
-  "cancelReason": "Motif",
-  "cancelReasonPlaceholder": "Pourquoi ce rendez-vous est-il annulé ?",
-  "requestRefund": "Demander un remboursement pour ce rendez-vous",
-  "cancelNote": "Vous et le consultant serez informés. Les remboursements sont traités séparément par un administrateur.",
-  "cancelled": "Rendez-vous annulé",
-  "cancelSession": "Annuler le rendez-vous",
-  "confirmAttendance": "Confirmer la présence",
-  "attendanceConfirmed": "Présence confirmée",
-  "attendanceConfirmedByYou": "Vous avez confirmé votre présence",
-  "attendanceConfirmedByClient": "Le client a confirmé sa présence",
-  "attendanceConfirmedByConsultant": "Le consultant a confirmé sa présence",
-  "accept": "Accepter",
-  "decline": "Refuser",
-  "withdraw": "Retirer"
+    "dateRequired": "Veuillez sélectionner une date",
+    "yourTime": "Votre heure",
+    "rescheduleProposed": "Report proposé",
+    "rescheduleAccepted": "Report accepté",
+    "rescheduleDeclined": "Report refusé",
+    "rescheduleWithdrawn": "Report retiré",
+    "rescheduleTitle": "Proposer un nouvel horaire",
+    "rescheduleCurrent": "Rendez-vous actuel : {{date}} à {{time}}",
+    "pickDate": "Choisir une date",
+    "pickTime": "Choisir une heure",
+    "rescheduleReason": "Motif (facultatif)",
+    "rescheduleReasonPlaceholder": "Pourquoi proposez-vous un nouvel horaire ?",
+    "rescheduleCanonicalNote": "Les heures sont affichées dans votre fuseau horaire ; la réservation reste dans celui du consultant ({{zone}}).",
+    "proposeNewTime": "Proposer un nouvel horaire",
+    "cancelTitle": "Annuler ce rendez-vous",
+    "cancelReason": "Motif",
+    "cancelReasonPlaceholder": "Pourquoi ce rendez-vous est-il annulé ?",
+    "requestRefund": "Demander un remboursement pour ce rendez-vous",
+    "cancelNote": "Vous et le consultant serez informés. Les remboursements sont traités séparément par un administrateur.",
+    "cancelled": "Rendez-vous annulé",
+    "cancelSession": "Annuler le rendez-vous",
+    "confirmAttendance": "Confirmer la présence",
+    "attendanceConfirmed": "Présence confirmée",
+    "attendanceConfirmedByYou": "Vous avez confirmé votre présence",
+    "attendanceConfirmedByClient": "Le client a confirmé sa présence",
+    "attendanceConfirmedByConsultant": "Le consultant a confirmé sa présence",
+    "accept": "Accepter",
+    "decline": "Refuser",
+    "withdraw": "Retirer"
   },
   "regionForm": {
     "boundaryTypes": {
@@ -17182,34 +17235,34 @@
       "chargeAccepted": "Vous avez accepté le frais.",
       "chargeDeclined": "Vous avez refusé le frais.",
       "chargeRespondFailed": "Impossible d'envoyer votre réponse.",
-        "authority": {
-          "booker": {
-            "0": "Gérer la réservation",
-            "1": "Inviter ou remplacer un destinataire, un contact sur place ou un parrain",
-            "2": "Partager le reçu"
-          },
-          "recipient": {
-            "0": "Lire cette réservation",
-            "1": "Accepter ou refuser la visite",
-            "2": "Annuler la réservation",
-            "3": "Confirmer l'achèvement",
-            "4": "Partager un avis"
-          },
-          "siteContact": {
-            "0": "Lire le statut de la visite",
-            "1": "Coordonner l'accès au site",
-            "2": "Confirmer la remise",
-            "3": "Envoyer un message dans le chat de la réservation"
-          },
-          "sponsor": {
-            "0": "Aperçu du montant parrainé",
-            "1": "Accepter ou refuser",
-            "2": "Payer avec votre propre carte",
-            "3": "Approuver ou refuser les frais supplémentaires"
-          }
+      "authority": {
+        "booker": {
+          "0": "Gérer la réservation",
+          "1": "Inviter ou remplacer un destinataire, un contact sur place ou un parrain",
+          "2": "Partager le reçu"
         },
-        "scopeSite": "Lieu",
-        "scopeDescription": "Détails"
+        "recipient": {
+          "0": "Lire cette réservation",
+          "1": "Accepter ou refuser la visite",
+          "2": "Annuler la réservation",
+          "3": "Confirmer l'achèvement",
+          "4": "Partager un avis"
+        },
+        "siteContact": {
+          "0": "Lire le statut de la visite",
+          "1": "Coordonner l'accès au site",
+          "2": "Confirmer la remise",
+          "3": "Envoyer un message dans le chat de la réservation"
+        },
+        "sponsor": {
+          "0": "Aperçu du montant parrainé",
+          "1": "Accepter ou refuser",
+          "2": "Payer avec votre propre carte",
+          "3": "Approuver ou refuser les frais supplémentaires"
+        }
+      },
+      "scopeSite": "Lieu",
+      "scopeDescription": "Détails"
     },
     "breakdownPayerBooker": "Personne qui réserve",
     "paymentStatusPaid": "Payé",
@@ -17222,104 +17275,104 @@
     "paymentStatusExpired": "Expiré",
     "paymentStatusVoided": "Annulé",
     "paymentStatusRequested": "Demandé",
-  "additionalChargeSuffix": "(frais supplémentaires)"
+    "additionalChargeSuffix": "(frais supplémentaires)"
   },
   "household": {
-      "title": "Foyer",
-      "subtitle": "Invitez des délégués pour aider à gérer les visites, les adresses et les plans de soins. Les délégués ne paient jamais et ne voient jamais les détails de paiement.",
-      "loading": "Chargement du foyer...",
-      "loadFailed": "Impossible de charger le foyer.",
-      "actionFailed": "Cela n’a pas fonctionné. Réessayez.",
-      "exportButton": "Exporter l’historique",
-      "tabs": {
-        "delegations": "Délégations",
-        "calendar": "Calendrier",
-        "addresses": "Adresses",
-        "contacts": "Contacts",
-        "templates": "Modèles",
-        "tasks": "Tâches",
-        "approvals": "Dépenses",
-        "documents": "Documents"
-      },
-      "inviteTitle": "Inviter un délégué",
-      "emailLabel": "E-mail du délégué",
-      "emailPlaceholder": "delegue@exemple.com",
-      "coordinatorLabel": "Coordinateur familial",
-      "scopesLabel": "Ce que ce délégué peut faire",
-      "inviteButton": "Envoyer l’invitation",
-      "invitationsTitle": "Invitations pour vous",
-      "accept": "Accepter",
-      "decline": "Refuser",
-      "delegationsTitle": "Délégués",
-      "noDelegations": "Aucun délégué pour le moment.",
-      "coordinatorBadge": "coordinateur",
-      "daysLeft": "Expire dans {{count}} jours",
-      "expiresSoon": "Expire bientôt",
-      "scopePreview": "Aperçu du périmètre",
-      "viewActivity": "Activité",
-      "renew": "Renouveler",
-      "revoke": "Révoquer",
-      "reinvite": "Réinviter",
-      "makeCoordinator": "Nommer coordinateur",
-      "revokeReason": "Révoqué par le propriétaire",
-      "calendarTitle": "Calendrier partagé",
-      "noVisits": "Aucune visite à venir.",
-      "checklistProgress": "{{done}} points sur {{total}} prêts",
-      "readinessConfirmed": "Prêt confirmé",
-      "confirmReadiness": "Confirmer prêt",
-      "remind": "Rappeler",
-      "addressesTitle": "Carnet d’adresses du foyer",
-      "manageInSettings": "Gérer les adresses dans les réglages",
-      "noAddresses": "Aucune adresse partagée pour le moment.",
-      "entryPreset": "Accès prédéfini",
-      "contactsTitle": "Contacts de rechange",
-      "nameLabel": "Nom",
-      "phoneLabel": "Téléphone",
-      "relationshipLabel": "Lien",
-      "emergencyLabel": "Contact d’urgence",
-      "addContact": "Ajouter un contact",
-      "archive": "Archiver",
-      "noContacts": "Aucun contact pour le moment.",
-      "emergencyBadge": "urgence",
-      "templatesTitle": "Modèles de rendez-vous récurrents",
-      "templateNameLabel": "Nom du modèle",
-      "serviceLabel": "Service",
-      "frequencyLabel": "Fréquence",
-      "addTemplate": "Ajouter un modèle",
-      "delete": "Supprimer",
-      "noTemplates": "Aucun modèle pour le moment.",
-      "tasksTitle": "Plans de maintenance",
-      "overdue": "En retard",
-      "dueSoon": "Bientôt dû",
-      "upcoming": "À venir",
-      "kindLabel": "Type",
-      "taskTitleLabel": "Titre",
-      "dueLabel": "Date limite",
-      "addTask": "Ajouter un plan",
-      "complete": "Marquer terminé",
-      "noTasks": "Aucun plan ouvert.",
-      "approvalsTitle": "Approbations de dépenses",
-      "approvalsNote": "Un délégué demande, le propriétaire décide. Approuver ne facture jamais rien.",
-      "amountLabel": "Montant (centimes)",
-      "reasonLabel": "Motif",
-      "requestApproval": "Demander une approbation",
-      "approve": "Approuver",
-      "deny": "Refuser",
-      "noApprovals": "Aucune demande pour le moment.",
-      "documentsTitle": "Coffre de documents",
-      "bodyLabel": "Détails",
-      "addDocument": "Ajouter un document",
-      "noDocuments": "Aucun document pour le moment.",
-      "scopes": {
-        "book": "Réserver des visites",
-        "schedule": "Planifier des visites",
-        "prepare": "Préparer des visites",
-        "coordinate": "Coordonner les personnes",
-        "view_records": "Lire les dossiers",
-        "manage_addresses": "Gérer les adresses",
-        "manage_tasks": "Gérer les plans",
-        "view_calendar": "Voir le calendrier seulement"
-      }
+    "title": "Foyer",
+    "subtitle": "Invitez des délégués pour aider à gérer les visites, les adresses et les plans de soins. Les délégués ne paient jamais et ne voient jamais les détails de paiement.",
+    "loading": "Chargement du foyer...",
+    "loadFailed": "Impossible de charger le foyer.",
+    "actionFailed": "Cela n’a pas fonctionné. Réessayez.",
+    "exportButton": "Exporter l’historique",
+    "tabs": {
+      "delegations": "Délégations",
+      "calendar": "Calendrier",
+      "addresses": "Adresses",
+      "contacts": "Contacts",
+      "templates": "Modèles",
+      "tasks": "Tâches",
+      "approvals": "Dépenses",
+      "documents": "Documents"
+    },
+    "inviteTitle": "Inviter un délégué",
+    "emailLabel": "E-mail du délégué",
+    "emailPlaceholder": "delegue@exemple.com",
+    "coordinatorLabel": "Coordinateur familial",
+    "scopesLabel": "Ce que ce délégué peut faire",
+    "inviteButton": "Envoyer l’invitation",
+    "invitationsTitle": "Invitations pour vous",
+    "accept": "Accepter",
+    "decline": "Refuser",
+    "delegationsTitle": "Délégués",
+    "noDelegations": "Aucun délégué pour le moment.",
+    "coordinatorBadge": "coordinateur",
+    "daysLeft": "Expire dans {{count}} jours",
+    "expiresSoon": "Expire bientôt",
+    "scopePreview": "Aperçu du périmètre",
+    "viewActivity": "Activité",
+    "renew": "Renouveler",
+    "revoke": "Révoquer",
+    "reinvite": "Réinviter",
+    "makeCoordinator": "Nommer coordinateur",
+    "revokeReason": "Révoqué par le propriétaire",
+    "calendarTitle": "Calendrier partagé",
+    "noVisits": "Aucune visite à venir.",
+    "checklistProgress": "{{done}} points sur {{total}} prêts",
+    "readinessConfirmed": "Prêt confirmé",
+    "confirmReadiness": "Confirmer prêt",
+    "remind": "Rappeler",
+    "addressesTitle": "Carnet d’adresses du foyer",
+    "manageInSettings": "Gérer les adresses dans les réglages",
+    "noAddresses": "Aucune adresse partagée pour le moment.",
+    "entryPreset": "Accès prédéfini",
+    "contactsTitle": "Contacts de rechange",
+    "nameLabel": "Nom",
+    "phoneLabel": "Téléphone",
+    "relationshipLabel": "Lien",
+    "emergencyLabel": "Contact d’urgence",
+    "addContact": "Ajouter un contact",
+    "archive": "Archiver",
+    "noContacts": "Aucun contact pour le moment.",
+    "emergencyBadge": "urgence",
+    "templatesTitle": "Modèles de rendez-vous récurrents",
+    "templateNameLabel": "Nom du modèle",
+    "serviceLabel": "Service",
+    "frequencyLabel": "Fréquence",
+    "addTemplate": "Ajouter un modèle",
+    "delete": "Supprimer",
+    "noTemplates": "Aucun modèle pour le moment.",
+    "tasksTitle": "Plans de maintenance",
+    "overdue": "En retard",
+    "dueSoon": "Bientôt dû",
+    "upcoming": "À venir",
+    "kindLabel": "Type",
+    "taskTitleLabel": "Titre",
+    "dueLabel": "Date limite",
+    "addTask": "Ajouter un plan",
+    "complete": "Marquer terminé",
+    "noTasks": "Aucun plan ouvert.",
+    "approvalsTitle": "Approbations de dépenses",
+    "approvalsNote": "Un délégué demande, le propriétaire décide. Approuver ne facture jamais rien.",
+    "amountLabel": "Montant (centimes)",
+    "reasonLabel": "Motif",
+    "requestApproval": "Demander une approbation",
+    "approve": "Approuver",
+    "deny": "Refuser",
+    "noApprovals": "Aucune demande pour le moment.",
+    "documentsTitle": "Coffre de documents",
+    "bodyLabel": "Détails",
+    "addDocument": "Ajouter un document",
+    "noDocuments": "Aucun document pour le moment.",
+    "scopes": {
+      "book": "Réserver des visites",
+      "schedule": "Planifier des visites",
+      "prepare": "Préparer des visites",
+      "coordinate": "Coordonner les personnes",
+      "view_records": "Lire les dossiers",
+      "manage_addresses": "Gérer les adresses",
+      "manage_tasks": "Gérer les plans",
+      "view_calendar": "Voir le calendrier seulement"
+    }
   },
   "checkout": {
     "title": "Vérifier",
@@ -18663,7 +18716,11 @@
       "expenses": "Dépenses",
       "net": "Net",
       "empty": "Aucune dépense enregistrée pour le moment.",
-      "filter": { "all": "Tout", "expense": "Dépenses", "income": "Revenus" }
+      "filter": {
+        "all": "Tout",
+        "expense": "Dépenses",
+        "income": "Revenus"
+      }
     },
     "goals": {
       "title": "Objectifs",
@@ -18677,7 +18734,11 @@
       "subtitle": "Tout ce qui vous attend à la maison, au même endroit.",
       "empty": "Aucune tâche en attente.",
       "completed": "Terminée",
-      "filter": { "all": "Toutes", "open": "Ouvertes", "completed": "Terminées" },
+      "filter": {
+        "all": "Toutes",
+        "open": "Ouvertes",
+        "completed": "Terminées"
+      },
       "calendarTitle": "Calendrier d'entretien de la maison",
       "prevMonth": "Mois précédent",
       "nextMonth": "Mois suivant",
@@ -18991,6 +19052,9 @@
       "launchPlanStatusBlocked": "Bloquée",
       "launchPlanChangeStatus": "Changer le statut",
       "launchPlanStatusFailed": "Impossible de mettre à jour l'étape. Veuillez réessayer.",
+      "historyTitle": "Historique de l'attribution",
+      "historySubtitle": "Chaque étape de votre attribution, de la candidature au lancement.",
+      "historyEmpty": "Aucun historique d'attribution pour le moment.",
       "launchPlanEmpty": "Aucune étape du plan de lancement pour le moment.",
       "launchPlanStepConfirmBoundary": "Confirmer la limite du territoire et l'exclusivité",
       "launchPlanStepConfirmBoundaryDesc": "Passez en revue le résumé des limites et l'exclusivité avec le siège.",
@@ -19166,13 +19230,12 @@
     "emptyStat1Value": "Découverte, orientation et choix du forfait",
     "emptyStat1Label": "Commence avec clarté",
     "emptyPreviewTitle": "Ce que ce portail devient après l'achat",
-    "emptyEyebrow": "Conseil en lancement d'entreprise"
-  ,
-  "schedulePanelTitle": "Votre rendez-vous",
-  "pendingProposals": "Report proposé",
-  "proposedByYou": "Proposé par vous",
-  "proposedByConsultant": "Proposé par votre consultant",
-  "proposedByOxsteed": "Proposé par OxSteed"
+    "emptyEyebrow": "Conseil en lancement d'entreprise",
+    "schedulePanelTitle": "Votre rendez-vous",
+    "pendingProposals": "Report proposé",
+    "proposedByYou": "Proposé par vous",
+    "proposedByConsultant": "Proposé par votre consultant",
+    "proposedByOxsteed": "Proposé par OxSteed"
   },
   "logistics": {
     "forms": {
@@ -21678,9 +21741,8 @@
   "adminConsultingSessionDetail": {
     "confirm": {
       "complete": "Marquer cette session comme terminée ? Un e-mail de suivi sera envoyé au client avec des actions à réaliser.",
-      "noShow": "Marquer cette session comme absence ? Un e-mail de suivi sera envoyé au client pour proposer un report."
-    ,
-    "cancel": "Annuler cette séance ? Le rendez-vous et la séance seront annulés ensemble et les deux parties seront informées."
+      "noShow": "Marquer cette session comme absence ? Un e-mail de suivi sera envoyé au client pour proposer un report.",
+      "cancel": "Annuler cette séance ? Le rendez-vous et la séance seront annulés ensemble et les deux parties seront informées."
     },
     "toast": {
       "loadConsultantsFailed": "Impossible de charger les consultants",
@@ -21695,15 +21757,13 @@
       "statusUpdateFailed": "Impossible de mettre à jour le statut",
       "noteRequired": "Veuillez saisir une note",
       "notesSaved": "Notes enregistrées avec succès",
-      "saveNotesFailed": "Impossible d’enregistrer les notes"
-    ,
-    "sessionNotStarted": "Cette séance n’a pas encore commencé, elle ne peut donc pas être marquée comme terminée.",
-    "cancelled": "Séance annulée.",
-    "cancelFailed": "Impossible d’annuler la séance."
-    }
-  ,
-  "cancelSession": "Annuler la séance",
-  "cancelHint": "Annule le rendez-vous et la séance ensemble, et informe les deux parties. Les remboursements restent gérés séparément."
+      "saveNotesFailed": "Impossible d’enregistrer les notes",
+      "sessionNotStarted": "Cette séance n’a pas encore commencé, elle ne peut donc pas être marquée comme terminée.",
+      "cancelled": "Séance annulée.",
+      "cancelFailed": "Impossible d’annuler la séance."
+    },
+    "cancelSession": "Annuler la séance",
+    "cancelHint": "Annule le rendez-vous et la séance ensemble, et informe les deux parties. Les remboursements restent gérés séparément."
   },
   "adminConsultingScheduler": {
     "loading": "Chargement des sessions…",
@@ -22542,7 +22602,14 @@
       "exceptionsTitle": "Résumé des exceptions",
       "exceptionsOpenCount": "{{count}} exceptions ouvertes sur cet envoi",
       "exceptionsEmpty": "Aucune exception enregistrée pour cet envoi.",
-      "exceptionKinds": {"issue": "Problème", "return": "Retour", "reschedule": "Report", "failed_attempt": "Tentative échouée", "delay_escalation": "Escalade pour retard", "pickup_mismatch": "Écart de comptage à la collecte"},
+      "exceptionKinds": {
+        "issue": "Problème",
+        "return": "Retour",
+        "reschedule": "Report",
+        "failed_attempt": "Tentative échouée",
+        "delay_escalation": "Escalade pour retard",
+        "pickup_mismatch": "Écart de comptage à la collecte"
+      },
       "documentsTitle": "Documents",
       "documentsEmpty": "Aucun document pour cette livraison pour l’instant.",
       "documentProof": "Preuve de livraison ({{type}})",
@@ -22554,8 +22621,16 @@
       "disputeTitle": "Litiges",
       "disputeSubtitle": "Contestez une mission terminée. Résoudre un litige ne déplace jamais d’argent.",
       "disputeSubject": "Objet du litige",
-      "disputeSubjects": {"payout_amount": "Montant du paiement", "assignment_facts": "Faits de la mission", "rating": "Évaluation"},
-      "disputeStatuses": {"open": "Ouvert", "under_review": "En cours d’examen", "resolved": "Résolu"},
+      "disputeSubjects": {
+        "payout_amount": "Montant du paiement",
+        "assignment_facts": "Faits de la mission",
+        "rating": "Évaluation"
+      },
+      "disputeStatuses": {
+        "open": "Ouvert",
+        "under_review": "En cours d’examen",
+        "resolved": "Résolu"
+      },
       "disputeDescription": "Ce qui s’est passé",
       "disputeSubmit": "Déposer un litige",
       "disputeSubmitted": "Litige déposé.",
@@ -23013,8 +23088,8 @@
         "supportTitle": "Besoin d'aide ?",
         "supportHint": "Contactez le support livraison au sujet de cet envoi.",
         "backHome": "Retour à l'accueil OxSteed",
-      "documentsTitle": "Documents de livraison",
-      "documentsEmpty": "Aucun document partagé pour cette livraison."
+        "documentsTitle": "Documents de livraison",
+        "documentsEmpty": "Aucun document partagé pour cette livraison."
       },
       "milestones": {
         "placed": "Livraison demandée",
@@ -24451,427 +24526,443 @@
     "workspace": {
       "title": "Investissements",
       "intro": "Un espace pour les rapports vérifiés, les opportunités éligibles et vos contributions et relevés.",
-      "reports": { "title": "Rapports", "description": "Consultez les performances vérifiées des entités, leurs mises à jour et les rapports auxquels vous êtes autorisé à accéder." },
-      "opportunities": { "title": "Opportunités d’investissement", "description": "Explorez les opportunités publiées par des entités éligibles et examinez les conditions avant de demander à participer." },
-      "contributions": { "title": "Contributions et relevés", "description": "Consultez vos contributions OxSteed Credit, vos allocations, vos accords, vos relevés et votre historique immuable." },
-      "actions": { "open": "Ouvrir", "setup": "Terminer la configuration" },
-      "status": { "available": "Disponible", "readOnly": "Lecture seule", "setup": "Configuration requise" }
-    },
-      "entity": {
-        "raise": {
-          "title": "Lever des capitaux",
-          "intro": "Demandez à lever des capitaux auprès d'investisseurs pour l'une de vos entreprises. Votre demande reste privée jusqu'à ce qu'un réviseur l'approuve pour publication.",
-          "documentsNotice": "N'incluez pas de documents sensibles d'identité ou financiers dans ce formulaire. Ils passent par les flux restreints de vérification et de documents, jamais dans la description publique d'une opportunité.",
-          "business": {
-            "label": "Entreprise",
-            "choose": "Choisir une entreprise",
-            "empty": {
-              "title": "Aucune entreprise pour lever des capitaux",
-              "copy": "Vous ne représentez pas encore d'entreprise. Créez d'abord une entreprise, puis revenez lever des capitaux."
-            }
-          },
-          "authority": {
-            "label": "Je suis autorisé à représenter cette entité et à soumettre cette demande de levée de fonds en son nom.",
-            "hint": "Seul le propriétaire, le gérant ou le représentant autorisé de l'entreprise peut lever des capitaux pour elle."
-          },
-          "sections": {
-            "entity": {
-              "title": "Entité",
-              "hint": "Qui lève des fonds, et en vertu de quelle autorité."
-            },
-            "raise": {
-              "title": "La levée",
-              "hint": "Objet du financement, objectif et conditions. Partage de revenus uniquement, États-Unis uniquement."
-            },
-            "details": {
-              "title": "Détails de l'entité",
-              "hint": "Informations à l'appui pour les réviseurs et les investisseurs. Restez factuel ; les prévisions et les promesses de rendement n'ont pas leur place ici."
-            },
-            "agreement": {
-              "title": "Accord",
-              "hint": "L'accord de référence que les investisseurs acceptent. La version exacte acceptée au moment de l'engagement régit l'engagement."
-            }
-          },
-          "form": {
-            "title": {
-              "label": "Titre de l'opportunité"
-            },
-            "purpose": {
-              "label": "Objet du financement",
-              "hint": "Ce que fait l'entreprise et pourquoi elle lève des fonds."
-            },
-            "target": {
-              "label": "Montant cible (USD)",
-              "hint": "Le montant total que la levée vise à collecter."
-            },
-            "minimum": {
-              "label": "Contribution minimale (USD)",
-              "hint": "Le plus petit montant qu'un investisseur peut engager. Il ne peut pas dépasser l'objectif."
-            },
-            "deadline": {
-              "label": "Date limite",
-              "hint": "La clôture est tout ou rien : l'objectif, la date limite et les conditions de clôture approuvées doivent tous être remplis."
-            },
-            "valuation": {
-              "label": "Règle d'évaluation",
-              "hint": "Comment la part de revenus est calculée, par exemple un pourcentage du revenu mensuel."
-            },
-            "useOfProceeds": {
-              "label": "Utilisation des fonds"
-            },
-            "intermediary": {
-              "label": "Référence de l'intermédiaire",
-              "hint": "Référence de l'intermédiaire agréé, si un est déjà désigné."
-            },
-            "legal": {
-              "label": "Détails juridiques de l'entité, activité commerciale et historique d'exploitation",
-              "hint": "Forme juridique, juridiction, ce que fait l'entreprise et depuis combien de temps elle opère."
-            },
-            "financials": {
-              "label": "Informations financières",
-              "hint": "Résumé financier à l'appui de la levée. Ne collez pas de documents sensibles ici."
-            },
-            "ownership": {
-              "label": "Informations sur la propriété"
-            },
-            "risks": {
-              "label": "Risques importants"
-            },
-            "relatedParties": {
-              "label": "Relations avec des parties liées",
-              "hint": "Toute relation entre l'entité, ses propriétaires et d'autres parties qu'un investisseur devrait connaître."
-            },
-            "agreement": {
-              "label": "Texte de l'accord"
-            }
-          },
-          "submit": "Créer un brouillon privé",
-          "creating": "Création du brouillon...",
-          "created": {
-            "title": "Brouillon privé créé",
-            "copy": "Ce brouillon est privé. Seuls vous et les réviseurs pouvez le voir.",
-            "target": "Objectif {{amount}}"
-          },
-          "preview": {
-            "title": "Aperçu pour les investisseurs",
-            "hint": "Comment les investisseurs verront cette opportunité une fois publiée."
-          },
-          "submitReview": "Soumettre pour révision",
-          "submitReviewNote": "La soumission ne publie pas l'opportunité. Un réviseur doit d'abord l'approuver, et la publication est une étape distincte.",
-          "submitted": {
-            "copy": "Soumis pour révision. L'opportunité n'est pas publiée."
-          },
-          "manageLink": "Gérer cette levée",
-          "error": {
-            "loadFailed": "Impossible de charger vos entreprises. Veuillez réessayer.",
-            "createFailed": "Impossible de créer le brouillon. Veuillez réessayer.",
-            "agreementFailed": "Le brouillon a été créé, mais la version de l'accord n'a pas pu être enregistrée. Ajoutez-la depuis la page de gestion.",
-            "submitFailed": "Impossible de soumettre pour révision. Veuillez réessayer."
-          },
-          "errors": {
-            "business": "Choisissez une entreprise pour cette levée.",
-            "authority": "Confirmez que vous êtes autorisé à représenter cette entité.",
-            "title": "Un titre d'opportunité est requis.",
-            "purpose": "Un objet de financement est requis.",
-            "target": "Saisissez un montant cible valide supérieur à zéro.",
-            "minimum": "La contribution minimale doit être entre zéro et l'objectif.",
-            "deadline": "Choisissez une date limite future.",
-            "valuation": "Une règle d'évaluation est requise.",
-            "useOfProceeds": "Décrivez l'utilisation des fonds.",
-            "agreement": "Le texte de l'accord est requis."
-          }
-        },
-        "edit": {
-          "title": "Modifier le brouillon de levée",
-          "intro": "Modifiez les champs du brouillon ci-dessous. L'enregistrement conserve l'opportunité comme brouillon privé. Le texte de l'accord se gère depuis la page de gestion, et l'enregistrement ne publie jamais rien.",
-          "draftNotice": "Ce brouillon est privé. Seuls vous et les réviseurs pouvez le voir. Enregistrer des modifications ne publie jamais l'opportunité.",
-          "save": "Enregistrer les modifications du brouillon",
-          "saving": "Enregistrement du brouillon...",
-          "saved": {
-            "title": "Brouillon enregistré",
-            "copy": "Vos modifications sont enregistrées. Le brouillon reste privé."
-          },
-          "notEditable": {
-            "copy": "Seul un brouillon peut être modifié directement. Une fois soumis, les modifications passent par le processus d'amendement avec avis aux investisseurs et reconfirmation."
-          },
-          "error": {
-            "loadFailed": "Impossible de charger ce brouillon. Veuillez réessayer.",
-            "saveFailed": "Impossible d'enregistrer le brouillon. Veuillez réessayer.",
-            "amendmentRequired": "Seul un brouillon peut être modifié directement. Cette opportunité a déjà avancé, les modifications passent donc par le processus d'amendement."
-          }
-        },
-        "raises": {
-          "title": "Mes levées",
-          "intro": "Vos demandes de levée de capitaux, du brouillon privé à la levée publiée.",
-          "newRaise": "Commencer une nouvelle levée",
-          "error": {
-            "loadFailed": "Impossible de charger vos levées. Veuillez réessayer."
-          },
-          "empty": {
-            "title": "Aucune levée pour l'instant",
-            "copy": "Commencez une nouvelle levée pour demander des capitaux pour l'une de vos entreprises."
-          },
-          "card": {
-            "target": "Objectif {{amount}}",
-            "committed": "Engagé {{amount}}",
-            "completed": "Terminé {{amount}}",
-            "progress": "{{percent}} % financé",
-            "deadline": "Date limite {{date}}",
-            "manage": "Gérer",
-            "edit": "Modifier le brouillon",
-            "viewPublic": "Voir la page publique"
-          }
-        },
-        "manage": {
-          "title": "Gérer la levée",
-          "error": {
-            "loadFailed": "Impossible de charger cette levée. Veuillez réessayer.",
-            "actionFailed": "Cette action n'a pas pu être effectuée. Veuillez réessayer.",
-            "previewFailed": "Impossible de charger l'aperçu pour les investisseurs. Veuillez réessayer."
-          },
-          "status": {
-            "title": "État de la levée",
-            "target": "Objectif {{amount}}",
-            "committed": "Engagé {{amount}}",
-            "completed": "Terminé {{amount}}",
-            "progress": "{{percent}} % financé",
-            "deadline": "Date limite {{date}}",
-            "conditionsApproved": "Conditions de clôture approuvées.",
-            "closedAt": "Clôturée {{date}}"
-          },
-          "submitted": "Soumis pour révision. L'opportunité n'est pas publiée.",
-          "preview": {
-            "button": "Afficher l'aperçu pour les investisseurs"
-          },
-          "questions": {
-            "title": "Questions des investisseurs",
-            "hint": "Questions des candidats et des investisseurs sur cette opportunité. Répondez-y ici.",
-            "empty": {
-              "title": "Aucune question pour l'instant",
-              "copy": "Les questions des investisseurs apparaîtront ici quand elles arriveront."
-            },
-            "answerLabel": "Votre réponse",
-            "answerButton": "Envoyer la réponse",
-            "answered": "Réponse envoyée.",
-            "answeredLabel": "Répondu",
-            "answerRequired": "Rédigez une réponse avant d'envoyer."
-          },
-          "updates": {
-            "title": "Mises à jour et calendrier des rapports",
-            "hint": "Publiez des mises à jour pour les investisseurs. Une date limite manquée s'affiche comme en retard et ne disparaît jamais.",
-            "empty": {
-              "title": "Aucune mise à jour pour l'instant",
-              "copy": "Créez la première mise à jour pour cette levée."
-            },
-            "required": "Le titre et le corps de la mise à jour sont requis.",
-            "created": "Mise à jour créée comme brouillon.",
-            "published": "Mise à jour publiée.",
-            "publish": "Publier",
-            "overdue": "En retard depuis {{date}}",
-            "status": {
-              "draft": "Brouillon",
-              "published": "Publiée",
-              "overdue": "En retard"
-            },
-            "form": {
-              "title": "Titre de la mise à jour",
-              "body": "Mise à jour",
-              "due": "Date d'échéance",
-              "dueHint": "Quand cette mise à jour est due aux investisseurs.",
-              "submit": "Créer la mise à jour"
-            }
-          },
-          "amendments": {
-            "title": "Changements importants",
-            "hint": "Les conditions ne peuvent pas changer en silence après l'existence d'engagements. Un changement important passe par ce processus contrôlé : brouillon, avis aux investisseurs, puis reconfirmation.",
-            "empty": {
-              "title": "Aucun amendement",
-              "copy": "Aucun changement important n'a été proposé pour cette opportunité."
-            },
-            "required": "Décrivez le changement avant de créer l'amendement.",
-            "created": "Brouillon d'amendement créé.",
-            "proposed": "Amendement proposé. L'avis aux investisseurs a été envoyé.",
-            "untitled": "Amendement",
-            "proposedState": "Avis envoyé {{sent}}. Les investisseurs doivent reconfirmer avant le {{deadline}}.",
-          "effectiveState": "Effectif. Les modifications ont été appliquées à l'opportunité.",
-          "rejectedState": "Rejeté par un réviseur.",
-            "deadlineRequired": "Choisissez une date limite future pour la reconfirmation.",
-            "status": {
-              "draft": "Brouillon",
-              "proposed": "Proposé",
-              "effective": "En vigueur",
-              "withdrawn": "Retiré",
-              "rejected": "Rejeté"
-            },
-            "form": {
-              "summary": "Ce qui change",
-              "summaryHint": "Décrivez le changement important en langage simple.",
-              "version": "Nouvelle version de l'accord",
-              "versionHint": "Choisissez la version de l'accord vers laquelle passent les investisseurs, le cas échéant.",
-              "noNewVersion": "Aucune nouvelle version de l'accord",
-              "submit": "Créer l'amendement"
-            },
-            "propose": {
-              "deadline": "Date limite de reconfirmation",
-              "button": "Proposer et aviser les investisseurs"
-            }
-          },
-          "agreements": {
-            "title": "Versions de l'accord",
-            "hint": "Les versions exactes de l'accord que les investisseurs acceptent. Un engagement enregistre la version exacte acceptée.",
-            "empty": {
-              "title": "Aucune version de l'accord pour l'instant",
-              "copy": "Ajoutez la première version de l'accord. Une opportunité ne peut pas être approuvée sans elle."
-            },
-            "required": "Le texte de l'accord est requis.",
-            "created": "Version de l'accord créée.",
-          "current": "Version en vigueur",
-            "form": {
-              "body": "Texte de l'accord",
-              "submit": "Ajouter une version de l'accord"
-            }
-          },
-          "obligations": {
-            "title": "Après la clôture : rapports et obligations",
-            "hint": "La levée est clôturée. Ces obligations restent avec l'entité.",
-            "item1": "Publiez des mises à jour selon le calendrier des rapports ci-dessus. Les mises à jour manquées s'affichent comme en retard.",
-            "item2": "Payez les distributions via le flux de règlement approuvé. Aucune distribution n'est promise aux investisseurs.",
-            "item3": "Conservez les dossiers de la levée, des accords acceptés et de tous les rapports."
-          }
-        }
+      "reports": {
+        "title": "Rapports",
+        "description": "Consultez les performances vérifiées des entités, leurs mises à jour et les rapports auxquels vous êtes autorisé à accéder."
       },
-      "review": {
-        "title": "File de révision des investissements",
-        "intro": "Demandes de participation, révisions de publication des opportunités, approbations de clôture et libération des fonds. Chaque file n'affiche que ce que vos permissions de révision couvrent.",
-        "empty": "Aucune file de révision n'est disponible pour vos permissions.",
-        "emptyType": "Rien n'attend dans cette file.",
-        "select": "Choisissez un élément pour le réviser.",
-        "tabs": {
-          "applications": "Demandes",
-          "opportunities": "Opportunités",
-          "amendments": "Amendements",
-          "closing": "Clôture",
-          "proceeds": "Fonds"
+      "opportunities": {
+        "title": "Opportunités d’investissement",
+        "description": "Explorez les opportunités publiées par des entités éligibles et examinez les conditions avant de demander à participer."
+      },
+      "contributions": {
+        "title": "Contributions et relevés",
+        "description": "Consultez vos contributions OxSteed Credit, vos allocations, vos accords, vos relevés et votre historique immuable."
+      },
+      "actions": {
+        "open": "Ouvrir",
+        "setup": "Terminer la configuration"
+      },
+      "status": {
+        "available": "Disponible",
+        "readOnly": "Lecture seule",
+        "setup": "Configuration requise"
+      }
+    },
+    "entity": {
+      "raise": {
+        "title": "Lever des capitaux",
+        "intro": "Demandez à lever des capitaux auprès d'investisseurs pour l'une de vos entreprises. Votre demande reste privée jusqu'à ce qu'un réviseur l'approuve pour publication.",
+        "documentsNotice": "N'incluez pas de documents sensibles d'identité ou financiers dans ce formulaire. Ils passent par les flux restreints de vérification et de documents, jamais dans la description publique d'une opportunité.",
+        "business": {
+          "label": "Entreprise",
+          "choose": "Choisir une entreprise",
+          "empty": {
+            "title": "Aucune entreprise pour lever des capitaux",
+            "copy": "Vous ne représentez pas encore d'entreprise. Créez d'abord une entreprise, puis revenez lever des capitaux."
+          }
+        },
+        "authority": {
+          "label": "Je suis autorisé à représenter cette entité et à soumettre cette demande de levée de fonds en son nom.",
+          "hint": "Seul le propriétaire, le gérant ou le représentant autorisé de l'entreprise peut lever des capitaux pour elle."
+        },
+        "sections": {
+          "entity": {
+            "title": "Entité",
+            "hint": "Qui lève des fonds, et en vertu de quelle autorité."
+          },
+          "raise": {
+            "title": "La levée",
+            "hint": "Objet du financement, objectif et conditions. Partage de revenus uniquement, États-Unis uniquement."
+          },
+          "details": {
+            "title": "Détails de l'entité",
+            "hint": "Informations à l'appui pour les réviseurs et les investisseurs. Restez factuel ; les prévisions et les promesses de rendement n'ont pas leur place ici."
+          },
+          "agreement": {
+            "title": "Accord",
+            "hint": "L'accord de référence que les investisseurs acceptent. La version exacte acceptée au moment de l'engagement régit l'engagement."
+          }
+        },
+        "form": {
+          "title": {
+            "label": "Titre de l'opportunité"
+          },
+          "purpose": {
+            "label": "Objet du financement",
+            "hint": "Ce que fait l'entreprise et pourquoi elle lève des fonds."
+          },
+          "target": {
+            "label": "Montant cible (USD)",
+            "hint": "Le montant total que la levée vise à collecter."
+          },
+          "minimum": {
+            "label": "Contribution minimale (USD)",
+            "hint": "Le plus petit montant qu'un investisseur peut engager. Il ne peut pas dépasser l'objectif."
+          },
+          "deadline": {
+            "label": "Date limite",
+            "hint": "La clôture est tout ou rien : l'objectif, la date limite et les conditions de clôture approuvées doivent tous être remplis."
+          },
+          "valuation": {
+            "label": "Règle d'évaluation",
+            "hint": "Comment la part de revenus est calculée, par exemple un pourcentage du revenu mensuel."
+          },
+          "useOfProceeds": {
+            "label": "Utilisation des fonds"
+          },
+          "intermediary": {
+            "label": "Référence de l'intermédiaire",
+            "hint": "Référence de l'intermédiaire agréé, si un est déjà désigné."
+          },
+          "legal": {
+            "label": "Détails juridiques de l'entité, activité commerciale et historique d'exploitation",
+            "hint": "Forme juridique, juridiction, ce que fait l'entreprise et depuis combien de temps elle opère."
+          },
+          "financials": {
+            "label": "Informations financières",
+            "hint": "Résumé financier à l'appui de la levée. Ne collez pas de documents sensibles ici."
+          },
+          "ownership": {
+            "label": "Informations sur la propriété"
+          },
+          "risks": {
+            "label": "Risques importants"
+          },
+          "relatedParties": {
+            "label": "Relations avec des parties liées",
+            "hint": "Toute relation entre l'entité, ses propriétaires et d'autres parties qu'un investisseur devrait connaître."
+          },
+          "agreement": {
+            "label": "Texte de l'accord"
+          }
+        },
+        "submit": "Créer un brouillon privé",
+        "creating": "Création du brouillon...",
+        "created": {
+          "title": "Brouillon privé créé",
+          "copy": "Ce brouillon est privé. Seuls vous et les réviseurs pouvez le voir.",
+          "target": "Objectif {{amount}}"
+        },
+        "preview": {
+          "title": "Aperçu pour les investisseurs",
+          "hint": "Comment les investisseurs verront cette opportunité une fois publiée."
+        },
+        "submitReview": "Soumettre pour révision",
+        "submitReviewNote": "La soumission ne publie pas l'opportunité. Un réviseur doit d'abord l'approuver, et la publication est une étape distincte.",
+        "submitted": {
+          "copy": "Soumis pour révision. L'opportunité n'est pas publiée."
+        },
+        "manageLink": "Gérer cette levée",
+        "error": {
+          "loadFailed": "Impossible de charger vos entreprises. Veuillez réessayer.",
+          "createFailed": "Impossible de créer le brouillon. Veuillez réessayer.",
+          "agreementFailed": "Le brouillon a été créé, mais la version de l'accord n'a pas pu être enregistrée. Ajoutez-la depuis la page de gestion.",
+          "submitFailed": "Impossible de soumettre pour révision. Veuillez réessayer."
         },
         "errors": {
-          "loadFailed": "Impossible de charger la file de révision. Veuillez réessayer.",
-          "generic": "Cette action de révision n'a pas pu être effectuée. Veuillez réessayer.",
-          "notPermitted": "Vous n'avez pas de permission de révision des investissements, donc cette file est vide pour vous.",
-          "selfApproval": "Vous ne pouvez pas réviser votre propre demande, opportunité ou clôture. Un autre réviseur doit décider.",
-          "versionConflict": "Cet élément a changé depuis son chargement. Il a été rechargé ; examinez la dernière version et réessayez.",
-          "proceedsBlocked": "Les fonds ne peuvent pas encore être libérés. L'opportunité doit d'abord être clôturée avec des conditions de clôture approuvées.",
-          "noAgreement": "Cette opportunité ne peut pas être approuvée sans une version de l'accord.",
-          "transitionInvalid": "Cet élément ne peut pas passer à cet état depuis sa position actuelle.",
-          "reconfirmationPending": "Certains investisseurs n'ont pas encore reconfirmé cet amendement. Attendez la reconfirmation, ou que le délai de reconfirmation soit écoulé, avant de le rendre effectif.",
-          "escrowNothingPending": "Aucune attente de séquestre en cours pour cet engagement. Il est peut-être déjà confirmé."
-        },
-        "actions": {
-          "approve": "Approuver",
-          "decline": "Refuser",
-          "needsInformation": "Informations requises",
-          "claim": "Prendre pour révision",
-          "publish": "Publier"
-        },
-        "application": {
-          "applicant": "Candidat",
-          "identity": "Identité vérifiée",
-          "authority": "Autorité vérifiée",
-          "agreementAccepted": "Accord accepté",
-          "version": "Version attendue",
-          "eligibility": "Admissibilité",
-          "note": "Note de révision",
-          "confirmIdentity": "Identité vérifiée",
-          "confirmAuthority": "Autorité vérifiée",
-          "no": "Non",
-          "noteRequired": "Une note est requise pour demander plus d'informations.",
-          "verifyRequired": "L'approbation exige la vérification de l'identité et de l'autorité."
-        },
-        "opportunity": {
-          "target": "Objectif",
-          "minimum": "Contribution minimale",
-          "committed": "Engagé",
-          "progress": "{{percent}} % financé",
-          "purpose": "Objet du financement",
-          "valuation": "Règle d'évaluation",
-          "useOfProceeds": "Utilisation des fonds",
-          "version": "Version attendue",
-          "details": "Détails de l'entité",
-          "detail": {
-            "legalDetails": "Détails juridiques",
-            "financials": "Finances",
-            "ownership": "Propriété",
-            "risks": "Risques",
-            "relatedParties": "Parties liées"
-          },
-          "decideTitle": "Décision de révision",
-          "note": "Note de révision",
-          "verifiedItems": "Éléments vérifiés (un par ligne)",
-          "publishNote": "La publication est distincte de l'approbation. Le représentant de l'entité ne peut pas publier sa propre opportunité."
-        },
-        "closing": {
-          "title": "Clôture",
-          "conditionsApproved": "Conditions de clôture approuvées {{date}}.",
-          "conditionsPending": "Les conditions de clôture ne sont pas encore approuvées.",
-          "reviewApproved": "Révision approuvée par {{approver}}.",
-          "reviewPending": "La révision de clôture n'est pas encore approuvée.",
-          "executionApproved": "Exécution approuvée par {{approver}}.",
-          "executionPending": "L'exécution de clôture n'est pas encore approuvée.",
-          "gateOff": "Les engagements en direct sont désactivés. La clôture, la libération des fonds et les distributions sont inactives jusqu'à ce que la porte des engagements en direct soit approuvée pour un pilote.",
-          "note": "Note de clôture",
-          "approveConditions": "Approuver les conditions de clôture",
-          "approveReview": "Approuver l'étape de révision",
-          "approveExecution": "Approuver l'étape d'exécution",
-          "close": "Clôturer l'opportunité",
-          "separateApprovers": "La révision et l'exécution nécessitent des approbateurs différents, et aucun ne peut être le représentant de l'entité. Seul l'approbateur d'exécution approuvé peut exécuter la clôture.",
-          "currentVersionOnly": "La clôture ne capture que les engagements sur la version actuelle de l'accord. Les engagements sur une version antérieure restent réservés et doivent être annulés séparément."
-        },
-        "proceeds": {
-          "title": "Fonds et distributions",
-          "release": "Libérer les fonds",
-          "blockedNote": "La libération des fonds reste bloquée jusqu'à ce que l'opportunité soit clôturée avec des conditions de clôture approuvées."
-        },
-        "amendments": {
-          "changes": "Modifications proposées",
-          "reconfirmationTitle": "Reconfirmation des investisseurs",
-          "reconfirmation": "{{reconfirmed}} investisseurs sur {{total}} ont reconfirmé, {{pending}} en attente.",
-          "reconfirmationPendingUsers": "En attente de reconfirmation (identifiants des investisseurs) :",
-          "reconfirmationNone": "Cet amendement ne comporte pas de nouvelle version de l'accord, il n'y a donc rien à reconfirmer.",
-          "deadline": "Date limite de reconfirmation : {{date}}",
-          "note": "Note de révision",
-          "makeEffective": "Marquer comme effectif",
-          "reject": "Rejeter",
-          "effectiveNote": "Rendre un amendement effectif applique ses modifications à l'opportunité et fait de sa nouvelle version de l'accord la version en vigueur. Le rejet n'applique rien."
-        },
-        "failClose": {
-          "title": "Clôture sans succès",
-          "copy": "La clôture sans succès restitue chaque engagement encore réservé à ses lots de crédit d'origine et marque l'opportunité comme sans succès. Utilisez-la quand la levée ne sera pas clôturée.",
-          "reason": "Motif",
-          "button": "Clôturer sans succès",
-          "note": "Une opportunité clôturée sans succès ne peut pas être rouverte. Le balayage horaire le fait automatiquement pour les levées échues sans atteindre l'objectif."
-        },
-        "distributions": {
-          "position": "Position",
-          "choosePosition": "Choisir une position",
-          "amount": "Montant de la distribution (USD)",
-          "submit": "Demander une distribution",
-          "empty": "Aucune position n'existe encore pour cette opportunité.",
-          "required": "Choisissez une position et saisissez un montant valide.",
-          "queued": "Distribution mise en file d’attente. Un deuxième administrateur doit l’approuver dans Approbations monétaires avant qu’aucun Crédit ne soit déplacé.",
-          "dualApprovalNote": "Les distributions nécessitent l’approbation d’un deuxième administrateur. Rien n’est crédité avant cela, et le total ne peut pas dépasser les produits de l’opportunité."
-        },
-        "escrow": {
-          "title": "Confirmation de séquestre du partenaire",
-          "copy": "Enregistrez la confirmation du partenaire que les fonds engagés pour une position sont détenus en séquestre. La clôture le laisse en attente à dessein : seule une confirmation explicite du partenaire le confirme.",
-          "position": "Position",
-          "choosePosition": "Choisir une position",
-          "partnerRefLabel": "Référence du partenaire",
-          "partnerRefPlaceholder": "Référence de confirmation du partenaire",
-          "noteLabel": "Note",
-          "confirm": "Confirmer le séquestre",
-          "confirmed": "Séquestre confirmé pour cet engagement.",
-          "partnerRefRequired": "Une référence du partenaire est requise."
+          "business": "Choisissez une entreprise pour cette levée.",
+          "authority": "Confirmez que vous êtes autorisé à représenter cette entité.",
+          "title": "Un titre d'opportunité est requis.",
+          "purpose": "Un objet de financement est requis.",
+          "target": "Saisissez un montant cible valide supérieur à zéro.",
+          "minimum": "La contribution minimale doit être entre zéro et l'objectif.",
+          "deadline": "Choisissez une date limite future.",
+          "valuation": "Une règle d'évaluation est requise.",
+          "useOfProceeds": "Décrivez l'utilisation des fonds.",
+          "agreement": "Le texte de l'accord est requis."
         }
       },
+      "edit": {
+        "title": "Modifier le brouillon de levée",
+        "intro": "Modifiez les champs du brouillon ci-dessous. L'enregistrement conserve l'opportunité comme brouillon privé. Le texte de l'accord se gère depuis la page de gestion, et l'enregistrement ne publie jamais rien.",
+        "draftNotice": "Ce brouillon est privé. Seuls vous et les réviseurs pouvez le voir. Enregistrer des modifications ne publie jamais l'opportunité.",
+        "save": "Enregistrer les modifications du brouillon",
+        "saving": "Enregistrement du brouillon...",
+        "saved": {
+          "title": "Brouillon enregistré",
+          "copy": "Vos modifications sont enregistrées. Le brouillon reste privé."
+        },
+        "notEditable": {
+          "copy": "Seul un brouillon peut être modifié directement. Une fois soumis, les modifications passent par le processus d'amendement avec avis aux investisseurs et reconfirmation."
+        },
+        "error": {
+          "loadFailed": "Impossible de charger ce brouillon. Veuillez réessayer.",
+          "saveFailed": "Impossible d'enregistrer le brouillon. Veuillez réessayer.",
+          "amendmentRequired": "Seul un brouillon peut être modifié directement. Cette opportunité a déjà avancé, les modifications passent donc par le processus d'amendement."
+        }
+      },
+      "raises": {
+        "title": "Mes levées",
+        "intro": "Vos demandes de levée de capitaux, du brouillon privé à la levée publiée.",
+        "newRaise": "Commencer une nouvelle levée",
+        "error": {
+          "loadFailed": "Impossible de charger vos levées. Veuillez réessayer."
+        },
+        "empty": {
+          "title": "Aucune levée pour l'instant",
+          "copy": "Commencez une nouvelle levée pour demander des capitaux pour l'une de vos entreprises."
+        },
+        "card": {
+          "target": "Objectif {{amount}}",
+          "committed": "Engagé {{amount}}",
+          "completed": "Terminé {{amount}}",
+          "progress": "{{percent}} % financé",
+          "deadline": "Date limite {{date}}",
+          "manage": "Gérer",
+          "edit": "Modifier le brouillon",
+          "viewPublic": "Voir la page publique"
+        }
+      },
+      "manage": {
+        "title": "Gérer la levée",
+        "error": {
+          "loadFailed": "Impossible de charger cette levée. Veuillez réessayer.",
+          "actionFailed": "Cette action n'a pas pu être effectuée. Veuillez réessayer.",
+          "previewFailed": "Impossible de charger l'aperçu pour les investisseurs. Veuillez réessayer."
+        },
+        "status": {
+          "title": "État de la levée",
+          "target": "Objectif {{amount}}",
+          "committed": "Engagé {{amount}}",
+          "completed": "Terminé {{amount}}",
+          "progress": "{{percent}} % financé",
+          "deadline": "Date limite {{date}}",
+          "conditionsApproved": "Conditions de clôture approuvées.",
+          "closedAt": "Clôturée {{date}}"
+        },
+        "submitted": "Soumis pour révision. L'opportunité n'est pas publiée.",
+        "preview": {
+          "button": "Afficher l'aperçu pour les investisseurs"
+        },
+        "questions": {
+          "title": "Questions des investisseurs",
+          "hint": "Questions des candidats et des investisseurs sur cette opportunité. Répondez-y ici.",
+          "empty": {
+            "title": "Aucune question pour l'instant",
+            "copy": "Les questions des investisseurs apparaîtront ici quand elles arriveront."
+          },
+          "answerLabel": "Votre réponse",
+          "answerButton": "Envoyer la réponse",
+          "answered": "Réponse envoyée.",
+          "answeredLabel": "Répondu",
+          "answerRequired": "Rédigez une réponse avant d'envoyer."
+        },
+        "updates": {
+          "title": "Mises à jour et calendrier des rapports",
+          "hint": "Publiez des mises à jour pour les investisseurs. Une date limite manquée s'affiche comme en retard et ne disparaît jamais.",
+          "empty": {
+            "title": "Aucune mise à jour pour l'instant",
+            "copy": "Créez la première mise à jour pour cette levée."
+          },
+          "required": "Le titre et le corps de la mise à jour sont requis.",
+          "created": "Mise à jour créée comme brouillon.",
+          "published": "Mise à jour publiée.",
+          "publish": "Publier",
+          "overdue": "En retard depuis {{date}}",
+          "status": {
+            "draft": "Brouillon",
+            "published": "Publiée",
+            "overdue": "En retard"
+          },
+          "form": {
+            "title": "Titre de la mise à jour",
+            "body": "Mise à jour",
+            "due": "Date d'échéance",
+            "dueHint": "Quand cette mise à jour est due aux investisseurs.",
+            "submit": "Créer la mise à jour"
+          }
+        },
+        "amendments": {
+          "title": "Changements importants",
+          "hint": "Les conditions ne peuvent pas changer en silence après l'existence d'engagements. Un changement important passe par ce processus contrôlé : brouillon, avis aux investisseurs, puis reconfirmation.",
+          "empty": {
+            "title": "Aucun amendement",
+            "copy": "Aucun changement important n'a été proposé pour cette opportunité."
+          },
+          "required": "Décrivez le changement avant de créer l'amendement.",
+          "created": "Brouillon d'amendement créé.",
+          "proposed": "Amendement proposé. L'avis aux investisseurs a été envoyé.",
+          "untitled": "Amendement",
+          "proposedState": "Avis envoyé {{sent}}. Les investisseurs doivent reconfirmer avant le {{deadline}}.",
+          "effectiveState": "Effectif. Les modifications ont été appliquées à l'opportunité.",
+          "rejectedState": "Rejeté par un réviseur.",
+          "deadlineRequired": "Choisissez une date limite future pour la reconfirmation.",
+          "status": {
+            "draft": "Brouillon",
+            "proposed": "Proposé",
+            "effective": "En vigueur",
+            "withdrawn": "Retiré",
+            "rejected": "Rejeté"
+          },
+          "form": {
+            "summary": "Ce qui change",
+            "summaryHint": "Décrivez le changement important en langage simple.",
+            "version": "Nouvelle version de l'accord",
+            "versionHint": "Choisissez la version de l'accord vers laquelle passent les investisseurs, le cas échéant.",
+            "noNewVersion": "Aucune nouvelle version de l'accord",
+            "submit": "Créer l'amendement"
+          },
+          "propose": {
+            "deadline": "Date limite de reconfirmation",
+            "button": "Proposer et aviser les investisseurs"
+          }
+        },
+        "agreements": {
+          "title": "Versions de l'accord",
+          "hint": "Les versions exactes de l'accord que les investisseurs acceptent. Un engagement enregistre la version exacte acceptée.",
+          "empty": {
+            "title": "Aucune version de l'accord pour l'instant",
+            "copy": "Ajoutez la première version de l'accord. Une opportunité ne peut pas être approuvée sans elle."
+          },
+          "required": "Le texte de l'accord est requis.",
+          "created": "Version de l'accord créée.",
+          "current": "Version en vigueur",
+          "form": {
+            "body": "Texte de l'accord",
+            "submit": "Ajouter une version de l'accord"
+          }
+        },
+        "obligations": {
+          "title": "Après la clôture : rapports et obligations",
+          "hint": "La levée est clôturée. Ces obligations restent avec l'entité.",
+          "item1": "Publiez des mises à jour selon le calendrier des rapports ci-dessus. Les mises à jour manquées s'affichent comme en retard.",
+          "item2": "Payez les distributions via le flux de règlement approuvé. Aucune distribution n'est promise aux investisseurs.",
+          "item3": "Conservez les dossiers de la levée, des accords acceptés et de tous les rapports."
+        }
+      }
+    },
+    "review": {
+      "title": "File de révision des investissements",
+      "intro": "Demandes de participation, révisions de publication des opportunités, approbations de clôture et libération des fonds. Chaque file n'affiche que ce que vos permissions de révision couvrent.",
+      "empty": "Aucune file de révision n'est disponible pour vos permissions.",
+      "emptyType": "Rien n'attend dans cette file.",
+      "select": "Choisissez un élément pour le réviser.",
+      "tabs": {
+        "applications": "Demandes",
+        "opportunities": "Opportunités",
+        "amendments": "Amendements",
+        "closing": "Clôture",
+        "proceeds": "Fonds"
+      },
+      "errors": {
+        "loadFailed": "Impossible de charger la file de révision. Veuillez réessayer.",
+        "generic": "Cette action de révision n'a pas pu être effectuée. Veuillez réessayer.",
+        "notPermitted": "Vous n'avez pas de permission de révision des investissements, donc cette file est vide pour vous.",
+        "selfApproval": "Vous ne pouvez pas réviser votre propre demande, opportunité ou clôture. Un autre réviseur doit décider.",
+        "versionConflict": "Cet élément a changé depuis son chargement. Il a été rechargé ; examinez la dernière version et réessayez.",
+        "proceedsBlocked": "Les fonds ne peuvent pas encore être libérés. L'opportunité doit d'abord être clôturée avec des conditions de clôture approuvées.",
+        "noAgreement": "Cette opportunité ne peut pas être approuvée sans une version de l'accord.",
+        "transitionInvalid": "Cet élément ne peut pas passer à cet état depuis sa position actuelle.",
+        "reconfirmationPending": "Certains investisseurs n'ont pas encore reconfirmé cet amendement. Attendez la reconfirmation, ou que le délai de reconfirmation soit écoulé, avant de le rendre effectif.",
+        "escrowNothingPending": "Aucune attente de séquestre en cours pour cet engagement. Il est peut-être déjà confirmé."
+      },
+      "actions": {
+        "approve": "Approuver",
+        "decline": "Refuser",
+        "needsInformation": "Informations requises",
+        "claim": "Prendre pour révision",
+        "publish": "Publier"
+      },
+      "application": {
+        "applicant": "Candidat",
+        "identity": "Identité vérifiée",
+        "authority": "Autorité vérifiée",
+        "agreementAccepted": "Accord accepté",
+        "version": "Version attendue",
+        "eligibility": "Admissibilité",
+        "note": "Note de révision",
+        "confirmIdentity": "Identité vérifiée",
+        "confirmAuthority": "Autorité vérifiée",
+        "no": "Non",
+        "noteRequired": "Une note est requise pour demander plus d'informations.",
+        "verifyRequired": "L'approbation exige la vérification de l'identité et de l'autorité."
+      },
+      "opportunity": {
+        "target": "Objectif",
+        "minimum": "Contribution minimale",
+        "committed": "Engagé",
+        "progress": "{{percent}} % financé",
+        "purpose": "Objet du financement",
+        "valuation": "Règle d'évaluation",
+        "useOfProceeds": "Utilisation des fonds",
+        "version": "Version attendue",
+        "details": "Détails de l'entité",
+        "detail": {
+          "legalDetails": "Détails juridiques",
+          "financials": "Finances",
+          "ownership": "Propriété",
+          "risks": "Risques",
+          "relatedParties": "Parties liées"
+        },
+        "decideTitle": "Décision de révision",
+        "note": "Note de révision",
+        "verifiedItems": "Éléments vérifiés (un par ligne)",
+        "publishNote": "La publication est distincte de l'approbation. Le représentant de l'entité ne peut pas publier sa propre opportunité."
+      },
+      "closing": {
+        "title": "Clôture",
+        "conditionsApproved": "Conditions de clôture approuvées {{date}}.",
+        "conditionsPending": "Les conditions de clôture ne sont pas encore approuvées.",
+        "reviewApproved": "Révision approuvée par {{approver}}.",
+        "reviewPending": "La révision de clôture n'est pas encore approuvée.",
+        "executionApproved": "Exécution approuvée par {{approver}}.",
+        "executionPending": "L'exécution de clôture n'est pas encore approuvée.",
+        "gateOff": "Les engagements en direct sont désactivés. La clôture, la libération des fonds et les distributions sont inactives jusqu'à ce que la porte des engagements en direct soit approuvée pour un pilote.",
+        "note": "Note de clôture",
+        "approveConditions": "Approuver les conditions de clôture",
+        "approveReview": "Approuver l'étape de révision",
+        "approveExecution": "Approuver l'étape d'exécution",
+        "close": "Clôturer l'opportunité",
+        "separateApprovers": "La révision et l'exécution nécessitent des approbateurs différents, et aucun ne peut être le représentant de l'entité. Seul l'approbateur d'exécution approuvé peut exécuter la clôture.",
+        "currentVersionOnly": "La clôture ne capture que les engagements sur la version actuelle de l'accord. Les engagements sur une version antérieure restent réservés et doivent être annulés séparément."
+      },
+      "proceeds": {
+        "title": "Fonds et distributions",
+        "release": "Libérer les fonds",
+        "blockedNote": "La libération des fonds reste bloquée jusqu'à ce que l'opportunité soit clôturée avec des conditions de clôture approuvées."
+      },
+      "amendments": {
+        "changes": "Modifications proposées",
+        "reconfirmationTitle": "Reconfirmation des investisseurs",
+        "reconfirmation": "{{reconfirmed}} investisseurs sur {{total}} ont reconfirmé, {{pending}} en attente.",
+        "reconfirmationPendingUsers": "En attente de reconfirmation (identifiants des investisseurs) :",
+        "reconfirmationNone": "Cet amendement ne comporte pas de nouvelle version de l'accord, il n'y a donc rien à reconfirmer.",
+        "deadline": "Date limite de reconfirmation : {{date}}",
+        "note": "Note de révision",
+        "makeEffective": "Marquer comme effectif",
+        "reject": "Rejeter",
+        "effectiveNote": "Rendre un amendement effectif applique ses modifications à l'opportunité et fait de sa nouvelle version de l'accord la version en vigueur. Le rejet n'applique rien."
+      },
+      "failClose": {
+        "title": "Clôture sans succès",
+        "copy": "La clôture sans succès restitue chaque engagement encore réservé à ses lots de crédit d'origine et marque l'opportunité comme sans succès. Utilisez-la quand la levée ne sera pas clôturée.",
+        "reason": "Motif",
+        "button": "Clôturer sans succès",
+        "note": "Une opportunité clôturée sans succès ne peut pas être rouverte. Le balayage horaire le fait automatiquement pour les levées échues sans atteindre l'objectif."
+      },
+      "distributions": {
+        "position": "Position",
+        "choosePosition": "Choisir une position",
+        "amount": "Montant de la distribution (USD)",
+        "submit": "Demander une distribution",
+        "empty": "Aucune position n'existe encore pour cette opportunité.",
+        "required": "Choisissez une position et saisissez un montant valide.",
+        "queued": "Distribution mise en file d’attente. Un deuxième administrateur doit l’approuver dans Approbations monétaires avant qu’aucun Crédit ne soit déplacé.",
+        "dualApprovalNote": "Les distributions nécessitent l’approbation d’un deuxième administrateur. Rien n’est crédité avant cela, et le total ne peut pas dépasser les produits de l’opportunité."
+      },
+      "escrow": {
+        "title": "Confirmation de séquestre du partenaire",
+        "copy": "Enregistrez la confirmation du partenaire que les fonds engagés pour une position sont détenus en séquestre. La clôture le laisse en attente à dessein : seule une confirmation explicite du partenaire le confirme.",
+        "position": "Position",
+        "choosePosition": "Choisir une position",
+        "partnerRefLabel": "Référence du partenaire",
+        "partnerRefPlaceholder": "Référence de confirmation du partenaire",
+        "noteLabel": "Note",
+        "confirm": "Confirmer le séquestre",
+        "confirmed": "Séquestre confirmé pour cet engagement.",
+        "partnerRefRequired": "Une référence du partenaire est requise."
+      }
+    },
     "application": {
       "agreementAccepted": "La version de l'accord a été acceptée et enregistrée.",
       "choose": {
@@ -25841,26 +25932,25 @@
       "step2Body": "La commission OxSteed convenue est appliquée au lead au moment de l’attribution, pour verrouiller votre part et la part plateforme sur ce lead.",
       "step3Title": "3. Exécution du pipeline",
       "step3Body": "Utilisez votre tableau de bord pour faire passer les leads de l’introduction à la découverte, la proposition, l’engagement puis la finalisation tout en gardant OxSteed en boucle."
-    }
-  ,
-  "sessions": {
-    "label": "Rendez-vous",
-    "title": "Vos séances",
-    "description": "Rendez-vous confirmés avec les clients, y compris les reports proposés, la présence et l’annulation.",
-    "loading": "Chargement des séances…",
-    "emptyTitle": "Aucune séance pour le moment",
-    "emptyDescription": "Quand un client réservera une séance avec vous, elle apparaîtra ici avec son horaire, ses propositions et sa présence.",
-    "clientFallback": "Client",
-    "pendingProposals": "Report proposé",
-    "proposedBy": "Proposé par {{role}}",
-    "status": {
-      "pending_confirmation": "En attente de confirmation",
-      "confirmed": "Confirmé",
-      "completed": "Terminée",
-      "no_show": "Absent",
-      "cancelled": "Annulé"
-    }
-  },
+    },
+    "sessions": {
+      "label": "Rendez-vous",
+      "title": "Vos séances",
+      "description": "Rendez-vous confirmés avec les clients, y compris les reports proposés, la présence et l’annulation.",
+      "loading": "Chargement des séances…",
+      "emptyTitle": "Aucune séance pour le moment",
+      "emptyDescription": "Quand un client réservera une séance avec vous, elle apparaîtra ici avec son horaire, ses propositions et sa présence.",
+      "clientFallback": "Client",
+      "pendingProposals": "Report proposé",
+      "proposedBy": "Proposé par {{role}}",
+      "status": {
+        "pending_confirmation": "En attente de confirmation",
+        "confirmed": "Confirmé",
+        "completed": "Terminée",
+        "no_show": "Absent",
+        "cancelled": "Annulé"
+      }
+    },
     "engagements": {
       "label": "Missions",
       "title": "Tableau des jalons",
@@ -25871,20 +25961,20 @@
     "title": "Proposition de mission",
     "show": "Afficher",
     "hide": "Masquer",
-    "loading": "Chargement\u2026",
+    "loading": "Chargement…",
     "loadError": "Impossible de charger les propositions.",
     "saveError": "Impossible d'enregistrer le brouillon.",
-    "draftSaved": "Brouillon enregistr\u00e9.",
-    "sent": "Proposition envoy\u00e9e au client.",
-    "withdrawn": "Proposition retir\u00e9e.",
-    "sentVersion": "Version {{version}} envoy\u00e9e",
+    "draftSaved": "Brouillon enregistré.",
+    "sent": "Proposition envoyée au client.",
+    "withdrawn": "Proposition retirée.",
+    "sentVersion": "Version {{version}} envoyée",
     "draftVersion": "Brouillon version {{version}}",
     "newTitle": "Nouvelle version de proposition",
     "editTitle": "Modifier le brouillon",
-    "formHint": "Une proposition envoy\u00e9e ne peut pas \u00eatre modifi\u00e9e. Envoyez une nouvelle version ; elle remplace celle que le client a d\u00e9j\u00e0.",
+    "formHint": "Une proposition envoyée ne peut pas être modifiée. Envoyez une nouvelle version ; elle remplace celle que le client a déjà.",
     "fieldTitle": "Titre",
     "titlePlaceholder": "Mission de lancement d'entreprise",
-    "fieldScope": "R\u00e9sum\u00e9 du p\u00e9rim\u00e8tre",
+    "fieldScope": "Résumé du périmètre",
     "scopePlaceholder": "Ce que couvre la mission, en langage simple.",
     "fieldPrice": "Prix (USD)",
     "deliverablesTitle": "Livrables",
@@ -25893,54 +25983,54 @@
     "deliverableTitlePlaceholder": "Titre du livrable",
     "deliverableType": "Type",
     "deliverableDue": "Date limite",
-    "deliverableDescriptionPlaceholder": "Ce que le client re\u00e7oit.",
+    "deliverableDescriptionPlaceholder": "Ce que le client reçoit.",
     "deliverableTypes": {
-      "sop": "Proc\u00e9dure",
+      "sop": "Procédure",
       "contract": "Contrat",
       "financial_tracker": "Suivi financier",
       "marketing_plan": "Plan marketing",
-      "team_structure": "Structure d'\u00e9quipe",
-      "operational_manual": "Manuel op\u00e9rationnel",
+      "team_structure": "Structure d'équipe",
+      "operational_manual": "Manuel opérationnel",
       "other": "Autre"
     },
-    "exclusionsTitle": "Exclusions du p\u00e9rim\u00e8tre",
+    "exclusionsTitle": "Exclusions du périmètre",
     "exclusionsHint": "Indiquez ce qui n'est pas inclus, pour que le client ne le suppose jamais.",
     "addExclusion": "Ajouter une exclusion",
     "removeExclusion": "Retirer l'exclusion",
-    "exclusionPlaceholder": "Non inclus : \u2026",
+    "exclusionPlaceholder": "Non inclus : …",
     "saveDraft": "Enregistrer le brouillon",
     "cancelEdit": "Annuler",
-    "newVersion": "R\u00e9diger une nouvelle version de proposition",
+    "newVersion": "Rédiger une nouvelle version de proposition",
     "historyTitle": "Historique des versions",
-    "historyEmpty": "Aucune proposition pour l'instant. R\u00e9digez la premi\u00e8re version pour mettre la mission par \u00e9crit.",
+    "historyEmpty": "Aucune proposition pour l'instant. Rédigez la première version pour mettre la mission par écrit.",
     "versionLabel": "Version {{version}}",
     "versionMeta": "{{count}} livrables",
-    "decidedOn": "d\u00e9cid\u00e9 le {{date}}",
+    "decidedOn": "décidé le {{date}}",
     "dueLabel": "pour le {{date}}",
     "editDraft": "Modifier le brouillon",
     "send": "Envoyer au client",
     "withdraw": "Retirer",
     "confirmWithdraw": "Retirer cette proposition",
-    "keepProposal": "La laisser envoy\u00e9e",
+    "keepProposal": "La laisser envoyée",
     "status": {
       "draft": "Brouillon",
-      "sent": "Envoy\u00e9e",
-      "approved": "Approuv\u00e9e",
-      "rejected": "Rejet\u00e9e",
-      "withdrawn": "Retir\u00e9e",
-      "superseded": "Remplac\u00e9e"
+      "sent": "Envoyée",
+      "approved": "Approuvée",
+      "rejected": "Rejetée",
+      "withdrawn": "Retirée",
+      "superseded": "Remplacée"
     },
     "clientOnly": "Les propositions sont visibles par le demandeur.",
-    "clientEmpty": "Aucune proposition pour l'instant. Votre consultant en enverra une ici une fois le p\u00e9rim\u00e8tre convenu.",
-    "approved": "Proposition approuv\u00e9e. La mission est convenue.",
-    "rejected": "Proposition rejet\u00e9e. Votre consultant peut envoyer une version r\u00e9vis\u00e9e.",
+    "clientEmpty": "Aucune proposition pour l'instant. Votre consultant en enverra une ici une fois le périmètre convenu.",
+    "approved": "Proposition approuvée. La mission est convenue.",
+    "rejected": "Proposition rejetée. Votre consultant peut envoyer une version révisée.",
     "approve": "Approuver la proposition",
     "reject": "Demander des modifications",
     "rejectConfirm": "Envoyer le refus",
     "rejectReasonLabel": "Que faut-il changer ?",
-    "rejectReasonPlaceholder": "Dites \u00e0 votre consultant ce qu'il faut changer, pour que la prochaine version soit la bonne.",
-    "rejectReasonRequired": "Dites au consultant ce qu'il faut changer (au moins 10 caract\u00e8res).",
-    "decisionReason": "Note de d\u00e9cision : {{reason}}",
+    "rejectReasonPlaceholder": "Dites à votre consultant ce qu'il faut changer, pour que la prochaine version soit la bonne.",
+    "rejectReasonRequired": "Dites au consultant ce qu'il faut changer (au moins 10 caractères).",
+    "decisionReason": "Note de décision : {{reason}}",
     "adminEmpty": "Aucune proposition pour cette demande."
   },
   "consultantDeliverable": {
@@ -26016,46 +26106,46 @@
     "pause": "Suspendre le travail",
     "paused": "Travail suspendu.",
     "resumed": "Travail repris.",
-    "pausedNotice": "Ce travail est suspendu. Les jalons et l'approbation des modifications sont en attente jusqu'\u00e0 la reprise.",
-    "pauseReasonPlaceholder": "Pourquoi suspendre ? (au moins 10 caract\u00e8res)",
+    "pausedNotice": "Ce travail est suspendu. Les jalons et l'approbation des modifications sont en attente jusqu'à la reprise.",
+    "pauseReasonPlaceholder": "Pourquoi suspendre ? (au moins 10 caractères)",
     "requestType": "Type de modification",
     "types": {
-      "scope_revision": "R\u00e9vision du p\u00e9rim\u00e8tre",
-      "deadline_adjustment": "Ajustement du d\u00e9lai",
-      "additional_fee": "Frais suppl\u00e9mentaires"
+      "scope_revision": "Révision du périmètre",
+      "deadline_adjustment": "Ajustement du délai",
+      "additional_fee": "Frais supplémentaires"
     },
     "milestone": "Jalon",
     "wholeEngagement": "Tout le travail",
     "newTitlePlaceholder": "Nouveau titre du jalon (facultatif)",
-    "newDescriptionPlaceholder": "Nouveau p\u00e9rim\u00e8tre ou description",
+    "newDescriptionPlaceholder": "Nouveau périmètre ou description",
     "newDueDate": "Nouvelle date limite",
-    "amountPlaceholder": "Frais suppl\u00e9mentaires en dollars",
-    "reasonPlaceholder": "Pourquoi cette modification est-elle n\u00e9cessaire ? (au moins 10 caract\u00e8res)",
+    "amountPlaceholder": "Frais supplémentaires en dollars",
+    "reasonPlaceholder": "Pourquoi cette modification est-elle nécessaire ? (au moins 10 caractères)",
     "submitRequest": "Envoyer la demande de modification",
-    "requested": "Demande de modification envoy\u00e9e.",
-    "approved": "Demande de modification approuv\u00e9e.",
-    "rejected": "Demande de modification refus\u00e9e.",
-    "withdrawn": "Demande de modification retir\u00e9e.",
+    "requested": "Demande de modification envoyée.",
+    "approved": "Demande de modification approuvée.",
+    "rejected": "Demande de modification refusée.",
+    "withdrawn": "Demande de modification retirée.",
     "empty": "Aucune modification pour le moment.",
     "status": {
       "pending": "en attente",
-      "approved": "approuv\u00e9e",
-      "rejected": "refus\u00e9e",
-      "withdrawn": "retir\u00e9e"
+      "approved": "approuvée",
+      "rejected": "refusée",
+      "withdrawn": "retirée"
     },
-    "requestedBy": "Demand\u00e9 par {{role}}",
+    "requestedBy": "Demandé par {{role}}",
     "roles": {
       "consultant": "consultant",
       "client": "client"
     },
-    "decisionReason": "D\u00e9cision : {{reason}}",
+    "decisionReason": "Décision : {{reason}}",
     "rejectReasonPlaceholder": "Motif du refus (obligatoire)",
     "approve": "Approuver",
     "reject": "Refuser",
     "withdraw": "Retirer la demande",
     "history": "Historique des modifications",
     "loadError": "Impossible de charger les modifications.",
-    "reasonRequired": "Un motif d'au moins 10 caract\u00e8res est requis."
+    "reasonRequired": "Un motif d'au moins 10 caractères est requis."
   },
   "consultantCloseout": {
     "archive": "Archiver la mission",
@@ -28874,80 +28964,80 @@
           "mixedCurrency": "Devises mixtes",
           "convertedTotal": "Total converti ({{currency}})"
         },
-      "fx": {
-        "convertedTitle": "Totaux convertis",
-        "title": "Taux de change et devise de reporting",
-        "hint": "Les totaux convertis utilisent uniquement les taux enregistrés. Saisissez les taux enregistrés ou importés par un administrateur ; une devise sans taux enregistré est signalée, jamais estimée.",
-        "reportingCurrency": "Devise de reporting : {{currency}}",
-        "rateDate": "Date du taux : {{date}}",
-        "defaultPolicy": "Politique par défaut",
-        "missingRate": "Aucun taux enregistré pour {{currencies}} ; le total converti n'est pas affiché.",
-        "convertedTotal": "total converti",
-        "rate": "taux {{rate}} au {{date}}",
-        "noRate": "aucun taux enregistré",
-        "staleRate": "Les montants convertis utilisent un taux enregistré du {{date}}, vieux de {{days}} jours. Les taux sont saisis manuellement, vérifiez donc que le taux est toujours d’actualité.",
-        "reportingCurrencyLabel": "Devise de reporting",
-        "rateSourceLabel": "Source du taux",
-        "sourceStored": "Taux enregistrés",
-        "sourceAdmin": "Saisis par l'administrateur",
-        "sourceImport": "Importés",
-        "rateDateModeLabel": "Date du taux",
-        "modePeriodEnd": "Fin de période",
-        "modeRateDate": "Date fixe",
-        "rateDateLabel": "Date du taux",
-        "baseLabel": "Devise d'origine",
-        "quoteLabel": "Devise de destination",
-        "rateLabel": "Taux",
-        "addRate": "Ajouter un taux",
-        "policySaved": "Politique de change enregistrée.",
-        "policyError": "Impossible d'enregistrer la politique de change.",
-        "rateSaved": "Taux enregistré.",
-        "rateError": "Impossible d'enregistrer le taux."
-      },
-      "laborPolicies": {
-        "title": "Politiques de travail par magasin",
-        "hint": "Définissez les règles d'heures supplémentaires par magasin. Un magasin sans politique propre utilise la politique du restaurant.",
-        "none": "Aucun magasin pour le moment.",
-        "store": "Magasin",
-        "source": "Source",
-        "weeklyThreshold": "Seuil hebdomadaire d'heures supplémentaires (heures)",
-        "multiplier": "Multiplicateur d'heures supplémentaires",
-        "breakAfter": "Pause après (minutes)",
-        "saved": "Politique de travail enregistrée.",
-        "saveError": "Impossible d'enregistrer la politique de travail."
-      },
-      "payRuns": {
-        "title": "Fiches de paie en attente d'approbation HQ",
-        "hint": "Les fiches de paie finalisées attendent un second approbateur ici. La personne qui a finalisé une fiche ne peut pas l’approuver.",
-        "none": "Aucune fiche de paie finalisée en attente d’approbation.",
-        "stores": "{{count}} magasins",
-        "approve": "Approuver",
-        "approved": "Fiche de paie approuvée.",
-        "approveError": "Impossible d'approuver la fiche de paie."
-      },
-      "borrows": {
-        "title": "Prêt de personnel entre magasins",
-        "hint": "Empruntez un employé d'un magasin pour couvrir un poste dans un autre. Le demandeur ne peut pas approuver sa propre demande.",
-        "worker": "Employé",
-        "selectWorker": "Choisir un employé",
-        "homeStore": "Magasin d'origine",
-        "borrowStore": "Magasin emprunteur",
-        "selectStore": "Choisir un magasin",
-        "start": "Début",
-        "end": "Fin",
-        "request": "Demander un prêt",
-        "requested": "Prêt demandé.",
-        "requestError": "Impossible de demander le prêt.",
-        "approve": "Approuver",
-        "decline": "Refuser",
-        "approved": "Prêt approuvé.",
-        "declined": "Prêt refusé.",
-        "reviewError": "Impossible d'examiner le prêt.",
-        "rosterTitle": "Effectif partagé",
-        "shifts": "{{count}} postes",
-        "borrowed": "{{count}} prêts",
-        "overnight": "se termine le lendemain"
-      }
+        "fx": {
+          "convertedTitle": "Totaux convertis",
+          "title": "Taux de change et devise de reporting",
+          "hint": "Les totaux convertis utilisent uniquement les taux enregistrés. Saisissez les taux enregistrés ou importés par un administrateur ; une devise sans taux enregistré est signalée, jamais estimée.",
+          "reportingCurrency": "Devise de reporting : {{currency}}",
+          "rateDate": "Date du taux : {{date}}",
+          "defaultPolicy": "Politique par défaut",
+          "missingRate": "Aucun taux enregistré pour {{currencies}} ; le total converti n'est pas affiché.",
+          "convertedTotal": "total converti",
+          "rate": "taux {{rate}} au {{date}}",
+          "noRate": "aucun taux enregistré",
+          "staleRate": "Les montants convertis utilisent un taux enregistré du {{date}}, vieux de {{days}} jours. Les taux sont saisis manuellement, vérifiez donc que le taux est toujours d’actualité.",
+          "reportingCurrencyLabel": "Devise de reporting",
+          "rateSourceLabel": "Source du taux",
+          "sourceStored": "Taux enregistrés",
+          "sourceAdmin": "Saisis par l'administrateur",
+          "sourceImport": "Importés",
+          "rateDateModeLabel": "Date du taux",
+          "modePeriodEnd": "Fin de période",
+          "modeRateDate": "Date fixe",
+          "rateDateLabel": "Date du taux",
+          "baseLabel": "Devise d'origine",
+          "quoteLabel": "Devise de destination",
+          "rateLabel": "Taux",
+          "addRate": "Ajouter un taux",
+          "policySaved": "Politique de change enregistrée.",
+          "policyError": "Impossible d'enregistrer la politique de change.",
+          "rateSaved": "Taux enregistré.",
+          "rateError": "Impossible d'enregistrer le taux."
+        },
+        "laborPolicies": {
+          "title": "Politiques de travail par magasin",
+          "hint": "Définissez les règles d'heures supplémentaires par magasin. Un magasin sans politique propre utilise la politique du restaurant.",
+          "none": "Aucun magasin pour le moment.",
+          "store": "Magasin",
+          "source": "Source",
+          "weeklyThreshold": "Seuil hebdomadaire d'heures supplémentaires (heures)",
+          "multiplier": "Multiplicateur d'heures supplémentaires",
+          "breakAfter": "Pause après (minutes)",
+          "saved": "Politique de travail enregistrée.",
+          "saveError": "Impossible d'enregistrer la politique de travail."
+        },
+        "payRuns": {
+          "title": "Fiches de paie en attente d'approbation HQ",
+          "hint": "Les fiches de paie finalisées attendent un second approbateur ici. La personne qui a finalisé une fiche ne peut pas l’approuver.",
+          "none": "Aucune fiche de paie finalisée en attente d’approbation.",
+          "stores": "{{count}} magasins",
+          "approve": "Approuver",
+          "approved": "Fiche de paie approuvée.",
+          "approveError": "Impossible d'approuver la fiche de paie."
+        },
+        "borrows": {
+          "title": "Prêt de personnel entre magasins",
+          "hint": "Empruntez un employé d'un magasin pour couvrir un poste dans un autre. Le demandeur ne peut pas approuver sa propre demande.",
+          "worker": "Employé",
+          "selectWorker": "Choisir un employé",
+          "homeStore": "Magasin d'origine",
+          "borrowStore": "Magasin emprunteur",
+          "selectStore": "Choisir un magasin",
+          "start": "Début",
+          "end": "Fin",
+          "request": "Demander un prêt",
+          "requested": "Prêt demandé.",
+          "requestError": "Impossible de demander le prêt.",
+          "approve": "Approuver",
+          "decline": "Refuser",
+          "approved": "Prêt approuvé.",
+          "declined": "Prêt refusé.",
+          "reviewError": "Impossible d'examiner le prêt.",
+          "rosterTitle": "Effectif partagé",
+          "shifts": "{{count}} postes",
+          "borrowed": "{{count}} prêts",
+          "overnight": "se termine le lendemain"
+        }
       },
       "brandHq": {
         "title": "QG de la marque",
@@ -28997,128 +29087,128 @@
         "attach": "Rattacher le restaurant",
         "attachSuccess": "Restaurant rattaché à la marque",
         "attachError": "Impossible de rattacher le restaurant",
-      "fx": {
-        "convertedTitle": "Totaux convertis",
-        "title": "Taux de change et devise de reporting de la marque",
-        "hint": "Les totaux convertis de la marque utilisent uniquement les taux enregistrés. Saisissez les taux enregistrés ou importés par un administrateur ; une devise sans taux enregistré est signalée, jamais estimée.",
-        "savePolicy": "Enregistrer la politique",
-        "reportingCurrency": "Devise de reporting : {{currency}}",
-        "rateDate": "Date du taux : {{date}}",
-        "defaultPolicy": "Politique par défaut",
-        "missingRate": "Aucun taux enregistré pour {{currencies}} ; le total converti n'est pas affiché.",
-        "convertedTotal": "total converti",
-        "rate": "taux {{rate}} au {{date}}",
-        "noRate": "aucun taux enregistré",
-        "staleRate": "Les montants convertis utilisent un taux enregistré du {{date}}, vieux de {{days}} jours. Les taux sont saisis manuellement, vérifiez donc que le taux est toujours d’actualité.",
-        "reportingCurrencyLabel": "Devise de reporting",
-        "rateSourceLabel": "Source du taux",
-        "sourceStored": "Taux enregistrés",
-        "sourceAdmin": "Saisis par l'administrateur",
-        "sourceImport": "Importés",
-        "rateDateModeLabel": "Date du taux",
-        "modePeriodEnd": "Fin de période",
-        "modeRateDate": "Date fixe",
-        "rateDateLabel": "Date du taux",
-        "baseLabel": "Devise d'origine",
-        "quoteLabel": "Devise de destination",
-        "rateLabel": "Taux",
-        "addRate": "Ajouter un taux",
-        "policySaved": "Politique de change enregistrée.",
-        "policyError": "Impossible d'enregistrer la politique de change.",
-        "rateSaved": "Taux enregistré.",
-        "rateError": "Impossible d'enregistrer le taux."
-      },
-      "rollouts": {
-        "title": "Déploiements de menu par étapes",
-        "hint": "Déployez un menu d'abord dans les restaurants pilotes, puis dans toutes les autres cibles. Un seul déploiement peut être ouvert à la fois.",
-        "pilotRestaurants": "Restaurants pilotes",
-        "targetRestaurants": "Restaurants cibles",
-        "create": "Créer un déploiement",
-        "created": "Déploiement créé.",
-        "createError": "Impossible de créer le déploiement.",
-        "advanced": "Déploiement avancé.",
-        "advanceError": "Impossible de faire avancer le déploiement.",
-        "cancelled": "Déploiement annulé.",
-        "cancelError": "Impossible d'annuler le déploiement.",
-        "stage": "Étape : {{stage}}",
-        "pilotCount": "pilote",
-        "targetCount": "cibles",
-        "advancePilot": "Publier chez les pilotes",
-        "advanceAll": "Publier chez toutes les cibles",
-        "cancel": "Annuler"
-      },
-      "consolidations": {
-        "title": "Fiches de paie consolidées",
-        "hint": "Regroupez les fiches de paie finalisées de la même période dans une consolidation. Finaliser et approuver exigent deux personnes différentes.",
-        "noFinalized": "Aucune fiche de paie finalisée dans cette fenêtre.",
-        "selectRuns": "Fiches de paie finalisées",
-        "create": "Créer une consolidation",
-        "created": "Consolidation créée.",
-        "createError": "Impossible de créer la consolidation.",
-        "members": "fiches",
-        "finalize": "Finaliser",
-        "approve": "Approuver",
-        "void": "Annuler",
-        "finalized": "Consolidation finalisée.",
-        "approved": "Consolidation approuvée.",
-        "voided": "Consolidation annulée.",
-        "voidRequested": "Annulation demandée. Un autre responsable de la paie doit l’approuver.",
-        "voidApprove": "Approuver l’annulation",
-        "voidApproved": "Consolidation annulée.",
-        "voidPending": "Annulation demandée. Cette consolidation attend l’approbation d’un autre responsable de la paie.",
-        "actionError": "Impossible de mettre à jour la consolidation.",
-        "viewDetails": "Voir le détail",
-        "detailTitle": "Consolidation n° {{id}}",
-        "detailError": "Impossible de charger la consolidation.",
-        "finalizedAt": "Finalisée {{date}}",
-        "approvedAt": "Approuvée {{date}}",
-        "memberRun": "Fiche de paie n° {{id}}",
-        "closeDetails": "Fermer le détail"
-      },
-      "franchise": {
-        "title": "Rapport de franchise",
-        "loadError": "Impossible de charger le rapport de franchise.",
-        "reportingCurrency": "Devise de reporting : {{currency}}",
-        "rateDate": "Date du taux : {{date}}",
-        "defaultPolicy": "Politique par défaut",
-        "missingRates": "Aucun taux enregistré pour {{currencies}}",
-        "storeCol": "Magasin",
-        "salesCol": "Ventes",
-        "royaltyCol": "Redevance",
-        "marketingCol": "Frais marketing",
-        "agreementCol": "Accord",
-        "noAgreement": "Aucun accord",
-        "royaltyBps": "Redevance {{bps}} pb",
-        "marketingBps": "Marketing {{bps}} pb",
-        "accrualCol": "Comptabilisation",
-        "accrualFailedCount": "{{count}} en échec",
-        "accrualStatus": {
-          "accrued": "Comptabilisé",
-          "failed": "En échec",
-          "pending": "En attente"
+        "fx": {
+          "convertedTitle": "Totaux convertis",
+          "title": "Taux de change et devise de reporting de la marque",
+          "hint": "Les totaux convertis de la marque utilisent uniquement les taux enregistrés. Saisissez les taux enregistrés ou importés par un administrateur ; une devise sans taux enregistré est signalée, jamais estimée.",
+          "savePolicy": "Enregistrer la politique",
+          "reportingCurrency": "Devise de reporting : {{currency}}",
+          "rateDate": "Date du taux : {{date}}",
+          "defaultPolicy": "Politique par défaut",
+          "missingRate": "Aucun taux enregistré pour {{currencies}} ; le total converti n'est pas affiché.",
+          "convertedTotal": "total converti",
+          "rate": "taux {{rate}} au {{date}}",
+          "noRate": "aucun taux enregistré",
+          "staleRate": "Les montants convertis utilisent un taux enregistré du {{date}}, vieux de {{days}} jours. Les taux sont saisis manuellement, vérifiez donc que le taux est toujours d’actualité.",
+          "reportingCurrencyLabel": "Devise de reporting",
+          "rateSourceLabel": "Source du taux",
+          "sourceStored": "Taux enregistrés",
+          "sourceAdmin": "Saisis par l'administrateur",
+          "sourceImport": "Importés",
+          "rateDateModeLabel": "Date du taux",
+          "modePeriodEnd": "Fin de période",
+          "modeRateDate": "Date fixe",
+          "rateDateLabel": "Date du taux",
+          "baseLabel": "Devise d'origine",
+          "quoteLabel": "Devise de destination",
+          "rateLabel": "Taux",
+          "addRate": "Ajouter un taux",
+          "policySaved": "Politique de change enregistrée.",
+          "policyError": "Impossible d'enregistrer la politique de change.",
+          "rateSaved": "Taux enregistré.",
+          "rateError": "Impossible d'enregistrer le taux."
         },
-        "totalsSales": "Ventes",
-        "totalsRoyalty": "Redevance",
-        "totalsMarketing": "Marketing",
-        "totalsInitial": "Frais initiaux",
-        "mappings": {
-          "title": "Accords par magasin",
-          "hint": "Chaque magasin est rattaché à un seul accord de franchise. Un magasin sans accord déclare ses ventes sans redevance.",
-          "unmappedTitle": "Magasins sans accord",
-          "ambiguousTitle": "Accords à confirmer",
-          "ambiguousHint": "Ces magasins ont été rattachés à partir de territoires qui se chevauchent. Confirmez que l'accord est correct.",
-          "ambiguousCount": "{{count}} accords correspondaient à ce magasin",
-          "selectAgreement": "Sélectionner un accord",
-          "assign": "Attribuer",
-          "change": "Modifier",
-          "unassign": "Retirer",
-          "assigned": "Accord attribué.",
-          "removed": "Accord retiré.",
-          "assignError": "Impossible d'attribuer l'accord.",
-          "removeError": "Impossible de retirer l'accord.",
-          "noStores": "Aucun magasin dans cette marque pour le moment."
+        "rollouts": {
+          "title": "Déploiements de menu par étapes",
+          "hint": "Déployez un menu d'abord dans les restaurants pilotes, puis dans toutes les autres cibles. Un seul déploiement peut être ouvert à la fois.",
+          "pilotRestaurants": "Restaurants pilotes",
+          "targetRestaurants": "Restaurants cibles",
+          "create": "Créer un déploiement",
+          "created": "Déploiement créé.",
+          "createError": "Impossible de créer le déploiement.",
+          "advanced": "Déploiement avancé.",
+          "advanceError": "Impossible de faire avancer le déploiement.",
+          "cancelled": "Déploiement annulé.",
+          "cancelError": "Impossible d'annuler le déploiement.",
+          "stage": "Étape : {{stage}}",
+          "pilotCount": "pilote",
+          "targetCount": "cibles",
+          "advancePilot": "Publier chez les pilotes",
+          "advanceAll": "Publier chez toutes les cibles",
+          "cancel": "Annuler"
+        },
+        "consolidations": {
+          "title": "Fiches de paie consolidées",
+          "hint": "Regroupez les fiches de paie finalisées de la même période dans une consolidation. Finaliser et approuver exigent deux personnes différentes.",
+          "noFinalized": "Aucune fiche de paie finalisée dans cette fenêtre.",
+          "selectRuns": "Fiches de paie finalisées",
+          "create": "Créer une consolidation",
+          "created": "Consolidation créée.",
+          "createError": "Impossible de créer la consolidation.",
+          "members": "fiches",
+          "finalize": "Finaliser",
+          "approve": "Approuver",
+          "void": "Annuler",
+          "finalized": "Consolidation finalisée.",
+          "approved": "Consolidation approuvée.",
+          "voided": "Consolidation annulée.",
+          "voidRequested": "Annulation demandée. Un autre responsable de la paie doit l’approuver.",
+          "voidApprove": "Approuver l’annulation",
+          "voidApproved": "Consolidation annulée.",
+          "voidPending": "Annulation demandée. Cette consolidation attend l’approbation d’un autre responsable de la paie.",
+          "actionError": "Impossible de mettre à jour la consolidation.",
+          "viewDetails": "Voir le détail",
+          "detailTitle": "Consolidation n° {{id}}",
+          "detailError": "Impossible de charger la consolidation.",
+          "finalizedAt": "Finalisée {{date}}",
+          "approvedAt": "Approuvée {{date}}",
+          "memberRun": "Fiche de paie n° {{id}}",
+          "closeDetails": "Fermer le détail"
+        },
+        "franchise": {
+          "title": "Rapport de franchise",
+          "loadError": "Impossible de charger le rapport de franchise.",
+          "reportingCurrency": "Devise de reporting : {{currency}}",
+          "rateDate": "Date du taux : {{date}}",
+          "defaultPolicy": "Politique par défaut",
+          "missingRates": "Aucun taux enregistré pour {{currencies}}",
+          "storeCol": "Magasin",
+          "salesCol": "Ventes",
+          "royaltyCol": "Redevance",
+          "marketingCol": "Frais marketing",
+          "agreementCol": "Accord",
+          "noAgreement": "Aucun accord",
+          "royaltyBps": "Redevance {{bps}} pb",
+          "marketingBps": "Marketing {{bps}} pb",
+          "accrualCol": "Comptabilisation",
+          "accrualFailedCount": "{{count}} en échec",
+          "accrualStatus": {
+            "accrued": "Comptabilisé",
+            "failed": "En échec",
+            "pending": "En attente"
+          },
+          "totalsSales": "Ventes",
+          "totalsRoyalty": "Redevance",
+          "totalsMarketing": "Marketing",
+          "totalsInitial": "Frais initiaux",
+          "mappings": {
+            "title": "Accords par magasin",
+            "hint": "Chaque magasin est rattaché à un seul accord de franchise. Un magasin sans accord déclare ses ventes sans redevance.",
+            "unmappedTitle": "Magasins sans accord",
+            "ambiguousTitle": "Accords à confirmer",
+            "ambiguousHint": "Ces magasins ont été rattachés à partir de territoires qui se chevauchent. Confirmez que l'accord est correct.",
+            "ambiguousCount": "{{count}} accords correspondaient à ce magasin",
+            "selectAgreement": "Sélectionner un accord",
+            "assign": "Attribuer",
+            "change": "Modifier",
+            "unassign": "Retirer",
+            "assigned": "Accord attribué.",
+            "removed": "Accord retiré.",
+            "assignError": "Impossible d'attribuer l'accord.",
+            "removeError": "Impossible de retirer l'accord.",
+            "noStores": "Aucun magasin dans cette marque pour le moment."
+          }
         }
-      }
       },
       "storeHub": {
         "title": "Hub en magasin",
@@ -37946,7 +38036,7 @@
     "sectionMessageHistory": "Historique des messages",
     "emptyMessages": "Aucun message envoyé pour l'instant",
     "messageErrorLine": "Erreur : {{error}}",
-      "consultantReply": "Réponse du consultant",
+    "consultantReply": "Réponse du consultant",
     "closeButton": "Fermer"
   },
   "adminAdminAccounts": {
@@ -44906,7 +44996,6 @@
     "bidExpired": "Cette offre a expiré.",
     "bidExpires": "L’offre expire le {{date}}",
     "reviewChanges": "Vérifier les changements et confirmer à nouveau votre offre"
-
   },
   "quoteWorkspace": {
     "title": "Devis détaillés",

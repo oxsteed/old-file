@@ -617,4 +617,71 @@ describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', (
     });
   });
 
+  describe('610: operator-facing assignment history', () => {
+    test('the operator sees their own application events, newest first, without metadata or actor', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      expect(detail.body.activity).toBeDefined();
+      expect(detail.body.activity.length).toBeGreaterThanOrEqual(1);
+      // Newest first: the owner-linking PATCH is the newest event, the
+      // creation event is the oldest.
+      expect(detail.body.activity[detail.body.activity.length - 1].event_type).toBe('application_created');
+      expect(detail.body.activity[0]).not.toHaveProperty('metadata');
+      expect(detail.body.activity[0]).not.toHaveProperty('actor_id');
+      expect(detail.body.activity[0]).not.toHaveProperty('actor_email');
+
+      // A responsibility acknowledgment adds a newer event on top.
+      const item = detail.body.responsibilities[0];
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/responsibilities/${item.id}/acknowledge`)
+        .set('x-test-user', applicant)
+        .expect(200);
+      const after = await applicantDetail(applicant, applicationId).expect(200);
+      expect(after.body.activity[0].event_type).toBe('responsibility_acknowledged');
+      expect(after.body.activity.some((event) => event.event_type === 'application_created')).toBe(true);
+      const createdAt = after.body.activity.map((event) => event.created_at);
+      expect([...createdAt].sort().reverse()).toEqual(createdAt);
+    });
+
+    test('internal notes are hidden from the operator; shared notes still show their arrival', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/notes`)
+        .set('x-test-user', admin)
+        .send({ note_text: 'Internal: hold for risk review.', visibility: 'internal' })
+        .expect(201);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/notes`)
+        .set('x-test-user', admin)
+        .send({ note_text: 'Shared: welcome call booked.', visibility: 'shared' })
+        .expect(201);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const notes = detail.body.activity.filter((event) => event.event_type === 'note_added');
+      expect(notes).toHaveLength(1);
+      expect(notes[0].event_summary).not.toContain('risk review');
+      expect(notes[0].event_summary).not.toContain('welcome call');
+
+      // HQ still sees both note events in the admin bundle.
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      expect(bundle.body.activity.filter((event) => event.event_type === 'note_added')).toHaveLength(2);
+    });
+
+    test('a stranger gets 404 and learns nothing about the application history', async () => {
+      const applicant = await addUser();
+      const stranger = await addUser();
+      const applicationId = await makeApplication(applicant);
+      await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}`)
+        .set('x-test-user', stranger)
+        .expect(404);
+    });
+  });
+
 });
