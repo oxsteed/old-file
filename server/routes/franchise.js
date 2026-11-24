@@ -23,6 +23,11 @@ const {
   signFranchiseAgreement,
   recordFranchiseFeeCollection,
   activateFranchiseStore,
+  getMyFranchiseApplication,
+  proposeInterviewSlot,
+  updateInterviewSlot,
+  bookInterviewSlot,
+  cancelInterviewBooking,
 } = require('../controllers/franchiseController');
 
 const {
@@ -32,6 +37,11 @@ const {
 
 router.post('/applications', generalLimiter, requireFranchiseEnabled, createFranchiseApplication);
 router.get('/my-applications',     authenticate, requireFranchiseEnabled, listMyFranchiseApplications);
+// Group 12 Slice 3a (604): applicant detail — interview booking,
+// scoped to the applicant's own application.
+router.get('/my-applications/:id', authenticate, requireFranchiseEnabled, getMyFranchiseApplication);
+router.post('/my-applications/:id/interviews/:slotId/book', authenticate, requireFranchiseEnabled, bookInterviewSlot);
+router.post('/my-applications/:id/interviews/:slotId/cancel', authenticate, requireFranchiseEnabled, cancelInterviewBooking);
 router.get('/territory-stats',     authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryStats);
 router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryHelpers);
 
@@ -40,6 +50,9 @@ router.get('/applications/:id', authenticate, requireAdmin, requirePermission('m
 router.patch('/applications/:id', authenticate, requireAdmin, requirePermission('manage_operations'), updateFranchiseApplication);
 router.post('/applications/:id/notes', authenticate, requireAdmin, requirePermission('manage_operations'), addFranchiseNote);
 router.patch('/applications/:id/checklist/:itemId', authenticate, requireAdmin, requirePermission('manage_operations'), updateChecklistItem);
+// Group 12 Slice 3a (604): HQ interview slots.
+router.post('/applications/:id/interviews', authenticate, requireAdmin, requirePermission('manage_operations'), proposeInterviewSlot);
+router.patch('/applications/:id/interviews/:slotId', authenticate, requireAdmin, requirePermission('manage_operations'), updateInterviewSlot);
 router.put('/applications/:id/agreement', authenticate, requireAdmin, requirePermission('manage_operations'), upsertFranchiseAgreement);
 // Review P2-9-F09: the applicant signs from their own account (admins cannot
 // assert the applicant's signature). Authenticated, not admin-gated.

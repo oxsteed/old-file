@@ -19,6 +19,8 @@ const AGREEMENT_STATUSES = new Set(['draft', 'sent', 'signed', 'waived']);
 const TRAINING_STATUSES = new Set(['not_started', 'scheduled', 'in_progress', 'completed']);
 const READINESS_STATUSES = new Set(['not_ready', 'planning', 'ready', 'launched']);
 const CHECKLIST_STATUSES = new Set(['pending', 'in_progress', 'completed', 'blocked', 'waived']);
+// Group 12 Slice 3a.
+const INTERVIEW_STATUSES = new Set(['proposed', 'booked', 'completed', 'cancelled']);
 const FRANCHISE_POLICY_VERSION = 'franchise-policy-1';
 
 const DEFAULT_CHECKLIST = [
@@ -258,6 +260,15 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     [applicationId]
   );
 
+  const interviewResult = await db.query(
+    `SELECT *
+       FROM franchise_interview_slots
+      WHERE application_id = $1
+      ORDER BY starts_at ASC, id ASC`,
+    [applicationId]
+  );
+
+
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
 
@@ -271,7 +282,95 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     agreement: agreementResult.rows[0] || null,
     notes: notesResult.rows,
     activity: activityResult.rows,
+    interviews: interviewResult.rows,
   };
+}
+
+// Group 12 Slice 3a (604): the applicant-facing detail view — interviews
+// tracked on the application, scoped to the applicant's own rows.
+// Internal notes are never selected here — server-enforced (D-305).
+async function fetchApplicantApplicationDetail(applicationId, userId) {
+  const applicationResult = await db.query(
+    `SELECT
+        fa.id,
+        fa.first_name,
+        fa.last_name,
+        fa.email,
+        fa.phone,
+        fa.desired_country,
+        fa.desired_region,
+        fa.desired_city,
+        fa.territory_summary,
+        fa.timeline_window,
+        fa.preferred_store_count,
+        fa.status,
+        fa.agreement_status,
+        fa.training_status,
+        fa.launch_readiness_status,
+        fa.available_capital_cents,
+        fa.liquid_capital_cents,
+        fa.linked_business_id,
+        fa.submitted_at,
+        fa.updated_at,
+        fa.last_contacted_at,
+        b.business_name AS linked_business_name,
+        COALESCE(progress.completed_count, 0)::int AS checklist_completed,
+        COALESCE(progress.total_count, 0)::int AS checklist_total
+       FROM franchise_applications fa
+       LEFT JOIN businesses b ON b.id = fa.linked_business_id
+       LEFT JOIN (
+         SELECT
+           application_id,
+           COUNT(*) AS total_count,
+           COUNT(*) FILTER (WHERE status IN ('completed', 'waived')) AS completed_count
+         FROM franchise_application_checklist_items
+         GROUP BY application_id
+       ) progress ON progress.application_id = fa.id
+      WHERE fa.id = $1 AND (fa.applicant_user_id = $2 OR fa.owner_user_id = $2)`,
+    [applicationId, userId]
+  );
+
+  if (!applicationResult.rows.length) return null;
+
+  const [interviewResult] = await Promise.all([
+    db.query(
+      `SELECT *
+         FROM franchise_interview_slots
+        WHERE application_id = $1
+        ORDER BY starts_at ASC, id ASC`,
+      [applicationId]
+    ),
+  ]);
+
+
+  return {
+    application: applicationResult.rows[0],
+    interviews: interviewResult.rows,
+  };
+}
+
+// Ownership check shared by the applicant-scoped mutation endpoints. A
+// stranger gets the same 404 as a missing application, so existence never
+// leaks across applicants.
+async function loadOwnedApplication(client, applicationId, userId) {
+  const { rows } = await client.query(
+    `SELECT id, applicant_user_id, owner_user_id
+       FROM franchise_applications
+      WHERE id = $1`,
+    [applicationId]
+  );
+  const application = rows[0] || null;
+  if (!application) return null;
+  const owned = String(application.applicant_user_id) === String(userId)
+    || String(application.owner_user_id) === String(userId);
+  return owned ? application : null;
+}
+
+function parseInterviewDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
 }
 
 async function createFranchiseApplication(req, res) {
@@ -1455,6 +1554,360 @@ async function activateFranchiseStore(req, res) {
   }
 }
 
+/**
+ * GET /api/franchise/my-applications/:id
+ * Group 12 Slice 3a (604): the applicant's own detail view —
+ * interviews tracked on the application.
+ * Internal notes are never returned (D-305).
+ */
+async function getMyFranchiseApplication(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  try {
+    const detail = await fetchApplicantApplicationDetail(req.params.id, req.user.id);
+    if (!detail) {
+      return res.status(404).json({ error: 'Franchise application not found.' });
+    }
+    return res.json(detail);
+  } catch (err) {
+    logger.error('Error fetching my franchise application', { id: req.params.id, err: err.message });
+    return res.status(500).json({ error: 'Failed to fetch franchise application.' });
+  }
+}
+
+/**
+ * POST /api/franchise/applications/:id/interviews (admin)
+ * 604 (D-300): HQ proposes an interview slot on the application. Slots must
+ * start in the future; the end, when given, must be after the start.
+ */
+async function proposeInterviewSlot(req, res) {
+  const body = req.body || {};
+  const startsAt = parseInterviewDate(body.starts_at);
+  const endsAt = parseInterviewDate(body.ends_at);
+  if (!startsAt) {
+    return res.status(400).json({ error: 'starts_at is required and must be a valid date.', code: 'invalid_interview_start' });
+  }
+  if (startsAt.getTime() <= Date.now()) {
+    return res.status(400).json({ error: 'Interview slots must start in the future.', code: 'interview_start_in_past' });
+  }
+  if (body.ends_at !== undefined && body.ends_at !== null && body.ends_at !== '' && !endsAt) {
+    return res.status(400).json({ error: 'ends_at must be a valid date.', code: 'invalid_interview_end' });
+  }
+  if (endsAt && endsAt.getTime() <= startsAt.getTime()) {
+    return res.status(400).json({ error: 'ends_at must be after starts_at.', code: 'invalid_interview_end' });
+  }
+
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [req.params.id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows } = await client.query(
+        `INSERT INTO franchise_interview_slots
+           (application_id, proposed_by, interviewer_name, starts_at, ends_at, note)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [
+          req.params.id,
+          req.user?.id || null,
+          asTrimmed(body.interviewer_name),
+          startsAt.toISOString(),
+          endsAt ? endsAt.toISOString() : null,
+          asTrimmed(body.note),
+        ]
+      );
+      await logActivity(
+        client,
+        req.params.id,
+        req.user?.id || null,
+        'interview_proposed',
+        `Interview proposed for ${startsAt.toISOString()}.`,
+        { slot_id: rows[0].id, interviewer_name: rows[0].interviewer_name }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(req.params.id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error proposing franchise interview', { id: req.params.id, err: err.message });
+    return res.status(500).json({ error: 'Failed to propose interview.' });
+  }
+}
+
+/**
+ * PATCH /api/franchise/applications/:id/interviews/:slotId (admin)
+ * 604: HQ manages a slot. A proposed slot can be edited or cancelled; a
+ * booked slot can be marked completed or cancelled. Completed/cancelled are
+ * terminal. Cancelling never deletes the row — the history stays on the
+ * application.
+ */
+async function updateInterviewSlot(req, res) {
+  const body = req.body || {};
+  const { id, slotId } = req.params;
+  const nextStatus = body.status !== undefined ? asTrimmed(body.status) : undefined;
+  if (nextStatus !== undefined && !INTERVIEW_STATUSES.has(nextStatus)) {
+    return res.status(400).json({ error: 'Invalid interview status.', code: 'invalid_interview_status' });
+  }
+  if (nextStatus === 'proposed' || nextStatus === 'booked') {
+    return res.status(400).json({
+      error: 'Only HQ cancel/complete transitions are allowed here; proposing and booking use their own endpoints.',
+      code: 'invalid_interview_transition',
+    });
+  }
+
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: slotRows } = await client.query(
+        `SELECT * FROM franchise_interview_slots WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+        [slotId, id]
+      );
+      const slot = slotRows[0];
+      if (!slot) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Interview slot not found.' });
+      }
+      if (slot.status === 'completed' || slot.status === 'cancelled') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `A ${slot.status} interview cannot be changed.`,
+          code: 'interview_terminal',
+        });
+      }
+
+      const updates = [];
+      const values = [];
+      let idx = 1;
+      if (nextStatus) {
+        if (slot.status === 'proposed' && nextStatus === 'completed') {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: 'Only a booked interview can be marked completed.',
+            code: 'interview_not_booked',
+          });
+        }
+        updates.push(`status = $${idx++}`);
+        values.push(nextStatus);
+      }
+      // Proposed slots may be rescheduled/renamed; a booked slot keeps its
+      // time so the applicant is never moved without a cancel + re-propose.
+      if (slot.status === 'proposed') {
+        if (body.starts_at !== undefined) {
+          const startsAt = parseInterviewDate(body.starts_at);
+          if (!startsAt || startsAt.getTime() <= Date.now()) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'starts_at must be a valid future date.', code: 'invalid_interview_start' });
+          }
+          updates.push(`starts_at = $${idx++}`);
+          values.push(startsAt.toISOString());
+        }
+        if (body.ends_at !== undefined) {
+          const endsAt = parseInterviewDate(body.ends_at);
+          if (body.ends_at && !endsAt) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'ends_at must be a valid date.', code: 'invalid_interview_end' });
+          }
+          updates.push(`ends_at = $${idx++}`);
+          values.push(endsAt ? endsAt.toISOString() : null);
+        }
+        if (body.interviewer_name !== undefined) {
+          updates.push(`interviewer_name = $${idx++}`);
+          values.push(asTrimmed(body.interviewer_name));
+        }
+        if (body.note !== undefined) {
+          updates.push(`note = $${idx++}`);
+          values.push(asTrimmed(body.note));
+        }
+      }
+      if (!updates.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'No interview updates supplied.' });
+      }
+      values.push(slotId);
+      values.push(id);
+      const { rows: updatedRows } = await client.query(
+        `UPDATE franchise_interview_slots
+            SET ${updates.join(', ')}, updated_at = NOW()
+          WHERE id = $${idx++} AND application_id = $${idx++}
+          RETURNING *`,
+        values
+      );
+      await logActivity(
+        client,
+        id,
+        req.user?.id || null,
+        nextStatus === 'completed' ? 'interview_completed' : nextStatus === 'cancelled' ? 'interview_cancelled' : 'interview_updated',
+        nextStatus ? `Interview ${nextStatus}.` : 'Interview updated.',
+        { slot_id: slotId, status: updatedRows[0].status }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise interview', { id, slotId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update interview.' });
+  }
+}
+
+/**
+ * POST /api/franchise/my-applications/:id/interviews/:slotId/book
+ * 604 (D-300/D-303): the applicant books one proposed slot. One booked slot
+ * per application — a second booking is a 409, enforced by the partial
+ * unique index and re-checked in the transaction.
+ */
+async function bookInterviewSlot(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const { id, slotId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOwnedApplication(client, id, req.user.id);
+      if (!owned) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows: slotRows } = await client.query(
+        `SELECT * FROM franchise_interview_slots WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+        [slotId, id]
+      );
+      const slot = slotRows[0];
+      if (!slot) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Interview slot not found.' });
+      }
+      if (slot.status !== 'proposed') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `Only a proposed interview can be booked (this one is ${slot.status}).`,
+          code: 'interview_not_proposed',
+        });
+      }
+      const { rows: bookedRows } = await client.query(
+        `SELECT id FROM franchise_interview_slots
+          WHERE application_id = $1 AND status = 'booked' FOR UPDATE`,
+        [id]
+      );
+      if (bookedRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'This application already has a booked interview. Cancel it before booking another.',
+          code: 'interview_already_booked',
+        });
+      }
+      await client.query(
+        `UPDATE franchise_interview_slots
+            SET status = 'booked', booked_by = $2, booked_at = NOW(), updated_at = NOW()
+          WHERE id = $1`,
+        [slotId, req.user.id]
+      );
+      await logActivity(
+        client,
+        id,
+        req.user.id,
+        'interview_booked',
+        `Applicant booked the interview on ${new Date(slot.starts_at).toISOString()}.`,
+        { slot_id: slotId }
+      );
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error booking franchise interview', { id, slotId, err: err.message });
+    return res.status(500).json({ error: 'Failed to book interview.' });
+  }
+}
+
+/**
+ * POST /api/franchise/my-applications/:id/interviews/:slotId/cancel
+ * 604 (D-303): the applicant cancels their own booking. The slot returns to
+ * `proposed` so it can be re-booked or replaced — a misclick never destroys
+ * the slot, and the cancellation is logged for HQ.
+ */
+async function cancelInterviewBooking(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const { id, slotId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOwnedApplication(client, id, req.user.id);
+      if (!owned) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows: slotRows } = await client.query(
+        `SELECT * FROM franchise_interview_slots WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+        [slotId, id]
+      );
+      const slot = slotRows[0];
+      if (!slot) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Interview slot not found.' });
+      }
+      if (slot.status !== 'booked' || String(slot.booked_by) !== String(req.user.id)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Only your own booked interview can be cancelled.',
+          code: 'interview_not_booked_by_you',
+        });
+      }
+      await client.query(
+        `UPDATE franchise_interview_slots
+            SET status = 'proposed', booked_by = NULL, booked_at = NULL, updated_at = NOW()
+          WHERE id = $1`,
+        [slotId]
+      );
+      await logActivity(
+        client,
+        id,
+        req.user.id,
+        'interview_booking_cancelled',
+        'Applicant cancelled their interview booking; the slot is open again.',
+        { slot_id: slotId }
+      );
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error cancelling franchise interview booking', { id, slotId, err: err.message });
+    return res.status(500).json({ error: 'Failed to cancel interview booking.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -1467,6 +1920,11 @@ module.exports = {
   signFranchiseAgreement,
   recordFranchiseFeeCollection,
   activateFranchiseStore,
+  getMyFranchiseApplication,
+  proposeInterviewSlot,
+  updateInterviewSlot,
+  bookInterviewSlot,
+  cancelInterviewBooking,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

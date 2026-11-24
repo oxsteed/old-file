@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { SuggestDropdown } from '../../../components/SuggestDropdown';
 import '../../lib/suggestDropdownAdmin.css';
+import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
 import axios from '../../../api/axios';
 
@@ -184,6 +185,8 @@ export default function FranchiseHQPage() {
   const [filters, setFilters] = useState({ status: '', country: '', agreement_status: '' });
   const [search, setSearch] = useState('');
   const [noteText, setNoteText] = useState('');
+// Group 12 Slice 3a (604): interview proposal form.
+  const [interviewForm, setInterviewForm] = useState({ starts_at: '', ends_at: '', interviewer_name: '', note: '' });
   const [createForm, setCreateForm] = useState({
     first_name: '',
     last_name: '',
@@ -370,6 +373,40 @@ export default function FranchiseHQPage() {
       toast.success(t('adminFranchiseNoteAdded'));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseNoteFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function proposeInterview() {
+    if (!selectedApplication || !interviewForm.starts_at) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/interviews`, {
+        starts_at: new Date(interviewForm.starts_at).toISOString(),
+        ends_at: interviewForm.ends_at ? new Date(interviewForm.ends_at).toISOString() : undefined,
+        interviewer_name: interviewForm.interviewer_name,
+        note: interviewForm.note,
+      });
+      setSelectedBundle(res.data);
+      setInterviewForm({ starts_at: '', ends_at: '', interviewer_name: '', note: '' });
+      toast.success(t('adminFranchiseInterviewProposed'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseInterviewFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateInterview(slotId, status) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.patch(`/franchise/applications/${selectedApplication.id}/interviews/${slotId}`, { status });
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseInterviewUpdated'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseInterviewFailed'));
     } finally {
       setSaving(false);
     }
@@ -732,6 +769,58 @@ export default function FranchiseHQPage() {
                       </div>
                     </div>
                   </div>
+                </section>
+
+                <section className="frhq-sections">
+                  <div className="frhq-panel">
+                    <div className="frhq-panel-title">{t('adminFranchiseInterviewTitle')}</div>
+                    <div className="frhq-form-grid">
+                      <label className="frhq-label">
+                        {t('adminFranchiseStartsAt')}
+                        <input type="datetime-local" className="frhq-field" value={interviewForm.starts_at} onChange={(e) => setInterviewForm((v) => ({ ...v, starts_at: e.target.value }))} />
+                      </label>
+                      <label className="frhq-label">
+                        {t('adminFranchiseEndsAt')}
+                        <input type="datetime-local" className="frhq-field" value={interviewForm.ends_at} onChange={(e) => setInterviewForm((v) => ({ ...v, ends_at: e.target.value }))} />
+                      </label>
+                      <input className="frhq-field frhq-field-full" placeholder={t('adminFranchiseInterviewerName')} value={interviewForm.interviewer_name} onChange={(e) => setInterviewForm((v) => ({ ...v, interviewer_name: e.target.value }))} />
+                      <textarea className="frhq-field frhq-field-full" placeholder={t('adminFranchiseInterviewNote')} value={interviewForm.note} onChange={(e) => setInterviewForm((v) => ({ ...v, note: e.target.value }))} />
+                    </div>
+                    <button type="button" className="frhq-btn-primary" disabled={saving || !interviewForm.starts_at} onClick={proposeInterview}>
+                      {t('adminFranchiseProposeButton')}
+                    </button>
+                    <div className="frhq-list">
+                      {(selectedBundle.interviews || []).length ? selectedBundle.interviews.map((slot) => (
+                        <div key={slot.id} className="frhq-row">
+                          <div>
+                            <div className="frhq-row-title">
+                              {new Date(slot.starts_at).toLocaleString()}
+                              {slot.ends_at ? ` – ${new Date(slot.ends_at).toLocaleTimeString()}` : ''}
+                            </div>
+                            <div className="frhq-row-meta">
+                              {slot.interviewer_name ? `${slot.interviewer_name} · ` : ''}{formatLabel(slot.status, t)}
+                            </div>
+                            {slot.note && <div className="frhq-row-meta">{slot.note}</div>}
+                          </div>
+                          <div className="frhq-row-actions">
+                            {slot.status === 'booked' && (
+                              <button type="button" className="frhq-btn-accept" disabled={saving} onClick={() => updateInterview(slot.id, 'completed')}>
+                                {t('adminFranchiseCompleteInterview')}
+                              </button>
+                            )}
+                            {['proposed', 'booked'].includes(slot.status) && (
+                              <button type="button" className="frhq-btn-reject" disabled={saving} onClick={() => updateInterview(slot.id, 'cancelled')}>
+                                {t('adminFranchiseCancelInterview')}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="frhq-empty">{t('adminFranchiseNoInterviews')}</div>
+                      )}
+                    </div>
+                  </div>
+
                 </section>
               </>
             )}

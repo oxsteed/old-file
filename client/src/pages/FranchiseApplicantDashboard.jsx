@@ -16,6 +16,7 @@ import {
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import FranchiseApplicationDetail from './FranchiseApplicationDetail';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import { ALL_COUNTRIES } from '../lib/countries';
 import { useAuth } from '../hooks/useAuth';
@@ -309,6 +310,8 @@ export default function FranchiseApplicantDashboard() {
             </div>
           </aside>
         </section>
+
+        <FranchiseApplicationDetail applicationId={primary.id} />
 
         {sortedApplications.length > 1 && (
           <section className="rounded-[28px] border overflow-hidden" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>
