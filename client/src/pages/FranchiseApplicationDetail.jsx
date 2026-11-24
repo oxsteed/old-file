@@ -13,6 +13,7 @@ import api from '../api/axios';
 import './FranchiseApplicationDetail.css';
 import FranchiseBoundarySummary from './FranchiseBoundarySummary';
 import FranchiseLaunchPlan from './FranchiseLaunchPlan';
+import FranchiseOpenLocations from './FranchiseOpenLocations';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
 const DOC_CATEGORY_KEYS = {
@@ -183,6 +184,20 @@ export default function FranchiseApplicationDetail({ applicationId }) {
       setDetail(response.data);
     } catch {
       setError(copy('launchPlanStatusFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Group 12 Slice 3c (611): update one location milestone's status.
+  async function updateMilestoneStatus(locationId, milestoneId, status) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/locations/${locationId}/milestones/${milestoneId}/status`, { status });
+      setDetail(response.data);
+    } catch {
+      setError(copy('milestoneStatusFailed'));
     } finally {
       setBusy(false);
     }
@@ -482,6 +497,15 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         steps={detail.launch_plan_steps || []}
         readinessStatus={detail.application?.launch_readiness_status || null}
         onStatusChange={updateLaunchPlanStatus}
+        disabled={busy}
+      />
+
+      {/* Group 12 Slice 3c (611): the open locations with their launch
+          milestones. */}
+      <FranchiseOpenLocations
+        locations={detail.locations || []}
+        launchPlanSteps={detail.launch_plan_steps || []}
+        onMilestoneStatusChange={updateMilestoneStatus}
         disabled={busy}
       />
 

@@ -208,6 +208,9 @@ export default function FranchiseHQPage() {
   const [areaForm, setAreaForm] = useState({ country: '', region: '', city: '', area_type: 'included' });
   // Group 12 Slice 3b (609): launch plan step form state.
   const [planForm, setPlanForm] = useState({ title: '', description: '', due_date: '', owner_role: 'operator' });
+  // Group 12 Slice 3c (611): HQ adds locations and their launch milestones.
+  const [locationForm, setLocationForm] = useState({ name: '', city: '', region: '', country: '' });
+  const [milestoneForm, setMilestoneForm] = useState({ location_id: '', title: '', due_date: '', owner_role: 'operator', launch_plan_step_id: '' });
   const [createForm, setCreateForm] = useState({
     first_name: '',
     last_name: '',
@@ -548,6 +551,75 @@ export default function FranchiseHQPage() {
       toast.success(t('adminFranchiseLaunchPlanRemoved'));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseLaunchPlanFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3c (611): HQ adds locations and their launch milestones.
+  async function addLocation() {
+    if (!selectedApplication || !locationForm.name.trim()) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/locations`, {
+        name: locationForm.name.trim(),
+        city: locationForm.city.trim(),
+        region: locationForm.region.trim(),
+        country: locationForm.country.trim().toUpperCase() || undefined,
+      });
+      setSelectedBundle(res.data);
+      setLocationForm({ name: '', city: '', region: '', country: '' });
+      toast.success(t('adminFranchiseLocationAdded'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLocationFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addMilestone() {
+    if (!selectedApplication || !milestoneForm.location_id || !milestoneForm.title.trim()) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/locations/${milestoneForm.location_id}/milestones`, {
+        title: milestoneForm.title.trim(),
+        due_date: milestoneForm.due_date || undefined,
+        owner_role: milestoneForm.owner_role,
+        launch_plan_step_id: milestoneForm.launch_plan_step_id || undefined,
+      });
+      setSelectedBundle(res.data);
+      setMilestoneForm({ location_id: '', title: '', due_date: '', owner_role: 'operator', launch_plan_step_id: '' });
+      toast.success(t('adminFranchiseMilestoneAdded'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseMilestoneFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateMilestone(locationId, milestoneId, payload) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.patch(`/franchise/applications/${selectedApplication.id}/locations/${locationId}/milestones/${milestoneId}`, payload);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseMilestoneUpdated'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseMilestoneFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeMilestone(locationId, milestoneId) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.delete(`/franchise/applications/${selectedApplication.id}/locations/${locationId}/milestones/${milestoneId}`);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseMilestoneRemoved'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseMilestoneFailed'));
     } finally {
       setSaving(false);
     }
@@ -1177,6 +1249,146 @@ export default function FranchiseHQPage() {
                     </div>
                     <button type="button" className="frhq-btn-primary" disabled={saving || !planForm.title.trim()} onClick={addPlanStep}>
                       {t('adminFranchiseLaunchPlanAdd')}
+                    </button>
+                  </div>
+
+                  {/* Group 12 Slice 3c (611): open locations — HQ adds
+                      locations and their launch milestones; the operator
+                      updates milestone status from their own pages. */}
+                  <div className="frhq-panel">
+                    <div className="frhq-panel-title">{t('dashboards.franchise.openLocationsTitle')}</div>
+                    <div className="frhq-list">
+                      {(selectedBundle.locations || []).length ? selectedBundle.locations.map((location) => (
+                        <div key={location.id} className="frhq-row">
+                          <div>
+                            <div className="frhq-row-title">{location.name}</div>
+                            <div className="frhq-row-meta">
+                              {[location.city, location.region, location.country].filter(Boolean).join(', ')}
+                              {' · '}
+                              {formatLabel(location.status, t)}
+                            </div>
+                            {(location.milestones || []).length ? location.milestones.map((milestone) => (
+                              <div key={milestone.id} className="frhq-row">
+                                <div>
+                                  <div className="frhq-row-title">{milestone.title}</div>
+                                  <div className="frhq-row-meta">
+                                    {formatLabel(milestone.owner_role, t)}
+                                    {milestone.due_date ? ` · ${new Date(milestone.due_date).toLocaleDateString()}` : ''}
+                                    {' · '}
+                                    {formatLabel(milestone.status, t)}
+                                  </div>
+                                </div>
+                                <div className="frhq-row-actions">
+                                  <select
+                                    className="frhq-field"
+                                    value={milestone.status}
+                                    disabled={saving}
+                                    onChange={(e) => updateMilestone(location.id, milestone.id, { status: e.target.value })}
+                                  >
+                                    {['pending', 'in_progress', 'completed', 'blocked'].map((status) => (
+                                      <option key={status} value={status}>{formatLabel(status, t)}</option>
+                                    ))}
+                                  </select>
+                                  <button type="button" className="frhq-btn-reject" disabled={saving} onClick={() => removeMilestone(location.id, milestone.id)}>
+                                    {t('adminFranchiseMilestoneDelete')}
+                                  </button>
+                                </div>
+                              </div>
+                            )) : (
+                              <div className="frhq-empty">{t('adminFranchiseMilestoneEmpty')}</div>
+                            )}
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="frhq-empty">{t('dashboards.franchise.openLocationsEmpty')}</div>
+                      )}
+                    </div>
+                    <div className="frhq-form-grid">
+                      <input
+                        className="frhq-field frhq-field-full"
+                        placeholder={t('adminFranchiseLocationName')}
+                        value={locationForm.name}
+                        onChange={(e) => setLocationForm((v) => ({ ...v, name: e.target.value }))}
+                      />
+                      <input
+                        className="frhq-field"
+                        placeholder={t('adminFranchiseLocationCity')}
+                        value={locationForm.city}
+                        onChange={(e) => setLocationForm((v) => ({ ...v, city: e.target.value }))}
+                      />
+                      <input
+                        className="frhq-field"
+                        placeholder={t('adminFranchiseLocationRegion')}
+                        value={locationForm.region}
+                        onChange={(e) => setLocationForm((v) => ({ ...v, region: e.target.value }))}
+                      />
+                      <input
+                        className="frhq-field"
+                        placeholder={t('adminFranchiseLocationCountry')}
+                        value={locationForm.country}
+                        onChange={(e) => setLocationForm((v) => ({ ...v, country: e.target.value.toUpperCase() }))}
+                      />
+                    </div>
+                    <button type="button" className="frhq-btn-primary" disabled={saving || !locationForm.name.trim()} onClick={addLocation}>
+                      {t('adminFranchiseLocationAdd')}
+                    </button>
+                    <div className="frhq-form-grid">
+                      <label className="frhq-label">
+                        {t('adminFranchiseLocationName')}
+                        <select
+                          className="frhq-field"
+                          value={milestoneForm.location_id}
+                          onChange={(e) => setMilestoneForm((v) => ({ ...v, location_id: e.target.value }))}
+                        >
+                          <option value="">{t('adminFranchiseMilestonePlanStepNone')}</option>
+                          {(selectedBundle.locations || []).map((location) => (
+                            <option key={location.id} value={location.id}>{location.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <input
+                        className="frhq-field"
+                        placeholder={t('adminFranchiseMilestoneTitle')}
+                        value={milestoneForm.title}
+                        onChange={(e) => setMilestoneForm((v) => ({ ...v, title: e.target.value }))}
+                      />
+                      <label className="frhq-label">
+                        {t('adminFranchiseLaunchPlanDueDate')}
+                        <input
+                          type="date"
+                          className="frhq-field"
+                          value={milestoneForm.due_date}
+                          onChange={(e) => setMilestoneForm((v) => ({ ...v, due_date: e.target.value }))}
+                        />
+                      </label>
+                      <label className="frhq-label">
+                        {t('adminFranchiseLaunchPlanOwner')}
+                        <select
+                          className="frhq-field"
+                          value={milestoneForm.owner_role}
+                          onChange={(e) => setMilestoneForm((v) => ({ ...v, owner_role: e.target.value }))}
+                        >
+                          <option value="operator">{t('dashboards.franchise.launchPlanOwnerOperator')}</option>
+                          <option value="hq">{t('dashboards.franchise.launchPlanOwnerHq')}</option>
+                          <option value="shared">{t('dashboards.franchise.launchPlanOwnerShared')}</option>
+                        </select>
+                      </label>
+                      <label className="frhq-label">
+                        {t('dashboards.franchise.milestoneLinkedStep')}
+                        <select
+                          className="frhq-field"
+                          value={milestoneForm.launch_plan_step_id}
+                          onChange={(e) => setMilestoneForm((v) => ({ ...v, launch_plan_step_id: e.target.value }))}
+                        >
+                          <option value="">{t('adminFranchiseMilestonePlanStepNone')}</option>
+                          {(selectedBundle.launch_plan_steps || []).filter((step) => !step.milestone_id).map((step) => (
+                            <option key={step.id} value={step.id}>{step.title}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <button type="button" className="frhq-btn-primary" disabled={saving || !milestoneForm.location_id || !milestoneForm.title.trim()} onClick={addMilestone}>
+                      {t('adminFranchiseMilestoneAdd')}
                     </button>
                   </div>
 

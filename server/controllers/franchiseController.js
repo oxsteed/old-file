@@ -232,6 +232,19 @@ const DEFAULT_LAUNCH_PLAN_STEPS = [
 const LAUNCH_PLAN_STATUSES = new Set(['pending', 'in_progress', 'completed', 'blocked']);
 const LAUNCH_PLAN_OWNER_ROLES = new Set(['operator', 'hq', 'shared']);
 
+// Group 12 Slice 3c (611-615, D-311..D-315): open locations. A location is
+// a business/restaurant location inside a territory (D-298), never a new
+// territory. Milestones (611) share the launch plan's status set and
+// owner roles; the opening team (612) is lead/member; a readiness review
+// (613) passes or requests changes; a location launches (614) only with
+// at least one available service and is confirmed open (615) by the
+// operator afterwards.
+const MILESTONE_STATUSES = LAUNCH_PLAN_STATUSES;
+const MILESTONE_OWNER_ROLES = LAUNCH_PLAN_OWNER_ROLES;
+const OPENING_TEAM_ROLES = new Set(['lead', 'member']);
+const READINESS_REVIEW_OUTCOMES = new Set(['passed', 'changes_requested']);
+const LOCATION_STATUSES = new Set(['planned', 'launched']);
+
 // Group 12 Slice 3b (607, D-294/D-308): seed the boundary with one
 // included area from the territory the applicant asked for. HQ refines the
 // list afterwards; the operator never edits it.
@@ -269,6 +282,25 @@ async function seedLaunchPlanSteps(client, applicationId) {
       [applicationId, code, title, description, ownerRole, sortOrder]
     );
   }
+}
+
+// Group 12 Slice 3c (611-615, D-311): seed the first location inside the
+// territory from the fields the applicant asked for, same pattern as the
+// boundary seed above. HQ adds further locations afterwards; the operator
+// never creates locations. Guarded so a second seed is a no-op.
+async function seedLocation(client, applicationId, { country, region, city }) {
+  const { rows } = await client.query(
+    `SELECT 1 FROM franchise_locations WHERE application_id = $1 LIMIT 1`,
+    [applicationId]
+  );
+  if (rows.length) return;
+  const name = city ? `${city} location` : 'First location';
+  await client.query(
+    `INSERT INTO franchise_locations
+       (application_id, name, city, region, country)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [applicationId, name, city || null, region || null, country || null]
+  );
 }
 
 // Group 12 Slice 3b (608, D-306): seed the operator responsibility set on
@@ -401,6 +433,13 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     [applicationId]
   );
 
+  // Group 12 Slice 3c (611/612/614/615): the open locations with their
+  // milestones, service availability, opening team, and confirmations.
+  const locations = await fetchOpenLocations(applicationId);
+  // Group 12 Slice 3c (613): the readiness review history, reviewer
+  // included — HQ sees who signed off.
+  const readinessReviews = await fetchReadinessReviews(applicationId, { includeReviewer: true });
+
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
@@ -419,6 +458,8 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     responsibilities,
     territory_areas: areaResult.rows,
     launch_plan_steps: launchPlanResult.rows,
+    locations,
+    readiness_reviews: readinessReviews,
     agreement: agreementResult.rows[0] || null,
     notes: notesResult.rows,
     activity: activityResult.rows,
@@ -427,6 +468,93 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     document_categories: documentCategorySummary(documentResult.rows),
     followup: followupResult.rows,
   };
+}
+
+// Group 12 Slice 3c (611/612/614/615): the open-locations bundle — every
+// location in the territory with its milestones, service availability,
+// opening team, and opening confirmation attached. `launch_complete` is
+// derived, never stored: a location is complete only once launched AND
+// confirmed open (D-315).
+async function fetchOpenLocations(applicationId) {
+  const locationResult = await db.query(
+    `SELECT * FROM franchise_locations
+      WHERE application_id = $1
+      ORDER BY created_at ASC, id ASC`,
+    [applicationId]
+  );
+  const locations = locationResult.rows;
+  if (!locations.length) return [];
+  const locationIds = locations.map((location) => location.id);
+  const [milestoneResult, serviceResult, teamResult, confirmationResult] = await Promise.all([
+    db.query(
+      `SELECT * FROM franchise_location_milestones
+        WHERE application_id = $1
+        ORDER BY sort_order ASC, id ASC`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT * FROM franchise_location_services
+        WHERE application_id = $1
+        ORDER BY service_name ASC, id ASC`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT m.*, u.first_name AS helper_first_name, u.last_name AS helper_last_name,
+              u.email AS helper_email
+         FROM franchise_opening_team_members m
+         JOIN users u ON u.id = m.helper_user_id
+        WHERE m.application_id = $1
+        ORDER BY m.assigned_at ASC, m.id ASC`,
+      [applicationId]
+    ),
+    db.query(
+      `SELECT * FROM franchise_opening_confirmations
+        WHERE application_id = $1`,
+      [applicationId]
+    ),
+  ]);
+  const byLocation = (rows) => {
+    const map = new Map(locationIds.map((id) => [id, []]));
+    for (const row of rows) {
+      if (map.has(row.location_id)) map.get(row.location_id).push(row);
+    }
+    return map;
+  };
+  const milestonesByLocation = byLocation(milestoneResult.rows);
+  const servicesByLocation = byLocation(serviceResult.rows);
+  const teamByLocation = byLocation(teamResult.rows);
+  const confirmationsByLocation = new Map(
+    confirmationResult.rows.map((row) => [row.location_id, row])
+  );
+  return locations.map((location) => {
+    const confirmation = confirmationsByLocation.get(location.id) || null;
+    return {
+      ...location,
+      milestones: milestonesByLocation.get(location.id) || [],
+      services: servicesByLocation.get(location.id) || [],
+      opening_team: teamByLocation.get(location.id) || [],
+      opening_confirmation: confirmation,
+      launch_complete: location.status === 'launched' && Boolean(confirmation),
+    };
+  });
+}
+
+// Group 12 Slice 3c (613, D-313): the readiness review history, newest
+// first. The operator view carries outcome, notes, and date only — never
+// the reviewer's identity; HQ gets the reviewer id and email with it.
+async function fetchReadinessReviews(applicationId, { includeReviewer = false } = {}) {
+  const { rows } = await db.query(
+    `SELECT r.*, u.email AS reviewer_email
+       FROM franchise_readiness_reviews r
+       LEFT JOIN users u ON u.id = r.reviewer_id
+      WHERE r.application_id = $1
+      ORDER BY r.created_at DESC, r.id DESC`,
+    [applicationId]
+  );
+  return rows.map((row) => {
+    const { reviewer_id: reviewerId, reviewer_email: reviewerEmail, ...rest } = row;
+    return includeReviewer ? { ...rest, reviewer_id: reviewerId, reviewer_email: reviewerEmail } : rest;
+  });
 }
 
 // Group 12 Slice 3a (603): per-category document status, derived from the
@@ -512,7 +640,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult] = await Promise.all([
+  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult, locations, readinessReviews] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -589,6 +717,12 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
         LIMIT 50`,
       [applicationId]
     ),
+    // Group 12 Slice 3c (611/612/614/615): the open locations with their
+    // milestones, service availability, opening team, and confirmations.
+    fetchOpenLocations(applicationId),
+    // Group 12 Slice 3c (613, D-313): the readiness review history —
+    // outcome, notes, and date only, never the reviewer's identity.
+    fetchReadinessReviews(applicationId),
   ]);
 
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
@@ -606,6 +740,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     responsibilities: responsibilityResult.rows,
     territory_areas: areaResult.rows,
     launch_plan_steps: launchPlanResult.rows,
+    locations,
+    readiness_reviews: readinessReviews,
     activity: activityResult.rows,
   };
 }
@@ -625,6 +761,27 @@ async function loadOwnedApplication(client, applicationId, userId) {
   const owned = String(application.applicant_user_id) === String(userId)
     || String(application.owner_user_id) === String(userId);
   return owned ? application : null;
+}
+
+// Group 12 Slice 3c (612/614/615): the operator-only ownership check.
+// Unlike loadOwnedApplication (applicant OR owner), these actions belong
+// to the assigned operator only — the applicant record alone is not
+// enough. Returns the row plus whether the caller is the operator, so
+// handlers can tell a stranger (404) from a non-operator applicant (403
+// franchise_operator_only) without leaking existence.
+async function loadOperatorApplication(client, applicationId, userId) {
+  const { rows } = await client.query(
+    `SELECT id, applicant_user_id, owner_user_id
+       FROM franchise_applications
+      WHERE id = $1`,
+    [applicationId]
+  );
+  const application = rows[0] || null;
+  if (!application) return { application: null, isOperator: false };
+  return {
+    application,
+    isOperator: String(application.owner_user_id) === String(userId),
+  };
 }
 
 function parseInterviewDate(value) {
@@ -760,6 +917,14 @@ async function createFranchiseApplication(req, res) {
         city: desiredCity,
       });
       await seedLaunchPlanSteps(client, applicationId);
+      // Group 12 Slice 3c (611-615, D-311): the first location inside the
+      // territory, so milestones, the opening team, services, and the
+      // opening confirmation have a location from day one.
+      await seedLocation(client, applicationId, {
+        country: desiredCountry,
+        region: desiredRegion,
+        city: desiredCity,
+      });
       await logActivity(
         client,
         applicationId,
@@ -2999,6 +3164,395 @@ async function updateLaunchPlanStepStatus(req, res) {
   }
 }
 
+// ── Group 12 Slice 3c (611-615): open locations ──────────────────────────
+// Locations are business/restaurant locations inside a territory (D-298).
+// HQ creates locations; the operator reads them. Milestones (611) attach
+// to a location; the opening team (612), service checklist (614), and
+// opening confirmation (615) attach to one too.
+
+async function loadLocation(client, applicationId, locationId) {
+  const { rows } = await client.query(
+    `SELECT * FROM franchise_locations WHERE id = $1 AND application_id = $2`,
+    [locationId, applicationId]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * POST /api/franchise/applications/:id/locations (admin)
+ * 611 (D-311): HQ adds a location inside the territory. The name is
+ * required; the country, when given, must be a valid ISO-2 code.
+ */
+async function addLocation(req, res) {
+  const name = asTrimmed(req.body?.name);
+  if (!name) {
+    return res.status(400).json({ error: 'name is required.', code: 'location_name_required' });
+  }
+  const countryRaw = asTrimmed(req.body?.country);
+  if (countryRaw && !countriesUtil.isValidCountry(countryRaw)) {
+    return res.status(400).json({ error: 'country must be a valid ISO-2 country code.', code: 'invalid_location_country' });
+  }
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows } = await client.query(
+        `INSERT INTO franchise_locations
+           (application_id, name, city, region, country, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [id, name, asTrimmed(req.body?.city), asTrimmed(req.body?.region),
+         countryRaw ? countriesUtil.normalizeCountry(countryRaw) : null, req.user?.id || null]
+      );
+      await logActivity(
+        client,
+        id,
+        req.user?.id || null,
+        'location_added',
+        `Location added: "${name}".`,
+        { location_id: rows[0].id }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error adding franchise location', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to add location.' });
+  }
+}
+
+/**
+ * POST /api/franchise/applications/:id/locations/:locationId/milestones (admin)
+ * 611 (D-311): HQ adds a launch milestone to a location — title, due
+ * date, owner. `launch_plan_step_id`, when given, links the milestone to
+ * one launch plan step: the step's reserved `milestone_id` is set, so the
+ * plan step and the milestone stay in sync. A step can carry only one
+ * milestone.
+ */
+async function addLocationMilestone(req, res) {
+  const title = asTrimmed(req.body?.title);
+  if (!title) {
+    return res.status(400).json({ error: 'title is required.', code: 'milestone_title_required' });
+  }
+  const ownerRole = asTrimmed(req.body?.owner_role) || 'operator';
+  if (!MILESTONE_OWNER_ROLES.has(ownerRole)) {
+    return res.status(400).json({ error: 'owner_role must be operator, hq, or shared.', code: 'invalid_milestone_owner' });
+  }
+  const dueDate = parseDueDate(req.body?.due_date);
+  if (dueDate === undefined) {
+    return res.status(400).json({ error: 'due_date must be a YYYY-MM-DD date.', code: 'invalid_milestone_due_date' });
+  }
+  const stepId = asTrimmed(req.body?.launch_plan_step_id);
+  const { id, locationId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const location = await loadLocation(client, id, locationId);
+      if (!location) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise location not found.' });
+      }
+      if (stepId) {
+        const { rows: stepRows } = await client.query(
+          `SELECT id, milestone_id FROM franchise_launch_plan_steps
+            WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+          [stepId, id]
+        );
+        if (!stepRows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Launch plan step not found.' });
+        }
+        if (stepRows[0].milestone_id) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: 'That launch plan step already has a milestone.',
+            code: 'launch_plan_step_milestone_linked',
+          });
+        }
+      }
+      const { rows: maxRows } = await client.query(
+        'SELECT COALESCE(MAX(sort_order), 0)::int AS max_sort FROM franchise_location_milestones WHERE location_id = $1',
+        [locationId]
+      );
+      const { rows } = await client.query(
+        `INSERT INTO franchise_location_milestones
+           (application_id, location_id, title, description, due_date, owner_role, sort_order, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [id, locationId, title, asTrimmed(req.body?.description), dueDate, ownerRole,
+         maxRows[0].max_sort + 10, req.user?.id || null]
+      );
+      if (stepId) {
+        await client.query(
+          `UPDATE franchise_launch_plan_steps SET milestone_id = $2 WHERE id = $1`,
+          [stepId, rows[0].id]
+        );
+      }
+      await logActivity(
+        client,
+        id,
+        req.user?.id || null,
+        'location_milestone_added',
+        `Launch milestone added for "${location.name}": "${title}".`,
+        { location_id: locationId, milestone_id: rows[0].id, launch_plan_step_id: stepId || null }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error adding franchise location milestone', { id, locationId, err: err.message });
+    return res.status(500).json({ error: 'Failed to add milestone.' });
+  }
+}
+
+/**
+ * PATCH /api/franchise/applications/:id/locations/:locationId/milestones/:milestoneId (admin)
+ * 611: HQ edits a milestone — title, description, due date, owner,
+ * status, or order. Completing a milestone stamps who completed it and
+ * when; moving it back off completed clears the stamp.
+ */
+async function updateLocationMilestone(req, res) {
+  const body = req.body || {};
+  const { id, locationId, milestoneId } = req.params;
+  const updates = [];
+  const values = [];
+  let idx = 1;
+  let completing = false;
+  if (body.title !== undefined) {
+    const title = asTrimmed(body.title);
+    if (!title) {
+      return res.status(400).json({ error: 'title must not be empty.', code: 'milestone_title_required' });
+    }
+    updates.push(`title = $${idx++}`);
+    values.push(title);
+  }
+  if (body.description !== undefined) {
+    updates.push(`description = $${idx++}`);
+    values.push(asTrimmed(body.description));
+  }
+  if (body.due_date !== undefined) {
+    const dueDate = parseDueDate(body.due_date);
+    if (dueDate === undefined) {
+      return res.status(400).json({ error: 'due_date must be a YYYY-MM-DD date.', code: 'invalid_milestone_due_date' });
+    }
+    updates.push(`due_date = $${idx++}`);
+    values.push(dueDate);
+  }
+  if (body.owner_role !== undefined) {
+    if (!MILESTONE_OWNER_ROLES.has(asTrimmed(body.owner_role))) {
+      return res.status(400).json({ error: 'owner_role must be operator, hq, or shared.', code: 'invalid_milestone_owner' });
+    }
+    updates.push(`owner_role = $${idx++}`);
+    values.push(asTrimmed(body.owner_role));
+  }
+  if (body.status !== undefined) {
+    if (!MILESTONE_STATUSES.has(asTrimmed(body.status))) {
+      return res.status(400).json({ error: 'status must be pending, in_progress, completed, or blocked.', code: 'invalid_milestone_status' });
+    }
+    completing = asTrimmed(body.status) === 'completed';
+    updates.push(`status = $${idx++}`);
+    values.push(asTrimmed(body.status));
+  }
+  if (body.sort_order !== undefined) {
+    const sortOrder = parseInt(body.sort_order, 10);
+    if (!Number.isFinite(sortOrder)) {
+      return res.status(400).json({ error: 'sort_order must be an integer.', code: 'invalid_milestone_sort' });
+    }
+    updates.push(`sort_order = $${idx++}`);
+    values.push(sortOrder);
+  }
+  if (!updates.length) {
+    return res.status(400).json({ error: 'No milestone updates supplied.', code: 'milestone_no_updates' });
+  }
+
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      // The completing actor param, when present, goes right after the
+      // SET values; the three WHERE ids follow it, in order.
+      const setParams = [...values];
+      let completedBySql = 'NULL';
+      if (completing) {
+        setParams.push(req.user?.id || null);
+        completedBySql = `$${setParams.length}`;
+      }
+      const idPos = setParams.length + 1;
+      const locationPos = setParams.length + 2;
+      const appPos = setParams.length + 3;
+      const { rows } = await client.query(
+        `UPDATE franchise_location_milestones
+            SET ${updates.join(', ')},
+                completed_by = ${completedBySql},
+                completed_at = ${completing ? 'NOW()' : 'NULL'},
+                updated_at = NOW()
+          WHERE id = $${idPos} AND location_id = $${locationPos} AND application_id = $${appPos}
+          RETURNING *`,
+        [...setParams, milestoneId, locationId, id]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Location milestone not found.' });
+      }
+      await logActivity(
+        client,
+        id,
+        req.user?.id || null,
+        'location_milestone_updated',
+        `Launch milestone "${rows[0].title}" updated to ${rows[0].status}.`,
+        { location_id: locationId, milestone_id: milestoneId, status: rows[0].status }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise location milestone', { id, locationId, milestoneId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update milestone.' });
+  }
+}
+
+/**
+ * DELETE /api/franchise/applications/:id/locations/:locationId/milestones/:milestoneId (admin)
+ * 611: HQ removes a milestone. A linked launch plan step keeps working
+ * standalone — its `milestone_id` is cleared, never left dangling. The
+ * removal stays in the activity log.
+ */
+async function removeLocationMilestone(req, res) {
+  const { id, locationId, milestoneId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `DELETE FROM franchise_location_milestones
+          WHERE id = $1 AND location_id = $2 AND application_id = $3
+          RETURNING title`,
+        [milestoneId, locationId, id]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Location milestone not found.' });
+      }
+      await client.query(
+        `UPDATE franchise_launch_plan_steps SET milestone_id = NULL WHERE milestone_id = $1`,
+        [milestoneId]
+      );
+      await logActivity(
+        client,
+        id,
+        req.user?.id || null,
+        'location_milestone_removed',
+        `Launch milestone removed: "${rows[0].title}".`,
+        { location_id: locationId, milestone_id: milestoneId }
+      );
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise location milestone', { id, locationId, milestoneId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove milestone.' });
+  }
+}
+
+/**
+ * POST /api/franchise/my-applications/:id/locations/:locationId/milestones/:milestoneId/status
+ * 611 (D-311): the operator updates one milestone's status on their own
+ * application — status only, mirroring the 609 launch plan step control.
+ * Titles, dates, and owners stay HQ-owned. A stranger gets the same 404
+ * as a missing application.
+ */
+async function updateLocationMilestoneStatus(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const nextStatus = asTrimmed(req.body?.status);
+  if (!MILESTONE_STATUSES.has(nextStatus)) {
+    return res.status(400).json({
+      error: 'status must be pending, in_progress, completed, or blocked.',
+      code: 'invalid_milestone_status',
+    });
+  }
+  const { id, locationId, milestoneId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOwnedApplication(client, id, req.user.id);
+      if (!owned) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const completing = nextStatus === 'completed';
+      const { rows } = await client.query(
+        `UPDATE franchise_location_milestones
+            SET status = $4,
+                completed_by = ${completing ? '$5' : 'NULL'},
+                completed_at = ${completing ? 'NOW()' : 'NULL'},
+                updated_at = NOW()
+          WHERE id = $1 AND location_id = $2 AND application_id = $3
+          RETURNING *`,
+        completing
+          ? [milestoneId, locationId, id, nextStatus, req.user.id]
+          : [milestoneId, locationId, id, nextStatus]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Location milestone not found.' });
+      }
+      await logActivity(
+        client,
+        id,
+        req.user.id,
+        'location_milestone_updated',
+        `Operator updated launch milestone "${rows[0].title}" to ${nextStatus}.`,
+        { location_id: locationId, milestone_id: milestoneId, status: nextStatus }
+      );
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise location milestone status', { id, locationId, milestoneId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update milestone.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -3028,6 +3582,11 @@ module.exports = {
   updateLaunchPlanStep,
   removeLaunchPlanStep,
   updateLaunchPlanStepStatus,
+  addLocation,
+  addLocationMilestone,
+  updateLocationMilestone,
+  removeLocationMilestone,
+  updateLocationMilestoneStatus,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

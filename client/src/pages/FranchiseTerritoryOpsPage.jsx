@@ -17,6 +17,7 @@ import api from '../api/axios';
 import PageShell from '../components/PageShell';
 import FranchiseBoundarySummary from './FranchiseBoundarySummary';
 import FranchiseLaunchPlan from './FranchiseLaunchPlan';
+import FranchiseOpenLocations from './FranchiseOpenLocations';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -182,6 +183,18 @@ export default function FranchiseTerritoryOpsPage() {
     if (!resolvedApplicationId) return;
     try {
       const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/launch-plan/${stepId}/status`, { status });
+      setBoundaryDetail(res.data);
+    } catch {
+      setError(t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3c (611): the operator updates a location milestone's
+  // status from the ops page; the detail is reloaded to reflect it.
+  const updateMilestoneStatus = useCallback(async (locationId, milestoneId, status) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/locations/${locationId}/milestones/${milestoneId}/status`, { status });
       setBoundaryDetail(res.data);
     } catch {
       setError(t('franchiseTerritoryPage.errors.loadFailure'));
@@ -446,6 +459,16 @@ export default function FranchiseTerritoryOpsPage() {
               steps={boundaryDetail.launch_plan_steps || []}
               readinessStatus={boundaryDetail.application?.launch_readiness_status || null}
               onStatusChange={updateLaunchPlanStatus}
+            />
+          )}
+
+          {/* Group 12 Slice 3c (611): the open locations with their launch
+              milestones. */}
+          {boundaryDetail && (
+            <FranchiseOpenLocations
+              locations={boundaryDetail.locations || []}
+              launchPlanSteps={boundaryDetail.launch_plan_steps || []}
+              onMilestoneStatusChange={updateMilestoneStatus}
             />
           )}
 

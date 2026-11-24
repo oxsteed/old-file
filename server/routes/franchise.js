@@ -42,6 +42,11 @@ const {
   updateLaunchPlanStep,
   removeLaunchPlanStep,
   updateLaunchPlanStepStatus,
+  addLocation,
+  addLocationMilestone,
+  updateLocationMilestone,
+  removeLocationMilestone,
+  updateLocationMilestoneStatus,
 } = require('../controllers/franchiseController');
 
 const {
@@ -67,6 +72,9 @@ router.post('/my-applications/:id/acceptance', authenticate, requireFranchiseEna
 // Group 12 Slice 3b (609): the operator updates one launch plan step's
 // status on their own application.
 router.post('/my-applications/:id/launch-plan/:stepId/status', authenticate, requireFranchiseEnabled, updateLaunchPlanStepStatus);
+// Group 12 Slice 3c (611): the operator updates one location milestone's
+// status on their own application.
+router.post('/my-applications/:id/locations/:locationId/milestones/:milestoneId/status', authenticate, requireFranchiseEnabled, updateLocationMilestoneStatus);
 router.get('/territory-stats',     authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryStats);
 router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryHelpers);
 
@@ -87,6 +95,11 @@ router.delete('/applications/:id/areas/:areaId', authenticate, requireAdmin, req
 router.post('/applications/:id/launch-plan', authenticate, requireAdmin, requirePermission('manage_operations'), addLaunchPlanStep);
 router.patch('/applications/:id/launch-plan/:stepId', authenticate, requireAdmin, requirePermission('manage_operations'), updateLaunchPlanStep);
 router.delete('/applications/:id/launch-plan/:stepId', authenticate, requireAdmin, requirePermission('manage_operations'), removeLaunchPlanStep);
+// Group 12 Slice 3c (611): HQ manages locations and their launch milestones.
+router.post('/applications/:id/locations', authenticate, requireAdmin, requirePermission('manage_operations'), addLocation);
+router.post('/applications/:id/locations/:locationId/milestones', authenticate, requireAdmin, requirePermission('manage_operations'), addLocationMilestone);
+router.patch('/applications/:id/locations/:locationId/milestones/:milestoneId', authenticate, requireAdmin, requirePermission('manage_operations'), updateLocationMilestone);
+router.delete('/applications/:id/locations/:locationId/milestones/:milestoneId', authenticate, requireAdmin, requirePermission('manage_operations'), removeLocationMilestone);
 router.put('/applications/:id/agreement', authenticate, requireAdmin, requirePermission('manage_operations'), upsertFranchiseAgreement);
 // Review P2-9-F09: the applicant signs from their own account (admins cannot
 // assert the applicant's signature). Authenticated, not admin-gated.
