@@ -669,4 +669,130 @@ describeDb('Group 12 Slice 3g: Resolve exceptions (631-635)', () => {
         .expect(404);
     });
   });
+
+  describe('634: evidence submission', () => {
+    const PDF_BYTES = Buffer.from('%PDF-1.4\n% test franchise evidence\n', 'utf8');
+
+    async function setupAction() {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const member = await addUser();
+      const otherMember = await addUser();
+      for (const user of [member, otherMember]) {
+        await db.query(
+          `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+           VALUES ($1, 'Austin', 'TX', 4.9, 1, TRUE)`,
+          [user.id],
+        );
+        await request(app)
+          .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+          .set('x-test-user', operator.id)
+          .send({ helper_user_id: user.id, role: 'member' })
+          .expect(201);
+      }
+      const ticket = await addTicket(operator, { applicationId });
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/remediation`)
+        .set('x-test-user', operator.id)
+        .send({ owner_user_id: member.id, due_date: '2026-12-01' })
+        .expect(201);
+      const created = await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/support-tickets/${ticket.ticket_number}/corrective-actions`)
+        .set('x-test-user', operator.id)
+        .send({ title: 'Replace the compressor' })
+        .expect(201);
+      return { operator, member, otherMember, applicationId, ticket, action: created.body.action };
+    }
+
+    function uploadAs(user, applicationId, actionId, { file = PDF_BYTES, filename = 'receipt.pdf', note = null, asAdmin = false } = {}) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/corrective-actions/${actionId}/evidence`
+        : `/api/franchise/my-applications/${applicationId}/corrective-actions/${actionId}/evidence`;
+      const req = request(app).post(base).set('x-test-user', user.id);
+      if (file) req.attach('file', file, filename);
+      if (note) req.field('note', note);
+      return req;
+    }
+
+    function listAs(user, applicationId, actionId, asAdmin = false) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/corrective-actions/${actionId}/evidence`
+        : `/api/franchise/my-applications/${applicationId}/corrective-actions/${actionId}/evidence`;
+      return request(app).get(base).set('x-test-user', user.id);
+    }
+
+    test('the remediation owner uploads evidence with a note; the key never leaves the server', async () => {
+      const { operator, member, applicationId, action } = await setupAction();
+
+      const uploaded = await uploadAs(member, applicationId, action.id, { note: 'New compressor installed' })
+        .expect(201);
+      expect(uploaded.body.evidence.action_id).toBe(action.id);
+      expect(uploaded.body.evidence.note).toBe('New compressor installed');
+      expect(uploaded.body.evidence.file_name).toBe('receipt.pdf');
+      expect(uploaded.body.evidence.storage_key).toBeUndefined();
+      expect(uploaded.body.evidence.download_url || null).toBeTruthy();
+      expect(uploaded.body.evidence.uploaded_by_name).toBeTruthy();
+
+      const list = await listAs(operator, applicationId, action.id).expect(200);
+      expect(list.body.total).toBe(1);
+      expect(list.body.evidence[0].id).toBe(uploaded.body.evidence.id);
+      expect(list.body.evidence[0].storage_key).toBeUndefined();
+
+      const { rows } = await db.query(
+        'SELECT storage_key FROM franchise_action_evidence WHERE id = $1', [uploaded.body.evidence.id]);
+      expect(rows[0].storage_key).toContain('franchise-evidence/');
+
+      const actions = await request(app)
+        .get(`/api/franchise/my-applications/${applicationId}/corrective-actions`)
+        .set('x-test-user', operator.id)
+        .expect(200);
+      expect(actions.body.corrective_actions[0].evidence_count).toBe(1);
+    });
+
+    test('the operator may upload too; a non-owner member may not; a missing file is 400', async () => {
+      const { operator, otherMember, applicationId, action } = await setupAction();
+
+      await uploadAs(operator, applicationId, action.id, { note: 'Operator photo' }).expect(201);
+      await uploadAs(otherMember, applicationId, action.id, {})
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('evidence_upload_not_assignee'));
+      await uploadAs(operator, applicationId, action.id, { file: null })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('evidence_file_required'));
+
+      const list = await listAs(operator, applicationId, action.id).expect(200);
+      expect(list.body.total).toBe(1);
+    });
+
+    test('HQ uploads and reads evidence; an action from another territory is 404', async () => {
+      const { operator, applicationId, action } = await setupAction();
+      const admin = await addUser('super_admin');
+      const otherOperator = await addUser();
+      const otherApplicationId = await makeApplication(otherOperator);
+
+      await uploadAs(admin, applicationId, action.id, { note: 'HQ receipt', asAdmin: true }).expect(201);
+      const hqList = await listAs(admin, applicationId, action.id, true).expect(200);
+      expect(hqList.body.total).toBe(1);
+
+      await uploadAs(admin, otherApplicationId, action.id, { asAdmin: true })
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('corrective_action_not_found'));
+      await listAs(operator, otherApplicationId, action.id)
+        .expect(404);
+    });
+
+    test('a stranger gets 404 and a non-operator applicant 403 on the evidence list', async () => {
+      const { operator, applicationId, action } = await setupAction();
+      const applicant = await addUser();
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+
+      await listAs(applicant, applicationId, action.id)
+        .expect(403);
+      await listAs(await addUser(), applicationId, action.id)
+        .expect(404);
+      await listAs(operator, applicationId, '00000000-0000-0000-0000-000000000000')
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('corrective_action_not_found'));
+    });
+  });
 });

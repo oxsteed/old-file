@@ -99,6 +99,10 @@ const {
   listCorrectiveActionsAsAdmin,
   updateCorrectiveActionStatus,
   updateCorrectiveActionStatusAsAdmin,
+  uploadActionEvidence,
+  uploadActionEvidenceAsAdmin,
+  listActionEvidence,
+  listActionEvidenceAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
@@ -202,6 +206,10 @@ router.post('/my-applications/:id/support-tickets/:ticketId/corrective-actions',
 router.get('/my-applications/:id/support-tickets/:ticketId/corrective-actions', authenticate, requireFranchiseEnabled, listCorrectiveActions);
 router.get('/my-applications/:id/corrective-actions', authenticate, requireFranchiseEnabled, listCorrectiveActions);
 router.post('/my-applications/:id/corrective-actions/:actionId/status', authenticate, requireFranchiseEnabled, updateCorrectiveActionStatus);
+// Group 12 Slice 3g (634): evidence submission — file evidence attached
+// to a corrective action through the vault upload path.
+router.post('/my-applications/:id/corrective-actions/:actionId/evidence', authenticate, requireFranchiseEnabled, upload.single('file'), validateFileUpload, uploadActionEvidence);
+router.get('/my-applications/:id/corrective-actions/:actionId/evidence', authenticate, requireFranchiseEnabled, listActionEvidence);
 // Group 12 Slice 3d (620): the operator reads the HQ announcement feed
 // and marks items read (idempotent).
 router.post('/my-applications/:id/announcements/:announcementId/read', authenticate, requireFranchiseEnabled, markAnnouncementRead);
@@ -279,6 +287,10 @@ router.post('/applications/:id/support-tickets/:ticketId/corrective-actions', au
 router.get('/applications/:id/support-tickets/:ticketId/corrective-actions', authenticate, requireAdmin, requirePermission('manage_operations'), listCorrectiveActionsAsAdmin);
 router.get('/applications/:id/corrective-actions', authenticate, requireAdmin, requirePermission('manage_operations'), listCorrectiveActionsAsAdmin);
 router.post('/applications/:id/corrective-actions/:actionId/status', authenticate, requireAdmin, requirePermission('manage_operations'), updateCorrectiveActionStatusAsAdmin);
+// Group 12 Slice 3g (634): HQ uploads and reads evidence on a
+// corrective action.
+router.post('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), upload.single('file'), validateFileUpload, uploadActionEvidenceAsAdmin);
+router.get('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), listActionEvidenceAsAdmin);
 // Group 12 Slice 3d (620): HQ posts and removes territory announcements.
 router.post('/applications/:id/announcements', authenticate, requireAdmin, requirePermission('manage_operations'), postAnnouncementAsAdmin);
 router.delete('/applications/:id/announcements/:announcementId', authenticate, requireAdmin, requirePermission('manage_operations'), deleteAnnouncementAsAdmin);

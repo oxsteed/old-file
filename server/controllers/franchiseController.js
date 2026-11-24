@@ -6613,6 +6613,178 @@ async function updateCorrectiveActionStatusAsAdmin(req, res) {
   return updateCorrectiveActionStatus(req, res, { asAdmin: true });
 }
 
+// 634 (D-334): evidence submission. File evidence attaches to a
+// corrective action (and thereby its exception) through the vault upload
+// path: private `franchise-evidence/<application>/<action>/` prefix,
+// signed-URL downloads only, the storage key never leaves the server.
+// The remediation owner, the territory operator, or HQ may upload;
+// a member who is not the remediation owner may not.
+async function presentFranchiseActionEvidence(evidence) {
+  const { storage_key, ...rest } = evidence;
+  try {
+    const downloadUrl = await getSignedDownloadUrl(storage_key, 600);
+    return { ...rest, download_url: downloadUrl, download_unavailable: false };
+  } catch (_err) {
+    return { ...rest, download_url: null, download_unavailable: true };
+  }
+}
+
+async function fetchActionEvidence(applicationId, actionId) {
+  const { rows } = await db.query(
+    `SELECT e.*, u.first_name AS uploaded_by_first_name,
+            u.last_name AS uploaded_by_last_name, u.email AS uploaded_by_email
+       FROM franchise_action_evidence e
+       LEFT JOIN users u ON u.id = e.uploaded_by
+      WHERE e.application_id = $1 AND e.action_id = $2
+      ORDER BY e.created_at DESC, e.id DESC`,
+    [applicationId, actionId]
+  );
+  const presented = await Promise.all(rows.map(presentFranchiseActionEvidence));
+  return presented.map((row) => ({
+    ...row,
+    uploaded_by_name: [row.uploaded_by_first_name, row.uploaded_by_last_name].filter(Boolean).join(' ')
+      || row.uploaded_by_email || null,
+  }));
+}
+
+async function loadTerritoryAction(client, applicationId, actionId) {
+  const { rows } = await client.query(
+    `SELECT a.*, r.owner_user_id AS remediation_owner_id
+       FROM franchise_corrective_actions a
+       LEFT JOIN franchise_remediations r ON r.id = a.remediation_id
+      WHERE a.id = $1 AND a.application_id = $2`,
+    [actionId, applicationId]
+  );
+  return rows[0] || null;
+}
+
+async function uploadActionEvidence(req, res, { asAdmin = false } = {}) {
+  const { id, actionId } = req.params;
+  if (!UUID_RE.test(actionId)) {
+    return res.status(404).json({ error: 'Corrective action not found.', code: 'corrective_action_not_found' });
+  }
+  if (!req.file?.buffer?.length) {
+    return res.status(400).json({ error: 'A file is required.', code: 'evidence_file_required' });
+  }
+  const note = asTrimmed(req.body?.note);
+  if (note && note.length > 1000) {
+    return res.status(400).json({ error: 'The evidence note must be at most 1000 characters.', code: 'evidence_note_too_long' });
+  }
+  try {
+    const client = await db.connect();
+    let action;
+    let isOperator = false;
+    try {
+      if (!asAdmin) {
+        const viewer = await loadTerritoryViewer(client, id, req.user?.id);
+        const blocked = territoryReadScope(viewer);
+        if (blocked) return res.status(blocked.status).json(blocked.body);
+        isOperator = viewer.isOperator;
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      action = await loadTerritoryAction(client, id, actionId);
+      if (!action) {
+        return res.status(404).json({ error: 'Corrective action not found.', code: 'corrective_action_not_found' });
+      }
+      if (!asAdmin && !isOperator
+        && String(action.remediation_owner_id || '') !== String(req.user?.id)) {
+        return res.status(403).json({
+          error: 'Only the assigned remediation owner or the operator can submit evidence for this corrective action.',
+          code: 'evidence_upload_not_assignee',
+        });
+      }
+    } finally {
+      client.release();
+    }
+    let storageKey = null;
+    try {
+      storageKey = await uploadFile(
+        req.file.buffer,
+        `franchise-evidence/${id}/${actionId}`,
+        req.file.originalname,
+        req.file.detectedMime || req.file.mimetype,
+      );
+      if (!storageKey) {
+        return res.status(502).json({ error: 'Evidence upload failed.', code: 'upload_failed' });
+      }
+    } catch (err) {
+      logger.error('Error uploading franchise corrective-action evidence', { id, actionId, err: err.message });
+      return res.status(502).json({ error: 'Evidence upload failed.', code: 'upload_failed' });
+    }
+    const insertClient = await db.connect();
+    try {
+      await insertClient.query('BEGIN');
+      const { rows } = await insertClient.query(
+        `INSERT INTO franchise_action_evidence
+           (application_id, ticket_id, action_id, storage_key, file_name, content_type, file_size_bytes, note, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [id, action.ticket_id, actionId, storageKey, req.file.originalname,
+          req.file.detectedMime || req.file.mimetype || null, req.file.size || null, note, req.user?.id || null]
+      );
+      await logActivity(insertClient, id, req.user?.id || null, 'corrective_action_evidence_added',
+        'Evidence added for a corrective action.',
+        { corrective_action_id: actionId, ticket_id: action.ticket_id, evidence_id: rows[0].id });
+      await insertClient.query('COMMIT');
+      const [evidence] = await fetchActionEvidence(id, actionId);
+      return res.status(201).json({ evidence: evidence || await presentFranchiseActionEvidence(rows[0]) });
+    } catch (err) {
+      await insertClient.query('ROLLBACK');
+      throw err;
+    } finally {
+      insertClient.release();
+    }
+  } catch (err) {
+    logger.error('Error saving franchise corrective-action evidence', { id, actionId, err: err.message });
+    return res.status(500).json({ error: 'Failed to submit evidence.' });
+  }
+}
+
+async function uploadActionEvidenceAsAdmin(req, res) {
+  return uploadActionEvidence(req, res, { asAdmin: true });
+}
+
+async function listActionEvidence(req, res, { asAdmin = false } = {}) {
+  const { id, actionId } = req.params;
+  if (!UUID_RE.test(actionId)) {
+    return res.status(404).json({ error: 'Corrective action not found.', code: 'corrective_action_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      if (!asAdmin) {
+        const viewer = await loadTerritoryViewer(client, id, req.user?.id);
+        const blocked = territoryReadScope(viewer);
+        if (blocked) return res.status(blocked.status).json(blocked.body);
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const action = await loadTerritoryAction(client, id, actionId);
+      if (!action) {
+        return res.status(404).json({ error: 'Corrective action not found.', code: 'corrective_action_not_found' });
+      }
+    } finally {
+      client.release();
+    }
+    const evidence = await fetchActionEvidence(id, actionId);
+    return res.json({ application_id: id, action_id: actionId, total: evidence.length, evidence });
+  } catch (err) {
+    logger.error('Error listing franchise corrective-action evidence', { id, actionId, err: err.message });
+    return res.status(500).json({ error: 'Failed to list evidence.' });
+  }
+}
+
+async function listActionEvidenceAsAdmin(req, res) {
+  return listActionEvidence(req, res, { asAdmin: true });
+}
+
 // 627 (D-328): the per-location health view. Health is derived on read
 // from the open locations (fetchOpenLocations) plus each location's
 // linked open exceptions (628) — never stored, so it can never drift
@@ -7808,6 +7980,10 @@ module.exports = {
   listCorrectiveActionsAsAdmin,
   updateCorrectiveActionStatus,
   updateCorrectiveActionStatusAsAdmin,
+  uploadActionEvidence,
+  uploadActionEvidenceAsAdmin,
+  listActionEvidence,
+  listActionEvidenceAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
