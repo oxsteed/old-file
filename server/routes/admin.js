@@ -792,6 +792,10 @@ router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSu
 router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminUpdateCreditAccountStatus);
 router.get('/super/oxsteed-credit/disputes', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputes);
 router.get('/super/oxsteed-credit/disputes.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditDisputes);
+// Group 13, item 674 (D-374): the agent working the case reads the
+// customer's evidence — same signed-URL downloads as the customer view.
+router.get('/super/oxsteed-credit/disputes/:disputeId/evidence', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputeEvidence);
+router.get('/super/oxsteed-credit/disputes/:disputeId/evidence/:evidenceId/download', requireSuperAdmin, oxsteedCreditCtrl.downloadAdminDisputeEvidence);
 router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resolveAdminDispute);
 router.post('/super/oxsteed-credit/disputes/:disputeId/resend-results-notice', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resendAdminDisputeResultsNotice);
 router.post('/super/oxsteed-credit/cashout-disputes/:cashoutDisputeId/resend-results-notice', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resendAdminCashoutDisputeResultsNotice);

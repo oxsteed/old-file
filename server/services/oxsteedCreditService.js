@@ -4394,6 +4394,59 @@ async function openSystemCreditDispute({ customerId, transactionId, reasonCode, 
 
 const CREDIT_DISPUTE_STATUSES = new Set(['open', 'in_review', 'resolved', 'rejected', 'resolved_customer', 'resolved_merchant']);
 
+// Group 13 Slice 4e (673, D-369/D-370): the customer view of a dispute's
+// adjustment state. Agent adjustments are admin-only rows in
+// `credit_adjustments`; the rows linked to a dispute (dispute_id, set at
+// propose time) are attached here, derived from the existing records — no
+// second adjustment ledger. The shape is customer-safe: no proposer or
+// approver admin identity leaves the server, only the amount, direction,
+// status, and timestamps the customer needs to follow their own case.
+// The dispute's own provisional credit and resolution compensation already
+// ride in formatDispute and are not duplicated here.
+function formatCustomerAdjustment(row) {
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    amountCents: Number(row.amount_cents),
+    direction: Number(row.amount_cents) >= 0 ? 'credit' : 'debit',
+    currencyCode: row.currency_code,
+    status: row.status,
+    reason: row.reason,
+    ledgerTransactionId: row.ledger_transaction_id === null || row.ledger_transaction_id === undefined
+      ? null
+      : String(row.ledger_transaction_id),
+    proposedAt: row.proposed_at,
+    approvedAt: row.approved_at || null,
+    appliedAt: row.applied_at || null,
+    decidedAt: row.decided_at || null,
+  };
+}
+
+async function attachDisputeAdjustments(disputes) {
+  if (!disputes.length) return disputes;
+  const ids = disputes.map((dispute) => dispute.id);
+  const { rows } = await pool.query(
+    `SELECT id, dispute_id, amount_cents, currency_code, reason, status,
+            ledger_transaction_id, proposed_at, approved_at, applied_at, decided_at
+       FROM credit_adjustments
+      WHERE dispute_id = ANY($1::uuid[])
+      ORDER BY proposed_at ASC, id ASC`,
+    [ids]
+  );
+  const byDispute = new Map(ids.map((id) => [String(id), []]));
+  for (const row of rows) {
+    const list = byDispute.get(String(row.dispute_id));
+    if (list) list.push(formatCustomerAdjustment(row));
+  }
+  const { countEvidenceByDisputeIds } = require('./oxsteedCreditDisputeEvidenceService');
+  const evidenceCounts = await countEvidenceByDisputeIds(ids);
+  return disputes.map((dispute) => ({
+    ...dispute,
+    adjustments: byDispute.get(String(dispute.id)) || [],
+    evidenceCount: evidenceCounts[String(dispute.id)] || 0,
+  }));
+}
+
 async function listCreditDisputes({ customerId, partnerId, status, referenceTypes, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
@@ -4447,7 +4500,7 @@ async function listCreditDisputes({ customerId, partnerId, status, referenceType
     params
   );
   const hasMore = includePagination && rows.length > safeLimit;
-  const disputes = rows.slice(0, safeLimit).map(formatDispute);
+  const disputes = await attachDisputeAdjustments(rows.slice(0, safeLimit).map(formatDispute));
   if (!includePagination) return disputes;
   return {
     disputes,

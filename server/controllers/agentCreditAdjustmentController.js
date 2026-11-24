@@ -112,6 +112,7 @@ function formatAdjustment(row) {
   return {
     id: row.id,
     customerId: row.customer_id,
+    disputeId: row.dispute_id || null,
     amountCents: Number(row.amount_cents),
     direction: Number(row.amount_cents) >= 0 ? 'credit' : 'debit',
     currencyCode: row.currency_code,
@@ -324,6 +325,24 @@ async function proposeAdjustment(req, res, next) {
     const idempotencyKey = parseIdempotencyKey(req.body?.idempotencyKey ?? req.body?.idempotency_key);
     const { correlationId, requestIp } = requestContext(req);
 
+    // Group 13 Slice 4e (673, D-375): an optional dispute link, set at
+    // propose time only. The dispute must belong to the same customer;
+    // unknown or other-customer disputes are 404, same as the customer
+    // evidence reads, so the link can never attribute an adjustment to
+    // someone else's case.
+    const rawDisputeId = req.body?.disputeId ?? req.body?.dispute_id ?? null;
+    let disputeId = null;
+    if (rawDisputeId !== null && rawDisputeId !== undefined && String(rawDisputeId).trim() !== '') {
+      disputeId = parseUuidField(rawDisputeId, 'disputeId');
+      const { rows: disputeRows } = await pool.query(
+        `SELECT id, customer_id FROM oxsteed_credit_disputes WHERE id = $1`,
+        [disputeId]
+      );
+      if (!disputeRows[0] || String(disputeRows[0].customer_id) !== String(customerId)) {
+        throw new AppError('Credit dispute not found', 404, 'credit_dispute_not_found');
+      }
+    }
+
     // Administrative adjustments can increase a customer's stored value just
     // like a top-up. Run the same identity and sanctions choke point before
     // creating the pending row; the checker cannot approve around a failed
@@ -344,11 +363,11 @@ async function proposeAdjustment(req, res, next) {
       await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`agent-credit-adjustment-propose:${idempotencyKey}`]);
       const { rows: inserted } = await client.query(
         `INSERT INTO credit_adjustments
-           (customer_id, amount_cents, currency_code, reason, proposed_by, idempotency_key, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+           (customer_id, dispute_id, amount_cents, currency_code, reason, proposed_by, idempotency_key, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
          ON CONFLICT (idempotency_key) DO NOTHING
          RETURNING *`,
-        [customerId, amountCents, currencyCode, reason, adminId, idempotencyKey]
+        [customerId, disputeId, amountCents, currencyCode, reason, adminId, idempotencyKey]
       );
       let row = inserted[0];
       let replayed = false;
