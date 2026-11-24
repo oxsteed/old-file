@@ -106,6 +106,12 @@ export default function FranchiseTerritoryOpsPage() {
   // territory to view; the choice travels as ?application_id=.
   const [applications, setApplications] = useState([]);
   const [selectedApplicationId, setSelectedApplicationId] = useState('');
+  // Group 12 Slice 3c (612): the opening-team designation scope — which
+  // location launch (or the whole territory) a roster toggle applies to —
+  // and the role new members get.
+  const [openingTeamScope, setOpeningTeamScope] = useState('');
+  const [openingTeamRole, setOpeningTeamRole] = useState('member');
+  const [teamBusy, setTeamBusy] = useState(false);
   const operableApplications = applications.filter((a) => ['approved', 'launched'].includes(a.status));
   const projectedAccess = accessProjection?.access || accessProjection;
   const projectionControlsTerritory = Boolean(accessProjection?.flags?.accessProjection);
@@ -200,6 +206,30 @@ export default function FranchiseTerritoryOpsPage() {
       setError(t('franchiseTerritoryPage.errors.loadFailure'));
     }
   }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3c (612): the operator designates a roster helper as
+  // an opening-team member (or removes them) for the selected scope. The
+  // roster reloads so the opening-team flags reflect the change.
+  const toggleOpeningTeam = useCallback(async (helper) => {
+    if (!resolvedApplicationId || teamBusy) return;
+    setTeamBusy(true);
+    try {
+      if (helper.opening_team && helper.opening_team_member_id) {
+        await api.delete(`/franchise/my-applications/${resolvedApplicationId}/opening-team/${helper.opening_team_member_id}`);
+      } else {
+        await api.post(`/franchise/my-applications/${resolvedApplicationId}/opening-team`, {
+          helper_user_id: helper.user_id,
+          location_id: openingTeamScope || undefined,
+          role: openingTeamRole,
+        });
+      }
+      await load();
+    } catch {
+      setError(t('franchiseTerritoryPage.errors.loadFailure'));
+    } finally {
+      setTeamBusy(false);
+    }
+  }, [resolvedApplicationId, teamBusy, openingTeamScope, openingTeamRole, load, t]);
 
   const app      = stats?.application ?? {};
   const kpis     = stats?.territory_kpis ?? {};
@@ -468,6 +498,7 @@ export default function FranchiseTerritoryOpsPage() {
             <FranchiseOpenLocations
               locations={boundaryDetail.locations || []}
               launchPlanSteps={boundaryDetail.launch_plan_steps || []}
+              openingTeam={boundaryDetail.opening_team || []}
               onMilestoneStatusChange={updateMilestoneStatus}
             />
           )}
@@ -478,6 +509,41 @@ export default function FranchiseTerritoryOpsPage() {
                 <Users size={14} className="text-blue-400" /> {t('franchiseTerritoryPage.helpersSection.title')}
               </h2>
               <span className="text-xs text-gray-500">{t('franchiseTerritoryPage.helpersSection.found', { count: helpers.length })}</span>
+            </div>
+            {/* Group 12 Slice 3c (612): the opening-team designation
+                scope — a roster toggle applies to this location launch,
+                or to the whole territory when no location is picked. */}
+            <div className="flex items-center gap-4 flex-wrap mb-4">
+              <div className="flex items-center gap-2">
+                <label htmlFor="opening-team-scope" className="text-xs text-gray-400">
+                  {t('dashboards.franchise.openingTeamScopeLabel')}
+                </label>
+                <select
+                  id="opening-team-scope"
+                  value={openingTeamScope}
+                  onChange={(e) => setOpeningTeamScope(e.target.value)}
+                  className="rounded-xl border border-gray-800 bg-gray-900 px-2.5 py-1.5 text-sm text-white"
+                >
+                  <option value="">{t('dashboards.franchise.openingTeamScopeTerritory')}</option>
+                  {(boundaryDetail?.locations || []).map((location) => (
+                    <option key={location.id} value={location.id}>{location.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="opening-team-role" className="text-xs text-gray-400">
+                  {t('dashboards.franchise.openingTeamRoleLabel')}
+                </label>
+                <select
+                  id="opening-team-role"
+                  value={openingTeamRole}
+                  onChange={(e) => setOpeningTeamRole(e.target.value)}
+                  className="rounded-xl border border-gray-800 bg-gray-900 px-2.5 py-1.5 text-sm text-white"
+                >
+                  <option value="member">{t('dashboards.franchise.openingTeamMember')}</option>
+                  <option value="lead">{t('dashboards.franchise.openingTeamLead')}</option>
+                </select>
+              </div>
             </div>
             {loading
               ? <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div>
@@ -499,6 +565,7 @@ export default function FranchiseTerritoryOpsPage() {
                           <th className="text-right pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.reviews')}</th>
                           <th className="text-right pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.verified')}</th>
                           <th className="text-right pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.available')}</th>
+                          <th className="text-right pb-2 font-normal">{t('dashboards.franchise.openingTeamTitle')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -519,6 +586,18 @@ export default function FranchiseTerritoryOpsPage() {
                             </td>
                             <td className="py-2 text-right">
                               <span className={`inline-block w-2 h-2 rounded-full ${h.is_available_now ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+                            </td>
+                            <td className="py-2 text-right">
+                              <button
+                                type="button"
+                                disabled={teamBusy}
+                                onClick={() => toggleOpeningTeam(h)}
+                                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition ${h.opening_team ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`} data-track="ui.35001a967e.2"
+                              >
+                                {h.opening_team
+                                  ? `${t('dashboards.franchise.openingTeamRemove')}${h.opening_team_role === 'lead' ? ` · ${t('dashboards.franchise.openingTeamLead')}` : ''}`
+                                  : t('dashboards.franchise.openingTeamAdd')}
+                              </button>
                             </td>
                           </tr>
                         ))}

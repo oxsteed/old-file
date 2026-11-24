@@ -19078,7 +19078,18 @@
       "milestoneLinkedStep": "Étape du plan de lancement",
       "milestoneChangeStatus": "Changer le statut",
       "milestoneStatusFailed": "Impossible de mettre à jour le jalon.",
-      "milestoneEmpty": "Aucun jalon pour cet emplacement pour le moment."
+      "milestoneEmpty": "Aucun jalon pour cet emplacement pour le moment.",
+      "openingTeamTitle": "Équipe d'ouverture",
+      "openingTeamEmpty": "Aucune équipe d'ouverture assignée pour le moment.",
+      "openingTeamTerritoryTitle": "Équipe d'ouverture du territoire",
+      "openingTeamLead": "Chef d'équipe",
+      "openingTeamMember": "Membre",
+      "openingTeamAdd": "Ajouter à l'équipe d'ouverture",
+      "openingTeamRemove": "Retirer de l'équipe d'ouverture",
+      "openingTeamFailed": "Impossible de mettre à jour l'équipe d'ouverture.",
+      "openingTeamScopeLabel": "Équipe d'ouverture pour",
+      "openingTeamScopeTerritory": "Tout le territoire",
+      "openingTeamRoleLabel": "Rôle"
     },
     "businessOwner": {
       "newMessages": "Nouveaux messages",

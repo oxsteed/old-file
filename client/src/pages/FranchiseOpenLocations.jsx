@@ -40,6 +40,7 @@ function formatDateTime(value) {
 export default function FranchiseOpenLocations({
   locations = [],
   launchPlanSteps = [],
+  openingTeam = [],
   onMilestoneStatusChange = null,
   disabled = false,
 }) {
@@ -51,6 +52,24 @@ export default function FranchiseOpenLocations({
       .map((step) => [step.milestone_id, step]),
   );
 
+  // Group 12 Slice 3c (612): one opening-team member row — helper name
+  // with a lead/member badge. Shared by the per-location teams and the
+  // territory-wide team.
+  function renderOpeningTeamMember(member) {
+    const name = [member.helper_first_name, member.helper_last_name].filter(Boolean).join(' ') || member.helper_email || '';
+    return (
+      <li key={member.id} className="fr-doc-file">
+        <div>
+          <div className="fr-doc-file-name">{name}</div>
+          {member.helper_email && <div className="fr-doc-file-meta">{member.helper_email}</div>}
+        </div>
+        <span className={`fr-status-badge ${member.role === 'lead' ? 'fr-status-accepted' : 'fr-status-pending'}`}>
+          {member.role === 'lead' ? copy('openingTeamLead') : copy('openingTeamMember')}
+        </span>
+      </li>
+    );
+  }
+
   return (
     <section className="fr-detail-card">
       <div className="fr-detail-heading">
@@ -61,6 +80,16 @@ export default function FranchiseOpenLocations({
         </div>
       </div>
 
+      {/* Group 12 Slice 3c (612): the territory-wide opening team —
+          members designated for the whole territory, not one launch. */}
+      {openingTeam.length > 0 && (
+        <div>
+          <div className="fr-detail-list-label">{copy('openingTeamTerritoryTitle')}</div>
+          <ul className="fr-doc-files">
+            {openingTeam.map(renderOpeningTeamMember)}
+          </ul>
+        </div>
+      )}
       {locations.length === 0 ? (
         <p className="fr-detail-empty">{copy('openLocationsEmpty')}</p>
       ) : (
@@ -131,6 +160,16 @@ export default function FranchiseOpenLocations({
                       );
                     })}
                   </ul>
+                )}
+
+                {/* Group 12 Slice 3c (612): this launch's opening team. */}
+                <div className="fr-detail-list-label">{copy('openingTeamTitle')}</div>
+                {(location.opening_team || []).length > 0 ? (
+                  <ul className="fr-doc-files">
+                    {location.opening_team.map(renderOpeningTeamMember)}
+                  </ul>
+                ) : (
+                  <p className="fr-detail-empty">{copy('openingTeamEmpty')}</p>
                 )}
               </div>
             );

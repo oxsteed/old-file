@@ -19078,7 +19078,18 @@
       "milestoneLinkedStep": "Paso del plan de lanzamiento",
       "milestoneChangeStatus": "Cambiar estado",
       "milestoneStatusFailed": "No se pudo actualizar el hito.",
-      "milestoneEmpty": "Aún no hay hitos para esta ubicación."
+      "milestoneEmpty": "Aún no hay hitos para esta ubicación.",
+      "openingTeamTitle": "Equipo de apertura",
+      "openingTeamEmpty": "Aún no hay equipo de apertura asignado.",
+      "openingTeamTerritoryTitle": "Equipo de apertura del territorio",
+      "openingTeamLead": "Líder",
+      "openingTeamMember": "Miembro",
+      "openingTeamAdd": "Añadir al equipo de apertura",
+      "openingTeamRemove": "Quitar del equipo de apertura",
+      "openingTeamFailed": "No se pudo actualizar el equipo de apertura.",
+      "openingTeamScopeLabel": "Equipo de apertura para",
+      "openingTeamScopeTerritory": "Todo el territorio",
+      "openingTeamRoleLabel": "Rol"
     },
     "businessOwner": {
       "newMessages": "Nuevos mensajes",

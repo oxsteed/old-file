@@ -1267,6 +1267,17 @@ export default function FranchiseHQPage() {
                               {' · '}
                               {formatLabel(location.status, t)}
                             </div>
+                            {/* Group 12 Slice 3c (612): the opening team
+                                for this launch, read-only in HQ — the
+                                operator designates members from the
+                                territory roster. */}
+                            {(location.opening_team || []).length > 0 && (
+                              <div className="frhq-row-meta">
+                                {t('dashboards.franchise.openingTeamTitle')}: {location.opening_team.map((member) => (
+                                  `${[member.helper_first_name, member.helper_last_name].filter(Boolean).join(' ') || member.helper_email} (${member.role === 'lead' ? t('dashboards.franchise.openingTeamLead') : t('dashboards.franchise.openingTeamMember')})`
+                                )).join(', ')}
+                              </div>
+                            )}
                             {(location.milestones || []).length ? location.milestones.map((milestone) => (
                               <div key={milestone.id} className="frhq-row">
                                 <div>

@@ -19089,7 +19089,18 @@
       "milestoneLinkedStep": "خطوة خطة الإطلاق",
       "milestoneChangeStatus": "تغيير الحالة",
       "milestoneStatusFailed": "تعذّر تحديث المعلم.",
-      "milestoneEmpty": "لا توجد معالم بعد لهذا الموقع."
+      "milestoneEmpty": "لا توجد معالم بعد لهذا الموقع.",
+      "openingTeamTitle": "فريق الافتتاح",
+      "openingTeamEmpty": "لم يتم تعيين فريق افتتاح بعد.",
+      "openingTeamTerritoryTitle": "فريق افتتاح المنطقة",
+      "openingTeamLead": "قائد",
+      "openingTeamMember": "عضو",
+      "openingTeamAdd": "إضافة إلى فريق الافتتاح",
+      "openingTeamRemove": "إزالة من فريق الافتتاح",
+      "openingTeamFailed": "تعذّر تحديث فريق الافتتاح.",
+      "openingTeamScopeLabel": "فريق الافتتاح لـ",
+      "openingTeamScopeTerritory": "كامل المنطقة",
+      "openingTeamRoleLabel": "الدور"
     },
     "businessOwner": {
       "newMessages": "رسائل جديدة",

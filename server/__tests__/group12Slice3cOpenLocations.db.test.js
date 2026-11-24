@@ -422,4 +422,229 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
         .expect(404);
     });
   });
+
+  describe('612: opening team roster', () => {
+    // The territory endpoints sit behind the franchise capability gate
+    // (enforce by default). The gate is off here so the roster scoping
+    // itself is exercised, as in the 606 suite.
+    beforeAll(() => {
+      process.env.ACCESS_FRANCHISE_ENFORCEMENT = 'off';
+    });
+
+    async function addHelper(city = 'Austin', state = 'TX') {
+      const id = await addUser();
+      await db.query(
+        `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+         VALUES ($1, $2, $3, 4.9, 12, TRUE)`,
+        [id, city, state],
+      );
+      return id;
+    }
+
+    async function approveAndAccept(applicationId, adminId, operatorId) {
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', adminId)
+        .send({ status: 'approved' })
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/acceptance`)
+        .set('x-test-user', operatorId)
+        .send({ decision: 'accepted' })
+        .expect(200);
+    }
+
+    function assignTeam(userId, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+        .set('x-test-user', userId)
+        .send(body);
+    }
+
+    test('the operator designates a helper for a location launch; the designation shows in the detail, the bundle, and the roster', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, { desired_region: 'TX' });
+      const helper = await addHelper();
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const location = detail.body.locations[0];
+
+      const assigned = await assignTeam(applicant, applicationId, {
+        helper_user_id: helper,
+        location_id: location.id,
+        role: 'lead',
+      }).expect(201);
+      const team = assigned.body.locations[0].opening_team;
+      expect(team).toHaveLength(1);
+      expect(team[0].helper_user_id).toBe(helper);
+      expect(team[0].role).toBe('lead');
+      expect(team[0].helper_email).toBe(`g12c-${helper}@example.invalid`);
+      expect(assigned.body.opening_team).toEqual([]);
+
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      expect(bundle.body.locations[0].opening_team).toHaveLength(1);
+
+      await approveAndAccept(applicationId, admin, applicant);
+      const roster = await request(app)
+        .get('/api/franchise/territory-helpers')
+        .set('x-test-user', applicant)
+        .expect(200);
+      // The roster accumulates helpers from earlier runs in this shared
+      // slice DB, so assert on this test's helper row, not the list size.
+      const row = roster.body.helpers.find((entry) => entry.user_id === helper);
+      expect(row).toBeDefined();
+      expect(row.opening_team).toBe(true);
+      expect(row.opening_team_role).toBe('lead');
+      expect(row.opening_team_location_id).toBe(location.id);
+    });
+
+    test('territory-wide designation, duplicates, and validation', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, { desired_region: 'TX' });
+      const helper = await addHelper();
+      const noProfile = await addUser();
+
+      const assigned = await assignTeam(applicant, applicationId, { helper_user_id: helper }).expect(201);
+      expect(assigned.body.opening_team).toHaveLength(1);
+      expect(assigned.body.opening_team[0].role).toBe('member');
+      expect(assigned.body.opening_team[0].location_id).toBeNull();
+
+      const duplicate = await assignTeam(applicant, applicationId, { helper_user_id: helper });
+      expect(duplicate.status).toBe(409);
+      expect(duplicate.body.code).toBe('opening_team_already_assigned');
+
+      const unknown = await assignTeam(applicant, applicationId, { helper_user_id: randomUUID() });
+      expect(unknown.status).toBe(404);
+      expect(unknown.body.code).toBe('opening_team_helper_not_found');
+
+      const profileless = await assignTeam(applicant, applicationId, { helper_user_id: noProfile });
+      expect(profileless.status).toBe(404);
+      expect(profileless.body.code).toBe('opening_team_helper_not_found');
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const location = detail.body.locations[0];
+      const badLocation = await assignTeam(applicant, applicationId, { helper_user_id: helper, location_id: randomUUID() });
+      expect(badLocation.status).toBe(404);
+      const badRole = await assignTeam(applicant, applicationId, { helper_user_id: helper, location_id: location.id, role: 'captain' });
+      expect(badRole.status).toBe(400);
+      expect(badRole.body.code).toBe('invalid_opening_team_role');
+      await assignTeam(applicant, applicationId, {}).expect(400);
+
+      // The refused assignments changed nothing: still one member.
+      const after = await applicantDetail(applicant, applicationId).expect(200);
+      expect(after.body.opening_team).toHaveLength(1);
+    });
+
+    test('the operator removes a member; HQ assigns and removes; strangers and applicant-only callers are refused', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, { desired_region: 'TX' });
+      const helper = await addHelper();
+
+      // The public lead form leaves applicant_user_id NULL; link the
+      // applicant's account (as 3b does) so the applicant-vs-operator
+      // distinction below is the one the handler enforces.
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant, applicationId]);
+      // HQ reassigns the territory to a second operator; the original
+      // applicant record alone is no longer the operator.
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ owner_user_id: operator })
+        .expect(200);
+
+      const applicantOnly = await assignTeam(applicant, applicationId, { helper_user_id: helper });
+      expect(applicantOnly.status).toBe(403);
+      expect(applicantOnly.body.code).toBe('franchise_operator_only');
+
+      const assigned = await assignTeam(operator, applicationId, { helper_user_id: helper, role: 'lead' }).expect(201);
+      const memberId = assigned.body.opening_team[0].id;
+
+      await request(app)
+        .delete(`/api/franchise/my-applications/${applicationId}/opening-team/${memberId}`)
+        .set('x-test-user', stranger)
+        .expect(404);
+      await assignTeam(stranger, applicationId, { helper_user_id: helper }).expect(404);
+
+      const removed = await request(app)
+        .delete(`/api/franchise/my-applications/${applicationId}/opening-team/${memberId}`)
+        .set('x-test-user', operator)
+        .expect(200);
+      expect(removed.body.opening_team).toEqual([]);
+
+      await request(app)
+        .delete(`/api/franchise/my-applications/${applicationId}/opening-team/${memberId}`)
+        .set('x-test-user', operator)
+        .expect(404);
+
+      const adminAssigned = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/opening-team`)
+        .set('x-test-user', admin)
+        .send({ helper_user_id: helper })
+        .expect(201);
+      expect(adminAssigned.body.opening_team).toHaveLength(1);
+      const adminMemberId = adminAssigned.body.opening_team[0].id;
+      const adminRemoved = await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/opening-team/${adminMemberId}`)
+        .set('x-test-user', admin)
+        .expect(200);
+      expect(adminRemoved.body.opening_team).toEqual([]);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/opening-team`)
+        .set('x-test-user', applicant)
+        .send({ helper_user_id: helper })
+        .expect(403);
+    });
+
+    test('roster scoping: the opening team is flagged apart from the rest of the roster', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, { desired_region: 'TX' });
+      const onTeam = await addHelper();
+      const offTeam = await addHelper();
+      const elsewhere = await addHelper('Dallas', 'TX');
+
+      await approveAndAccept(applicationId, admin, applicant);
+
+      const before = await request(app)
+        .get('/api/franchise/territory-helpers')
+        .set('x-test-user', applicant)
+        .expect(200);
+      // The Dallas helper is outside the Austin roster; the two Austin
+      // helpers are listed, neither on the team yet. (This also proves
+      // the roster query itself returns rows: it used to reference a
+      // `service_area_city` column that never existed, so it always
+      // returned an empty list.) The roster accumulates helpers from
+      // earlier runs in this shared slice DB, so assert membership, not
+      // list size.
+      const listedBefore = before.body.helpers.map((helper) => helper.user_id);
+      expect(listedBefore).toContain(onTeam);
+      expect(listedBefore).toContain(offTeam);
+      expect(listedBefore).not.toContain(elsewhere);
+      expect(before.body.helpers.find((helper) => helper.user_id === onTeam).opening_team).toBe(false);
+      expect(before.body.helpers.find((helper) => helper.user_id === offTeam).opening_team).toBe(false);
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      await assignTeam(applicant, applicationId, {
+        helper_user_id: onTeam,
+        location_id: detail.body.locations[0].id,
+      }).expect(201);
+
+      const after = await request(app)
+        .get('/api/franchise/territory-helpers')
+        .set('x-test-user', applicant)
+        .expect(200);
+      const flagged = after.body.helpers.find((helper) => helper.user_id === onTeam);
+      const unflagged = after.body.helpers.find((helper) => helper.user_id === offTeam);
+      expect(flagged.opening_team).toBe(true);
+      expect(flagged.opening_team_member_id).toBeTruthy();
+      expect(unflagged.opening_team).toBe(false);
+      expect(unflagged.opening_team_role).toBeNull();
+      expect(elsewhere).toBeTruthy();
+    });
+  });
 });

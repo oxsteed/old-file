@@ -19078,7 +19078,18 @@
       "milestoneLinkedStep": "Launch plan step",
       "milestoneChangeStatus": "Change status",
       "milestoneStatusFailed": "Could not update the milestone.",
-      "milestoneEmpty": "No milestones yet for this location."
+      "milestoneEmpty": "No milestones yet for this location.",
+      "openingTeamTitle": "Opening team",
+      "openingTeamEmpty": "No opening team assigned yet.",
+      "openingTeamTerritoryTitle": "Territory opening team",
+      "openingTeamLead": "Lead",
+      "openingTeamMember": "Member",
+      "openingTeamAdd": "Add to opening team",
+      "openingTeamRemove": "Remove from opening team",
+      "openingTeamFailed": "Could not update the opening team.",
+      "openingTeamScopeLabel": "Opening team for",
+      "openingTeamScopeTerritory": "Whole territory",
+      "openingTeamRoleLabel": "Role"
     },
     "businessOwner": {
       "newMessages": "New messages",

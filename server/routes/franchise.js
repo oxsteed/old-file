@@ -47,6 +47,10 @@ const {
   updateLocationMilestone,
   removeLocationMilestone,
   updateLocationMilestoneStatus,
+  assignOpeningTeamMember,
+  removeOpeningTeamMember,
+  assignOpeningTeamMemberAsAdmin,
+  removeOpeningTeamMemberAsAdmin,
 } = require('../controllers/franchiseController');
 
 const {
@@ -75,6 +79,10 @@ router.post('/my-applications/:id/launch-plan/:stepId/status', authenticate, req
 // Group 12 Slice 3c (611): the operator updates one location milestone's
 // status on their own application.
 router.post('/my-applications/:id/locations/:locationId/milestones/:milestoneId/status', authenticate, requireFranchiseEnabled, updateLocationMilestoneStatus);
+// Group 12 Slice 3c (612): the operator designates/removes opening-team
+// members on their own application.
+router.post('/my-applications/:id/opening-team', authenticate, requireFranchiseEnabled, assignOpeningTeamMember);
+router.delete('/my-applications/:id/opening-team/:memberId', authenticate, requireFranchiseEnabled, removeOpeningTeamMember);
 router.get('/territory-stats',     authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryStats);
 router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryHelpers);
 
@@ -100,6 +108,9 @@ router.post('/applications/:id/locations', authenticate, requireAdmin, requirePe
 router.post('/applications/:id/locations/:locationId/milestones', authenticate, requireAdmin, requirePermission('manage_operations'), addLocationMilestone);
 router.patch('/applications/:id/locations/:locationId/milestones/:milestoneId', authenticate, requireAdmin, requirePermission('manage_operations'), updateLocationMilestone);
 router.delete('/applications/:id/locations/:locationId/milestones/:milestoneId', authenticate, requireAdmin, requirePermission('manage_operations'), removeLocationMilestone);
+// Group 12 Slice 3c (612): HQ designates/removes opening-team members.
+router.post('/applications/:id/opening-team', authenticate, requireAdmin, requirePermission('manage_operations'), assignOpeningTeamMemberAsAdmin);
+router.delete('/applications/:id/opening-team/:memberId', authenticate, requireAdmin, requirePermission('manage_operations'), removeOpeningTeamMemberAsAdmin);
 router.put('/applications/:id/agreement', authenticate, requireAdmin, requirePermission('manage_operations'), upsertFranchiseAgreement);
 // Review P2-9-F09: the applicant signs from their own account (admins cannot
 // assert the applicant's signature). Authenticated, not admin-gated.

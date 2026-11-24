@@ -439,6 +439,8 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3c (613): the readiness review history, reviewer
   // included — HQ sees who signed off.
   const readinessReviews = await fetchReadinessReviews(applicationId, { includeReviewer: true });
+  // Group 12 Slice 3c (612): the territory-wide opening team.
+  const openingTeam = await fetchTerritoryOpeningTeam(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -459,6 +461,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     territory_areas: areaResult.rows,
     launch_plan_steps: launchPlanResult.rows,
     locations,
+    opening_team: openingTeam,
     readiness_reviews: readinessReviews,
     agreement: agreementResult.rows[0] || null,
     notes: notesResult.rows,
@@ -557,6 +560,22 @@ async function fetchReadinessReviews(applicationId, { includeReviewer = false } 
   });
 }
 
+// Group 12 Slice 3c (612): the territory-wide opening team — members
+// designated for the whole territory (location_id NULL), as opposed to
+// one location launch. Per-location teams ride `fetchOpenLocations`.
+async function fetchTerritoryOpeningTeam(applicationId) {
+  const { rows } = await db.query(
+    `SELECT m.*, u.first_name AS helper_first_name, u.last_name AS helper_last_name,
+            u.email AS helper_email
+       FROM franchise_opening_team_members m
+       JOIN users u ON u.id = m.helper_user_id
+      WHERE m.application_id = $1 AND m.location_id IS NULL
+      ORDER BY m.assigned_at ASC, m.id ASC`,
+    [applicationId]
+  );
+  return rows;
+}
+
 // Group 12 Slice 3a (603): per-category document status, derived from the
 // stored rows. `accepted` wins when any document in the category was
 // accepted; otherwise the latest document decides, so a re-upload after a
@@ -640,7 +659,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult, locations, readinessReviews] = await Promise.all([
+  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult, locations, readinessReviews, openingTeam] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -723,6 +742,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     // Group 12 Slice 3c (613, D-313): the readiness review history —
     // outcome, notes, and date only, never the reviewer's identity.
     fetchReadinessReviews(applicationId),
+    // Group 12 Slice 3c (612): the territory-wide opening team.
+    fetchTerritoryOpeningTeam(applicationId),
   ]);
 
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
@@ -741,6 +762,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     territory_areas: areaResult.rows,
     launch_plan_steps: launchPlanResult.rows,
     locations,
+    opening_team: openingTeam,
     readiness_reviews: readinessReviews,
     activity: activityResult.rows,
   };
@@ -777,11 +799,11 @@ async function loadOperatorApplication(client, applicationId, userId) {
     [applicationId]
   );
   const application = rows[0] || null;
-  if (!application) return { application: null, isOperator: false };
-  return {
-    application,
-    isOperator: String(application.owner_user_id) === String(userId),
-  };
+  if (!application) return { application: null, isOperator: false, isAssociated: false };
+  const isOperator = String(application.owner_user_id) === String(userId);
+  const isAssociated = isOperator
+    || String(application.applicant_user_id) === String(userId);
+  return { application, isOperator, isAssociated };
 }
 
 function parseInterviewDate(value) {
@@ -3553,6 +3575,261 @@ async function updateLocationMilestoneStatus(req, res) {
   }
 }
 
+/**
+ * Shared core for the opening-team assignment (612, D-312). The helper
+ * must hold a helper profile — enforced here, not by FK, because the
+ * territory roster itself is best-effort city/region matching (the same
+ * reason the roster query is fail-open). Returns `{ member }` on success
+ * or `{ error }` with an HTTP status and code.
+ */
+async function assignOpeningTeamMemberCore(client, { applicationId, locationId, helperUserId, role, actorId }) {
+  if (locationId) {
+    const location = await loadLocation(client, applicationId, locationId);
+    if (!location) {
+      return { error: { status: 404, body: { error: 'Franchise location not found.' } } };
+    }
+  }
+  const { rows: helperRows } = await client.query(
+    `SELECT u.id FROM users u
+       JOIN helper_profiles hp ON hp.user_id = u.id
+      WHERE u.id = $1 AND u.is_active = TRUE AND u.deleted_at IS NULL`,
+    [helperUserId]
+  );
+  if (!helperRows.length) {
+    return { error: { status: 404, body: { error: 'Helper not found.', code: 'opening_team_helper_not_found' } } };
+  }
+  const { rows: existingRows } = await client.query(
+    `SELECT 1 FROM franchise_opening_team_members
+      WHERE application_id = $1 AND helper_user_id = $2
+        AND location_id IS NOT DISTINCT FROM $3`,
+    [applicationId, helperUserId, locationId || null]
+  );
+  if (existingRows.length) {
+    return { error: { status: 409, body: { error: 'That helper is already on the opening team for this scope.', code: 'opening_team_already_assigned' } } };
+  }
+  const { rows } = await client.query(
+    `INSERT INTO franchise_opening_team_members
+       (application_id, location_id, helper_user_id, role, assigned_by)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [applicationId, locationId || null, helperUserId, role, actorId || null]
+  );
+  await logActivity(
+    client,
+    applicationId,
+    actorId || null,
+    'opening_team_assigned',
+    `Helper assigned to the opening team as ${role}${locationId ? ' for a location launch' : ' for the territory'}.`,
+    { location_id: locationId || null, helper_user_id: helperUserId, role }
+  );
+  return { member: rows[0] };
+}
+
+async function removeOpeningTeamMemberCore(client, { applicationId, memberId, actorId }) {
+  const { rows } = await client.query(
+    `DELETE FROM franchise_opening_team_members
+      WHERE id = $1 AND application_id = $2
+      RETURNING helper_user_id, location_id, role`,
+    [memberId, applicationId]
+  );
+  if (!rows.length) {
+    return { error: { status: 404, body: { error: 'Opening team member not found.' } } };
+  }
+  await logActivity(
+    client,
+    applicationId,
+    actorId || null,
+    'opening_team_removed',
+    'Helper removed from the opening team.',
+    { member_id: memberId, helper_user_id: rows[0].helper_user_id, role: rows[0].role }
+  );
+  return { removed: rows[0] };
+}
+
+/**
+ * POST /api/franchise/my-applications/:id/opening-team
+ * 612 (D-312): the operator designates a helper from the territory roster
+ * as an opening-team member — for one location launch, or for the whole
+ * territory when no location is given. Operator-only: the applicant
+ * record alone gets 403 `franchise_operator_only`.
+ */
+async function assignOpeningTeamMember(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const helperUserId = asTrimmed(req.body?.helper_user_id);
+  if (!helperUserId) {
+    return res.status(400).json({ error: 'helper_user_id is required.', code: 'opening_team_helper_required' });
+  }
+  const role = asTrimmed(req.body?.role) || 'member';
+  if (!OPENING_TEAM_ROLES.has(role)) {
+    return res.status(400).json({ error: 'role must be lead or member.', code: 'invalid_opening_team_role' });
+  }
+  const locationId = asTrimmed(req.body?.location_id) || null;
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { application, isOperator, isAssociated } = await loadOperatorApplication(client, id, req.user.id);
+      if (!application || !isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can designate the opening team.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const result = await assignOpeningTeamMemberCore(client, {
+        applicationId: id, locationId, helperUserId, role, actorId: req.user.id,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user.id);
+      return res.status(201).json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error assigning franchise opening team member', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to assign opening team member.' });
+  }
+}
+
+/**
+ * DELETE /api/franchise/my-applications/:id/opening-team/:memberId
+ * 612: the operator removes a helper from the opening team.
+ */
+async function removeOpeningTeamMember(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const { id, memberId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { application, isOperator, isAssociated } = await loadOperatorApplication(client, id, req.user.id);
+      if (!application || !isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can designate the opening team.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const result = await removeOpeningTeamMemberCore(client, {
+        applicationId: id, memberId, actorId: req.user.id,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise opening team member', { id, memberId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove opening team member.' });
+  }
+}
+
+/**
+ * POST /api/franchise/applications/:id/opening-team (admin)
+ * 612: HQ designates an opening-team member on the operator's behalf.
+ */
+async function assignOpeningTeamMemberAsAdmin(req, res) {
+  const helperUserId = asTrimmed(req.body?.helper_user_id);
+  if (!helperUserId) {
+    return res.status(400).json({ error: 'helper_user_id is required.', code: 'opening_team_helper_required' });
+  }
+  const role = asTrimmed(req.body?.role) || 'member';
+  if (!OPENING_TEAM_ROLES.has(role)) {
+    return res.status(400).json({ error: 'role must be lead or member.', code: 'invalid_opening_team_role' });
+  }
+  const locationId = asTrimmed(req.body?.location_id) || null;
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const result = await assignOpeningTeamMemberCore(client, {
+        applicationId: id, locationId, helperUserId, role, actorId: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error assigning franchise opening team member', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to assign opening team member.' });
+  }
+}
+
+/**
+ * DELETE /api/franchise/applications/:id/opening-team/:memberId (admin)
+ * 612: HQ removes an opening-team member.
+ */
+async function removeOpeningTeamMemberAsAdmin(req, res) {
+  const { id, memberId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await removeOpeningTeamMemberCore(client, {
+        applicationId: id, memberId, actorId: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise opening team member', { id, memberId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove opening team member.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -3587,6 +3864,10 @@ module.exports = {
   updateLocationMilestone,
   removeLocationMilestone,
   updateLocationMilestoneStatus,
+  assignOpeningTeamMember,
+  removeOpeningTeamMember,
+  assignOpeningTeamMemberAsAdmin,
+  removeOpeningTeamMemberAsAdmin,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

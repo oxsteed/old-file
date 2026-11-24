@@ -505,6 +505,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
       <FranchiseOpenLocations
         locations={detail.locations || []}
         launchPlanSteps={detail.launch_plan_steps || []}
+        openingTeam={detail.opening_team || []}
         onMilestoneStatusChange={updateMilestoneStatus}
         disabled={busy}
       />

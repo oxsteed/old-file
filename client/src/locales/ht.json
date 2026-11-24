@@ -19078,7 +19078,18 @@
       "milestoneLinkedStep": "Etap plan lansman an",
       "milestoneChangeStatus": "Chanje estati",
       "milestoneStatusFailed": "Yo pa t kapab mete etap la ajou.",
-      "milestoneEmpty": "Pa gen etap pou lokasyon sa a pou kounye a."
+      "milestoneEmpty": "Pa gen etap pou lokasyon sa a pou kounye a.",
+      "openingTeamTitle": "Ekip ouvèti",
+      "openingTeamEmpty": "Poko gen ekip ouvèti yo bay pou kounye a.",
+      "openingTeamTerritoryTitle": "Ekip ouvèti teritwa a",
+      "openingTeamLead": "Chèf",
+      "openingTeamMember": "Manm",
+      "openingTeamAdd": "Ajoute nan ekip ouvèti a",
+      "openingTeamRemove": "Retire nan ekip ouvèti a",
+      "openingTeamFailed": "Yo pa t kapab mete ekip ouvèti a ajou.",
+      "openingTeamScopeLabel": "Ekip ouvèti pou",
+      "openingTeamScopeTerritory": "Tout teritwa a",
+      "openingTeamRoleLabel": "Wòl"
     },
     "businessOwner": {
       "newMessages": "Nouvo mesaj",
