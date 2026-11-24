@@ -34,6 +34,15 @@ function fmtCurrency(cents, currency = 'USD') {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 }).format(cents / 100);
 }
 
+// 552: readiness checklist labels, in display order. Kept distinct from
+// the activation status above (D-262): readiness is completeness.
+const READINESS_CHECK_LABELS = Object.freeze({
+  photos: 'toolRentals.readinessPhotos',
+  specs: 'toolRentals.readinessSpecs',
+  pricing: 'toolRentals.readinessPricing',
+  fulfillment: 'toolRentals.readinessFulfillment',
+});
+
 function StatTile({ icon, label, value, hint, accent = false }) {
   return (
     <div
@@ -263,6 +272,29 @@ function ToolOwnerDashboardContent() {
                       />
                       <span>{t(activationStatusLabelKey(activationStatus(l)))}</span>
                     </div>
+                    {/* 552: readiness checklist — distinct from activation status. */}
+                    {l.readiness && (
+                      <div className="mt-2 border-t pt-2" style={{ borderColor: 'var(--color-border)' }}>
+                        <p className="text-[11px] font-semibold">{t('toolRentals.readinessTitle')}</p>
+                        <p className="mt-0.5 flex items-center gap-1.5 text-[11px]">
+                          {l.readiness.ready
+                            ? <><CheckCircle2 size={12} className="text-green-500" aria-hidden="true" /> {t('toolRentals.readinessReady')}</>
+                            : <><AlertCircle size={12} className="text-amber-500" aria-hidden="true" /> {t('toolRentals.readinessNotReady')}</>}
+                        </p>
+                        {!l.readiness.ready && (
+                          <ul className="mt-1 space-y-0.5 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                            {Object.keys(READINESS_CHECK_LABELS).map((key) => (
+                              <li key={key} className="flex items-center gap-1.5">
+                                {l.readiness.checks?.[key]
+                                  ? <CheckCircle2 size={11} className="shrink-0 text-green-500" aria-hidden="true" />
+                                  : <AlertCircle size={11} className="shrink-0 text-amber-500" aria-hidden="true" />}
+                                <span>{t(READINESS_CHECK_LABELS[key])}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
                     <div className="text-[11px] mt-1 flex items-center gap-2" style={{ color: 'var(--color-text-muted)' }}>
                       {l.daily_rate_cents != null && <span>{fmtCurrency(l.daily_rate_cents, currency)} / day</span>}
                       {l.avg_rating != null && l.review_count > 0 && (

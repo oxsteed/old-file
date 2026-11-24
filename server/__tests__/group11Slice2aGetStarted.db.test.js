@@ -377,4 +377,57 @@ describeDb('Group 11 Slice 2a: Get started (551, 552, 554, 555)', () => {
       expect(res.body.code).toBe('not_found');
     });
   });
+
+  describe('552: listing readiness checklist', () => {
+    const getMyTools = (user) => request(app)
+      .get('/api/tool-rentals/me')
+      .set('x-test-user', user);
+    const readinessOf = async (owner, toolId) => {
+      const res = await getMyTools(owner).expect(200);
+      return res.body.tools.find((t) => t.id === toolId).readiness;
+    };
+
+    test('a complete listing is ready on every check', async () => {
+      const owner = await addUser();
+      const tool = await insertTool(owner);
+      expect(await readinessOf(owner, tool.id)).toEqual({
+        ready: true,
+        checks: { photos: true, specs: true, pricing: true, fulfillment: true },
+        missing: [],
+      });
+    });
+
+    test('no photos fails only the photos check', async () => {
+      const owner = await addUser();
+      const tool = await insertTool(owner, { image_gallery: [] });
+      const readiness = await readinessOf(owner, tool.id);
+      expect(readiness.ready).toBe(false);
+      expect(readiness.checks.photos).toBe(false);
+      expect(readiness.missing).toEqual(['photos']);
+    });
+
+    test('missing brand and model fails the specs check', async () => {
+      const owner = await addUser();
+      const tool = await insertTool(owner, { brand: null, model: '' });
+      const readiness = await readinessOf(owner, tool.id);
+      expect(readiness.checks.specs).toBe(false);
+      expect(readiness.missing).toContain('specs');
+    });
+
+    test('a zero daily rate fails pricing, and a required but unset deposit fails pricing', async () => {
+      const owner = await addUser();
+      const noPrice = await insertTool(owner, { daily_rate: 0 });
+      expect((await readinessOf(owner, noPrice.id)).checks.pricing).toBe(false);
+      const noDeposit = await insertTool(owner, { requires_deposit: true, deposit_amount: 0 });
+      expect((await readinessOf(owner, noDeposit.id)).checks.pricing).toBe(false);
+    });
+
+    test('no pickup and no delivery fails the fulfillment check', async () => {
+      const owner = await addUser();
+      const tool = await insertTool(owner, { pickup_only: false, delivery_available: false });
+      const readiness = await readinessOf(owner, tool.id);
+      expect(readiness.checks.fulfillment).toBe(false);
+      expect(readiness.missing).toContain('fulfillment');
+    });
+  });
 });

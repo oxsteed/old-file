@@ -451,6 +451,7 @@ router.get('/me', authenticate, async (req, res) => {
         publicationBlocked = !(await access.can(req.user.id, 'tool_owner.list_equipment')).allowed;
       }
     } catch { publicationBlocked = false; }
+    const { computeListingReadiness } = require('../services/toolListingReadiness');
     res.json({
       tools: result.rows.map((tool) => {
         const activationStatus = tool.moderation_hold === true
@@ -460,7 +461,8 @@ router.get('/me', authenticate, async (req, res) => {
             : tool.is_available === false
               ? 'unavailable'
               : 'published';
-        return { ...tool, publication_blocked: publicationBlocked, activation_status: activationStatus };
+        // 552: server-computed readiness checklist for the owner dashboard.
+        return { ...tool, publication_blocked: publicationBlocked, activation_status: activationStatus, readiness: computeListingReadiness(tool) };
       }),
     });
   } catch (err) {
