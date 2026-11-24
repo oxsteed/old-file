@@ -14,6 +14,9 @@ const moneyGate = requireSuperAdminOrPermission('manage_financials');
 
 router.get('/credit-adjustments/pending', moneyGate, controller.listPendingAdjustments);
 router.post('/credit-adjustments', moneyGate, controller.proposeAdjustment);
+// Group 13 Slice 4h (687, D-395): link an existing adjustment to the
+// reconciliation exception it resolves. Set-once; no money moves here.
+router.post('/credit-adjustments/:id/link-exception', moneyGate, controller.linkAdjustmentToException);
 // ADM-186: step-up challenges for the approval path. The approve endpoint
 // verifies the challenge before money moves; this route is scoped to the
 // same manage_financials gate because the super-admin challenge route is
