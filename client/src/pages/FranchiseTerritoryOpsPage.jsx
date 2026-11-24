@@ -18,6 +18,7 @@ import PageShell from '../components/PageShell';
 import FranchiseBoundarySummary from './FranchiseBoundarySummary';
 import FranchiseLaunchPlan from './FranchiseLaunchPlan';
 import FranchiseOpenLocations from './FranchiseOpenLocations';
+import FranchiseTerritoryInvitations from './FranchiseTerritoryInvitations';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -240,6 +241,29 @@ export default function FranchiseTerritoryOpsPage() {
     } catch (err) {
       setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
       throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3d (616): the operator invites someone to the
+  // territory by email, and cancels an outstanding invite.
+  const inviteTerritoryMember = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/invitations`, body);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  const cancelTerritoryInvite = useCallback(async (inviteId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/invitations/${inviteId}/cancel`);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
     }
   }, [resolvedApplicationId, t]);
 
@@ -540,6 +564,16 @@ export default function FranchiseTerritoryOpsPage() {
               onServiceSave={saveLocationService}
               onLaunchLocation={launchLocation}
               onConfirmOpening={confirmOpening}
+            />
+          )}
+
+          {/* Group 12 Slice 3d (616): territory invitations. */}
+          {boundaryDetail && (
+            <FranchiseTerritoryInvitations
+              invitations={boundaryDetail.territory_invitations || []}
+              canInvite
+              onInvite={inviteTerritoryMember}
+              onCancel={cancelTerritoryInvite}
             />
           )}
 

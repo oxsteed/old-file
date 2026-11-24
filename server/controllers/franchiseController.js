@@ -1,3 +1,4 @@
+const { randomBytes } = require('node:crypto');
 const db = require('../db');
 const logger = require('../utils/logger');
 const countriesUtil = require('../utils/countries');
@@ -444,6 +445,11 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   const readinessReviews = await fetchReadinessReviews(applicationId, { includeReviewer: true });
   // Group 12 Slice 3c (612): the territory-wide opening team.
   const openingTeam = await fetchTerritoryOpeningTeam(applicationId);
+  // Group 12 Slice 3d (616/618/620): territory invitations, training
+  // distribution, and the HQ announcement feed (HQ sees read counts).
+  const territoryInvitations = await fetchTerritoryInvitations(applicationId);
+  const trainingAssignments = await fetchTrainingAssignments(applicationId);
+  const announcements = await fetchAnnouncements(applicationId, { includeReadCounts: true });
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -466,6 +472,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     locations,
     business_services: businessServices,
     opening_team: openingTeam,
+    territory_invitations: territoryInvitations,
+    training_assignments: trainingAssignments,
+    announcements,
     readiness_reviews: readinessReviews,
     agreement: agreementResult.rows[0] || null,
     notes: notesResult.rows,
@@ -492,7 +501,7 @@ async function fetchOpenLocations(applicationId) {
   const locations = locationResult.rows;
   if (!locations.length) return [];
   const locationIds = locations.map((location) => location.id);
-  const [milestoneResult, serviceResult, teamResult, confirmationResult] = await Promise.all([
+  const [milestoneResult, serviceResult, teamResult, confirmationResult, managerResult] = await Promise.all([
     db.query(
       `SELECT * FROM franchise_location_milestones
         WHERE application_id = $1
@@ -519,6 +528,15 @@ async function fetchOpenLocations(applicationId) {
         WHERE application_id = $1`,
       [applicationId]
     ),
+    // Group 12 Slice 3d (617): the location manager, HQ-assigned.
+    db.query(
+      `SELECT m.*, u.first_name AS manager_first_name, u.last_name AS manager_last_name,
+              u.email AS manager_email
+         FROM franchise_location_managers m
+         JOIN users u ON u.id = m.manager_user_id
+        WHERE m.application_id = $1`,
+      [applicationId]
+    ),
   ]);
   const byLocation = (rows) => {
     const map = new Map(locationIds.map((id) => [id, []]));
@@ -533,6 +551,9 @@ async function fetchOpenLocations(applicationId) {
   const confirmationsByLocation = new Map(
     confirmationResult.rows.map((row) => [row.location_id, row])
   );
+  const managerByLocation = new Map(
+    managerResult.rows.map((row) => [row.location_id, row])
+  );
   return locations.map((location) => {
     const confirmation = confirmationsByLocation.get(location.id) || null;
     return {
@@ -540,6 +561,7 @@ async function fetchOpenLocations(applicationId) {
       milestones: milestonesByLocation.get(location.id) || [],
       services: servicesByLocation.get(location.id) || [],
       opening_team: teamByLocation.get(location.id) || [],
+      manager: managerByLocation.get(location.id) || null,
       opening_confirmation: confirmation,
       launch_complete: location.status === 'launched' && Boolean(confirmation),
     };
@@ -578,6 +600,106 @@ async function fetchTerritoryOpeningTeam(applicationId) {
     [applicationId]
   );
   return rows;
+}
+
+// Group 12 Slice 3d (616-620): the guide-teams bundle — territory
+// invitations, training assignments, and announcements. The invite token
+// never leaves the server in a list payload: it is only returned on
+// create (the operator/HQ hands it to the invitee) and is stripped here.
+async function fetchTerritoryInvitations(applicationId) {
+  const { rows } = await db.query(
+    `SELECT i.id, i.application_id, i.email, i.role, i.status,
+            i.invited_by, i.expires_at, i.responded_at, i.created_at,
+            u.email AS invited_by_email
+       FROM franchise_territory_invitations i
+       LEFT JOIN users u ON u.id = i.invited_by
+      WHERE i.application_id = $1
+      ORDER BY i.created_at DESC, i.id DESC`,
+    [applicationId]
+  );
+  return rows;
+}
+
+// Group 12 Slice 3d (618): territory-scoped training assignments with
+// the assignee's name — the operator tracks completion per person.
+async function fetchTrainingAssignments(applicationId) {
+  const { rows } = await db.query(
+    `SELECT a.*, u.first_name AS assignee_first_name,
+            u.last_name AS assignee_last_name, u.email AS assignee_email
+       FROM franchise_training_assignments a
+       JOIN users u ON u.id = a.assignee_user_id
+      WHERE a.application_id = $1
+      ORDER BY a.created_at DESC, a.id DESC`,
+    [applicationId]
+  );
+  return rows;
+}
+
+// Group 12 Slice 3d (620): HQ broadcast announcements. The operator
+// feed hides expired announcements and carries `read_by_me`; HQ sees
+// every announcement with a read count. The activity log stays the
+// event record — this feed is broadcast only (D-320).
+async function fetchAnnouncements(applicationId, { userId = null, includeReadCounts = false } = {}) {
+  const { rows } = await db.query(
+    `SELECT a.*, u.email AS created_by_email
+       FROM franchise_announcements a
+       LEFT JOIN users u ON u.id = a.created_by
+      WHERE a.application_id = $1
+      ORDER BY a.created_at DESC, a.id DESC`,
+    [applicationId]
+  );
+  const now = Date.now();
+  const visible = includeReadCounts
+    ? rows
+    : rows.filter((row) => !row.expires_at || new Date(row.expires_at).getTime() > now);
+  if (!visible.length) return [];
+  const ids = visible.map((row) => row.id);
+  const readResult = await db.query(
+    `SELECT announcement_id, COUNT(*)::int AS read_count
+       FROM franchise_announcement_reads
+      WHERE announcement_id = ANY($1::uuid[])
+      GROUP BY announcement_id`,
+    [ids]
+  );
+  const readCounts = new Map(readResult.rows.map((row) => [row.announcement_id, row.read_count]));
+  let readByMe = new Set();
+  if (userId) {
+    const mineResult = await db.query(
+      `SELECT announcement_id FROM franchise_announcement_reads
+        WHERE announcement_id = ANY($1::uuid[]) AND user_id = $2`,
+      [ids, userId]
+    );
+    readByMe = new Set(mineResult.rows.map((row) => row.announcement_id));
+  }
+  return visible.map((row) => ({
+    ...row,
+    expired: Boolean(row.expires_at) && new Date(row.expires_at).getTime() <= now,
+    read_count: readCounts.get(row.id) || 0,
+    read_by_me: readByMe.has(row.id),
+  }));
+}
+
+// Group 12 Slice 3d (616/617/618): who counts as a territory member —
+// the assigned operator, anyone who accepted a territory invite, or an
+// opening-team helper. Membership is the gate for manager assignment
+// and training distribution; it is checked against live rows, never
+// against a role label.
+async function isTerritoryMember(client, applicationId, userId) {
+  if (!userId) return false;
+  const { rows } = await client.query(
+    `SELECT 1 FROM franchise_applications
+      WHERE id = $1 AND owner_user_id = $2
+     UNION
+     SELECT 1 FROM franchise_territory_invitations
+      WHERE application_id = $1 AND lower(email) = lower((SELECT email FROM users WHERE id = $2))
+        AND status = 'accepted'
+     UNION
+     SELECT 1 FROM franchise_opening_team_members
+      WHERE application_id = $1 AND helper_user_id = $2
+     LIMIT 1`,
+    [applicationId, userId]
+  );
+  return rows.length > 0;
 }
 
 // Group 12 Slice 3a (603): per-category document status, derived from the
@@ -663,7 +785,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult, locations, businessServices, readinessReviews, openingTeam] = await Promise.all([
+  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult, locations, businessServices, readinessReviews, openingTeam, territoryInvitations, trainingAssignments, announcements] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -750,6 +872,12 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     fetchReadinessReviews(applicationId),
     // Group 12 Slice 3c (612): the territory-wide opening team.
     fetchTerritoryOpeningTeam(applicationId),
+    // Group 12 Slice 3d (616/618/620): territory invitations, training
+    // distribution, and the HQ announcement feed (operator view: expired
+    // hidden, `read_by_me` carried).
+    fetchTerritoryInvitations(applicationId),
+    fetchTrainingAssignments(applicationId),
+    fetchAnnouncements(applicationId, { userId }),
   ]);
 
   const documents = await Promise.all(documentResult.rows.map(presentFranchiseDocument));
@@ -770,6 +898,9 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     locations,
     business_services: businessServices,
     opening_team: openingTeam,
+    territory_invitations: territoryInvitations,
+    training_assignments: trainingAssignments,
+    announcements,
     readiness_reviews: readinessReviews,
     activity: activityResult.rows,
   };
@@ -4333,6 +4464,916 @@ async function submitReadinessReview(req, res) {
   }
 }
 
+// ── Group 12 Slice 3d (616-620): guide teams ──────────────────────────
+// Territory invitations (616), location managers (617), training task
+// distribution (618), coverage planning (619), announcement feed (620).
+
+const INVITE_ROLES = new Set(['member', 'manager']);
+const TRAINING_ASSIGNMENT_STATUSES = new Set(['assigned', 'in_progress', 'completed']);
+
+function isValidInviteEmail(value) {
+  return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function parseExpiry(value) {
+  if (value === undefined || value === null || value === '') return { ok: true, value: null };
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return { ok: false, value: null };
+  return { ok: true, value: parsed.toISOString() };
+}
+
+// 616 (D-316): territory-scoped invitation. One outstanding invite per
+// email per application; the token is the invitee's handle and the
+// invitee's account email must match, so a forwarded token is useless to
+// anyone else. Invites expire after 14 days.
+async function createTerritoryInvitationCore(client, { applicationId, email, role, invitedBy }) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const { rows: pending } = await client.query(
+    `SELECT id FROM franchise_territory_invitations
+      WHERE application_id = $1 AND lower(email) = $2 AND status = 'invited'`,
+    [applicationId, normalizedEmail]
+  );
+  if (pending.length) {
+    return { error: { status: 409, body: { error: 'That email already has an outstanding territory invite.', code: 'territory_invite_exists' } } };
+  }
+  const token = randomBytes(24).toString('hex');
+  const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  const { rows } = await client.query(
+    `INSERT INTO franchise_territory_invitations
+       (application_id, email, role, invite_token, invited_by, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, application_id, email, role, status, invited_by, expires_at, responded_at, created_at`,
+    [applicationId, normalizedEmail, role, token, invitedBy, expiresAt]
+  );
+  await logActivity(client, applicationId, invitedBy, 'territory_invite_sent',
+    `Invited ${normalizedEmail} to the territory.`, { invite_id: rows[0].id, email: normalizedEmail, role });
+  return { invitation: rows[0], token };
+}
+
+async function createTerritoryInvitation(req, res) {
+  const { id } = req.params;
+  const email = asTrimmed(req.body?.email);
+  const role = asTrimmed(req.body?.role) || 'member';
+  if (!isValidInviteEmail(email)) {
+    return res.status(400).json({ error: 'A valid invite email is required.', code: 'invalid_invite_email' });
+  }
+  if (!INVITE_ROLES.has(role)) {
+    return res.status(400).json({ error: 'role must be member or manager.', code: 'invalid_invite_role' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can invite people to the territory.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const result = await createTerritoryInvitationCore(client, {
+        applicationId: id, email, role, invitedBy: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      return res.status(201).json({ ...detail, new_invite_token: result.token });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error creating franchise territory invitation', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to invite to the territory.' });
+  }
+}
+
+async function createTerritoryInvitationAsAdmin(req, res) {
+  const { id } = req.params;
+  const email = asTrimmed(req.body?.email);
+  const role = asTrimmed(req.body?.role) || 'member';
+  if (!isValidInviteEmail(email)) {
+    return res.status(400).json({ error: 'A valid invite email is required.', code: 'invalid_invite_email' });
+  }
+  if (!INVITE_ROLES.has(role)) {
+    return res.status(400).json({ error: 'role must be member or manager.', code: 'invalid_invite_role' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const result = await createTerritoryInvitationCore(client, {
+        applicationId: id, email, role, invitedBy: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.status(201).json({ ...bundle, new_invite_token: result.token });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error creating franchise territory invitation as admin', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to invite to the territory.' });
+  }
+}
+
+async function cancelTerritoryInvitationCore(client, { applicationId, inviteId, actorId }) {
+  const { rows } = await client.query(
+    `SELECT id, email, status FROM franchise_territory_invitations
+      WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+    [inviteId, applicationId]
+  );
+  if (!rows.length) {
+    return { error: { status: 404, body: { error: 'Territory invitation not found.', code: 'territory_invite_not_found' } } };
+  }
+  if (rows[0].status !== 'invited') {
+    return { error: { status: 409, body: { error: 'Only an outstanding invite can be cancelled.', code: 'territory_invite_not_pending' } } };
+  }
+  await client.query(
+    `UPDATE franchise_territory_invitations SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
+    [inviteId]
+  );
+  await logActivity(client, applicationId, actorId, 'territory_invite_cancelled',
+    `Cancelled the territory invite for ${rows[0].email}.`, { invite_id: inviteId, email: rows[0].email });
+  return {};
+}
+
+async function cancelTerritoryInvitation(req, res) {
+  const { id, inviteId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can cancel territory invites.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const result = await cancelTerritoryInvitationCore(client, {
+        applicationId: id, inviteId, actorId: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error cancelling franchise territory invitation', { id, inviteId, err: err.message });
+    return res.status(500).json({ error: 'Failed to cancel territory invite.' });
+  }
+}
+
+async function cancelTerritoryInvitationAsAdmin(req, res) {
+  const { id, inviteId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const result = await cancelTerritoryInvitationCore(client, {
+        applicationId: id, inviteId, actorId: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error cancelling franchise territory invitation as admin', { id, inviteId, err: err.message });
+    return res.status(500).json({ error: 'Failed to cancel territory invite.' });
+  }
+}
+
+// 616: the invitee answers by token. The caller's account email must
+// match the invited email, so a forwarded token cannot be answered by
+// someone else; the invite must still be outstanding.
+async function respondToTerritoryInvitation(req, res) {
+  const { token } = req.params;
+  const response = asTrimmed(req.body?.response);
+  if (response !== 'accepted' && response !== 'declined') {
+    return res.status(400).json({ error: 'response must be accepted or declined.', code: 'invalid_invite_response' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `SELECT * FROM franchise_territory_invitations WHERE invite_token = $1 FOR UPDATE`,
+        [token]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Territory invitation not found.', code: 'territory_invite_not_found' });
+      }
+      const invite = rows[0];
+      const callerEmail = String(req.user?.email || '').trim().toLowerCase();
+      if (callerEmail !== String(invite.email).toLowerCase()) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'This invite was sent to a different email address.',
+          code: 'territory_invite_email_mismatch',
+        });
+      }
+      if (invite.status !== 'invited') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'This invite has already been answered.', code: 'territory_invite_not_pending' });
+      }
+      if (invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) {
+        await client.query(
+          `UPDATE franchise_territory_invitations SET status = 'expired', updated_at = NOW() WHERE id = $1`,
+          [invite.id]
+        );
+        await client.query('COMMIT');
+        return res.status(409).json({ error: 'This invite has expired.', code: 'territory_invite_expired' });
+      }
+      const { rows: updated } = await client.query(
+        `UPDATE franchise_territory_invitations
+            SET status = $1, responded_at = NOW(), updated_at = NOW()
+          WHERE id = $2
+          RETURNING id, application_id, email, role, status, invited_by, expires_at, responded_at, created_at`,
+        [response, invite.id]
+      );
+      await logActivity(client, invite.application_id, req.user?.id || null,
+        response === 'accepted' ? 'territory_invite_accepted' : 'territory_invite_declined',
+        `Territory invite for ${invite.email} was ${response}.`,
+        { invite_id: invite.id, email: invite.email });
+      await client.query('COMMIT');
+      return res.json({ invitation: updated[0] });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error responding to franchise territory invitation', { err: err.message });
+    return res.status(500).json({ error: 'Failed to respond to territory invite.' });
+  }
+}
+
+// 617 (D-318): location manager assignment is HQ-only — the operator
+// sees the manager on the location, HQ assigns and removes. The
+// assignee must be a territory member (owner, accepted invitee, or
+// opening-team helper); one manager per location, reassignment replaces.
+async function assignLocationManagerCore(client, { applicationId, locationId, managerUserId, actorId }) {
+  const location = await loadLocation(client, applicationId, locationId);
+  if (!location) {
+    return { error: { status: 404, body: { error: 'Franchise location not found.' } } };
+  }
+  const { rows: userRows } = await client.query(
+    'SELECT id FROM users WHERE id = $1 AND is_active = TRUE', [managerUserId]
+  );
+  if (!userRows.length) {
+    return { error: { status: 404, body: { error: 'Manager not found.', code: 'location_manager_not_found' } } };
+  }
+  if (!(await isTerritoryMember(client, applicationId, managerUserId))) {
+    return { error: { status: 404, body: { error: 'The manager must be a member of this territory.', code: 'location_manager_not_member' } } };
+  }
+  await client.query(
+    `INSERT INTO franchise_location_managers
+       (application_id, location_id, manager_user_id, assigned_by)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (location_id)
+     DO UPDATE SET manager_user_id = EXCLUDED.manager_user_id,
+                   assigned_by = EXCLUDED.assigned_by,
+                   assigned_at = NOW(), updated_at = NOW()`,
+    [applicationId, locationId, managerUserId, actorId]
+  );
+  await logActivity(client, applicationId, actorId, 'location_manager_assigned',
+    `Assigned a manager to ${location.name}.`, { location_id: locationId, manager_user_id: managerUserId });
+  return {};
+}
+
+async function assignLocationManagerAsAdmin(req, res) {
+  const { id, locationId } = req.params;
+  const managerUserId = asTrimmed(req.body?.manager_user_id);
+  if (!managerUserId) {
+    return res.status(400).json({ error: 'manager_user_id is required.', code: 'location_manager_required' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const result = await assignLocationManagerCore(client, {
+        applicationId: id, locationId, managerUserId, actorId: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error assigning franchise location manager', { id, locationId, err: err.message });
+    return res.status(500).json({ error: 'Failed to assign location manager.' });
+  }
+}
+
+async function removeLocationManagerAsAdmin(req, res) {
+  const { id, locationId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const location = await loadLocation(client, id, locationId);
+      if (!location) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise location not found.' });
+      }
+      const { rowCount } = await client.query(
+        'DELETE FROM franchise_location_managers WHERE location_id = $1 AND application_id = $2',
+        [locationId, id]
+      );
+      if (!rowCount) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'No manager is assigned to this location.', code: 'location_manager_not_assigned' });
+      }
+      await logActivity(client, id, req.user?.id || null, 'location_manager_removed',
+        `Removed the manager from ${location.name}.`, { location_id: locationId });
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise location manager', { id, locationId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove location manager.' });
+  }
+}
+
+// 618 (D-317): territory-scoped training distribution. The module
+// catalogue is the existing restaurant training modules (a title is
+// resolved from the module when one is picked); assignment and
+// completion state live in franchise_training_assignments, not in the
+// restaurant-scoped table. The assignee must be a territory member.
+async function assignTrainingCore(client, { applicationId, locationId, assigneeUserId, moduleId, moduleTitle, category, dueDate, actorId }) {
+  if (locationId) {
+    const location = await loadLocation(client, applicationId, locationId);
+    if (!location) {
+      return { error: { status: 404, body: { error: 'Franchise location not found.' } } };
+    }
+  }
+  const { rows: userRows } = await client.query(
+    'SELECT id FROM users WHERE id = $1 AND is_active = TRUE', [assigneeUserId]
+  );
+  if (!userRows.length) {
+    return { error: { status: 404, body: { error: 'Assignee not found.', code: 'training_assignee_not_found' } } };
+  }
+  if (!(await isTerritoryMember(client, applicationId, assigneeUserId))) {
+    return { error: { status: 404, body: { error: 'Training can only be assigned to a member of this territory.', code: 'training_assignee_not_member' } } };
+  }
+  let title = asTrimmed(moduleTitle);
+  let moduleCategory = asTrimmed(category);
+  if (moduleId) {
+    const { rows: moduleRows } = await client.query(
+      'SELECT id, title, category FROM restaurant_training_modules WHERE id = $1 AND is_active = TRUE',
+      [moduleId]
+    );
+    if (!moduleRows.length) {
+      return { error: { status: 404, body: { error: 'Training module not found.', code: 'training_module_not_found' } } };
+    }
+    if (!title) title = moduleRows[0].title;
+    if (!moduleCategory) moduleCategory = moduleRows[0].category;
+  }
+  if (!title) {
+    return { error: { status: 400, body: { error: 'module_title is required.', code: 'training_module_title_required' } } };
+  }
+  if (dueDate && !isValidDateString(dueDate)) {
+    return { error: { status: 400, body: { error: 'due_date must be a valid YYYY-MM-DD date.', code: 'invalid_training_due_date' } } };
+  }
+  const { rows: existing } = await client.query(
+    `SELECT id FROM franchise_training_assignments
+      WHERE application_id = $1 AND assignee_user_id = $2 AND module_title = $3
+        AND location_id IS NOT DISTINCT FROM $4 AND status <> 'completed'`,
+    [applicationId, assigneeUserId, title, locationId || null]
+  );
+  if (existing.length) {
+    return { error: { status: 409, body: { error: 'That training is already assigned to this person for this scope.', code: 'training_already_assigned' } } };
+  }
+  const { rows } = await client.query(
+    `INSERT INTO franchise_training_assignments
+       (application_id, location_id, assignee_user_id, module_id, module_title, category, due_date, assigned_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING *`,
+    [applicationId, locationId || null, assigneeUserId, moduleId || null, title, moduleCategory || null, dueDate || null, actorId]
+  );
+  await logActivity(client, applicationId, actorId, 'training_assigned',
+    `Assigned training "${title}" to a territory member.`,
+    { assignment_id: rows[0].id, assignee_user_id: assigneeUserId, module_title: title });
+  return { assignment: rows[0] };
+}
+
+async function assignTraining(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  const assigneeUserId = asTrimmed(req.body?.assignee_user_id);
+  if (!assigneeUserId) {
+    return res.status(400).json({ error: 'assignee_user_id is required.', code: 'training_assignee_required' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (asAdmin) {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      } else {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only the assigned operator can distribute training in the territory.',
+            code: 'franchise_operator_only',
+          });
+        }
+      }
+      const result = await assignTrainingCore(client, {
+        applicationId: id,
+        locationId: asTrimmed(req.body?.location_id) || null,
+        assigneeUserId,
+        moduleId: req.body?.module_id ? Number(req.body.module_id) : null,
+        moduleTitle: asTrimmed(req.body?.module_title),
+        category: asTrimmed(req.body?.category),
+        dueDate: asTrimmed(req.body?.due_date),
+        actorId: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      if (asAdmin) {
+        const bundle = await fetchFranchiseApplicationBundle(id);
+        return res.status(201).json(bundle);
+      }
+      const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      return res.status(201).json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error assigning franchise training', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to assign training.' });
+  }
+}
+
+async function assignTrainingAsAdmin(req, res) {
+  return assignTraining(req, res, { asAdmin: true });
+}
+
+async function completeTrainingAssignment(req, res, { asAdmin = false } = {}) {
+  const { id, assignmentId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (asAdmin) {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const { rows } = await client.query(
+        `SELECT * FROM franchise_training_assignments WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+        [assignmentId, id]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        // A missing application and a missing assignment read the same
+        // 404, so existence never leaks across territories.
+        return res.status(404).json({ error: 'Training assignment not found.', code: 'training_assignment_not_found' });
+      }
+      const assignment = rows[0];
+      // The assignee marks their own training complete (an accepted
+      // invitee is a member, not the operator, so they are admitted here
+      // even though the operator-only loaders would 404 them); the
+      // operator (or HQ) may also mark it complete. Anyone else gets
+      // 403 — a stranger gets 404 above via the assignment lookup only
+      // when the application itself is theirs to see, so check the
+      // operator scope explicitly for non-assignees.
+      if (!asAdmin && String(assignment.assignee_user_id) !== String(req.user?.id)) {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only the assignee or the assigned operator can mark training complete.',
+            code: 'training_complete_forbidden',
+          });
+        }
+      }
+      if (assignment.status !== 'completed') {
+        await client.query(
+          `UPDATE franchise_training_assignments
+              SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+            WHERE id = $1`,
+          [assignmentId]
+        );
+        await logActivity(client, id, req.user?.id || null, 'training_completed',
+          `Training "${assignment.module_title}" was completed.`,
+          { assignment_id: assignmentId, assignee_user_id: assignment.assignee_user_id });
+      }
+      await client.query('COMMIT');
+      if (asAdmin) {
+        const bundle = await fetchFranchiseApplicationBundle(id);
+        return res.json(bundle);
+      }
+      const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error completing franchise training assignment', { id, assignmentId, err: err.message });
+    return res.status(500).json({ error: 'Failed to mark training complete.' });
+  }
+}
+
+async function completeTrainingAssignmentAsAdmin(req, res) {
+  return completeTrainingAssignment(req, res, { asAdmin: true });
+}
+
+async function removeTrainingAssignment(req, res, { asAdmin = false } = {}) {
+  const { id, assignmentId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (asAdmin) {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      } else {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only the assigned operator can remove training assignments.',
+            code: 'franchise_operator_only',
+          });
+        }
+      }
+      const { rows } = await client.query(
+        `DELETE FROM franchise_training_assignments WHERE id = $1 AND application_id = $2 RETURNING module_title`,
+        [assignmentId, id]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Training assignment not found.', code: 'training_assignment_not_found' });
+      }
+      await logActivity(client, id, req.user?.id || null, 'training_removed',
+        `Removed training "${rows[0].module_title}".`, { assignment_id: assignmentId });
+      await client.query('COMMIT');
+      if (asAdmin) {
+        const bundle = await fetchFranchiseApplicationBundle(id);
+        return res.json(bundle);
+      }
+      const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise training assignment', { id, assignmentId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove training assignment.' });
+  }
+}
+
+async function removeTrainingAssignmentAsAdmin(req, res) {
+  return removeTrainingAssignment(req, res, { asAdmin: true });
+}
+
+// 619 (D-319): territory coverage planning — a read-only rollup over the
+// linked business's existing staff shifts. Fourteen days from today:
+// shifts and distinct staff per day, days with no shifts flagged as
+// gaps. Per-location coverage is the manager + opening-team presence,
+// not per-location shifts: shifts are business-scoped and a franchise
+// location has no separate business id. No linked business means no
+// shift data, reported explicitly instead of an empty-looking rollup.
+async function buildTerritoryCoverage(applicationId) {
+  const { rows: [application] } = await db.query(
+    'SELECT linked_business_id FROM franchise_applications WHERE id = $1',
+    [applicationId]
+  );
+  const locations = await fetchOpenLocations(applicationId);
+  const locationSummaries = locations.map((location) => ({
+    id: location.id,
+    name: location.name,
+    status: location.status,
+    manager: location.manager
+      ? {
+          user_id: location.manager.manager_user_id,
+          name: [location.manager.manager_first_name, location.manager.manager_last_name].filter(Boolean).join(' ') || location.manager.manager_email,
+          email: location.manager.manager_email,
+        }
+      : null,
+    opening_team_count: (location.opening_team || []).length,
+    launch_complete: location.launch_complete,
+  }));
+  const businessId = application?.linked_business_id || null;
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(start.getTime() + 13 * 24 * 60 * 60 * 1000);
+  const coverageStart = start.toISOString().slice(0, 10);
+  const coverageEnd = end.toISOString().slice(0, 10);
+  if (!businessId) {
+    return {
+      linked_business_id: null,
+      coverage_start: coverageStart,
+      coverage_end: coverageEnd,
+      days: [],
+      locations: locationSummaries,
+    };
+  }
+  const { rows } = await db.query(
+    `SELECT shift_date, COUNT(*)::int AS shifts, COUNT(DISTINCT user_id)::int AS staff
+       FROM business_staff_shifts
+      WHERE business_id = $1 AND shift_date BETWEEN $2 AND $3
+        AND cancelled_at IS NULL
+      GROUP BY shift_date`,
+    [businessId, coverageStart, coverageEnd]
+  );
+  const byDate = new Map(rows.map((row) => [new Date(row.shift_date).toISOString().slice(0, 10), row]));
+  const days = [];
+  for (let offset = 0; offset < 14; offset += 1) {
+    const date = new Date(start.getTime() + offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const row = byDate.get(date);
+    days.push({
+      date,
+      shifts: row?.shifts || 0,
+      staff: row?.staff || 0,
+      gap: !row || row.shifts === 0,
+    });
+  }
+  return {
+    linked_business_id: businessId,
+    coverage_start: coverageStart,
+    coverage_end: coverageEnd,
+    days,
+    locations: locationSummaries,
+  };
+}
+
+async function getTerritoryCoverage(req, res) {
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        return res.status(403).json({
+          error: 'Only the assigned operator can view territory coverage.',
+          code: 'franchise_operator_only',
+        });
+      }
+    } finally {
+      client.release();
+    }
+    const coverage = await buildTerritoryCoverage(id);
+    return res.json(coverage);
+  } catch (err) {
+    logger.error('Error loading franchise territory coverage', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load territory coverage.' });
+  }
+}
+
+async function getTerritoryCoverageAsAdmin(req, res) {
+  const { id } = req.params;
+  try {
+    const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Franchise application not found.' });
+    }
+    const coverage = await buildTerritoryCoverage(id);
+    return res.json(coverage);
+  } catch (err) {
+    logger.error('Error loading franchise territory coverage as admin', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load territory coverage.' });
+  }
+}
+
+// 620 (D-320): HQ broadcast announcements. Posting and deleting are
+// HQ-only; the operator reads the feed on the territory ops page and
+// marks items read (idempotent). The activity log stays the event
+// record — this feed carries HQ announcements, not territory events.
+async function postAnnouncementAsAdmin(req, res) {
+  const { id } = req.params;
+  const title = asTrimmed(req.body?.title);
+  const body = asTrimmed(req.body?.body);
+  if (!title) {
+    return res.status(400).json({ error: 'title is required.', code: 'announcement_title_required' });
+  }
+  if (!body) {
+    return res.status(400).json({ error: 'body is required.', code: 'announcement_body_required' });
+  }
+  const expiry = parseExpiry(req.body?.expires_at);
+  if (!expiry.ok) {
+    return res.status(400).json({ error: 'expires_at must be a valid date.', code: 'invalid_announcement_expiry' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!exists.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      const { rows } = await client.query(
+        `INSERT INTO franchise_announcements
+           (application_id, title, body, expires_at, created_by)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [id, title, body, expiry.value, req.user?.id || null]
+      );
+      await logActivity(client, id, req.user?.id || null, 'announcement_posted',
+        `HQ posted an announcement: ${title}.`, { announcement_id: rows[0].id });
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error posting franchise announcement', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to post announcement.' });
+  }
+}
+
+async function deleteAnnouncementAsAdmin(req, res) {
+  const { id, announcementId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `DELETE FROM franchise_announcements
+          WHERE id = $1 AND application_id = $2 RETURNING title`,
+        [announcementId, id]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Announcement not found.', code: 'announcement_not_found' });
+      }
+      await logActivity(client, id, req.user?.id || null, 'announcement_removed',
+        `HQ removed an announcement: ${rows[0].title}.`, { announcement_id: announcementId });
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error deleting franchise announcement', { id, announcementId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove announcement.' });
+  }
+}
+
+async function markAnnouncementRead(req, res) {
+  const { id, announcementId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can mark announcements read.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const { rows } = await client.query(
+        `SELECT id FROM franchise_announcements WHERE id = $1 AND application_id = $2`,
+        [announcementId, id]
+      );
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Announcement not found.', code: 'announcement_not_found' });
+      }
+      await client.query(
+        `INSERT INTO franchise_announcement_reads (announcement_id, user_id)
+         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [announcementId, req.user?.id]
+      );
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error marking franchise announcement read', { id, announcementId, err: err.message });
+    return res.status(500).json({ error: 'Failed to mark announcement read.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -4377,6 +5418,24 @@ module.exports = {
   launchLocation,
   launchLocationAsAdmin,
   confirmOpening,
+  createTerritoryInvitation,
+  createTerritoryInvitationAsAdmin,
+  cancelTerritoryInvitation,
+  cancelTerritoryInvitationAsAdmin,
+  respondToTerritoryInvitation,
+  assignLocationManagerAsAdmin,
+  removeLocationManagerAsAdmin,
+  assignTraining,
+  assignTrainingAsAdmin,
+  completeTrainingAssignment,
+  completeTrainingAssignmentAsAdmin,
+  removeTrainingAssignment,
+  removeTrainingAssignmentAsAdmin,
+  getTerritoryCoverage,
+  getTerritoryCoverageAsAdmin,
+  postAnnouncementAsAdmin,
+  deleteAnnouncementAsAdmin,
+  markAnnouncementRead,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

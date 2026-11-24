@@ -15,6 +15,7 @@ import FranchiseBoundarySummary from './FranchiseBoundarySummary';
 import FranchiseLaunchPlan from './FranchiseLaunchPlan';
 import FranchiseOpenLocations from './FranchiseOpenLocations';
 import FranchiseReadinessReviews from './FranchiseReadinessReviews';
+import FranchiseTerritoryInvitations from './FranchiseTerritoryInvitations';
 
 const DOCUMENT_CATEGORIES = ['identity', 'entity', 'financials', 'territory_plan'];
 const DOC_CATEGORY_KEYS = {
@@ -244,6 +245,36 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     } catch (err) {
       setError(err?.response?.data?.error || copy('openingConfirmationFailed'));
       throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Group 12 Slice 3d (616): invite someone to the territory by email,
+  // and cancel an outstanding invite. Only the assigned operator sees
+  // the form — the detail payload is operator-scoped already.
+  async function inviteTerritoryMember(body) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/invitations`, body);
+      setDetail(response.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('territoryInvitesFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelTerritoryInvite(inviteId) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/invitations/${inviteId}/cancel`);
+      setDetail(response.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('territoryInvitesFailed'));
     } finally {
       setBusy(false);
     }
@@ -562,6 +593,15 @@ export default function FranchiseApplicationDetail({ applicationId }) {
 
       {/* Group 12 Slice 3c (613): the formal readiness reviews. */}
       <FranchiseReadinessReviews reviews={detail.readiness_reviews || []} />
+
+      {/* Group 12 Slice 3d (616): territory invitations. */}
+      <FranchiseTerritoryInvitations
+        invitations={detail.territory_invitations || []}
+        canInvite={detail.application?.is_operator === true}
+        onInvite={inviteTerritoryMember}
+        onCancel={cancelTerritoryInvite}
+        disabled={busy}
+      />
 
       {/* Group 12 Slice 3b (610, D-310): the operator-facing assignment history. */}
       <section className="fr-detail-card">

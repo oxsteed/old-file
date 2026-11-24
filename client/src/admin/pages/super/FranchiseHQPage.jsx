@@ -16,6 +16,7 @@ import {
 import { SuggestDropdown } from '../../../components/SuggestDropdown';
 import FranchiseLocationServices from '../../../pages/FranchiseLocationServices';
 import FranchiseOpeningConfirmation from '../../../pages/FranchiseOpeningConfirmation';
+import FranchiseTerritoryInvitations from '../../../pages/FranchiseTerritoryInvitations';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -679,6 +680,37 @@ export default function FranchiseHQPage() {
       toast.success(t('adminFranchiseLocationLaunched'));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseLocationLaunchFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3d (616): HQ invites someone to the territory by
+  // email, and cancels an outstanding invite.
+  async function inviteTerritoryMember(body) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/invitations`, body);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseTerritoryInviteSent'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseTerritoryInviteFailed'));
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function cancelTerritoryInvite(inviteId) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/invitations/${inviteId}/cancel`);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseTerritoryInviteCancelled'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseTerritoryInviteFailed'));
     } finally {
       setSaving(false);
     }
@@ -1481,6 +1513,16 @@ export default function FranchiseHQPage() {
                       {t('adminFranchiseMilestoneAdd')}
                     </button>
                   </div>
+
+                  {/* Group 12 Slice 3d (616): territory invitations — HQ
+                      invites by email and cancels outstanding invites. */}
+                  <FranchiseTerritoryInvitations
+                    invitations={selectedBundle.territory_invitations || []}
+                    canInvite
+                    onInvite={inviteTerritoryMember}
+                    onCancel={cancelTerritoryInvite}
+                    disabled={saving}
+                  />
 
                   {/* Group 12 Slice 3c (613): HQ records a formal readiness
                       review — the only path that moves readiness to `ready`. */}
