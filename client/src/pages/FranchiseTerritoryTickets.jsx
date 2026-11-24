@@ -112,7 +112,7 @@ export default function FranchiseTerritoryTickets({
                     type="button"
                     className="fr-btn-ghost"
                     disabled={busy}
-                    onClick={() => onUnlink(ticket.id)}
+                    onClick={() => onUnlink(ticket.id)} data-track="ui.7646bcf7dc.1"
                   >
                     {copy('exceptionUnlink')}
                   </button>

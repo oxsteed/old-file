@@ -151,7 +151,7 @@ export default function FranchiseExceptionSummary({
                             } catch (err) {
                               setLinkError(err?.response?.data?.error || copy('exceptionUnlinkFailed'));
                             }
-                          }}
+                          }} data-track="ui.554a93193f.1"
                         >
                           {copy('exceptionUnlink')}
                         </button>
@@ -166,7 +166,7 @@ export default function FranchiseExceptionSummary({
       )}
 
       {canLink && onLink && (
-        <form onSubmit={submitLink} className="fr-doc-list">
+        <form onSubmit={submitLink} className="fr-doc-list" data-track="ui.554a93193f.2">
           <div className="fr-detail-list-label">{copy('exceptionLinkTitle')}</div>
           <div>
             <label className="fr-detail-list-label" htmlFor="exception-ticket-number">
@@ -198,7 +198,7 @@ export default function FranchiseExceptionSummary({
             </select>
           </div>
           <div>
-            <button type="submit" className="fr-btn-primary" disabled={busy || !ticketNumber.trim()}>
+            <button type="submit" className="fr-btn-primary" disabled={busy || !ticketNumber.trim()} data-track="ui.554a93193f.3">
               {copy('exceptionLinkSubmit')}
             </button>
           </div>
