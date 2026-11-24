@@ -12,6 +12,7 @@
 const router = require('express').Router({ mergeParams: true });
 const { authenticate } = require('../middleware/auth');
 const { requireRestaurantAccess } = require('../middleware/scopeGates');
+const { creditExportLimiter } = require('../middleware/rateLimiter');
 const controller = require('../controllers/creditLocationReconciliationController');
 
 router.use(authenticate, requireRestaurantAccess());
@@ -33,5 +34,10 @@ router.post('/period-close', controller.userRecordPeriodClose);
 // 690: the authorized reconciliation export (CSV, same columns as the
 // summary), server-enforced to the caller's location.
 router.get('/export.csv', controller.userExportCsv);
+// 709: the derived reconciliation checklist (open -> matched -> closed).
+router.get('/checklist', controller.userGetChecklist);
+// 710: the closeout evidence package (ZIP over the already-posted
+// records), re-authorized on every download.
+router.post('/closeout-package', creditExportLimiter, controller.userDownloadCloseoutPackage);
 
 module.exports = router;

@@ -1076,6 +1076,184 @@ async function buildLocationExportCsv(client, scope, params) {
     };
 }
 
+// ---------------------------------------------------------------------------
+// 709: the reconciliation checklist (derived, never stored).
+// ---------------------------------------------------------------------------
+// Five steps computed live from the existing summary, exceptions,
+// annotations, and period-close review — no new table, no stored
+// check-offs, and the cashier shift closeout (685) is not reused
+// (kiosk-device scope, not bookkeeper scope). The checklist walks the
+// bookkeeper open items -> matched -> closed:
+//   closed  only when a period-close review exists and no open difference
+//           remains; matched when no open difference remains but the
+//           review is not yet recorded; open otherwise.
+// A step is done only when its underlying state is satisfied; when the
+// exception list is truncated at the list cap the match/annotate steps
+// cannot be proven done and stay pending (fail-closed, never assumed).
+async function getReconciliationChecklist(client, scope, { periodStart, periodEnd, currencyCode }) {
+  const review = await getPeriodCloseReview(client, scope, { periodStart, periodEnd, currencyCode });
+  const exceptions = review.exceptions || [];
+  const openCount = review.exceptionTotal || 0;
+  const truncated = openCount > exceptions.length;
+  const matchedCount = exceptions.filter((entry) => (entry.adjustments || []).length > 0).length;
+  const annotatedCount = exceptions.filter((entry) => (entry.annotationCount || 0) > 0).length;
+
+  const steps = [
+    {
+      key: 'review_summary',
+      status: 'done',
+      detail: {
+        openingCents: review.summary.openingCents,
+        creditsCents: review.summary.creditsCents,
+        debitsCents: review.summary.debitsCents,
+        closingCents: review.summary.closingCents,
+        transactionCount: review.summary.transactionCount,
+      },
+    },
+    {
+      key: 'review_differences',
+      status: openCount === 0 ? 'done' : 'pending',
+      detail: { openExceptionCount: openCount },
+    },
+    {
+      key: 'match_adjustments',
+      status: openCount === 0 || (!truncated && matchedCount === exceptions.length) ? 'done' : 'pending',
+      detail: {
+        openExceptionCount: openCount,
+        matchedExceptionCount: matchedCount,
+        unmatchedExceptionCount: Math.max(0, openCount - matchedCount),
+        matchedAdjustmentCount: review.matchedAdjustments.length,
+        truncated,
+      },
+    },
+    {
+      key: 'annotate_differences',
+      status: openCount === 0 || (!truncated && annotatedCount === exceptions.length) ? 'done' : 'pending',
+      detail: {
+        openExceptionCount: openCount,
+        annotatedExceptionCount: annotatedCount,
+        unannotatedExceptionCount: Math.max(0, openCount - annotatedCount),
+        truncated,
+      },
+    },
+    {
+      key: 'record_period_close',
+      status: review.review ? 'done' : 'pending',
+      detail: { reviewedAt: review.review ? review.review.createdAt : null },
+    },
+  ];
+  const status = review.review && openCount === 0 ? 'closed' : openCount === 0 ? 'matched' : 'open';
+  return {
+    location: scope.location,
+    restaurantId: scope.restaurantId,
+    currencyCode: review.currencyCode,
+    periodStart: review.periodStart,
+    periodEnd: review.periodEnd,
+    status,
+    steps,
+    settlementApproval: { ...SETTLEMENT_APPROVAL },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 710: the closeout evidence package (synchronous per-request ZIP).
+// ---------------------------------------------------------------------------
+// Bundles the period summary, the differences (exceptions with their
+// matched adjustments), the matched adjustments, and the annotations into
+// one downloadable package. Same ZIP pattern as the bulk export package
+// (archiver, stream-piped), but no job is stored: every download
+// re-authorizes the caller against the location, so a stranger gets 404
+// and the owner re-downloads by calling again. Annotations are fetched in
+// full per exception — the list view caps at 3 per exception, but evidence
+// must be complete. A read/bundle over already-posted records, never a new
+// money action, and it never approves a settlement.
+async function buildCloseoutEvidencePackage(client, scope, params, archiverLib = require('archiver')) {
+  const review = await getPeriodCloseReview(client, scope, params);
+  const locationExceptions = review.exceptions || [];
+  const restaurantExceptions = (review.restaurantLevelExceptions && review.restaurantLevelExceptions.exceptions) || [];
+  const allExceptions = [...locationExceptions, ...restaurantExceptions];
+
+  // Full annotations per exception (not the list view's 3-per-exception cap).
+  const annotationsByException = {};
+  for (const exception of allExceptions) {
+    const listed = await listAnnotations(client, scope, exception.id);
+    annotationsByException[exception.id] = listed.annotations;
+  }
+  const allAnnotations = allExceptions.flatMap((exception) =>
+    (annotationsByException[exception.id] || []).map((annotation) => ({
+      ...annotation,
+      exceptionId: exception.id,
+      exceptionSummary: exception.summary,
+    })));
+
+  const generatedAt = new Date().toISOString();
+  // The bundled lists are capped by the exception list (50 per bucket);
+  // the manifest says so when the true totals are larger, so a truncated
+  // package never passes as complete evidence.
+  const restaurantTotal = (review.restaurantLevelExceptions && review.restaurantLevelExceptions.total) || 0;
+  const manifest = {
+    package: 'closeout-evidence',
+    version: 1,
+    restaurantId: scope.restaurantId,
+    locationId: scope.locationId,
+    locationName: scope.location ? scope.location.name : null,
+    currencyCode: review.currencyCode,
+    periodStart: review.periodStart,
+    periodEnd: review.periodEnd,
+    generatedAt,
+    generatedBy: scope.actor,
+    parts: ['manifest.json', 'summary.json', 'differences.json', 'adjustments.json', 'annotations.json'],
+    counts: {
+      differences: allExceptions.length,
+      openExceptionTotal: (review.exceptionTotal || 0) + restaurantTotal,
+      matchedAdjustments: review.matchedAdjustments.length,
+      annotations: allAnnotations.length,
+    },
+    truncated: allExceptions.length < (review.exceptionTotal || 0) + restaurantTotal,
+    settlementApproval: { ...SETTLEMENT_APPROVAL },
+  };
+  const summaryPart = {
+    location: review.summary.location,
+    restaurantId: review.summary.restaurantId,
+    currencyCode: review.summary.currencyCode,
+    periodStart: review.summary.periodStart,
+    periodEnd: review.summary.periodEnd,
+    openingCents: review.summary.openingCents,
+    creditsCents: review.summary.creditsCents,
+    debitsCents: review.summary.debitsCents,
+    closingCents: review.summary.closingCents,
+    transactionCount: review.summary.transactionCount,
+    cashOutCount: review.summary.cashOutCount,
+    cashOutCents: review.summary.cashOutCents,
+    openExceptionCount: review.summary.openExceptionCount,
+    matchedAdjustmentCount: review.summary.matchedAdjustmentCount,
+    matchedAdjustmentCents: review.summary.matchedAdjustmentCents,
+    platformDifferenceCents: review.summary.platformDifferenceCents,
+    unattributedRestaurant: review.summary.unattributedRestaurant,
+    periodCloseReview: review.review,
+    settlementCycle: review.settlementCycle,
+    settlements: review.settlements,
+  };
+  const differencesPart = allExceptions.map((exception) => ({
+    ...exception,
+    annotations: annotationsByException[exception.id] || [],
+  }));
+  const adjustmentsPart = review.matchedAdjustments;
+
+  const archive = archiverLib('zip', { zlib: { level: 9 } });
+  archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });
+  archive.append(JSON.stringify(summaryPart, null, 2), { name: 'summary.json' });
+  archive.append(JSON.stringify(differencesPart, null, 2), { name: 'differences.json' });
+  archive.append(JSON.stringify(adjustmentsPart, null, 2), { name: 'adjustments.json' });
+  archive.append(JSON.stringify(allAnnotations, null, 2), { name: 'annotations.json' });
+  await archive.finalize();
+  return {
+    archive,
+    filename: `closeout-evidence-${scope.restaurantId}-${scope.locationId}-${String(review.periodEnd).slice(0, 10)}.zip`,
+    manifest,
+  };
+}
+
 module.exports = {
   parseLocationId, parseCurrencyCode, parsePeriod, parseUuid,
   resolveDeviceScope, resolveUserScope, listUserLocations,
@@ -1083,5 +1261,6 @@ module.exports = {
   listAnnotations, addAnnotation,
   getPeriodCloseReview, recordPeriodCloseReview,
   listLocationTransactions, buildLocationExportCsv,
+  getReconciliationChecklist, buildCloseoutEvidencePackage,
   SETTLEMENT_APPROVAL,
 };

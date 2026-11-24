@@ -748,6 +748,43 @@ async function listPendingAdjustments(req, res, next) {
       })),
       thresholdCents: TWO_PERSON_THRESHOLD_CENTS,
       dailyCapCents: DAILY_ADJUSTMENT_CAP_CENTS,
+      // 707 (D-414): the read gate sets req.adjustmentReadOnly when the
+      // caller holds a finance-read grant but not manage_financials, so
+      // the queue UI can hide the decide/cancel actions. The write routes
+      // never set it, so a writer always sees readOnly: false.
+      readOnly: req.adjustmentReadOnly === true,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+// 707 (D-414): single-adjustment read for the bookkeeper/auditor queue
+// (list + detail). Same shape as a list row; unknown id is 404, never a
+// leak of whether the row exists for another caller — the queue is
+// platform-wide and the read gate already ran.
+async function getAdjustment(req, res, next) {
+  try {
+    const id = parseUuidField(req.params.id, 'adjustmentId');
+    const { rows: [row] } = await pool.query(
+      `SELECT ca.*,
+              pu.first_name AS proposed_first_name,
+              pu.last_name AS proposed_last_name,
+              pu.email AS proposed_email
+         FROM credit_adjustments ca
+         LEFT JOIN users pu ON pu.id = ca.proposed_by
+        WHERE ca.id = $1`,
+      [id]
+    );
+    if (!row) throw new AppError('Credit adjustment not found', 404, 'credit_adjustment_not_found');
+    return res.status(200).json({
+      adjustment: {
+        ...formatAdjustment(row),
+        proposedByName: [row.proposed_first_name, row.proposed_last_name].filter(Boolean).join(' ') || row.proposed_email || null,
+      },
+      thresholdCents: TWO_PERSON_THRESHOLD_CENTS,
+      dailyCapCents: DAILY_ADJUSTMENT_CAP_CENTS,
+      readOnly: req.adjustmentReadOnly === true,
     });
   } catch (error) {
     return next(error);
@@ -764,5 +801,6 @@ module.exports = {
   rejectAdjustment,
   cancelAdjustment,
   listPendingAdjustments,
+  getAdjustment,
   formatAdjustment,
 };

@@ -55,6 +55,7 @@ const pool = require('../db');
 const { hashDocument } = require('../services/creditStatementService');
 const { openCreditDispute, formatDispute } = require('../services/oxsteedCreditService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
+const entryAnnotations = require('../services/statementEntryAnnotationService');
 const { withTransaction } = require('../utils/transaction');
 
 // Statement parties across all five products: customers (credit products),
@@ -1052,6 +1053,41 @@ router.get('/statements/:documentId/entries/:entryId/cases', async (req, res, ne
     const entry = findEntry(product, document, req.params.entryId);
     const cases = await entryCasesForProduct(product, req.user.id, { accountId, scope, document, entryId: entry.id });
     res.json({ ...documentContext(document), entryId: entry.id, caseSupport: CASE_SUPPORT[product], cases });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ── Shared difference annotations (708, D-415) ──────────────────────────
+// The 688 annotation pattern on statement entries: append-only, author
+// recorded, visible to every reader authorized for the document. Unlike
+// the private per-user entry notes (statementNoteService, owner-only),
+// these annotations are shared — a bookkeeper annotates a difference for
+// another reader to see. Scope is loadDocument: an unknown or
+// out-of-scope document/entry is 404, exactly as on the entry drilldown.
+router.get('/statements/:documentId/entries/:entryId/annotations', async (req, res, next) => {
+  try {
+    const { product, document } = await loadDocument(null, req.params.documentId, req.user.id);
+    const entry = findEntry(product, document, req.params.entryId);
+    const annotations = await entryAnnotations.list({ product, documentId: document.id, entryId: entry.id });
+    res.json({ ...documentContext(document), entryId: entry.id, annotations });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/statements/:documentId/entries/:entryId/annotations', creditMutationLimiter, async (req, res, next) => {
+  try {
+    const { product, document } = await loadDocument(null, req.params.documentId, req.user.id);
+    const entry = findEntry(product, document, req.params.entryId);
+    const annotation = await entryAnnotations.add({
+      product,
+      documentId: document.id,
+      entryId: entry.id,
+      authorUserId: req.user.id,
+      body: req.body?.body ?? req.body?.text ?? null,
+    });
+    res.status(201).json({ ...documentContext(document), entryId: entry.id, annotation });
   } catch (error) {
     next(error);
   }

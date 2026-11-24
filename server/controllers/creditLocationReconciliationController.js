@@ -140,6 +140,25 @@ async function exportCsv(req, res, scope) {
   res.send(result.csv);
 }
 
+// 709: the derived reconciliation checklist (open -> matched -> closed).
+async function getChecklist(req, res, scope) {
+  res.json(await recon.getReconciliationChecklist(pool, scope, periodParams(req.query)));
+}
+
+// 710: the closeout evidence package (ZIP over the already-posted
+// records). The package is generated per request and re-authorized on
+// every call; nothing is stored and no money moves.
+async function downloadCloseoutPackage(req, res, scope) {
+  const packaged = await recon.buildCloseoutEvidencePackage(pool, scope, periodParams(req.body || {}));
+  res.set({
+    'Content-Type': 'application/zip',
+    'Content-Disposition': `attachment; filename="${packaged.filename}"`,
+    'Cache-Control': 'no-store',
+  });
+  packaged.archive.on('error', (error) => { res.destroy(error); });
+  packaged.archive.pipe(res);
+}
+
 // 686: the HQ location picker — every location of the caller's own
 // restaurant. No location scope to resolve here; requireRestaurantAccess
 // on the router already scoped the restaurant.
@@ -171,4 +190,6 @@ module.exports = {
   userGetPeriodClose: withUserScope(getPeriodClose),
   userRecordPeriodClose: withUserBodyScope(recordPeriodClose),
   userExportCsv: withUserScope(exportCsv),
+  userGetChecklist: withUserScope(getChecklist),
+  userDownloadCloseoutPackage: withUserBodyScope(downloadCloseoutPackage),
 };
