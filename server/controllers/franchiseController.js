@@ -5828,6 +5828,201 @@ async function unlinkTicketFromTerritoryAsAdmin(req, res) {
   }
 }
 
+// ── Group 12 Slice 3g (631-635): resolve exceptions ──────────────────────────
+// 631 (D-331): territory-scoped escalation. An exception IS a support ticket
+// (D-293/D-327), so escalation is recorded ON the ticket — a priority bump
+// to urgent, an escalation note on the ticket thread, and an escalation row
+// for the per-territory HQ queue — never a parallel escalation system.
+// One live escalation per ticket: re-escalating while the first is still
+// live is 409; a reopen after the last escalation (support_ticket_events
+// 'reopened') starts a new episode, so it may escalate again. Escalating a
+// resolved/closed ticket is 409: reopen it first, then escalate.
+async function fetchEscalations(applicationId) {
+  const { rows } = await db.query(
+    `SELECT e.*, t.ticket_number, t.subject, t.category, t.priority, t.status,
+            t.franchise_location_id AS location_id, l.name AS location_name,
+            u.first_name AS escalated_by_first_name,
+            u.last_name AS escalated_by_last_name,
+            u.email AS escalated_by_email
+       FROM franchise_ticket_escalations e
+       JOIN support_tickets t ON t.id = e.ticket_id
+       LEFT JOIN franchise_locations l ON l.id = t.franchise_location_id
+       LEFT JOIN users u ON u.id = e.escalated_by
+      WHERE e.application_id = $1
+      ORDER BY e.created_at DESC, e.id DESC`,
+    [applicationId]
+  );
+  return rows.map((row) => ({
+    ...row,
+    escalated_by_name: [row.escalated_by_first_name, row.escalated_by_last_name].filter(Boolean).join(' ')
+      || row.escalated_by_email || null,
+  }));
+}
+
+async function escalateTerritoryTicket(client, applicationId, ticketId, actorId, reason, { ownerOnly, isAdmin }) {
+  const ticket = await findTicketByIdOrNumber(
+    client, ticketId, 'id, ticket_number, user_id, status, priority, franchise_application_id');
+  if (!ticket || (ownerOnly && String(ticket.user_id) !== String(actorId))) {
+    return { error: { status: 404, body: { error: 'Support ticket not found.', code: 'ticket_not_found' } } };
+  }
+  if (String(ticket.franchise_application_id) !== String(applicationId)) {
+    return { error: { status: 404, body: { error: 'Support ticket is not linked to this territory.', code: 'exception_not_found' } } };
+  }
+  if (['resolved', 'closed'].includes(ticket.status)) {
+    return { error: { status: 409, body: { error: 'A resolved or closed exception cannot be escalated.', code: 'exception_closed' } } };
+  }
+  const { rows: existing } = await client.query(
+    `SELECT id, created_at FROM franchise_ticket_escalations
+      WHERE ticket_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [ticket.id]
+  );
+  if (existing.length) {
+    const { rows: reopened } = await client.query(
+      `SELECT 1 FROM support_ticket_events
+        WHERE ticket_id = $1 AND event_type = 'reopened' AND created_at > $2 LIMIT 1`,
+      [ticket.id, existing[0].created_at]
+    );
+    if (!reopened.length) {
+      return { error: { status: 409, body: { error: 'This exception is already escalated.', code: 'exception_already_escalated' } } };
+    }
+  }
+  const priorityBefore = ticket.priority;
+  const priorityAfter = 'urgent';
+  const { rows } = await client.query(
+    `INSERT INTO franchise_ticket_escalations
+       (application_id, ticket_id, escalated_by, reason, priority_before, priority_after)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [applicationId, ticket.id, actorId, reason, priorityBefore, priorityAfter]
+  );
+  await client.query(
+    'UPDATE support_tickets SET priority = $1, updated_at = NOW() WHERE id = $2',
+    [priorityAfter, ticket.id]
+  );
+  const { rows: actorRows } = await client.query(
+    'SELECT first_name, last_name, email FROM users WHERE id = $1', [actorId]
+  );
+  const actor = actorRows[0] || {};
+  const actorName = [actor.first_name, actor.last_name].filter(Boolean).join(' ')
+    || actor.email || 'Headquarters';
+  await client.query(
+    `INSERT INTO support_messages
+       (ticket_id, sender_id, sender_name, sender_email, content, sender_language, is_internal, is_from_admin)
+     VALUES ($1, $2, $3, $4, $5, 'en', false, $6)`,
+    [ticket.id, actorId, actorName, actor.email || '',
+      `Escalated to headquarters (priority ${priorityBefore} → urgent): ${reason}`, Boolean(isAdmin)]
+  );
+  await logActivity(client, applicationId, actorId, 'ticket_escalated',
+    `Ticket #${ticket.ticket_number} escalated to headquarters (priority ${priorityBefore} → urgent).`,
+    { ticket_id: ticket.id, escalation_id: rows[0].id });
+  return { escalation: rows[0], ticket: { id: ticket.id, ticket_number: ticket.ticket_number, priority: priorityAfter, status: ticket.status } };
+}
+
+async function escalateTicketToTerritory(req, res, { asAdmin = false } = {}) {
+  const { id, ticketId } = req.params;
+  if (!UUID_RE.test(ticketId) && !/^\d+$/.test(ticketId)) {
+    return res.status(404).json({ error: 'Support ticket not found.', code: 'ticket_not_found' });
+  }
+  const reason = asTrimmed(req.body?.reason);
+  if (!reason) {
+    return res.status(400).json({ error: 'A reason is required to escalate an exception.', code: 'escalation_reason_required' });
+  }
+  if (reason.length > 1000) {
+    return res.status(400).json({ error: 'The escalation reason must be at most 1000 characters.', code: 'escalation_reason_too_long' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (!asAdmin) {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only the assigned operator can escalate territory exceptions.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const escalated = await escalateTerritoryTicket(client, id, ticketId, req.user?.id, reason,
+        { ownerOnly: !asAdmin, isAdmin: asAdmin });
+      if (escalated.error) {
+        await client.query('ROLLBACK');
+        return res.status(escalated.error.status).json(escalated.error.body);
+      }
+      await client.query('COMMIT');
+      const summary = await buildExceptionSummary(id);
+      return res.status(201).json({ escalation: escalated.escalation, ticket: escalated.ticket, exception_summary: summary });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error escalating franchise exception', { id, ticketId, err: err.message });
+    return res.status(500).json({ error: 'Failed to escalate the exception.' });
+  }
+}
+
+async function escalateTicket(req, res) {
+  return escalateTicketToTerritory(req, res, { asAdmin: false });
+}
+
+async function escalateTicketAsAdmin(req, res) {
+  return escalateTicketToTerritory(req, res, { asAdmin: true });
+}
+
+// 631 (D-331): the per-territory escalation queue — HQ sees the
+// escalations for one territory, with the ticket and location each one
+// belongs to, so the queue never shows an escalation without context.
+async function listEscalations(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can view territory escalations.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    const escalations = await fetchEscalations(id);
+    return res.json({ application_id: id, total: escalations.length, escalations });
+  } catch (err) {
+    logger.error('Error listing franchise escalations', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to list escalations.' });
+  }
+}
+
+async function listEscalationsAsAdmin(req, res) {
+  return listEscalations(req, res, { asAdmin: true });
+}
+
 // 627 (D-328): the per-location health view. Health is derived on read
 // from the open locations (fetchOpenLocations) plus each location's
 // linked open exceptions (628) — never stored, so it can never drift
@@ -7008,6 +7203,10 @@ module.exports = {
   linkTicketToTerritoryAsAdmin,
   unlinkTicketFromTerritory,
   unlinkTicketFromTerritoryAsAdmin,
+  escalateTicket,
+  escalateTicketAsAdmin,
+  listEscalations,
+  listEscalationsAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,

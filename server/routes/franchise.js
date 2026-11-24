@@ -84,6 +84,10 @@ const {
   linkTicketToTerritoryAsAdmin,
   unlinkTicketFromTerritory,
   unlinkTicketFromTerritoryAsAdmin,
+  escalateTicket,
+  escalateTicketAsAdmin,
+  listEscalations,
+  listEscalationsAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
@@ -170,6 +174,10 @@ router.get('/my-applications/:id/support-tickets', authenticate, requireFranchis
 router.get('/my-applications/:id/coverage-trend', authenticate, requireFranchiseEnabled, getCoverageTrend);
 router.post('/my-applications/:id/support-tickets/:ticketId/link', authenticate, requireFranchiseEnabled, linkTicketToTerritory);
 router.post('/my-applications/:id/support-tickets/:ticketId/unlink', authenticate, requireFranchiseEnabled, unlinkTicketFromTerritory);
+// Group 12 Slice 3g (631): territory-scoped escalation — the operator
+// escalates a linked exception with a reason; HQ sees the queue.
+router.post('/my-applications/:id/support-tickets/:ticketId/escalate', authenticate, requireFranchiseEnabled, escalateTicket);
+router.get('/my-applications/:id/escalations', authenticate, requireFranchiseEnabled, listEscalations);
 // Group 12 Slice 3d (620): the operator reads the HQ announcement feed
 // and marks items read (idempotent).
 router.post('/my-applications/:id/announcements/:announcementId/read', authenticate, requireFranchiseEnabled, markAnnouncementRead);
@@ -233,6 +241,10 @@ router.get('/applications/:id/support-tickets', authenticate, requireAdmin, requ
 router.get('/applications/:id/coverage-trend', authenticate, requireAdmin, requirePermission('manage_operations'), getCoverageTrendAsAdmin);
 router.post('/applications/:id/support-tickets/:ticketId/link', authenticate, requireAdmin, requirePermission('manage_operations'), linkTicketToTerritoryAsAdmin);
 router.post('/applications/:id/support-tickets/:ticketId/unlink', authenticate, requireAdmin, requirePermission('manage_operations'), unlinkTicketFromTerritoryAsAdmin);
+// Group 12 Slice 3g (631): HQ escalates a linked exception and reads the
+// per-territory escalation queue.
+router.post('/applications/:id/support-tickets/:ticketId/escalate', authenticate, requireAdmin, requirePermission('manage_operations'), escalateTicketAsAdmin);
+router.get('/applications/:id/escalations', authenticate, requireAdmin, requirePermission('manage_operations'), listEscalationsAsAdmin);
 // Group 12 Slice 3d (620): HQ posts and removes territory announcements.
 router.post('/applications/:id/announcements', authenticate, requireAdmin, requirePermission('manage_operations'), postAnnouncementAsAdmin);
 router.delete('/applications/:id/announcements/:announcementId', authenticate, requireAdmin, requirePermission('manage_operations'), deleteAnnouncementAsAdmin);
