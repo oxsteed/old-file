@@ -160,7 +160,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
             <div className="fr-interview-when">{formatDateTime(booked.starts_at)}</div>
             {booked.interviewer_name && <div className="fr-interview-meta">{copy('interviewer')}: {booked.interviewer_name}</div>}
             {booked.note && <div className="fr-interview-meta">{booked.note}</div>}
-            <button type="button" className="fr-btn-ghost" disabled={busy} onClick={() => cancelBooking(booked.id)}>
+            <button type="button" className="fr-btn-ghost" disabled={busy} onClick={() => cancelBooking(booked.id)} data-track="ui.38155fa446.1">
               {copy('interviewCancelBooking')}
             </button>
           </div>
@@ -176,7 +176,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
                   {slot.interviewer_name && <div className="fr-interview-meta">{copy('interviewer')}: {slot.interviewer_name}</div>}
                   {slot.note && <div className="fr-interview-meta">{slot.note}</div>}
                 </div>
-                <button type="button" className="fr-btn-primary" disabled={busy || Boolean(booked)} onClick={() => bookSlot(slot.id)}>
+                <button type="button" className="fr-btn-primary" disabled={busy || Boolean(booked)} onClick={() => bookSlot(slot.id)} data-track="ui.38155fa446.2">
                   {copy('interviewBook')}
                 </button>
               </div>
@@ -253,7 +253,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
                           )}
                         </div>
                         {doc.download_url && (
-                          <a className="fr-doc-download" href={doc.download_url} target="_blank" rel="noreferrer">
+                          <a className="fr-doc-download" href={doc.download_url} target="_blank" rel="noreferrer" data-track="ui.38155fa446.3">
                             <Download size={14} /> {copy('docDownload')}
                           </a>
                         )}
@@ -314,7 +314,7 @@ export default function FranchiseApplicationDetail({ applicationId }) {
             placeholder={copy('followupPlaceholder')}
             rows={3}
           />
-          <button type="button" className="fr-btn-primary" disabled={busy || !reply.trim()} onClick={sendReply}>
+          <button type="button" className="fr-btn-primary" disabled={busy || !reply.trim()} onClick={sendReply} data-track="ui.38155fa446.4">
             {copy('followupSend')}
           </button>
         </div>
