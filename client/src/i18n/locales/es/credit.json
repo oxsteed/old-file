@@ -2598,8 +2598,11 @@
     "retryExists": "Ya se inició un reintento para esta recarga.",
     "viewRetry": "Ver el reintento",
     "retriedFrom": "Esta recarga reintenta una recarga anterior fallida.",
-    "viewOriginal": "Ver la original"
-
+    "viewOriginal": "Ver la original",
+    "fundedByBusiness": "Financiado por {{business}}",
+    "fundedByPerson": "Aprobado por {{name}}",
+    "fundingReason": "Motivo: {{reason}}",
+    "fundingApprovedAt": "Aprobado el {{date}}"
   },
   "identityVerification": {
     "eyebrow": "Verificación de identidad",

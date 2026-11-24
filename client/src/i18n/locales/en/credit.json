@@ -2598,8 +2598,11 @@
     "retryExists": "A retry was already started for this top-up.",
     "viewRetry": "View the retry",
     "retriedFrom": "This top-up retries an earlier failed top-up.",
-    "viewOriginal": "View the original"
-
+    "viewOriginal": "View the original",
+    "fundedByBusiness": "Funded by {{business}}",
+    "fundedByPerson": "Approved by {{name}}",
+    "fundingReason": "Reason: {{reason}}",
+    "fundingApprovedAt": "Approved {{date}}"
   },
   "identityVerification": {
     "eyebrow": "Identity check",

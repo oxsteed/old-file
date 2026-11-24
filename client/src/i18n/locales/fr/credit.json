@@ -2598,8 +2598,11 @@
     "retryExists": "Un nouvel essai a déjà été lancé pour cette recharge.",
     "viewRetry": "Voir le nouvel essai",
     "retriedFrom": "Cette recharge réessaie une recharge antérieure échouée.",
-    "viewOriginal": "Voir l’originale"
-
+    "viewOriginal": "Voir l’originale",
+    "fundedByBusiness": "Financé par {{business}}",
+    "fundedByPerson": "Approuvé par {{name}}",
+    "fundingReason": "Motif : {{reason}}",
+    "fundingApprovedAt": "Approuvé le {{date}}"
   },
   "identityVerification": {
     "eyebrow": "Vérification d'identité",

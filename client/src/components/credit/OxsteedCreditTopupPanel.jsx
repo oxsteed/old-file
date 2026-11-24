@@ -342,6 +342,14 @@ export default function OxsteedCreditTopupPanel({ currency = 'USD', disabled = f
             </article>
           </div>
           <p className="ox-credit-panel-copy">{topupStatusExplanation(viewingTopup.status)}</p>
+          {viewingTopup.fundedByBusinessId && (
+            <>
+              <p className="ox-credit-panel-copy">{t('walletTopup.fundedByBusiness', { business: viewingTopup.fundedByBusinessName || viewingTopup.fundedByBusinessId })}</p>
+              {viewingTopup.fundedByName && <p className="ox-credit-panel-copy">{t('walletTopup.fundedByPerson', { name: viewingTopup.fundedByName })}</p>}
+              {viewingTopup.fundingReason && <p className="ox-credit-panel-copy">{t('walletTopup.fundingReason', { reason: viewingTopup.fundingReason })}</p>}
+              {viewingTopup.fundingApprovedAt && <p className="ox-credit-panel-copy">{t('walletTopup.fundingApprovedAt', { date: dateTime(viewingTopup.fundingApprovedAt) })}</p>}
+            </>
+          )}
           {viewingTopup.retriedFromTopupId && (
             <p className="ox-credit-panel-copy">{t('walletTopup.retriedFrom')} <button type="button" className="ox-credit-detail-link" onClick={() => loadRecord(viewingTopup.retriedFromTopupId)} data-track-private>{t('walletTopup.viewOriginal')}</button></p>
           )}

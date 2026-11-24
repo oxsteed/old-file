@@ -381,13 +381,25 @@ async function createTopup({ customerId, amountCents, currencyCode, idempotencyK
   return { topup: canonical, clientSecret, replayed: !created };
 }
 
+// Group 13 Slice 4j (699): the unified approval record. Both doors read
+// the same top-up row; the funder and business display names ride a LEFT
+// JOIN here so the recipient's read carries the same funder and approval
+// info as the funder-side record — no second record, no duplicated row.
+// A self-service top-up has no funder, so both names come back NULL.
+const TOPUP_WITH_FUNDING_COLUMNS = `t.*,
+  NULLIF(TRIM(BOTH ' ' FROM COALESCE(fu.first_name, '') || ' ' || COALESCE(fu.last_name, '')), '') AS funded_by_name,
+  b.business_name AS funded_by_business_name`;
+const TOPUP_WITH_FUNDING_JOINS = `oxsteed_credit_topups t
+  LEFT JOIN users fu ON fu.id = t.funded_by_user_id
+  LEFT JOIN businesses b ON b.id = t.funded_by_business_id`;
+
 // G-22: business-funded top-up reads. The funder (owner/manager) reads the
 // top-ups their business funded; the recipient reads their own via
 // getCustomerTopup as before. Settlement still credits topup.customer_id.
 async function getBusinessTopup({ businessId, topupId }) {
   if (!businessId || !topupId) return null;
   const { rows } = await pool.query(
-    `SELECT * FROM oxsteed_credit_topups WHERE id = $1 AND funded_by_business_id = $2`,
+    `SELECT ${TOPUP_WITH_FUNDING_COLUMNS} FROM ${TOPUP_WITH_FUNDING_JOINS} WHERE t.id = $1 AND t.funded_by_business_id = $2`,
     [topupId, businessId]
   );
   return rows[0] || null;
@@ -395,9 +407,9 @@ async function getBusinessTopup({ businessId, topupId }) {
 
 async function listBusinessTopups({ businessId, limit = 20, offset = 0 }) {
   const { rows } = await pool.query(
-    `SELECT * FROM oxsteed_credit_topups
-      WHERE funded_by_business_id = $1
-      ORDER BY created_at DESC
+    `SELECT ${TOPUP_WITH_FUNDING_COLUMNS} FROM ${TOPUP_WITH_FUNDING_JOINS}
+      WHERE t.funded_by_business_id = $1
+      ORDER BY t.created_at DESC
       LIMIT $2 OFFSET $3`,
     [businessId, Math.min(Math.max(Number(limit) || 20, 1), 100), Math.max(Number(offset) || 0, 0)]
   );
@@ -413,16 +425,16 @@ async function listBusinessTopups({ businessId, limit = 20, offset = 0 }) {
 async function listCustomerTopups({ customerId, status = null, limit = 20, offset = 0 }) {
   if (!customerId) return [];
   const values = [customerId];
-  let where = 'customer_id = $1';
+  let where = 't.customer_id = $1';
   if (status) {
     values.push(status);
-    where += ` AND status = $${values.length}`;
+    where += ` AND t.status = $${values.length}`;
   }
   values.push(Math.min(Math.max(Number(limit) || 20, 1), 100), Math.max(Number(offset) || 0, 0));
   const { rows } = await pool.query(
-    `SELECT * FROM oxsteed_credit_topups
+    `SELECT ${TOPUP_WITH_FUNDING_COLUMNS} FROM ${TOPUP_WITH_FUNDING_JOINS}
       WHERE ${where}
-      ORDER BY created_at DESC
+      ORDER BY t.created_at DESC
       LIMIT $${values.length - 1} OFFSET $${values.length}`,
     values
   );
@@ -432,7 +444,7 @@ async function listCustomerTopups({ customerId, status = null, limit = 20, offse
 async function getCustomerTopup({ customerId, topupId }) {
   if (!customerId || !topupId) return null;
   const { rows } = await pool.query(
-    `SELECT * FROM oxsteed_credit_topups WHERE id = $1 AND customer_id = $2`,
+    `SELECT ${TOPUP_WITH_FUNDING_COLUMNS} FROM ${TOPUP_WITH_FUNDING_JOINS} WHERE t.id = $1 AND t.customer_id = $2`,
     [topupId, customerId]
   );
   return rows[0] || null;

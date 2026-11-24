@@ -47,6 +47,22 @@ function formatTopup(topup) {
     // Group 13 Slice 4f (680): the failed top-up this attempt retries, if
     // any — so the record view can link the chain both ways.
     retriedFromTopupId: topup.retried_from_topup_id ? String(topup.retried_from_topup_id) : null,
+    // Group 13 Slice 4j (699): the unified approval record. The recipient's
+    // read carries the same funder and approval info as the funder-side
+    // record — funder, business, reason — joined from the same row, never
+    // a duplicated record. Display names ride the service join; a
+    // self-service top-up has no funder, so all five come back null.
+    fundedByUserId: topup.funded_by_user_id ? String(topup.funded_by_user_id) : null,
+    fundedByBusinessId: topup.funded_by_business_id ? String(topup.funded_by_business_id) : null,
+    fundingReason: topup.funding_reason || null,
+    fundedByName: topup.funded_by_name || null,
+    fundedByBusinessName: topup.funded_by_business_name || null,
+    // Derived, not stored: a business-funded top-up's funding approval is
+    // the funder's creation act — no approval step exists (677 stays
+    // HELD), so the approval moment is the creation time. Self-service
+    // top-ups have no funder approval at all.
+    fundingApprovalState: topup.funded_by_business_id ? 'approved' : 'not_applicable',
+    fundingApprovedAt: topup.funded_by_business_id ? topup.created_at : null,
   };
 }
 
@@ -232,11 +248,11 @@ const db = require('../db');
 const { canManageBusinessFinance } = require('../utils/businessOwnership');
 
 function formatBusinessTopup(topup) {
+  // Group 13 Slice 4j (699): the funder-side record is formatTopup plus
+  // the recipient — one shared record shape, so both sides see the same
+  // approval record (funder, business, reason, approval state).
   return {
     ...formatTopup(topup),
-    fundedByUserId: topup.funded_by_user_id ? String(topup.funded_by_user_id) : null,
-    fundedByBusinessId: topup.funded_by_business_id ? String(topup.funded_by_business_id) : null,
-    fundingReason: topup.funding_reason || null,
     recipientCustomerId: topup.customer_id ? String(topup.customer_id) : null,
   };
 }

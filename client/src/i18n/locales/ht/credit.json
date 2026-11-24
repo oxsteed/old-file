@@ -2598,8 +2598,11 @@
     "retryExists": "Yo te deja kòmanse yon nouvo esè pou rechaj sa a.",
     "viewRetry": "Wè nouvo esè a",
     "retriedFrom": "Rechaj sa a ap eseye yon rechaj anvan ki te echwe ankò.",
-    "viewOriginal": "Wè orijinal la"
-
+    "viewOriginal": "Wè orijinal la",
+    "fundedByBusiness": "Finanse pa {{business}}",
+    "fundedByPerson": "Apwouve pa {{name}}",
+    "fundingReason": "Rezon: {{reason}}",
+    "fundingApprovedAt": "Apwouve {{date}}"
   },
   "identityVerification": {
     "eyebrow": "Verifikasyon idantite",

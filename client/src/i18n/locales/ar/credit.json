@@ -2598,8 +2598,11 @@
     "retryExists": "تم بدء محاولة جديدة لهذه العملية من قبل.",
     "viewRetry": "عرض المحاولة الجديدة",
     "retriedFrom": "عملية الشحن هذه تعيد محاولة عملية شحن سابقة فاشلة.",
-    "viewOriginal": "عرض العملية الأصلية"
-
+    "viewOriginal": "عرض العملية الأصلية",
+    "fundedByBusiness": "مموّل من {{business}}",
+    "fundedByPerson": "اعتُمد من {{name}}",
+    "fundingReason": "السبب: {{reason}}",
+    "fundingApprovedAt": "اعتُمد في {{date}}"
   },
   "identityVerification": {
     "eyebrow": "التحقق من الهوية",

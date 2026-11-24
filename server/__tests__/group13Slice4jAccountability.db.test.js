@@ -309,4 +309,74 @@ describeDb('Group 13 Slice 4j: track accountability (696-700)', () => {
     expect(strangerRes.status).toBe(404);
   });
 
+  // 699: the recipient's top-up read carries the same approval record as
+  // the funder-side read — one record, joined, not duplicated.
+  test('699: recipient and funder see the same top-up approval record', async () => {
+    const funder = await makeUser();
+    const member = await makeUser();
+    const outsider = await makeUser();
+    await verifyCustomer(member);
+    const business = await makeBusiness({ owner: funder, member });
+    const created = await postAs(funder, `/api/businesses/${business.id}/credit-topups`)
+      .set('Idempotency-Key', `g13j-699-biz-${business.id}-${member.id}`)
+      .send({ amountCents: 5000, currencyCode: 'USD', memberId: member.id, reason: 'Fixture shift bonus' });
+    expect(created.status).toBe(201);
+    const topupId = created.body.topup.id;
+
+    const recipientRead = await getAs(member, `/api/oxsteed-credit/topups/${topupId}`);
+    expect(recipientRead.status).toBe(200);
+    expect(recipientRead.body.topup).toMatchObject({
+      id: String(topupId),
+      amountCents: 5000,
+      status: 'pending',
+      fundedByUserId: funder.id,
+      fundedByBusinessId: String(business.id),
+      fundingReason: 'Fixture shift bonus',
+      fundedByBusinessName: 'Fixture Business',
+      fundingApprovalState: 'approved',
+    });
+    expect(recipientRead.body.topup.fundedByName).toBe('Test Fixture');
+    expect(recipientRead.body.topup.fundingApprovedAt).toBeTruthy();
+
+    const funderRead = await getAs(funder, `/api/businesses/${business.id}/credit-topups/${topupId}`);
+    expect(funderRead.status).toBe(200);
+    for (const field of ['fundedByUserId', 'fundedByBusinessId', 'fundingReason', 'fundedByName', 'fundedByBusinessName', 'fundingApprovalState', 'fundingApprovedAt']) {
+      expect(funderRead.body.topup[field]).toEqual(recipientRead.body.topup[field]);
+    }
+
+    // The recipient's list carries the same approval info.
+    const list = await getAs(member, '/api/oxsteed-credit/topups');
+    expect(list.status).toBe(200);
+    const listed = list.body.topups.find((row) => String(row.id) === String(topupId));
+    expect(listed).toMatchObject({
+      fundedByBusinessId: String(business.id),
+      fundingReason: 'Fixture shift bonus',
+      fundingApprovalState: 'approved',
+    });
+
+    // Isolation: another customer cannot read the recipient's record.
+    const outsiderRead = await getAs(outsider, `/api/oxsteed-credit/topups/${topupId}`);
+    expect(outsiderRead.status).toBe(404);
+  });
+
+  test('699: a self-service top-up carries no funder approval', async () => {
+    const user = await makeUser();
+    await verifyCustomer(user);
+    const created = await postAs(user, '/api/oxsteed-credit/topups')
+      .set('Idempotency-Key', `g13j-699-self-${user.id}`)
+      .send({ amountCents: 2500, currencyCode: 'USD' });
+    expect(created.status).toBe(201);
+    const res = await getAs(user, `/api/oxsteed-credit/topups/${created.body.topup.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.topup).toMatchObject({
+      fundedByUserId: null,
+      fundedByBusinessId: null,
+      fundingReason: null,
+      fundedByName: null,
+      fundedByBusinessName: null,
+      fundingApprovalState: 'not_applicable',
+      fundingApprovedAt: null,
+    });
+  });
+
 });
