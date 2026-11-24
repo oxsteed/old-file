@@ -209,16 +209,24 @@ function locationAttributionSql(alias, restaurantParam) {
 async function aggregateAttributed(client, {
   restaurantId, locationId, currencyCode, windowStart, windowEnd, attribution, partnerId,
 }) {
-  const attributionSql = locationAttributionSql('t', '$1');
+  // Placeholders are numbered as values are pushed: a parameter Postgres
+  // never sees referenced (the location id on the 'unattributed' branch)
+  // fails the whole query with 42P18, so the location is only bound when
+  // the branch uses it.
+  const params = [];
+  const ph = (value) => { params.push(value); return `$${params.length}`; };
+  const restaurantPh = ph(Number(restaurantId));
+  const locationPh = attribution === 'unattributed' ? null : ph(Number(locationId));
+  const currencyPh = ph(currencyCode);
+  const attributionSql = locationAttributionSql('t', restaurantPh);
   const attributionCondition = attribution === 'location'
-    ? `${attributionSql} = $2`
+    ? `${attributionSql} = ${locationPh}::bigint`
     : attribution === 'unattributed'
       ? `${attributionSql} IS NULL`
-      : `${attributionSql} IS NOT NULL AND ${attributionSql} <> $2`;
-  const params = [Number(restaurantId), Number(locationId), currencyCode];
+      : `${attributionSql} IS NOT NULL AND ${attributionSql} <> ${locationPh}::bigint`;
   const conditions = [
     `t.status = 'posted'`,
-    `t.currency_code = $3`,
+    `t.currency_code = ${currencyPh}`,
     attributionCondition,
   ];
   // The unattributed bucket is the restaurant's own location-less money
@@ -228,19 +236,16 @@ async function aggregateAttributed(client, {
   // bucket is empty by definition.
   if (attribution === 'unattributed') {
     if (partnerId != null) {
-      params.push(partnerId);
-      conditions.push(`t.partner_id = $${params.length}`);
+      conditions.push(`t.partner_id = ${ph(partnerId)}`);
     } else {
       conditions.push('FALSE');
     }
   }
   if (windowStart) {
-    params.push(windowStart);
-    conditions.push(`t.created_at >= $${params.length}::timestamptz`);
+    conditions.push(`t.created_at >= ${ph(windowStart)}::timestamptz`);
   }
   if (windowEnd) {
-    params.push(windowEnd);
-    conditions.push(`t.created_at < $${params.length}::timestamptz`);
+    conditions.push(`t.created_at < ${ph(windowEnd)}::timestamptz`);
   }
   // Partner rows are the restaurant's money; kiosk cash-outs name no
   // partner, so the attribution classes are computed over every row the
@@ -265,31 +270,34 @@ async function aggregatePayable(client, {
   restaurantId, locationId, currencyCode, windowStart, windowEnd, attribution, payableAccountId,
 }) {
   if (payableAccountId == null) return { creditsCents: 0, debitsCents: 0 };
-  const attributionSql = locationAttributionSql('t', '$1');
+  const params = [];
+  const ph = (value) => { params.push(value); return `$${params.length}`; };
+  const restaurantPh = ph(Number(restaurantId));
+  const locationPh = attribution === 'unattributed' ? null : ph(Number(locationId));
+  const currencyPh = ph(currencyCode);
+  const payablePh = ph(payableAccountId);
+  const attributionSql = locationAttributionSql('t', restaurantPh);
   const attributionCondition = attribution === 'location'
-    ? `${attributionSql} = $2`
+    ? `${attributionSql} = ${locationPh}::bigint`
     : attribution === 'unattributed'
       ? `${attributionSql} IS NULL`
-      : `${attributionSql} IS NOT NULL AND ${attributionSql} <> $2`;
-  const params = [Number(restaurantId), Number(locationId), currencyCode, payableAccountId];
+      : `${attributionSql} IS NOT NULL AND ${attributionSql} <> ${locationPh}::bigint`;
   const conditions = [
     `t.status = 'posted'`,
-    `t.currency_code = $3`,
-    `(t.credit_account_id = $4 OR t.debit_account_id = $4)`,
+    `t.currency_code = ${currencyPh}`,
+    `(t.credit_account_id = ${payablePh} OR t.debit_account_id = ${payablePh})`,
     attributionCondition,
   ];
   if (windowStart) {
-    params.push(windowStart);
-    conditions.push(`t.created_at >= $${params.length}::timestamptz`);
+    conditions.push(`t.created_at >= ${ph(windowStart)}::timestamptz`);
   }
   if (windowEnd) {
-    params.push(windowEnd);
-    conditions.push(`t.created_at < $${params.length}::timestamptz`);
+    conditions.push(`t.created_at < ${ph(windowEnd)}::timestamptz`);
   }
   const { rows: [{ credits, debits }] } = await client.query(
     `SELECT
-        COALESCE(SUM(CASE WHEN t.credit_account_id = $4 THEN t.amount_cents ELSE 0 END), 0)::bigint AS credits,
-        COALESCE(SUM(CASE WHEN t.debit_account_id = $4 THEN t.amount_cents ELSE 0 END), 0)::bigint AS debits
+        COALESCE(SUM(CASE WHEN t.credit_account_id = ${payablePh} THEN t.amount_cents ELSE 0 END), 0)::bigint AS credits,
+        COALESCE(SUM(CASE WHEN t.debit_account_id = ${payablePh} THEN t.amount_cents ELSE 0 END), 0)::bigint AS debits
        FROM oxsteed_credit_transactions t
       WHERE ${conditions.join(' AND ')}`,
     params,
@@ -990,7 +998,7 @@ async function listLocationTransactions(client, scope, { periodStart, periodEnd,
        FROM oxsteed_credit_transactions t
       WHERE t.status = 'posted'
         AND t.currency_code = $3
-        AND ${attribution} = $2
+        AND ${attribution} = $2::bigint
         AND t.created_at >= $4::timestamptz
         AND t.created_at < $5::timestamptz
       ORDER BY t.created_at DESC, t.id DESC
