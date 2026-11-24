@@ -121,11 +121,14 @@ async function openShift(req, res, next) {
 async function getCurrentShift(req, res, next) {
   try {
     const shift = await cashier.getOpenShift(pool, req.cashierKioskDevice.id);
-    if (!shift) return res.json({ shift: null, summary: null });
+    if (!shift) return res.json({ shift: null, summary: null, checklist: null });
     const summary = await cashier.getShiftSummary(pool, {
       deviceId: req.cashierKioskDevice.id, shift,
     });
-    return res.json({ shift, summary });
+    const checklist = await cashier.buildCloseoutChecklist(pool, {
+      deviceId: req.cashierKioskDevice.id, shift,
+    });
+    return res.json({ shift, summary, checklist: checklist.items, allPassed: checklist.allPassed });
   } catch (error) {
     next(error);
   }
@@ -140,7 +143,32 @@ async function getShift(req, res, next) {
     const summary = await cashier.getShiftSummary(pool, {
       deviceId: req.cashierKioskDevice.id, shift,
     });
-    res.json({ shift, summary });
+    // A closed shift reads back its recorded closeout; an open shift gets
+    // the live derived checklist.
+    if (shift.status === 'closed' && shift.closeout) {
+      return res.json({
+        shift, summary,
+        checklist: shift.closeout.checklist || null,
+        allPassed: shift.closeout.allPassed ?? null,
+      });
+    }
+    const checklist = await cashier.buildCloseoutChecklist(pool, {
+      deviceId: req.cashierKioskDevice.id, shift,
+    });
+    res.json({ shift, summary, checklist: checklist.items, allPassed: checklist.allPassed });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// 685: close the shift, recording the derived closeout checklist.
+async function closeShift(req, res, next) {
+  try {
+    const shiftId = parseUuid(req.params.shiftId, 'shiftId');
+    const result = await cashier.closeShift(pool, {
+      device: req.cashierKioskDevice, shiftId,
+    });
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -160,5 +188,5 @@ async function updateCurrentShiftLocation(req, res, next) {
 
 module.exports = {
   authenticateCashierKiosk, getLocations, listTransactions, getTransaction,
-  openShift, getCurrentShift, getShift, updateCurrentShiftLocation,
+  openShift, getCurrentShift, getShift, updateCurrentShiftLocation, closeShift,
 };

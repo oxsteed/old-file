@@ -98,6 +98,14 @@ router.patch(
   kioskDeviceLimiter,
   cashierController.updateCurrentShiftLocation,
 );
+// 685: close the shift, recording the derived closeout checklist.
+router.post(
+  '/cashier/shifts/:shiftId/close',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  cashierController.closeShift,
+);
 
 router.use(noStoreCreditResponse, cardController.authenticateCreditKiosk);
 

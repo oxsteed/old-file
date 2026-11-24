@@ -65,6 +65,8 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
   let orderQueueNumber;
   let otherDeviceTxId;
   let yesterdayTxId;
+  let holdId;
+  let adminId;
 
   beforeAll(async () => {
     pool = require('../db');
@@ -129,6 +131,7 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     customerId = customer.id;
     // Migration 488: partner rows require an active administrator creator.
     const admin = await makeUser('super_admin');
+    adminId = admin.id;
     const { rows: [partner] } = await pool.query(
       `INSERT INTO oxsteed_credit_partners (restaurant_id, status, created_by)
        VALUES ($1, 'active', $2) RETURNING id`,
@@ -147,6 +150,35 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     walletId = await ensureCreditAccount({ accountType: 'customer_wallet', customerId: customer.id });
     partnerPayableId = await ensureCreditAccount({ accountType: 'partner_payable', partnerId });
     treasuryId = await ensureCreditAccount({ accountType: 'platform_treasury' });
+    // Fund the wallet through a real journal post (migration 491 only
+    // allows balance changes bound to a posted transaction). The 685 hold
+    // fixture needs reserved_cents <= balance_cents (migration 427).
+    {
+      const fundClient = await pool.connect();
+      try {
+        await fundClient.query('BEGIN');
+        await creditService.postJournalTransaction(fundClient, {
+          currencyCode: 'USD',
+          transactionType: 'load',
+          debitAccountId: treasuryId,
+          creditAccountId: walletId,
+          amountCents: 100000,
+          actorType: 'admin',
+          actorUserId: admin.id,
+          reason: 'Fixture load',
+          referenceType: 'admin_load',
+          referenceId: 'g13g-fixture-load',
+          description: 'Fixture load',
+          idempotencyKey: `g13g-load-${customer.id}`,
+        });
+        await fundClient.query('COMMIT');
+      } catch (error) {
+        await fundClient.query('ROLLBACK');
+        throw error;
+      } finally {
+        fundClient.release();
+      }
+    }
     const { rows: [card] } = await pool.query(
       `INSERT INTO oxsteed_credit_cards (customer_id, account_id, card_type, status, credential_hash, credential_last4, idempotency_key)
        VALUES ($1, $2, 'virtual', 'active', $3, '4242', $4) RETURNING id`,
@@ -228,6 +260,35 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
       metadata: { kioskDeviceId: String(kioskDevice.id), cardId, cardLast4: '4242' },
       createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
     });
+    // 685: an active hold naming the kiosk device — the closeout checklist
+    // must flag it. The kiosk creates no holds today, so this is the only
+    // way to exercise the no_open_holds check. The reservation guard
+    // (migration 755) is a deferred constraint trigger: the wallet's
+    // reserved_cents must equal the active hold total at commit, so the
+    // hold insert and the wallet update share one transaction.
+    const holdClient = await pool.connect();
+    try {
+      await holdClient.query('BEGIN');
+      await holdClient.query(
+        `UPDATE oxsteed_credit_accounts SET reserved_cents = 500 WHERE id = $1`, [walletId],
+      );
+      const { rows: [hold] } = await holdClient.query(
+        `INSERT INTO oxsteed_credit_holds
+           (account_id, customer_id, partner_id, agreement_id, amount_cents, currency_code,
+            status, purpose, reference_type, reference_id, idempotency_key, expires_at, metadata, created_by)
+         VALUES ($1, $2, $3, $4, 500, 'USD', 'active', 'purchase', 'credit_kiosk_redemption', $5,
+                 $6, NOW() + INTERVAL '1 day', $7::jsonb, $2) RETURNING id`,
+        [walletId, customer.id, partnerId, agreementId, String(kioskDevice.id),
+         `g13g-hold-${crypto.randomUUID()}`, JSON.stringify({ kioskDeviceId: String(kioskDevice.id) })],
+      );
+      holdId = hold.id;
+      await holdClient.query('COMMIT');
+    } catch (error) {
+      await holdClient.query('ROLLBACK');
+      throw error;
+    } finally {
+      holdClient.release();
+    }
 
     async function ensureCreditAccount({ accountType, customerId = null, partnerId: pid = null }) {
       const client = await pool.connect();
@@ -328,6 +389,23 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     .patch(`/api/restaurants/${restaurantId}/credit-kiosks/${device.id}${path}`)
     .set('X-Device-Token', token)
     .send(body || {});
+  // The kiosk per-device limiter allows 30 requests per 15 minutes; the
+  // suite makes 36 as the kiosk device in seconds, not minutes. Reset the
+  // limiter's bucket between groups so the acceptance suite measures the
+  // cashier endpoints, not the limiter. (The limiter's own enforcement is
+  // proven by this suite: it tripped with 429 before the reset was added.)
+  const resetKioskLimiter = async (deviceId) => {
+    const limiters = [];
+    const walk = (stack) => {
+      for (const layer of stack || []) {
+        if (layer.handle && typeof layer.handle.resetKey === 'function') limiters.push(layer.handle);
+        if (layer.handle && Array.isArray(layer.handle.stack)) walk(layer.handle.stack);
+        if (layer.route && Array.isArray(layer.route.stack)) walk(layer.route.stack);
+      }
+    };
+    walk(app._router.stack);
+    await Promise.all(limiters.map((limiter) => limiter.resetKey(`kiosk:${deviceId}`)));
+  };
 
   test('681: a location-bound terminal sees only its paired location, as the default', async () => {
     const res = await cashierGet(kioskDevice, kioskToken, '/cashier/locations');
@@ -496,10 +574,11 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
   test('682: no open shift reads as empty, not an error', async () => {
     const res = await cashierGet(otherDevice, otherToken, '/cashier/shifts/current');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ shift: null, summary: null });
+    expect(res.body).toEqual({ shift: null, summary: null, checklist: null });
   });
 
   test('682: opening a shift defaults to the paired location and is idempotent', async () => {
+    await resetKioskLimiter(kioskDevice.id);
     const opened = await cashierPost(kioskDevice, kioskToken, '/cashier/shifts', {});
     expect(opened.status).toBe(201);
     expect(opened.body.alreadyOpen).toBe(false);
@@ -584,5 +663,102 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     const none = await cashierPatch(displayKiosk, displayToken, '/cashier/shifts/current/location', { locationId: locPrimary });
     expect(none.status).toBe(404);
     expect(none.body.code).toBe('credit_kiosk_shift_not_found');
+  });
+
+  test('685: closing records the closeout — a failed item never blocks the close', async () => {
+    await resetKioskLimiter(kioskDevice.id);
+    const current = await cashierGet(kioskDevice, kioskToken, '/cashier/shifts/current');
+    const shiftId = current.body.shift.id;
+    const closed = await cashierPost(kioskDevice, kioskToken, `/cashier/shifts/${shiftId}/close`, {});
+    expect(closed.status).toBe(200);
+    expect(closed.body.shift.status).toBe('closed');
+    expect(closed.body.shift.closedAt).toBeTruthy();
+    expect(closed.body.summary).toMatchObject({
+      transactionCount: 5, redemptionCount: 4, redemptionCents: 5500,
+      cashOutCount: 1, cashOutCents: 1000, refundCount: 0,
+    });
+    // The open hold fails exactly one item; the other two still pass.
+    expect(closed.body.allPassed).toBe(false);
+    expect(closed.body.checklist).toHaveLength(3);
+    const byKey = Object.fromEntries(closed.body.checklist.map((item) => [item.key, item]));
+    expect(byKey.transactions_accounted.passed).toBe(true);
+    expect(byKey.transactions_accounted.detail).toMatchObject({ transactionCount: 5, nonPostedCount: 0, aggregateCount: 5 });
+    expect(byKey.no_open_holds.passed).toBe(false);
+    expect(byKey.no_open_holds.detail).toMatchObject({ openHoldCount: 1 });
+    expect(byKey.cash_out_reconciled.passed).toBe(true);
+    expect(byKey.cash_out_reconciled.detail).toMatchObject({ cashOutCount: 1, cashOutCents: 1000 });
+    // The snapshot is stored on the shift row.
+    const { rows: [row] } = await pool.query(
+      `SELECT status, closeout FROM oxsteed_credit_kiosk_shifts WHERE id = $1`, [shiftId],
+    );
+    expect(row.status).toBe('closed');
+    expect(row.closeout.allPassed).toBe(false);
+    expect(row.closeout.checklist).toHaveLength(3);
+  });
+
+  test('685: re-closing a closed shift is 409, and closing another device\'s shift is 404', async () => {
+    const { rows: [closed] } = await pool.query(
+      `SELECT id FROM oxsteed_credit_kiosk_shifts WHERE device_id = $1 AND status = 'closed' ORDER BY closed_at DESC LIMIT 1`,
+      [kioskDevice.id],
+    );
+    const again = await cashierPost(kioskDevice, kioskToken, `/cashier/shifts/${closed.id}/close`, {});
+    expect(again.status).toBe(409);
+    expect(again.body.code).toBe('credit_kiosk_shift_state_invalid');
+    const others = await cashierPost(otherDevice, otherToken, `/cashier/shifts/${closed.id}/close`, {});
+    expect(others.status).toBe(404);
+    expect(others.body.code).toBe('credit_kiosk_shift_not_found');
+  });
+
+  test('685: after close, current is empty; a closed shift reads back with its recorded closeout', async () => {
+    const current = await cashierGet(kioskDevice, kioskToken, '/cashier/shifts/current');
+    expect(current.body).toEqual({ shift: null, summary: null, checklist: null });
+    const { rows: [closed] } = await pool.query(
+      `SELECT id FROM oxsteed_credit_kiosk_shifts WHERE device_id = $1 AND status = 'closed' ORDER BY closed_at DESC LIMIT 1`,
+      [kioskDevice.id],
+    );
+    const byId = await cashierGet(kioskDevice, kioskToken, `/cashier/shifts/${closed.id}`);
+    expect(byId.status).toBe(200);
+    expect(byId.body.shift.status).toBe('closed');
+    expect(byId.body.allPassed).toBe(false);
+    expect(byId.body.checklist.map((item) => item.key)).toEqual(
+      ['transactions_accounted', 'no_open_holds', 'cash_out_reconciled'],
+    );
+  });
+
+  test('685: with no open hold the closeout passes every item', async () => {
+    // Releasing the hold must return the wallet's reserved balance to zero
+    // in the same transaction (migration 755's deferred reservation guard).
+    const releaseClient = await pool.connect();
+    try {
+      await releaseClient.query('BEGIN');
+      await releaseClient.query(
+        `UPDATE oxsteed_credit_holds
+            SET status = 'released', released_at = NOW(), release_actor_type = 'admin', released_by = $2,
+                release_reason = 'Fixture closeout'
+          WHERE id = $1`, [holdId, adminId],
+      );
+      await releaseClient.query(
+        `UPDATE oxsteed_credit_accounts SET reserved_cents = 0 WHERE id = $1`, [walletId],
+      );
+      await releaseClient.query('COMMIT');
+    } catch (error) {
+      await releaseClient.query('ROLLBACK');
+      throw error;
+    } finally {
+      releaseClient.release();
+    }
+    const opened = await cashierPost(kioskDevice, kioskToken, '/cashier/shifts', {});
+    expect(opened.status).toBe(201);
+    await pool.query(
+      `UPDATE oxsteed_credit_kiosk_shifts SET opened_at = NOW() - INTERVAL '2 days' WHERE id = $1`,
+      [opened.body.shift.id],
+    );
+    const closed = await cashierPost(kioskDevice, kioskToken, `/cashier/shifts/${opened.body.shift.id}/close`, {});
+    expect(closed.status).toBe(200);
+    expect(closed.body.allPassed).toBe(true);
+    expect(closed.body.checklist.every((item) => item.passed)).toBe(true);
+    expect(closed.body.summary).toMatchObject({
+      transactionCount: 5, redemptionCount: 4, redemptionCents: 5500, cashOutCount: 1, cashOutCents: 1000,
+    });
   });
 });

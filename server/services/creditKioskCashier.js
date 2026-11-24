@@ -306,23 +306,23 @@ async function aggregateKioskTransactions(client, { deviceId, openedAt, closedAt
   return rows;
 }
 
-function summarizeFromAggregate(aggRows) {
+function summarizeEntries(entries) {
   const byKind = {};
   let transactionCount = 0;
   let postedCount = 0;
-  for (const row of aggRows) {
-    const kind = KIOSK_TRANSACTION_KINDS[row.transaction_type] || row.transaction_type;
-    transactionCount += Number(row.count);
-    if (row.status === 'posted') postedCount += Number(row.count);
-    const entry = byKind[kind] || { count: 0, amountCents: 0, currencyCode: row.currency_code, byCurrency: {} };
+  for (const entry of entries) {
+    const count = Number(entry.count) || 1;
+    transactionCount += count;
+    if (entry.status === 'posted') postedCount += count;
+    const kind = byKind[entry.kind] || { count: 0, amountCents: 0, currencyCode: entry.currencyCode, byCurrency: {} };
     // Posted rows alone carry the shift totals; a non-posted row is counted
     // in transactionCount but never in a total.
-    if (row.status === 'posted') {
-      entry.count += Number(row.count);
-      entry.amountCents += Number(row.amount_cents);
-      entry.byCurrency[row.currency_code] = (entry.byCurrency[row.currency_code] || 0) + Number(row.amount_cents);
+    if (entry.status === 'posted') {
+      kind.count += count;
+      kind.amountCents += Number(entry.amountCents);
+      kind.byCurrency[entry.currencyCode] = (kind.byCurrency[entry.currencyCode] || 0) + Number(entry.amountCents);
     }
-    byKind[kind] = entry;
+    byKind[entry.kind] = kind;
   }
   const redemption = byKind.redemption || { count: 0, amountCents: 0, currencyCode: 'USD', byCurrency: {} };
   const cashOut = byKind.cash_out || { count: 0, amountCents: 0, currencyCode: 'USD', byCurrency: {} };
@@ -342,6 +342,26 @@ function summarizeFromAggregate(aggRows) {
   };
 }
 
+function summarizeFromAggregate(aggRows) {
+  return summarizeEntries(aggRows.map((row) => ({
+    kind: KIOSK_TRANSACTION_KINDS[row.transaction_type] || row.transaction_type,
+    status: row.status,
+    amountCents: Number(row.amount_cents),
+    currencyCode: row.currency_code,
+    count: Number(row.count),
+  })));
+}
+
+function summarizeFromTransactions(rows) {
+  return summarizeEntries(rows.map((row) => ({
+    kind: row.kind,
+    status: row.status,
+    amountCents: row.amountCents,
+    currencyCode: row.currencyCode,
+    count: 1,
+  })));
+}
+
 async function getShiftSummary(client, { deviceId, shift }) {
   const agg = await aggregateKioskTransactions(client, {
     deviceId, openedAt: shift.openedAt, closedAt: shift.closedAt || null,
@@ -354,10 +374,93 @@ async function getShiftSummary(client, { deviceId, shift }) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// 685: the shift closeout checklist. Derived at close time from the same
+// records as the summary — never a second ledger. A failed item never
+// blocks the close (a cashier must be able to end a shift); it is recorded
+// in the closeout snapshot for manager follow-up.
+// ---------------------------------------------------------------------------
+
+// The checklist derives the same facts twice, from two query paths, and
+// compares them: the row-level list read and the SQL aggregate. They agree
+// unless a record changed between the reads or a row is unaccounted for.
+async function buildCloseoutChecklist(client, { deviceId, shift }) {
+  const closedAt = shift.closedAt || new Date().toISOString();
+  const { transactions } = await listKioskTransactions(client, {
+    deviceId, openedAt: shift.openedAt, closedAt, limit: null,
+  });
+  const listSummary = summarizeFromTransactions(transactions);
+  const aggSummary = summarizeFromAggregate(await aggregateKioskTransactions(client, {
+    deviceId, openedAt: shift.openedAt, closedAt,
+  }));
+  const { rows: holds } = await client.query(
+    `SELECT id FROM oxsteed_credit_holds
+      WHERE status = 'active' AND metadata ->> 'kioskDeviceId' = $1`,
+    [String(deviceId)],
+  );
+  const items = [
+    {
+      key: 'transactions_accounted',
+      passed: listSummary.nonPostedCount === 0
+        && listSummary.transactionCount === aggSummary.transactionCount,
+      detail: {
+        transactionCount: listSummary.transactionCount,
+        nonPostedCount: listSummary.nonPostedCount,
+        aggregateCount: aggSummary.transactionCount,
+      },
+    },
+    {
+      key: 'no_open_holds',
+      passed: holds.length === 0,
+      detail: { openHoldCount: holds.length },
+    },
+    {
+      key: 'cash_out_reconciled',
+      passed: listSummary.cashOutCount === aggSummary.cashOutCount
+        && listSummary.cashOutCents === aggSummary.cashOutCents,
+      detail: {
+        cashOutCount: listSummary.cashOutCount,
+        cashOutCents: listSummary.cashOutCents,
+        aggregateCashOutCount: aggSummary.cashOutCount,
+        aggregateCashOutCents: aggSummary.cashOutCents,
+      },
+    },
+  ];
+  return { items, allPassed: items.every((item) => item.passed), summary: aggSummary };
+}
+
+async function closeShift(pool, { device, shiftId }) {
+  const { withTransaction } = require('../utils/transaction');
+  return withTransaction(pool, async (client) => {
+    const { rows: [row] } = await client.query(
+      `SELECT * FROM oxsteed_credit_kiosk_shifts WHERE id = $1 AND device_id = $2 FOR UPDATE`,
+      [shiftId, device.id],
+    );
+    if (!row) throw new AppError('Shift not found', 404, 'credit_kiosk_shift_not_found');
+    if (row.status !== 'open') throw new AppError('Shift is already closed', 409, 'credit_kiosk_shift_state_invalid');
+    const shift = formatShift(row);
+    const closedAt = new Date().toISOString();
+    const checklist = await buildCloseoutChecklist(client, {
+      deviceId: device.id, shift: { ...shift, closedAt },
+    });
+    const summary = await getShiftSummary(client, {
+      deviceId: device.id, shift: { ...shift, closedAt },
+    });
+    const closeout = { closedAt, summary, checklist: checklist.items, allPassed: checklist.allPassed };
+    const { rows: [closed] } = await client.query(
+      `UPDATE oxsteed_credit_kiosk_shifts
+          SET status = 'closed', closed_at = $2::timestamptz, closeout = $3::jsonb, updated_at = NOW()
+        WHERE id = $1 RETURNING *`,
+      [shiftId, closedAt, JSON.stringify(closeout)],
+    );
+    return { shift: formatShift(closed), summary, checklist: checklist.items, allPassed: checklist.allPassed };
+  }, 'credit_kiosk_shift_close');
+}
+
 module.exports = {
   getAuthorizedLocations, assertAuthorizedLocation, defaultLocationId,
   listKioskTransactions, getKioskTransaction,
   formatShift, openShift, getOpenShift, getShiftForDevice,
   updateOpenShiftLocation, summarizeFromAggregate, aggregateKioskTransactions,
-  getShiftSummary,
+  getShiftSummary, summarizeFromTransactions, buildCloseoutChecklist, closeShift,
 };

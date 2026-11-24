@@ -13,6 +13,7 @@ import {
   openCashierShift,
   getCurrentCashierShift,
   updateCashierShiftLocation,
+  closeCashierShift,
 } from "../../restaurantScreens/api";
 
 function TransactionRow({ transaction: tx, t }) {
@@ -50,6 +51,27 @@ export default function CashierPanel({
   const [shiftLoading, setShiftLoading] = useState(true);
   const [shiftError, setShiftError] = useState(null);
   const [openingShift, setOpeningShift] = useState(false);
+  // 685: the closeout of the shift just closed (the live checklist rides
+  // on shiftData.checklist while the shift is open).
+  const [closedShift, setClosedShift] = useState(null);
+  const [closingShift, setClosingShift] = useState(false);
+
+  const handleCloseShift = async () => {
+    const shift = shiftData?.shift;
+    if (!shift || shift.status !== "open") return;
+    setClosingShift(true);
+    setShiftError(null);
+    try {
+      const result = await closeCashierShift(restaurantId, device, shift.id);
+      if (!mountedRef.current) return;
+      setClosedShift(result);
+      await loadCurrentShift();
+    } catch {
+      if (mountedRef.current) setShiftError("error");
+    } finally {
+      if (mountedRef.current) setClosingShift(false);
+    }
+  };
 
   const loadCurrentShift = async () => {
     setShiftLoading(true);
@@ -279,6 +301,57 @@ export default function CashierPanel({
                 </button>
               </div>
             </>
+          )}
+        </section>
+
+        <section className="fd-cashier-section" aria-labelledby="fd-cashier-closeout">
+          <h3 id="fd-cashier-closeout">{t("cashier.closeoutTitle")}</h3>
+          {closedShift && (
+            <>
+              <p>
+                <strong>{t("cashier.shiftClosed")}</strong>
+                {` · ${t("cashier.shiftClosedAt", { date: new Date(closedShift.shift.closedAt).toLocaleString() })}`}
+              </p>
+              {!closedShift.allPassed && (
+                <p>{t("cashier.closeoutFailedNote", { count: closedShift.checklist.filter((item) => !item.passed).length })}</p>
+              )}
+            </>
+          )}
+          {shiftData?.shift?.status === "open" && shiftData.checklist && (
+            <>
+              <ul className="fd-cashier-list">
+                {shiftData.checklist.map((item) => (
+                  <li key={item.key} className={item.passed ? "fd-cashier-check-pass" : "fd-cashier-check-fail"}>
+                    <span>{t(`cashier.checklist${item.key === "transactions_accounted" ? "TransactionsAccounted" : item.key === "no_open_holds" ? "NoOpenHolds" : "CashOutReconciled"}`)}</span>
+                    <strong>{item.passed ? t("cashier.checkPassed") : t("cashier.checkFailed")}</strong>
+                  </li>
+                ))}
+              </ul>
+              <div className="fd-cashier-row">
+                <button
+                  type="button"
+                  className="fd-btn"
+                  onClick={handleCloseShift}
+                  disabled={closingShift}
+                  data-track="ui.e23c624842.20"
+                >
+                  {t("cashier.closeShift")}
+                </button>
+              </div>
+            </>
+          )}
+          {closedShift && (
+            <ul className="fd-cashier-list">
+              {closedShift.checklist.map((item) => (
+                <li key={item.key} className={item.passed ? "fd-cashier-check-pass" : "fd-cashier-check-fail"}>
+                  <span>{t(`cashier.checklist${item.key === "transactions_accounted" ? "TransactionsAccounted" : item.key === "no_open_holds" ? "NoOpenHolds" : "CashOutReconciled"}`)}</span>
+                  <strong>{item.passed ? t("cashier.checkPassed") : t("cashier.checkFailed")}</strong>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!shiftData?.shift && !closedShift && (
+            <p className="fd-cashier-note">{t("cashier.noShift")}</p>
           )}
         </section>
 

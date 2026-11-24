@@ -184,3 +184,8 @@ export const updateCashierShiftLocation = (id, device, locationId) =>
   api.patch(`${cashierBase(id, device)}/shifts/current/location`, { locationId },
     { ...deviceOptions(device), skipSessionRefresh: true },
   ).then((r) => r.data);
+// 685: close the shift, recording the derived closeout checklist.
+export const closeCashierShift = (id, device, shiftId) =>
+  api.post(`${cashierBase(id, device)}/shifts/${encodeURIComponent(shiftId)}/close`, {},
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
