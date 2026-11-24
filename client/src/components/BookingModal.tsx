@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Calendar, DollarSign, ShieldAlert } from 'lucide-react';
+import { X, DollarSign, ShieldAlert } from 'lucide-react';
 import { toolRentalsApi } from '../api/toolRentals';
 import toast from 'react-hot-toast';
 import './BookingModal.css';
 import { toolRentalDatesOverlap } from '../utils/toolRentalDates';
+import ToolRentalCalendar from './ToolRentalCalendar';
 
 interface BookingModalProps {
   tool: {
@@ -68,14 +69,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
     });
   };
 
-  if (!isOpen) return null;
-
-  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setStartDate(e.target.value);
-  };
-
-  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEndDate(e.target.value);
+  // 566: the calendar is the date picker; the native inputs are gone.
+  // The overlap preflight in handleSubmit still runs, and the server
+  // re-checks the range under the per-tool lock.
+  const handleCalendarChange = (nextStart: string, nextEnd: string) => {
+    setStartDate(nextStart);
+    setEndDate(nextEnd);
   };
 
   const calculateDays = (): number => {
@@ -165,36 +164,28 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
           </div>
 
           <form onSubmit={handleSubmit} className="booking-form" data-track="ui.043dee9378.2">
+            {/* 566: month-view availability calendar. Booked days are
+                blocked, past days disabled, and a range crossing a booked
+                day cannot be picked. */}
             <div className="booking-form-group">
-              <label htmlFor="start-date">{t('toolRentals.startDate')}</label>
-              <div className="booking-date-input">
-                <Calendar className="w-4 h-4" />
-                <input
-                  id="start-date"
-                  type="date"
-                  value={startDate}
-                  onChange={handleStartDateChange}
-                  min={new Date().toISOString().split('T')[0]}
-                  required
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            <div className="booking-form-group">
-              <label htmlFor="end-date">{t('toolRentals.endDate')}</label>
-              <div className="booking-date-input">
-                <Calendar className="w-4 h-4" />
-                <input
-                  id="end-date"
-                  type="date"
-                  value={endDate}
-                  onChange={handleEndDateChange}
-                  min={startDate || new Date().toISOString().split('T')[0]}
-                  required
-                  disabled={loading}
-                />
-              </div>
+              <label id="booking-calendar-label">{t('toolRentals.calendarTitle')}</label>
+              <ToolRentalCalendar
+                bookedRanges={bookedDates}
+                startDate={startDate}
+                endDate={endDate}
+                onChange={handleCalendarChange}
+                disabled={loading}
+              />
+              <p className="booking-calendar-selection" aria-live="polite">
+                {startDate && endDate
+                  ? t('toolRentals.calendarSelectedRange', {
+                      start: new Date(`${startDate}T12:00:00`).toLocaleDateString(),
+                      end: new Date(`${endDate}T12:00:00`).toLocaleDateString(),
+                    })
+                  : startDate
+                    ? t('toolRentals.calendarPickEnd')
+                    : t('toolRentals.calendarPickStart')}
+              </p>
             </div>
 
             {/* 554: pickup / delivery choice, enforced server-side. */}

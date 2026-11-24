@@ -22,3 +22,24 @@ export function toolRentalDatesOverlap(startDate, endDate, bookedStartDate, book
   return start <= bookedEnd && end >= bookedStart;
 }
 
+// Group 11 item 566: calendar helpers. A single day is booked when it
+// falls inside any booked range (inclusive on both ends, same rule as the
+// server overlap check); a picked range is blocked when any booked day
+// falls inside it. Invalid inputs fail closed (treated as blocked).
+export function isToolRentalDateBooked(date, bookedRanges = []) {
+  const check = parseDateOnly(date);
+  if (!check) return true;
+  return bookedRanges.some((range) => {
+    const start = parseDateOnly(range?.start_date);
+    const end = parseDateOnly(range?.end_date);
+    return Boolean(start && end) && check >= start && check <= end;
+  });
+}
+
+export function toolRentalRangeHasBooked(startDate, endDate, bookedRanges = []) {
+  const start = parseDateOnly(startDate);
+  const end = parseDateOnly(endDate);
+  if (!start || !end || start > end) return true;
+  return bookedRanges.some((range) => toolRentalDatesOverlap(startDate, endDate, range?.start_date, range?.end_date));
+}
+
