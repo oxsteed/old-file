@@ -7,7 +7,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatFoodMoney } from "../../api/food";
-import { getCashierLocations, listCashierTransactions } from "../../restaurantScreens/api";
+import {
+  getCashierLocations,
+  listCashierTransactions,
+  openCashierShift,
+  getCurrentCashierShift,
+  updateCashierShiftLocation,
+} from "../../restaurantScreens/api";
 
 function TransactionRow({ transaction: tx, t }) {
   return (
@@ -35,9 +41,59 @@ export default function CashierPanel({
   onClose,
 }) {
   const { t } = useTranslation("credit");
+  const mountedRef = useRef(true);
   const [locations, setLocations] = useState(null);
   const [defaultLocationId, setDefaultLocationId] = useState(null);
   const [error, setError] = useState(null);
+  // 682: the cashier shift and its derived summary.
+  const [shiftData, setShiftData] = useState(null);
+  const [shiftLoading, setShiftLoading] = useState(true);
+  const [shiftError, setShiftError] = useState(null);
+  const [openingShift, setOpeningShift] = useState(false);
+
+  const loadCurrentShift = async () => {
+    setShiftLoading(true);
+    setShiftError(null);
+    try {
+      setShiftData(await getCurrentCashierShift(restaurantId, device));
+    } catch {
+      if (mountedRef.current) setShiftError("error");
+    } finally {
+      if (mountedRef.current) setShiftLoading(false);
+    }
+  };
+
+  const handlePickLocation = async (next) => {
+    onPickLocation(next);
+    // The pick commits onto the open shift when there is one (682); with
+    // no open shift the pick is remembered and sent when the shift opens.
+    if (shiftData?.shift?.status === "open") {
+      try {
+        const data = await updateCashierShiftLocation(restaurantId, device, next);
+        if (mountedRef.current) setShiftData((prev) => ({ ...prev, shift: data.shift }));
+      } catch {
+        if (mountedRef.current) setShiftError("error");
+      }
+    }
+  };
+
+  const handleOpenShift = async () => {
+    setOpeningShift(true);
+    setShiftError(null);
+    try {
+      const data = await openCashierShift(restaurantId, device, {
+        locationId: pickedLocationId ?? defaultLocationId,
+      });
+      if (mountedRef.current) {
+        setShiftData({ shift: data.shift, summary: null });
+        await loadCurrentShift();
+      }
+    } catch {
+      if (mountedRef.current) setShiftError("error");
+    } finally {
+      if (mountedRef.current) setOpeningShift(false);
+    }
+  };
   // 684: transaction lookup.
   const [query, setQuery] = useState("");
   const [type, setType] = useState("");
@@ -47,7 +103,6 @@ export default function CashierPanel({
   const [resultTotal, setResultTotal] = useState(0);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState(null);
-  const mountedRef = useRef(true);
 
   // 683: the authorized-transaction list loads unfiltered when the panel
   // opens; the 684 lookup filters on top of the same read.
@@ -119,7 +174,17 @@ export default function CashierPanel({
     };
   }, [restaurantId, device]);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    loadCurrentShift();
+    return () => {
+      mountedRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId, device]);
+
   const activeLocationId = pickedLocationId ?? defaultLocationId;
+  const activeLocation = (locations || []).find((location) => location.id === activeLocationId);
 
   return (
     <div className="fd-screen" data-track-private>
@@ -148,7 +213,7 @@ export default function CashierPanel({
                   value={activeLocationId ?? ""}
                   onChange={(event) => {
                     const next = Number(event.target.value);
-                    if (Number.isSafeInteger(next) && next > 0) onPickLocation(next);
+                    if (Number.isSafeInteger(next) && next > 0) handlePickLocation(next);
                   }}
                   disabled={locations.length <= 1}
                   aria-label={t("cashier.locationLabel")}
@@ -162,6 +227,57 @@ export default function CashierPanel({
                 </select>
               </div>
               <p className="fd-cashier-note">{t("cashier.locationHint")}</p>
+            </>
+          )}
+        </section>
+
+        <section className="fd-cashier-section" aria-labelledby="fd-cashier-shift">
+          <h3 id="fd-cashier-shift">{t("cashier.shiftTitle")}</h3>
+          {shiftError && <p role="alert">{t(`cashier.${shiftError}`)}</p>}
+          {shiftLoading && <p>{t("cashier.loading")}</p>}
+          {!shiftLoading && !shiftData?.shift && (
+            <>
+              <p className="fd-cashier-note">{t("cashier.noShift")}</p>
+              <button
+                type="button"
+                className="fd-btn"
+                onClick={handleOpenShift}
+                disabled={openingShift}
+                data-track="ui.e23c624842.18"
+              >
+                {t("cashier.openShift")}
+              </button>
+            </>
+          )}
+          {!shiftLoading && shiftData?.shift && (
+            <>
+              <p>
+                <strong>{t("cashier.shiftOpen")}</strong>
+                {` · ${t("cashier.shiftOpenedAt", { date: new Date(shiftData.shift.openedAt).toLocaleString() })}`}
+                {shiftData.shift.locationId != null && activeLocation
+                  ? ` · ${t("cashier.shiftLocation")}: ${activeLocation.name}`
+                  : ""}
+              </p>
+              {shiftData.summary && (
+                <>
+                  <h3>{t("cashier.summaryTitle")}</h3>
+                  <p>{t("cashier.transactionCount", { count: shiftData.summary.transactionCount })}</p>
+                  <p>{t("cashier.redemptionTotal", { count: shiftData.summary.redemptionCount, amount: formatFoodMoney(shiftData.summary.redemptionCents, shiftData.summary.currencyCode) })}</p>
+                  <p>{t("cashier.cashOutTotal", { count: shiftData.summary.cashOutCount, amount: formatFoodMoney(shiftData.summary.cashOutCents, shiftData.summary.currencyCode) })}</p>
+                  <p>{t("cashier.refundTotal", { count: shiftData.summary.refundCount, amount: formatFoodMoney(shiftData.summary.refundCents, shiftData.summary.currencyCode) })}</p>
+                </>
+              )}
+              <div className="fd-cashier-row">
+                <button
+                  type="button"
+                  className="fd-btn fd-btn-secondary"
+                  onClick={loadCurrentShift}
+                  disabled={shiftLoading}
+                  data-track="ui.e23c624842.19"
+                >
+                  {t("cashier.refresh")}
+                </button>
+              </div>
             </>
           )}
         </section>

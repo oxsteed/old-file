@@ -67,6 +67,38 @@ router.get(
   cashierController.getTransaction,
 );
 
+// 682: the cashier shift — open (idempotent), current shift + derived
+// summary, one shift by id, and the working-location commit for the 681
+// picker. Registered before the :shiftId routes so 'current' is literal.
+router.post(
+  '/cashier/shifts',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  cashierController.openShift,
+);
+router.get(
+  '/cashier/shifts/current',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  cashierController.getCurrentShift,
+);
+router.get(
+  '/cashier/shifts/:shiftId',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  cashierController.getShift,
+);
+router.patch(
+  '/cashier/shifts/current/location',
+  noStoreCreditResponse,
+  cashierController.authenticateCashierKiosk,
+  kioskDeviceLimiter,
+  cashierController.updateCurrentShiftLocation,
+);
+
 router.use(noStoreCreditResponse, cardController.authenticateCreditKiosk);
 
 // Redeem an OxSteed Credit card at this restaurant's POS/kiosk (spend).

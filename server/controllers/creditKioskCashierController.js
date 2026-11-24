@@ -81,7 +81,7 @@ async function listTransactions(req, res, next) {
       kind: req.query.type || null,
       amountCents: req.query.amountCents ?? null,
       date: req.query.date || null,
-      limit: req.query.limit ?? null,
+      limit: req.query.limit == null ? 50 : req.query.limit,
       offset: req.query.offset ?? null,
     });
     res.json(result);
@@ -103,4 +103,62 @@ async function getTransaction(req, res, next) {
   }
 }
 
-module.exports = { authenticateCashierKiosk, getLocations, listTransactions, getTransaction };
+// 682: open the device's cashier shift (idempotent), read the current
+// shift with its derived summary, or move the open shift's working
+// location (the 681 picker's server commit).
+async function openShift(req, res, next) {
+  try {
+    const result = await cashier.openShift(pool, {
+      device: req.cashierKioskDevice,
+      locationId: req.body?.locationId ?? req.body?.location_id ?? null,
+    });
+    res.status(result.alreadyOpen ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getCurrentShift(req, res, next) {
+  try {
+    const shift = await cashier.getOpenShift(pool, req.cashierKioskDevice.id);
+    if (!shift) return res.json({ shift: null, summary: null });
+    const summary = await cashier.getShiftSummary(pool, {
+      deviceId: req.cashierKioskDevice.id, shift,
+    });
+    return res.json({ shift, summary });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getShift(req, res, next) {
+  try {
+    const shiftId = parseUuid(req.params.shiftId, 'shiftId');
+    const shift = await cashier.getShiftForDevice(pool, {
+      deviceId: req.cashierKioskDevice.id, shiftId,
+    });
+    const summary = await cashier.getShiftSummary(pool, {
+      deviceId: req.cashierKioskDevice.id, shift,
+    });
+    res.json({ shift, summary });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function updateCurrentShiftLocation(req, res, next) {
+  try {
+    const shift = await cashier.updateOpenShiftLocation(pool, {
+      device: req.cashierKioskDevice,
+      locationId: req.body?.locationId ?? req.body?.location_id,
+    });
+    res.json({ shift });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = {
+  authenticateCashierKiosk, getLocations, listTransactions, getTransaction,
+  openShift, getCurrentShift, getShift, updateCurrentShiftLocation,
+};

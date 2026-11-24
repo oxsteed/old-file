@@ -165,3 +165,22 @@ export const getCashierTransaction = (id, device, transactionId) =>
   api.get(`${cashierBase(id, device)}/transactions/${encodeURIComponent(transactionId)}`,
     { ...deviceOptions(device), skipSessionRefresh: true },
   ).then((r) => r.data.transaction);
+
+// 682: the cashier shift — open (idempotent), current shift + summary,
+// one shift by id, and the working-location commit for the 681 picker.
+export const openCashierShift = (id, device, payload) =>
+  api.post(`${cashierBase(id, device)}/shifts`, payload || {},
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const getCurrentCashierShift = (id, device) =>
+  api.get(`${cashierBase(id, device)}/shifts/current`,
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const getCashierShift = (id, device, shiftId) =>
+  api.get(`${cashierBase(id, device)}/shifts/${encodeURIComponent(shiftId)}`,
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const updateCashierShiftLocation = (id, device, locationId) =>
+  api.patch(`${cashierBase(id, device)}/shifts/current/location`, { locationId },
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);

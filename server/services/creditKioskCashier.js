@@ -144,7 +144,9 @@ async function listKioskTransactions(client, {
     params.push(closedAt);
     conditions.push(`t.created_at <= $${params.length}::timestamptz`);
   }
-  const parsedLimit = Math.min(100, Math.max(1, Number.parseInt(String(limit), 10) || 50));
+  const parsedLimit = limit == null
+    ? null
+    : Math.min(100, Math.max(1, Number.parseInt(String(limit), 10) || 50));
   const parsedOffset = Math.max(0, Number.parseInt(String(offset), 10) || 0);
   const where = `WHERE ${conditions.join(' AND ')}`;
   const joins = `FROM oxsteed_credit_transactions t
@@ -156,6 +158,15 @@ async function listKioskTransactions(client, {
     `SELECT COUNT(*)::int AS count ${joins} ${where}`,
     params,
   );
+  const pageParams = [...params];
+  let pageClause = '';
+  if (parsedLimit != null) {
+    pageParams.push(parsedLimit, parsedOffset);
+    pageClause = `LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`;
+  } else if (parsedOffset > 0) {
+    pageParams.push(parsedOffset);
+    pageClause = `OFFSET $${pageParams.length}`;
+  }
   const { rows } = await client.query(
     `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
             t.reference_type, t.metadata, t.created_at,
@@ -163,8 +174,8 @@ async function listKioskTransactions(client, {
             c.credential_last4 AS card_last4
        ${joins} ${where}
       ORDER BY t.created_at DESC, t.id DESC
-      LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-    [...params, parsedLimit, parsedOffset],
+      ${pageClause}`,
+    pageParams,
   );
   return {
     transactions: rows.map(formatKioskTransaction),
@@ -194,7 +205,159 @@ async function getKioskTransaction(client, { deviceId, transactionId }) {
   return formatKioskTransaction(rows[0]);
 }
 
+// ---------------------------------------------------------------------------
+// 682: the cashier shift. One open shift per device; the summary is derived
+// from the device's authorized transactions in the shift window, never
+// stored — so it can never disagree with the ledger.
+// ---------------------------------------------------------------------------
+
+function formatShift(row) {
+  return {
+    id: row.id,
+    deviceId: Number(row.device_id),
+    restaurantId: Number(row.restaurant_id),
+    locationId: row.location_id == null ? null : Number(row.location_id),
+    status: row.status,
+    openedAt: row.opened_at,
+    closedAt: row.closed_at,
+    closeout: row.closeout || null,
+  };
+}
+
+// Open the device's shift, or return the open one (idempotent). The working
+// location defaults to the paired location and is validated against the
+// authorized set when supplied.
+async function openShift(client, { device, locationId = null }) {
+  let location = null;
+  if (locationId != null) {
+    location = await assertAuthorizedLocation(client, device, locationId);
+  } else {
+    const locations = await getAuthorizedLocations(client, device);
+    const fallback = defaultLocationId(device, locations);
+    location = locations.find((entry) => entry.id === fallback) || null;
+  }
+  const { rows: [existing] } = await client.query(
+    `SELECT * FROM oxsteed_credit_kiosk_shifts
+      WHERE device_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1`,
+    [device.id],
+  );
+  if (existing) return { shift: formatShift(existing), alreadyOpen: true };
+  const { rows: [row] } = await client.query(
+    `INSERT INTO oxsteed_credit_kiosk_shifts (device_id, restaurant_id, location_id)
+     VALUES ($1, $2, $3) RETURNING *`,
+    [device.id, Number(device.restaurant_id), location ? location.id : null],
+  );
+  return { shift: formatShift(row), alreadyOpen: false };
+}
+
+async function getOpenShift(client, deviceId) {
+  const { rows: [row] } = await client.query(
+    `SELECT * FROM oxsteed_credit_kiosk_shifts
+      WHERE device_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1`,
+    [deviceId],
+  );
+  return row ? formatShift(row) : null;
+}
+
+async function getShiftForDevice(client, { deviceId, shiftId }) {
+  const { rows: [row] } = await client.query(
+    `SELECT * FROM oxsteed_credit_kiosk_shifts WHERE id = $1 AND device_id = $2`,
+    [shiftId, deviceId],
+  );
+  if (!row) throw new AppError('Shift not found', 404, 'credit_kiosk_shift_not_found');
+  return formatShift(row);
+}
+
+// The picker commits the working location onto the open shift (681/682).
+// A location outside the device's scope is refused, same as at open.
+async function updateOpenShiftLocation(client, { device, locationId }) {
+  const location = await assertAuthorizedLocation(client, device, locationId);
+  const shift = await getOpenShift(client, device.id);
+  if (!shift) throw new AppError('No open shift', 404, 'credit_kiosk_shift_not_found');
+  const { rows: [row] } = await client.query(
+    `UPDATE oxsteed_credit_kiosk_shifts
+        SET location_id = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
+    [shift.id, location.id],
+  );
+  return formatShift(row);
+}
+
+// The shift summary from a SQL aggregate over the same scope predicate the
+// list uses — never from the paginated list, so a long shift cannot
+// truncate it (682, D-388).
+async function aggregateKioskTransactions(client, { deviceId, openedAt, closedAt = null }) {
+  const params = [String(deviceId), openedAt];
+  const conditions = [
+    `t.metadata ->> 'kioskDeviceId' = $1`,
+    `t.created_at >= $2::timestamptz`,
+  ];
+  if (closedAt) {
+    params.push(closedAt);
+    conditions.push(`t.created_at <= $${params.length}::timestamptz`);
+  }
+  const { rows } = await client.query(
+    `SELECT t.transaction_type, t.status, t.currency_code,
+            COUNT(*)::int AS count, COALESCE(SUM(t.amount_cents), 0)::int AS amount_cents
+       FROM oxsteed_credit_transactions t
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY t.transaction_type, t.status, t.currency_code`,
+    params,
+  );
+  return rows;
+}
+
+function summarizeFromAggregate(aggRows) {
+  const byKind = {};
+  let transactionCount = 0;
+  let postedCount = 0;
+  for (const row of aggRows) {
+    const kind = KIOSK_TRANSACTION_KINDS[row.transaction_type] || row.transaction_type;
+    transactionCount += Number(row.count);
+    if (row.status === 'posted') postedCount += Number(row.count);
+    const entry = byKind[kind] || { count: 0, amountCents: 0, currencyCode: row.currency_code, byCurrency: {} };
+    // Posted rows alone carry the shift totals; a non-posted row is counted
+    // in transactionCount but never in a total.
+    if (row.status === 'posted') {
+      entry.count += Number(row.count);
+      entry.amountCents += Number(row.amount_cents);
+      entry.byCurrency[row.currency_code] = (entry.byCurrency[row.currency_code] || 0) + Number(row.amount_cents);
+    }
+    byKind[kind] = entry;
+  }
+  const redemption = byKind.redemption || { count: 0, amountCents: 0, currencyCode: 'USD', byCurrency: {} };
+  const cashOut = byKind.cash_out || { count: 0, amountCents: 0, currencyCode: 'USD', byCurrency: {} };
+  const refund = byKind.refund || { count: 0, amountCents: 0, currencyCode: 'USD', byCurrency: {} };
+  return {
+    transactionCount,
+    postedCount,
+    nonPostedCount: transactionCount - postedCount,
+    redemptionCount: redemption.count,
+    redemptionCents: redemption.amountCents,
+    cashOutCount: cashOut.count,
+    cashOutCents: cashOut.amountCents,
+    refundCount: refund.count,
+    refundCents: refund.amountCents,
+    currencyCode: redemption.currencyCode || cashOut.currencyCode || 'USD',
+    byKind,
+  };
+}
+
+async function getShiftSummary(client, { deviceId, shift }) {
+  const agg = await aggregateKioskTransactions(client, {
+    deviceId, openedAt: shift.openedAt, closedAt: shift.closedAt || null,
+  });
+  return {
+    ...summarizeFromAggregate(agg),
+    openedAt: shift.openedAt,
+    closedAt: shift.closedAt || null,
+    locationId: shift.locationId,
+  };
+}
+
 module.exports = {
   getAuthorizedLocations, assertAuthorizedLocation, defaultLocationId,
   listKioskTransactions, getKioskTransaction,
+  formatShift, openShift, getOpenShift, getShiftForDevice,
+  updateOpenShiftLocation, summarizeFromAggregate, aggregateKioskTransactions,
+  getShiftSummary,
 };

@@ -320,6 +320,14 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
   const cashierGet = (device, token, path) => request(app)
     .get(`/api/restaurants/${restaurantId}/credit-kiosks/${device.id}${path}`)
     .set('X-Device-Token', token);
+  const cashierPost = (device, token, path, body) => request(app)
+    .post(`/api/restaurants/${restaurantId}/credit-kiosks/${device.id}${path}`)
+    .set('X-Device-Token', token)
+    .send(body || {});
+  const cashierPatch = (device, token, path, body) => request(app)
+    .patch(`/api/restaurants/${restaurantId}/credit-kiosks/${device.id}${path}`)
+    .set('X-Device-Token', token)
+    .send(body || {});
 
   test('681: a location-bound terminal sees only its paired location, as the default', async () => {
     const res = await cashierGet(kioskDevice, kioskToken, '/cashier/locations');
@@ -483,5 +491,98 @@ describeDb('Group 13 Slice 4g: operate as cashier (681-685)', () => {
     const rest = await cashierGet(kioskDevice, kioskToken, '/cashier/transactions?limit=2&offset=2');
     expect(rest.body.transactions.map((tx) => tx.id)).toEqual([redemptionTxId, yesterdayTxId]);
     expect(rest.body.total).toBe(4);
+  });
+
+  test('682: no open shift reads as empty, not an error', async () => {
+    const res = await cashierGet(otherDevice, otherToken, '/cashier/shifts/current');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ shift: null, summary: null });
+  });
+
+  test('682: opening a shift defaults to the paired location and is idempotent', async () => {
+    const opened = await cashierPost(kioskDevice, kioskToken, '/cashier/shifts', {});
+    expect(opened.status).toBe(201);
+    expect(opened.body.alreadyOpen).toBe(false);
+    expect(opened.body.shift).toMatchObject({
+      deviceId: Number(kioskDevice.id), restaurantId: Number(restaurantId), locationId: locPrimary, status: 'open',
+    });
+    expect(opened.body.shift.closedAt).toBeNull();
+    const again = await cashierPost(kioskDevice, kioskToken, '/cashier/shifts', {});
+    expect(again.status).toBe(200);
+    expect(again.body.alreadyOpen).toBe(true);
+    expect(again.body.shift.id).toBe(opened.body.shift.id);
+    const { rows: [{ count }] } = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM oxsteed_credit_kiosk_shifts WHERE device_id = $1 AND status = 'open'`,
+      [kioskDevice.id],
+    );
+    expect(count).toBe(1);
+  });
+
+  test('682: opening with a location outside the device scope is refused', async () => {
+    const res = await cashierPost(kioskDevice, kioskToken, '/cashier/shifts', { locationId: locSecond });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('location_scope_forbidden');
+    const ok = await cashierPost(kioskDevice, kioskToken, '/cashier/shifts', { locationId: locPrimary });
+    expect(ok.status).toBe(200);
+    expect(ok.body.shift.locationId).toBe(locPrimary);
+  });
+
+  test('682: the summary derives from the shift window (aggregate, not the paginated list)', async () => {
+    const current = await cashierGet(kioskDevice, kioskToken, '/cashier/shifts/current');
+    const shiftId = current.body.shift.id;
+    await pool.query(
+      `UPDATE oxsteed_credit_kiosk_shifts SET opened_at = NOW() - INTERVAL '2 days' WHERE id = $1`,
+      [shiftId],
+    );
+    const res = await cashierGet(kioskDevice, kioskToken, '/cashier/shifts/current');
+    expect(res.status).toBe(200);
+    expect(res.body.summary).toMatchObject({
+      transactionCount: 4, postedCount: 4, nonPostedCount: 0,
+      redemptionCount: 3, redemptionCents: 4800,
+      cashOutCount: 1, cashOutCents: 1000,
+      refundCount: 0, refundCents: 0, currencyCode: 'USD',
+    });
+    // A transaction that lands after the shift opened joins the summary.
+    await seedLedgerTx({
+      type: 'purchase', status: 'posted', amountCents: 700,
+      debitAccountId: walletId, creditAccountId: partnerPayableId,
+      referenceType: 'credit_kiosk_redemption', referenceId: String(kioskDevice.id),
+      metadata: { kioskDeviceId: String(kioskDevice.id), cardId, cardLast4: '4242' },
+    });
+    const after = await cashierGet(kioskDevice, kioskToken, '/cashier/shifts/current');
+    expect(after.body.summary).toMatchObject({
+      transactionCount: 5, redemptionCount: 4, redemptionCents: 5500,
+    });
+    // The same shift reads back by id with the same summary.
+    const byId = await cashierGet(kioskDevice, kioskToken, `/cashier/shifts/${shiftId}`);
+    expect(byId.status).toBe(200);
+    expect(byId.body.shift.id).toBe(shiftId);
+    expect(byId.body.summary.transactionCount).toBe(5);
+  });
+
+  test('682: another device\'s shift summary never includes this device\'s transactions', async () => {
+    const opened = await cashierPost(otherDevice, otherToken, '/cashier/shifts', {});
+    expect(opened.status).toBe(201);
+    await pool.query(
+      `UPDATE oxsteed_credit_kiosk_shifts SET opened_at = NOW() - INTERVAL '2 days' WHERE id = $1`,
+      [opened.body.shift.id],
+    );
+    const res = await cashierGet(otherDevice, otherToken, '/cashier/shifts/current');
+    expect(res.body.summary).toMatchObject({
+      transactionCount: 1, redemptionCount: 1, redemptionCents: 9900, cashOutCount: 0,
+    });
+  });
+
+  test('682: the working location moves only within scope, and only with an open shift', async () => {
+    const refused = await cashierPatch(kioskDevice, kioskToken, '/cashier/shifts/current/location', { locationId: locSecond });
+    expect(refused.status).toBe(403);
+    expect(refused.body.code).toBe('location_scope_forbidden');
+    const ok = await cashierPatch(kioskDevice, kioskToken, '/cashier/shifts/current/location', { locationId: locPrimary });
+    expect(ok.status).toBe(200);
+    expect(ok.body.shift.locationId).toBe(locPrimary);
+    // The display kiosk has no open shift: moving its location is 404.
+    const none = await cashierPatch(displayKiosk, displayToken, '/cashier/shifts/current/location', { locationId: locPrimary });
+    expect(none.status).toBe(404);
+    expect(none.body.code).toBe('credit_kiosk_shift_not_found');
   });
 });
