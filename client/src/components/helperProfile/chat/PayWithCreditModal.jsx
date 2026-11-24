@@ -42,7 +42,15 @@ export default function PayWithCreditModal({
     let cancelled = false;
     setLoadingHint(true);
     api
-      .get('/chat/payments/credit-hint', { params: { conversationId, businessId: payeeBusinessId || undefined } })
+      .get('/chat/payments/credit-hint', {
+        params: {
+          conversationId,
+          businessId: payeeBusinessId || undefined,
+          // Group 13, item 667 (D-365): the hint also returns the remainder
+          // (order total minus Credit applied) for this amount.
+          amountCents: Number.isSafeInteger(amountCents) && amountCents > 0 ? amountCents : undefined,
+        },
+      })
       .then(({ data }) => {
         if (!cancelled) setHint(data);
       })
@@ -55,7 +63,7 @@ export default function PayWithCreditModal({
     return () => {
       cancelled = true;
     };
-  }, [open, isAuthenticated, conversationId, payeeBusinessId]);
+  }, [open, isAuthenticated, conversationId, payeeBusinessId, amountCents]);
 
   if (!open) return null;
 
@@ -141,6 +149,22 @@ export default function PayWithCreditModal({
           <p className="artifact-meta">
             {t('helperProfile.messenger.creditPayBalanceHint', { balance: balanceLabel })}
           </p>
+        ) : null}
+        {/* Group 13, item 667 (D-365/D-366): remainder before confirming —
+            order total minus Credit applied, with what it means. */}
+        {Number.isSafeInteger(hint?.remainderCents) && Number.isSafeInteger(hint?.creditAppliedCents) ? (
+          <p className="artifact-meta">
+            {hint.remainderCents === 0
+              ? t('helperProfile.messenger.creditPayRemainderCovered')
+              : t('helperProfile.messenger.creditPayRemainder', {
+                  credit: formatCreditBalanceHint(hint.creditAppliedCents, locale, hint.currency || currency),
+                  total: formatCreditBalanceHint(amountCents, locale, currency),
+                  remainder: formatCreditBalanceHint(hint.remainderCents, locale, hint.currency || currency),
+                })}
+          </p>
+        ) : null}
+        {Number.isSafeInteger(hint?.remainderCents) && hint.remainderCents > 0 ? (
+          <p className="artifact-meta">{t('helperProfile.messenger.creditPayRemainderShortfall')}</p>
         ) : null}
         {hint && hint.partnerEligible === false ? (
           <p className="artifact-error" role="alert">

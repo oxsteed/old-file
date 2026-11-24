@@ -954,6 +954,8 @@
   "holdIdCopied": "ID rezèv la kopye.",
   "holdIdCopyError": "Nou pa ka kopye ID rezèv la.",
   "authorizationReleased": "Otorizasyon lage.",
+  "checkoutRemainderCovered": "Credit kouvri {{total}}. Anyen pa rete pou peye apre Credit.",
+  "checkoutRemainderShortfall": "Se {{available}} ki disponib. {{remainder}} ta toujou rete pou peye apre Credit, kidonk Credit pou kont li pa ka peye lòd sa a.",
   "disputeSubmitted": "Nou voye kontestasyon ou pou revizyon.",
   "dailyLimit": "Limit chak jou {{amount}}",
   "lifetimeLimit": "Limit total {{amount}}",

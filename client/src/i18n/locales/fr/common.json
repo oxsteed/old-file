@@ -1319,6 +1319,8 @@
   },
   "screens": {
     "creditPay": "Payer avec OxSteed Credit",
+    "creditRemainder": "Credit couvre {{credit}} · Reste dû {{remainder}}",
+    "creditRemainderCovered": "Credit couvre la commande entière. Rien ne reste dû.",
     "creditScanCard": "Scannez votre carte Credit",
     "creditPin": "Code PIN de la carte",
     "creditReceipt": "Reçu Credit",

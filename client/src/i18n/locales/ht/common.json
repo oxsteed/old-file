@@ -1319,6 +1319,8 @@
   },
   "screens": {
     "creditPay": "Peye ak OxSteed Credit",
+    "creditRemainder": "Credit kouvri {{credit}} · Rès pou peye {{remainder}}",
+    "creditRemainderCovered": "Credit kouvri lòd la nèt. Anyen pa rete pou peye.",
     "creditScanCard": "Eskane kat Credit ou",
     "creditPin": "Kòd PIN kat la",
     "creditReceipt": "Resi Credit",

@@ -953,6 +953,8 @@
   "holdIdCopied": "تم نسخ معرّف الحجز.",
   "holdIdCopyError": "تعذر نسخ معرّف الحجز.",
   "authorizationReleased": "تم تحرير التفويض.",
+  "checkoutRemainderCovered": "يغطي Credit مبلغ {{total}}. لا يتبقى أي مبلغ مستحق بعد Credit.",
+  "checkoutRemainderShortfall": "المتاح {{available}} فقط. سيظل مبلغ {{remainder}} مستحقًا بعد Credit، لذا لا يمكن لـ Credit وحده دفع هذا الطلب.",
   "disputeSubmitted": "تم إرسال اعتراضك للمراجعة.",
   "dailyLimit": "الحد اليومي {{amount}}",
   "lifetimeLimit": "الحد الإجمالي {{amount}}",

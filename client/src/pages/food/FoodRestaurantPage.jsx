@@ -227,6 +227,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation();
+  const { t: tCredit } = useTranslation('credit');
   const { user } = useAuth();
 
   // Data
@@ -1667,6 +1668,12 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       ?? Math.max(0, oxsteedCreditBalanceCents - oxsteedCreditReservedCents)
   );
   const oxsteedCreditCoversOrder = oxsteedCreditAvailableCents >= displayTotalCents;
+  // Group 13, item 667 (D-365): remainder (order total minus Credit
+  // applied) — the server value from eligibility when present, else the
+  // same derivation from the account the page already holds.
+  const oxsteedCreditRemainderCents = Number.isSafeInteger(oxsteedCreditEligibility?.remainderCents)
+    ? Number(oxsteedCreditEligibility.remainderCents)
+    : Math.max(0, displayTotalCents - oxsteedCreditAvailableCents);
   const oxsteedCreditMaxTransactionCents = oxsteedCreditPartner?.maxTransactionCents == null
     ? null
     : Number(oxsteedCreditPartner.maxTransactionCents);
@@ -1679,7 +1686,10 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       : oxsteedCreditExceedsTransactionLimit
     ? `Restaurant limit ${formatFoodMoney(oxsteedCreditMaxTransactionCents, oxsteedCreditAccount?.currencyCode || currency)}`
     : !oxsteedCreditCoversOrder
-      ? `Insufficient credit · ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount?.currencyCode || currency)}`
+      ? tCredit('checkoutRemainderShortfall', {
+          available: formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount?.currencyCode || currency),
+          remainder: formatFoodMoney(oxsteedCreditRemainderCents, oxsteedCreditAccount?.currencyCode || currency),
+        })
       : null;
   useEffect(() => {
     if (paymentMethod === 'oxsteed_credit' && oxsteedCreditPaymentIssue) {
@@ -2152,7 +2162,8 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       icon: '◎',
       label: 'OxSteed Credit',
       sub: oxsteedCreditPaymentIssue
-        || `Available ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount.currencyCode || currency)}`,
+        // Group 13, item 667 (D-365/D-366): remainder before confirming.
+        || `Available ${formatFoodMoney(oxsteedCreditAvailableCents, oxsteedCreditAccount.currencyCode || currency)} · ${tCredit('checkoutRemainderCovered', { total: formatFoodMoney(displayTotalCents, oxsteedCreditAccount.currencyCode || currency) })}`,
       disabled: Boolean(oxsteedCreditPaymentIssue),
     }] : []),
     // Guest Credit (locked decision #1): platform-funded, capped at $25/order.

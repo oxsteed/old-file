@@ -48,6 +48,7 @@ const {
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 const { notifyRefundIssued } = require('../services/refundNotification');
+const { creditRemainder } = require('../utils/creditRemainder');
 
 function bad(res, status, error, code, extra = {}) {
   return res.status(status).json({ error, code: code || 'error', ...extra });
@@ -971,15 +972,27 @@ exports.getCreditPayHint = async (req, res, next) => {
       account = null;
     }
 
+    // Group 13, item 667 (D-365): when the modal knows the amount, the
+    // hint also carries the remainder (order total minus Credit applied),
+    // so the amount is shown with what is still due before confirming.
+    // An unknown or invalid amount simply omits the fields.
+    const requestedAmount = Number(req.query.amountCents || req.query.amount_cents);
+    const balanceCents = account?.availableBalanceCents ?? account?.balanceCents ?? null;
+    const remainder = Number.isSafeInteger(requestedAmount) && requestedAmount > 0
+      && Number.isSafeInteger(balanceCents)
+      ? creditRemainder({ totalCents: requestedAmount, availableCents: balanceCents })
+      : null;
+
     return res.json({
       canPay: Boolean(partnerEligible && isCustomerOnConversation(userId, conv)),
       isCustomer: isCustomerOnConversation(userId, conv),
       partnerEligible,
       partnerError,
       partnerCode,
-      balanceCents: account?.availableBalanceCents ?? account?.balanceCents ?? null,
+      balanceCents,
       currency: account?.currencyCode || creditService.CREDIT_CURRENCY || 'USD',
       method: CREDIT_PAY_METHOD,
+      ...(remainder ? { creditAppliedCents: remainder.creditAppliedCents, remainderCents: remainder.remainderCents } : {}),
     });
   } catch (err) {
     next(err);

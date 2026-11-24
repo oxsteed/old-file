@@ -738,6 +738,12 @@ export default function FoodKioskPage({ managed = null, preview = false }) {
                 <label htmlFor="fd-kiosk-credit-pin">{f("creditPin")}</label>
                 <input id="fd-kiosk-credit-pin" name="pin" type="password" inputMode="numeric"
                   pattern="[0-9]{4,8}" maxLength={8} required autoComplete="off" />
+                {/* Group 13, item 667 (D-365): remainder before confirming.
+                    Credit pays the full quoted total or declines, so the
+                    planned remainder is $0.00; the kiosk has no balance read
+                    to compute a shortfall remainder. */}
+                <p className="fd-kiosk-remainder">{f("creditRemainder", { credit: formatFoodMoney(quoted.totalCents, currency), remainder: formatFoodMoney(0, currency) })}</p>
+                <p className="fd-pay-note">{f("creditRemainderCovered")}</p>
                 <button className="fd-btn" type="submit" disabled={placing || orderingPaused}>
                   {f("creditPay")}
                 </button>

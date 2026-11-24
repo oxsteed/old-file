@@ -953,6 +953,8 @@
   "holdIdCopied": "Hold ID copied.",
   "holdIdCopyError": "Unable to copy the hold ID.",
   "authorizationReleased": "Authorization released.",
+  "checkoutRemainderCovered": "Credit covers {{total}}. Nothing remains due after Credit.",
+  "checkoutRemainderShortfall": "Only {{available}} available. {{remainder}} would still be due after Credit, so Credit alone cannot pay this order.",
   "disputeSubmitted": "Your dispute was submitted for review.",
   "dailyLimit": "Daily limit {{amount}}",
   "lifetimeLimit": "Lifetime limit {{amount}}",

@@ -953,6 +953,8 @@
   "holdIdCopied": "ID de reserva copiado.",
   "holdIdCopyError": "No se puede copiar el ID de reserva.",
   "authorizationReleased": "Autorización liberada.",
+  "checkoutRemainderCovered": "Credit cubre {{total}}. No queda nada por pagar después de Credit.",
+  "checkoutRemainderShortfall": "Solo {{available}} disponibles. {{remainder}} seguirían debiéndose después de Credit, así que Credit por sí solo no puede pagar este pedido.",
   "disputeSubmitted": "Tu disputa se envió para revisión.",
   "dailyLimit": "Límite diario {{amount}}",
   "lifetimeLimit": "Límite total {{amount}}",

@@ -954,6 +954,8 @@
   "holdIdCopied": "ID de réservation copié.",
   "holdIdCopyError": "Impossible de copier l'ID de réservation.",
   "authorizationReleased": "Autorisation libérée.",
+  "checkoutRemainderCovered": "Credit couvre {{total}}. Rien ne reste dû après Credit.",
+  "checkoutRemainderShortfall": "Seulement {{available}} disponibles. {{remainder}} resteraient dus après Credit, donc Credit seul ne peut pas payer cette commande.",
   "disputeSubmitted": "Votre litige a été envoyé pour examen.",
   "dailyLimit": "Limite quotidienne {{amount}}",
   "lifetimeLimit": "Limite totale {{amount}}",

@@ -215,6 +215,8 @@ html.dark .fd-tag { color: #fdba74; }
   font-size: 0.92rem;
 }
 .fd-total-row { display: flex; justify-content: space-between; font-weight: 800; padding-top: 0.7rem; }
+/* Group 13, item 667: Credit remainder line on the kiosk review step. */
+.fd-kiosk-remainder { margin: 0.9rem 0 0; font-size: 0.95rem; font-weight: 800; color: var(--app-text); }
 .fd-pay-note {
   margin-top: 0.8rem; padding: 0.7rem 0.9rem; border-radius: 10px;
   background: rgba(249, 115, 22, 0.1); color: #c2410c;

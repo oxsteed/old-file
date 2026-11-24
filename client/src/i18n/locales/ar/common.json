@@ -1319,6 +1319,8 @@
   },
   "screens": {
     "creditPay": "الدفع باستخدام OxSteed Credit",
+    "creditRemainder": "يغطي Credit مبلغ {{credit}} · المتبقي المستحق {{remainder}}",
+    "creditRemainderCovered": "يغطي Credit الطلب بالكامل. لا يتبقى أي مبلغ مستحق.",
     "creditScanCard": "امسح بطاقة Credit الخاصة بك",
     "creditPin": "الرقم السري للبطاقة",
     "creditReceipt": "إيصال Credit",

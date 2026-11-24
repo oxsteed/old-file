@@ -1319,6 +1319,8 @@
   },
   "screens": {
     "creditPay": "Pay with OxSteed Credit",
+    "creditRemainder": "Credit covers {{credit}} · Remainder due {{remainder}}",
+    "creditRemainderCovered": "Credit covers the full order. Nothing remains due.",
     "creditScanCard": "Scan your Credit card",
     "creditPin": "Card PIN",
     "creditReceipt": "Credit receipt",

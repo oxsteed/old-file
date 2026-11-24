@@ -13,6 +13,7 @@ const {
 // data says so, per country) instead of one raw minor-unit number applied
 // to every currency. USD with no data rule keeps the historical env value.
 const { resolveLimitMinor } = require('./creditCompliance/limitRules');
+const { creditRemainder } = require('../utils/creditRemainder');
 
 const CREDIT_CURRENCY = 'USD';
 // Credit amounts are stored as integer minor units. Keep this map explicit:
@@ -1766,7 +1767,10 @@ async function getCustomerCreditEligibility({ customerId, restaurantId, currency
   if (!Number.isSafeInteger(normalizedRestaurantId) || normalizedRestaurantId <= 0) {
     throw new AppError('Invalid restaurantId', 400, 'invalid_restaurantId');
   }
-  const normalizedAmount = amountCents === undefined || amountCents === null || String(amountCents).trim() === ''
+  // Group 13, item 667 (D-365): a missing amount is "no amount", not a
+  // zero-cent amount — parseAmountCents rejects zero, so treat 0 as
+  // absent here and let the remainder fields stay omitted.
+  const normalizedAmount = amountCents === undefined || amountCents === null || String(amountCents).trim() === '' || Number(amountCents) === 0
     ? 0
     : parseAmountCents(amountCents, 'amountCents', currencyCode);
   const normalizedCategories = Array.isArray(categories)
@@ -1810,6 +1814,24 @@ async function getCustomerCreditEligibility({ customerId, restaurantId, currency
       if (settlementCurrency !== currency) {
         throw new AppError('The partner settlement currency does not match the customer Credit account', 409, 'credit_partner_currency_mismatch');
       }
+      // Group 13, item 667 (D-365): the checkout remainder (order total
+      // minus Credit applied) rides the eligible response, from a read-only
+      // wallet SELECT — the read never creates an account.
+      let remainder = null;
+      if (normalizedAmount > 0) {
+        const { rows: accountRows } = await client.query(
+          `SELECT balance_cents, reserved_cents FROM oxsteed_credit_accounts
+            WHERE account_type = 'customer_wallet' AND customer_id = $1 AND currency_code = $2
+            LIMIT 1`,
+          [customerId, settlementCurrency]
+        );
+        if (accountRows[0]) {
+          remainder = creditRemainder({
+            totalCents: normalizedAmount,
+            availableCents: Number(accountRows[0].balance_cents || 0) - Number(accountRows[0].reserved_cents || 0),
+          });
+        }
+      }
       return {
         eligible: true,
         reasonCode: null,
@@ -1817,6 +1839,7 @@ async function getCustomerCreditEligibility({ customerId, restaurantId, currency
         partnerId: String(partner.partner_id),
         agreementId: String(agreement.id),
         currencyCode: settlementCurrency,
+        ...(remainder ? { creditAppliedCents: remainder.creditAppliedCents, remainderCents: remainder.remainderCents } : {}),
       };
     } catch (error) {
       if (error instanceof AppError && CREDIT_ELIGIBILITY_FAILURE_CODES.has(error.code)) {
