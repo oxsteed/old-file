@@ -103,6 +103,40 @@ function formatParticipant(row) {
   };
 }
 
+// Group 13 (655, D-359): the activation checklist is a read-only
+// presentation of the three existing activation gates — application
+// status, Didit verified, maker-checker approval. It adds no new state
+// machine and no new gate; activation itself stays the maker-checker
+// flow. States: done = the gate is satisfied; pending = the gate is open
+// and can proceed; blocked = the gate cannot proceed until something
+// else changes. `approvalRequested` is true when a maker has filed a
+// `credit_participant_activation` pending action and the record is
+// awaiting its checker.
+function buildActivationChecklist(participant, { approvalRequested = false } = {}) {
+  const status = participant?.status || 'pending';
+  const diditVerified = participant?.diditVerified === true;
+  const closed = status === 'suspended' || status === 'revoked';
+  const application = { id: 'application', state: 'done', detail: 'submitted' };
+  const identity = closed
+    ? { id: 'identity', state: 'blocked', detail: 'closed' }
+    : diditVerified
+      ? { id: 'identity', state: 'done', detail: 'verified' }
+      : { id: 'identity', state: 'pending', detail: 'awaiting_verification' };
+  let approval;
+  if (status === 'active') {
+    approval = { id: 'approval', state: 'done', detail: 'approved' };
+  } else if (closed) {
+    approval = { id: 'approval', state: 'blocked', detail: 'closed' };
+  } else if (!diditVerified) {
+    approval = { id: 'approval', state: 'blocked', detail: 'needs_verification' };
+  } else if (approvalRequested) {
+    approval = { id: 'approval', state: 'pending', detail: 'approval_requested' };
+  } else {
+    approval = { id: 'approval', state: 'pending', detail: 'awaiting_review' };
+  }
+  return [application, identity, approval];
+}
+
 /**
  * Defensive guard: the sibling agent owns the credit_participants
  * migration. Fail with a clear code (not a raw 42P01) when it has not
@@ -365,7 +399,25 @@ async function listMyParticipants(userId) {
       ORDER BY cp.created_at DESC`,
     [userId],
   );
-  return rows.map(formatParticipant);
+  const participants = rows.map(formatParticipant);
+  if (!participants.length) return participants;
+  // Maker-checker state (655, D-359): an open
+  // credit_participant_activation pending action means a maker has filed
+  // activation and the record is awaiting its checker. The pending-actions
+  // table (migration 640) predates the participant registry, so it exists
+  // whenever the registry does.
+  const { rows: openApprovals } = await pool.query(
+    `SELECT DISTINCT payload ->> 'participantId' AS participant_id
+       FROM oxsteed_credit_pending_actions
+      WHERE action_type = 'credit_participant_activation' AND status = 'pending'`
+  );
+  const awaitingChecker = new Set(openApprovals.map((r) => String(r.participant_id)));
+  return participants.map((participant) => ({
+    ...participant,
+    activationChecklist: buildActivationChecklist(participant, {
+      approvalRequested: awaitingChecker.has(participant.participantId),
+    }),
+  }));
 }
 
 async function getParticipant(participantId) {
@@ -531,6 +583,7 @@ module.exports = {
   PARTICIPANT_STATUSES,
   CREDIT_SURFACES,
   formatParticipant,
+  buildActivationChecklist,
   normalizeSurfaces,
   assertCreditParticipantsReady,
   assertOwnersDiditVerified,
