@@ -1078,6 +1078,8 @@
   "lifetimeLimit": "Lifetime limit {{amount}}",
   "coveredCategories": "{{count}} covered categories",
   "creditAccountStatus": "Credit account {{status}}",
+  "creditAccountStatusReason": "Reason: {{reason}}",
+  "creditAccountStatusChangedAt": "Changed {{date}}",
   "activeStatus": "active",
   "openStatus": "open",
   "suspendedStatus": "suspended",

@@ -1078,6 +1078,8 @@
   "lifetimeLimit": "الحد الإجمالي {{amount}}",
   "coveredCategories": "{{count}} فئات مشمولة",
   "creditAccountStatus": "حساب Credit {{status}}",
+  "creditAccountStatusReason": "السبب: {{reason}}",
+  "creditAccountStatusChangedAt": "تم التغيير في {{date}}",
   "activeStatus": "نشط",
   "openStatus": "مفتوح",
   "suspendedStatus": "موقوف",

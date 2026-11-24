@@ -379,4 +379,44 @@ describeDb('Group 13 Slice 4j: track accountability (696-700)', () => {
     });
   });
 
+  // 700 (display-only): the wallet-account removal reason + date come from
+  // the status-change audit event; the participant transition stays HELD.
+  test('700 display-only: a suspended wallet account read carries its removal reason and date', async () => {
+    const user = await makeUser();
+    const walletId = await makeWallet(user);
+    const before = await getAs(user, '/api/oxsteed-credit/account');
+    expect(before.status).toBe(200);
+    expect(before.body.account.status).toBe('active');
+    expect(before.body.account.statusReason).toBeNull();
+    await creditService.updateCustomerCreditAccountStatus({
+      customerId: user.id,
+      status: 'suspended',
+      actorUserId: admin.id,
+      reason: 'Fixture compliance review',
+    });
+    const res = await getAs(user, '/api/oxsteed-credit/account');
+    expect(res.status).toBe(200);
+    expect(res.body.account.status).toBe('suspended');
+    expect(res.body.account.statusReason).toBe('Fixture compliance review');
+    expect(res.body.account.statusChangedAt).toBeTruthy();
+    expect(walletId).toBeTruthy();
+    // Isolation: another customer's account read carries no such reason.
+    const stranger = await makeUser();
+    await makeWallet(stranger);
+    const strangerRes = await getAs(stranger, '/api/oxsteed-credit/account');
+    expect(strangerRes.status).toBe(200);
+    expect(strangerRes.body.account.status).toBe('active');
+    expect(strangerRes.body.account.statusReason).toBeNull();
+  });
+
+  test('700 HELD: the participant service has no suspend/revoke transition', async () => {
+    const participantService = require('../services/oxsteedCreditParticipantService');
+    expect(typeof participantService.suspendParticipant).toBe('undefined');
+    expect(typeof participantService.revokeParticipant).toBe('undefined');
+    expect(typeof participantService.transitionParticipant).toBe('undefined');
+    // The only lifecycle transitions are the ones that exist today.
+    expect(typeof participantService.applyForCreditParticipation).toBe('function');
+    expect(typeof participantService.enrollParticipant).toBe('function');
+    expect(typeof participantService.activateParticipant).toBe('function');
+  });
 });

@@ -1079,6 +1079,8 @@
   "lifetimeLimit": "Limit total {{amount}}",
   "coveredCategories": "{{count}} kategori ki kouvri",
   "creditAccountStatus": "Kont Credit {{status}}",
+  "creditAccountStatusReason": "Rezon: {{reason}}",
+  "creditAccountStatusChangedAt": "Chanje {{date}}",
   "activeStatus": "aktif",
   "openStatus": "ouvè",
   "suspendedStatus": "sispann",

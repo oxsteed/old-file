@@ -1079,6 +1079,8 @@
   "lifetimeLimit": "Limite totale {{amount}}",
   "coveredCategories": "{{count}} catégories couvertes",
   "creditAccountStatus": "Compte Credit {{status}}",
+  "creditAccountStatusReason": "Motif : {{reason}}",
+  "creditAccountStatusChangedAt": "Modifié le {{date}}",
   "activeStatus": "actif",
   "openStatus": "ouvert",
   "suspendedStatus": "suspendu",

@@ -1078,6 +1078,8 @@
   "lifetimeLimit": "Límite total {{amount}}",
   "coveredCategories": "{{count}} categorías cubiertas",
   "creditAccountStatus": "Cuenta de Credit {{status}}",
+  "creditAccountStatusReason": "Motivo: {{reason}}",
+  "creditAccountStatusChangedAt": "Cambiado el {{date}}",
   "activeStatus": "activa",
   "openStatus": "abierta",
   "suspendedStatus": "suspendida",

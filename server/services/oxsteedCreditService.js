@@ -2017,11 +2017,50 @@ async function getCustomerCreditAccount(customerId, currencyCode = CREDIT_CURREN
         AND a.currency_code = $2`,
     [customerId, currency]
   );
-  if (rows[0]) return formatAccount(rows[0]);
+  if (rows[0]) {
+    const account = formatAccount(rows[0]);
+    // Group 13 Slice 4j (700, display-only): the reason and date of a
+    // wallet-account removal, from the record that already exists — the
+    // `credit.customer_account.status_changed` audit event written by
+    // updateCustomerCreditAccountStatus (a reason is required there).
+    // Read-only: the latest event for this account, scoped to the caller,
+    // shown only while the account is not active. No transition is built
+    // here; the participant suspend/revoke transition stays HELD.
+    if (account.status !== 'active') {
+      const change = await getAccountStatusChange({ accountId: account.accountId, customerId });
+      account.statusReason = change?.reason || null;
+      account.statusChangedAt = change?.created_at || account.updatedAt;
+    } else {
+      account.statusReason = null;
+      account.statusChangedAt = null;
+    }
+    return account;
+  }
   return withTransaction(pool, async (client) => {
     const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
-    return formatAccount(account);
+    const formatted = formatAccount(account);
+    formatted.statusReason = null;
+    formatted.statusChangedAt = null;
+    return formatted;
   }, 'credit_get_customer_account');
+}
+
+// Group 13 Slice 4j (700, display-only): the latest wallet-account status
+// change for the caller's own account. The audit event is the only place
+// the removal reason is stored (the account row carries status +
+// updated_at only); the caller scope keeps another customer's reason out.
+async function getAccountStatusChange({ accountId, customerId }) {
+  const { rows } = await pool.query(
+    `SELECT reason, created_at FROM oxsteed_credit_audit_events
+      WHERE action_type = 'credit.customer_account.status_changed'
+        AND resource_type = 'credit_account'
+        AND resource_id = $1
+        AND customer_id = $2
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1`,
+    [String(accountId), customerId]
+  );
+  return rows[0] || null;
 }
 
 async function getCustomerCreditLimitSummary(customerId, currencyCode = CREDIT_CURRENCY) {
