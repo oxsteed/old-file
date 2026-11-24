@@ -748,7 +748,7 @@ async function listPendingAdjustments(req, res, next) {
       })),
       thresholdCents: TWO_PERSON_THRESHOLD_CENTS,
       dailyCapCents: DAILY_ADJUSTMENT_CAP_CENTS,
-      // 707 (D-414): the read gate sets req.adjustmentReadOnly when the
+      // 707 (D-424): the read gate sets req.adjustmentReadOnly when the
       // caller holds a finance-read grant but not manage_financials, so
       // the queue UI can hide the decide/cancel actions. The write routes
       // never set it, so a writer always sees readOnly: false.
@@ -759,7 +759,7 @@ async function listPendingAdjustments(req, res, next) {
   }
 }
 
-// 707 (D-414): single-adjustment read for the bookkeeper/auditor queue
+// 707 (D-424): single-adjustment read for the bookkeeper/auditor queue
 // (list + detail). Same shape as a list row; unknown id is 404, never a
 // leak of whether the row exists for another caller — the queue is
 // platform-wide and the read gate already ran.

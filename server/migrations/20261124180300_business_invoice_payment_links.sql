@@ -1,4 +1,4 @@
--- Group 14 Slice 5b (706, D-413): link existing payment records to business
+-- Group 14 Slice 5b (706, D-423): link existing payment records to business
 -- invoices, so a bookkeeper can see which payment settled an invoice.
 --
 -- A link is a manual record-matching assertion, never auto-matching and

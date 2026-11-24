@@ -1,6 +1,6 @@
 'use strict';
 
-// Shared annotations on statement differences (708, D-415): the 688
+// Shared annotations on statement differences (708, D-425): the 688
 // annotation pattern (append-only, author recorded, scope derived from the
 // annotated record) extended to statement entries.
 //

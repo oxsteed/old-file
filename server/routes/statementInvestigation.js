@@ -1058,7 +1058,7 @@ router.get('/statements/:documentId/entries/:entryId/cases', async (req, res, ne
   }
 });
 
-// ── Shared difference annotations (708, D-415) ──────────────────────────
+// ── Shared difference annotations (708, D-425) ──────────────────────────
 // The 688 annotation pattern on statement entries: append-only, author
 // recorded, visible to every reader authorized for the document. Unlike
 // the private per-user entry notes (statementNoteService, owner-only),

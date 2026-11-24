@@ -1,4 +1,4 @@
--- Group 14 Slice 5b (708, D-415): shared annotations on statement
+-- Group 14 Slice 5b (708, D-425): shared annotations on statement
 -- differences (statement entries), so a bookkeeper can annotate a
 -- difference for another authorized reader to see.
 --

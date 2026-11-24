@@ -956,7 +956,7 @@ async function nextHelperInvoiceNumber(client) {
 // ── 706: link an existing payment record to an invoice ──────────────────────
 // POST /api/businesses/:id/invoices/:invoiceId/link-payment
 // GET  /api/businesses/:id/invoices/:invoiceId/payments (matching view)
-// Manual record-matching only (D-413): the caller names a payment record
+// Manual record-matching only (D-423): the caller names a payment record
 // that already exists. Nothing is auto-matched and nothing on the invoice
 // (amount_paid / status / paid_at) changes here — POST .../pay stays the
 // only writer of those. A link is a bookkeeping assertion that this

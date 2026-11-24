@@ -5,7 +5,7 @@ const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requireSuperAdminOrPermission, requireAdminTotp, hasGlobalGrant } = require('../middleware/adminAuth');
 const controller = require('../controllers/agentCreditAdjustmentController');
 
-// 707 (D-414): bookkeeper/auditor READ of the adjustment queue (list +
+// 707 (D-424): bookkeeper/auditor READ of the adjustment queue (list +
 // detail). The read gate is the actual grant, never the role label: the
 // caller must be an admin-role user holding an active, non-expired,
 // non-revoked global grant containing view_financials (or

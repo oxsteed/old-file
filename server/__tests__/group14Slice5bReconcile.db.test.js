@@ -142,7 +142,7 @@ describeDb('Group 14 Slice 5b: reconcile records (706-710)', () => {
     superAdmin = await makeUser('super_admin');
     proposer = await makeUser('super_admin');
 
-    // The bookkeeper holds a finance-read grant (D-414): the grant row,
+    // The bookkeeper holds a finance-read grant (D-424): the grant row,
     // not the role label, is what authorizes the 707 read.
     await pool.query(
       `INSERT INTO admin_permission_grants (grantor_id, grantee_id, permissions, expires_at, notes)
