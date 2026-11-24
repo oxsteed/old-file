@@ -73,6 +73,7 @@ exports.getTerritoryStats = async (req, res) => {
              fa.status, fa.agreement_status, fa.training_status,
              fa.launch_readiness_status, fa.linked_business_id,
              fa.desired_brand_name, fa.current_company_name,
+             fa.acceptance_status,
              COALESCE(progress.completed_count, 0) AS checklist_done,
              COALESCE(progress.total_count, 0)     AS checklist_all
         FROM franchise_applications fa
@@ -94,6 +95,19 @@ exports.getTerritoryStats = async (req, res) => {
       return res.json({
         has_territory: false,
         message: 'No active or launched franchise found for this user.',
+      });
+    }
+
+    // Group 12 Slice 3b (606, D-307): the operator surface unlocks only
+    // after the operator accepts the assignment. While an offer is
+    // outstanding or declined the territory stays locked; legacy
+    // applications with no offer yet (not_offered) keep the existing
+    // behaviour, and the grant still mints at launch (unchanged).
+    if (['offered', 'declined'].includes(appRow.acceptance_status)) {
+      return res.json({
+        has_territory: false,
+        acceptance_status: appRow.acceptance_status,
+        message: 'Territory assignment is awaiting your acceptance.',
       });
     }
 
@@ -250,7 +264,7 @@ exports.getTerritoryHelpers = async (req, res) => {
     }
 
     const [appRow] = await safeQuery(`
-      SELECT desired_country, desired_region, desired_city
+      SELECT desired_country, desired_region, desired_city, acceptance_status
         FROM franchise_applications
        WHERE (applicant_user_id = $1 OR owner_user_id = $1)
          AND status IN ('approved','launched')
@@ -259,6 +273,12 @@ exports.getTerritoryHelpers = async (req, res) => {
     `, appParams);
 
     if (!appRow) return res.json({ helpers: [] });
+
+    // Group 12 Slice 3b (606, D-307): same acceptance lock as
+    // getTerritoryStats — no helper roster while the offer is unanswered.
+    if (['offered', 'declined'].includes(appRow.acceptance_status)) {
+      return res.json({ helpers: [], acceptance_status: appRow.acceptance_status });
+    }
 
     const { desired_region: region, desired_city: city } = appRow;
 

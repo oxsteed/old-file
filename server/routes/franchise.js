@@ -35,6 +35,7 @@ const {
   addApplicantFollowupMessage,
   addAdminFollowupMessage,
   acknowledgeResponsibilityItem,
+  respondToTerritoryOffer,
 } = require('../controllers/franchiseController');
 
 const {
@@ -54,6 +55,9 @@ router.post('/my-applications/:id/followup', authenticate, requireFranchiseEnabl
 // Group 12 Slice 3b (608): the operator acknowledges one responsibility
 // item on their own application.
 router.post('/my-applications/:id/responsibilities/:itemId/acknowledge', authenticate, requireFranchiseEnabled, acknowledgeResponsibilityItem);
+// Group 12 Slice 3b (606): the operator accepts or declines a territory
+// offer on their own application.
+router.post('/my-applications/:id/acceptance', authenticate, requireFranchiseEnabled, respondToTerritoryOffer);
 router.get('/territory-stats',     authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryStats);
 router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryHelpers);
 

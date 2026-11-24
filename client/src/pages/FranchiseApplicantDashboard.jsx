@@ -225,7 +225,10 @@ export default function FranchiseApplicantDashboard() {
                 {t('dashboards.franchise.subtitle', { defaultValue: 'Track application review, diligence, agreement progress, and launch readiness without mixing in business-launch consulting requests.' })}
               </p>
               <div className="flex flex-wrap gap-3 mt-6">
-                {(primary.status === 'launched' || primary.status === 'approved') && showTerritoryOps && (
+                {/* Group 12 Slice 3b (606, D-307): the territory ops link
+                    stays hidden while the assignment offer is unanswered or
+                    declined — the operator surface unlocks only after accept. */}
+                {(primary.status === 'launched' || primary.status === 'approved') && showTerritoryOps && !['offered', 'declined'].includes(primary.acceptance_status) && (
                   <Link to="/franchise/territory" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition">
                     {copy('territoryOps')} <ArrowRight size={15} />
                   </Link>

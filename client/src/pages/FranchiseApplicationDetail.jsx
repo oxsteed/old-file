@@ -72,6 +72,9 @@ export default function FranchiseApplicationDetail({ applicationId }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [uploadingCategory, setUploadingCategory] = useState(null);
+  // Group 12 Slice 3b (606): decline-reason compose state.
+  const [showDecline, setShowDecline] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -145,6 +148,29 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     }
   }
 
+  // Group 12 Slice 3b (606): answer the territory offer.
+  async function answerAcceptance(decision) {
+    if (decision === 'declined' && !declineReason.trim()) {
+      setError(copy('acceptanceReasonRequired'));
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/acceptance`, {
+        decision,
+        reason: decision === 'declined' ? declineReason.trim() : undefined,
+      });
+      setDetail(response.data);
+      setShowDecline(false);
+      setDeclineReason('');
+    } catch {
+      setError(copy('acceptanceFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Group 12 Slice 3b (608): acknowledge one responsibility item.
   async function acknowledgeResponsibility(itemId) {
     setBusy(true);
@@ -171,10 +197,90 @@ export default function FranchiseApplicationDetail({ applicationId }) {
   const followup = detail.followup || [];
   const responsibilities = detail.responsibilities || [];
   const acknowledgedCount = responsibilities.filter((item) => item.status === 'acknowledged').length;
+  const acceptanceStatus = detail.application?.acceptance_status || 'not_offered';
+  const isOperator = detail.application?.is_operator === true;
 
   return (
     <div className="fr-detail">
       {error && <div className="fr-detail-error" role="alert">{error}</div>}
+
+      {/* Group 12 Slice 3b (606): the territory accept/decline step. The
+          assignment is an offer, not an activation — the operator answers
+          here, and the operator surface stays locked until they accept. */}
+      <section className="fr-detail-card">
+        <div className="fr-detail-heading">
+          <ShieldCheck size={16} className="fr-detail-heading-icon" />
+          <div>
+            <h2 className="fr-detail-title">{copy('acceptanceTitle')}</h2>
+            <p className="fr-detail-subtitle">{copy('acceptanceSubtitle')}</p>
+          </div>
+        </div>
+
+        {acceptanceStatus === 'offered' && isOperator && (
+          <div>
+            <p className="fr-detail-empty">{copy('acceptanceOffered')}</p>
+            {!showDecline ? (
+              <div className="fr-accept-actions">
+                <button type="button" className="fr-btn-primary" disabled={busy} onClick={() => answerAcceptance('accepted')}>
+                  {copy('acceptanceAccept')}
+                </button>
+                <button type="button" className="fr-btn-ghost" disabled={busy} onClick={() => setShowDecline(true)}>
+                  {copy('acceptanceDecline')}
+                </button>
+              </div>
+            ) : (
+              <div className="fr-followup-compose">
+                <label className="fr-detail-list-label" htmlFor="fr-decline-reason">{copy('acceptanceDeclineReasonLabel')}</label>
+                <textarea
+                  id="fr-decline-reason"
+                  className="fr-followup-input"
+                  value={declineReason}
+                  onChange={(event) => setDeclineReason(event.target.value)}
+                  placeholder={copy('acceptanceDeclineReasonPlaceholder')}
+                  rows={3}
+                />
+                <div className="fr-accept-actions">
+                  <button type="button" className="fr-btn-primary" disabled={busy || !declineReason.trim()} onClick={() => answerAcceptance('declined')}>
+                    {copy('acceptanceConfirmDecline')}
+                  </button>
+                  <button type="button" className="fr-btn-ghost" disabled={busy} onClick={() => { setShowDecline(false); setDeclineReason(''); }}>
+                    {copy('acceptanceCancel')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {acceptanceStatus === 'offered' && !isOperator && (
+          <p className="fr-detail-empty">{copy('acceptanceAwaitingOperator')}</p>
+        )}
+
+        {acceptanceStatus === 'accepted' && (
+          <div>
+            <span className="fr-status-badge fr-status-accepted">{copy('acceptanceAccepted')}</span>
+            {detail.application?.acceptance_decided_at && (
+              <div className="fr-doc-file-meta">{copy('acceptanceDecidedLabel')}: {formatDate(detail.application.acceptance_decided_at)}</div>
+            )}
+          </div>
+        )}
+
+        {acceptanceStatus === 'declined' && (
+          <div>
+            <span className="fr-status-badge fr-status-rejected">{copy('acceptanceDeclined')}</span>
+            {detail.application?.acceptance_reason && (
+              <div className="fr-doc-file-meta">{copy('acceptanceDeclineReasonLabel')}: {detail.application.acceptance_reason}</div>
+            )}
+            {detail.application?.acceptance_decided_at && (
+              <div className="fr-doc-file-meta">{copy('acceptanceDecidedLabel')}: {formatDate(detail.application.acceptance_decided_at)}</div>
+            )}
+          </div>
+        )}
+
+        {acceptanceStatus === 'not_offered' && (
+          <p className="fr-detail-empty">{copy('acceptanceNotOffered')}</p>
+        )}
+      </section>
 
       <section className="fr-detail-card">
         <div className="fr-detail-heading">

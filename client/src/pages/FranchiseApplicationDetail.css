@@ -313,3 +313,11 @@
 .fr-followup-compose .fr-btn-primary {
   justify-self: end;
 }
+
+/* Group 12 Slice 3b (606): accept/decline actions on the territory offer. */
+.fr-accept-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}

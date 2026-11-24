@@ -947,6 +947,32 @@ export default function FranchiseHQPage() {
                     </button>
                   </div>
 
+                  {/* Group 12 Slice 3b (606): territory acceptance, read-only
+                      in HQ — only the assigned operator can answer the offer. */}
+                  <div className="frhq-panel">
+                    <div className="frhq-panel-title">{t('adminFranchiseAcceptanceTitle')}</div>
+                    <div className="frhq-row">
+                      <div>
+                        <div className="frhq-row-title">
+                          {selectedApplication.acceptance_status === 'offered' && t('adminFranchiseAcceptanceOffered')}
+                          {selectedApplication.acceptance_status === 'accepted' && t('adminFranchiseAcceptanceAccepted')}
+                          {selectedApplication.acceptance_status === 'declined' && t('adminFranchiseAcceptanceDeclined')}
+                          {(!selectedApplication.acceptance_status || selectedApplication.acceptance_status === 'not_offered') && t('adminFranchiseAcceptanceNotOffered')}
+                        </div>
+                        {selectedApplication.acceptance_reason && (
+                          <div className="frhq-row-meta">
+                            {t('adminFranchiseAcceptanceReason')}: {selectedApplication.acceptance_reason}
+                          </div>
+                        )}
+                        {selectedApplication.acceptance_decided_at && (
+                          <div className="frhq-row-meta">
+                            {new Date(selectedApplication.acceptance_decided_at).toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Group 12 Slice 3b (608): operator responsibility checklist,
                       read-only in HQ — the operator acknowledges each item. */}
                   <div className="frhq-panel">

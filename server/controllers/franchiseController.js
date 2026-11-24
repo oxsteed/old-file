@@ -415,6 +415,11 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
         fa.submitted_at,
         fa.updated_at,
         fa.last_contacted_at,
+        fa.owner_user_id,
+        fa.acceptance_status,
+        fa.acceptance_reason,
+        fa.acceptance_decided_at,
+        (fa.owner_user_id = $2) AS is_operator,
         b.business_name AS linked_business_name,
         COALESCE(progress.completed_count, 0)::int AS checklist_completed,
         COALESCE(progress.total_count, 0)::int AS checklist_total
@@ -693,6 +698,7 @@ async function listMyFranchiseApplications(req, res) {
           fa.available_capital_cents,
           fa.liquid_capital_cents,
           fa.linked_business_id,
+          fa.acceptance_status,
           fa.linked_consulting_request_id,
           fa.submitted_at,
           fa.updated_at,
@@ -969,9 +975,13 @@ async function updateFranchiseApplication(req, res) {
     try {
       await client.query('BEGIN');
 
+      // Group 12 Slice 3b (606): email of the user being assigned as owner,
+      // used below to tell applicant-linking apart from an assignment.
+      let newOwnerEmail = null;
+
       if (ownerUserId !== undefined) {
         const ownerResult = await client.query(
-          `SELECT id FROM users
+          `SELECT id, email FROM users
             WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
           [ownerUserId]
         );
@@ -982,10 +992,11 @@ async function updateFranchiseApplication(req, res) {
             code: 'franchise_owner_unavailable',
           });
         }
+        newOwnerEmail = ownerResult.rows[0].email || null;
       }
 
       const before = await client.query(
-        `SELECT status, owner_user_id, linked_business_id
+        `SELECT status, applicant_user_id, owner_user_id, linked_business_id, acceptance_status, email
            FROM franchise_applications
           WHERE id = $1`,
         [applicationId],
@@ -1003,6 +1014,47 @@ async function updateFranchiseApplication(req, res) {
                     agreement_status, training_status, launch_readiness_status`,
         values
       );
+
+      // Group 12 Slice 3b (606, D-295/D-307): admin assignment is an offer,
+      // not an activation. Reassigning the territory to a different operator
+      // (or approving with an owner when no offer exists yet) offers the
+      // territory to the new operator; the previous decision is cleared.
+      // Linking the applicant's own account is identity linking, not an
+      // assignment, so it never offers: the public lead form creates the
+      // row ownerless (applicant_user_id NULL too), and HQ links the
+      // applicant — identified by applicant_user_id when set, else by the
+      // application email matching the new owner's email. Rejected/archived
+      // applications are never offered.
+      const nextStatus = updateResult.rows[0].status;
+      const nextOwnerId = updateResult.rows[0].owner_user_id;
+      const isApplicantLink = ownerUserId !== undefined && (
+        String(ownerUserId) === String(before.rows[0].applicant_user_id)
+        || (newOwnerEmail && before.rows[0].email
+          && String(newOwnerEmail).toLowerCase() === String(before.rows[0].email).toLowerCase())
+      );
+      const ownerChanged = ownerUserId !== undefined
+        && String(ownerUserId) !== String(before.rows[0].owner_user_id)
+        && !isApplicantLink;
+      const newlyApproved = body.status === 'approved'
+        && before.rows[0].acceptance_status === 'not_offered';
+      if (nextOwnerId && !['rejected', 'archived'].includes(nextStatus) && (ownerChanged || newlyApproved)) {
+        await client.query(
+          `UPDATE franchise_applications
+              SET acceptance_status = 'offered', acceptance_reason = NULL,
+                  acceptance_decided_at = NULL, acceptance_decided_by = NULL,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [applicationId]
+        );
+        await logActivity(
+          client,
+          applicationId,
+          req.user?.id || null,
+          'territory_offered',
+          'Territory assignment offered to the operator; awaiting their accept or decline.',
+          { owner_user_id: nextOwnerId }
+        );
+      }
 
       await syncFranchiseGrant(client, {
         applicationId,
@@ -2321,6 +2373,96 @@ async function acknowledgeResponsibilityItem(req, res) {
   }
 }
 
+/**
+ * POST /api/franchise/my-applications/:id/acceptance
+ * 606 (D-295/D-307): the operator answers a territory offer. Only the
+ * operator (owner_user_id) can answer — the applicant record alone is not
+ * enough when HQ assigned someone else. Only an outstanding offer can be
+ * answered (409 otherwise); a decline needs a reason so HQ knows why the
+ * assignment goes back. Accepting does not change the pipeline status and
+ * does not mint the grant — the grant still mints at launch (unchanged);
+ * it unlocks the operator surface, which the territory endpoints gate on
+ * acceptance (see franchiseTerritoryController).
+ */
+async function respondToTerritoryOffer(req, res) {
+  if (!req.user?.id) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const decision = asTrimmed(req.body?.decision);
+  if (decision !== 'accepted' && decision !== 'declined') {
+    return res.status(400).json({
+      error: 'decision must be accepted or declined.',
+      code: 'invalid_acceptance_decision',
+    });
+  }
+  const reason = asTrimmed(req.body?.reason);
+  if (decision === 'declined' && !reason) {
+    return res.status(400).json({
+      error: 'A reason is required to decline a territory assignment.',
+      code: 'acceptance_reason_required',
+    });
+  }
+  const { id } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOwnedApplication(client, id, req.user.id);
+      if (!owned) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (String(owned.owner_user_id) !== String(req.user.id)) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can accept or decline this territory.',
+          code: 'acceptance_operator_only',
+        });
+      }
+      const { rows: currentRows } = await client.query(
+        `SELECT acceptance_status FROM franchise_applications WHERE id = $1 FOR UPDATE`,
+        [id]
+      );
+      if (currentRows[0].acceptance_status !== 'offered') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `This territory is not awaiting an answer (acceptance is ${currentRows[0].acceptance_status}).`,
+          code: 'acceptance_not_offered',
+        });
+      }
+      await client.query(
+        `UPDATE franchise_applications
+            SET acceptance_status = $2, acceptance_reason = $3,
+                acceptance_decided_at = NOW(), acceptance_decided_by = $4,
+                updated_at = NOW()
+          WHERE id = $1`,
+        [id, decision, decision === 'declined' ? reason : null, req.user.id]
+      );
+      await logActivity(
+        client,
+        id,
+        req.user.id,
+        decision === 'accepted' ? 'territory_accepted' : 'territory_declined',
+        decision === 'accepted'
+          ? 'Operator accepted the territory assignment.'
+          : `Operator declined the territory assignment: ${reason}.`,
+        { decision, reason: decision === 'declined' ? reason : null }
+      );
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error responding to franchise territory offer', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to answer the territory offer.' });
+  }
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -2343,6 +2485,7 @@ module.exports = {
   addApplicantFollowupMessage,
   addAdminFollowupMessage,
   acknowledgeResponsibilityItem,
+  respondToTerritoryOffer,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

@@ -231,4 +231,159 @@ describeDb('Group 12 Slice 3b: Take responsibility (608, 606, 607, 609, 610)', (
       expect(after.body.responsibilities.filter((entry) => entry.status === 'acknowledged')).toHaveLength(0);
     });
   });
+  describe('606: territory acceptance', () => {
+    // The territory-stats/helpers routes sit behind the franchise
+    // capability gate (enforce by default). The grant path is covered by
+    // franchiseRouteAccess.test.js; here the gate is off so the acceptance
+    // lock itself is exercised.
+    beforeAll(() => {
+      process.env.ACCESS_FRANCHISE_ENFORCEMENT = 'off';
+    });
+
+    function answerOffer(userId, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/acceptance`)
+        .set('x-test-user', userId)
+        .send(body);
+    }
+
+    async function offerToOperator(applicationId, adminId, operatorId) {
+      const offered = await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', adminId)
+        .send({ owner_user_id: operatorId })
+        .expect(200);
+      expect(offered.body.application.acceptance_status).toBe('offered');
+      return offered;
+    }
+
+    test('admin reassignment offers the territory; the operator accepts; a second answer is a 409', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      // The public lead form leaves applicant_user_id NULL; link the
+      // applicant's account so the applicant-vs-operator distinction below
+      // is the one the handler enforces (owner-only answers).
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant, applicationId]);
+      await offerToOperator(applicationId, admin, operator);
+
+      // The applicant record alone is not the operator: only the assigned
+      // operator may answer.
+      const applicantAnswer = await answerOffer(applicant, applicationId, { decision: 'accepted' });
+      expect(applicantAnswer.status).toBe(403);
+      expect(applicantAnswer.body.code).toBe('acceptance_operator_only');
+
+      const accepted = await answerOffer(operator, applicationId, { decision: 'accepted' }).expect(200);
+      expect(accepted.body.application.acceptance_status).toBe('accepted');
+      expect(accepted.body.application.acceptance_decided_at).toBeTruthy();
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.application.acceptance_status).toBe('accepted');
+      expect(detail.body.application.is_operator).toBe(true);
+
+      const again = await answerOffer(operator, applicationId, { decision: 'accepted' });
+      expect(again.status).toBe(409);
+      expect(again.body.code).toBe('acceptance_not_offered');
+
+      const { rows } = await db.query(
+        "SELECT event_type FROM franchise_activity_log WHERE application_id = $1 AND event_type LIKE 'territory_%' ORDER BY created_at ASC",
+        [applicationId],
+      );
+      expect(rows.map((row) => row.event_type)).toEqual(['territory_offered', 'territory_accepted']);
+    });
+
+    test('decline needs a reason; the reason returns to HQ and a reassignment re-offers', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const secondOperator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      await offerToOperator(applicationId, admin, operator);
+
+      const noReason = await answerOffer(operator, applicationId, { decision: 'declined' });
+      expect(noReason.status).toBe(400);
+      expect(noReason.body.code).toBe('acceptance_reason_required');
+
+      const declined = await answerOffer(operator, applicationId, {
+        decision: 'declined',
+        reason: 'Cannot staff this region before Q3.',
+      }).expect(200);
+      expect(declined.body.application.acceptance_status).toBe('declined');
+      expect(declined.body.application.acceptance_reason).toBe('Cannot staff this region before Q3.');
+
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      expect(bundle.body.application.acceptance_status).toBe('declined');
+      expect(bundle.body.application.acceptance_reason).toBe('Cannot staff this region before Q3.');
+
+      // HQ reassigns: the new operator gets a fresh offer.
+      await offerToOperator(applicationId, admin, secondOperator);
+      const accepted = await answerOffer(secondOperator, applicationId, { decision: 'accepted' }).expect(200);
+      expect(accepted.body.application.acceptance_status).toBe('accepted');
+      expect(accepted.body.application.acceptance_reason).toBeNull();
+    });
+
+    test('approving with an owner offers the territory; answering with no offer is a 409; strangers get 404', async () => {
+      const applicant = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+
+      // No offer yet: the applicant cannot answer anything.
+      const tooEarly = await answerOffer(applicant, applicationId, { decision: 'accepted' });
+      expect(tooEarly.status).toBe(409);
+      expect(tooEarly.body.code).toBe('acceptance_not_offered');
+
+      const approved = await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'approved' })
+        .expect(200);
+      expect(approved.body.application.acceptance_status).toBe('offered');
+
+      await answerOffer(stranger, applicationId, { decision: 'accepted' }).expect(404);
+      const badDecision = await answerOffer(applicant, applicationId, { decision: 'maybe' });
+      expect(badDecision.status).toBe(400);
+      expect(badDecision.body.code).toBe('invalid_acceptance_decision');
+
+      const accepted = await answerOffer(applicant, applicationId, { decision: 'accepted' }).expect(200);
+      expect(accepted.body.application.acceptance_status).toBe('accepted');
+    });
+
+    test('the operator surface stays locked while offered and unlocks after accept', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      await offerToOperator(applicationId, admin, operator);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'approved' })
+        .expect(200);
+
+      const lockedStats = await request(app)
+        .get('/api/franchise/territory-stats')
+        .set('x-test-user', operator)
+        .expect(200);
+      expect(lockedStats.body.has_territory).toBe(false);
+      expect(lockedStats.body.acceptance_status).toBe('offered');
+
+      const lockedHelpers = await request(app)
+        .get('/api/franchise/territory-helpers')
+        .set('x-test-user', operator)
+        .expect(200);
+      expect(lockedHelpers.body.helpers).toEqual([]);
+      expect(lockedHelpers.body.acceptance_status).toBe('offered');
+
+      await answerOffer(operator, applicationId, { decision: 'accepted' }).expect(200);
+
+      const openStats = await request(app)
+        .get('/api/franchise/territory-stats')
+        .set('x-test-user', operator)
+        .expect(200);
+      expect(openStats.body.has_territory).toBe(true);
+      expect(openStats.body.application.id).toBe(applicationId);
+    });
+  });
 });
