@@ -3086,6 +3086,79 @@ async function releaseCreditHold({ customerId, holdId, actorUserId, reason, corr
   }, 'credit_release_hold');
 }
 
+// Group 13, item 670 (D-367/D-368): one-click re-authorization from an
+// expired hold. The expired hold's stored amount, restaurant, purpose,
+// reference, and request scope are replayed through the existing hold
+// creation path (createCreditHoldInTransaction) with a fresh server
+// generated idempotency key, so the rail gates, agreement resolution,
+// spend capacity, and balance checks all run again exactly as for a fresh
+// authorization. The expired hold stays expired; the fresh hold is a new
+// row. The link is recorded on the expired hold's metadata
+// (reauthorizedHoldId) in the same transaction, so a repeat click while
+// the fresh hold is still active replays it instead of reserving twice;
+// once the fresh hold ends, the same expired hold can be re-authorized
+// again into a new hold.
+async function reauthorizeCreditHold({ customerId, holdId, actorUserId, correlationId, requestIp, metadata = {} }) {
+  requireCustomerActor(actorUserId, customerId, 'The Credit hold owner must re-authorize the hold', 'credit_hold_actor_required');
+  return withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT * FROM oxsteed_credit_holds WHERE id = $1 AND customer_id = $2 FOR UPDATE`,
+      [holdId, customerId]
+    );
+    const expiredHold = rows[0];
+    if (!expiredHold) throw new AppError('Credit hold not found', 404, 'credit_hold_not_found');
+    if (expiredHold.status !== 'expired') {
+      throw new AppError('Only an expired Credit hold can be re-authorized', 409, 'credit_hold_state_invalid');
+    }
+    // D-368: the link lives on the FRESH hold's metadata (reauthorizedFrom,
+    // written at insert). The expired hold itself is never mutated —
+    // migration 469 forbids changing hold authorization fields, metadata
+    // included — so the replay lookup reads the fresh holds instead.
+    const { rows: priorRows } = await client.query(
+      `SELECT * FROM oxsteed_credit_holds
+        WHERE customer_id = $1 AND status = 'active'
+          AND metadata ->> 'reauthorizedFrom' = $2
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1`,
+      [customerId, String(expiredHold.id)]
+    );
+    if (priorRows[0]) {
+      return { hold: formatHold(priorRows[0]), replayed: true, reauthorizedFrom: String(expiredHold.id) };
+    }
+    const scope = normalizeMetadata(normalizeMetadata(expiredHold.metadata)._oxsteedCreditRequest);
+    const created = await createCreditHoldInTransaction(client, {
+      customerId,
+      partnerId: Number(expiredHold.partner_id),
+      amountCents: Number(expiredHold.amount_cents),
+      currencyCode: expiredHold.currency_code,
+      idempotencyKey: `credit-hold-reauth-${expiredHold.id}-${crypto.randomUUID()}`,
+      actorUserId,
+      orderType: scope.orderType || null,
+      category: scope.category || null,
+      menuItemId: scope.menuItemId || null,
+      city: scope.city || null,
+      state: scope.state || null,
+      postalCode: scope.postalCode || null,
+      country: scope.country || null,
+      purpose: expiredHold.purpose || null,
+      referenceType: expiredHold.reference_type || null,
+      referenceId: expiredHold.reference_id || null,
+      correlationId,
+      requestIp,
+      metadata: { ...normalizeMetadata(metadata), reauthorizedFrom: String(expiredHold.id) },
+    });
+    await client.query(
+      `INSERT INTO oxsteed_credit_audit_events
+         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state)
+       VALUES ('credit.hold.reauthorized', $1, $2, $3, 'credit_hold', $4, $5, $6, $7, $8::jsonb)`,
+      [actorUserId || null, customerId, expiredHold.partner_id, String(created.hold.id),
+        'Customer re-authorized expired credit hold', normalizeString(correlationId, 160), requestIp || null,
+        JSON.stringify({ reauthorizedFrom: String(expiredHold.id), amountCents: Number(expiredHold.amount_cents) })]
+    );
+    return { hold: created.hold, replayed: false, reauthorizedFrom: String(expiredHold.id) };
+  }, 'credit_reauthorize_hold');
+}
+
 async function captureCreditHoldInTransaction(client, { holdId, amountCents, currencyCode = null, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, requestIp, description, reason, metadata = {}, allowAmountAdjust = false }) {
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit hold capture', 400, 'credit_idempotency_key_required');
   const normalizedActorType = normalizeString(actorType, 20) || 'admin';
@@ -4510,6 +4583,7 @@ module.exports = {
   captureCreditHoldInTransaction,
   captureCreditHold,
   releaseCreditHold,
+  reauthorizeCreditHold,
   expireCreditHolds,
   refundCreditInTransaction,
   refundCreditForReferenceInTransaction,

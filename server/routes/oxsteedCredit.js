@@ -44,6 +44,9 @@ router.get('/transactions', controller.getMyTransactions);
 router.get('/transactions/:transactionId', controller.getMyTransaction);
 router.post('/holds', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.createMyHold);
 router.post('/holds/:holdId/release', creditMutationLimiter, rejectImpersonated, controller.releaseMyHold);
+// Group 13, item 670 (D-367): re-authorize an expired hold — same gates
+// as creating a hold, same existing hold-creation path underneath.
+router.post('/holds/:holdId/reauthorize', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.reauthorizeMyHold);
 router.post('/transfers', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.transferMyCredit);
 // Recipient name lookup for the transfer review panel. Read-only; the
 // router-level authenticate + requireRole('customer') gate applies.

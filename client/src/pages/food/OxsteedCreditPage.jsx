@@ -33,6 +33,7 @@ import {
   getOxsteedCreditDisputePage,
   createOxsteedCreditHold,
   releaseOxsteedCreditHold,
+  reauthorizeOxsteedCreditHold,
   getOxsteedCreditConversionQuote,
   convertOxsteedCredit,
   getOxsteedCreditFeeQuote,
@@ -187,6 +188,7 @@ export default function OxsteedCreditPage() {
   const [holdSubmitting, setHoldSubmitting] = useState(false);
   const [createdHold, setCreatedHold] = useState(null);
   const [releasingHoldId, setReleasingHoldId] = useState(null);
+  const [reauthorizingHoldId, setReauthorizingHoldId] = useState(null);
   const [conversionQuoteId, setConversionQuoteId] = useState('');
   const [conversionAmount, setConversionAmount] = useState('');
   const [conversionSubmitting, setConversionSubmitting] = useState(false);
@@ -597,6 +599,23 @@ export default function OxsteedCreditPage() {
       toast.error(safeCreditErrorMessage(error, t('errorLoad')));
     } finally {
       setReleasingHoldId(null);
+    }
+  };
+
+  // Group 13, item 670 (D-367): one-click re-authorization from an expired
+  // hold — same amount and restaurant, fresh hold, same gates as a fresh
+  // authorization. The list reloads so the fresh hold appears as active.
+  const reauthorizeHold = async (hold) => {
+    if (!hold?.id || reauthorizingHoldId) return;
+    setReauthorizingHoldId(hold.id);
+    try {
+      await reauthorizeOxsteedCreditHold(hold.id);
+      toast.success(t('authorizationReauthorized'));
+      await load({ quiet: true, currencyCode: selectedCurrency });
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
+    } finally {
+      setReauthorizingHoldId(null);
     }
   };
 
@@ -1097,7 +1116,7 @@ export default function OxsteedCreditPage() {
 
                   {accountStatus === 'active' && partners.length > 0 && <section className="ox-credit-panel ox-credit-authorize-panel" aria-labelledby="credit-authorize-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('customerAuthorization')}</p><h2 id="credit-authorize-heading">{t('authorizeInStorePayment')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('authorizeCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitHold}><label>{t('restaurant')}<select required value={holdPartnerId} onChange={(event) => { const nextPartnerId = event.target.value; const nextPartner = partners.find((partner) => String(partner.partnerId) === String(nextPartnerId)); setHoldPartnerId(nextPartnerId); setHoldOrderType(nextPartner?.allowedOrderTypes?.[0] || 'pickup'); }}><option value="">{t('selectRestaurant')}</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName}{partner.city ? ` · ${partner.city}` : ''}</option>)}</select></label><label>{t('orderType')}<select required value={holdOrderType} onChange={(event) => setHoldOrderType(event.target.value)}>{holdOrderTypes.map((type) => <option key={type} value={type}>{localizeCreditOrderType(type, t)}</option>)}</select></label><label>{t('amount')}<input required inputMode="decimal" value={holdAmount} onChange={(event) => setHoldAmount(event.target.value)} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><label>{t('purposeOptional')}<input value={holdPurpose} onChange={(event) => setHoldPurpose(event.target.value)} maxLength={100} placeholder={t('restaurantPurchase')} /></label><button type="submit" disabled={holdSubmitting}>{holdSubmitting ? t('creatingAuthorization') : t('createAuthorization')}</button></form>{createdHold?.id && <div className="ox-credit-created-hold"><strong>{t('holdIdInstruction')}</strong><code>{createdHold.id}</code><span>{t('holdDetails', { amount: money(createdHold.amountCents, createdHold.currencyCode || currency), date: dateTime(createdHold.expiresAt, t) })}</span><button type="button" onClick={copyHoldId}>{t('copyHoldId')}</button></div>}</section>}
 
-              {!!holds.length && <section className="ox-credit-panel ox-credit-holds-panel"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reservationHistory')}</p><h2>{t('creditHolds')}</h2></div><span className="ox-credit-count">{holds.length}{holdPagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('holdsCopy')}</p>{!!activeHolds.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('activeReservations')}</strong><span>{activeHolds.length}</span></div><div className="ox-credit-hold-list">{activeHolds.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className="ox-credit-hold-status active">{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{!!holdHistory.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('completedReservations')}</strong><span>{holdHistory.length}</span></div><div className="ox-credit-hold-list">{holdHistory.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${hold.status}`}>{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{holdPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreHolds} disabled={loadingMoreHolds || refreshing}><RefreshCw size={14} className={loadingMoreHolds ? 'ox-credit-spin' : ''} /> {loadingMoreHolds ? t('loadingOlderHolds') : t('loadOlderHolds')}</button>}</section>}
+              {!!holds.length && <section className="ox-credit-panel ox-credit-holds-panel"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reservationHistory')}</p><h2>{t('creditHolds')}</h2></div><span className="ox-credit-count">{holds.length}{holdPagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('holdsCopy')}</p>{!!activeHolds.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('activeReservations')}</strong><span>{activeHolds.length}</span></div><div className="ox-credit-hold-list">{activeHolds.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className="ox-credit-hold-status active">{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{!!holdHistory.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('completedReservations')}</strong><span>{holdHistory.length}</span></div><div className="ox-credit-hold-list">{holdHistory.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${hold.status}`}>{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b>{hold.status === 'expired' && <button type="button" className="ox-credit-hold-action" onClick={() => reauthorizeHold(hold)} disabled={reauthorizingHoldId === hold.id}>{reauthorizingHoldId === hold.id ? t('reauthorizing') : t('reauthorizeHold')}</button>}</div></article>)}</div></div>}{holdPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreHolds} disabled={loadingMoreHolds || refreshing}><RefreshCw size={14} className={loadingMoreHolds ? 'ox-credit-spin' : ''} /> {loadingMoreHolds ? t('loadingOlderHolds') : t('loadOlderHolds')}</button>}</section>}
 
               {!!pendingTopups.length && <section className="ox-credit-panel ox-credit-topups-panel" aria-labelledby="credit-pending-topups-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('pendingActivity')}</p><h2 id="credit-pending-topups-heading">{t('pendingTopups')}</h2></div><span className="ox-credit-count">{pendingTopups.length}</span></div><p className="ox-credit-panel-copy">{t('pendingTopupsCopy')}</p><div className="ox-credit-hold-list">{pendingTopups.map((topup) => <article key={topup.id}><div><strong>{money(topup.amountCents, topup.currencyCode || currency)}</strong><span>{topupStatusLabel(topup.status, t)}</span><small>{t('requestedAt', { date: dateTime(topup.createdAt, t) })}{topup.expiresAt ? ` · ${t('expiresAt', { date: dateTime(topup.expiresAt, t) })}` : ''}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${topup.status}`}>{topupStatusLabel(topup.status, t)}</span><Link to={`/wallet?topupId=${encodeURIComponent(topup.id)}`} className="ox-credit-detail-link">{t('viewTopup')}</Link></div></article>)}</div></section>}
 

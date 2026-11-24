@@ -27,6 +27,7 @@ const {
   getCustomerCreditTransaction,
   createCreditHold,
   releaseCreditHold,
+  reauthorizeCreditHold,
   transferCredit,
   updateCustomerCreditAccountStatus,
   openCreditDispute,
@@ -610,6 +611,24 @@ async function releaseMyHold(req, res, next) {
       reason: req.body?.reason,
     });
     res.json(formatCustomerCreditMutationResult(result));
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Group 13, item 670 (D-367): one-click re-authorization from an expired
+// hold. Same amount and restaurant, fresh hold, same gates as a fresh
+// authorization — the service replays the expired hold through the
+// existing hold-creation path.
+async function reauthorizeMyHold(req, res, next) {
+  try {
+    const holdId = parseUuid(req.params.holdId, 'holdId');
+    const result = await reauthorizeCreditHold({
+      customerId: req.user.id,
+      holdId,
+      ...getRequestContext(req),
+    });
+    res.status(result.replayed ? 200 : 201).json(formatCustomerCreditMutationResult(result));
   } catch (error) {
     next(error);
   }
@@ -2794,6 +2813,7 @@ module.exports = {
   createMyHold,
   adminCaptureHold,
   releaseMyHold,
+  reauthorizeMyHold,
   transferMyCredit,
   lookupTransferRecipient,
   openMyDispute,

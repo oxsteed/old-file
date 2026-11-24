@@ -163,6 +163,10 @@
 .ox-credit-hold-status.captured { color: var(--oc-blue); background: var(--oc-blue-soft); }
 .ox-credit-hold-status.released { color: var(--oc-ink-soft); background: var(--oc-surface-soft); }
 .ox-credit-hold-status.expired { color: var(--oc-red); background: var(--oc-red-soft); }
+/* Group 13, item 670: one-click re-authorization on an expired hold row. */
+.ox-credit-hold-action { min-height: 30px; padding: 0 11px; border: 1px solid rgba(182,90,12,.2); border-radius: 9px; color: var(--oc-brand-ink); background: var(--oc-warm-surface); font-size: 11px; font-weight: 850; cursor: pointer; }
+.ox-credit-hold-action:hover { border-color: rgba(182,90,12,.42); background: var(--oc-warm-surface-2); }
+.ox-credit-hold-action:disabled { opacity: .55; cursor: wait; }
 .ox-credit-sections { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 18px; margin-top: 18px; }
 .ox-credit-panel { overflow: hidden; border: 1px solid var(--oc-line); border-radius: 23px; background: var(--oc-panel); box-shadow: 0 16px 50px rgba(44,47,50,.06); }
 .ox-credit-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 23px 23px 0; }

@@ -71,6 +71,11 @@ export const releaseOxsteedCreditHold = (holdId, payload = {}) =>
   api.post(`/oxsteed-credit/holds/${holdId}/release`, payload)
     .then((response) => response.data);
 
+// Group 13, item 670 (D-367): one-click re-authorization from an expired hold.
+export const reauthorizeOxsteedCreditHold = (holdId) =>
+  api.post(`/oxsteed-credit/holds/${holdId}/reauthorize`)
+    .then((response) => response.data);
+
 export const openOxsteedCreditDispute = (payload, idempotencyKey) =>
   api.post('/oxsteed-credit/disputes', payload, {
     headers: { 'Idempotency-Key': idempotencyKey },

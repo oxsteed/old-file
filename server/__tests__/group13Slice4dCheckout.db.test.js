@@ -107,6 +107,10 @@ describeDb('Group 13 Slice 4d: checkout reads and expired-hold re-authorization 
     app.get('/api/oxsteed-credit/holds', authenticate, creditCtrl.listMyHolds);
     app.get('/api/oxsteed-credit/transactions/:transactionId', authenticate, creditCtrl.getMyTransaction);
     app.post('/api/oxsteed-credit/holds', authenticate, creditCtrl.createMyHold);
+    // The reauthorize route carries checkRestrictions('checkout') exactly
+    // like POST /holds (D-367); in NODE_ENV=test the middleware is a
+    // no-op, and the restriction test below flips NODE_ENV to prove it.
+    app.post('/api/oxsteed-credit/holds/:holdId/reauthorize', authenticate, checkRestrictions('checkout'), creditCtrl.reauthorizeMyHold);
     app.use(require('../middleware/errorHandler').errorHandler);
 
     admin = await makeUser('super_admin');
@@ -250,6 +254,35 @@ describeDb('Group 13 Slice 4d: checkout reads and expired-hold re-authorization 
     return row.n;
   }
 
+  // A real expired hold: created through POST /holds with a two-second
+  // expiry, then expired through the real expiry sweeper once the time
+  // passes, so the row carries the stored scope, purpose, and metadata
+  // the re-authorization replays. The hold table is append-only
+  // (migration 469): expires_at and metadata cannot be moved by hand.
+  async function createExpiredHold(user, amountCents) {
+    const walletId = await makeWallet(user);
+    await fundWallet(user, walletId, 5000);
+    const created = await postAs(user, '/api/oxsteed-credit/holds')
+      .set('Idempotency-Key', `g13d-hold-${user.id}`)
+      .send({
+        partnerId, amountCents, currencyCode: 'USD', purpose: 'Fixture hold', orderType: 'pickup',
+        expiresAt: new Date(Date.now() + 2000).toISOString(),
+      });
+    expect(created.status).toBe(201);
+    const hold = created.body.hold;
+    expect(hold).toMatchObject({ status: 'active', amountCents, partnerId });
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const expired = await creditService.expireCreditHolds({ limit: 10 });
+    expect(expired.count).toBeGreaterThanOrEqual(1);
+    const { rows: [row] } = await pool.query(
+      `SELECT status FROM oxsteed_credit_holds WHERE id = $1`,
+      [hold.id],
+    );
+    expect(row.status).toBe('expired');
+    expect(await walletState(walletId)).toEqual({ balance: 5000, reserved: 0 });
+    return { hold, walletId };
+  }
+
   test('666 re-check: eligibility carries the amount preview and the account carries the available balance', async () => {
     const user = await makeUser();
     const walletId = await makeWallet(user);
@@ -349,5 +382,193 @@ describeDb('Group 13 Slice 4d: checkout reads and expired-hold re-authorization 
       referenceType: 'test',
     });
     expect(res.body.transaction).toHaveProperty('postedAt');
+  });
+
+  test('670: re-authorizing an expired hold creates a fresh hold for the same amount and restaurant', async () => {
+    const user = await makeUser();
+    const { hold: expired, walletId } = await createExpiredHold(user, 2500);
+
+    const res = await postAs(user, `/api/oxsteed-credit/holds/${expired.id}/reauthorize`).send({});
+    expect(res.status).toBe(201);
+    expect(res.body.replayed).toBe(false);
+    expect(res.body.reauthorizedFrom).toBe(String(expired.id));
+    const fresh = res.body.hold;
+    expect(fresh).toMatchObject({ status: 'active', amountCents: 2500, partnerId });
+    expect(fresh.id).not.toBe(String(expired.id));
+    expect(await walletState(walletId)).toEqual({ balance: 5000, reserved: 2500 });
+
+    // The expired hold stays expired with its released date; both rows list.
+    const list = await getAs(user, '/api/oxsteed-credit/holds?status=all');
+    expect(list.status).toBe(200);
+    const byId = Object.fromEntries(list.body.holds.map((h) => [h.id, h]));
+    expect(byId[String(expired.id)]).toMatchObject({ status: 'expired' });
+    expect(byId[String(expired.id)].releasedAt).toBeTruthy();
+    expect(byId[fresh.id]).toMatchObject({ status: 'active', amountCents: 2500 });
+
+    // The link is recorded on the fresh hold (D-368); the expired hold
+    // itself is never mutated — migration 469 forbids it.
+    const { rows: [freshRow] } = await pool.query(
+      `SELECT metadata FROM oxsteed_credit_holds WHERE id = $1`,
+      [fresh.id],
+    );
+    expect(freshRow.metadata.reauthorizedFrom).toBe(String(expired.id));
+    const { rows: [expiredRow] } = await pool.query(
+      `SELECT metadata FROM oxsteed_credit_holds WHERE id = $1`,
+      [expired.id],
+    );
+    expect(expiredRow.metadata.reauthorizedHoldId).toBeUndefined();
+
+    const { rows: events } = await pool.query(
+      `SELECT action_type, resource_id FROM oxsteed_credit_audit_events
+        WHERE action_type = 'credit.hold.reauthorized' AND customer_id = $1`,
+      [user.id],
+    );
+    expect(events).toHaveLength(1);
+    expect(events[0].resource_id).toBe(String(fresh.id));
+  });
+
+  test('670: a repeat re-authorization while the fresh hold is active replays it instead of reserving twice', async () => {
+    const user = await makeUser();
+    const { hold: expired, walletId } = await createExpiredHold(user, 2500);
+
+    const first = await postAs(user, `/api/oxsteed-credit/holds/${expired.id}/reauthorize`).send({});
+    expect(first.status).toBe(201);
+    const second = await postAs(user, `/api/oxsteed-credit/holds/${expired.id}/reauthorize`).send({});
+    expect(second.status).toBe(200);
+    expect(second.body).toMatchObject({ replayed: true, reauthorizedFrom: String(expired.id) });
+    expect(second.body.hold.id).toBe(first.body.hold.id);
+    expect(await walletState(walletId)).toEqual({ balance: 5000, reserved: 2500 });
+    expect(await holdCountFor(user)).toBe(2); // expired + the one fresh hold
+  });
+
+  test('670: an active hold cannot be re-authorized', async () => {
+    const user = await makeUser();
+    const walletId = await makeWallet(user);
+    await fundWallet(user, walletId, 5000);
+    const created = await postAs(user, '/api/oxsteed-credit/holds')
+      .set('Idempotency-Key', `g13d-active-${user.id}`)
+      .send({ partnerId, amountCents: 2500, currencyCode: 'USD', purpose: 'Fixture hold', orderType: 'pickup' });
+    expect(created.status).toBe(201);
+
+    const res = await postAs(user, `/api/oxsteed-credit/holds/${created.body.hold.id}/reauthorize`).send({});
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('credit_hold_state_invalid');
+    expect(await holdCountFor(user)).toBe(1);
+    expect(await walletState(walletId)).toEqual({ balance: 5000, reserved: 2500 });
+  });
+
+  test('670: another customer cannot re-authorize the hold', async () => {
+    const owner = await makeUser();
+    const other = await makeUser();
+    const { hold: expired, walletId } = await createExpiredHold(owner, 2500);
+
+    const res = await postAs(other, `/api/oxsteed-credit/holds/${expired.id}/reauthorize`).send({});
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('credit_hold_not_found');
+    expect(await holdCountFor(owner)).toBe(1);
+    expect(await holdCountFor(other)).toBe(0);
+    expect(await walletState(walletId)).toEqual({ balance: 5000, reserved: 0 });
+  });
+
+  test('670: re-authorization fails closed when the rail is off', async () => {
+    const user = await makeUser();
+    const { hold: expired, walletId } = await createExpiredHold(user, 2500);
+    try {
+      await pool.query(`UPDATE feature_flags SET is_enabled = false WHERE key = 'oxsteed_credit_enabled'`);
+      const res = await postAs(user, `/api/oxsteed-credit/holds/${expired.id}/reauthorize`).send({});
+      expect(res.status).toBe(503);
+      expect(res.body.code).toBe('credit_rail_suspended');
+      expect(await holdCountFor(user)).toBe(1);
+      expect(await walletState(walletId)).toEqual({ balance: 5000, reserved: 0 });
+    } finally {
+      await pool.query(`UPDATE feature_flags SET is_enabled = true WHERE key = 'oxsteed_credit_enabled'`);
+    }
+  });
+
+  test('670: re-authorization fails closed when the balance no longer covers the amount', async () => {
+    const user = await makeUser();
+    const { hold: expired, walletId } = await createExpiredHold(user, 2500);
+    // Spend the whole balance after the hold expired: the fresh check must
+    // refuse instead of reserving money that is not there.
+    await postLedger(user, walletId, [
+      {
+        key: 'spend', transactionType: 'purchase', debitAccountId: walletId, creditAccountId: payableId,
+        amountCents: 5000, actorType: 'customer', actorUserId: user.id, reason: 'Fixture spend',
+        partnerId, agreementId,
+        referenceType: 'test', referenceId: `g13d-spend-${user.id}`, description: 'Fixture spend',
+      },
+    ]);
+    expect(await walletState(walletId)).toEqual({ balance: 0, reserved: 0 });
+
+    const res = await postAs(user, `/api/oxsteed-credit/holds/${expired.id}/reauthorize`).send({});
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('credit_insufficient_funds');
+    expect(await holdCountFor(user)).toBe(1);
+  });
+
+  test('670: a checkout restriction blocks re-authorization', async () => {
+    const user = await makeUser();
+    const { hold: expired } = await createExpiredHold(user, 2500);
+    // checkRestrictions is a no-op in NODE_ENV=test; flip it on for this
+    // request so the middleware runs exactly as in production.
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    try {
+      await pool.query(`UPDATE users SET is_suspended = true, suspended_until = NULL WHERE id = $1`, [user.id]);
+      const res = await postAs(user, `/api/oxsteed-credit/holds/${expired.id}/reauthorize`).send({});
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('ACCOUNT_SUSPENDED');
+      expect(await holdCountFor(user)).toBe(1);
+    } finally {
+      await pool.query(`UPDATE users SET is_suspended = false, suspended_until = NULL WHERE id = $1`, [user.id]);
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+  });
+
+  test('670: the same expired hold can be re-authorized again after the fresh hold expires', async () => {
+    const user = await makeUser();
+    const { hold: expired, walletId } = await createExpiredHold(user, 2500);
+
+    const first = await postAs(user, `/api/oxsteed-credit/holds/${expired.id}/reauthorize`).send({});
+    expect(first.status).toBe(201);
+    // End the fresh hold through the real release path (the hold table is
+    // append-only, migration 469: expires_at cannot be moved by hand), so
+    // the next re-authorization starts a new episode (D-368).
+    const released = await creditService.releaseCreditHold({
+      customerId: user.id, holdId: first.body.hold.id, actorUserId: user.id,
+    });
+    expect(released.hold.status).toBe('released');
+    expect(await walletState(walletId)).toEqual({ balance: 5000, reserved: 0 });
+
+    const second = await postAs(user, `/api/oxsteed-credit/holds/${expired.id}/reauthorize`).send({});
+    expect(second.status).toBe(201);
+    expect(second.body.replayed).toBe(false);
+    expect(second.body.hold.id).not.toBe(first.body.hold.id);
+    expect(second.body.hold).toMatchObject({ status: 'active', amountCents: 2500 });
+    expect(await walletState(walletId)).toEqual({ balance: 5000, reserved: 2500 });
+    expect(await holdCountFor(user)).toBe(3);
+  });
+
+  test('670: re-authorization re-checks the agreement — a suspended agreement refuses', async () => {
+    const user = await makeUser();
+    const { hold: expired, walletId } = await createExpiredHold(user, 2500);
+    try {
+      // Agreement status stays mutable under migration 450 (only the
+      // terms freeze); suspending it must fail the fresh agreement check.
+      await pool.query(
+        `UPDATE oxsteed_credit_partner_agreements SET status = 'suspended' WHERE id = $1`,
+        [agreementId],
+      );
+      const res = await postAs(user, `/api/oxsteed-credit/holds/${expired.id}/reauthorize`).send({});
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('credit_partner_not_eligible');
+      expect(await holdCountFor(user)).toBe(1);
+      expect(await walletState(walletId)).toEqual({ balance: 5000, reserved: 0 });
+    } finally {
+      await pool.query(
+        `UPDATE oxsteed_credit_partner_agreements SET status = 'active' WHERE id = $1`,
+        [agreementId],
+      );
+    }
   });
 });
