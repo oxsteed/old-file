@@ -106,6 +106,14 @@ const {
   reviewCorrectiveActionAsAdmin,
   getExceptionResolution,
   getExceptionResolutionAsAdmin,
+  createCandidateLocation,
+  createCandidateLocationAsAdmin,
+  getCandidateLocations,
+  getCandidateLocationsAsAdmin,
+  updateCandidateLocation,
+  updateCandidateLocationAsAdmin,
+  deleteCandidateLocation,
+  deleteCandidateLocationAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,
@@ -216,6 +224,12 @@ router.get('/my-applications/:id/corrective-actions/:actionId/evidence', authent
 // Group 12 Slice 3g (635): resolution review — the per-exception
 // resolution state, derived from ticket + corrective-action state.
 router.get('/my-applications/:id/resolution', authenticate, requireFranchiseEnabled, getExceptionResolution);
+// Group 12 Slice 3h (636): the candidate location tracker — the
+// operator proposes locations inside the territory, HQ reviews them.
+router.get('/my-applications/:id/candidate-locations', authenticate, requireFranchiseEnabled, getCandidateLocations);
+router.post('/my-applications/:id/candidate-locations', authenticate, requireFranchiseEnabled, createCandidateLocation);
+router.patch('/my-applications/:id/candidate-locations/:candidateId', authenticate, requireFranchiseEnabled, updateCandidateLocation);
+router.delete('/my-applications/:id/candidate-locations/:candidateId', authenticate, requireFranchiseEnabled, deleteCandidateLocation);
 // Group 12 Slice 3d (620): the operator reads the HQ announcement feed
 // and marks items read (idempotent).
 router.post('/my-applications/:id/announcements/:announcementId/read', authenticate, requireFranchiseEnabled, markAnnouncementRead);
@@ -297,6 +311,12 @@ router.post('/applications/:id/corrective-actions/:actionId/status', authenticat
 // corrective action.
 router.post('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), upload.single('file'), validateFileUpload, uploadActionEvidenceAsAdmin);
 router.get('/applications/:id/corrective-actions/:actionId/evidence', authenticate, requireAdmin, requirePermission('manage_operations'), listActionEvidenceAsAdmin);
+// Group 12 Slice 3h (636): HQ reads, proposes, and reviews candidate
+// locations for the territory.
+router.get('/applications/:id/candidate-locations', authenticate, requireAdmin, requirePermission('manage_operations'), getCandidateLocationsAsAdmin);
+router.post('/applications/:id/candidate-locations', authenticate, requireAdmin, requirePermission('manage_operations'), createCandidateLocationAsAdmin);
+router.patch('/applications/:id/candidate-locations/:candidateId', authenticate, requireAdmin, requirePermission('manage_operations'), updateCandidateLocationAsAdmin);
+router.delete('/applications/:id/candidate-locations/:candidateId', authenticate, requireAdmin, requirePermission('manage_operations'), deleteCandidateLocationAsAdmin);
 // Group 12 Slice 3g (635): HQ reviews a resolved corrective action
 // (accept = verified, reject = back to in_progress with a reason) and
 // reads the per-exception resolution state.

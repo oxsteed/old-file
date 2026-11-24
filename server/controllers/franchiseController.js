@@ -471,6 +471,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3g (635, D-335): the per-exception resolution state —
   // derived on read, so it can never drift from ticket + action state.
   const exceptionResolution = await buildExceptionResolution(applicationId);
+  // Group 12 Slice 3h (636, D-336): the candidate locations inside this
+  // territory — what the territory is scouting, shortlisted, or decided.
+  const candidateLocations = await buildCandidateLocations(applicationId);
 
   const checklist = checklistResult.rows;
   const completedChecklist = checklist.filter((item) => item.status === 'completed' || item.status === 'waived').length;
@@ -502,6 +505,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     location_health: locationHealth,
     territory_members: territoryMembers,
     exception_resolution: exceptionResolution,
+    candidate_locations: candidateLocations,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — team perspective for HQ.
@@ -1106,6 +1110,9 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
   const territoryMembers = await fetchTerritoryMembers(applicationId);
   // Group 12 Slice 3g (635, D-335): the per-exception resolution state.
   const exceptionResolution = await buildExceptionResolution(applicationId);
+  // Group 12 Slice 3h (636, D-336): the candidate locations inside this
+  // territory.
+  const candidateLocations = await buildCandidateLocations(applicationId);
 
   return {
     application: {
@@ -1132,6 +1139,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     location_health: locationHealth,
     territory_members: territoryMembers,
     exception_resolution: exceptionResolution,
+    candidate_locations: candidateLocations,
     // Group 12 Slice 3e (624, D-325): the operator compliance checklist,
     // derived from the standards library, the acknowledgment state, and
     // readiness — viewer perspective.
@@ -8069,6 +8077,428 @@ async function deleteFranchiseBrandAssetWide(req, res) {
   }
 }
 
+// ── Group 12 Slice 3h (636-640): plan development ──────────────────────────
+// 636 (D-336): the candidate location tracker. Candidate locations are
+// business/restaurant locations inside a territory (D-298) — the HQ list
+// tracks candidate territories, this tracks the locations a territory is
+// scouting. The operator proposes; HQ reviews. Status flows
+// scouting -> shortlisted -> approved/rejected, with rejected -> scouting
+// as the reopen path; approved and rejected are otherwise terminal.
+const CANDIDATE_STATUSES = new Set(['scouting', 'shortlisted', 'approved', 'rejected']);
+const CANDIDATE_TRANSITIONS = {
+  scouting: ['shortlisted', 'rejected'],
+  shortlisted: ['approved', 'rejected', 'scouting'],
+  approved: [],
+  rejected: ['scouting'],
+};
+// The operator may submit a candidate for review (scouting -> shortlisted)
+// and withdraw one (shortlisted -> scouting); every other move is an HQ
+// review decision (D-336).
+const CANDIDATE_OPERATOR_TRANSITIONS = new Set(['scouting:shortlisted', 'shortlisted:scouting']);
+
+async function fetchCandidateLocations(applicationId, { status = null } = {}) {
+  const conditions = ['c.application_id = $1'];
+  const params = [applicationId];
+  if (status) {
+    params.push(status);
+    conditions.push(`c.status = $${params.length}`);
+  }
+  const { rows } = await db.query(
+    `SELECT c.*, u.first_name AS proposer_first_name, u.last_name AS proposer_last_name,
+            u.email AS proposer_email,
+            r.first_name AS reviewer_first_name, r.last_name AS reviewer_last_name,
+            r.email AS reviewer_email
+       FROM franchise_candidate_locations c
+       LEFT JOIN users u ON u.id = c.proposed_by
+       LEFT JOIN users r ON r.id = c.reviewed_by
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY c.created_at DESC, c.id DESC`,
+    params
+  );
+  return rows.map((row) => ({
+    ...row,
+    area: [row.city, row.region, row.country].filter(Boolean).join(', ') || null,
+    proposed_by_name: [row.proposer_first_name, row.proposer_last_name].filter(Boolean).join(' ')
+      || row.proposer_email || null,
+    reviewed_by_name: [row.reviewer_first_name, row.reviewer_last_name].filter(Boolean).join(' ')
+      || row.reviewer_email || null,
+  }));
+}
+
+async function buildCandidateLocations(applicationId) {
+  const candidateLocations = await fetchCandidateLocations(applicationId);
+  const byStatus = { scouting: 0, shortlisted: 0, approved: 0, rejected: 0 };
+  for (const candidate of candidateLocations) {
+    if (Object.prototype.hasOwnProperty.call(byStatus, candidate.status)) byStatus[candidate.status] += 1;
+  }
+  return {
+    application_id: applicationId,
+    total: candidateLocations.length,
+    by_status: byStatus,
+    candidate_locations: candidateLocations,
+  };
+}
+
+function validateCandidateLocationFields(body) {
+  const name = asTrimmed(body?.proposed_name);
+  if (!name) return { error: { status: 400, body: { error: 'proposed_name is required.', code: 'candidate_name_required' } } };
+  if (name.length > 200) return { error: { status: 400, body: { error: 'proposed_name must be at most 200 characters.', code: 'candidate_name_too_long' } } };
+  const countryRaw = asTrimmed(body?.country);
+  if (countryRaw && !countriesUtil.isValidCountry(countryRaw)) {
+    return { error: { status: 400, body: { error: 'country must be a valid ISO-2 country code.', code: 'invalid_candidate_country' } } };
+  }
+  const notes = asTrimmed(body?.notes);
+  if (notes && notes.length > 1000) return { error: { status: 400, body: { error: 'notes must be at most 1000 characters.', code: 'candidate_notes_too_long' } } };
+  return {
+    value: {
+      name,
+      city: asTrimmed(body?.city) || null,
+      region: asTrimmed(body?.region) || null,
+      country: countryRaw ? countriesUtil.normalizeCountry(countryRaw) : null,
+      notes: notes || null,
+    },
+  };
+}
+
+async function createCandidateLocation(req, res, { asAdmin = false } = {}) {
+  const validated = validateCandidateLocationFields(req.body);
+  if (validated.error) return res.status(validated.error.status).json(validated.error.body);
+  const { id } = req.params;
+  const { name, city, region, country, notes } = validated.value;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (!asAdmin) {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only the assigned operator can propose candidate locations.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const { rows } = await client.query(
+        `INSERT INTO franchise_candidate_locations
+           (application_id, proposed_name, city, region, country, notes, proposed_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [id, name, city, region, country, notes, req.user?.id || null]
+      );
+      await logActivity(client, id, req.user?.id || null, 'candidate_location_proposed',
+        `Candidate location proposed: "${name}".`, { candidate_location_id: rows[0].id });
+      await client.query('COMMIT');
+      const candidateLocations = await buildCandidateLocations(id);
+      const created = candidateLocations.candidate_locations.find((row) => row.id === rows[0].id) || rows[0];
+      return res.status(201).json({ candidate_location: created, candidate_locations: candidateLocations });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error proposing franchise candidate location', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to propose candidate location.' });
+  }
+}
+
+async function createCandidateLocationAsAdmin(req, res) {
+  return createCandidateLocation(req, res, { asAdmin: true });
+}
+
+async function getCandidateLocations(req, res, { asAdmin = false } = {}) {
+  const { id } = req.params;
+  const status = asTrimmed(req.query?.status);
+  if (status && !CANDIDATE_STATUSES.has(status)) {
+    return res.status(400).json({ error: 'status must be scouting, shortlisted, approved, or rejected.', code: 'invalid_candidate_status' });
+  }
+  try {
+    if (!asAdmin) {
+      const client = await db.connect();
+      try {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          return res.status(403).json({
+            error: 'Only the assigned operator can view candidate locations.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } finally {
+        client.release();
+      }
+    } else {
+      const { rows } = await db.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+      if (!rows.length) {
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+    }
+    const all = await buildCandidateLocations(id);
+    if (!status) return res.json(all);
+    return res.json({
+      ...all,
+      total: all.by_status[status],
+      candidate_locations: all.candidate_locations.filter((row) => row.status === status),
+    });
+  } catch (err) {
+    logger.error('Error loading franchise candidate locations', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to load candidate locations.' });
+  }
+}
+
+async function getCandidateLocationsAsAdmin(req, res) {
+  return getCandidateLocations(req, res, { asAdmin: true });
+}
+
+async function updateCandidateLocation(req, res, { asAdmin = false } = {}) {
+  const { id, candidateId } = req.params;
+  if (!UUID_RE.test(candidateId)) {
+    return res.status(404).json({ error: 'Candidate location not found.', code: 'candidate_not_found' });
+  }
+  const body = req.body || {};
+  const nextStatus = body.status !== undefined ? asTrimmed(body.status) : undefined;
+  if (nextStatus !== undefined && !CANDIDATE_STATUSES.has(nextStatus)) {
+    return res.status(400).json({
+      error: 'status must be scouting, shortlisted, approved, or rejected.',
+      code: 'invalid_candidate_status',
+    });
+  }
+  const hasFieldEdits = ['proposed_name', 'city', 'region', 'country', 'notes']
+    .some((field) => body[field] !== undefined);
+  // A partial edit validates only the fields supplied: the name is
+  // required on create, but an edit that only changes the notes must not
+  // be forced to resend the name.
+  let validatedFields = null;
+  if (hasFieldEdits) {
+    validatedFields = {};
+    if (body.proposed_name !== undefined) {
+      const name = asTrimmed(body.proposed_name);
+      if (!name) {
+        return res.status(400).json({ error: 'proposed_name is required.', code: 'candidate_name_required' });
+      }
+      if (name.length > 200) {
+        return res.status(400).json({ error: 'proposed_name must be at most 200 characters.', code: 'candidate_name_too_long' });
+      }
+      validatedFields.name = name;
+    }
+    if (body.city !== undefined) validatedFields.city = asTrimmed(body.city) || null;
+    if (body.region !== undefined) validatedFields.region = asTrimmed(body.region) || null;
+    if (body.country !== undefined) {
+      const countryRaw = asTrimmed(body.country);
+      if (countryRaw && !countriesUtil.isValidCountry(countryRaw)) {
+        return res.status(400).json({ error: 'country must be a valid ISO-2 country code.', code: 'invalid_candidate_country' });
+      }
+      validatedFields.country = countryRaw ? countriesUtil.normalizeCountry(countryRaw) : null;
+    }
+    if (body.notes !== undefined) {
+      const notes = asTrimmed(body.notes);
+      if (notes && notes.length > 1000) {
+        return res.status(400).json({ error: 'notes must be at most 1000 characters.', code: 'candidate_notes_too_long' });
+      }
+      validatedFields.notes = notes || null;
+    }
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (!asAdmin) {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only the assigned operator can update candidate locations.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const { rows: found } = await client.query(
+        `SELECT * FROM franchise_candidate_locations WHERE id = $1 AND application_id = $2`,
+        [candidateId, id]
+      );
+      const candidate = found[0] || null;
+      if (!candidate) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Candidate location not found.', code: 'candidate_not_found' });
+      }
+      if (nextStatus !== undefined && nextStatus !== candidate.status) {
+        if (!CANDIDATE_TRANSITIONS[candidate.status].includes(nextStatus)) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: `A ${candidate.status} candidate location cannot move to ${nextStatus}.`,
+            code: 'candidate_transition_invalid',
+          });
+        }
+        if (!asAdmin && !CANDIDATE_OPERATOR_TRANSITIONS.has(`${candidate.status}:${nextStatus}`)) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only headquarters can review a candidate location.',
+            code: 'candidate_review_hq_only',
+          });
+        }
+      }
+      if (hasFieldEdits) {
+        const locked = !asAdmin
+          ? candidate.status !== 'scouting'
+          : candidate.status === 'approved';
+        if (locked) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Candidate location details can no longer be edited.',
+            code: 'candidate_edit_locked',
+          });
+        }
+      }
+      const updates = [];
+      const values = [candidateId];
+      const set = (column, value) => {
+        values.push(value);
+        updates.push(`${column} = $${values.length}`);
+      };
+      if (validatedFields) {
+        if (validatedFields.name !== undefined) set('proposed_name', validatedFields.name);
+        if (validatedFields.city !== undefined) set('city', validatedFields.city);
+        if (validatedFields.region !== undefined) set('region', validatedFields.region);
+        if (validatedFields.country !== undefined) set('country', validatedFields.country);
+        if (validatedFields.notes !== undefined) set('notes', validatedFields.notes);
+      }
+      if (nextStatus !== undefined && nextStatus !== candidate.status) {
+        set('status', nextStatus);
+        if (asAdmin) {
+          set('reviewed_by', req.user?.id || null);
+          updates.push('reviewed_at = NOW()');
+        }
+      }
+      let updated = candidate;
+      if (updates.length) {
+        const { rows } = await client.query(
+          `UPDATE franchise_candidate_locations
+              SET ${updates.join(', ')}, updated_at = NOW()
+            WHERE id = $1
+            RETURNING *`,
+          values
+        );
+        updated = rows[0];
+        await logActivity(client, id, req.user?.id || null, 'candidate_location_updated',
+          `Candidate location "${updated.proposed_name}" updated to ${updated.status}.`,
+          { candidate_location_id: candidateId, status: updated.status });
+      }
+      await client.query('COMMIT');
+      const candidateLocations = await buildCandidateLocations(id);
+      const presented = candidateLocations.candidate_locations.find((row) => row.id === candidateId) || updated;
+      return res.json({ candidate_location: presented, candidate_locations: candidateLocations });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise candidate location', { id, candidateId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update candidate location.' });
+  }
+}
+
+async function updateCandidateLocationAsAdmin(req, res) {
+  return updateCandidateLocation(req, res, { asAdmin: true });
+}
+
+async function deleteCandidateLocation(req, res, { asAdmin = false } = {}) {
+  const { id, candidateId } = req.params;
+  if (!UUID_RE.test(candidateId)) {
+    return res.status(404).json({ error: 'Candidate location not found.', code: 'candidate_not_found' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (!asAdmin) {
+        const owned = await loadOperatorApplication(client, id, req.user?.id);
+        if (!owned.application || !owned.isAssociated) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+        if (!owned.isOperator) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({
+            error: 'Only the assigned operator can remove candidate locations.',
+            code: 'franchise_operator_only',
+          });
+        }
+      } else {
+        const exists = await client.query('SELECT id FROM franchise_applications WHERE id = $1', [id]);
+        if (!exists.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Franchise application not found.' });
+        }
+      }
+      const { rows: found } = await client.query(
+        `SELECT * FROM franchise_candidate_locations WHERE id = $1 AND application_id = $2`,
+        [candidateId, id]
+      );
+      const candidate = found[0] || null;
+      if (!candidate) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Candidate location not found.', code: 'candidate_not_found' });
+      }
+      const locked = !asAdmin
+        ? candidate.status !== 'scouting'
+        : candidate.status === 'approved';
+      if (locked) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'This candidate location can no longer be removed.',
+          code: 'candidate_delete_locked',
+        });
+      }
+      await client.query(
+        `DELETE FROM franchise_candidate_locations WHERE id = $1`, [candidateId]
+      );
+      await logActivity(client, id, req.user?.id || null, 'candidate_location_removed',
+        `Candidate location removed: "${candidate.proposed_name}".`,
+        { candidate_location_id: candidateId });
+      await client.query('COMMIT');
+      return res.json({ candidate_locations: await buildCandidateLocations(id) });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error removing franchise candidate location', { id, candidateId, err: err.message });
+    return res.status(500).json({ error: 'Failed to remove candidate location.' });
+  }
+}
+
+async function deleteCandidateLocationAsAdmin(req, res) {
+  return deleteCandidateLocation(req, res, { asAdmin: true });
+}
+
 module.exports = {
   createFranchiseApplication,
   listMyFranchiseApplications,
@@ -8162,6 +8592,14 @@ module.exports = {
   reviewCorrectiveActionAsAdmin,
   getExceptionResolution,
   getExceptionResolutionAsAdmin,
+  createCandidateLocation,
+  createCandidateLocationAsAdmin,
+  getCandidateLocations,
+  getCandidateLocationsAsAdmin,
+  updateCandidateLocation,
+  updateCandidateLocationAsAdmin,
+  deleteCandidateLocation,
+  deleteCandidateLocationAsAdmin,
   postAnnouncementAsAdmin,
   deleteAnnouncementAsAdmin,
   markAnnouncementRead,

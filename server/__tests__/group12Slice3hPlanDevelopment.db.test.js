@@ -1,0 +1,355 @@
+'use strict';
+
+// Group 12 Slice 3h acceptance: Plan development (636-640).
+// Runs against a dedicated fresh database (credit_statement_test_g12h) so
+// slice-local fixtures never pollute the shared credit_statement_test DB.
+//
+// 636: candidate location tracker (D-336) — candidate locations inside a
+//   territory: the operator proposes (scouting), HQ reviews through
+//   scouting -> shortlisted -> approved/rejected, rejected -> scouting
+//   reopens. The operator may only submit/withdraw; HQ reviews.
+// 637: territory capacity map (D-337) — a structured per-area capacity
+//   view (no geographic map): target, open, planned, and candidate
+//   locations plus staffing/coverage load per structured boundary area.
+// 638: training resource planner (D-338) — who needs what training by
+//   when, derived from training assignments, the roster, and Learn.
+// 639: launch dependency overview (D-339) — per-location dependencies
+//   (agreement, training, staffing, milestones, compliance, readiness,
+//   services, exceptions) with blocked/blocking status, derived.
+// 640: expansion readiness notes (D-340) — operator-authored readiness
+//   notes per territory/location, read by HQ alongside its own admin
+//   readiness fields in one view.
+
+jest.unmock('pg');
+jest.unmock('../db');
+jest.unmock('../utils/transaction');
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { randomUUID } = require('node:crypto');
+const express = require('express');
+const request = require('supertest');
+
+const dbUrl = process.env.GROUP12_SLICE3H_TEST_DATABASE_URL;
+if (dbUrl) {
+  const url = new URL(dbUrl);
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)
+    || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
+    || url.pathname !== '/credit_statement_test_g12h') {
+    throw new Error('Group 12 Slice 3h DB tests require the loopback credit_statement_test_g12h database');
+  }
+  process.env.DATABASE_URL = 'postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test_g12h';
+}
+// Uploads land in a scratch dir (as in the 3a/3e fixtures), never in the
+// shared local upload dir.
+process.env.LOCAL_UPLOAD_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'g12h-uploads-'));
+
+const mockRoles = new Map();
+jest.mock('../middleware/auth', () => {
+  const authenticate = (req, res, next) => {
+    const id = req.get('x-test-user');
+    if (!id) return res.sendStatus(401);
+    req.user = {
+      id,
+      role: mockRoles.get(id) || 'customer',
+      email: req.get('x-test-email') || `g12h-${id}@example.invalid`,
+      email_verified: !req.get('x-test-unverified'),
+    };
+    return next();
+  };
+  return { authenticate, authenticateIfPresent: (req, res, next) => (
+    req.get('x-test-user') ? authenticate(req, res, next) : next()
+  ) };
+});
+jest.mock('../middleware/adminAuth', () => ({
+  requireAdmin: (req, res, next) => {
+    if (req.user?.role !== 'super_admin') return res.sendStatus(403);
+    req.isSuper = true;
+    return next();
+  },
+  requirePermission: () => (req, res, next) => next(),
+}));
+jest.mock('../utils/email', () => ({
+  sendEmail: jest.fn().mockResolvedValue({ success: true }),
+  sendEmailOrThrow: jest.fn().mockResolvedValue({ success: true }),
+}));
+jest.mock('../services/notificationService', () => ({
+  sendNotification: jest.fn().mockResolvedValue({ success: true }),
+}));
+jest.mock('../growth/emit', () => ({
+  emitDomainEvent: jest.fn().mockResolvedValue(undefined),
+  commerceEventProps: (value) => value,
+}));
+jest.mock('../middleware/validateFileUpload', () => (req, res, next) => next());
+
+const describeDb = dbUrl ? describe : describe.skip;
+
+describeDb('Group 12 Slice 3h: Plan development (636-640)', () => {
+  let db;
+  let app;
+
+  beforeAll(async () => {
+    process.env.ACCESS_REQUESTS_ENABLED = 'true';
+    db = require('../db');
+    app = express();
+    app.use(express.json());
+    app.use('/api/franchise', require('../routes/franchise'));
+    app.use(require('../middleware/errorHandler').errorHandler);
+  });
+
+  afterAll(async () => { await db?.end(); });
+
+  async function addUser(role = 'customer') {
+    const id = randomUUID();
+    const email = `g12h-${id}@example.invalid`;
+    await db.query(
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, default_mode, email_verified, is_active, onboarding_completed, didit_status, didit_verified_at)
+       VALUES ($1, $2, 'x', 'Franchise', 'Fixture', $3, $4, TRUE, TRUE, TRUE, 'pending', NULL)`,
+      [id, email, role, role === 'super_admin' ? 'admin' : 'customer'],
+    );
+    mockRoles.set(id, role);
+    return { id, email };
+  }
+
+  // Creates an application whose applicant record is `applicant` and
+  // whose assigned operator (owner) is `owner`. When owner is omitted
+  // the applicant is also the operator, as in the 3c/3d/3f fixtures.
+  async function makeApplication(applicant, owner = null) {
+    const operator = owner || applicant;
+    const created = await request(app)
+      .post('/api/franchise/applications')
+      .set('x-test-user', applicant.id)
+      .send({
+        first_name: 'Fran',
+        last_name: 'Chise',
+        email: applicant.email,
+        desired_country: 'US',
+        desired_region: 'Texas',
+        desired_city: 'Austin',
+      })
+      .expect(201);
+    const applicationId = created.body.application.id;
+    const admin = await addUser('super_admin');
+    await request(app)
+      .patch(`/api/franchise/applications/${applicationId}`)
+      .set('x-test-user', admin.id)
+      .send({ owner_user_id: operator.id })
+      .expect(200);
+    return applicationId;
+  }
+
+  function applicantDetail(user, applicationId) {
+    return request(app)
+      .get(`/api/franchise/my-applications/${applicationId}`)
+      .set('x-test-user', user.id);
+  }
+
+  async function locationIdFor(operator, applicationId) {
+    const detail = await applicantDetail(operator, applicationId).expect(200);
+    expect(detail.body.locations).toHaveLength(1);
+    return detail.body.locations[0].id;
+  }
+
+  async function addOpeningTeamMember(operator, applicationId, member = null) {
+    const helper = member || await addUser();
+    await db.query(
+      `INSERT INTO helper_profiles (user_id, service_city, service_state, avg_rating, total_reviews, is_available_now)
+       VALUES ($1, 'Austin', 'TX', 4.9, 1, TRUE)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [helper.id],
+    );
+    await request(app)
+      .post(`/api/franchise/my-applications/${applicationId}/opening-team`)
+      .set('x-test-user', operator.id)
+      .send({ helper_user_id: helper.id, role: 'member' })
+      .expect(201);
+    return helper;
+  }
+
+  describe('636: candidate location tracker', () => {
+    function proposeAs(user, applicationId, body, asAdmin = false) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/candidate-locations`
+        : `/api/franchise/my-applications/${applicationId}/candidate-locations`;
+      return request(app).post(base).set('x-test-user', user.id).send(body);
+    }
+
+    function moveAs(user, applicationId, candidateId, body, asAdmin = false) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/candidate-locations/${candidateId}`
+        : `/api/franchise/my-applications/${applicationId}/candidate-locations/${candidateId}`;
+      return request(app).patch(base).set('x-test-user', user.id).send(body);
+    }
+
+    function listAs(user, applicationId, query = '', asAdmin = false) {
+      const base = asAdmin
+        ? `/api/franchise/applications/${applicationId}/candidate-locations${query}`
+        : `/api/franchise/my-applications/${applicationId}/candidate-locations${query}`;
+      return request(app).get(base).set('x-test-user', user.id);
+    }
+
+    test('the operator proposes a candidate: scouting, area derived, rides the bundle and the list', async () => {
+      const operator = await addUser();
+      const applicationId = await makeApplication(operator);
+
+      const created = await proposeAs(operator, applicationId, {
+        proposed_name: 'Round Rock storefront',
+        city: 'Round Rock',
+        region: 'Texas',
+        country: 'US',
+        notes: 'High foot traffic near the outlet mall',
+      }).expect(201);
+      expect(created.body.candidate_location.status).toBe('scouting');
+      expect(created.body.candidate_location.proposed_name).toBe('Round Rock storefront');
+      expect(created.body.candidate_location.area).toBe('Round Rock, Texas, US');
+      expect(created.body.candidate_location.proposed_by_name).toBeTruthy();
+      expect(created.body.candidate_locations.total).toBe(1);
+      expect(created.body.candidate_locations.by_status.scouting).toBe(1);
+
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.candidate_locations.total).toBe(1);
+      expect(detail.body.candidate_locations.candidate_locations[0].proposed_name)
+        .toBe('Round Rock storefront');
+
+      const list = await listAs(operator, applicationId).expect(200);
+      expect(list.body.total).toBe(1);
+      const filtered = await listAs(operator, applicationId, '?status=approved').expect(200);
+      expect(filtered.body.total).toBe(0);
+      await listAs(operator, applicationId, '?status=bogus')
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_candidate_status'));
+    });
+
+    test('the operator submits for review, HQ shortlists then approves; the operator cannot approve and a jump is 409', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const created = await proposeAs(operator, applicationId,
+        { proposed_name: 'Cedar Park corner', city: 'Cedar Park', country: 'US' }).expect(201);
+      const candidateId = created.body.candidate_location.id;
+
+      // scouting -> approved is not a legal jump, even for HQ.
+      await moveAs(admin, applicationId, candidateId, { status: 'approved' }, true)
+        .expect(409)
+        .then((res) => expect(res.body.code).toBe('candidate_transition_invalid'));
+      // The operator cannot approve either (and cannot jump).
+      await moveAs(operator, applicationId, candidateId, { status: 'approved' })
+        .expect(409)
+        .then((res) => expect(res.body.code).toBe('candidate_transition_invalid'));
+      await moveAs(operator, applicationId, candidateId, { status: 'rejected' })
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('candidate_review_hq_only'));
+
+      const submitted = await moveAs(operator, applicationId, candidateId, { status: 'shortlisted' }).expect(200);
+      expect(submitted.body.candidate_location.status).toBe('shortlisted');
+      const approved = await moveAs(admin, applicationId, candidateId, { status: 'approved' }, true).expect(200);
+      expect(approved.body.candidate_location.status).toBe('approved');
+      expect(approved.body.candidate_location.reviewed_by_name).toBeTruthy();
+      expect(approved.body.candidate_location.reviewed_at).toBeTruthy();
+
+      // Approved is terminal.
+      await moveAs(admin, applicationId, candidateId, { status: 'scouting' }, true)
+        .expect(409)
+        .then((res) => expect(res.body.code).toBe('candidate_transition_invalid'));
+      // Approval does not create an open location (promotion stays the
+      // HQ add-location step, D-336).
+      const detail = await applicantDetail(operator, applicationId).expect(200);
+      expect(detail.body.locations).toHaveLength(1);
+      expect(detail.body.candidate_locations.by_status.approved).toBe(1);
+    });
+
+    test('HQ rejects, the candidate reopens to scouting; edits and deletes lock once shortlisted', async () => {
+      const operator = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(operator);
+      const created = await proposeAs(operator, applicationId,
+        { proposed_name: 'Pflugerville unit', city: 'Pflugerville', country: 'US' }).expect(201);
+      const candidateId = created.body.candidate_location.id;
+
+      const rejected = await moveAs(admin, applicationId, candidateId, { status: 'rejected' }, true).expect(200);
+      expect(rejected.body.candidate_location.status).toBe('rejected');
+      const reopened = await moveAs(admin, applicationId, candidateId, { status: 'scouting' }, true).expect(200);
+      expect(reopened.body.candidate_location.status).toBe('scouting');
+
+      // The operator may edit and delete while scouting.
+      const edited = await moveAs(operator, applicationId, candidateId, { notes: 'Revised foot-traffic note' }).expect(200);
+      expect(edited.body.candidate_location.notes).toBe('Revised foot-traffic note');
+      await moveAs(operator, applicationId, candidateId, { status: 'shortlisted' }).expect(200);
+
+      // Shortlisted: the operator can no longer edit or delete.
+      await moveAs(operator, applicationId, candidateId, { notes: 'Too late' })
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('candidate_edit_locked'));
+      await request(app)
+        .delete(`/api/franchise/my-applications/${applicationId}/candidate-locations/${candidateId}`)
+        .set('x-test-user', operator.id)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('candidate_delete_locked'));
+
+      // HQ may still delete a shortlisted candidate, and the list empties.
+      await request(app)
+        .delete(`/api/franchise/applications/${applicationId}/candidate-locations/${candidateId}`)
+        .set('x-test-user', admin.id)
+        .expect(200)
+        .then((res) => expect(res.body.candidate_locations.total).toBe(0));
+    });
+
+    test('validation: a name is required, the country must be ISO-2, a foreign candidate is 404', async () => {
+      const operator = await addUser();
+      const otherOperator = await addUser();
+      const applicationId = await makeApplication(operator);
+      const otherApplicationId = await makeApplication(otherOperator);
+
+      await proposeAs(operator, applicationId, { city: 'Austin', country: 'US' })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('candidate_name_required'));
+      await proposeAs(operator, applicationId, { proposed_name: 'Nowhere', country: 'USA' })
+        .expect(400)
+        .then((res) => expect(res.body.code).toBe('invalid_candidate_country'));
+
+      const created = await proposeAs(operator, applicationId,
+        { proposed_name: 'Georgetown shop', country: 'US' }).expect(201);
+      const candidateId = created.body.candidate_location.id;
+      await moveAs(otherOperator, otherApplicationId, candidateId, { status: 'shortlisted' })
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('candidate_not_found'));
+      await moveAs(operator, applicationId, '00000000-0000-0000-0000-000000000000', { status: 'shortlisted' })
+        .expect(404)
+        .then((res) => expect(res.body.code).toBe('candidate_not_found'));
+
+      const list = await listAs(operator, applicationId).expect(200);
+      expect(list.body.total).toBe(1);
+    });
+
+    test('a stranger gets 404, a non-operator applicant 403, HQ proposes and reads', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant, operator);
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant.id, applicationId]);
+
+      await listAs(stranger, applicationId).expect(404);
+      await listAs(applicant, applicationId)
+        .expect(403)
+        .then((res) => expect(res.body.code).toBe('franchise_operator_only'));
+      await proposeAs(applicant, applicationId, { proposed_name: 'Applicant try', country: 'US' })
+        .expect(403);
+
+      const created = await proposeAs(admin, applicationId,
+        { proposed_name: 'HQ-scouted site', city: 'Austin', country: 'US' }, true).expect(201);
+      expect(created.body.candidate_location.status).toBe('scouting');
+      const hqList = await listAs(admin, applicationId, '', true).expect(200);
+      expect(hqList.body.total).toBe(1);
+      const hqBundle = await request(app)
+        .get(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin.id)
+        .expect(200);
+      expect(hqBundle.body.candidate_locations.total).toBe(1);
+      await listAs(operator, applicationId).expect(200);
+      // The operator cannot use the HQ admin read (admin route).
+      await listAs(operator, applicationId, '', true).expect(403);
+    });
+  });
+});
