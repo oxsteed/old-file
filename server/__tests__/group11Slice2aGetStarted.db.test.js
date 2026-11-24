@@ -254,4 +254,63 @@ describeDb('Group 11 Slice 2a: Get started (551, 552, 554, 555)', () => {
       });
     });
   });
+  describe('555: listing activation status', () => {
+    const getMyTools = (user) => request(app)
+      .get('/api/tool-rentals/me')
+      .set('x-test-user', user);
+
+    test('a granted owner sees published status with the activation flags', async () => {
+      process.env.ACCESS_TOOL_OWNER_ENFORCEMENT = 'enforce';
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner);
+      const res = await getMyTools(owner).expect(200);
+      const mine = res.body.tools.find((t) => t.id === tool.id);
+      expect(mine).toMatchObject({
+        publication_blocked: false,
+        activation_status: 'published',
+        moderation_hold: false,
+        is_available: true,
+      });
+      expect(mine.image_gallery).toEqual(['https://example.invalid/drill.jpg']);
+    });
+
+    test('an owner without the grant sees publication blocked with the reason', async () => {
+      process.env.ACCESS_TOOL_OWNER_ENFORCEMENT = 'enforce';
+      const owner = await addUser();
+      const tool = await insertTool(owner);
+      const res = await getMyTools(owner).expect(200);
+      const mine = res.body.tools.find((t) => t.id === tool.id);
+      expect(mine).toMatchObject({ publication_blocked: true, activation_status: 'blocked_access' });
+    });
+
+    test('enforcement off never blocks publication', async () => {
+      process.env.ACCESS_TOOL_OWNER_ENFORCEMENT = 'off';
+      const owner = await addUser();
+      const tool = await insertTool(owner);
+      const res = await getMyTools(owner).expect(200);
+      const mine = res.body.tools.find((t) => t.id === tool.id);
+      expect(mine).toMatchObject({ publication_blocked: false, activation_status: 'published' });
+    });
+
+    test('a moderation hold beats the other states', async () => {
+      process.env.ACCESS_TOOL_OWNER_ENFORCEMENT = 'enforce';
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { moderation_hold: true });
+      const res = await getMyTools(owner).expect(200);
+      const mine = res.body.tools.find((t) => t.id === tool.id);
+      expect(mine).toMatchObject({ moderation_hold: true, activation_status: 'blocked_hold' });
+    });
+
+    test('a granted owner who turned the listing off sees unavailable', async () => {
+      process.env.ACCESS_TOOL_OWNER_ENFORCEMENT = 'enforce';
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { is_available: false });
+      const res = await getMyTools(owner).expect(200);
+      const mine = res.body.tools.find((t) => t.id === tool.id);
+      expect(mine).toMatchObject({ publication_blocked: false, activation_status: 'unavailable' });
+    });
+  });
 });

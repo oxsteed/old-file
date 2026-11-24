@@ -426,17 +426,43 @@ router.get('/public/:id', async (req, res) => {
 });
 
 // GET /api/tool-rentals/me
+// Group 11 item 555: the owner-facing activation-status surface reads this
+// endpoint, so each row carries the flags the status derives from:
+// moderation_hold and image_gallery (readiness, item 552) plus the
+// publication_blocked and activation_status computed from the owner's
+// tool_owner.list_equipment grant (same gate POST/PUT apply).
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const { toolFields } = await getToolFields();
+    const { toolFields, hasImageGallery, hasModerationHold } = await getToolFields();
+    const galleryExpr = hasImageGallery ? 't.image_gallery' : 'NULL::text[] AS image_gallery';
+    const holdExpr = hasModerationHold ? 't.moderation_hold' : 'FALSE AS moderation_hold';
     const result = await pool.query(
-      `SELECT ${toolFields}
+      `SELECT ${toolFields}, ${galleryExpr}, ${holdExpr}
          FROM tool_rentals t
         WHERE t.user_id = $1
         ORDER BY t.created_at DESC`,
       [req.user.id]
     );
-    res.json({ tools: result.rows });
+    let publicationBlocked = false;
+    try {
+      const flags = require('../services/access/flags');
+      if (flags.toolOwnerEnforcement() !== 'off' && !['admin', 'super_admin'].includes(req.user.role)) {
+        const access = require('../services/access/accessService');
+        publicationBlocked = !(await access.can(req.user.id, 'tool_owner.list_equipment')).allowed;
+      }
+    } catch { publicationBlocked = false; }
+    res.json({
+      tools: result.rows.map((tool) => {
+        const activationStatus = tool.moderation_hold === true
+          ? 'blocked_hold'
+          : publicationBlocked
+            ? 'blocked_access'
+            : tool.is_available === false
+              ? 'unavailable'
+              : 'published';
+        return { ...tool, publication_blocked: publicationBlocked, activation_status: activationStatus };
+      }),
+    });
   } catch (err) {
     require('../utils/logger').error('[toolRentals] list error:', err.message);
     res.status(500).json({ error: 'Failed to fetch your tools' });

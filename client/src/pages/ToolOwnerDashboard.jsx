@@ -23,6 +23,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import { deriveToolOwnerStats, upcomingToolOwnerHandoffs } from '../utils/toolOwnerDashboard';
+import { activationStatus, activationStatusLabelKey, activationStatusTone } from '../utils/toolListingStatus';
 import {
   Wrench, Package, Clock, DollarSign, Star, TrendingUp,
   CheckCircle2, AlertCircle, Plus, ArrowRight,
@@ -253,6 +254,15 @@ function ToolOwnerDashboardContent() {
                 {listings.slice(0, 6).map((l) => (
                   <li key={l.id} className="rounded-lg border p-3 hover:bg-orange-500/5 transition" style={{ borderColor: 'var(--color-border)' }}>
                     <div className="text-sm font-semibold truncate">{l.title || l.name}</div>
+                    {/* 555: activation status — published, or why unpublished. */}
+                    <div className="mt-1 flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                      <span
+                        aria-hidden="true"
+                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: activationStatusTone(activationStatus(l)) }}
+                      />
+                      <span>{t(activationStatusLabelKey(activationStatus(l)))}</span>
+                    </div>
                     <div className="text-[11px] mt-1 flex items-center gap-2" style={{ color: 'var(--color-text-muted)' }}>
                       {l.daily_rate_cents != null && <span>{fmtCurrency(l.daily_rate_cents, currency)} / day</span>}
                       {l.avg_rating != null && l.review_count > 0 && (
