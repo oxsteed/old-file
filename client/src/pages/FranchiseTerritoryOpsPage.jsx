@@ -207,6 +207,29 @@ export default function FranchiseTerritoryOpsPage() {
     }
   }, [resolvedApplicationId, t]);
 
+  // Group 12 Slice 3c (614): the operator updates a location's service
+  // availability checklist and launches a location from the ops page.
+  const saveLocationService = useCallback(async (locationId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/locations/${locationId}/services`, body);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  const launchLocation = useCallback(async (locationId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/locations/${locationId}/launch`);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
   // Group 12 Slice 3c (612): the operator designates a roster helper as
   // an opening-team member (or removes them) for the selected scope. The
   // roster reloads so the opening-team flags reflect the change.
@@ -499,7 +522,10 @@ export default function FranchiseTerritoryOpsPage() {
               locations={boundaryDetail.locations || []}
               launchPlanSteps={boundaryDetail.launch_plan_steps || []}
               openingTeam={boundaryDetail.opening_team || []}
+              businessServices={boundaryDetail.business_services || []}
               onMilestoneStatusChange={updateMilestoneStatus}
+              onServiceSave={saveLocationService}
+              onLaunchLocation={launchLocation}
             />
           )}
 

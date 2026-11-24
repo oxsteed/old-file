@@ -52,6 +52,10 @@ const {
   assignOpeningTeamMemberAsAdmin,
   removeOpeningTeamMemberAsAdmin,
   submitReadinessReview,
+  upsertLocationService,
+  upsertLocationServiceAsAdmin,
+  launchLocation,
+  launchLocationAsAdmin,
 } = require('../controllers/franchiseController');
 
 const {
@@ -84,6 +88,10 @@ router.post('/my-applications/:id/locations/:locationId/milestones/:milestoneId/
 // members on their own application.
 router.post('/my-applications/:id/opening-team', authenticate, requireFranchiseEnabled, assignOpeningTeamMember);
 router.delete('/my-applications/:id/opening-team/:memberId', authenticate, requireFranchiseEnabled, removeOpeningTeamMember);
+// Group 12 Slice 3c (614): the operator updates a location's service
+// availability checklist and launches a location on their own application.
+router.post('/my-applications/:id/locations/:locationId/services', authenticate, requireFranchiseEnabled, upsertLocationService);
+router.post('/my-applications/:id/locations/:locationId/launch', authenticate, requireFranchiseEnabled, launchLocation);
 router.get('/territory-stats',     authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryStats);
 router.get('/territory-helpers',   authenticate, requireFranchiseEnabled, requireFranchiseCapability, getTerritoryHelpers);
 
@@ -115,6 +123,10 @@ router.delete('/applications/:id/opening-team/:memberId', authenticate, requireA
 // Group 12 Slice 3c (613): HQ records a formal readiness review — the
 // only path that moves readiness to `ready`.
 router.post('/applications/:id/readiness-review', authenticate, requireAdmin, requirePermission('manage_operations'), submitReadinessReview);
+// Group 12 Slice 3c (614): HQ updates a location's service availability
+// checklist and launches a location.
+router.post('/applications/:id/locations/:locationId/services', authenticate, requireAdmin, requirePermission('manage_operations'), upsertLocationServiceAsAdmin);
+router.post('/applications/:id/locations/:locationId/launch', authenticate, requireAdmin, requirePermission('manage_operations'), launchLocationAsAdmin);
 router.put('/applications/:id/agreement', authenticate, requireAdmin, requirePermission('manage_operations'), upsertFranchiseAgreement);
 // Review P2-9-F09: the applicant signs from their own account (admins cannot
 // assert the applicant's signature). Authenticated, not admin-gated.

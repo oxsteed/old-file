@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { MapPin } from 'lucide-react';
-import './FranchiseApplicationDetail.css';
+import FranchiseLocationServices from './FranchiseLocationServices';
 
 const MILESTONE_STATUS_KEYS = {
   pending: 'launchPlanStatusPending',
@@ -41,7 +41,10 @@ export default function FranchiseOpenLocations({
   locations = [],
   launchPlanSteps = [],
   openingTeam = [],
+  businessServices = [],
   onMilestoneStatusChange = null,
+  onServiceSave = null,
+  onLaunchLocation = null,
   disabled = false,
 }) {
   const { t } = useTranslation();
@@ -171,6 +174,17 @@ export default function FranchiseOpenLocations({
                 ) : (
                   <p className="fr-detail-empty">{copy('openingTeamEmpty')}</p>
                 )}
+
+                {/* Group 12 Slice 3c (614): this location's service
+                    availability checklist and launch. */}
+                <FranchiseLocationServices
+                  location={location}
+                  catalogue={businessServices}
+                  canEdit={Boolean(onServiceSave)}
+                  onServiceSave={onServiceSave}
+                  onLaunch={onLaunchLocation}
+                  disabled={disabled}
+                />
               </div>
             );
           })}

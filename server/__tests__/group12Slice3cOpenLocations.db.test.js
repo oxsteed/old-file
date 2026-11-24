@@ -785,4 +785,234 @@ describeDb('Group 12 Slice 3c: Open locations (611-615)', () => {
       expect(launched.body.application.launched_at).toBeTruthy();
     });
   });
+
+  describe('614: service availability checklist', () => {
+    async function addBusinessWithServices(ownerId, names = ['Plumbing', 'Electrical']) {
+      const { rows: businessRows } = await db.query(
+        `INSERT INTO businesses (user_id, business_name)
+         VALUES ($1, 'Franchise Fixture Business') RETURNING id`,
+        [ownerId]
+      );
+      const businessId = businessRows[0].id;
+      const serviceIds = [];
+      for (const name of names) {
+        const { rows } = await db.query(
+          `INSERT INTO business_services (business_id, name, is_active)
+           VALUES ($1, $2, TRUE) RETURNING id`,
+          [businessId, name]
+        );
+        serviceIds.push(rows[0].id);
+      }
+      return { businessId, serviceIds };
+    }
+
+    async function linkBusiness(applicationId, businessId) {
+      await db.query(
+        'UPDATE franchise_applications SET linked_business_id = $1 WHERE id = $2',
+        [businessId, applicationId]
+      );
+    }
+
+    function review(adminId, applicationId, body) {
+      return request(app)
+        .post(`/api/franchise/applications/${applicationId}/readiness-review`)
+        .set('x-test-user', adminId)
+        .send(body);
+    }
+
+    // The full fail-closed activation chain from 613, reused so the
+    // location launch tests start from a launched application.
+    async function launchApplication(applicant, admin, applicationId) {
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ status: 'approved', training_status: 'completed' })
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/agreement/sign`)
+        .set('x-test-user', applicant)
+        .send({ signed_by_name: 'Franchise Fixture' })
+        .expect(200);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/agreement/collect-fee`)
+        .set('x-test-user', admin)
+        .send({ waived: true, reason: 'Founding operator' })
+        .expect(200);
+      const bundle = await adminBundle(admin, applicationId).expect(200);
+      for (const item of bundle.body.checklist) {
+        await request(app)
+          .patch(`/api/franchise/applications/${applicationId}/checklist/${item.id}`)
+          .set('x-test-user', admin)
+          .send({ status: 'completed' })
+          .expect(200);
+      }
+      await review(admin, applicationId, { outcome: 'passed', notes: 'Ready to open.' }).expect(201);
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/activate-store`)
+        .set('x-test-user', admin)
+        .expect(201);
+    }
+
+    function saveService(userId, applicationId, locationId, body) {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/services`)
+        .set('x-test-user', userId)
+        .send(body);
+    }
+
+    function launch(userId, applicationId, locationId) {
+      return request(app)
+        .post(`/api/franchise/my-applications/${applicationId}/locations/${locationId}/launch`)
+        .set('x-test-user', userId);
+    }
+
+    test('the operator upserts catalogue and free-text services; upserts are idempotent', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      const { businessId, serviceIds } = await addBusinessWithServices(applicant);
+      await linkBusiness(applicationId, businessId);
+      const [plumbingId, electricalId] = serviceIds;
+
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const location = detail.body.locations[0];
+      expect(detail.body.business_services).toHaveLength(2);
+      expect(detail.body.business_services.map((service) => service.name)).toEqual(['Electrical', 'Plumbing']);
+
+      const first = await saveService(applicant, applicationId, location.id, { service_id: plumbingId, available: true }).expect(201);
+      expect(first.body.locations[0].services).toHaveLength(1);
+      expect(first.body.locations[0].services[0]).toMatchObject({
+        service_id: plumbingId, service_name: 'Plumbing', available: true,
+      });
+
+      // Re-upserting the same catalogue service updates the row in place.
+      const updated = await saveService(applicant, applicationId, location.id, {
+        service_id: plumbingId, available: false, reason: 'No plumber yet',
+      }).expect(201);
+      expect(updated.body.locations[0].services).toHaveLength(1);
+      expect(updated.body.locations[0].services[0]).toMatchObject({
+        service_id: plumbingId, available: false, reason: 'No plumber yet',
+      });
+
+      // A free-text service (no linked catalogue row) works alongside.
+      const named = await saveService(applicant, applicationId, location.id, { service_name: 'Roofing', available: true }).expect(201);
+      expect(named.body.locations[0].services).toHaveLength(2);
+      const renamed = await saveService(applicant, applicationId, location.id, { service_name: 'Roofing', available: false }).expect(201);
+      expect(renamed.body.locations[0].services).toHaveLength(2);
+
+      // HQ can upsert too; the row lands on the same checklist.
+      const adminSaved = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${location.id}/services`)
+        .set('x-test-user', admin)
+        .send({ service_id: electricalId, available: true, reason: 'Licensed electrician on staff' })
+        .expect(201);
+      expect(adminSaved.body.locations[0].services).toHaveLength(3);
+      const electrical = adminSaved.body.locations[0].services.find((service) => service.service_id === electricalId);
+      expect(electrical.service_name).toBe('Electrical');
+      expect(electrical.reason).toBe('Licensed electrician on staff');
+    });
+
+    test('service validation: unknown catalogue service, other business service, bad input, scoping', async () => {
+      const applicant = await addUser();
+      const operator = await addUser();
+      const stranger = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      const { businessId, serviceIds } = await addBusinessWithServices(applicant);
+      await linkBusiness(applicationId, businessId);
+      const otherBusiness = await addBusinessWithServices(operator, ['Gardening']);
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const location = detail.body.locations[0];
+
+      const unknown = await saveService(applicant, applicationId, location.id, { service_id: 999999, available: true }).expect(404);
+      expect(unknown.body.code).toBe('location_service_not_offered');
+      const foreign = await saveService(applicant, applicationId, location.id, { service_id: otherBusiness.serviceIds[0], available: true }).expect(404);
+      expect(foreign.body.code).toBe('location_service_not_offered');
+      const nameless = await saveService(applicant, applicationId, location.id, { available: true }).expect(400);
+      expect(nameless.body.code).toBe('location_service_name_required');
+      const untyped = await saveService(applicant, applicationId, location.id, { service_id: serviceIds[0], available: 'yes' }).expect(400);
+      expect(untyped.body.code).toBe('invalid_service_available');
+      await saveService(applicant, applicationId, '00000000-0000-0000-0000-000000000000', { service_name: 'Roofing', available: true }).expect(404);
+
+      // The applicant record alone is not the operator; a stranger 404s.
+      await db.query('UPDATE franchise_applications SET applicant_user_id = $1 WHERE id = $2', [applicant, applicationId]);
+      await request(app)
+        .patch(`/api/franchise/applications/${applicationId}`)
+        .set('x-test-user', admin)
+        .send({ owner_user_id: operator })
+        .expect(200);
+      const applicantOnly = await saveService(applicant, applicationId, location.id, { service_name: 'Roofing', available: true });
+      expect(applicantOnly.status).toBe(403);
+      expect(applicantOnly.body.code).toBe('franchise_operator_only');
+      await saveService(stranger, applicationId, location.id, { service_name: 'Roofing', available: true }).expect(404);
+
+      // The reassigned operator can save; the checklist is still empty.
+      const saved = await saveService(operator, applicationId, location.id, { service_id: serviceIds[0], available: true }).expect(201);
+      expect(saved.body.locations[0].services).toHaveLength(1);
+    });
+
+    test('a location cannot launch with zero available services; with one it launches', async () => {
+      const applicant = await addUser();
+      const admin = await addUser('super_admin');
+      const applicationId = await makeApplication(applicant);
+      const { businessId, serviceIds } = await addBusinessWithServices(applicant);
+      const detail = await applicantDetail(applicant, applicationId).expect(200);
+      const location = detail.body.locations[0];
+
+      // The application itself is not launched yet.
+      const early = await launch(applicant, applicationId, location.id).expect(409);
+      expect(early.body.code).toBe('location_application_not_launched');
+
+      await launchApplication(applicant, admin, applicationId);
+      // Activation creates and links its own business; the fixture
+      // business (with the catalogue services) is linked after, so the
+      // checklist draws on it. Activation refuses an already-linked
+      // application, so the link must come after, not before.
+      await linkBusiness(applicationId, businessId);
+
+      // No services at all: the launch is refused.
+      const empty = await launch(applicant, applicationId, location.id).expect(409);
+      expect(empty.body.code).toBe('location_no_available_services');
+
+      // Only unavailable services: still refused.
+      await saveService(applicant, applicationId, location.id, {
+        service_id: serviceIds[0], available: false, reason: 'Not staffed yet',
+      }).expect(201);
+      const noneAvailable = await launch(applicant, applicationId, location.id).expect(409);
+      expect(noneAvailable.body.code).toBe('location_no_available_services');
+
+      // One available service opens the launch.
+      await saveService(applicant, applicationId, location.id, { service_name: 'Roofing', available: true }).expect(201);
+      const launched = await launch(applicant, applicationId, location.id).expect(200);
+      const launchedLocation = launched.body.locations.find((entry) => entry.id === location.id);
+      expect(launchedLocation.status).toBe('launched');
+      expect(launchedLocation.launched_at).toBeTruthy();
+      // The launch is not complete yet: 615's opening confirmation is
+      // still missing.
+      expect(launchedLocation.launch_complete).toBe(false);
+
+      // A second launch is a 409.
+      const again = await launch(applicant, applicationId, location.id).expect(409);
+      expect(again.body.code).toBe('location_already_launched');
+
+      // HQ can launch a second location too.
+      const second = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations`)
+        .set('x-test-user', admin)
+        .send({ name: 'Second location', city: 'Austin', country: 'US' })
+        .expect(201);
+      const secondLocation = second.body.locations.find((entry) => entry.name === 'Second location');
+      await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${secondLocation.id}/services`)
+        .set('x-test-user', admin)
+        .send({ service_id: serviceIds[1], available: true })
+        .expect(201);
+      const hqLaunched = await request(app)
+        .post(`/api/franchise/applications/${applicationId}/locations/${secondLocation.id}/launch`)
+        .set('x-test-user', admin)
+        .expect(200);
+      const hqLocation = hqLaunched.body.locations.find((entry) => entry.id === secondLocation.id);
+      expect(hqLocation.status).toBe('launched');
+    });
+  });
 });

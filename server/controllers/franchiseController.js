@@ -436,6 +436,9 @@ async function fetchFranchiseApplicationBundle(applicationId) {
   // Group 12 Slice 3c (611/612/614/615): the open locations with their
   // milestones, service availability, opening team, and confirmations.
   const locations = await fetchOpenLocations(applicationId);
+  // Group 12 Slice 3c (614): the services the linked business can offer
+  // — the catalogue the location checklists draw from.
+  const businessServices = await fetchBusinessServices(applicationId);
   // Group 12 Slice 3c (613): the readiness review history, reviewer
   // included — HQ sees who signed off.
   const readinessReviews = await fetchReadinessReviews(applicationId, { includeReviewer: true });
@@ -461,6 +464,7 @@ async function fetchFranchiseApplicationBundle(applicationId) {
     territory_areas: areaResult.rows,
     launch_plan_steps: launchPlanResult.rows,
     locations,
+    business_services: businessServices,
     opening_team: openingTeam,
     readiness_reviews: readinessReviews,
     agreement: agreementResult.rows[0] || null,
@@ -659,7 +663,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
 
   if (!applicationResult.rows.length) return null;
 
-  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult, locations, readinessReviews, openingTeam] = await Promise.all([
+  const [interviewResult, documentResult, sharedNotesResult, followupResult, responsibilityResult, areaResult, agreementExclusiveResult, launchPlanResult, activityResult, locations, businessServices, readinessReviews, openingTeam] = await Promise.all([
     db.query(
       `SELECT *
          FROM franchise_interview_slots
@@ -739,6 +743,8 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     // Group 12 Slice 3c (611/612/614/615): the open locations with their
     // milestones, service availability, opening team, and confirmations.
     fetchOpenLocations(applicationId),
+    // Group 12 Slice 3c (614): the services the linked business can offer.
+    fetchBusinessServices(applicationId),
     // Group 12 Slice 3c (613, D-313): the readiness review history —
     // outcome, notes, and date only, never the reviewer's identity.
     fetchReadinessReviews(applicationId),
@@ -762,6 +768,7 @@ async function fetchApplicantApplicationDetail(applicationId, userId) {
     territory_areas: areaResult.rows,
     launch_plan_steps: launchPlanResult.rows,
     locations,
+    business_services: businessServices,
     opening_team: openingTeam,
     readiness_reviews: readinessReviews,
     activity: activityResult.rows,
@@ -3845,6 +3852,298 @@ async function removeOpeningTeamMemberAsAdmin(req, res) {
   }
 }
 
+// Group 12 Slice 3c (614, D-314): the services the linked business can
+// offer — the catalogue the per-location availability checklist draws
+// from. No linked business means no catalogue; the checklist still works
+// with free-text service names.
+async function fetchBusinessServices(applicationId) {
+  const { rows } = await db.query(
+    `SELECT bs.id, bs.name
+       FROM business_services bs
+       JOIN franchise_applications fa ON fa.linked_business_id = bs.business_id
+      WHERE fa.id = $1 AND bs.is_active = TRUE
+      ORDER BY bs.sort_order ASC, bs.name ASC, bs.id ASC`,
+    [applicationId]
+  );
+  return rows;
+}
+
+// Group 12 Slice 3c (614, D-314): upsert one row of a location's service
+// availability checklist. A catalogue service is validated against the
+// linked business (404 `location_service_not_offered` otherwise) and the
+// catalogue name wins over whatever the client sent; a free-text service
+// needs a name. The two partial unique indexes make the upsert
+// idempotent per scope: one row per catalogue service, one per name.
+async function upsertLocationServiceCore(client, {
+  applicationId, locationId, serviceId, serviceName, available, reason, actorId,
+}) {
+  const { rows: locationRows } = await client.query(
+    `SELECT id FROM franchise_locations
+      WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+    [locationId, applicationId]
+  );
+  if (!locationRows.length) {
+    return { error: { status: 404, body: { error: 'Franchise location not found.' } } };
+  }
+  let resolvedServiceId = null;
+  let resolvedName = asTrimmed(serviceName);
+  if (serviceId !== null && serviceId !== undefined && serviceId !== '') {
+    const parsed = Number.parseInt(serviceId, 10);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return { error: { status: 400, body: { error: 'service_id must be a positive integer.', code: 'invalid_service_id' } } };
+    }
+    const { rows: serviceRows } = await client.query(
+      `SELECT bs.id, bs.name
+         FROM business_services bs
+         JOIN franchise_applications fa ON fa.linked_business_id = bs.business_id
+        WHERE bs.id = $1 AND fa.id = $2 AND bs.is_active = TRUE`,
+      [parsed, applicationId]
+    );
+    if (!serviceRows.length) {
+      return { error: { status: 404, body: { error: 'This service is not offered by the linked business.', code: 'location_service_not_offered' } } };
+    }
+    resolvedServiceId = parsed;
+    resolvedName = serviceRows[0].name;
+  }
+  if (!resolvedName) {
+    return { error: { status: 400, body: { error: 'service_name is required.', code: 'location_service_name_required' } } };
+  }
+  if (typeof available !== 'boolean') {
+    return { error: { status: 400, body: { error: 'available must be a boolean.', code: 'invalid_service_available' } } };
+  }
+  const { rows } = await client.query(
+    resolvedServiceId !== null
+      ? `INSERT INTO franchise_location_services
+           (location_id, application_id, service_id, service_name, available, reason, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (location_id, service_id) WHERE service_id IS NOT NULL
+         DO UPDATE SET service_name = EXCLUDED.service_name,
+                       available = EXCLUDED.available,
+                       reason = EXCLUDED.reason,
+                       updated_by = EXCLUDED.updated_by,
+                       updated_at = NOW()
+         RETURNING *`
+      : `INSERT INTO franchise_location_services
+           (location_id, application_id, service_id, service_name, available, reason, updated_by)
+         VALUES ($1, $2, NULL, $3, $4, $5, $6)
+         ON CONFLICT (location_id, service_name) WHERE service_id IS NULL
+         DO UPDATE SET available = EXCLUDED.available,
+                       reason = EXCLUDED.reason,
+                       updated_by = EXCLUDED.updated_by,
+                       updated_at = NOW()
+         RETURNING *`,
+    resolvedServiceId !== null
+      ? [locationId, applicationId, resolvedServiceId, resolvedName, available, asTrimmed(reason), actorId]
+      : [locationId, applicationId, resolvedName, available, asTrimmed(reason), actorId]
+  );
+  await logActivity(
+    client,
+    applicationId,
+    actorId,
+    'location_service_updated',
+    `Service availability updated for a location: ${resolvedName} is ${available ? 'available' : 'unavailable'}.`,
+    { location_id: locationId, service_id: resolvedServiceId, service_name: resolvedName, available }
+  );
+  return { row: rows[0] };
+}
+
+async function upsertLocationService(req, res) {
+  const { id, locationId } = req.params;
+  const body = req.body || {};
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can update a location service checklist.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const result = await upsertLocationServiceCore(client, {
+        applicationId: id,
+        locationId,
+        serviceId: body.service_id,
+        serviceName: body.service_name,
+        available: body.available,
+        reason: body.reason,
+        actorId: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      return res.status(201).json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise location service', { id, locationId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update location service.' });
+  }
+}
+
+async function upsertLocationServiceAsAdmin(req, res) {
+  const { id, locationId } = req.params;
+  const body = req.body || {};
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await upsertLocationServiceCore(client, {
+        applicationId: id,
+        locationId,
+        serviceId: body.service_id,
+        serviceName: body.service_name,
+        available: body.available,
+        reason: body.reason,
+        actorId: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.status(201).json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error updating franchise location service', { id, locationId, err: err.message });
+    return res.status(500).json({ error: 'Failed to update location service.' });
+  }
+}
+
+// Group 12 Slice 3c (614, D-314): launch a location. The application
+// itself must already be launched (the fail-closed activation gate), the
+// location must still be planned, and at least one service on its
+// checklist must be available — a location cannot launch with zero
+// available services. The launch is only complete once the operator
+// confirms the opening (615).
+async function launchLocationCore(client, { applicationId, locationId, actorId }) {
+  const { rows: applicationRows } = await client.query(
+    `SELECT id, status FROM franchise_applications WHERE id = $1 FOR UPDATE`,
+    [applicationId]
+  );
+  if (!applicationRows.length) {
+    return { error: { status: 404, body: { error: 'Franchise application not found.' } } };
+  }
+  if (applicationRows[0].status !== 'launched') {
+    return { error: { status: 409, body: { error: 'The application must be launched before a location can launch.', code: 'location_application_not_launched' } } };
+  }
+  const { rows: locationRows } = await client.query(
+    `SELECT id, status FROM franchise_locations
+      WHERE id = $1 AND application_id = $2 FOR UPDATE`,
+    [locationId, applicationId]
+  );
+  if (!locationRows.length) {
+    return { error: { status: 404, body: { error: 'Franchise location not found.' } } };
+  }
+  if (locationRows[0].status === 'launched') {
+    return { error: { status: 409, body: { error: 'This location has already launched.', code: 'location_already_launched' } } };
+  }
+  const { rows: availableRows } = await client.query(
+    `SELECT COUNT(*)::int AS available_count
+       FROM franchise_location_services
+      WHERE location_id = $1 AND available = TRUE`,
+    [locationId]
+  );
+  if (!availableRows[0].available_count) {
+    return { error: { status: 409, body: { error: 'A location cannot launch with no available services.', code: 'location_no_available_services' } } };
+  }
+  await client.query(
+    `UPDATE franchise_locations
+        SET status = 'launched', launched_at = NOW(), updated_at = NOW()
+      WHERE id = $1`,
+    [locationId]
+  );
+  await logActivity(client, applicationId, actorId, 'location_launched', 'Location launched.', { location_id: locationId });
+  return {};
+}
+
+async function launchLocation(req, res) {
+  const { id, locationId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await loadOperatorApplication(client, id, req.user?.id);
+      if (!owned.application || !owned.isAssociated) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      if (!owned.isOperator) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Only the assigned operator can launch a location.',
+          code: 'franchise_operator_only',
+        });
+      }
+      const result = await launchLocationCore(client, {
+        applicationId: id, locationId, actorId: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const detail = await fetchApplicantApplicationDetail(id, req.user?.id);
+      return res.json(detail);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error launching franchise location', { id, locationId, err: err.message });
+    return res.status(500).json({ error: 'Failed to launch location.' });
+  }
+}
+
+async function launchLocationAsAdmin(req, res) {
+  const { id, locationId } = req.params;
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await launchLocationCore(client, {
+        applicationId: id, locationId, actorId: req.user?.id || null,
+      });
+      if (result.error) {
+        await client.query('ROLLBACK');
+        return res.status(result.error.status).json(result.error.body);
+      }
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error launching franchise location', { id, locationId, err: err.message });
+    return res.status(500).json({ error: 'Failed to launch location.' });
+  }
+}
+
 /**
  * POST /api/franchise/applications/:id/readiness-review (admin)
  * 613 (D-313): HQ records a formal readiness review. A passed review is
@@ -3969,6 +4268,10 @@ module.exports = {
   assignOpeningTeamMemberAsAdmin,
   removeOpeningTeamMemberAsAdmin,
   submitReadinessReview,
+  upsertLocationService,
+  upsertLocationServiceAsAdmin,
+  launchLocation,
+  launchLocationAsAdmin,
   // Exported for the legacy access backfill (R-4), which reuses the same
   // territory-assignment grant shape instead of duplicating the insert.
   syncFranchiseGrant,

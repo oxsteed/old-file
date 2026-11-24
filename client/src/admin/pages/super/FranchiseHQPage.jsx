@@ -14,6 +14,7 @@ import {
   Users,
 } from 'lucide-react';
 import { SuggestDropdown } from '../../../components/SuggestDropdown';
+import FranchiseLocationServices from '../../../pages/FranchiseLocationServices';
 import '../../lib/suggestDropdownAdmin.css';
 import './FranchiseHQSections.css';
 import toast from 'react-hot-toast';
@@ -646,6 +647,37 @@ export default function FranchiseHQPage() {
       toast.success(t('adminFranchiseReadinessReviewRecorded'));
     } catch (err) {
       toast.error(err?.response?.data?.error || t('adminFranchiseReadinessReviewFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Group 12 Slice 3c (614): HQ updates a location's service
+  // availability checklist and launches a location.
+  async function saveLocationService(locationId, body) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/locations/${locationId}/services`, body);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseServiceSaved'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseServiceFailed'));
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function launchLocation(locationId) {
+    if (!selectedApplication) return;
+    try {
+      setSaving(true);
+      const res = await axios.post(`/franchise/applications/${selectedApplication.id}/locations/${locationId}/launch`);
+      setSelectedBundle(res.data);
+      toast.success(t('adminFranchiseLocationLaunched'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('adminFranchiseLocationLaunchFailed'));
     } finally {
       setSaving(false);
     }
@@ -1340,6 +1372,16 @@ export default function FranchiseHQPage() {
                             )) : (
                               <div className="frhq-empty">{t('adminFranchiseMilestoneEmpty')}</div>
                             )}
+                            {/* Group 12 Slice 3c (614): this location's
+                                service availability checklist and launch. */}
+                            <FranchiseLocationServices
+                              location={location}
+                              catalogue={selectedBundle.business_services || []}
+                              canEdit
+                              onServiceSave={saveLocationService}
+                              onLaunch={launchLocation}
+                              disabled={saving}
+                            />
                           </div>
                         </div>
                       )) : (

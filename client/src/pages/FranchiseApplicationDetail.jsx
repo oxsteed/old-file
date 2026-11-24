@@ -204,6 +204,35 @@ export default function FranchiseApplicationDetail({ applicationId }) {
     }
   }
 
+  // Group 12 Slice 3c (614): update one row of a location's service
+  // availability checklist, and launch a location.
+  async function saveLocationService(locationId, body) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/locations/${locationId}/services`, body);
+      setDetail(response.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('servicesSaveFailed'));
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function launchLocation(locationId) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await api.post(`/franchise/my-applications/${applicationId}/locations/${locationId}/launch`);
+      setDetail(response.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || copy('servicesLaunchFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Group 12 Slice 3b (608): acknowledge one responsibility item.
   async function acknowledgeResponsibility(itemId) {
     setBusy(true);
@@ -507,7 +536,10 @@ export default function FranchiseApplicationDetail({ applicationId }) {
         locations={detail.locations || []}
         launchPlanSteps={detail.launch_plan_steps || []}
         openingTeam={detail.opening_team || []}
+        businessServices={detail.business_services || []}
         onMilestoneStatusChange={updateMilestoneStatus}
+        onServiceSave={saveLocationService}
+        onLaunchLocation={launchLocation}
         disabled={busy}
       />
 
