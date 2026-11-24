@@ -7,6 +7,8 @@
 // 576: return schedule — owner daily return window, renter return time at
 //   booking, and a renter-proposed / owner-decided return reschedule that
 //   never changes charges (D-257).
+// 580: cleaning instructions — owner-written field on the listing, shown
+//   at booking, frozen into the agreement snapshot.
 describeDb('Group 11 Slice 2d: Return + Changes (576, 580, 583, 584)', () => {
   let db;
   let app;
@@ -345,6 +347,74 @@ describeDb('Group 11 Slice 2d: Return + Changes (576, 580, 583, 584)', () => {
         .send({ reason: 'Another booking starts then.' })
         .expect(200);
       expect(declined.body.return_reschedule_status).toBe('declined');
+    });
+  });
+
+  describe('580: cleaning instructions', () => {
+    test('owner sets cleaning instructions on the listing; browse returns them', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const created = await request(app)
+        .post('/api/tool-rentals')
+        .set('x-test-user', owner)
+        .send({
+          name: 'Saw',
+          category: 'Cutting Tools',
+          description: 'Circular saw.',
+          daily_rate: 22,
+          location_city: 'Austin',
+          location_state: 'TX',
+          owner_attestation_accepted: true,
+          cleaning_instructions: 'Wipe the blade guard and empty the dust bag.',
+        })
+        .expect(201);
+      expect(created.body.tool.cleaning_instructions).toBe('Wipe the blade guard and empty the dust bag.');
+      const res = await request(app).get('/api/tool-rentals/browse').query({ name: 'Saw' }).expect(200);
+      const found = res.body.tools.find((t) => t.id === created.body.tool.id);
+      expect(found.cleaning_instructions).toBe('Wipe the blade guard and empty the dust bag.');
+      // Update replaces the instructions.
+      const updated = await request(app)
+        .put(`/api/tool-rentals/${created.body.tool.id}`)
+        .set('x-test-user', owner)
+        .send({ cleaning_instructions: 'Brush off sawdust and coil the cord.' })
+        .expect(200);
+      expect(updated.body.tool.cleaning_instructions).toBe('Brush off sawdust and coil the cord.');
+    });
+
+    test('booking freezes the cleaning instructions; later owner edits do not rewrite history', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, {
+        name: 'Frozen saw',
+        cleaning_instructions: 'Wipe it down before returning.',
+      });
+      const res = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12');
+      expect(res.status).toBe(201);
+      expect(res.body.agreement_snapshot.tool.cleaningInstructions).toBe('Wipe it down before returning.');
+      // The owner rewrites the instructions afterwards.
+      await db.query(
+        'UPDATE tool_rentals SET cleaning_instructions = $2 WHERE id = $1',
+        [tool.id, 'New instructions nobody agreed to.'],
+      );
+      const mine = await request(app).get('/api/tool-rentals/bookings/my').set('x-test-user', renter).expect(200);
+      const mineBooking = mine.body.find((b) => b.id === res.body.id);
+      expect(mineBooking.agreement_snapshot.tool.cleaningInstructions).toBe('Wipe it down before returning.');
+      const receipt = await request(app)
+        .get(`/api/tool-rentals/bookings/${res.body.id}/receipt`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(receipt.body.booking.agreement_snapshot.tool.cleaningInstructions).toBe('Wipe it down before returning.');
+    });
+
+    test('a listing without instructions books with a null frozen value', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Plain drill' });
+      const res = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12');
+      expect(res.status).toBe(201);
+      expect(res.body.agreement_snapshot.tool.cleaningInstructions).toBeNull();
     });
   });
 

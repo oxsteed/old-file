@@ -432,6 +432,10 @@ const MyBookingsPageContent = () => {
 
   // Group 11 item 576: return time + reschedule. The renter proposes a
   // new return date/time while the booking is paid; the owner decides.
+  // Group 11 item 580: cleaning instructions at return, frozen in the
+  // agreement snapshot at booking time.
+  const renderReturnSection = (booking: Booking, isOwner: boolean) => {
+    const cleaning = booking.agreement_snapshot?.tool?.cleaningInstructions;
     const proposedDate = booking.return_reschedule_proposed_end_date;
     const proposedTime = booking.return_reschedule_proposed_time;
     const status = booking.return_reschedule_status || 'none';
@@ -447,6 +451,13 @@ const MyBookingsPageContent = () => {
             {formatDate(booking.end_date)}
           </p>
         )}
+        {cleaning && (
+          <p>
+            {t('toolRentals.cleaningInstructionsTitle') || 'Cleaning instructions'}: {cleaning}
+          </p>
+        )}
+        {status === 'proposed' && (
+          <p>
             {t('toolRentals.returnRescheduleProposedNote') || 'A new return date was proposed'}: {proposedDate ? formatDate(proposedDate) : ''}
             {proposedTime ? ` · ${formatTime(proposedTime, locale)}` : ''}
             {' · '}
@@ -532,6 +543,9 @@ const MyBookingsPageContent = () => {
           )}
           {booking.return_time && (
             <div><dt>{t('toolRentals.receiptReturnTime') || 'Return time'}</dt><dd>{formatTime(booking.return_time, locale)}</dd></div>
+          )}
+          {receipt.booking?.agreement_snapshot?.tool?.cleaningInstructions && (
+            <div><dt>{t('toolRentals.cleaningInstructionsTitle') || 'Cleaning instructions'}</dt><dd>{receipt.booking.agreement_snapshot.tool.cleaningInstructions}</dd></div>
           )}
           {booking.checkout_acknowledged_at && (
             <div><dt>{t('toolRentals.receiptCheckout') || 'Pickup confirmed'}</dt><dd>{new Date(booking.checkout_acknowledged_at).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })}</dd></div>
@@ -706,6 +720,9 @@ const MyBookingsPageContent = () => {
       {renderIdentityLine(booking, isOwner)}
 
       {/* Group 11 item 576: return time + reschedule. Group 11 item 580:
+          cleaning instructions at return, frozen in the snapshot. */}
+      {renderReturnSection(booking, isOwner)}
+
       {/* Group 11 item 575: checkout acknowledgment at pickup. The
           renter confirms receipt; the pickup condition report is the
           evidence and is shown in the booking panel above. */}

@@ -33,6 +33,9 @@ function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPri
       replacementValue: tool.replacement_value != null ? Number(tool.replacement_value) : null,
       requiresDeposit: !!tool.requires_deposit,
       depositAmount: tool.deposit_amount != null ? Number(tool.deposit_amount) : null,
+      // Group 11 item 580: the cleaning instructions as written at
+      // booking time, frozen so later owner edits do not rewrite history.
+      cleaningInstructions: tool.cleaning_instructions || null,
     },
     rental: {
       startDate,

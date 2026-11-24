@@ -32,6 +32,8 @@ interface BookingModalProps {
     // Group 11 item 576: owner daily return window.
     return_window_start?: string | null;
     return_window_end?: string | null;
+    // Group 11 item 580: owner-written cleaning instructions.
+    cleaning_instructions?: string | null;
   };
   isOpen: boolean;
   onClose: () => void;
@@ -368,6 +370,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
                   {tool.condition ? <p><strong>{t('toolRentals.condition')}:</strong> {tool.condition}</p> : null}
                   {tool.replacement_value ? <p><strong>{t('toolRentals.replacementValue')}:</strong> ${Number(tool.replacement_value).toFixed(2)}</p> : null}
                   {tool.owner_rules ? <p><strong>{t('toolRentals.ownerRules')}:</strong> {tool.owner_rules}</p> : null}
+                </div>
+              )}
+              {/* 580: cleaning instructions, as the owner wrote them. */}
+              {tool.cleaning_instructions && (
+                <div className="booking-peer-tool-snapshot">
+                  <p><strong>{t('toolRentals.cleaningInstructionsTitle')}:</strong> {tool.cleaning_instructions}</p>
                 </div>
               )}
               {tool.owner_custom_terms && (

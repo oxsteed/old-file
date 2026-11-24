@@ -95,6 +95,7 @@ async function getToolFields() {
       tr.has('pickup_window_end') ? 't.pickup_window_end' : 'NULL::time AS pickup_window_end',
       tr.has('return_window_start') ? 't.return_window_start' : 'NULL::time AS return_window_start',
       tr.has('return_window_end') ? 't.return_window_end' : 'NULL::time AS return_window_end',
+      tr.has('cleaning_instructions') ? 't.cleaning_instructions' : 'NULL AS cleaning_instructions',
     ].join(',\n  ');
 
     // Store which optional users columns are safe to select
@@ -440,6 +441,12 @@ function normalizeToolPayload(body, { partial = false, existing = null } = {}) {
   }
   if (mergedReturnStart != null && mergedReturnEnd != null && mergedReturnEnd <= mergedReturnStart) {
     errors.return_window_end = 'return_window_end must be after return_window_start';
+  }
+
+  // 580: owner-written cleaning instructions for the renter. Plain text,
+  // shown at booking and at return, frozen into the agreement snapshot.
+  if (!partial || body.cleaning_instructions !== undefined) {
+    payload.cleaning_instructions = cleanText(body.cleaning_instructions, MAX_TOOL_DESCRIPTION_LEN, 'cleaning_instructions', errors);
   }
 
   for (const field of ['is_available', 'requires_deposit', 'delivery_available', 'pickup_only']) {
@@ -827,6 +834,7 @@ router.post('/', authenticate, toolOwnerCapabilityGate, upload.single('image'), 
       payload.pickup_window_end ?? null,
       payload.return_window_start ?? null,
       payload.return_window_end ?? null,
+      payload.cleaning_instructions ?? null,
     ];
     if (hasImageGallery && imageUrl) {
       insertColumns.push('image_gallery');
@@ -945,6 +953,9 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
          return_window_end = COALESCE($${returnWindowBase + 1}, return_window_end),`;
     // 580: cleaning instructions sit after the return window params.
     const cleaningBase = returnWindowBase + 2;
+    const cleaningSetSql = `
+         cleaning_instructions = COALESCE($${cleaningBase}, cleaning_instructions),`;
+    const whereOffset = cleaningBase + 2; // cleaning param, then id, then user_id
 
     const result = await pool.query(
       `UPDATE tool_rentals SET
@@ -974,6 +985,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
          ${locationSetSql}
          ${pickupWindowSetSql}
          ${returnWindowSetSql}
+         ${cleaningSetSql}
          updated_at         = NOW()
        WHERE id = $${whereOffset - 1} AND user_id = $${whereOffset}
        RETURNING id, user_id, name, category, description,
@@ -1023,6 +1035,7 @@ router.put('/:id', authenticate, toolOwnerCapabilityGate, upload.single('image')
         payload.pickup_window_end ?? null,
         payload.return_window_start ?? null,
         payload.return_window_end ?? null,
+        payload.cleaning_instructions ?? null,
         id,
         req.user.id,
       ]

@@ -1,6 +1,8 @@
 -- Group 11 Slice 2d (576, 580, 583, 584): Return + Changes.
 -- 576: owner daily return window on the listing, renter return time on the
 --   booking, and a renter-proposed / owner-decided return reschedule.
+-- 580: owner-written cleaning instructions on the listing.
+  ADD COLUMN IF NOT EXISTS cleaning_instructions TEXT,
   ADD COLUMN IF NOT EXISTS return_window_start TIME,
   ADD COLUMN IF NOT EXISTS return_window_end TIME;
 
