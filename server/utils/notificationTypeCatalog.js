@@ -419,6 +419,7 @@ const NOTIFICATION_TYPES = [
   { type: 'property_approval_decided', group: 'work' },
   { type: 'property_entry_scheduled', group: 'work' },
   { type: 'property_entry_window_selected', group: 'work' },
+  { type: 'property_request_status', group: 'work' },
   { type: 'property_emergency', group: 'work' },
   { type: 'property_incident_summary', group: 'work' },
   { type: 'property_maintenance_due', group: 'work' },

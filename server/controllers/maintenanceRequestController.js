@@ -633,6 +633,30 @@ exports.updateRequest = async (req, res, next) => {
         error: err.message,
       }));
     }
+    // G6-5 (322, D-507): the occupant (requester) hears when their repair
+    // moves. Status changes only; assignment-only or note-only edits stay
+    // silent so the occupant is not spammed. Never notifies the actor
+    // about their own change. Fire-and-forget: never blocks the update.
+    // Batch J (349) extends this same hook to tenant-visible note updates.
+    const statusChanged = existing.status !== nextStatus;
+    const requester = request.requester_id || null;
+    if (statusChanged && requester && String(requester) !== String(req.user.id)) {
+      sendNotification({
+        userId: requester,
+        type: 'property_request_status',
+        data: {
+          request_id: String(request.id),
+          business_id: String(request.business_id),
+          title: request.title || '',
+          status: nextStatus,
+        },
+        action_url: `/business/${request.business_id}/maintenance-request`,
+        idempotencyKey: `property-request-status:${request.id}:${nextStatus}:${request.status_updated_at ? new Date(request.status_updated_at).getTime() : Date.now()}`,
+      }).catch((err) => logger.warn('[maintenance] requester status notification failed', {
+        requestId: request.id,
+        error: err.message,
+      }));
+    }
     return res.json({ request: await withHydratedPhotos(request) });
   } catch (err) {
     await client.query('ROLLBACK');

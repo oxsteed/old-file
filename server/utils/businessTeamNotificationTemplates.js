@@ -163,6 +163,10 @@ const businessTeamNotifications = {
     title: t('Visit time chosen', 'Horario de visita elegido', 'Heure de visite choisie', 'Lè vizit la chwazi', 'تم اختيار موعد الزيارة'),
     body: t('The occupant chose a visit time for {title}.', 'El ocupante eligió un horario para {title}.', 'L’occupant a choisi une heure pour {title}.', 'Lokatè a chwazi yon lè pou {title}.', 'اختار الساكن موعداً لـ {title}.'),
   },
+  property_request_status: {
+    title: t('Your repair has an update', 'Tu reparación tiene una actualización', 'Votre réparation a été mise à jour', 'Reparasyon ou gen yon mizajou', 'هناك تحديث بشأن الإصلاح الخاص بك'),
+    body: t('There is an update on your repair: {title}.', 'Hay una actualización sobre tu reparación: {title}.', 'Une mise à jour concerne votre réparation : {title}.', 'Gen yon mizajou sou reparasyon ou: {title}.', 'هناك تحديث بشأن الإصلاح الخاص بك: {title}.'),
+  },
   property_emergency: {
     title: t('Emergency at a property', 'Emergencia en una propiedad', 'Urgence dans une propriété', 'Ijans nan yon pwopriyete', 'حالة طارئة في عقار'),
     body: t('Emergency: {title}. Respond now.', 'Emergencia: {title}. Responde ahora.', 'Urgence : {title}. Intervenez maintenant.', 'Ijans: {title}. Reponn kounye a.', 'طارئ: {title}. استجب الآن.'),

@@ -28,6 +28,7 @@ const controller = require('../controllers/maintenanceRequestController');
 const OWNER_ID = '00000000-0000-4000-8000-000000000111';
 const HELPER_A = '00000000-0000-4000-8000-000000000aaa';
 const HELPER_B = '00000000-0000-4000-8000-000000000bbb';
+const TENANT_ID = '00000000-0000-4000-8000-000000000ccc';
 
 function existingRequest(overrides = {}) {
   return {
@@ -137,6 +138,35 @@ describe('maintenance assignment notification', () => {
 
     expect(res.status).toBe(200);
     // '' is falsy so the controller keeps the existing assignee -> no change -> no notify.
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  // G6-5 (322, D-507): the occupant hears when their repair moves.
+  test('status change notifies the requester', async () => {
+    routeQueries({ requester_id: TENANT_ID, status: 'reported' });
+    const res = await request(buildApp())
+      .patch('/maintenance-requests/55')
+      .send({ status: 'scheduled' });
+    await flush();
+
+    expect(res.status).toBe(200);
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+    expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+      userId: TENANT_ID,
+      type: 'property_request_status',
+      action_url: '/business/9/maintenance-request',
+    }));
+    expect(sendNotification.mock.calls[0][0].data).toMatchObject({ status: 'scheduled', title: 'Leaky faucet' });
+  });
+
+  test('same-status update with a requester does not notify', async () => {
+    routeQueries({ requester_id: TENANT_ID, status: 'reported' });
+    const res = await request(buildApp())
+      .patch('/maintenance-requests/55')
+      .send({ status: 'reported', tenant_visible_notes: 'Parts ordered' });
+    await flush();
+
+    expect(res.status).toBe(200);
     expect(sendNotification).not.toHaveBeenCalled();
   });
 });
