@@ -112,7 +112,7 @@ async function alerts(businessId, user, role, { notifyNow = false } = {}) {
     const owner = (await ownerOf(pool, businessId)).user_id;
     for (const s of rows) {
       const people = await propertyPeople(pool, s.property_id, ['manager', 'coverage']);
-      for (const t of people.length ? people : [owner]) { await notify(t, 'property_maintenance_due', { title: s.title }, `property_maintenance_due:${s.id}:${String(s.next_due_on)}`, `/business/${businessId}/hub?tab=properties&property=${s.property_id}`); notified++; }
+      for (const t of people.length ? people : [owner]) { await notify(t, 'property_maintenance_due', { title: s.title }, `property_maintenance_due:${s.id}:${String(s.next_due_on)}`, `/business/${businessId}/workspace?tab=properties&property=${s.property_id}`); notified++; }
     }
   }
   return { overdue, notified };
@@ -238,7 +238,7 @@ async function budgetAlerts(businessId, { month } = {}) {
   let notified = 0;
   for (const p of c.properties.filter(x => x.over_budget)) {
     const people = await propertyPeople(pool, p.id, ['manager']);
-    for (const t of [...new Set([...people, owner].map(String))]) { await notify(t, 'property_budget_over', { property: p.label }, `property_budget_over:${p.id}:${c.month}:${t}`, `/business/${businessId}/hub?tab=properties`); notified++; }
+    for (const t of [...new Set([...people, owner].map(String))]) { await notify(t, 'property_budget_over', { property: p.label }, `property_budget_over:${p.id}:${c.month}:${t}`, `/business/${businessId}/workspace?tab=properties`); notified++; }
   }
   return { over_budget: c.over_budget, notified };
 }

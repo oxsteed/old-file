@@ -895,7 +895,7 @@ async function notifyInvoiceOwner(ownerId, invoice, type) {
       title: type === 'business_invoice_paid' ? 'Invoice marked paid' : 'Invoice voided',
       body: `${invoice.invoice_number || `Invoice ${invoice.id}`} is now ${type === 'business_invoice_paid' ? 'paid' : 'voided'}.`,
       data: { invoice_id: String(invoice.id), business_id: String(invoice.business_id || '') },
-      action_url: `/businesses/${invoice.business_id}/invoices/${invoice.id}`,
+      action_url: '/invoices',
       idempotencyKey: `business-invoice:${invoice.id}:${type}:${invoice.updated_at || invoice.status}`,
     });
   } catch (error) {

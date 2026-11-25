@@ -91,7 +91,7 @@ async function notifyNoShowMarkedBatch(marked) {
           appointment_id: String(appointment.id),
           business_id: String(appointment.business_id || ''),
         },
-        action_url: `/businesses/${appointment.business_id}/calendar`,
+        action_url: `/business/${appointment.business_id}/workspace/calendar`,
         idempotencyKey: `business-appointment:${appointment.id}:no_show:${appointment.no_show_marked_at || 'auto'}`,
       });
       notified++;

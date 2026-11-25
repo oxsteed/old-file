@@ -12,7 +12,7 @@ const owner = require('./ownerService');
 const READINESS = ['uniform_ready', 'hands_washed', 'station_stocked', 'handoff_read'];
 const PACK = ['items_verified', 'sauces_utensils', 'drinks', 'sealed', 'label_applied'];
 const OPEN_ORDER = `('received','accepted','preparing','ready')`;
-const url = (r, tab = 'shift') => `/restaurants/${r}/manage?tab=${tab}`;
+const url = (r, tab = 'shift') => `/restaurants/${r}/portal?tab=${tab}`;
 
 async function openCheckin(c, db = pool, { lock = false } = {}) {
   const { rows: [k] } = await db.query(`SELECT * FROM restaurant_shift_checkins WHERE restaurant_id=$1 AND user_id=$2 AND ended_at IS NULL ${lock ? 'FOR UPDATE' : ''}`, [c.restaurantId, c.userId]);
@@ -496,7 +496,7 @@ async function recoverAccess(userId) {
     });
     if (!managers) continue;
     const notified = managers.filter(x => String(x) !== String(userId));
-    for (const m of notified) await notify(m, 'restaurant_access_change_handoff', { location: k.location_name }, `restaurant_access_change_handoff:${k.checkin_id}:${m}`, `/restaurants/${k.restaurant_id}/manage?tab=kitchen`);
+    for (const m of notified) await notify(m, 'restaurant_access_change_handoff', { location: k.location_name }, `restaurant_access_change_handoff:${k.checkin_id}:${m}`, `/restaurants/${k.restaurant_id}/portal?tab=kitchen`);
     const notifiedAt = new Date().toISOString();
     await pool.query(`UPDATE restaurant_shift_checkins SET end_summary = end_summary || jsonb_build_object('managers_notified', $2::jsonb, 'notified_at', $3::text) WHERE id=$1`,
       [k.checkin_id, JSON.stringify(notified), notifiedAt]);

@@ -9,7 +9,7 @@ const TYPES = ['single_family', 'multi_family', 'condo', 'commercial', 'mixed_us
 const AREA_KINDS = ['lobby', 'laundry', 'parking', 'grounds', 'roof', 'mechanical', 'amenity', 'other'];
 const ROLES = ['manager', 'building_staff', 'coverage', 'unit_contact'];
 const OPEN_REQ = `status NOT IN ('completed','cancelled','rejected')`;
-const url = (b, p) => `/business/${b}/hub?tab=properties${p ? `&property=${p}` : ''}`;
+const url = (b, p) => `/business/${b}/workspace?tab=properties${p ? `&property=${p}` : ''}`;
 
 // 301 portfolio dashboard (admins see all; assigned staff see their properties)
 async function portfolio(businessId, user, role, { archived = false } = {}) {
@@ -216,7 +216,7 @@ async function notifyOccupants(businessId, propertyId, actor) {
   const { rows } = await pool.query(`SELECT DISTINCT requester_id FROM property_maintenance_requests WHERE property_id=$1 AND requester_id IS NOT NULL AND created_at > NOW() - INTERVAL '12 months'
       AND requester_id NOT IN (SELECT user_id FROM businesses WHERE id=$2 UNION SELECT member_id FROM business_members WHERE business_id=$2 AND member_id IS NOT NULL)`, [p.id, businessId]);
   const stamp = Date.now();
-  for (const r of rows) await notify(r.requester_id, 'property_contact_updated', { property: p.label }, `property_contact_updated:${p.id}:${r.requester_id}:${stamp}`, '/maintenance-requests');
+  for (const r of rows) await notify(r.requester_id, 'property_contact_updated', { property: p.label }, `property_contact_updated:${p.id}:${r.requester_id}:${stamp}`, `/business/${businessId}/maintenance-request`);
   return { notified: rows.length };
 }
 // 350 revoke one person's access to a property; keys they hold get flagged

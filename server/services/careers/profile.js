@@ -226,7 +226,7 @@ async function resolveDispute(db, { disputeId, admin, outcome, note }) {
     userId: dispute.user_id,
     type: 'career_fact_dispute_resolved',
     params: { factType: dispute.fact_type, outcome },
-    actionUrl: '/careers/me/profile',
+    actionUrl: '/careers/me',
     deliveryKey: `career_dispute:${dispute.id}`,
   });
   return dispute;

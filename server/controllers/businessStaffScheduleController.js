@@ -1866,7 +1866,7 @@ exports.publishShifts = async (req, res, next) => {
         type: 'crew_shift_published',
         title: 'New shifts published',
         body: `${list.length} shift${list.length === 1 ? '' : 's'} at ${biz.business_name}`,
-        action_url: '/business',
+        action_url: '/business-hub',
         data: {
           business_id: biz.id,
           shift_ids: list.map((s) => s.id),

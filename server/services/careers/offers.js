@@ -173,7 +173,7 @@ async function notifyOfferMade(db, app, offer) {
       pay: formatPay(offer.pay_cents, offer.pay_period, offer.currency_code, app.locale),
       expiresAt: offer.expires_at, timeZone: app.opening_timezone || app.timezone || 'UTC',
     },
-    actionUrl: app.user_id ? `/careers/me?offer=${offer.id}` : '/signup?next=/careers/me',
+    actionUrl: app.user_id ? `/careers/me?offer=${offer.id}` : '/join?next=/careers/me',
     deliveryKey: `career_offer:${offer.id}`,
   });
 }

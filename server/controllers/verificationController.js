@@ -207,7 +207,7 @@ exports.checkrWebhook = async (req, res, next) => {
             type: 'background_check_passed',
             title: passedNotif.title,
             body: passedNotif.body,
-            action_url: '/dashboard/helper',
+            action_url: '/helper-dashboard',
             idempotencyKey: `checkr-report:${reportId}`,
           });
         } else {
