@@ -26,6 +26,10 @@ router.delete('/work-templates/:id',rejectImpersonated,handle(async(req,res)=>{a
 router.get('/work-records/:jobId',handle(async(req,res)=>res.json(await service.read(req.params.jobId,req.user.id))));
 router.put('/work-records/:jobId',rejectImpersonated,handle(async(req,res)=>res.json(await service.save(req.params.jobId,req.user.id,req.body))));
 router.post('/work-records/:jobId/updates',rejectImpersonated,handle(async(req,res)=>res.status(201).json({update:await service.publish(req.params.jobId,req.user.id,req.body)})));
+// Group 5 (282, G5-19): job-linked material usage lines on the work record.
+router.get('/work-records/:jobId/materials',handle(async(req,res)=>res.json(await service.listMaterials(req.params.jobId,req.user.id))));
+router.post('/work-records/:jobId/materials',rejectImpersonated,handle(async(req,res)=>res.status(201).json({material:await service.addMaterial(req.params.jobId,req.user.id,req.body)})));
+router.delete('/work-records/:jobId/materials/:materialId',rejectImpersonated,handle(async(req,res)=>res.json(await service.removeMaterial(req.params.jobId,req.user.id,req.params.materialId))));
 const reputation=require('../services/helperReputationService');
 // Group 4 rest (192, 195): the helper's received reviews and quality summary.
 router.get('/reviews',handle(async(req,res)=>res.json({reviews:await reputation.myReviews(req.user.id)})));

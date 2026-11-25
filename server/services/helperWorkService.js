@@ -56,11 +56,16 @@ async function read(jobId, userId) {
     const job = await jobFor(db, jobId, userId);
     const { rows: [saved] } = await db.query('SELECT * FROM helper_job_work WHERE job_id=$1 AND helper_id=$2', [job.id, job.assigned_helper_id]);
     const { rows: updates } = await db.query('SELECT id, body, created_at FROM helper_work_updates WHERE job_id=$1 AND helper_id=$2 ORDER BY created_at DESC, id DESC LIMIT 100', [job.id, job.assigned_helper_id]);
+    // D-473 (282, G5-19): the material lines used on site, with who recorded
+    // them and the total cost, so the final price can be evidenced. Visible
+    // to the client as well as the helper (no private fields on a line).
+    const { rows: materials } = await db.query(`SELECT m.*, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS recorded_by_name
+      FROM helper_job_work_materials m LEFT JOIN users u ON u.id=m.recorded_by WHERE m.job_id=$1 ORDER BY m.created_at, m.id`, [job.id]);
     const own = String(job.assigned_helper_id) === String(userId);
     return { work: {
       version: saved?.version || 0, handover: saved?.handover || '', aftercare: saved?.aftercare || '',
       ...(own ? { checklist: saved?.checklist || [], private_notes: saved?.private_notes || '' } : {}),
-    }, updates, writable: own && ['accepted','in_progress','completed','closed'].includes(job.status) };
+    }, updates, materials, materials_total_cost_cents: materials.reduce((n, r) => n + Number(r.cost_cents || 0), 0), writable: own && ['accepted','in_progress','completed','closed'].includes(job.status) };
   }, 'helper_work_read');
 }
 async function save(jobId, userId, body) {
@@ -99,6 +104,55 @@ async function publish(jobId,userId,body) {
   if (outcome.job) await tellCustomer(outcome.job, 'helper_progress_update', `helper-progress:${outcome.row.id}`, { update_id: outcome.row.id });
   return outcome.row;
 }
+// D-473 (282, G5-19): job-linked material usage lines. Only the assigned
+// helper records them (write path enforces helper access + the writable
+// job states); the client reads them with the work record. 200 lines max
+// per job, matching the appointment-materials cap.
+function materialText(value, max, required = true) {
+  if (typeof value !== 'string') invalid();
+  const clean = value.trim();
+  if ((required && !clean) || clean.length > max) invalid();
+  return clean || null;
+}
+async function listMaterials(jobId, userId) {
+  const job = await jobFor(pool, jobId, userId);
+  const { rows } = await pool.query(`SELECT m.*, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS recorded_by_name
+    FROM helper_job_work_materials m LEFT JOIN users u ON u.id=m.recorded_by WHERE m.job_id=$1 ORDER BY m.created_at, m.id`, [job.id]);
+  return { materials: rows, total_cost_cents: rows.reduce((n, r) => n + Number(r.cost_cents || 0), 0) };
+}
+async function addMaterial(jobId, userId, body) {
+  const description = materialText(body?.description, 200);
+  const quantity = Number(body?.quantity);
+  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1e6) invalid();
+  const unit = body?.unit == null || body.unit === '' ? null : materialText(body.unit, 20);
+  const cost = body?.cost_cents == null || body.cost_cents === '' ? null : Number(body.cost_cents);
+  if (cost !== null && (!Number.isInteger(cost) || cost < 0 || cost > 1e9)) invalid();
+  const note = body?.note == null || body.note === '' ? null : materialText(body.note, 300);
+  return withTransaction(pool, async db => {
+    const job = await jobFor(db, jobId, userId, true);
+    const { rows: [{ n }] } = await db.query('SELECT COUNT(*)::int AS n FROM helper_job_work_materials WHERE job_id=$1', [job.id]);
+    if (n >= 200) throw new AppError('Too many material lines on this job', 409, 'materials_limit');
+    const { rows: [row] } = await db.query(
+      `INSERT INTO helper_job_work_materials(job_id,helper_id,description,quantity,unit,cost_cents,note,recorded_by)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [job.id, job.assigned_helper_id, description, quantity, unit, cost, note, userId]);
+    return row;
+  }, 'helper_work_material_add');
+}
+async function removeMaterial(jobId, userId, materialId) {
+  const id = Number(materialId);
+  if (!Number.isInteger(id) || id < 1) invalid();
+  return withTransaction(pool, async db => {
+    const job = await jobFor(db, jobId, userId);
+    const { rows: [row] } = await db.query('SELECT * FROM helper_job_work_materials WHERE id=$1 AND job_id=$2', [id, job.id]);
+    if (!row) throw new AppError('Material line not found', 404, 'not_found');
+    if (String(row.recorded_by) !== String(userId) && String(job.client_id) !== String(userId)) {
+      throw new AppError('Job not found', 404, 'not_found');
+    }
+    await db.query('DELETE FROM helper_job_work_materials WHERE id=$1', [id]);
+    return { deleted: true };
+  }, 'helper_work_material_remove');
+}
 async function board(userId) {
   await helper(pool,userId);
   return (await pool.query(`SELECT id,title,status,scheduled_date FROM jobs
@@ -128,4 +182,4 @@ async function removeTemplate(userId,id) {
   const result=await pool.query('DELETE FROM helper_checklist_templates WHERE id=$1 AND helper_id=$2',[id,userId]);
   if (!result.rowCount) throw new AppError('Template not found',404,'not_found');
 }
-module.exports={read,save,publish,board,templates,createTemplate,removeTemplate};
+module.exports={read,save,publish,listMaterials,addMaterial,removeMaterial,board,templates,createTemplate,removeTemplate};

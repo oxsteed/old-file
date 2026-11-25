@@ -26,6 +26,7 @@ function WorkRecord({ jobId, epoch }) {
   const [notice, setNotice] = useState('');
   const [item, setItem] = useState('');
   const [update, setUpdate] = useState('');
+  const [m, setM] = useState({ description: '', quantity: '1', unit: '', cost: '', note: '' });
   const [templates, setTemplates] = useState([]);
   const [templateName, setTemplateName] = useState('');
   const retryKey = useRef(null);
@@ -117,6 +118,29 @@ function WorkRecord({ jobId, epoch }) {
     </fieldset>}
     <ol>{state.updates.map(row => <li key={row.id}><time dateTime={row.created_at}>{formatDate(row.created_at)}</time><p className="helper-work__text">{row.body}</p></li>)}</ol>
     {!state.updates.length && <p>{key('noUpdates')}</p>}
+    {/* D-473 (282, G5-19): material lines used on the job, with the total
+        cost, so the final price can be evidenced. The client sees the same
+        list read-only; only the assigned helper adds or removes lines. */}
+    <h3>{key('materialsTitle')}</h3>
+    <p>{key('materialsHelp')}</p>
+    {state.writable && <fieldset disabled={busy}><legend>{key('addMaterial')}</legend>
+      <label>{key('materialDescription')}<input value={m.description} maxLength={200} onChange={event => setM(value => ({ ...value, description: event.target.value }))} /></label>
+      <label>{key('materialQty')}<input type="number" min="0" step="any" value={m.quantity} onChange={event => setM(value => ({ ...value, quantity: event.target.value }))} /></label>
+      <label>{key('materialUnit')}<input value={m.unit} maxLength={20} onChange={event => setM(value => ({ ...value, unit: event.target.value }))} /></label>
+      <label>{key('materialCost')}<input type="number" min="0" step="0.01" value={m.cost} onChange={event => setM(value => ({ ...value, cost: event.target.value }))} /></label>
+      <label>{key('materialNote')}<input value={m.note} maxLength={300} onChange={event => setM(value => ({ ...value, note: event.target.value }))} /></label>
+      <button type="button" disabled={!m.description.trim() || !(Number(m.quantity) > 0)} onClick={() => run(async (valid) => {
+        const { data } = await api.post(`/helpers/me/work-records/${jobId}/materials`, { description: m.description.trim(), quantity: Number(m.quantity), unit: m.unit.trim() || undefined, cost_cents: m.cost === '' ? undefined : Math.round(Number(m.cost) * 100), note: m.note.trim() || undefined });
+        if (valid()) { setState(value => ({ ...value, materials: [...(value.materials || []), data.material], materials_total_cost_cents: (value.materials_total_cost_cents || 0) + (data.material.cost_cents || 0) })); setM({ description: '', quantity: '1', unit: '', cost: '', note: '' }); setNotice('saved'); }
+      })} data-track="ui.5a31efa0b3.13">{key('addMaterial')}</button>
+    </fieldset>}
+    <ol>{(state.materials || []).map(row => <li key={row.id}>{row.description} · {Number(row.quantity)} {row.unit || ''}{row.cost_cents != null && ` · ${(row.cost_cents / 100).toFixed(2)}`}{row.note && ` · ${row.note}`}{row.recorded_by_name && ` · ${row.recorded_by_name}`}
+      {state.writable && <button type="button" aria-label={`${key('removeMaterial')}: ${row.description}`} disabled={busy} onClick={() => run(async (valid) => {
+        await api.delete(`/helpers/me/work-records/${jobId}/materials/${row.id}`);
+        if (valid()) setState(value => ({ ...value, materials: (value.materials || []).filter(x => x.id !== row.id), materials_total_cost_cents: (value.materials_total_cost_cents || 0) - (row.cost_cents || 0) }));
+      })} data-track="ui.5a31efa0b3.14">{key('removeMaterial')}</button>}</li>)}</ol>
+    {!(state.materials || []).length && <p>{key('noMaterials')}</p>}
+    {(state.materials || []).length > 0 && <p>{key('materialsTotal')}: {((state.materials_total_cost_cents || 0) / 100).toFixed(2)}</p>}
   </section>;
 }
 export default function HelperWorkPanel() {
