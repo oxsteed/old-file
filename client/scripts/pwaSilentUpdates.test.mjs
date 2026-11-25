@@ -373,3 +373,28 @@ test('P1: a worker that reaches waiting before updatefound is still tracked', as
   assert.equal(app.getWaitingWorker(), app.worker);
   assert.equal(app.posted.length, 0, 'tracked, not yet applied');
 });
+
+test('P2: a waiting worker the announce path never saw still applies on navigation', async () => {
+  // CI red twice (runs 45595409891 and 45602359608, pwaShell test 115):
+  // the tab never reloaded after navigating even though the registration
+  // held a waiting worker and the D-447 updatefound fix was in place — the
+  // announce event itself was missed, so the module's waitingWorker stayed
+  // null, the quiet-watch hook was never installed, and every quiet-apply
+  // path did nothing. The registration's own .waiting is synchronous, so
+  // the quiet-apply path reads it directly, and the hooks are installed at
+  // registration time instead of only on announce.
+  const app = subject({ waiting: false });
+  app.registerServiceWorker();
+  await app.settle();
+  await app.settle();
+  assert.equal(app.getWaitingWorker(), null);
+  // The worker is waiting on the registration, but no updatefound or
+  // statechange event ever reached the module (missed announce).
+  app.registration.waiting = app.worker;
+  app.win.history.pushState({}, '', '/discover');
+  assert.equal(app.posted.length, 1);
+  assert.equal(app.posted[0].type, 'SKIP_WAITING');
+  assert.equal(app.reloads.length, 0, 'reload waits for controllerchange');
+  app.fireControllerChange();
+  assert.equal(app.reloads.length, 1, 'the tab reloads onto the new worker once the controller changes');
+});

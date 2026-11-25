@@ -90,6 +90,7 @@ function trySilentUpdate(worker) {
 }
 
 let waitingWorker = null;
+let storedRegistration = null;
 const updateListeners = new Set();
 // Workers already announced or silently applied, so announceUpdate is
 // idempotent per worker. A silent apply never sets waitingWorker (the
@@ -100,6 +101,22 @@ const updateListeners = new Set();
 // that (serviceWorkerVersion test: "applied silently once").
 const handledWorkers = new Set();
 export const getWaitingWorker = () => waitingWorker;
+
+// The registration itself always knows synchronously whether a worker is
+// waiting. The event-driven announce path (updatefound/statechange) can
+// miss it — a fast install, a late handler, a dropped event — and then
+// every quiet-apply path silently does nothing forever, because they all
+// read the module's waitingWorker. Fall back to the registration's own
+// .waiting, unless the module already processed that worker (a silent
+// apply must not be re-applied). CI: pwaShell test 115 timed out twice
+// even after the D-447 updatefound fix, with the registration holding a
+// waiting worker the module never tracked.
+function getWaitingWorkerNow() {
+  if (waitingWorker) return waitingWorker;
+  const pending = storedRegistration?.waiting || null;
+  if (pending && !handledWorkers.has(pending)) return pending;
+  return null;
+}
 export function subscribeWorkerUpdate(listener) {
   updateListeners.add(listener);
   return () => updateListeners.delete(listener);
@@ -128,7 +145,7 @@ export function hasUnsavedInput(root = typeof document === 'undefined' ? null : 
 }
 
 function canApplyQuietly(pathname) {
-  return Boolean(waitingWorker)
+  return Boolean(getWaitingWorkerNow())
     && !appUpdatesDeferred()
     && !isUpdateSensitivePath(pathname)
     && !isSilentUpdateSensitivePath(pathname)
@@ -212,14 +229,18 @@ function installQuietWatch() {
 }
 
 export function applyWorkerUpdate() {
-  if (!waitingWorker || appUpdatesDeferred() || isUpdateSensitivePath(window.location.pathname)) return false;
+  const worker = getWaitingWorkerNow();
+  if (!worker || appUpdatesDeferred() || isUpdateSensitivePath(window.location.pathname)) return false;
+  // A worker found through the registration fallback becomes the tracked
+  // one, so a late announce for it is a no-op instead of a second apply.
+  waitingWorker = worker;
   clearQuietUpdateTimer();
   // Another tab may already have accepted this worker. This reload only ever
   // runs from the guarded quiet-apply paths (next navigation or hidden tab);
   // there is no user-facing prompt anymore.
-  if (waitingWorker.state === 'activated') { reloadDocument(); return true; }
+  if (worker.state === 'activated') { reloadDocument(); return true; }
   navigator.serviceWorker.addEventListener('controllerchange', reloadDocument, { once: true });
-  waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+  worker.postMessage({ type: 'SKIP_WAITING' });
   return true;
 }
 
@@ -274,6 +295,7 @@ export function registerServiceWorker() {
     navigator.serviceWorker.register(getServiceWorkerUrl(), {
       updateViaCache: 'none',
     }).then(registration => {
+      storedRegistration = registration;
       const detectWaiting = () => {
         if (registration.waiting && navigator.serviceWorker.controller) announceUpdate(registration.waiting);
       };
@@ -297,6 +319,13 @@ export function registerServiceWorker() {
       };
       registration.addEventListener('updatefound', watchInstalling);
       watchInstalling();
+      // The quiet-apply hooks (in-app navigation, hidden tab) must exist
+      // even when the announce event itself is missed: otherwise a worker
+      // the module never tracked can never apply at all, and the
+      // registration fallback in getWaitingWorkerNow has no hook to run
+      // through. Installing them here is a no-op until a worker is
+      // waiting, and announceUpdate still installs them (idempotent).
+      watchQuietMoments();
       installUpdateChecks(registration);
     }).catch(() => { /* The app works without a worker. */ });
   };
