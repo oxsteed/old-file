@@ -13,7 +13,7 @@ const readable = (db, b, a, u, ctx) => workedAppointment(db, b, a, u, { allowMan
 // 273 + 284: everything the next person needs before touching the job.
 async function handoff(businessId, userId, ctx, appointmentId) {
   const { appt } = await readable(pool, businessId, appointmentId, userId, ctx);
-  const [notes, checklist, progress, exceptions, docs, crew, ack] = await Promise.all([
+  const [notes, checklist, progress, exceptions, docs, crew, ack, booking] = await Promise.all([
     pool.query(`SELECT n.id, n.note_type, n.content, n.is_pinned, n.created_at, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS author
       FROM business_appointment_notes n LEFT JOIN users u ON u.id=n.created_by_id WHERE n.appointment_id=$1 ORDER BY n.is_pinned DESC, n.created_at DESC LIMIT 20`, [appt.id]),
     pool.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE done_at IS NOT NULL)::int AS done,
@@ -24,10 +24,14 @@ async function handoff(businessId, userId, ctx, appointmentId) {
     pool.query(`SELECT c.user_id, c.role, c.task_note, c.attendance, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS name FROM business_appointment_crew c JOIN users u ON u.id=c.user_id
       WHERE c.appointment_id=$1 ORDER BY c.role, u.first_name`, [appt.id]),
     pool.query('SELECT acknowledged_at FROM business_handoff_acknowledgments WHERE user_id=$1 AND appointment_id=$2 AND handover_id IS NULL', [userId, appt.id]),
+    // D-461 (262, G5-25): the booking behind this appointment, so the
+    // detail view can show the booking's visit checklist to the provider.
+    pool.query('SELECT id FROM booking_requests WHERE business_appointment_id = $1 LIMIT 1', [appt.id]),
   ]);
   return {
     appointment: { id: appt.id, service_name: appt.service_name, start_time: appt.start_time, end_time: appt.end_time, status: appt.status,
-      customer_name: appt.customer_name, customer_notes: appt.customer_notes || appt.notes || null, staff_id: appt.staff_id },
+      customer_name: appt.customer_name, customer_notes: appt.customer_notes || appt.notes || null, staff_id: appt.staff_id,
+      booking_id: booking.rows[0]?.id || null },
     notes: notes.rows, checklist: checklist.rows[0], latest_progress: progress.rows[0] || null, open_exceptions: exceptions.rows,
     document_count: docs.rows[0].n, crew: crew.rows, acknowledged_at: ack.rows[0]?.acknowledged_at || null,
   };

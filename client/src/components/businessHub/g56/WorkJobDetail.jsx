@@ -1,8 +1,9 @@
 // Groups 5-6 items 262-270, 273-274, 281-284, 286-290: one job, for the
 // people working it — handoff summary, checklist, progress, crew, documents,
 // notes with mentions, completion record, materials, history, and blockers.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useBizG56, requestId } from './useBizG56';
+import { getBookingChecklist } from '../../../api/bookings';
 import './g56.css';
 
 const KINDS = ['exception', 'missing_instruction', 'incident', 'access_denied', 'reassignment_request'];
@@ -47,6 +48,19 @@ export default function WorkJobDetail({ businessId, appointmentId, onClose }) {
   const [item, setItem] = useState(''); const [prog, setProg] = useState({ note: '', percent: '' });
   const [noteText, setNoteText] = useState(''); const [mentions, setMentions] = useState([]);
   const [cf, setCf] = useState(null); const [m, setM] = useState({ name: '', quantity: '1', unit: '', cost: '' });
+  const [bookingChecklist, setBookingChecklist] = useState(null);
+  // D-461 (262, G5-25): the booking's visit checklist, finally with a
+  // caller. A 403/404 (not the provider, no linked booking) hides the
+  // section; the appointment checklist above is untouched.
+  const linkedBookingId = hs.data?.appointment?.booking_id || null;
+  useEffect(() => {
+    if (!linkedBookingId) return undefined;
+    let cancelled = false;
+    getBookingChecklist(linkedBookingId)
+      .then((d) => { if (!cancelled) setBookingChecklist(d); })
+      .catch(() => { if (!cancelled) setBookingChecklist(null); });
+    return () => { cancelled = true; };
+  }, [linkedBookingId]);
   if (!hs.data) return hs.errorText ? <section className="g56-panel"><p className="g56-error">{hs.errorText}</p><button type="button" onClick={onClose} data-track="ui.68ec2fbbcd.3">{hs.tr('close')}</button></section> : null;
   const h = hs.data; const a = h.appointment;
   const items = cl.data?.items || (Array.isArray(cl.data) ? cl.data : []);
@@ -68,6 +82,12 @@ export default function WorkJobDetail({ businessId, appointmentId, onClose }) {
         <li key={i.id}><label><span><input type="checkbox" checked={!!i.done_at} disabled={cl.busy} onChange={e => cl.send('patch', `${base}/checklist/${i.id}`, { done: e.target.checked })} data-track="ui.68ec2fbbcd.6" /> {i.label}{i.required && ' *'}</span></label></li>))}</ul>
       <div className="g56-row"><input aria-label={hs.tr('addItem')} value={item} onChange={e => setItem(e.target.value)} maxLength={160} />
         <button type="button" disabled={cl.busy || !item.trim()} onClick={async () => { if (await cl.send('post', `${base}/checklist`, { label: item })) setItem(''); }} data-track="ui.68ec2fbbcd.7">{hs.tr('addItem')}</button></div>
+
+      {bookingChecklist?.items?.length > 0 && (<>
+        <h4>{hs.t('booking.token.checklistTitle')}</h4>
+        <ul className="g56-list">{bookingChecklist.items.map(i => (
+          <li key={i.key}>{i.done ? '✓' : '○'} {hs.t(`booking.token.checklist.${i.key}`)}</li>))}</ul>
+      </>)}
 
       <h4>{hs.tr('progress')}</h4>
       <div className="g56-row">

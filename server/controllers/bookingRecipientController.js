@@ -389,9 +389,40 @@ exports.getSharingPreview = async (req, res) => {
 
 exports.getChecklist = async (req, res) => {
   try {
-    const loaded = await loadAccountBooking(req, res, ['booker', 'recipient', 'site_contact']);
-    if (!loaded) return;
-    return res.json({ success: true, data: await checklistFor(loaded.booking) });
+    // D-461 (262, G5-25): the provider role is admitted. The booking's
+    // helper is the provider in the booking sense; a business member
+    // working the booking's linked appointment (assignee or crew) is the
+    // provider in the business sense even though they are not
+    // booking.helper_id. The checklist carries no amounts, so admitting
+    // the crew leaks no billing data. Managers who are neither the helper
+    // nor crew on the appointment stay out; they already have the
+    // appointment checklist.
+    const bookingId = String(req.params.bookingId || '');
+    if (!isUuid(bookingId)) {
+      sendError(res, 404, 'Booking request not found');
+      return;
+    }
+    const booking = await recipientSvc.loadBooking(bookingId);
+    if (!booking) {
+      sendError(res, 404, 'Booking request not found');
+      return;
+    }
+    const party = await recipientSvc.resolveParty(booking, { userId: req.user?.id });
+    let admitted = party && ['booker', 'recipient', 'site_contact', 'helper'].includes(party.role);
+    if (!admitted && booking.business_id && booking.business_appointment_id) {
+      const { rows } = await pool.query(
+        `SELECT 1 FROM business_appointments a WHERE a.id = $1 AND a.business_id = $2
+           AND (a.staff_id = $3 OR EXISTS (SELECT 1 FROM business_appointment_crew c
+             WHERE c.appointment_id = a.id AND c.user_id = $3))`,
+        [booking.business_appointment_id, booking.business_id, req.user?.id],
+      );
+      admitted = rows.length > 0;
+    }
+    if (!admitted) {
+      sendError(res, 403, 'You do not have access to this booking');
+      return;
+    }
+    return res.json({ success: true, data: await checklistFor(booking) });
   } catch (err) {
     logger.error('Error fetching visit checklist', { error: err.message });
     sendError(res, 500, 'Failed to fetch visit checklist');
