@@ -2333,7 +2333,7 @@ const GUIDES = [
     skills: ['Marketplace search', 'Local sourcing', 'Seller evaluation'],
     tools: [],
     hireHref: null,
-    toolsHref: '/marketplace',
+    toolsHref: '/products',
     xp: 10,
     tips: {
       customer: 'Local pickup is often faster than shipping and supports other community members. Filter by "available today" when you need something for a same-day job.',
@@ -2471,7 +2471,7 @@ const GUIDES = [
     skills: ['Supplier vetting', 'Quote requests', 'Local sourcing'],
     tools: [],
     hireHref: null,
-    toolsHref: '/marketplace',
+    toolsHref: '/products',
     xp: 10,
     tips: {
       customer: 'For renovation projects, check local suppliers on OxSteed before ordering from national retailers, local stock often means same-week availability instead of 2-week shipping.',
@@ -2504,7 +2504,7 @@ const GUIDES = [
     skills: ['Group buying', 'Quantity planning', 'Coordination'],
     tools: [],
     hireHref: null,
-    toolsHref: '/marketplace',
+    toolsHref: '/products',
     xp: 10,
     tips: {
       customer: 'If you\'re planning a project and need materials in 2–4 weeks, pooled orders can cut your material cost 15–30% compared to retail. Check open group buys before placing individual orders.',
@@ -2538,7 +2538,7 @@ const GUIDES = [
     skills: ['Freight classification', 'BOL preparation', 'Carrier selection'],
     tools: [],
     hireHref: null,
-    toolsHref: '/marketplace',
+    toolsHref: '/products',
     xp: 25,
     tips: {
       customer: 'If you\'re receiving a freight delivery, inspect the pallet before signing the delivery receipt. Any visible damage should be noted on the BOL, once you sign clean, the claim becomes much harder to win.',
@@ -2676,7 +2676,7 @@ const GUIDES = [
     skills: ['Equipment photography', 'Rate setting', 'Rental management'],
     tools: [],
     hireHref: null,
-    toolsHref: '/marketplace',
+    toolsHref: '/tool-rentals',
     xp: 10,
     tips: {
       customer: 'Renting a tool for a one-time job almost always costs less than buying. Check OxSteed listings before going to a hardware store, local rental is often cheaper and available same-day.',
@@ -2710,7 +2710,7 @@ const GUIDES = [
     skills: ['Asset documentation', 'Maintenance scheduling', 'Deposit management'],
     tools: [],
     hireHref: null,
-    toolsHref: '/marketplace',
+    toolsHref: '/tool-rentals',
     xp: 25,
     tips: {
       customer: 'If you\'re renting a tool, treat it as if you own it. A condition checklist at pickup protects you too, any pre-existing damage is documented so you\'re not charged for it.',
@@ -2743,7 +2743,7 @@ const GUIDES = [
     skills: ['Rental pricing', 'Revenue modeling', 'Competitive analysis'],
     tools: [],
     hireHref: null,
-    toolsHref: '/marketplace',
+    toolsHref: '/tool-rentals',
     xp: 25,
     tips: {
       customer: 'Weekly rates usually offer the best value if you need a tool for 4+ days. Ask the owner about a weekly discount before booking day-by-day.',
@@ -3847,7 +3847,7 @@ const HERO = {
   helper:        { titleKey: 'learn.page.hero.helper.title',        subKey: 'learn.page.hero.helper.sub',        ctaKey: 'learn.page.hero.helper.cta',        href: '/dashboard?tab=skills' },
   consultant:    { titleKey: 'learn.page.hero.consultant.title',    subKey: 'learn.page.hero.consultant.sub',    ctaKey: 'learn.page.hero.consultant.cta',    href: null },
   business:      { titleKey: 'learn.page.hero.business.title',      subKey: 'learn.page.hero.business.sub',      ctaKey: 'learn.page.hero.business.cta',      href: '/business-hub' },
-  investor:      { titleKey: 'learn.page.hero.investor.title',      subKey: 'learn.page.hero.investor.sub',      ctaKey: 'learn.page.hero.investor.cta',      href: '/marketplace' },
+  investor:      { titleKey: 'learn.page.hero.investor.title',      subKey: 'learn.page.hero.investor.sub',      ctaKey: 'learn.page.hero.investor.cta',      href: '/products' },
   manager:       { titleKey: 'learn.page.hero.manager.title',       subKey: 'learn.page.hero.manager.sub',       ctaKey: 'learn.page.hero.manager.cta',       href: '/post-job' },
   support_agent: { titleKey: 'learn.page.hero.support_agent.title', subKey: 'learn.page.hero.support_agent.sub', ctaKey: 'learn.page.hero.support_agent.cta', href: '/learn' },
 };

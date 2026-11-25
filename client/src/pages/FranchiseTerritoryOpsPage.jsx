@@ -1034,7 +1034,7 @@ export default function FranchiseTerritoryOpsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {[
                   { to: '/franchise/status', icon: Building2, label: t('franchiseTerritoryPage.actionsCard.viewApplication.title'), sub: t('franchiseTerritoryPage.actionsCard.viewApplication.sub'), color: 'text-orange-400' },
-                  { to: '/growth',           icon: TrendingUp, label: t('franchiseTerritoryPage.actionsCard.growth.title'),       sub: t('franchiseTerritoryPage.actionsCard.growth.sub'),       color: 'text-emerald-400' },
+                  { to: '/business-hub',           icon: TrendingUp, label: t('franchiseTerritoryPage.actionsCard.growth.title'),       sub: t('franchiseTerritoryPage.actionsCard.growth.sub'),       color: 'text-emerald-400' },
                   { to: '/learn',            icon: Star,       label: t('franchiseTerritoryPage.actionsCard.training.title'),     sub: t('franchiseTerritoryPage.actionsCard.training.sub'),     color: 'text-blue-400' },
                   { to: '/jobs',             icon: Hammer,     label: t('franchiseTerritoryPage.actionsCard.jobs.title'),        sub: t('franchiseTerritoryPage.actionsCard.jobs.sub'),        color: 'text-purple-400' },
                 ].map(({ to, icon: Icon, label, sub, color }) => (
