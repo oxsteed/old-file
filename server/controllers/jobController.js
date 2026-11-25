@@ -1072,11 +1072,15 @@ exports.assignHelper = async (req, res, next) => {
         [bid.job_id, bid_id]
       );
 
-      // 4. Update the job: assign the helper and move to accepted status
+      // 4. Update the job: assign the helper and move to accepted status.
+      // D-474 (283, G5-36): the version bump makes the assignment visible
+      // in the job's revision history (JobDetailPage shows it once
+      // version > 1); the revision row below is the durable audit event.
       const jobResult = await client.query(
         `UPDATE jobs SET
            assigned_helper_id = $1,
            status = 'accepted',
+           version = version + 1,
            updated_at = NOW()
          WHERE id = $2 AND client_id = $3
          AND status::text = ANY($4::text[])
@@ -1087,6 +1091,24 @@ exports.assignHelper = async (req, res, next) => {
       if (jobResult.rows.length === 0) {
         throw new AppError('Job not found or cannot be assigned', 409, 'state_conflict');
       }
+
+      // D-474 (283, G5-36): who held the job, who moved it, and when.
+      // `assignHelper` previously wrote no revision/audit row, so "who
+      // moved this job to me?" had no answer. The row is material, so the
+      // assigned helper (bidder role) sees it through the existing
+      // GET /jobs/:id/revisions read path and JobRevisionHistory; source is
+      // 'owner' (the job's client performed the assignment) because the
+      // job_revisions CHECK admits only
+      // owner/admin/rollback/change_order/system.
+      await client.query(
+        `INSERT INTO job_revisions
+           (job_id, version, revision, is_material, source, actor_id, actor_role, reason, changes, snapshot,
+            request_id, idempotency_key)
+         VALUES ($1, $2, $3, TRUE, 'owner', $4, $5, 'Helper assigned via accepted bid', $6::jsonb, NULL, NULL, NULL)`,
+        [bid.job_id, jobResult.rows[0].version, jobResult.rows[0].revision, req.user.id,
+         req.user.role || 'client',
+         JSON.stringify({ assigned_helper_id: { from: lockedJob.assigned_helper_id || null, to: bid.helper_id } })]
+      );
 
       // 4a. Record (and, with the rail engine on, enforce) the payment rail.
       const railResult = await paymentRails.applyAcceptance(client, {
