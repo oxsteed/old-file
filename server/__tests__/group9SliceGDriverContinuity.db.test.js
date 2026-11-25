@@ -188,8 +188,8 @@ ddescribe('Group 9 Slice G: manage continuity (496-500)', () => {
          (user_id, approved, active, vehicle_type, max_payload_lbs,
           cargo_length_in, cargo_width_in, cargo_height_in, equipment,
           service_area, max_pieces, fragile_supported, perishable_supported,
-          insurance_acknowledged, insurance_expires_at, available_from, available_until)
-       VALUES ($1, TRUE, TRUE, 'van', 200, 40, 40, 40, '{}'::jsonb, '{}'::jsonb, 10, TRUE, TRUE, TRUE, NULL, NULL, NULL)`,
+          insurance_acknowledged, insurance_expires_at, available_from, available_until, available)
+       VALUES ($1, TRUE, TRUE, 'van', 200, 40, 40, 40, '{}'::jsonb, '{}'::jsonb, 10, TRUE, TRUE, TRUE, NULL, NULL, NULL, TRUE)`,
       [userId],
     );
   }

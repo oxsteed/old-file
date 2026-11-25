@@ -289,6 +289,25 @@ const T = {
       ar: 'تم دفع دفعة التوصيل الخاصة بك. تحقق من سجل الدفعات للاطلاع على التفاصيل.',
     },
   },
+  // Group 9 partials Wave 2 Batch M (456, G9-A9): the periodic new-offer
+  // digest. The body interpolates {count} from data.params in the
+  // recipient's language.
+  delivery_offer_digest: {
+    title: {
+      en: 'New delivery offers',
+      fr: 'Nouvelles offres de livraison',
+      es: 'Nuevas ofertas de entrega',
+      ht: 'Nouvo òf livrezon',
+      ar: 'عروض توصيل جديدة',
+    },
+    body: {
+      en: '{count} new delivery offers are waiting in your service area. Open Driving to see them.',
+      fr: '{count} nouvelles offres de livraison vous attendent dans votre zone de service. Ouvrez Conduite pour les voir.',
+      es: '{count} nuevas ofertas de entrega te esperan en tu área de servicio. Abre Conducción para verlas.',
+      ht: '{count} nouvo òf livrezon ap tann ou nan zòn sèvis ou an. Louvri Kondwi pou wè yo.',
+      ar: 'هناك {count} من عروض التوصيل الجديدة بانتظارك في منطقة خدمتك. افتح قسم القيادة لعرضها.',
+    },
+  },
   payout_failed: {
     title: {
       en: 'Payout failed',
@@ -1850,6 +1869,13 @@ const EMAIL_TEMPLATES = {
       es: 'Ver pagos',
       ht: 'Gade peman yo',
       ar: 'عرض المدفوعات',
+    },
+    delivery_offer_digest: {
+      en: 'View Driving',
+      fr: 'Voir la conduite',
+      es: 'Ver conducción',
+      ht: 'Gade kondwi',
+      ar: 'عرض القيادة',
     },
     payout_failed: {
       en: 'View Payouts',

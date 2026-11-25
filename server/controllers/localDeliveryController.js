@@ -695,7 +695,7 @@ exports.create = async (req, res, next) => {
 exports.list = async (req, res, next) => {
   try {
     const helper = isDeliveryHelper(req.user);
-    const driver = await pool.query('SELECT approved,active FROM delivery_driver_profiles WHERE user_id=$1',[req.user.id]);
+    const driver = await pool.query('SELECT approved,active,service_area FROM delivery_driver_profiles WHERE user_id=$1',[req.user.id]);
     const internalDriver = driver.rows[0]?.approved === true && driver.rows[0]?.active === true;
     // G-46: marketplace visibility is driver admission, not legacy helper
     // state alone. A logistics.ship holder with no helper history sees the
@@ -704,9 +704,20 @@ exports.list = async (req, res, next) => {
     // (operations assigns them; they do not take marketplace jobs).
     const canDrive = await canDriveMarketplace(req.user);
     // Geo filter for marketplace: only show jobs within 50 miles of helper's location (if provided).
-    const lat = parseFloat(req.query.lat);
-    const lng = parseFloat(req.query.lng);
-    const hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
+    let lat = parseFloat(req.query.lat);
+    let lng = parseFloat(req.query.lng);
+    let hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
+    // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): when the
+    // client sends no location, fall back to the driver's stored
+    // service-area center so the 50-mile filter still engages instead of
+    // silently showing the whole country. A driver with no center gets
+    // the unfiltered feed, as before; the claim gate (service area
+    // required) is what stops a far claim.
+    if (!hasGeo) {
+      const { serviceAreaCenter } = require('../services/localDeliveryDispatchService');
+      const center = serviceAreaCenter(driver.rows[0]?.service_area);
+      if (center) { lat = center.lat; lng = center.lng; hasGeo = true; }
+    }
     const maxMiles = 50;
     let marketplaceClause = `($2::boolean AND status='posted' AND dispatch_state='marketplace_posted' AND fulfillment_source='marketplace' AND helper_user_id IS NULL AND internal_driver_user_id IS NULL)`;
     const params = [req.user.id, canDrive];
@@ -717,9 +728,21 @@ exports.list = async (req, res, next) => {
       ) <= $5`;
       params.push(lat, lng, maxMiles);
     }
+    // Group 9 partials Wave 2 Batch M (456, G9-A19, D-537): paginate the
+    // feed like the driver payout list (D-524) instead of silently
+    // capping at 100 rows. The default page stays 100 (the old cap); the
+    // COUNT total lets the client page through the full list.
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const pageParams = [...params, limit, offset];
     const {rows} = await pool.query(`SELECT * FROM delivery_jobs WHERE customer_user_id=$1 OR helper_user_id=$1 OR internal_driver_user_id=$1
       OR ${marketplaceClause}
-      ORDER BY created_at DESC LIMIT 100`, params);
+      ORDER BY created_at DESC LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`, pageParams);
+    const { rows: [countRow] } = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM delivery_jobs WHERE customer_user_id=$1 OR helper_user_id=$1 OR internal_driver_user_id=$1
+       OR ${marketplaceClause}`,
+      params,
+    );
     // Group 9 Slice B (item 460): the driver's own decline on each job,
     // so the inbox card can show the passed state persistently.
     const jobIds = rows.map((job) => job.id);
@@ -731,7 +754,7 @@ exports.list = async (req, res, next) => {
       );
       myDeclines = new Map(declines.map((decline) => [String(decline.delivery_job_id), decline]));
     }
-    res.json({success:true,jobs:rows.map(job=>({...customerSafeJob(job,req.user), my_decline: myDeclines.get(String(job.id)) || null})),helper,internalDriver,canDrive});
+    res.json({success:true,jobs:rows.map(job=>({...customerSafeJob(job,req.user), my_decline: myDeclines.get(String(job.id)) || null})),helper,internalDriver,canDrive,total:countRow?.total ?? rows.length,limit,offset});
   } catch(error) {next(error);}
 };
 

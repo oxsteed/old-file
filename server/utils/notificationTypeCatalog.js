@@ -217,6 +217,9 @@ const NOTIFICATION_TYPES = [
   { type: 'driver_payout_approved', group: 'payments' },
   { type: 'driver_payout_paid', group: 'payments' },
   { type: 'delivery_offer_expired', group: 'orders' },
+  // Group 9 partials Wave 2 Batch M (456, G9-A9): the periodic new-offer
+  // digest for eligible drivers.
+  { type: 'delivery_offer_digest', group: 'orders' },
   { type: 'delivery_window_warning', group: 'orders' },
   { type: 'delivery:delivery_assigned', group: 'orders' },
   // Group 9 Slice E: exceptions dispatch events (localDeliveryNotifications copy).

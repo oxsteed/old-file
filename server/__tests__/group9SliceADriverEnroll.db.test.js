@@ -629,8 +629,8 @@ ddescribe('Group 9 Slice A: driver enroll and prepare (451-455)', () => {
     await pool.query(
       `INSERT INTO delivery_driver_profiles
          (user_id, approved, active, vehicle_type, max_payload_lbs, cargo_length_in, cargo_width_in, cargo_height_in,
-          equipment, service_area, insurance_acknowledged, max_pieces, insurance_expires_at)
-       VALUES ($1, TRUE, TRUE, 'car', 500, 40, 40, 40, '{}', '{"states":["OH"]}'::jsonb, TRUE, 1, NOW() + INTERVAL '90 days')`,
+          equipment, service_area, insurance_acknowledged, max_pieces, insurance_expires_at, available)
+       VALUES ($1, TRUE, TRUE, 'car', 500, 40, 40, 40, '{}', '{"states":["OH"]}'::jsonb, TRUE, 1, NOW() + INTERVAL '90 days', TRUE)`,
       [driverId],
     );
     const customerId = await makeUser('customer');

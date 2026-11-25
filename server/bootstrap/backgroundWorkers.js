@@ -46,6 +46,7 @@ const { startQuoteDeadlineNoticesJob } = require('../jobs/quoteDeadlineNotices')
 const { startBidDeadlineNoticesJob } = require('../jobs/bidDeadlineNotices'); // Group 4 Slice B (164)
 const { startDriverDocumentRenewalNoticesJob } = require('../jobs/driverDocumentRenewalNotices'); // Group 9 Slice A (453)
 const { startDeliveryOfferExpiryJob } = require('../jobs/deliveryOfferExpiryNotices'); // Group 9 Slice B (457)
+const { startDeliveryOfferDigestJob } = require('../jobs/deliveryOfferDigest'); // Group 9 partials Wave 2 Batch M (456)
 const { startDeliveryWindowWarningsJob } = require('../jobs/deliveryWindowWarnings'); // Group 9 Slice C (463)
 const { startDeliveryDelayEscalationJob } = require('../jobs/deliveryDelayEscalation'); // Group 9 Slice E (485)
 const { startDeliveryWeeklyReportJob } = require('../jobs/deliveryWeeklyReport'); // Group 9 Slice F (495)
@@ -234,6 +235,7 @@ class BackgroundWorkers {
       startBidDeadlineNoticesJob();
       startDriverDocumentRenewalNoticesJob();
       startDeliveryOfferExpiryJob();
+      startDeliveryOfferDigestJob();
       startDeliveryWindowWarningsJob();
       startDeliveryDelayEscalationJob();
       startDeliveryWeeklyReportJob();

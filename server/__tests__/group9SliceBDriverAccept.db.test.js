@@ -18,8 +18,9 @@
  *       coordinates for the route preview and no exact addresses; the
  *       assigned driver gets the exact coordinates.
  *   459 (verify only): PATCH /delivery/driver-profile/availability
- *       flips the flag, and claiming stays ungated by it (the toggle
- *       gates the feed only, by design).
+ *       flips the flag, and claiming is now gated by it (Batch M, D-536):
+ *       an offline driver cannot claim, even from a shared job link, and
+ *       going back online restores claiming.
  *   460: POST /delivery/jobs/:id/decline records a reason code + note,
  *       upserts per driver per job, never blocks claiming (the same job
  *       or any other), and surfaces to dispatch in getInternalJob and
@@ -115,7 +116,7 @@ ddescribe('Group 9 Slice B: driver accept work (456-460)', () => {
       `INSERT INTO delivery_driver_profiles
          (user_id, approved, active, vehicle_type, max_payload_lbs, cargo_length_in, cargo_width_in, cargo_height_in,
           equipment, service_area, insurance_acknowledged, max_pieces, available)
-       VALUES ($1, TRUE, TRUE, 'car', 500, 40, 40, 40, '{}', '{}'::jsonb, TRUE, 3, TRUE)
+       VALUES ($1, TRUE, TRUE, 'car', 500, 40, 40, 40, '{}', '{"states":["OH"]}'::jsonb, TRUE, 3, TRUE)
        ON CONFLICT (user_id) DO UPDATE SET approved = TRUE, active = TRUE`,
       [driverId],
     );
@@ -336,7 +337,7 @@ ddescribe('Group 9 Slice B: driver accept work (456-460)', () => {
     expect(assigned.origin_address).toBe('1 Origin Way');
   });
 
-  test('459 (verify): the availability toggle flips the flag and never gates claiming', async () => {
+  test('459 (Batch M, D-536): the availability toggle flips the flag and gates claiming', async () => {
     const driverId = await makeUser('helper', { defaultMode: 'helper' });
     const customerId = await makeUser('customer');
     await makeApprovedProfile(driverId);
@@ -348,16 +349,20 @@ ddescribe('Group 9 Slice B: driver accept work (456-460)', () => {
     expect(off.next).not.toHaveBeenCalled();
     expect(off.res.payload.profile.available).toBe(false);
 
-    // Offline gates the feed only: the claim path never reads `available`.
-    const claimed = await claimAction(actionReq({ jobId: job.id, user: helperUser(driverId) }));
-    expect(claimed.response.success).toBe(true);
-    expect(claimed.response.job.status).toBe('assigned');
-    expect(claimed.response.job.is_assigned_operator).toBe(true);
+    // Offline blocks claiming, even though the feed is not the path
+    // used here: the claim goes straight at the posted job.
+    await expect(claimAction(actionReq({ jobId: job.id, user: helperUser(driverId) })))
+      .rejects.toMatchObject({ code: 'delivery_driver_offline' });
 
     const on = await call(localDelivery.setDriverAvailability, {
       user: helperUser(driverId), body: { available: true },
     });
     expect(on.res.payload.profile.available).toBe(true);
+
+    const claimed = await claimAction(actionReq({ jobId: job.id, user: helperUser(driverId) }));
+    expect(claimed.response.success).toBe(true);
+    expect(claimed.response.job.status).toBe('assigned');
+    expect(claimed.response.job.is_assigned_operator).toBe(true);
   });
 
   test('460: decline records a reason + note, upserts per driver, and never blocks claiming', async () => {

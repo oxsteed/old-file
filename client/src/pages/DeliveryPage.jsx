@@ -86,7 +86,10 @@ function DeliveryCard({ job, helper, onClaim, onDecline, onStatus, busyId, t }) 
   const offerExpired = isOfferExpired(job, nowMs);
   const isOffer = helper && job.status === 'posted' && job.marketplace_available === true;
   const canClaim = helper && job.status === 'posted' && job.marketplace_available === true && job.is_assigned_operator !== true && !offerExpired;
-  const canDecline = isOffer && !offerExpired;
+  // Group 9 partials Wave 2 Batch M (457/460, G9-A14, D-539): an expired
+  // offer can still be declined (the server accepts it, D-62); only the
+  // claim stays hidden once the deadline passes.
+  const canDecline = isOffer;
   const canUpdate = job.is_assigned_operator === true && ['assigned', 'picked_up', 'in_transit'].includes(job.status);
   const nextStatus = job.status === 'assigned' ? 'picked_up'
     : job.status === 'picked_up' ? 'in_transit' : null;
@@ -1384,6 +1387,15 @@ function HelperDelivery({ t }) {
   const [canDrive, setCanDrive] = useState(false);
   const [internalDriver, setInternalDriver] = useState(false);
   const [jobs, setJobs] = useState([]);
+  const jobsRef = useRef([]);
+  // Group 9 partials Wave 2 Batch M (456, G9-A19, D-537): the feed is
+  // paged (limit/offset + total, mirroring the driver payout list). The
+  // list mixes the driver's own jobs with marketplace offers in one
+  // created_at order, so "My claimed" only shows loaded pages until the
+  // driver loads more.
+  const [feedTotal, setFeedTotal] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const FEED_PAGE_LIMIT = 100;
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
@@ -1395,6 +1407,20 @@ function HelperDelivery({ t }) {
   // approves a profile (self-serve registration below).
   const [driverProfile, setDriverProfile] = useState(null);
   const [activeVehicle, setActiveVehicle] = useState(null);
+  // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): the feed's
+  // 50-mile filter needs a location. Precise device location wins when
+  // the driver grants it; otherwise the service-area center from the
+  // profile applies; otherwise the server falls back to the stored
+  // center, and a driver with no center gets the unfiltered feed.
+  const [feedGeo, setFeedGeo] = useState(null);
+  const profileCenter = useMemo(() => {
+    const center = driverProfile?.service_area && typeof driverProfile.service_area === 'object'
+      ? driverProfile.service_area.center : null;
+    const lat = Number(center?.lat);
+    const lng = Number(center?.lng);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  }, [driverProfile?.service_area]);
+  const feedGeoParams = useCallback(() => feedGeo || profileCenter || {}, [feedGeo, profileCenter]);
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [payouts, setPayouts] = useState(null);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
@@ -1413,22 +1439,48 @@ function HelperDelivery({ t }) {
 
   useEffect(() => { loadDriverProfile(); }, [loadDriverProfile]);
 
-  const loadJobs = useCallback(async () => {
-    setLoading(true);
+  const loadJobs = useCallback(async (options = {}) => {
+    const append = options.append === true;
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError('');
     try {
-      const response = await listDeliveryJobs();
-      setJobs(response.jobs || []);
+      const offset = append ? jobsRef.current.length : 0;
+      const response = await listDeliveryJobs({ ...feedGeoParams(), limit: FEED_PAGE_LIMIT, offset });
+      const nextJobs = response.jobs || [];
+      jobsRef.current = append ? [...jobsRef.current, ...nextJobs] : nextJobs;
+      setJobs(jobsRef.current);
+      setFeedTotal(typeof response.total === 'number' ? response.total : nextJobs.length);
       setCanDrive(response.canDrive === true);
       setInternalDriver(response.internalDriver === true);
     } catch (requestError) {
       setError(deliveryError(requestError, t, 'delivery.errors.load'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [t]);
+  }, [t, feedGeoParams]);
 
   useEffect(() => { loadJobs(); }, [loadJobs]);
+
+  // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): ask once
+  // for the device location so the feed's 50-mile filter can engage with
+  // precise coordinates. A denial or timeout is silent: the service-area
+  // center (client-side above, server-side in the list endpoint) is the
+  // fallback, and the claim gate is what stops a far claim.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return undefined;
+    let cancelled = false;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (cancelled) return;
+        setFeedGeo({ lat: position.coords.latitude, lng: position.coords.longitude });
+      },
+      () => {},
+      { timeout: 5000, maximumAge: 600000 },
+    );
+    return () => { cancelled = true; };
+  }, [setFeedGeo]);
 
   // Earnings summary (item 12): totals by payout status, aggregated
   // client-side from the driver's own payout rows. No new queries.
@@ -1446,7 +1498,10 @@ function HelperDelivery({ t }) {
     setError('');
     setClaimReasons([]);
     try {
-      await claimDeliveryJob(id);
+      // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): send the
+      // feed location with the claim so the server can enforce the
+      // 50-mile distance sanity.
+      await claimDeliveryJob(id, feedGeoParams());
       await loadJobs();
     } catch (requestError) {
       // P2-4-F10: a driver with no driver profile gets a registration path
@@ -1454,6 +1509,12 @@ function HelperDelivery({ t }) {
       if (requestError?.response?.data?.code === 'delivery_driver_onboarding_required') {
         setOnboardingForced(true);
         requestAnimationFrame(() => onboardingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      }
+      // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-534): a claim
+      // refused for a missing service area scrolls the driver to the
+      // section that fixes it instead of leaving a bare error.
+      if (requestError?.response?.data?.code === 'delivery_service_area_required') {
+        requestAnimationFrame(() => document.getElementById('driver-service-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
       }
       setClaimReasons(deliveryClaimReasons(requestError, t));
       setError(deliveryError(requestError, t, 'delivery.errors.claim'));
@@ -1476,9 +1537,10 @@ function HelperDelivery({ t }) {
     try { await declineDeliveryJob(id, payload); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.status')); } finally { setBusyId(null); }
   };
 
-  // Availability gates the open-jobs FEED only: an offline driver sees no
-  // open jobs. Claiming itself stays ungated (canClaim and the server claim
-  // path never read `available`).
+  // Group 9 partials Wave 2 Batch M (459, G9-A3, D-536): availability
+  // gates the open-jobs feed AND claiming AND operations assignment.
+  // An offline driver sees no open jobs and cannot claim (even from a
+  // shared link) or be assigned until they go back online.
   const isOnline = driverProfile?.available === true;
   const openJobs = useMemo(() => selectOpenJobs(jobs, { canDrive, available: isOnline, userId: user?.id }), [jobs, canDrive, isOnline, user?.id]);
   const myJobs = useMemo(() => jobs.filter((job) => job.is_assigned_operator === true || String(job.customer_user_id) === String(user?.id)), [jobs, user?.id]);
@@ -1588,7 +1650,10 @@ function HelperDelivery({ t }) {
               <DriverDocumentsSection t={t} onChanged={loadDriverProfile} />
             </>
           )}
-          {canDrive && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
+          {canDrive && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{driverProfile?.approved === true && !isOnline ? <p className="delivery-empty-copy">{t('delivery.driver.offlineNote')}</p> : openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}
+            {feedTotal != null && jobs.length > 0 && <p className="delivery-estimate-defaults">{t('delivery.helper.showingOf', { shown: jobs.length, total: feedTotal })}</p>}
+            {feedTotal != null && jobs.length < feedTotal && <button type="button" className="delivery-button delivery-button--secondary" onClick={() => loadJobs({ append: true })} disabled={loadingMore || loading} data-track="ui.2f5c44f3da.50">{t('delivery.helper.loadMore')}</button>}
+          </section>}
           <section><div className="delivery-section-title"><h3>{t(isDriver ? 'delivery.driver.myClaimed' : 'delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={isDriver && job.is_assigned_operator === true} onClaim={claim} onDecline={decline} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
         </>
       )}

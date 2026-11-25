@@ -344,13 +344,17 @@ export default function DeliveryDetailPage() {
               <OfferCountdown job={job} t={t} />
               {job.my_decline && <p className="delivery-job-card__declined">{t('delivery.driver.declined')} · {t(`delivery.driver.declineReasons.${job.my_decline.reason_code}`)}</p>}
               <DriverReadinessChecklist t={t} jobId={id} fixBase="/delivery" />
-              {!isOfferExpired(job) && (
-                <div className="delivery-dispatch-actions">
+              {/* Group 9 partials Wave 2 Batch M (457/460, G9-A14, D-539):
+                the claim hides once the offer expires, but the decline
+                stays: the server accepts declining an expired offer (D-62)
+                and the signal is still useful to dispatch. */}
+              <div className="delivery-dispatch-actions">
+                {!isOfferExpired(job) && (
                   <button type="button" className="delivery-button delivery-button--primary" disabled={busy} onClick={() => act(() => claimDeliveryJob(id), 'delivery.ui.saved', 'delivery.errors.claim')} data-track="ui.4c1e141977.26">{t('delivery.helper.claim')}</button>
-                  {!declineOpen && <button type="button" className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => setDeclineOpen(true)} data-track="ui.4c1e141977.27">{job.my_decline ? t('delivery.driver.declineChange') : t('delivery.driver.decline')}</button>}
-                </div>
-              )}
-              {declineOpen && !isOfferExpired(job) && (
+                )}
+                {!declineOpen && <button type="button" className="delivery-button delivery-button--secondary" disabled={busy} onClick={() => setDeclineOpen(true)} data-track="ui.4c1e141977.27">{job.my_decline ? t('delivery.driver.declineChange') : t('delivery.driver.decline')}</button>}
+              </div>
+              {declineOpen && (
                 <DeclineForm job={job} t={t} busy={busy} onSubmit={(payload) => { setDeclineOpen(false); act(() => declineDeliveryJob(id, payload)); }} onCancel={() => setDeclineOpen(false)} />
               )}
             </div>

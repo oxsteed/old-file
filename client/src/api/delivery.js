@@ -34,8 +34,17 @@ export const estimateDelivery = (payload) => api.post('/delivery/estimate', payl
 export const getDeliveryPublicCaptchaConfig = () => api.get('/delivery/public/captcha-config').then((response) => response.data?.captcha || null);
 export const estimateDeliveryPublic = (payload) => api.post('/delivery/public/estimate', payload).then((response) => response.data);
 export const createDelivery = (payload) => mutate('post', '/delivery/jobs', payload);
-export const listDeliveryJobs = () => api.get('/delivery/jobs').then((response) => response.data);
-export const claimDeliveryJob = (id) => mutate('post', `/delivery/jobs/${id}/claim`);
+// Group 9 partials Wave 2 Batch M (454/456, G9-A2/A19, D-535/D-537): the
+// feed takes the driver's location (lat/lng, for the 50-mile filter) and
+// page parameters (limit/offset, with a total in the response). Callers
+// that pass nothing get the first page, unfiltered client-side; the
+// server falls back to the stored service-area center.
+export const listDeliveryJobs = (params) => api.get('/delivery/jobs', params ? { params } : undefined).then((response) => response.data);
+// Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): the claim may
+// carry the driver's location so the server can enforce the 50-mile
+// distance sanity. No location is fine too: the service-area coverage
+// check is the sanity then.
+export const claimDeliveryJob = (id, geo) => mutate('post', `/delivery/jobs/${id}/claim`, geo && (Number.isFinite(Number(geo.lat)) || Number.isFinite(Number(geo.lng))) ? { lat: geo.lat, lng: geo.lng } : {});
 // Group 9 Slice B (item 460): a driver passes on a marketplace offer
 // with a reason code and an optional note. Advisory only.
 export const declineDeliveryJob = (id, payload) => mutate('post', `/delivery/jobs/${id}/decline`, payload);
@@ -283,6 +292,13 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     conflict: ['delivery_idempotency_conflict'],
     onboardingRequired: ['delivery_driver_onboarding_required'],
     approvalPending: ['delivery_driver_pending_approval'],
+    // Group 9 partials Wave 2 Batch M (454/456/459, G9-A2/A3, D-534/D-536):
+    // the claim refusals. serviceAreaRequired points at the editor;
+    // offline points at the Driving toggle; claimTooFar is the 50-mile
+    // distance sanity.
+    serviceAreaRequired: ['delivery_service_area_required'],
+    offline: ['delivery_driver_offline'],
+    claimTooFar: ['delivery_claim_too_far'],
     // Group 9 Slice G (item 498): the driver's job access expired
     // 7 days after the job reached a terminal state (D-90).
     accessExpired: ['delivery_access_expired'],
@@ -325,6 +341,10 @@ const CLAIM_REASON_LABELS = {
   availability: 'availability',
   available_from: 'availableFrom',
   available_until: 'availableUntil',
+  // Group 9 partials Wave 2 Batch M (459, G9-A3, D-536): the offline
+  // refusal carries reasons ['offline'] so the claim-reasons list can
+  // name the toggle instead of rendering a raw code.
+  offline: 'offline',
 };
 export function deliveryClaimReasons(error, t) {
   const fields = error?.response?.data?.fields || error?.response?.data?.error?.fields || {};

@@ -92,6 +92,57 @@ function areaCovers(area, job) {
   return true;
 }
 
+// Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-534/D-535): an empty
+// service area is no longer "everywhere" for claiming. hasServiceArea
+// reports whether a stored area actually covers somewhere: at least one
+// non-empty states/cities/postalCodes list, or a center with a positive
+// radius. A bare JSON string is parsed first (legacy profiles); anything
+// else unparseable counts as unset.
+function hasServiceArea(area) {
+  let value = area;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    try { value = JSON.parse(trimmed); } catch (_) { return false; }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  for (const key of ['states', 'cities', 'postalCodes']) {
+    if (Array.isArray(value[key]) && value[key].some((entry) => String(entry).trim())) return true;
+  }
+  const center = value.center;
+  return Boolean(center && Number.isFinite(Number(center.lat)) && Number.isFinite(Number(center.lng))
+    && Number(value.radiusMiles) > 0);
+}
+
+// The stored center of a service area, for the feed's 50-mile filter when
+// the client sends no location (D-535). Null when the area has no usable
+// center, so the caller falls through to an unfiltered feed.
+function serviceAreaCenter(area) {
+  let value = area;
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch (_) { return null; }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const lat = Number(value.center?.lat);
+  const lng = Number(value.center?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+// Haversine distance in miles, shared by the claim distance sanity
+// (D-535) and the digest eligibility check.
+function haversineMiles(lat1, lng1, lat2, lng2) {
+  const rad = (value) => value * Math.PI / 180;
+  const a = Math.sin(rad(lat2 - lat1) / 2) ** 2
+    + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lng2 - lng1) / 2) ** 2;
+  return 3958.7613 * 2 * Math.asin(Math.sqrt(Math.min(1, a)));
+}
+
+// The feed's discovery window (D-535): jobs farther than this from the
+// driver's location never reach the inbox, and a claim from farther than
+// this is refused when the client sends a location.
+const FEED_MAX_MILES = 50;
+
 // Null availability means no configured hours (legacy profiles). An explicit
 // empty array means unavailable. Windows are absolute UTC intervals.
 function availableDuring(availability, window) {
@@ -310,6 +361,21 @@ function createDispatchService(deps = {}) {
       await ensureNoOpenRecovery(client, job);
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.body?.driverUserId || '')) throw fail('A valid driver is required', 'delivery_driver_invalid', 400);
       const assignment = { driverId: req.body.driverUserId.toLowerCase(), vehicleId: positiveId(req.body.vehicleId) };
+      // Group 9 partials Wave 2 Batch M (459, G9-A3, D-536): operations
+      // cannot assign a driver who is offline. The flag lives on the
+      // profile; a missing profile still falls through to checkAssignment,
+      // which reports it as missing_profile. The gate is here, not in
+      // shared checkAssignment: the recovery service reuses that helper
+      // to re-validate an already-assigned driver on reschedule approval
+      // and exception resume, and gating there would strand in-flight
+      // jobs when a driver toggles off mid-route.
+      const { rows: [targetProfile] } = await client.query(
+        'SELECT available FROM delivery_driver_profiles WHERE user_id = $1',
+        [assignment.driverId],
+      );
+      if (targetProfile && targetProfile.available !== true) {
+        throw new AppError('The driver is offline. Ask the driver to turn on availability in Driving before assigning.', 409, 'delivery_driver_offline', { reasons: ['offline'] });
+      }
       await lockResources(client, assignmentOf(job), assignment);
       const window = windowForJob(job, now);
       await checkAssignment(client, job, assignment, window);
@@ -422,7 +488,7 @@ function createDispatchService(deps = {}) {
       // approved profile. Fail with a targeted code so the client can route
       // the helper to onboarding instead of a generic capacity error.
       const { rows: [selfProfile] } = await client.query(
-        'SELECT approved, active FROM delivery_driver_profiles WHERE user_id = $1',
+        'SELECT approved, active, available, service_area FROM delivery_driver_profiles WHERE user_id = $1',
         [req.user.id]
       );
       if (!selfProfile) {
@@ -430,6 +496,40 @@ function createDispatchService(deps = {}) {
       }
       if (selfProfile.approved !== true) {
         throw fail('Driver profile is pending operations approval', 'delivery_driver_pending_approval', 409);
+      }
+      // Group 9 partials Wave 2 Batch M (459, G9-A3, D-536): an offline
+      // driver cannot claim, even from a shared job link or the detail
+      // page. The feed already hides offers while offline; this closes
+      // the link hole with the same flag. The refusal names the toggle so
+      // the driver can fix it themselves.
+      if (selfProfile.available !== true) {
+        throw new AppError('You are offline. Turn on availability in Driving to claim deliveries.', 409, 'delivery_driver_offline', { reasons: ['offline'] });
+      }
+      // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-534): a driver
+      // with no service area set cannot make a claim. An empty area used
+      // to mean "everywhere", which let a driver claim a job a thousand
+      // miles away; the area is now required first. A driver who clears
+      // their area is blocked again, because the area is the only
+      // distance evidence the claim has.
+      if (!hasServiceArea(selfProfile.service_area)) {
+        throw new AppError('Set a service area before claiming deliveries', 409, 'delivery_service_area_required', { reasons: ['service_area'] });
+      }
+      // Group 9 partials Wave 2 Batch M (454/456, G9-A2, D-535): distance
+      // sanity at claim. When the client sends the driver's location, the
+      // pickup origin must be within the 50-mile feed window; when no
+      // location is sent, the service-area coverage enforced by
+      // checkAssignment below is the sanity (a states/cities-only area
+      // has no radius, so no mileage check applies there beyond
+      // membership).
+      const driverLat = Number(req.body?.lat ?? req.body?.latitude);
+      const driverLng = Number(req.body?.lng ?? req.body?.longitude);
+      if (Number.isFinite(driverLat) && Number.isFinite(driverLng)) {
+        const originLat = Number(job.origin_lat);
+        const originLng = Number(job.origin_lng);
+        if (Number.isFinite(originLat) && Number.isFinite(originLng)
+          && haversineMiles(driverLat, driverLng, originLat, originLng) > FEED_MAX_MILES) {
+          throw new AppError('This pickup is more than 50 miles from your location', 409, 'delivery_claim_too_far', { distanceMiles: Math.round(haversineMiles(driverLat, driverLng, originLat, originLng)) });
+        }
       }
       const window = windowForJob(job, now);
       await checkAssignment(client, job, assignment, window);
@@ -470,7 +570,7 @@ function createDispatchService(deps = {}) {
 
 let defaults;
 module.exports = {
-  createDispatchService, createActionRunner, handler, fingerprint, capabilityFailures, areaCovers, availableDuring,
+  createDispatchService, createActionRunner, handler, fingerprint, capabilityFailures, areaCovers, hasServiceArea, serviceAreaCenter, haversineMiles, FEED_MAX_MILES, availableDuring,
   windowForJob, lockResources, assignmentOf, reserve, checkAssignment, recordActivity, ensureNoOpenRecovery,
   DECLINE_REASON_CODES, OFFER_DEADLINE_DEFAULT_HOURS, offerDeadlineHours,
   TERMINAL, fail, sameId, isOperator, isParticipant, pickedUp, cleanText,

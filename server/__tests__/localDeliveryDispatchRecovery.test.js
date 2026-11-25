@@ -16,8 +16,9 @@ const baseJob = () => ({ id: '1', status: 'posted', dispatch_state: 'internal_re
   customer_user_id: 'customer', helper_user_id: null, internal_driver_user_id: null, vehicle_id: null,
   pieces: 1, weight_lbs: 20, pickup_window_start: START, pickup_window_end: END,
   delivery_window_start: START, delivery_window_end: END, proof_pin_digest: 'must-not-leak',
+  origin_state: 'NY', destination_state: 'NY',
   origin_contact_phone: '2125550100', destination_contact_phone: '2125550111' });
-const capacity = () => ({ user_id: DRIVER, id: '10', approved: true, active: true, insurance_acknowledged: true,
+const capacity = () => ({ user_id: DRIVER, id: '10', approved: true, active: true, available: true, insurance_acknowledged: true,
   max_pieces: 10, max_payload_lbs: 200, cargo_length_in: 40, cargo_width_in: 40, cargo_height_in: 40,
   fragile_supported: true, perishable_supported: true, equipment: { dolly: true, temperatureControl: true }, service_area: {} });
 const request = (body = {}, params = { id: '1' }, user = operator, key = 'request-0001') => ({ params, body, user, headers: { 'idempotency-key': key } });
@@ -52,6 +53,17 @@ function fixture(jobPatch = {}, options = {}) {
       }
       if (q.startsWith('SELECT * FROM delivery_jobs')) return rows(String(args[0]) === String(db().job.id) ? [db().job] : []);
       if (q.startsWith('SELECT * FROM delivery_driver_profiles')) return rows(options.noDriver ? [] : [{ ...capacity(), ...options.driver }]);
+      // Batch M (D-534/D-536): the claim loads the caller's profile with
+      // its availability flag and service area, and assignInternal reads
+      // the target driver's availability. The mock driver is online with
+      // a New York service area covering the mock job's NY endpoints.
+      if (q.startsWith('SELECT approved, active, available, service_area FROM delivery_driver_profiles')) {
+        const profile = options.noDriver ? null : { approved: true, active: true, available: true, service_area: { states: ['NY'] }, ...options.driver };
+        return rows(profile ? [profile] : []);
+      }
+      if (q.startsWith('SELECT available FROM delivery_driver_profiles')) {
+        return rows(options.noDriver ? [] : [{ available: options.driver?.available ?? true }]);
+      }
       // F10: claim checks the caller's onboarding profile explicitly.
       if (q.startsWith('SELECT approved, active FROM delivery_driver_profiles')) {
         const profile = options.noDriver ? null : { approved: true, active: true, ...options.driver };
