@@ -6,6 +6,7 @@ import api from '../../api/axios';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
+import HelperPayoutTimeline from '../../components/HelperPayoutTimeline';
 import { formatMoney } from '../../lib/format';
 
 const cents = (n) => formatMoney((Number(n) || 0) / 100, { currency: 'USD' });
@@ -465,6 +466,7 @@ export default function HelperPayoutsPage() {
           </div>
         )}
         <PayoutMethodsSection />
+        <HelperPayoutTimeline />
       </main>
       <Footer />
     </div>

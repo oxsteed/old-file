@@ -28,3 +28,10 @@ Notes
   them, approve a work-agreement change order (see `docs/job-editing.md`).
 - Only `published` and `matched` jobs appear in the public feed and trigger
   saved-search alerts.
+- Helper hand-back (Group 4 item 184, `services/jobHandbackService.js`,
+  `POST /api/jobs/:id/hand-back`): the assigned helper may move an `accepted`
+  job back to `published` before arrival and before the scheduled start, only
+  when no money is attached (no live payment, Credit hold or collateral, or
+  confirmed off-platform payment) and the work agreement is not signed. This
+  is a dedicated path, not a generic transition: `TRANSITIONS.accepted` does
+  not list `published`, so the status endpoints cannot do it.

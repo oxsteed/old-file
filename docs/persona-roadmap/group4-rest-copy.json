@@ -1,0 +1,1416 @@
+{
+  "reputation.title": {
+    "en": "Reviews and quality",
+    "es": "Reseñas y calidad",
+    "fr": "Avis et qualité",
+    "ht": "Revizyon ak kalite",
+    "ar": "التقييمات والجودة"
+  },
+  "reputation.loading": {
+    "en": "Loading your reviews…",
+    "es": "Cargando tus reseñas…",
+    "fr": "Chargement de vos avis…",
+    "ht": "N ap chaje revizyon ou yo…",
+    "ar": "جارٍ تحميل تقييماتك…"
+  },
+  "reputation.loadFailed": {
+    "en": "We couldn't load your reviews.",
+    "es": "No pudimos cargar tus reseñas.",
+    "fr": "Impossible de charger vos avis.",
+    "ht": "Nou pa t ka chaje revizyon ou yo.",
+    "ar": "تعذّر تحميل تقييماتك."
+  },
+  "reputation.retry": {
+    "en": "Try again",
+    "es": "Reintentar",
+    "fr": "Réessayer",
+    "ht": "Eseye ankò",
+    "ar": "حاول مرة أخرى"
+  },
+  "reputation.average": {
+    "en": "Average rating",
+    "es": "Calificación media",
+    "fr": "Note moyenne",
+    "ht": "Nòt mwayèn",
+    "ar": "متوسط التقييم"
+  },
+  "reputation.total": {
+    "en": "Reviews",
+    "es": "Reseñas",
+    "fr": "Avis",
+    "ht": "Revizyon",
+    "ar": "التقييمات"
+  },
+  "reputation.recent": {
+    "en": "Last 90 days",
+    "es": "Últimos 90 días",
+    "fr": "90 derniers jours",
+    "ht": "90 dènye jou yo",
+    "ar": "آخر 90 يومًا"
+  },
+  "reputation.responseRate": {
+    "en": "Response rate",
+    "es": "Tasa de respuesta",
+    "fr": "Taux de réponse",
+    "ht": "To repons",
+    "ar": "معدل الرد"
+  },
+  "reputation.completed": {
+    "en": "Completed jobs",
+    "es": "Trabajos completados",
+    "fr": "Missions terminées",
+    "ht": "Travay fini",
+    "ar": "الأعمال المكتملة"
+  },
+  "reputation.changesRequested": {
+    "en": "Jobs where changes were requested",
+    "es": "Trabajos con cambios solicitados",
+    "fr": "Missions avec modifications demandées",
+    "ht": "Travay kote yo te mande chanjman",
+    "ar": "أعمال طُلبت فيها تعديلات"
+  },
+  "reputation.noShows": {
+    "en": "No-shows reported against you",
+    "es": "Ausencias reportadas en tu contra",
+    "fr": "Absences signalées contre vous",
+    "ht": "Absans yo rapòte kont ou",
+    "ar": "حالات عدم الحضور المبلّغ عنها ضدك"
+  },
+  "reputation.trend.up": {
+    "en": "Trending up versus the 90 days before",
+    "es": "En alza frente a los 90 días anteriores",
+    "fr": "En hausse par rapport aux 90 jours précédents",
+    "ht": "Ap monte konpare ak 90 jou anvan yo",
+    "ar": "في تحسن مقارنة بالأيام التسعين السابقة"
+  },
+  "reputation.trend.down": {
+    "en": "Trending down versus the 90 days before",
+    "es": "En baja frente a los 90 días anteriores",
+    "fr": "En baisse par rapport aux 90 jours précédents",
+    "ht": "Ap desann konpare ak 90 jou anvan yo",
+    "ar": "في تراجع مقارنة بالأيام التسعين السابقة"
+  },
+  "reputation.trend.steady": {
+    "en": "Steady versus the 90 days before",
+    "es": "Estable frente a los 90 días anteriores",
+    "fr": "Stable par rapport aux 90 jours précédents",
+    "ht": "Estab konpare ak 90 jou anvan yo",
+    "ar": "مستقر مقارنة بالأيام التسعين السابقة"
+  },
+  "reputation.trend.not_enough_data": {
+    "en": "Not enough recent reviews to show a trend",
+    "es": "No hay suficientes reseñas recientes para mostrar una tendencia",
+    "fr": "Pas assez d'avis récents pour afficher une tendance",
+    "ht": "Pa gen ase revizyon resan pou montre yon tandans",
+    "ar": "لا توجد تقييمات حديثة كافية لعرض اتجاه"
+  },
+  "reputation.lowAwaiting": {
+    "en": "{{count}} low ratings still have no response",
+    "es": "{{count}} calificaciones bajas aún no tienen respuesta",
+    "fr": "{{count}} notes basses n'ont pas encore de réponse",
+    "ht": "{{count}} nòt ki ba poko gen repons",
+    "ar": "{{count}} من التقييمات المنخفضة بلا رد بعد"
+  },
+  "reputation.empty": {
+    "en": "No reviews yet. Reviews appear here after customers rate completed jobs.",
+    "es": "Aún no hay reseñas. Aparecen aquí cuando los clientes califican trabajos completados.",
+    "fr": "Aucun avis pour l'instant. Ils apparaissent ici lorsque les clients notent des missions terminées.",
+    "ht": "Poko gen revizyon. Yo parèt isit lè kliyan yo bay nòt pou travay ki fini.",
+    "ar": "لا توجد تقييمات بعد. تظهر هنا بعد أن يقيّم العملاء الأعمال المكتملة."
+  },
+  "reputation.stars": {
+    "en": "{{rating}} out of 5",
+    "es": "{{rating}} de 5",
+    "fr": "{{rating}} sur 5",
+    "ht": "{{rating}} sou 5",
+    "ar": "{{rating}} من 5"
+  },
+  "reputation.yourResponse": {
+    "en": "Your response",
+    "es": "Tu respuesta",
+    "fr": "Votre réponse",
+    "ht": "Repons ou",
+    "ar": "ردّك"
+  },
+  "reputation.respond": {
+    "en": "Respond publicly",
+    "es": "Responder públicamente",
+    "fr": "Répondre publiquement",
+    "ht": "Reponn piblikman",
+    "ar": "الرد علنًا"
+  },
+  "reputation.respondHint": {
+    "en": "Your response is public and can't be edited after posting.",
+    "es": "Tu respuesta es pública y no se puede editar después de publicarla.",
+    "fr": "Votre réponse est publique et ne peut plus être modifiée après publication.",
+    "ht": "Repons ou piblik epi ou pa ka modifye l apre ou poste l.",
+    "ar": "ردّك علني ولا يمكن تعديله بعد النشر."
+  },
+  "reputation.post": {
+    "en": "Post response",
+    "es": "Publicar respuesta",
+    "fr": "Publier la réponse",
+    "ht": "Poste repons lan",
+    "ar": "نشر الرد"
+  },
+  "reputation.cancel": {
+    "en": "Cancel",
+    "es": "Cancelar",
+    "fr": "Annuler",
+    "ht": "Anile",
+    "ar": "إلغاء"
+  },
+  "reputation.posted": {
+    "en": "Response posted.",
+    "es": "Respuesta publicada.",
+    "fr": "Réponse publiée.",
+    "ht": "Repons lan poste.",
+    "ar": "تم نشر الرد."
+  },
+  "reputation.postFailed": {
+    "en": "We couldn't post your response. It may already have one.",
+    "es": "No pudimos publicar tu respuesta. Puede que ya tenga una.",
+    "fr": "Impossible de publier votre réponse. Il y en a peut-être déjà une.",
+    "ht": "Nou pa t ka poste repons ou. Petèt li gen youn deja.",
+    "ar": "تعذّر نشر ردّك. ربما يوجد رد بالفعل."
+  },
+  "reputation.anonymous": {
+    "en": "A customer",
+    "es": "Un cliente",
+    "fr": "Un client",
+    "ht": "Yon kliyan",
+    "ar": "أحد العملاء"
+  },
+  "payoutTimeline.title": {
+    "en": "Payout timeline",
+    "es": "Cronología de pagos",
+    "fr": "Chronologie des versements",
+    "ht": "Kwonoloji peman yo",
+    "ar": "الجدول الزمني للمدفوعات"
+  },
+  "payoutTimeline.loading": {
+    "en": "Loading payout history…",
+    "es": "Cargando historial de pagos…",
+    "fr": "Chargement de l'historique des versements…",
+    "ht": "N ap chaje istwa peman yo…",
+    "ar": "جارٍ تحميل سجل المدفوعات…"
+  },
+  "payoutTimeline.loadFailed": {
+    "en": "We couldn't load your payout history.",
+    "es": "No pudimos cargar tu historial de pagos.",
+    "fr": "Impossible de charger l'historique des versements.",
+    "ht": "Nou pa t ka chaje istwa peman ou yo.",
+    "ar": "تعذّر تحميل سجل مدفوعاتك."
+  },
+  "payoutTimeline.empty": {
+    "en": "No payout requests yet.",
+    "es": "Aún no hay solicitudes de pago.",
+    "fr": "Aucune demande de versement pour l'instant.",
+    "ht": "Poko gen demann peman.",
+    "ar": "لا توجد طلبات دفع بعد."
+  },
+  "payoutTimeline.available": {
+    "en": "Available",
+    "es": "Disponible",
+    "fr": "Disponible",
+    "ht": "Disponib",
+    "ar": "متاح"
+  },
+  "payoutTimeline.pending": {
+    "en": "On the way",
+    "es": "En camino",
+    "fr": "En cours",
+    "ht": "Sou wout",
+    "ar": "قيد التحويل"
+  },
+  "payoutTimeline.paid": {
+    "en": "Paid out",
+    "es": "Pagado",
+    "fr": "Versé",
+    "ht": "Peye",
+    "ar": "تم الدفع"
+  },
+  "payoutTimeline.requested": {
+    "en": "Requested",
+    "es": "Solicitado",
+    "fr": "Demandé",
+    "ht": "Mande",
+    "ar": "تم الطلب"
+  },
+  "payoutTimeline.processed": {
+    "en": "Processed",
+    "es": "Procesado",
+    "fr": "Traité",
+    "ht": "Trete",
+    "ar": "تمت المعالجة"
+  },
+  "payoutTimeline.cancelled": {
+    "en": "Cancelled",
+    "es": "Cancelado",
+    "fr": "Annulé",
+    "ht": "Anile",
+    "ar": "أُلغي"
+  },
+  "payoutTimeline.status.pending": {
+    "en": "Waiting to be processed",
+    "es": "Esperando procesamiento",
+    "fr": "En attente de traitement",
+    "ht": "Ap tann pou yo trete l",
+    "ar": "في انتظار المعالجة"
+  },
+  "payoutTimeline.status.processing": {
+    "en": "Being processed",
+    "es": "En proceso",
+    "fr": "En cours de traitement",
+    "ht": "Y ap trete l",
+    "ar": "قيد المعالجة"
+  },
+  "payoutTimeline.status.completed": {
+    "en": "Completed",
+    "es": "Completado",
+    "fr": "Terminé",
+    "ht": "Fini",
+    "ar": "مكتمل"
+  },
+  "payoutTimeline.status.paid": {
+    "en": "Completed",
+    "es": "Completado",
+    "fr": "Terminé",
+    "ht": "Fini",
+    "ar": "مكتمل"
+  },
+  "payoutTimeline.status.failed": {
+    "en": "Failed — contact support",
+    "es": "Falló: contacta a soporte",
+    "fr": "Échec — contactez l'assistance",
+    "ht": "Echwe — kontakte sipò",
+    "ar": "فشل — تواصل مع الدعم"
+  },
+  "payoutTimeline.status.cancelled": {
+    "en": "Cancelled",
+    "es": "Cancelado",
+    "fr": "Annulé",
+    "ht": "Anile",
+    "ar": "أُلغي"
+  },
+  "payoutTimeline.settlementNote": {
+    "en": "A payout is complete only after the bank or payout partner settles it.",
+    "es": "Un pago solo se completa cuando el banco o socio de pagos lo liquida.",
+    "fr": "Un versement n'est terminé qu'après règlement par la banque ou le partenaire de paiement.",
+    "ht": "Yon peman fini sèlman lè bank lan oswa patnè peman an regle l.",
+    "ar": "لا يكتمل الدفع إلا بعد أن يسوّيه البنك أو شريك الدفع."
+  },
+  "breakdown.show": {
+    "en": "Show breakdown",
+    "es": "Ver desglose",
+    "fr": "Voir le détail",
+    "ht": "Wè detay yo",
+    "ar": "عرض التفاصيل"
+  },
+  "breakdown.hide": {
+    "en": "Hide breakdown",
+    "es": "Ocultar desglose",
+    "fr": "Masquer le détail",
+    "ht": "Kache detay yo",
+    "ar": "إخفاء التفاصيل"
+  },
+  "breakdown.loading": {
+    "en": "Loading breakdown…",
+    "es": "Cargando desglose…",
+    "fr": "Chargement du détail…",
+    "ht": "N ap chaje detay yo…",
+    "ar": "جارٍ تحميل التفاصيل…"
+  },
+  "breakdown.loadFailed": {
+    "en": "We couldn't load this breakdown.",
+    "es": "No pudimos cargar este desglose.",
+    "fr": "Impossible de charger ce détail.",
+    "ht": "Nou pa t ka chaje detay sa a.",
+    "ar": "تعذّر تحميل هذه التفاصيل."
+  },
+  "breakdown.jobValue": {
+    "en": "Job value",
+    "es": "Valor del trabajo",
+    "fr": "Valeur du travail",
+    "ht": "Valè travay la",
+    "ar": "قيمة العمل"
+  },
+  "breakdown.yourPayout": {
+    "en": "Your payout",
+    "es": "Tu pago",
+    "fr": "Votre versement",
+    "ht": "Peman ou",
+    "ar": "المبلغ المستحق لك"
+  },
+  "breakdown.notRecorded": {
+    "en": "Not recorded",
+    "es": "No registrado",
+    "fr": "Non enregistré",
+    "ht": "Pa anrejistre",
+    "ar": "غير مسجّل"
+  },
+  "breakdown.why": {
+    "en": "Why the amounts differ",
+    "es": "Por qué difieren los montos",
+    "fr": "Pourquoi les montants diffèrent",
+    "ht": "Poukisa montan yo diferan",
+    "ar": "لماذا تختلف المبالغ"
+  },
+  "breakdown.code.platform_fee": {
+    "en": "OxSteed service fee",
+    "es": "Tarifa de servicio de OxSteed",
+    "fr": "Frais de service OxSteed",
+    "ht": "Frè sèvis OxSteed",
+    "ar": "رسوم خدمة OxSteed"
+  },
+  "breakdown.code.broker_fee": {
+    "en": "Referral or broker fee",
+    "es": "Tarifa de referido o intermediario",
+    "fr": "Frais de recommandation ou d'intermédiaire",
+    "ht": "Frè referans oswa koutye",
+    "ar": "رسوم الإحالة أو الوساطة"
+  },
+  "breakdown.code.change_order": {
+    "en": "Approved change order",
+    "es": "Orden de cambio aprobada",
+    "fr": "Avenant approuvé",
+    "ht": "Chanjman ki apwouve",
+    "ar": "أمر تغيير معتمد"
+  },
+  "breakdown.code.refund": {
+    "en": "Refund to the customer",
+    "es": "Reembolso al cliente",
+    "fr": "Remboursement au client",
+    "ht": "Ranbousman bay kliyan an",
+    "ar": "استرداد للعميل"
+  },
+  "breakdown.code.other_recorded_difference": {
+    "en": "Other recorded difference — ask support if unclear",
+    "es": "Otra diferencia registrada: consulta a soporte si no está clara",
+    "fr": "Autre écart enregistré — demandez à l'assistance si besoin",
+    "ht": "Lòt diferans ki anrejistre — mande sipò si li pa klè",
+    "ar": "فرق آخر مسجّل — اسأل الدعم إذا لم يكن واضحًا"
+  },
+  "breakdown.code.not_priced": {
+    "en": "This job has no recorded price yet",
+    "es": "Este trabajo aún no tiene precio registrado",
+    "fr": "Ce travail n'a pas encore de prix enregistré",
+    "ht": "Travay sa a poko gen pri anrejistre",
+    "ar": "لا يوجد سعر مسجّل لهذا العمل بعد"
+  },
+  "breakdown.none": {
+    "en": "No deductions or adjustments on this job.",
+    "es": "No hay deducciones ni ajustes en este trabajo.",
+    "fr": "Aucune déduction ni ajustement sur ce travail.",
+    "ht": "Pa gen dediksyon ni ajisteman sou travay sa a.",
+    "ar": "لا توجد خصومات أو تعديلات على هذا العمل."
+  },
+  "jobSupport.title": {
+    "en": "Get help with this job",
+    "es": "Obtén ayuda con este trabajo",
+    "fr": "Obtenir de l'aide pour ce travail",
+    "ht": "Jwenn èd pou travay sa a",
+    "ar": "احصل على مساعدة بشأن هذا العمل"
+  },
+  "jobSupport.kind": {
+    "en": "What do you need help with?",
+    "es": "¿Con qué necesitas ayuda?",
+    "fr": "De quoi avez-vous besoin ?",
+    "ht": "Ak kisa ou bezwen èd?",
+    "ar": "بماذا تحتاج المساعدة؟"
+  },
+  "jobSupport.kinds.job_issue": {
+    "en": "A problem with the job",
+    "es": "Un problema con el trabajo",
+    "fr": "Un problème avec le travail",
+    "ht": "Yon pwoblèm ak travay la",
+    "ar": "مشكلة في العمل"
+  },
+  "jobSupport.kinds.safety": {
+    "en": "A safety concern",
+    "es": "Un problema de seguridad",
+    "fr": "Un problème de sécurité",
+    "ht": "Yon pwoblèm sekirite",
+    "ar": "مخاوف تتعلق بالسلامة"
+  },
+  "jobSupport.kinds.payment_issue": {
+    "en": "A payment problem",
+    "es": "Un problema de pago",
+    "fr": "Un problème de paiement",
+    "ht": "Yon pwoblèm peman",
+    "ar": "مشكلة في الدفع"
+  },
+  "jobSupport.message": {
+    "en": "Describe what happened",
+    "es": "Describe lo que pasó",
+    "fr": "Décrivez ce qui s'est passé",
+    "ht": "Dekri sa k te pase",
+    "ar": "صف ما حدث"
+  },
+  "jobSupport.submit": {
+    "en": "Send to support",
+    "es": "Enviar a soporte",
+    "fr": "Envoyer à l'assistance",
+    "ht": "Voye bay sipò",
+    "ar": "إرسال إلى الدعم"
+  },
+  "jobSupport.sent": {
+    "en": "Sent. Support will reply on ticket {{number}}.",
+    "es": "Enviado. Soporte responderá en el ticket {{number}}.",
+    "fr": "Envoyé. L'assistance répondra sur le ticket {{number}}.",
+    "ht": "Voye. Sipò ap reponn sou tikè {{number}}.",
+    "ar": "تم الإرسال. سيرد الدعم على التذكرة {{number}}."
+  },
+  "jobSupport.failed": {
+    "en": "We couldn't send this. Try again.",
+    "es": "No pudimos enviarlo. Inténtalo de nuevo.",
+    "fr": "Envoi impossible. Réessayez.",
+    "ht": "Nou pa t ka voye l. Eseye ankò.",
+    "ar": "تعذّر الإرسال. حاول مرة أخرى."
+  },
+  "jobSupport.safetyNote": {
+    "en": "If anyone is in danger, call local emergency services first.",
+    "es": "Si alguien está en peligro, llama primero a emergencias.",
+    "fr": "Si quelqu'un est en danger, appelez d'abord les services d'urgence.",
+    "ht": "Si yon moun an danje, rele sèvis ijans yo anvan.",
+    "ar": "إذا كان أي شخص في خطر، اتصل بخدمات الطوارئ أولًا."
+  },
+  "jobSupport.history": {
+    "en": "Your requests for this job",
+    "es": "Tus solicitudes para este trabajo",
+    "fr": "Vos demandes pour ce travail",
+    "ht": "Demann ou yo pou travay sa a",
+    "ar": "طلباتك لهذا العمل"
+  },
+  "jobSupport.status.open": {
+    "en": "Open",
+    "es": "Abierto",
+    "fr": "Ouvert",
+    "ht": "Louvri",
+    "ar": "مفتوح"
+  },
+  "jobSupport.status.assigned": {
+    "en": "Assigned",
+    "es": "Asignado",
+    "fr": "Attribué",
+    "ht": "Asiyen",
+    "ar": "مُسند"
+  },
+  "jobSupport.status.in_progress": {
+    "en": "In progress",
+    "es": "En curso",
+    "fr": "En cours",
+    "ht": "Ap fèt",
+    "ar": "قيد المعالجة"
+  },
+  "jobSupport.status.waiting_user": {
+    "en": "Waiting on you",
+    "es": "Esperando tu respuesta",
+    "fr": "En attente de votre réponse",
+    "ht": "Ap tann ou",
+    "ar": "بانتظار ردّك"
+  },
+  "jobSupport.status.resolved": {
+    "en": "Resolved",
+    "es": "Resuelto",
+    "fr": "Résolu",
+    "ht": "Rezoud",
+    "ar": "تم الحل"
+  },
+  "jobSupport.status.closed": {
+    "en": "Closed",
+    "es": "Cerrado",
+    "fr": "Fermé",
+    "ht": "Fèmen",
+    "ar": "مغلق"
+  },
+  "timeGuards.arrivalTooEarly": {
+    "en": "You can check in from 2 hours before the scheduled start.",
+    "es": "Puedes registrar tu llegada desde 2 horas antes del inicio programado.",
+    "fr": "Vous pouvez signaler votre arrivée à partir de 2 heures avant le début prévu.",
+    "ht": "Ou ka anrejistre arive w depi 2 èdtan anvan lè ki pwograme a.",
+    "ar": "يمكنك تسجيل الوصول بدءًا من ساعتين قبل موعد البدء المحدد."
+  },
+  "timeGuards.noShowTooEarly": {
+    "en": "You can report a no-show only after the scheduled start time.",
+    "es": "Solo puedes reportar una ausencia después de la hora de inicio programada.",
+    "fr": "Vous ne pouvez signaler une absence qu'après l'heure de début prévue.",
+    "ht": "Ou ka rapòte yon absans sèlman apre lè kòmansman ki pwograme a.",
+    "ar": "لا يمكنك الإبلاغ عن عدم الحضور إلا بعد موعد البدء المحدد."
+  },
+  "endorsements.publicCount": {
+    "en": "· {{count}} endorsed",
+    "es": "· {{count}} respaldos",
+    "fr": "· {{count}} recommandations",
+    "ht": "· {{count}} apwobasyon",
+    "ar": "· {{count}} تزكية"
+  },
+  "endorsements.title": {
+    "en": "Endorse this helper's skills",
+    "es": "Respalda las habilidades de este ayudante",
+    "fr": "Recommandez les compétences de ce prestataire",
+    "ht": "Apwouve konpetans èd sa a",
+    "ar": "زكِّ مهارات هذا المساعد"
+  },
+  "endorsements.hint": {
+    "en": "You can endorse each skill once, based on work they completed for you.",
+    "es": "Puedes respaldar cada habilidad una vez, según el trabajo que completó para ti.",
+    "fr": "Vous pouvez recommander chaque compétence une fois, selon le travail réalisé pour vous.",
+    "ht": "Ou ka apwouve chak konpetans yon sèl fwa, dapre travay li fini pou ou.",
+    "ar": "يمكنك تزكية كل مهارة مرة واحدة بناءً على عمل أنجزه لك."
+  },
+  "endorsements.endorse": {
+    "en": "Endorse",
+    "es": "Respaldar",
+    "fr": "Recommander",
+    "ht": "Apwouve",
+    "ar": "تزكية"
+  },
+  "endorsements.withdraw": {
+    "en": "Withdraw endorsement",
+    "es": "Retirar respaldo",
+    "fr": "Retirer la recommandation",
+    "ht": "Retire apwobasyon an",
+    "ar": "سحب التزكية"
+  },
+  "endorsements.none": {
+    "en": "This helper has not listed any skills yet.",
+    "es": "Este ayudante aún no ha indicado habilidades.",
+    "fr": "Ce prestataire n'a encore indiqué aucune compétence.",
+    "ht": "Èd sa a poko mete okenn konpetans.",
+    "ar": "لم يُدرج هذا المساعد أي مهارات بعد."
+  },
+  "endorsements.failed": {
+    "en": "That didn't work. Try again.",
+    "es": "No funcionó. Inténtalo de nuevo.",
+    "fr": "Cela n'a pas fonctionné. Réessayez.",
+    "ht": "Sa pa t mache. Eseye ankò.",
+    "ar": "لم ينجح ذلك. حاول مرة أخرى."
+  },
+  "endorsements.recordTitle": {
+    "en": "Skill endorsements",
+    "es": "Respaldos de habilidades",
+    "fr": "Recommandations de compétences",
+    "ht": "Apwobasyon konpetans",
+    "ar": "تزكيات المهارات"
+  },
+  "endorsements.recordEmpty": {
+    "en": "No endorsements yet. Customers can endorse your listed skills after a completed job.",
+    "es": "Aún no hay respaldos. Los clientes pueden respaldar tus habilidades después de un trabajo completado.",
+    "fr": "Aucune recommandation pour l'instant. Les clients peuvent recommander vos compétences après un travail terminé.",
+    "ht": "Poko gen apwobasyon. Kliyan yo ka apwouve konpetans ou apre yon travay fini.",
+    "ar": "لا توجد تزكيات بعد. يمكن للعملاء تزكية مهاراتك بعد إكمال عمل."
+  },
+  "endorsements.recordCount": {
+    "en": "{{count}} endorsements",
+    "es": "{{count}} respaldos",
+    "fr": "{{count}} recommandations",
+    "ht": "{{count}} apwobasyon",
+    "ar": "{{count}} تزكية"
+  },
+  "repeat.title": {
+    "en": "Past customers",
+    "es": "Clientes anteriores",
+    "fr": "Anciens clients",
+    "ht": "Ansyen kliyan",
+    "ar": "العملاء السابقون"
+  },
+  "repeat.hint": {
+    "en": "Invite a customer you completed work for to book you again. They get an in-app notice; you can invite each customer once every 30 days.",
+    "es": "Invita a un cliente con quien completaste un trabajo a contratarte de nuevo. Recibe un aviso en la app; puedes invitar a cada cliente una vez cada 30 días.",
+    "fr": "Invitez un client pour qui vous avez terminé un travail à vous réserver à nouveau. Il reçoit un avis dans l'app ; une invitation par client tous les 30 jours.",
+    "ht": "Envite yon kliyan ou te fini travay pou li pou l rezève w ankò. Li resevwa yon avi nan app la; ou ka envite chak kliyan yon fwa chak 30 jou.",
+    "ar": "ادعُ عميلًا أنجزت له عملًا ليحجزك مرة أخرى. يتلقى إشعارًا داخل التطبيق؛ يمكنك دعوة كل عميل مرة كل 30 يومًا."
+  },
+  "repeat.empty": {
+    "en": "Customers appear here after you complete a job for them.",
+    "es": "Los clientes aparecen aquí después de completar un trabajo para ellos.",
+    "fr": "Les clients apparaissent ici après un travail terminé pour eux.",
+    "ht": "Kliyan yo parèt isit apre ou fini yon travay pou yo.",
+    "ar": "يظهر العملاء هنا بعد إكمال عمل لهم."
+  },
+  "repeat.jobs": {
+    "en": "{{count}} completed jobs",
+    "es": "{{count}} trabajos completados",
+    "fr": "{{count}} travaux terminés",
+    "ht": "{{count}} travay fini",
+    "ar": "{{count}} أعمال مكتملة"
+  },
+  "repeat.note": {
+    "en": "Optional note",
+    "es": "Nota opcional",
+    "fr": "Note facultative",
+    "ht": "Nòt opsyonèl",
+    "ar": "ملاحظة اختيارية"
+  },
+  "repeat.invite": {
+    "en": "Invite to book again",
+    "es": "Invitar a contratar de nuevo",
+    "fr": "Inviter à réserver à nouveau",
+    "ht": "Envite pou rezève ankò",
+    "ar": "دعوة للحجز مرة أخرى"
+  },
+  "repeat.invited": {
+    "en": "Invitation sent.",
+    "es": "Invitación enviada.",
+    "fr": "Invitation envoyée.",
+    "ht": "Envitasyon voye.",
+    "ar": "تم إرسال الدعوة."
+  },
+  "repeat.nextOn": {
+    "en": "Next invite possible on {{date}}",
+    "es": "Próxima invitación posible el {{date}}",
+    "fr": "Prochaine invitation possible le {{date}}",
+    "ht": "Pwochen envitasyon posib le {{date}}",
+    "ar": "يمكن إرسال الدعوة التالية في {{date}}"
+  },
+  "repeat.failed": {
+    "en": "We couldn't send the invitation.",
+    "es": "No pudimos enviar la invitación.",
+    "fr": "Impossible d'envoyer l'invitation.",
+    "ht": "Nou pa t ka voye envitasyon an.",
+    "ar": "تعذّر إرسال الدعوة."
+  },
+  "repeat.customer": {
+    "en": "Customer",
+    "es": "Cliente",
+    "fr": "Client",
+    "ht": "Kliyan",
+    "ar": "عميل"
+  },
+  "reschedule.title": {
+    "en": "Change the job time",
+    "es": "Cambiar la hora del trabajo",
+    "fr": "Changer l'horaire du travail",
+    "ht": "Chanje lè travay la",
+    "ar": "تغيير موعد العمل"
+  },
+  "reschedule.hint": {
+    "en": "Propose a new time. Nothing changes until the other side accepts.",
+    "es": "Propón una nueva hora. Nada cambia hasta que la otra parte acepte.",
+    "fr": "Proposez un nouvel horaire. Rien ne change tant que l'autre partie n'accepte pas.",
+    "ht": "Pwopoze yon nouvo lè. Anyen pa chanje jiskaske lòt pati a aksepte.",
+    "ar": "اقترح موعدًا جديدًا. لا يتغير شيء حتى يقبل الطرف الآخر."
+  },
+  "reschedule.newTime": {
+    "en": "New time",
+    "es": "Nueva hora",
+    "fr": "Nouvel horaire",
+    "ht": "Nouvo lè",
+    "ar": "الموعد الجديد"
+  },
+  "reschedule.reason": {
+    "en": "Reason (optional)",
+    "es": "Motivo (opcional)",
+    "fr": "Raison (facultatif)",
+    "ht": "Rezon (opsyonèl)",
+    "ar": "السبب (اختياري)"
+  },
+  "reschedule.propose": {
+    "en": "Propose new time",
+    "es": "Proponer nueva hora",
+    "fr": "Proposer un nouvel horaire",
+    "ht": "Pwopoze nouvo lè",
+    "ar": "اقتراح موعد جديد"
+  },
+  "reschedule.accept": {
+    "en": "Accept",
+    "es": "Aceptar",
+    "fr": "Accepter",
+    "ht": "Aksepte",
+    "ar": "قبول"
+  },
+  "reschedule.decline": {
+    "en": "Decline",
+    "es": "Rechazar",
+    "fr": "Refuser",
+    "ht": "Refize",
+    "ar": "رفض"
+  },
+  "reschedule.withdraw": {
+    "en": "Withdraw",
+    "es": "Retirar",
+    "fr": "Retirer",
+    "ht": "Retire",
+    "ar": "سحب"
+  },
+  "reschedule.byYou": {
+    "en": "You proposed",
+    "es": "Tú propusiste",
+    "fr": "Vous avez proposé",
+    "ht": "Ou te pwopoze",
+    "ar": "اقترحتَ"
+  },
+  "reschedule.byOther": {
+    "en": "They proposed",
+    "es": "La otra parte propuso",
+    "fr": "L'autre partie a proposé",
+    "ht": "Lòt pati a pwopoze",
+    "ar": "اقترح الطرف الآخر"
+  },
+  "reschedule.status.proposed": {
+    "en": "Waiting for an answer",
+    "es": "Esperando respuesta",
+    "fr": "En attente de réponse",
+    "ht": "Ap tann repons",
+    "ar": "بانتظار الرد"
+  },
+  "reschedule.status.accepted": {
+    "en": "Accepted",
+    "es": "Aceptada",
+    "fr": "Acceptée",
+    "ht": "Aksepte",
+    "ar": "مقبول"
+  },
+  "reschedule.status.declined": {
+    "en": "Declined",
+    "es": "Rechazada",
+    "fr": "Refusée",
+    "ht": "Refize",
+    "ar": "مرفوض"
+  },
+  "reschedule.status.withdrawn": {
+    "en": "Withdrawn",
+    "es": "Retirada",
+    "fr": "Retirée",
+    "ht": "Retire",
+    "ar": "مسحوب"
+  },
+  "reschedule.status.superseded": {
+    "en": "Replaced by a newer proposal",
+    "es": "Reemplazada por una propuesta más reciente",
+    "fr": "Remplacée par une proposition plus récente",
+    "ht": "Ranplase pa yon pwopozisyon pi resan",
+    "ar": "استُبدل باقتراح أحدث"
+  },
+  "reschedule.failed": {
+    "en": "That didn't work. Check the time and try again.",
+    "es": "No funcionó. Revisa la hora e inténtalo de nuevo.",
+    "fr": "Cela n'a pas fonctionné. Vérifiez l'horaire et réessayez.",
+    "ht": "Sa pa t mache. Verifye lè a epi eseye ankò.",
+    "ar": "لم ينجح ذلك. تحقق من الموعد وحاول مرة أخرى."
+  },
+  "handback.title": {
+    "en": "Can't do this job?",
+    "es": "¿No puedes hacer este trabajo?",
+    "fr": "Vous ne pouvez pas faire ce travail ?",
+    "ht": "Ou pa ka fè travay sa a?",
+    "ar": "لا يمكنك القيام بهذا العمل؟"
+  },
+  "handback.hint": {
+    "en": "Hand it back before it starts. The job reopens so the customer can hire someone else. No money moves.",
+    "es": "Devuélvelo antes de que empiece. El trabajo se reabre para que el cliente contrate a otra persona. No se mueve dinero.",
+    "fr": "Rendez-le avant qu'il commence. Le travail est rouvert pour que le client engage quelqu'un d'autre. Aucun argent n'est déplacé.",
+    "ht": "Remèt li anvan li kòmanse. Travay la ap louvri ankò pou kliyan an ka anboche yon lòt moun. Pa gen lajan ki deplase.",
+    "ar": "أعده قبل أن يبدأ. سيُعاد فتح العمل ليوظف العميل شخصًا آخر. لا تُنقل أي أموال."
+  },
+  "handback.open": {
+    "en": "Hand this job back",
+    "es": "Devolver este trabajo",
+    "fr": "Rendre ce travail",
+    "ht": "Remèt travay sa a",
+    "ar": "إعادة هذا العمل"
+  },
+  "handback.reason": {
+    "en": "Reason",
+    "es": "Motivo",
+    "fr": "Raison",
+    "ht": "Rezon",
+    "ar": "السبب"
+  },
+  "handback.reasons.schedule_conflict": {
+    "en": "Schedule conflict",
+    "es": "Conflicto de horario",
+    "fr": "Conflit d'horaire",
+    "ht": "Konfli orè",
+    "ar": "تعارض في المواعيد"
+  },
+  "handback.reasons.illness": {
+    "en": "Illness",
+    "es": "Enfermedad",
+    "fr": "Maladie",
+    "ht": "Maladi",
+    "ar": "مرض"
+  },
+  "handback.reasons.outside_skills": {
+    "en": "Outside my skills",
+    "es": "Fuera de mis habilidades",
+    "fr": "Hors de mes compétences",
+    "ht": "Pa nan konpetans mwen",
+    "ar": "خارج نطاق مهاراتي"
+  },
+  "handback.reasons.travel": {
+    "en": "Can't travel there",
+    "es": "No puedo desplazarme allí",
+    "fr": "Je ne peux pas me déplacer",
+    "ht": "Mwen pa ka vwayaje la",
+    "ar": "لا أستطيع الوصول إلى هناك"
+  },
+  "handback.reasons.other": {
+    "en": "Other",
+    "es": "Otro",
+    "fr": "Autre",
+    "ht": "Lòt",
+    "ar": "أخرى"
+  },
+  "handback.note": {
+    "en": "Note for the customer",
+    "es": "Nota para el cliente",
+    "fr": "Note pour le client",
+    "ht": "Nòt pou kliyan an",
+    "ar": "ملاحظة للعميل"
+  },
+  "handback.noteRequired": {
+    "en": "Add a short note when you pick Other.",
+    "es": "Agrega una nota breve si eliges Otro.",
+    "fr": "Ajoutez une courte note si vous choisissez Autre.",
+    "ht": "Ajoute yon ti nòt si ou chwazi Lòt.",
+    "ar": "أضف ملاحظة قصيرة عند اختيار أخرى."
+  },
+  "handback.confirm": {
+    "en": "Hand back now",
+    "es": "Devolver ahora",
+    "fr": "Rendre maintenant",
+    "ht": "Remèt kounye a",
+    "ar": "أعِده الآن"
+  },
+  "handback.cancel": {
+    "en": "Keep the job",
+    "es": "Conservar el trabajo",
+    "fr": "Garder le travail",
+    "ht": "Kenbe travay la",
+    "ar": "الاحتفاظ بالعمل"
+  },
+  "handback.done": {
+    "en": "You handed the job back. The customer has been told.",
+    "es": "Devolviste el trabajo. Se avisó al cliente.",
+    "fr": "Vous avez rendu le travail. Le client a été prévenu.",
+    "ht": "Ou remèt travay la. Yo avèti kliyan an.",
+    "ar": "لقد أعدت العمل. تم إبلاغ العميل."
+  },
+  "handback.errors.handback_money_on_job": {
+    "en": "Money is already attached to this job. Cancel the job or contact support instead.",
+    "es": "Ya hay dinero asociado a este trabajo. Cancela el trabajo o contacta a soporte.",
+    "fr": "De l'argent est déjà lié à ce travail. Annulez-le ou contactez le support.",
+    "ht": "Gen lajan ki deja mare ak travay sa a. Anile travay la oswa kontakte sipò.",
+    "ar": "توجد أموال مرتبطة بهذا العمل بالفعل. ألغِ العمل أو تواصل مع الدعم."
+  },
+  "handback.errors.handback_agreement_signed": {
+    "en": "The work agreement is signed. Cancel the job instead.",
+    "es": "El acuerdo de trabajo está firmado. Cancela el trabajo.",
+    "fr": "L'accord de travail est signé. Annulez plutôt le travail.",
+    "ht": "Akò travay la siyen. Anile travay la pito.",
+    "ar": "اتفاقية العمل موقّعة. ألغِ العمل بدلًا من ذلك."
+  },
+  "handback.errors.handback_after_start": {
+    "en": "The start time has passed. Cancel the job or contact support instead.",
+    "es": "La hora de inicio ya pasó. Cancela el trabajo o contacta a soporte.",
+    "fr": "L'heure de début est passée. Annulez le travail ou contactez le support.",
+    "ht": "Lè pou kòmanse a pase. Anile travay la oswa kontakte sipò.",
+    "ar": "انقضى موعد البدء. ألغِ العمل أو تواصل مع الدعم."
+  },
+  "handback.errors.generic": {
+    "en": "Could not hand the job back. Reload and try again.",
+    "es": "No se pudo devolver el trabajo. Recarga e inténtalo de nuevo.",
+    "fr": "Impossible de rendre le travail. Rechargez et réessayez.",
+    "ht": "Nou pa t ka remèt travay la. Rechaje epi eseye ankò.",
+    "ar": "تعذّرت إعادة العمل. أعد التحميل وحاول مرة أخرى."
+  },
+  "growth.title": {
+    "en": "Grow into a business",
+    "es": "Convierte tu trabajo en un negocio",
+    "fr": "Développez votre activité en entreprise",
+    "ht": "Fè travay ou tounen yon biznis",
+    "ar": "حوّل عملك إلى نشاط تجاري"
+  },
+  "growth.hint": {
+    "en": "When you are ready, start a business on OxSteed. Your work history comes with you as a read-only record. Your ratings and clients stay with you as a helper.",
+    "es": "Cuando estés listo, crea un negocio en OxSteed. Tu historial de trabajo te acompaña como registro de solo lectura. Tus calificaciones y clientes se quedan contigo como ayudante.",
+    "fr": "Quand vous êtes prêt, créez une entreprise sur OxSteed. Votre historique de travail vous suit en lecture seule. Vos notes et vos clients restent avec vous en tant qu'aide.",
+    "ht": "Lè ou pare, kreye yon biznis sou OxSteed. Istwa travay ou vin avè w kòm yon dosye pou li sèlman. Nòt ou ak kliyan ou rete avè w kòm moun k ap ede.",
+    "ar": "عندما تكون جاهزًا، أنشئ نشاطًا تجاريًا على OxSteed. ينتقل سجل عملك معك كسجل للقراءة فقط. تبقى تقييماتك وعملاؤك معك كمساعد."
+  },
+  "growth.milestonesTitle": {
+    "en": "Readiness milestones",
+    "es": "Hitos de preparación",
+    "fr": "Étapes de préparation",
+    "ht": "Etap pou w pare",
+    "ar": "مراحل الجاهزية"
+  },
+  "growth.milestonesHint": {
+    "en": "These are guides, not requirements. You can start a business at any time.",
+    "es": "Son guías, no requisitos. Puedes crear un negocio en cualquier momento.",
+    "fr": "Ce sont des repères, pas des obligations. Vous pouvez créer une entreprise à tout moment.",
+    "ht": "Se gid yo ye, se pa obligasyon. Ou ka kreye yon biznis nenpòt lè.",
+    "ar": "هذه إرشادات وليست شروطًا. يمكنك إنشاء نشاط تجاري في أي وقت."
+  },
+  "growth.met": {
+    "en": "Done",
+    "es": "Listo",
+    "fr": "Fait",
+    "ht": "Fini",
+    "ar": "مكتمل"
+  },
+  "growth.notMet": {
+    "en": "Not yet",
+    "es": "Aún no",
+    "fr": "Pas encore",
+    "ht": "Poko",
+    "ar": "ليس بعد"
+  },
+  "growth.progress": {
+    "en": "{{current}} of {{target}}",
+    "es": "{{current}} de {{target}}",
+    "fr": "{{current}} sur {{target}}",
+    "ht": "{{current}} sou {{target}}",
+    "ar": "{{current}} من {{target}}"
+  },
+  "growth.milestones.profile_complete": {
+    "en": "Profile has a headline and at least one skill",
+    "es": "El perfil tiene un titular y al menos una habilidad",
+    "fr": "Le profil a un titre et au moins une compétence",
+    "ht": "Pwofil la gen yon tit ak omwen yon konpetans",
+    "ar": "يحتوي الملف على عنوان ومهارة واحدة على الأقل"
+  },
+  "growth.milestones.identity_verified": {
+    "en": "Identity verified",
+    "es": "Identidad verificada",
+    "fr": "Identité vérifiée",
+    "ht": "Idantite verifye",
+    "ar": "تم التحقق من الهوية"
+  },
+  "growth.milestones.completed_jobs": {
+    "en": "Completed jobs",
+    "es": "Trabajos completados",
+    "fr": "Travaux terminés",
+    "ht": "Travay fini",
+    "ar": "الأعمال المكتملة"
+  },
+  "growth.milestones.steady_reviews": {
+    "en": "Steady reviews (4.0 or higher)",
+    "es": "Reseñas constantes (4.0 o más)",
+    "fr": "Avis réguliers (4,0 ou plus)",
+    "ht": "Revizyon regilye (4.0 oswa plis)",
+    "ar": "تقييمات ثابتة (4.0 أو أعلى)"
+  },
+  "growth.milestones.payouts_ready": {
+    "en": "Payouts set up",
+    "es": "Pagos configurados",
+    "fr": "Versements configurés",
+    "ht": "Peman yo konfigire",
+    "ar": "تم إعداد الدفعات"
+  },
+  "growth.milestones.no_open_disputes": {
+    "en": "No open disputes",
+    "es": "Sin disputas abiertas",
+    "fr": "Aucun litige ouvert",
+    "ht": "Pa gen diskisyon ki louvri",
+    "ar": "لا توجد نزاعات مفتوحة"
+  },
+  "growth.previewTitle": {
+    "en": "What carries over",
+    "es": "Qué se transfiere",
+    "fr": "Ce qui est repris",
+    "ht": "Sa ki ale avè w",
+    "ar": "ما الذي ينتقل"
+  },
+  "growth.carries": {
+    "en": "Comes with you as a read-only record",
+    "es": "Te acompaña como registro de solo lectura",
+    "fr": "Vous suit en lecture seule",
+    "ht": "Vin avè w kòm dosye pou li sèlman",
+    "ar": "ينتقل معك كسجل للقراءة فقط"
+  },
+  "growth.completedJobs": {
+    "en": "Completed jobs: {{count}}",
+    "es": "Trabajos completados: {{count}}",
+    "fr": "Travaux terminés : {{count}}",
+    "ht": "Travay fini: {{count}}",
+    "ar": "الأعمال المكتملة: {{count}}"
+  },
+  "growth.portfolioItems": {
+    "en": "Portfolio items you may show: {{count}}",
+    "es": "Elementos de portafolio que puedes mostrar: {{count}}",
+    "fr": "Éléments de portfolio que vous pouvez montrer : {{count}}",
+    "ht": "Eleman pòtfolyo ou ka montre: {{count}}",
+    "ar": "عناصر المعرض التي يمكنك عرضها: {{count}}"
+  },
+  "growth.skills": {
+    "en": "Skills",
+    "es": "Habilidades",
+    "fr": "Compétences",
+    "ht": "Konpetans",
+    "ar": "المهارات"
+  },
+  "growth.categories": {
+    "en": "Kinds of work",
+    "es": "Tipos de trabajo",
+    "fr": "Types de travaux",
+    "ht": "Kalite travay",
+    "ar": "أنواع العمل"
+  },
+  "growth.stays": {
+    "en": "Stays with you as a helper",
+    "es": "Se queda contigo como ayudante",
+    "fr": "Reste avec vous en tant qu'aide",
+    "ht": "Rete avè w kòm moun k ap ede",
+    "ar": "يبقى معك كمساعد"
+  },
+  "growth.stay.ratings_reviews": {
+    "en": "Ratings and reviews",
+    "es": "Calificaciones y reseñas",
+    "fr": "Notes et avis",
+    "ht": "Nòt ak revizyon",
+    "ar": "التقييمات والمراجعات"
+  },
+  "growth.stay.client_relationships": {
+    "en": "Client relationships",
+    "es": "Relaciones con clientes",
+    "fr": "Relations clients",
+    "ht": "Relasyon ak kliyan",
+    "ar": "العلاقات مع العملاء"
+  },
+  "growth.stay.messages": {
+    "en": "Messages",
+    "es": "Mensajes",
+    "fr": "Messages",
+    "ht": "Mesaj",
+    "ar": "الرسائل"
+  },
+  "growth.stay.earnings_payouts": {
+    "en": "Earnings and payouts",
+    "es": "Ganancias y pagos",
+    "fr": "Revenus et versements",
+    "ht": "Revni ak peman",
+    "ar": "الأرباح والدفعات"
+  },
+  "growth.stay.personal_profile": {
+    "en": "Your personal helper profile",
+    "es": "Tu perfil personal de ayudante",
+    "fr": "Votre profil personnel d'aide",
+    "ht": "Pwofil pèsonèl ou kòm moun k ap ede",
+    "ar": "ملفك الشخصي كمساعد"
+  },
+  "growth.serviceIdeas": {
+    "en": "Skills you could offer as services (preview only, nothing is created)",
+    "es": "Habilidades que podrías ofrecer como servicios (solo vista previa, no se crea nada)",
+    "fr": "Compétences à proposer comme services (aperçu seulement, rien n'est créé)",
+    "ht": "Konpetans ou ta ka ofri kòm sèvis (apèsi sèlman, anyen pa kreye)",
+    "ar": "مهارات يمكنك تقديمها كخدمات (معاينة فقط، لا يُنشأ شيء)"
+  },
+  "growth.start": {
+    "en": "Start a business application",
+    "es": "Iniciar solicitud de negocio",
+    "fr": "Commencer une demande d'entreprise",
+    "ht": "Kòmanse yon aplikasyon biznis",
+    "ar": "بدء طلب نشاط تجاري"
+  },
+  "growth.linkTitle": {
+    "en": "Add your history to a business you own",
+    "es": "Agrega tu historial a un negocio que ya tienes",
+    "fr": "Ajoutez votre historique à une entreprise que vous possédez",
+    "ht": "Ajoute istwa ou nan yon biznis ou genyen",
+    "ar": "أضف سجلك إلى نشاط تجاري تملكه"
+  },
+  "growth.link": {
+    "en": "Add read-only record",
+    "es": "Agregar registro de solo lectura",
+    "fr": "Ajouter l'historique en lecture seule",
+    "ht": "Ajoute dosye pou li sèlman",
+    "ar": "إضافة سجل للقراءة فقط"
+  },
+  "growth.linked": {
+    "en": "Your history is on {{name}}",
+    "es": "Tu historial está en {{name}}",
+    "fr": "Votre historique figure sur {{name}}",
+    "ht": "Istwa ou sou {{name}}",
+    "ar": "سجلك موجود في {{name}}"
+  },
+  "growth.unlink": {
+    "en": "Remove record",
+    "es": "Quitar registro",
+    "fr": "Retirer l'historique",
+    "ht": "Retire dosye a",
+    "ar": "إزالة السجل"
+  },
+  "growth.failed": {
+    "en": "That didn't work. Try again.",
+    "es": "No funcionó. Inténtalo de nuevo.",
+    "fr": "Cela n'a pas fonctionné. Réessayez.",
+    "ht": "Sa pa t mache. Eseye ankò.",
+    "ar": "لم ينجح ذلك. حاول مرة أخرى."
+  },
+  "growth.prefilled": {
+    "en": "We filled in some details from your helper profile. Check them before you continue.",
+    "es": "Completamos algunos datos con tu perfil de ayudante. Revísalos antes de continuar.",
+    "fr": "Nous avons rempli certains détails à partir de votre profil d'aide. Vérifiez-les avant de continuer.",
+    "ht": "Nou ranpli kèk detay ak pwofil ou. Verifye yo anvan ou kontinye.",
+    "ar": "ملأنا بعض التفاصيل من ملفك كمساعد. راجعها قبل المتابعة."
+  },
+  "workspace.title": {
+    "en": "Welcome to your new business workspace",
+    "es": "Bienvenido a tu nuevo espacio de negocio",
+    "fr": "Bienvenue dans votre nouvel espace d'entreprise",
+    "ht": "Byenvini nan nouvo espas biznis ou",
+    "ar": "مرحبًا بك في مساحة عملك الجديدة"
+  },
+  "workspace.hint": {
+    "en": "Here is where to start. Your helper history is attached below as a read-only record.",
+    "es": "Aquí es donde empezar. Tu historial de ayudante aparece abajo como registro de solo lectura.",
+    "fr": "Voici par où commencer. Votre historique d'aide figure ci-dessous en lecture seule.",
+    "ht": "Men kote pou w kòmanse. Istwa ou kòm moun k ap ede parèt anba a kòm dosye pou li sèlman.",
+    "ar": "إليك من أين تبدأ. سجلك كمساعد مرفق أدناه للقراءة فقط."
+  },
+  "workspace.steps.add_services": {
+    "en": "Add your services",
+    "es": "Agrega tus servicios",
+    "fr": "Ajoutez vos services",
+    "ht": "Ajoute sèvis ou yo",
+    "ar": "أضف خدماتك"
+  },
+  "workspace.steps.set_hours": {
+    "en": "Set your business hours",
+    "es": "Define tu horario",
+    "fr": "Définissez vos horaires",
+    "ht": "Mete orè biznis ou",
+    "ar": "حدد ساعات العمل"
+  },
+  "workspace.steps.publish_profile": {
+    "en": "Publish your business profile",
+    "es": "Publica tu perfil de negocio",
+    "fr": "Publiez votre profil d'entreprise",
+    "ht": "Pibliye pwofil biznis ou",
+    "ar": "انشر ملف نشاطك التجاري"
+  },
+  "workspace.steps.invite_team": {
+    "en": "Invite your team",
+    "es": "Invita a tu equipo",
+    "fr": "Invitez votre équipe",
+    "ht": "Envite ekip ou",
+    "ar": "ادعُ فريقك"
+  },
+  "workspace.done": {
+    "en": "Done",
+    "es": "Listo",
+    "fr": "Fait",
+    "ht": "Fini",
+    "ar": "مكتمل"
+  },
+  "workspace.todo": {
+    "en": "To do",
+    "es": "Pendiente",
+    "fr": "À faire",
+    "ht": "Pou fè",
+    "ar": "قيد الانتظار"
+  },
+  "workspace.dismiss": {
+    "en": "Hide this introduction",
+    "es": "Ocultar esta introducción",
+    "fr": "Masquer cette introduction",
+    "ht": "Kache entwodiksyon sa a",
+    "ar": "إخفاء هذه المقدمة"
+  },
+  "workspace.recordTitle": {
+    "en": "Founder's helper record (read-only)",
+    "es": "Historial de ayudante del fundador (solo lectura)",
+    "fr": "Historique d'aide du fondateur (lecture seule)",
+    "ht": "Dosye fondatè a kòm moun k ap ede (pou li sèlman)",
+    "ar": "سجل المؤسس كمساعد (للقراءة فقط)"
+  },
+  "workspace.recordHint": {
+    "en": "Taken on {{date}}. Ratings and clients stay on the personal helper profile.",
+    "es": "Tomado el {{date}}. Las calificaciones y los clientes se quedan en el perfil personal de ayudante.",
+    "fr": "Établi le {{date}}. Les notes et les clients restent sur le profil personnel d'aide.",
+    "ht": "Pran nan dat {{date}}. Nòt ak kliyan rete sou pwofil pèsonèl la.",
+    "ar": "أُخذ في {{date}}. تبقى التقييمات والعملاء في الملف الشخصي للمساعد."
+  },
+  "changes.title": {
+    "en": "Scope and price changes",
+    "es": "Cambios de alcance y precio",
+    "fr": "Modifications de portée et de prix",
+    "ht": "Chanjman nan travay ak pri",
+    "ar": "تغييرات النطاق والسعر"
+  },
+  "changes.hint": {
+    "en": "Nothing changes and nothing is charged unless the other side accepts. Every version is kept.",
+    "es": "Nada cambia ni se cobra a menos que la otra parte acepte. Se guarda cada versión.",
+    "fr": "Rien ne change et rien n'est facturé sans l'accord de l'autre partie. Chaque version est conservée.",
+    "ht": "Anyen pa chanje e yo pa fè okenn moun peye si lòt pati a pa aksepte. Yo kenbe chak vèsyon.",
+    "ar": "لا يتغير شيء ولا يُخصم أي مبلغ ما لم يوافق الطرف الآخر. تُحفظ كل نسخة."
+  },
+  "changes.description": {
+    "en": "What changes",
+    "es": "Qué cambia",
+    "fr": "Ce qui change",
+    "ht": "Kisa ki chanje",
+    "ar": "ما الذي يتغير"
+  },
+  "changes.priceChange": {
+    "en": "Price change (use a minus sign to lower it)",
+    "es": "Cambio de precio (usa un signo menos para bajarlo)",
+    "fr": "Variation de prix (signe moins pour baisser)",
+    "ht": "Chanjman pri (mete yon siy mwens pou bese l)",
+    "ar": "تغيير السعر (استخدم علامة الطرح لتخفيضه)"
+  },
+  "changes.propose": {
+    "en": "Propose change",
+    "es": "Proponer cambio",
+    "fr": "Proposer la modification",
+    "ht": "Pwopoze chanjman",
+    "ar": "اقتراح التغيير"
+  },
+  "changes.counter": {
+    "en": "Counter",
+    "es": "Contraoferta",
+    "fr": "Contre-proposer",
+    "ht": "Kontre-pwopoze",
+    "ar": "عرض مضاد"
+  },
+  "changes.sendCounter": {
+    "en": "Send counter",
+    "es": "Enviar contraoferta",
+    "fr": "Envoyer la contre-proposition",
+    "ht": "Voye kontre-pwopozisyon",
+    "ar": "إرسال العرض المضاد"
+  },
+  "changes.accept": {
+    "en": "Accept",
+    "es": "Aceptar",
+    "fr": "Accepter",
+    "ht": "Aksepte",
+    "ar": "قبول"
+  },
+  "changes.decline": {
+    "en": "Decline",
+    "es": "Rechazar",
+    "fr": "Refuser",
+    "ht": "Refize",
+    "ar": "رفض"
+  },
+  "changes.withdraw": {
+    "en": "Withdraw",
+    "es": "Retirar",
+    "fr": "Retirer",
+    "ht": "Retire",
+    "ar": "سحب"
+  },
+  "changes.version": {
+    "en": "Version {{version}}",
+    "es": "Versión {{version}}",
+    "fr": "Version {{version}}",
+    "ht": "Vèsyon {{version}}",
+    "ar": "النسخة {{version}}"
+  },
+  "changes.byYou": {
+    "en": "you",
+    "es": "tú",
+    "fr": "vous",
+    "ht": "ou",
+    "ar": "أنت"
+  },
+  "changes.byOther": {
+    "en": "the other party",
+    "es": "la otra parte",
+    "fr": "l'autre partie",
+    "ht": "lòt pati a",
+    "ar": "الطرف الآخر"
+  },
+  "changes.from": {
+    "en": "From {{who}}",
+    "es": "De {{who}}",
+    "fr": "De {{who}}",
+    "ht": "Soti nan {{who}}",
+    "ar": "من {{who}}"
+  },
+  "changes.reauth": {
+    "en": "The customer will be asked to approve the higher amount before any charge.",
+    "es": "Se pedirá al cliente que apruebe el monto mayor antes de cualquier cobro.",
+    "fr": "Le client devra approuver le montant plus élevé avant tout prélèvement.",
+    "ht": "Y ap mande kliyan an apwouve pi gwo montan an anvan nenpòt peman.",
+    "ar": "سيُطلب من العميل الموافقة على المبلغ الأعلى قبل أي خصم."
+  },
+  "changes.status.proposed": {
+    "en": "Waiting for an answer",
+    "es": "Esperando respuesta",
+    "fr": "En attente de réponse",
+    "ht": "Ap tann repons",
+    "ar": "بانتظار الرد"
+  },
+  "changes.status.countered": {
+    "en": "Countered",
+    "es": "Contraofertada",
+    "fr": "Contre-proposée",
+    "ht": "Kontre-pwopoze",
+    "ar": "تم تقديم عرض مضاد"
+  },
+  "changes.status.accepted": {
+    "en": "Accepted",
+    "es": "Aceptada",
+    "fr": "Acceptée",
+    "ht": "Aksepte",
+    "ar": "مقبول"
+  },
+  "changes.status.declined": {
+    "en": "Declined",
+    "es": "Rechazada",
+    "fr": "Refusée",
+    "ht": "Refize",
+    "ar": "مرفوض"
+  },
+  "changes.status.withdrawn": {
+    "en": "Withdrawn",
+    "es": "Retirada",
+    "fr": "Retirée",
+    "ht": "Retire",
+    "ar": "مسحوب"
+  },
+  "changes.errors.use_work_agreement_change_order": {
+    "en": "This job has a work agreement. Use its change orders instead.",
+    "es": "Este trabajo tiene un acuerdo. Usa sus órdenes de cambio.",
+    "fr": "Ce travail a un accord. Utilisez plutôt ses avenants.",
+    "ht": "Travay sa a gen yon akò. Sèvi ak chanjman akò a pito.",
+    "ar": "لهذا العمل اتفاقية. استخدم أوامر التغيير الخاصة بها."
+  },
+  "changes.errors.generic": {
+    "en": "That didn't work. Check the details and try again.",
+    "es": "No funcionó. Revisa los datos e inténtalo de nuevo.",
+    "fr": "Cela n'a pas fonctionné. Vérifiez et réessayez.",
+    "ht": "Sa pa t mache. Verifye detay yo epi eseye ankò.",
+    "ar": "لم ينجح ذلك. تحقق من التفاصيل وحاول مرة أخرى."
+  },
+  "handbackAdmin.title": {
+    "en": "Job hand-backs (Trust & Safety, private)",
+    "es": "Devoluciones de trabajos (Confianza y Seguridad, privado)",
+    "fr": "Travaux rendus (Confiance et sécurité, privé)",
+    "ht": "Travay yo remèt (Konfyans ak Sekirite, prive)",
+    "ar": "الأعمال المُعادة (الثقة والأمان، خاص)"
+  },
+  "handbackAdmin.hint": {
+    "en": "Internal only. Not shown publicly and not counted in ratings.",
+    "es": "Solo uso interno. No se muestra públicamente ni cuenta en las calificaciones.",
+    "fr": "Usage interne uniquement. Non public et non compté dans les notes.",
+    "ht": "Pou itilizasyon entèn sèlman. Li pa parèt piblikman e li pa konte nan nòt yo.",
+    "ar": "للاستخدام الداخلي فقط. لا يظهر للعامة ولا يُحتسب في التقييمات."
+  },
+  "handbackAdmin.counts": {
+    "en": "Last 30 days: {{last30}} · Last 90 days: {{last90}} · Total: {{total}}",
+    "es": "Últimos 30 días: {{last30}} · Últimos 90 días: {{last90}} · Total: {{total}}",
+    "fr": "30 derniers jours : {{last30}} · 90 derniers jours : {{last90}} · Total : {{total}}",
+    "ht": "30 dènye jou: {{last30}} · 90 dènye jou: {{last90}} · Total: {{total}}",
+    "ar": "آخر 30 يومًا: {{last30}} · آخر 90 يومًا: {{last90}} · الإجمالي: {{total}}"
+  },
+  "handbackAdmin.empty": {
+    "en": "No hand-backs.",
+    "es": "Sin devoluciones.",
+    "fr": "Aucun travail rendu.",
+    "ht": "Pa gen travay ki remèt.",
+    "ar": "لا توجد أعمال مُعادة."
+  },
+  "handbackAdmin.failed": {
+    "en": "Could not load hand-backs.",
+    "es": "No se pudieron cargar las devoluciones.",
+    "fr": "Impossible de charger les travaux rendus.",
+    "ht": "Nou pa t ka chaje travay yo remèt yo.",
+    "ar": "تعذّر تحميل الأعمال المُعادة."
+  }
+}

@@ -24,6 +24,7 @@
 const crypto = require('crypto');
 const util = require('util');
 const pool = require('../db');
+const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const cardSecurity = require('./oxsteedCreditCardSecurity');
@@ -181,6 +182,7 @@ function formatCard(row, { includeIssuedCredential = null, includeActivationCode
     nickname: row.nickname || null,
     replacesCardId: row.replaces_card_id || null,
     freezeOrigin: row.freeze_origin || null,
+    statusReason: row.status_reason || null,
     foundAt: row.found_at || null,
     replacementStatus: row.replacement_status || null,
     replacementErrorCode: row.replacement_error_code || null,
@@ -442,7 +444,7 @@ async function transitionCardStatus({ cardId, customerId, actorUserId, targetSta
   if (isAdmin) requireAdministrativeActor(actorUserId);
   else requireCardOwner(actorUserId, customerId);
 
-  return withTransaction(pool, async (client) => {
+  const result = await withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT * FROM oxsteed_credit_cards WHERE id = $1 ${isAdmin ? '' : 'AND customer_id = $2'} FOR UPDATE`,
       isAdmin ? [cardId] : [cardId, customerId]
@@ -462,10 +464,11 @@ async function transitionCardStatus({ cardId, customerId, actorUserId, targetSta
     const { rows: updatedRows } = await client.query(
       `UPDATE oxsteed_credit_cards
           SET status = $2::text${timestampColumn ? `, ${timestampColumn} = NOW()` : ''},
-              freeze_origin = CASE WHEN $2::text = 'frozen' THEN 'customer' ELSE freeze_origin END
+              freeze_origin = CASE WHEN $2::text = 'frozen' THEN $3::text ELSE freeze_origin END,
+              status_reason = $4::text
         WHERE id = $1
         RETURNING *`,
-      [cardId, targetStatus]
+      [cardId, targetStatus, isAdmin ? 'admin' : 'customer', normalizeString(reason, 500)]
     );
 
     await client.query(
@@ -481,15 +484,61 @@ async function transitionCardStatus({ cardId, customerId, actorUserId, targetSta
 
     return { card: formatCard(updatedRows[0]), replayed: false };
   }, `credit_card_transition_${targetStatus}`);
+
+  // D-362/D-363: a platform-initiated suspension confirms to the customer
+  // after the status transaction commits. Best-effort, like the dispute
+  // notices: a failed send is logged and never blocks the transition.
+  // Customer-initiated transitions (freeze, lost/stolen) send nothing.
+  if (isAdmin && !result.replayed && (targetStatus === 'frozen' || targetStatus === 'revoked')) {
+    const transitionedAt = result.card?.frozenAt || result.card?.revokedAt || null;
+    await notifyCardSuspensionCustomer({
+      customerId: result.card.customerId, cardId, targetStatus, reason, transitionedAt,
+    });
+  }
+  return result;
+}
+
+// D-362: the suspension confirmation. Two literal types (the catalog-sync
+// test classifies ternary send sites by branch, so both must be cataloged).
+// The idempotency key binds the card, the action, and the transition
+// timestamp, so a freeze/unfreeze/freeze cycle notifies twice while a
+// retry of the same transition replays silently.
+async function notifyCardSuspensionCustomer({ customerId, cardId, targetStatus, reason, transitionedAt }) {
+  try {
+    const { sendNotification } = require('./notificationService');
+    const transitionMillis = transitionedAt ? new Date(transitionedAt).getTime() : Date.now();
+    const result = await sendNotification({
+      userId: customerId,
+      type: targetStatus === 'revoked' ? 'credit_card_revoked' : 'credit_card_frozen',
+      ...(reason ? { body: `Reason: ${normalizeString(reason, 500)}` } : {}),
+      data: { card_id: String(cardId), card_status: targetStatus },
+      action_url: '/oxsteed-credit/cards',
+      idempotencyKey: `credit-card:${cardId}:${targetStatus}:${Number.isFinite(transitionMillis) ? transitionMillis : Date.now()}`,
+    });
+    if (result?.success === false) {
+      logger.warn('Credit card suspension notification not delivered', { cardId, targetStatus, reason: result.reason || null });
+    }
+  } catch (err) {
+    logger.warn('Credit card suspension notification failed', { cardId, targetStatus, error: err.message });
+  }
 }
 
 function freezeCard(args) {
   return transitionCardStatus({ ...args, targetStatus: 'frozen', allowedFrom: ['active'] });
 }
 
+// D-363: the platform freeze. No admin freeze endpoint existed before
+// this slice (only admin revoke); this is the platform counterpart to the
+// customer freeze, so a platform freeze is possible at all and the 665
+// freeze notice can fire. freeze_origin records 'admin' via
+// transitionCardStatus, so the customer-only unfreeze guard holds.
+function adminFreezeCard(args) {
+  return transitionCardStatus({ ...args, targetStatus: 'frozen', allowedFrom: ['active'], isAdmin: true });
+}
+
 function unfreezeCard(args) {
   return cardSecurity.runVerified(args, 'unfreeze', async client => {
-    const { rows } = await client.query(`UPDATE oxsteed_credit_cards SET status = 'active', freeze_origin = NULL
+    const { rows } = await client.query(`UPDATE oxsteed_credit_cards SET status = 'active', freeze_origin = NULL, status_reason = NULL
       WHERE id = $1 AND customer_id = $2 AND status = 'frozen' AND freeze_origin = 'customer' RETURNING *`, [args.cardId, args.customerId]);
     if (!rows[0]) throw new AppError('This card cannot be unfrozen.', 409, 'credit_card_transition_invalid');
     await client.query(`INSERT INTO oxsteed_credit_audit_events
@@ -913,6 +962,7 @@ module.exports = {
   markCardFulfillment,
   activatePhysicalCard,
   freezeCard,
+  adminFreezeCard,
   unfreezeCard,
   revokeCard,
   reportCardLostOrStolen,

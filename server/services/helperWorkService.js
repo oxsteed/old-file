@@ -3,6 +3,19 @@ const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const access = require('./access/accessService');
 const AppError = require('../utils/appError');
+const logger = require('../utils/logger');
+const { sendNotification } = require('./notificationService');
+// Group 4 rest (179, 180): the customer hears about a new progress update or
+// a changed completion handover. Best-effort, after commit, idempotent.
+async function tellCustomer(job, type, key, data) {
+  if (!job?.client_id) return;
+  try {
+    await sendNotification({ userId: job.client_id, type, data: { job_id: job.id, ...data },
+      action_url: `/jobs/${job.id}`, idempotencyKey: key });
+  } catch (error) {
+    logger.warn('Helper work customer notification failed', { jobId: job.id, type, error: error.message });
+  }
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function invalid() { throw new AppError('Invalid work details', 400, 'validation_failed'); }
 function text(value, max) {
@@ -56,27 +69,35 @@ async function save(jobId, userId, body) {
   const notes = text(body.private_notes, 4000);
   const handover = text(body.handover, 4000);
   const aftercare = text(body.aftercare, 4000);
-  return withTransaction(pool, async db => {
-    await jobFor(db, jobId, userId, true);
+  const outcome = await withTransaction(pool, async db => {
+    const job = await jobFor(db, jobId, userId, true);
     await db.query('INSERT INTO helper_job_work (job_id,helper_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [jobId,userId]);
+    const { rows: [before] } = await db.query('SELECT handover FROM helper_job_work WHERE job_id=$1 AND helper_id=$2 FOR UPDATE', [jobId,userId]);
     const { rows: [row] } = await db.query(`UPDATE helper_job_work SET checklist=$3,private_notes=$4,handover=$5,aftercare=$6,version=version+1,updated_at=NOW()
       WHERE job_id=$1 AND helper_id=$2 AND version=$7 RETURNING version`, [jobId,userId,JSON.stringify(items),notes,handover,aftercare,body.expectedVersion]);
     if (!row) throw new AppError('Work record changed; reload before saving',409,'work_version_conflict');
-    return row;
+    return { row, job, handoverChanged: !!handover && handover !== (before?.handover || '') };
   }, 'helper_work_save');
+  if (outcome.handoverChanged) {
+    await tellCustomer(outcome.job, 'helper_handover_updated', `helper-handover:${jobId}:${outcome.row.version}`, {});
+  }
+  return outcome.row;
 }
 async function publish(jobId,userId,body) {
   const message = text(body?.body,2000);
   if (!message || !UUID.test(body?.requestId || '')) invalid();
-  return withTransaction(pool, async db => {
-    await jobFor(db,jobId,userId,true);
+  const outcome = await withTransaction(pool, async db => {
+    const job = await jobFor(db,jobId,userId,true);
     const { rows: [row] } = await db.query(`INSERT INTO helper_work_updates(job_id,helper_id,body,request_id) VALUES ($1,$2,$3,$4)
       ON CONFLICT (helper_id,request_id) DO NOTHING RETURNING id,body,created_at`,[jobId,userId,message,body.requestId]);
-    if (row) return row;
+    if (row) return { row, job };
     const { rows: [prior] } = await db.query('SELECT id,job_id,body,created_at FROM helper_work_updates WHERE helper_id=$1 AND request_id=$2',[userId,body.requestId]);
     if (String(prior?.job_id) !== String(jobId) || prior.body !== message) throw new AppError('Retry key already used',409,'idempotency_conflict');
-    return { id:prior.id,body:prior.body,created_at:prior.created_at };
+    return { row: { id:prior.id,body:prior.body,created_at:prior.created_at }, job: null };
   },'helper_work_publish');
+  // Only a newly stored update notifies; a retried request does not.
+  if (outcome.job) await tellCustomer(outcome.job, 'helper_progress_update', `helper-progress:${outcome.row.id}`, { update_id: outcome.row.id });
+  return outcome.row;
 }
 async function board(userId) {
   await helper(pool,userId);

@@ -255,6 +255,32 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
     }
   };
 
+  const freeze = async (card) => {
+    const reason = window.prompt(t('cards.confirm.freeze', { card: card.credentialLast4 ? t('cards.ending', { last4: card.credentialLast4 }) : card.id }));
+    if (reason === null) return;
+    if (!reason.trim()) {
+      setError(t('cards.errors.freezeReason'));
+      return;
+    }
+    setSaving(true);
+    setError('');
+    setNotice('');
+    setRevealedSecret(null);
+    try {
+      const payload = { reason: reason.trim() };
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/cards/${card.id}/freeze`, payload, {
+        headers: { 'Idempotency-Key': idempotencyKeysRef.current.get(`credit-card-freeze-${card.id}`, payload) },
+      });
+      idempotencyKeysRef.current.clear(`credit-card-freeze-${card.id}`, payload);
+      setNotice(response.data?.replayed ? t('cards.adminSuccess.alreadyFrozen') : t('cards.adminSuccess.frozen'));
+      await load();
+    } catch (err) {
+      setError(safeCreditErrorMessage(err, t('cards.errors.freeze')));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111318] p-4 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -399,6 +425,7 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
               // offered while the card is still unactivated.
               const prevStatus = card.cardType === 'physical' && card.status !== 'active' ? previousFulfillmentStatus(card.fulfillmentStatus) : null;
               const canRevoke = ['pending', 'active', 'frozen'].includes(card.status);
+              const canFreeze = card.status === 'active';
               return <tr key={card.id}>
                 <td className="px-3 py-3 font-mono text-[10px] text-gray-500">{card.customerId}</td>
                 <td className="px-3 py-3 text-gray-900 dark:text-white">{card.cardType === 'virtual' ? t('cards.virtualCard') : t('cards.physicalCard')}{card.nickname ? <p className="mt-1 text-gray-600">{card.nickname}</p> : null}</td>
@@ -410,6 +437,7 @@ export default function OxsteedCreditCards({ currencyOptions = ['USD'], busy = f
                   <div className="flex flex-wrap gap-2">
                     {nextStatus && <button type="button" onClick={() => setFulfillmentTarget({ card, target: nextStatus })} disabled={saving} className="rounded-lg border border-sky-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-sky-300 hover:bg-sky-500/10 disabled:opacity-50">{t('cards.mark', { status: t(`cards.fulfillment.${nextStatus}`, { defaultValue: nextStatus }) })}</button>}
                     {prevStatus && <button type="button" onClick={() => setFulfillmentTarget({ card, target: prevStatus })} disabled={saving} className="rounded-lg border border-amber-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">{t('cards.moveBack', { status: t(`cards.fulfillment.${prevStatus}`, { defaultValue: prevStatus }) })}</button>}
+                    {canFreeze && <button type="button" onClick={() => freeze(card)} disabled={saving} className="rounded-lg border border-amber-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-50">{t('cards.freeze')}</button>}
                     {canRevoke && <button type="button" onClick={() => revoke(card)} disabled={saving} className="rounded-lg border border-red-500/30 px-2.5 py-1.5 text-[11px] font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('cards.revoke')}</button>}
                     {card.replacementStatus && <span>{t(`cards.security.replacement.${card.replacementStatus}`)}</span>}
                     {card.replacementStatus === 'failed' && <button type="button" disabled={saving} onClick={async () => {

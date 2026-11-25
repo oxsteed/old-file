@@ -1319,6 +1319,8 @@
   },
   "screens": {
     "creditPay": "Pay with OxSteed Credit",
+    "creditRemainder": "Credit covers {{credit}} · Remainder due {{remainder}}",
+    "creditRemainderCovered": "Credit covers the full order. Nothing remains due.",
     "creditScanCard": "Scan your Credit card",
     "creditPin": "Card PIN",
     "creditReceipt": "Credit receipt",
@@ -6738,6 +6740,10 @@
       "qualifications": "Qualifications",
       "credentials": "Credentials",
       "yearsExperience": "Years of experience",
+      "equipmentOwned": "Equipment you own",
+      "ownershipAttestation": "Ownership",
+      "equipmentCondition": "Equipment condition",
+      "pickupLocation": "Pickup location",
       "area": {
         "country": "Country code (2 letters)",
         "region": "State or region",
@@ -6750,7 +6756,13 @@
       "sole_prop": "Sole proprietorship",
       "corp": "Corporation",
       "partnership": "Partnership",
-      "other": "Other"
+      "other": "Other",
+      "owned_outright": "Owned outright",
+      "owned_with_loan": "Owned with a loan",
+      "borrowed_with_permission": "Borrowed with permission",
+      "excellent": "Excellent",
+      "good": "Good",
+      "fair": "Fair"
     },
     "fieldErrors": {
       "invalid": "Check this answer.",

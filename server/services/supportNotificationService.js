@@ -29,7 +29,7 @@ async function resolveSupportStaffIds(dbClient = db) {
     `SELECT u.id, COALESCE(p.safety_on_call, FALSE) AS on_call
        FROM users u
        LEFT JOIN admin_notification_prefs p ON p.admin_id = u.id
-      WHERE u.role = ANY($1::text[])
+      WHERE u.role::text = ANY($1::text[])
         AND u.is_active = TRUE
         AND u.deleted_at IS NULL
         AND (u.role = 'super_admin' OR EXISTS (

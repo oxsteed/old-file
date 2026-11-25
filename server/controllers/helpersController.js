@@ -1024,6 +1024,8 @@ async function respondHelperProfile(req, res, next, adminPreview) {
         // The directory list already returned these; the profile response
         // did not, so the profile page had nothing to render.
         skills:           [...new Set(skillRes.rows.map((r) => r.skill_name))],
+        // Group 4 rest (194): endorsement counts by skill (completed jobs only).
+        skillEndorsements: await require('../services/helperEndorsementService').publicCounts(h.id || id).catch(() => ({})),
         licenses:         parseJsonList(h.license_details),
         insurance:        parseJsonList(h.insurance_details),
         availabilityStatus,

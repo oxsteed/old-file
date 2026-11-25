@@ -7,12 +7,19 @@
  * These predicates keep that logic in one testable place.
  */
 
+// 707 (D-428): the literals are relative to the shared adminApi baseURL
+// (/api), so they must NOT carry their own /api prefix — the old
+// '/api/agent/...' literals double-prefixed to '/api/api/agent/...' and
+// every queue call 404d, while Customer360Panel calls the same server
+// routes correctly as '/agent/credit-adjustments' through the same
+// instance. `detail` is the new single-adjustment read endpoint.
 export const AGENT_ADJUSTMENT_ENDPOINTS = {
-  pending: '/api/agent/credit-adjustments/pending',
-  stepup: '/api/agent/credit-adjustments/stepup-challenges',
-  approve: (id) => `/api/agent/credit-adjustments/${id}/approve`,
-  reject: (id) => `/api/agent/credit-adjustments/${id}/reject`,
-  cancel: (id) => `/api/agent/credit-adjustments/${id}/cancel`,
+  pending: '/agent/credit-adjustments/pending',
+  detail: (id) => `/agent/credit-adjustments/${id}`,
+  stepup: '/agent/credit-adjustments/stepup-challenges',
+  approve: (id) => `/agent/credit-adjustments/${id}/approve`,
+  reject: (id) => `/agent/credit-adjustments/${id}/reject`,
+  cancel: (id) => `/agent/credit-adjustments/${id}/cancel`,
 };
 
 function isSameIdentity(left, right) {

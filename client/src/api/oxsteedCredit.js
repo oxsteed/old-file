@@ -59,6 +59,61 @@ export const getOxsteedCreditAccountDetails = (params = {}) =>
   api.get('/oxsteed-credit/account-details', { params })
     .then((response) => response.data?.details || null);
 
+// Group 13 Slice 4h (686-690): the participant/HQ door of the location
+// reconciliation surface. The caller reads only their own restaurant's
+// locations, server-enforced by requireRestaurantAccess; the admin
+// reconciliation workspace is untouched.
+export const listLocationReconciliationLocations = (restaurantId) =>
+  api.get(`/restaurants/${restaurantId}/credit-reconciliation/locations`)
+    .then((response) => response.data?.locations || []);
+export const getLocationReconciliationSummary = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/credit-reconciliation/summary`, { params })
+    .then((response) => response.data);
+export const listLocationReconciliationExceptions = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/credit-reconciliation/exceptions`, { params })
+    .then((response) => response.data);
+export const addLocationReconciliationAnnotation = (restaurantId, exceptionId, body) =>
+  api.post(`/restaurants/${restaurantId}/credit-reconciliation/exceptions/${encodeURIComponent(exceptionId)}/annotations`, { body })
+    .then((response) => response.data);
+export const getLocationReconciliationPeriodClose = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/credit-reconciliation/period-close`, { params })
+    .then((response) => response.data);
+export const recordLocationReconciliationPeriodClose = (restaurantId, params = {}) =>
+  api.post(`/restaurants/${restaurantId}/credit-reconciliation/period-close`, params)
+    .then((response) => response.data);
+export const downloadLocationReconciliationExport = async (restaurantId, params = {}) => {
+  const response = await api.get(`/restaurants/${restaurantId}/credit-reconciliation/export.csv`,
+    { params, responseType: 'blob' });
+  const url = window.URL.createObjectURL(response.data);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `oxsteed-credit-reconciliation-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+// Group 14 Slice 5b (709/710, D-426/D-427): the derived reconciliation
+// checklist (open -> matched -> closed) and the closeout evidence package
+// (a synchronous per-request ZIP over the already-posted records). Neither
+// approves a settlement; the package re-authorizes on every download.
+export const getLocationReconciliationChecklist = (restaurantId, params = {}) =>
+  api.get(`/restaurants/${restaurantId}/credit-reconciliation/checklist`, { params })
+    .then((response) => response.data);
+export const downloadLocationReconciliationCloseoutPackage = async (restaurantId, params = {}) => {
+  const response = await api.post(`/restaurants/${restaurantId}/credit-reconciliation/closeout-package`,
+    params, { responseType: 'blob' });
+  const url = window.URL.createObjectURL(response.data);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `oxsteed-credit-closeout-${new Date().toISOString().slice(0, 10)}.zip`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 export const getOxsteedCreditTransaction = (transactionId, params = {}) =>
   api.get(`/oxsteed-credit/transactions/${transactionId}`, { params }).then((response) => response.data?.transaction || null);
 
@@ -69,6 +124,11 @@ export const createOxsteedCreditHold = (payload, idempotencyKey) =>
 
 export const releaseOxsteedCreditHold = (holdId, payload = {}) =>
   api.post(`/oxsteed-credit/holds/${holdId}/release`, payload)
+    .then((response) => response.data);
+
+// Group 13, item 670 (D-367): one-click re-authorization from an expired hold.
+export const reauthorizeOxsteedCreditHold = (holdId) =>
+  api.post(`/oxsteed-credit/holds/${holdId}/reauthorize`)
     .then((response) => response.data);
 
 export const openOxsteedCreditDispute = (payload, idempotencyKey) =>
@@ -83,6 +143,19 @@ export const listOxsteedCreditDisputes = (params = {}) =>
 export const getOxsteedCreditDisputePage = (params = {}) =>
   api.get('/oxsteed-credit/disputes', { params })
     .then((response) => response.data || { disputes: [], pagination: { limit: 25, offset: 0, hasMore: false, nextOffset: null } });
+
+// Group 13, item 674 (D-371/D-372/D-373): customer evidence on their own
+// open dispute. The submit takes a FormData body (note and/or one file)
+// plus an idempotency key; the list returns signed download URLs minted
+// at read time — the storage key never leaves the server.
+export const listOxsteedCreditDisputeEvidence = (disputeId) =>
+  api.get(`/oxsteed-credit/disputes/${encodeURIComponent(disputeId)}/evidence`)
+    .then((response) => response.data?.evidence || []);
+
+export const submitOxsteedCreditDisputeEvidence = (disputeId, formData, idempotencyKey) =>
+  api.post(`/oxsteed-credit/disputes/${encodeURIComponent(disputeId)}/evidence`, formData, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then((response) => response.data);
 
 // -- OxSteed Credit money OUT (Phase 6) -----------------------------------
 // Withdrawals to the customer's connected bank account, restaurant credit
@@ -178,6 +251,21 @@ export const createOxsteedCreditTopup = (payload, idempotencyKey) =>
 
 export const getOxsteedCreditTopup = (topupId) =>
   api.get(`/oxsteed-credit/topups/${encodeURIComponent(topupId)}`).then((response) => response.data);
+
+// Group 13 Slice 4f (680): retry a failed top-up from its own record. The
+// idempotency key must be fresh per retry attempt; the server links the new
+// attempt to the failed original and replays an existing retry.
+export const retryOxsteedCreditTopup = (topupId, idempotencyKey) =>
+  api.post(`/oxsteed-credit/topups/${encodeURIComponent(topupId)}/retry`, {}, { headers: { 'Idempotency-Key': idempotencyKey } }).then((response) => response.data);
+
+export const listOxsteedCreditTopups = (params = {}) =>
+  api.get('/oxsteed-credit/topups', { params }).then((response) => response.data?.topups || []);
+
+// Group 13 Slice 4j (697): the customer's own consent history — every
+// recorded terms/privacy acceptance plus the per-item disclosure
+// acceptances, newest first. Read-only; the server scopes it to the caller.
+export const getConsentHistory = () =>
+  api.get('/consent/history').then((response) => response.data);
 
 export const issueOxsteedCreditTopupStepup = (payload) =>
   api.post('/oxsteed-credit/stepup-challenges', payload).then((response) => response.data);

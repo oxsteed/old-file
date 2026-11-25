@@ -27,6 +27,7 @@ const {
   getCustomerCreditTransaction,
   createCreditHold,
   releaseCreditHold,
+  reauthorizeCreditHold,
   transferCredit,
   updateCustomerCreditAccountStatus,
   openCreditDispute,
@@ -57,6 +58,13 @@ const {
 } = require('../services/oxsteedCreditPendingActionService');
 // Phase 7 (gap 10): compensated dispute resolutions.
 const { resolveDisputeWithCompensation, issueProvisionalCredit } = require('../services/oxsteedCreditDisputeService');
+// Group 13 Slice 4e (674, D-371/D-372/D-373/D-374): customer dispute evidence.
+const {
+  submitDisputeEvidence,
+  listDisputeEvidenceForCustomer,
+  listDisputeEvidenceForAdmin,
+  downloadDisputeEvidenceFile,
+} = require('../services/oxsteedCreditDisputeEvidenceService');
 const {
   listPartners,
   listAdminCustomerCreditAccounts,
@@ -615,6 +623,24 @@ async function releaseMyHold(req, res, next) {
   }
 }
 
+// Group 13, item 670 (D-367): one-click re-authorization from an expired
+// hold. Same amount and restaurant, fresh hold, same gates as a fresh
+// authorization — the service replays the expired hold through the
+// existing hold-creation path.
+async function reauthorizeMyHold(req, res, next) {
+  try {
+    const holdId = parseUuid(req.params.holdId, 'holdId');
+    const result = await reauthorizeCreditHold({
+      customerId: req.user.id,
+      holdId,
+      ...getRequestContext(req),
+    });
+    res.status(result.replayed ? 200 : 201).json(formatCustomerCreditMutationResult(result));
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function adminCaptureHold(req, res, next) {
   try {
     const holdId = parseUuid(req.params.holdId, 'holdId');
@@ -738,6 +764,106 @@ async function listMyDisputes(req, res, next) {
       offset: req.query.offset,
       includePagination: true,
     }));
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Group 13 Slice 4e (674): the customer lists the evidence on their own
+// dispute. Ownership is enforced in the service (404 for anyone else's
+// dispute, indistinguishable from a missing one).
+async function listMyDisputeEvidence(req, res, next) {
+  try {
+    const disputeId = parseUuid(req.params.disputeId, 'disputeId');
+    res.json(await listDisputeEvidenceForCustomer({ disputeId, customerId: req.user.id }));
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Group 13 Slice 4e (674): the customer attaches a note and/or one file to
+// their own open dispute. The file arrives via multer (memory storage, see
+// routes/oxsteedCredit.js); the service enforces ownership, the open-dispute
+// window, size/type limits, and idempotency.
+async function submitMyDisputeEvidence(req, res, next) {
+  try {
+    const disputeId = parseUuid(req.params.disputeId, 'disputeId');
+    const result = await submitDisputeEvidence({
+      disputeId,
+      customerId: req.user.id,
+      note: req.body?.note,
+      file: req.file || null,
+      idempotencyKey: getIdempotencyKey(req),
+      requestIp: req.ip || null,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Group 13 Slice 4e (674, D-374): the agent working the case reads the
+// customer's evidence. The route carries requireSuperAdmin; the service
+// only checks the dispute exists.
+async function listAdminDisputeEvidence(req, res, next) {
+  try {
+    const disputeId = parseUuid(req.params.disputeId, 'disputeId');
+    res.json(await listDisputeEvidenceForAdmin({ disputeId }));
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Group 13 Slice 4e (674, D-371): stream one evidence file to its owner.
+// The signed URL (exp + sig) is verified in the service before the row is
+// read; the caller's session must also own the dispute.
+async function downloadMyDisputeEvidence(req, res, next) {
+  try {
+    const disputeId = parseUuid(req.params.disputeId, 'disputeId');
+    const evidenceId = parseUuid(req.params.evidenceId, 'evidenceId');
+    const file = await downloadDisputeEvidenceFile({
+      disputeId,
+      evidenceId,
+      customerId: req.user.id,
+      isAdmin: false,
+      exp: req.query.exp,
+      sig: req.query.sig,
+    });
+    res.set({
+      'Content-Type': file.contentType,
+      'Content-Disposition': `attachment; filename="${String(file.filename).replace(/["\r\n]/g, '')}"`,
+      'Cache-Control': 'private, no-store',
+    });
+    if (file.sizeBytes !== null) res.set('Content-Length', String(file.sizeBytes));
+    file.stream.on('error', next);
+    file.stream.pipe(res);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Group 13 Slice 4e (674, D-371/D-374): the agent's download of the same
+// file. requireSuperAdmin on the route; the service verifies the signed URL.
+async function downloadAdminDisputeEvidence(req, res, next) {
+  try {
+    const disputeId = parseUuid(req.params.disputeId, 'disputeId');
+    const evidenceId = parseUuid(req.params.evidenceId, 'evidenceId');
+    const file = await downloadDisputeEvidenceFile({
+      disputeId,
+      evidenceId,
+      customerId: null,
+      isAdmin: true,
+      exp: req.query.exp,
+      sig: req.query.sig,
+    });
+    res.set({
+      'Content-Type': file.contentType,
+      'Content-Disposition': `attachment; filename="${String(file.filename).replace(/["\r\n]/g, '')}"`,
+      'Cache-Control': 'private, no-store',
+    });
+    if (file.sizeBytes !== null) res.set('Content-Length', String(file.sizeBytes));
+    file.stream.on('error', next);
+    file.stream.pipe(res);
   } catch (error) {
     next(error);
   }
@@ -2794,10 +2920,16 @@ module.exports = {
   createMyHold,
   adminCaptureHold,
   releaseMyHold,
+  reauthorizeMyHold,
   transferMyCredit,
   lookupTransferRecipient,
   openMyDispute,
   listMyDisputes,
+  listMyDisputeEvidence,
+  submitMyDisputeEvidence,
+  downloadMyDisputeEvidence,
+  listAdminDisputeEvidence,
+  downloadAdminDisputeEvidence,
   adminLoadCredit,
   adminAdjustCredit,
   refundAdminCredit,

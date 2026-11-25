@@ -10,6 +10,7 @@ import {
   Pencil, ChevronRight, MoreVertical,
 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
+import AdminHelperHandbacks from '../../components/AdminHelperHandbacks';
 import { useAuth } from '../../../hooks/useAuth';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import { useHasGrant } from '../../lib/GrantGuard';
@@ -1621,6 +1622,10 @@ export default function UserDetail() {
               ))}
             </div>
           )}
+        </SectionCard>
+
+        <SectionCard title={t('helperG4.handbackAdmin.title')} collapsible defaultOpen={false}>
+          <AdminHelperHandbacks userId={userId} />
         </SectionCard>
 
         <SectionCard title={t('adminUserDetail.billing.title')}>

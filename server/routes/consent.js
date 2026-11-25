@@ -59,6 +59,58 @@ router.get('/status', authenticate, async (req, res) => {
   }
 });
 
+// ─── GET /api/consent/history ─────────────────────────────────
+// Group 13 Slice 4j (697): the customer's own consent history — every
+// recorded acceptance, newest first. Two derived reads over the existing
+// records, no second consent store: `user_consents` (per-type version +
+// accepted_at) and `credit_disclosure_acceptances` (per-item disclosure
+// acceptances, joined to the version row for its number/title when the
+// acceptance names one; a NULL version means the built-in placeholder
+// text was accepted before counsel published a version). Scoped to the
+// caller's own id on both reads, so a customer sees only their history.
+router.get('/history', authenticate, async (req, res) => {
+  try {
+    const { rows: consents } = await db.query(
+      `SELECT consent_type, version, accepted_at
+         FROM user_consents
+        WHERE user_id = $1
+        ORDER BY accepted_at DESC, id DESC
+        LIMIT 100`,
+      [req.user.id]
+    );
+    const { rows: disclosures } = await db.query(
+      `SELECT a.disclosure_kind, a.language, a.context, a.accepted_at,
+              v.version AS version_number, v.title AS version_title
+         FROM credit_disclosure_acceptances a
+         LEFT JOIN credit_disclosure_versions v ON v.id = a.disclosure_version_id
+        WHERE a.user_id = $1
+        ORDER BY a.accepted_at DESC, a.id DESC
+        LIMIT 100`,
+      [req.user.id]
+    );
+    res.json({
+      consents: consents.map((row) => ({
+        consentType: row.consent_type,
+        version: row.version,
+        acceptedAt: row.accepted_at,
+      })),
+      disclosures: disclosures.map((row) => ({
+        disclosureKind: row.disclosure_kind,
+        language: row.language,
+        context: row.context,
+        version: row.version_number === null || row.version_number === undefined
+          ? null
+          : Number(row.version_number),
+        title: row.version_title || null,
+        acceptedAt: row.accepted_at,
+      })),
+    });
+  } catch (err) {
+    logger.error('GET /consent/history error', { error: err.message });
+    res.status(500).json({ error: 'Failed to load consent history' });
+  }
+});
+
 // ─── POST /api/consent/accept ─────────────────────────────────
 // Accept one or more consent types at their current version
 router.post('/accept', authenticate, async (req, res) => {

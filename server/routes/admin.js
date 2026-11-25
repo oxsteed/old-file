@@ -230,6 +230,26 @@ router.post('/payment-disputes/:id/decision', requireAdmin, rejectImpersonated, 
 // Users - read + write actions (ban/unban logged; admins cannot ban other admins)
 router.get('/users',            requireAdmin, requirePermission('manage_users'), superCtrl.getUsers);
 router.get('/users/:userId',    requireAdmin, requirePermission('manage_users'), superCtrl.getUserDetail);
+// Group 4 item 184: private Trust & Safety log of a helper's job hand-backs (never public, never in ratings).
+router.get('/users/:userId/handbacks', requireAdmin, requirePermission('manage_users'), async (req, res, next) => {
+  try { res.json(await require('../services/helperHandbackOversightService').forHelper(req.params.userId)); } catch (e) { next(e); }
+});
+
+// Groups 5-6 item 201: directory listing claim review (links a listing only).
+router.get('/business-listing-claims', requireAdmin, requirePermission('manage_operations'), async (req, res, next) => {
+  try { res.json(await require('../services/businessOwner/listingClaimService').queue({ status: req.query.status || 'pending' })); } catch (e) { next(e); }
+});
+router.post('/business-listing-claims/:claimId/decision', requireAdmin, rejectImpersonated, requirePermission('manage_operations'), async (req, res, next) => {
+  try { res.json(await require('../services/businessOwner/listingClaimService').decide(req.user.id, req.params.claimId, req.body)); } catch (e) { next(e); }
+});
+
+// Groups 5-6 item 241: ownership transfers of businesses with a payout account.
+router.get('/business-ownership-transfers', requireAdmin, requirePermission('manage_operations'), async (req, res, next) => {
+  try { res.json(await require('../services/businessOwner/continuityService').adminQueue()); } catch (e) { next(e); }
+});
+router.post('/business-ownership-transfers/:transferId/decision', requireAdmin, rejectImpersonated, requirePermission('manage_operations'), async (req, res, next) => {
+  try { res.json(await require('../services/businessOwner/continuityService').adminDecide(req.user.id, req.params.transferId, req.body)); } catch (e) { next(e); }
+});
 
 // ── E13: controlled investigation access ─────────────────────────────────
 // Purpose-limited, approver-tied elevated reads. Every served read is
@@ -701,6 +721,7 @@ router.get('/super/oxsteed-credit/cards/:cardId/history', requireSuperAdmin, rej
 router.post('/super/oxsteed-credit/cards/:cardId/replacement/retry', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.retryAdminReplacement);
 router.post('/super/oxsteed-credit/cards/:cardId/fulfillment', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.updateAdminCardFulfillment);
 router.post('/super/oxsteed-credit/cards/:cardId/revoke', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.revokeAdminCard);
+router.post('/super/oxsteed-credit/cards/:cardId/freeze', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCardCtrl.freezeAdminCard);
 router.get('/super/oxsteed-credit/rail', requireSuperAdmin, oxsteedCreditCtrl.getAdminCreditRail);
 router.post('/super/oxsteed-credit/rail', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.updateAdminCreditRail);
 // Operator freeze on money initiation (external reconciliation, migration
@@ -771,6 +792,10 @@ router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSu
 router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminUpdateCreditAccountStatus);
 router.get('/super/oxsteed-credit/disputes', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputes);
 router.get('/super/oxsteed-credit/disputes.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditDisputes);
+// Group 13, item 674 (D-374): the agent working the case reads the
+// customer's evidence — same signed-URL downloads as the customer view.
+router.get('/super/oxsteed-credit/disputes/:disputeId/evidence', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputeEvidence);
+router.get('/super/oxsteed-credit/disputes/:disputeId/evidence/:evidenceId/download', requireSuperAdmin, oxsteedCreditCtrl.downloadAdminDisputeEvidence);
 router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resolveAdminDispute);
 router.post('/super/oxsteed-credit/disputes/:disputeId/resend-results-notice', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resendAdminDisputeResultsNotice);
 router.post('/super/oxsteed-credit/cashout-disputes/:cashoutDisputeId/resend-results-notice', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resendAdminCashoutDisputeResultsNotice);

@@ -83,6 +83,7 @@ const OxsteedCreditReservesPage = lazyWithRetry(() => import('./pages/super/oxst
 const OxsteedCreditPartnersPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/PartnersPage'));
 const OxsteedCreditHealthPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/HealthPage'));
 const OxsteedCreditAuditPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/AuditPage'));
+const OxsteedCreditAuditRequestsPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/AuditRequestsPage'));
 const OxsteedCreditCustomersPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/CustomersPage'));
 const OxsteedCreditMoneyOutPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/MoneyOutPage'));
 const OxsteedCreditCardsPage = lazyWithRetry(() => import('./pages/super/oxsteedCredit/CardsPage'));
@@ -439,6 +440,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('oxsteedCreditAudit').relative} element={
             <AdminGuard superOnly={adminRoute('oxsteedCreditAudit').superOnly}><OxsteedCreditAuditPage /></AdminGuard>
+          } />
+          <Route path={adminRoute('oxsteedCreditAuditRequests').relative} element={
+            <AdminGuard superOnly={adminRoute('oxsteedCreditAuditRequests').superOnly}><OxsteedCreditAuditRequestsPage /></AdminGuard>
           } />
           <Route path={adminRoute('oxsteedCreditCustomers').relative} element={
             <AdminGuard superOnly={adminRoute('oxsteedCreditCustomers').superOnly}><OxsteedCreditCustomersPage /></AdminGuard>

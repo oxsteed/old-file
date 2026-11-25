@@ -1291,3 +1291,18 @@ html:not(.dark) .bh-status-pending {
 
 .bh-calendar-panel { border: 1px solid var(--color-border); background: var(--color-card-bg); color: var(--color-text); border-radius: 1.5rem; padding: 1.25rem 1.5rem; }
 .bh-calendar-panel-description { margin-top: .25rem; font-size: .875rem; line-height: 1.5rem; color: var(--color-text-muted); }
+
+/* Group 14 Slice 5b (706, D-423): matched-payments panel under each invoice row. */
+.bh-invpay-panel { padding: 0.9rem 0.2rem; }
+.bh-invpay-title { margin: 0 0 0.5rem; }
+.bh-invpay-totals { margin: 0 0 0.5rem; }
+.bh-invpay-empty { color: var(--muted-text); }
+.bh-invpay-ref { font-family: monospace; font-size: 0.8rem; word-break: break-all; }
+.bh-invpay-date { white-space: nowrap; }
+.bh-invpay-form { margin-top: 0.9rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: end; }
+.bh-invpay-type-field { min-width: 11rem; }
+.bh-invpay-ref-field { flex: 1 1 12rem; }
+.bh-invpay-amount-field { min-width: 8rem; }
+.bh-invpay-error { color: #f87171; }
+.bh-invpay-notice { color: #4ade80; }
+.bh-invpay-toggle { margin-left: 0.3rem; }

@@ -1,9 +1,15 @@
 'use strict';
 
 const router = require('express').Router();
+const multer = require('multer');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { creditMutationLimiter, creditExportLimiter } = require('../middleware/rateLimiter');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const { AppError } = require('../middleware/errorHandler');
+const {
+  EVIDENCE_MAX_FILE_BYTES,
+  EVIDENCE_ALLOWED_MIME_TYPES,
+} = require('../services/oxsteedCreditDisputeEvidenceService');
 const controller = require('../controllers/oxsteedCreditController');
 const cardController = require('../controllers/oxsteedCreditCardController');
 const topupController = require('../controllers/oxsteedCreditTopupController');
@@ -44,16 +50,47 @@ router.get('/transactions', controller.getMyTransactions);
 router.get('/transactions/:transactionId', controller.getMyTransaction);
 router.post('/holds', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.createMyHold);
 router.post('/holds/:holdId/release', creditMutationLimiter, rejectImpersonated, controller.releaseMyHold);
+// Group 13, item 670 (D-367): re-authorize an expired hold — same gates
+// as creating a hold, same existing hold-creation path underneath.
+router.post('/holds/:holdId/reauthorize', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.reauthorizeMyHold);
 router.post('/transfers', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.transferMyCredit);
 // Recipient name lookup for the transfer review panel. Read-only; the
 // router-level authenticate + requireRole('customer') gate applies.
 router.get('/transfer-recipients/:customerId', controller.lookupTransferRecipient);
 router.get('/disputes', controller.listMyDisputes);
 router.post('/disputes', creditMutationLimiter, rejectImpersonated, controller.openMyDispute);
+// Group 13, item 674 (D-371/D-372/D-373): customer evidence on their own
+// open dispute — a note and/or one file. Memory storage: the file is handed
+// to the existing storage backend by the service, never written to disk
+// here. The file filter rejects disallowed types before the service runs;
+// multer's size limit surfaces as 413 via the shared error handler.
+const disputeEvidenceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: EVIDENCE_MAX_FILE_BYTES, files: 1, fields: 10, parts: 12 },
+  fileFilter: (_req, file, cb) => {
+    if (EVIDENCE_ALLOWED_MIME_TYPES.includes(String(file.mimetype || '').split(';', 1)[0].trim().toLowerCase())) {
+      return cb(null, true);
+    }
+    return cb(new AppError('That file type cannot be attached as dispute evidence', 400, 'credit_dispute_evidence_file_type_invalid'));
+  },
+});
+router.get('/disputes/:disputeId/evidence', controller.listMyDisputeEvidence);
+router.get('/disputes/:disputeId/evidence/:evidenceId/download', controller.downloadMyDisputeEvidence);
+router.post(
+  '/disputes/:disputeId/evidence',
+  creditMutationLimiter,
+  rejectImpersonated,
+  disputeEvidenceUpload.single('file'),
+  controller.submitMyDisputeEvidence
+);
 
 // Stripe top-ups (fiat money IN): create a top-up intent and read its status.
 router.post('/topups', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), topupController.createTopup);
+router.get('/topups', topupController.listMyTopups);
 router.get('/topups/:id', topupController.getTopup);
+// Group 13, item 680 (D-376): retry a failed top-up from its own record —
+// same gates as creating a top-up, same existing creation path underneath.
+router.post('/topups/:id/retry', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), topupController.retryTopup);
 // Step-up challenge issuance for large top-ups (Phase 5 compliance).
 router.post('/stepup-challenges', creditMutationLimiter, rejectImpersonated, topupController.issueTopupStepupChallenge);
 

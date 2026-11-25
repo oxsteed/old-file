@@ -102,6 +102,8 @@ ddescribe('G-15 arrival / no-show and G-16 rework', () => {
 
   let apptDayOffset = 0;
   async function makeAppointment(jobId) {
+    // Group 4 rest (177/182): windows are in the past so arrival and no-show
+    // are inside their time guards.
     // Each appointment needs its own window: an appointments trigger
     // rejects overlapping bookings for the same helper.
     apptDayOffset += 1;
@@ -110,8 +112,8 @@ ddescribe('G-15 arrival / no-show and G-16 rework', () => {
       `INSERT INTO appointments (job_id, customer_id, helper_id, status, service_description,
                                 scheduled_start_time, scheduled_end_time)
        VALUES ($1, $2, $3, 'confirmed', 'Fix the sink',
-               NOW() + ($4 || ' day')::interval, NOW() + ($4 || ' day')::interval + interval '1 hour') RETURNING *`,
-      [jobId, clientId, helperId, `${day} days`],
+               NOW() - ($4 || ' day')::interval, NOW() - ($4 || ' day')::interval + interval '1 hour') RETURNING *`,
+      [jobId, clientId, helperId, String(day)],
     );
     return appt;
   }
@@ -207,4 +209,32 @@ ddescribe('G-15 arrival / no-show and G-16 rework', () => {
     expect(err).toBeTruthy();
     expect(err.statusCode || err.status).toBe(400);
   });
+  // Group 4 rest (177, 182): time guards against the scheduled start.
+  test('177: arrival more than 2 hours before the scheduled start is refused; within the window it records', async () => {
+    const far = await makeJob({ status: 'accepted' });
+    await pool.query(
+      `INSERT INTO appointments (job_id, customer_id, helper_id, status, service_description, scheduled_start_time, scheduled_end_time)
+       VALUES ($1, $2, $3, 'confirmed', 'Later', NOW() + interval '30 days', NOW() + interval '30 days 1 hour')`,
+      [far.id, clientId, helperId]);
+    const early = await call(jobController.markJobArrived, { params: { id: far.id }, user: { id: helperId }, body: {} });
+    expect(early.err).toMatchObject({ statusCode: 409, code: 'arrival_too_early' });
+    const { rows: [unchanged] } = await pool.query('SELECT arrived_at FROM jobs WHERE id = $1', [far.id]);
+    expect(unchanged.arrived_at).toBeNull();
+
+    const soon = await makeJob({ status: 'accepted' });
+    await pool.query('UPDATE jobs SET scheduled_time = NOW() + interval \'1 hour\' WHERE id = $1', [soon.id]);
+    const ok = await call(jobController.markJobArrived, { params: { id: soon.id }, user: { id: helperId }, body: {} });
+    expect(ok.err).toBeNull();
+  });
+
+  test('182: a no-show cannot be reported before the scheduled start', async () => {
+    const job = await makeJob({ status: 'accepted' });
+    await pool.query('UPDATE jobs SET scheduled_time = NOW() + interval \'1 hour\' WHERE id = $1', [job.id]);
+    const early = await call(jobController.markJobNoShow, { params: { id: job.id }, user: { id: clientId }, body: { reason: 'Not here' } });
+    expect(early.err).toMatchObject({ statusCode: 409, code: 'no_show_too_early' });
+    await pool.query('UPDATE jobs SET scheduled_time = NOW() - interval \'1 hour\' WHERE id = $1', [job.id]);
+    const late = await call(jobController.markJobNoShow, { params: { id: job.id }, user: { id: clientId }, body: { reason: 'Not here' } });
+    expect(late.err).toBeNull();
+  });
 });
+

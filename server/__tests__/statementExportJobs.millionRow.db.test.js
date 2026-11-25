@@ -43,6 +43,10 @@ describeDb('R05 million-row frozen export capacity',()=>{
       INSERT INTO food_restaurants VALUES(1,'Synthetic restaurant');
       INSERT INTO food_customer_wallet_accounts VALUES(1,'${user}',1,'USD','2020-01-01');`);
     await db.query(fs.readFileSync(path.join(__dirname,'../migrations/693_statement_export_jobs.sql'),'utf8'));
+    // D-429: the expiry migration extends the same table; the fixture must
+    // track the migrated schema or the worker's completion UPDATE fails on
+    // the missing expires_at column.
+    await db.query(fs.readFileSync(path.join(__dirname,'../migrations/20261125012700_statement_export_job_expiry.sql'),'utf8'));
   },30000);
   afterAll(async()=>{
     await db?.end();

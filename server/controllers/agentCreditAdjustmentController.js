@@ -112,6 +112,8 @@ function formatAdjustment(row) {
   return {
     id: row.id,
     customerId: row.customer_id,
+    disputeId: row.dispute_id || null,
+    reconciliationExceptionId: row.reconciliation_exception_id || null,
     amountCents: Number(row.amount_cents),
     direction: Number(row.amount_cents) >= 0 ? 'credit' : 'debit',
     currencyCode: row.currency_code,
@@ -324,6 +326,44 @@ async function proposeAdjustment(req, res, next) {
     const idempotencyKey = parseIdempotencyKey(req.body?.idempotencyKey ?? req.body?.idempotency_key);
     const { correlationId, requestIp } = requestContext(req);
 
+    // Group 13 Slice 4e (673, D-375): an optional dispute link, set at
+    // propose time only. The dispute must belong to the same customer;
+    // unknown or other-customer disputes are 404, same as the customer
+    // evidence reads, so the link can never attribute an adjustment to
+    // someone else's case.
+    const rawDisputeId = req.body?.disputeId ?? req.body?.dispute_id ?? null;
+    let disputeId = null;
+    if (rawDisputeId !== null && rawDisputeId !== undefined && String(rawDisputeId).trim() !== '') {
+      disputeId = parseUuidField(rawDisputeId, 'disputeId');
+      const { rows: disputeRows } = await pool.query(
+        `SELECT id, customer_id FROM oxsteed_credit_disputes WHERE id = $1`,
+        [disputeId]
+      );
+      if (!disputeRows[0] || String(disputeRows[0].customer_id) !== String(customerId)) {
+        throw new AppError('Credit dispute not found', 404, 'credit_dispute_not_found');
+      }
+    }
+
+    // Group 13 Slice 4h (687, D-395): an optional reconciliation-exception
+    // link, set at propose time. The exception must exist (404 otherwise);
+    // no customer-consistency check is applied because exceptions are not
+    // customer-scoped records — the link is the proposing admin's assertion
+    // that this adjustment resolves that exception. A replayed propose
+    // returns the original row unchanged; link afterwards via the
+    // link-exception endpoint instead.
+    const rawReconExceptionId = req.body?.reconciliationExceptionId ?? req.body?.reconciliation_exception_id ?? null;
+    let reconciliationExceptionId = null;
+    if (rawReconExceptionId !== null && rawReconExceptionId !== undefined && String(rawReconExceptionId).trim() !== '') {
+      reconciliationExceptionId = parseUuidField(rawReconExceptionId, 'reconciliationExceptionId');
+      const { rows: exceptionRows } = await pool.query(
+        `SELECT id FROM reconciliation_exceptions WHERE id = $1`,
+        [reconciliationExceptionId]
+      );
+      if (!exceptionRows[0]) {
+        throw new AppError('Reconciliation exception not found', 404, 'reconciliation_exception_not_found');
+      }
+    }
+
     // Administrative adjustments can increase a customer's stored value just
     // like a top-up. Run the same identity and sanctions choke point before
     // creating the pending row; the checker cannot approve around a failed
@@ -344,11 +384,11 @@ async function proposeAdjustment(req, res, next) {
       await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`agent-credit-adjustment-propose:${idempotencyKey}`]);
       const { rows: inserted } = await client.query(
         `INSERT INTO credit_adjustments
-           (customer_id, amount_cents, currency_code, reason, proposed_by, idempotency_key, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+           (customer_id, dispute_id, reconciliation_exception_id, amount_cents, currency_code, reason, proposed_by, idempotency_key, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')
          ON CONFLICT (idempotency_key) DO NOTHING
          RETURNING *`,
-        [customerId, amountCents, currencyCode, reason, adminId, idempotencyKey]
+        [customerId, disputeId, reconciliationExceptionId, amountCents, currencyCode, reason, adminId, idempotencyKey]
       );
       let row = inserted[0];
       let replayed = false;
@@ -381,6 +421,65 @@ async function proposeAdjustment(req, res, next) {
       adjustment: formatAdjustment(result.row),
       replayed: result.replayed,
     });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * POST /agent/credit-adjustments/:id/link-exception
+ * Link an existing adjustment to the reconciliation exception it resolves
+ * (687, D-395). Set-once: an adjustment that already carries a link is
+ * 409, never edited afterwards. No money moves here; the two-person rule
+ * and the apply path are untouched.
+ */
+async function linkAdjustmentToException(req, res, next) {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) throw new AppError('Unauthorized.', 401, 'unauthorized');
+    const id = parseUuidField(req.params.id, 'adjustmentId');
+    const rawExceptionId = req.body?.reconciliationExceptionId ?? req.body?.reconciliation_exception_id ?? null;
+    if (rawExceptionId === null || rawExceptionId === undefined || String(rawExceptionId).trim() === '') {
+      throw new AppError('reconciliationExceptionId is required', 400, 'credit_adjustment_exception_required');
+    }
+    const exceptionId = parseUuidField(rawExceptionId, 'reconciliationExceptionId');
+    const { correlationId, requestIp } = requestContext(req);
+    const result = await withTransaction(pool, async (client) => {
+      const adjustment = await findAdjustmentForUpdate(client, id);
+      if (!adjustment) throw new AppError('Credit adjustment not found', 404, 'credit_adjustment_not_found');
+      if (adjustment.reconciliation_exception_id) {
+        throw new AppError(
+          'Adjustment is already linked to a reconciliation exception',
+          409,
+          'credit_adjustment_exception_already_linked',
+        );
+      }
+      const { rows: exceptionRows } = await client.query(
+        `SELECT id FROM reconciliation_exceptions WHERE id = $1`,
+        [exceptionId],
+      );
+      if (!exceptionRows[0]) {
+        throw new AppError('Reconciliation exception not found', 404, 'reconciliation_exception_not_found');
+      }
+      const { rows: [updated] } = await client.query(
+        `UPDATE credit_adjustments
+            SET reconciliation_exception_id = $2, updated_at = NOW()
+          WHERE id = $1 RETURNING *`,
+        [id, exceptionId],
+      );
+      await writeAdjustmentAudit(client, {
+        actionType: 'credit.agent_adjustment.exception_linked',
+        actorUserId: adminId,
+        adjustment: updated,
+        customerId: updated.customer_id,
+        reason: updated.reason,
+        correlationId,
+        requestIp,
+        extra: { reconciliationExceptionId: exceptionId },
+      });
+      return updated;
+    }, 'agent_credit_adjustment_link_exception');
+    return res.json({ adjustment: formatAdjustment(result) });
   } catch (error) {
     return next(error);
   }
@@ -649,6 +748,43 @@ async function listPendingAdjustments(req, res, next) {
       })),
       thresholdCents: TWO_PERSON_THRESHOLD_CENTS,
       dailyCapCents: DAILY_ADJUSTMENT_CAP_CENTS,
+      // 707 (D-424): the read gate sets req.adjustmentReadOnly when the
+      // caller holds a finance-read grant but not manage_financials, so
+      // the queue UI can hide the decide/cancel actions. The write routes
+      // never set it, so a writer always sees readOnly: false.
+      readOnly: req.adjustmentReadOnly === true,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+// 707 (D-424): single-adjustment read for the bookkeeper/auditor queue
+// (list + detail). Same shape as a list row; unknown id is 404, never a
+// leak of whether the row exists for another caller — the queue is
+// platform-wide and the read gate already ran.
+async function getAdjustment(req, res, next) {
+  try {
+    const id = parseUuidField(req.params.id, 'adjustmentId');
+    const { rows: [row] } = await pool.query(
+      `SELECT ca.*,
+              pu.first_name AS proposed_first_name,
+              pu.last_name AS proposed_last_name,
+              pu.email AS proposed_email
+         FROM credit_adjustments ca
+         LEFT JOIN users pu ON pu.id = ca.proposed_by
+        WHERE ca.id = $1`,
+      [id]
+    );
+    if (!row) throw new AppError('Credit adjustment not found', 404, 'credit_adjustment_not_found');
+    return res.status(200).json({
+      adjustment: {
+        ...formatAdjustment(row),
+        proposedByName: [row.proposed_first_name, row.proposed_last_name].filter(Boolean).join(' ') || row.proposed_email || null,
+      },
+      thresholdCents: TWO_PERSON_THRESHOLD_CENTS,
+      dailyCapCents: DAILY_ADJUSTMENT_CAP_CENTS,
+      readOnly: req.adjustmentReadOnly === true,
     });
   } catch (error) {
     return next(error);
@@ -659,10 +795,12 @@ module.exports = {
   TWO_PERSON_THRESHOLD_CENTS,
   DAILY_ADJUSTMENT_CAP_CENTS,
   proposeAdjustment,
+  linkAdjustmentToException,
   issueApprovalStepupChallenge,
   approveAdjustment,
   rejectAdjustment,
   cancelAdjustment,
   listPendingAdjustments,
+  getAdjustment,
   formatAdjustment,
 };

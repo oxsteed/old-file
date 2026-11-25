@@ -99,7 +99,10 @@ function createService({ db = require('../db'), jobs = jobService } = {}) {
     const seenNames = new Set();
     for (const jobId of unique) {
       const job = await jobs.requireJob(jobId, userId);
-      if (job.state !== 'complete') fail('statement_export_not_ready', 409);
+      // An expired job is a completed job past its file TTL: it fails closed
+      // here exactly like any other non-complete job, before any byte is
+      // written.
+      if (jobService.effectiveState(job) !== 'complete') fail('statement_export_not_ready', 409);
       const manifest = await jobs.manifest(jobId, userId);
       if (!manifest?.complete || !Array.isArray(manifest.files) || !manifest.files.length) {
         fail('statement_export_not_ready', 409);
@@ -135,7 +138,7 @@ function createService({ db = require('../db'), jobs = jobService } = {}) {
     const { rows } = await db.query(
       `SELECT id, product, currency_code, period_from, period_to, format, language,
               state, error_code, row_count, rows_rendered, manifest,
-              created_at, completed_at
+              created_at, completed_at, expires_at
          FROM statement_export_jobs
         WHERE requested_by=$1
         ORDER BY created_at DESC
@@ -148,7 +151,10 @@ function createService({ db = require('../db'), jobs = jobService } = {}) {
       pageSize: safeSize,
       total,
       jobs: rows.map((row) => {
-        const manifest = row.state === 'complete' ? row.manifest : null;
+        // D-429: an expired job reports 'expired' with no files, so the
+        // history never offers a download for a file past its TTL.
+        const state = jobService.effectiveState(row);
+        const manifest = state === 'complete' ? row.manifest : null;
         const files = manifest?.complete && Array.isArray(manifest.files)
           ? manifest.files.map((file) => ({
             id: file.id, kind: file.kind, part: file.part, rowFrom: file.rowFrom, rowTo: file.rowTo,
@@ -160,11 +166,11 @@ function createService({ db = require('../db'), jobs = jobService } = {}) {
           id: row.id, product: row.product, currencyCode: row.currency_code,
           period: { from: row.period_from instanceof Date ? row.period_from.toISOString().slice(0, 10) : String(row.period_from),
             to: row.period_to instanceof Date ? row.period_to.toISOString().slice(0, 10) : String(row.period_to) },
-          format: row.format, language: row.language, state: row.state,
+          format: row.format, language: row.language, state,
           errorCode: row.error_code || null,
           rowsTotal: row.row_count === null ? null : Number(row.row_count),
           rowsRendered: Number(row.rows_rendered),
-          files, createdAt: row.created_at, completedAt: row.completed_at,
+          files, createdAt: row.created_at, completedAt: row.completed_at, expiresAt: row.expires_at || null,
         };
       }),
     };

@@ -11,12 +11,15 @@ import {
   Truck,
   Wallet,
   Navigation,
+  Calendar,
+  Ruler,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ToolDirectoryFilters, ToolCondition, DistanceRadius } from '../../types/toolDirectory';
 import {
   TOOL_CATEGORIES,
   TOOL_CONDITIONS,
+  TOOL_CAPACITY_UNITS,
   TOOL_PRICE_PRESETS,
   DISTANCE_RADIUS_OPTIONS,
   countActiveToolFilters,
@@ -94,6 +97,7 @@ const CheckboxRow: React.FC<{
 const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset }) => {
   const { t } = useTranslation();
   const activeCount = countActiveToolFilters(filters);
+  const [locationError, setLocationError] = useState(false);
 
   const toggleArrayItem = <T extends string>(
     arr: T[],
@@ -175,6 +179,120 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
           </label>
         </div>
 
+        {/* ── Rental dates (562) ────────────────────────────────── */}
+        <FilterSection title={t('toolRentalsDir.rentalDates')} icon={Calendar}>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label htmlFor="tool-start-date" className="text-xs text-gray-500 mb-1.5 block">
+                {t('toolRentalsDir.startDateLabel')}
+              </label>
+              <input
+                id="tool-start-date"
+                type="date"
+                value={filters.startDate}
+                onChange={(e) => onChange({ startDate: e.target.value })}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="tool-end-date" className="text-xs text-gray-500 mb-1.5 block">
+                {t('toolRentalsDir.endDateLabel')}
+              </label>
+              <input
+                id="tool-end-date"
+                type="date"
+                value={filters.endDate}
+                min={filters.startDate || undefined}
+                onChange={(e) => onChange({ endDate: e.target.value })}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+          </div>
+          {filters.startDate && filters.endDate && filters.endDate <= filters.startDate && (
+            <p className="text-xs text-rose-400 mt-1.5">{t('toolRentalsDir.dateInvalid')}</p>
+          )}
+          {(filters.startDate || filters.endDate) && !(filters.startDate && filters.endDate) && (
+            <p className="text-xs text-gray-600 mt-1.5">{t('toolRentalsDir.dateBothRequired')}</p>
+          )}
+        </FilterSection>
+
+        {/* ── Capacity & size (563) ───────────────────────────── */}
+        <FilterSection title={t('toolRentalsDir.capacitySize')} icon={Ruler} defaultOpen={false}>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label htmlFor="tool-capacity-min" className="text-xs text-gray-500 mb-1.5 block">
+                  {t('toolRentalsDir.capacityMinLabel')}
+                </label>
+                <input
+                  id="tool-capacity-min"
+                  type="number"
+                  min={0}
+                  value={filters.capacityMin ?? ''}
+                  onChange={(e) => onChange({ capacityMin: e.target.value === '' ? null : Number(e.target.value) })}
+                  placeholder="0"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+              </div>
+              <div className="flex-1">
+                <label htmlFor="tool-capacity-unit" className="text-xs text-gray-500 mb-1.5 block">
+                  {t('toolRentalsDir.capacityUnitLabel')}
+                </label>
+                <select
+                  id="tool-capacity-unit"
+                  value={filters.capacityUnit}
+                  onChange={(e) => onChange({ capacityUnit: e.target.value })}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+                >
+                  <option value="">{t('toolRentalsDir.capacityAnyUnit')}</option>
+                  {TOOL_CAPACITY_UNITS.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {filters.capacityMin !== null && !filters.capacityUnit && (
+              <p className="text-xs text-amber-400">{t('toolRentalsDir.capacityUnitRequired')}</p>
+            )}
+            <div>
+              <label htmlFor="tool-weight-max" className="text-xs text-gray-500 mb-1.5 block">
+                {t('toolRentalsDir.weightMaxLabel')}
+              </label>
+              <input
+                id="tool-weight-max"
+                type="number"
+                min={0}
+                value={filters.weightMax ?? ''}
+                onChange={(e) => onChange({ weightMax: e.target.value === '' ? null : Number(e.target.value) })}
+                placeholder="0"
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { key: 'lengthMax', label: t('toolRentalsDir.lengthMaxLabel') },
+                { key: 'widthMax', label: t('toolRentalsDir.widthMaxLabel') },
+                { key: 'heightMax', label: t('toolRentalsDir.heightMaxLabel') },
+              ] as const).map(({ key, label }) => (
+                <div key={key}>
+                  <label htmlFor={`tool-${key}`} className="text-xs text-gray-500 mb-1.5 block">
+                    {label}
+                  </label>
+                  <input
+                    id={`tool-${key}`}
+                    type="number"
+                    min={0}
+                    value={filters[key] ?? ''}
+                    onChange={(e) => onChange({ [key]: e.target.value === '' ? null : Number(e.target.value) } as Partial<ToolDirectoryFilters>)}
+                    placeholder="0"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </FilterSection>
+
         {/* ── Location ──────────────────────────────────────── */}
         <FilterSection title={t('toolRentalsDir.location')} icon={MapPin}>
           <div className="space-y-3">
@@ -227,6 +345,81 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               {filters.radius !== null && (
                 <p className="text-xs text-gray-600 mt-1.5">{t('toolRentalsDir.radiusNote')}</p>
               )}
+              {/* 564: the renter's point for the distance filter. The radius
+                  buttons above were dead UI until now: the radius is only
+                  sent to the server together with lat/lng. */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (!navigator.geolocation) {
+                      setLocationError(true);
+                      return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setLocationError(false);
+                        onChange({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                      },
+                      () => setLocationError(true),
+                      { timeout: 10000 },
+                    );
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700 transition-colors" data-track="ui.5fb231fcea.10"
+                >
+                  <Navigation className="w-3 h-3" aria-hidden="true" />
+                  {t('toolRentalsDir.useMyLocation')}
+                </button>
+                {(filters.lat !== null || filters.lng !== null) && (
+                  <button
+                    onClick={() => onChange({ lat: null, lng: null })}
+                    className="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700 transition-colors" data-track="ui.5fb231fcea.11"
+                  >
+                    {t('toolRentalsDir.clearLocation')}
+                  </button>
+                )}
+              </div>
+              {filters.lat !== null && filters.lng !== null && (
+                <p className="text-xs text-gray-500 mt-1.5">
+                  {t('toolRentalsDir.locationSet', { lat: filters.lat.toFixed(4), lng: filters.lng.toFixed(4) })}
+                </p>
+              )}
+              {locationError && (
+                <p className="text-xs text-amber-400 mt-1.5">{t('toolRentalsDir.locationUnavailable')}</p>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="tool-lat-filter" className="text-xs text-gray-500 mb-1.5 block">
+                    {t('toolRentalsDir.locationLatShort')}
+                  </label>
+                  <input
+                    id="tool-lat-filter"
+                    type="number"
+                    step="any"
+                    min={-90}
+                    max={90}
+                    value={filters.lat ?? ''}
+                    onChange={(e) => onChange({ lat: e.target.value === '' ? null : Number(e.target.value) })}
+                    placeholder="30.27"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="tool-lng-filter" className="text-xs text-gray-500 mb-1.5 block">
+                    {t('toolRentalsDir.locationLngShort')}
+                  </label>
+                  <input
+                    id="tool-lng-filter"
+                    type="number"
+                    step="any"
+                    min={-180}
+                    max={180}
+                    value={filters.lng ?? ''}
+                    onChange={(e) => onChange({ lng: e.target.value === '' ? null : Number(e.target.value) })}
+                    placeholder="-97.74"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </FilterSection>

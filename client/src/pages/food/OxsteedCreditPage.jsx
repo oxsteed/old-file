@@ -31,8 +31,11 @@ import {
   getOxsteedCreditTransactionPage,
   openOxsteedCreditDispute,
   getOxsteedCreditDisputePage,
+  listOxsteedCreditDisputeEvidence,
+  submitOxsteedCreditDisputeEvidence,
   createOxsteedCreditHold,
   releaseOxsteedCreditHold,
+  reauthorizeOxsteedCreditHold,
   getOxsteedCreditConversionQuote,
   convertOxsteedCredit,
   getOxsteedCreditFeeQuote,
@@ -41,6 +44,8 @@ import {
   getOxsteedCreditTransferRecipient,
   listOxsteedCreditWithdrawals,
   cancelOxsteedCreditWithdrawal,
+  listOxsteedCreditTopups,
+  getConsentHistory,
   createOxsteedCreditRestaurantConversion,
   getRestaurantConversionEligibility,
   issueOxsteedCreditMoneyOutStepup,
@@ -55,6 +60,7 @@ import { localizeCreditOrderType, localizeCreditTransactionType } from '../../li
 import { canConfirmTransfer, canEnterTransferReview, isValidTransferRecipientId } from '../../lib/transferReviewGuards';
 import CreditWindDownBanner from '../../components/paymentLayers/CreditWindDownBanner';
 import CreditDisclosuresPanel from '../../components/paymentLayers/CreditDisclosuresPanel';
+import CreditDomainRecoveryLinks from '../../components/credit/CreditDomainRecoveryLinks';
 
 const money = formatCreditMinorUnits;
 
@@ -106,6 +112,31 @@ function creditStatusLabel(value, t) {
   }[value] || t('statusUnknown');
 }
 
+// Group 13 Slice 4j (697): the consent history labels the stored type and
+// disclosure kind verbatim; an unknown value falls back to the stored
+// string itself rather than inventing a label.
+function consentTypeLabel(value, t) {
+  return {
+    terms_of_service: t('consentHistory.type.terms_of_service'),
+    privacy_policy: t('consentHistory.type.privacy_policy'),
+    tier3_payment_agreement: t('consentHistory.type.tier3_payment_agreement'),
+    background_check_consent: t('consentHistory.type.background_check_consent'),
+    w9_certification: t('consentHistory.type.w9_certification'),
+  }[value] || value;
+}
+
+function disclosureKindLabel(value, t) {
+  return {
+    short_form: t('consentHistory.disclosureKind.short_form'),
+    long_form: t('consentHistory.disclosureKind.long_form'),
+    fee_schedule: t('consentHistory.disclosureKind.fee_schedule'),
+    not_insured: t('consentHistory.disclosureKind.not_insured'),
+    safeguarding: t('consentHistory.disclosureKind.safeguarding'),
+    wage_payment_terms: t('consentHistory.disclosureKind.wage_payment_terms'),
+    error_resolution: t('consentHistory.disclosureKind.error_resolution'),
+  }[value] || value;
+}
+
 function transactionOrderPath(transaction) {
   return transaction?.orderId ? `/food/orders/${transaction.orderId}` : null;
 }
@@ -122,6 +153,31 @@ function holdStatusLabel(status, t) {
     released: t('releasedStatus'),
     expired: t('expiredStatus'),
   }[status] || t('reservationStatus');
+}
+
+// Group 13 Slice 4b (657): top-up statuses reuse the walletTopup.status
+// labels the top-up panel already localizes.
+function topupStatusLabel(status, t) {
+  return {
+    pending: t('walletTopup.status.pending'),
+    completed: t('walletTopup.status.completed'),
+    failed: t('walletTopup.status.failed'),
+    requires_attention: t('walletTopup.status.requires_attention'),
+  }[status] || t('walletTopup.status.pending');
+}
+
+// Group 13 Slice 4e (673, D-370): the customer view exposes the stored
+// adjustment status verbatim; the page labels pending/approved as Pending,
+// applied as Applied, and rejected/cancelled as Not applied. There is no
+// 'reversed' state in the adjustment records.
+function adjustmentStatusLabel(status, t) {
+  return {
+    pending: t('disputeAdjustmentPending'),
+    approved: t('disputeAdjustmentPending'),
+    applied: t('disputeAdjustmentApplied'),
+    rejected: t('disputeAdjustmentNotApplied'),
+    cancelled: t('disputeAdjustmentNotApplied'),
+  }[status] || t('disputeAdjustmentPending');
 }
 
 function holdTerminalDate(hold, t) {
@@ -160,6 +216,10 @@ export default function OxsteedCreditPage() {
   const [viewingPeriod, setViewingPeriod] = useState(null);
   const [disputes, setDisputes] = useState([]);
   const [disputePagination, setDisputePagination] = useState(null);
+  // Group 13 Slice 4j (697): the customer's consent history, derived from
+  // the existing acceptance records; a failed load leaves the section
+  // empty rather than blocking the wallet.
+  const [consentHistory, setConsentHistory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -175,6 +235,7 @@ export default function OxsteedCreditPage() {
   const [holdSubmitting, setHoldSubmitting] = useState(false);
   const [createdHold, setCreatedHold] = useState(null);
   const [releasingHoldId, setReleasingHoldId] = useState(null);
+  const [reauthorizingHoldId, setReauthorizingHoldId] = useState(null);
   const [conversionQuoteId, setConversionQuoteId] = useState('');
   const [conversionAmount, setConversionAmount] = useState('');
   const [conversionSubmitting, setConversionSubmitting] = useState(false);
@@ -183,6 +244,15 @@ export default function OxsteedCreditPage() {
   const [disputeReason, setDisputeReason] = useState('incorrect_amount');
   const [disputeDescription, setDisputeDescription] = useState('');
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+  // Group 13 Slice 4e (673/674): per-dispute adjustment state rides the
+  // dispute list itself; evidence is loaded lazily per case when the
+  // customer opens its evidence section.
+  const [evidenceByDispute, setEvidenceByDispute] = useState({});
+  const [evidenceOpenId, setEvidenceOpenId] = useState(null);
+  const [evidenceLoadingId, setEvidenceLoadingId] = useState(null);
+  const [evidenceNote, setEvidenceNote] = useState('');
+  const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceSubmitting, setEvidenceSubmitting] = useState(false);
   // Phase 6 money-out state.
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [withdrawalFeeQuote, setWithdrawalFeeQuote] = useState(null);
@@ -192,6 +262,12 @@ export default function OxsteedCreditPage() {
   const [withdrawals, setWithdrawals] = useState([]);
   const [createdWithdrawal, setCreatedWithdrawal] = useState(null);
   const [cancellingWithdrawalId, setCancellingWithdrawalId] = useState(null);
+  // Group 13 Slice 4b (657): pending top-ups on the pending-activity list.
+  const [pendingTopups, setPendingTopups] = useState([]);
+  // Group 13 Slice 4f (680): failed top-ups are listed beside the pending
+  // ones so the failed record — and its retry — is reachable; the record
+  // itself opens on the Wallet page panel, like a pending top-up.
+  const [failedTopups, setFailedTopups] = useState([]);
   // Customer-to-customer transfer state.
   const [transferRecipientId, setTransferRecipientId] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
@@ -243,7 +319,7 @@ export default function OxsteedCreditPage() {
       // selected wallet first so a new currency cannot race the directory and
       // render a false empty state.
       const accountResult = await getOxsteedCreditAccount({ currencyCode: preferredCurrency });
-      const [partnerResult, holdResult, railResult, statementResult, disputeResult, limitResult, eligibilityResult, periodsResult] = await Promise.all([
+      const [partnerResult, holdResult, railResult, statementResult, disputeResult, limitResult, eligibilityResult, periodsResult, consentResult] = await Promise.all([
         getOxsteedCreditEligiblePartnerPage({ currencyCode: preferredCurrency, limit: 50, offset: 0 }),
         listOxsteedCreditHolds({ currencyCode: preferredCurrency, status: 'all', limit: 50, offset: 0 }).catch(() => null),
         getOxsteedCreditStatus().catch(() => null),
@@ -254,6 +330,7 @@ export default function OxsteedCreditPage() {
         // the dropdown unfiltered and the server gate still enforces.
         getRestaurantConversionEligibility().catch(() => null),
         getOxsteedCreditStatementPeriods({ currencyCode: preferredCurrency }).catch(() => []),
+        getConsentHistory().catch(() => null),
       ]);
       if (!isCurrentRequest()) return;
       setStatementPeriods(Array.isArray(periodsResult) ? periodsResult : []);
@@ -278,6 +355,7 @@ export default function OxsteedCreditPage() {
       }
       setDisputes(Array.isArray(disputeResult?.disputes) ? disputeResult.disputes : []);
       setDisputePagination(disputeResult?.pagination || null);
+      setConsentHistory(consentResult && Array.isArray(consentResult.consents) && Array.isArray(consentResult.disclosures) ? consentResult : null);
       if (statementResult) {
         setStatement(statementResult);
         setTransactions(Array.isArray(statementResult.transactions) ? statementResult.transactions : []);
@@ -586,6 +664,23 @@ export default function OxsteedCreditPage() {
     }
   };
 
+  // Group 13, item 670 (D-367): one-click re-authorization from an expired
+  // hold — same amount and restaurant, fresh hold, same gates as a fresh
+  // authorization. The list reloads so the fresh hold appears as active.
+  const reauthorizeHold = async (hold) => {
+    if (!hold?.id || reauthorizingHoldId) return;
+    setReauthorizingHoldId(hold.id);
+    try {
+      await reauthorizeOxsteedCreditHold(hold.id);
+      toast.success(t('authorizationReauthorized'));
+      await load({ quiet: true, currencyCode: selectedCurrency });
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
+    } finally {
+      setReauthorizingHoldId(null);
+    }
+  };
+
   const submitConversion = async (event) => {
     event.preventDefault();
     const quoteId = conversionQuoteId.trim();
@@ -639,6 +734,56 @@ export default function OxsteedCreditPage() {
     }
   };
 
+  // Group 13 Slice 4e (674): load a case's evidence when the customer
+  // opens its evidence section, and attach a note and/or one file to
+  // their own open dispute. Only open/in_review disputes offer the form;
+  // the server enforces the same window and ownership.
+  const toggleDisputeEvidence = async (dispute) => {
+    if (evidenceOpenId === dispute.id) {
+      setEvidenceOpenId(null);
+      return;
+    }
+    setEvidenceOpenId(dispute.id);
+    setEvidenceNote('');
+    setEvidenceFile(null);
+    if (evidenceByDispute[dispute.id] || evidenceLoadingId === dispute.id) return;
+    setEvidenceLoadingId(dispute.id);
+    try {
+      const evidence = await listOxsteedCreditDisputeEvidence(dispute.id);
+      setEvidenceByDispute((current) => ({ ...current, [dispute.id]: evidence }));
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
+    } finally {
+      setEvidenceLoadingId(null);
+    }
+  };
+
+  const submitDisputeEvidence = async (event, dispute) => {
+    event.preventDefault();
+    if (!evidenceNote.trim() && !evidenceFile) return;
+    setEvidenceSubmitting(true);
+    try {
+      const formData = new FormData();
+      if (evidenceNote.trim()) formData.append('note', evidenceNote.trim());
+      if (evidenceFile) formData.append('file', evidenceFile);
+      const idempotencyKey = globalThis.crypto?.randomUUID?.()
+        || `credit-dispute-evidence-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      await submitOxsteedCreditDisputeEvidence(dispute.id, formData, idempotencyKey);
+      const evidence = await listOxsteedCreditDisputeEvidence(dispute.id);
+      setEvidenceByDispute((current) => ({ ...current, [dispute.id]: evidence }));
+      const refreshedDisputes = await getOxsteedCreditDisputePage({ limit: 50, offset: 0 });
+      setDisputes(Array.isArray(refreshedDisputes?.disputes) ? refreshedDisputes.disputes : []);
+      setDisputePagination(refreshedDisputes?.pagination || null);
+      toast.success(t('disputeEvidenceSubmitted'));
+      setEvidenceNote('');
+      setEvidenceFile(null);
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
+    } finally {
+      setEvidenceSubmitting(false);
+    }
+  };
+
   const loadWithdrawals = useCallback(async () => {
     try {
       const rows = await listOxsteedCreditWithdrawals({ limit: 25, offset: 0 });
@@ -651,6 +796,34 @@ export default function OxsteedCreditPage() {
   useEffect(() => {
     loadWithdrawals();
   }, [loadWithdrawals]);
+
+  // Group 13 Slice 4b (657): pending top-ups are listed from the existing
+  // top-up read path; completed top-ups stay out of the pending list and
+  // are visible on the Wallet page panel instead. Failed top-ups get their
+  // own list beside it (680) so the failed record and its retry are
+  // reachable from this page.
+  const loadPendingTopups = useCallback(async () => {
+    try {
+      const rows = await listOxsteedCreditTopups({ status: 'pending', limit: 25, offset: 0 });
+      setPendingTopups(Array.isArray(rows) ? rows : []);
+    } catch {
+      // Pending top-ups are non-critical; the page stays usable.
+    }
+  }, []);
+
+  const loadFailedTopups = useCallback(async () => {
+    try {
+      const rows = await listOxsteedCreditTopups({ status: 'failed', limit: 25, offset: 0 });
+      setFailedTopups(Array.isArray(rows) ? rows : []);
+    } catch {
+      // Failed top-ups are non-critical; the page stays usable.
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPendingTopups();
+    loadFailedTopups();
+  }, [loadPendingTopups, loadFailedTopups]);
 
   const refreshWithdrawalFeeQuote = (rawAmount) => {
     if (withdrawalQuoteTimerRef.current) clearTimeout(withdrawalQuoteTimerRef.current);
@@ -1067,7 +1240,11 @@ export default function OxsteedCreditPage() {
 
                   {accountStatus === 'active' && partners.length > 0 && <section className="ox-credit-panel ox-credit-authorize-panel" aria-labelledby="credit-authorize-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('customerAuthorization')}</p><h2 id="credit-authorize-heading">{t('authorizeInStorePayment')}</h2></div><ShieldCheck size={20} /></div><p className="ox-credit-panel-copy">{t('authorizeCopy')}</p><form className="ox-credit-authorize-form" onSubmit={submitHold}><label>{t('restaurant')}<select required value={holdPartnerId} onChange={(event) => { const nextPartnerId = event.target.value; const nextPartner = partners.find((partner) => String(partner.partnerId) === String(nextPartnerId)); setHoldPartnerId(nextPartnerId); setHoldOrderType(nextPartner?.allowedOrderTypes?.[0] || 'pickup'); }}><option value="">{t('selectRestaurant')}</option>{partners.map((partner) => <option key={partner.partnerId} value={partner.partnerId}>{partner.restaurantName}{partner.city ? ` · ${partner.city}` : ''}</option>)}</select></label><label>{t('orderType')}<select required value={holdOrderType} onChange={(event) => setHoldOrderType(event.target.value)}>{holdOrderTypes.map((type) => <option key={type} value={type}>{localizeCreditOrderType(type, t)}</option>)}</select></label><label>{t('amount')}<input required inputMode="decimal" value={holdAmount} onChange={(event) => setHoldAmount(event.target.value)} placeholder={amountPlaceholder(currency, railStatus?.currencyMetadata)} /></label><label>{t('purposeOptional')}<input value={holdPurpose} onChange={(event) => setHoldPurpose(event.target.value)} maxLength={100} placeholder={t('restaurantPurchase')} /></label><button type="submit" disabled={holdSubmitting}>{holdSubmitting ? t('creatingAuthorization') : t('createAuthorization')}</button></form>{createdHold?.id && <div className="ox-credit-created-hold"><strong>{t('holdIdInstruction')}</strong><code>{createdHold.id}</code><span>{t('holdDetails', { amount: money(createdHold.amountCents, createdHold.currencyCode || currency), date: dateTime(createdHold.expiresAt, t) })}</span><button type="button" onClick={copyHoldId}>{t('copyHoldId')}</button></div>}</section>}
 
-              {!!holds.length && <section className="ox-credit-panel ox-credit-holds-panel"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reservationHistory')}</p><h2>{t('creditHolds')}</h2></div><span className="ox-credit-count">{holds.length}{holdPagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('holdsCopy')}</p>{!!activeHolds.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('activeReservations')}</strong><span>{activeHolds.length}</span></div><div className="ox-credit-hold-list">{activeHolds.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className="ox-credit-hold-status active">{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{!!holdHistory.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('completedReservations')}</strong><span>{holdHistory.length}</span></div><div className="ox-credit-hold-list">{holdHistory.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${hold.status}`}>{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{holdPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreHolds} disabled={loadingMoreHolds || refreshing}><RefreshCw size={14} className={loadingMoreHolds ? 'ox-credit-spin' : ''} /> {loadingMoreHolds ? t('loadingOlderHolds') : t('loadOlderHolds')}</button>}</section>}
+              {!!holds.length && <section className="ox-credit-panel ox-credit-holds-panel"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reservationHistory')}</p><h2>{t('creditHolds')}</h2></div><span className="ox-credit-count">{holds.length}{holdPagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('holdsCopy')}</p>{!!activeHolds.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('activeReservations')}</strong><span>{activeHolds.length}</span></div><div className="ox-credit-hold-list">{activeHolds.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className="ox-credit-hold-status active">{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b></div></article>)}</div></div>}{!!holdHistory.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('completedReservations')}</strong><span>{holdHistory.length}</span></div><div className="ox-credit-hold-list">{holdHistory.map((hold) => <article key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{hold.purpose || t('authorizeInStorePayment')}</span><small>{holdTerminalDate(hold, t)}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${hold.status}`}>{holdStatusLabel(hold.status, t)}</span><b>{money(hold.amountCents, hold.currencyCode || currency)}</b>{hold.status === 'expired' && <button type="button" className="ox-credit-hold-action" onClick={() => reauthorizeHold(hold)} disabled={reauthorizingHoldId === hold.id}>{reauthorizingHoldId === hold.id ? t('reauthorizing') : t('reauthorizeHold')}</button>}</div></article>)}</div></div>}{holdPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreHolds} disabled={loadingMoreHolds || refreshing}><RefreshCw size={14} className={loadingMoreHolds ? 'ox-credit-spin' : ''} /> {loadingMoreHolds ? t('loadingOlderHolds') : t('loadOlderHolds')}</button>}</section>}
+
+              {!!pendingTopups.length && <section className="ox-credit-panel ox-credit-topups-panel" aria-labelledby="credit-pending-topups-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('pendingActivity')}</p><h2 id="credit-pending-topups-heading">{t('pendingTopups')}</h2></div><span className="ox-credit-count">{pendingTopups.length}</span></div><p className="ox-credit-panel-copy">{t('pendingTopupsCopy')}</p><div className="ox-credit-hold-list">{pendingTopups.map((topup) => <article key={topup.id}><div><strong>{money(topup.amountCents, topup.currencyCode || currency)}</strong><span>{topupStatusLabel(topup.status, t)}</span><small>{t('requestedAt', { date: dateTime(topup.createdAt, t) })}{topup.expiresAt ? ` · ${t('expiresAt', { date: dateTime(topup.expiresAt, t) })}` : ''}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${topup.status}`}>{topupStatusLabel(topup.status, t)}</span><Link to={`/wallet?topupId=${encodeURIComponent(topup.id)}`} className="ox-credit-detail-link">{t('viewTopup')}</Link></div></article>)}</div></section>}
+
+              {!!failedTopups.length && <section className="ox-credit-panel ox-credit-topups-panel" aria-labelledby="credit-failed-topups-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('pendingActivity')}</p><h2 id="credit-failed-topups-heading">{t('failedTopups')}</h2></div><span className="ox-credit-count">{failedTopups.length}</span></div><p className="ox-credit-panel-copy">{t('failedTopupsCopy')}</p><div className="ox-credit-hold-list">{failedTopups.map((topup) => <article key={topup.id}><div><strong>{money(topup.amountCents, topup.currencyCode || currency)}</strong><span>{topupStatusLabel(topup.status, t)}</span><small>{t('requestedAt', { date: dateTime(topup.createdAt, t) })}</small></div><div className="ox-credit-hold-end"><span className={`ox-credit-hold-status ${topup.status}`}>{topupStatusLabel(topup.status, t)}</span><Link to={`/wallet?topupId=${encodeURIComponent(topup.id)}`} className="ox-credit-detail-link">{t('viewTopup')}</Link></div></article>)}</div></section>}
 
               {!!activeHolds.length && <section className="ox-credit-panel ox-credit-release-panel" aria-labelledby="credit-release-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('authorizationControls')}</p><h2 id="credit-release-heading">{t('unusedAuthorizations')}</h2></div></div><p className="ox-credit-panel-copy">{t('cancelAuthorizationCopy')}</p><div className="ox-credit-release-list">{activeHolds.map((hold) => <div key={hold.id}><div><strong>{hold.restaurantName || t('partnerRestaurant')}</strong><span>{money(hold.amountCents, hold.currencyCode || currency)} · {holdTerminalDate(hold, t)}</span></div><button type="button" onClick={() => releaseHold(hold)} disabled={releasingHoldId === hold.id}>{releasingHoldId === hold.id ? t('releasing') : t('releaseHold')}</button></div>)}</div></section>}
 
@@ -1076,7 +1253,7 @@ export default function OxsteedCreditPage() {
                   <div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('partnerNetwork')}</p><h2>{t('whereSpend')}</h2></div><span className="ox-credit-count">{visiblePartners.length}{visiblePartners.length !== partners.length ? ` / ${partners.length}` : ''}</span></div>
                   <p className="ox-credit-panel-copy">{t('partnerNetworkCopy')}</p>
                   {accountStatus === 'active' && <form className="ox-credit-partner-filters" onSubmit={submitPartnerFilters}><label><Search size={15} /><input aria-label={t('searchEligible')} value={partnerSearch} onChange={(event) => setPartnerSearch(event.target.value)} placeholder={t('searchRestaurantCity')} /></label><select aria-label={t('searchEligible')} value={partnerOrderType} onChange={(event) => setPartnerOrderType(event.target.value)}><option value="">{t('allOrderTypes')}</option>{partnerOrderTypes.map((type) => <option key={type} value={type}>{localizeCreditOrderType(type, t)}</option>)}</select><button type="submit" className="ox-credit-partner-search" disabled={refreshing}>{refreshing ? t('searching') : t('search')}</button></form>}
-                  {accountStatus !== 'active' || (!partners.length && !hasPartnerFilters) ? <div className="ox-credit-empty"><Store size={27} />{accountStatus !== 'active' ? <><strong>{t('creditAccountStatus', { status: creditStatusLabel(accountStatus, t) })}</strong><span>{t('partnerHidden')}</span></> : <><strong>{t('noPartnerRestaurants')}</strong><span>{t('creditBecomesSpendable')}</span></>}</div> : !visiblePartners.length ? <div className="ox-credit-empty"><Search size={27} /><strong>{t('noEligibleMatch')}</strong><span>{t('tryAnother')}</span><button type="button" className="ox-credit-clear-filters" onClick={clearPartnerFilters}>{t('clearFilters')}</button></div> : <><div className="ox-credit-partner-list">{visiblePartners.map((partner) => <article className="ox-credit-partner" key={partner.partnerId}><div className="ox-credit-partner-mark">{partner.logoUrl ? <img src={partner.logoUrl} alt="" /> : <Building2 size={21} />}</div><div className="ox-credit-partner-content"><div className="ox-credit-partner-title"><div><h3>{partner.restaurantName || t('partnerRestaurant')}</h3><span>{[partner.city, partner.state].filter(Boolean).join(', ') || t('locationNotListed')}</span></div><span className="ox-credit-eligible"><ShieldCheck size={14} /> {t('eligible')}</span></div><div className="ox-credit-tags">{(partner.allowedOrderTypes || []).map((type) => <span key={type}>{localizeCreditOrderType(type, t)}</span>)}{partner.hasCustomerEntitlement && <span>{t('customerEntitlement')}</span>}</div><p>{partner.customerTerms || t('termsFallback')}</p><div className="ox-credit-partner-meta"><span>{geographySummary(partner, t)}</span>{partnerLimit(partner, t)}{partner.dailyCustomerLimitCents ? <span>{t('dailyLimit', { amount: money(partner.dailyCustomerLimitCents, partner.currencyCode) })}</span> : null}{partner.lifetimeCustomerLimitCents ? <span>{t('lifetimeLimit', { amount: money(partner.lifetimeCustomerLimitCents, partner.currencyCode) })}</span> : null}{partner.allowedCategories?.length ? <span>{t('coveredCategories', { count: partner.allowedCategories.length })}</span> : null}</div>{partner.restaurantId ? <Link className="ox-credit-partner-link" to={`/restaurants/r/${partner.restaurantId}`}>{t('openMenu')} <ArrowUpRight size={14} /></Link> : null}</div></article>)}</div>{partnerPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMorePartners} disabled={loadingMorePartners}>{loadingMorePartners ? t('loadingMoreRestaurants') : t('showMoreRestaurants')}</button>}</>}
+                  {accountStatus !== 'active' || (!partners.length && !hasPartnerFilters) ? <div className="ox-credit-empty"><Store size={27} />{accountStatus !== 'active' ? <><strong>{t('creditAccountStatus', { status: creditStatusLabel(accountStatus, t) })}</strong><span>{t('partnerHidden')}</span>{account?.statusReason && <span>{t('creditAccountStatusReason', { reason: account.statusReason })}</span>}{account?.statusChangedAt && <span>{t('creditAccountStatusChangedAt', { date: dateTime(account.statusChangedAt, t) })}</span>}<CreditDomainRecoveryLinks /></> : <><strong>{t('noPartnerRestaurants')}</strong><span>{t('creditBecomesSpendable')}</span></>}</div> : !visiblePartners.length ? <div className="ox-credit-empty"><Search size={27} /><strong>{t('noEligibleMatch')}</strong><span>{t('tryAnother')}</span><button type="button" className="ox-credit-clear-filters" onClick={clearPartnerFilters}>{t('clearFilters')}</button></div> : <><div className="ox-credit-partner-list">{visiblePartners.map((partner) => <article className="ox-credit-partner" key={partner.partnerId}><div className="ox-credit-partner-mark">{partner.logoUrl ? <img src={partner.logoUrl} alt="" /> : <Building2 size={21} />}</div><div className="ox-credit-partner-content"><div className="ox-credit-partner-title"><div><h3>{partner.restaurantName || t('partnerRestaurant')}</h3><span>{[partner.city, partner.state].filter(Boolean).join(', ') || t('locationNotListed')}</span></div><span className="ox-credit-eligible"><ShieldCheck size={14} /> {t('eligible')}</span></div><div className="ox-credit-tags">{(partner.allowedOrderTypes || []).map((type) => <span key={type}>{localizeCreditOrderType(type, t)}</span>)}{partner.hasCustomerEntitlement && <span>{t('customerEntitlement')}</span>}</div><p>{partner.customerTerms || t('termsFallback')}</p><div className="ox-credit-partner-meta"><span>{geographySummary(partner, t)}</span>{partnerLimit(partner, t)}{partner.dailyCustomerLimitCents ? <span>{t('dailyLimit', { amount: money(partner.dailyCustomerLimitCents, partner.currencyCode) })}</span> : null}{partner.lifetimeCustomerLimitCents ? <span>{t('lifetimeLimit', { amount: money(partner.lifetimeCustomerLimitCents, partner.currencyCode) })}</span> : null}{partner.allowedCategories?.length ? <span>{t('coveredCategories', { count: partner.allowedCategories.length })}</span> : null}</div>{partner.restaurantId ? <Link className="ox-credit-partner-link" to={`/restaurants/r/${partner.restaurantId}`}>{t('openMenu')} <ArrowUpRight size={14} /></Link> : null}</div></article>)}</div>{partnerPagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMorePartners} disabled={loadingMorePartners}>{loadingMorePartners ? t('loadingMoreRestaurants') : t('showMoreRestaurants')}</button>}</>}
                   <Link to="/restaurants" className="ox-credit-secondary-link">{t('browseParticipating')} <ArrowUpRight size={15} /></Link>
                 </section>
 
@@ -1148,7 +1325,25 @@ export default function OxsteedCreditPage() {
                   <div className="ox-credit-security-note"><AlertCircle size={15} /> {t('needHelpTransaction')} <Link to="/support/escalation">{t('contactSupport')}</Link></div>
                 </section>
               </div>
-              {disputes.length > 0 && <section className="ox-credit-panel ox-credit-dispute-history"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reviewHistory')}</p><h2>{t('yourCreditDisputes')}</h2></div><span className="ox-credit-count">{disputes.length}{disputePagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('disputesCopy')}</p><div className="ox-credit-dispute-list">{disputes.map((dispute) => <article key={dispute.id}><div><div className="ox-credit-dispute-title"><strong>{dispute.restaurantName || t('ledgerEntry')}</strong><span className={`ox-credit-dispute-status ${dispute.status}`}>{creditStatusLabel(dispute.status, t)}</span></div><span>{disputeReasonLabel(dispute.reasonCode, t)}</span>{dispute.amountCents !== null && dispute.amountCents !== undefined && <small>{money(dispute.amountCents, dispute.currencyCode || currency)} · {transactionLabel({ transactionType: dispute.transactionType }, t)}</small>}<small>{t('opened', { date: dateTime(dispute.openedAt, t), id: dispute.transactionId })}</small><p>{dispute.description}</p>{dispute.resolution && <em>{t('resolution', { value: dispute.resolution })}</em>}</div></article>)}</div>{disputePagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreDisputes} disabled={loadingMoreDisputes}><RefreshCw size={14} className={loadingMoreDisputes ? 'ox-credit-spin' : ''} /> {loadingMoreDisputes ? t('loadingOlderActivity') : t('loadOlderActivity')}</button>}</section>}
+              {disputes.length > 0 && <section className="ox-credit-panel ox-credit-dispute-history"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('reviewHistory')}</p><h2>{t('yourCreditDisputes')}</h2></div><span className="ox-credit-count">{disputes.length}{disputePagination?.hasMore ? '+' : ''}</span></div><p className="ox-credit-panel-copy">{t('disputesCopy')}</p><div className="ox-credit-dispute-list">{disputes.map((dispute) => <article key={dispute.id}><div><div className="ox-credit-dispute-title"><strong>{dispute.restaurantName || t('ledgerEntry')}</strong><span className={`ox-credit-dispute-status ${dispute.status}`}>{creditStatusLabel(dispute.status, t)}</span></div><span>{disputeReasonLabel(dispute.reasonCode, t)}</span>{dispute.amountCents !== null && dispute.amountCents !== undefined && <small>{money(dispute.amountCents, dispute.currencyCode || currency)} · {transactionLabel({ transactionType: dispute.transactionType }, t)}</small>}<small>{t('opened', { date: dateTime(dispute.openedAt, t), id: dispute.transactionId })}</small><p>{dispute.description}</p>{dispute.resolution && <em>{t('resolution', { value: dispute.resolution })}</em>}
+                  {(dispute.adjustments?.length > 0 || Number(dispute.provisionalCreditCents || 0) > 0 || dispute.resolutionEntries?.compensation) && <div className="ox-credit-dispute-adjustments"><strong>{t('disputeAdjustmentsTitle')}</strong>
+                    {Number(dispute.provisionalCreditCents || 0) > 0 && <span>{t('disputeProvisionalCreditLine', { amount: money(dispute.provisionalCreditCents, dispute.currencyCode || currency) })}</span>}
+                    {dispute.resolutionEntries?.compensation && <span>{t('disputeCompensationLine', { amount: money(dispute.resolutionEntries.compensation.amountCents, dispute.currencyCode || currency), date: dateTime(dispute.resolutionEntries.compensation.decidedAt, t) })}</span>}
+                    {(dispute.adjustments || []).map((adjustment) => <div key={adjustment.id} className="ox-credit-dispute-adjustment"><span>{money(adjustment.amountCents, adjustment.currencyCode || currency)} · {adjustmentStatusLabel(adjustment.status, t)}</span><small>{adjustment.appliedAt ? t('disputeAdjustmentAppliedAt', { date: dateTime(adjustment.appliedAt, t) }) : adjustment.decidedAt ? t('disputeAdjustmentDecidedAt', { date: dateTime(adjustment.decidedAt, t) }) : t('disputeAdjustmentProposedAt', { date: dateTime(adjustment.proposedAt, t) })}</small></div>)}
+                  </div>}
+                  <div className="ox-credit-dispute-evidence">
+                    <button type="button" className="ox-credit-evidence-toggle" onClick={() => toggleDisputeEvidence(dispute)}>{evidenceOpenId === dispute.id ? t('disputeEvidenceHide') : t('disputeEvidenceShow', { count: dispute.evidenceCount || 0 })}</button>
+                    {evidenceOpenId === dispute.id && <div className="ox-credit-evidence-body">
+                      {evidenceLoadingId === dispute.id ? <span>{t('loadingOlderActivity')}</span> : ((evidenceByDispute[dispute.id] || []).length === 0 ? <span>{t('disputeEvidenceEmpty')}</span> : (evidenceByDispute[dispute.id] || []).map((item) => <div key={item.id} className="ox-credit-evidence-item">{item.kind === 'file' ? <a href={item.downloadUrl} target="_blank" rel="noreferrer">{t('disputeEvidenceDownload', { filename: item.originalFilename })}</a> : <span>{item.note}</span>}{item.kind === 'file' && item.note && <span>{item.note}</span>}<small>{dateTime(item.submittedAt, t)}</small></div>))}
+                      {['open', 'in_review'].includes(dispute.status) && <form className="ox-credit-evidence-form" onSubmit={(event) => submitDisputeEvidence(event, dispute)}>
+                        <label><span>{t('disputeEvidenceNoteLabel')}</span><textarea value={evidenceNote} onChange={(event) => setEvidenceNote(event.target.value)} maxLength={2000} rows={2} placeholder={t('disputeEvidenceNotePlaceholder')} /></label>
+                        <label><span>{t('disputeEvidenceFileLabel')}</span><input type="file" accept="image/*,.pdf,.txt,.doc,.docx" onChange={(event) => setEvidenceFile(event.target.files?.[0] || null)} /></label>
+                        <div><button type="submit" disabled={evidenceSubmitting || (!evidenceNote.trim() && !evidenceFile)}>{evidenceSubmitting ? t('submitting') : t('disputeEvidenceSubmit')}</button></div>
+                      </form>}
+                    </div>}
+                  </div>
+                </div></article>)}</div>{disputePagination?.hasMore && <button type="button" className="ox-credit-load-more" onClick={loadMoreDisputes} disabled={loadingMoreDisputes}><RefreshCw size={14} className={loadingMoreDisputes ? 'ox-credit-spin' : ''} /> {loadingMoreDisputes ? t('loadingOlderActivity') : t('loadOlderActivity')}</button>}</section>}
+              {consentHistory && <section className="ox-credit-panel" aria-labelledby="credit-consent-history-heading"><div className="ox-credit-panel-heading"><div><p className="ox-credit-eyebrow">{t('consentHistory.eyebrow')}</p><h2 id="credit-consent-history-heading">{t('consentHistory.title')}</h2></div></div><p className="ox-credit-panel-copy">{t('consentHistory.copy')}</p>{!consentHistory.consents.length && !consentHistory.disclosures.length ? <div className="ox-credit-empty"><ShieldCheck size={27} /><strong>{t('consentHistory.empty')}</strong></div> : <>{!!consentHistory.consents.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('consentHistory.consentsTitle')}</strong><span>{consentHistory.consents.length}</span></div><div className="ox-credit-hold-list">{consentHistory.consents.map((row, index) => <article key={`${row.consentType}-${row.acceptedAt}-${index}`}><div><strong>{consentTypeLabel(row.consentType, t)}</strong><span>{t('consentHistory.versionLabel', { version: row.version })}</span><small>{t('consentHistory.acceptedAtLabel', { date: dateTime(row.acceptedAt, t) })}</small></div></article>)}</div></div>}{!!consentHistory.disclosures.length && <div className="ox-credit-hold-group"><div className="ox-credit-hold-group-title"><strong>{t('consentHistory.disclosuresTitle')}</strong><span>{consentHistory.disclosures.length}</span></div><div className="ox-credit-hold-list">{consentHistory.disclosures.map((row, index) => <article key={`${row.disclosureKind}-${row.acceptedAt}-${index}`}><div><strong>{disclosureKindLabel(row.disclosureKind, t)}</strong><span>{row.version !== null && row.version !== undefined ? t('consentHistory.versionLabel', { version: row.version }) : t('consentHistory.versionPending')}</span><small>{t('consentHistory.acceptedAtLabel', { date: dateTime(row.acceptedAt, t) })}</small></div></article>)}</div></div>}</>}</section>}
             </>
           )}
           <section className="ox-credit-panel ox-credit-error-policy" aria-labelledby="credit-error-policy-heading">

@@ -18,6 +18,8 @@ const STORE_TABLES = [
   'business_staff_shifts',
   'display_pairings',
   'food_orders',
+  'oxsteed_credit_kiosk_shifts',
+  'oxsteed_credit_location_period_reviews',
   'restaurant_app_devices',
   'restaurant_audits',
   'restaurant_checklist_runs',
@@ -30,13 +32,12 @@ const STORE_TABLES = [
   'restaurant_delivery_marketplace_integrations',
   'restaurant_delivery_marketplace_orders',
   'restaurant_devices',
+  'restaurant_equipment_downtime',
+  'restaurant_help_requests',
   'restaurant_inventory_adjustments',
   'restaurant_inventory_audit_events',
   'restaurant_inventory_availability_events',
   'restaurant_inventory_items',
-  // Phase 6 (gap 14): lots carry the store so FEFO consumption and the
-  // lots list stay store-scoped; lot consumptions are order-scoped
-  // (restaurant_id only) and modifier mappings are restaurant-scoped.
   'restaurant_inventory_lots',
   'restaurant_inventory_order_reservations',
   'restaurant_inventory_purchase_requests',
@@ -46,11 +47,14 @@ const STORE_TABLES = [
   'restaurant_kitchen_events',
   'restaurant_kitchen_stations',
   'restaurant_labor_jurisdictions',
+  'restaurant_location_closures',
   'restaurant_location_labor_policies',
   'restaurant_location_memberships',
-  // Phase 8 (Track B): per-store tip pools; the store's own row
-  // wins, otherwise the restaurant-level fallback.
+  'restaurant_location_readiness',
+  'restaurant_location_special_hours',
   'restaurant_location_tip_pool_settings',
+  'restaurant_menu_change_log',
+  'restaurant_order_issues',
   'restaurant_pos_approvals',
   'restaurant_pos_drawer_events',
   'restaurant_pos_payments',
@@ -64,10 +68,13 @@ const STORE_TABLES = [
   'restaurant_runner_settlements',
   'restaurant_runner_tasks',
   'restaurant_schedule_versions',
+  'restaurant_scheduled_menu_changes',
   'restaurant_scheduled_reports',
   'restaurant_screen_events',
   'restaurant_screen_tickets',
+  'restaurant_shift_checkins',
   'restaurant_staff_pins',
+  'restaurant_stock_notices',
   'restaurant_store_forward_settings',
   'restaurant_store_menu_overrides',
   'restaurant_tables',
@@ -92,6 +99,14 @@ const BUSINESS_LEVEL = 'business-level owner/manager action across all stores (r
 const AGGREGATE_ONLY = 'existence/count check only; returns no store data';
 
 const REVIEWED = {
+  // Groups 5-6 (items 236-300): own-row reads, business-level aggregates, or
+  // the shared storeBoundary filter in teamCommon.js.
+  'services/businessOwner/expansionService.js': BUSINESS_LEVEL,
+  'services/businessOwner/performanceService.js': BUSINESS_LEVEL,
+  'services/businessOwner/workLeaveService.js': CUSTOMER_OR_SELF,
+  'services/restaurantPersona/ownerService.js': 'store-scoped through restaurantPersona/access storeIds()/location() (getLocationScope + assertLocationAccess); cross-store reports are owner/manager role-gated',
+  'controllers/restaurantHelpController.js': 'restaurant-level support requests gated by requireRestaurantAccess + support permissions; location_id is optional context added in 20261123210000',
+  'services/businessOwner/workStartService.js': CUSTOMER_OR_SELF,
   'controllers/adminFoodOrdersController.js': PLATFORM_ADMIN,
   'controllers/agentFoodRefundActions.js': PLATFORM_ADMIN,
   'controllers/businessController.js': AGGREGATE_ONLY,
@@ -126,6 +141,21 @@ const REVIEWED = {
   'services/profileVisibilityActiveWork.js': CUSTOMER_OR_SELF,
   'services/restaurantDeliveryMarketplaceService.js': SCOPED_CALLER,
   'services/restaurantDeviceCredentials.js': DEVICE_BOUND,
+  // Group 13 slice 4g (681-685): every shift query is filtered by the
+  // authenticated kiosk device id, and the shift's restaurant/location
+  // come from the device record (paired location; migration 989) — the
+  // working location is validated against the authorized set derived
+  // server-side from that record, never from a client-sent id alone
+  // (D-383). No query reads across devices or restaurants.
+  'services/creditKioskCashier.js': DEVICE_BOUND,
+  // Group 13 slice 4h (686-690): every read is filtered by the caller's
+  // resolved scope — the kiosk door reads only the authenticated device's
+  // paired location (resolveDeviceScope, D-383), the HQ door only
+  // locations of the restaurant requireRestaurantAccess resolved, with an
+  // explicit locationId validated against that set (D-391). The period
+  // reviews it writes carry the resolved restaurant/location, never a
+  // client-sent scope. No query reads across restaurants.
+  'services/creditLocationReconciliation.js': SCOPED_CALLER,
   // Punch closeout (Phase 2): the close-of-day sweep closes forgotten
   // punches across ALL stores of one business, by design — either the
   // nightly system job or a business-level manager action (role-gated,

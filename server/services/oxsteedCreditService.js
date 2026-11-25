@@ -13,6 +13,7 @@ const {
 // data says so, per country) instead of one raw minor-unit number applied
 // to every currency. USD with no data rule keeps the historical env value.
 const { resolveLimitMinor } = require('./creditCompliance/limitRules');
+const { creditRemainder } = require('../utils/creditRemainder');
 
 const CREDIT_CURRENCY = 'USD';
 // Credit amounts are stored as integer minor units. Keep this map explicit:
@@ -1766,7 +1767,10 @@ async function getCustomerCreditEligibility({ customerId, restaurantId, currency
   if (!Number.isSafeInteger(normalizedRestaurantId) || normalizedRestaurantId <= 0) {
     throw new AppError('Invalid restaurantId', 400, 'invalid_restaurantId');
   }
-  const normalizedAmount = amountCents === undefined || amountCents === null || String(amountCents).trim() === ''
+  // Group 13, item 667 (D-365): a missing amount is "no amount", not a
+  // zero-cent amount — parseAmountCents rejects zero, so treat 0 as
+  // absent here and let the remainder fields stay omitted.
+  const normalizedAmount = amountCents === undefined || amountCents === null || String(amountCents).trim() === '' || Number(amountCents) === 0
     ? 0
     : parseAmountCents(amountCents, 'amountCents', currencyCode);
   const normalizedCategories = Array.isArray(categories)
@@ -1810,6 +1814,24 @@ async function getCustomerCreditEligibility({ customerId, restaurantId, currency
       if (settlementCurrency !== currency) {
         throw new AppError('The partner settlement currency does not match the customer Credit account', 409, 'credit_partner_currency_mismatch');
       }
+      // Group 13, item 667 (D-365): the checkout remainder (order total
+      // minus Credit applied) rides the eligible response, from a read-only
+      // wallet SELECT — the read never creates an account.
+      let remainder = null;
+      if (normalizedAmount > 0) {
+        const { rows: accountRows } = await client.query(
+          `SELECT balance_cents, reserved_cents FROM oxsteed_credit_accounts
+            WHERE account_type = 'customer_wallet' AND customer_id = $1 AND currency_code = $2
+            LIMIT 1`,
+          [customerId, settlementCurrency]
+        );
+        if (accountRows[0]) {
+          remainder = creditRemainder({
+            totalCents: normalizedAmount,
+            availableCents: Number(accountRows[0].balance_cents || 0) - Number(accountRows[0].reserved_cents || 0),
+          });
+        }
+      }
       return {
         eligible: true,
         reasonCode: null,
@@ -1817,6 +1839,7 @@ async function getCustomerCreditEligibility({ customerId, restaurantId, currency
         partnerId: String(partner.partner_id),
         agreementId: String(agreement.id),
         currencyCode: settlementCurrency,
+        ...(remainder ? { creditAppliedCents: remainder.creditAppliedCents, remainderCents: remainder.remainderCents } : {}),
       };
     } catch (error) {
       if (error instanceof AppError && CREDIT_ELIGIBILITY_FAILURE_CODES.has(error.code)) {
@@ -1994,11 +2017,50 @@ async function getCustomerCreditAccount(customerId, currencyCode = CREDIT_CURREN
         AND a.currency_code = $2`,
     [customerId, currency]
   );
-  if (rows[0]) return formatAccount(rows[0]);
+  if (rows[0]) {
+    const account = formatAccount(rows[0]);
+    // Group 13 Slice 4j (700, display-only): the reason and date of a
+    // wallet-account removal, from the record that already exists — the
+    // `credit.customer_account.status_changed` audit event written by
+    // updateCustomerCreditAccountStatus (a reason is required there).
+    // Read-only: the latest event for this account, scoped to the caller,
+    // shown only while the account is not active. No transition is built
+    // here; the participant suspend/revoke transition stays HELD.
+    if (account.status !== 'active') {
+      const change = await getAccountStatusChange({ accountId: account.accountId, customerId });
+      account.statusReason = change?.reason || null;
+      account.statusChangedAt = change?.created_at || account.updatedAt;
+    } else {
+      account.statusReason = null;
+      account.statusChangedAt = null;
+    }
+    return account;
+  }
   return withTransaction(pool, async (client) => {
     const account = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
-    return formatAccount(account);
+    const formatted = formatAccount(account);
+    formatted.statusReason = null;
+    formatted.statusChangedAt = null;
+    return formatted;
   }, 'credit_get_customer_account');
+}
+
+// Group 13 Slice 4j (700, display-only): the latest wallet-account status
+// change for the caller's own account. The audit event is the only place
+// the removal reason is stored (the account row carries status +
+// updated_at only); the caller scope keeps another customer's reason out.
+async function getAccountStatusChange({ accountId, customerId }) {
+  const { rows } = await pool.query(
+    `SELECT reason, created_at FROM oxsteed_credit_audit_events
+      WHERE action_type = 'credit.customer_account.status_changed'
+        AND resource_type = 'credit_account'
+        AND resource_id = $1
+        AND customer_id = $2
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1`,
+    [String(accountId), customerId]
+  );
+  return rows[0] || null;
 }
 
 async function getCustomerCreditLimitSummary(customerId, currencyCode = CREDIT_CURRENCY) {
@@ -2795,7 +2857,7 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
   const currency = assertSupportedCreditCurrency(currencyCode);
   if (!['active', 'suspended', 'closed'].includes(normalizedStatus)) throw new AppError('Invalid credit account status', 400, 'credit_account_status_invalid');
   if (!normalizeString(reason, 2)) throw new AppError('A reason is required when changing a credit account status', 400, 'credit_account_status_reason_required');
-  return withTransaction(pool, async (client) => {
+  const result = await withTransaction(pool, async (client) => {
     const account = await findCustomerAccount(client, customerId, currency, true);
     if (!account) throw new AppError('Customer credit account was not found', 404, 'credit_account_not_found');
     if (account.status === normalizedStatus) return { account: formatAccount(account), replayed: true };
@@ -2815,6 +2877,49 @@ async function updateCustomerCreditAccountStatus({ customerId, status, currencyC
     );
     return { account: formatAccount(rows[0]), replayed: false };
   }, 'credit_update_customer_status');
+  // Group 13 (694): the wallet holder hears when their account status
+  // flips — that flip is the customer-side eligibility change (a
+  // suspended or closed wallet is ineligible to spend). Best-effort
+  // after commit, like the participant notice; a replay (same status)
+  // sends nothing.
+  if (result && !result.replayed) {
+    await notifyCreditAccountStatusChange(customerId, result.account);
+  }
+  return result;
+}
+
+/**
+ * Group 13 (694, D-401/D-402): wallet account status notice. Same type
+ * as the participant notice (`credit_participant_status_changed`) — the
+ * wallet holder is the same persona's customer surface, and the data
+ * distinguishes the kind. The idempotency key binds the account, the new
+ * status, and the row's updated_at, so a retry of the same flip replays
+ * while a later flip (suspended -> active -> suspended) notifies again.
+ */
+const CREDIT_ACCOUNT_STATUS_NOTICE_COPY = {
+  active: 'Your Credit wallet is active again. You can spend and receive Credit as before.',
+  suspended: 'Your Credit wallet is suspended. You cannot spend or receive Credit until it is reactivated. Contact support if you think this is a mistake.',
+  closed: 'Your Credit wallet is closed. Contact support if you need help.',
+};
+
+async function notifyCreditAccountStatusChange(customerId, account) {
+  try {
+    const status = account?.status;
+    const copy = CREDIT_ACCOUNT_STATUS_NOTICE_COPY[status];
+    if (!copy) return;
+    const { sendNotification } = require('./notificationService');
+    const updatedAt = account.updatedAt ? new Date(account.updatedAt).getTime() : 0;
+    await sendNotification({
+      userId: customerId,
+      type: 'credit_participant_status_changed',
+      body: copy,
+      data: { account_id: String(account.accountId), account_status: status, kind: 'wallet_account' },
+      action_url: '/oxsteed-credit',
+      idempotencyKey: `credit-account:${account.accountId}:${status}:${updatedAt}`,
+    });
+  } catch (err) {
+    logger.warn('Credit account status notification failed', { customerId, error: err.message });
+  }
 }
 
 async function createCreditHoldInTransaction(client, { customerId, partnerId, participantId = null, surface = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, menuItemId, city, state, postalCode, country, purpose, referenceType, referenceId, correlationId, requestIp, expiresAt, metadata = {} }) {
@@ -3061,6 +3166,79 @@ async function releaseCreditHold({ customerId, holdId, actorUserId, reason, corr
     await client.query(`INSERT INTO oxsteed_credit_audit_events (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip) VALUES ('credit.hold.released', $1, $2, $3, 'credit_hold', $4, $5, $6, $7)`, [actorUserId || customerId, customerId, hold.partner_id, String(hold.id), releaseReason, normalizeString(correlationId, 160), requestIp || null]);
     return { hold: formatHold(updatedRows[0]), replayed: false };
   }, 'credit_release_hold');
+}
+
+// Group 13, item 670 (D-367/D-368): one-click re-authorization from an
+// expired hold. The expired hold's stored amount, restaurant, purpose,
+// reference, and request scope are replayed through the existing hold
+// creation path (createCreditHoldInTransaction) with a fresh server
+// generated idempotency key, so the rail gates, agreement resolution,
+// spend capacity, and balance checks all run again exactly as for a fresh
+// authorization. The expired hold stays expired; the fresh hold is a new
+// row. The link is recorded on the expired hold's metadata
+// (reauthorizedHoldId) in the same transaction, so a repeat click while
+// the fresh hold is still active replays it instead of reserving twice;
+// once the fresh hold ends, the same expired hold can be re-authorized
+// again into a new hold.
+async function reauthorizeCreditHold({ customerId, holdId, actorUserId, correlationId, requestIp, metadata = {} }) {
+  requireCustomerActor(actorUserId, customerId, 'The Credit hold owner must re-authorize the hold', 'credit_hold_actor_required');
+  return withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT * FROM oxsteed_credit_holds WHERE id = $1 AND customer_id = $2 FOR UPDATE`,
+      [holdId, customerId]
+    );
+    const expiredHold = rows[0];
+    if (!expiredHold) throw new AppError('Credit hold not found', 404, 'credit_hold_not_found');
+    if (expiredHold.status !== 'expired') {
+      throw new AppError('Only an expired Credit hold can be re-authorized', 409, 'credit_hold_state_invalid');
+    }
+    // D-368: the link lives on the FRESH hold's metadata (reauthorizedFrom,
+    // written at insert). The expired hold itself is never mutated —
+    // migration 469 forbids changing hold authorization fields, metadata
+    // included — so the replay lookup reads the fresh holds instead.
+    const { rows: priorRows } = await client.query(
+      `SELECT * FROM oxsteed_credit_holds
+        WHERE customer_id = $1 AND status = 'active'
+          AND metadata ->> 'reauthorizedFrom' = $2
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1`,
+      [customerId, String(expiredHold.id)]
+    );
+    if (priorRows[0]) {
+      return { hold: formatHold(priorRows[0]), replayed: true, reauthorizedFrom: String(expiredHold.id) };
+    }
+    const scope = normalizeMetadata(normalizeMetadata(expiredHold.metadata)._oxsteedCreditRequest);
+    const created = await createCreditHoldInTransaction(client, {
+      customerId,
+      partnerId: Number(expiredHold.partner_id),
+      amountCents: Number(expiredHold.amount_cents),
+      currencyCode: expiredHold.currency_code,
+      idempotencyKey: `credit-hold-reauth-${expiredHold.id}-${crypto.randomUUID()}`,
+      actorUserId,
+      orderType: scope.orderType || null,
+      category: scope.category || null,
+      menuItemId: scope.menuItemId || null,
+      city: scope.city || null,
+      state: scope.state || null,
+      postalCode: scope.postalCode || null,
+      country: scope.country || null,
+      purpose: expiredHold.purpose || null,
+      referenceType: expiredHold.reference_type || null,
+      referenceId: expiredHold.reference_id || null,
+      correlationId,
+      requestIp,
+      metadata: { ...normalizeMetadata(metadata), reauthorizedFrom: String(expiredHold.id) },
+    });
+    await client.query(
+      `INSERT INTO oxsteed_credit_audit_events
+         (action_type, actor_user_id, customer_id, partner_id, resource_type, resource_id, reason, correlation_id, request_ip, after_state)
+       VALUES ('credit.hold.reauthorized', $1, $2, $3, 'credit_hold', $4, $5, $6, $7, $8::jsonb)`,
+      [actorUserId || null, customerId, expiredHold.partner_id, String(created.hold.id),
+        'Customer re-authorized expired credit hold', normalizeString(correlationId, 160), requestIp || null,
+        JSON.stringify({ reauthorizedFrom: String(expiredHold.id), amountCents: Number(expiredHold.amount_cents) })]
+    );
+    return { hold: created.hold, replayed: false, reauthorizedFrom: String(expiredHold.id) };
+  }, 'credit_reauthorize_hold');
 }
 
 async function captureCreditHoldInTransaction(client, { holdId, amountCents, currencyCode = null, idempotencyKey, actorUserId, actorType = 'admin', orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, referenceType, referenceId, correlationId, requestIp, description, reason, metadata = {}, allowAmountAdjust = false }) {
@@ -3827,11 +4005,138 @@ function customerCreditStatementCsv(statement) {
   return `\ufeff${lines.join('\r\n')}\r\n`;
 }
 
+// Group 13 Slice 4b (659): reversal explanation on the customer
+// transaction detail. The ledger already carries what explains a reversal —
+// the stored `reason` column (migrations 468/487; required on settlement
+// reversals, generated on payout reversals) and the posting metadata — so
+// no new stored reason field is added. The original transaction is resolved
+// from the same existing data and is only exposed when the caller can open
+// it (it touches their own wallet): the three labeled reversal types
+// reverse partner/treasury legs whose originals live outside the customer
+// wallet, so their link resolves to null rather than a dead link, while a
+// `refund` — the reversal a customer actually sees — resolves to the
+// `purchase` its reference names (migration 476: the reference carries the
+// purchase transaction id; pre-476 rows may carry the order id instead).
+const REVERSAL_TRANSACTION_TYPES = Object.freeze([
+  'settlement_reversal',
+  'sub_bank_load_reversal',
+  'sub_bank_payout_reversal',
+]);
+const UUID_PATTERN = /^[0-9a-fA-F-]{36}$/;
+
+function storedReversalReason(row) {
+  const reason = typeof row.reason === 'string' ? row.reason.trim() : '';
+  if (!reason || reason === LEGACY_CREDIT_REASON) return null;
+  return reason;
+}
+
+function derivedReversalReasonCode(row) {
+  const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+  if (row.transaction_type === 'sub_bank_load_reversal') {
+    if (metadata.foodWalletReferenceType === 'credit_derisk') return 'derisk';
+    if (metadata.foodWalletReferenceType === 'credit_refund') return 'refund';
+    return 'load_reversal';
+  }
+  if (row.transaction_type === 'sub_bank_payout_reversal') return 'payout_reversed';
+  if (row.transaction_type === 'settlement_reversal') return 'settlement';
+  if (row.transaction_type === 'refund') return 'purchase_refund';
+  return null;
+}
+
+async function resolveReversalOriginalTransactionId({ row, customerId, currency }) {
+  const referenceId = typeof row.reference_id === 'string' ? row.reference_id.trim() : '';
+  // A refund reverses the purchase its reference names. Current postings
+  // (migration 476, refundCreditInTransaction) carry the purchase
+  // transaction id in the reference (reference_type
+  // 'oxsteed_credit_purchase'); pre-476 rows may instead carry the order
+  // id (reference_type 'food_order_refund'), resolved to the purchase for
+  // that order. Either way the link is exposed only when the original
+  // touches the caller's own wallet.
+  let candidateId = null;
+  if (row.transaction_type === 'refund' && referenceId) {
+    if (row.reference_type === 'oxsteed_credit_purchase' && UUID_PATTERN.test(referenceId)) {
+      candidateId = referenceId;
+    } else if (row.reference_type === 'food_order_refund') {
+      const { rows } = await pool.query(
+        `SELECT t.id
+           FROM oxsteed_credit_transactions t
+           JOIN oxsteed_credit_accounts a ON (a.id = t.debit_account_id OR a.id = t.credit_account_id)
+          WHERE t.transaction_type = 'purchase' AND t.reference_type = 'food_order'
+            AND t.reference_id = $1 AND t.status = 'posted'
+            AND a.account_type = 'customer_wallet' AND a.customer_id = $2
+            AND a.currency_code = $3 AND t.currency_code = $3
+          ORDER BY t.posted_at DESC NULLS LAST, t.created_at DESC
+          LIMIT 1`,
+        [referenceId, customerId, currency]
+      );
+      candidateId = rows[0] ? String(rows[0].id) : null;
+    }
+    if (candidateId) {
+      return isCustomerTransaction(candidateId, customerId, currency) ? candidateId : null;
+    }
+    return null;
+  }
+  // Settlement reversals carry the original settlement journal id in
+  // metadata; sub-bank payout reversals carry the payout id, whose
+  // original is the sub_bank_payout for that payout. Either way the link
+  // is exposed only when the original touches the caller's own wallet.
+  const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+  if (row.transaction_type === 'settlement_reversal'
+    && typeof metadata.originalTransactionId === 'string'
+    && UUID_PATTERN.test(metadata.originalTransactionId)) {
+    candidateId = metadata.originalTransactionId;
+  } else if (row.transaction_type === 'sub_bank_payout_reversal'
+    && typeof metadata.payout_id === 'string' && metadata.payout_id.trim()) {
+    const { rows } = await pool.query(
+      `SELECT t.id
+         FROM oxsteed_credit_transactions t
+        WHERE t.transaction_type = 'sub_bank_payout' AND t.reference_type = 'restaurant_payout'
+          AND t.reference_id = $1 AND t.status = 'posted'
+        ORDER BY t.posted_at DESC NULLS LAST, t.created_at DESC
+        LIMIT 1`,
+      [metadata.payout_id.trim()]
+    );
+    candidateId = rows[0] ? String(rows[0].id) : null;
+  }
+  if (!candidateId) return null;
+  return isCustomerTransaction(candidateId, customerId, currency) ? candidateId : null;
+}
+
+// A transaction is linkable for this customer only when the customer can
+// open it: it touches their own wallet, in the same currency, posted.
+async function isCustomerTransaction(transactionId, customerId, currency) {
+  const { rows } = await pool.query(
+    `SELECT t.id
+       FROM oxsteed_credit_transactions t
+       JOIN oxsteed_credit_accounts a ON (a.id = t.debit_account_id OR a.id = t.credit_account_id)
+      WHERE t.id = $1 AND t.status = 'posted'
+        AND a.account_type = 'customer_wallet' AND a.customer_id = $2
+        AND a.currency_code = $3 AND t.currency_code = $3
+      LIMIT 1`,
+    [transactionId, customerId, currency]
+  );
+  return Boolean(rows[0]);
+}
+
+async function describeCustomerCreditReversal({ row, customerId, currency }) {
+  const isReversal = REVERSAL_TRANSACTION_TYPES.includes(row.transaction_type)
+    || row.transaction_type === 'refund';
+  if (!isReversal) {
+    return { isReversal: false, reversalReason: null, reversalReasonCode: null, originalTransactionId: null };
+  }
+  return {
+    isReversal: true,
+    reversalReason: storedReversalReason(row),
+    reversalReasonCode: derivedReversalReasonCode(row),
+    originalTransactionId: await resolveReversalOriginalTransactionId({ row, customerId, currency }),
+  };
+}
+
 async function getCustomerCreditTransaction(customerId, transactionId, currencyCode = CREDIT_CURRENCY) {
   const currency = assertSupportedCreditCurrency(currencyCode);
   const { rows } = await pool.query(
     `SELECT t.id, t.transaction_type, t.status, t.amount_cents, t.currency_code,
-            t.reference_type, t.reference_id, t.description, t.posted_at, t.created_at,
+            t.reference_type, t.reference_id, t.description, t.reason, t.metadata, t.posted_at, t.created_at,
             CASE WHEN t.debit_account_id = a.id THEN 'debit' ELSE 'credit' END AS direction,
             CASE WHEN t.debit_account_id = a.id THEN ca.partner_id ELSE da.partner_id END AS related_partner_id,
             (SELECT e.balance_after_cents
@@ -3854,12 +4159,14 @@ async function getCustomerCreditTransaction(customerId, transactionId, currencyC
     [transactionId, customerId, currency]
   );
   if (!rows[0]) throw new AppError('Credit transaction not found', 404, 'credit_transaction_not_found');
+  const reversal = await describeCustomerCreditReversal({ row: rows[0], customerId, currency });
   return {
     transaction: {
       ...formatCustomerCreditTransaction(rows[0]),
       balanceAfterCents: rows[0].balance_after_cents === null || rows[0].balance_after_cents === undefined
         ? null
         : Number(rows[0].balance_after_cents),
+      ...reversal,
     },
   };
 }
@@ -4169,6 +4476,59 @@ async function openSystemCreditDispute({ customerId, transactionId, reasonCode, 
 
 const CREDIT_DISPUTE_STATUSES = new Set(['open', 'in_review', 'resolved', 'rejected', 'resolved_customer', 'resolved_merchant']);
 
+// Group 13 Slice 4e (673, D-369/D-370): the customer view of a dispute's
+// adjustment state. Agent adjustments are admin-only rows in
+// `credit_adjustments`; the rows linked to a dispute (dispute_id, set at
+// propose time) are attached here, derived from the existing records — no
+// second adjustment ledger. The shape is customer-safe: no proposer or
+// approver admin identity leaves the server, only the amount, direction,
+// status, and timestamps the customer needs to follow their own case.
+// The dispute's own provisional credit and resolution compensation already
+// ride in formatDispute and are not duplicated here.
+function formatCustomerAdjustment(row) {
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    amountCents: Number(row.amount_cents),
+    direction: Number(row.amount_cents) >= 0 ? 'credit' : 'debit',
+    currencyCode: row.currency_code,
+    status: row.status,
+    reason: row.reason,
+    ledgerTransactionId: row.ledger_transaction_id === null || row.ledger_transaction_id === undefined
+      ? null
+      : String(row.ledger_transaction_id),
+    proposedAt: row.proposed_at,
+    approvedAt: row.approved_at || null,
+    appliedAt: row.applied_at || null,
+    decidedAt: row.decided_at || null,
+  };
+}
+
+async function attachDisputeAdjustments(disputes) {
+  if (!disputes.length) return disputes;
+  const ids = disputes.map((dispute) => dispute.id);
+  const { rows } = await pool.query(
+    `SELECT id, dispute_id, amount_cents, currency_code, reason, status,
+            ledger_transaction_id, proposed_at, approved_at, applied_at, decided_at
+       FROM credit_adjustments
+      WHERE dispute_id = ANY($1::uuid[])
+      ORDER BY proposed_at ASC, id ASC`,
+    [ids]
+  );
+  const byDispute = new Map(ids.map((id) => [String(id), []]));
+  for (const row of rows) {
+    const list = byDispute.get(String(row.dispute_id));
+    if (list) list.push(formatCustomerAdjustment(row));
+  }
+  const { countEvidenceByDisputeIds } = require('./oxsteedCreditDisputeEvidenceService');
+  const evidenceCounts = await countEvidenceByDisputeIds(ids);
+  return disputes.map((dispute) => ({
+    ...dispute,
+    adjustments: byDispute.get(String(dispute.id)) || [],
+    evidenceCount: evidenceCounts[String(dispute.id)] || 0,
+  }));
+}
+
 async function listCreditDisputes({ customerId, partnerId, status, referenceTypes, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
@@ -4222,7 +4582,7 @@ async function listCreditDisputes({ customerId, partnerId, status, referenceType
     params
   );
   const hasMore = includePagination && rows.length > safeLimit;
-  const disputes = rows.slice(0, safeLimit).map(formatDispute);
+  const disputes = await attachDisputeAdjustments(rows.slice(0, safeLimit).map(formatDispute));
   if (!includePagination) return disputes;
   return {
     disputes,
@@ -4333,6 +4693,9 @@ module.exports = {
   getCustomerCreditAccountDetails,
   customerCreditStatementCsv,
   getCustomerCreditTransaction,
+  // Group 13 Slice 4b (659): pure reversal derivation, unit-tested without a DB.
+  storedReversalReason,
+  derivedReversalReasonCode,
   loadCustomerCredit,
   postJournalTransaction,
   purchaseWithCreditInTransaction,
@@ -4355,6 +4718,7 @@ module.exports = {
   captureCreditHoldInTransaction,
   captureCreditHold,
   releaseCreditHold,
+  reauthorizeCreditHold,
   expireCreditHolds,
   refundCreditInTransaction,
   refundCreditForReferenceInTransaction,

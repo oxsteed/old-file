@@ -1319,6 +1319,8 @@
   },
   "screens": {
     "creditPay": "Peye ak OxSteed Credit",
+    "creditRemainder": "Credit kouvri {{credit}} · Rès pou peye {{remainder}}",
+    "creditRemainderCovered": "Credit kouvri lòd la nèt. Anyen pa rete pou peye.",
     "creditScanCard": "Eskane kat Credit ou",
     "creditPin": "Kòd PIN kat la",
     "creditReceipt": "Resi Credit",
@@ -6738,6 +6740,10 @@
       "qualifications": "Kalifikasyon",
       "credentials": "Dokiman kalifikasyon",
       "yearsExperience": "Ane eksperyans",
+      "equipmentOwned": "Ekipman ou posede",
+      "ownershipAttestation": "Pwopriyete",
+      "equipmentCondition": "Eta ekipman an",
+      "pickupLocation": "Kote pou vin chèche li",
       "area": {
         "country": "Kòd peyi (2 lèt)",
         "region": "Eta oswa rejyon",
@@ -6750,7 +6756,13 @@
       "sole_prop": "Antrepriz endividyèl",
       "corp": "Korporasyon",
       "partnership": "Asosyasyon",
-      "other": "Lòt"
+      "other": "Lòt",
+      "owned_outright": "Posede san prè",
+      "owned_with_loan": "Posede ak yon prè",
+      "borrowed_with_permission": "Prete avèk pèmisyon",
+      "excellent": "Ekselan",
+      "good": "Bon",
+      "fair": "Pasab"
     },
     "fieldErrors": {
       "invalid": "Verifye repons sa a.",

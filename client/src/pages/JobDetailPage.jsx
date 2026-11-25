@@ -35,6 +35,11 @@ import JobQuoteWorkspace from '../components/JobQuoteWorkspace';
 import JobSuitabilityPreview from '../components/JobSuitabilityPreview';
 import JobPortfolioConsent from '../components/JobPortfolioConsent';
 import { JobWorkRecord } from '../components/HelperWorkPanel';
+import HelperJobSupport from '../components/HelperJobSupport';
+import JobRescheduleProposals from '../components/JobRescheduleProposals';
+import JobHandback from '../components/JobHandback';
+import JobChangeRequests from '../components/JobChangeRequests';
+import JobSkillEndorsements from '../components/JobSkillEndorsements';
 import JobRevisionHistory from '../components/JobRevisionHistory';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -484,7 +489,7 @@ function JobDetailContent() {
       fetchJob(id);
       toast.success(t('jobDetail.arrivedRecorded'));
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      toast.error(err?.response?.data?.code === 'arrival_too_early' ? t('helperG4.timeGuards.arrivalTooEarly') : getErrorMessage(err));
     } finally {
       setActionLoading(false);
     }
@@ -504,7 +509,7 @@ function JobDetailContent() {
       fetchJob(id);
       toast.success(t('jobDetail.noShowRecorded'));
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      toast.error(err?.response?.data?.code === 'no_show_too_early' ? t('helperG4.timeGuards.noShowTooEarly') : getErrorMessage(err));
     } finally {
       setActionLoading(false);
     }
@@ -874,6 +879,11 @@ function JobDetailContent() {
         <div className="jdp-main">
           <PreferredHelperBanner job={job} />
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && ['accepted', 'in_progress', 'completed', 'closed'].includes(job.status) && <JobWorkRecord jobId={id} />}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && <JobRescheduleProposals jobId={id} userId={user?.id} canPropose={job.status === 'accepted'} onChanged={() => fetchJob(id)} />}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && <JobChangeRequests jobId={id} userId={user?.id} isHelper={isAssignedHelper} canWrite={['accepted', 'in_progress'].includes(job.status)} currency={job.currency_code || 'USD'} onChanged={() => fetchJob(id)} />}
+          {isAssignedHelper && job.status === 'accepted' && !job.arrived_at && <JobHandback jobId={id} onDone={(msg) => { toast.success(msg); navigate('/dashboard'); }} />}
+          {isAssignedHelper && <HelperJobSupport jobId={id} />}
+          {isOwner && job.assigned_helper_id && ['completed', 'closed'].includes(job.status) && <JobSkillEndorsements jobId={id} />}
           {(isOwner || (user && String(job.assigned_helper_id) === String(user.id))) && <PaymentReauthorizationBanner jobId={id} job={job} onResolved={() => fetchJob(id)} />}
           <JobPaymentLayersPanel job={job} isOwner={isOwner} isAssignedHelper={isAssignedHelper} onChanged={() => fetchJob(id)} />
           {ownBidToReconfirm && <section className="jdp-card jdp-reconfirm" role="status" aria-labelledby={`${fieldId}-reconfirm`}>

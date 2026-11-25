@@ -54,8 +54,25 @@ const ActiveFilterTags: React.FC<ActiveFilterTagsProps> = ({ filters, onChange }
   if (filters.city)
     tags.push({ key: 'city', label: t('toolRentalsDir.cityTag', { city: filters.city }), onRemove: () => onChange({ city: '' }) });
 
+  if (filters.startDate && filters.endDate)
+    tags.push({ key: 'dates', label: t('toolRentalsDir.dateRangeTag', { start: filters.startDate, end: filters.endDate }), onRemove: () => onChange({ startDate: '', endDate: '' }) });
+
+  if (filters.capacityMin !== null && filters.capacityUnit)
+    tags.push({ key: 'capacity', label: t('toolRentalsDir.capacityTag', { value: filters.capacityMin, unit: filters.capacityUnit }), onRemove: () => onChange({ capacityMin: null, capacityUnit: '' }) });
+  else if (filters.capacityUnit)
+    tags.push({ key: 'capacityUnit', label: t('toolRentalsDir.capacityUnitTag', { unit: filters.capacityUnit }), onRemove: () => onChange({ capacityUnit: '' }) });
+
+  if (filters.weightMax !== null)
+    tags.push({ key: 'weight', label: t('toolRentalsDir.weightTag', { value: filters.weightMax }), onRemove: () => onChange({ weightMax: null }) });
+  if (filters.lengthMax !== null)
+    tags.push({ key: 'length', label: t('toolRentalsDir.lengthTag', { value: filters.lengthMax }), onRemove: () => onChange({ lengthMax: null }) });
+  if (filters.widthMax !== null)
+    tags.push({ key: 'width', label: t('toolRentalsDir.widthTag', { value: filters.widthMax }), onRemove: () => onChange({ widthMax: null }) });
+  if (filters.heightMax !== null)
+    tags.push({ key: 'height', label: t('toolRentalsDir.heightTag', { value: filters.heightMax }), onRemove: () => onChange({ heightMax: null }) });
+
   if (filters.radius !== null)
-    tags.push({ key: 'radius', label: t('toolRentalsDir.radiusMi', { miles: filters.radius }), onRemove: () => onChange({ radius: null }) });
+    tags.push({ key: 'radius', label: t('toolRentalsDir.radiusMi', { miles: filters.radius }), onRemove: () => onChange({ radius: null, lat: null, lng: null }) });
 
   if (filters.priceRange) {
     const [min, max] = filters.priceRange;

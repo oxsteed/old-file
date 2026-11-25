@@ -3,10 +3,12 @@ const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const bookingEmailService = require('../services/bookingEmailService');
 const { parseDateOnlyUTC } = require('../utils/dateOnly');
+// Group 11 item 571 (D-259): identity is the platform Didit state.
+const { rentalIdentityStatus } = require('../utils/rentalIdentity');
 
 const TOOL_RENTAL_AGREEMENT_VERSION = 'peer-rental-v1';
 
-function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPrice }) {
+function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPrice, fulfillment, pickupTime, returnTime }) {
   return {
     version: TOOL_RENTAL_AGREEMENT_VERSION,
     oxsteedRole: 'OxSteed provides tools for neighbors to document and coordinate rentals. OxSteed is not the tool owner, renter, inspector, insurer, or guarantor.',
@@ -31,6 +33,9 @@ function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPri
       replacementValue: tool.replacement_value != null ? Number(tool.replacement_value) : null,
       requiresDeposit: !!tool.requires_deposit,
       depositAmount: tool.deposit_amount != null ? Number(tool.deposit_amount) : null,
+      // Group 11 item 580: the cleaning instructions as written at
+      // booking time, frozen so later owner edits do not rewrite history.
+      cleaningInstructions: tool.cleaning_instructions || null,
     },
     rental: {
       startDate,
@@ -38,6 +43,12 @@ function buildAgreementSnapshot(tool, { startDate, endDate, rentalDays, totalPri
       rentalDays,
       dailyRate: Number(tool.daily_rate),
       totalPrice,
+      fulfillment: fulfillment || 'pickup',
+      // Group 11 item 574: the pickup time-of-day, frozen with the rest
+      // of the agreement (null when the renter picked no time).
+      pickupTime: pickupTime || null,
+      // Group 11 item 576: the return time-of-day, frozen the same way.
+      returnTime: returnTime || null,
     },
   };
 }
@@ -47,11 +58,37 @@ const createBooking = async (req, res, next) => {
   try {
     const { toolId, startDate, endDate, renterAgreementAccepted } = req.body;
     const userId = req.user.id;
+    // Group 11 item 554: the renter chooses how they get the tool. Pickup
+    // is always available; delivery only when the listing offers it.
+    const fulfillment = req.body.fulfillment == null ? 'pickup' : req.body.fulfillment;
+    // Group 11 item 574: pickup appointment time (HH:MM, 24-hour).
+    // Optional; only meaningful for pickup fulfillment.
+    const pickupTime = req.body.pickupTime == null || req.body.pickupTime === ''
+      ? null
+      : String(req.body.pickupTime).trim();
+    // Group 11 item 576: return appointment time (HH:MM, 24-hour).
+    // Optional; applies to every fulfillment type, since the tool always
+    // comes back for a handoff.
+    const returnTime = req.body.returnTime == null || req.body.returnTime === ''
+      ? null
+      : String(req.body.returnTime).trim();
 
     const fields = {};
     if (!toolId) fields.toolId = 'toolId is required';
     if (!startDate) fields.startDate = 'startDate is required';
     if (!endDate) fields.endDate = 'endDate is required';
+    if (fulfillment !== 'pickup' && fulfillment !== 'delivery') {
+      fields.fulfillment = 'fulfillment must be pickup or delivery';
+    }
+    if (pickupTime !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(pickupTime)) {
+      fields.pickupTime = 'pickupTime must be a time like 09:30';
+    }
+    if (returnTime !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(returnTime)) {
+      fields.returnTime = 'returnTime must be a time like 09:30';
+    }
+    if (pickupTime !== null && fulfillment === 'delivery') {
+      fields.pickupTime = 'pickupTime only applies to pickup';
+    }
     if (!renterAgreementAccepted) {
       fields.renterAgreementAccepted = 'You must accept the peer rental agreement before booking';
     }
@@ -72,12 +109,16 @@ const createBooking = async (req, res, next) => {
       `SELECT tr.id, tr.user_id AS owner_id, tr.name, tr.category, tr.brand, tr.model, tr.condition,
               tr.daily_rate, tr.deposit_amount, tr.requires_deposit, tr.owner_rules,
               tr.owner_custom_terms, tr.owner_custom_terms_hash, tr.replacement_value,
-              tr.is_available, tr.moderation_hold,tr.accessories,tr.condition_checklist,tr.equipment_version
+              tr.is_available, tr.moderation_hold, tr.pickup_only, tr.delivery_available,
+              tr.accessories, tr.condition_checklist, tr.equipment_version,
+              tr.pickup_window_start, tr.pickup_window_end,
+              tr.return_window_start, tr.return_window_end, tr.cleaning_instructions
          FROM tool_rentals tr
          JOIN users owner
            ON owner.id = tr.user_id
           AND owner.is_active = TRUE
           AND owner.deleted_at IS NULL
+          AND owner.email_verified = TRUE
         WHERE tr.id = $1`,
       [toolId]
     );
@@ -95,6 +136,34 @@ const createBooking = async (req, res, next) => {
     if (listedTool.moderation_hold) {
       throw new AppError('Tool is under admin review and cannot be booked', 409, 'state_conflict');
     }
+    // 554: pickup eligibility. Delivery is refused when the listing is
+    // pickup-only or does not offer delivery; pickup is always allowed.
+    // (The owner's email_verified flag is re-checked in the join above:
+    // the same gate browse/public already apply, so a listing hidden from
+    // browse cannot be booked by direct id.)
+    if (fulfillment === 'delivery' && (listedTool.pickup_only === true || listedTool.delivery_available !== true)) {
+      throw new AppError('Delivery is not available for this tool', 409, 'fulfillment_not_available');
+    }
+    // 574: when the owner set a pickup window, the renter's pickup time
+    // must fall inside it. Times compare lexicographically as HH:MM:SS.
+    if (pickupTime !== null && listedTool.pickup_window_start && listedTool.pickup_window_end) {
+      const picked = `${pickupTime}:00`;
+      const windowStart = String(listedTool.pickup_window_start);
+      const windowEnd = String(listedTool.pickup_window_end);
+      if (picked < windowStart || picked > windowEnd) {
+        throw new AppError('Pickup time is outside the owner pickup window', 400, 'validation_failed', { pickupTime: 'Pick a time inside the owner pickup window' });
+      }
+    }
+    // 576: the same window rule for the return time, against the owner's
+    // daily return window when one is set.
+    if (returnTime !== null && listedTool.return_window_start && listedTool.return_window_end) {
+      const picked = `${returnTime}:00`;
+      const windowStart = String(listedTool.return_window_start);
+      const windowEnd = String(listedTool.return_window_end);
+      if (picked < windowStart || picked > windowEnd) {
+        throw new AppError('Return time is outside the owner return window', 400, 'validation_failed', { returnTime: 'Pick a time inside the owner return window' });
+      }
+    }
     const dailyRate = parseFloat(listedTool.daily_rate);
     if (!Number.isFinite(dailyRate) || dailyRate <= 0) {
       throw new AppError('Tool cannot be booked online because pricing is not configured', 409, 'pricing_unavailable');
@@ -107,14 +176,20 @@ const createBooking = async (req, res, next) => {
       endDate,
       rentalDays,
       totalPrice,
+      fulfillment,
+      pickupTime,
+      returnTime,
     });
 
     // Serialize bookings per tool before checking availability. The previous
     // check ran before BEGIN, allowing concurrent requests to both pass.
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`tool-rental:${toolId}`]);
-    const currentTool=await client.query('SELECT equipment_version,is_available,moderation_hold FROM tool_rentals WHERE id=$1 FOR SHARE',[toolId]);
+    const currentTool=await client.query('SELECT equipment_version,is_available,moderation_hold,pickup_only,delivery_available FROM tool_rentals WHERE id=$1 FOR SHARE',[toolId]);
     if(!currentTool.rows[0]||currentTool.rows[0].is_available===false||currentTool.rows[0].moderation_hold)throw new AppError('Tool unavailable',409,'state_conflict');
+    // 554: re-check fulfillment under the per-tool lock; the flags may have
+    // changed between the first read and the lock.
+    if (fulfillment === 'delivery' && (currentTool.rows[0].pickup_only === true || currentTool.rows[0].delivery_available !== true)) throw new AppError('Delivery is not available for this tool',409,'fulfillment_not_available');
     if(Number(currentTool.rows[0].equipment_version)>1 && (req.body.equipmentVersion!==currentTool.rows[0].equipment_version || listedTool.equipment_version!==currentTool.rows[0].equipment_version))throw new AppError('Review the current equipment rules before booking',409,'equipment_changed');
 
     // Check for calendar conflicts (overlapping confirmed/pending bookings)
@@ -134,10 +209,10 @@ const createBooking = async (req, res, next) => {
     const booking = await client.query(
       `INSERT INTO tool_rentals_bookings
          (tool_id, customer_id, owner_id, start_date, end_date, total_price,
-          agreement_snapshot, renter_acknowledged_at, renter_agreement_version)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+          agreement_snapshot, renter_acknowledged_at, renter_agreement_version, pickup_time, return_time)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10)
        RETURNING *`,
-      [toolId, userId, ownerId, startDate, endDate, totalPrice, agreementSnapshot, TOOL_RENTAL_AGREEMENT_VERSION]
+      [toolId, userId, ownerId, startDate, endDate, totalPrice, agreementSnapshot, TOOL_RENTAL_AGREEMENT_VERSION, pickupTime, returnTime]
     );
 
     // Log analytics
@@ -178,14 +253,40 @@ const getMyBookings = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const result = await db.query(
-      `SELECT b.*, tr.name, tr.daily_rate
+      `SELECT b.*, tr.name, tr.daily_rate,
+              cu.didit_status AS renter_didit_status,
+              cu.didit_verified_at AS renter_didit_verified_at,
+              cu.identity_verified AS renter_identity_verified,
+              cu.id_verified AS renter_id_verified,
+              ou.didit_status AS owner_didit_status,
+              ou.didit_verified_at AS owner_didit_verified_at,
+              ou.identity_verified AS owner_identity_verified,
+              ou.id_verified AS owner_id_verified
        FROM tool_rentals_bookings b
        JOIN tool_rentals tr ON b.tool_id = tr.id
+       JOIN users cu ON b.customer_id = cu.id
+       JOIN users ou ON b.owner_id = ou.id
        WHERE b.customer_id = $1
        ORDER BY b.created_at DESC`,
       [userId]
     );
-    res.json(result.rows);
+    // Group 11 item 571: identity status for both parties on every
+    // booking (Didit state; 'skipped' is not verified).
+    res.json(result.rows.map((row) => ({
+      ...row,
+      renter_identity: rentalIdentityStatus({
+        didit_status: row.renter_didit_status,
+        didit_verified_at: row.renter_didit_verified_at,
+        identity_verified: row.renter_identity_verified,
+        id_verified: row.renter_id_verified,
+      }),
+      owner_identity: rentalIdentityStatus({
+        didit_status: row.owner_didit_status,
+        didit_verified_at: row.owner_didit_verified_at,
+        identity_verified: row.owner_identity_verified,
+        id_verified: row.owner_id_verified,
+      }),
+    })));
   } catch (err) {
     next(err);
   }
@@ -195,15 +296,39 @@ const getBookingsByOwner = async (req, res, next) => {
   try {
     const ownerId = req.user.id;
     const result = await db.query(
-      `SELECT b.*, tr.name, u.first_name, u.last_name
+      `SELECT b.*, tr.name, u.first_name, u.last_name,
+              cu.didit_status AS renter_didit_status,
+              cu.didit_verified_at AS renter_didit_verified_at,
+              cu.identity_verified AS renter_identity_verified,
+              cu.id_verified AS renter_id_verified,
+              ou.didit_status AS owner_didit_status,
+              ou.didit_verified_at AS owner_didit_verified_at,
+              ou.identity_verified AS owner_identity_verified,
+              ou.id_verified AS owner_id_verified
        FROM tool_rentals_bookings b
        JOIN tool_rentals tr ON b.tool_id = tr.id
        JOIN users u ON b.customer_id = u.id
+       JOIN users cu ON b.customer_id = cu.id
+       JOIN users ou ON b.owner_id = ou.id
        WHERE b.owner_id = $1
        ORDER BY b.created_at DESC`,
       [ownerId]
     );
-    res.json(result.rows);
+    res.json(result.rows.map((row) => ({
+      ...row,
+      renter_identity: rentalIdentityStatus({
+        didit_status: row.renter_didit_status,
+        didit_verified_at: row.renter_didit_verified_at,
+        identity_verified: row.renter_identity_verified,
+        id_verified: row.renter_id_verified,
+      }),
+      owner_identity: rentalIdentityStatus({
+        didit_status: row.owner_didit_status,
+        didit_verified_at: row.owner_didit_verified_at,
+        identity_verified: row.owner_identity_verified,
+        id_verified: row.owner_id_verified,
+      }),
+    })));
   } catch (err) {
     next(err);
   }
@@ -291,6 +416,515 @@ const updateBookingStatus = async (req, res, next) => {
   }
 };
 
+// Group 11 item 568 (D-258): explicit owner approval, distinct from
+// invoicing. The owner accepts the pending request first; only then can
+// the first invoice be sent (enforced in invoiceController). Decline
+// closes the request with a reason and notifies the renter. Both actions
+// are owner-only and server-enforced.
+async function loadBookingForOwnerApproval(bookingId, userId) {
+  const bookingQuery = await db.query(
+    'SELECT * FROM tool_rentals_bookings WHERE id = $1',
+    [bookingId]
+  );
+  const booking = bookingQuery.rows[0];
+  if (!booking) throw new AppError('Booking not found', 404, 'not_found');
+  if (booking.owner_id !== userId) {
+    // A party on the wrong side gets 403; anyone else gets 404 so the
+    // booking's existence is not leaked.
+    if (booking.customer_id === userId) throw new AppError('Only the tool owner can decide on this request', 403, 'forbidden');
+    throw new AppError('Booking not found', 404, 'not_found');
+  }
+  return booking;
+}
+
+const approveBooking = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await loadBookingForOwnerApproval(bookingId, req.user.id);
+    if (booking.status !== 'pending' || booking.owner_approval !== 'pending') {
+      throw new AppError('This request can no longer be approved', 409, 'state_conflict');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET owner_approval = 'approved', owner_approval_at = NOW()
+        WHERE id = $1 AND owner_approval = 'pending' AND status = 'pending'
+        RETURNING *`,
+      [bookingId]
+    );
+    if (!rows[0]) throw new AppError('This request can no longer be approved', 409, 'state_conflict');
+    res.json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const declineBooking = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+    if (!reason) {
+      throw new AppError('A decline reason is required', 400, 'validation_failed', { reason: 'Tell the renter why the request was declined' });
+    }
+    if (reason.length > 2000) {
+      throw new AppError('Decline reason is too long', 400, 'validation_failed', { reason: 'Keep the reason under 2000 characters' });
+    }
+    const booking = await loadBookingForOwnerApproval(bookingId, req.user.id);
+    if (booking.status !== 'pending' || booking.owner_approval !== 'pending') {
+      throw new AppError('This request can no longer be declined', 409, 'state_conflict');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET owner_approval = 'declined', owner_approval_at = NOW(),
+              owner_decline_reason = $2, status = 'cancelled'
+        WHERE id = $1 AND owner_approval = 'pending' AND status = 'pending'
+        RETURNING *`,
+      [bookingId, reason]
+    );
+    if (!rows[0]) throw new AppError('This request can no longer be declined', 409, 'state_conflict');
+    const updated = rows[0];
+    // Notify the renter, same as a cancellation (record-only; D-257).
+    const customerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [booking.customer_id]);
+    const toolData = await db.query('SELECT name FROM tool_rentals WHERE id = $1', [booking.tool_id]);
+    if (customerData.rows[0] && toolData.rows[0]) {
+      bookingEmailService.sendBookingDeclined(updated, toolData.rows[0], customerData.rows[0]);
+    }
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Group 11 item 570 (D-260): in-app confirmation receipt. What was
+// booked, the frozen terms, the approval state and the invoice (if one
+// was sent). Party-only: anyone else gets 404. No new email work: the
+// confirmation email already sends asynchronously at booking time.
+const getBookingReceipt = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.user.id;
+    const bookingResult = await db.query(
+      `SELECT b.*, tr.name AS tool_name, tr.category AS tool_category,
+              tr.brand AS tool_brand, tr.model AS tool_model,
+              tr.condition AS tool_condition, tr.daily_rate AS tool_daily_rate,
+              tr.replacement_value AS tool_replacement_value,
+              cu.didit_status AS renter_didit_status,
+              cu.didit_verified_at AS renter_didit_verified_at,
+              cu.identity_verified AS renter_identity_verified,
+              cu.id_verified AS renter_id_verified,
+              ou.didit_status AS owner_didit_status,
+              ou.didit_verified_at AS owner_didit_verified_at,
+              ou.identity_verified AS owner_identity_verified,
+              ou.id_verified AS owner_id_verified
+         FROM tool_rentals_bookings b
+         JOIN tool_rentals tr ON b.tool_id = tr.id
+         JOIN users cu ON b.customer_id = cu.id
+         JOIN users ou ON b.owner_id = ou.id
+        WHERE b.id = $1 AND (b.customer_id = $2 OR b.owner_id = $2)`,
+      [bookingId, userId]
+    );
+    if (!bookingResult.rows[0]) {
+      throw new AppError('Booking not found', 404, 'not_found');
+    }
+    const booking = bookingResult.rows[0];
+    const termsResult = await db.query(
+      `SELECT user_role, accepted_at FROM tool_rental_terms_acceptance WHERE booking_id = $1`,
+      [bookingId]
+    );
+    const terms = { customerAccepted: false, ownerAccepted: false, bothAccepted: false };
+    termsResult.rows.forEach((row) => {
+      if (row.user_role === 'customer') terms.customerAccepted = !!row.accepted_at;
+      if (row.user_role === 'owner') terms.ownerAccepted = !!row.accepted_at;
+    });
+    terms.bothAccepted = terms.customerAccepted && terms.ownerAccepted;
+    const invoiceResult = await db.query(
+      `SELECT id, invoice_number, status, total_amount, rental_amount, deposit_amount, created_at
+         FROM tool_rental_invoices WHERE booking_id = $1`,
+      [bookingId]
+    );
+    res.json({
+      booking,
+      tool: {
+        id: booking.tool_id,
+        name: booking.tool_name,
+        category: booking.tool_category,
+        brand: booking.tool_brand,
+        model: booking.tool_model,
+        condition: booking.tool_condition,
+        daily_rate: booking.tool_daily_rate,
+        replacement_value: booking.tool_replacement_value,
+      },
+      terms,
+      invoice: invoiceResult.rows[0] || null,
+      // Group 11 item 571: identity status for both parties.
+      renter_identity: rentalIdentityStatus({
+        didit_status: booking.renter_didit_status,
+        didit_verified_at: booking.renter_didit_verified_at,
+        identity_verified: booking.renter_identity_verified,
+        id_verified: booking.renter_id_verified,
+      }),
+      owner_identity: rentalIdentityStatus({
+        didit_status: booking.owner_didit_status,
+        didit_verified_at: booking.owner_didit_verified_at,
+        identity_verified: booking.owner_identity_verified,
+        id_verified: booking.owner_id_verified,
+      }),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Group 11 item 575 (D-260): distinct checkout acknowledgment at
+// pickup. The renter confirms receipt of the item as described, with
+// the pickup-phase condition report attached as evidence. Server
+// enforced: renter only, booking must be payment_confirmed, a pickup
+// report must exist, and the renter must have verified identity (571).
+// Idempotent: acknowledging twice returns the recorded acknowledgment.
+const acknowledgeCheckout = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.user.id;
+    const bookingQuery = await db.query(
+      'SELECT * FROM tool_rentals_bookings WHERE id = $1',
+      [bookingId]
+    );
+    const booking = bookingQuery.rows[0];
+    if (!booking) throw new AppError('Booking not found', 404, 'not_found');
+    if (booking.customer_id !== userId) {
+      if (booking.owner_id === userId) throw new AppError('Only the renter confirms pickup', 403, 'forbidden');
+      throw new AppError('Booking not found', 404, 'not_found');
+    }
+    if (booking.checkout_acknowledged_at) {
+      return res.json(booking);
+    }
+    if (booking.status !== 'payment_confirmed') {
+      throw new AppError('Pickup can only be confirmed once payment is confirmed', 409, 'state_conflict');
+    }
+    const identityQuery = await db.query(
+      `SELECT didit_status, didit_verified_at, identity_verified, id_verified
+         FROM users WHERE id = $1`,
+      [userId]
+    );
+    const identity = rentalIdentityStatus(identityQuery.rows[0]);
+    if (!identity.verified) {
+      throw new AppError('Complete identity verification before confirming pickup', 403, 'identity_not_verified');
+    }
+    const reportQuery = await db.query(
+      `SELECT id FROM equipment_reports
+        WHERE booking_id = $1 AND phase = 'pickup'
+        ORDER BY created_at DESC, id DESC LIMIT 1`,
+      [bookingId]
+    );
+    if (!reportQuery.rows[0]) {
+      throw new AppError('File the pickup condition report before confirming pickup', 409, 'pickup_report_required');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET checkout_acknowledged_at = NOW(),
+              checkout_acknowledged_by = $2,
+              checkout_report_id = $3
+        WHERE id = $1 AND checkout_acknowledged_at IS NULL
+        RETURNING *`,
+      [bookingId, userId, reportQuery.rows[0].id]
+    );
+    res.json(rows[0] || booking);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Group 11 item 576 (D-276): return reschedule. The renter proposes a
+// new return date/time; the owner approves or declines. Changing the
+// return date never changes charges (D-257, no-charge only): approval
+// moves end_date (and return_time) and leaves total_price alone.
+// Approval re-checks the calendar so the new return date cannot
+// double-book the tool; the proposal is decided owner-only.
+function timeWithinWindow(time, windowStart, windowEnd) {
+  if (!windowStart || !windowEnd) return true;
+  const picked = `${time}:00`;
+  return picked >= String(windowStart) && picked <= String(windowEnd);
+}
+
+async function loadBookingForReturnReschedule(bookingId, userId, { ownerOnly = false } = {}) {
+  const bookingQuery = await db.query(
+    'SELECT * FROM tool_rentals_bookings WHERE id = $1',
+    [bookingId]
+  );
+  const booking = bookingQuery.rows[0];
+  if (!booking) throw new AppError('Booking not found', 404, 'not_found');
+  const isOwner = booking.owner_id === userId;
+  const isCustomer = booking.customer_id === userId;
+  if (ownerOnly) {
+    if (!isOwner) {
+      if (isCustomer) throw new AppError('Only the tool owner can decide a return reschedule', 403, 'forbidden');
+      throw new AppError('Booking not found', 404, 'not_found');
+    }
+  } else if (!isCustomer) {
+    if (isOwner) throw new AppError('Only the renter can propose a return reschedule', 403, 'forbidden');
+    throw new AppError('Booking not found', 404, 'not_found');
+  }
+  return booking;
+}
+
+const proposeReturnReschedule = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await loadBookingForReturnReschedule(bookingId, req.user.id);
+    if (booking.status !== 'payment_confirmed') {
+      throw new AppError('The return can only be rescheduled once payment is confirmed', 409, 'state_conflict');
+    }
+    if (booking.return_reschedule_status === 'proposed') {
+      throw new AppError('A return reschedule is already waiting for the owner', 409, 'return_reschedule_pending');
+    }
+    const proposedEndDate = typeof req.body?.proposedEndDate === 'string' ? req.body.proposedEndDate.trim() : '';
+    const proposedTime = req.body?.proposedTime == null || req.body.proposedTime === ''
+      ? null
+      : String(req.body.proposedTime).trim();
+    const fields = {};
+    const end = parseDateOnlyUTC(proposedEndDate);
+    if (!end) fields.proposedEndDate = 'Proposed return date is required and must be a valid date';
+    else {
+      // booking.start_date comes back from pg as a Date, not a string.
+      const startRaw = booking.start_date instanceof Date
+        ? booking.start_date.toISOString().slice(0, 10)
+        : String(booking.start_date).slice(0, 10);
+      const start = parseDateOnlyUTC(startRaw);
+      if (start && end <= start) fields.proposedEndDate = 'The new return date must be after the pickup date';
+    }
+    if (proposedTime !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(proposedTime)) {
+      fields.proposedTime = 'proposedTime must be a time like 09:30';
+    }
+    if (Object.keys(fields).length) throw new AppError('Validation failed', 400, 'validation_failed', fields);
+    const toolQuery = await db.query(
+      'SELECT return_window_start, return_window_end FROM tool_rentals WHERE id = $1',
+      [booking.tool_id]
+    );
+    const tool = toolQuery.rows[0];
+    if (proposedTime !== null && tool && !timeWithinWindow(proposedTime, tool.return_window_start, tool.return_window_end)) {
+      throw new AppError('Return time is outside the owner return window', 400, 'validation_failed', { proposedTime: 'Pick a time inside the owner return window' });
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET return_reschedule_status = 'proposed',
+              return_reschedule_proposed_end_date = $2,
+              return_reschedule_proposed_time = $3,
+              return_reschedule_proposed_by = $4,
+              return_reschedule_proposed_at = NOW(),
+              return_reschedule_decided_at = NULL,
+              return_reschedule_reason = NULL
+        WHERE id = $1
+        RETURNING *`,
+      [bookingId, proposedEndDate, proposedTime, req.user.id]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const approveReturnReschedule = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await loadBookingForReturnReschedule(bookingId, req.user.id, { ownerOnly: true });
+    if (booking.return_reschedule_status !== 'proposed' || !booking.return_reschedule_proposed_end_date) {
+      throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
+    }
+    const proposedEnd = booking.return_reschedule_proposed_end_date;
+    // The new return date must not double-book the tool: any other live
+    // booking overlapping the extended range blocks approval.
+    const overlap = await db.query(
+      `SELECT COUNT(*) AS overlap_count FROM tool_rentals_bookings
+        WHERE tool_id = $1 AND id <> $2
+          AND status IN ('pending', 'invoice_sent', 'payment_confirmed')
+          AND start_date <= $3
+          AND end_date >= $4`,
+      [booking.tool_id, bookingId, proposedEnd, booking.start_date]
+    );
+    if (parseInt(overlap.rows[0].overlap_count, 10) > 0) {
+      throw new AppError('The new return date overlaps another booking for this tool', 409, 'conflict');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET end_date = $2,
+              return_time = COALESCE($3, return_time),
+              return_reschedule_status = 'approved',
+              return_reschedule_decided_at = NOW()
+        WHERE id = $1 AND return_reschedule_status = 'proposed'
+        RETURNING *`,
+      [bookingId, proposedEnd, booking.return_reschedule_proposed_time]
+    );
+    if (!rows[0]) throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
+    res.json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const declineReturnReschedule = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+    if (!reason) {
+      throw new AppError('A decline reason is required', 400, 'validation_failed', { reason: 'Tell the renter why the new return date does not work' });
+    }
+    if (reason.length > 2000) {
+      throw new AppError('Decline reason is too long', 400, 'validation_failed', { reason: 'Keep the reason under 2000 characters' });
+    }
+    const booking = await loadBookingForReturnReschedule(bookingId, req.user.id, { ownerOnly: true });
+    if (booking.return_reschedule_status !== 'proposed') {
+      throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rentals_bookings
+          SET return_reschedule_status = 'declined',
+              return_reschedule_decided_at = NOW(),
+              return_reschedule_reason = $2
+        WHERE id = $1 AND return_reschedule_status = 'proposed'
+        RETURNING *`,
+      [bookingId, reason]
+    );
+    if (!rows[0]) throw new AppError('There is no return reschedule waiting for a decision', 409, 'state_conflict');
+    res.json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Group 11 item 583 (D-257/D-278): cancellation recovery, record-only.
+// When a booking is cancelled, either party can record an agreed refund
+// settlement (amount + who pays whom + status) and the other party
+// confirms it; either party marks it settled once the money has moved
+// off-platform. The platform records the agreement and never moves money.
+// Rebooking is a fresh booking, offered through the 584 alternatives.
+async function loadBookingForRecovery(bookingId, userId) {
+  const bookingQuery = await db.query(
+    'SELECT * FROM tool_rentals_bookings WHERE id = $1',
+    [bookingId]
+  );
+  const booking = bookingQuery.rows[0];
+  if (!booking) throw new AppError('Booking not found', 404, 'not_found');
+  if (booking.customer_id !== userId && booking.owner_id !== userId) {
+    throw new AppError('Booking not found', 404, 'not_found');
+  }
+  return booking;
+}
+
+async function loadRecoveryRow(bookingId) {
+  const { rows } = await db.query(
+    'SELECT * FROM tool_rental_cancellation_recoveries WHERE booking_id = $1',
+    [bookingId]
+  );
+  return rows[0] || null;
+}
+
+const getCancellationRecovery = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    await loadBookingForRecovery(bookingId, req.user.id);
+    const recovery = await loadRecoveryRow(bookingId);
+    res.json({ recovery: recovery || null });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const proposeRefundSettlement = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await loadBookingForRecovery(bookingId, req.user.id);
+    if (booking.status !== 'cancelled') {
+      throw new AppError('A refund settlement can only be recorded for a cancelled booking', 409, 'state_conflict');
+    }
+    const amount = Number(req.body?.amount);
+    const direction = typeof req.body?.direction === 'string' ? req.body.direction.trim() : '';
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 2000) : null;
+    const fields = {};
+    if (!Number.isFinite(amount) || amount < 0) fields.amount = 'amount must be 0 or more';
+    // A refund covers the rental price at most; deposits are settled
+    // through the separate deposit flow (588), not here.
+    if (Number.isFinite(amount) && booking.total_price != null && amount > Number(booking.total_price)) {
+      fields.amount = 'amount cannot be more than the booking total';
+    }
+    if (amount === 0 && direction !== 'none') fields.direction = 'direction must be none when the amount is 0';
+    if (amount > 0 && !['owner_to_renter', 'renter_to_owner'].includes(direction)) {
+      fields.direction = 'direction must be owner_to_renter or renter_to_owner';
+    }
+    if (Object.keys(fields).length) throw new AppError('Validation failed', 400, 'validation_failed', fields);
+    const existing = await loadRecoveryRow(bookingId);
+    if (existing && existing.refund_status !== 'proposed') {
+      throw new AppError('This refund settlement is already agreed and cannot be re-proposed', 409, 'state_conflict');
+    }
+    // A new proposal replaces a still-proposed one; the other party
+    // confirms the latest proposal.
+    const { rows } = await db.query(
+      `INSERT INTO tool_rental_cancellation_recoveries
+         (booking_id, refund_amount, refund_direction, refund_status, refund_note, proposed_by)
+       VALUES ($1, $2, $3, 'proposed', $4, $5)
+       ON CONFLICT (booking_id) DO UPDATE
+          SET refund_amount = EXCLUDED.refund_amount,
+              refund_direction = EXCLUDED.refund_direction,
+              refund_status = 'proposed',
+              refund_note = EXCLUDED.refund_note,
+              proposed_by = EXCLUDED.proposed_by,
+              agreed_at = NULL,
+              settled_at = NULL,
+              updated_at = NOW()
+       RETURNING *`,
+      [bookingId, amount, direction, note || null, req.user.id]
+    );
+    res.json({ recovery: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const confirmRefundSettlement = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    await loadBookingForRecovery(bookingId, req.user.id);
+    const existing = await loadRecoveryRow(bookingId);
+    if (!existing || existing.refund_status !== 'proposed') {
+      throw new AppError('There is no proposed refund settlement to confirm', 409, 'state_conflict');
+    }
+    if (existing.proposed_by === req.user.id) {
+      throw new AppError('The other party must confirm the refund settlement', 403, 'forbidden');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rental_cancellation_recoveries
+          SET refund_status = 'agreed', agreed_at = NOW(), updated_at = NOW()
+        WHERE booking_id = $1 AND refund_status = 'proposed'
+        RETURNING *`,
+      [bookingId]
+    );
+    if (!rows[0]) throw new AppError('There is no proposed refund settlement to confirm', 409, 'state_conflict');
+    res.json({ recovery: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const settleRefundSettlement = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    await loadBookingForRecovery(bookingId, req.user.id);
+    const existing = await loadRecoveryRow(bookingId);
+    if (!existing || existing.refund_status !== 'agreed') {
+      throw new AppError('Only an agreed refund settlement can be marked settled', 409, 'state_conflict');
+    }
+    const { rows } = await db.query(
+      `UPDATE tool_rental_cancellation_recoveries
+          SET refund_status = 'settled', settled_at = NOW(), updated_at = NOW()
+        WHERE booking_id = $1 AND refund_status = 'agreed'
+        RETURNING *`,
+      [bookingId]
+    );
+    if (!rows[0]) throw new AppError('Only an agreed refund settlement can be marked settled', 409, 'state_conflict');
+    res.json({ recovery: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const checkAvailability = async (req, res, next) => {
   try {
     const { toolId } = req.params;
@@ -310,4 +944,4 @@ const checkAvailability = async (req, res, next) => {
   }
 };
 
-module.exports = { createBooking, getMyBookings, getBookingsByOwner, updateBookingStatus, checkAvailability };
+module.exports = { createBooking, getMyBookings, getBookingsByOwner, updateBookingStatus, checkAvailability, approveBooking, declineBooking, getBookingReceipt, acknowledgeCheckout, proposeReturnReschedule, approveReturnReschedule, declineReturnReschedule, getCancellationRecovery, proposeRefundSettlement, confirmRefundSettlement, settleRefundSettlement };

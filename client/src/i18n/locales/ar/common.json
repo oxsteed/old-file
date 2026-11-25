@@ -1319,6 +1319,8 @@
   },
   "screens": {
     "creditPay": "الدفع باستخدام OxSteed Credit",
+    "creditRemainder": "يغطي Credit مبلغ {{credit}} · المتبقي المستحق {{remainder}}",
+    "creditRemainderCovered": "يغطي Credit الطلب بالكامل. لا يتبقى أي مبلغ مستحق.",
     "creditScanCard": "امسح بطاقة Credit الخاصة بك",
     "creditPin": "الرقم السري للبطاقة",
     "creditReceipt": "إيصال Credit",
@@ -6738,6 +6740,10 @@
       "qualifications": "المؤهلات",
       "credentials": "الشهادات",
       "yearsExperience": "سنوات الخبرة",
+      "equipmentOwned": "المعدات التي تملكها",
+      "ownershipAttestation": "الملكية",
+      "equipmentCondition": "حالة المعدات",
+      "pickupLocation": "موقع الاستلام",
       "area": {
         "country": "رمز الدولة (حرفان)",
         "region": "الولاية أو المنطقة",
@@ -6750,7 +6756,13 @@
       "sole_prop": "مؤسسة فردية",
       "corp": "شركة مساهمة",
       "partnership": "شراكة",
-      "other": "أخرى"
+      "other": "أخرى",
+      "owned_outright": "مملوكة بالكامل",
+      "owned_with_loan": "مملوكة بقرض",
+      "borrowed_with_permission": "مستعارة بإذن",
+      "excellent": "ممتازة",
+      "good": "جيدة",
+      "fair": "مقبولة"
     },
     "fieldErrors": {
       "invalid": "تحقّق من هذه الإجابة.",

@@ -953,6 +953,162 @@ async function nextHelperInvoiceNumber(client) {
   return `INV-${year}-${seq}`;
 }
 
+// ── 706: link an existing payment record to an invoice ──────────────────────
+// POST /api/businesses/:id/invoices/:invoiceId/link-payment
+// GET  /api/businesses/:id/invoices/:invoiceId/payments (matching view)
+// Manual record-matching only (D-423): the caller names a payment record
+// that already exists. Nothing is auto-matched and nothing on the invoice
+// (amount_paid / status / paid_at) changes here — POST .../pay stays the
+// only writer of those. A link is a bookkeeping assertion that this
+// payment settled (part of) this invoice.
+const INVOICE_PAYMENT_TYPES = new Set(['stripe_payment_intent', 'credit_transaction', 'manual_reference']);
+
+function formatPaymentLink(row) {
+  return {
+    id: row.id,
+    invoiceId: Number(row.invoice_id),
+    businessId: Number(row.business_id),
+    paymentType: row.payment_type,
+    paymentReference: row.payment_reference,
+    amount: Number(row.amount),
+    currencyCode: row.currency_code,
+    linkedBy: row.linked_by,
+    createdAt: row.created_at,
+  };
+}
+
+async function linkInvoicePayment(req, res) {
+  const client = await pool.connect();
+  try {
+    const access = await canWriteBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
+
+    const { paymentType, paymentReference, amount } = req.body || {};
+    if (!INVOICE_PAYMENT_TYPES.has(paymentType)) {
+      return res.status(400).json({ error: 'paymentType must be stripe_payment_intent, credit_transaction, or manual_reference' });
+    }
+    const reference = typeof paymentReference === 'string' ? paymentReference.trim() : '';
+    if (!reference || reference.length > 255) {
+      return res.status(400).json({ error: 'paymentReference is required (max 255 characters)' });
+    }
+    if (paymentType === 'stripe_payment_intent' && !/^pi_[A-Za-z0-9]+$/.test(reference)) {
+      return res.status(400).json({ error: 'paymentReference must be a Stripe payment intent id (pi_…)' });
+    }
+    const linkAmount = round2(amount);
+    if (!Number.isFinite(linkAmount) || linkAmount <= 0) {
+      return res.status(400).json({ error: 'amount must be greater than 0' });
+    }
+
+    await client.query('BEGIN');
+    const { rows: [invoice] } = await client.query(
+      'SELECT * FROM business_invoices WHERE id = $1 AND business_id = $2 FOR UPDATE',
+      [req.params.invoiceId, access.id]
+    );
+    if (!invoice) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    if (invoice.status === 'cancelled') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'A cancelled invoice cannot be linked to a payment' });
+    }
+    // A credit-transaction link names a record that must exist; the other
+    // two types name external records the server cannot look up, so the
+    // reference is the business owner's assertion (as mark-paid already is).
+    if (paymentType === 'credit_transaction') {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reference)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'paymentReference must be a credit transaction id' });
+      }
+      const { rows: [tx] } = await client.query(
+        'SELECT id FROM oxsteed_credit_transactions WHERE id = $1', [reference]
+      );
+      if (!tx) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Credit transaction not found', code: 'business_invoice_payment_not_found' });
+      }
+    }
+    const { rows: [{ linked_total }] } = await client.query(
+      'SELECT COALESCE(SUM(amount), 0)::numeric(12,2) AS linked_total FROM business_invoice_payment_links WHERE invoice_id = $1',
+      [invoice.id]
+    );
+    if (round2(Number(linked_total) + linkAmount) > round2(invoice.total) + 0.005) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Linked payments cannot exceed the invoice total', code: 'business_invoice_payment_over_total' });
+    }
+    let inserted;
+    try {
+      ({ rows: [inserted] } = await client.query(
+        `INSERT INTO business_invoice_payment_links
+           (invoice_id, business_id, payment_type, payment_reference, amount, currency_code, linked_by)
+         VALUES ($1, $2, $3, $4, $5::numeric(12,2), $6, $7)
+         RETURNING *`,
+        [invoice.id, access.id, paymentType, reference, linkAmount, invoice.currency_code || 'USD', req.user.id]
+      ));
+    } catch (insertErr) {
+      if (insertErr.code === '23505') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'This payment is already linked to the invoice', code: 'business_invoice_payment_already_linked' });
+      }
+      throw insertErr;
+    }
+    await client.query('COMMIT');
+    return res.status(201).json({ payment: formatPaymentLink(inserted) });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* already rolled back */ }
+    logger.error('linkInvoicePayment error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to link payment to invoice' });
+  } finally {
+    client.release();
+  }
+}
+
+// The matching view (706): the invoice paired with the payments that
+// settled it, plus the reconciliation totals — what is linked, what is
+// paid, and what remains. Read-only; a stranger gets 404, as on the
+// invoice reads.
+async function getInvoicePayments(req, res) {
+  try {
+    const access = await canReadBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
+
+    const { rows: [invoice] } = await pool.query(
+      'SELECT * FROM business_invoices WHERE id = $1 AND business_id = $2',
+      [req.params.invoiceId, access.id]
+    );
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    const { rows } = await pool.query(
+      `SELECT * FROM business_invoice_payment_links
+        WHERE invoice_id = $1 ORDER BY created_at ASC, id ASC`,
+      [invoice.id]
+    );
+    const payments = rows.map(formatPaymentLink);
+    const linkedTotal = round2(payments.reduce((sum, row) => sum + row.amount, 0));
+    const total = round2(invoice.total);
+    const amountPaid = round2(invoice.amount_paid || 0);
+    return res.json({
+      invoice: {
+        id: invoice.id,
+        invoiceNumber: invoice.invoice_number,
+        clientName: invoice.client_name,
+        status: invoice.status,
+        total,
+        amountPaid,
+        currencyCode: invoice.currency_code || 'USD',
+        paidAt: invoice.paid_at,
+      },
+      payments,
+      linkedTotal,
+      remaining: round2(Math.max(0, total - linkedTotal)),
+      fullyMatched: linkedTotal >= total - 0.01,
+    });
+  } catch (err) {
+    logger.error('getInvoicePayments error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to load invoice payments' });
+  }
+}
+
 module.exports = {
   listInvoices, getInvoice, getPublicInvoice, createInvoice,
   updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
@@ -960,4 +1116,5 @@ module.exports = {
   markHelperInvoicePaid, deleteHelperInvoice, sendHelperInvoice,
   voidInvoice, voidHelperInvoice,
   nextHelperInvoiceNumber,
+  linkInvoicePayment, getInvoicePayments,
 };

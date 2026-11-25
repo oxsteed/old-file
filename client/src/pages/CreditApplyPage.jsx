@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Clock, Loader2, XCircle } from 'lucide-react';
 import { getCsrfToken } from '../api/csrfToken';
 import api from '../api/axios';
+import CreditDomainRecoveryLinks from '../components/credit/CreditDomainRecoveryLinks';
 
 const SURFACE_OPTIONS = ['food_online', 'food_pos', 'chat', 'jobs', 'direct', 'qr', 'subscriptions', 'delivery', 'consulting', 'invoices', 'products', 'rentals'];
 
@@ -15,6 +16,105 @@ const STATUS_KEY = {
   suspended: 'creditApplyStatusSuspended',
   revoked: 'creditApplyStatusRevoked',
 };
+
+// Group 13 (655, D-359): activation checklist. The server derives each
+// step's state from the participant record (`GET /participants/me`
+// returns `activationChecklist` per participant); the fallback below
+// mirrors the same rules for a payload without the field, and the
+// no-application checklist is the same three steps before a record
+// exists. Read-only: it never changes activation state.
+const CHECKLIST_STEP_KEY = {
+  application: 'creditApplyChecklistStepApplication',
+  identity: 'creditApplyChecklistStepIdentity',
+  approval: 'creditApplyChecklistStepApproval',
+};
+const CHECKLIST_STATE_KEY = {
+  done: 'creditApplyChecklistDone',
+  pending: 'creditApplyChecklistPending',
+  blocked: 'creditApplyChecklistBlocked',
+};
+const CHECKLIST_DETAIL_KEY = {
+  submitted: 'creditApplyChecklistDetailSubmitted',
+  not_submitted: 'creditApplyChecklistDetailNotSubmitted',
+  verified: 'creditApplyChecklistDetailVerified',
+  awaiting_verification: 'creditApplyChecklistDetailAwaitingVerification',
+  approved: 'creditApplyChecklistDetailApproved',
+  approval_requested: 'creditApplyChecklistDetailApprovalRequested',
+  awaiting_review: 'creditApplyChecklistDetailAwaitingReview',
+  needs_verification: 'creditApplyChecklistDetailNeedsVerification',
+  needs_application: 'creditApplyChecklistDetailNeedsApplication',
+  closed: 'creditApplyChecklistDetailClosed',
+};
+const CHECKLIST_STATE_ICON = {
+  done: CheckCircle2,
+  pending: Clock,
+  blocked: XCircle,
+};
+const CHECKLIST_STATE_CLASS = {
+  done: 'text-emerald-400',
+  pending: 'text-amber-400',
+  blocked: 'text-red-400',
+};
+const EMPTY_CHECKLIST = [
+  { id: 'application', state: 'pending', detail: 'not_submitted' },
+  { id: 'identity', state: 'pending', detail: 'awaiting_verification' },
+  { id: 'approval', state: 'blocked', detail: 'needs_application' },
+];
+
+function fallbackChecklist(participant) {
+  const status = participant?.status || 'pending';
+  const diditVerified = participant?.diditVerified === true;
+  const closed = status === 'suspended' || status === 'revoked';
+  return [
+    { id: 'application', state: 'done', detail: 'submitted' },
+    closed
+      ? { id: 'identity', state: 'blocked', detail: 'closed' }
+      : diditVerified
+        ? { id: 'identity', state: 'done', detail: 'verified' }
+        : { id: 'identity', state: 'pending', detail: 'awaiting_verification' },
+    status === 'active'
+      ? { id: 'approval', state: 'done', detail: 'approved' }
+      : closed
+        ? { id: 'approval', state: 'blocked', detail: 'closed' }
+        : !diditVerified
+          ? { id: 'approval', state: 'blocked', detail: 'needs_verification' }
+          : { id: 'approval', state: 'pending', detail: 'awaiting_review' },
+  ];
+}
+
+function ActivationChecklist({ participant }) {
+  const { t } = useTranslation('credit');
+  const steps = !participant
+    ? EMPTY_CHECKLIST
+    : Array.isArray(participant.activationChecklist) && participant.activationChecklist.length === 3
+      ? participant.activationChecklist
+      : fallbackChecklist(participant);
+  return (
+    <div>
+      <p className="text-sm font-semibold text-white">{t('creditApplyChecklistTitle')}</p>
+      <p className="mt-1 text-sm text-gray-400">{t('creditApplyChecklistIntro')}</p>
+      <ol className="mt-3 space-y-2">
+        {steps.map((step) => {
+          const Icon = CHECKLIST_STATE_ICON[step.state] || Clock;
+          const stateClass = CHECKLIST_STATE_CLASS[step.state] || 'text-gray-400';
+          return (
+            <li key={step.id} className="flex items-start gap-3 rounded-xl border border-gray-800 bg-gray-950/40 px-3 py-3">
+              <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${stateClass}`} />
+              <div>
+                <p className="text-sm font-semibold text-white">
+                  {t(CHECKLIST_STEP_KEY[step.id] || 'creditApplyChecklistStepApplication')}
+                  {' · '}
+                  <span className={stateClass}>{t(CHECKLIST_STATE_KEY[step.state] || 'creditApplyChecklistPending')}</span>
+                </p>
+                <p className="mt-0.5 text-sm text-gray-400">{t(CHECKLIST_DETAIL_KEY[step.detail] || 'creditApplyChecklistDetailAwaitingReview')}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
 
 /**
  * Credit Everywhere Phase 1 — self-serve participant apply.
@@ -103,6 +203,19 @@ export default function CreditApplyPage() {
               </li>
             ))}
           </ul>
+          {participants.map((participant) => (
+            <div key={participant.participantId} className="border-t border-gray-800 pt-3">
+              <ActivationChecklist participant={participant} />
+            </div>
+          ))}
+        </div>
+      )}
+      {participants.some((participant) => participant.status === 'suspended' || participant.status === 'revoked') && (
+        <CreditDomainRecoveryLinks />
+      )}
+      {participants.length === 0 && (
+        <div className="space-y-2 rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-4">
+          <ActivationChecklist participant={null} />
         </div>
       )}
       {done ? (

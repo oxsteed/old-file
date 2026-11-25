@@ -13,6 +13,9 @@ import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
 import HelperWorkPanel from '../components/HelperWorkPanel';
+import HelperReputationPanel from '../components/HelperReputationPanel';
+import HelperRepeatCustomers from '../components/HelperRepeatCustomers';
+import HelperBusinessTransition from '../components/HelperBusinessTransition';
 import HelperOffersCard from '../components/HelperOffersCard';
 import EditProfileTab from '../components/EditProfileTab';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
@@ -30,6 +33,7 @@ import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/Dashbo
 import HelperCapabilitiesCatalog from '../components/HelperCapabilitiesCatalog';
 import QuoteHistoryPanel from '../components/messaging/QuoteHistoryPanel';
 import { listAssignedMaintenanceRequests } from '../api/maintenanceRequests';
+import { TOOL_CAPACITY_UNITS } from '../types/toolDirectory';
 import '../components/messaging/SharedMessengerShell.css';
 import '../styles/HelperDashboard.css';
 
@@ -445,11 +449,18 @@ export default function HelperDashboard() {
   const [catLookup, setCatLookup] = useState([]);
   const [toolCatLookup, setToolCatLookup] = useState([]);
   const emptySkill = { skill_name:'', category:'', hourly_rate:'', years_exp:'', description:'', is_available:true };
-  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', replacement_value:'', owner_rules:'', owner_custom_terms:'', owner_attestation_accepted:false, condition:'good', brand:'', model:'', image_url:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'' };
+  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', replacement_value:'', owner_rules:'', owner_custom_terms:'', owner_attestation_accepted:false, condition:'good', brand:'', model:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'', location_lat:'', location_lng:'', capacity_value:'', capacity_unit:'', weight_kg:'', size_length_cm:'', size_width_cm:'', size_height_cm:'', pickup_window_start:'', pickup_window_end:'', return_window_start:'', return_window_end:'', cleaning_instructions:'' };
   const [skillForm, setSkillForm] = useState(emptySkill);
   const [toolForm, setToolForm]   = useState(emptyTool);
-  const [toolImageFile, setToolImageFile] = useState(null);
-  const [toolImagePreview, setToolImagePreview] = useState('');
+  // 559: gallery editor state. toolGalleryUrls holds the listing's stored
+  // photos (editing); toolGalleryNewFiles holds pending files for a new
+  // listing (uploaded right after create). The first photo is the cover.
+  const [toolGalleryUrls, setToolGalleryUrls] = useState([]);
+  const [toolGalleryNewFiles, setToolGalleryNewFiles] = useState([]);
+  const toolGalleryItems = [
+    ...toolGalleryUrls.map((url) => ({ key: `stored-${url}`, url, kind: 'stored' })),
+    ...toolGalleryNewFiles.map((entry, index) => ({ key: `new-${index}-${entry.file.name}`, url: entry.preview, kind: 'pending' })),
+  ];
 
   const fetchMySkills = useCallback(async () => {
     setSkillsLoading(true);
@@ -537,15 +548,18 @@ export default function HelperDashboard() {
     setEditingTool(null);
     setToolCatLookup([]);
     setToolForm(emptyTool);
-    setToolImageFile(null);
-    setToolImagePreview('');
+    setToolGalleryUrls([]);
+    setToolGalleryNewFiles([]);
     setShowToolModal(true);
   };
   const openEditTool = (tool) => {
     setEditingTool(tool);
-    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', replacement_value:tool.replacement_value||'', owner_rules:tool.owner_rules||'', owner_custom_terms:tool.owner_custom_terms||'', owner_attestation_accepted:false, condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', image_url:tool.image_url||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'' });
-    setToolImageFile(null);
-    setToolImagePreview(tool.image_url||'');
+    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', replacement_value:tool.replacement_value||'', owner_rules:tool.owner_rules||'', owner_custom_terms:tool.owner_custom_terms||'', owner_attestation_accepted:false, condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'', location_lat:tool.location_lat??'', location_lng:tool.location_lng??'', capacity_value:tool.capacity_value??'', capacity_unit:tool.capacity_unit||'', weight_kg:tool.weight_kg??'', size_length_cm:tool.size_length_cm??'', size_width_cm:tool.size_width_cm??'', size_height_cm:tool.size_height_cm??'', pickup_window_start:tool.pickup_window_start?String(tool.pickup_window_start).slice(0,5):'', pickup_window_end:tool.pickup_window_end?String(tool.pickup_window_end).slice(0,5):'', return_window_start:tool.return_window_start?String(tool.return_window_start).slice(0,5):'', return_window_end:tool.return_window_end?String(tool.return_window_end).slice(0,5):'', cleaning_instructions:tool.cleaning_instructions||'' });
+    // 559: the editor works on the stored gallery (first photo = cover).
+    setToolGalleryUrls(Array.isArray(tool.image_gallery) && tool.image_gallery.length > 0
+      ? [...tool.image_gallery]
+      : (tool.image_url ? [tool.image_url] : []));
+    setToolGalleryNewFiles([]);
     setShowToolModal(true);
   };
   const buildToolPayload = () => {
@@ -553,6 +567,13 @@ export default function HelperDashboard() {
     const hourlyRate = toolForm.hourly_rate === '' ? null : Number(toolForm.hourly_rate);
     const depositAmount = toolForm.deposit_amount === '' ? null : Number(toolForm.deposit_amount);
     const replacementValue = toolForm.replacement_value === '' ? null : Number(toolForm.replacement_value);
+    // 563: capacity is a value+unit pair; weight and dimensions are plain
+    // non-negative measures. Blank means unset (null on create).
+    const capacityValue = toolForm.capacity_value === '' ? null : Number(toolForm.capacity_value);
+    const weightKg = toolForm.weight_kg === '' ? null : Number(toolForm.weight_kg);
+    const sizeLength = toolForm.size_length_cm === '' ? null : Number(toolForm.size_length_cm);
+    const sizeWidth = toolForm.size_width_cm === '' ? null : Number(toolForm.size_width_cm);
+    const sizeHeight = toolForm.size_height_cm === '' ? null : Number(toolForm.size_height_cm);
 
     if (!toolForm.name.trim()) throw new Error(t('dashboard.skillsTools.toolNameRequired', { defaultValue: 'Tool name is required' }));
     if (!toolForm.category.trim()) throw new Error(t('dashboard.skillsTools.toolCategoryRequired', { defaultValue: 'Tool category is required' }));
@@ -562,6 +583,25 @@ export default function HelperDashboard() {
     if (toolForm.deposit_amount !== '' && (!Number.isFinite(depositAmount) || depositAmount < 0)) throw new Error(t('dashboard.skillsTools.depositInvalid', { defaultValue: 'Deposit cannot be negative' }));
     if (toolForm.replacement_value !== '' && (!Number.isFinite(replacementValue) || replacementValue < 0)) throw new Error(t('dashboard.skillsTools.replacementInvalid', { defaultValue: 'Replacement value cannot be negative' }));
     if (toolForm.requires_deposit && !(depositAmount > 0)) throw new Error(t('dashboard.skillsTools.depositRequired', { defaultValue: 'Enter a deposit amount or turn off required deposit' }));
+    if (toolForm.capacity_value !== '' && (!Number.isFinite(capacityValue) || capacityValue < 0)) throw new Error(t('dashboard.skillsTools.capacityInvalid', { defaultValue: 'Capacity must be 0 or more' }));
+    if ((toolForm.capacity_value !== '') !== (toolForm.capacity_unit !== '')) throw new Error(t('dashboard.skillsTools.capacityPairInvalid', { defaultValue: 'Enter both a capacity value and a unit, or leave both blank' }));
+    if (toolForm.capacity_unit !== '' && !TOOL_CAPACITY_UNITS.includes(toolForm.capacity_unit)) throw new Error(t('dashboard.skillsTools.capacityInvalid', { defaultValue: 'Capacity must be 0 or more' }));
+    if (toolForm.weight_kg !== '' && (!Number.isFinite(weightKg) || weightKg < 0)) throw new Error(t('dashboard.skillsTools.weightInvalid', { defaultValue: 'Weight must be 0 or more' }));
+    if ((toolForm.size_length_cm !== '' && (!Number.isFinite(sizeLength) || sizeLength < 0))
+      || (toolForm.size_width_cm !== '' && (!Number.isFinite(sizeWidth) || sizeWidth < 0))
+      || (toolForm.size_height_cm !== '' && (!Number.isFinite(sizeHeight) || sizeHeight < 0))) throw new Error(t('dashboard.skillsTools.sizeInvalid', { defaultValue: 'Dimensions must be 0 or more' }));
+    // 564: pickup coordinates are a pair; blank means unset.
+    const locationLat = toolForm.location_lat === '' ? null : Number(toolForm.location_lat);
+    const locationLng = toolForm.location_lng === '' ? null : Number(toolForm.location_lng);
+    if ((toolForm.location_lat !== '') !== (toolForm.location_lng !== '')) throw new Error(t('dashboard.skillsTools.locationPairInvalid', { defaultValue: 'Enter both latitude and longitude, or leave both blank' }));
+    if ((toolForm.location_lat !== '' && (!Number.isFinite(locationLat) || locationLat < -90 || locationLat > 90))
+      || (toolForm.location_lng !== '' && (!Number.isFinite(locationLng) || locationLng < -180 || locationLng > 180))) throw new Error(t('dashboard.skillsTools.locationInvalid', { defaultValue: 'Latitude must be between -90 and 90; longitude between -180 and 180' }));
+    // 574: pickup window is a pair; blank means no window. End after start.
+    if ((toolForm.pickup_window_start !== '') !== (toolForm.pickup_window_end !== '')) throw new Error(t('dashboard.skillsTools.pickupWindowPairInvalid', { defaultValue: 'Enter both a pickup window start and end, or leave both blank' }));
+    if (toolForm.pickup_window_start !== '' && toolForm.pickup_window_end <= toolForm.pickup_window_start) throw new Error(t('dashboard.skillsTools.pickupWindowOrderInvalid', { defaultValue: 'Pickup window end must be after the start' }));
+    // 576: return window is a pair; blank means no window. End after start.
+    if ((toolForm.return_window_start !== '') !== (toolForm.return_window_end !== '')) throw new Error(t('dashboard.skillsTools.returnWindowPairInvalid', { defaultValue: 'Enter both a return window start and end, or leave both blank' }));
+    if (toolForm.return_window_start !== '' && toolForm.return_window_end <= toolForm.return_window_start) throw new Error(t('dashboard.skillsTools.returnWindowOrderInvalid', { defaultValue: 'Return window end must be after the start' }));
     if (!toolForm.owner_attestation_accepted) throw new Error(t('dashboard.skillsTools.ownerAttestationRequired', { defaultValue: 'Confirm the peer rental acknowledgement before listing this tool' }));
 
     return {
@@ -579,6 +619,14 @@ export default function HelperDashboard() {
       hourly_rate: hourlyRate,
       deposit_amount: depositAmount,
       replacement_value: replacementValue,
+      location_lat: locationLat,
+      location_lng: locationLng,
+      capacity_value: capacityValue,
+      capacity_unit: toolForm.capacity_unit || null,
+      weight_kg: weightKg,
+      size_length_cm: sizeLength,
+      size_width_cm: sizeWidth,
+      size_height_cm: sizeHeight,
       owner_attestation_accepted: toolForm.owner_attestation_accepted,
     };
   };
@@ -587,29 +635,116 @@ export default function HelperDashboard() {
     Object.entries(payload).forEach(([key, value]) => {
       if (value !== undefined && value !== null) formData.append(key, String(value));
     });
-    if (toolImageFile) {
-      formData.append('image', toolImageFile);
-    } else if (payload.image_url) {
-      formData.append('image_url', payload.image_url);
-    }
-    if (editingTool?.image_url && !toolImagePreview && !toolImageFile) {
-      formData.append('remove_image', 'true');
+    // 559: on create, the first pending photo rides the existing single
+    // image upload (it becomes the cover); the rest upload to the gallery
+    // right after create in handleSaveTool. On edit the gallery editor
+    // already saved every photo change, so no image fields are sent and
+    // the gallery is left untouched.
+    if (!editingTool && toolGalleryNewFiles.length > 0) {
+      formData.append('image', toolGalleryNewFiles[0].file);
     }
     return formData;
   };
-  const handleToolImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error(t('dashboard.skillsTools.toolImageInvalid', { defaultValue: 'Choose a JPG, PNG, GIF, or WebP image.' }));
+  // 559: gallery editor actions. On an existing listing every change
+  // applies immediately through the gallery endpoints; on a new listing
+  // the files stay pending until the listing exists.
+  const handleGalleryFilesChange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    const valid = [];
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        toast.error(t('dashboard.skillsTools.toolImageInvalid', { defaultValue: 'Choose a JPG, PNG, GIF, or WebP image.' }));
+        continue;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(t('dashboard.skillsTools.toolImageTooLarge', { defaultValue: 'Tool photo must be 10MB or smaller.' }));
+        continue;
+      }
+      valid.push(file);
+    }
+    if (!valid.length) return;
+    if (toolGalleryUrls.length + toolGalleryNewFiles.length + valid.length > 8) {
+      toast.error(t('dashboard.skillsTools.toolGalleryTooMany'));
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error(t('dashboard.skillsTools.toolImageTooLarge', { defaultValue: 'Tool photo must be 10MB or smaller.' }));
-      return;
+    if (editingTool) {
+      try {
+        const form = new FormData();
+        valid.forEach((file) => form.append('images', file));
+        const res = await api.post(`/tool-rentals/${editingTool.id}/gallery`, form);
+        setToolGalleryUrls(res.data?.image_gallery || []);
+        toast.success(t('dashboard.skillsTools.toolGallerySaved'));
+      } catch { toast.error(t('dashboard.skillsTools.toolGallerySaveFailed')); }
+    } else {
+      setToolGalleryNewFiles((prev) => [...prev, ...valid.map((file) => ({ file, preview: URL.createObjectURL(file) }))]);
     }
-    setToolImageFile(file);
-    setToolImagePreview(URL.createObjectURL(file));
+  };
+  const handleGalleryRemove = async (index) => {
+    if (index < toolGalleryUrls.length) {
+      if (editingTool) {
+        try {
+          const res = await api.delete(`/tool-rentals/${editingTool.id}/gallery/${index}`);
+          setToolGalleryUrls(res.data?.image_gallery || []);
+          toast.success(t('dashboard.skillsTools.toolGallerySaved'));
+        } catch { toast.error(t('dashboard.skillsTools.toolGallerySaveFailed')); }
+      } else {
+        setToolGalleryUrls((prev) => prev.filter((_, i) => i !== index));
+      }
+    } else {
+      const fileIndex = index - toolGalleryUrls.length;
+      setToolGalleryNewFiles((prev) => {
+        const removed = prev[fileIndex];
+        if (removed) URL.revokeObjectURL(removed.preview);
+        return prev.filter((_, i) => i !== fileIndex);
+      });
+    }
+  };
+  const handleGalleryMove = async (index, direction) => {
+    const target = index + direction;
+    if (target < 0 || target >= toolGalleryItems.length) return;
+    if (index < toolGalleryUrls.length && target < toolGalleryUrls.length) {
+      const next = [...toolGalleryUrls];
+      [next[index], next[target]] = [next[target], next[index]];
+      if (editingTool) {
+        try {
+          const res = await api.put(`/tool-rentals/${editingTool.id}/gallery`, { image_gallery: next });
+          setToolGalleryUrls(res.data?.image_gallery || []);
+        } catch { toast.error(t('dashboard.skillsTools.toolGallerySaveFailed')); }
+      } else {
+        setToolGalleryUrls(next);
+      }
+    } else if (index >= toolGalleryUrls.length && target >= toolGalleryUrls.length) {
+      const from = index - toolGalleryUrls.length;
+      const to = target - toolGalleryUrls.length;
+      setToolGalleryNewFiles((prev) => {
+        const next = [...prev];
+        [next[from], next[to]] = [next[to], next[from]];
+        return next;
+      });
+    }
+  };
+  const handleGallerySetCover = async (index) => {
+    if (index === 0) return;
+    if (index < toolGalleryUrls.length) {
+      const next = [toolGalleryUrls[index], ...toolGalleryUrls.filter((_, i) => i !== index)];
+      if (editingTool) {
+        try {
+          const res = await api.put(`/tool-rentals/${editingTool.id}/gallery`, { image_gallery: next });
+          setToolGalleryUrls(res.data?.image_gallery || []);
+        } catch { toast.error(t('dashboard.skillsTools.toolGallerySaveFailed')); }
+      } else {
+        setToolGalleryUrls(next);
+      }
+    } else {
+      const fileIndex = index - toolGalleryUrls.length;
+      setToolGalleryNewFiles((prev) => {
+        const item = prev[fileIndex];
+        if (!item) return prev;
+        return [item, ...prev.filter((_, i) => i !== fileIndex)];
+      });
+    }
   };
   const handleSaveTool = async (e) => {
     e.preventDefault();
@@ -620,14 +755,23 @@ export default function HelperDashboard() {
         await api.put(`/tool-rentals/${editingTool.id}`, formData);
         toast.success(t('helperDashboard.tools.updated'));
       } else {
-        await api.post('/tool-rentals', formData);
+        const created = await api.post('/tool-rentals', formData);
+        const createdId = created.data?.tool?.id;
+        if (createdId && toolGalleryNewFiles.length > 1) {
+          try {
+            const form = new FormData();
+            toolGalleryNewFiles.slice(1).forEach(({ file }) => form.append('images', file));
+            await api.post(`/tool-rentals/${createdId}/gallery`, form);
+          } catch { toast.error(t('dashboard.skillsTools.toolGallerySaveFailed')); }
+        }
         toast.success(t('helperDashboard.tools.listed'));
       }
       setShowToolModal(false);
       setEditingTool(null);
       setToolForm(emptyTool);
-      setToolImageFile(null);
-      setToolImagePreview('');
+      toolGalleryNewFiles.forEach(({ preview }) => URL.revokeObjectURL(preview));
+      setToolGalleryNewFiles([]);
+      setToolGalleryUrls([]);
       fetchMyTools();
     } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.tools.saveFailed')); }
   };
@@ -1351,7 +1495,7 @@ export default function HelperDashboard() {
             </div>
           )}
 
-          {tab === 'work' && <HelperWorkPanel />}
+          {tab === 'work' && <><HelperWorkPanel /><HelperReputationPanel /><HelperRepeatCustomers /><HelperBusinessTransition /></>}
           <HelperOffersCard />
 
           {SHOW_LEGACY_HELPER_RECOMMENDATIONS && <RecommendationFeed title={t('helperDashboard.nextAction')} />}
@@ -2655,38 +2799,53 @@ export default function HelperDashboard() {
       </Modal>
 
       {/* Add / Edit Tool Modal - upgraded with richer fields */}
-      <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);setToolCatLookup([]);setToolImageFile(null);setToolImagePreview('');}} title={editingTool ? t('dashboard.skillsTools.modalEditTool') : t('dashboard.skillsTools.modalAddTool')}>
+      <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);setToolCatLookup([]);toolGalleryNewFiles.forEach(({ preview }) => URL.revokeObjectURL(preview));setToolGalleryNewFiles([]);setToolGalleryUrls([]);}} title={editingTool ? t('dashboard.skillsTools.modalEditTool') : t('dashboard.skillsTools.modalAddTool')}>
         <form onSubmit={handleSaveTool} className="space-y-4" data-track="ui.2144c8cfa1.59">
           <Input label={t('dashboard.skillsTools.toolNameLabel')} required maxLength={200} placeholder={t('dashboard.skillsTools.toolNamePlaceholder')} value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">
-              {t('dashboard.skillsTools.toolPhotoLabel', { defaultValue: 'Tool photo' })}
+              {t('dashboard.skillsTools.toolGalleryLabel')}
             </label>
-            <div className="flex gap-3 items-stretch">
-              <div className="w-28 h-24 rounded-xl border border-gray-700 bg-gray-800 overflow-hidden flex items-center justify-center flex-shrink-0">
-                {toolImagePreview ? (
-                  <img src={toolImagePreview} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-[10px] text-gray-500 text-center px-3">{t('dashboard.skillsTools.toolPhotoEmpty', { defaultValue: 'No photo yet' })}</span>
-                )}
+            <p className="text-xs text-gray-500">
+              {t('dashboard.skillsTools.toolGalleryHint')}
+            </p>
+            {toolGalleryItems.length === 0 ? (
+              <p className="text-xs text-gray-500 mt-2">{t('dashboard.skillsTools.toolGalleryEmpty')}</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                {toolGalleryItems.map((item, index) => (
+                  <div key={item.key} className="rounded-xl border border-gray-700 bg-gray-800 overflow-hidden">
+                    <div className="relative aspect-square">
+                      <img src={item.url} alt="" className="w-full h-full object-cover" />
+                      {index === 0 && (
+                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-black/60 text-white text-[10px]">{t('toolRentals.galleryCover')}</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleGalleryRemove(index)}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-xs leading-none"
+                        aria-label={t('dashboard.skillsTools.toolGalleryRemove')} data-track="ui.2144c8cfa1.60"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between px-1 py-1">
+                      <button type="button" disabled={index === 0} onClick={() => handleGalleryMove(index, -1)} className="text-gray-300 disabled:opacity-30 px-1" aria-label={t('dashboard.skillsTools.toolGalleryMoveLeft')} data-track="ui.2144c8cfa1.69">‹</button>
+                      <button type="button" disabled={index === 0} onClick={() => handleGallerySetCover(index)} className="text-[10px] text-gray-400 hover:text-white disabled:opacity-0 text-center leading-tight px-1" data-track="ui.2144c8cfa1.70">{t('dashboard.skillsTools.toolGallerySetCover')}</button>
+                      <button type="button" disabled={index === toolGalleryItems.length - 1} onClick={() => handleGalleryMove(index, 1)} className="text-gray-300 disabled:opacity-30 px-1" aria-label={t('dashboard.skillsTools.toolGalleryMoveRight')} data-track="ui.2144c8cfa1.71">›</button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex-1 min-w-0">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  onChange={handleToolImageChange}
-                  className="block w-full text-xs text-gray-400 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-orange-600"
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  {t('dashboard.skillsTools.toolPhotoHint', { defaultValue: 'Add a clear photo so renters can inspect the tool before booking.' })}
-                </p>
-                {toolImagePreview&&(
-                  <button type="button" onClick={()=>{setToolImageFile(null);setToolImagePreview('');setToolForm(p=>({...p,image_url:''}));}} className="text-xs text-red-400 hover:text-red-300 mt-2" data-track="ui.2144c8cfa1.60">
-                    {t('common.remove', { defaultValue: 'Remove' })}
-                  </button>
-                )}
-              </div>
-            </div>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              multiple
+              onChange={handleGalleryFilesChange}
+              className="block w-full text-xs text-gray-400 mt-2 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-orange-600"
+              aria-label={t('dashboard.skillsTools.toolGalleryAdd')}
+            />
           </div>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.categoryLabel')}</label>
@@ -2709,6 +2868,21 @@ export default function HelperDashboard() {
             <Input label={t('dashboard.skillsTools.brandOptLabel')} maxLength={100} placeholder={t('dashboard.skillsTools.brandPlaceholder')} value={toolForm.brand} onChange={e=>setToolForm(p=>({...p,brand:e.target.value}))}/>
             <Input label={t('dashboard.skillsTools.modelOptLabel')} maxLength={100} placeholder={t('dashboard.skillsTools.modelPlaceholder')} value={toolForm.model} onChange={e=>setToolForm(p=>({...p,model:e.target.value}))}/>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('dashboard.skillsTools.capacityValueLabel')} type="number" step="0.01" min="0" placeholder="0" value={toolForm.capacity_value} onChange={e=>setToolForm(p=>({...p,capacity_value:e.target.value}))}/>
+            <Select label={t('dashboard.skillsTools.capacityUnitLabel')} value={toolForm.capacity_unit} onChange={e=>setToolForm(p=>({...p,capacity_unit:e.target.value}))}>
+              <option value="">{t('dashboard.skillsTools.capacityUnitNone')}</option>
+              {TOOL_CAPACITY_UNITS.map((u)=>(<option key={u} value={u}>{u}</option>))}
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('dashboard.skillsTools.weightKgLabel')} type="number" step="0.01" min="0" placeholder="0" value={toolForm.weight_kg} onChange={e=>setToolForm(p=>({...p,weight_kg:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.sizeLengthLabel')} type="number" step="0.01" min="0" placeholder="0" value={toolForm.size_length_cm} onChange={e=>setToolForm(p=>({...p,size_length_cm:e.target.value}))}/>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('dashboard.skillsTools.sizeWidthLabel')} type="number" step="0.01" min="0" placeholder="0" value={toolForm.size_width_cm} onChange={e=>setToolForm(p=>({...p,size_width_cm:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.sizeHeightLabel')} type="number" step="0.01" min="0" placeholder="0" value={toolForm.size_height_cm} onChange={e=>setToolForm(p=>({...p,size_height_cm:e.target.value}))}/>
+          </div>
           <Select label={t('dashboard.skillsTools.conditionLabel')} value={toolForm.condition} onChange={e=>setToolForm(p=>({...p,condition:e.target.value}))}>
             <option value="excellent">{t('dashboard.skillsTools.conditionExcellent')}</option><option value="good">{t('dashboard.skillsTools.conditionGood')}</option><option value="fair">{t('dashboard.skillsTools.conditionFair')}</option>
           </Select>
@@ -2720,6 +2894,20 @@ export default function HelperDashboard() {
             <Input label={t('dashboard.skillsTools.cityOptLabel')} required maxLength={100} placeholder={t('dashboard.skillsTools.cityPlaceholder')} value={toolForm.location_city} onChange={e=>setToolForm(p=>({...p,location_city:e.target.value}))}/>
             <Input label={t('dashboard.skillsTools.stateOptLabel')} maxLength={50} placeholder={t('dashboard.skillsTools.statePlaceholder')} value={toolForm.location_state} onChange={e=>setToolForm(p=>({...p,location_state:e.target.value}))}/>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('dashboard.skillsTools.locationLatLabel')} type="number" step="any" min="-90" max="90" placeholder="30.27" value={toolForm.location_lat} onChange={e=>setToolForm(p=>({...p,location_lat:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.locationLngLabel')} type="number" step="any" min="-180" max="180" placeholder="-97.74" value={toolForm.location_lng} onChange={e=>setToolForm(p=>({...p,location_lng:e.target.value}))}/>
+          </div>
+          {/* 574: owner pickup window; renters pick a time inside it. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('dashboard.skillsTools.pickupWindowStartLabel')} type="time" value={toolForm.pickup_window_start} onChange={e=>setToolForm(p=>({...p,pickup_window_start:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.pickupWindowEndLabel')} type="time" value={toolForm.pickup_window_end} onChange={e=>setToolForm(p=>({...p,pickup_window_end:e.target.value}))}/>
+          </div>
+          {/* 576: owner return window; renters pick a return time inside it. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Input label={t('dashboard.skillsTools.returnWindowStartLabel')} type="time" value={toolForm.return_window_start} onChange={e=>setToolForm(p=>({...p,return_window_start:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.returnWindowEndLabel')} type="time" value={toolForm.return_window_end} onChange={e=>setToolForm(p=>({...p,return_window_end:e.target.value}))}/>
+          </div>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.descriptionOptLabel')}</label>
             <textarea rows={2} maxLength={4000} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.toolDescPlaceholderShort')} value={toolForm.description} onChange={e=>setToolForm(p=>({...p,description:e.target.value}))}/>
@@ -2727,6 +2915,11 @@ export default function HelperDashboard() {
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.ownerRulesLabel', { defaultValue: 'Owner rules / handling notes' })}</label>
             <textarea rows={3} maxLength={4000} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.ownerRulesPlaceholder', { defaultValue: 'Example: return clean, use only with wood, do not use in rain, include batteries/charger.' })} value={toolForm.owner_rules} onChange={e=>setToolForm(p=>({...p,owner_rules:e.target.value}))}/>
+          </div>
+          {/* 580: cleaning instructions the renter sees at booking and return. */}
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.cleaningInstructionsLabel', { defaultValue: 'Cleaning instructions' })}</label>
+            <textarea rows={3} maxLength={4000} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.cleaningInstructionsPlaceholder', { defaultValue: 'Example: wipe down with a damp cloth, empty the dust bag, coil the cord.' })} value={toolForm.cleaning_instructions} onChange={e=>setToolForm(p=>({...p,cleaning_instructions:e.target.value}))}/>
           </div>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.ownerCustomTermsLabel', { defaultValue: 'Owner-provided rental terms' })}</label>

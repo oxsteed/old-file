@@ -19,10 +19,12 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import { currentAuthEpoch } from '../api/authSessionEpoch';
 import { EquipmentOwnerWorkspace } from '../components/EquipmentOperations';
+import ToolOwnerMaintainPanel from '../components/ToolOwnerMaintainPanel';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import { deriveToolOwnerStats, upcomingToolOwnerHandoffs } from '../utils/toolOwnerDashboard';
+import { activationStatus, activationStatusLabelKey, activationStatusTone } from '../utils/toolListingStatus';
 import {
   Wrench, Package, Clock, DollarSign, Star, TrendingUp,
   CheckCircle2, AlertCircle, Plus, ArrowRight,
@@ -32,6 +34,24 @@ function fmtCurrency(cents, currency = 'USD') {
   if (cents == null || isNaN(cents)) return '—';
   return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 }).format(cents / 100);
 }
+
+// Group 11 item 574: pickup appointment time (TIME "HH:MM:SS" from the
+// booking row) rendered in the owner's locale.
+function fmtPickupTime(value) {
+  if (!value) return '';
+  const [h, m] = String(value).split(':').map(Number);
+  if (!Number.isFinite(h)) return String(value);
+  return new Date(2000, 0, 1, h, m || 0).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+// 552: readiness checklist labels, in display order. Kept distinct from
+// the activation status above (D-262): readiness is completeness.
+const READINESS_CHECK_LABELS = Object.freeze({
+  photos: 'toolRentals.readinessPhotos',
+  specs: 'toolRentals.readinessSpecs',
+  pricing: 'toolRentals.readinessPricing',
+  fulfillment: 'toolRentals.readinessFulfillment',
+});
 
 function StatTile({ icon, label, value, hint, accent = false }) {
   return (
@@ -93,6 +113,10 @@ function ToolOwnerDashboardContent() {
       <Navbar />
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
         <EquipmentOwnerWorkspace tools={listings}/>
+        {/* Group 11 Slice 2e: maintenance calendar (591), safety docs
+            (594), return-to-availability checklist (595), repeat renters
+            (600). */}
+        <ToolOwnerMaintainPanel tools={listings} />
         <section className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
@@ -217,7 +241,18 @@ function ToolOwnerDashboardContent() {
                             {b.tool_name || b.tool_title || `#${b.id}`}
                           </div>
                           <div className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                            {when ? new Date(when).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}
+                            {when ? (
+                              // Group 11 item 574: a pickup with an
+                              // appointment time shows the date + the real
+                              // time, not the midnight the date-only
+                              // start_date would otherwise render as.
+                              // Group 11 item 576: same for a return with
+                              // a return time.
+                              (!isReturn && b.pickup_time) || (isReturn && b.return_time)
+                                ? `${new Date(when).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${fmtPickupTime(isReturn ? b.return_time : b.pickup_time)}`
+                                : new Date(when).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                            ) : ''}
+                            {isReturn && b.return_reschedule_status === 'proposed' ? ` · ${t('dashboards.toolOwner.returnRescheduleProposed')}` : ''}
                             {b.renter_name ? ` · ${b.renter_name}` : ''}
                           </div>
                         </div>
@@ -253,6 +288,38 @@ function ToolOwnerDashboardContent() {
                 {listings.slice(0, 6).map((l) => (
                   <li key={l.id} className="rounded-lg border p-3 hover:bg-orange-500/5 transition" style={{ borderColor: 'var(--color-border)' }}>
                     <div className="text-sm font-semibold truncate">{l.title || l.name}</div>
+                    {/* 555: activation status — published, or why unpublished. */}
+                    <div className="mt-1 flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                      <span
+                        aria-hidden="true"
+                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: activationStatusTone(activationStatus(l)) }}
+                      />
+                      <span>{t(activationStatusLabelKey(activationStatus(l)))}</span>
+                    </div>
+                    {/* 552: readiness checklist — distinct from activation status. */}
+                    {l.readiness && (
+                      <div className="mt-2 border-t pt-2" style={{ borderColor: 'var(--color-border)' }}>
+                        <p className="text-[11px] font-semibold">{t('toolRentals.readinessTitle')}</p>
+                        <p className="mt-0.5 flex items-center gap-1.5 text-[11px]">
+                          {l.readiness.ready
+                            ? <><CheckCircle2 size={12} className="text-green-500" aria-hidden="true" /> {t('toolRentals.readinessReady')}</>
+                            : <><AlertCircle size={12} className="text-amber-500" aria-hidden="true" /> {t('toolRentals.readinessNotReady')}</>}
+                        </p>
+                        {!l.readiness.ready && (
+                          <ul className="mt-1 space-y-0.5 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                            {Object.keys(READINESS_CHECK_LABELS).map((key) => (
+                              <li key={key} className="flex items-center gap-1.5">
+                                {l.readiness.checks?.[key]
+                                  ? <CheckCircle2 size={11} className="shrink-0 text-green-500" aria-hidden="true" />
+                                  : <AlertCircle size={11} className="shrink-0 text-amber-500" aria-hidden="true" />}
+                                <span>{t(READINESS_CHECK_LABELS[key])}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
                     <div className="text-[11px] mt-1 flex items-center gap-2" style={{ color: 'var(--color-text-muted)' }}>
                       {l.daily_rate_cents != null && <span>{fmtCurrency(l.daily_rate_cents, currency)} / day</span>}
                       {l.avg_rating != null && l.review_count > 0 && (

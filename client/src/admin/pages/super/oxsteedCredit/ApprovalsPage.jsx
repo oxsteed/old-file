@@ -183,6 +183,10 @@ function AgentAdjustmentQueue({ busy, setBusy, setNotice, setError, requestDialo
   const [thresholdCents, setThresholdCents] = useState(5000);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  // 707 (D-424): the list response carries readOnly: true when the caller
+  // holds a finance-read grant but not manage_financials. A read-only
+  // viewer sees the queue and the audit trail, never the decide actions.
+  const [readOnly, setReadOnly] = useState(false);
 
   const loadAdjustments = useCallback(async () => {
     setLoading(true);
@@ -190,6 +194,7 @@ function AgentAdjustmentQueue({ busy, setBusy, setNotice, setError, requestDialo
     try {
       const response = await adminApi.get(AGENT_ADJUSTMENT_ENDPOINTS.pending, { params: { limit: 50 } });
       setAdjustments(response.data?.adjustments || []);
+      setReadOnly(response.data?.readOnly === true);
       if (Number.isFinite(Number(response.data?.thresholdCents))) setThresholdCents(Number(response.data.thresholdCents));
     } catch (err) {
       setLoadError(safeCreditErrorMessage(err, t('agentAdjQueueLoadFailed')));
@@ -285,6 +290,7 @@ function AgentAdjustmentQueue({ busy, setBusy, setNotice, setError, requestDialo
     detail={t('agentAdjQueueDetail', { threshold: money(thresholdCents, 'USD') })}
   >
     {loadError && <div role="alert" aria-live="assertive" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-200"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0" />{loadError}</span><button type="button" onClick={loadAdjustments} disabled={loading || busy} className="rounded-lg border border-amber-400/30 px-3 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/10 disabled:opacity-50">{t('adminRetry')}</button></div>}
+    {readOnly && !loading && <div role="note" className="mt-5 rounded-xl border border-sky-500/30 bg-sky-950/20 px-4 py-3 text-sm text-sky-200">{t('agentAdjQueueReadOnlyNote')}</div>}
     <div className="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800"><table className="min-w-[1080px] w-full text-left text-xs"><thead className="bg-gray-50/70 dark:bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('agentAdjQueueTitle')}</th><th className="px-3 py-3 font-medium">{t('agentAdjQueueProposer')}</th><th className="px-3 py-3 font-medium">{t('agentAdjQueueReason')}</th><th className="px-3 py-3 font-medium">{t('agentAdjQueueCustomer')}</th><th className="px-3 py-3 font-medium">{t('adminControls')}</th></tr></thead><tbody className="divide-y divide-gray-200 dark:divide-gray-800">{loading ? <tr><td colSpan="5" className="px-3 py-10 text-center text-gray-500">{t('adminLoading')}</td></tr> : !adjustments.length ? <tr><td colSpan="5" className="px-3 py-10 text-center text-gray-500">{t('agentAdjQueueEmpty')}</td></tr> : adjustments.map((adjustment) => {
       const own = isOwnProposal(adjustment, adminId);
       const canDecide = canDecideAdjustment(adjustment, adminId);
@@ -295,7 +301,7 @@ function AgentAdjustmentQueue({ busy, setBusy, setNotice, setError, requestDialo
         <td className="px-3 py-3 text-gray-900 dark:text-white"><span className="text-[11px]">{adjustment.proposedByName || t('adminUnknown')}</span><p className="mt-1 text-gray-600">{dateTime(adjustment.proposedAt)}</p></td>
         <td className="px-3 py-3 text-gray-600 dark:text-gray-400"><p className="max-w-[280px] whitespace-pre-wrap break-words">{adjustment.reason || '-'}</p><details><summary className="cursor-pointer text-sky-300">{t('agentAdjQueueAuditTrail')}</summary><dl className="mt-2 max-w-[320px] space-y-1 text-[10px] leading-4 text-gray-500">{auditTrail(adjustment).map(([label, value]) => <div key={label} className="flex gap-2"><dt className="shrink-0 font-semibold text-gray-600 dark:text-gray-400">{label}:</dt><dd className="break-words">{value}</dd></div>)}</dl></details></td>
         <td className="px-3 py-3"><span className="font-mono text-[11px] text-gray-600 dark:text-gray-400">{String(adjustment.customerId || '').slice(0, 8)}...</span><p className="mt-1 text-[10px] text-gray-600">{adjustment.beforeBalanceCents == null ? t('agentAdjQueueBalancesPending') : `${money(adjustment.beforeBalanceCents, adjustment.currencyCode)} -> ${money(adjustment.afterBalanceCents, adjustment.currencyCode)}`}</p></td>
-        <td className="px-3 py-3">{own ? <div><p className="max-w-[220px] text-[11px] leading-4 text-amber-200/80">{t('agentAdjQueueOwnProposal')}</p><div className="mt-2 flex flex-wrap gap-2"><button type="button" disabled={busy || !canCancel} onClick={() => cancelAdjustment(adjustment)} className="rounded-lg border border-gray-300 dark:border-gray-700 px-2.5 py-2 font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('agentAdjQueueCancelTitle')}</button></div></div> : <div className="flex flex-wrap gap-2"><button type="button" disabled={busy || !canDecide} onClick={() => approveAdjustment(adjustment)} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminApprove')}</button><button type="button" disabled={busy || !canDecide} onClick={() => rejectAdjustment(adjustment)} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminReject')}</button></div>}</td>
+        <td className="px-3 py-3">{readOnly ? <p className="max-w-[220px] text-[11px] leading-4 text-sky-200/80">{t('agentAdjQueueReadOnlyNote')}</p> : own ? <div><p className="max-w-[220px] text-[11px] leading-4 text-amber-200/80">{t('agentAdjQueueOwnProposal')}</p><div className="mt-2 flex flex-wrap gap-2"><button type="button" disabled={busy || !canCancel} onClick={() => cancelAdjustment(adjustment)} className="rounded-lg border border-gray-300 dark:border-gray-700 px-2.5 py-2 font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">{t('agentAdjQueueCancelTitle')}</button></div></div> : <div className="flex flex-wrap gap-2"><button type="button" disabled={busy || !canDecide} onClick={() => approveAdjustment(adjustment)} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminApprove')}</button><button type="button" disabled={busy || !canDecide} onClick={() => rejectAdjustment(adjustment)} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminReject')}</button></div>}</td>
       </tr>;
     })}</tbody></table></div>
   </Section>;

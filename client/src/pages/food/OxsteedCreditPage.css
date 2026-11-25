@@ -163,6 +163,10 @@
 .ox-credit-hold-status.captured { color: var(--oc-blue); background: var(--oc-blue-soft); }
 .ox-credit-hold-status.released { color: var(--oc-ink-soft); background: var(--oc-surface-soft); }
 .ox-credit-hold-status.expired { color: var(--oc-red); background: var(--oc-red-soft); }
+/* Group 13, item 670: one-click re-authorization on an expired hold row. */
+.ox-credit-hold-action { min-height: 30px; padding: 0 11px; border: 1px solid rgba(182,90,12,.2); border-radius: 9px; color: var(--oc-brand-ink); background: var(--oc-warm-surface); font-size: 11px; font-weight: 850; cursor: pointer; }
+.ox-credit-hold-action:hover { border-color: rgba(182,90,12,.42); background: var(--oc-warm-surface-2); }
+.ox-credit-hold-action:disabled { opacity: .55; cursor: wait; }
 .ox-credit-sections { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 18px; margin-top: 18px; }
 .ox-credit-panel { overflow: hidden; border: 1px solid var(--oc-line); border-radius: 23px; background: var(--oc-panel); box-shadow: 0 16px 50px rgba(44,47,50,.06); }
 .ox-credit-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 23px 23px 0; }
@@ -234,6 +238,11 @@
 .ox-credit-load-more:disabled { opacity: .55; cursor: wait; }
 .ox-credit-detail-link { display: inline-flex; align-items: center; gap: 4px; color: var(--oc-teal); font-size: 10px; font-weight: 850; text-decoration: none; }
 .ox-credit-detail-link:hover { color: var(--oc-teal-deep); text-decoration: underline; }
+/* Group 13 Slice 4f (680): the top-up panel's view-retry / view-original
+   links are buttons carrying the detail-link class (same pattern as the
+   statement actions below); strip the native button chrome so they read
+   as links. */
+button.ox-credit-detail-link { background: none; border: 0; cursor: pointer; padding: 0; font: inherit; }
 .ox-credit-dispute-form { display: grid; gap: 9px; margin: 15px 23px 20px; padding: 14px; border: 1px solid rgba(214,110,12,.24); border-radius: 15px; background: var(--oc-warm-surface); }
 .ox-credit-dispute-form strong { color: var(--oc-ink); font-size: 13px; }
 .ox-credit-dispute-form > span { color: var(--oc-muted); font-size: 11px; line-height: 1.45; }
@@ -298,6 +307,29 @@
 .ox-credit-dispute-list small { color: var(--oc-faintest); font-size: 10px; }
 .ox-credit-dispute-list p { margin: 2px 0 0; color: var(--oc-ink-soft); font-size: 12px; line-height: 1.5; }
 .ox-credit-dispute-list em { color: var(--oc-muted); font-size: 11px; line-height: 1.45; }
+.ox-credit-dispute-adjustments { display: grid; gap: 4px; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--oc-line); border-radius: 12px; background: var(--oc-warm-surface); }
+.ox-credit-dispute-adjustments > strong { color: var(--oc-ink); font-size: 12px; }
+.ox-credit-dispute-adjustments > span { color: var(--oc-ink-soft); font-size: 11px; }
+.ox-credit-dispute-adjustment { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; }
+.ox-credit-dispute-adjustment > span { color: var(--oc-ink-soft); font-size: 11px; }
+.ox-credit-dispute-adjustment > small { color: var(--oc-faintest); font-size: 10px; }
+.ox-credit-dispute-evidence { display: grid; gap: 8px; margin-top: 8px; }
+.ox-credit-evidence-toggle { width: fit-content; padding: 0; border: 0; color: var(--oc-brand-deep); background: transparent; font-size: 11px; font-weight: 800; cursor: pointer; }
+.ox-credit-evidence-toggle:hover { text-decoration: underline; }
+.ox-credit-evidence-body { display: grid; gap: 8px; }
+.ox-credit-evidence-body > span { color: var(--oc-muted); font-size: 11px; }
+.ox-credit-evidence-item { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--oc-line); border-radius: 10px; background: var(--oc-surface); }
+.ox-credit-evidence-item a { color: var(--oc-brand-deep); font-size: 11px; font-weight: 700; overflow-wrap: anywhere; }
+.ox-credit-evidence-item > span { color: var(--oc-ink-soft); font-size: 11px; line-height: 1.45; }
+.ox-credit-evidence-item > small { color: var(--oc-faintest); font-size: 10px; }
+.ox-credit-evidence-form { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid rgba(214,110,12,.24); border-radius: 12px; background: var(--oc-warm-surface); }
+.ox-credit-evidence-form label { display: grid; gap: 4px; }
+.ox-credit-evidence-form label > span { color: var(--oc-muted); font-size: 11px; font-weight: 700; }
+.ox-credit-evidence-form textarea, .ox-credit-evidence-form input[type='file'] { width: 100%; padding: 9px 10px; border: 1px solid var(--oc-line); border-radius: 9px; color: var(--oc-ink); background: var(--oc-surface); font: inherit; font-size: 12px; }
+.ox-credit-evidence-form textarea { resize: vertical; }
+.ox-credit-evidence-form > div { display: flex; justify-content: flex-end; }
+.ox-credit-evidence-form button { padding: 8px 11px; border: 1px solid var(--oc-brand); border-radius: 8px; color: var(--oc-surface); background: var(--oc-brand); font-size: 11px; font-weight: 800; cursor: pointer; }
+.ox-credit-evidence-form button:disabled { opacity: .55; cursor: wait; }
 
 @media print {
   .ox-credit-page { background: #fff; }

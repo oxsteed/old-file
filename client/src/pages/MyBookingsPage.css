@@ -628,3 +628,58 @@
   background: var(--input-bg, transparent);
   color: inherit;
 }
+
+/* Group 11 item 570: in-app confirmation receipt */
+.booking-receipt {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--color-surface-muted, #f9fafb);
+  font-size: 0.9rem;
+}
+.booking-receipt h4 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.booking-receipt dl {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.booking-receipt dl > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.booking-receipt dt {
+  font-weight: 600;
+  color: var(--muted-text);
+}
+.booking-receipt dd {
+  margin: 0;
+}
+.booking-receipt-pdf-link {
+  border: none;
+  background: none;
+  color: #ea580c;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  text-decoration: underline;
+}
+
+/* Group 11 item 571: identity status line */
+.booking-card-identity {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 12px;
+  color: var(--app-text-muted, #6b7280);
+}
+.booking-identity-link {
+  color: #ea580c;
+  font-weight: 600;
+}

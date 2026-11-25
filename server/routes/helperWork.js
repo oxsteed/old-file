@@ -26,4 +26,35 @@ router.delete('/work-templates/:id',rejectImpersonated,handle(async(req,res)=>{a
 router.get('/work-records/:jobId',handle(async(req,res)=>res.json(await service.read(req.params.jobId,req.user.id))));
 router.put('/work-records/:jobId',rejectImpersonated,handle(async(req,res)=>res.json(await service.save(req.params.jobId,req.user.id,req.body))));
 router.post('/work-records/:jobId/updates',rejectImpersonated,handle(async(req,res)=>res.status(201).json({update:await service.publish(req.params.jobId,req.user.id,req.body)})));
+const reputation=require('../services/helperReputationService');
+// Group 4 rest (192, 195): the helper's received reviews and quality summary.
+router.get('/reviews',handle(async(req,res)=>res.json({reviews:await reputation.myReviews(req.user.id)})));
+router.get('/quality-summary',handle(async(req,res)=>res.json(await reputation.qualitySummary(req.user.id))));
+// Group 4 rest (186, 189): one job's earnings breakdown with explanations.
+const jobEarnings=require('../services/helperJobEarningsService');
+router.get('/jobs/:jobId/earnings',handle(async(req,res)=>res.json(await jobEarnings.jobEarnings(req.user.id,req.params.jobId))));
+// Group 4 rest (185, 190): job-linked support escalation and payment issue intake.
+const jobSupport=require('../services/helperJobSupportService');
+router.get('/jobs/:jobId/support',handle(async(req,res)=>res.json({tickets:await jobSupport.list(req.user.id,req.params.jobId)})));
+router.post('/jobs/:jobId/support',rejectImpersonated,handle(async(req,res)=>{const out=await jobSupport.file(req.user.id,req.params.jobId,req.body);res.status(out.duplicate?200:201).json(out);}));
+// Group 4 rest (194): skill endorsements. Customer actions are re-checked
+// against a completed job they own; the helper record needs helper access.
+const endorsements=require('../services/helperEndorsementService');
+router.get('/endorsements',handle(async(req,res)=>res.json({skills:await endorsements.myRecord(req.user.id)})));
+router.get('/endorsements/jobs/:jobId',handle(async(req,res)=>res.json({skills:await endorsements.optionsForJob(req.user.id,req.params.jobId)})));
+router.post('/endorsements/jobs/:jobId',rejectImpersonated,handle(async(req,res)=>res.status(201).json({endorsement:await endorsements.endorse(req.user.id,req.params.jobId,req.body)})));
+router.delete('/endorsements/:id',rejectImpersonated,handle(async(req,res)=>{await endorsements.withdraw(req.user.id,req.params.id);res.sendStatus(204);}));
+// Group 4 rest (193): repeat customer follow-up.
+const repeatCustomers=require('../services/helperRepeatCustomerService');
+router.get('/repeat-customers',handle(async(req,res)=>res.json({customers:await repeatCustomers.list(req.user.id)})));
+router.post('/repeat-customers/:customerId/invite',rejectImpersonated,handle(async(req,res)=>res.status(201).json({invite:await repeatCustomers.invite(req.user.id,req.params.customerId,req.body)})));
+// Group 4 rest items 196-200: grow into ownership (read-only history record).
+const businessTransition=require('../services/helperBusinessTransitionService');
+// Owner-only business scope gate; the service re-checks ownership (defense in depth).
+const ownerOfBusiness=require('../middleware/requireBusinessAccess')({allowOwnerOnly:true,resolvePermissions:false});
+router.get('/business-transition',handle(async(req,res)=>res.json(await businessTransition.overview(req.user.id))));
+router.post('/business-transition/records/:businessId',ownerOfBusiness,rejectImpersonated,handle(async(req,res)=>res.status(201).json({record:await businessTransition.link(req.user.id,req.params.businessId)})));
+router.get('/business-transition/records/:businessId',ownerOfBusiness,handle(async(req,res)=>res.json({record:await businessTransition.record(req.user.id,req.params.businessId)})));
+router.delete('/business-transition/records/:businessId',ownerOfBusiness,rejectImpersonated,handle(async(req,res)=>res.json(await businessTransition.revoke(req.user.id,req.params.businessId))));
+router.post('/business-transition/records/:businessId/dismiss-intro',ownerOfBusiness,rejectImpersonated,handle(async(req,res)=>res.json(await businessTransition.dismissIntro(req.user.id,req.params.businessId))));
 module.exports = router;

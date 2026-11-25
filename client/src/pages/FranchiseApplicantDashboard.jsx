@@ -16,6 +16,7 @@ import {
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import FranchiseApplicationDetail from './FranchiseApplicationDetail';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import { ALL_COUNTRIES } from '../lib/countries';
 import { useAuth } from '../hooks/useAuth';
@@ -122,6 +123,11 @@ export default function FranchiseApplicantDashboard() {
   const copy = (key, options) => t(`dashboards.franchise.${key}`, options);
   const [applications, setApplications] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  // Group 12 Slice 3i (644, D-344): handoffs naming the viewer — the
+  // incoming operator's pre-approval view of the handoff record, and
+  // the outgoing operator's record after the move. Handoff rows only,
+  // never territory records.
+  const [myHandoffs, setMyHandoffs] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,6 +141,15 @@ export default function FranchiseApplicantDashboard() {
         if (cancelled) return;
         setApplications([]);
         setLoaded(true);
+      });
+    api.get('/franchise/my-handoffs')
+      .then((response) => {
+        if (cancelled) return;
+        setMyHandoffs(Array.isArray(response.data?.handoffs) ? response.data.handoffs : []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setMyHandoffs([]);
       });
     return () => {
       cancelled = true;
@@ -224,7 +239,10 @@ export default function FranchiseApplicantDashboard() {
                 {t('dashboards.franchise.subtitle', { defaultValue: 'Track application review, diligence, agreement progress, and launch readiness without mixing in business-launch consulting requests.' })}
               </p>
               <div className="flex flex-wrap gap-3 mt-6">
-                {(primary.status === 'launched' || primary.status === 'approved') && showTerritoryOps && (
+                {/* Group 12 Slice 3b (606, D-307): the territory ops link
+                    stays hidden while the assignment offer is unanswered or
+                    declined — the operator surface unlocks only after accept. */}
+                {(primary.status === 'launched' || primary.status === 'approved') && showTerritoryOps && !['offered', 'declined'].includes(primary.acceptance_status) && (
                   <Link to="/franchise/territory" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition">
                     {copy('territoryOps')} <ArrowRight size={15} />
                   </Link>
@@ -309,6 +327,36 @@ export default function FranchiseApplicantDashboard() {
             </div>
           </aside>
         </section>
+
+        <FranchiseApplicationDetail applicationId={primary.id} />
+
+        {/* Group 12 Slice 3i (644, D-344): handoffs naming the viewer —
+            the incoming operator sees the handoff record here before
+            approval, never the territory itself. */}
+        {myHandoffs.length > 0 && (
+          <section className="rounded-[28px] border overflow-hidden border-[var(--color-border)] bg-[var(--color-card-bg)]">
+            <header className="px-6 py-4 border-b border-[var(--color-border)]">
+              <h2 className="text-lg font-semibold">{copy('handoffTitle')}</h2>
+              <p className="text-sm text-[var(--color-text-muted)]">{copy('handoffSubtitle')}</p>
+            </header>
+            <div className="divide-y divide-[rgba(148,163,184,0.12)]">
+              {myHandoffs.map((handoff) => (
+                <div key={handoff.id} className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <div className="font-semibold">
+                      {copy('handoffFromTo', { from: handoff.outgoing_operator_name || '—', to: handoff.incoming_operator_name || '—' })}
+                    </div>
+                    <div className="text-sm text-[var(--color-text-muted)]">
+                      {[handoff.territory_city, handoff.territory_region, handoff.territory_country].filter(Boolean).join(', ')}
+                      {handoff.reason ? ` · ${handoff.reason}` : ''}
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold">{copy(`handoffStatus_${handoff.status}`)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {sortedApplications.length > 1 && (
           <section className="rounded-[28px] border overflow-hidden" style={{ borderColor: 'var(--color-border)', background: 'var(--color-card-bg)' }}>

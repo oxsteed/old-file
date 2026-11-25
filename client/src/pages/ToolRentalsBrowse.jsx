@@ -35,11 +35,13 @@ import SortControls from '../components/toolDirectory/SortControls';
 import ActiveFilterTags from '../components/toolDirectory/ActiveFilterTags';
 import EmptyState from '../components/toolDirectory/EmptyState';
 import ToolDirectoryCard from '../components/toolDirectory/ToolDirectoryCard';
+import ToolCompareModal from '../components/toolDirectory/ToolCompareModal';
 import ToolDetailModal from '../components/ToolDetailModal';
 
 import {
   TOOL_TILES,
   DEFAULT_TOOL_FILTERS,
+  TOOL_COMPARE_MAX,
   countActiveToolFilters,
 } from '../types/toolDirectory';
 import { getToolTilesTranslated } from '../utils/toolRentalsTaxonomy';
@@ -324,6 +326,32 @@ function getInitialState() {
   const cityParam = params.get('city');
   if (cityParam) filters.city = cityParam;
 
+  const startParam = params.get('startDate');
+  const endParam = params.get('endDate');
+  if (startParam) filters.startDate = startParam;
+  if (endParam) filters.endDate = endParam;
+
+  const capacityMinParam = params.get('capacityMin');
+  if (capacityMinParam !== null && Number.isFinite(Number(capacityMinParam))) {
+    filters.capacityMin = Number(capacityMinParam);
+  }
+  const capacityUnitParam = params.get('capacityUnit');
+  if (capacityUnitParam) filters.capacityUnit = capacityUnitParam;
+  const weightMaxParam = params.get('weightMax');
+  if (weightMaxParam !== null && Number.isFinite(Number(weightMaxParam))) filters.weightMax = Number(weightMaxParam);
+  const lengthMaxParam = params.get('lengthMax');
+  if (lengthMaxParam !== null && Number.isFinite(Number(lengthMaxParam))) filters.lengthMax = Number(lengthMaxParam);
+  const widthMaxParam = params.get('widthMax');
+  if (widthMaxParam !== null && Number.isFinite(Number(widthMaxParam))) filters.widthMax = Number(widthMaxParam);
+  const heightMaxParam = params.get('heightMax');
+  if (heightMaxParam !== null && Number.isFinite(Number(heightMaxParam))) filters.heightMax = Number(heightMaxParam);
+  const radiusParam = params.get('radius');
+  if (radiusParam !== null && Number.isFinite(Number(radiusParam))) filters.radius = Number(radiusParam);
+  const latParam = params.get('lat');
+  if (latParam !== null && Number.isFinite(Number(latParam))) filters.lat = Number(latParam);
+  const lngParam = params.get('lng');
+  if (lngParam !== null && Number.isFinite(Number(lngParam))) filters.lng = Number(lngParam);
+
   if (params.get('availableNow') === 'true') filters.availableNow = true;
   if (params.get('delivery') === 'true') filters.deliveryAvailable = true;
 
@@ -361,6 +389,9 @@ function applyClientSort(tools, sort, boostedCategory) {
       case 'price-desc':   return Number(b.daily_rate || 0) - Number(a.daily_rate || 0);
       case 'most-popular': return Number(b.review_count || 0) - Number(a.review_count || 0);
       case 'highest-rated':return Number(b.avg_rating || 0) - Number(a.avg_rating || 0);
+      // 564: distance order comes from the server (haversine); the client
+      // keeps that order instead of re-sorting.
+      case 'distance':     return 0;
       case 'newest':
       default: {
         const tA = new Date(a.created_at || 0).getTime() || 0;
@@ -400,6 +431,68 @@ const ToolRentalsBrowse = () => {
   const [selectedTool, setSelectedTool] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // 565: compare selection (up to TOOL_COMPARE_MAX), persisted so a
+  // refresh keeps the selection.
+  const [compareIds, setCompareIds] = useState(() => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('toolRentals.compare') || '[]');
+      return Array.isArray(parsed)
+        ? parsed.filter((n) => Number.isInteger(n)).slice(0, TOOL_COMPARE_MAX)
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareTools, setCompareTools] = useState([]);
+  const [compareLoading, setCompareLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('toolRentals.compare', JSON.stringify(compareIds));
+    } catch {
+      /* storage unavailable: selection lives for this visit only */
+    }
+  }, [compareIds]);
+
+  const toggleCompare = useCallback((tool) => {
+    setCompareIds((prev) => {
+      if (prev.includes(tool.id)) return prev.filter((id) => id !== tool.id);
+      if (prev.length >= TOOL_COMPARE_MAX) {
+        toast.error(t('toolRentalsDir.compareLimit'));
+        return prev;
+      }
+      return [...prev, tool.id];
+    });
+  }, [t]);
+
+  const openCompare = useCallback(async () => {
+    setCompareOpen(true);
+    setCompareLoading(true);
+    try {
+      const known = tools.filter((x) => compareIds.includes(x.id));
+      const missing = compareIds.filter((id) => !known.some((x) => x.id === id));
+      let fetched = [];
+      if (missing.length) fetched = await toolRentalsApi.browseTools({ ids: missing.join(',') });
+      const merged = [...known, ...fetched];
+      const ordered = compareIds
+        .map((id) => merged.find((x) => x.id === id))
+        .filter(Boolean);
+      if (ordered.length !== compareIds.length) {
+        // A selected listing went away (unavailable / held / deleted):
+        // drop it from the selection and say so.
+        setCompareIds(ordered.map((x) => x.id));
+        toast.error(t('toolRentalsDir.compareNotAvailable'));
+      }
+      setCompareTools(ordered);
+    } catch {
+      toast.error(t('errors.generic'));
+      setCompareTools(tools.filter((x) => compareIds.includes(x.id)));
+    } finally {
+      setCompareLoading(false);
+    }
+  }, [compareIds, tools, t]);
+
   const debounceRef = useRef(null);
   const isFirstLoad = useRef(true);
 
@@ -429,8 +522,11 @@ const ToolRentalsBrowse = () => {
   const load = useCallback(async (f, s, offset, append = false) => {
     setLoadState('loading');
     try {
+      const hasLocation = f.lat !== null && f.lng !== null && f.radius !== null;
       const params = {
-        sort: s,
+        // 564: a distance sort needs a location; without one, fall back to
+        // newest instead of sending a sort the server 400s.
+        sort: s === 'distance' && !hasLocation ? 'newest' : s,
         limit: PAGE_SIZE,
         offset,
         name: f.query || undefined,
@@ -438,6 +534,23 @@ const ToolRentalsBrowse = () => {
         category: f.categories[0] || undefined,
         priceMin: f.priceRange ? f.priceRange[0] : undefined,
         priceMax: f.priceRange && f.priceRange[1] < 9999 ? f.priceRange[1] : undefined,
+        // 562: only send a complete, valid range; a half-filled or
+        // inverted range is ignored client-side (the server 400s it too).
+        startDate: f.startDate && f.endDate && f.endDate > f.startDate ? f.startDate : undefined,
+        endDate: f.startDate && f.endDate && f.endDate > f.startDate ? f.endDate : undefined,
+        // 563: a minimum capacity needs its unit to mean anything; without
+        // the unit the server 400s, so only send a complete pair.
+        capacityMin: f.capacityMin !== null && f.capacityUnit ? f.capacityMin : undefined,
+        capacityUnit: f.capacityUnit || undefined,
+        weightMax: f.weightMax !== null ? f.weightMax : undefined,
+        lengthMax: f.lengthMax !== null ? f.lengthMax : undefined,
+        widthMax: f.widthMax !== null ? f.widthMax : undefined,
+        heightMax: f.heightMax !== null ? f.heightMax : undefined,
+        // 564: the radius is only sent together with a location; the
+        // server 400s a partial distance filter.
+        radius: hasLocation ? f.radius : undefined,
+        lat: hasLocation ? f.lat : undefined,
+        lng: hasLocation ? f.lng : undefined,
       };
       const fetched = await toolRentalsApi.browseTools(params);
       setTools((prev) => append ? [...prev, ...fetched] : fetched);
@@ -740,6 +853,9 @@ const ToolRentalsBrowse = () => {
                         onViewDetails={handleViewDetails}
                         onMessage={handleMessageOwner}
                         highlightCategory={boostedCategory}
+                        compareSelected={compareIds.includes(tool.id)}
+                        compareDisabled={!compareIds.includes(tool.id) && compareIds.length >= TOOL_COMPARE_MAX}
+                        onToggleCompare={toggleCompare}
                       />
                     </div>
                   ))}
@@ -786,6 +902,30 @@ const ToolRentalsBrowse = () => {
         />
       </FilterDrawer>
 
+      {/* Compare bar (565) */}
+      {compareIds.length > 0 && (
+        <div className="fixed bottom-4 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-3 bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl px-4 py-3">
+            <span className="text-sm text-gray-200">
+              {t('toolRentalsDir.compareBar', { count: compareIds.length })}
+            </span>
+            <button
+              onClick={openCompare}
+              disabled={compareIds.length < 2}
+              className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold transition-colors disabled:opacity-50" data-track="ui.654f39ee89.10"
+            >
+              {t('toolRentalsDir.compare')}
+            </button>
+            <button
+              onClick={() => setCompareIds([])}
+              className="px-3 py-2 rounded-xl border border-gray-700 text-gray-300 text-sm hover:bg-gray-800 transition-colors" data-track="ui.654f39ee89.11"
+            >
+              {t('toolRentalsDir.compareClear')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tool Detail Modal */}
       {selectedTool && (
         <ToolDetailModal
@@ -794,6 +934,23 @@ const ToolRentalsBrowse = () => {
           onClose={handleCloseModal}
           onMessage={handleMessageOwner}
           onViewProfile={handleViewProfile}
+        />
+      )}
+
+      {/* Compare modal (565) */}
+      {compareOpen && (
+        <ToolCompareModal
+          tools={compareTools}
+          loading={compareLoading}
+          onClose={() => setCompareOpen(false)}
+          onRemove={(toolId) => {
+            setCompareIds((prev) => prev.filter((id) => id !== toolId));
+            setCompareTools((prev) => prev.filter((x) => x.id !== toolId));
+          }}
+          onViewDetails={(tool) => {
+            setCompareOpen(false);
+            handleViewDetails(tool);
+          }}
         />
       )}
     </div>

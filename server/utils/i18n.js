@@ -87,6 +87,7 @@ const T = {
   ...require('./logisticsQuoteNotifications').quoteNotifications,
   ...require('./logisticsPaymentNotifications').paymentNotifications,
   ...require('./jobLifecycleNotificationTemplates').jobLifecycleNotifications,
+  ...require('./businessTeamNotificationTemplates').businessTeamNotifications,
   ...require('./campaignReviewNotifications').campaignReviewNotifications,
   // S-19: staff membership notices (invite/removal/resend/withdraw/rehire/hired).
   ...require('./staffNotificationTemplates').staffNotifications,
@@ -445,6 +446,24 @@ const T = {
       es: 'Se aprobó una corrección para uno de tus estados de cuenta. Inicia sesión en tu cuenta para ver y descargar la versión corregida.',
       ht: 'Yo apwouve yon koreksyon pou youn nan releve ou yo. Konekte sou kont ou pou wè epi telechaje vèsyon korije a.',
       ar: 'تمت الموافقة على تصحيح لأحد كشوفات حسابك. سجّل الدخول إلى حسابك لعرض النسخة المصححة وتنزيلها.',
+    },
+  },
+  // Group 14 Slice 5d (716, D-430): a new audit request reaches the
+  // bookkeeper/admin queue. The body carries no amounts or figures.
+  audit_request_received: {
+    title: {
+      en: 'New audit request',
+      fr: 'Nouvelle demande d’audit',
+      es: 'Nueva solicitud de auditoría',
+      ht: 'Nouvo demann odit',
+      ar: 'طلب تدقيق جديد',
+    },
+    body: {
+      en: 'A new audit request was filed. Open the audit queue to review it.',
+      fr: 'Une nouvelle demande d’audit a été déposée. Ouvrez la file d’audit pour l’examiner.',
+      es: 'Se presentó una nueva solicitud de auditoría. Abre la cola de auditoría para revisarla.',
+      ht: 'Yo te depoze yon nouvo demann odit. Louvri ke odit la pou revize li.',
+      ar: 'تم تقديم طلب تدقيق جديد. افتح قائمة التدقيق لمراجعته.',
     },
   },
   food_order_accepted: {
@@ -903,6 +922,24 @@ const T = {
       es: 'Tu oferta en "{jobTitle}" vence en menos de 24 horas. Revísala antes de la fecha límite.',
       ht: 'Òf ou sou "{jobTitle}" ap ekspire nan mwens pase 24 èdtan. Revize li anvan dat limit la.',
       ar: 'عرضك على "{jobTitle}" ينتهي خلال أقل من 24 ساعة. راجعه قبل الموعد النهائي.',
+    },
+  },
+  // Group 12 Slice 3e (625): a franchise standard was updated to a new
+  // version; the member has not yet acknowledged it.
+  franchise_standard_updated: {
+    title: {
+      en: 'A franchise standard changed',
+      fr: 'Un standard de franchise a changé',
+      es: 'Un estándar de franquicia cambió',
+      ht: 'Yon estanda franchiz chanje',
+      ar: 'تغيّر أحد معايير الامتياز',
+    },
+    body: {
+      en: '"{standardTitle}" was updated to version {version}. Please review and acknowledge it.',
+      fr: '« {standardTitle} » a été mis à jour vers la version {version}. Veuillez le relire et le confirmer.',
+      es: '«{standardTitle}» se actualizó a la versión {version}. Revísalo y confírmalo, por favor.',
+      ht: '«{standardTitle}» te mete ajou nan vèsyon {version}. Tanpri reli li epi konfime li.',
+      ar: 'تم تحديث «{standardTitle}» إلى الإصدار {version}. يُرجى مراجعته وتأكيده.',
     },
   },
   // G-6/G-7: book-for-another invite, site-contact status link, and the
@@ -1953,6 +1990,13 @@ const EMAIL_TEMPLATES = {
       es: 'Ver estado de cuenta corregido',
       ht: 'Gade releve korije a',
       ar: 'عرض كشف الحساب المصحح',
+    },
+    audit_request_received: {
+      en: 'View Audit Queue',
+      fr: 'Voir la file d’audit',
+      es: 'Ver cola de auditoría',
+      ht: 'Gade ke odit la',
+      ar: 'عرض قائمة التدقيق',
     },
     appointment_requested: {
       title: {

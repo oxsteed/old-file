@@ -162,7 +162,7 @@ const CAPABILITIES = Object.freeze({
   }),
   'tool_owner.list_equipment': Object.freeze({
     key: 'tool_owner.list_equipment',
-    version: 'tool-owner-policy-1',
+    version: 'tool-owner-policy-2',
     intent: 'list_equipment',
     subjectTypes: Object.freeze(['self']),
     reviewerClass: 'platform',
@@ -175,7 +175,18 @@ const CAPABILITIES = Object.freeze({
     // settlement still goes through the rental payment path, which moves
     // no Stripe money without a payout-ready account.
     activationRequirements: Object.freeze([]),
-    form: Object.freeze({ fields: Object.freeze([answerField('serviceArea', 'service_area', { required: true })]) }),
+    // Group 11 item 551: equipment-specific fields. The new fields are
+    // required, so applications submitted under tool-owner-policy-1 cannot
+    // be approved until the applicant supplies them (the reviewer asks for
+    // the missing information; see reviewService policy_changed). Drafts
+    // pick the new fields up on their next edit.
+    form: Object.freeze({ fields: Object.freeze([
+      answerField('serviceArea', 'service_area', { required: true }),
+      answerField('equipmentOwned', 'string_list', { required: true, maxItems: 20, maxLength: 120 }),
+      answerField('ownershipAttestation', 'enum', { required: true, options: ['owned_outright', 'owned_with_loan', 'borrowed_with_permission'] }),
+      answerField('equipmentCondition', 'enum', { required: true, options: ['excellent', 'good', 'fair'] }),
+      answerField('pickupLocation', 'service_area', { required: true }),
+    ]) }),
   }),
   'logistics.ship': Object.freeze({
     key: 'logistics.ship',

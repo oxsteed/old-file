@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { X, MessageCircle, User, Star, MapPin, HelpCircle, Calendar, HardHat } from 'lucide-react';
+import { X, MessageCircle, User, Star, MapPin, HelpCircle, Calendar, HardHat, ChevronLeft, ChevronRight } from 'lucide-react';
 import ToolReviewsList from './ToolReviewsList';
 import BookingModal from './BookingModal';
 import './ToolDetailModal.css';
@@ -24,7 +24,11 @@ interface ToolDetailModalProps {
     owner_custom_terms?: string;
     weekly_rate?: number;
     monthly_rate?: number;
+    pickup_only?: boolean;
+    delivery_available?: boolean;
     image_url?: string;
+    // 559: full gallery; the first photo is the cover (image_url).
+    image_gallery?: string[];
     description?: string;
     is_available: boolean;
     owner_name?: string;
@@ -52,6 +56,14 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
   const { t } = useTranslation();
   const [showConditionTooltip, setShowConditionTooltip] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  // 559: gallery viewer state. The gallery is the stored image_gallery
+  // when present, else the single cover image for older rows.
+  const gallery = Array.isArray(tool.image_gallery) && tool.image_gallery.length > 0
+    ? tool.image_gallery
+    : (tool.image_url ? [tool.image_url] : []);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  useEffect(() => { setGalleryIndex(0); }, [tool.id]);
+  const safeGalleryIndex = gallery.length === 0 ? 0 : Math.min(galleryIndex, gallery.length - 1);
 
   if (!isOpen) return null;
 
@@ -98,10 +110,59 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
 
         {/* Scrollable Content */}
         <div className="tool-modal-body">
-          {/* Image */}
-          {tool.image_url && (
-            <div className="tool-modal-image-container">
-              <img src={tool.image_url} alt={tool.name} className="tool-modal-image" />
+          {/* Gallery (559): main photo + thumbnail strip, not just the cover */}
+          {gallery.length > 0 && (
+            <div className="tool-modal-gallery">
+              <div className="tool-modal-image-container">
+                <img
+                  src={gallery[safeGalleryIndex]}
+                  alt={t('toolRentals.galleryPhotoAlt', { index: safeGalleryIndex + 1, count: gallery.length })}
+                  className="tool-modal-image"
+                />
+                {gallery.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setGalleryIndex((safeGalleryIndex - 1 + gallery.length) % gallery.length)}
+                      className="tool-modal-gallery-nav tool-modal-gallery-prev"
+                      aria-label={t('toolRentals.galleryPrevious')} data-track="ui.4e0d6dfc95.5"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGalleryIndex((safeGalleryIndex + 1) % gallery.length)}
+                      className="tool-modal-gallery-nav tool-modal-gallery-next"
+                      aria-label={t('toolRentals.galleryNext')} data-track="ui.4e0d6dfc95.6"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                    <span className="tool-modal-gallery-count">
+                      {safeGalleryIndex + 1} / {gallery.length}
+                    </span>
+                    {safeGalleryIndex === 0 && (
+                      <span className="tool-modal-gallery-cover">{t('toolRentals.galleryCover')}</span>
+                    )}
+                  </>
+                )}
+              </div>
+              {gallery.length > 1 && (
+                <div className="tool-modal-gallery-thumbs" role="list" aria-label={t('toolRentals.galleryTitle')}>
+                  {gallery.map((url, thumbIndex) => (
+                    <button
+                      key={`${thumbIndex}-${url}`}
+                      type="button"
+                      role="listitem"
+                      onClick={() => setGalleryIndex(thumbIndex)}
+                      className={`tool-modal-gallery-thumb${thumbIndex === safeGalleryIndex ? ' tool-modal-gallery-thumb-active' : ''}`}
+                      aria-label={t('toolRentals.galleryPhotoAlt', { index: thumbIndex + 1, count: gallery.length })}
+                      aria-current={thumbIndex === safeGalleryIndex} data-track="ui.4e0d6dfc95.7"
+                    >
+                      <img src={url} alt="" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

@@ -25,15 +25,22 @@ exports.listExpenses = async (req, res, next) => {
 
 exports.createExpense = async (req, res, next) => {
   const { businessId } = req.params;
-  const { category, description, amount_cents, expense_date, receipt_url, notes } = req.body;
-  if (!category || !amount_cents || !expense_date) {
-    return res.status(400).json({ error: 'category, amount_cents, and expense_date are required' });
-  }
+  let { category } = req.body;
+  const { description, amount_cents, expense_date, receipt_url, notes } = req.body;
   try {
+    // Groups 5-6 item 234: a business category sets the base category.
+    const custom = await require('../services/businessOwner/financeService').resolveCustomCategory(businessId, req.body.custom_category_id);
+    if (custom) category = custom.base_category;
+    if (!category || !amount_cents || !expense_date) {
+      return res.status(400).json({ error: 'category, amount_cents, and expense_date are required' });
+    }
+    // Groups 5-6 item 226: above the expense threshold a non-approver's
+    // expense waits for approval.
+    const approvalStatus = await require('../services/businessOwner/policyService').expenseStatusFor(businessId, req.businessRole, req.permissions, amount_cents);
     const row = await pool.query(
-      `INSERT INTO business_expenses (business_id, category, description, amount_cents, expense_date, receipt_url, notes, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [businessId, category, description, amount_cents, expense_date, receipt_url, notes, req.user.id]
+      `INSERT INTO business_expenses (business_id, category, description, amount_cents, expense_date, receipt_url, notes, created_by, approval_status, custom_category_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [businessId, category, description, amount_cents, expense_date, receipt_url, notes, req.user.id, approvalStatus, custom?.id || null]
     );
     res.status(201).json(row.rows[0]);
   } catch (err) { next(err); }
@@ -42,13 +49,16 @@ exports.createExpense = async (req, res, next) => {
 exports.updateExpense = async (req, res, next) => {
   const { businessId } = req.params;
   const expenseId = req.params.expenseId || req.params.id; // routes use :expenseId
-  const { category, description, amount_cents, expense_date, receipt_url, notes } = req.body;
+  let { category } = req.body;
+  const { description, amount_cents, expense_date, receipt_url, notes } = req.body;
   try {
+    const custom = await require('../services/businessOwner/financeService').resolveCustomCategory(businessId, req.body.custom_category_id);
+    if (custom) category = custom.base_category;
     const row = await pool.query(
       `UPDATE business_expenses SET category=$1, description=$2, amount_cents=$3, expense_date=$4,
-       receipt_url=$5, notes=$6, updated_at=NOW()
+       receipt_url=$5, notes=$6, custom_category_id=$9, updated_at=NOW()
        WHERE id=$7 AND business_id=$8 RETURNING *`,
-      [category, description, amount_cents, expense_date, receipt_url, notes, expenseId, businessId]
+      [category, description, amount_cents, expense_date, receipt_url, notes, expenseId, businessId, custom?.id || null]
     );
     if (!row.rows.length) return res.status(404).json({ error: 'Not found' });
     res.json(row.rows[0]);

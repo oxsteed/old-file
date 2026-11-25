@@ -1,6 +1,6 @@
 import useAppResume from '../../hooks/useAppResume';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, ArrowUpRight, RefreshCw, Store, WalletCards } from 'lucide-react';
 import Navbar from '../../components/Navbar';
@@ -44,6 +44,10 @@ function creditStatusLabel(value, t) {
 // never merged and balances are never combined.
 export default function WalletPage() {
   const { t } = useTranslation('credit');
+  const [searchParams] = useSearchParams();
+  // Group 13 Slice 4b (657): the Credit page's pending top-ups list links
+  // here with ?topupId=<id>; the top-up panel loads that record.
+  const initialTopupId = searchParams.get('topupId') || null;
   const [account, setAccount] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
@@ -172,7 +176,7 @@ export default function WalletPage() {
           </section>
 
           {!loading && account && railStatus?.enabled !== false && accountStatus === 'active' && (
-            <OxsteedCreditTopupPanel currency={currency} onCredited={() => load({ quiet: true })} />
+            <OxsteedCreditTopupPanel currency={currency} initialTopupId={initialTopupId} onCredited={() => load({ quiet: true })} />
           )}
 
           {/* P3-10-F05: identity-verification path for users blocked at tier 0. */}

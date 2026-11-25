@@ -25,9 +25,11 @@ const { isStaffBlocked } = require('../services/businessAvailability'); // Revie
 async function computeLateCancellationFee(client, { businessId, serviceId, startTime, finalPriceCents }) {
   const { rows } = await client.query(
     `SELECT COALESCE(s.cancellation_policy_hours, r.cancellation_allowed_hours_before, 24) AS policy_hours,
-            COALESCE(s.cancellation_fee_percent, 0) AS fee_percent
+            -- Groups 5-6 item 228: a service without its own fee uses the business default.
+            COALESCE(NULLIF(s.cancellation_fee_percent, 0), p.default_cancellation_fee_percent, 0) AS fee_percent
        FROM business_services s
        LEFT JOIN business_booking_rules r ON r.business_id = s.business_id
+       LEFT JOIN business_operating_policies p ON p.business_id = s.business_id
       WHERE s.id = $1 AND s.business_id = $2`,
     [serviceId, businessId]
   );
@@ -283,6 +285,17 @@ async function createAppointment(req, res, next) {
       if (serviceResult.rows[0].is_active === false) {
         throw new AppError('Service is inactive', 409, 'service_inactive');
       }
+      // Groups 5-6 items 207/210: customer bookings honor the service pause
+      // and its regional offering rules. Staff-created walk-ins bypass (D-203).
+      if (!req.staffCreated) {
+        const svc = serviceResult.rows[0];
+        let location = { state: req.body.service_state, postal_code: req.body.service_postal_code };
+        if (svc.region_mode && svc.region_mode !== 'everywhere' && !location.state && !location.postal_code && effectiveCustomerId) {
+          const { rows: [profile] } = await client.query('SELECT state, zip_code FROM users WHERE id = $1', [effectiveCustomerId]);
+          location = { state: profile?.state, postal_code: profile?.zip_code };
+        }
+        require('../services/businessOwner/launchService').assertBookable(svc, location);
+      }
 
       // Price only after the service row is locked. The middleware snapshot
       // can be stale if the catalog changed between validation and insert;
@@ -502,6 +515,14 @@ async function updateAppointmentStatus(req, res, next) {
       if (!allowedTransitions[current.status]?.includes(status)) {
         throw new AppError(`Cannot change appointment from ${current.status} to ${status}`, 409, 'invalid_status_transition');
       }
+      // Groups 5-6 item 227: the business work authorization policy.
+      if (status === 'in_progress') {
+        await require('../services/businessOwner/policyService').assertWorkStart(client, businessId, current, req.businessRole || 'owner');
+      }
+      // Groups 5-6 item 281: optional business rule, completion record first.
+      if (status === 'completed') {
+        await require('../services/businessOwner/workOutcomesService').assertCompletionRecord(client, businessId, current.id);
+      }
       // The hub Cancel buttons drive this endpoint with status='cancelled',
       // so a cancellation through here must record the same audit fields as
       // the dedicated cancel path (cancelled_at / cancelled_by).
@@ -530,6 +551,16 @@ async function updateAppointmentStatus(req, res, next) {
         lateCancellation = late;
         params.push(feeCents);
         setFragments.push(`cancellation_fee_cents = $${params.length}`);
+      }
+      if (status === 'no_show') {
+        // Groups 5-6 item 228: record the business no-show fee (same column
+        // and collection path as the late-cancel fee; nothing auto-charges).
+        const { noShow } = await require('../services/businessOwner/policyService').defaultFees(client, businessId);
+        if (noShow > 0) {
+          params.push(Math.round((Number(current.final_price_cents) || 0) * noShow / 100));
+          setFragments.push(`cancellation_fee_cents = $${params.length}`);
+        }
+        setFragments.push('no_show_marked_at = COALESCE(no_show_marked_at, NOW())');
       }
       const result = await client.query(
         `UPDATE business_appointments SET ${setFragments.join(', ')}
@@ -832,7 +863,9 @@ async function reassignAppointmentStaff(req, res, next) {
       }
       const result = await client.query(
         `UPDATE business_appointments
-         SET staff_id = $1, updated_at = NOW()
+         SET staff_id = $1, updated_at = NOW(),
+             -- Groups 5-6 item 260: a new assignee must confirm dispatch.
+             dispatch_status = CASE WHEN $1::uuid IS NULL THEN NULL ELSE 'pending' END, dispatch_responded_at = NULL
          WHERE id = $2 AND business_id = $3
          RETURNING *`,
         [newStaffId, appointmentId, businessId]
@@ -842,6 +875,14 @@ async function reassignAppointmentStaff(req, res, next) {
          (appointment_id, created_by_id, note_type, content)
          VALUES ($1, $2, 'internal', $3)`,
         [appointmentId, req.user.id, `Staff reassigned to ${newStaffId || 'unassigned'}`]
+      );
+      // Groups 5-6 items 220/283: structured assignment history.
+      await client.query(
+        `INSERT INTO business_appointment_assignment_events
+         (appointment_id, business_id, from_staff_id, to_staff_id, actor_id, source, reason)
+         VALUES ($1, $2, $3, $4, $5, 'reassign', $6)`,
+        [appointmentId, businessId, current.staff_id || null, newStaffId, req.user.id,
+          typeof req.body?.reason === 'string' ? req.body.reason.slice(0, 300) : null]
       );
       return result.rows[0];
     }, 'reassign_appointment_staff');

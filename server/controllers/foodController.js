@@ -24,6 +24,8 @@ const { getClientRequestId } = require('../utils/idempotency');
 const { enqueueKitchenPrinterJobs } = require('../services/restaurantKitchenPrinterService');
 const { nextQueueNumber } = require('../services/restaurantQueueCounter');
 const { resolveLocationRow } = require('../services/restaurantLocationService');
+const { pickupInfo: getRestaurantPickupInfo } = require('../services/restaurantPersona/ownerService');
+const { pendingQuestions: getPendingSubstitutionQuestions } = require('../services/restaurantPersona/teamService');
 const storeMenu = require('../services/restaurantStoreMenuService');
 // F-19: chain-grade tax (per-store rules, VAT/GST inclusive mode, fee
 // taxability, tax-exempt orders, rule snapshots).
@@ -1492,6 +1494,16 @@ function publicTrackedOrder(order) {
     restaurant_name: order.restaurant_name,
     prep_time_min: order.prep_time_min,
     has_review: order.has_review,
+    pickup_code: order.pickup_code || null,
+    pickup_info: order.pickup_info || null,
+    pending_substitution_questions: Array.isArray(order.pending_substitution_questions)
+      ? order.pending_substitution_questions.map((q) => ({
+        id: q.id,
+        item_name: q.item_name,
+        proposed_substitute: q.proposed_substitute,
+        created_at: q.created_at,
+      }))
+      : [],
     runner_location: order.runner_location
       ? {
         latitude: Number(order.runner_location.latitude),
@@ -3833,6 +3845,8 @@ exports.createOrder = async (req, res, next) => {
           });
         }
       }
+      // Items 369, 370, 393: holiday hours, pickup slot quotas, emergency closures.
+      await require('../services/restaurantPersona/ownerService').assertOrderAllowed(client, { restaurantId, locationId: orderLocationId, scheduledFor, timezone: orderTimezone });
       // F-11: daypart enforcement at the fulfillment instant (the scheduled
       // time for later orders, otherwise now), mirroring quoteOrder.
       const daypartInstant = scheduledFor ? new Date(scheduledFor) : new Date();
@@ -7158,7 +7172,8 @@ exports.getTrackedOrder = async (req, res, next) => {
               fo.tip_cents, fo.discount_cents, fo.total_cents, fo.currency_code,
               fo.table_label, fo.queue_number, fo.promised_at, fo.created_at,
               fo.updated_at, fo.accepted_at, fo.ready_at, fo.completed_at,
-              fo.cancelled_at, fo.stripe_payment_intent_id,
+              fo.cancelled_at, fo.stripe_payment_intent_id, fo.pickup_code,
+              fo.location_id,
               fr.display_name AS restaurant_name, fr.prep_time_min,
               EXISTS (SELECT 1 FROM food_reviews rv WHERE rv.order_id = fo.id) AS has_review,
               COALESCE(json_agg(json_build_object(
@@ -7202,6 +7217,23 @@ exports.getTrackedOrder = async (req, res, next) => {
         longitude: Number(runnerLocation.longitude),
         capturedAt: runnerLocation.captured_at,
       };
+    }
+    // Pickup handoff + substitution questions (Groups 7-8, items 372,
+    // 374, 417, 422): a customer tracking their order sees the 4-digit
+    // pickup code (their own credential, under the tracking-token
+    // capability), the store's pickup info, and any pending substitution
+    // questions, answered via POST /api/restaurants/my/order-questions/
+    // :issueId. Substitution questions apply to any fulfillment type;
+    // pickup info is pickup-only. A guest (tracking-token-only)
+    // customer can see the questions but must sign in to answer: the
+    // existing answer route requires authentication (D-254).
+    order.pending_substitution_questions = await getPendingSubstitutionQuestions(order.id);
+    if (order.fulfillment_type === 'pickup' && order.location_id) {
+      try {
+        order.pickup_info = await getRestaurantPickupInfo(order.restaurant_id, order.location_id);
+      } catch (err) {
+        order.pickup_info = null; // location removed after the order was placed
+      }
     }
     res.json({ order: publicTrackedOrder(order) });
   } catch (err) {

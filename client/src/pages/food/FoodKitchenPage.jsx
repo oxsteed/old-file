@@ -35,6 +35,22 @@ import '../../styles/FoodPages.css';
 const POLL_MS = 5000;
 const FINISHED_ITEM_STATES = new Set(['ready', 'bumped', 'cancelled']);
 const COURSE_HOLDABLE = new Set(['queued', 'preparing', 'delayed', 'problem']);
+const KDS_A11Y_KEY = 'kds.a11y';
+
+// KDS accessibility prefs (426-429) are per-device: a wall display's
+// large-text / reduced-motion choice belongs to the device, not the
+// account, so it lives in localStorage (D-252). Reduced motion
+// defaults to the OS preference until the cook chooses otherwise.
+function readKdsA11yPrefs() {
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem(KDS_A11Y_KEY) || '{}') || {}; } catch { stored = {}; }
+  return {
+    largeText: stored.largeText === true,
+    reducedMotion: typeof stored.reducedMotion === 'boolean'
+      ? stored.reducedMotion
+      : (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true),
+  };
+}
 
 function operationId(prefix) {
   const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -56,6 +72,8 @@ export default function FoodKitchenPage() {
   const [busy, setBusy] = useState(new Set());
   const [pendingOffline, setPendingOffline] = useState(() => pendingKitchenActionCount(restaurantId));
   const [, setClockTick] = useState(0);
+  const [a11y, setA11y] = useState(readKdsA11yPrefs);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const rootRef = useRef(null);
   const clockRef = useRef(null);
   const { isFullscreen } = useFullscreen(rootRef);
@@ -68,6 +86,10 @@ export default function FoodKitchenPage() {
     }),
   );
   useWakeLock(isFullscreen || isStandalone);
+
+  useEffect(() => {
+    try { localStorage.setItem(KDS_A11Y_KEY, JSON.stringify(a11y)); } catch { /* private mode: prefs stay in memory */ }
+  }, [a11y]);
 
   const refreshPending = useCallback(() => {
     setPendingOffline(pendingKitchenActionCount(restaurantId));
@@ -261,8 +283,73 @@ export default function FoodKitchenPage() {
     { key: 'ready', title: t('food.kds.ready'), match: (o) => o.status === 'ready' },
   ];
 
+  // Keyboard ticket controls (427): J/K move between visible tickets in
+  // column order, Enter advances ("bumps") the selected ticket one step,
+  // R recalls its first recallable item. Enter/R do nothing until a
+  // ticket is selected, so a stray keypress never moves an order. The
+  // actions live in refs so the once-bound listener always calls the
+  // latest render's callbacks (which close over live busy/load state).
+  const visibleOrders = columns.flatMap((column) => orders.filter(column.match));
+  const visibleOrdersRef = useRef([]);
+  const selectedOrderIdRef = useRef(null);
+  const bumpRef = useRef(null);
+  const recallRef = useRef(null);
+  visibleOrdersRef.current = visibleOrders;
+  selectedOrderIdRef.current = selectedOrderId;
+  const bumpSelectedOrder = (order) => {
+    if (!order) return null;
+    const items = order.items || [];
+    const allItemsFinished = items.length === 0
+      || items.every((item) => FINISHED_ITEM_STATES.has(item.kitchenStatus));
+    if (order.status === 'received') return performOrderAction(order, 'acknowledge');
+    if (order.status === 'accepted') return performOrderAction(order, 'start');
+    if (order.status === 'preparing' && allItemsFinished && order.kitchen_stage === 'quality_check') return changeOrderStatus(order, 'ready', 'mark_ready');
+    if (order.status === 'preparing' && allItemsFinished && !workflow.requireQualityCheck) return changeOrderStatus(order, 'ready', 'mark_ready');
+    if (order.status === 'preparing' && allItemsFinished) return performOrderAction(order, 'ready_for_check');
+    if (order.status === 'ready' && order.fulfillment_type !== 'delivery') {
+      if (window.confirm(t('food.kds.handoffConfirm'))) return changeOrderStatus(order, 'completed', 'handoff');
+      return null;
+    }
+    return null;
+  };
+  const recallSelectedOrder = (order) => {
+    if (!order || order.status === 'ready') return null;
+    const item = (order.items || []).find((i) => ['ready', 'bumped'].includes(i.kitchenStatus));
+    if (!item) return null;
+    return performItemAction(order, item, 'recall');
+  };
+  bumpRef.current = bumpSelectedOrder;
+  recallRef.current = recallSelectedOrder;
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const tag = event.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || event.target?.isContentEditable) return;
+      const key = event.key;
+      if (key !== 'j' && key !== 'J' && key !== 'k' && key !== 'K' && key !== 'Enter' && key !== 'r' && key !== 'R') return;
+      const list = visibleOrdersRef.current;
+      if (!list.length) return;
+      event.preventDefault();
+      const idx = list.findIndex((o) => o.id === selectedOrderIdRef.current);
+      if (key === 'j' || key === 'J') {
+        setSelectedOrderId((list[Math.min(idx + 1, list.length - 1)] || list[0]).id);
+        return;
+      }
+      if (key === 'k' || key === 'K') {
+        setSelectedOrderId((list[Math.max(idx - 1, 0)] || list[0]).id);
+        return;
+      }
+      if (idx === -1) return; // Enter/R need a selected ticket
+      const selected = list[idx];
+      if (key === 'Enter') bumpRef.current?.(selected);
+      if (key === 'r' || key === 'R') recallRef.current?.(selected);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   return (
-    <div className="fd-screen" ref={rootRef}>
+    <div className={`fd-screen${a11y.largeText ? ' fd-kds-large-text' : ''}${a11y.reducedMotion ? ' fd-kds-reduced-motion' : ''}`} ref={rootRef}>
       <DisplayOfflineBanner offline={feedOffline || error} />
       <div className="fd-screen-header">
         <FoodBrand size={34} />
@@ -271,6 +358,11 @@ export default function FoodKitchenPage() {
           <FoodConnBadge ok={online && !error} />
           <span className="fd-kds-meta">{t('food.kds.explicitHint')}</span>
         </span>
+        <div className="fd-kds-a11y" role="group" aria-label={t('food.kds.a11y.title')}>
+          <button type="button" aria-pressed={a11y.largeText} onClick={() => setA11y((p) => ({ ...p, largeText: !p.largeText }))} data-track="ui.c0077c088e.14">{t('food.kds.a11y.largeText')}</button>
+          <button type="button" aria-pressed={a11y.reducedMotion} onClick={() => setA11y((p) => ({ ...p, reducedMotion: !p.reducedMotion }))} data-track="ui.c0077c088e.15">{t('food.kds.a11y.reducedMotion')}</button>
+          <span className="fd-kds-meta">{t('food.kds.a11y.keyboardHint')}</span>
+        </div>
         {pendingOffline > 0 && (
           <div className="fd-kds-sync-warning">
             {t('food.kds.pendingSync', { count: pendingOffline })}
@@ -296,12 +388,37 @@ export default function FoodKitchenPage() {
                 return (
                   <article
                     key={order.id}
-                    className="fd-kds-card"
+                    className={`fd-kds-card${selectedOrderId === order.id ? ' fd-kds-selected' : ''}`}
+                    aria-current={selectedOrderId === order.id ? 'true' : undefined}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`#${order.queue_number} ${column.title}`}
+                    onClick={() => setSelectedOrderId(order.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === ' ') {
+                        event.preventDefault();
+                        setSelectedOrderId(order.id);
+                        return;
+                      }
+                      // Enter on an unselected ticket selects it; Enter on the
+                      // selected ticket bubbles to the global handler, which bumps it.
+                      if (event.key === 'Enter' && selectedOrderId !== order.id) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setSelectedOrderId(order.id);
+                      }
+                    }}
                     style={urgency.color ? {
                       borderLeft: `5px solid ${urgency.color}`,
                       boxShadow: `inset 0 0 0 1px ${urgency.color}55`,
-                    } : undefined}
+                    } : undefined} data-track="ui.c0077c088e.16"
                   >
+                    <div className="fd-kds-status-row">
+                      <span className="fd-kds-order-status">{column.title}</span>
+                      {urgency.tier !== 'ontime' && (
+                        <span className={`fd-kds-urgency fd-kds-urgency-${urgency.tier}`}>{t(`food.kds.a11y.urgency.${urgency.tier}`)}</span>
+                      )}
+                    </div>
                     <div className="fd-kds-num">
                       <span>#{order.queue_number}</span>
                       {urgency.elapsedMin != null && <span className="fd-kds-timer">{urgency.elapsedMin}m</span>}

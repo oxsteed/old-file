@@ -1,0 +1,6 @@
+.helper-payout-timeline { display: grid; gap: 0.75rem; margin-block: 1.5rem; }
+.helper-payout-timeline-totals { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0; }
+.helper-payout-timeline-totals dd { margin: 0; font-weight: 600; }
+.helper-payout-timeline-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.helper-payout-timeline-list > li { border-inline-start: 3px solid var(--color-border, #d0d5dd); padding-inline-start: 0.75rem; }
+.helper-payout-timeline-steps { list-style: none; margin: 0.25rem 0 0; padding: 0; display: grid; gap: 0.125rem; }

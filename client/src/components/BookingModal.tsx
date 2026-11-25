@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Calendar, DollarSign, ShieldAlert } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { X, DollarSign, ShieldAlert, Clock } from 'lucide-react';
 import { toolRentalsApi } from '../api/toolRentals';
 import toast from 'react-hot-toast';
 import './BookingModal.css';
 import { toolRentalDatesOverlap } from '../utils/toolRentalDates';
+import ToolRentalCalendar from './ToolRentalCalendar';
 
 interface BookingModalProps {
   tool: {
@@ -22,7 +24,16 @@ interface BookingModalProps {
     condition?: string;
     brand?: string;
     model?: string;
+    pickup_only?: boolean;
+    delivery_available?: boolean;
     owner_id?: number;
+    pickup_window_start?: string | null;
+    pickup_window_end?: string | null;
+    // Group 11 item 576: owner daily return window.
+    return_window_start?: string | null;
+    return_window_end?: string | null;
+    // Group 11 item 580: owner-written cleaning instructions.
+    cleaning_instructions?: string | null;
   };
   isOpen: boolean;
   onClose: () => void;
@@ -34,7 +45,36 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
   const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [fulfillment, setFulfillment] = useState<'pickup' | 'delivery'>('pickup');
   const [bookedDates, setBookedDates] = useState<Array<{ start_date: string; end_date: string }>>([]);
+  // Group 11 item 574: pickup appointment time (HH:MM).
+  const [pickupTime, setPickupTime] = useState('');
+  // Group 11 item 576: return appointment time (HH:MM).
+  const [returnTime, setReturnTime] = useState('');
+  // Group 11 item 584: replacement suggestions when the requested dates
+  // are already booked.
+  const [alternatives, setAlternatives] = useState<Array<{ id: number; name: string; daily_rate: number; distance_miles?: number | null }>>([]);
+  const [alternativesLoading, setAlternativesLoading] = useState(false);
+  // Group 11 item 594: safety documents the owner uploaded for this
+  // listing, shown to the renter before booking.
+  const [safetyDocs, setSafetyDocs] = useState<Array<{ id: string; title: string; file_url: string }>>([]);
+  React.useEffect(() => {
+    if (!isOpen || !tool?.id) return;
+    toolRentalsApi.getPublicSafetyDocuments(tool.id)
+      .then((r) => setSafetyDocs(r.documents || []))
+      .catch(() => setSafetyDocs([]));
+  }, [isOpen, tool?.id]);
+
+  const formatWindowTime = (value: string | null | undefined): string => {
+    if (!value) return '';
+    const [h, m] = value.split(':').map(Number);
+    if (!Number.isFinite(h)) return value;
+    return new Date(2000, 0, 1, h, m || 0).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
+  // 554: delivery is offered only when the listing offers it and is not
+  // pickup-only; pickup is always available.
+  const deliveryAvailable = tool.delivery_available === true && tool.pickup_only !== true;
 
   // Load booked dates on mount
   React.useEffect(() => {
@@ -61,14 +101,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
     });
   };
 
-  if (!isOpen) return null;
-
-  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setStartDate(e.target.value);
-  };
-
-  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEndDate(e.target.value);
+  // 566: the calendar is the date picker; the native inputs are gone.
+  // The overlap preflight in handleSubmit still runs, and the server
+  // re-checks the range under the per-tool lock.
+  const handleCalendarChange = (nextStart: string, nextEnd: string) => {
+    setStartDate(nextStart);
+    setEndDate(nextEnd);
   };
 
   const calculateDays = (): number => {
@@ -100,23 +138,84 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
       return;
     }
 
+    // 554: refuse an unavailable fulfillment choice before submit; the
+    // server re-checks the same flags and returns fulfillment_not_available.
+    if (fulfillment === 'delivery' && !deliveryAvailable) {
+      toast.error(t('toolRentals.fulfillmentNotAvailable'));
+      return;
+    }
+
+    // 574: the pickup time must fall inside the owner's window when the
+    // listing sets one; the server enforces the same rule.
+    if (fulfillment === 'pickup' && pickupTime) {
+      const windowStart = (tool.pickup_window_start || '').slice(0, 5);
+      const windowEnd = (tool.pickup_window_end || '').slice(0, 5);
+      if ((windowStart && pickupTime < windowStart) || (windowEnd && pickupTime > windowEnd)) {
+        toast.error(t('toolRentals.pickupTimeInvalid', {
+          start: formatWindowTime(tool.pickup_window_start),
+          end: formatWindowTime(tool.pickup_window_end),
+        }));
+        return;
+      }
+    }
+
+    // 576: the return time must fall inside the owner's return window
+    // when the listing sets one; the server enforces the same rule.
+    if (returnTime) {
+      const windowStart = (tool.return_window_start || '').slice(0, 5);
+      const windowEnd = (tool.return_window_end || '').slice(0, 5);
+      if ((windowStart && returnTime < windowStart) || (windowEnd && returnTime > windowEnd)) {
+        toast.error(t('toolRentals.returnTimeInvalid', {
+          start: formatWindowTime(tool.return_window_start),
+          end: formatWindowTime(tool.return_window_end),
+        }));
+        return;
+      }
+    }
+
     // Check for calendar conflicts
     for (const booking of bookedDates) {
       if (toolRentalDatesOverlap(startDate, endDate, booking.start_date, booking.end_date)) {
         toast.error(t('toolRentals.dateConflict'));
+        // 584: the dates are taken; offer replacement listings for the
+        // same dates instead of leaving the renter at a dead end.
+        setAlternativesLoading(true);
+        try {
+          const found = await toolRentalsApi.getAlternatives(tool.id, { startDate, endDate });
+          setAlternatives(found);
+        } catch {
+          setAlternatives([]);
+        } finally {
+          setAlternativesLoading(false);
+        }
         return;
       }
     }
 
     setLoading(true);
     try {
-      await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice, agreementAccepted, tool.equipment_version);
+      await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice, agreementAccepted, tool.equipment_version, fulfillment, fulfillment === 'pickup' ? (pickupTime || null) : null, returnTime || null);
 
       toast.success(t('toolRentals.bookingConfirmed'));
       onClose();
     } catch (err: any) {
       if (err.response?.data?.code === 'equipment_changed') {
         toast.error(t('equipmentOperations.changed'));
+      } else if (err.response?.data?.code === 'fulfillment_not_available') {
+        toast.error(t('toolRentals.fulfillmentNotAvailable'));
+      } else if (err.response?.data?.code === 'conflict') {
+        // 584: the dates are taken; offer replacement listings for the
+        // same dates instead of leaving the renter at a dead end.
+        toast.error(t('toolRentals.dateConflict'));
+        setAlternativesLoading(true);
+        try {
+          const found = await toolRentalsApi.getAlternatives(tool.id, { startDate, endDate });
+          setAlternatives(found);
+        } catch {
+          setAlternatives([]);
+        } finally {
+          setAlternativesLoading(false);
+        }
       } else if (err.response?.status === 409) {
         toast.error(t('toolRentals.dateConflict'));
       } else {
@@ -149,39 +248,149 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
           </div>
 
           <form onSubmit={handleSubmit} className="booking-form" data-track="ui.043dee9378.2">
+            {/* 566: month-view availability calendar. Booked days are
+                blocked, past days disabled, and a range crossing a booked
+                day cannot be picked. */}
             <div className="booking-form-group">
-              <label htmlFor="start-date">{t('toolRentals.startDate')}</label>
-              <div className="booking-date-input">
-                <Calendar className="w-4 h-4" />
+              <label id="booking-calendar-label">{t('toolRentals.calendarTitle')}</label>
+              <ToolRentalCalendar
+                bookedRanges={bookedDates}
+                startDate={startDate}
+                endDate={endDate}
+                onChange={handleCalendarChange}
+                disabled={loading}
+              />
+              <p className="booking-calendar-selection" aria-live="polite">
+                {startDate && endDate
+                  ? t('toolRentals.calendarSelectedRange', {
+                      start: new Date(`${startDate}T12:00:00`).toLocaleDateString(),
+                      end: new Date(`${endDate}T12:00:00`).toLocaleDateString(),
+                    })
+                  : startDate
+                    ? t('toolRentals.calendarPickEnd')
+                    : t('toolRentals.calendarPickStart')}
+              </p>
+            </div>
+
+            {/* 554: pickup / delivery choice, enforced server-side. */}
+            <fieldset className="booking-form-group">
+              <legend>{t('toolRentals.fulfillmentTitle')}</legend>
+              <label className="booking-fulfillment-option">
                 <input
-                  id="start-date"
-                  type="date"
-                  value={startDate}
-                  onChange={handleStartDateChange}
-                  min={new Date().toISOString().split('T')[0]}
-                  required
+                  type="radio"
+                  name="fulfillment"
+                  value="pickup"
+                  checked={fulfillment === 'pickup'}
+                  onChange={() => setFulfillment('pickup')}
+                  disabled={loading}
+                  data-track="ui.043dee9378.5"
+                />
+                <span>{t('toolRentals.fulfillmentPickup')}</span>
+              </label>
+              <label className="booking-fulfillment-option">
+                <input
+                  type="radio"
+                  name="fulfillment"
+                  value="delivery"
+                  checked={fulfillment === 'delivery'}
+                  onChange={() => setFulfillment('delivery')}
+                  disabled={loading || !deliveryAvailable}
+                  data-track="ui.043dee9378.6"
+                />
+                <span>{t('toolRentals.fulfillmentDelivery')}</span>
+              </label>
+              {!deliveryAvailable && (
+                <p className="booking-fulfillment-hint" role="note">
+                  {tool.pickup_only ? t('toolRentals.fulfillmentPickupOnly') : t('toolRentals.fulfillmentDeliveryUnavailable')}
+                </p>
+              )}
+            </fieldset>
+
+            {/* 574: pickup appointment time, inside the owner's window
+                when the listing sets one. */}
+            {fulfillment === 'pickup' && (
+              <div className="booking-form-group">
+                <label htmlFor="pickup-time">{t('toolRentals.pickupTimeTitle')}</label>
+                <div className="booking-date-input">
+                  <Clock className="w-4 h-4" />
+                  <input
+                    id="pickup-time"
+                    type="time"
+                    value={pickupTime}
+                    onChange={(e) => setPickupTime(e.target.value)}
+                    min={(tool.pickup_window_start || '').slice(0, 5) || undefined}
+                    max={(tool.pickup_window_end || '').slice(0, 5) || undefined}
+                    disabled={loading}
+                  />
+                </div>
+                {tool.pickup_window_start && tool.pickup_window_end ? (
+                  <p className="booking-fulfillment-hint" role="note">
+                    {t('toolRentals.pickupWindowHint', {
+                      start: formatWindowTime(tool.pickup_window_start),
+                      end: formatWindowTime(tool.pickup_window_end),
+                    })}
+                  </p>
+                ) : (
+                  <p className="booking-fulfillment-hint" role="note">
+                    {t('toolRentals.pickupTimeHint')}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* 576: return appointment time. The tool always comes back
+                for a handoff, so this applies to pickup and delivery. */}
+            <div className="booking-form-group">
+              <label htmlFor="return-time">{t('toolRentals.returnTimeTitle')}</label>
+              <div className="booking-date-input">
+                <Clock className="w-4 h-4" />
+                <input
+                  id="return-time"
+                  type="time"
+                  value={returnTime}
+                  onChange={(e) => setReturnTime(e.target.value)}
+                  min={(tool.return_window_start || '').slice(0, 5) || undefined}
+                  max={(tool.return_window_end || '').slice(0, 5) || undefined}
                   disabled={loading}
                 />
               </div>
+              {tool.return_window_start && tool.return_window_end ? (
+                <p className="booking-fulfillment-hint" role="note">
+                  {t('toolRentals.returnWindowHint', {
+                    start: formatWindowTime(tool.return_window_start),
+                    end: formatWindowTime(tool.return_window_end),
+                  })}
+                </p>
+              ) : (
+                <p className="booking-fulfillment-hint" role="note">
+                  {t('toolRentals.returnTimeHint')}
+                </p>
+              )}
             </div>
 
-            <div className="booking-form-group">
-              <label htmlFor="end-date">{t('toolRentals.endDate')}</label>
-              <div className="booking-date-input">
-                <Calendar className="w-4 h-4" />
-                <input
-                  id="end-date"
-                  type="date"
-                  value={endDate}
-                  onChange={handleEndDateChange}
-                  min={startDate || new Date().toISOString().split('T')[0]}
-                  required
-                  disabled={loading}
-                />
+            {/* 584: replacement suggestions when the requested dates are
+                already booked for this tool. */}
+            {alternatives.length > 0 && (
+              <div className="booking-form-group" data-testid="booking-alternatives">
+                <h3>{t('toolRentals.alternativesTitle')}</h3>
+                <p className="booking-fulfillment-hint" role="note">
+                  {t('toolRentals.alternativesHint')}
+                </p>
+                <ul>
+                  {alternatives.map((alt) => (
+                    <li key={alt.id}>
+                      <Link to={`/tool-rentals/${alt.id}`} onClick={onClose} data-track="ui.043dee9378.7">
+                        {alt.name} · ${Number(alt.daily_rate).toFixed(2)}/day
+                        {alt.distance_miles != null ? ` · ${Number(alt.distance_miles).toFixed(1)} mi` : ''}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </div>
-
-            {/* Price Summary */}
+            )}
+            {alternativesLoading && (
+              <p className="booking-fulfillment-hint" role="status">{t('common.loading')}</p>
+            )}
             {days > 0 && (
               <div className="booking-price-summary">
                 <div className="booking-price-row">
@@ -220,6 +429,25 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
                   {tool.condition ? <p><strong>{t('toolRentals.condition')}:</strong> {tool.condition}</p> : null}
                   {tool.replacement_value ? <p><strong>{t('toolRentals.replacementValue')}:</strong> ${Number(tool.replacement_value).toFixed(2)}</p> : null}
                   {tool.owner_rules ? <p><strong>{t('toolRentals.ownerRules')}:</strong> {tool.owner_rules}</p> : null}
+                </div>
+              )}
+              {/* 580: cleaning instructions, as the owner wrote them. */}
+              {tool.cleaning_instructions && (
+                <div className="booking-peer-tool-snapshot">
+                  <p><strong>{t('toolRentals.cleaningInstructionsTitle')}:</strong> {tool.cleaning_instructions}</p>
+                </div>
+              )}
+              {/* Group 11 item 594: safety documents for this listing. */}
+              {safetyDocs.length > 0 && (
+                <div className="booking-peer-tool-snapshot">
+                  <p><strong>{t('toolRentals.safetyDocsTitle')}:</strong></p>
+                  <ul>
+                    {safetyDocs.map((doc) => (
+                      <li key={doc.id}>
+                        <a href={doc.file_url} target="_blank" rel="noreferrer" data-track="ui.043dee9378.8">{doc.title}</a>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
               {tool.owner_custom_terms && (

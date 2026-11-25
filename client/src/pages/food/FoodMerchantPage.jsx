@@ -51,6 +51,7 @@ import RestaurantHQPanel from './RestaurantHQPanel';
 import BrandHQPanel from './BrandHQPanel';
 import StoreHubPanel from './StoreHubPanel';
 import RestaurantAccountingPanel from './RestaurantAccountingPanel';
+import RestaurantOpsPanel from '../../components/businessHub/g56/RestaurantOpsPanel';
 import { syncPendingMutations, countPendingMutations, isDeviceOnline } from '../../api/restaurantsOffline';
 import { resolveOperationsDesk } from './merchantOperationsDesk';
 import PageShell from '../../components/PageShell';
@@ -2118,6 +2119,7 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
     { key: 'accounting', group: 'company', icon: Receipt, title: t('restaurants.accountingRuntime.title'), desc: t('restaurants.ops.desk.accountingDesc', 'Connect accounting and review journal exports.'), manager: true },
     { key: 'store-hub', group: 'company', icon: WifiOff, title: t('restaurants.ops.storeHub.title'), desc: t('restaurants.ops.desk.hubDesc', 'Check local devices and changes waiting to sync.'), manager: true },
     { key: 'reports', group: 'company', icon: BarChart3, title: t('restaurants.ops.reports.title', 'Reports'), desc: t('restaurants.ops.opReportsDesc', 'Sales, inventory, and operations performance at a glance.'), manager: true },
+    { key: 'persona-ops', group: 'floor', icon: ClipboardList, title: t('bizG56.ops.title'), desc: t('bizG56.ops.subtitle'), manager: true },
     { key: 'help', group: 'support', icon: HelpingHand, title: t('restaurants.ops.help.title', 'Need help at your restaurant?'), desc: t('restaurants.ops.help.desc', 'Hire local helpers through OxSteed Marketplace: repairs, cleaning, equipment, signage, and more.'), manager: true },
   ];
   const modules = moduleCatalog.filter((mod) => !mod.manager || canManageRestaurant);
@@ -2368,6 +2370,11 @@ function OperationsView({ t, restaurant, canManageRestaurant }) {
         {canManageRestaurant && (
           <SettingsCard icon={BarChart3} title={t('restaurants.ops.reports.title', 'Reports')} desc={t('restaurants.ops.opReportsDesc', 'Sales, inventory, and operations performance at a glance.')} cardKey="reports" registerRef={registerCard} wide hidden={active !== 'reports'}>
             <VisitedOperation active={active === 'reports'}><ReportsPanel t={t} restaurant={restaurant} bare onStats={report} /></VisitedOperation>
+          </SettingsCard>
+        )}
+        {canManageRestaurant && (
+          <SettingsCard icon={ClipboardList} title={t('bizG56.ops.title')} desc={t('bizG56.ops.subtitle')} cardKey="persona-ops" registerRef={registerCard} wide hidden={active !== 'persona-ops'}>
+            <VisitedOperation active={active === 'persona-ops'}><RestaurantOpsPanel restaurantId={restaurant.id} /></VisitedOperation>
           </SettingsCard>
         )}
         {canManageRestaurant && (

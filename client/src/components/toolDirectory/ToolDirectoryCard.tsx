@@ -11,6 +11,7 @@ import {
   Truck,
   Wallet,
   HelpCircle,
+  Navigation,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ToolCardData, ToolCondition } from '../../types/toolDirectory';
@@ -23,6 +24,10 @@ interface ToolDirectoryCardProps {
   onMessage?: (ownerId: number) => void;
   /** When set, highlights the matching category on this card */
   highlightCategory?: string;
+  /** 565: compare selection state for this card */
+  compareSelected?: boolean;
+  compareDisabled?: boolean;
+  onToggleCompare?: (tool: ToolCardData) => void;
 }
 
 function normalizeCondition(c: string | undefined | null): ToolCondition | null {
@@ -50,6 +55,9 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
   onViewDetails,
   onMessage,
   highlightCategory,
+  compareSelected = false,
+  compareDisabled = false,
+  onToggleCompare,
 }) => {
   const { t } = useTranslation();
   const ownerName =
@@ -102,6 +110,14 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
         {tool.is_available && isExactMatch && (
           <span className="absolute bottom-2.5 start-3 inline-flex items-center gap-1 px-2 py-0.5 bg-brand-900/70 text-brand-300 border border-brand-700 rounded-full text-xs font-medium backdrop-blur-sm">
             {t('toolRentalsDir.exactMatch')}
+          </span>
+        )}
+
+        {/* 559: gallery size badge — the card shows the cover; the detail
+            modal renders the full gallery. */}
+        {Array.isArray(tool.image_gallery) && tool.image_gallery.length > 1 && (
+          <span className="absolute bottom-2.5 end-3 inline-flex items-center gap-1 px-2 py-0.5 bg-gray-900/80 text-gray-200 border border-gray-700 rounded-full text-xs font-medium backdrop-blur-sm">
+            {t('toolRentalsDir.galleryPhotoCount', { count: tool.image_gallery.length })}
           </span>
         )}
 
@@ -172,6 +188,28 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
           <p className="text-xs text-gray-400 leading-relaxed line-clamp-2">{tool.description}</p>
         )}
 
+        {/* Capacity / size specs (563) */}
+        {(tool.capacity_value != null || tool.weight_kg != null || tool.size_length_cm != null) && (
+          <p className="text-xs text-gray-400 leading-relaxed">
+            {[
+              tool.capacity_value != null && tool.capacity_unit
+                ? t('toolRentalsDir.capacityLabel', { value: Number(tool.capacity_value), unit: tool.capacity_unit })
+                : null,
+              tool.weight_kg != null
+                ? t('toolRentalsDir.weightLabel', { value: Number(tool.weight_kg) })
+                : null,
+              tool.size_length_cm != null
+                ? (() => {
+                    const dims = [tool.size_length_cm, tool.size_width_cm, tool.size_height_cm]
+                      .filter((v) => v != null)
+                      .map((v) => Number(v));
+                    return `${dims.join(' x ')} cm`;
+                  })()
+                : null,
+            ].filter(Boolean).join(' · ')}
+          </p>
+        )}
+
         {/* Rate breakdown */}
         {((tool.weekly_rate && tool.weekly_rate > 0) || (tool.monthly_rate && tool.monthly_rate > 0)) && (
           <ul className="space-y-1" aria-label={t('toolRentalsDir.rateBreakdownAria')}>
@@ -215,6 +253,12 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
             {tool.location_city || t('toolRentalsDir.locationUnknown')}
             {tool.location_state ? `, ${tool.location_state}` : ''}
           </span>
+          {tool.distance_miles != null && (
+            <span className="flex items-center gap-1 text-emerald-400">
+              <Navigation className="w-3 h-3" aria-hidden="true" />
+              {t('toolRentalsDir.distanceLabel', { distance: Number(tool.distance_miles).toFixed(1) })}
+            </span>
+          )}
           {tool.avg_response_time_hours ? (
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" aria-hidden="true" />
@@ -252,6 +296,23 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Compare toggle (565) */}
+        {onToggleCompare && (
+          <label className="flex items-center gap-2 pt-1 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={compareSelected}
+              disabled={compareDisabled}
+              onChange={() => onToggleCompare(tool)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-brand-500 focus:ring-brand-500 focus:ring-offset-gray-900 cursor-pointer disabled:opacity-50"
+              aria-label={t('toolRentalsDir.compareAdd')} data-track="ui.8326ed7c64.4"
+            />
+            <span className={`text-xs transition-colors ${compareSelected ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
+              {t('toolRentalsDir.compareAdd')}
+            </span>
+          </label>
+        )}
 
         {/* Actions */}
         <div className="flex gap-2 pt-1 mt-auto">

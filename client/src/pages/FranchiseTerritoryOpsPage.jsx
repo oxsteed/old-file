@@ -15,6 +15,34 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import PageShell from '../components/PageShell';
+import FranchiseBoundarySummary from './FranchiseBoundarySummary';
+import FranchiseLaunchPlan from './FranchiseLaunchPlan';
+import FranchiseOpenLocations from './FranchiseOpenLocations';
+import FranchiseTerritoryInvitations from './FranchiseTerritoryInvitations';
+import FranchiseTrainingTasks from './FranchiseTrainingTasks';
+import FranchiseCoveragePlan from './FranchiseCoveragePlan';
+import FranchiseAnnouncements from './FranchiseAnnouncements';
+import FranchiseStandards from './FranchiseStandards';
+import FranchiseBrandAssets from './FranchiseBrandAssets';
+import FranchiseComplianceChecklist from './FranchiseComplianceChecklist';
+import FranchiseExceptionSummary from './FranchiseExceptionSummary';
+import FranchiseLocationHealth from './FranchiseLocationHealth';
+import FranchiseTerritoryTickets from './FranchiseTerritoryTickets';
+import FranchiseCoverageTrend from './FranchiseCoverageTrend';
+import FranchiseExceptionEscalations from './FranchiseExceptionEscalations';
+import FranchiseExceptionResolution from './FranchiseExceptionResolution';
+import FranchiseCandidateLocations from './FranchiseCandidateLocations';
+import FranchiseTerritoryCapacity from './FranchiseTerritoryCapacity';
+import FranchiseTrainingPlanner from './FranchiseTrainingPlanner';
+import FranchiseLaunchDependencies from './FranchiseLaunchDependencies';
+import FranchiseExpansionNotes from './FranchiseExpansionNotes';
+import FranchiseHandoff from './FranchiseHandoff';
+import FranchiseContactDirectory from './FranchiseContactDirectory';
+import FranchisePolicyQuestions from './FranchisePolicyQuestions';
+import FranchiseOpsAppointments from './FranchiseOpsAppointments';
+import FranchiseTrainingEscalations from './FranchiseTrainingEscalations';
+import FranchiseTerritoryCases from './FranchiseTerritoryCases';
+import FranchiseSupportHistory from './FranchiseSupportHistory';
 import { useAuth } from '../hooks/useAuth';
 import useAccessProjection from '../hooks/useAccessProjection';
 
@@ -96,10 +124,19 @@ export default function FranchiseTerritoryOpsPage() {
   const [helpers, setHelpers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
+  // Group 12 Slice 3b (607): the boundary summary rides the applicant
+  // detail endpoint, loaded for whichever territory the stats resolved.
+  const [boundaryDetail, setBoundaryDetail] = useState(null);
   // G-26: one franchisee, two territories. The operator picks which
   // territory to view; the choice travels as ?application_id=.
   const [applications, setApplications] = useState([]);
   const [selectedApplicationId, setSelectedApplicationId] = useState('');
+  // Group 12 Slice 3c (612): the opening-team designation scope — which
+  // location launch (or the whole territory) a roster toggle applies to —
+  // and the role new members get.
+  const [openingTeamScope, setOpeningTeamScope] = useState('');
+  const [openingTeamRole, setOpeningTeamRole] = useState('member');
+  const [teamBusy, setTeamBusy] = useState(false);
   const operableApplications = applications.filter((a) => ['approved', 'launched'].includes(a.status));
   const projectedAccess = accessProjection?.access || accessProjection;
   const projectionControlsTerritory = Boolean(accessProjection?.flags?.accessProjection);
@@ -156,6 +193,622 @@ export default function FranchiseTerritoryOpsPage() {
     }
     load();
   }, [load, territoryBlocked]);
+
+  // Group 12 Slice 3b (607): boundary summary for the resolved territory.
+  const resolvedApplicationId = stats?.application?.id || null;
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setBoundaryDetail(null);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/franchise/my-applications/${resolvedApplicationId}`)
+      .then((res) => { if (!cancelled) setBoundaryDetail(res.data); })
+      .catch(() => { if (!cancelled) setBoundaryDetail(null); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked]);
+
+  // Group 12 Slice 3d (619): the territory coverage rollup for the
+  // resolved territory — read-only, rolled up from the linked business.
+  const [coverage, setCoverage] = useState(null);
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setCoverage(null);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/coverage`)
+      .then((res) => { if (!cancelled) setCoverage(res.data); })
+      .catch(() => { if (!cancelled) setCoverage(null); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked]);
+
+  // Group 12 Slice 3j (649): the territory case tracker — the
+  // territory's cases in one view, filterable by status, type, and
+  // location. Derived from the existing records, never a new store.
+  const [caseStatus, setCaseStatus] = useState('open');
+  const [caseType, setCaseType] = useState('all');
+  const [caseLocationId, setCaseLocationId] = useState('');
+  const [territoryCases, setTerritoryCases] = useState([]);
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setTerritoryCases([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams({ status: caseStatus, type: caseType });
+    if (caseLocationId) params.set('location_id', caseLocationId);
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/cases?${params.toString()}`)
+      .then((res) => { if (!cancelled) setTerritoryCases(res.data?.cases ?? []); })
+      .catch(() => { if (!cancelled) setTerritoryCases([]); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked, caseStatus, caseType, caseLocationId]);
+
+  // Group 12 Slice 3f (629): the territory ticket queue — the
+  // territory's open support requests, filterable by status and location.
+  const [ticketStatus, setTicketStatus] = useState('open');
+  const [ticketLocationId, setTicketLocationId] = useState('');
+  const [territoryTickets, setTerritoryTickets] = useState([]);
+  const [ticketRefresh, setTicketRefresh] = useState(0);
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setTerritoryTickets([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams({ status: ticketStatus });
+    if (ticketLocationId) params.set('location_id', ticketLocationId);
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/support-tickets?${params.toString()}`)
+      .then((res) => { if (!cancelled) setTerritoryTickets(res.data?.tickets ?? []); })
+      .catch(() => { if (!cancelled) setTerritoryTickets([]); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked, ticketStatus, ticketLocationId, ticketRefresh]);
+
+  // Group 12 Slice 3f (630): the territory coverage trend for the
+  // resolved territory — coverage % by day and by week over time.
+  const [coverageTrend, setCoverageTrend] = useState(null);
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setCoverageTrend(null);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/coverage-trend`)
+      .then((res) => { if (!cancelled) setCoverageTrend(res.data); })
+      .catch(() => { if (!cancelled) setCoverageTrend(null); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked]);
+
+  // Group 12 Slice 3g (631-635): the exception resolution lists — the
+  // escalation queue and the corrective-action checklist for the
+  // resolved territory. The resolution state itself rides the boundary
+  // detail; these lists are the working surface on top of it.
+  const [escalations, setEscalations] = useState([]);
+  const [correctiveActions, setCorrectiveActions] = useState([]);
+  const [resolutionRefresh, setResolutionRefresh] = useState(0);
+  useEffect(() => {
+    if (!resolvedApplicationId || territoryBlocked) {
+      setEscalations([]);
+      setCorrectiveActions([]);
+      return undefined;
+    }
+    let cancelled = false;
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/escalations`)
+      .then((res) => { if (!cancelled) setEscalations(res.data?.escalations ?? []); })
+      .catch(() => { if (!cancelled) setEscalations([]); });
+    api.get(`/franchise/my-applications/${resolvedApplicationId}/corrective-actions`)
+      .then((res) => { if (!cancelled) setCorrectiveActions(res.data?.corrective_actions ?? []); })
+      .catch(() => { if (!cancelled) setCorrectiveActions([]); });
+    return () => { cancelled = true; };
+  }, [resolvedApplicationId, territoryBlocked, resolutionRefresh]);
+
+  const refreshResolution = useCallback(async () => {
+    if (!resolvedApplicationId) return;
+    setResolutionRefresh((v) => v + 1);
+    try {
+      const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}`);
+      setBoundaryDetail(res.data);
+    } catch {
+      // The list refresh above still runs; the bundle reload is best-effort.
+    }
+  }, [resolvedApplicationId]);
+
+  // Group 12 Slice 3h (636-640): plan development — reload the territory
+  // detail bundle after a planning mutation (candidates, notes).
+  const reloadBoundaryDetail = useCallback(async () => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}`);
+      setBoundaryDetail(res.data);
+    } catch {
+      setError(t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3h (636): the operator proposes a candidate location,
+  // moves one through review, and removes a scouting candidate.
+  const proposeCandidate = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/candidate-locations`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const updateCandidateStatus = useCallback(async (candidateId, status) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.patch(`/franchise/my-applications/${resolvedApplicationId}/candidate-locations/${candidateId}`, { status });
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const removeCandidate = useCallback(async (candidateId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.delete(`/franchise/my-applications/${resolvedApplicationId}/candidate-locations/${candidateId}`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  // Group 12 Slice 3h (640): the operator records, edits, and removes
+  // expansion readiness notes for the territory or one location.
+  const addExpansionNote = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/expansion-notes`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const updateExpansionNote = useCallback(async (noteId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.patch(`/franchise/my-applications/${resolvedApplicationId}/expansion-notes/${noteId}`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const removeExpansionNote = useCallback(async (noteId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.delete(`/franchise/my-applications/${resolvedApplicationId}/expansion-notes/${noteId}`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  // Group 12 Slice 3i (641/642/644): the operator initiates a handoff to
+  // a named incoming operator and cancels a pending one; HQ approval is
+  // the only path that moves anything, so these calls only ever create or
+  // cancel the pending record. The transfer log loads on demand.
+  const initiateHandoff = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/handoffs`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const cancelHandoff = useCallback(async (handoffId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/handoffs/${handoffId}/cancel`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const loadHandoffTransfers = useCallback(async (handoffId) => {
+    if (!resolvedApplicationId) return [];
+    const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}/handoffs/${handoffId}/transfers`);
+    return res.data.transfers || [];
+  }, [resolvedApplicationId]);
+
+  // Group 12 Slice 3i (643): the operator maintains the territory's
+  // contact directory — roster-linked entries and manual entries.
+  const addDirectoryContact = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/contact-directory`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const updateDirectoryContact = useCallback(async (entryId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.patch(`/franchise/my-applications/${resolvedApplicationId}/contact-directory/${entryId}`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const removeDirectoryContact = useCallback(async (entryId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.delete(`/franchise/my-applications/${resolvedApplicationId}/contact-directory/${entryId}`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  // Group 12 Slice 3j (646, D-347): the operator asks a policy question
+  // for the territory — a ticket with category 'policy_question' — and
+  // HQ answers in-thread on the ticket.
+  const askPolicyQuestion = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/policy-questions`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  // Group 12 Slice 3j (647, D-348): the operator books or cancels a
+  // dedicated HQ operations appointment for the territory.
+  const bookOpsSlot = useCallback(async (slotId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/ops-appointments/${slotId}/book`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  const cancelOpsBooking = useCallback(async (slotId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/ops-appointments/${slotId}/cancel`);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  // Group 12 Slice 3j (648, D-349): the operator escalates a training
+  // issue/gap to HQ — on an assignment, or named by member + module.
+  const escalateTraining = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/training-escalations`, body);
+      await reloadBoundaryDetail();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, reloadBoundaryDetail, t]);
+
+  // Group 12 Slice 3g (631): the operator escalates a linked exception
+  // with a reason; the fresh summary replaces the one on the detail.
+  const escalateTicket = useCallback(async (ticketNumber, reason) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/support-tickets/${ticketNumber}/escalate`, { reason });
+      setBoundaryDetail((prev) => (prev ? { ...prev, exception_summary: res.data.exception_summary } : prev));
+      await refreshResolution();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, refreshResolution, t]);
+
+  // Group 12 Slice 3g (632): the operator assigns a remediation owner
+  // for a linked exception.
+  const assignRemediation = useCallback(async (ticketId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/support-tickets/${ticketId}/remediation`, body);
+      await refreshResolution();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, refreshResolution, t]);
+
+  // Group 12 Slice 3g (633): the operator adds a corrective action and
+  // moves one through its status workflow.
+  const createCorrectiveAction = useCallback(async (ticketId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/support-tickets/${ticketId}/corrective-actions`, body);
+      await refreshResolution();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, refreshResolution, t]);
+
+  const updateCorrectiveActionStatus = useCallback(async (actionId, status) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/corrective-actions/${actionId}/status`, { status });
+      await refreshResolution();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, refreshResolution, t]);
+
+  // Group 12 Slice 3g (634): evidence upload (multipart) and read for
+  // one corrective action.
+  const uploadEvidence = useCallback(async (actionId, formData) => {
+    if (!resolvedApplicationId) return;
+    try {
+      await api.post(`/franchise/my-applications/${resolvedApplicationId}/corrective-actions/${actionId}/evidence`, formData);
+      await refreshResolution();
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, refreshResolution, t]);
+
+  const loadEvidence = useCallback(async (actionId) => {
+    if (!resolvedApplicationId) return [];
+    const res = await api.get(`/franchise/my-applications/${resolvedApplicationId}/corrective-actions/${actionId}/evidence`);
+    return res.data?.evidence ?? [];
+  }, [resolvedApplicationId]);
+
+  // Group 12 Slice 3b (609): the operator updates a launch plan step's
+  // status from the ops page; the detail is reloaded to reflect it.
+  const updateLaunchPlanStatus = useCallback(async (stepId, status) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/launch-plan/${stepId}/status`, { status });
+      setBoundaryDetail(res.data);
+    } catch {
+      setError(t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3c (611): the operator updates a location milestone's
+  // status from the ops page; the detail is reloaded to reflect it.
+  const updateMilestoneStatus = useCallback(async (locationId, milestoneId, status) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/locations/${locationId}/milestones/${milestoneId}/status`, { status });
+      setBoundaryDetail(res.data);
+    } catch {
+      setError(t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3c (614): the operator updates a location's service
+  // availability checklist and launches a location from the ops page.
+  const saveLocationService = useCallback(async (locationId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/locations/${locationId}/services`, body);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  const launchLocation = useCallback(async (locationId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/locations/${locationId}/launch`);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3c (615): the operator confirms a launched location
+  // opened from the ops page — the record that completes the launch.
+  const confirmOpening = useCallback(async (locationId, body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/locations/${locationId}/confirm-opening`, body);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3d (616): the operator invites someone to the
+  // territory by email, and cancels an outstanding invite.
+  const inviteTerritoryMember = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/invitations`, body);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  const cancelTerritoryInvite = useCallback(async (inviteId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/invitations/${inviteId}/cancel`);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3d (617/618): the territory members — the operator,
+  // accepted invitees, and the opening-team helpers. Used to pick
+  // training assignees (and, in HQ, location managers).
+  const territoryMembers = useCallback(() => {
+    if (!boundaryDetail) return [];
+    const byId = new Map();
+    if (user?.id) {
+      byId.set(user.id, {
+        user_id: user.id,
+        name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email || user.id,
+        email: user.email || '',
+      });
+    }
+    (boundaryDetail.territory_invitations || [])
+      .filter((invite) => invite.status === 'accepted' && invite.invitee_user_id)
+      .forEach((invite) => {
+        if (!byId.has(invite.invitee_user_id)) {
+          byId.set(invite.invitee_user_id, { user_id: invite.invitee_user_id, name: invite.email, email: invite.email });
+        }
+      });
+    const teams = [
+      ...(boundaryDetail.opening_team || []),
+      ...((boundaryDetail.locations || []).flatMap((location) => location.opening_team || [])),
+    ];
+    teams.forEach((member) => {
+      if (member.helper_user_id && !byId.has(member.helper_user_id)) {
+        byId.set(member.helper_user_id, {
+          user_id: member.helper_user_id,
+          name: [member.helper_first_name, member.helper_last_name].filter(Boolean).join(' ') || member.helper_email,
+          email: member.helper_email || '',
+        });
+      }
+    });
+    return [...byId.values()];
+  }, [boundaryDetail, user]);
+
+  // Group 12 Slice 3d (618): the operator assigns training to a
+  // territory member, marks it complete, and removes assignments.
+  const assignTraining = useCallback(async (body) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/training`, body);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  const completeTraining = useCallback(async (assignmentId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/training/${assignmentId}/complete`);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  const removeTraining = useCallback(async (assignmentId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.delete(`/franchise/my-applications/${resolvedApplicationId}/training/${assignmentId}`);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3f (628, D-327): link or unlink a support ticket
+  // to the territory; the fresh exception summary replaces the one on
+  // the boundary detail.
+  const linkTicket = useCallback(async (ticketNumber, locationId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/support-tickets/${ticketNumber}/link`, { location_id: locationId });
+      setBoundaryDetail((prev) => (prev ? { ...prev, exception_summary: res.data.exception_summary } : prev));
+      setTicketRefresh((v) => v + 1);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  const unlinkTicket = useCallback(async (ticketId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/support-tickets/${ticketId}/unlink`);
+      setBoundaryDetail((prev) => (prev ? { ...prev, exception_summary: res.data.exception_summary } : prev));
+      setTicketRefresh((v) => v + 1);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3d (620): the operator marks an HQ announcement read.
+  const markAnnouncementRead = useCallback(async (announcementId) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/announcements/${announcementId}/read`);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3e (622): the operator acknowledges a standard's
+  // current version with a drawn e-signature (multipart FormData).
+  const acknowledgeStandard = useCallback(async (standardId, formData) => {
+    if (!resolvedApplicationId) return;
+    try {
+      const res = await api.post(`/franchise/my-applications/${resolvedApplicationId}/standards/${standardId}/acknowledge`, formData);
+      setBoundaryDetail(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.error || t('franchiseTerritoryPage.errors.loadFailure'));
+      throw err;
+    }
+  }, [resolvedApplicationId, t]);
+
+  // Group 12 Slice 3c (612): the operator designates a roster helper as
+  // an opening-team member (or removes them) for the selected scope. The
+  // roster reloads so the opening-team flags reflect the change.
+  const toggleOpeningTeam = useCallback(async (helper) => {
+    if (!resolvedApplicationId || teamBusy) return;
+    setTeamBusy(true);
+    try {
+      if (helper.opening_team && helper.opening_team_member_id) {
+        await api.delete(`/franchise/my-applications/${resolvedApplicationId}/opening-team/${helper.opening_team_member_id}`);
+      } else {
+        await api.post(`/franchise/my-applications/${resolvedApplicationId}/opening-team`, {
+          helper_user_id: helper.user_id,
+          location_id: openingTeamScope || undefined,
+          role: openingTeamRole,
+        });
+      }
+      await load();
+    } catch {
+      setError(t('franchiseTerritoryPage.errors.loadFailure'));
+    } finally {
+      setTeamBusy(false);
+    }
+  }, [resolvedApplicationId, teamBusy, openingTeamScope, openingTeamRole, load, t]);
 
   const app      = stats?.application ?? {};
   const kpis     = stats?.territory_kpis ?? {};
@@ -399,12 +1052,349 @@ export default function FranchiseTerritoryOpsPage() {
           </div>
 
           {/* ── Helper roster ───────────────────────────────────────── */}
+          {/* Group 12 Slice 3b (607): the structured boundary summary for
+              the resolved territory (operator read-only). */}
+          {boundaryDetail && (
+            <FranchiseBoundarySummary
+              areas={boundaryDetail.territory_areas || []}
+              territoryExclusive={boundaryDetail.application?.territory_exclusive === true}
+              territorySummary={boundaryDetail.application?.territory_summary || null}
+            />
+          )}
+
+          {/* Group 12 Slice 3b (609): the territory launch plan. */}
+          {boundaryDetail && (
+            <FranchiseLaunchPlan
+              steps={boundaryDetail.launch_plan_steps || []}
+              readinessStatus={boundaryDetail.application?.launch_readiness_status || null}
+              onStatusChange={updateLaunchPlanStatus}
+            />
+          )}
+
+          {/* Group 12 Slice 3c (611): the open locations with their launch
+              milestones. */}
+          {boundaryDetail && (
+            <FranchiseOpenLocations
+              locations={boundaryDetail.locations || []}
+              launchPlanSteps={boundaryDetail.launch_plan_steps || []}
+              openingTeam={boundaryDetail.opening_team || []}
+              businessServices={boundaryDetail.business_services || []}
+              onMilestoneStatusChange={updateMilestoneStatus}
+              onServiceSave={saveLocationService}
+              onLaunchLocation={launchLocation}
+              onConfirmOpening={confirmOpening}
+            />
+          )}
+
+          {/* Group 12 Slice 3d (616): territory invitations. */}
+          {boundaryDetail && (
+            <FranchiseTerritoryInvitations
+              invitations={boundaryDetail.territory_invitations || []}
+              canInvite
+              onInvite={inviteTerritoryMember}
+              onCancel={cancelTerritoryInvite}
+            />
+          )}
+
+          {/* Group 12 Slice 3d (618): territory training distribution. */}
+          {boundaryDetail && (
+            <FranchiseTrainingTasks
+              assignments={boundaryDetail.training_assignments || []}
+              members={territoryMembers()}
+              locations={boundaryDetail.locations || []}
+              canAssign
+              canComplete
+              onAssign={assignTraining}
+              onComplete={completeTraining}
+              onRemove={removeTraining}
+            />
+          )}
+
+          {/* Group 12 Slice 3d (619): territory coverage planning. */}
+          {boundaryDetail && <FranchiseCoveragePlan coverage={coverage} />}
+
+          {/* Group 12 Slice 3f (630, D-330): the territory coverage trend —
+              coverage % by day and by week over time. */}
+          {boundaryDetail && <FranchiseCoverageTrend trend={coverageTrend} />}
+
+          {/* Group 12 Slice 3d (620): the HQ announcement feed. */}
+          {boundaryDetail && (
+            <FranchiseAnnouncements
+              announcements={boundaryDetail.announcements || []}
+              canRead
+              onMarkRead={markAnnouncementRead}
+            />
+          )}
+
+          {/* Group 12 Slice 3e (621/622): the franchise standards library —
+              franchise-wide standards plus this territory's own, browsed
+              from the territory ops page; the operator acknowledges each
+              version with a drawn signature. */}
+          {boundaryDetail && (
+            <FranchiseStandards
+              standards={boundaryDetail.standards || []}
+              canAcknowledge
+              onAcknowledge={acknowledgeStandard}
+            />
+          )}
+
+          {/* Group 12 Slice 3e (623): the brand asset store — HQ uploads,
+              operators browse and download from the territory ops page. */}
+          {boundaryDetail && (
+            <FranchiseBrandAssets assets={boundaryDetail.brand_assets || []} />
+          )}
+
+          {/* Group 12 Slice 3e (624): the operator compliance checklist —
+              standards compliance derived from the library, the
+              acknowledgment state, and readiness. */}
+          {boundaryDetail && (
+            <FranchiseComplianceChecklist checklist={boundaryDetail.compliance_checklist || null} />
+          )}
+
+          {/* Group 12 Slice 3f (628, D-327): the service exception summary —
+              the territory's support tickets aggregated; the operator links
+              their own tickets by ticket number. */}
+          {boundaryDetail && (
+            <FranchiseExceptionSummary
+              summary={boundaryDetail.exception_summary || null}
+              locations={boundaryDetail.locations || []}
+              canLink
+              onLink={linkTicket}
+              onUnlink={unlinkTicket}
+            />
+          )}
+
+          {/* Group 12 Slice 3f (627, D-328): the per-location health view —
+              status, KPIs, and compliance for each location. */}
+          {boundaryDetail && (
+            <FranchiseLocationHealth health={boundaryDetail.location_health || null} />
+          )}
+
+          {/* Group 12 Slice 3f (629, D-329): the territory ticket queue —
+              the territory's open support requests, filterable by status
+              and location. */}
+          {boundaryDetail && (
+            <FranchiseTerritoryTickets
+              tickets={territoryTickets}
+              locations={boundaryDetail.locations || []}
+              status={ticketStatus}
+              locationId={ticketLocationId}
+              onStatusChange={setTicketStatus}
+              onLocationChange={setTicketLocationId}
+              canUnlink
+              onUnlink={unlinkTicket}
+            />
+          )}
+
+          {/* Group 12 Slice 3h (636, D-336): the candidate location
+              tracker — locations inside the territory the operator is
+              scouting; the operator proposes and submits for review. */}
+          {boundaryDetail && (
+            <FranchiseCandidateLocations
+              candidates={boundaryDetail.candidate_locations || null}
+              canPropose
+              onPropose={proposeCandidate}
+              onStatusChange={updateCandidateStatus}
+              onRemove={removeCandidate}
+            />
+          )}
+
+          {/* Group 12 Slice 3h (637, D-337): the territory capacity view —
+              a structured per-area capacity view, no map. Read-only here;
+              HQ sets the targets. */}
+          {boundaryDetail && (
+            <FranchiseTerritoryCapacity capacity={boundaryDetail.territory_capacity || null} />
+          )}
+
+          {/* Group 12 Slice 3h (638, D-338): the training resource planner —
+              who needs what training by when, and how much is covered. */}
+          {boundaryDetail && (
+            <FranchiseTrainingPlanner planner={boundaryDetail.training_planner || null} />
+          )}
+
+          {/* Group 12 Slice 3h (639, D-339): the launch dependency overview —
+              per-location dependencies with blocked/blocking status. */}
+          {boundaryDetail && (
+            <FranchiseLaunchDependencies dependencies={boundaryDetail.launch_dependencies || null} />
+          )}
+
+          {/* Group 12 Slice 3h (640, D-340): expansion readiness notes —
+              the operator's notes per territory or location, shown next
+              to HQ's own readiness fields (read-only here). */}
+          {boundaryDetail && (
+            <FranchiseExpansionNotes
+              notes={boundaryDetail.expansion_notes || null}
+              hqNotes={boundaryDetail.hq_readiness_notes || null}
+              locations={boundaryDetail.locations || []}
+              canWrite
+              onAdd={addExpansionNote}
+              onUpdate={updateExpansionNote}
+              onRemove={removeExpansionNote}
+            />
+          )}
+
+          {/* Group 12 Slice 3i (641/642/644, D-341/D-342/D-344): operator
+              handoff — the operator initiates, HQ approves; only approval
+              transfers open issues and records. The operator never reviews
+              here; review happens from the HQ page. */}
+          {boundaryDetail && (
+            <FranchiseHandoff
+              handoffs={boundaryDetail.handoffs || null}
+              members={boundaryDetail.territory_members || []}
+              canInitiate={boundaryDetail.application?.owner_user_id === user?.id}
+              onInitiate={initiateHandoff}
+              onCancel={cancelHandoff}
+              onLoadTransfers={loadHandoffTransfers}
+            />
+          )}
+
+          {/* Group 12 Slice 3i (643, D-343): the contact directory — the
+              operator maintains it; HQ reads the same list. */}
+          {boundaryDetail && (
+            <FranchiseContactDirectory
+              directory={boundaryDetail.contact_directory || null}
+              canWrite={boundaryDetail.application?.owner_user_id === user?.id}
+              onAdd={addDirectoryContact}
+              onUpdate={updateDirectoryContact}
+              onRemove={removeDirectoryContact}
+            />
+          )}
+
+          {/* Group 12 Slice 3j (648, D-349): training escalation — a
+              training issue/gap raised to HQ with the training context
+              attached. */}
+          {boundaryDetail && (
+            <FranchiseTrainingEscalations
+              escalations={boundaryDetail.training_escalations || []}
+              assignments={boundaryDetail.training_assignments || []}
+              members={boundaryDetail.territory_members || []}
+              locations={boundaryDetail.locations || []}
+              canEscalate={boundaryDetail.application?.owner_user_id === user?.id}
+              onEscalate={escalateTraining}
+            />
+          )}
+
+          {/* Group 12 Slice 3j (647, D-348): dedicated HQ operations
+              appointments — the operator books one; HQ confirms it. */}
+          {boundaryDetail && (
+            <FranchiseOpsAppointments
+              slots={boundaryDetail.ops_appointments || []}
+              currentUserId={user?.id}
+              canBook={boundaryDetail.application?.owner_user_id === user?.id}
+              onBook={bookOpsSlot}
+              onCancelBooking={cancelOpsBooking}
+            />
+          )}
+
+          {/* Group 12 Slice 3j (650, D-351): the franchise support
+              history — the territory's support interactions in
+              chronological order, derived from the records. */}
+          {boundaryDetail && (
+            <FranchiseSupportHistory history={boundaryDetail.support_history || null} />
+          )}
+
+          {/* Group 12 Slice 3j (649, D-350): the territory case tracker
+              — tickets, policy questions, training escalations, and
+              handoffs in one view. */}
+          {boundaryDetail && (
+            <FranchiseTerritoryCases
+              cases={territoryCases}
+              locations={boundaryDetail.locations || []}
+              status={caseStatus}
+              type={caseType}
+              locationId={caseLocationId}
+              onStatusChange={setCaseStatus}
+              onTypeChange={setCaseType}
+              onLocationChange={setCaseLocationId}
+            />
+          )}
+
+          {/* Group 12 Slice 3j (646, D-347): franchise-scoped policy
+              questions — the operator asks, HQ answers in-thread on the
+              ticket. */}
+          {boundaryDetail && (
+            <FranchisePolicyQuestions
+              questions={boundaryDetail.policy_questions || []}
+              locations={boundaryDetail.locations || []}
+              standards={boundaryDetail.standards || []}
+              canAsk={boundaryDetail.application?.owner_user_id === user?.id}
+              onAsk={askPolicyQuestion}
+            />
+          )}
+
+          {/* Group 12 Slice 3g (631, D-331): the per-territory escalation
+              queue — the operator escalates a linked exception with a
+              reason; HQ sees the same queue. */}
+          {boundaryDetail && (
+            <FranchiseExceptionEscalations
+              escalations={escalations}
+              canEscalate
+              onEscalate={escalateTicket}
+            />
+          )}
+
+          {/* Group 12 Slice 3g (632-635, D-332/D-333/D-334/D-335): resolve
+              exceptions — remediation assignment, the corrective-action
+              checklist, evidence, and the derived resolution state.
+              HQ review happens from the HQ page, not here. */}
+          {boundaryDetail && (
+            <FranchiseExceptionResolution
+              resolution={boundaryDetail.exception_resolution || null}
+              correctiveActions={correctiveActions}
+              members={boundaryDetail.territory_members || []}
+              canAssign
+              canCreateAction
+              canUpdateAction
+              canUploadEvidence
+              onAssignRemediation={assignRemediation}
+              onCreateAction={createCorrectiveAction}
+              onUpdateActionStatus={updateCorrectiveActionStatus}
+              onUploadEvidence={uploadEvidence}
+              onLoadEvidence={loadEvidence}
+            />
+          )}
+
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
                 <Users size={14} className="text-blue-400" /> {t('franchiseTerritoryPage.helpersSection.title')}
               </h2>
               <span className="text-xs text-gray-500">{t('franchiseTerritoryPage.helpersSection.found', { count: helpers.length })}</span>
+            </div>
+            {/* Group 12 Slice 3c (612): the opening-team designation
+                scope — a roster toggle applies to this location launch,
+                or to the whole territory when no location is picked. */}
+            <div className="flex items-center gap-4 flex-wrap mb-4">
+              <div className="flex items-center gap-2">
+                <label htmlFor="opening-team-scope" className="text-xs text-gray-400">
+                  {t('dashboards.franchise.openingTeamScopeLabel')}
+                </label>
+                <select
+                  id="opening-team-scope"
+                  value={openingTeamScope}
+                  onChange={(e) => setOpeningTeamScope(e.target.value)}
+                  className="rounded-xl border border-gray-800 bg-gray-900 px-2.5 py-1.5 text-sm text-white"
+                >
+                  <option value="">{t('dashboards.franchise.openingTeamScopeTerritory')}</option>
+                  {(boundaryDetail?.locations || []).map((location) => (
+                    <option key={location.id} value={location.id}>{location.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="opening-team-role" className="text-xs text-gray-400">
+                  {t('dashboards.franchise.openingTeamRoleLabel')}
+                </label>
+                <select
+                  id="opening-team-role"
+                  value={openingTeamRole}
+                  onChange={(e) => setOpeningTeamRole(e.target.value)}
+                  className="rounded-xl border border-gray-800 bg-gray-900 px-2.5 py-1.5 text-sm text-white"
+                >
+                  <option value="member">{t('dashboards.franchise.openingTeamMember')}</option>
+                  <option value="lead">{t('dashboards.franchise.openingTeamLead')}</option>
+                </select>
+              </div>
             </div>
             {loading
               ? <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div>
@@ -426,6 +1416,7 @@ export default function FranchiseTerritoryOpsPage() {
                           <th className="text-right pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.reviews')}</th>
                           <th className="text-right pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.verified')}</th>
                           <th className="text-right pb-2 font-normal">{t('franchiseTerritoryPage.helpersSection.table.available')}</th>
+                          <th className="text-right pb-2 font-normal">{t('dashboards.franchise.openingTeamTitle')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -446,6 +1437,18 @@ export default function FranchiseTerritoryOpsPage() {
                             </td>
                             <td className="py-2 text-right">
                               <span className={`inline-block w-2 h-2 rounded-full ${h.is_available_now ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+                            </td>
+                            <td className="py-2 text-right">
+                              <button
+                                type="button"
+                                disabled={teamBusy}
+                                onClick={() => toggleOpeningTeam(h)}
+                                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition ${h.opening_team ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`} data-track="ui.35001a967e.2"
+                              >
+                                {h.opening_team
+                                  ? `${t('dashboards.franchise.openingTeamRemove')}${h.opening_team_role === 'lead' ? ` · ${t('dashboards.franchise.openingTeamLead')}` : ''}`
+                                  : t('dashboards.franchise.openingTeamAdd')}
+                              </button>
                             </td>
                           </tr>
                         ))}

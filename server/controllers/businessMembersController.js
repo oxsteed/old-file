@@ -266,6 +266,12 @@ async function inviteMember(req, res) {
       // S-03: a job-role preset applies its permission codes as allow
       // overrides on the new membership (shared with the careers onboarding run).
       await teamMembership.applyJobRolePreset(client, created.id, jobRolePreset, req.user.id);
+      // Groups 5-6 item 268: subcontractors only see work assigned to them.
+      if (req.body.member_type === 'subcontractor') {
+        const company = typeof req.body.company_name === 'string' ? req.body.company_name.trim().slice(0, 120) : null;
+        await require('../services/businessOwner/workJobsService').applySubcontractorScope(client, created.id, req.user.id, company);
+        created.member_type = 'subcontractor'; created.company_name = company;
+      }
 
       // Send an in-app notification if the invitee already has an account.
       // S-01: same transaction as the invite insert, correct columns — a

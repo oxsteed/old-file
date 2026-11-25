@@ -1374,6 +1374,30 @@ exports.startJob = async (req, res, next) => {
 // delivery scan pattern, migration 576): the helper marks arrival, the
 // customer is notified, and arrived_at is stamped on the job and its linked
 // appointment. The job status is untouched by arrival.
+// Group 4 rest (177, 182): when the job has a known start, arrival may be
+// recorded from 2 hours before it and a no-show only once it has passed.
+// Start = earliest live appointment, else the job's scheduled_time, else the
+// start of scheduled_date in the job's zone (UTC when the zone is unknown).
+// A job with no schedule at all keeps the previous behavior (no time check).
+const ARRIVAL_EARLY_WINDOW = '2 hours';
+async function jobStartGuard(jobId) {
+  const { rows: [row] } = await pool.query(
+    `SELECT COALESCE(
+              (SELECT MIN(a.scheduled_start_time) FROM appointments a
+                WHERE a.job_id = j.id AND a.status NOT IN ('cancelled')),
+              j.scheduled_time,
+              CASE WHEN j.scheduled_date IS NULL THEN NULL
+                   ELSE j.scheduled_date::timestamp AT TIME ZONE
+                        (CASE WHEN EXISTS (SELECT 1 FROM pg_timezone_names WHERE name = j.timezone)
+                              THEN j.timezone ELSE 'UTC' END)
+              END) AS start_at,
+            NOW() AS now_at
+       FROM jobs j WHERE j.id = $1`,
+    [jobId]
+  );
+  return row || { start_at: null, now_at: new Date() };
+}
+
 exports.markJobArrived = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -1391,6 +1415,14 @@ exports.markJobArrived = async (req, res, next) => {
     }
     if (job.arrived_at) {
       throw new AppError('Arrival is already recorded for this job', 409, 'already_arrived');
+    }
+    const { start_at: startAt } = await jobStartGuard(id);
+    if (startAt) {
+      const { rows: [early] } = await pool.query(
+        `SELECT ($1::timestamptz - $2::interval) > NOW() AS too_early`, [startAt, ARRIVAL_EARLY_WINDOW]);
+      if (early?.too_early) {
+        throw new AppError('Arrival can be recorded from 2 hours before the scheduled start', 409, 'arrival_too_early', { scheduled_start: new Date(startAt).toISOString() });
+      }
     }
     const result = await withJobTransaction(pool, async (client) => {
       const { rows } = await client.query(
@@ -1442,6 +1474,10 @@ exports.markJobNoShow = async (req, res, next) => {
     const job = jobRows[0];
     if (!['accepted', 'in_progress'].includes(job.status)) {
       throw new AppError(`Job cannot be marked no-show in '${job.status}' state`, 400, 'invalid_job_state');
+    }
+    const { start_at: startAt, now_at: nowAt } = await jobStartGuard(id);
+    if (startAt && new Date(startAt) > new Date(nowAt)) {
+      throw new AppError('A no-show can be reported only after the scheduled start', 409, 'no_show_too_early', { scheduled_start: new Date(startAt).toISOString() });
     }
     const isClient = String(job.client_id) === String(req.user.id);
     const otherPartyId = isClient ? job.assigned_helper_id : job.client_id;

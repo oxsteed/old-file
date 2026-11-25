@@ -1,0 +1,678 @@
+'use strict';
+
+// Group 11 Slice 2c acceptance: Reserve + Checkout (566, 568, 570, 571, 574, 575).
+// Runs against a dedicated fresh database (credit_statement_test_g11c) so
+// slice-local fixtures never pollute the shared credit_statement_test DB.
+//
+// 566: availability calendar UI on the existing availability endpoint;
+//   blocked dates cannot be selected (client helper) or submitted (server).
+// 568: explicit owner approve/decline on a pending request, distinct from
+//   invoicing; approval precedes the first invoice (D-258).
+// 570: in-app confirmation receipt (booking + terms + invoice).
+// 571: identity check status from the platform Didit state; an unverified
+//   renter cannot complete pickup (D-259).
+// 574: pickup appointment time slot (owner pickup window + renter pick).
+// 575: distinct checkout acknowledgment at pickup, with the pickup
+//   condition report attached as evidence (D-260).
+
+jest.unmock('pg');
+jest.unmock('../db');
+jest.unmock('../utils/transaction');
+
+const { randomUUID } = require('node:crypto');
+const express = require('express');
+const request = require('supertest');
+
+const dbUrl = process.env.GROUP11_SLICE2C_TEST_DATABASE_URL;
+if (dbUrl) {
+  const url = new URL(dbUrl);
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)
+    || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
+    || url.pathname !== '/credit_statement_test_g11c') {
+    throw new Error('Group 11 Slice 2c DB tests require the loopback credit_statement_test_g11c database');
+  }
+  process.env.DATABASE_URL = dbUrl;
+}
+
+const mockRoles = new Map();
+jest.mock('../middleware/auth', () => {
+  const authenticate = (req, res, next) => {
+    const id = req.get('x-test-user');
+    if (!id) return res.sendStatus(401);
+    req.user = {
+      id,
+      role: mockRoles.get(id) || 'customer',
+      email: req.get('x-test-email') || `g11c-${id}@example.invalid`,
+      email_verified: !req.get('x-test-unverified'),
+    };
+    return next();
+  };
+  return { authenticate, authenticateIfPresent: (req, res, next) => (
+    req.get('x-test-user') ? authenticate(req, res, next) : next()
+  ) };
+});
+jest.mock('../middleware/adminAuth', () => ({
+  ...jest.requireActual('../middleware/adminAuth'),
+  requireAdmin: (req, res, next) => {
+    if (req.user?.role !== 'super_admin') return res.sendStatus(403);
+    req.isSuper = true;
+    return next();
+  },
+}));
+jest.mock('../utils/email', () => ({
+  sendEmail: jest.fn().mockResolvedValue({ success: true }),
+  sendEmailOrThrow: jest.fn().mockResolvedValue({ success: true }),
+}));
+jest.mock('../services/notificationService', () => ({
+  sendNotification: jest.fn().mockResolvedValue({ success: true }),
+}));
+jest.mock('../services/bookingEmailService', () => ({
+  sendBookingConfirmation: jest.fn(),
+  sendBookingApproved: jest.fn(),
+  sendBookingDeclined: jest.fn(),
+}));
+jest.mock('../growth/emit', () => ({
+  emitDomainEvent: jest.fn().mockResolvedValue(undefined),
+  commerceEventProps: (value) => value,
+}));
+jest.mock('../utils/invoiceEmail', () => ({
+  sendInvoiceEmail: jest.fn().mockResolvedValue({ success: true }),
+}));
+
+const describeDb = dbUrl ? describe : describe.skip;
+
+describeDb('Group 11 Slice 2c: Reserve + Checkout (566, 568, 570, 571, 574, 575)', () => {
+  let db;
+  let app;
+
+  beforeAll(async () => {
+    process.env.ACCESS_REQUESTS_ENABLED = 'true';
+    db = require('../db');
+    app = express();
+    app.use(express.json());
+    app.use('/api/tool-rentals', require('../routes/toolRentals'));
+    app.use(require('../middleware/errorHandler').errorHandler);
+  });
+
+  afterAll(async () => { await db?.end(); });
+
+  async function addUser(role = 'customer', identity = {}) {
+    const id = randomUUID();
+    await db.query(
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, default_mode, email_verified, is_active, onboarding_completed, didit_status, didit_verified_at)
+       VALUES ($1, $2, 'x', 'Equipment', 'Fixture', $3, $4, TRUE, TRUE, TRUE, $5, $6)`,
+      [id, `g11c-${id}@example.invalid`, role, role === 'super_admin' ? 'admin' : 'customer',
+        identity.diditStatus || 'pending', identity.diditVerifiedAt || null],
+    );
+    mockRoles.set(id, role);
+    return id;
+  }
+
+  async function grantToolOwner(userId) {
+    await db.query(
+      `INSERT INTO access_grants (user_id, capability, subject_type, subject_key, status, provenance, policy_version)
+       VALUES ($1, 'tool_owner.list_equipment', 'self', 'self', 'active', 'legacy_backfill', 'tool-owner-policy-2')
+       ON CONFLICT DO NOTHING`,
+      [userId],
+    );
+  }
+
+  async function insertTool(ownerId, overrides = {}) {
+    const row = {
+      name: 'Cordless drill',
+      category: 'Power Tools',
+      description: '18V cordless drill with two batteries.',
+      daily_rate: 18,
+      hourly_rate: null,
+      deposit_amount: 40,
+      condition: 'good',
+      brand: 'DeWalt',
+      model: 'DCD771',
+      is_available: true,
+      requires_deposit: false,
+      delivery_available: false,
+      pickup_only: true,
+      location_city: 'Austin',
+      location_state: 'TX',
+      image_gallery: ['https://example.invalid/drill.jpg'],
+      moderation_hold: false,
+      ...overrides,
+    };
+    const cols = ['user_id', 'name', 'category', 'description', 'daily_rate', 'hourly_rate',
+      'deposit_amount', 'condition', 'brand', 'model', 'is_available', 'requires_deposit',
+      'delivery_available', 'pickup_only', 'location_city', 'location_state',
+      'image_gallery', 'moderation_hold'];
+    const vals = [ownerId, row.name, row.category, row.description, row.daily_rate,
+      row.hourly_rate, row.deposit_amount, row.condition, row.brand, row.model,
+      row.is_available, row.requires_deposit, row.delivery_available, row.pickup_only,
+      row.location_city, row.location_state, row.image_gallery, row.moderation_hold];
+    for (const col of ['capacity_value', 'capacity_unit', 'weight_kg', 'size_length_cm',
+      'size_width_cm', 'size_height_cm', 'location_lat', 'location_lng',
+      'pickup_window_start', 'pickup_window_end']) {
+      if (row[col] !== undefined) {
+        cols.push(col);
+        vals.push(row[col]);
+      }
+    }
+    const placeholders = vals.map((_, i) => `$${i + 1}`).join(',');
+    const { rows } = await db.query(
+      `INSERT INTO tool_rentals (${cols.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+      vals,
+    );
+    return rows[0];
+  }
+
+  async function insertBooking(toolId, customerId, ownerId, startDate, endDate, status = 'pending', extra = {}) {
+    const cols = ['tool_id', 'customer_id', 'owner_id', 'start_date', 'end_date', 'total_price', 'status'];
+    const vals = [toolId, customerId, ownerId, startDate, endDate, 36, status];
+    for (const [col, value] of Object.entries(extra)) {
+      cols.push(col);
+      vals.push(value);
+    }
+    const placeholders = vals.map((_, i) => `$${i + 1}`).join(',');
+    const { rows } = await db.query(
+      `INSERT INTO tool_rentals_bookings (${cols.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+      vals,
+    );
+    return rows[0];
+  }
+
+  async function createBookingViaApi(renterId, toolId, startDate, endDate, extra = {}) {
+    return request(app)
+      .post('/api/tool-rentals/bookings')
+      .set('x-test-user', renterId)
+      .send({
+        toolId, startDate, endDate, renterAgreementAccepted: true, ...extra,
+      });
+  }
+
+  async function insertPickupReport(bookingId, actorId, phase = 'pickup') {
+    const { rows } = await db.query(
+      `INSERT INTO equipment_reports (booking_id, actor_id, phase, version, counts, checklist, notes)
+       VALUES ($1, $2, $3, 1, '[]'::jsonb, '[]'::jsonb, 'Checked at pickup') RETURNING *`,
+      [bookingId, actorId, phase],
+    );
+    return rows[0];
+  }
+
+  async function setBookingStatus(bookingId, status) {
+    await db.query('UPDATE tool_rentals_bookings SET status = $2 WHERE id = $1', [bookingId, status]);
+  }
+
+  async function insertPaymentMethod(ownerId) {
+    await db.query(
+      `INSERT INTO owner_payment_methods (owner_id, payment_type, payment_identifier)
+       VALUES ($1, 'venmo', '@owner') ON CONFLICT (owner_id) DO NOTHING`,
+      [ownerId],
+    );
+  }
+
+  async function insertTermsAcceptance(bookingId, userId, role = 'owner') {
+    await db.query(
+      `INSERT INTO tool_rental_terms_acceptance (booking_id, user_id, user_role, terms_version, ip_address, user_agent)
+       VALUES ($1, $2, $3, '1.1', '127.0.0.1', 'test')`,
+      [bookingId, userId, role],
+    );
+  }
+
+  const attemptInvoice = (ownerId, bookingId) => request(app)
+    .post('/api/tool-rentals/invoices')
+    .set('x-test-user', ownerId)
+    .set('Idempotency-Key', randomUUID())
+    .send({ bookingId, deliveryMethod: 'in_platform' });
+
+  async function pendingRequest() {
+    const owner = await addUser();
+    const renter = await addUser();
+    await grantToolOwner(owner);
+    const tool = await insertTool(owner, { name: 'Approval drill' });
+    const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12');
+    return { owner, renter, tool, booking };
+  }
+
+  describe('566: availability calendar', () => {
+    test('availability returns the booked ranges the calendar renders', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Calendar drill' });
+      await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12');
+      const res = await request(app)
+        .get(`/api/tool-rentals/${tool.id}/availability`)
+        .expect(200);
+      expect(res.body.booked_dates).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ start_date: expect.stringContaining('2026-12-10'), end_date: expect.stringContaining('2026-12-12') }),
+        ]),
+      );
+    });
+
+    test('a range over booked dates cannot be submitted, even if the client allowed it', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Blocked drill' });
+      await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12');
+      // Overlapping the booked range: refused.
+      const blocked = await createBookingViaApi(renter, tool.id, '2026-12-11', '2026-12-13');
+      expect(blocked.status).toBe(409);
+      expect(blocked.body.code).toBe('conflict');
+      // Touching the boundary day: still overlap (inclusive rule).
+      const boundary = await createBookingViaApi(renter, tool.id, '2026-12-12', '2026-12-14');
+      expect(boundary.status).toBe(409);
+      // Clear range: accepted.
+      const clear = await createBookingViaApi(renter, tool.id, '2026-12-13', '2026-12-15');
+      expect(clear.status).toBe(201);
+    });
+  });
+
+  describe('568: explicit owner approve/decline', () => {
+    test('owner approves a pending request; a second approval is refused', async () => {
+      const { owner, booking } = await pendingRequest();
+      const res = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', owner)
+        .expect(200);
+      expect(res.body.owner_approval).toBe('approved');
+      expect(res.body.owner_approval_at).toBeTruthy();
+      expect(res.body.status).toBe('pending');
+      const again = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', owner)
+        .expect(409);
+      expect(again.body.code).toBe('state_conflict');
+    });
+
+    test('the renter cannot approve, and a stranger cannot approve', async () => {
+      const { owner, renter, booking } = await pendingRequest();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', renter)
+        .expect(403);
+      const stranger = await addUser();
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', stranger)
+        .expect(404);
+      // The request is still pending and unapproved afterwards.
+      const { rows } = await db.query(
+        'SELECT owner_approval, status FROM tool_rentals_bookings WHERE id = $1', [booking.id],
+      );
+      expect(rows[0].owner_approval).toBe('pending');
+      expect(rows[0].status).toBe('pending');
+      void owner;
+    });
+
+    test('owner declines with a reason: the request closes and the reason is stored', async () => {
+      const { owner, renter, booking } = await pendingRequest();
+      const res = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/decline`)
+        .set('x-test-user', owner)
+        .send({ reason: 'Tool is out for repair that week.' })
+        .expect(200);
+      expect(res.body.owner_approval).toBe('declined');
+      expect(res.body.status).toBe('cancelled');
+      expect(res.body.owner_decline_reason).toBe('Tool is out for repair that week.');
+      // A declined request can no longer be approved or declined again.
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', owner)
+        .expect(409);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/decline`)
+        .set('x-test-user', owner)
+        .send({ reason: 'Changed my mind.' })
+        .expect(409);
+      void renter;
+    });
+
+    test('decline without a reason is refused, and the renter cannot decline', async () => {
+      const { owner, renter, booking } = await pendingRequest();
+      const noReason = await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/decline`)
+        .set('x-test-user', owner)
+        .send({ reason: '   ' })
+        .expect(400);
+      expect(noReason.body.code).toBe('validation_failed');
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/decline`)
+        .set('x-test-user', renter)
+        .send({ reason: 'I changed my mind.' })
+        .expect(403);
+    });
+
+    test('the first invoice is refused until the owner approves, then issued', async () => {
+      const { owner, booking } = await pendingRequest();
+      await insertPaymentMethod(owner);
+      await insertTermsAcceptance(booking.id, owner);
+      // Approval gate fires before the terms/payment legs.
+      const blocked = await attemptInvoice(owner, booking.id);
+      expect(blocked.status).toBe(409);
+      expect(blocked.body.error).toBe('owner_approval_required');
+
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', owner)
+        .expect(200);
+      // Terms acceptance was already recorded, so the invoice issues.
+      const issued = await attemptInvoice(owner, booking.id);
+      expect(issued.status).toBe(200);
+      expect(issued.body.invoiceId).toBeTruthy();
+      expect(issued.body.invoiceNumber).toMatch(/^INV-/);
+      const { rows } = await db.query(
+        'SELECT status FROM tool_rentals_bookings WHERE id = $1', [booking.id],
+      );
+      expect(rows[0].status).toBe('invoice_sent');
+    });
+
+    test('approval alone does not bypass the terms gate', async () => {
+      const { owner, booking } = await pendingRequest();
+      await insertPaymentMethod(owner);
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', owner)
+        .expect(200);
+      const res = await attemptInvoice(owner, booking.id);
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe('owner_terms_not_accepted');
+    });
+  });
+
+  describe('570: in-app confirmation receipt', () => {
+    test('receipt shows the booking, tool, terms and no invoice yet', async () => {
+      const { owner, renter, booking } = await pendingRequest();
+      const asRenter = await request(app)
+        .get(`/api/tool-rentals/bookings/${booking.id}/receipt`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(asRenter.body.booking.id).toBe(booking.id);
+      expect(asRenter.body.booking.status).toBe('pending');
+      expect(asRenter.body.tool.name).toBe('Approval drill');
+      expect(asRenter.body.tool.daily_rate).toBe('18.00');
+      expect(asRenter.body.terms).toEqual(
+        expect.objectContaining({ customerAccepted: false, ownerAccepted: false, bothAccepted: false }),
+      );
+      expect(asRenter.body.invoice).toBeNull();
+      // The owner sees the same receipt.
+      const asOwner = await request(app)
+        .get(`/api/tool-rentals/bookings/${booking.id}/receipt`)
+        .set('x-test-user', owner)
+        .expect(200);
+      expect(asOwner.body.booking.id).toBe(booking.id);
+    });
+
+    test('a stranger cannot read the receipt', async () => {
+      const { booking } = await pendingRequest();
+      const stranger = await addUser();
+      await request(app)
+        .get(`/api/tool-rentals/bookings/${booking.id}/receipt`)
+        .set('x-test-user', stranger)
+        .expect(404);
+    });
+
+    test('after approval, terms and invoicing the receipt carries both', async () => {
+      const { owner, renter, booking } = await pendingRequest();
+      await insertPaymentMethod(owner);
+      await insertTermsAcceptance(booking.id, owner, 'owner');
+      await insertTermsAcceptance(booking.id, renter, 'customer');
+      await request(app)
+        .post(`/api/tool-rentals/bookings/${booking.id}/approve`)
+        .set('x-test-user', owner)
+        .expect(200);
+      const issued = await attemptInvoice(owner, booking.id);
+      expect(issued.status).toBe(200);
+      const res = await request(app)
+        .get(`/api/tool-rentals/bookings/${booking.id}/receipt`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(res.body.terms).toEqual(
+        expect.objectContaining({ customerAccepted: true, ownerAccepted: true, bothAccepted: true }),
+      );
+      expect(res.body.invoice.invoice_number).toBe(issued.body.invoiceNumber);
+      expect(res.body.invoice.status).toBe('draft');
+      expect(Number(res.body.invoice.total_amount)).toBe(36);
+      expect(res.body.booking.status).toBe('invoice_sent');
+    });
+  });
+
+  describe('571: identity check status', () => {
+    const freshVerifiedAt = new Date().toISOString();
+    const staleVerifiedAt = new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString();
+
+    test('booking lists carry the Didit identity status for both parties', async () => {
+      const owner = await addUser();
+      const renter = await addUser('customer', { diditStatus: 'verified', diditVerifiedAt: freshVerifiedAt });
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Identity drill' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12');
+
+      const asRenter = await request(app)
+        .get('/api/tool-rentals/bookings/my')
+        .set('x-test-user', renter)
+        .expect(200);
+      const mine = asRenter.body.find((b) => b.id === booking.id);
+      expect(mine.renter_identity).toEqual(
+        expect.objectContaining({ status: 'verified', verified: true }),
+      );
+      expect(mine.owner_identity).toEqual(
+        expect.objectContaining({ status: 'pending', verified: false }),
+      );
+
+      const asOwner = await request(app)
+        .get('/api/tool-rentals/bookings/owner')
+        .set('x-test-user', owner)
+        .expect(200);
+      const theirs = asOwner.body.find((b) => b.id === booking.id);
+      expect(theirs.renter_identity).toEqual(
+        expect.objectContaining({ status: 'verified', verified: true }),
+      );
+    });
+
+    test('skipped and stale verifications do not count as verified', async () => {
+      const owner = await addUser();
+      const skipped = await addUser('customer', { diditStatus: 'skipped' });
+      const stale = await addUser('customer', { diditStatus: 'verified', diditVerifiedAt: staleVerifiedAt });
+      const failed = await addUser('customer', { diditStatus: 'failed' });
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Identity drill 2' });
+      const bSkipped = await insertBooking(tool.id, skipped, owner, '2026-12-10', '2026-12-12');
+      const bStale = await insertBooking(tool.id, stale, owner, '2026-12-13', '2026-12-15');
+      const bFailed = await insertBooking(tool.id, failed, owner, '2026-12-16', '2026-12-18');
+
+      const byId = async (userId) => {
+        const res = await request(app)
+          .get('/api/tool-rentals/bookings/my')
+          .set('x-test-user', userId)
+          .expect(200);
+        return new Map(res.body.map((b) => [b.id, b.renter_identity]));
+      };
+      expect((await byId(skipped)).get(bSkipped.id)).toEqual(
+        expect.objectContaining({ status: 'skipped', verified: false }),
+      );
+      expect((await byId(stale)).get(bStale.id)).toEqual(
+        expect.objectContaining({ status: 'expired', verified: false }),
+      );
+      expect((await byId(failed)).get(bFailed.id)).toEqual(
+        expect.objectContaining({ status: 'failed', verified: false }),
+      );
+    });
+
+    test('the receipt carries both parties identity status', async () => {
+      const owner = await addUser();
+      const renter = await addUser('customer', { diditStatus: 'verified', diditVerifiedAt: freshVerifiedAt });
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Identity drill 3' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12');
+      const res = await request(app)
+        .get(`/api/tool-rentals/bookings/${booking.id}/receipt`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(res.body.renter_identity).toEqual(expect.objectContaining({ status: 'verified', verified: true }));
+      expect(res.body.owner_identity).toEqual(expect.objectContaining({ status: 'pending', verified: false }));
+    });
+  });
+
+  describe('574: pickup appointment time slot', () => {
+    const createTool = (user, body) => request(app)
+      .post('/api/tool-rentals')
+      .set('x-test-user', user)
+      .send({
+        name: 'Generator',
+        category: 'Generators & Power',
+        description: 'Portable generator.',
+        daily_rate: 45,
+        location_city: 'Austin',
+        location_state: 'TX',
+        owner_attestation_accepted: true,
+        ...body,
+      });
+
+    test('owner sets a pickup window on the listing; a bad window is refused', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const res = await createTool(owner, { pickup_window_start: '09:00', pickup_window_end: '17:00' }).expect(201);
+      expect(String(res.body.tool.pickup_window_start).slice(0, 5)).toBe('09:00');
+      expect(String(res.body.tool.pickup_window_end).slice(0, 5)).toBe('17:00');
+      await createTool(owner, { pickup_window_start: '09:00' }).expect(400);
+      await createTool(owner, { pickup_window_start: '17:00', pickup_window_end: '09:00' }).expect(400);
+      await createTool(owner, { pickup_window_start: '9:30', pickup_window_end: '17:00' }).expect(400);
+      const bad = await createTool(owner, { pickup_window_start: '09:00' }).expect(400);
+      expect(bad.body.code).toBe('validation_failed');
+    });
+
+    test('browse returns the pickup window for the booking flow', async () => {
+      const owner = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, {
+        name: 'Window drill', pickup_window_start: '08:00', pickup_window_end: '12:00',
+      });
+      const res = await request(app).get('/api/tool-rentals/browse').query({ name: 'Window drill' }).expect(200);
+      const found = res.body.tools.find((t) => t.id === tool.id);
+      expect(String(found.pickup_window_start).slice(0, 5)).toBe('08:00');
+      expect(String(found.pickup_window_end).slice(0, 5)).toBe('12:00');
+    });
+
+    test('renter picks a time inside the window; it is stored and frozen in the snapshot', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, {
+        name: 'Slot drill', pickup_window_start: '09:00', pickup_window_end: '17:00',
+      });
+      const res = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '09:30' });
+      expect(res.status).toBe(201);
+      expect(String(res.body.pickup_time).slice(0, 5)).toBe('09:30');
+      expect(res.body.agreement_snapshot.rental.pickupTime).toBe('09:30');
+      // Both booking lists show the slot.
+      const mine = await request(app).get('/api/tool-rentals/bookings/my').set('x-test-user', renter).expect(200);
+      expect(String(mine.body.find((b) => b.id === res.body.id).pickup_time).slice(0, 5)).toBe('09:30');
+      const receipt = await request(app)
+        .get(`/api/tool-rentals/bookings/${res.body.id}/receipt`)
+        .set('x-test-user', renter)
+        .expect(200);
+      expect(String(receipt.body.booking.pickup_time).slice(0, 5)).toBe('09:30');
+    });
+
+    test('a time outside the window, a bad time, and a time on delivery are refused', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, {
+        name: 'Strict drill', pickup_window_start: '09:00', pickup_window_end: '17:00',
+      });
+      const outside = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '08:30' });
+      expect(outside.status).toBe(400);
+      expect(outside.body.code).toBe('validation_failed');
+      const late = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '17:30' });
+      expect(late.status).toBe(400);
+      const badFormat = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '9:30am' });
+      expect(badFormat.status).toBe(400);
+      const onDelivery = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '10:00', fulfillment: 'delivery' });
+      expect(onDelivery.status).toBe(400);
+    });
+
+    test('no window means any time works; no time means no slot', async () => {
+      const owner = await addUser();
+      const renter = await addUser();
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Open drill' });
+      const withTime = await createBookingViaApi(renter, tool.id, '2026-12-10', '2026-12-12', { pickupTime: '07:00' });
+      expect(withTime.status).toBe(201);
+      expect(String(withTime.body.pickup_time).slice(0, 5)).toBe('07:00');
+      const withoutTime = await createBookingViaApi(renter, tool.id, '2026-12-13', '2026-12-15');
+      expect(withoutTime.status).toBe(201);
+      expect(withoutTime.body.pickup_time).toBeNull();
+    });
+  });
+
+  describe('575: checkout acknowledgment at pickup', () => {
+    const freshVerifiedAt = new Date().toISOString();
+
+    async function paidBookingWithReport({ renterIdentity = { diditStatus: 'verified', diditVerifiedAt: freshVerifiedAt }, withReport = true } = {}) {
+      const owner = await addUser();
+      const renter = await addUser('customer', renterIdentity);
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Checkout drill' });
+      const booking = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'payment_confirmed');
+      let report = null;
+      if (withReport) report = await insertPickupReport(booking.id, owner, 'pickup');
+      return { owner, renter, tool, booking, report };
+    }
+
+    const acknowledge = (userId, bookingId) => request(app)
+      .post(`/api/tool-rentals/bookings/${bookingId}/checkout-acknowledge`)
+      .set('x-test-user', userId);
+
+    test('verified renter acknowledges pickup; the report is attached as evidence', async () => {
+      const { owner, renter, booking, report } = await paidBookingWithReport();
+      const res = await acknowledge(renter, booking.id).expect(200);
+      expect(res.body.checkout_acknowledged_at).toBeTruthy();
+      expect(res.body.checkout_acknowledged_by).toBe(renter);
+      expect(res.body.checkout_report_id).toBe(report.id);
+      // Idempotent: acknowledging again returns the same record.
+      const again = await acknowledge(renter, booking.id).expect(200);
+      expect(again.body.checkout_acknowledged_at).toBe(res.body.checkout_acknowledged_at);
+      expect(again.body.checkout_report_id).toBe(report.id);
+      // Both booking lists show the acknowledgment.
+      const mine = await request(app).get('/api/tool-rentals/bookings/my').set('x-test-user', renter).expect(200);
+      expect(mine.body.find((b) => b.id === booking.id).checkout_acknowledged_at).toBeTruthy();
+      void owner;
+    });
+
+    test('an unverified or skipped renter cannot complete pickup', async () => {
+      const unverified = await paidBookingWithReport({ renterIdentity: { diditStatus: 'pending' } });
+      const blocked = await acknowledge(unverified.renter, unverified.booking.id);
+      expect(blocked.status).toBe(403);
+      expect(blocked.body.code).toBe('identity_not_verified');
+
+      const skipped = await paidBookingWithReport({ renterIdentity: { diditStatus: 'skipped' } });
+      const skippedRes = await acknowledge(skipped.renter, skipped.booking.id);
+      expect(skippedRes.status).toBe(403);
+      expect(skippedRes.body.code).toBe('identity_not_verified');
+    });
+
+    test('acknowledgment needs a pickup condition report first', async () => {
+      const { renter, booking } = await paidBookingWithReport({ withReport: false });
+      const res = await acknowledge(renter, booking.id);
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('pickup_report_required');
+    });
+
+    test('acknowledgment needs payment_confirmed, and only the renter can do it', async () => {
+      const owner = await addUser();
+      const renter = await addUser('customer', { diditStatus: 'verified', diditVerifiedAt: freshVerifiedAt });
+      await grantToolOwner(owner);
+      const tool = await insertTool(owner, { name: 'Early drill' });
+      const pending = await insertBooking(tool.id, renter, owner, '2026-12-10', '2026-12-12', 'pending');
+      await insertPickupReport(pending.id, owner, 'pickup');
+      const early = await acknowledge(renter, pending.id);
+      expect(early.status).toBe(409);
+      expect(early.body.code).toBe('state_conflict');
+
+      const paid = await paidBookingWithReport();
+      await acknowledge(paid.owner, paid.booking.id).expect(403);
+      const stranger = await addUser();
+      await acknowledge(stranger, paid.booking.id).expect(404);
+    });
+  });
+});

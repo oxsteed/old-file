@@ -31,7 +31,10 @@ test('resolves active platform support staff for unassigned tickets', async () =
 
   await expect(resolveSupportStaffIds()).resolves.toEqual(['admin-1', 'admin-2']);
   expect(mockQuery).toHaveBeenCalledWith(
-    expect.stringContaining('role = ANY'),
+    // D-432: users.role is the user_role enum, so the filter casts it to
+    // text; the uncast form throws "operator does not exist" on a real
+    // database (the mock pool never caught that).
+    expect.stringContaining('role::text = ANY'),
     [['admin', 'super_admin'], SUPPORT_STAFF_ALERT_LIMIT],
   );
   // On-call scoping (item 10): the resolution prefers on-call staff and

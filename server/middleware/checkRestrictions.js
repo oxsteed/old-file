@@ -113,9 +113,16 @@ function checkRestrictions(restrictionType) {
 
         return res.status(403).json({
           success: false,
-          error:   `Your account has restrictions that prevent you from ${actionLabel}.${expiryMsg}`,
+          // Group 13 (693, D-401): the granular-restriction block names the
+          // stored reason, the same way the suspension block above names
+          // suspended_reason. The reason is the caller's own restriction
+          // (this query is scoped to req.user.id), so it is never shown to
+          // another customer. Allow/deny is unchanged: this is explanation
+          // only, never a gate change.
+          error:   `Your account has restrictions that prevent you from ${actionLabel}.${expiryMsg}${restr.reason ? ` Reason: ${restr.reason}` : ''}`,
           code:    'ACCOUNT_RESTRICTED',
           restrictionType: restr.restriction_type,
+          restrictionReason: restr.reason || null,
           expiresAt: restr.expires_at || null
         });
       }

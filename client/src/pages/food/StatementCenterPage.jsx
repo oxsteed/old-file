@@ -89,6 +89,7 @@ export default function StatementCenterPage() {
           <h1>{text('title')}</h1><p>{text('accountFlowDescription')}</p></div>
       </header>
       <p className="statement-center-scope" role="note">{text('separateAccountsNote')}</p>
+      <p className="statement-center-scope"><Link className="statement-center-secondary" to="/statements/audit-requests">{text('auditRequestsLink')}</Link> {text('auditRequestsDescription')}</p>
       {current.status === 'loading' && <div className="statement-center-state" role="status">{text('loading')}</div>}
       {(current.status === 'error' || failures) && <div className="statement-center-state" role="alert">
         <p>{text(current.status === 'error' ? 'loadError' : 'partialLoadError')}</p>

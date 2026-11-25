@@ -128,6 +128,7 @@ const CreditStatementsPage = lazyWithRetry(() => import('./pages/food/CreditStat
 const StatementCenterPage = lazyWithRetry(() => import('./pages/food/StatementCenterPage'));
 const StatementArchivePage = lazyWithRetry(() => import('./pages/food/StatementArchivePage'));
 const StatementExportPage = lazyWithRetry(() => import('./pages/food/StatementExportPage'));
+const AuditRequestsPage = lazyWithRetry(() => import('./pages/food/AuditRequestsPage'));
 const StatementTransactionView = lazyWithRetry(() => import('./pages/food/StatementTransactionView'));
 const StatementAccessibleView = lazyWithRetry(() => import('./pages/food/StatementAccessibleView'));
 const WalletPage = lazyWithRetry(() => import('./pages/food/WalletPage'));
@@ -186,6 +187,7 @@ const LogisticsPaymentsPage = lazyWithRetry(() => import('./pages/logistics/Logi
 const BusinessHubPage = lazyWithRetry(routeLoaders.businessWorkspace, { name: 'businessWorkspace' });
 const BusinessOnboardingPage = lazyWithRetry(() => import('./pages/BusinessOnboardingPage'));
 const CreditApplyPage = lazyWithRetry(() => import('./pages/CreditApplyPage'));
+const LocationReconciliationPage = lazyWithRetry(() => import('./pages/food/LocationReconciliationPage'));
 const VortexPage = lazyWithRetry(() => import('./pages/VortexPage'));
 const NetworkAppsPage = lazyWithRetry(() => import('./pages/NetworkAppsPage'));
 const AccessGateRecoveryPage = lazyWithRetry(() => import('./pages/AccessGateRecoveryPage'));
@@ -809,6 +811,10 @@ export default function App() {
                         route; membership is enforced by the portal's data
                         source (GET /food/my/restaurants) and by the staff API. */}
                     <Route path="/restaurants/:restaurantId/portal"   element={<Guarded><ProtectedRoute><RouteErrorBoundary><RestaurantEmployeePortalPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Group 13 Slice 4h: the HQ/participant door of the
+                        location reconciliation surface. The page reads only
+                        the caller's own restaurant; the server enforces it. */}
+                    <Route path="/restaurants/:restaurantId/credit-reconciliation" element={<Guarded><ProtectedRoute><RouteErrorBoundary><LocationReconciliationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/restaurants/screens/:restaurantId/:screenRole" element={<RouteErrorBoundary><ManagedRestaurantScreen /></RouteErrorBoundary>} />
                     <Route path="/restaurants/kitchen/:restaurantId"   element={<DeviceOrStaffRoute><RouteErrorBoundary><FoodKitchenPage /></RouteErrorBoundary></DeviceOrStaffRoute>} />
                     {/* Public kitchen-tablet setup entry: no auth, no token. */}
@@ -828,6 +834,7 @@ export default function App() {
                     <Route path="/statements/:documentId/entries/:entryId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementTransactionView /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/statements/:documentId/accessible" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementAccessibleView /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/statements/exports/:jobId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><StatementExportPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/statements/audit-requests" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AuditRequestsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/oxsteed-credit/transactions/:transactionId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditTransactionPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/oxsteed-credit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><OxsteedCreditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/wallet" element={<Guarded><ProtectedRoute><RouteErrorBoundary><WalletPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

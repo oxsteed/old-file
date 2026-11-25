@@ -297,6 +297,8 @@ describe('food controller', () => {
         completed_at: null,
         cancelled_at: null,
         stripe_payment_intent_id: 'pi_private',
+        pickup_code: '4821',
+        location_id: 9,
         guest_email: 'guest@example.com',
         guest_phone: '+15551234567',
         customer_id: '00000000-0000-4000-8000-000000000999',
@@ -306,6 +308,15 @@ describe('food controller', () => {
         has_review: false,
         items: [{ id: 1, itemName: 'Burger', quantity: 1, lineTotalCents: 1200, specialInstructions: 'secret' }],
       }],
+    }).mockResolvedValueOnce({
+      // runner-location query (no runner en route): empty
+      rows: [],
+    }).mockResolvedValueOnce({
+      // pending substitution questions
+      rows: [{ id: 55, proposed_substitute: 'Sweet potato fries', item_name: 'Fries', created_at: '2026-09-07T09:06:00.000Z' }],
+    }).mockResolvedValueOnce({
+      // pickup info for location 9
+      rows: [{ id: 9, name: 'Main', address_street: '1 Main St', address_city: 'Springfield', pickup_area_label: 'Shelf by door', pickup_instructions: 'Ask at counter', pickup_parking_note: null, curbside_enabled: false, substitution_policy: 'contact_customer' }],
     });
 
     const res = await request(buildApp()).get('/api/food/orders/track/track-safe');
@@ -317,8 +328,11 @@ describe('food controller', () => {
       queue_number: 7,
       total_cents: 1296,
       restaurant_name: 'Ox Burger Lab',
+      pickup_code: '4821',
       items: [{ id: 1, itemName: 'Burger', quantity: 1, lineTotalCents: 1200 }],
     });
+    expect(res.body.order.pickup_info).toMatchObject({ pickup_area_label: 'Shelf by door', substitution_policy: 'contact_customer' });
+    expect(res.body.order.pending_substitution_questions).toEqual([{ id: 55, item_name: 'Fries', proposed_substitute: 'Sweet potato fries', created_at: '2026-09-07T09:06:00.000Z' }]);
     expect(res.body.order).not.toHaveProperty('guest_email');
     expect(res.body.order).not.toHaveProperty('guest_phone');
     expect(res.body.order).not.toHaveProperty('customer_id');

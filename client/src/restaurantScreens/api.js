@@ -141,3 +141,88 @@ export const getDeviceCreditReceipt = (id, device, attemptId) =>
   api.get(`${base(id, device)}/screen-credit-orders/${encodeURIComponent(attemptId)}`,
     { ...deviceOptions(device), skipSessionRefresh: true },
   ).then((r) => r.data.receipt);
+
+// Group 13 Slice 4g: the cashier surface on the kiosk. Device-authenticated
+// (X-Device-Token) against the credit-kiosks routes, same as the credit
+// receipt read above.
+const cashierBase = (id, device) =>
+  `/restaurants/${id}/credit-kiosks/${device.id}/cashier`;
+
+// 681: locations this device is authorized for (the paired location
+// alone; a device with no binding authorizes nothing).
+export const getCashierLocations = (id, device) =>
+  api.get(`${cashierBase(id, device)}/locations`,
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+
+// 684: cashier transaction lookup over the device's authorized
+// transactions (683: the same read with no filters is the list).
+export const listCashierTransactions = (id, device, params) =>
+  api.get(`${cashierBase(id, device)}/transactions`,
+    { ...deviceOptions(device), params, skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const getCashierTransaction = (id, device, transactionId) =>
+  api.get(`${cashierBase(id, device)}/transactions/${encodeURIComponent(transactionId)}`,
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data.transaction);
+
+// 682: the cashier shift — open (idempotent), current shift + summary,
+// one shift by id, and the working-location commit for the 681 picker.
+export const openCashierShift = (id, device, payload) =>
+  api.post(`${cashierBase(id, device)}/shifts`, payload || {},
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const getCurrentCashierShift = (id, device) =>
+  api.get(`${cashierBase(id, device)}/shifts/current`,
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const getCashierShift = (id, device, shiftId) =>
+  api.get(`${cashierBase(id, device)}/shifts/${encodeURIComponent(shiftId)}`,
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const updateCashierShiftLocation = (id, device, locationId) =>
+  api.patch(`${cashierBase(id, device)}/shifts/current/location`, { locationId },
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+// 685: close the shift, recording the derived closeout checklist.
+export const closeCashierShift = (id, device, shiftId) =>
+  api.post(`${cashierBase(id, device)}/shifts/${encodeURIComponent(shiftId)}/close`, {},
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+
+// Group 13 Slice 4h (686-690): the location reconciliation surface on the
+// kiosk. Same device auth as the 4g cashier surface; every read is scoped
+// to the paired location server-side. No money moves here.
+export const getCashierReconciliationSummary = (id, device, params) =>
+  api.get(`${cashierBase(id, device)}/reconciliation/summary`,
+    { ...deviceOptions(device), params, skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const listCashierReconciliationExceptions = (id, device, params) =>
+  api.get(`${cashierBase(id, device)}/reconciliation/exceptions`,
+    { ...deviceOptions(device), params, skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const addCashierReconciliationAnnotation = (id, device, exceptionId, body) =>
+  api.post(`${cashierBase(id, device)}/reconciliation/exceptions/${encodeURIComponent(exceptionId)}/annotations`,
+    { body },
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const getCashierPeriodClose = (id, device, params) =>
+  api.get(`${cashierBase(id, device)}/reconciliation/period-close`,
+    { ...deviceOptions(device), params, skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const recordCashierPeriodClose = (id, device, params) =>
+  api.post(`${cashierBase(id, device)}/reconciliation/period-close`, params || {},
+    { ...deviceOptions(device), skipSessionRefresh: true },
+  ).then((r) => r.data);
+export const downloadCashierReconciliationExport = async (id, device, params) => {
+  const response = await api.get(`${cashierBase(id, device)}/reconciliation/export.csv`,
+    { ...deviceOptions(device), params, skipSessionRefresh: true, responseType: 'blob' });
+  const url = window.URL.createObjectURL(response.data);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `oxsteed-credit-reconciliation-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+};

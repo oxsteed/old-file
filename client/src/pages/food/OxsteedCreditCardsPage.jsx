@@ -314,6 +314,9 @@ export default function OxsteedCreditCardsPage() {
                             <span>{t('cards.issued', { date: dateTime(card.issuedAt, t) })}</span>
                             {card.hasPin && <span>{t('cards.pinSet')}</span>}
                           </div>
+                          {card.statusReason && (
+                            <p className="ox-card-status-reason">{t('cards.statusReason', { reason: card.statusReason })}</p>
+                          )}
 
                           {card.status === 'pending' && (card.cardType === 'physical' || card.replacesCardId) && (
                             <div className="ox-card-activate">

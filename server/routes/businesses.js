@@ -36,6 +36,7 @@ const {
 const {
   listInvoices, getInvoice, getPublicInvoice, createInvoice,
   updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice, voidInvoice,
+  linkInvoicePayment, getInvoicePayments,
 } = require('../controllers/businessInvoiceController');
 
 const {
@@ -128,6 +129,10 @@ router.get('/:id/invoices/:invoiceId',           authenticate, getInvoice);
 router.post('/:id/invoices',                    authenticate, bizIdAccess('any'), createInvoice);
 router.put('/:id/invoices/:invoiceId',           authenticate, bizIdAccess('any'), updateInvoice);
 router.post('/:id/invoices/:invoiceId/pay',     authenticate, bizIdAccess('any'), markInvoicePaid);
+// 706: link an existing payment record to an invoice (manual matching;
+// linking never changes amount_paid/status) and the matching view.
+router.post('/:id/invoices/:invoiceId/link-payment', authenticate, bizIdAccess('any'), linkInvoicePayment);
+router.get('/:id/invoices/:invoiceId/payments',  authenticate, getInvoicePayments);
 router.post('/:id/invoices/:invoiceId/send',    authenticate, bizIdAccess('any'), sendInvoice);
 router.post('/:id/invoices/:invoiceId/void',    authenticate, bizIdAccess('any'), voidInvoice);
 router.delete('/:id/invoices/:invoiceId',       authenticate, bizIdAccess('any'), deleteInvoice);

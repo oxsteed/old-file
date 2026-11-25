@@ -15,3 +15,5 @@
 .helper-work li { margin-block:.75rem; padding-block:.5rem; border-block-end:1px solid var(--color-border); }
 .helper-work__actions { display:flex; flex-wrap:wrap; gap:.5rem; }
 .helper-work__text { white-space:pre-wrap; }
+/* Group 11 item 587: photo evidence on the report timeline. */
+.equipment-evidence-photo { max-width: 160px; border-radius: 8px; }

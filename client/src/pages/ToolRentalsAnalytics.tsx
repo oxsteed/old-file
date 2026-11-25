@@ -42,10 +42,27 @@ const ToolRentalsAnalytics: React.FC = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  // Group 11 item 597: utilization (booked vs available days).
+  const [utilization, setUtilization] = useState<any>(null);
+  const [utilStart, setUtilStart] = useState('');
+  const [utilEnd, setUtilEnd] = useState('');
 
   useEffect(() => {
     loadDashboard();
+    loadUtilization();
   }, []);
+
+  const loadUtilization = async (startDate?: string, endDate?: string) => {
+    try {
+      const params: Record<string, string> = {};
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+      const { data: utilData } = await api.get('/tool-rentals/analytics/utilization', { params });
+      setUtilization(utilData);
+    } catch (err) {
+      console.error('Utilization load error:', err);
+    }
+  };
 
   const loadDashboard = async () => {
     try {
@@ -248,6 +265,55 @@ const ToolRentalsAnalytics: React.FC = () => {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Group 11 item 597: utilization — booked days vs available days
+          over the selected period, per tool and overall. */}
+      {utilization && (
+        <div className="analytics-tools-table">
+          <h2>{t('toolRentals.utilizationTitle') || 'Utilization'}</h2>
+          <p>
+            {t('toolRentals.utilizationOverall') || 'Overall'}: {(utilization.overall_utilization * 100).toFixed(1)}%
+            {' · '}{utilization.total_booked_days} / {utilization.total_available_days} {t('toolRentals.utilizationDays') || 'days'}
+            {' · '}{formatDate(utilization.start_date)} – {formatDate(utilization.end_date)}
+          </p>
+          <div className="analytics-header-actions">
+            <label>
+              {t('toolRentals.startDate') || 'Start Date'}
+              <input type="date" value={utilStart} onChange={(e) => setUtilStart(e.target.value)} />
+            </label>
+            <label>
+              {t('toolRentals.endDate') || 'End Date'}
+              <input type="date" value={utilEnd} onChange={(e) => setUtilEnd(e.target.value)} />
+            </label>
+            <button onClick={() => loadUtilization(utilStart || undefined, utilEnd || undefined)} className="analytics-btn-secondary" data-track="ui.dbb37b1939.3">
+              {t('common.refresh') || 'Refresh'}
+            </button>
+          </div>
+          <div className="analytics-table-wrapper">
+            <table className="analytics-table">
+              <thead>
+                <tr>
+                  <th>{t('toolRentals.toolName') || 'Tool Name'}</th>
+                  <th>{t('toolRentals.utilizationBooked') || 'Booked days'}</th>
+                  <th>{t('toolRentals.utilizationAvailable') || 'Available days'}</th>
+                  <th>{t('toolRentals.utilizationRate') || 'Utilization'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {utilization.tools.map((tool: any) => (
+                  <tr key={tool.tool_id}>
+                    <td className="analytics-table-name">{tool.name}</td>
+                    <td>{tool.booked_days}</td>
+                    <td>{tool.available_days}</td>
+                    <td>{(tool.utilization * 100).toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p>{t('toolRentals.earningsGrossNote') || 'Earnings shown here are gross amounts recorded off-platform; there is no settlement leg while rental payments stay off-platform.'}</p>
         </div>
       )}
 

@@ -1,0 +1,5 @@
+.helper-job-breakdown { grid-column: 1 / -1; }
+.helper-job-breakdown dl { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0.5rem 0; }
+.helper-job-breakdown dd { margin: 0; font-weight: 600; }
+.helper-job-breakdown ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+.helper-job-breakdown li { display: flex; justify-content: space-between; gap: 1rem; }

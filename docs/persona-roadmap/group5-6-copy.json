@@ -1,0 +1,7422 @@
+{
+ "tabs.ownerConsole": [
+  "Owner console",
+  "Consola del dueño",
+  "Console du propriétaire",
+  "Konsòl pwopriyetè",
+  "لوحة المالك"
+ ],
+ "tabs.myWork": [
+  "My work",
+  "Mi trabajo",
+  "Mon travail",
+  "Travay mwen",
+  "عملي"
+ ],
+ "common.save": [
+  "Save",
+  "Guardar",
+  "Enregistrer",
+  "Anrejistre",
+  "حفظ"
+ ],
+ "common.cancel": [
+  "Cancel",
+  "Cancelar",
+  "Annuler",
+  "Anile",
+  "إلغاء"
+ ],
+ "common.saved": [
+  "Saved.",
+  "Guardado.",
+  "Enregistré.",
+  "Anrejistre.",
+  "تم الحفظ."
+ ],
+ "common.none": [
+  "Nothing here yet.",
+  "Todavía no hay nada.",
+  "Rien pour l’instant.",
+  "Pa gen anyen la a ankò.",
+  "لا يوجد شيء بعد."
+ ],
+ "errors.saveError": [
+  "That didn’t save. Try again.",
+  "No se guardó. Inténtalo de nuevo.",
+  "L’enregistrement a échoué. Réessayez.",
+  "Sa pa t anrejistre. Eseye ankò.",
+  "لم يتم الحفظ. حاول مرة أخرى."
+ ],
+ "errors.loadError": [
+  "This section couldn’t load.",
+  "Esta sección no se pudo cargar.",
+  "Cette section n’a pas pu se charger.",
+  "Seksyon sa a pa t ka chaje.",
+  "تعذّر تحميل هذا القسم."
+ ],
+ "errors.noAccess": [
+  "You don’t have access to this section.",
+  "No tienes acceso a esta sección.",
+  "Vous n’avez pas accès à cette section.",
+  "Ou pa gen aksè nan seksyon sa a.",
+  "ليس لديك صلاحية الوصول إلى هذا القسم."
+ ],
+ "errors.conflict": [
+  "This changed in the meantime. Refresh and try again.",
+  "Esto cambió mientras tanto. Actualiza e inténtalo de nuevo.",
+  "Cet élément a changé entre-temps. Actualisez et réessayez.",
+  "Sa a te chanje entretan. Rafrechi epi eseye ankò.",
+  "تغيّر هذا في الأثناء. حدّث الصفحة وحاول مرة أخرى."
+ ],
+ "errors.validation_failed": [
+  "Check the fields and try again.",
+  "Revisa los campos e inténtalo de nuevo.",
+  "Vérifiez les champs et réessayez.",
+  "Tcheke chan yo epi eseye ankò.",
+  "تحقّق من الحقول وحاول مرة أخرى."
+ ],
+ "errors.offering_changed": [
+  "This service changed in the meantime. Refresh and try again.",
+  "Este servicio cambió mientras tanto. Actualiza e inténtalo de nuevo.",
+  "Ce service a changé entre-temps. Actualisez et réessayez.",
+  "Sèvis sa a te chanje entretan. Rafrechi epi eseye ankò.",
+  "تغيّرت هذه الخدمة في الأثناء. حدّث الصفحة وحاول مرة أخرى."
+ ],
+ "errors.listing_already_claimed": [
+  "This listing is already linked to a business.",
+  "Este perfil ya está vinculado a un negocio.",
+  "Cette fiche est déjà liée à une entreprise.",
+  "Fich sa a deja konekte ak yon biznis.",
+  "هذه القائمة مرتبطة بالفعل بنشاط تجاري."
+ ],
+ "errors.claim_already_pending": [
+  "You already have a pending claim for this listing.",
+  "Ya tienes un reclamo pendiente para este perfil.",
+  "Vous avez déjà une revendication en attente pour cette fiche.",
+  "Ou deja gen yon demann k ap tann pou fich sa a.",
+  "لديك بالفعل مطالبة معلّقة لهذه القائمة."
+ ],
+ "errors.claim_not_pending": [
+  "This claim is no longer pending.",
+  "Este reclamo ya no está pendiente.",
+  "Cette revendication n’est plus en attente.",
+  "Demann sa a pa an atant ankò.",
+  "لم تعد هذه المطالبة معلّقة."
+ ],
+ "launch.title": [
+  "Launch status",
+  "Estado de lanzamiento",
+  "État du lancement",
+  "Estati lansman",
+  "حالة الإطلاق"
+ ],
+ "launch.progress": [
+  "{{done}} of {{total}} checks done",
+  "{{done}} de {{total}} verificaciones listas",
+  "{{done}} vérifications sur {{total}} terminées",
+  "{{done}} sou {{total}} verifikasyon fini",
+  "اكتمل {{done}} من {{total}} من الفحوصات"
+ ],
+ "launch.status.in_progress": [
+  "Setting up",
+  "En configuración",
+  "En cours de configuration",
+  "Ap prepare",
+  "قيد الإعداد"
+ ],
+ "launch.status.ready_to_publish": [
+  "Ready to publish",
+  "Listo para publicar",
+  "Prêt à publier",
+  "Pare pou pibliye",
+  "جاهز للنشر"
+ ],
+ "launch.status.live": [
+  "Live",
+  "Publicado",
+  "En ligne",
+  "An liy",
+  "منشور"
+ ],
+ "launch.status.hidden": [
+  "Hidden by OxSteed review",
+  "Oculto por revisión de OxSteed",
+  "Masqué par la vérification OxSteed",
+  "OxSteed kache l pandan revizyon",
+  "مخفي بمراجعة OxSteed"
+ ],
+ "launch.hiddenReason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "launch.optional": [
+  "(optional)",
+  "(opcional)",
+  "(facultatif)",
+  "(opsyonèl)",
+  "(اختياري)"
+ ],
+ "launch.verificationTitle": [
+  "Business verification checklist",
+  "Lista de verificación del negocio",
+  "Liste de vérification de l’entreprise",
+  "Lis verifikasyon biznis",
+  "قائمة التحقق من النشاط التجاري"
+ ],
+ "launch.check.name": [
+  "Business name",
+  "Nombre del negocio",
+  "Nom de l’entreprise",
+  "Non biznis la",
+  "اسم النشاط التجاري"
+ ],
+ "launch.check.description": [
+  "Description of at least 40 characters",
+  "Descripción de al menos 40 caracteres",
+  "Description d’au moins 40 caractères",
+  "Deskripsyon omwen 40 karaktè",
+  "وصف من 40 حرفًا على الأقل"
+ ],
+ "launch.check.contact_phone": [
+  "Contact phone",
+  "Teléfono de contacto",
+  "Téléphone de contact",
+  "Telefòn kontak",
+  "هاتف التواصل"
+ ],
+ "launch.check.address": [
+  "Business city and state",
+  "Ciudad y estado del negocio",
+  "Ville et État de l’entreprise",
+  "Vil ak eta biznis la",
+  "مدينة وولاية النشاط التجاري"
+ ],
+ "launch.check.service_area": [
+  "Service area",
+  "Zona de servicio",
+  "Zone de service",
+  "Zòn sèvis",
+  "منطقة الخدمة"
+ ],
+ "launch.check.hours": [
+  "Business hours",
+  "Horario",
+  "Heures d’ouverture",
+  "Lè travay",
+  "ساعات العمل"
+ ],
+ "launch.check.payouts": [
+  "Payments and payouts set up",
+  "Pagos y retiros configurados",
+  "Paiements et versements configurés",
+  "Peman ak vèsman konfigire",
+  "إعداد المدفوعات والتحويلات"
+ ],
+ "launch.check.logo": [
+  "Logo",
+  "Logotipo",
+  "Logo",
+  "Logo",
+  "الشعار"
+ ],
+ "launch.check.cover_photo": [
+  "Cover photo",
+  "Foto de portada",
+  "Photo de couverture",
+  "Foto kouvèti",
+  "صورة الغلاف"
+ ],
+ "launch.check.tax_id": [
+  "Tax ID (EIN)",
+  "Número fiscal (EIN)",
+  "Numéro fiscal (EIN)",
+  "Nimewo taks (EIN)",
+  "الرقم الضريبي (EIN)"
+ ],
+ "launch.check.verified_badge": [
+  "Verified business badge",
+  "Insignia de negocio verificado",
+  "Badge d’entreprise vérifiée",
+  "Badj biznis verifye",
+  "شارة النشاط التجاري الموثّق"
+ ],
+ "launch.servicesTitle": [
+  "Service publication checklist",
+  "Lista para publicar servicios",
+  "Liste de publication des services",
+  "Lis pou pibliye sèvis yo",
+  "قائمة نشر الخدمات"
+ ],
+ "launch.noServices": [
+  "Add a service to publish your business.",
+  "Agrega un servicio para publicar tu negocio.",
+  "Ajoutez un service pour publier votre entreprise.",
+  "Ajoute yon sèvis pou pibliye biznis ou.",
+  "أضف خدمة لنشر نشاطك التجاري."
+ ],
+ "launch.serviceReady": [
+  "Ready",
+  "Listo",
+  "Prêt",
+  "Pare",
+  "جاهز"
+ ],
+ "launch.serviceNotReady": [
+  "Needs work",
+  "Falta completar",
+  "À compléter",
+  "Bezwen travay",
+  "يحتاج إلى إكمال"
+ ],
+ "launch.serviceCheck.active": [
+  "Turn the service on",
+  "Activa el servicio",
+  "Activez le service",
+  "Aktive sèvis la",
+  "فعّل الخدمة"
+ ],
+ "launch.serviceCheck.not_paused": [
+  "Service is paused",
+  "El servicio está en pausa",
+  "Le service est en pause",
+  "Sèvis la an poz",
+  "الخدمة متوقفة مؤقتًا"
+ ],
+ "launch.serviceCheck.description": [
+  "Add a description (20+ characters)",
+  "Agrega una descripción (20+ caracteres)",
+  "Ajoutez une description (20+ caractères)",
+  "Ajoute yon deskripsyon (20+ karaktè)",
+  "أضف وصفًا (20 حرفًا أو أكثر)"
+ ],
+ "launch.serviceCheck.price": [
+  "Set a price",
+  "Fija un precio",
+  "Fixez un prix",
+  "Mete yon pri",
+  "حدّد سعرًا"
+ ],
+ "launch.serviceCheck.duration": [
+  "Set a duration",
+  "Fija una duración",
+  "Fixez une durée",
+  "Mete yon dire",
+  "حدّد مدة"
+ ],
+ "launch.serviceCheck.bookable_staff": [
+  "Assign a team member for online booking",
+  "Asigna a alguien del equipo para reservas en línea",
+  "Affectez un membre de l’équipe pour la réservation en ligne",
+  "Bay yon manm ekip pou rezèvasyon sou entènèt",
+  "عيّن عضوًا من الفريق للحجز عبر الإنترنت"
+ ],
+ "offerings.title": [
+  "Service availability",
+  "Disponibilidad de servicios",
+  "Disponibilité des services",
+  "Disponiblite sèvis yo",
+  "توفر الخدمات"
+ ],
+ "offerings.mode.everywhere": [
+  "Offered everywhere you serve",
+  "Se ofrece en toda tu zona",
+  "Proposé partout où vous intervenez",
+  "Ofri tout kote ou sèvi",
+  "متاحة في كل مناطق خدمتك"
+ ],
+ "offerings.mode.only": [
+  "Only in listed areas",
+  "Solo en las zonas indicadas",
+  "Uniquement dans les zones listées",
+  "Sèlman nan zòn ki nan lis la",
+  "فقط في المناطق المحددة"
+ ],
+ "offerings.mode.except": [
+  "Everywhere except listed areas",
+  "En todas partes excepto las zonas indicadas",
+  "Partout sauf les zones listées",
+  "Tout kote eksepte zòn ki nan lis la",
+  "في كل مكان عدا المناطق المحددة"
+ ],
+ "offerings.modeLabel": [
+  "Where it’s offered",
+  "Dónde se ofrece",
+  "Où il est proposé",
+  "Ki kote li ofri",
+  "مكان التوفر"
+ ],
+ "offerings.states": [
+  "States (e.g. FL, GA)",
+  "Estados (p. ej. FL, GA)",
+  "États (ex. FL, GA)",
+  "Eta (egz. FL, GA)",
+  "الولايات (مثل FL, GA)"
+ ],
+ "offerings.postal": [
+  "ZIP prefixes (e.g. 331, 33139)",
+  "Prefijos postales (p. ej. 331, 33139)",
+  "Préfixes postaux (ex. 331, 33139)",
+  "Prefiks kòd postal (egz. 331, 33139)",
+  "بادئات الرمز البريدي (مثل 331, 33139)"
+ ],
+ "offerings.editRegions": [
+  "Edit areas",
+  "Editar zonas",
+  "Modifier les zones",
+  "Modifye zòn yo",
+  "تعديل المناطق"
+ ],
+ "offerings.pause": [
+  "Pause bookings",
+  "Pausar reservas",
+  "Suspendre les réservations",
+  "Mete rezèvasyon an poz",
+  "إيقاف الحجوزات مؤقتًا"
+ ],
+ "offerings.resume": [
+  "Resume bookings",
+  "Reanudar reservas",
+  "Reprendre les réservations",
+  "Rekòmanse rezèvasyon",
+  "استئناف الحجوزات"
+ ],
+ "offerings.paused": [
+  "Paused",
+  "En pausa",
+  "En pause",
+  "An poz",
+  "متوقفة مؤقتًا"
+ ],
+ "offerings.until": [
+  "until {{date}}",
+  "hasta {{date}}",
+  "jusqu’au {{date}}",
+  "jiska {{date}}",
+  "حتى {{date}}"
+ ],
+ "offerings.reason": [
+  "Reason (customers won’t see it)",
+  "Motivo (los clientes no lo verán)",
+  "Motif (non visible par les clients)",
+  "Rezon (kliyan p ap wè l)",
+  "السبب (لن يراه العملاء)"
+ ],
+ "offerings.resumeOn": [
+  "Resume automatically on (optional)",
+  "Reanudar automáticamente el (opcional)",
+  "Reprise automatique le (facultatif)",
+  "Rekòmanse otomatikman nan (opsyonèl)",
+  "الاستئناف تلقائيًا في (اختياري)"
+ ],
+ "offerings.confirmPause": [
+  "Pause",
+  "Pausar",
+  "Suspendre",
+  "Mete an poz",
+  "إيقاف مؤقت"
+ ],
+ "claim.title": [
+  "Claim an existing listing",
+  "Reclamar un perfil existente",
+  "Revendiquer une fiche existante",
+  "Reklame yon fich ki egziste deja",
+  "المطالبة بقائمة موجودة"
+ ],
+ "claim.help": [
+  "If your business already appears in the OxSteed directory, link it here. OxSteed reviews every claim.",
+  "Si tu negocio ya aparece en el directorio de OxSteed, vincúlalo aquí. OxSteed revisa cada reclamo.",
+  "Si votre entreprise figure déjà dans l’annuaire OxSteed, liez-la ici. OxSteed examine chaque revendication.",
+  "Si biznis ou deja parèt nan anyè OxSteed la, konekte l isit la. OxSteed revize chak demann.",
+  "إذا كان نشاطك التجاري يظهر بالفعل في دليل OxSteed، فاربطه هنا. تراجع OxSteed كل مطالبة."
+ ],
+ "claim.search": [
+  "Business name",
+  "Nombre del negocio",
+  "Nom de l’entreprise",
+  "Non biznis la",
+  "اسم النشاط التجاري"
+ ],
+ "claim.find": [
+  "Find listing",
+  "Buscar perfil",
+  "Trouver la fiche",
+  "Chèche fich",
+  "ابحث عن القائمة"
+ ],
+ "claim.listing": [
+  "Listing",
+  "Perfil",
+  "Fiche",
+  "Fich",
+  "القائمة"
+ ],
+ "claim.choose": [
+  "Choose a listing",
+  "Elige un perfil",
+  "Choisissez une fiche",
+  "Chwazi yon fich",
+  "اختر قائمة"
+ ],
+ "claim.noListings": [
+  "No unclaimed listings match.",
+  "No hay perfiles sin reclamar que coincidan.",
+  "Aucune fiche non revendiquée ne correspond.",
+  "Pa gen fich ki pa reklame ki koresponn.",
+  "لا توجد قوائم غير مُطالب بها مطابقة."
+ ],
+ "claim.relationship": [
+  "Your role",
+  "Tu función",
+  "Votre rôle",
+  "Wòl ou",
+  "دورك"
+ ],
+ "claim.rel.owner": [
+  "Owner",
+  "Dueño",
+  "Propriétaire",
+  "Pwopriyetè",
+  "المالك"
+ ],
+ "claim.rel.officer": [
+  "Company officer",
+  "Directivo de la empresa",
+  "Dirigeant de l’entreprise",
+  "Ofisye konpayi",
+  "مسؤول في الشركة"
+ ],
+ "claim.rel.authorized_manager": [
+  "Authorized manager",
+  "Gerente autorizado",
+  "Gérant autorisé",
+  "Manadjè otorize",
+  "مدير مفوَّض"
+ ],
+ "claim.evidence": [
+  "How can we confirm this is your business? (20+ characters)",
+  "¿Cómo confirmamos que es tu negocio? (20+ caracteres)",
+  "Comment confirmer qu’il s’agit de votre entreprise ? (20+ caractères)",
+  "Kijan nou ka konfime se biznis ou? (20+ karaktè)",
+  "كيف نتأكد من أن هذا نشاطك التجاري؟ (20 حرفًا أو أكثر)"
+ ],
+ "claim.submit": [
+  "Submit claim",
+  "Enviar reclamo",
+  "Envoyer la revendication",
+  "Voye demann lan",
+  "إرسال المطالبة"
+ ],
+ "claim.withdraw": [
+  "Withdraw",
+  "Retirar",
+  "Retirer",
+  "Retire",
+  "سحب"
+ ],
+ "claim.claimStatus.pending": [
+  "In review",
+  "En revisión",
+  "En cours d’examen",
+  "Nan revizyon",
+  "قيد المراجعة"
+ ],
+ "claim.claimStatus.approved": [
+  "Approved",
+  "Aprobado",
+  "Approuvée",
+  "Apwouve",
+  "مقبولة"
+ ],
+ "claim.claimStatus.rejected": [
+  "Not approved",
+  "No aprobado",
+  "Non approuvée",
+  "Pa apwouve",
+  "غير مقبولة"
+ ],
+ "claim.claimStatus.withdrawn": [
+  "Withdrawn",
+  "Retirado",
+  "Retirée",
+  "Retire",
+  "مسحوبة"
+ ],
+ "days.0": [
+  "Sun",
+  "Dom",
+  "Dim",
+  "Dim",
+  "الأحد"
+ ],
+ "days.1": [
+  "Mon",
+  "Lun",
+  "Lun",
+  "Len",
+  "الاثنين"
+ ],
+ "days.2": [
+  "Tue",
+  "Mar",
+  "Mar",
+  "Mad",
+  "الثلاثاء"
+ ],
+ "days.3": [
+  "Wed",
+  "Mié",
+  "Mer",
+  "Mèk",
+  "الأربعاء"
+ ],
+ "days.4": [
+  "Thu",
+  "Jue",
+  "Jeu",
+  "Jed",
+  "الخميس"
+ ],
+ "days.5": [
+  "Fri",
+  "Vie",
+  "Ven",
+  "Van",
+  "الجمعة"
+ ],
+ "days.6": [
+  "Sat",
+  "Sáb",
+  "Sam",
+  "Sam",
+  "السبت"
+ ],
+ "oversight.title": [
+  "Oversee work",
+  "Supervisar el trabajo",
+  "Superviser le travail",
+  "Sipèvize travay la",
+  "الإشراف على العمل"
+ ],
+ "oversight.openTitle": [
+  "Open assignments",
+  "Asignaciones pendientes",
+  "Affectations ouvertes",
+  "Travay ki poko asiyen",
+  "مهام غير مُسندة"
+ ],
+ "oversight.openNone": [
+  "Every upcoming visit has someone assigned.",
+  "Cada visita próxima tiene a alguien asignado.",
+  "Chaque visite à venir a un responsable.",
+  "Chak vizit k ap vini gen yon moun asiyen.",
+  "كل زيارة قادمة لها شخص مُسند."
+ ],
+ "oversight.reason.unassigned": [
+  "Nobody assigned",
+  "Sin asignar",
+  "Personne n’est affecté",
+  "Pa gen moun asiyen",
+  "لم يُسند لأحد"
+ ],
+ "oversight.reason.assignee_inactive": [
+  "Assignee left the team",
+  "La persona asignada dejó el equipo",
+  "La personne affectée a quitté l’équipe",
+  "Moun ki te asiyen an kite ekip la",
+  "غادر الشخص المُسند الفريق"
+ ],
+ "oversight.assignTo": [
+  "Assign to",
+  "Asignar a",
+  "Affecter à",
+  "Asiyen bay",
+  "إسناد إلى"
+ ],
+ "oversight.choose": [
+  "Choose someone",
+  "Elige a alguien",
+  "Choisissez quelqu’un",
+  "Chwazi yon moun",
+  "اختر شخصًا"
+ ],
+ "oversight.assign": [
+  "Assign",
+  "Asignar",
+  "Affecter",
+  "Asiyen",
+  "إسناد"
+ ],
+ "oversight.heatTitle": [
+  "Schedule heatmap",
+  "Mapa de calor del horario",
+  "Carte de chaleur du planning",
+  "Kat chalè orè a",
+  "خريطة كثافة الجدول"
+ ],
+ "oversight.range": [
+  "Period",
+  "Periodo",
+  "Période",
+  "Peryòd",
+  "الفترة"
+ ],
+ "oversight.upcoming": [
+  "Next 4 weeks",
+  "Próximas 4 semanas",
+  "4 prochaines semaines",
+  "4 pwochen semèn",
+  "الأسابيع الأربعة القادمة"
+ ],
+ "oversight.past": [
+  "Last 4 weeks",
+  "Últimas 4 semanas",
+  "4 dernières semaines",
+  "4 dènye semèn",
+  "الأسابيع الأربعة الماضية"
+ ],
+ "oversight.heatLegend": [
+  "Bookings by day and hour ({{tz}}).",
+  "Reservas por día y hora ({{tz}}).",
+  "Réservations par jour et par heure ({{tz}}).",
+  "Rezèvasyon pa jou ak pa lè ({{tz}}).",
+  "الحجوزات حسب اليوم والساعة ({{tz}})."
+ ],
+ "oversight.cellTitle": [
+  "{{hour}}:00 · {{booked}} booked · {{staffed}} on staff",
+  "{{hour}}:00 · {{booked}} reservas · {{staffed}} en turno",
+  "{{hour}} h · {{booked}} réservations · {{staffed}} en service",
+  "{{hour}}:00 · {{booked}} rezèvasyon · {{staffed}} an sèvis",
+  "{{hour}}:00 · {{booked}} حجوزات · {{staffed}} في الخدمة"
+ ],
+ "oversight.heatHelp": [
+  "Outlined hours have more bookings than people available.",
+  "Las horas con borde tienen más reservas que personas disponibles.",
+  "Les heures encadrées ont plus de réservations que de personnes disponibles.",
+  "Lè ki gen kad yo gen plis rezèvasyon pase moun ki disponib.",
+  "الساعات المحددة بإطار فيها حجوزات أكثر من الأشخاص المتاحين."
+ ],
+ "oversight.timelineTitle": [
+  "Handoff timeline",
+  "Historial de traspasos",
+  "Historique des passations",
+  "Istwa transfè yo",
+  "سجل التسليمات"
+ ],
+ "oversight.timelineNone": [
+  "No handoffs yet.",
+  "Aún no hay traspasos.",
+  "Aucune passation pour l’instant.",
+  "Poko gen transfè.",
+  "لا توجد تسليمات بعد."
+ ],
+ "oversight.by": [
+  "by {{name}}",
+  "por {{name}}",
+  "par {{name}}",
+  "pa {{name}}",
+  "بواسطة {{name}}"
+ ],
+ "oversight.event.reassign": [
+  "Work reassigned",
+  "Trabajo reasignado",
+  "Travail réaffecté",
+  "Travay reasiyen",
+  "أُعيد إسناد العمل"
+ ],
+ "oversight.event.claim": [
+  "Work claimed",
+  "Trabajo tomado",
+  "Travail pris en charge",
+  "Yon moun pran travay la",
+  "تم استلام العمل"
+ ],
+ "oversight.event.release": [
+  "Work released",
+  "Trabajo liberado",
+  "Travail libéré",
+  "Travay lage",
+  "تم ترك العمل"
+ ],
+ "oversight.event.transfer": [
+  "Work transferred",
+  "Trabajo transferido",
+  "Travail transféré",
+  "Travay transfere",
+  "تم نقل العمل"
+ ],
+ "oversight.event.handover": [
+  "Shift handover",
+  "Entrega de turno",
+  "Passation de poste",
+  "Transfè fen ekip",
+  "تسليم المناوبة"
+ ],
+ "oversight.event.absence": [
+  "Covered during absence",
+  "Cubierto durante una ausencia",
+  "Couvert pendant une absence",
+  "Kouvri pandan yon absans",
+  "تمت التغطية أثناء الغياب"
+ ],
+ "oversight.event.offboarding": [
+  "Reassigned at offboarding",
+  "Reasignado al salir del equipo",
+  "Réaffecté au départ",
+  "Reasiyen lè moun nan kite",
+  "أُعيد الإسناد عند المغادرة"
+ ],
+ "oversight.event.confirm": [
+  "Assignment confirmed",
+  "Asignación confirmada",
+  "Affectation confirmée",
+  "Asiyasyon konfime",
+  "تم تأكيد الإسناد"
+ ],
+ "oversight.event.decline": [
+  "Assignment declined",
+  "Asignación rechazada",
+  "Affectation refusée",
+  "Asiyasyon refize",
+  "تم رفض الإسناد"
+ ],
+ "oversight.event.joined": [
+  "Joined the team",
+  "Se unió al equipo",
+  "A rejoint l’équipe",
+  "Antre nan ekip la",
+  "انضم إلى الفريق"
+ ],
+ "oversight.event.role_changed": [
+  "Role changed",
+  "Cambio de función",
+  "Rôle modifié",
+  "Wòl chanje",
+  "تغيّر الدور"
+ ],
+ "oversight.event.offboarded": [
+  "Left the team",
+  "Dejó el equipo",
+  "A quitté l’équipe",
+  "Kite ekip la",
+  "غادر الفريق"
+ ],
+ "oversight.event.swap_approved": [
+  "Shift swap approved",
+  "Cambio de turno aprobado",
+  "Échange de poste approuvé",
+  "Chanjman ekip apwouve",
+  "تمت الموافقة على تبديل المناوبة"
+ ],
+ "oversight.event.ownership_transferred": [
+  "Ownership transferred",
+  "Propiedad transferida",
+  "Propriété transférée",
+  "Pwopriyete transfere",
+  "تم نقل الملكية"
+ ],
+ "oversight.event.deputy_designated": [
+  "Deputy designated",
+  "Suplente designado",
+  "Adjoint désigné",
+  "Ranplasan deziyen",
+  "تم تعيين نائب"
+ ],
+ "oversight.repeatTitle": [
+  "Repeat customers",
+  "Clientes recurrentes",
+  "Clients réguliers",
+  "Kliyan ki retounen",
+  "العملاء المتكررون"
+ ],
+ "oversight.repeatNone": [
+  "No customer has two completed visits yet.",
+  "Ningún cliente tiene dos visitas completadas todavía.",
+  "Aucun client n’a encore deux visites terminées.",
+  "Poko gen kliyan ki gen de vizit fini.",
+  "لا يوجد عميل لديه زيارتان مكتملتان بعد."
+ ],
+ "oversight.customer": [
+  "Customer",
+  "Cliente",
+  "Client",
+  "Kliyan",
+  "العميل"
+ ],
+ "oversight.visits": [
+  "Visits",
+  "Visitas",
+  "Visites",
+  "Vizit",
+  "الزيارات"
+ ],
+ "oversight.lastVisit": [
+  "Last visit",
+  "Última visita",
+  "Dernière visite",
+  "Dènye vizit",
+  "آخر زيارة"
+ ],
+ "oversight.every": [
+  "Typical gap",
+  "Intervalo habitual",
+  "Intervalle habituel",
+  "Entèval abityèl",
+  "الفاصل المعتاد"
+ ],
+ "oversight.days": [
+  "{{n}} days",
+  "{{n}} días",
+  "{{n}} jours",
+  "{{n}} jou",
+  "{{n}} يومًا"
+ ],
+ "oversight.lifetime": [
+  "Lifetime value",
+  "Valor total",
+  "Valeur totale",
+  "Valè total",
+  "القيمة الإجمالية"
+ ],
+ "issues.title": [
+  "Service issues",
+  "Problemas con el servicio",
+  "Problèmes de service",
+  "Pwoblèm sèvis",
+  "مشكلات الخدمة"
+ ],
+ "issues.none": [
+  "No service issues reported.",
+  "No hay problemas reportados.",
+  "Aucun problème signalé.",
+  "Pa gen pwoblèm ki siyale.",
+  "لم يُبلَّغ عن أي مشكلات."
+ ],
+ "issues.response": [
+  "Response to the customer",
+  "Respuesta al cliente",
+  "Réponse au client",
+  "Repons pou kliyan an",
+  "الرد على العميل"
+ ],
+ "issues.startReview": [
+  "Start review",
+  "Iniciar revisión",
+  "Commencer l’examen",
+  "Kòmanse revizyon",
+  "بدء المراجعة"
+ ],
+ "issues.resolve": [
+  "Resolve",
+  "Resolver",
+  "Résoudre",
+  "Rezoud",
+  "حل"
+ ],
+ "issues.dismiss": [
+  "Close without action",
+  "Cerrar sin acción",
+  "Clore sans suite",
+  "Fèmen san aksyon",
+  "إغلاق دون إجراء"
+ ],
+ "issues.status.open": [
+  "Open",
+  "Abierto",
+  "Ouvert",
+  "Louvri",
+  "مفتوحة"
+ ],
+ "issues.status.in_review": [
+  "In review",
+  "En revisión",
+  "En cours d’examen",
+  "Nan revizyon",
+  "قيد المراجعة"
+ ],
+ "issues.status.resolved": [
+  "Resolved",
+  "Resuelto",
+  "Résolu",
+  "Rezoud",
+  "تم الحل"
+ ],
+ "issues.status.dismissed": [
+  "Closed",
+  "Cerrado",
+  "Clos",
+  "Fèmen",
+  "مغلقة"
+ ],
+ "issues.category.quality": [
+  "Quality of work",
+  "Calidad del trabajo",
+  "Qualité du travail",
+  "Kalite travay la",
+  "جودة العمل"
+ ],
+ "issues.category.incomplete": [
+  "Work not finished",
+  "Trabajo sin terminar",
+  "Travail inachevé",
+  "Travay pa fini",
+  "العمل غير مكتمل"
+ ],
+ "issues.category.damage": [
+  "Damage",
+  "Daños",
+  "Dommages",
+  "Domaj",
+  "ضرر"
+ ],
+ "issues.category.late_or_no_show": [
+  "Late or didn’t arrive",
+  "Llegó tarde o no llegó",
+  "Retard ou absence",
+  "Te an reta oswa pa t vini",
+  "تأخر أو لم يحضر"
+ ],
+ "issues.category.conduct": [
+  "Conduct",
+  "Conducta",
+  "Comportement",
+  "Konpòtman",
+  "السلوك"
+ ],
+ "issues.category.billing": [
+  "Billing",
+  "Facturación",
+  "Facturation",
+  "Faktirasyon",
+  "الفوترة"
+ ],
+ "issues.category.other": [
+  "Something else",
+  "Otra cosa",
+  "Autre chose",
+  "Lòt bagay",
+  "شيء آخر"
+ ],
+ "visits.title": [
+  "Recent business visits",
+  "Visitas recientes a negocios",
+  "Visites récentes d’entreprises",
+  "Vizit resan nan biznis",
+  "زيارات الأعمال الأخيرة"
+ ],
+ "visits.report": [
+  "Report a problem",
+  "Reportar un problema",
+  "Signaler un problème",
+  "Siyale yon pwoblèm",
+  "الإبلاغ عن مشكلة"
+ ],
+ "visits.category": [
+  "What went wrong?",
+  "¿Qué salió mal?",
+  "Qu’est-ce qui n’a pas marché ?",
+  "Kisa ki pa t mache?",
+  "ما الذي حدث بشكل خاطئ؟"
+ ],
+ "visits.description": [
+  "Describe it (10+ characters)",
+  "Descríbelo (10+ caracteres)",
+  "Décrivez-le (10+ caractères)",
+  "Dekri l (10+ karaktè)",
+  "صِفها (10 أحرف أو أكثر)"
+ ],
+ "visits.send": [
+  "Send to the business",
+  "Enviar al negocio",
+  "Envoyer à l’entreprise",
+  "Voye bay biznis la",
+  "إرسال إلى النشاط التجاري"
+ ],
+ "visits.sent": [
+  "Sent. The business will respond here.",
+  "Enviado. El negocio responderá aquí.",
+  "Envoyé. L’entreprise répondra ici.",
+  "Voye. Biznis la ap reponn isit la.",
+  "تم الإرسال. سيرد النشاط التجاري هنا."
+ ],
+ "errors.issue_window_closed": [
+  "Problems can be reported up to 30 days after a visit.",
+  "Los problemas se pueden reportar hasta 30 días después de la visita.",
+  "Les problèmes peuvent être signalés jusqu’à 30 jours après la visite.",
+  "Ou ka siyale pwoblèm jiska 30 jou apre vizit la.",
+  "يمكن الإبلاغ عن المشكلات حتى 30 يومًا بعد الزيارة."
+ ],
+ "errors.issue_already_open": [
+  "You already have an open report for this visit.",
+  "Ya tienes un reporte abierto para esta visita.",
+  "Vous avez déjà un signalement ouvert pour cette visite.",
+  "Ou deja gen yon rapò ouvè pou vizit sa a.",
+  "لديك بالفعل بلاغ مفتوح لهذه الزيارة."
+ ],
+ "errors.issue_not_reportable": [
+  "This visit can’t be reported yet.",
+  "Aún no se puede reportar esta visita.",
+  "Cette visite ne peut pas encore être signalée.",
+  "Ou poko ka siyale vizit sa a.",
+  "لا يمكن الإبلاغ عن هذه الزيارة بعد."
+ ],
+ "policies.title": [
+  "Business policies",
+  "Políticas del negocio",
+  "Règles de l’entreprise",
+  "Règ biznis la",
+  "سياسات النشاط التجاري"
+ ],
+ "policies.ownerOnly": [
+  "Only the owner can change these policies.",
+  "Solo el dueño puede cambiar estas políticas.",
+  "Seul le propriétaire peut modifier ces règles.",
+  "Se pwopriyetè a sèlman ki ka chanje règ sa yo.",
+  "يمكن للمالك فقط تغيير هذه السياسات."
+ ],
+ "policies.thresholds": [
+  "Approval thresholds",
+  "Límites de aprobación",
+  "Seuils d’approbation",
+  "Limit apwobasyon",
+  "حدود الموافقة"
+ ],
+ "policies.thresholdsHelp": [
+  "Leave a field empty for no limit. Amounts are in dollars.",
+  "Deja un campo vacío para no poner límite. Montos en dólares.",
+  "Laissez un champ vide pour aucune limite. Montants en dollars.",
+  "Kite yon chan vid pou pa gen limit. Montan an dola.",
+  "اترك الحقل فارغًا لعدم وجود حد. المبالغ بالدولار."
+ ],
+ "policies.quote": [
+  "Quotes above this need approval to send",
+  "Cotizaciones por encima requieren aprobación",
+  "Devis au-delà : approbation requise avant envoi",
+  "Devi ki pi wo bezwen apwobasyon anvan yo voye",
+  "العروض التي تتجاوز هذا تحتاج موافقة قبل الإرسال"
+ ],
+ "policies.expense": [
+  "Expenses above this need approval",
+  "Gastos por encima requieren aprobación",
+  "Dépenses au-delà : approbation requise",
+  "Depans ki pi wo bezwen apwobasyon",
+  "المصروفات التي تتجاوز هذا تحتاج موافقة"
+ ],
+ "policies.refund": [
+  "Refunds above this: owner only",
+  "Reembolsos por encima: solo el dueño",
+  "Remboursements au-delà : propriétaire uniquement",
+  "Ranbousman ki pi wo: pwopriyetè sèlman",
+  "المبالغ المستردة فوق هذا: المالك فقط"
+ ],
+ "policies.workAuth": [
+  "Work authorization",
+  "Autorización de trabajo",
+  "Autorisation des travaux",
+  "Otorizasyon travay",
+  "تفويض العمل"
+ ],
+ "policies.startRequires": [
+  "Before work starts",
+  "Antes de empezar el trabajo",
+  "Avant le début des travaux",
+  "Anvan travay la kòmanse",
+  "قبل بدء العمل"
+ ],
+ "policies.requires.none": [
+  "No extra step",
+  "Sin paso adicional",
+  "Aucune étape supplémentaire",
+  "Pa gen etap anplis",
+  "لا توجد خطوة إضافية"
+ ],
+ "policies.requires.confirmed_booking": [
+  "Booking must be confirmed",
+  "La reserva debe estar confirmada",
+  "La réservation doit être confirmée",
+  "Rezèvasyon an dwe konfime",
+  "يجب تأكيد الحجز"
+ ],
+ "policies.requires.accepted_quote": [
+  "Customer must accept a quote",
+  "El cliente debe aceptar una cotización",
+  "Le client doit accepter un devis",
+  "Kliyan an dwe aksepte yon devi",
+  "يجب أن يقبل العميل عرض سعر"
+ ],
+ "policies.startRole": [
+  "Who can start work",
+  "Quién puede empezar el trabajo",
+  "Qui peut démarrer les travaux",
+  "Ki moun ki ka kòmanse travay",
+  "من يمكنه بدء العمل"
+ ],
+ "policies.role.employee": [
+  "Any team member",
+  "Cualquier miembro del equipo",
+  "Tout membre de l’équipe",
+  "Nenpòt manm ekip",
+  "أي عضو في الفريق"
+ ],
+ "policies.role.representative": [
+  "Representatives and up",
+  "Representantes y superiores",
+  "Représentants et plus",
+  "Reprezantan ak pi wo",
+  "الممثلون فما فوق"
+ ],
+ "policies.role.manager": [
+  "Managers and owner",
+  "Gerentes y dueño",
+  "Gérants et propriétaire",
+  "Manadjè ak pwopriyetè",
+  "المديرون والمالك"
+ ],
+ "policies.role.owner": [
+  "Owner only",
+  "Solo el dueño",
+  "Propriétaire uniquement",
+  "Pwopriyetè sèlman",
+  "المالك فقط"
+ ],
+ "policies.cancellation": [
+  "Cancellation settings",
+  "Configuración de cancelación",
+  "Paramètres d’annulation",
+  "Paramèt anilasyon",
+  "إعدادات الإلغاء"
+ ],
+ "policies.notice": [
+  "Free cancellation until (hours before)",
+  "Cancelación gratis hasta (horas antes)",
+  "Annulation gratuite jusqu’à (heures avant)",
+  "Anilasyon gratis jiska (èdtan anvan)",
+  "إلغاء مجاني حتى (ساعات قبل)"
+ ],
+ "policies.fee": [
+  "Late cancellation fee (%)",
+  "Cargo por cancelación tardía (%)",
+  "Frais d’annulation tardive (%)",
+  "Frè anilasyon an reta (%)",
+  "رسوم الإلغاء المتأخر (%)"
+ ],
+ "policies.noShow": [
+  "No-show fee (%)",
+  "Cargo por no presentarse (%)",
+  "Frais d’absence (%)",
+  "Frè pou pa prezante (%)",
+  "رسوم عدم الحضور (%)"
+ ],
+ "policies.autoNoShow": [
+  "Mark no-show after (hours, optional)",
+  "Marcar ausencia después de (horas, opcional)",
+  "Marquer absent après (heures, facultatif)",
+  "Make absan apre (èdtan, opsyonèl)",
+  "وضع علامة عدم الحضور بعد (ساعات، اختياري)"
+ ],
+ "policies.reschedule": [
+  "Customers can reschedule",
+  "Los clientes pueden reprogramar",
+  "Les clients peuvent reprogrammer",
+  "Kliyan yo ka chanje dat",
+  "يمكن للعملاء إعادة الجدولة"
+ ],
+ "policies.pending": [
+  "Waiting for approval",
+  "Esperando aprobación",
+  "En attente d’approbation",
+  "Ap tann apwobasyon",
+  "بانتظار الموافقة"
+ ],
+ "policies.pendingNone": [
+  "Nothing is waiting for approval.",
+  "Nada espera aprobación.",
+  "Rien n’attend d’approbation.",
+  "Anyen pa ap tann apwobasyon.",
+  "لا يوجد شيء بانتظار الموافقة."
+ ],
+ "policies.kind.quote": [
+  "Quote",
+  "Cotización",
+  "Devis",
+  "Devi",
+  "عرض سعر"
+ ],
+ "policies.kind.expense": [
+  "Expense",
+  "Gasto",
+  "Dépense",
+  "Depans",
+  "مصروف"
+ ],
+ "policies.approve": [
+  "Approve",
+  "Aprobar",
+  "Approuver",
+  "Apwouve",
+  "موافقة"
+ ],
+ "policies.reject": [
+  "Reject",
+  "Rechazar",
+  "Refuser",
+  "Refize",
+  "رفض"
+ ],
+ "policies.history": [
+  "Policy history",
+  "Historial de políticas",
+  "Historique des règles",
+  "Istwa règ yo",
+  "سجل السياسات"
+ ],
+ "errors.quote_approval_required": [
+  "This quote needs approval before it can be sent.",
+  "Esta cotización necesita aprobación antes de enviarse.",
+  "Ce devis doit être approuvé avant l’envoi.",
+  "Devi sa a bezwen apwobasyon anvan yo voye l.",
+  "يحتاج عرض السعر هذا إلى موافقة قبل إرساله."
+ ],
+ "errors.work_authorization_required": [
+  "The business policy requires authorization before work starts.",
+  "La política del negocio exige autorización antes de empezar.",
+  "La règle de l’entreprise exige une autorisation avant le début.",
+  "Règ biznis la mande otorizasyon anvan travay kòmanse.",
+  "تتطلب سياسة النشاط التجاري تفويضًا قبل بدء العمل."
+ ],
+ "errors.work_start_role_required": [
+  "Your role can’t start work under this business’s policy.",
+  "Tu función no puede empezar trabajos según la política del negocio.",
+  "Votre rôle ne peut pas démarrer les travaux selon les règles.",
+  "Wòl ou pa ka kòmanse travay dapre règ biznis la.",
+  "لا يمكن لدورك بدء العمل وفق سياسة هذا النشاط التجاري."
+ ],
+ "errors.refund_owner_approval_required": [
+  "Refunds above the business limit must be requested by the owner.",
+  "Los reembolsos por encima del límite debe pedirlos el dueño.",
+  "Au-delà de la limite, seul le propriétaire peut demander un remboursement.",
+  "Se pwopriyetè a ki dwe mande ranbousman ki pi wo pase limit la.",
+  "يجب أن يطلب المالك المبالغ المستردة التي تتجاوز الحد."
+ ],
+ "finance.title": [
+  "Finance",
+  "Finanzas",
+  "Finances",
+  "Finans",
+  "المالية"
+ ],
+ "finance.invoices": [
+  "Invoices",
+  "Facturas",
+  "Factures",
+  "Fakti",
+  "الفواتير"
+ ],
+ "finance.outstanding": [
+  "Outstanding",
+  "Pendiente de cobro",
+  "Impayé",
+  "Pa peye",
+  "المستحق"
+ ],
+ "finance.invoicedMonth": [
+  "Invoiced this month",
+  "Facturado este mes",
+  "Facturé ce mois-ci",
+  "Fakti mwa sa a",
+  "المفوتر هذا الشهر"
+ ],
+ "finance.collectedMonth": [
+  "Collected this month",
+  "Cobrado este mes",
+  "Encaissé ce mois-ci",
+  "Kolekte mwa sa a",
+  "المحصّل هذا الشهر"
+ ],
+ "finance.drafts": [
+  "Drafts: {{count}}",
+  "Borradores: {{count}}",
+  "Brouillons : {{count}}",
+  "Bouyon: {{count}}",
+  "المسودات: {{count}}"
+ ],
+ "finance.bucket.current_cents": [
+  "Not yet due",
+  "Aún no vence",
+  "Pas encore échu",
+  "Poko rive dat",
+  "غير مستحق بعد"
+ ],
+ "finance.bucket.d1_30_cents": [
+  "1-30 days late",
+  "1-30 días de atraso",
+  "1 à 30 jours de retard",
+  "1-30 jou an reta",
+  "متأخر 1-30 يومًا"
+ ],
+ "finance.bucket.d31_60_cents": [
+  "31-60 days late",
+  "31-60 días de atraso",
+  "31 à 60 jours de retard",
+  "31-60 jou an reta",
+  "متأخر 31-60 يومًا"
+ ],
+ "finance.bucket.d61_90_cents": [
+  "61-90 days late",
+  "61-90 días de atraso",
+  "61 à 90 jours de retard",
+  "61-90 jou an reta",
+  "متأخر 61-90 يومًا"
+ ],
+ "finance.bucket.d90_plus_cents": [
+  "Over 90 days late",
+  "Más de 90 días de atraso",
+  "Plus de 90 jours de retard",
+  "Plis pase 90 jou an reta",
+  "متأخر أكثر من 90 يومًا"
+ ],
+ "finance.daysOverdue": [
+  "{{count}} days overdue",
+  "{{count}} días vencida",
+  "{{count}} jours de retard",
+  "{{count}} jou an reta",
+  "متأخرة {{count}} يومًا"
+ ],
+ "finance.refunds": [
+  "Refund requests",
+  "Solicitudes de reembolso",
+  "Demandes de remboursement",
+  "Demann ranbousman",
+  "طلبات الاسترداد"
+ ],
+ "finance.refundsNone": [
+  "No refund requests yet.",
+  "Aún no hay solicitudes de reembolso.",
+  "Aucune demande de remboursement pour l'instant.",
+  "Poko gen demann ranbousman.",
+  "لا توجد طلبات استرداد بعد."
+ ],
+ "finance.refundStatus.pending": [
+  "Waiting for review",
+  "En revisión",
+  "En attente d'examen",
+  "Ap tann revizyon",
+  "بانتظار المراجعة"
+ ],
+ "finance.refundStatus.approved": [
+  "Approved",
+  "Aprobado",
+  "Approuvé",
+  "Apwouve",
+  "تمت الموافقة"
+ ],
+ "finance.refundStatus.rejected": [
+  "Declined",
+  "Rechazado",
+  "Refusé",
+  "Refize",
+  "مرفوض"
+ ],
+ "finance.refundStatus.executed": [
+  "Refunded",
+  "Reembolsado",
+  "Remboursé",
+  "Ranbouse",
+  "تم الاسترداد"
+ ],
+ "finance.refundStatus.failed": [
+  "Refund failed",
+  "El reembolso falló",
+  "Échec du remboursement",
+  "Ranbousman an echwe",
+  "فشل الاسترداد"
+ ],
+ "finance.reconcile": [
+  "Payout reconciliation",
+  "Conciliación de pagos",
+  "Rapprochement des versements",
+  "Rekonsilyasyon peman",
+  "مطابقة الدفعات"
+ ],
+ "finance.reconcileHelp": [
+  "Match card payments to the deposits you see in your bank. Cash and checks are not included.",
+  "Relaciona los pagos con tarjeta con los depósitos que ves en tu banco. No incluye efectivo ni cheques.",
+  "Associez les paiements par carte aux dépôts visibles dans votre banque. Les espèces et chèques ne sont pas inclus.",
+  "Mache peman kat yo ak depo ou wè nan bank ou. Lajan kach ak chèk pa ladan.",
+  "طابق مدفوعات البطاقات مع الإيداعات التي تظهر في حسابك المصرفي. لا يشمل ذلك النقد والشيكات."
+ ],
+ "finance.unmatched": [
+  "Card payments not yet matched",
+  "Pagos con tarjeta sin conciliar",
+  "Paiements par carte non rapprochés",
+  "Peman kat ki poko mache",
+  "مدفوعات بطاقة غير مطابقة"
+ ],
+ "finance.source.invoice": [
+  "Invoice",
+  "Factura",
+  "Facture",
+  "Fakti",
+  "فاتورة"
+ ],
+ "finance.source.appointment": [
+  "Booking",
+  "Reserva",
+  "Réservation",
+  "Rezèvasyon",
+  "حجز"
+ ],
+ "finance.depositAmount": [
+  "Deposit amount",
+  "Monto del depósito",
+  "Montant du dépôt",
+  "Montan depo",
+  "مبلغ الإيداع"
+ ],
+ "finance.depositDate": [
+  "Deposit date",
+  "Fecha del depósito",
+  "Date du dépôt",
+  "Dat depo",
+  "تاريخ الإيداع"
+ ],
+ "finance.reference": [
+  "Bank reference",
+  "Referencia bancaria",
+  "Référence bancaire",
+  "Referans bank",
+  "المرجع المصرفي"
+ ],
+ "finance.selected": [
+  "Selected",
+  "Seleccionado",
+  "Sélectionné",
+  "Chwazi",
+  "المحدد"
+ ],
+ "finance.recordDeposit": [
+  "Record deposit",
+  "Registrar depósito",
+  "Enregistrer le dépôt",
+  "Anrejistre depo",
+  "تسجيل الإيداع"
+ ],
+ "finance.matched": [
+  "{{count}} payments matched",
+  "{{count}} pagos conciliados",
+  "{{count}} paiements rapprochés",
+  "{{count}} peman mache",
+  "{{count}} دفعات مطابقة"
+ ],
+ "finance.balanced": [
+  "Balanced",
+  "Cuadrado",
+  "Équilibré",
+  "Balanse",
+  "متوازن"
+ ],
+ "finance.variance": [
+  "Difference",
+  "Diferencia",
+  "Écart",
+  "Diferans",
+  "الفرق"
+ ],
+ "finance.remove": [
+  "Remove",
+  "Quitar",
+  "Retirer",
+  "Retire",
+  "إزالة"
+ ],
+ "finance.categories": [
+  "Expense categories",
+  "Categorías de gastos",
+  "Catégories de dépenses",
+  "Kategori depans",
+  "فئات المصروفات"
+ ],
+ "finance.categoriesHelp": [
+  "Create your own categories. Each one rolls up to a standard category for reports and taxes.",
+  "Crea tus propias categorías. Cada una se agrupa en una categoría estándar para informes e impuestos.",
+  "Créez vos propres catégories. Chacune est regroupée dans une catégorie standard pour les rapports et les impôts.",
+  "Kreye pwòp kategori ou. Chak youn ale nan yon kategori estanda pou rapò ak taks.",
+  "أنشئ فئاتك الخاصة. تُجمَّع كل فئة ضمن فئة قياسية للتقارير والضرائب."
+ ],
+ "finance.categoryName": [
+  "Category name",
+  "Nombre de la categoría",
+  "Nom de la catégorie",
+  "Non kategori",
+  "اسم الفئة"
+ ],
+ "finance.baseCategory": [
+  "Reports as",
+  "Se reporta como",
+  "Déclarée comme",
+  "Rapòte kòm",
+  "تُدرج ضمن"
+ ],
+ "finance.addCategory": [
+  "Add category",
+  "Agregar categoría",
+  "Ajouter une catégorie",
+  "Ajoute kategori",
+  "إضافة فئة"
+ ],
+ "finance.archive": [
+  "Archive",
+  "Archivar",
+  "Archiver",
+  "Achive",
+  "أرشفة"
+ ],
+ "finance.restore": [
+  "Restore",
+  "Restaurar",
+  "Restaurer",
+  "Restore",
+  "استعادة"
+ ],
+ "finance.archived": [
+  "Archived",
+  "Archivada",
+  "Archivée",
+  "Achive",
+  "مؤرشفة"
+ ],
+ "finance.customCategory": [
+  "Your category (optional)",
+  "Tu categoría (opcional)",
+  "Votre catégorie (facultatif)",
+  "Kategori ou (opsyonèl)",
+  "فئتك (اختياري)"
+ ],
+ "errors.payment_already_matched": [
+  "One of those payments is already matched to another deposit.",
+  "Uno de esos pagos ya está conciliado con otro depósito.",
+  "L'un de ces paiements est déjà rapproché d'un autre dépôt.",
+  "Youn nan peman sa yo deja mache ak yon lòt depo.",
+  "إحدى هذه الدفعات مطابقة بالفعل لإيداع آخر."
+ ],
+ "errors.category_exists": [
+  "A category with that name already exists.",
+  "Ya existe una categoría con ese nombre.",
+  "Une catégorie portant ce nom existe déjà.",
+  "Gen yon kategori ki gen non sa a deja.",
+  "توجد فئة بهذا الاسم بالفعل."
+ ],
+ "errors.category_limit": [
+  "You have reached the limit of 100 categories.",
+  "Alcanzaste el límite de 100 categorías.",
+  "Vous avez atteint la limite de 100 catégories.",
+  "Ou rive nan limit 100 kategori.",
+  "لقد بلغت الحد الأقصى وهو 100 فئة."
+ ],
+ "errors.not_found": [
+  "That item is no longer available.",
+  "Ese elemento ya no está disponible.",
+  "Cet élément n'est plus disponible.",
+  "Eleman sa a pa disponib ankò.",
+  "هذا العنصر لم يعد متاحًا."
+ ],
+ "expansion.title": [
+  "Growth and locations",
+  "Crecimiento y ubicaciones",
+  "Croissance et sites",
+  "Kwasans ak lokal",
+  "النمو والمواقع"
+ ],
+ "expansion.locations": [
+  "Locations",
+  "Ubicaciones",
+  "Sites",
+  "Lokal",
+  "المواقع"
+ ],
+ "expansion.locationsHelp": [
+  "Set up each new location, then launch it when every checklist item is done.",
+  "Configura cada nueva ubicación y lánzala cuando completes todos los puntos de la lista.",
+  "Configurez chaque nouveau site, puis lancez-le lorsque tous les points de la liste sont faits.",
+  "Prepare chak nouvo lokal, epi lanse l lè tout pwen nan lis la fini.",
+  "جهّز كل موقع جديد، ثم أطلقه عند إكمال جميع بنود القائمة."
+ ],
+ "expansion.addLocation": [
+  "Add location",
+  "Agregar ubicación",
+  "Ajouter un site",
+  "Ajoute yon lokal",
+  "إضافة موقع"
+ ],
+ "expansion.name": [
+  "Name",
+  "Nombre",
+  "Nom",
+  "Non",
+  "الاسم"
+ ],
+ "expansion.street": [
+  "Street address",
+  "Dirección",
+  "Adresse",
+  "Adrès",
+  "عنوان الشارع"
+ ],
+ "expansion.city": [
+  "City",
+  "Ciudad",
+  "Ville",
+  "Vil",
+  "المدينة"
+ ],
+ "expansion.state": [
+  "State",
+  "Estado",
+  "État",
+  "Eta",
+  "الولاية"
+ ],
+ "expansion.zip": [
+  "ZIP code",
+  "Código postal",
+  "Code postal",
+  "Kòd postal",
+  "الرمز البريدي"
+ ],
+ "expansion.phone": [
+  "Phone",
+  "Teléfono",
+  "Téléphone",
+  "Telefòn",
+  "الهاتف"
+ ],
+ "expansion.timezone": [
+  "Time zone",
+  "Zona horaria",
+  "Fuseau horaire",
+  "Zòn lè",
+  "المنطقة الزمنية"
+ ],
+ "expansion.hours": [
+  "Open days",
+  "Días de apertura",
+  "Jours d'ouverture",
+  "Jou ouvè",
+  "أيام العمل"
+ ],
+ "expansion.opens": [
+  "Opens",
+  "Abre",
+  "Ouverture",
+  "Louvri",
+  "يفتح"
+ ],
+ "expansion.closes": [
+  "Closes",
+  "Cierra",
+  "Fermeture",
+  "Fèmen",
+  "يغلق"
+ ],
+ "expansion.day.mon": [
+  "Mon",
+  "Lun",
+  "Lun",
+  "Len",
+  "الإثنين"
+ ],
+ "expansion.day.tue": [
+  "Tue",
+  "Mar",
+  "Mar",
+  "Mad",
+  "الثلاثاء"
+ ],
+ "expansion.day.wed": [
+  "Wed",
+  "Mié",
+  "Mer",
+  "Mèk",
+  "الأربعاء"
+ ],
+ "expansion.day.thu": [
+  "Thu",
+  "Jue",
+  "Jeu",
+  "Jed",
+  "الخميس"
+ ],
+ "expansion.day.fri": [
+  "Fri",
+  "Vie",
+  "Ven",
+  "Van",
+  "الجمعة"
+ ],
+ "expansion.day.sat": [
+  "Sat",
+  "Sáb",
+  "Sam",
+  "Sam",
+  "السبت"
+ ],
+ "expansion.day.sun": [
+  "Sun",
+  "Dom",
+  "Dim",
+  "Dim",
+  "الأحد"
+ ],
+ "expansion.manager": [
+  "Location manager",
+  "Gerente de la ubicación",
+  "Responsable du site",
+  "Manadjè lokal la",
+  "مدير الموقع"
+ ],
+ "expansion.team": [
+  "Team at this location",
+  "Equipo en esta ubicación",
+  "Équipe de ce site",
+  "Ekip nan lokal sa a",
+  "الفريق في هذا الموقع"
+ ],
+ "expansion.services": [
+  "Services offered",
+  "Servicios ofrecidos",
+  "Services proposés",
+  "Sèvis ki ofri",
+  "الخدمات المقدمة"
+ ],
+ "expansion.status.setup": [
+  "Setting up",
+  "En preparación",
+  "En préparation",
+  "Ap prepare",
+  "قيد الإعداد"
+ ],
+ "expansion.status.active": [
+  "Open",
+  "Abierta",
+  "Ouvert",
+  "Ouvè",
+  "مفتوح"
+ ],
+ "expansion.status.paused": [
+  "Paused",
+  "En pausa",
+  "En pause",
+  "Kanpe",
+  "متوقف مؤقتًا"
+ ],
+ "expansion.status.closed": [
+  "Closed",
+  "Cerrada",
+  "Fermé",
+  "Fèmen",
+  "مغلق"
+ ],
+ "expansion.check.address": [
+  "Full address entered",
+  "Dirección completa",
+  "Adresse complète saisie",
+  "Adrès konplè antre",
+  "تم إدخال العنوان كاملًا"
+ ],
+ "expansion.check.timezone": [
+  "Time zone set",
+  "Zona horaria definida",
+  "Fuseau horaire défini",
+  "Zòn lè defini",
+  "تم تحديد المنطقة الزمنية"
+ ],
+ "expansion.check.hours": [
+  "Opening hours set",
+  "Horario definido",
+  "Horaires définis",
+  "Lè ouvèti defini",
+  "تم تحديد ساعات العمل"
+ ],
+ "expansion.check.manager": [
+  "Manager assigned",
+  "Gerente asignado",
+  "Responsable désigné",
+  "Manadjè chwazi",
+  "تم تعيين مدير"
+ ],
+ "expansion.check.staff": [
+  "At least one team member assigned",
+  "Al menos un miembro del equipo asignado",
+  "Au moins un membre de l'équipe affecté",
+  "Omwen yon manm ekip chwazi",
+  "تم تعيين عضو واحد على الأقل من الفريق"
+ ],
+ "expansion.check.services": [
+  "At least one active service offered",
+  "Al menos un servicio activo ofrecido",
+  "Au moins un service actif proposé",
+  "Omwen yon sèvis aktif ofri",
+  "تقديم خدمة نشطة واحدة على الأقل"
+ ],
+ "expansion.optional": [
+  "optional",
+  "opcional",
+  "facultatif",
+  "opsyonèl",
+  "اختياري"
+ ],
+ "expansion.remove": [
+  "Remove",
+  "Quitar",
+  "Retirer",
+  "Retire",
+  "إزالة"
+ ],
+ "expansion.newItem": [
+  "New checklist item",
+  "Nuevo punto de la lista",
+  "Nouveau point de la liste",
+  "Nouvo pwen nan lis la",
+  "بند جديد في القائمة"
+ ],
+ "expansion.addItem": [
+  "Add item",
+  "Agregar punto",
+  "Ajouter",
+  "Ajoute",
+  "إضافة بند"
+ ],
+ "expansion.edit": [
+  "Edit",
+  "Editar",
+  "Modifier",
+  "Modifye",
+  "تعديل"
+ ],
+ "expansion.launch": [
+  "Launch location",
+  "Lanzar ubicación",
+  "Lancer le site",
+  "Lanse lokal la",
+  "إطلاق الموقع"
+ ],
+ "expansion.pause": [
+  "Pause",
+  "Pausar",
+  "Mettre en pause",
+  "Kanpe",
+  "إيقاف مؤقت"
+ ],
+ "expansion.close": [
+  "Close location",
+  "Cerrar ubicación",
+  "Fermer le site",
+  "Fèmen lokal la",
+  "إغلاق الموقع"
+ ],
+ "expansion.closeConfirm": [
+  "Close this location? It cannot be reopened.",
+  "¿Cerrar esta ubicación? No se podrá reabrir.",
+  "Fermer ce site ? Il ne pourra pas être rouvert.",
+  "Fèmen lokal sa a? Ou p ap ka relouvri l.",
+  "هل تريد إغلاق هذا الموقع؟ لا يمكن إعادة فتحه."
+ ],
+ "expansion.territory": [
+  "Territory",
+  "Territorio",
+  "Territoire",
+  "Teritwa",
+  "النطاق الجغرافي"
+ ],
+ "expansion.territoryHelp": [
+  "Completed visits in the last 12 months, by customer area.",
+  "Visitas completadas en los últimos 12 meses, por zona del cliente.",
+  "Visites terminées sur les 12 derniers mois, par zone client.",
+  "Vizit ki fini nan 12 dènye mwa yo, pa zòn kliyan.",
+  "الزيارات المكتملة خلال آخر 12 شهرًا حسب منطقة العميل."
+ ],
+ "expansion.area": [
+  "Area",
+  "Zona",
+  "Zone",
+  "Zòn",
+  "المنطقة"
+ ],
+ "expansion.visits": [
+  "Visits (12 months)",
+  "Visitas (12 meses)",
+  "Visites (12 mois)",
+  "Vizit (12 mwa)",
+  "الزيارات (12 شهرًا)"
+ ],
+ "expansion.visits90": [
+  "Last 90 days",
+  "Últimos 90 días",
+  "90 derniers jours",
+  "90 dènye jou",
+  "آخر 90 يومًا"
+ ],
+ "expansion.share": [
+  "Share",
+  "Proporción",
+  "Part",
+  "Pati",
+  "الحصة"
+ ],
+ "expansion.unknownArea": [
+  "Area unknown",
+  "Zona desconocida",
+  "Zone inconnue",
+  "Zòn enkoni",
+  "منطقة غير معروفة"
+ ],
+ "expansion.regionRules": [
+  "Services limited to regions",
+  "Servicios limitados por región",
+  "Services limités à des régions",
+  "Sèvis ki limite a rejyon",
+  "خدمات مقصورة على مناطق"
+ ],
+ "expansion.capacity": [
+  "Capacity planning",
+  "Planificación de capacidad",
+  "Planification de la capacité",
+  "Planifikasyon kapasite",
+  "تخطيط السعة"
+ ],
+ "expansion.weeks": [
+  "Weeks ahead",
+  "Semanas",
+  "Semaines à venir",
+  "Semèn devan",
+  "الأسابيع القادمة"
+ ],
+ "expansion.location": [
+  "Location",
+  "Ubicación",
+  "Site",
+  "Lokal",
+  "الموقع"
+ ],
+ "expansion.allLocations": [
+  "All locations",
+  "Todas las ubicaciones",
+  "Tous les sites",
+  "Tout lokal yo",
+  "كل المواقع"
+ ],
+ "expansion.weekOf": [
+  "Week of",
+  "Semana del",
+  "Semaine du",
+  "Semèn",
+  "أسبوع"
+ ],
+ "expansion.capacityHours": [
+  "Available hours",
+  "Horas disponibles",
+  "Heures disponibles",
+  "Èdtan disponib",
+  "الساعات المتاحة"
+ ],
+ "expansion.bookedHours": [
+  "Booked hours",
+  "Horas reservadas",
+  "Heures réservées",
+  "Èdtan rezève",
+  "الساعات المحجوزة"
+ ],
+ "expansion.openHours": [
+  "Open hours",
+  "Horas libres",
+  "Heures libres",
+  "Èdtan lib",
+  "الساعات الشاغرة"
+ ],
+ "expansion.utilization": [
+  "Utilization",
+  "Utilización",
+  "Taux d'occupation",
+  "Itilizasyon",
+  "نسبة الاستخدام"
+ ],
+ "expansion.flag.tight": [
+  "Nearly full",
+  "Casi lleno",
+  "Presque complet",
+  "Prèske plen",
+  "شبه ممتلئ"
+ ],
+ "expansion.flag.over": [
+  "Overbooked",
+  "Sobrerreservado",
+  "Surréservé",
+  "Twòp rezèvasyon",
+  "محجوز بأكثر من السعة"
+ ],
+ "expansion.flag.no_capacity": [
+  "Bookings but no one scheduled",
+  "Reservas sin personal programado",
+  "Réservations sans personne planifiée",
+  "Gen rezèvasyon men pèsonn pa pwograme",
+  "حجوزات بدون موظفين مجدولين"
+ ],
+ "expansion.forecast": [
+  "Seasonal staffing forecast",
+  "Pronóstico de personal por temporada",
+  "Prévision saisonnière des effectifs",
+  "Previzyon anplwaye pa sezon",
+  "توقعات التوظيف الموسمية"
+ ],
+ "expansion.forecastHelp": [
+  "Based on past bookings for the same months, adjusted for recent growth. Team today: {{staff}}; about {{hours}} hours per person each month at {{target}}% target use.",
+  "Basado en reservas anteriores de los mismos meses, ajustado al crecimiento reciente. Equipo actual: {{staff}}; unas {{hours}} horas por persona al mes con un uso objetivo del {{target}} %.",
+  "Basée sur les réservations passées des mêmes mois, ajustée selon la croissance récente. Équipe actuelle : {{staff}} ; environ {{hours}} heures par personne et par mois pour un taux cible de {{target}} %.",
+  "Baze sou rezèvasyon ansyen pou menm mwa yo, ajiste pou kwasans resan. Ekip jodi a: {{staff}}; anviwon {{hours}} èdtan pa moun chak mwa pou {{target}}% itilizasyon.",
+  "بناءً على الحجوزات السابقة للأشهر نفسها مع مراعاة النمو الأخير. الفريق الحالي: {{staff}}؛ نحو {{hours}} ساعة لكل شخص شهريًا عند استخدام مستهدف {{target}}٪."
+ ],
+ "expansion.month": [
+  "Month",
+  "Mes",
+  "Mois",
+  "Mwa",
+  "الشهر"
+ ],
+ "expansion.demandHours": [
+  "Expected hours",
+  "Horas previstas",
+  "Heures prévues",
+  "Èdtan prevwa",
+  "الساعات المتوقعة"
+ ],
+ "expansion.staffNeeded": [
+  "People needed",
+  "Personas necesarias",
+  "Personnes nécessaires",
+  "Moun ki nesesè",
+  "عدد الأشخاص المطلوب"
+ ],
+ "expansion.gap": [
+  "Gap",
+  "Diferencia",
+  "Écart",
+  "Diferans",
+  "الفجوة"
+ ],
+ "expansion.basis": [
+  "Based on",
+  "Basado en",
+  "Basé sur",
+  "Baze sou",
+  "بناءً على"
+ ],
+ "expansion.basisLabel.same_month": [
+  "Same month in past years",
+  "Mismo mes de años anteriores",
+  "Même mois les années passées",
+  "Menm mwa ane pase yo",
+  "الشهر نفسه في السنوات السابقة"
+ ],
+ "expansion.basisLabel.recent_average": [
+  "Recent months",
+  "Meses recientes",
+  "Mois récents",
+  "Dènye mwa yo",
+  "الأشهر الأخيرة"
+ ],
+ "expansion.basisLabel.no_history": [
+  "No history yet",
+  "Aún sin historial",
+  "Pas encore d'historique",
+  "Poko gen istwa",
+  "لا يوجد سجل بعد"
+ ],
+ "errors.use_restaurant_locations": [
+  "Restaurants manage locations in the restaurant settings.",
+  "Los restaurantes gestionan sus ubicaciones en la configuración del restaurante.",
+  "Les restaurants gèrent leurs sites dans les paramètres du restaurant.",
+  "Restoran yo jere lokal yo nan paramèt restoran an.",
+  "تدير المطاعم مواقعها من إعدادات المطعم."
+ ],
+ "errors.location_limit": [
+  "You have reached the limit of 50 open locations.",
+  "Alcanzaste el límite de 50 ubicaciones abiertas.",
+  "Vous avez atteint la limite de 50 sites ouverts.",
+  "Ou rive nan limit 50 lokal ouvè.",
+  "لقد بلغت الحد الأقصى وهو 50 موقعًا مفتوحًا."
+ ],
+ "errors.location_exists": [
+  "A location with that name already exists.",
+  "Ya existe una ubicación con ese nombre.",
+  "Un site portant ce nom existe déjà.",
+  "Gen yon lokal ki gen non sa a deja.",
+  "يوجد موقع بهذا الاسم بالفعل."
+ ],
+ "errors.location_closed": [
+  "This location is closed.",
+  "Esta ubicación está cerrada.",
+  "Ce site est fermé.",
+  "Lokal sa a fèmen.",
+  "هذا الموقع مغلق."
+ ],
+ "errors.location_not_ready": [
+  "Finish the launch checklist first.",
+  "Primero completa la lista de lanzamiento.",
+  "Terminez d'abord la liste de lancement.",
+  "Fini lis lansman an anvan.",
+  "أكمل قائمة الإطلاق أولًا."
+ ],
+ "errors.invalid_transition": [
+  "That change is not possible right now.",
+  "Ese cambio no es posible ahora.",
+  "Ce changement n'est pas possible pour le moment.",
+  "Chanjman sa a pa posib kounye a.",
+  "هذا التغيير غير ممكن حاليًا."
+ ],
+ "errors.checklist_limit": [
+  "This checklist is full (50 items).",
+  "Esta lista está llena (50 puntos).",
+  "Cette liste est pleine (50 points).",
+  "Lis sa a plen (50 pwen).",
+  "هذه القائمة ممتلئة (50 بندًا)."
+ ],
+ "continuity.title": [
+  "Continuity",
+  "Continuidad",
+  "Continuité",
+  "Kontinwite",
+  "استمرارية العمل"
+ ],
+ "continuity.transfer": [
+  "Ownership transfer",
+  "Transferencia de propiedad",
+  "Transfert de propriété",
+  "Transfè pwopriyete",
+  "نقل الملكية"
+ ],
+ "continuity.transferHelp": [
+  "Hand the business to one of your managers. They must accept within 7 days. You stay on as a manager. Businesses with a payout account are reviewed by OxSteed before the change.",
+  "Entrega el negocio a uno de tus gerentes. Debe aceptar en 7 días. Tú sigues como gerente. Los negocios con cuenta de pagos son revisados por OxSteed antes del cambio.",
+  "Confiez l'entreprise à l'un de vos responsables. Il doit accepter sous 7 jours. Vous restez responsable. Les entreprises avec un compte de versement sont vérifiées par OxSteed avant le changement.",
+  "Bay youn nan manadjè ou yo biznis la. Li dwe aksepte nan 7 jou. Ou rete kòm manadjè. OxSteed revize biznis ki gen kont peman anvan chanjman an.",
+  "سلّم النشاط التجاري لأحد مديريك. يجب أن يقبل خلال 7 أيام. وستبقى مديرًا. تراجع OxSteed الأنشطة التي لديها حساب دفعات قبل التغيير."
+ ],
+ "continuity.newOwner": [
+  "New owner",
+  "Nuevo dueño",
+  "Nouveau propriétaire",
+  "Nouvo pwopriyetè",
+  "المالك الجديد"
+ ],
+ "continuity.confirmName": [
+  "Type the business name to confirm",
+  "Escribe el nombre del negocio para confirmar",
+  "Saisissez le nom de l'entreprise pour confirmer",
+  "Tape non biznis la pou konfime",
+  "اكتب اسم النشاط التجاري للتأكيد"
+ ],
+ "continuity.note": [
+  "Note",
+  "Nota",
+  "Note",
+  "Nòt",
+  "ملاحظة"
+ ],
+ "continuity.requestTransfer": [
+  "Request transfer",
+  "Solicitar transferencia",
+  "Demander le transfert",
+  "Mande transfè",
+  "طلب النقل"
+ ],
+ "continuity.noManagers": [
+  "Add a manager to your team first.",
+  "Primero agrega un gerente a tu equipo.",
+  "Ajoutez d'abord un responsable à votre équipe.",
+  "Ajoute yon manadjè nan ekip ou anvan.",
+  "أضف مديرًا إلى فريقك أولًا."
+ ],
+ "continuity.transferTo": [
+  "To {{name}}",
+  "Para {{name}}",
+  "À {{name}}",
+  "Pou {{name}}",
+  "إلى {{name}}"
+ ],
+ "continuity.expires": [
+  "expires",
+  "vence",
+  "expire",
+  "ekspire",
+  "تنتهي"
+ ],
+ "continuity.transferForYou": [
+  "{{name}} wants to make you the owner of this business.",
+  "{{name}} quiere hacerte dueño de este negocio.",
+  "{{name}} souhaite vous nommer propriétaire de cette entreprise.",
+  "{{name}} vle fè w pwopriyetè biznis sa a.",
+  "يريد {{name}} أن يجعلك مالك هذا النشاط التجاري."
+ ],
+ "continuity.acceptConfirm": [
+  "Accept ownership? You will be responsible for this business.",
+  "¿Aceptar la propiedad? Serás responsable de este negocio.",
+  "Accepter la propriété ? Vous serez responsable de cette entreprise.",
+  "Aksepte pwopriyete a? Ou pral responsab biznis sa a.",
+  "هل تقبل الملكية؟ ستكون مسؤولًا عن هذا النشاط التجاري."
+ ],
+ "continuity.accept": [
+  "Accept",
+  "Aceptar",
+  "Accepter",
+  "Aksepte",
+  "قبول"
+ ],
+ "continuity.decline": [
+  "Decline",
+  "Rechazar",
+  "Refuser",
+  "Refize",
+  "رفض"
+ ],
+ "continuity.transferStatus.pending": [
+  "Waiting for the new owner",
+  "Esperando al nuevo dueño",
+  "En attente du nouveau propriétaire",
+  "Ap tann nouvo pwopriyetè a",
+  "بانتظار المالك الجديد"
+ ],
+ "continuity.transferStatus.awaiting_admin": [
+  "Under OxSteed review",
+  "En revisión por OxSteed",
+  "En cours d'examen par OxSteed",
+  "OxSteed ap revize",
+  "قيد مراجعة OxSteed"
+ ],
+ "continuity.deputy": [
+  "Deputy",
+  "Suplente",
+  "Adjoint",
+  "Depite",
+  "النائب"
+ ],
+ "continuity.deputyHelp": [
+  "While you are away, a deputy can run day-to-day work: assignments, schedules, customers, quotes and bookings. Payouts, refunds approval, permissions and ownership stay with you.",
+  "Mientras no estás, un suplente puede llevar el trabajo diario: asignaciones, horarios, clientes, cotizaciones y reservas. Los pagos, la aprobación de reembolsos, los permisos y la propiedad siguen contigo.",
+  "Pendant votre absence, un adjoint gère le quotidien : affectations, plannings, clients, devis et réservations. Les versements, l'approbation des remboursements, les autorisations et la propriété restent à vous.",
+  "Pandan ou absan, yon depite ka jere travay chak jou: asiyasyon, orè, kliyan, devi ak rezèvasyon. Peman, apwobasyon ranbousman, otorizasyon ak pwopriyete rete avè w.",
+  "أثناء غيابك يمكن للنائب إدارة العمل اليومي: التكليفات والجداول والعملاء وعروض الأسعار والحجوزات. تبقى الدفعات والموافقة على الاسترداد والصلاحيات والملكية معك."
+ ],
+ "continuity.deputyActive": [
+  "{{name}} is your deputy until {{until}}.",
+  "{{name}} es tu suplente hasta {{until}}.",
+  "{{name}} est votre adjoint jusqu'au {{until}}.",
+  "{{name}} se depite ou jiska {{until}}.",
+  "{{name}} نائبك حتى {{until}}."
+ ],
+ "continuity.endDeputy": [
+  "End now",
+  "Terminar ahora",
+  "Terminer maintenant",
+  "Fini kounye a",
+  "إنهاء الآن"
+ ],
+ "continuity.deputyPerson": [
+  "Deputy",
+  "Suplente",
+  "Adjoint",
+  "Depite",
+  "النائب"
+ ],
+ "continuity.until": [
+  "Until",
+  "Hasta",
+  "Jusqu'au",
+  "Jiska",
+  "حتى"
+ ],
+ "continuity.designate": [
+  "Name deputy",
+  "Designar suplente",
+  "Désigner l'adjoint",
+  "Nonmen depite",
+  "تعيين النائب"
+ ],
+ "continuity.workTransition": [
+  "Move open work",
+  "Mover trabajo pendiente",
+  "Transférer le travail en cours",
+  "Deplase travay ouvè",
+  "نقل العمل المفتوح"
+ ],
+ "continuity.workTransitionHelp": [
+  "Move someone's upcoming visits and open tasks to another team member. Visits that clash or need another skill stay put.",
+  "Pasa las próximas visitas y tareas pendientes de alguien a otro miembro del equipo. Las visitas con choque de horario o que requieren otra habilidad no se mueven.",
+  "Transférez les prochaines visites et tâches ouvertes d'une personne à un autre membre. Les visites en conflit ou nécessitant une autre compétence restent en place.",
+  "Deplase vizit ak travay ouvè yon moun bay yon lòt manm ekip. Vizit ki gen konfli oswa ki bezwen yon lòt konpetans rete kote yo ye.",
+  "انقل الزيارات القادمة والمهام المفتوحة لشخص ما إلى عضو آخر في الفريق. تبقى الزيارات المتعارضة أو التي تتطلب مهارة أخرى كما هي."
+ ],
+ "continuity.from": [
+  "From",
+  "De",
+  "De",
+  "Soti nan",
+  "من"
+ ],
+ "continuity.to": [
+  "To",
+  "Para",
+  "À",
+  "Pou",
+  "إلى"
+ ],
+ "continuity.unassign": [
+  "Leave unassigned",
+  "Dejar sin asignar",
+  "Laisser non attribué",
+  "Kite san asiyasyon",
+  "تركها دون تعيين"
+ ],
+ "continuity.openWork": [
+  "{{visits}} upcoming visits, {{tasks}} open tasks",
+  "{{visits}} visitas próximas, {{tasks}} tareas pendientes",
+  "{{visits}} visites à venir, {{tasks}} tâches ouvertes",
+  "{{visits}} vizit k ap vini, {{tasks}} travay ouvè",
+  "{{visits}} زيارات قادمة، {{tasks}} مهام مفتوحة"
+ ],
+ "continuity.moveWork": [
+  "Move work",
+  "Mover trabajo",
+  "Transférer",
+  "Deplase travay",
+  "نقل العمل"
+ ],
+ "continuity.moved": [
+  "Moved {{visits}} visits and {{tasks}} tasks; {{skipped}} left in place.",
+  "Se movieron {{visits}} visitas y {{tasks}} tareas; {{skipped}} sin mover.",
+  "{{visits}} visites et {{tasks}} tâches transférées ; {{skipped}} laissées en place.",
+  "Deplase {{visits}} vizit ak {{tasks}} travay; {{skipped}} rete.",
+  "نُقلت {{visits}} زيارات و{{tasks}} مهام؛ وبقيت {{skipped}} كما هي."
+ ],
+ "continuity.departed": [
+  "Former team members",
+  "Exmiembros del equipo",
+  "Anciens membres de l'équipe",
+  "Ansyen manm ekip",
+  "أعضاء الفريق السابقون"
+ ],
+ "continuity.departedHelp": [
+  "Former team members keep read-only access to their own hours and visits for at least {{years}} years. Their business access ends when they leave.",
+  "Los exmiembros conservan acceso de solo lectura a sus horas y visitas durante al menos {{years}} años. Su acceso al negocio termina al irse.",
+  "Les anciens membres gardent un accès en lecture seule à leurs heures et visites pendant au moins {{years}} ans. Leur accès à l'entreprise prend fin à leur départ.",
+  "Ansyen manm yo kenbe aksè lekti sèlman nan pwòp èdtan ak vizit yo pou omwen {{years}} an. Aksè yo nan biznis la fini lè yo kite.",
+  "يحتفظ الأعضاء السابقون بإمكانية قراءة ساعاتهم وزياراتهم فقط لمدة {{years}} سنوات على الأقل. وينتهي وصولهم إلى النشاط التجاري عند مغادرتهم."
+ ],
+ "continuity.left": [
+  "left",
+  "salió",
+  "parti le",
+  "kite",
+  "غادر"
+ ],
+ "continuity.accessUntil": [
+  "records until",
+  "registros hasta",
+  "dossiers jusqu'au",
+  "dosye jiska",
+  "السجلات حتى"
+ ],
+ "continuity.records": [
+  "{{entries}} time entries, {{visits}} visits",
+  "{{entries}} registros de horas, {{visits}} visitas",
+  "{{entries}} pointages, {{visits}} visites",
+  "{{entries}} antre lè, {{visits}} vizit",
+  "{{entries}} سجلات وقت، {{visits}} زيارات"
+ ],
+ "continuity.extendAccess": [
+  "Extend access",
+  "Extender acceso",
+  "Prolonger l'accès",
+  "Pwolonje aksè",
+  "تمديد الوصول"
+ ],
+ "continuity.closure": [
+  "Closure checklist",
+  "Lista para cerrar el negocio",
+  "Liste de fermeture",
+  "Lis pou fèmen",
+  "قائمة الإغلاق"
+ ],
+ "continuity.closureHelp": [
+  "Before closing, finish or hand off open work, settle money owed and keep a copy of your records.",
+  "Antes de cerrar, termina o entrega el trabajo pendiente, salda lo adeudado y guarda una copia de tus registros.",
+  "Avant de fermer, terminez ou transmettez le travail en cours, réglez les sommes dues et gardez une copie de vos dossiers.",
+  "Anvan ou fèmen, fini oswa remèt travay ouvè yo, regle lajan ou dwe epi kenbe yon kopi dosye ou.",
+  "قبل الإغلاق، أنهِ العمل المفتوح أو سلّمه، وسوِّ المبالغ المستحقة، واحتفظ بنسخة من سجلاتك."
+ ],
+ "continuity.closureItem.future_bookings": [
+  "Upcoming bookings: {{count}}",
+  "Reservas próximas: {{count}}",
+  "Réservations à venir : {{count}}",
+  "Rezèvasyon k ap vini: {{count}}",
+  "الحجوزات القادمة: {{count}}"
+ ],
+ "continuity.closureItem.unpaid_invoices": [
+  "Unpaid invoices: {{count}}",
+  "Facturas sin pagar: {{count}}",
+  "Factures impayées : {{count}}",
+  "Fakti ki pa peye: {{count}}",
+  "فواتير غير مدفوعة: {{count}}"
+ ],
+ "continuity.closureItem.pending_refunds": [
+  "Refunds in progress: {{count}}",
+  "Reembolsos en curso: {{count}}",
+  "Remboursements en cours : {{count}}",
+  "Ranbousman an kou: {{count}}",
+  "عمليات استرداد جارية: {{count}}"
+ ],
+ "continuity.closureItem.open_service_issues": [
+  "Open service issues: {{count}}",
+  "Problemas de servicio abiertos: {{count}}",
+  "Problèmes de service ouverts : {{count}}",
+  "Pwoblèm sèvis ouvè: {{count}}",
+  "مشكلات خدمة مفتوحة: {{count}}"
+ ],
+ "continuity.closureItem.open_transfers": [
+  "Open ownership transfer: {{count}}",
+  "Transferencia de propiedad abierta: {{count}}",
+  "Transfert de propriété en cours : {{count}}",
+  "Transfè pwopriyete ouvè: {{count}}",
+  "نقل ملكية مفتوح: {{count}}"
+ ],
+ "continuity.closureItem.open_quotes": [
+  "Quotes waiting on customers: {{count}}",
+  "Cotizaciones pendientes del cliente: {{count}}",
+  "Devis en attente des clients : {{count}}",
+  "Devi k ap tann kliyan: {{count}}",
+  "عروض أسعار بانتظار العملاء: {{count}}"
+ ],
+ "continuity.closureItem.active_team": [
+  "Active team members: {{count}}",
+  "Miembros activos del equipo: {{count}}",
+  "Membres actifs de l'équipe : {{count}}",
+  "Manm ekip aktif: {{count}}",
+  "أعضاء الفريق النشطون: {{count}}"
+ ],
+ "continuity.closureItem.open_locations": [
+  "Open locations: {{count}}",
+  "Ubicaciones abiertas: {{count}}",
+  "Sites ouverts : {{count}}",
+  "Lokal ouvè: {{count}}",
+  "المواقع المفتوحة: {{count}}"
+ ],
+ "continuity.closureItem.data_export": [
+  "Records exported and saved",
+  "Registros exportados y guardados",
+  "Dossiers exportés et sauvegardés",
+  "Dosye ekspòte epi sove",
+  "تم تصدير السجلات وحفظها"
+ ],
+ "continuity.advisory": [
+  "recommended",
+  "recomendado",
+  "recommandé",
+  "rekòmande",
+  "موصى به"
+ ],
+ "continuity.closureReady": [
+  "Ready to close.",
+  "Listo para cerrar.",
+  "Prêt à fermer.",
+  "Pare pou fèmen.",
+  "جاهز للإغلاق."
+ ],
+ "continuity.closureNotReady": [
+  "Not ready to close yet.",
+  "Aún no está listo para cerrar.",
+  "Pas encore prêt à fermer.",
+  "Poko pare pou fèmen.",
+  "غير جاهز للإغلاق بعد."
+ ],
+ "continuity.targetDate": [
+  "Planned closing date",
+  "Fecha prevista de cierre",
+  "Date de fermeture prévue",
+  "Dat fèmen prevwa",
+  "تاريخ الإغلاق المخطط"
+ ],
+ "continuity.reason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "continuity.customerMessage": [
+  "Message for customers",
+  "Mensaje para clientes",
+  "Message aux clients",
+  "Mesaj pou kliyan",
+  "رسالة للعملاء"
+ ],
+ "continuity.exportConfirmed": [
+  "I exported and saved my records",
+  "Exporté y guardé mis registros",
+  "J'ai exporté et sauvegardé mes dossiers",
+  "Mwen ekspòte epi sove dosye mwen",
+  "صدّرت سجلاتي وحفظتها"
+ ],
+ "former.title": [
+  "Past workplaces",
+  "Lugares de trabajo anteriores",
+  "Anciens lieux de travail",
+  "Ansyen kote travay",
+  "أماكن العمل السابقة"
+ ],
+ "former.help": [
+  "Your own hours and visits from businesses you have left. Read-only.",
+  "Tus horas y visitas en negocios donde ya no trabajas. Solo lectura.",
+  "Vos heures et visites dans les entreprises que vous avez quittées. Lecture seule.",
+  "Pwòp èdtan ak vizit ou nan biznis ou te kite. Lekti sèlman.",
+  "ساعاتك وزياراتك في الأنشطة التجارية التي غادرتها. للقراءة فقط."
+ ],
+ "former.accessUntil": [
+  "available until",
+  "disponible hasta",
+  "disponible jusqu'au",
+  "disponib jiska",
+  "متاح حتى"
+ ],
+ "former.summary": [
+  "{{hours}} hours recorded, {{visits}} completed visits",
+  "{{hours}} horas registradas, {{visits}} visitas completadas",
+  "{{hours}} heures enregistrées, {{visits}} visites terminées",
+  "{{hours}} èdtan anrejistre, {{visits}} vizit fini",
+  "{{hours}} ساعة مسجلة، {{visits}} زيارة مكتملة"
+ ],
+ "former.date": [
+  "Date",
+  "Fecha",
+  "Date",
+  "Dat",
+  "التاريخ"
+ ],
+ "former.hours": [
+  "Hours",
+  "Horas",
+  "Heures",
+  "Èdtan",
+  "الساعات"
+ ],
+ "former.approved": [
+  "Approved",
+  "Aprobado",
+  "Approuvé",
+  "Apwouve",
+  "معتمد"
+ ],
+ "errors.owner_only": [
+  "Only the owner can do this.",
+  "Solo el dueño puede hacer esto.",
+  "Seul le propriétaire peut faire cela.",
+  "Se pwopriyetè a sèlman ki ka fè sa.",
+  "يمكن للمالك فقط القيام بذلك."
+ ],
+ "errors.confirm_name_mismatch": [
+  "The business name does not match.",
+  "El nombre del negocio no coincide.",
+  "Le nom de l'entreprise ne correspond pas.",
+  "Non biznis la pa matche.",
+  "اسم النشاط التجاري غير مطابق."
+ ],
+ "errors.transfer_target_not_manager": [
+  "Choose an active manager.",
+  "Elige un gerente activo.",
+  "Choisissez un responsable actif.",
+  "Chwazi yon manadjè aktif.",
+  "اختر مديرًا نشطًا."
+ ],
+ "errors.transfer_already_open": [
+  "A transfer is already open.",
+  "Ya hay una transferencia abierta.",
+  "Un transfert est déjà en cours.",
+  "Gen yon transfè ki ouvè deja.",
+  "يوجد نقل مفتوح بالفعل."
+ ],
+ "errors.transfer_not_pending": [
+  "This transfer is no longer open.",
+  "Esta transferencia ya no está abierta.",
+  "Ce transfert n'est plus ouvert.",
+  "Transfè sa a pa ouvè ankò.",
+  "لم يعد هذا النقل مفتوحًا."
+ ],
+ "errors.transfer_stale": [
+  "The team changed. Start a new transfer.",
+  "El equipo cambió. Inicia una nueva transferencia.",
+  "L'équipe a changé. Lancez un nouveau transfert.",
+  "Ekip la chanje. Kòmanse yon nouvo transfè.",
+  "تغيّر الفريق. ابدأ نقلًا جديدًا."
+ ],
+ "errors.not_transfer_recipient": [
+  "This transfer is for someone else.",
+  "Esta transferencia es para otra persona.",
+  "Ce transfert concerne quelqu'un d'autre.",
+  "Transfè sa a se pou yon lòt moun.",
+  "هذا النقل لشخص آخر."
+ ],
+ "errors.deputy_not_eligible": [
+  "Choose an active manager or representative.",
+  "Elige un gerente o representante activo.",
+  "Choisissez un responsable ou représentant actif.",
+  "Chwazi yon manadjè oswa reprezantan aktif.",
+  "اختر مديرًا أو ممثلًا نشطًا."
+ ],
+ "errors.deputy_exists": [
+  "A deputy is already named. End it first.",
+  "Ya hay un suplente. Termínalo primero.",
+  "Un adjoint est déjà désigné. Terminez-le d'abord.",
+  "Gen yon depite deja. Fini l anvan.",
+  "يوجد نائب بالفعل. أنهِه أولًا."
+ ],
+ "errors.target_not_active": [
+  "That person is not an active team member.",
+  "Esa persona no es un miembro activo del equipo.",
+  "Cette personne n'est pas un membre actif.",
+  "Moun sa a pa yon manm ekip aktif.",
+  "هذا الشخص ليس عضوًا نشطًا في الفريق."
+ ],
+ "reports.title": [
+  "Performance",
+  "Rendimiento",
+  "Performance",
+  "Pèfòmans",
+  "الأداء"
+ ],
+ "reports.period": [
+  "Period",
+  "Periodo",
+  "Période",
+  "Peryòd",
+  "الفترة"
+ ],
+ "reports.periods.30d": [
+  "Last 30 days",
+  "Últimos 30 días",
+  "30 derniers jours",
+  "30 dènye jou",
+  "آخر 30 يومًا"
+ ],
+ "reports.periods.90d": [
+  "Last 90 days",
+  "Últimos 90 días",
+  "90 derniers jours",
+  "90 dènye jou",
+  "آخر 90 يومًا"
+ ],
+ "reports.periods.365d": [
+  "Last 12 months",
+  "Últimos 12 meses",
+  "12 derniers mois",
+  "12 dènye mwa",
+  "آخر 12 شهرًا"
+ ],
+ "reports.quotes": [
+  "Quote acceptance",
+  "Aceptación de cotizaciones",
+  "Acceptation des devis",
+  "Akseptasyon devi",
+  "قبول عروض الأسعار"
+ ],
+ "reports.acceptance": [
+  "Acceptance rate",
+  "Tasa de aceptación",
+  "Taux d'acceptation",
+  "To akseptasyon",
+  "معدل القبول"
+ ],
+ "reports.sent": [
+  "Sent",
+  "Enviadas",
+  "Envoyés",
+  "Voye",
+  "المرسلة"
+ ],
+ "reports.accepted": [
+  "Accepted",
+  "Aceptadas",
+  "Acceptés",
+  "Aksepte",
+  "المقبولة"
+ ],
+ "reports.declined": [
+  "Declined",
+  "Rechazadas",
+  "Refusés",
+  "Refize",
+  "المرفوضة"
+ ],
+ "reports.expired": [
+  "Expired",
+  "Vencidas",
+  "Expirés",
+  "Ekspire",
+  "المنتهية"
+ ],
+ "reports.waiting": [
+  "Waiting",
+  "En espera",
+  "En attente",
+  "Ap tann",
+  "بالانتظار"
+ ],
+ "reports.avgAccepted": [
+  "Average accepted quote",
+  "Cotización aceptada promedio",
+  "Devis accepté moyen",
+  "Mwayèn devi aksepte",
+  "متوسط العرض المقبول"
+ ],
+ "reports.person": [
+  "Team member",
+  "Miembro del equipo",
+  "Membre de l'équipe",
+  "Manm ekip",
+  "عضو الفريق"
+ ],
+ "reports.acceptedValue": [
+  "Accepted value",
+  "Valor aceptado",
+  "Valeur acceptée",
+  "Valè aksepte",
+  "القيمة المقبولة"
+ ],
+ "reports.topReasons": [
+  "Top decline reasons",
+  "Principales motivos de rechazo",
+  "Principaux motifs de refus",
+  "Rezon refi ki pi komen",
+  "أبرز أسباب الرفض"
+ ],
+ "reports.utilization": [
+  "Utilization",
+  "Utilización",
+  "Taux d'occupation",
+  "Itilizasyon",
+  "نسبة الاستخدام"
+ ],
+ "reports.utilizationSummary": [
+  "{{booked}} of {{scheduled}} scheduled hours were spent on visits ({{rate}}).",
+  "{{booked}} de {{scheduled}} horas programadas se dedicaron a visitas ({{rate}}).",
+  "{{booked}} des {{scheduled}} heures planifiées ont servi aux visites ({{rate}}).",
+  "{{booked}} sou {{scheduled}} èdtan pwograme te pase nan vizit ({{rate}}).",
+  "خُصصت {{booked}} من أصل {{scheduled}} ساعة مجدولة للزيارات ({{rate}})."
+ ],
+ "reports.scheduled": [
+  "Scheduled hours",
+  "Horas programadas",
+  "Heures planifiées",
+  "Èdtan pwograme",
+  "الساعات المجدولة"
+ ],
+ "reports.booked": [
+  "Visit hours",
+  "Horas en visitas",
+  "Heures de visite",
+  "Èdtan vizit",
+  "ساعات الزيارات"
+ ],
+ "reports.visits": [
+  "Visits",
+  "Visitas",
+  "Visites",
+  "Vizit",
+  "الزيارات"
+ ],
+ "reports.quality": [
+  "Service quality trends",
+  "Tendencias de calidad del servicio",
+  "Tendances de la qualité de service",
+  "Tandans kalite sèvis",
+  "اتجاهات جودة الخدمة"
+ ],
+ "reports.month": [
+  "Month",
+  "Mes",
+  "Mois",
+  "Mwa",
+  "الشهر"
+ ],
+ "reports.completed": [
+  "Completed",
+  "Completadas",
+  "Terminées",
+  "Fini",
+  "المكتملة"
+ ],
+ "reports.rating": [
+  "Rating",
+  "Calificación",
+  "Note",
+  "Nòt",
+  "التقييم"
+ ],
+ "reports.issueRate": [
+  "Issue rate",
+  "Tasa de problemas",
+  "Taux de problèmes",
+  "To pwoblèm",
+  "معدل المشكلات"
+ ],
+ "reports.noShowRate": [
+  "No-show rate",
+  "Tasa de ausencias",
+  "Taux d'absence",
+  "To absans",
+  "معدل عدم الحضور"
+ ],
+ "reports.cancelRate": [
+  "Cancellation rate",
+  "Tasa de cancelación",
+  "Taux d'annulation",
+  "To anilasyon",
+  "معدل الإلغاء"
+ ],
+ "reports.costs": [
+  "Operating costs",
+  "Costos operativos",
+  "Coûts d'exploitation",
+  "Depans operasyon",
+  "تكاليف التشغيل"
+ ],
+ "reports.revenue": [
+  "Collected",
+  "Cobrado",
+  "Encaissé",
+  "Kolekte",
+  "المحصّل"
+ ],
+ "reports.expenses": [
+  "Expenses",
+  "Gastos",
+  "Dépenses",
+  "Depans",
+  "المصروفات"
+ ],
+ "reports.labor": [
+  "Labor",
+  "Mano de obra",
+  "Main-d'œuvre",
+  "Travay",
+  "العمالة"
+ ],
+ "reports.margin": [
+  "Margin",
+  "Margen",
+  "Marge",
+  "Maj",
+  "الهامش"
+ ],
+ "reports.missingRates": [
+  "{{count}} time entries have no pay rate and count as zero labor cost.",
+  "{{count}} registros de horas no tienen tarifa y cuentan como costo cero.",
+  "{{count}} pointages n'ont pas de taux horaire et comptent pour zéro.",
+  "{{count}} antre lè pa gen to peman epi yo konte kòm zewo.",
+  "{{count}} من سجلات الوقت بلا أجر وتُحتسب تكلفتها صفرًا."
+ ],
+ "reports.saveSnapshot": [
+  "Save snapshot",
+  "Guardar instantánea",
+  "Enregistrer l'instantané",
+  "Sove foto a",
+  "حفظ اللقطة"
+ ],
+ "reports.savedAt": [
+  "Saved",
+  "Guardado",
+  "Enregistré",
+  "Sove",
+  "تم الحفظ"
+ ],
+ "reports.recurring": [
+  "Recurring revenue",
+  "Ingresos recurrentes",
+  "Revenus récurrents",
+  "Revni ki repete",
+  "الإيرادات المتكررة"
+ ],
+ "reports.mrr": [
+  "Monthly recurring",
+  "Recurrente mensual",
+  "Récurrent mensuel",
+  "Chak mwa",
+  "الشهري المتكرر"
+ ],
+ "reports.arr": [
+  "Yearly run rate",
+  "Proyección anual",
+  "Projection annuelle",
+  "Pwojeksyon anyèl",
+  "المعدل السنوي"
+ ],
+ "reports.activePlans": [
+  "Active plans",
+  "Planes activos",
+  "Forfaits actifs",
+  "Plan aktif",
+  "الخطط النشطة"
+ ],
+ "reports.pausedPlans": [
+  "Paused",
+  "En pausa",
+  "En pause",
+  "Kanpe",
+  "متوقفة"
+ ],
+ "reports.churned": [
+  "Cancelled in 90 days",
+  "Cancelados en 90 días",
+  "Annulés sur 90 jours",
+  "Anile nan 90 jou",
+  "أُلغيت خلال 90 يومًا"
+ ],
+ "reports.topClients": [
+  "Largest clients",
+  "Clientes principales",
+  "Principaux clients",
+  "Pi gwo kliyan",
+  "أكبر العملاء"
+ ],
+ "errors.month_not_closed": [
+  "You can save a snapshot only for a month that has ended.",
+  "Solo puedes guardar una instantánea de un mes terminado.",
+  "Vous ne pouvez enregistrer un instantané que pour un mois terminé.",
+  "Ou ka sove foto sèlman pou yon mwa ki fini.",
+  "يمكنك حفظ لقطة لشهر انتهى فقط."
+ ],
+ "work.title": [
+  "My responsibilities",
+  "Mis responsabilidades",
+  "Mes responsabilités",
+  "Responsablite mwen",
+  "مسؤولياتي"
+ ],
+ "work.role.owner": [
+  "Owner",
+  "Dueño",
+  "Propriétaire",
+  "Pwopriyetè",
+  "المالك"
+ ],
+ "work.role.manager": [
+  "Manager",
+  "Gerente",
+  "Responsable",
+  "Manadjè",
+  "مدير"
+ ],
+ "work.role.representative": [
+  "Representative",
+  "Representante",
+  "Représentant",
+  "Reprezantan",
+  "ممثل"
+ ],
+ "work.role.support_agent": [
+  "Support agent",
+  "Agente de soporte",
+  "Agent d’assistance",
+  "Ajan sipò",
+  "وكيل دعم"
+ ],
+ "work.role.employee": [
+  "Employee",
+  "Empleado",
+  "Employé",
+  "Anplwaye",
+  "موظف"
+ ],
+ "work.subcontractor": [
+  "Subcontractor",
+  "Subcontratista",
+  "Sous-traitant",
+  "Soutretan",
+  "مقاول من الباطن"
+ ],
+ "work.accessEnds": [
+  "Access ends {{date}}",
+  "El acceso termina el {{date}}",
+  "Accès jusqu’au {{date}}",
+  "Aksè fini {{date}}",
+  "ينتهي الوصول في {{date}}"
+ ],
+ "work.services": [
+  "Services",
+  "Servicios",
+  "Services",
+  "Sèvis",
+  "الخدمات"
+ ],
+ "work.locations": [
+  "Locations",
+  "Ubicaciones",
+  "Sites",
+  "Kote",
+  "المواقع"
+ ],
+ "work.managers": [
+  "Who to ask",
+  "A quién preguntar",
+  "À qui demander",
+  "Ki moun pou mande",
+  "بمن تتصل"
+ ],
+ "work.onboarding": [
+  "Get ready for your first shift",
+  "Prepárate para tu primer turno",
+  "Préparez votre premier quart",
+  "Prepare pou premye ekip ou",
+  "استعد لورديتك الأولى"
+ ],
+ "work.ob.phone": [
+  "Add a phone number",
+  "Agrega un número de teléfono",
+  "Ajoutez un numéro de téléphone",
+  "Ajoute yon nimewo telefòn",
+  "أضف رقم هاتف"
+ ],
+ "work.ob.availability": [
+  "Set your availability",
+  "Indica tu disponibilidad",
+  "Indiquez vos disponibilités",
+  "Mete disponiblite ou",
+  "حدد أوقات توفرك"
+ ],
+ "work.ob.documents": [
+  "Acknowledge team documents",
+  "Confirma los documentos del equipo",
+  "Confirmez les documents de l’équipe",
+  "Konfime dokiman ekip yo",
+  "أكّد مستندات الفريق"
+ ],
+ "work.ob.services": [
+  "Get assigned to a service",
+  "Que te asignen un servicio",
+  "Être affecté à un service",
+  "Jwenn yon sèvis",
+  "احصل على خدمة مسندة"
+ ],
+ "work.ob.first_shift": [
+  "Have a published shift",
+  "Tener un turno publicado",
+  "Avoir un quart publié",
+  "Gen yon ekip pibliye",
+  "لديك وردية منشورة"
+ ],
+ "work.askAccess": [
+  "Need access to something?",
+  "¿Necesitas acceso a algo?",
+  "Besoin d’un accès ?",
+  "Ou bezwen aksè a yon bagay?",
+  "هل تحتاج إلى صلاحية؟"
+ ],
+ "work.askAccessHelp": [
+  "Ask a manager for a permission. They see your reason and can approve it for a set time.",
+  "Pide un permiso a un gerente. Verá tu motivo y puede aprobarlo por un tiempo.",
+  "Demandez une autorisation à un responsable. Il voit votre motif et peut l’accorder pour une durée.",
+  "Mande yon manadjè yon pèmisyon. Li wè rezon ou epi li ka apwouve l pou yon tan.",
+  "اطلب صلاحية من مدير. سيرى السبب ويمكنه منحها لفترة محددة."
+ ],
+ "work.permissionCode": [
+  "Permission",
+  "Permiso",
+  "Autorisation",
+  "Pèmisyon",
+  "الصلاحية"
+ ],
+ "work.reason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "work.send": [
+  "Send request",
+  "Enviar solicitud",
+  "Envoyer la demande",
+  "Voye demann",
+  "إرسال الطلب"
+ ],
+ "work.reqStatus.pending": [
+  "Pending",
+  "Pendiente",
+  "En attente",
+  "Ap tann",
+  "قيد الانتظار"
+ ],
+ "work.reqStatus.approved": [
+  "Approved",
+  "Aprobado",
+  "Approuvé",
+  "Apwouve",
+  "موافق عليه"
+ ],
+ "work.reqStatus.denied": [
+  "Denied",
+  "Denegado",
+  "Refusé",
+  "Refize",
+  "مرفوض"
+ ],
+ "work.reqStatus.cancelled": [
+  "Cancelled",
+  "Cancelado",
+  "Annulé",
+  "Anile",
+  "ملغى"
+ ],
+ "work.reqStatus.expired": [
+  "Expired",
+  "Vencido",
+  "Expiré",
+  "Ekspire",
+  "منتهي"
+ ],
+ "work.inbox": [
+  "Work inbox",
+  "Bandeja de trabajo",
+  "Boîte de travail",
+  "Bwat travay",
+  "صندوق العمل"
+ ],
+ "work.inboxEmpty": [
+  "Nothing new.",
+  "Nada nuevo.",
+  "Rien de nouveau.",
+  "Pa gen anyen nouvo.",
+  "لا جديد."
+ ],
+ "work.markSeen": [
+  "Mark all as seen",
+  "Marcar todo como visto",
+  "Tout marquer comme vu",
+  "Make tout kòm wè",
+  "تعليم الكل كمقروء"
+ ],
+ "work.open": [
+  "Open",
+  "Abrir",
+  "Ouvrir",
+  "Louvri",
+  "فتح"
+ ],
+ "work.kind.mention": [
+  "Mention",
+  "Mención",
+  "Mention",
+  "Mansyon",
+  "إشارة"
+ ],
+ "work.kind.dispatch": [
+  "To confirm",
+  "Por confirmar",
+  "À confirmer",
+  "Pou konfime",
+  "للتأكيد"
+ ],
+ "work.kind.crew": [
+  "Crew",
+  "Equipo",
+  "Équipe",
+  "Ekip",
+  "الفريق"
+ ],
+ "work.kind.exception": [
+  "Issue",
+  "Problema",
+  "Problème",
+  "Pwoblèm",
+  "مشكلة"
+ ],
+ "work.kind.handover": [
+  "Handover",
+  "Entrega",
+  "Passation",
+  "Remiz",
+  "تسليم"
+ ],
+ "work.kind.coverage": [
+  "Shift cover",
+  "Cobertura",
+  "Remplacement",
+  "Ranplasman",
+  "تغطية"
+ ],
+ "work.board": [
+  "My work",
+  "Mi trabajo",
+  "Mon travail",
+  "Travay mwen",
+  "عملي"
+ ],
+ "work.conflicts": [
+  "{{count}} visit(s) have schedule warnings.",
+  "{{count}} visita(s) tienen avisos de horario.",
+  "{{count}} intervention(s) ont des alertes de planning.",
+  "{{count}} vizit gen avètisman orè.",
+  "{{count}} زيارة لديها تنبيهات في الجدول."
+ ],
+ "work.lane.to_confirm": [
+  "Needs your confirmation",
+  "Necesita tu confirmación",
+  "À confirmer",
+  "Bezwen konfimasyon ou",
+  "تحتاج إلى تأكيدك"
+ ],
+ "work.lane.in_progress": [
+  "In progress",
+  "En curso",
+  "En cours",
+  "Ap fèt",
+  "قيد التنفيذ"
+ ],
+ "work.lane.today": [
+  "Today",
+  "Hoy",
+  "Aujourd’hui",
+  "Jodi a",
+  "اليوم"
+ ],
+ "work.lane.upcoming": [
+  "Upcoming",
+  "Próximos",
+  "À venir",
+  "Kap vini",
+  "القادمة"
+ ],
+ "work.lane.finish_up": [
+  "Finish up (record missing)",
+  "Por cerrar (falta el registro)",
+  "À clôturer (compte rendu manquant)",
+  "Pou fini (rapò manke)",
+  "للإكمال (السجل ناقص)"
+ ],
+ "work.warn.overlap": [
+  "Overlaps another visit",
+  "Se superpone con otra visita",
+  "Chevauche une autre intervention",
+  "Kwaze ak yon lòt vizit",
+  "يتداخل مع زيارة أخرى"
+ ],
+ "work.warn.outside_schedule": [
+  "Outside your schedule",
+  "Fuera de tu horario",
+  "Hors de votre planning",
+  "Andeyò orè ou",
+  "خارج جدولك"
+ ],
+ "work.warn.time_off": [
+  "During time off",
+  "Durante tu ausencia",
+  "Pendant un congé",
+  "Pandan konje",
+  "خلال إجازة"
+ ],
+ "work.confirm": [
+  "Confirm",
+  "Confirmar",
+  "Confirmer",
+  "Konfime",
+  "تأكيد"
+ ],
+ "work.decline": [
+  "Decline",
+  "Rechazar",
+  "Refuser",
+  "Refize",
+  "رفض"
+ ],
+ "work.declineReason": [
+  "Reason to decline",
+  "Motivo del rechazo",
+  "Motif du refus",
+  "Rezon pou refize",
+  "سبب الرفض"
+ ],
+ "work.confirmAttend": [
+  "I’ll be there",
+  "Asistiré",
+  "Je serai là",
+  "M ap la",
+  "سأحضر"
+ ],
+ "work.tasks": [
+  "Open tasks",
+  "Tareas abiertas",
+  "Tâches ouvertes",
+  "Travay ki louvri",
+  "المهام المفتوحة"
+ ],
+ "work.queue": [
+  "Open visits you can take",
+  "Visitas abiertas que puedes tomar",
+  "Interventions disponibles",
+  "Vizit ou ka pran",
+  "زيارات متاحة يمكنك أخذها"
+ ],
+ "work.queueManagerOnly": [
+  "Only a manager can assign these at this business.",
+  "En este negocio solo un gerente puede asignarlas.",
+  "Ici, seul un responsable peut les attribuer.",
+  "Se sèlman yon manadjè ki ka bay yo nan biznis sa a.",
+  "في هذا النشاط، يسندها المدير فقط."
+ ],
+ "work.claim": [
+  "Take it",
+  "Tomarla",
+  "La prendre",
+  "Pran l",
+  "أخذها"
+ ],
+ "work.day": [
+  "My day",
+  "Mi día",
+  "Ma journée",
+  "Jounen mwen",
+  "يومي"
+ ],
+ "work.date": [
+  "Date",
+  "Fecha",
+  "Date",
+  "Dat",
+  "التاريخ"
+ ],
+ "work.dayTotals": [
+  "{{booked}} h booked · {{shift}} h on shift · {{tasks}} open task(s)",
+  "{{booked}} h reservadas · {{shift}} h de turno · {{tasks}} tarea(s) abierta(s)",
+  "{{booked}} h réservées · {{shift}} h de quart · {{tasks}} tâche(s) ouverte(s)",
+  "{{booked}} è rezève · {{shift}} è ekip · {{tasks}} travay louvri",
+  "{{booked}} س محجوزة · {{shift}} س وردية · {{tasks}} مهمة مفتوحة"
+ ],
+ "work.load.ok": [
+  "Room to spare",
+  "Con margen",
+  "Marge disponible",
+  "Gen espas",
+  "يوجد متسع"
+ ],
+ "work.load.full": [
+  "Nearly full",
+  "Casi lleno",
+  "Presque plein",
+  "Prèske plen",
+  "شبه ممتلئ"
+ ],
+ "work.load.over": [
+  "Over your shift",
+  "Supera tu turno",
+  "Dépasse votre quart",
+  "Depase ekip ou",
+  "يتجاوز ورديتك"
+ ],
+ "work.load.unscheduled": [
+  "Work without a shift",
+  "Trabajo sin turno",
+  "Travail sans quart",
+  "Travay san ekip",
+  "عمل بدون وردية"
+ ],
+ "work.load.free": [
+  "Free",
+  "Libre",
+  "Libre",
+  "Lib",
+  "متاح"
+ ],
+ "work.status.pending": [
+  "Pending",
+  "Pendiente",
+  "En attente",
+  "Ap tann",
+  "قيد الانتظار"
+ ],
+ "work.status.confirmed": [
+  "Confirmed",
+  "Confirmada",
+  "Confirmée",
+  "Konfime",
+  "مؤكدة"
+ ],
+ "work.status.in_progress": [
+  "In progress",
+  "En curso",
+  "En cours",
+  "Ap fèt",
+  "قيد التنفيذ"
+ ],
+ "work.status.completed": [
+  "Completed",
+  "Completada",
+  "Terminée",
+  "Fini",
+  "مكتملة"
+ ],
+ "work.endOfShift": [
+  "End-of-shift review",
+  "Revisión de fin de turno",
+  "Bilan de fin de quart",
+  "Revizyon fen ekip",
+  "مراجعة نهاية الوردية"
+ ],
+ "work.eos.in_progress": [
+  "{{count}} visit(s) still in progress",
+  "{{count}} visita(s) aún en curso",
+  "{{count}} intervention(s) encore en cours",
+  "{{count}} vizit toujou ap fèt",
+  "{{count}} زيارة ما زالت قيد التنفيذ"
+ ],
+ "work.eos.missing_completion": [
+  "{{count}} completed visit(s) without a record",
+  "{{count}} visita(s) completada(s) sin registro",
+  "{{count}} intervention(s) terminée(s) sans compte rendu",
+  "{{count}} vizit fini san rapò",
+  "{{count}} زيارة مكتملة بلا سجل"
+ ],
+ "work.eos.required_checklist_open": [
+  "{{count}} visit(s) with required steps open",
+  "{{count}} visita(s) con pasos obligatorios pendientes",
+  "{{count}} intervention(s) avec étapes obligatoires ouvertes",
+  "{{count}} vizit ak etap obligatwa ki pa fini",
+  "{{count}} زيارة بخطوات إلزامية غير منجزة"
+ ],
+ "work.eos.open_tasks": [
+  "{{count}} open task(s) due",
+  "{{count}} tarea(s) pendiente(s)",
+  "{{count}} tâche(s) à échéance",
+  "{{count}} travay ki dwe fèt",
+  "{{count}} مهمة مستحقة"
+ ],
+ "work.eos.open_exceptions": [
+  "{{count}} issue(s) you raised still open",
+  "{{count}} problema(s) que reportaste siguen abiertos",
+  "{{count}} problème(s) signalé(s) encore ouvert(s)",
+  "{{count}} pwoblèm ou siyale toujou louvri",
+  "{{count}} مشكلة أبلغت عنها ما زالت مفتوحة"
+ ],
+ "work.eos.handoverSent": [
+  "Handover sent",
+  "Entrega enviada",
+  "Passation envoyée",
+  "Remiz voye",
+  "تم إرسال التسليم"
+ ],
+ "work.eos.handoverMissing": [
+  "No handover sent today",
+  "No enviaste entrega hoy",
+  "Aucune passation envoyée aujourd’hui",
+  "Ou pa voye remiz jodi a",
+  "لم ترسل تسليمًا اليوم"
+ ],
+ "work.eosNotes": [
+  "Notes for your manager",
+  "Notas para tu gerente",
+  "Notes pour votre responsable",
+  "Nòt pou manadjè ou",
+  "ملاحظات لمديرك"
+ ],
+ "work.saveReview": [
+  "Save review",
+  "Guardar revisión",
+  "Enregistrer le bilan",
+  "Anrejistre revizyon",
+  "حفظ المراجعة"
+ ],
+ "job.title": [
+  "Job details",
+  "Detalles del trabajo",
+  "Détails de l’intervention",
+  "Detay travay",
+  "تفاصيل العمل"
+ ],
+ "job.close": [
+  "Close",
+  "Cerrar",
+  "Fermer",
+  "Fèmen",
+  "إغلاق"
+ ],
+ "job.handoff": [
+  "Handoff summary",
+  "Resumen de entrega",
+  "Résumé de passation",
+  "Rezime remiz",
+  "ملخص التسليم"
+ ],
+ "job.pinned": [
+  "Pinned",
+  "Fijada",
+  "Épinglée",
+  "Kloure",
+  "مثبتة"
+ ],
+ "job.openIssues": [
+  "{{count}} open issue(s) on this job",
+  "{{count}} problema(s) abierto(s) en este trabajo",
+  "{{count}} problème(s) ouvert(s) sur cette intervention",
+  "{{count}} pwoblèm louvri sou travay sa a",
+  "{{count}} مشكلة مفتوحة في هذا العمل"
+ ],
+ "job.acked": [
+  "You read this on {{date}}",
+  "Lo leíste el {{date}}",
+  "Lu le {{date}}",
+  "Ou li sa {{date}}",
+  "قرأت هذا في {{date}}"
+ ],
+ "job.ack": [
+  "I’ve read this",
+  "Lo leí",
+  "J’ai lu",
+  "Mwen li sa",
+  "قرأت هذا"
+ ],
+ "job.checklist": [
+  "Checklist",
+  "Lista de pasos",
+  "Liste de contrôle",
+  "Lis etap",
+  "قائمة التحقق"
+ ],
+ "job.addItem": [
+  "Add step",
+  "Agregar paso",
+  "Ajouter une étape",
+  "Ajoute etap",
+  "إضافة خطوة"
+ ],
+ "job.progress": [
+  "Progress",
+  "Avance",
+  "Avancement",
+  "Pwogrè",
+  "التقدم"
+ ],
+ "job.progressNote": [
+  "Update",
+  "Actualización",
+  "Point d’étape",
+  "Nouvèl",
+  "تحديث"
+ ],
+ "job.post": [
+  "Post",
+  "Publicar",
+  "Publier",
+  "Pibliye",
+  "نشر"
+ ],
+ "job.crew": [
+  "Crew",
+  "Equipo",
+  "Équipe",
+  "Ekip",
+  "الفريق"
+ ],
+ "job.notes": [
+  "Team notes",
+  "Notas del equipo",
+  "Notes d’équipe",
+  "Nòt ekip",
+  "ملاحظات الفريق"
+ ],
+ "job.noteText": [
+  "Note",
+  "Nota",
+  "Note",
+  "Nòt",
+  "ملاحظة"
+ ],
+ "job.mention": [
+  "Mention",
+  "Mencionar",
+  "Mentionner",
+  "Mansyone",
+  "الإشارة إلى"
+ ],
+ "job.documents": [
+  "Job documents",
+  "Documentos del trabajo",
+  "Documents de l’intervention",
+  "Dokiman travay",
+  "مستندات العمل"
+ ],
+ "job.openLink": [
+  "Open link",
+  "Abrir enlace",
+  "Ouvrir le lien",
+  "Louvri lyen",
+  "فتح الرابط"
+ ],
+ "job.completion": [
+  "Completion record",
+  "Registro de finalización",
+  "Compte rendu de fin",
+  "Rapò fen travay",
+  "سجل الإنجاز"
+ ],
+ "job.required": [
+  "required",
+  "obligatorio",
+  "obligatoire",
+  "obligatwa",
+  "إلزامي"
+ ],
+ "job.summary": [
+  "What was done",
+  "Qué se hizo",
+  "Travaux réalisés",
+  "Sa ki fèt",
+  "ما تم إنجازه"
+ ],
+ "job.signoff": [
+  "Customer sign-off name",
+  "Nombre de quien aprobó",
+  "Nom du client signataire",
+  "Non kliyan ki siyen",
+  "اسم العميل الموقّع"
+ ],
+ "job.followUp": [
+  "Needs a follow-up",
+  "Necesita seguimiento",
+  "Suivi nécessaire",
+  "Bezwen swivi",
+  "يحتاج إلى متابعة"
+ ],
+ "job.followUpNote": [
+  "Follow-up details",
+  "Detalles del seguimiento",
+  "Détails du suivi",
+  "Detay swivi",
+  "تفاصيل المتابعة"
+ ],
+ "job.saveRecord": [
+  "Save record",
+  "Guardar registro",
+  "Enregistrer",
+  "Anrejistre rapò",
+  "حفظ السجل"
+ ],
+ "job.materials": [
+  "Materials used",
+  "Materiales usados",
+  "Matériaux utilisés",
+  "Materyèl itilize",
+  "المواد المستخدمة"
+ ],
+ "job.material": [
+  "Material",
+  "Material",
+  "Matériau",
+  "Materyèl",
+  "المادة"
+ ],
+ "job.qty": [
+  "Qty",
+  "Cant.",
+  "Qté",
+  "Kantite",
+  "الكمية"
+ ],
+ "job.unit": [
+  "Unit",
+  "Unidad",
+  "Unité",
+  "Inite",
+  "الوحدة"
+ ],
+ "job.cost": [
+  "Cost",
+  "Costo",
+  "Coût",
+  "Pri",
+  "التكلفة"
+ ],
+ "job.add": [
+  "Add",
+  "Agregar",
+  "Ajouter",
+  "Ajoute",
+  "إضافة"
+ ],
+ "job.remove": [
+  "Remove",
+  "Quitar",
+  "Retirer",
+  "Retire",
+  "إزالة"
+ ],
+ "job.blockers": [
+  "Report a problem",
+  "Reportar un problema",
+  "Signaler un problème",
+  "Siyale yon pwoblèm",
+  "الإبلاغ عن مشكلة"
+ ],
+ "job.kindLabel": [
+  "Type",
+  "Tipo",
+  "Type",
+  "Kalite",
+  "النوع"
+ ],
+ "job.category": [
+  "What happened",
+  "Qué pasó",
+  "Ce qui s’est passé",
+  "Sa k pase",
+  "ماذا حدث"
+ ],
+ "job.severity": [
+  "Urgency",
+  "Urgencia",
+  "Urgence",
+  "Ijans",
+  "الأولوية"
+ ],
+ "job.describe": [
+  "Details",
+  "Detalles",
+  "Détails",
+  "Detay",
+  "التفاصيل"
+ ],
+ "job.raise": [
+  "Send",
+  "Enviar",
+  "Envoyer",
+  "Voye",
+  "إرسال"
+ ],
+ "job.routedTo": [
+  "with {{name}}",
+  "con {{name}}",
+  "chez {{name}}",
+  "ak {{name}}",
+  "لدى {{name}}"
+ ],
+ "job.escalate": [
+  "Escalate",
+  "Escalar",
+  "Faire remonter",
+  "Monte l pi wo",
+  "تصعيد"
+ ],
+ "job.history": [
+  "Assignment history",
+  "Historial de asignación",
+  "Historique d’attribution",
+  "Istwa asiyasyon",
+  "سجل الإسناد"
+ ],
+ "job.kind.exception": [
+  "Job problem",
+  "Problema en el trabajo",
+  "Problème d’intervention",
+  "Pwoblèm travay",
+  "مشكلة في العمل"
+ ],
+ "job.kind.missing_instruction": [
+  "Missing instructions",
+  "Faltan instrucciones",
+  "Instructions manquantes",
+  "Enstriksyon manke",
+  "تعليمات ناقصة"
+ ],
+ "job.kind.incident": [
+  "On-site incident",
+  "Incidente en el sitio",
+  "Incident sur place",
+  "Ensidan sou plas",
+  "حادث في الموقع"
+ ],
+ "job.kind.access_denied": [
+  "Can’t access something",
+  "No puedo acceder a algo",
+  "Accès impossible",
+  "Pa ka jwenn aksè",
+  "لا يمكن الوصول"
+ ],
+ "job.kind.reassignment_request": [
+  "Ask to reassign",
+  "Pedir reasignación",
+  "Demander une réattribution",
+  "Mande chanje moun",
+  "طلب إعادة إسناد"
+ ],
+ "job.cat.customer_not_home": [
+  "Customer not home",
+  "Cliente ausente",
+  "Client absent",
+  "Kliyan pa la",
+  "العميل غير موجود"
+ ],
+ "job.cat.access_issue": [
+  "Can’t get in",
+  "No puedo entrar",
+  "Impossible d’entrer",
+  "Pa ka antre",
+  "لا يمكن الدخول"
+ ],
+ "job.cat.scope_change": [
+  "Scope changed",
+  "Cambió el alcance",
+  "Travaux modifiés",
+  "Travay la chanje",
+  "تغيّر نطاق العمل"
+ ],
+ "job.cat.parts_missing": [
+  "Parts missing",
+  "Faltan piezas",
+  "Pièces manquantes",
+  "Pyès manke",
+  "قطع ناقصة"
+ ],
+ "job.cat.weather": [
+  "Weather",
+  "Clima",
+  "Météo",
+  "Tan",
+  "الطقس"
+ ],
+ "job.cat.other": [
+  "Other",
+  "Otro",
+  "Autre",
+  "Lòt",
+  "أخرى"
+ ],
+ "job.cat.address": [
+  "Address",
+  "Dirección",
+  "Adresse",
+  "Adrès",
+  "العنوان"
+ ],
+ "job.cat.scope": [
+  "Scope of work",
+  "Alcance del trabajo",
+  "Étendue des travaux",
+  "Sa pou fè",
+  "نطاق العمل"
+ ],
+ "job.cat.access_code": [
+  "Access code",
+  "Código de acceso",
+  "Code d’accès",
+  "Kòd aksè",
+  "رمز الدخول"
+ ],
+ "job.cat.materials": [
+  "Materials",
+  "Materiales",
+  "Matériaux",
+  "Materyèl",
+  "المواد"
+ ],
+ "job.cat.customer_contact": [
+  "Customer contact",
+  "Contacto del cliente",
+  "Contact client",
+  "Kontak kliyan",
+  "جهة اتصال العميل"
+ ],
+ "job.cat.injury": [
+  "Injury",
+  "Lesión",
+  "Blessure",
+  "Blesi",
+  "إصابة"
+ ],
+ "job.cat.property_damage": [
+  "Property damage",
+  "Daño a la propiedad",
+  "Dégât matériel",
+  "Domaj pwopriyete",
+  "ضرر بالممتلكات"
+ ],
+ "job.cat.vehicle": [
+  "Vehicle",
+  "Vehículo",
+  "Véhicule",
+  "Machin",
+  "مركبة"
+ ],
+ "job.cat.safety_hazard": [
+  "Safety hazard",
+  "Riesgo de seguridad",
+  "Danger",
+  "Danje sekirite",
+  "خطر على السلامة"
+ ],
+ "job.cat.customer_conduct": [
+  "Customer conduct",
+  "Conducta del cliente",
+  "Comportement du client",
+  "Konpòtman kliyan",
+  "سلوك العميل"
+ ],
+ "job.cat.permission": [
+  "Permission",
+  "Permiso",
+  "Autorisation",
+  "Pèmisyon",
+  "صلاحية"
+ ],
+ "job.cat.location": [
+  "Location",
+  "Ubicación",
+  "Lieu",
+  "Kote",
+  "الموقع"
+ ],
+ "job.cat.document": [
+  "Document",
+  "Documento",
+  "Document",
+  "Dokiman",
+  "مستند"
+ ],
+ "job.cat.schedule": [
+  "Schedule",
+  "Horario",
+  "Planning",
+  "Orè",
+  "الجدول"
+ ],
+ "job.cat.skills": [
+  "Skills",
+  "Habilidades",
+  "Compétences",
+  "Konpetans",
+  "المهارات"
+ ],
+ "job.cat.workload": [
+  "Workload",
+  "Carga de trabajo",
+  "Charge de travail",
+  "Chaj travay",
+  "عبء العمل"
+ ],
+ "job.cat.personal": [
+  "Personal",
+  "Personal",
+  "Personnel",
+  "Pèsonèl",
+  "شخصي"
+ ],
+ "job.sev.default": [
+  "Default",
+  "Predeterminada",
+  "Par défaut",
+  "Pa default",
+  "افتراضي"
+ ],
+ "job.sev.low": [
+  "Low",
+  "Baja",
+  "Faible",
+  "Ba",
+  "منخفضة"
+ ],
+ "job.sev.normal": [
+  "Normal",
+  "Normal",
+  "Normale",
+  "Nòmal",
+  "عادية"
+ ],
+ "job.sev.high": [
+  "High",
+  "Alta",
+  "Élevée",
+  "Wo",
+  "عالية"
+ ],
+ "job.sev.critical": [
+  "Critical",
+  "Crítica",
+  "Critique",
+  "Kritik",
+  "حرجة"
+ ],
+ "team.sev.low": [
+  "Low",
+  "Baja",
+  "Faible",
+  "Ba",
+  "منخفضة"
+ ],
+ "team.sev.normal": [
+  "Normal",
+  "Normal",
+  "Normale",
+  "Nòmal",
+  "عادية"
+ ],
+ "team.sev.high": [
+  "High",
+  "Alta",
+  "Élevée",
+  "Wo",
+  "عالية"
+ ],
+ "team.sev.critical": [
+  "Critical",
+  "Crítica",
+  "Critique",
+  "Kritik",
+  "حرجة"
+ ],
+ "job.excStatus.open": [
+  "Open",
+  "Abierto",
+  "Ouvert",
+  "Louvri",
+  "مفتوح"
+ ],
+ "job.excStatus.acknowledged": [
+  "Seen by manager",
+  "Visto por el gerente",
+  "Vu par le responsable",
+  "Manadjè wè l",
+  "اطلع عليه المدير"
+ ],
+ "job.excStatus.resolved": [
+  "Resolved",
+  "Resuelto",
+  "Résolu",
+  "Rezoud",
+  "تم الحل"
+ ],
+ "job.excStatus.dismissed": [
+  "Dismissed",
+  "Descartado",
+  "Classé",
+  "Rejte",
+  "مرفوض"
+ ],
+ "job.attend.pending": [
+  "Not confirmed",
+  "Sin confirmar",
+  "Non confirmé",
+  "Pa konfime",
+  "غير مؤكد"
+ ],
+ "job.attend.confirmed": [
+  "Confirmed",
+  "Confirmado",
+  "Confirmé",
+  "Konfime",
+  "مؤكد"
+ ],
+ "job.attend.declined": [
+  "Can’t make it",
+  "No puede",
+  "Indisponible",
+  "Pa ka vini",
+  "لا يستطيع"
+ ],
+ "job.attend.checked_in": [
+  "Checked in",
+  "Llegó",
+  "Arrivé",
+  "Rive",
+  "وصل"
+ ],
+ "job.crewRole.lead": [
+  "Lead",
+  "Líder",
+  "Chef",
+  "Chèf",
+  "قائد"
+ ],
+ "job.crewRole.member": [
+  "Member",
+  "Miembro",
+  "Membre",
+  "Manm",
+  "عضو"
+ ],
+ "job.ev.reassign": [
+  "Reassigned",
+  "Reasignado",
+  "Réattribué",
+  "Chanje moun",
+  "أعيد الإسناد"
+ ],
+ "job.ev.claim": [
+  "Taken",
+  "Tomado",
+  "Pris",
+  "Pran",
+  "تم الأخذ"
+ ],
+ "job.ev.release": [
+  "Handed back",
+  "Devuelto",
+  "Rendu",
+  "Remèt",
+  "أعيد"
+ ],
+ "job.ev.transfer": [
+  "Transferred",
+  "Transferido",
+  "Transféré",
+  "Transfere",
+  "نُقل"
+ ],
+ "job.ev.confirm": [
+  "Confirmed",
+  "Confirmado",
+  "Confirmé",
+  "Konfime",
+  "تم التأكيد"
+ ],
+ "job.ev.decline": [
+  "Declined",
+  "Rechazado",
+  "Refusé",
+  "Refize",
+  "رُفض"
+ ],
+ "job.ev.crew_added": [
+  "Added to crew",
+  "Agregado al equipo",
+  "Ajouté à l’équipe",
+  "Ajoute nan ekip",
+  "أضيف إلى الفريق"
+ ],
+ "job.ev.crew_confirmed": [
+  "Crew confirmed",
+  "Equipo confirmado",
+  "Équipe confirmée",
+  "Ekip konfime",
+  "أكد الفريق"
+ ],
+ "job.ev.crew_declined": [
+  "Crew declined",
+  "Equipo rechazó",
+  "Équipe indisponible",
+  "Ekip refize",
+  "اعتذر الفريق"
+ ],
+ "job.ev.crew_checked_in": [
+  "Crew checked in",
+  "Equipo llegó",
+  "Équipe arrivée",
+  "Ekip rive",
+  "وصل الفريق"
+ ],
+ "job.ev.dispatch_confirmed": [
+  "Dispatch confirmed",
+  "Despacho confirmado",
+  "Affectation confirmée",
+  "Konfime travay la",
+  "تم تأكيد الإرسال"
+ ],
+ "job.ev.dispatch_declined": [
+  "Dispatch declined",
+  "Despacho rechazado",
+  "Affectation refusée",
+  "Refize travay la",
+  "تم رفض الإرسال"
+ ],
+ "sched.coverage": [
+  "Shift cover",
+  "Cobertura de turno",
+  "Remplacement de quart",
+  "Ranplasman ekip",
+  "تغطية الوردية"
+ ],
+ "sched.shiftId": [
+  "Your shift",
+  "Tu turno",
+  "Votre quart",
+  "Ekip ou",
+  "ورديتك"
+ ],
+ "sched.reason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "sched.askCover": [
+  "Ask for cover",
+  "Pedir cobertura",
+  "Demander un remplacement",
+  "Mande ranplasman",
+  "طلب تغطية"
+ ],
+ "sched.mine": [
+  "My requests",
+  "Mis solicitudes",
+  "Mes demandes",
+  "Demann mwen",
+  "طلباتي"
+ ],
+ "sched.available": [
+  "Shifts you could cover",
+  "Turnos que podrías cubrir",
+  "Quarts à remplacer",
+  "Ekip ou ka ranplase",
+  "ورديات يمكنك تغطيتها"
+ ],
+ "sched.cover": [
+  "I’ll cover",
+  "Lo cubro",
+  "Je remplace",
+  "M ap ranplase",
+  "سأغطيها"
+ ],
+ "sched.approve": [
+  "Waiting for approval",
+  "Esperando aprobación",
+  "En attente d’approbation",
+  "Ap tann apwobasyon",
+  "بانتظار الموافقة"
+ ],
+ "sched.approveBtn": [
+  "Approve",
+  "Aprobar",
+  "Approuver",
+  "Apwouve",
+  "موافقة"
+ ],
+ "sched.declineBtn": [
+  "Decline",
+  "Rechazar",
+  "Refuser",
+  "Refize",
+  "رفض"
+ ],
+ "sched.handovers": [
+  "Shift handovers",
+  "Entregas de turno",
+  "Passations de quart",
+  "Remiz ekip",
+  "تسليمات الوردية"
+ ],
+ "sched.to": [
+  "To",
+  "Para",
+  "À",
+  "Pou",
+  "إلى"
+ ],
+ "sched.toManager": [
+  "My manager",
+  "Mi gerente",
+  "Mon responsable",
+  "Manadjè mwen",
+  "مديري"
+ ],
+ "sched.summary": [
+  "Summary",
+  "Resumen",
+  "Résumé",
+  "Rezime",
+  "الملخص"
+ ],
+ "sched.openItems": [
+  "Open items (one per line)",
+  "Pendientes (uno por línea)",
+  "Points ouverts (un par ligne)",
+  "Sa ki rete (youn pa liy)",
+  "بنود مفتوحة (بند في كل سطر)"
+ ],
+ "sched.sendHandover": [
+  "Send handover",
+  "Enviar entrega",
+  "Envoyer la passation",
+  "Voye remiz",
+  "إرسال التسليم"
+ ],
+ "sched.ack": [
+  "Got it",
+  "Entendido",
+  "Bien reçu",
+  "Mwen resevwa l",
+  "تم الاستلام"
+ ],
+ "sched.away": [
+  "Time away and handing off",
+  "Ausencias y traspasos",
+  "Absences et transferts",
+  "Absans ak remèt travay",
+  "الغياب وتسليم العمل"
+ ],
+ "sched.awayHelp": [
+  "Pick a teammate to cover while you are away. Your open tasks move to them when they accept; a manager reassigns visits.",
+  "Elige a un compañero que te cubra. Tus tareas pasan a él cuando acepte; un gerente reasigna las visitas.",
+  "Choisissez un collègue pour vous remplacer. Vos tâches lui sont confiées à son accord ; un responsable réattribue les interventions.",
+  "Chwazi yon kolèg pou ranplase w. Travay ou ale ba li lè li aksepte; yon manadjè chanje moun pou vizit yo.",
+  "اختر زميلًا ينوب عنك. تنتقل مهامك إليه عند قبوله، ويعيد المدير إسناد الزيارات."
+ ],
+ "sched.delegate": [
+  "Stand-in",
+  "Suplente",
+  "Remplaçant",
+  "Ranplasan",
+  "البديل"
+ ],
+ "sched.from": [
+  "From",
+  "Desde",
+  "Du",
+  "Soti",
+  "من"
+ ],
+ "sched.until": [
+  "Until",
+  "Hasta",
+  "Au",
+  "Jiska",
+  "حتى"
+ ],
+ "sched.note": [
+  "Note",
+  "Nota",
+  "Note",
+  "Nòt",
+  "ملاحظة"
+ ],
+ "sched.propose": [
+  "Ask",
+  "Pedir",
+  "Demander",
+  "Mande",
+  "طلب"
+ ],
+ "sched.coveringFor": [
+  "Covering for {{name}}",
+  "Cubriendo a {{name}}",
+  "Remplace {{name}}",
+  "Ap ranplase {{name}}",
+  "تنوب عن {{name}}"
+ ],
+ "sched.accept": [
+  "Accept",
+  "Aceptar",
+  "Accepter",
+  "Aksepte",
+  "قبول"
+ ],
+ "sched.transfer": [
+  "Hand over unfinished tasks",
+  "Traspasar tareas pendientes",
+  "Transférer les tâches en cours",
+  "Remèt travay ki pa fini",
+  "تسليم المهام غير المكتملة"
+ ],
+ "sched.tasksLabel": [
+  "Tasks",
+  "Tareas",
+  "Tâches",
+  "Travay",
+  "المهام"
+ ],
+ "sched.handOver": [
+  "Hand over",
+  "Traspasar",
+  "Transférer",
+  "Remèt",
+  "تسليم"
+ ],
+ "sched.feedback": [
+  "Feedback on my visits",
+  "Opiniones de mis visitas",
+  "Avis sur mes interventions",
+  "Fidbak sou vizit mwen",
+  "آراء العملاء في زياراتي"
+ ],
+ "sched.leave": [
+  "Leave this business",
+  "Salir de este negocio",
+  "Quitter cette entreprise",
+  "Kite biznis sa a",
+  "مغادرة هذا النشاط"
+ ],
+ "sched.reviewLeave": [
+  "Review what is still on me",
+  "Revisar lo que tengo pendiente",
+  "Voir ce qu’il me reste",
+  "Gade sa k rete sou mwen",
+  "مراجعة ما زال عليّ"
+ ],
+ "sched.afterLeave": [
+  "Open work moves to a manager. You keep read-only access to your hours and visit history for {{years}} years.",
+  "El trabajo abierto pasa a un gerente. Conservas acceso de lectura a tus horas e historial por {{years}} años.",
+  "Le travail en cours est confié à un responsable. Vous gardez un accès en lecture à vos heures et à votre historique pendant {{years}} ans.",
+  "Travay ki louvri ale bay yon manadjè. Ou kenbe aksè pou li èdtan ak istwa vizit ou pandan {{years}} an.",
+  "ينتقل العمل المفتوح إلى مدير. تحتفظ بإمكانية قراءة ساعاتك وسجل زياراتك لمدة {{years}} سنوات."
+ ],
+ "sched.confirmLeave": [
+  "I want to leave {{name}}",
+  "Quiero salir de {{name}}",
+  "Je veux quitter {{name}}",
+  "Mwen vle kite {{name}}",
+  "أريد مغادرة {{name}}"
+ ],
+ "sched.leaveBtn": [
+  "Leave and go to my Home",
+  "Salir e ir a mi Inicio",
+  "Quitter et revenir à mon accueil",
+  "Kite epi ale lakay mwen",
+  "المغادرة والعودة إلى صفحتي الرئيسية"
+ ],
+ "sched.cov.open": [
+  "Open",
+  "Abierta",
+  "Ouverte",
+  "Louvri",
+  "مفتوح"
+ ],
+ "sched.cov.claimed": [
+  "Covered, awaiting approval",
+  "Cubierta, esperando aprobación",
+  "Remplacé, en attente",
+  "Ranplase, ap tann",
+  "مغطى بانتظار الموافقة"
+ ],
+ "sched.cov.approved": [
+  "Approved",
+  "Aprobada",
+  "Approuvé",
+  "Apwouve",
+  "موافق عليه"
+ ],
+ "sched.cov.declined": [
+  "Declined",
+  "Rechazada",
+  "Refusé",
+  "Refize",
+  "مرفوض"
+ ],
+ "sched.cov.cancelled": [
+  "Cancelled",
+  "Cancelada",
+  "Annulé",
+  "Anile",
+  "ملغى"
+ ],
+ "sched.deleg.proposed": [
+  "Waiting",
+  "Esperando",
+  "En attente",
+  "Ap tann",
+  "بانتظار الرد"
+ ],
+ "sched.deleg.accepted": [
+  "Accepted",
+  "Aceptada",
+  "Acceptée",
+  "Aksepte",
+  "مقبول"
+ ],
+ "sched.deleg.declined": [
+  "Declined",
+  "Rechazada",
+  "Refusée",
+  "Refize",
+  "مرفوض"
+ ],
+ "sched.deleg.cancelled": [
+  "Cancelled",
+  "Cancelada",
+  "Annulée",
+  "Anile",
+  "ملغى"
+ ],
+ "sched.fu.open": [
+  "Manager following up",
+  "El gerente da seguimiento",
+  "Suivi en cours",
+  "Manadjè ap swiv",
+  "المدير يتابع"
+ ],
+ "sched.fu.contacted": [
+  "Customer contacted",
+  "Cliente contactado",
+  "Client contacté",
+  "Yo kontakte kliyan",
+  "تم التواصل مع العميل"
+ ],
+ "sched.fu.resolved": [
+  "Resolved",
+  "Resuelto",
+  "Résolu",
+  "Rezoud",
+  "تم الحل"
+ ],
+ "sched.pending.upcoming_visits": [
+  "{{count}} upcoming visit(s)",
+  "{{count}} visita(s) próxima(s)",
+  "{{count}} intervention(s) à venir",
+  "{{count}} vizit kap vini",
+  "{{count}} زيارة قادمة"
+ ],
+ "sched.pending.in_progress_visits": [
+  "{{count}} visit(s) in progress",
+  "{{count}} visita(s) en curso",
+  "{{count}} intervention(s) en cours",
+  "{{count}} vizit ap fèt",
+  "{{count}} زيارة قيد التنفيذ"
+ ],
+ "sched.pending.crew_spots": [
+  "{{count}} crew spot(s)",
+  "{{count}} lugar(es) en equipos",
+  "{{count}} place(s) en équipe",
+  "{{count}} plas nan ekip",
+  "{{count}} مكان في فرق"
+ ],
+ "sched.pending.open_tasks": [
+  "{{count}} open task(s)",
+  "{{count}} tarea(s) abierta(s)",
+  "{{count}} tâche(s) ouverte(s)",
+  "{{count}} travay louvri",
+  "{{count}} مهمة مفتوحة"
+ ],
+ "sched.pending.exceptions_routed_to_me": [
+  "{{count}} issue(s) waiting on you",
+  "{{count}} problema(s) esperándote",
+  "{{count}} problème(s) en attente de vous",
+  "{{count}} pwoblèm ap tann ou",
+  "{{count}} مشكلة بانتظارك"
+ ],
+ "sched.pending.coverage_claims": [
+  "{{count}} shift(s) you offered to cover",
+  "{{count}} turno(s) que ofreciste cubrir",
+  "{{count}} quart(s) que vous remplacez",
+  "{{count}} ekip ou ofri ranplase",
+  "{{count}} وردية عرضت تغطيتها"
+ ],
+ "sched.pending.future_shifts": [
+  "{{count}} future shift(s)",
+  "{{count}} turno(s) futuro(s)",
+  "{{count}} quart(s) à venir",
+  "{{count}} ekip kap vini",
+  "{{count}} وردية قادمة"
+ ],
+ "sched.pending.open_clock_ins": [
+  "{{count}} open clock-in(s)",
+  "{{count}} entrada(s) sin salida",
+  "{{count}} pointage(s) ouvert(s)",
+  "{{count}} pwentaj ki pa fèmen",
+  "{{count}} تسجيل حضور مفتوح"
+ ],
+ "sched.blocker.owner_must_transfer": [
+  "An owner must transfer ownership before leaving.",
+  "El dueño debe transferir la propiedad antes de salir.",
+  "Le propriétaire doit transférer la propriété avant de partir.",
+  "Pwopriyetè a dwe transfere biznis la anvan l kite.",
+  "يجب على المالك نقل الملكية قبل المغادرة."
+ ],
+ "sched.blocker.visit_in_progress": [
+  "Finish or hand off the visit in progress first.",
+  "Termina o entrega primero la visita en curso.",
+  "Terminez ou transmettez d’abord l’intervention en cours.",
+  "Fini oswa remèt vizit k ap fèt la anvan.",
+  "أكمل الزيارة الجارية أو سلّمها أولًا."
+ ],
+ "sched.blocker.clocked_in": [
+  "Clock out first.",
+  "Marca tu salida primero.",
+  "Pointez votre sortie d’abord.",
+  "Make sòti ou anvan.",
+  "سجّل خروجك أولًا."
+ ],
+ "team.rules": [
+  "Team work rules",
+  "Reglas de trabajo del equipo",
+  "Règles de travail de l’équipe",
+  "Règ travay ekip la",
+  "قواعد عمل الفريق"
+ ],
+ "team.selfClaim": [
+  "Team members can take open visits",
+  "Los miembros pueden tomar visitas abiertas",
+  "Les membres peuvent prendre les interventions libres",
+  "Manm yo ka pran vizit ki louvri",
+  "يمكن للأعضاء أخذ الزيارات المتاحة"
+ ],
+ "team.requireRecord": [
+  "Require a completion record before “completed”",
+  "Exigir registro antes de “completada”",
+  "Exiger un compte rendu avant « terminée »",
+  "Mande yon rapò anvan “fini”",
+  "اشتراط سجل إنجاز قبل «مكتملة»"
+ ],
+ "team.confirmHours": [
+  "Confirm dispatch within (hours)",
+  "Confirmar despacho en (horas)",
+  "Confirmer l’affectation sous (heures)",
+  "Konfime travay nan (èdtan)",
+  "تأكيد الإرسال خلال (ساعات)"
+ ],
+ "team.escalationHours": [
+  "Escalate unanswered issues after (hours)",
+  "Escalar problemas sin respuesta tras (horas)",
+  "Faire remonter les problèmes sans réponse après (heures)",
+  "Monte pwoblèm san repons apre (èdtan)",
+  "تصعيد المشكلات بلا رد بعد (ساعات)"
+ ],
+ "team.requests": [
+  "Permission requests",
+  "Solicitudes de permiso",
+  "Demandes d’autorisation",
+  "Demann pèmisyon",
+  "طلبات الصلاحيات"
+ ],
+ "team.days": [
+  "{{count}} day(s)",
+  "{{count}} día(s)",
+  "{{count}} jour(s)",
+  "{{count}} jou",
+  "{{count}} يوم"
+ ],
+ "team.approve": [
+  "Approve",
+  "Aprobar",
+  "Approuver",
+  "Apwouve",
+  "موافقة"
+ ],
+ "team.deny": [
+  "Deny",
+  "Denegar",
+  "Refuser",
+  "Refize",
+  "رفض"
+ ],
+ "team.dispatch": [
+  "Waiting for dispatch confirmation",
+  "Esperando confirmación de despacho",
+  "En attente de confirmation d’affectation",
+  "Ap tann konfimasyon travay",
+  "بانتظار تأكيد الإرسال"
+ ],
+ "team.dispatchHelp": [
+  "Assignees should confirm within {{hours}} hours of the start.",
+  "Los asignados deben confirmar dentro de las {{hours}} horas previas al inicio.",
+  "Les personnes affectées doivent confirmer dans les {{hours}} heures avant le début.",
+  "Moun yo bay travay la dwe konfime nan {{hours}} èdtan anvan l kòmanse.",
+  "يجب على المكلّفين التأكيد خلال {{hours}} ساعة قبل البدء."
+ ],
+ "team.details": [
+  "Details",
+  "Detalles",
+  "Détails",
+  "Detay",
+  "التفاصيل"
+ ],
+ "team.candidates": [
+  "Who else could help",
+  "Quién más puede ayudar",
+  "Qui d’autre peut aider",
+  "Ki lòt moun ki ka ede",
+  "من يمكنه المساعدة أيضًا"
+ ],
+ "team.outside": [
+  "Outside schedule",
+  "Fuera de horario",
+  "Hors planning",
+  "Andeyò orè",
+  "خارج الجدول"
+ ],
+ "team.busy": [
+  "Busy",
+  "Ocupado",
+  "Occupé",
+  "Okipe",
+  "مشغول"
+ ],
+ "team.addCrew": [
+  "Add to crew",
+  "Agregar al equipo",
+  "Ajouter à l’équipe",
+  "Ajoute nan ekip",
+  "إضافة إلى الفريق"
+ ],
+ "team.addDoc": [
+  "Add a job document",
+  "Agregar documento del trabajo",
+  "Ajouter un document",
+  "Ajoute yon dokiman travay",
+  "إضافة مستند عمل"
+ ],
+ "team.docTitle": [
+  "Title",
+  "Título",
+  "Titre",
+  "Tit",
+  "العنوان"
+ ],
+ "team.docBody": [
+  "Instructions",
+  "Instrucciones",
+  "Instructions",
+  "Enstriksyon",
+  "التعليمات"
+ ],
+ "team.add": [
+  "Add",
+  "Agregar",
+  "Ajouter",
+  "Ajoute",
+  "إضافة"
+ ],
+ "team.issues": [
+  "Team issues",
+  "Problemas del equipo",
+  "Problèmes de l’équipe",
+  "Pwoblèm ekip la",
+  "مشكلات الفريق"
+ ],
+ "team.showClosed": [
+  "Show closed",
+  "Mostrar cerrados",
+  "Afficher les clos",
+  "Montre sa ki fèmen",
+  "إظهار المغلقة"
+ ],
+ "team.escalated": [
+  "Escalated",
+  "Escalado",
+  "Remonté",
+  "Monte",
+  "مُصعّد"
+ ],
+ "team.resolution": [
+  "Resolution",
+  "Resolución",
+  "Résolution",
+  "Solisyon",
+  "الحل"
+ ],
+ "team.acknowledge": [
+  "Acknowledge",
+  "Confirmar recibido",
+  "Accuser réception",
+  "Konfime resepsyon",
+  "تأكيد الاستلام"
+ ],
+ "team.resolve": [
+  "Resolve",
+  "Resolver",
+  "Résoudre",
+  "Rezoud",
+  "حل"
+ ],
+ "team.dismiss": [
+  "Dismiss",
+  "Descartar",
+  "Classer",
+  "Rejte",
+  "رفض"
+ ],
+ "team.followUps": [
+  "Low ratings to follow up",
+  "Calificaciones bajas por atender",
+  "Notes basses à suivre",
+  "Nòt ba pou swiv",
+  "تقييمات منخفضة للمتابعة"
+ ],
+ "team.note": [
+  "Note",
+  "Nota",
+  "Note",
+  "Nòt",
+  "ملاحظة"
+ ],
+ "team.contacted": [
+  "Contacted",
+  "Contactado",
+  "Contacté",
+  "Kontakte",
+  "تم التواصل"
+ ],
+ "team.crews": [
+  "Crews",
+  "Equipos",
+  "Équipes",
+  "Ekip",
+  "الفرق"
+ ],
+ "team.lead": [
+  "lead {{name}}",
+  "líder {{name}}",
+  "chef {{name}}",
+  "chèf {{name}}",
+  "القائد {{name}}"
+ ],
+ "team.sub": [
+  "subcontractor",
+  "subcontratista",
+  "sous-traitant",
+  "soutretan",
+  "مقاول من الباطن"
+ ],
+ "team.crewName": [
+  "Crew name",
+  "Nombre del equipo",
+  "Nom de l’équipe",
+  "Non ekip",
+  "اسم الفريق"
+ ],
+ "team.crewLead": [
+  "Lead",
+  "Líder",
+  "Chef",
+  "Chèf",
+  "القائد"
+ ],
+ "team.crewMembers": [
+  "Members",
+  "Miembros",
+  "Membres",
+  "Manm",
+  "الأعضاء"
+ ],
+ "team.checklists": [
+  "Service checklists",
+  "Listas por servicio",
+  "Listes par service",
+  "Lis etap pa sèvis",
+  "قوائم التحقق للخدمات"
+ ],
+ "team.checklistsHelp": [
+  "One step per line. New visits start with these steps.",
+  "Un paso por línea. Las visitas nuevas empiezan con estos pasos.",
+  "Une étape par ligne. Les nouvelles interventions commencent avec ces étapes.",
+  "Yon etap pa liy. Nouvo vizit kòmanse ak etap sa yo.",
+  "خطوة في كل سطر. تبدأ الزيارات الجديدة بهذه الخطوات."
+ ],
+ "errors.permission_request_pending": [
+  "You already asked for this.",
+  "Ya lo pediste.",
+  "Vous l’avez déjà demandé.",
+  "Ou deja mande sa.",
+  "لقد طلبت هذا بالفعل."
+ ],
+ "errors.permission_not_requestable": [
+  "This permission can’t be requested.",
+  "Este permiso no se puede pedir.",
+  "Cette autorisation ne peut pas être demandée.",
+  "Ou pa ka mande pèmisyon sa a.",
+  "لا يمكن طلب هذه الصلاحية."
+ ],
+ "errors.permission_already_held": [
+  "You already have this permission.",
+  "Ya tienes este permiso.",
+  "Vous avez déjà cette autorisation.",
+  "Ou gen pèmisyon sa a deja.",
+  "لديك هذه الصلاحية بالفعل."
+ ],
+ "errors.cannot_grant_unheld": [
+  "You can only grant permissions you hold.",
+  "Solo puedes otorgar permisos que tienes.",
+  "Vous ne pouvez accorder que vos propres autorisations.",
+  "Ou ka bay sèlman pèmisyon ou genyen.",
+  "يمكنك منح الصلاحيات التي تملكها فقط."
+ ],
+ "errors.self_claim_disabled": [
+  "Only a manager can assign visits here.",
+  "Aquí solo un gerente asigna visitas.",
+  "Ici, seul un responsable attribue les interventions.",
+  "Se manadjè sèlman ki bay vizit isit.",
+  "هنا يسند المدير الزيارات فقط."
+ ],
+ "errors.schedule_conflict": [
+  "That person is busy then.",
+  "Esa persona está ocupada a esa hora.",
+  "Cette personne est occupée à ce moment.",
+  "Moun sa a okipe lè sa a.",
+  "هذا الشخص مشغول في ذلك الوقت."
+ ],
+ "errors.crew_exists": [
+  "A crew with that name exists.",
+  "Ya existe un equipo con ese nombre.",
+  "Une équipe porte déjà ce nom.",
+  "Gen yon ekip ki gen non sa a deja.",
+  "يوجد فريق بهذا الاسم."
+ ],
+ "errors.too_early_to_check_in": [
+  "Check-in opens 2 hours before the start.",
+  "La llegada se abre 2 horas antes.",
+  "L’arrivée s’ouvre 2 heures avant le début.",
+  "Ou ka siyale rive 2 èdtan anvan.",
+  "يُفتح تسجيل الوصول قبل البدء بساعتين."
+ ],
+ "errors.not_overdue": [
+  "It’s too early to escalate.",
+  "Aún es pronto para escalar.",
+  "Trop tôt pour faire remonter.",
+  "Li twò bonè pou monte l.",
+  "من المبكر التصعيد."
+ ],
+ "errors.max_escalation": [
+  "Already with the owner.",
+  "Ya está con el dueño.",
+  "Déjà chez le propriétaire.",
+  "Li deja kote pwopriyetè a.",
+  "إنها لدى المالك بالفعل."
+ ],
+ "errors.self_review": [
+  "Someone else has to decide this.",
+  "Otra persona debe decidir esto.",
+  "Une autre personne doit décider.",
+  "Yon lòt moun dwe deside sa.",
+  "يجب أن يقرر شخص آخر."
+ ],
+ "errors.forbidden": [
+  "You can’t do that here.",
+  "No puedes hacer eso aquí.",
+  "Action impossible ici.",
+  "Ou pa ka fè sa isit.",
+  "لا يمكنك فعل ذلك هنا."
+ ],
+ "errors.coverage_open": [
+  "A cover request is already open.",
+  "Ya hay una solicitud de cobertura.",
+  "Une demande de remplacement est déjà ouverte.",
+  "Gen yon demann ranplasman deja.",
+  "يوجد طلب تغطية مفتوح."
+ ],
+ "errors.own_request": [
+  "You can’t cover your own shift.",
+  "No puedes cubrir tu propio turno.",
+  "Vous ne pouvez pas remplacer votre propre quart.",
+  "Ou pa ka ranplase pwòp ekip ou.",
+  "لا يمكنك تغطية ورديتك."
+ ],
+ "errors.shift_started": [
+  "That shift has started.",
+  "Ese turno ya empezó.",
+  "Ce quart a commencé.",
+  "Ekip sa a kòmanse deja.",
+  "بدأت هذه الوردية."
+ ],
+ "errors.time_off": [
+  "You’re off that day.",
+  "Ese día tienes ausencia.",
+  "Vous êtes en congé ce jour-là.",
+  "Ou an konje jou sa a.",
+  "أنت في إجازة ذلك اليوم."
+ ],
+ "errors.claimer_inactive": [
+  "That teammate is no longer active.",
+  "Ese compañero ya no está activo.",
+  "Ce collègue n’est plus actif.",
+  "Kolèg sa a pa aktif ankò.",
+  "هذا الزميل لم يعد نشطًا."
+ ],
+ "errors.shift_changed": [
+  "The shift changed. Refresh.",
+  "El turno cambió. Actualiza.",
+  "Le quart a changé. Actualisez.",
+  "Ekip la chanje. Rafrechi.",
+  "تغيّرت الوردية. حدّث الصفحة."
+ ],
+ "errors.completion_record_required": [
+  "Add a completion record first.",
+  "Agrega primero el registro de finalización.",
+  "Ajoutez d’abord un compte rendu.",
+  "Ajoute yon rapò fen travay anvan.",
+  "أضف سجل الإنجاز أولًا."
+ ],
+ "errors.materials_limit": [
+  "Too many materials on this job.",
+  "Demasiados materiales en este trabajo.",
+  "Trop de matériaux sur cette intervention.",
+  "Twòp materyèl sou travay sa a.",
+  "مواد كثيرة جدًا في هذا العمل."
+ ],
+ "errors.mention_not_on_job": [
+  "You can only mention people on this job or managers.",
+  "Solo puedes mencionar a quien trabaja aquí o a gerentes.",
+  "Mentionnez seulement l’équipe de l’intervention ou un responsable.",
+  "Ou ka mansyone sèlman moun sou travay la oswa manadjè.",
+  "يمكنك الإشارة إلى فريق العمل أو المديرين فقط."
+ ],
+ "errors.delegation_overlap": [
+  "You already have a cover for that time.",
+  "Ya tienes cobertura para ese tiempo.",
+  "Vous avez déjà un remplaçant sur cette période.",
+  "Ou gen yon ranplasan deja pou lè sa a.",
+  "لديك بديل لهذا الوقت بالفعل."
+ ],
+ "errors.member_inactive": [
+  "That teammate is no longer active.",
+  "Ese compañero ya no está activo.",
+  "Ce collègue n’est plus actif.",
+  "Kolèg sa a pa aktif ankò.",
+  "هذا الزميل لم يعد نشطًا."
+ ],
+ "errors.owner_must_transfer": [
+  "Transfer ownership before leaving.",
+  "Transfiere la propiedad antes de salir.",
+  "Transférez la propriété avant de partir.",
+  "Transfere biznis la anvan ou kite.",
+  "انقل الملكية قبل المغادرة."
+ ],
+ "errors.visit_in_progress": [
+  "Finish the visit in progress first.",
+  "Termina primero la visita en curso.",
+  "Terminez d’abord l’intervention en cours.",
+  "Fini vizit k ap fèt la anvan.",
+  "أكمل الزيارة الجارية أولًا."
+ ],
+ "errors.clocked_in": [
+  "Clock out first.",
+  "Marca tu salida primero.",
+  "Pointez votre sortie d’abord.",
+  "Make sòti ou anvan.",
+  "سجّل خروجك أولًا."
+ ],
+ "errors.invalid_status_transition": [
+  "That step isn’t possible now.",
+  "Ese paso no es posible ahora.",
+  "Cette étape n’est pas possible maintenant.",
+  "Etap sa a pa posib kounye a.",
+  "هذه الخطوة غير ممكنة الآن."
+ ],
+ "common.status": [
+  "Status",
+  "Estado",
+  "Statut",
+  "Estati",
+  "الحالة"
+ ],
+ "common.created": [
+  "Created",
+  "Creada",
+  "Créée",
+  "Kreye",
+  "أُنشئ"
+ ],
+ "common.amount": [
+  "Amount",
+  "Monto",
+  "Montant",
+  "Montan",
+  "المبلغ"
+ ],
+ "common.vendor": [
+  "Vendor",
+  "Proveedor",
+  "Fournisseur",
+  "Founisè",
+  "المورّد"
+ ],
+ "common.scope": [
+  "Scope",
+  "Alcance",
+  "Portée",
+  "Dimansyon",
+  "النطاق"
+ ],
+ "common.approve": [
+  "Approve",
+  "Aprobar",
+  "Approuver",
+  "Apwouve",
+  "الموافقة"
+ ],
+ "common.decline": [
+  "Decline",
+  "Rechazar",
+  "Refuser",
+  "Refize",
+  "الرفض"
+ ],
+ "common.view": [
+  "View",
+  "Ver",
+  "Voir",
+  "Wè",
+  "عرض"
+ ],
+ "common.back": [
+  "Back",
+  "Volver",
+  "Retour",
+  "Retounen",
+  "رجوع"
+ ],
+ "common.delete": [
+  "Delete",
+  "Eliminar",
+  "Supprimer",
+  "Efase",
+  "حذف"
+ ],
+ "common.empty": [
+  "Nothing here yet.",
+  "Nada por aquí todavía.",
+  "Rien pour l’instant.",
+  "Anyen isit la pou kounye a.",
+  "لا يوجد شيء هنا بعد."
+ ],
+ "common.title": [
+  "Title",
+  "Título",
+  "Titre",
+  "Tit",
+  "العنوان"
+ ],
+ "common.notes": [
+  "Notes",
+  "Notas",
+  "Notes",
+  "Nòt",
+  "ملاحظات"
+ ],
+ "common.role": [
+  "Role",
+  "Rol",
+  "Rôle",
+  "Wòl",
+  "الدور"
+ ],
+ "common.detail": [
+  "Detail",
+  "Detalle",
+  "Détail",
+  "Detay",
+  "التفاصيل"
+ ],
+ "common.reason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "common.quantity": [
+  "Quantity",
+  "Cantidad",
+  "Quantité",
+  "Kantite",
+  "الكمية"
+ ],
+ "common.item": [
+  "Item",
+  "Artículo",
+  "Article",
+  "Atik",
+  "العنصر"
+ ],
+ "common.location": [
+  "Location",
+  "Ubicación",
+  "Emplacement",
+  "Kote",
+  "الموقع"
+ ],
+ "common.date": [
+  "Date",
+  "Fecha",
+  "Date",
+  "Dat",
+  "التاريخ"
+ ],
+ "properties.title": [
+  "Property console",
+  "Consola de propiedades",
+  "Console des propriétés",
+  "Konsòl pwopriyete",
+  "وحدة تحكم العقارات"
+ ],
+ "properties.subtitle": [
+  "Manage your portfolio, units, staff, upkeep, and costs.",
+  "Gestione su cartera, unidades, personal, mantenimiento y costos.",
+  "Gérez votre portefeuille, vos unités, votre personnel, l’entretien et les coûts.",
+  "Jere pòtfèy ou, inite ou, anplwaye ou, antretyen ou, ak depans ou.",
+  "أدِر محفظتك ووحداتك وموظفيك وصيانتك وتكاليفك."
+ ],
+ "properties.portfolio": [
+  "Portfolio",
+  "Cartera",
+  "Portefeuille",
+  "Pòtfèy",
+  "المحفظة"
+ ],
+ "properties.createProperty": [
+  "Add property",
+  "Agregar propiedad",
+  "Ajouter une propriété",
+  "Ajoute pwopriyete",
+  "إضافة عقار"
+ ],
+ "properties.label": [
+  "Label",
+  "Etiqueta",
+  "Libellé",
+  "Etikèt",
+  "التسمية"
+ ],
+ "properties.type": [
+  "Type",
+  "Tipo",
+  "Type",
+  "Kalite",
+  "النوع"
+ ],
+ "properties.city": [
+  "City",
+  "Ciudad",
+  "Ville",
+  "Vil",
+  "المدينة"
+ ],
+ "properties.address": [
+  "Address",
+  "Dirección",
+  "Adresse",
+  "Adrès",
+  "العنوان"
+ ],
+ "properties.create": [
+  "Add",
+  "Agregar",
+  "Ajouter",
+  "Ajoute",
+  "إضافة"
+ ],
+ "properties.showArchived": [
+  "Show archived",
+  "Mostrar archivadas",
+  "Afficher les archives",
+  "Montre achiv yo",
+  "عرض المؤرشفة"
+ ],
+ "properties.hideArchived": [
+  "Hide archived",
+  "Ocultar archivadas",
+  "Masquer les archives",
+  "Kache achiv yo",
+  "إخفاء المؤرشفة"
+ ],
+ "properties.empty": [
+  "No properties yet.",
+  "Aún no hay propiedades.",
+  "Aucune propriété pour l’instant.",
+  "Pa gen pwopriyete pou kounye a.",
+  "لا توجد عقارات بعد."
+ ],
+ "properties.openRequests": [
+  "Open requests",
+  "Solicitudes abiertas",
+  "Demandes ouvertes",
+  "Demann ouvè",
+  "الطلبات المفتوحة"
+ ],
+ "properties.urgent": [
+  "Urgent",
+  "Urgente",
+  "Urgent",
+  "Ijan",
+  "عاجل"
+ ],
+ "properties.pendingApprovals": [
+  "Pending approvals",
+  "Aprobaciones pendientes",
+  "Approbations en attente",
+  "Apwobasyon an atant",
+  "الموافقات المعلقة"
+ ],
+ "properties.overdue": [
+  "Overdue upkeep",
+  "Mantenimiento vencido",
+  "Entretien en retard",
+  "Antretyen an reta",
+  "صيانة متأخرة"
+ ],
+ "properties.incidents": [
+  "Incidents",
+  "Incidentes",
+  "Incidents",
+  "Ensidan",
+  "الحوادث"
+ ],
+ "properties.units": [
+  "Units",
+  "Unidades",
+  "Unités",
+  "Inite",
+  "الوحدات"
+ ],
+ "properties.vacant": [
+  "Vacant",
+  "Vacantes",
+  "Vacantes",
+  "Vid",
+  "شاغرة"
+ ],
+ "properties.managers": [
+  "Managers",
+  "Gerentes",
+  "Gestionnaires",
+  "Manadjè",
+  "المديرون"
+ ],
+ "properties.profile": [
+  "Profile",
+  "Perfil",
+  "Profil",
+  "Pwofil",
+  "الملف"
+ ],
+ "properties.owner": [
+  "Owner",
+  "Dueño",
+  "Propriétaire",
+  "Pwopriyetè",
+  "المالك"
+ ],
+ "properties.monthlyBudget": [
+  "Monthly budget",
+  "Presupuesto mensual",
+  "Budget mensuel",
+  "Bidjè mansyèl",
+  "الميزانية الشهرية"
+ ],
+ "properties.approvalThreshold": [
+  "Approval threshold",
+  "Umbral de aprobación",
+  "Seuil d’approbation",
+  "Papò apwobasyon",
+  "حد الموافقة"
+ ],
+ "properties.reserveBalance": [
+  "Reserve balance",
+  "Saldo de reserva",
+  "Solde de réserve",
+  "Balans rezèv",
+  "رصيد الاحتياطي"
+ ],
+ "properties.saveProfile": [
+  "Save profile",
+  "Guardar perfil",
+  "Enregistrer le profil",
+  "Anrejistre pwofil",
+  "حفظ الملف"
+ ],
+ "properties.unitList": [
+  "Units",
+  "Unidades",
+  "Unités",
+  "Inite",
+  "الوحدات"
+ ],
+ "properties.addUnit": [
+  "Add unit",
+  "Agregar unidad",
+  "Ajouter une unité",
+  "Ajoute inite",
+  "إضافة وحدة"
+ ],
+ "properties.unitLabel": [
+  "Unit",
+  "Unidad",
+  "Unité",
+  "Inite",
+  "الوحدة"
+ ],
+ "properties.occupancy": [
+  "Occupancy",
+  "Ocupación",
+  "Occupation",
+  "Okipasyon",
+  "الإشغال"
+ ],
+ "properties.occupied": [
+  "Occupied",
+  "Ocupada",
+  "Occupée",
+  "Okipe",
+  "مشغولة"
+ ],
+ "properties.vacantStatus": [
+  "Vacant",
+  "Vacante",
+  "Vacante",
+  "Vid",
+  "شاغرة"
+ ],
+ "properties.turnover": [
+  "Turnover",
+  "Cambio",
+  "Rotation",
+  "Woulman",
+  "تسليم"
+ ],
+ "properties.ownerHold": [
+  "Owner hold",
+  "Retenida",
+  "Réservée",
+  "Kenbe",
+  "محجوزة للمالك"
+ ],
+ "properties.contactName": [
+  "Contact name",
+  "Nombre de contacto",
+  "Nom du contact",
+  "Non kontak",
+  "اسم جهة الاتصال"
+ ],
+ "properties.contactPhone": [
+  "Contact phone",
+  "Teléfono",
+  "Téléphone",
+  "Telefòn",
+  "هاتف الاتصال"
+ ],
+ "properties.contactEmail": [
+  "Contact email",
+  "Correo",
+  "Courriel",
+  "Imèl",
+  "بريد الاتصال"
+ ],
+ "properties.accessSummary": [
+  "Access notes",
+  "Notas de acceso",
+  "Notes d’accès",
+  "Nòt aksè",
+  "ملاحظات الوصول"
+ ],
+ "properties.areas": [
+  "Common areas",
+  "Áreas comunes",
+  "Espaces communs",
+  "Zòn komen",
+  "المناطق المشتركة"
+ ],
+ "properties.addArea": [
+  "Add area",
+  "Agregar área",
+  "Ajouter un espace",
+  "Ajoute zòn",
+  "إضافة منطقة"
+ ],
+ "properties.areaName": [
+  "Area name",
+  "Nombre del área",
+  "Nom de l’espace",
+  "Non zòn",
+  "اسم المنطقة"
+ ],
+ "properties.areaKind": [
+  "Kind",
+  "Tipo",
+  "Type",
+  "Kalite",
+  "النوع"
+ ],
+ "properties.assignments": [
+  "Staff assignments",
+  "Asignaciones",
+  "Affectations",
+  "Afektasyon",
+  "تعيينات الموظفين"
+ ],
+ "properties.assign": [
+  "Assign",
+  "Asignar",
+  "Affecter",
+  "Afekte",
+  "تعيين"
+ ],
+ "properties.userId": [
+  "Member ID",
+  "ID de miembro",
+  "ID du membre",
+  "ID manm",
+  "معرّف العضو"
+ ],
+ "properties.startsAt": [
+  "Starts",
+  "Inicio",
+  "Début",
+  "Kòmansman",
+  "يبدأ"
+ ],
+ "properties.endsAt": [
+  "Ends",
+  "Fin",
+  "Fin",
+  "Fen",
+  "ينتهي"
+ ],
+ "properties.endAssignment": [
+  "End",
+  "Terminar",
+  "Terminer",
+  "Fini",
+  "إنهاء"
+ ],
+ "properties.reviewAssignment": [
+  "Review",
+  "Revisar",
+  "Réviser",
+  "Revize",
+  "مراجعة"
+ ],
+ "properties.keep": [
+  "Keep",
+  "Mantener",
+  "Garder",
+  "Kenbe",
+  "إبقاء"
+ ],
+ "properties.accessReview": [
+  "Access review",
+  "Revisión de accesos",
+  "Révision des accès",
+  "Revizyon aksè",
+  "مراجعة الوصول"
+ ],
+ "properties.flagged": [
+  "Flagged",
+  "Marcadas",
+  "Signalées",
+  "Make",
+  "مميزة"
+ ],
+ "properties.memberInactive": [
+  "Member inactive",
+  "Miembro inactivo",
+  "Membre inactif",
+  "Manm inaktif",
+  "العضو غير نشط"
+ ],
+ "properties.endingSoon": [
+  "Ending soon",
+  "Termina pronto",
+  "Se termine bientôt",
+  "Ap fini byento",
+  "ينتهي قريبًا"
+ ],
+ "properties.reviewDue": [
+  "Review due",
+  "Revisión pendiente",
+  "Révision due",
+  "Revizyon dwe",
+  "المراجعة مستحقة"
+ ],
+ "properties.keysOut": [
+  "Keys out",
+  "Llaves fuera",
+  "Clés sorties",
+  "Kle deyò",
+  "المفاتيح الخارجة"
+ ],
+ "properties.requests": [
+  "Maintenance requests",
+  "Solicitudes de mantenimiento",
+  "Demandes de maintenance",
+  "Demann antretyen",
+  "طلبات الصيانة"
+ ],
+ "properties.requestDetail": [
+  "Request detail",
+  "Detalle de la solicitud",
+  "Détail de la demande",
+  "Detay demann lan",
+  "تفاصيل الطلب"
+ ],
+ "properties.quotes": [
+  "Quotes",
+  "Cotizaciones",
+  "Devis",
+  "Deviz",
+  "عروض الأسعار"
+ ],
+ "properties.addQuote": [
+  "Add quote",
+  "Agregar cotización",
+  "Ajouter un devis",
+  "Ajoute deviz",
+  "إضافة عرض سعر"
+ ],
+ "properties.availableOn": [
+  "Available on",
+  "Disponible el",
+  "Disponible le",
+  "Disponib nan dat",
+  "متاح في"
+ ],
+ "properties.selectQuote": [
+  "Select",
+  "Seleccionar",
+  "Sélectionner",
+  "Chwazi",
+  "اختيار"
+ ],
+ "properties.selected": [
+  "Selected",
+  "Seleccionada",
+  "Sélectionné",
+  "Chwazi",
+  "مختار"
+ ],
+ "properties.lowest": [
+  "Lowest",
+  "Más baja",
+  "Plus bas",
+  "Pi ba",
+  "الأدنى"
+ ],
+ "properties.needsApproval": [
+  "Needs approval",
+  "Necesita aprobación",
+  "Approbation requise",
+  "Bezwen apwobasyon",
+  "يحتاج موافقة"
+ ],
+ "properties.issueWorkOrder": [
+  "Issue work order",
+  "Emitir orden de trabajo",
+  "Émettre un ordre de travail",
+  "Bay lòd travay",
+  "إصدار أمر عمل"
+ ],
+ "properties.notToExceed": [
+  "Not to exceed",
+  "No exceder",
+  "Ne pas dépasser",
+  "Pa depase",
+  "حد أقصى"
+ ],
+ "properties.requestApproval": [
+  "Request approval",
+  "Solicitar aprobación",
+  "Demander l’approbation",
+  "Mande apwobasyon",
+  "طلب الموافقة"
+ ],
+ "properties.approvalAmount": [
+  "Approval amount",
+  "Monto a aprobar",
+  "Montant à approuver",
+  "Montan pou apwouve",
+  "مبلغ الموافقة"
+ ],
+ "properties.entry": [
+  "Entry",
+  "Entrada",
+  "Entrée",
+  "Antre",
+  "الدخول"
+ ],
+ "properties.permissionToEnter": [
+  "Permission to enter",
+  "Permiso de entrada",
+  "Autorisation d’entrer",
+  "Pèmisyon pou antre",
+  "إذن الدخول"
+ ],
+ "properties.offerWindow": [
+  "Offer entry windows",
+  "Ofrecer horarios de entrada",
+  "Proposer des créneaux",
+  "Ofri lè antre",
+  "عرض نوافذ الدخول"
+ ],
+ "properties.windowStart": [
+  "Window start",
+  "Inicio del horario",
+  "Début du créneau",
+  "Kòmansman lè a",
+  "بداية النافذة"
+ ],
+ "properties.windowEnd": [
+  "Window end",
+  "Fin del horario",
+  "Fin du créneau",
+  "Fen lè a",
+  "نهاية النافذة"
+ ],
+ "properties.saveEntry": [
+  "Save entry",
+  "Guardar entrada",
+  "Enregistrer l’entrée",
+  "Anrejistre antre",
+  "حفظ الدخول"
+ ],
+ "properties.entryInstructions": [
+  "Entry instructions",
+  "Instrucciones de entrada",
+  "Instructions d’entrée",
+  "Enstriksyon antre",
+  "تعليمات الدخول"
+ ],
+ "properties.notifyOccupant": [
+  "Notify occupant",
+  "Avisar al ocupante",
+  "Prévenir l’occupant",
+  "Avèti okipan",
+  "إشعار الشاغل"
+ ],
+ "properties.routeEmergency": [
+  "Route as emergency",
+  "Marcar como emergencia",
+  "Marquer urgence",
+  "Make ijans",
+  "توجيه كطارئ"
+ ],
+ "properties.incidentsTitle": [
+  "Incidents",
+  "Incidentes",
+  "Incidents",
+  "Ensidan",
+  "الحوادث"
+ ],
+ "properties.createIncident": [
+  "Report incident",
+  "Reportar incidente",
+  "Signaler un incident",
+  "Rapòte ensidan",
+  "الإبلاغ عن حادث"
+ ],
+ "properties.severity": [
+  "Severity",
+  "Gravedad",
+  "Gravité",
+  "Gravite",
+  "الخطورة"
+ ],
+ "properties.upkeep": [
+  "Upkeep",
+  "Mantenimiento",
+  "Entretien",
+  "Antretyen",
+  "الصيانة"
+ ],
+ "properties.calendar": [
+  "Maintenance calendar",
+  "Calendario de mantenimiento",
+  "Calendrier d’entretien",
+  "Kalandriye antretyen",
+  "تقويم الصيانة"
+ ],
+ "properties.due": [
+  "Due",
+  "Vence",
+  "Échéance",
+  "Dat limit",
+  "مستحق"
+ ],
+ "properties.alerts": [
+  "Alerts",
+  "Alertas",
+  "Alertes",
+  "Alèt",
+  "تنبيهات"
+ ],
+ "properties.notifyNow": [
+  "Notify now",
+  "Avisar ahora",
+  "Prévenir maintenant",
+  "Avèti kounye a",
+  "إشعار الآن"
+ ],
+ "properties.turnovers": [
+  "Turnovers",
+  "Cambios de ocupante",
+  "Rotations",
+  "Woulman",
+  "عمليات التسليم"
+ ],
+ "properties.startTurnover": [
+  "Start turnover",
+  "Iniciar cambio",
+  "Démarrer une rotation",
+  "Kòmanse woulman",
+  "بدء التسليم"
+ ],
+ "properties.costs": [
+  "Costs",
+  "Costos",
+  "Coûts",
+  "Pri",
+  "التكاليف"
+ ],
+ "properties.monthSpend": [
+  "This month",
+  "Este mes",
+  "Ce mois-ci",
+  "Mwa sa a",
+  "هذا الشهر"
+ ],
+ "properties.budget": [
+  "Budget",
+  "Presupuesto",
+  "Budget",
+  "Bidjè",
+  "الميزانية"
+ ],
+ "properties.reserve": [
+  "Reserve",
+  "Reserva",
+  "Réserve",
+  "Rezèv",
+  "الاحتياطي"
+ ],
+ "properties.invoices": [
+  "Invoices",
+  "Facturas",
+  "Factures",
+  "Fakti",
+  "الفواتير"
+ ],
+ "properties.addInvoice": [
+  "Add invoice",
+  "Agregar factura",
+  "Ajouter une facture",
+  "Ajoute fakti",
+  "إضافة فاتورة"
+ ],
+ "properties.matchStatus": [
+  "Match",
+  "Coincidencia",
+  "Correspondance",
+  "Korespondans",
+  "المطابقة"
+ ],
+ "properties.invoiceDecision": [
+  "Decision",
+  "Decisión",
+  "Décision",
+  "Desizyon",
+  "القرار"
+ ],
+ "properties.vendors": [
+  "Vendors",
+  "Proveedores",
+  "Fournisseurs",
+  "Founisè",
+  "المورّدون"
+ ],
+ "properties.createVendor": [
+  "Add vendor",
+  "Agregar proveedor",
+  "Ajouter un fournisseur",
+  "Ajoute founisè",
+  "إضافة مورّد"
+ ],
+ "properties.vendorName": [
+  "Vendor name",
+  "Nombre del proveedor",
+  "Nom du fournisseur",
+  "Non founisè",
+  "اسم المورّد"
+ ],
+ "properties.trade": [
+  "Trade",
+  "Oficio",
+  "Métier",
+  "Metye",
+  "الحرفة"
+ ],
+ "properties.insuranceExpired": [
+  "Insurance expired",
+  "Seguro vencido",
+  "Assurance expirée",
+  "Asirans ekspire",
+  "التأمين منتهي"
+ ],
+ "properties.workOrders": [
+  "Work orders",
+  "Órdenes de trabajo",
+  "Ordres de travail",
+  "Lòd travay",
+  "أوامر العمل"
+ ],
+ "properties.closeWorkOrder": [
+  "Close",
+  "Cerrar",
+  "Clôturer",
+  "Fèmen",
+  "إغلاق"
+ ],
+ "properties.keys": [
+  "Keys",
+  "Llaves",
+  "Clés",
+  "Kle",
+  "المفاتيح"
+ ],
+ "properties.addKey": [
+  "Add key",
+  "Agregar llave",
+  "Ajouter une clé",
+  "Ajoute kle",
+  "إضافة مفتاح"
+ ],
+ "properties.keyLabel": [
+  "Key label",
+  "Etiqueta de llave",
+  "Étiquette de clé",
+  "Etikèt kle",
+  "تسمية المفتاح"
+ ],
+ "properties.checkOut": [
+  "Check out",
+  "Entregar",
+  "Sortir",
+  "Prete",
+  "إخراج"
+ ],
+ "properties.checkIn": [
+  "Return",
+  "Devolver",
+  "Retourner",
+  "Retounen",
+  "إعادة"
+ ],
+ "properties.lost": [
+  "Lost",
+  "Perdida",
+  "Perdue",
+  "Pèdi",
+  "مفقود"
+ ],
+ "properties.handover": [
+  "Handover",
+  "Entrega",
+  "Remise",
+  "Remiz",
+  "التسليم"
+ ],
+ "properties.reassign": [
+  "Reassign",
+  "Reasignar",
+  "Réaffecter",
+  "Reafekte",
+  "إعادة تعيين"
+ ],
+ "properties.notifyOccupants": [
+  "Notify occupants",
+  "Avisar a los ocupantes",
+  "Prévenir les occupants",
+  "Avèti okipan yo",
+  "إشعار الشاغلين"
+ ],
+ "properties.revokeAccess": [
+  "Revoke access",
+  "Revocar acceso",
+  "Révoquer l’accès",
+  "Retire aksè",
+  "إلغاء الوصول"
+ ],
+ "properties.archive": [
+  "Archive",
+  "Archivar",
+  "Archiver",
+  "Achive",
+  "أرشفة"
+ ],
+ "properties.restore": [
+  "Restore",
+  "Restaurar",
+  "Restaurer",
+  "Retabli",
+  "استعادة"
+ ],
+ "properties.archiveReason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "ops.title": [
+  "Operations console",
+  "Consola de operaciones",
+  "Console des opérations",
+  "Konsòl operasyon",
+  "وحدة تحكم العمليات"
+ ],
+ "ops.subtitle": [
+  "Readiness, menu, reports, downtime, transfers, and closures.",
+  "Preparación, menú, informes, averías, traslados y cierres.",
+  "Préparation, menu, rapports, pannes, transferts et fermetures.",
+  "Preparasyon, meni, rapò, pann, transfè, ak fèmti.",
+  "الجاهزية والقائمة والتقارير والأعطال والتحويلات والإغلاقات."
+ ],
+ "ops.readiness": [
+  "Readiness",
+  "Preparación",
+  "Préparation",
+  "Preparasyon",
+  "الجاهزية"
+ ],
+ "ops.checks": [
+  "Checks",
+  "Verificaciones",
+  "Vérifications",
+  "Verifikasyon",
+  "الفحوصات"
+ ],
+ "ops.ready": [
+  "Ready",
+  "Listo",
+  "Prêt",
+  "Pare",
+  "جاهز"
+ ],
+ "ops.notReady": [
+  "Not ready",
+  "No listo",
+  "Pas prêt",
+  "Pa pare",
+  "غير جاهز"
+ ],
+ "ops.launch": [
+  "Launch location",
+  "Abrir ubicación",
+  "Ouvrir l’emplacement",
+  "Louvri kote",
+  "إطلاق الموقع"
+ ],
+ "ops.markDone": [
+  "Mark done",
+  "Marcar hecho",
+  "Marquer fait",
+  "Make fèt",
+  "تعليم كمكتمل"
+ ],
+ "ops.settings": [
+  "Location settings",
+  "Ajustes de ubicación",
+  "Paramètres de l’emplacement",
+  "Paramèt kote",
+  "إعدادات الموقع"
+ ],
+ "ops.pickupArea": [
+  "Pickup area",
+  "Zona de retiro",
+  "Zone de retrait",
+  "Zòn retrè",
+  "منطقة الاستلام"
+ ],
+ "ops.pickupInstructions": [
+  "Pickup instructions",
+  "Instrucciones de retiro",
+  "Instructions de retrait",
+  "Enstriksyon retrè",
+  "تعليمات الاستلام"
+ ],
+ "ops.parkingNote": [
+  "Parking note",
+  "Nota de estacionamiento",
+  "Note de stationnement",
+  "Nòt pakin",
+  "ملاحظة مواقف السيارات"
+ ],
+ "ops.curbside": [
+  "Curbside pickup",
+  "Retiro en acera",
+  "Retrait au trottoir",
+  "Retrè bò wout",
+  "استلام من الرصيف"
+ ],
+ "ops.substitution": [
+  "Substitution policy",
+  "Política de sustitución",
+  "Politique de substitution",
+  "Règ sibstitisyon",
+  "سياسة الاستبدال"
+ ],
+ "ops.unclaimedMinutes": [
+  "Unclaimed pickup minutes",
+  "Minutos sin reclamar",
+  "Minutes sans retrait",
+  "Minit san reklamasyon",
+  "دقائق الاستلام غير المُطالب به"
+ ],
+ "ops.slotMinutes": [
+  "Slot minutes",
+  "Minutos por turno",
+  "Minutes par créneau",
+  "Minit pa plas",
+  "دقائق الفترة"
+ ],
+ "ops.slotMax": [
+  "Max orders per slot",
+  "Máx. por turno",
+  "Max par créneau",
+  "Maks pa plas",
+  "الحد الأقصى للطلبات لكل فترة"
+ ],
+ "ops.saveSettings": [
+  "Save settings",
+  "Guardar ajustes",
+  "Enregistrer les paramètres",
+  "Anrejistre paramèt",
+  "حفظ الإعدادات"
+ ],
+ "ops.specialHours": [
+  "Special hours",
+  "Horarios especiales",
+  "Horaires spéciaux",
+  "Lè espesyal",
+  "ساعات خاصة"
+ ],
+ "ops.addHours": [
+  "Add special hours",
+  "Agregar horario especial",
+  "Ajouter des horaires",
+  "Ajoute lè espesyal",
+  "إضافة ساعات خاصة"
+ ],
+ "ops.startDate": [
+  "Start date",
+  "Fecha de inicio",
+  "Date de début",
+  "Dat kòmansman",
+  "تاريخ البدء"
+ ],
+ "ops.endDate": [
+  "End date",
+  "Fecha de fin",
+  "Date de fin",
+  "Dat fen",
+  "تاريخ الانتهاء"
+ ],
+ "ops.openTime": [
+  "Opens",
+  "Apertura",
+  "Ouverture",
+  "Ouvèti",
+  "يفتح"
+ ],
+ "ops.closeTime": [
+  "Closes",
+  "Cierre",
+  "Fermeture",
+  "Fèmti",
+  "يغلق"
+ ],
+ "ops.closed": [
+  "Closed",
+  "Cerrado",
+  "Fermé",
+  "Fèmen",
+  "مغلق"
+ ],
+ "ops.reports": [
+  "Reports",
+  "Informes",
+  "Rapports",
+  "Rapò",
+  "التقارير"
+ ],
+ "ops.unclaimed": [
+  "Unclaimed pickups",
+  "Retiros sin reclamar",
+  "Retraits non réclamés",
+  "Retrè san reklamasyon",
+  "عمليات استلام غير مُطالب بها"
+ ],
+ "ops.cancellations": [
+  "Cancellations",
+  "Cancelaciones",
+  "Annulations",
+  "Anilasyon",
+  "الإلغاءات"
+ ],
+ "ops.dispatchDelays": [
+  "Dispatch delays",
+  "Retrasos de despacho",
+  "Retards d’expédition",
+  "Reta depech",
+  "تأخيرات الإرسال"
+ ],
+ "ops.prepTrends": [
+  "Prep trends",
+  "Tendencias de preparación",
+  "Tendances de préparation",
+  "Tandans preparasyon",
+  "اتجاهات التحضير"
+ ],
+ "ops.unavailability": [
+  "Unavailability",
+  "No disponibilidad",
+  "Indisponibilité",
+  "Endisponibilite",
+  "عدم التوفر"
+ ],
+ "ops.peakLoad": [
+  "Peak load",
+  "Carga máxima",
+  "Charge maximale",
+  "Chaj pik",
+  "ذروة الحمل"
+ ],
+ "ops.repeatIssues": [
+  "Repeat issues",
+  "Problemas repetidos",
+  "Problèmes récurrents",
+  "Pwoblèm repete",
+  "المشكلات المتكررة"
+ ],
+ "ops.capacity": [
+  "Capacity forecast",
+  "Pronóstico de capacidad",
+  "Prévision de capacité",
+  "Previzyon kapasite",
+  "توقعات السعة"
+ ],
+ "ops.menu": [
+  "Menu changes",
+  "Cambios de menú",
+  "Changements de menu",
+  "Chanjman meni",
+  "تغييرات القائمة"
+ ],
+ "ops.scheduledChanges": [
+  "Scheduled changes",
+  "Cambios programados",
+  "Changements planifiés",
+  "Chanjman pwograme",
+  "التغييرات المجدولة"
+ ],
+ "ops.scheduleChange": [
+  "Schedule a change",
+  "Programar un cambio",
+  "Planifier un changement",
+  "Pwograme yon chanjman",
+  "جدولة تغيير"
+ ],
+ "ops.menuItemId": [
+  "Menu item ID",
+  "ID del plato",
+  "ID de l’article",
+  "ID atik meni",
+  "معرّف عنصر القائمة"
+ ],
+ "ops.effectiveAt": [
+  "Effective at",
+  "Vigente desde",
+  "Effectif le",
+  "Efektif apati",
+  "ساري اعتبارًا من"
+ ],
+ "ops.changeType": [
+  "Change",
+  "Cambio",
+  "Changement",
+  "Chanjman",
+  "التغيير"
+ ],
+ "ops.cancelChange": [
+  "Cancel",
+  "Cancelar",
+  "Annuler",
+  "Anile",
+  "إلغاء"
+ ],
+ "ops.menuHistory": [
+  "Menu history",
+  "Historial de menú",
+  "Historique du menu",
+  "Istwa meni",
+  "سجل القائمة"
+ ],
+ "ops.downtime": [
+  "Equipment downtime",
+  "Equipos fuera de servicio",
+  "Équipements en panne",
+  "Ekipman an pann",
+  "تعطل المعدات"
+ ],
+ "ops.reportDowntime": [
+  "Report downtime",
+  "Reportar avería",
+  "Signaler une panne",
+  "Rapòte pann",
+  "الإبلاغ عن تعطل"
+ ],
+ "ops.equipment": [
+  "Equipment",
+  "Equipo",
+  "Équipement",
+  "Ekipman",
+  "المعدات"
+ ],
+ "ops.restoreDowntime": [
+  "Restore",
+  "Restaurar",
+  "Restaurer",
+  "Retabli",
+  "استعادة"
+ ],
+ "ops.transfers": [
+  "Transfers",
+  "Traslados",
+  "Transferts",
+  "Transfè",
+  "التحويلات"
+ ],
+ "ops.requestTransfer": [
+  "Request transfer",
+  "Solicitar traslado",
+  "Demander un transfert",
+  "Mande transfè",
+  "طلب تحويل"
+ ],
+ "ops.fromLocation": [
+  "From",
+  "Desde",
+  "De",
+  "Soti",
+  "من"
+ ],
+ "ops.toLocation": [
+  "To",
+  "Hacia",
+  "Vers",
+  "Ale",
+  "إلى"
+ ],
+ "ops.emergency": [
+  "Emergency closure",
+  "Cierre de emergencia",
+  "Fermeture d’urgence",
+  "Fèmti ijans",
+  "إغلاق طارئ"
+ ],
+ "ops.closeNow": [
+  "Close now",
+  "Cerrar ahora",
+  "Fermer maintenant",
+  "Fèmen kounye a",
+  "الإغلاق الآن"
+ ],
+ "ops.closureReason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "ops.currentClosure": [
+  "Current closure",
+  "Cierre actual",
+  "Fermeture en cours",
+  "Fèmti aktyèl",
+  "الإغلاق الحالي"
+ ],
+ "ops.reopen": [
+  "Reopen",
+  "Reabrir",
+  "Rouvrir",
+  "Relouvri",
+  "إعادة الفتح"
+ ],
+ "ops.openOrders": [
+  "Open orders",
+  "Pedidos abiertos",
+  "Commandes ouvertes",
+  "Kòmann ouvè",
+  "الطلبات المفتوحة"
+ ],
+ "ops.followUp": [
+  "Follow up",
+  "Seguimiento",
+  "Suivi",
+  "Swivi",
+  "متابعة"
+ ],
+ "ops.resolution": [
+  "Resolution",
+  "Resolución",
+  "Résolution",
+  "Rezolisyon",
+  "الحل"
+ ],
+ "ops.days": [
+  "Days",
+  "Días",
+  "Jours",
+  "Jou",
+  "الأيام"
+ ],
+ "ops.orders": [
+  "Orders",
+  "Pedidos",
+  "Commandes",
+  "Kòmann",
+  "الطلبات"
+ ],
+ "ops.minutesLate": [
+  "Minutes late",
+  "Minutos de retraso",
+  "Minutes de retard",
+  "Minit an reta",
+  "دقائق التأخير"
+ ],
+ "shift.title": [
+  "My shift",
+  "Mi turno",
+  "Mon poste",
+  "Chif mwen",
+  "ورديتي"
+ ],
+ "shift.subtitle": [
+  "Start, brief, and close your shift.",
+  "Inicie, revise y cierre su turno.",
+  "Commencez, préparez et terminez votre poste.",
+  "Kòmanse, prepare, epi fèmen chif ou.",
+  "ابدأ ورديتك وراجعها وأغلقها."
+ ],
+ "shift.startShift": [
+  "Start shift",
+  "Iniciar turno",
+  "Commencer le poste",
+  "Kòmanse chif",
+  "بدء الوردية"
+ ],
+ "shift.todaysShifts": [
+  "Today’s shifts",
+  "Turnos de hoy",
+  "Postes du jour",
+  "Chif jodi a",
+  "ورديات اليوم"
+ ],
+ "shift.started": [
+  "Shift started",
+  "Turno iniciado",
+  "Poste commencé",
+  "Chif kòmanse",
+  "بدأت الوردية"
+ ],
+ "shift.station": [
+  "Station",
+  "Estación",
+  "Poste",
+  "Estasyon",
+  "المحطة"
+ ],
+ "shift.assignStation": [
+  "Assign station",
+  "Asignar estación",
+  "Affecter un poste",
+  "Afekte estasyon",
+  "تعيين محطة"
+ ],
+ "shift.stationName": [
+  "Station",
+  "Estación",
+  "Poste",
+  "Estasyon",
+  "المحطة"
+ ],
+ "shift.tasks": [
+  "My tasks",
+  "Mis tareas",
+  "Mes tâches",
+  "Travay mwen",
+  "مهامي"
+ ],
+ "shift.checklists": [
+  "Checklists",
+  "Listas de verificación",
+  "Listes de contrôle",
+  "Lis verifikasyon",
+  "قوائم المراجعة"
+ ],
+ "shift.handoff": [
+  "Handoff",
+  "Entrega de turno",
+  "Passation",
+  "Remiz",
+  "التسليم"
+ ],
+ "shift.unread": [
+  "Unread",
+  "Sin leer",
+  "Non lu",
+  "Pa li",
+  "غير مقروء"
+ ],
+ "shift.readinessItems": [
+  "Readiness",
+  "Preparación",
+  "Préparation",
+  "Preparasyon",
+  "الجاهزية"
+ ],
+ "shift.acknowledgeReadiness": [
+  "Acknowledge readiness",
+  "Confirmar preparación",
+  "Confirmer la préparation",
+  "Konfime preparasyon",
+  "تأكيد الجاهزية"
+ ],
+ "shift.ready": [
+  "Ready",
+  "Listo",
+  "Prêt",
+  "Pare",
+  "جاهز"
+ ],
+ "shift.batchPrint": [
+  "Batch print",
+  "Impresión por lote",
+  "Impression groupée",
+  "Enpresyon pakè",
+  "طباعة جماعية"
+ ],
+ "shift.orderIds": [
+  "Order IDs",
+  "IDs de pedido",
+  "IDs de commande",
+  "ID kòmann",
+  "معرّفات الطلبات"
+ ],
+ "shift.print": [
+  "Print",
+  "Imprimir",
+  "Imprimer",
+  "Enprime",
+  "طباعة"
+ ],
+ "shift.lateOrders": [
+  "Late orders",
+  "Pedidos atrasados",
+  "Commandes en retard",
+  "Kòmann an reta",
+  "الطلبات المتأخرة"
+ ],
+ "shift.stockNotices": [
+  "Stock notices",
+  "Avisos de stock",
+  "Avis de stock",
+  "Avi stock",
+  "إشعارات المخزون"
+ ],
+ "shift.createNotice": [
+  "New notice",
+  "Nuevo aviso",
+  "Nouvel avis",
+  "Nouvo avi",
+  "إشعار جديد"
+ ],
+ "shift.itemName": [
+  "Item",
+  "Artículo",
+  "Article",
+  "Atik",
+  "العنصر"
+ ],
+ "shift.note": [
+  "Note",
+  "Nota",
+  "Note",
+  "Nòt",
+  "ملاحظة"
+ ],
+ "shift.resolve": [
+  "Resolve",
+  "Resolver",
+  "Résoudre",
+  "Rezoud",
+  "حل"
+ ],
+ "shift.issues": [
+  "Issues",
+  "Problemas",
+  "Problèmes",
+  "Pwoblèm",
+  "المشكلات"
+ ],
+ "shift.reportIssue": [
+  "Report issue",
+  "Reportar problema",
+  "Signaler un problème",
+  "Rapòte pwoblèm",
+  "الإبلاغ عن مشكلة"
+ ],
+ "shift.issueKind": [
+  "Kind",
+  "Tipo",
+  "Type",
+  "Kalite",
+  "النوع"
+ ],
+ "shift.escalate": [
+  "Escalate",
+  "Escalar",
+  "Escalader",
+  "Eskalade",
+  "تصعيد"
+ ],
+ "shift.breakStart": [
+  "Start break",
+  "Iniciar descanso",
+  "Commencer la pause",
+  "Kòmanse poz",
+  "بدء الاستراحة"
+ ],
+ "shift.breakEnd": [
+  "End break",
+  "Terminar descanso",
+  "Terminer la pause",
+  "Fini poz",
+  "إنهاء الاستراحة"
+ ],
+ "shift.onBreak": [
+  "On break",
+  "En descanso",
+  "En pause",
+  "Nan poz",
+  "في استراحة"
+ ],
+ "shift.incidents": [
+  "Incidents",
+  "Incidentes",
+  "Incidents",
+  "Ensidan",
+  "الحوادث"
+ ],
+ "shift.createIncident": [
+  "Report incident",
+  "Reportar incidente",
+  "Signaler un incident",
+  "Rapòte ensidan",
+  "الإبلاغ عن حادث"
+ ],
+ "shift.incidentCategory": [
+  "Category",
+  "Categoría",
+  "Catégorie",
+  "Kategori",
+  "الفئة"
+ ],
+ "shift.incidentUrgency": [
+  "Urgency",
+  "Urgencia",
+  "Urgence",
+  "Ijans",
+  "الأولوية"
+ ],
+ "shift.endPreview": [
+  "End of shift",
+  "Fin de turno",
+  "Fin de poste",
+  "Fen chif",
+  "نهاية الوردية"
+ ],
+ "shift.endShift": [
+  "End shift",
+  "Terminar turno",
+  "Terminer le poste",
+  "Fini chif",
+  "إنهاء الوردية"
+ ],
+ "shift.endReason": [
+  "Reason",
+  "Motivo",
+  "Motif",
+  "Rezon",
+  "السبب"
+ ],
+ "shift.ownedTickets": [
+  "My open tickets",
+  "Mis tickets abiertos",
+  "Mes tickets ouverts",
+  "Tikè mwen ki ouvè",
+  "تذاكري المفتوحة"
+ ],
+ "shift.needsHandoff": [
+  "Needs handoff",
+  "Necesita entrega",
+  "Passation requise",
+  "Bezwen remiz",
+  "يحتاج تسليمًا"
+ ],
+ "shift.verifyPickup": [
+  "Verify pickup code",
+  "Verificar código de retiro",
+  "Vérifier le code de retrait",
+  "Verifye kòd retrè",
+  "التحقق من رمز الاستلام"
+ ],
+ "shift.orderId": [
+  "Order ID",
+  "ID de pedido",
+  "ID de commande",
+  "ID kòmann",
+  "معرّف الطلب"
+ ],
+ "shift.pickupCode": [
+  "Pickup code",
+  "Código de retiro",
+  "Code de retrait",
+  "Kòd retrè",
+  "رمز الاستلام"
+ ],
+ "shift.verify": [
+  "Verify",
+  "Verificar",
+  "Vérifier",
+  "Verifye",
+  "تحقق"
+ ],
+ "shift.ticketHistory": [
+  "Ticket history",
+  "Historial del ticket",
+  "Historique du ticket",
+  "Istwa tikè",
+  "سجل التذكرة"
+ ],
+ "shift.pack": [
+  "Pack",
+  "Empacar",
+  "Emballer",
+  "Anbale",
+  "تعبئة"
+ ],
+ "shift.ticket": [
+  "Ticket",
+  "Ticket",
+  "Ticket",
+  "Tikè",
+  "التذكرة"
+ ],
+ "properties.moveOut": [
+  "Move-out",
+  "Salida",
+  "Départ",
+  "Depa",
+  "المغادرة"
+ ],
+ "properties.moveIn": [
+  "Move-in",
+  "Entrada",
+  "Emménagement",
+  "Antre",
+  "الانتقال"
+ ],
+ "properties.instructionsExpired": [
+  "Instructions expired",
+  "Instrucciones vencidas",
+  "Instructions expirées",
+  "Enstriksyon ekspire",
+  "انتهت صلاحية التعليمات"
+ ],
+ "properties.urgency": [
+  "Urgency",
+  "Urgencia",
+  "Urgence",
+  "Ijans",
+  "الأولوية"
+ ],
+ "properties.category": [
+  "Category",
+  "Categoría",
+  "Catégorie",
+  "Kategori",
+  "الفئة"
+ ],
+ "properties.cost": [
+  "Cost",
+  "Costo",
+  "Coût",
+  "Pri",
+  "التكلفة"
+ ],
+ "ops.sub.contact_customer": [
+  "Contact customer",
+  "Contactar al cliente",
+  "Contacter le client",
+  "Kontakte kliyan an",
+  "الاتصال بالعميل"
+ ],
+ "ops.sub.substitute_similar": [
+  "Substitute similar item",
+  "Sustituir por similar",
+  "Remplacer par un article similaire",
+  "Ranplase ak yon atik ki sanble",
+  "استبدال بعنصر مشابه"
+ ],
+ "ops.sub.refund_item": [
+  "Refund the item",
+  "Reembolsar el artículo",
+  "Rembourser l’article",
+  "Ranbouse atik la",
+  "رد قيمة العنصر"
+ ],
+ "ops.sub.cancel_order": [
+  "Cancel the order",
+  "Cancelar el pedido",
+  "Annuler la commande",
+  "Anile kòmann lan",
+  "إلغاء الطلب"
+ ],
+ "ops.check.hours": [
+  "Hours set",
+  "Horario configurado",
+  "Horaires définis",
+  "Lè yo fikse",
+  "الساعات مضبوطة"
+ ],
+ "ops.check.tax": [
+  "Tax rate set",
+  "Impuesto configurado",
+  "Taux de taxe défini",
+  "Taks fikse",
+  "معدل الضريبة مضبوط"
+ ],
+ "ops.check.menu": [
+  "Menu published",
+  "Menú publicado",
+  "Menu publié",
+  "Meni pibliye",
+  "القائمة منشورة"
+ ],
+ "ops.check.station": [
+  "Kitchen station ready",
+  "Estación de cocina lista",
+  "Poste de cuisine prêt",
+  "Estasyon kwizin pare",
+  "محطة المطبخ جاهزة"
+ ],
+ "ops.check.staff": [
+  "Staff assigned",
+  "Personal asignado",
+  "Personnel affecté",
+  "Anplwaye afekte",
+  "الموظفون معيّنون"
+ ],
+ "ops.check.pickup": [
+  "Pickup area set",
+  "Zona de retiro lista",
+  "Zone de retrait définie",
+  "Zòn retrè pare",
+  "منطقة الاستلام مضبوطة"
+ ],
+ "ops.check.food_safety_inspection": [
+  "Food safety inspection",
+  "Inspección de seguridad alimentaria",
+  "Inspection de sécurité alimentaire",
+  "Enspeksyon sekirite alimantè",
+  "فحص سلامة الغذاء"
+ ],
+ "ops.check.staff_trained": [
+  "Staff trained",
+  "Personal capacitado",
+  "Personnel formé",
+  "Anplwaye fòme",
+  "الموظفون مدرّبون"
+ ],
+ "ops.check.test_order": [
+  "Test order",
+  "Pedido de prueba",
+  "Commande test",
+  "Kòmann tès",
+  "طلب تجريبي"
+ ],
+ "ops.check.soft_open": [
+  "Soft open",
+  "Apertura suave",
+  "Ouverture douce",
+  "Ouvèti dou",
+  "افتتاح تجريبي"
+ ],
+ "ops.downtimeCheck.cleaned": [
+  "Cleaned",
+  "Limpio",
+  "Nettoyé",
+  "Netwaye",
+  "تم التنظيف"
+ ],
+ "ops.downtimeCheck.tested": [
+  "Tested",
+  "Probado",
+  "Testé",
+  "Teste",
+  "تم الاختبار"
+ ],
+ "ops.downtimeCheck.temperature_ok": [
+  "Temperature OK",
+  "Temperatura correcta",
+  "Température OK",
+  "Tanperati OK",
+  "درجة الحرارة مناسبة"
+ ],
+ "ops.reopenCheck.equipment_checked": [
+  "Equipment checked",
+  "Equipo revisado",
+  "Équipement vérifié",
+  "Ekipman verifye",
+  "تم فحص المعدات"
+ ],
+ "ops.reopenCheck.food_safety_checked": [
+  "Food safety checked",
+  "Seguridad alimentaria revisada",
+  "Sécurité alimentaire vérifiée",
+  "Sekirite alimantè verifye",
+  "تم التحقق من سلامة الغذاء"
+ ],
+ "ops.reopenCheck.staff_ready": [
+  "Staff ready",
+  "Personal listo",
+  "Personnel prêt",
+  "Anplwaye pare",
+  "الموظفون جاهزون"
+ ],
+ "ops.reopenCheck.systems_online": [
+  "Systems online",
+  "Sistemas en línea",
+  "Systèmes en ligne",
+  "Sistèm an liy",
+  "الأنظمة متصلة"
+ ],
+ "ops.copySettings": [
+  "Copy settings",
+  "Copiar ajustes",
+  "Copier les paramètres",
+  "Kopye paramèt",
+  "نسخ الإعدادات"
+ ],
+ "ops.label": [
+  "Label",
+  "Etiqueta",
+  "Libellé",
+  "Etikèt",
+  "التسمية"
+ ],
+ "ops.orderId": [
+  "Order ID",
+  "ID de pedido",
+  "ID de commande",
+  "ID kòmann",
+  "معرّف الطلب"
+ ],
+ "ops.avgMinutes": [
+  "Avg minutes",
+  "Min. prom.",
+  "Min. moy.",
+  "Minit mwayèn",
+  "متوسط الدقائق"
+ ],
+ "ops.hour": [
+  "Hour",
+  "Hora",
+  "Heure",
+  "Lè",
+  "الساعة"
+ ],
+ "ops.staff": [
+  "Staff",
+  "Personal",
+  "Personnel",
+  "Anplwaye",
+  "الموظفون"
+ ],
+ "ops.needed": [
+  "Needed",
+  "Necesario",
+  "Requis",
+  "Bezwen",
+  "المطلوب"
+ ],
+ "ops.decide": [
+  "Decide",
+  "Decidir",
+  "Décider",
+  "Deside",
+  "اتخاذ قرار"
+ ],
+ "shift.readyItem.uniform_ready": [
+  "Uniform ready",
+  "Uniforme listo",
+  "Uniforme prêt",
+  "Inifòm pare",
+  "الزي جاهز"
+ ],
+ "shift.readyItem.hands_washed": [
+  "Hands washed",
+  "Manos lavadas",
+  "Mains lavées",
+  "Men lave",
+  "اليدان مغسولتان"
+ ],
+ "shift.readyItem.station_stocked": [
+  "Station stocked",
+  "Estación abastecida",
+  "Poste approvisionné",
+  "Estasyon gen stock",
+  "المحطة مجهزة"
+ ],
+ "shift.readyItem.handoff_read": [
+  "Handoff read",
+  "Entrega leída",
+  "Passation lue",
+  "Remiz li",
+  "تمت قراءة التسليم"
+ ],
+ "shift.noticeKind.low_stock": [
+  "Low stock",
+  "Stock bajo",
+  "Stock bas",
+  "Stock ba",
+  "مخزون منخفض"
+ ],
+ "shift.noticeKind.substitution": [
+  "Substitution",
+  "Sustitución",
+  "Substitution",
+  "Sibstitisyon",
+  "استبدال"
+ ],
+ "shift.noticeKind.menu_correction": [
+  "Menu correction",
+  "Corrección de menú",
+  "Correction de menu",
+  "Koreksyon meni",
+  "تصحيح القائمة"
+ ],
+ "shift.issKind.missing_item": [
+  "Missing item",
+  "Artículo faltante",
+  "Article manquant",
+  "Atik ki manke",
+  "عنصر مفقود"
+ ],
+ "shift.issKind.substitution": [
+  "Substitution",
+  "Sustitución",
+  "Substitution",
+  "Sibstitisyon",
+  "استبدال"
+ ],
+ "shift.issKind.wrong_order": [
+  "Wrong order",
+  "Pedido equivocado",
+  "Mauvaise commande",
+  "Kòmann ki pa bon",
+  "طلب خاطئ"
+ ],
+ "shift.issKind.late": [
+  "Late",
+  "Atrasado",
+  "En retard",
+  "An reta",
+  "متأخر"
+ ],
+ "shift.incCat.food_service": [
+  "Food service",
+  "Servicio de comida",
+  "Service de restauration",
+  "Sèvis manje",
+  "خدمة الطعام"
+ ],
+ "shift.incCat.equipment": [
+  "Equipment",
+  "Equipo",
+  "Équipement",
+  "Ekipman",
+  "المعدات"
+ ],
+ "shift.incCat.safety": [
+  "Safety",
+  "Seguridad",
+  "Sécurité",
+  "Sekirite",
+  "السلامة"
+ ],
+ "shift.incCat.guest": [
+  "Guest",
+  "Cliente",
+  "Client",
+  "Kliyan",
+  "الضيف"
+ ],
+ "shift.incCat.other": [
+  "Other",
+  "Otro",
+  "Autre",
+  "Lòt",
+  "أخرى"
+ ],
+ "shift.handoffKind.owner": [
+  "Owner",
+  "Dueño",
+  "Propriétaire",
+  "Pwopriyetè",
+  "المالك"
+ ],
+ "shift.handoffKind.station": [
+  "Station",
+  "Estación",
+  "Poste",
+  "Estasyon",
+  "المحطة"
+ ],
+ "shift.handoffKind.prep": [
+  "Prep",
+  "Preparación",
+  "Préparation",
+  "Preparasyon",
+  "التحضير"
+ ],
+ "shift.packItem.items_verified": [
+  "Items verified",
+  "Artículos verificados",
+  "Articles vérifiés",
+  "Atik verifye",
+  "تم التحقق من العناصر"
+ ],
+ "shift.packItem.sauces_utensils": [
+  "Sauces and utensils",
+  "Salsas y utensilios",
+  "Sauces et ustensiles",
+  "Sòs ak istansil",
+  "الصلصات والأدوات"
+ ],
+ "shift.packItem.drinks": [
+  "Drinks",
+  "Bebidas",
+  "Boissons",
+  "Bwason",
+  "المشروبات"
+ ],
+ "shift.packItem.sealed": [
+  "Sealed",
+  "Sellado",
+  "Scellé",
+  "Sele",
+  "مغلق"
+ ],
+ "shift.packItem.label_applied": [
+  "Label applied",
+  "Etiqueta puesta",
+  "Étiquette apposée",
+  "Etikèt mete",
+  "تم وضع الملصق"
+ ],
+ "shift.acknowledge": [
+  "Acknowledge",
+  "Confirmar",
+  "Accuser réception",
+  "Konfime",
+  "تأكيد"
+ ],
+ "shift.break": [
+  "Break",
+  "Descanso",
+  "Pause",
+  "Poz",
+  "استراحة"
+ ],
+ "shift.ended": [
+  "Shift ended",
+  "Turno terminado",
+  "Poste terminé",
+  "Chif fini",
+  "انتهت الوردية"
+ ],
+ "shift.issueDetail": [
+  "Detail",
+  "Detalle",
+  "Détail",
+  "Detay",
+  "التفاصيل"
+ ],
+ "shift.no": [
+  "No",
+  "No",
+  "Non",
+  "Non",
+  "لا"
+ ],
+ "shift.notReady": [
+  "Not ready",
+  "No listo",
+  "Pas prêt",
+  "Pa pare",
+  "غير جاهز"
+ ],
+ "shift.proposedSubstitute": [
+  "Proposed substitute",
+  "Sustituto propuesto",
+  "Remplaçant proposé",
+  "Ranplasan pwopoze",
+  "البديل المقترح"
+ ],
+ "shift.resolution": [
+  "Resolution",
+  "Resolución",
+  "Résolution",
+  "Rezolisyon",
+  "الحل"
+ ],
+ "shift.substitutes": [
+  "Substitutes",
+  "Sustitutos",
+  "Remplaçants",
+  "Ranplasan",
+  "البدائل"
+ ],
+ "shift.yes": [
+  "Yes",
+  "Sí",
+  "Oui",
+  "Wi",
+  "نعم"
+ ],
+ "properties.duplicates": [
+  "Duplicates",
+  "Duplicados",
+  "Doublons",
+  "Doublon",
+  "التكرارات"
+ ],
+ "properties.linkDuplicate": [
+  "Link duplicate",
+  "Vincular duplicado",
+  "Lier le doublon",
+  "Lye doublon",
+  "ربط التكرار"
+ ],
+ "properties.duplicateOf": [
+  "Duplicate of",
+  "Duplicado de",
+  "Doublon de",
+  "Doublon",
+  "تكرار لـ"
+ ],
+ "properties.evidence": [
+  "Evidence",
+  "Evidencia",
+  "Preuves",
+  "Prèv",
+  "الأدلة"
+ ],
+ "properties.evidenceUrl": [
+  "Evidence link",
+  "Enlace de evidencia",
+  "Lien de preuve",
+  "Lyen prèv",
+  "رابط الدليل"
+ ],
+ "properties.addEvidence": [
+  "Add evidence",
+  "Agregar evidencia",
+  "Ajouter une preuve",
+  "Ajoute prèv",
+  "إضافة دليل"
+ ],
+ "properties.followUpOn": [
+  "Follow up on",
+  "Seguimiento el",
+  "Suivi le",
+  "Swivi nan dat",
+  "المتابعة في"
+ ],
+ "properties.setFollowUp": [
+  "Set follow-up",
+  "Fijar seguimiento",
+  "Définir le suivi",
+  "Mete swivi",
+  "تعيين المتابعة"
+ ],
+ "properties.scheduleKind": [
+  "Schedule kind",
+  "Tipo de programa",
+  "Type de planning",
+  "Kalite orè",
+  "نوع الجدولة"
+ ],
+ "properties.intervalDays": [
+  "Every N days",
+  "Cada N días",
+  "Tous les N jours",
+  "Chak N jou",
+  "كل N أيام"
+ ],
+ "properties.months": [
+  "Months",
+  "Meses",
+  "Mois",
+  "Mwa",
+  "الأشهر"
+ ],
+ "properties.createSchedule": [
+  "Create schedule",
+  "Crear programa",
+  "Créer un planning",
+  "Kreye orè",
+  "إنشاء جدولة"
+ ],
+ "properties.bookOccurrence": [
+  "Book",
+  "Reservar",
+  "Réserver",
+  "Rezève",
+  "حجز"
+ ],
+ "properties.sendBudgetAlerts": [
+  "Send budget alerts",
+  "Enviar alertas de presupuesto",
+  "Envoyer les alertes de budget",
+  "Voye alèt bidjè",
+  "إرسال تنبيهات الميزانية"
+ ],
+ "properties.unitSpend": [
+  "Unit spending",
+  "Gasto por unidad",
+  "Dépenses par unité",
+  "Depans pa inite",
+  "إنفاق الوحدات"
+ ],
+ "shift.handoffTo": [
+  "Hand off to (member ID)",
+  "Entregar a (ID)",
+  "Transmettre à (ID)",
+  "Remèt bay (ID)",
+  "تسليم إلى (معرّف العضو)"
+ ],
+ "shift.escalatedTo": [
+  "Escalated to",
+  "Escalado a",
+  "Escaladé à",
+  "Eskalade bay",
+  "تم التصعيد إلى"
+ ],
+ "shift.followUpAt": [
+  "Follow up at",
+  "Seguimiento el",
+  "Suivi le",
+  "Swivi nan dat",
+  "المتابعة في"
+ ],
+ "shift.handoffToUser": [
+  "Hand off to (member ID)",
+  "Entregar a (ID)",
+  "Transmettre à (ID)",
+  "Remèt bay (ID)",
+  "تسليم إلى (معرّف العضو)"
+ ]
+}

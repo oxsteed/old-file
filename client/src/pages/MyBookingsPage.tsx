@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { currentAuthEpoch } from '../api/authSessionEpoch';
 import { EquipmentBookingPanel } from '../components/EquipmentOperations';
+import RentalDisputesPanel from '../components/RentalDisputesPanel';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
@@ -17,6 +18,9 @@ import InvoiceModal from '../components/InvoiceModal';
 import TermsAcceptanceModal from '../components/TermsAcceptanceModal';
 import UserReportModal from '../components/UserReportModal';
 import './MyBookingsPage.css';
+// Groups 5-6 item 225: customer service-issue reports on business visits.
+import MyBusinessVisits from '../components/businessHub/g56/MyBusinessVisits';
+import MyFormerWorkplaces from '../components/businessHub/g56/MyFormerWorkplaces';
 
 function formatTime(hhmm: string | null | undefined, locale: string): string {
   if (!hhmm) return '';
@@ -73,6 +77,21 @@ interface Booking {
   deposit_status?: 'none' | 'due' | 'held' | 'returned' | 'partially_withheld' | 'withheld';
   deposit_withheld_amount?: number | string | null;
   deposit_resolution_note?: string | null;
+  owner_approval?: 'pending' | 'approved' | 'declined';
+  owner_approval_at?: string | null;
+  owner_decline_reason?: string | null;
+  pickup_time?: string | null;
+  // Group 11 item 576: return time + reschedule state.
+  return_time?: string | null;
+  return_reschedule_status?: 'none' | 'proposed' | 'approved' | 'declined';
+  return_reschedule_proposed_end_date?: string | null;
+  return_reschedule_proposed_time?: string | null;
+  return_reschedule_reason?: string | null;
+  agreement_snapshot?: { rental?: { fulfillment?: string; returnTime?: string | null }; tool?: { cleaningInstructions?: string | null } } | null;
+  renter_identity?: { status: string; verified: boolean; verifiedAt?: string | null };
+  owner_identity?: { status: string; verified: boolean; verifiedAt?: string | null };
+  checkout_acknowledged_at?: string | null;
+  checkout_report_id?: string | null;
 }
 
 const MyBookingsPageContent = () => {
@@ -93,6 +112,17 @@ const MyBookingsPageContent = () => {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportBookingId, setReportBookingId] = useState<number | null>(null);
   const [reportOwnerId, setReportOwnerId] = useState<number | string | null>(null);
+  // Group 11 item 570: in-app confirmation receipt, loaded lazily per booking.
+  const [receiptOpen, setReceiptOpen] = useState<Record<number, boolean>>({});
+  const [receipts, setReceipts] = useState<Record<number, any>>({});
+  const [receiptLoading, setReceiptLoading] = useState<Record<number, boolean>>({});
+  // Group 11 item 576: renter return-reschedule draft per booking.
+  const [rescheduleDraft, setRescheduleDraft] = useState<Record<number, { date: string; time: string }>>({});
+  // Group 11 item 583: cancellation recovery record per cancelled booking.
+  const [recoveries, setRecoveries] = useState<Record<number, any>>({});
+  const [recoveryDraft, setRecoveryDraft] = useState<Record<number, { amount: string; direction: string; note: string }>>({});
+  // Group 11 item 584: replacement suggestions per cancelled booking.
+  const [bookingAlternatives, setBookingAlternatives] = useState<Record<number, any[]>>({});
 
   useEffect(() => {
     loadBookings();
@@ -112,6 +142,21 @@ const MyBookingsPageContent = () => {
       setMyBookings(myRentals);
       setOwnerBookings(toolBookings);
       setHelperBookings(Array.isArray(hbResponse.data?.data) ? hbResponse.data.data : []);
+      // Group 11 items 583/584: for every cancelled rental, load the
+      // recovery record (if any) and replacement suggestions for the
+      // original dates, so the recovery panel is ready on the card.
+      const cancelled = [...myRentals, ...toolBookings].filter((b: Booking) => b.status === 'cancelled');
+      const seen = new Set<number>();
+      await Promise.all(cancelled.filter((b: Booking) => !seen.has(b.id) && seen.add(b.id)).map(async (b: Booking) => {
+        try {
+          const { recovery } = await toolRentalsApi.getCancellationRecovery(b.id);
+          if (recovery) setRecoveries((prev) => ({ ...prev, [b.id]: recovery }));
+        } catch { /* no recovery recorded yet */ }
+        try {
+          const alts = await toolRentalsApi.getAlternatives(b.tool_id, { startDate: b.start_date, endDate: b.end_date });
+          setBookingAlternatives((prev) => ({ ...prev, [b.id]: alts }));
+        } catch { /* alternatives unavailable */ }
+      }));
     } catch (err) {
       setError(t('toolRentals.loadingError') || 'Failed to load bookings');
     } finally {
@@ -123,7 +168,14 @@ const MyBookingsPageContent = () => {
   // sending the first invoice. The acceptance is recorded server-side in
   // tool_rental_terms_acceptance (owner role); the invoice endpoint also
   // enforces it so the modal cannot be bypassed.
+  // Group 11 item 568 (D-258): approval precedes invoicing. The invoice
+  // endpoint enforces it server-side; the button stays disabled until
+  // the owner approves, so the flow is visible before the server refuses.
   const handleSendInvoice = async (booking: Booking) => {
+    if (booking.owner_approval !== 'approved') {
+      toast.error(t('toolRentals.approvalRequiredBeforeInvoice') || 'Approve this request before sending the invoice.');
+      return;
+    }
     try {
       const { data } = await api.get(`/tool-rentals/bookings/${booking.id}/terms-status`);
       if (data?.ownerAccepted) {
@@ -137,6 +189,37 @@ const MyBookingsPageContent = () => {
     }
     setTermsBookingId(booking.id);
     setTermsModalOpen(true);
+  };
+
+  // Group 11 item 568: explicit owner approve/decline, distinct from
+  // invoicing. Decline closes the request with a reason the renter sees.
+  const handleApproveBooking = async (booking: Booking) => {
+    try {
+      await toolRentalsApi.approveBooking(booking.id);
+      toast.success(t('toolRentals.approvalApproved') || 'Approved');
+      loadBookings();
+    } catch (err) {
+      toast.error(t('toolRentals.approvalFailed') || 'Could not approve the request');
+    }
+  };
+
+  const handleDeclineBooking = async (booking: Booking) => {
+    const reason = window.prompt(
+      t('toolRentals.declineReasonPrompt') || 'Why are you declining this request? The renter will see this reason.',
+      ''
+    );
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error(t('toolRentals.declineReasonPrompt') || 'Why are you declining this request? The renter will see this reason.');
+      return;
+    }
+    try {
+      await toolRentalsApi.declineBooking(booking.id, reason.trim());
+      toast.success(t('toolRentals.declineRequest') || 'Decline');
+      loadBookings();
+    } catch (err) {
+      toast.error(t('toolRentals.declineFailed') || 'Could not decline the request');
+    }
   };
 
   const handleStatusUpdate = async (bookingId: number, newStatus: string, extra: Record<string, unknown> = {}) => {
@@ -265,6 +348,458 @@ const MyBookingsPageContent = () => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   };
 
+  // Group 11 item 570: toggle the in-app confirmation receipt; fetch
+  // once per booking, then reuse.
+  // Group 11 item 575: renter confirms receipt at pickup. The server
+  // enforces identity, payment_confirmed status and the pickup report;
+  // the client only surfaces the refusal reason.
+  const handleAcknowledgeCheckout = async (booking: Booking) => {
+    try {
+      await toolRentalsApi.acknowledgeCheckout(booking.id);
+      toast.success(t('toolRentals.pickupConfirmed') || 'Pickup confirmed');
+      loadBookings();
+    } catch (err: any) {
+      const code = err?.response?.data?.code;
+      if (code === 'identity_not_verified') {
+        toast.error(t('toolRentals.identityPickupBlocked') || 'Complete identity verification before pickup.');
+      } else if (code === 'pickup_report_required') {
+        toast.error(t('toolRentals.pickupReportRequired') || 'File the pickup condition report first, then confirm pickup.');
+      } else {
+        toast.error(t('toolRentals.checkoutAckFailed') || 'Could not record the pickup confirmation');
+      }
+    }
+  };
+
+  // Group 11 item 576: return reschedule. The renter proposes a new
+  // return date/time; the owner approves or declines. Approval never
+  // changes the charges (D-257); the server enforces that and the
+  // calendar overlap check.
+  const handleProposeReturnReschedule = async (booking: Booking) => {
+    const draft = rescheduleDraft[booking.id] || { date: '', time: '' };
+    if (!draft.date) {
+      toast.error(t('toolRentals.returnRescheduleDateRequired') || 'Pick a new return date first.');
+      return;
+    }
+    try {
+      await toolRentalsApi.proposeReturnReschedule(booking.id, { proposedEndDate: draft.date, proposedTime: draft.time || null });
+      toast.success(t('toolRentals.returnRescheduleProposed') || 'Return reschedule proposed');
+      loadBookings();
+    } catch (err: any) {
+      const code = err?.response?.data?.code;
+      if (code === 'return_reschedule_pending') {
+        toast.error(t('toolRentals.returnReschedulePending') || 'A return reschedule is already waiting for the owner.');
+      } else {
+        toast.error(err?.response?.data?.error || t('toolRentals.returnRescheduleFailed') || 'Could not propose the new return date');
+      }
+    }
+  };
+
+  const handleApproveReturnReschedule = async (booking: Booking) => {
+    try {
+      await toolRentalsApi.approveReturnReschedule(booking.id);
+      toast.success(t('toolRentals.returnRescheduleApproved') || 'New return date approved');
+      loadBookings();
+    } catch (err: any) {
+      if (err?.response?.data?.code === 'conflict') {
+        toast.error(t('toolRentals.returnRescheduleConflict') || 'The new return date overlaps another booking for this tool.');
+      } else {
+        toast.error(t('toolRentals.returnRescheduleFailed') || 'Could not approve the new return date');
+      }
+    }
+  };
+
+  const handleDeclineReturnReschedule = async (booking: Booking) => {
+    const reason = window.prompt(
+      t('toolRentals.returnRescheduleDeclinePrompt') || 'Why does the new return date not work? The renter will see this reason.',
+      ''
+    );
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error(t('toolRentals.returnRescheduleDeclinePrompt') || 'Why does the new return date not work? The renter will see this reason.');
+      return;
+    }
+    try {
+      await toolRentalsApi.declineReturnReschedule(booking.id, reason.trim());
+      toast.success(t('toolRentals.returnRescheduleDeclined') || 'Return reschedule declined');
+      loadBookings();
+    } catch {
+      toast.error(t('toolRentals.returnRescheduleFailed') || 'Could not decline the new return date');
+    }
+  };
+
+  // Group 11 item 583: cancellation recovery. Either party proposes a
+  // refund settlement (record-only, D-257); the other party confirms it,
+  // and either party marks it settled once the money moved off-platform.
+  const handleProposeRefund = async (booking: Booking) => {
+    const draft = recoveryDraft[booking.id] || { amount: '', direction: 'owner_to_renter', note: '' };
+    const amount = Number(draft.amount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      toast.error(t('toolRentals.recoveryAmountRequired') || 'Enter a refund amount of 0 or more.');
+      return;
+    }
+    try {
+      const { recovery } = await toolRentalsApi.proposeRefundSettlement(booking.id, {
+        amount,
+        direction: amount === 0 ? 'none' : draft.direction,
+        note: draft.note || null,
+      });
+      setRecoveries((prev) => ({ ...prev, [booking.id]: recovery }));
+      toast.success(t('toolRentals.recoveryProposed') || 'Refund settlement proposed');
+      loadBookings();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t('toolRentals.recoveryFailed') || 'Could not record the refund settlement');
+    }
+  };
+
+  const handleConfirmRefund = async (booking: Booking) => {
+    try {
+      const { recovery } = await toolRentalsApi.confirmRefundSettlement(booking.id);
+      setRecoveries((prev) => ({ ...prev, [booking.id]: recovery }));
+      toast.success(t('toolRentals.recoveryAgreed') || 'Refund settlement agreed');
+      loadBookings();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t('toolRentals.recoveryFailed') || 'Could not confirm the refund settlement');
+    }
+  };
+
+  const handleSettleRefund = async (booking: Booking) => {
+    if (!window.confirm(t('toolRentals.recoverySettleConfirm') || 'Confirm the refund money has already moved between you off-platform?')) return;
+    try {
+      const { recovery } = await toolRentalsApi.settleRefundSettlement(booking.id);
+      setRecoveries((prev) => ({ ...prev, [booking.id]: recovery }));
+      toast.success(t('toolRentals.recoverySettled') || 'Refund marked settled');
+      loadBookings();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t('toolRentals.recoveryFailed') || 'Could not mark the refund settled');
+    }
+  };
+
+  const handleToggleReceipt = async (booking: Booking) => {
+    const open = !receiptOpen[booking.id];
+    setReceiptOpen((prev) => ({ ...prev, [booking.id]: open }));
+    if (!open || receipts[booking.id]) return;
+    setReceiptLoading((prev) => ({ ...prev, [booking.id]: true }));
+    try {
+      const data = await toolRentalsApi.getBookingReceipt(booking.id);
+      setReceipts((prev) => ({ ...prev, [booking.id]: data }));
+    } catch {
+      toast.error(t('toolRentals.receiptLoadFailed') || 'Could not load the receipt');
+      setReceiptOpen((prev) => ({ ...prev, [booking.id]: false }));
+    } finally {
+      setReceiptLoading((prev) => ({ ...prev, [booking.id]: false }));
+    }
+  };
+
+  const handleDownloadInvoicePdf = async (invoice: { id: number; invoice_number?: string }) => {
+    try {
+      await toolRentalsApi.downloadInvoicePdf(invoice.id, invoice.invoice_number);
+    } catch {
+      toast.error(t('toolRentals.receiptLoadFailed') || 'Could not load the receipt');
+    }
+  };
+
+  // Group 11 item 576: return time + reschedule. The renter proposes a
+  // new return date/time while the booking is paid; the owner decides.
+  // Group 11 item 580: cleaning instructions at return, frozen in the
+  // agreement snapshot at booking time.
+  const renderReturnSection = (booking: Booking, isOwner: boolean) => {
+    const cleaning = booking.agreement_snapshot?.tool?.cleaningInstructions;
+    const proposedDate = booking.return_reschedule_proposed_end_date;
+    const proposedTime = booking.return_reschedule_proposed_time;
+    const status = booking.return_reschedule_status || 'none';
+    const draft = rescheduleDraft[booking.id] || { date: '', time: '' };
+    const showReturnInfo = booking.status === 'payment_confirmed' || booking.status === 'returned';
+    if (!showReturnInfo) return null;
+    return (
+      <div className="booking-card-note" data-testid={`booking-return-${booking.id}`}>
+        {booking.return_time && (
+          <p>
+            {t('toolRentals.returnTimeLabel') || 'Return time'}: {formatTime(booking.return_time, locale)}
+            {' · '}
+            {formatDate(booking.end_date)}
+          </p>
+        )}
+        {cleaning && (
+          <p>
+            {t('toolRentals.cleaningInstructionsTitle') || 'Cleaning instructions'}: {cleaning}
+          </p>
+        )}
+        {status === 'proposed' && (
+          <p>
+            {t('toolRentals.returnRescheduleProposedNote') || 'A new return date was proposed'}: {proposedDate ? formatDate(proposedDate) : ''}
+            {proposedTime ? ` · ${formatTime(proposedTime, locale)}` : ''}
+            {' · '}
+            {t('toolRentals.returnRescheduleNoCharge') || 'No extra charge.'}
+          </p>
+        )}
+        {status === 'approved' && (
+          <p>{t('toolRentals.returnRescheduleApprovedNote') || 'The owner approved the new return date.'}</p>
+        )}
+        {status === 'declined' && booking.return_reschedule_reason && (
+          <p>
+            {t('toolRentals.returnRescheduleDeclinedNote') || 'The owner declined the new return date:'} {booking.return_reschedule_reason}
+          </p>
+        )}
+        {!isOwner && status !== 'proposed' && booking.status === 'payment_confirmed' && (
+          <div className="booking-card-actions">
+            <label>
+              {t('toolRentals.returnRescheduleNewDate') || 'New return date'}
+              <input
+                type="date"
+                min={booking.start_date}
+                value={draft.date}
+                onChange={(e) => setRescheduleDraft((prev) => ({ ...prev, [booking.id]: { ...draft, date: e.target.value } }))}
+              />
+            </label>
+            <label>
+              {t('toolRentals.returnTimeTitle') || 'Return time'}
+              <input
+                type="time"
+                value={draft.time}
+                onChange={(e) => setRescheduleDraft((prev) => ({ ...prev, [booking.id]: { ...draft, time: e.target.value } }))}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => handleProposeReturnReschedule(booking)}
+              className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.23"
+            >
+              {t('toolRentals.returnReschedulePropose') || 'Propose new return date'}
+            </button>
+          </div>
+        )}
+        {isOwner && status === 'proposed' && (
+          <div className="booking-card-actions">
+            <button
+              type="button"
+              onClick={() => handleApproveReturnReschedule(booking)}
+              className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.24"
+            >
+              {t('toolRentals.returnRescheduleApprove') || 'Approve new return date'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeclineReturnReschedule(booking)}
+              className="booking-action-btn booking-action-decline" data-track="ui.5655b990ea.25"
+            >
+              {t('toolRentals.returnRescheduleDecline') || 'Decline new return date'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Group 11 item 583: cancellation recovery (record-only refund
+  // agreement) + Group 11 item 584: replacement suggestions for rebook.
+  const renderRecoveryPanel = (booking: Booking) => {
+    const recovery = recoveries[booking.id];
+    const draft = recoveryDraft[booking.id] || { amount: '', direction: 'owner_to_renter', note: '' };
+    const alternatives = bookingAlternatives[booking.id] || [];
+    const isProposer = recovery?.proposed_by === user?.id;
+    return (
+      <div className="booking-card-note" data-testid={`booking-recovery-${booking.id}`}>
+        <h4>{t('toolRentals.recoveryTitle') || 'Cancellation recovery'}</h4>
+        {recovery ? (
+          <div>
+            <p>
+              {t('toolRentals.recoveryAmount') || 'Refund'}: ${Number(recovery.refund_amount || 0).toFixed(2)}
+              {' · '}
+              {t(`toolRentals.recoveryDirection_${recovery.refund_direction}`) || recovery.refund_direction}
+              {' · '}
+              {t(`toolRentals.recoveryStatus_${recovery.refund_status}`) || recovery.refund_status}
+            </p>
+            {recovery.refund_note && <p>{recovery.refund_note}</p>}
+            <p>{t('toolRentals.recoveryOffPlatformNote') || 'The platform only records this agreement. The money moves directly between you, off-platform.'}</p>
+            {recovery.refund_status === 'proposed' && !isProposer && (
+              <div className="booking-card-actions">
+                <button
+                  type="button"
+                  onClick={() => handleConfirmRefund(booking)}
+                  className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.26"
+                >
+                  {t('toolRentals.recoveryConfirm') || 'Agree to this refund'}
+                </button>
+              </div>
+            )}
+            {recovery.refund_status === 'proposed' && isProposer && (
+              <p>{t('toolRentals.recoveryWaitingOther') || 'Waiting for the other party to agree.'}</p>
+            )}
+            {recovery.refund_status === 'agreed' && (
+              <div className="booking-card-actions">
+                <button
+                  type="button"
+                  onClick={() => handleSettleRefund(booking)}
+                  className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.27"
+                >
+                  {t('toolRentals.recoverySettle') || 'Mark refund settled'}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <p>{t('toolRentals.recoveryNoRecord') || 'No refund agreement recorded yet.'}</p>
+            <p>{t('toolRentals.recoveryOffPlatformNote') || 'The platform only records this agreement. The money moves directly between you, off-platform.'}</p>
+            <div className="booking-card-actions">
+              <label>
+                {t('toolRentals.recoveryAmount') || 'Refund'}
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={Number(booking.total_price || 0)}
+                  value={draft.amount}
+                  onChange={(e) => setRecoveryDraft((prev) => ({ ...prev, [booking.id]: { ...draft, amount: e.target.value } }))}
+                />
+              </label>
+              <label>
+                {t('toolRentals.recoveryDirection') || 'Who pays whom'}
+                <select
+                  value={draft.direction}
+                  onChange={(e) => setRecoveryDraft((prev) => ({ ...prev, [booking.id]: { ...draft, direction: e.target.value } }))}
+                >
+                  <option value="owner_to_renter">{t('toolRentals.recoveryDirection_owner_to_renter') || 'Owner refunds renter'}</option>
+                  <option value="renter_to_owner">{t('toolRentals.recoveryDirection_renter_to_owner') || 'Renter pays owner'}</option>
+                </select>
+              </label>
+              <label>
+                {t('toolRentals.recoveryNote') || 'Note'}
+                <input
+                  type="text"
+                  maxLength={2000}
+                  value={draft.note}
+                  onChange={(e) => setRecoveryDraft((prev) => ({ ...prev, [booking.id]: { ...draft, note: e.target.value } }))}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => handleProposeRefund(booking)}
+                className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.28"
+              >
+                {t('toolRentals.recoveryPropose') || 'Propose refund'}
+              </button>
+            </div>
+          </div>
+        )}
+        {alternatives.length > 0 && (
+          <div>
+            <h4>{t('toolRentals.alternativesTitle') || 'Similar tools for these dates'}</h4>
+            <ul>
+              {alternatives.map((alt: any) => (
+                <li key={alt.id}>
+                  <Link to={`/tool-rentals/${alt.id}`}>
+                    {alt.name} · ${Number(alt.daily_rate).toFixed(2)}/day
+                    {alt.distance_miles != null ? ` · ${Number(alt.distance_miles).toFixed(1)} mi` : ''}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <Link to="/tool-rentals" className="booking-action-btn booking-action-invoice">
+          {t('toolRentals.recoveryBrowseAgain') || 'Search for tools again'}
+        </Link>
+      </div>
+    );
+  };
+
+  const renderReceipt = (booking: Booking) => {
+    const receipt = receipts[booking.id];
+    if (!receiptOpen[booking.id]) return null;
+    if (receiptLoading[booking.id] || !receipt) {
+      return <p className="booking-card-note">{t('common.loading')}</p>;
+    }
+    const fulfillment = receipt.booking?.agreement_snapshot?.rental?.fulfillment;
+    return (
+      <div className="booking-receipt" data-testid={`booking-receipt-${booking.id}`}>
+        <h4>{t('toolRentals.receiptTitle') || 'Booking receipt'}</h4>
+        <dl>
+          <div><dt>{t('toolRentals.receiptTool') || 'Tool'}</dt><dd>{receipt.tool?.name || booking.name}</dd></div>
+          <div>
+            <dt>{t('toolRentals.receiptDates') || 'Rental dates'}</dt>
+            <dd>{formatDate(booking.start_date)} - {formatDate(booking.end_date)} ({t('myBookings.daysCount', { count: calculateDays(booking.start_date, booking.end_date) })})</dd>
+          </div>
+          {booking.pickup_time && (
+            <div><dt>{t('toolRentals.receiptPickupTime') || 'Pickup time'}</dt><dd>{formatTime(booking.pickup_time, locale)}</dd></div>
+          )}
+          {booking.return_time && (
+            <div><dt>{t('toolRentals.receiptReturnTime') || 'Return time'}</dt><dd>{formatTime(booking.return_time, locale)}</dd></div>
+          )}
+          {receipt.booking?.agreement_snapshot?.tool?.cleaningInstructions && (
+            <div><dt>{t('toolRentals.cleaningInstructionsTitle') || 'Cleaning instructions'}</dt><dd>{receipt.booking.agreement_snapshot.tool.cleaningInstructions}</dd></div>
+          )}
+          {booking.checkout_acknowledged_at && (
+            <div><dt>{t('toolRentals.receiptCheckout') || 'Pickup confirmed'}</dt><dd>{new Date(booking.checkout_acknowledged_at).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })}</dd></div>
+          )}
+          {fulfillment && (
+            <div><dt>{t('toolRentals.receiptFulfillment') || 'How you get it'}</dt><dd>{t(`toolRentals.receiptFulfillment_${fulfillment}`) || fulfillment}</dd></div>
+          )}
+          <div><dt>{t('toolRentals.receiptTotal') || 'Total'}</dt><dd>${Number(booking.total_price || 0).toFixed(2)}</dd></div>
+          <div>
+            <dt>{t('toolRentals.receiptApproval') || 'Owner approval'}</dt>
+            <dd>{t(`toolRentals.receiptApproval_${booking.owner_approval || 'pending'}`) || booking.owner_approval || 'pending'}</dd>
+          </div>
+          <div>
+            <dt>{t('toolRentals.receiptTerms') || 'Terms'}</dt>
+            <dd>
+              {t('toolRentals.receiptTermsRenter') || 'Renter'}: {receipt.terms?.customerAccepted ? (t('toolRentals.receiptTermsAccepted') || 'Accepted') : (t('toolRentals.receiptTermsPending') || 'Not accepted yet')}
+              {' · '}
+              {t('toolRentals.receiptTermsOwner') || 'Owner'}: {receipt.terms?.ownerAccepted ? (t('toolRentals.receiptTermsAccepted') || 'Accepted') : (t('toolRentals.receiptTermsPending') || 'Not accepted yet')}
+            </dd>
+          </div>
+          <div>
+            <dt>{t('toolRentals.receiptInvoice') || 'Invoice'}</dt>
+            <dd>
+              {receipt.invoice ? (
+                <>
+                  {receipt.invoice.invoice_number} · {receipt.invoice.status} · ${Number(receipt.invoice.total_amount || 0).toFixed(2)}
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadInvoicePdf(receipt.invoice)}
+                    className="booking-receipt-pdf-link" data-track="ui.5655b990ea.22"
+                  >
+                    {t('toolRentals.receiptInvoiceDownload') || 'Download invoice PDF'}
+                  </button>
+                </>
+              ) : (
+                t('toolRentals.receiptNoInvoice') || 'No invoice sent yet.'
+              )}
+            </dd>
+          </div>
+        </dl>
+      </div>
+    );
+  };
+
+  // Group 11 item 571 (D-259): identity is the platform Didit state.
+  // Shown to both parties; a renter who has not verified cannot
+  // complete pickup (enforced server-side on the acknowledgment).
+  const renderIdentityLine = (booking: Booking, isOwnerView: boolean) => {
+    const identityStatusLabel = (status: string) =>
+      t(`toolRentals.identity_${status}`) || status;
+    return (
+      <div className="booking-card-identity">
+        <span>
+          {isOwnerView
+            ? `${t('toolRentals.identityRenter') || 'Renter identity'}: ${identityStatusLabel(booking.renter_identity?.status || 'not_started')}`
+            : `${t('toolRentals.identityTitle') || 'Identity check'}: ${identityStatusLabel(booking.renter_identity?.status || 'not_started')}`}
+        </span>
+        {!isOwnerView && booking.renter_identity && !booking.renter_identity.verified && (
+          <Link to="/verify-identity" className="booking-identity-link">
+            {t('toolRentals.identityVerifyNow') || 'Verify your identity'}
+          </Link>
+        )}
+        {!isOwnerView && (
+          <span>
+            {`${t('toolRentals.identityOwner') || 'Owner identity'}: ${identityStatusLabel(booking.owner_identity?.status || 'not_started')}`}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   const renderBookingCard = (booking: Booking, isOwner: boolean = false) => (
     <div key={booking.id} className="booking-card">
       <EquipmentBookingPanel bookingId={booking.id}/>
@@ -290,6 +825,18 @@ const MyBookingsPageContent = () => {
           <span className="booking-card-days">
             ({t('myBookings.daysCount', { count: calculateDays(booking.start_date, booking.end_date) })})
           </span>
+          {/* Group 11 item 574: pickup appointment time. */}
+          {booking.pickup_time && (
+            <span className="booking-card-pickup-time">
+              {t('toolRentals.pickupTimeLabel') || 'Pickup time'}: {formatTime(booking.pickup_time, locale)}
+            </span>
+          )}
+          {/* Group 11 item 576: return appointment time. */}
+          {booking.return_time && (
+            <span className="booking-card-pickup-time">
+              {t('toolRentals.returnTimeLabel') || 'Return time'}: {formatTime(booking.return_time, locale)}
+            </span>
+          )}
         </div>
 
         {isOwner && booking.first_name && (
@@ -302,20 +849,89 @@ const MyBookingsPageContent = () => {
         )}
       </div>
 
+      {/* Group 11 item 568 (D-258): approval is a distinct step before
+          invoicing. The owner approves or declines the request; the
+          invoice button stays disabled until the request is approved. */}
       {isOwner && booking.status === 'pending' && (
         <div className="booking-card-actions">
           <button
+            onClick={() => handleApproveBooking(booking)}
+            className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.18"
+          >
+            {t('toolRentals.approveRequest') || 'Approve request'}
+          </button>
+          <button
+            onClick={() => handleDeclineBooking(booking)}
+            className="booking-action-btn booking-action-decline" data-track="ui.5655b990ea.19"
+          >
+            {t('toolRentals.declineRequest') || 'Decline request'}
+          </button>
+          <button
             onClick={() => handleSendInvoice(booking)}
+            disabled={booking.owner_approval !== 'approved'}
+            title={booking.owner_approval !== 'approved' ? (t('toolRentals.approvalRequiredBeforeInvoice') || 'Approve this request before sending the invoice.') : undefined}
             className="booking-action-btn booking-action-invoice" data-track="ui.5655b990ea.1"
           >
             <FileText className="w-4 h-4" />
             {t('toolRentals.sendInvoice') || 'Send Invoice'}
           </button>
+        </div>
+      )}
+
+      {booking.status === 'pending' && booking.owner_approval === 'approved' && (
+        <p className="booking-card-note">
+          {isOwner
+            ? (t('toolRentals.approvedNote') || 'You approved this request. You can now send the invoice.')
+            : (t('toolRentals.approvedNoteRenter') || 'The owner approved your request. The invoice is on its way.')}
+        </p>
+      )}
+
+      {!isOwner && booking.status === 'pending' && booking.owner_approval !== 'approved' && (
+        <p className="booking-card-note">
+          {t('toolRentals.awaitingApproval') || 'Waiting for the owner to approve this request.'}
+        </p>
+      )}
+
+      {booking.status === 'cancelled' && booking.owner_decline_reason && (
+        <p className="booking-card-note">
+          {t('toolRentals.declineReasonLabel') || 'Decline reason:'} {booking.owner_decline_reason}
+        </p>
+      )}
+
+      {/* Group 11 item 571: identity status for both parties. */}
+      {renderIdentityLine(booking, isOwner)}
+
+      {/* Group 11 item 576: return time + reschedule. Group 11 item 580:
+          cleaning instructions at return, frozen in the snapshot. */}
+      {renderReturnSection(booking, isOwner)}
+
+      {/* Group 11 item 583: cancellation recovery + 584 alternatives. */}
+      {booking.status === 'cancelled' && renderRecoveryPanel(booking)}
+
+      {/* Group 11 Slice 2e: damage claims (586), escalation threads (589)
+          and deposit acknowledgment (590) on every rental booking. */}
+      <RentalDisputesPanel booking={booking} isOwner={isOwner} currentUserId={user?.id} onChanged={loadBookings} />
+
+      {/* Group 11 item 575: checkout acknowledgment at pickup. The
+          renter confirms receipt; the pickup condition report is the
+          evidence and is shown in the booking panel above. */}
+      {booking.checkout_acknowledged_at ? (
+        <p className="booking-card-note">
+          {isOwner
+            ? (t('toolRentals.pickupConfirmedNoteOwner') || 'The renter confirmed pickup.')
+            : (t('toolRentals.pickupConfirmedNote') || 'You confirmed receipt of the item as described.')}
+          {' '}
+          {new Date(booking.checkout_acknowledged_at).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })}
+        </p>
+      ) : !isOwner && booking.status === 'payment_confirmed' && (
+        <div className="booking-card-actions">
           <button
-            onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
-            className="booking-action-btn booking-action-decline" data-track="ui.5655b990ea.2"
+            onClick={() => handleAcknowledgeCheckout(booking)}
+            disabled={booking.renter_identity ? !booking.renter_identity.verified : false}
+            title={booking.renter_identity && !booking.renter_identity.verified ? (t('toolRentals.identityPickupBlocked') || 'Complete identity verification before pickup.') : undefined}
+            className="booking-action-btn booking-action-approve" data-track="ui.5655b990ea.21" data-track-private
           >
-            {t('toolRentals.decline') || 'Decline'}
+            {t('toolRentals.confirmPickup') || 'Confirm pickup'}
           </button>
         </div>
       )}
@@ -404,6 +1020,19 @@ const MyBookingsPageContent = () => {
           {t('toolRentals.returnConditionLabel') || 'Return condition:'} {booking.return_condition_note}
         </p>
       )}
+
+      {/* Group 11 item 570: in-app confirmation receipt. */}
+      <div className="booking-card-actions">
+        <button
+          onClick={() => handleToggleReceipt(booking)}
+          className="booking-action-btn booking-action-invoice" data-track="ui.5655b990ea.20"
+        >
+          {receiptOpen[booking.id]
+            ? (t('toolRentals.hideReceipt') || 'Hide receipt')
+            : (t('toolRentals.viewReceipt') || 'View receipt')}
+        </button>
+      </div>
+      {renderReceipt(booking)}
 
       {!isOwner && booking.status !== 'cancelled' && booking.status !== 'completed' && (
         <div className="booking-card-actions">
@@ -561,6 +1190,8 @@ const MyBookingsPageContent = () => {
       />
 
       <div className="my-bookings-container">
+        <MyBusinessVisits />
+        <MyFormerWorkplaces />
         <div className="my-bookings-hero">
           <div className="my-bookings-header">
             <p className="my-bookings-eyebrow">{t('myBookings.eyebrow')}</p>

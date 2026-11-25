@@ -284,6 +284,16 @@ async function revokeAdminCard(req, res, next) {
   }
 }
 
+async function freezeAdminCard(req, res, next) {
+  try {
+    const cardId = parseUuid(req.params.cardId, 'cardId');
+    const result = await cardService.adminFreezeCard({ cardId, reason: req.body?.reason, ...getRequestContext(req) });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Kiosk-facing: /api/restaurants/:restaurantId/credit-kiosks/:deviceId/*
 // Device-authenticated the same way POS/Kitchen/Display already are, via the
@@ -399,6 +409,7 @@ module.exports = {
   listAdminCards,
   updateAdminCardFulfillment,
   revokeAdminCard,
+  freezeAdminCard,
   authenticateCreditKiosk,
   kioskRedeemCard,
   kioskCashOut,

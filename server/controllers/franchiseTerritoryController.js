@@ -73,6 +73,7 @@ exports.getTerritoryStats = async (req, res) => {
              fa.status, fa.agreement_status, fa.training_status,
              fa.launch_readiness_status, fa.linked_business_id,
              fa.desired_brand_name, fa.current_company_name,
+             fa.acceptance_status,
              COALESCE(progress.completed_count, 0) AS checklist_done,
              COALESCE(progress.total_count, 0)     AS checklist_all
         FROM franchise_applications fa
@@ -97,6 +98,19 @@ exports.getTerritoryStats = async (req, res) => {
       });
     }
 
+    // Group 12 Slice 3b (606, D-307): the operator surface unlocks only
+    // after the operator accepts the assignment. While an offer is
+    // outstanding or declined the territory stays locked; legacy
+    // applications with no offer yet (not_offered) keep the existing
+    // behaviour, and the grant still mints at launch (unchanged).
+    if (['offered', 'declined'].includes(appRow.acceptance_status)) {
+      return res.json({
+        has_territory: false,
+        acceptance_status: appRow.acceptance_status,
+        message: 'Territory assignment is awaiting your acceptance.',
+      });
+    }
+
     const country = appRow.desired_country;
     const region  = appRow.desired_region;
     const city    = appRow.desired_city;
@@ -118,10 +132,9 @@ exports.getTerritoryStats = async (req, res) => {
           ROUND(AVG(avg_rating) FILTER (WHERE total_reviews >= 3), 2)     AS avg_rating
         FROM helper_profiles hp
         JOIN users u ON u.id = hp.user_id AND u.is_active = TRUE AND u.deleted_at IS NULL
-        WHERE ($1::text IS NULL OR LOWER(COALESCE(hp.service_area_city,'')) = LOWER($1)
-               OR LOWER(COALESCE(u.city,'')) = LOWER($1)
-               OR LOWER(COALESCE(hp.location_city,'')) = LOWER($1))
-          AND ($2::text IS NULL OR LOWER(COALESCE(hp.service_area_state,'')) = LOWER($2)
+        WHERE ($1::text IS NULL OR LOWER(COALESCE(hp.service_city,'')) = LOWER($1)
+               OR LOWER(COALESCE(u.city,'')) = LOWER($1))
+          AND ($2::text IS NULL OR LOWER(COALESCE(hp.service_state,'')) = LOWER($2)
                OR LOWER(COALESCE(u.state,'')) = LOWER($2))
       `, [city, region]);
       helpers_total    = safeInt(hr?.total);
@@ -250,8 +263,8 @@ exports.getTerritoryHelpers = async (req, res) => {
     }
 
     const [appRow] = await safeQuery(`
-      SELECT desired_country, desired_region, desired_city
-        FROM franchise_applications
+      SELECT fa.id, desired_country, desired_region, desired_city, acceptance_status
+        FROM franchise_applications fa
        WHERE (applicant_user_id = $1 OR owner_user_id = $1)
          AND status IN ('approved','launched')
          ${applicationFilter}
@@ -259,6 +272,12 @@ exports.getTerritoryHelpers = async (req, res) => {
     `, appParams);
 
     if (!appRow) return res.json({ helpers: [] });
+
+    // Group 12 Slice 3b (606, D-307): same acceptance lock as
+    // getTerritoryStats — no helper roster while the offer is unanswered.
+    if (['offered', 'declined'].includes(appRow.acceptance_status)) {
+      return res.json({ helpers: [], acceptance_status: appRow.acceptance_status });
+    }
 
     const { desired_region: region, desired_city: city } = appRow;
 
@@ -276,22 +295,53 @@ exports.getTerritoryHelpers = async (req, res) => {
         u.first_name,
         u.last_name,
         u.email,
-        COALESCE(hp.service_area_city, u.city, hp.location_city) AS city,
-        COALESCE(hp.service_area_state, u.state)                  AS state
+        COALESCE(hp.service_city, u.city) AS city,
+        COALESCE(hp.service_state, u.state)                  AS state
       FROM helper_profiles hp
       JOIN users u ON u.id = hp.user_id AND u.is_active = TRUE AND u.deleted_at IS NULL
       WHERE ($1::text IS NULL
-             OR LOWER(COALESCE(hp.service_area_city,''))  = LOWER($1)
-             OR LOWER(COALESCE(u.city,''))               = LOWER($1)
-             OR LOWER(COALESCE(hp.location_city,''))     = LOWER($1))
+             OR LOWER(COALESCE(hp.service_city,''))  = LOWER($1)
+             OR LOWER(COALESCE(u.city,''))               = LOWER($1))
         AND ($2::text IS NULL
-             OR LOWER(COALESCE(hp.service_area_state,'')) = LOWER($2)
+             OR LOWER(COALESCE(hp.service_state,'')) = LOWER($2)
              OR LOWER(COALESCE(u.state,''))              = LOWER($2))
       ORDER BY hp.avg_rating DESC NULLS LAST, hp.total_reviews DESC
       LIMIT 50
     `, [city, region]);
 
-    res.json({ helpers });
+    // Group 12 Slice 3c (612, D-312): opening-team designation rides the
+    // roster — each helper carries whether they are on the opening team,
+    // with which role and for which location (null = whole territory).
+    // A missing opening-team table reads as no designation, never a
+    // failure, like the rest of this controller.
+    const teamRows = await safeQuery(`
+      SELECT id, helper_user_id, location_id, role
+        FROM franchise_opening_team_members
+       WHERE application_id = $1
+    `, [appRow.id]);
+    // One helper can hold a territory-wide designation and a
+    // location-scoped one; the location-scoped row is the one the roster
+    // shows, since the roster is read per location launch.
+    const teamByHelper = new Map();
+    for (const row of teamRows) {
+      const key = String(row.helper_user_id);
+      const existing = teamByHelper.get(key);
+      if (!existing || (existing.location_id === null && row.location_id !== null)) {
+        teamByHelper.set(key, row);
+      }
+    }
+    res.json({
+      helpers: helpers.map((helper) => {
+        const designation = teamByHelper.get(String(helper.user_id));
+        return {
+          ...helper,
+          opening_team: Boolean(designation),
+          opening_team_member_id: designation?.id || null,
+          opening_team_role: designation?.role || null,
+          opening_team_location_id: designation?.location_id || null,
+        };
+      }),
+    });
   } catch (err) {
     logger.error('[franchise-territory] getTerritoryHelpers error', { err: err.message });
     res.status(500).json({ error: 'Failed to load territory helpers.' });
