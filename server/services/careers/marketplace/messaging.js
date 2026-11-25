@@ -165,7 +165,7 @@ async function sendMessage(db, { app, side, sender, body, templateId = null }) {
       type: side === 'candidate' ? 'career_message_from_candidate' : 'career_message_from_employer',
       params: { openingTitle: app.opening_title, employerName: app.employer_name, applicantLabel: label },
       actionUrl: side === 'candidate'
-        ? (app.employer_type === 'platform' ? '/admin/careers' : `/business/${app.business_id}/careers?application=${app.id}`)
+        ? (app.employer_type === 'platform' ? '/admin/super/careers' : `/business/${app.business_id}/careers?application=${app.id}`)
         : `/careers/me?tab=messages&application=${app.id}`,
       deliveryKey: `career_msg:${msg.id}:${userId}`,
       channels,

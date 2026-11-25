@@ -131,7 +131,7 @@ async function notifyAdmins(db, paramsOrOptions, deliveryKey) {
   const type = options.type || 'career_ranking_disabled';
   const params = options.params || {};
   const key = options.deliveryKey || deliveryKey;
-  for (const r of rows) await notifyUser(db, { userId: r.id, type, params, actionUrl: '/admin/careers/fairness', deliveryKey: `${key}:${r.id}` });
+  for (const r of rows) await notifyUser(db, { userId: r.id, type, params, actionUrl: '/admin/super/careers', deliveryKey: `${key}:${r.id}` });
   return rows.length;
 }
 

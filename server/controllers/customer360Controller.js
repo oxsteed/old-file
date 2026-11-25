@@ -285,7 +285,7 @@ exports.notifyWatchers = async ({ targetUserIds, eventType = 'dispute', refId, t
         type: 'watchlist_ticket',
         title: 'Watched user opened a ticket',
         body: title ? `New support ticket: "${title}".` : 'A support ticket was opened.',
-        action_url: `/admin/support/tickets/${refId}`,
+        action_url: '/admin/support',
       },
       booking: {
         type: 'watchlist_booking',
