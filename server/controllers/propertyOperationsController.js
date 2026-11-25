@@ -96,10 +96,11 @@ async function loadWorkspace(client, businessId) {
       [businessId]
     ),
     client.query(
-      `SELECT *
-       FROM property_portfolio_units
-       WHERE business_id = $1
-       ORDER BY property_label, unit_label NULLS FIRST, created_at DESC`,
+      `SELECT u.*, p.label AS property_name
+       FROM property_portfolio_units u
+       LEFT JOIN properties p ON p.id = u.property_id
+       WHERE u.business_id = $1
+       ORDER BY u.property_label, u.unit_label NULLS FIRST, u.created_at DESC`,
       [businessId]
     ),
     client.query(
@@ -330,27 +331,55 @@ exports.updateSettings = async (req, res, next) => {
   }
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 exports.createUnit = async (req, res, next) => {
   try {
-    const propertyLabel = trimString(req.body.property_label, 200);
+    // 303 (Batch F): a unit may link to a canonical property. When
+    // property_id is given it must belong to this business (and not be
+    // archived) and the stored label is synced from the property, so the
+    // label can never drift from the link. Without one, the free-text
+    // label stays required, as before.
+    let propertyId = null;
+    let propertyLabel = trimString(req.body.property_label, 200);
+    const rawPropertyId = typeof req.body.property_id === 'string' ? req.body.property_id.trim() : '';
+    if (rawPropertyId) {
+      if (!UUID_RE.test(rawPropertyId)) throw new AppError('Property not found', 404, 'not_found');
+      const { rows: [prop] } = await pool.query(
+        'SELECT id, label FROM properties WHERE id = $1 AND business_id = $2 AND archived_at IS NULL',
+        [rawPropertyId, req.business.id]
+      );
+      if (!prop) throw new AppError('Property not found', 404, 'not_found');
+      propertyId = prop.id;
+      propertyLabel = prop.label;
+    }
     if (!propertyLabel) throw new AppError('Property label is required', 400, 'validation_failed');
+    // 309 (Batch F): a unit contact email that is present must be shaped
+    // like an email; the contact account/scope leg stays partial
+    // (coordinator decision, Emile §4 #1).
+    const contactEmail = trimString(req.body.contact_email, 255) || null;
+    if (contactEmail && !EMAIL_RE.test(contactEmail)) {
+      throw new AppError('Contact email is invalid', 400, 'validation_failed');
+    }
 
     const { rows } = await pool.query(
       `INSERT INTO property_portfolio_units (
-         business_id, property_label, unit_label, property_type, occupancy_status,
+         business_id, property_id, property_label, unit_label, property_type, occupancy_status,
          contact_name, contact_phone, contact_email, access_summary, priority_tier, notes
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        RETURNING *`,
       [
         req.business.id,
+        propertyId,
         propertyLabel,
         trimString(req.body.unit_label, 100) || null,
         trimString(req.body.property_type, 80) || 'Apartment',
         trimString(req.body.occupancy_status, 32) || 'occupied',
         trimString(req.body.contact_name, 160) || null,
         trimString(req.body.contact_phone, 60) || null,
-        trimString(req.body.contact_email, 255) || null,
+        contactEmail,
         trimString(req.body.access_summary, 2000) || null,
         trimString(req.body.priority_tier, 24) || 'standard',
         trimString(req.body.notes, 2000) || null,
@@ -364,6 +393,37 @@ exports.createUnit = async (req, res, next) => {
 
 exports.updateUnit = async (req, res, next) => {
   try {
+    // 303 (Batch F): an explicit property_id re-links the unit (explicit
+    // null/empty unlinks it). A linked property's label is synced onto the
+    // row, so the label cannot drift from the link; the main update below
+    // keeps the synced label when a link was just applied.
+    let linkedProperty = false;
+    if (Object.prototype.hasOwnProperty.call(req.body, 'property_id')) {
+      const raw = req.body.property_id;
+      if (raw === null || raw === '') {
+        await pool.query(
+          'UPDATE property_portfolio_units SET property_id = NULL, updated_at = NOW() WHERE id = $1 AND business_id = $2',
+          [req.params.unitId, req.business.id]
+        );
+      } else {
+        if (!UUID_RE.test(String(raw))) throw new AppError('Property not found', 404, 'not_found');
+        const { rows: [prop] } = await pool.query(
+          'SELECT id, label FROM properties WHERE id = $1 AND business_id = $2 AND archived_at IS NULL',
+          [String(raw), req.business.id]
+        );
+        if (!prop) throw new AppError('Property not found', 404, 'not_found');
+        await pool.query(
+          'UPDATE property_portfolio_units SET property_id = $1, property_label = $2, updated_at = NOW() WHERE id = $3 AND business_id = $4',
+          [prop.id, prop.label, req.params.unitId, req.business.id]
+        );
+      }
+      linkedProperty = true;
+    }
+    // 309 (Batch F): same contact-email shape rule as createUnit.
+    const contactEmail = trimString(req.body.contact_email, 255) || null;
+    if (contactEmail && !EMAIL_RE.test(contactEmail)) {
+      throw new AppError('Contact email is invalid', 400, 'validation_failed');
+    }
     const { rows } = await pool.query(
       `UPDATE property_portfolio_units
        SET property_label = COALESCE($1, property_label),
@@ -380,13 +440,13 @@ exports.updateUnit = async (req, res, next) => {
        WHERE id = $11 AND business_id = $12
        RETURNING *`,
       [
-        trimString(req.body.property_label, 200) || null,
+        linkedProperty ? null : trimString(req.body.property_label, 200) || null,
         trimString(req.body.unit_label, 100) || null,
         trimString(req.body.property_type, 80) || null,
         trimString(req.body.occupancy_status, 32) || null,
         trimString(req.body.contact_name, 160) || null,
         trimString(req.body.contact_phone, 60) || null,
-        trimString(req.body.contact_email, 255) || null,
+        contactEmail,
         trimString(req.body.access_summary, 2000) || null,
         trimString(req.body.priority_tier, 24) || null,
         trimString(req.body.notes, 2000) || null,

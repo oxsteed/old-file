@@ -181,7 +181,7 @@ exports.getPublicBusiness = async (req, res, next) => {
     // and addresses only; nothing internal.
     const { rows: properties } = await pool.query(
       `SELECT id, label, address, address_city, address_state, address_zip, address_country
-         FROM properties WHERE business_id = $1 ORDER BY label ASC, created_at ASC`,
+         FROM properties WHERE business_id = $1 AND archived_at IS NULL ORDER BY label ASC, created_at ASC`,
       [business.id]
     );
     return res.json({
@@ -251,7 +251,7 @@ exports.createRequest = async (req, res, next) => {
       : null;
     if (propertyId) {
       const { rows: propRows } = await pool.query(
-        'SELECT id FROM properties WHERE id = $1 AND business_id = $2',
+        'SELECT id FROM properties WHERE id = $1 AND business_id = $2 AND archived_at IS NULL',
         [propertyId, business.id]
       );
       if (!propRows.length) throw new AppError('Property not found for this business', 404, 'property_not_found');
@@ -416,10 +416,16 @@ exports.listProperties = async (req, res, next) => {
     const { businessId } = req.params;
     const access = businessScopeSatisfies(req, businessId, 'any') || await canAccessBusinessTeam(req.user.id, businessId);
     if (!access) throw new AppError('Business not found', 404, 'not_found');
+    // 302/305 (Batch F): archived properties are excluded by default so a
+    // sold building stops appearing in the maintenance filter and the add
+    // form; the console portfolio (?archived=1) is the archived history
+    // view, and ?include_archived=true lists them here when needed.
+    const includeArchived = req.query.include_archived === 'true' || req.query.include_archived === '1';
     const { rows } = await pool.query(
       `SELECT id, business_id, label, address, address_city, address_state,
-              address_zip, address_country, created_at, updated_at
-         FROM properties WHERE business_id = $1 ORDER BY label ASC, created_at ASC`,
+              address_zip, address_country, status, archived_at, created_at, updated_at
+         FROM properties WHERE business_id = $1 ${includeArchived ? '' : 'AND archived_at IS NULL '}
+         ORDER BY label ASC, created_at ASC`,
       [businessId]
     );
     return res.json({ properties: rows });

@@ -29,6 +29,7 @@ router.get(`${P}/p/:propertyId`, ...member, h(req => portfolio.profile(B(req), r
 router.patch(`${P}/p/:propertyId`, ...adminW, h(req => portfolio.updateProperty(B(req), req.params.propertyId, req.body)));
 router.post(`${P}/p/:propertyId/archive`, ...adminW, h(req => portfolio.archive(B(req), req.params.propertyId, U(req), req.body)));
 router.post(`${P}/p/:propertyId/restore`, ...adminW, h(req => portfolio.restore(B(req), req.params.propertyId)));
+router.delete(`${P}/p/:propertyId`, ...adminW, h(req => portfolio.deleteProperty(B(req), req.params.propertyId)));
 router.post(`${P}/p/:propertyId/units`, ...adminW, h(made(req => portfolio.addUnit(B(req), req.params.propertyId, req.body))));
 router.post(`${P}/p/:propertyId/common-areas`, ...adminW, h(made(req => portfolio.addArea(B(req), req.params.propertyId, req.body))));
 router.delete(`${P}/common-areas/:areaId`, ...adminW, h(req => portfolio.archiveArea(B(req), req.params.areaId)));

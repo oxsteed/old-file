@@ -92,6 +92,20 @@ async function restore(businessId, propertyId) {
   const { rows: [out] } = await pool.query(`UPDATE properties SET status='active', archived_at=NULL, updated_at=NOW() WHERE id=$1 RETURNING *`, [p.id]);
   return out;
 }
+// 302 (Batch F): hard delete, fail closed. Only when no live (open)
+// maintenance request names the property; the archive step stays the
+// lifecycle (D-241) and delete is the cleanup after it. FKs decide the
+// rest: requests/jobs/units keep their rows with property_id nulled,
+// common areas, assignments, schedules, keys and incidents cascade.
+async function deleteProperty(businessId, propertyId) {
+  return withTransaction(pool, async db => {
+    const p = await property(db, businessId, propertyId, { lock: true });
+    const { rows: [open] } = await db.query(`SELECT COUNT(*)::int n FROM property_maintenance_requests WHERE property_id=$1 AND ${OPEN_REQ}`, [p.id]);
+    if (open.n) fail(409, 'property_has_live_requests');
+    await db.query('DELETE FROM properties WHERE id=$1', [p.id]);
+    return { deleted: true, id: p.id };
+  });
+}
 // 303 attach an existing unit or create a new one under the property
 async function addUnit(businessId, propertyId, body) {
   const p = await property(pool, businessId, propertyId);
@@ -102,8 +116,13 @@ async function addUnit(businessId, propertyId, body) {
   }
   const label = text(body?.unit_label, 120);
   const occ = oneOf(body?.occupancy_status, ['occupied', 'vacant', 'turnover', 'owner_hold'], 'occupancy_status', 'vacant');
+  // 309 (Batch F): a unit contact email that is present must be shaped like
+  // an email; the contact account/scope leg stays partial (coordinator
+  // decision, Emile §4 #1). Same rule as the ops-tab unit leg.
+  const contactEmail = text(body.contact_email, 255, { required: false });
+  if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) invalid('contact_email');
   const { rows: [u] } = await pool.query(`INSERT INTO property_portfolio_units(business_id, property_id, property_label, unit_label, occupancy_status, contact_name, contact_phone, contact_email, access_summary)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [businessId, p.id, p.label, label, occ, text(body.contact_name, 160, { required: false }), text(body.contact_phone, 40, { required: false }), text(body.contact_email, 255, { required: false }), text(body.access_summary, 2000, { required: false })]);
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [businessId, p.id, p.label, label, occ, text(body.contact_name, 160, { required: false }), text(body.contact_phone, 40, { required: false }), contactEmail, text(body.access_summary, 2000, { required: false })]);
   return u;
 }
 async function addArea(businessId, propertyId, body) {
@@ -229,4 +248,4 @@ async function revokeAccess(businessId, propertyId, actor, body) {
   await notify(userId, 'property_access_revoked', { property: p.label }, `property_access_revoked:${rows[0].id}`, null);
   return { ended: rows.length, keys_to_recover: keys };
 }
-module.exports = { TYPES, portfolio, createProperty, updateProperty, profile, archive, restore, addUnit, addArea, archiveArea, assign, endAssignment, accessReview, reviewAssignment, mine, handoverExport, reassign, notifyOccupants, revokeAccess, OPEN_REQ, ownerOf };
+module.exports = { TYPES, portfolio, createProperty, updateProperty, profile, archive, restore, deleteProperty, addUnit, addArea, archiveArea, assign, endAssignment, accessReview, reviewAssignment, mine, handoverExport, reassign, notifyOccupants, revokeAccess, OPEN_REQ, ownerOf };
