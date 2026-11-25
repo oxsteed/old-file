@@ -47041,6 +47041,12 @@
         "coverage": "تغطية"
       },
       "board": "عملي",
+      "requests": "الطلبات",
+      "requestsEmpty": "لا توجد طلبات مفتوحة.",
+      "mine": "الخاصة بي",
+      "all": "الكل",
+      "dispatchedToYou": "تم إسناده إليك",
+      "openQueue": "فتح في التقويم",
       "conflicts": "{{count}} زيارة لديها تنبيهات في الجدول.",
       "lane": {
         "to_confirm": "تحتاج إلى تأكيدك",

@@ -2,6 +2,7 @@
 // permission help, inbox, work board + job detail, claim queue, dispatch,
 // day view, end-of-shift review, schedule and leaving (TeamMemberSchedule).
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useBizG56, requestId } from './useBizG56';
 import WorkJobDetail from './WorkJobDetail';
 import TeamMemberSchedule from './TeamMemberSchedule';
@@ -90,10 +91,16 @@ function Inbox({ businessId, onOpen }) {
 function Board({ businessId, onOpen }) {
   const p = useBizG56(`/businesses/${businessId}/work/board`, 'work');
   const c = useBizG56(`/businesses/${businessId}/work/conflicts`, 'work');
+  const navigate = useNavigate();
   const [note, setNote] = useState('');
+  // D-460 (261, G5-41): the Mine filter narrows the merged requests to
+  // the ones assigned to this member; appointments are already mine-scoped
+  // server-side, so the filter only moves the requests.
+  const [mineOnly, setMineOnly] = useState(false);
   if (!p.data) return p.errorText ? <section className="g56-panel"><p className="g56-error">{p.errorText}</p></section> : null;
   const respond = (id, response) => p.send('post', `/businesses/${businessId}/work/appointments/${id}/${response === 'attend' ? 'attendance' : 'dispatch'}`,
     response === 'attend' ? { response: 'confirm' } : { response, note: response === 'decline' ? note : undefined });
+  const requests = (p.data.requests || []).filter((r) => !mineOnly || r.is_mine);
   return (
     <section className="g56-panel">
       <h3>{p.tr('board')}</h3>
@@ -117,6 +124,23 @@ function Board({ businessId, onOpen }) {
             </li>))}</ul>
         </div>))}
       {p.data.tasks.length > 0 && <><h4>{p.tr('tasks')}</h4><ul className="g56-list">{p.data.tasks.map(t => <li key={t.id}>{t.title} · {p.time(t.due_at)}</li>)}</ul></>}
+      {/* D-460 (261, G5-41): the requests half of My work, merged with the
+          appointments above. Open lands on the calendar tab, where the
+          assignment queue panel holds the respond actions. */}
+      <h4>{p.tr('requests')} ({requests.length})</h4>
+      <div className="g56-row">
+        <button type="button" disabled={mineOnly} onClick={() => setMineOnly(true)} data-track="ui.9ab3b7b94b.12">{p.tr('mine')}</button>
+        <button type="button" disabled={!mineOnly} onClick={() => setMineOnly(false)} data-track="ui.9ab3b7b94b.13">{p.tr('all')}</button>
+      </div>
+      {!requests.length ? <p>{p.tr('requestsEmpty')}</p> : (
+        <ul className="g56-list">{requests.map(r => (
+          <li key={r.id}>
+            {r.requested_date}{r.requested_start_time ? ` ${String(r.requested_start_time).slice(0, 5)}` : ''} · {r.service_name} · {r.customer_name || p.common('none')}
+            {r.is_mine && r.dispatch_status === 'pending' && <span className="g56-badge">{p.tr('dispatchedToYou')}</span>}
+            <div className="g56-row">
+              <button type="button" onClick={() => navigate(`/business/${businessId}/workspace/calendar`)} data-track="ui.9ab3b7b94b.14">{p.tr('openQueue')}</button>
+            </div>
+          </li>))}</ul>)}
       {p.errorText && <p className="g56-error" role="alert">{p.errorText}</p>}
     </section>
   );

@@ -46927,6 +46927,12 @@
         "coverage": "Shift cover"
       },
       "board": "My work",
+      "requests": "Requests",
+      "requestsEmpty": "No open requests.",
+      "mine": "Mine",
+      "all": "All",
+      "dispatchedToYou": "Dispatched to you",
+      "openQueue": "Open in calendar",
       "conflicts": "{{count}} visit(s) have schedule warnings.",
       "lane": {
         "to_confirm": "Needs your confirmation",

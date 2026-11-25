@@ -5,9 +5,11 @@
 // crews (roster, allocation, subcontractors, assignment-only documents,
 // attendance).
 const pool = require('../../db');
+const logger = require('../../utils/logger');
 const { withTransaction } = require('../../utils/transaction');
 const { fail, invalid, text, uuid, int, notify } = require('./common');
 const { tz, isStaff, workedAppointment, canManage, routeTarget, fitFor } = require('./teamCommon');
+const { listIncomingForProvider } = require('../bookingRequestLifecycle');
 
 const myWorkUrl = id => `/business/${id}/workspace/my-work`;
 const consoleUrl = id => `/business/${id}/workspace/owner-console`;
@@ -29,6 +31,29 @@ async function board(businessId, userId) {
       OR (a.status='completed' AND a.completed_at > NOW() - INTERVAL '2 days'))
     ORDER BY a.start_time LIMIT 200`, [businessId, userId, zone]);
   const { rows: tasks } = await pool.query("SELECT id, title, kind, due_at, status FROM business_team_tasks WHERE business_id=$1 AND assignee_id=$2 AND status='open' ORDER BY due_at LIMIT 100", [businessId, userId]);
+  // D-460 (261, G5-41): the requests half of "My work". Incoming booking
+  // requests for this business come from the same inbox read the queue
+  // panel uses (read-side expiry and conflict flags included); a request
+  // is "mine" when the member is its provider (helper_id), which covers
+  // dispatched members (dispatch sets helper_id). Managers see every
+  // pending business request; other members see their own plus the
+  // business queue, and the UI's Mine filter narrows to is_mine.
+  let requests = [];
+  try {
+    const incoming = await listIncomingForProvider(userId);
+    requests = incoming
+      .filter((r) => r.businessId === businessId && ['pending', 'counter_proposed'].includes(r.status))
+      .map((r) => ({
+        id: r.id, status: r.status, customer_name: r.customerName, service_name: r.serviceName,
+        requested_date: r.requestedDate, requested_start_time: r.requestedStartTime,
+        description: r.description, dispatch_status: r.dispatchStatus || null,
+        is_mine: String(r.helperId) === String(userId), can_respond: r.canRespond,
+      }));
+  } catch (err) {
+    // The appointments board must not die with the inbox read; the queue
+    // panel is the fallback surface for requests.
+    logger.warn('My work board: incoming requests unavailable', { businessId, error: err.message });
+  }
   const lanes = { in_progress: [], today: [], upcoming: [], to_confirm: [], finish_up: [] };
   for (const a of rows) {
     if (a.status === 'completed') { if (!a.has_completion_record) lanes.finish_up.push(a); continue; }
@@ -37,7 +62,7 @@ async function board(businessId, userId) {
     else lanes.upcoming.push(a);
     if ((a.is_assignee && a.dispatch_status === 'pending') || (!a.is_assignee && a.attendance === 'pending')) lanes.to_confirm.push(a);
   }
-  return { lanes, tasks };
+  return { lanes, tasks, requests };
 }
 
 // 262

@@ -46927,6 +46927,12 @@
         "coverage": "Ranplasman"
       },
       "board": "Travay mwen",
+      "requests": "Demann",
+      "requestsEmpty": "Pa gen demann ouvè.",
+      "mine": "Pa mwen",
+      "all": "Tout",
+      "dispatchedToYou": "Yo voye l ba ou",
+      "openQueue": "Louvri nan kalandriye",
       "conflicts": "{{count}} vizit gen avètisman orè.",
       "lane": {
         "to_confirm": "Bezwen konfimasyon ou",

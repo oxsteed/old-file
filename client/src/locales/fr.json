@@ -46927,6 +46927,12 @@
         "coverage": "Remplacement"
       },
       "board": "Mon travail",
+      "requests": "Demandes",
+      "requestsEmpty": "Aucune demande ouverte.",
+      "mine": "Miennes",
+      "all": "Toutes",
+      "dispatchedToYou": "Attribuée à vous",
+      "openQueue": "Ouvrir dans le calendrier",
       "conflicts": "{{count}} intervention(s) ont des alertes de planning.",
       "lane": {
         "to_confirm": "À confirmer",

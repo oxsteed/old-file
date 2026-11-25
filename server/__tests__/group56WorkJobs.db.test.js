@@ -52,6 +52,23 @@ describeDb('Groups 5-6: team member jobs and crews', () => {
     expect(done.done_at).toBeTruthy();
     await request(app).get(`${B()}/work/appointments/${a}/checklist`).set(as(other)).expect(404);
   });
+  test('261: board merges incoming requests with a mine flag', async () => {
+    const mkReq = (helper, svc) => pool.query(
+      "INSERT INTO booking_requests(customer_id, helper_id, business_id, service_name, requested_date, requested_start_time, status) VALUES($1,$2,$3,$4,CURRENT_DATE,'09:00','pending') RETURNING id",
+      [owner, helper, bizId, svc],
+    ).then((r) => r.rows[0].id);
+    const mine = await mkReq(employee, 'Mine job');
+    const theirs = await mkReq(manager, 'Manager job');
+    try {
+      const board = (await request(app).get(`${B()}/work/board`).set(as(employee)).expect(200)).body;
+      expect(board.requests).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: mine, service_name: 'Mine job', is_mine: true }),
+        expect.objectContaining({ id: theirs, service_name: 'Manager job', is_mine: false }),
+      ]));
+    } finally {
+      await pool.query('DELETE FROM booking_requests WHERE id = ANY($1::uuid[])', [[mine, theirs]]);
+    }
+  });
   test('264: progress updates are visible to managers', async () => {
     const a = await mk(employee, 3);
     await request(app).post(`${B()}/work/appointments/${a}/progress`).set(as(employee)).send({ note: 'Halfway there', percent: 50 }).expect(201);

@@ -46927,6 +46927,12 @@
         "coverage": "Cobertura"
       },
       "board": "Mi trabajo",
+      "requests": "Solicitudes",
+      "requestsEmpty": "No hay solicitudes abiertas.",
+      "mine": "Mías",
+      "all": "Todas",
+      "dispatchedToYou": "Asignado a ti",
+      "openQueue": "Abrir en calendario",
       "conflicts": "{{count}} visita(s) tienen avisos de horario.",
       "lane": {
         "to_confirm": "Necesita tu confirmación",
