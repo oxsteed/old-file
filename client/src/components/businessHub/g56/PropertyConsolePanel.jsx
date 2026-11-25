@@ -136,7 +136,10 @@ function PortfolioSection({ base, showArchived, setShowArchived, selectedId, onS
 }
 
 function PropertyDetail({ base, propertyId, onBack }) {
-  const p = useBizG56(`${base}/p/${propertyId}/profile`, 'properties');
+  // Batch G: the profile route is GET/PATCH /p/:propertyId — the /profile
+  // suffix never existed server-side, so the detail view 404'd and the
+  // assignments/requests/keys/transfer sections never loaded.
+  const p = useBizG56(`${base}/p/${propertyId}`, 'properties');
   const money = useMoney();
   const [requestId, setRequestId] = useState(null);
   if (!p.data) return p.errorText ? <p className="g56-error">{p.errorText}</p> : null;
@@ -153,7 +156,7 @@ function PropertyDetail({ base, propertyId, onBack }) {
       const v = toCents(fd.get(key));
       if (v != null) body[key] = v;
     }
-    if (Object.keys(body).length) await p.send('patch', `${base}/p/${propertyId}/profile`, body);
+    if (Object.keys(body).length) await p.send('patch', `${base}/p/${propertyId}`, body);
   };
   return (
     <div>
@@ -263,7 +266,7 @@ function AssignmentsSection({ base, propertyId, assignments, units, p }) {
     }
     if (form.starts_at) body.starts_at = form.starts_at;
     if (form.ends_at) body.ends_at = form.ends_at;
-    const created = await p.send('post', `${base}/p/${propertyId}/assign`, body);
+    const created = await p.send('post', `${base}/p/${propertyId}/assignments`, body);
     if (created) setForm({ role: 'manager', user_id: '', contact_name: '', contact_email: '', contact_phone: '', unit_id: '', starts_at: '', ends_at: '' });
   };
   return (
@@ -279,7 +282,9 @@ function AssignmentsSection({ base, propertyId, assignments, units, p }) {
               <td>
                 <button type="button" disabled={p.busy} onClick={() => p.send('post', `${base}/assignments/${a.id}/review`, { decision: 'keep' })} data-track="ui.e96cf59a5b.13">{p.tr('keep')}</button>
                 {' '}
-                <button type="button" disabled={p.busy} onClick={() => p.send('post', `${base}/assignments/${a.id}/end`, {})} data-track="ui.e96cf59a5b.14">{p.tr('endAssignment')}</button>
+                {/* Batch G: no POST /assignments/:id/end route exists; ending
+                    goes through the review endpoint, like AccessReviewSection. */}
+                <button type="button" disabled={p.busy} onClick={() => p.send('post', `${base}/assignments/${a.id}/review`, { decision: 'end' })} data-track="ui.e96cf59a5b.14">{p.tr('endAssignment')}</button>
               </td>
             </tr>
           ))}</tbody>
@@ -335,7 +340,7 @@ function DuplicatesSection({ base, requestId, dup }) {
       <Notice p={dup} />
       {dup.data.duplicate_of_id && <p className="g56-muted">{dup.tr('duplicateOf')}: {dup.data.duplicate_of_id}</p>}
       {dup.data.candidates.length === 0 ? <p>{dup.common('empty')}</p> : (
-        <form onSubmit={async (ev) => { ev.preventDefault(); if (target) await dup.send('post', `${base}/requests/${requestId}/link-duplicate`, { duplicate_of_id: target }); }} className="g56-row" data-track="ui.e96cf59a5b.58">
+        <form onSubmit={async (ev) => { ev.preventDefault(); if (target) await dup.send('post', `${base}/requests/${requestId}/duplicate`, { duplicate_of_id: target }); }} className="g56-row" data-track="ui.e96cf59a5b.58">
           <label>{dup.tr('duplicateOf')}
             <select value={target} onChange={(ev) => setTarget(ev.target.value)}>
               <option value="">—</option>
