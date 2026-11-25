@@ -105,7 +105,7 @@ test('job details: viewer actions, asynchronous guards, dialogs, keyboard galler
     await page.setViewportSize({width:1360,height:900});
     await configure({user:owner,bids:[bid],job:{bid_count:12}});assert.match(await page.locator('.jdp-supporting').textContent(),/October 15, 2026/);await page.getByRole('button',{name:'Review bids',exact:true}).click();
     assert.equal(await page.locator('h2:focus').textContent(),'Bids');assert.match(await page.locator('.jdp-main').textContent(),/Showing 1 of 12 bids/);
-    assert.equal(await page.locator('.jdp-main section').first().getAttribute('aria-labelledby'),await page.locator('h2:focus').getAttribute('id'));
+    assert.equal(await page.locator('.jdp-main section[aria-labelledby$="-bids"]').getAttribute('aria-labelledby'),await page.locator('h2:focus').getAttribute('id'));
     await page.locator('.jdp-btn-accept').click();await page.getByRole('heading',{name:'Choose Payment Method',exact:true}).waitFor();
     await page.locator('.fixed button').last().click();await page.waitForFunction(()=>window.calls.some(c=>c.path==='/jobs/assign'));
     assert.deepEqual(await page.evaluate(()=>window.calls.find(c=>c.path==='/jobs/assign').body),{bid_id:'bid-one',payment_method:'off_platform'});

@@ -25,6 +25,9 @@ describe('helper completion (P2-478)', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [job], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [{ id: 'p1' }], rowCount: 1 })
+      // D-472 (281, G5-1): requestHelperCompletion runs the attendance gate
+      // first. This job carries no site address, so the gate exempts it.
+      .mockResolvedValueOnce({ rows: [{ location_address: null, attendance_confirmed_at: null, arrived_at: null }], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [{ ...job, completion_requested_at: 'now', completion_auto_confirm_at: 'later' }], rowCount: 1 });
     const r = res(); const next = jest.fn();
     await jobController.completeJob({ params: { id: 'j1' }, user: { id: 'h1' } }, r, next);

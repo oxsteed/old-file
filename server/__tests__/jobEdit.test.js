@@ -304,8 +304,13 @@ describe('job serializer', () => {
     const admin = serializeJob(row, { user: { id: 'z', role: 'admin' } });
     expect(admin.metadata.creditCollateralHoldId).toBe(9);
     const helper = serializeJob({ ...row, assigned_helper_id: OTHER_ID }, { user: { id: OTHER_ID, role: 'helper' } });
-    expect(helper.location_address).toBe('1 Main St');
+    // D-451 (270, G5-4): the assigned helper sees the exact address only
+    // after confirming attendance; without it the address stays hidden.
+    expect(helper.location_address).toBeUndefined();
     expect(helper.private_notes).toBeUndefined();
+    const helperAttended = serializeJob({ ...row, assigned_helper_id: OTHER_ID, attendance_confirmed_at: '2026-01-01T00:00:00.000Z' }, { user: { id: OTHER_ID, role: 'helper' } });
+    expect(helperAttended.location_address).toBe('1 Main St');
+    expect(helperAttended.private_notes).toBeUndefined();
   });
 
   test('ETag round-trips through If-Match parsing', () => {
