@@ -70,7 +70,7 @@ export default function JobExceptions({ jobId, canRaise }) {
       <h2 id={`job-exceptions-${jobId}`} className="jdp-section-title">{c('title')}</h2>
       {error && <p role="alert">{error}</p>}
       {canRaise && (
-        <div className="jdp-modal-actions" style={{ flexWrap: 'wrap' }}>
+        <div className="jdp-modal-actions">
           <label>{c('kindLabel')} <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value, category: '' })}>
             {Object.keys(KINDS).map((k) => <option key={k} value={k}>{g(`kind.${k}`)}</option>)}
           </select></label>
@@ -82,7 +82,7 @@ export default function JobExceptions({ jobId, canRaise }) {
             <option value="">{g('sev.default')}</option>
             {['low', 'normal', 'high', 'critical'].map((s) => <option key={s} value={s}>{g(`sev.${s}`)}</option>)}
           </select></label>
-          <label style={{ flexGrow: 1 }}>{c('describe')} <input value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} maxLength={2000} /></label>
+          <label className="grow">{c('describe')} <input value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} maxLength={2000} /></label>
           <button type="button" className="jdp-btn-ghost" disabled={busy || !f.category || f.description.trim().length < 5} onClick={raise} data-track="ui.573dfef74b.29">{c('raise')}</button>
         </div>
       )}

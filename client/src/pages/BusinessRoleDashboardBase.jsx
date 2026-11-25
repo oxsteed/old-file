@@ -154,12 +154,12 @@ function WorkspaceCard({ business, config, tx, t, viewerId }) {
           </Link></li>)}
         </ul>}
         {membership && (
-          <div className="mt-4 rounded-2xl border p-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-translucent)' }}>
+          <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-translucent)] p-3">
             <div className="text-xs font-semibold">{t('businessRoleDashboard.rolePermissionsTitle')}</div>
-            <p className="text-sm mt-2" style={{ color: 'var(--color-text-muted)', lineHeight: 1.65 }}>
+            <p className="text-sm mt-2 text-[var(--color-text-muted)] leading-[1.65]">
               {t('businessRoleDashboard.roleLabel')} {membership.role || business.role}
             </p>
-            <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)', lineHeight: 1.65 }}>
+            <p className="text-sm mt-1 text-[var(--color-text-muted)] leading-[1.65]">
               {t('businessRoleDashboard.permissionsLabel')}: {Array.isArray(membership.permissions) && membership.permissions.length
                 ? membership.permissions.join(', ')
                 : t('businessRoleDashboard.noPermissions')}

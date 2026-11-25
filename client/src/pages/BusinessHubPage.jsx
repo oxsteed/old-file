@@ -2217,8 +2217,7 @@ function BusinessHubInner() {
                         <span className="text-sm">{tabLabel(tb)}</span>
                         <button
                           type="button"
-                          className="min-h-11 px-4 rounded-full border text-sm font-semibold"
-                          style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
+                          className="min-h-11 px-4 rounded-full border border-[var(--color-border)] text-sm font-semibold text-[var(--color-primary)]"
                           onClick={() => navigate(`/business/${bizId}/workspace/my-work${deniedTabRequestCode[tb] ? `?code=${deniedTabRequestCode[tb]}` : ''}`)}
                           data-track="business.hub.request_access"
                         >
