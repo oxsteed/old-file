@@ -8,7 +8,7 @@ const { cents, day, oneOf, property, propertyAccess, requestAccess, propertyPeop
 
 const OPEN = `status NOT IN ('completed','cancelled','rejected')`;
 const TRADES = ['general', 'plumbing', 'electrical', 'hvac', 'appliance', 'roofing', 'pest', 'cleaning', 'landscaping', 'locksmith', 'painting', 'other'];
-const reqUrl = (b, r) => `/business/${b}/hub?tab=properties&request=${r}`;
+const reqUrl = (b, r) => `/business/${b}/workspace?tab=properties&request=${r}`;
 const event = (db, requestId, actor, type, note, metadata) => db.query('INSERT INTO property_maintenance_request_events(request_id, actor_id, event_type, note, metadata) VALUES($1,$2,$3,$4,$5)', [requestId, actor, type, note || null, metadata || {}]);
 
 // 314 duplicate candidates: same property (or unit label) + category, open, within 30 days
@@ -58,7 +58,7 @@ async function requestApproval(businessId, requestId, user, role, body) {
     const approver = p.owner_user_id || (await ownerOf(db, businessId)).user_id;
     return { id: r.id, approval_status: status, threshold_cents: p.approval_threshold_cents, approver: needs ? approver : null, label: p.label, title: r.title };
   });
-  if (out.approver) await notify(out.approver, 'property_approval_requested', { property: out.label, title: out.title }, `property_approval_requested:${out.id}:${Date.now()}`, '/property-approvals');
+  if (out.approver) await notify(out.approver, 'property_approval_requested', { property: out.label, title: out.title }, `property_approval_requested:${out.id}:${Date.now()}`, '/business-hub');
   return { id: out.id, approval_status: out.approval_status, threshold_cents: out.threshold_cents };
 }
 const APPROVER_SQL = `(p.owner_user_id=$1 OR (p.owner_user_id IS NULL AND b.user_id=$1))`;
@@ -246,7 +246,7 @@ async function notifyOccupant(businessId, requestId, user, role) {
   if (!e || !e.offered_windows.length) fail(409, 'no_entry_windows');
   if (!r.requester_id) fail(409, 'occupant_has_no_account');
   await pool.query('UPDATE property_entry_records SET occupant_notified_at=NOW() WHERE id=$1', [e.id]);
-  await notify(r.requester_id, 'property_entry_scheduled', { title: r.title }, `property_entry_scheduled:${e.id}:${e.updated_at.getTime?.() || Date.now()}`, `/maintenance-requests/${r.id}`);
+  await notify(r.requester_id, 'property_entry_scheduled', { title: r.title }, `property_entry_scheduled:${e.id}:${e.updated_at.getTime?.() || Date.now()}`, `/business/${businessId}/maintenance-request`);
   return { notified: true };
 }
 // Occupant (requester) side
@@ -359,7 +359,7 @@ async function createIncident(businessId, propertyId, user, role, body) {
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`, [businessId, p.id, unit, reqId, text(body?.title, 160), severity, text(body?.relocation_note, 2000, { required: false }), day(body?.relocation_until, 'relocation_until'), day(body?.follow_up_on, 'follow_up_on'), text(body?.category, 80, { required: false }), assignedTo, user]);
   if (severity === 'critical') {
     const owner = (await ownerOf(pool, businessId)).user_id;
-    for (const t of [...new Set([...(await propertyPeople(pool, p.id)), owner].map(String))].filter(x => x !== String(user))) await notify(t, 'property_emergency', { title: i.title }, `property_incident:${i.id}`, `/business/${businessId}/hub?tab=properties&property=${p.id}`);
+    for (const t of [...new Set([...(await propertyPeople(pool, p.id)), owner].map(String))].filter(x => x !== String(user))) await notify(t, 'property_emergency', { title: i.title }, `property_incident:${i.id}`, `/business/${businessId}/workspace?tab=properties&property=${p.id}`);
   }
   return i;
 }
@@ -399,7 +399,7 @@ async function shareWithOwner(businessId, incidentId, user, role) {
   const p = await property(pool, businessId, i.property_id);
   if (!p.owner_user_id) fail(409, 'property_owner_not_linked');
   const { rows: [out] } = await pool.query('UPDATE property_incidents SET owner_shared_at=NOW() WHERE id=$1 RETURNING *', [i.id]);
-  await notify(p.owner_user_id, 'property_incident_summary', { property: p.label, title: i.title }, `property_incident_summary:${i.id}:${out.owner_shared_at.getTime?.() || Date.now()}`, '/property-approvals');
+  await notify(p.owner_user_id, 'property_incident_summary', { property: p.label, title: i.title }, `property_incident_summary:${i.id}:${out.owner_shared_at.getTime?.() || Date.now()}`, '/business-hub');
   return out;
 }
 async function ownerIncidents(user) {

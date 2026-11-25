@@ -121,7 +121,7 @@ exports.submitReview = async (req, res, next) => {
       title:      'You received a new review',
       body:       `${reviewerName} left you a ${rating}-star review.`,
       data:       { jobId, reviewId: review.id },
-      action_url: `/profile#reviews`
+      action_url: `/profile/${revieweeId}#reviews`
     });
 
     res.status(201).json({ review });

@@ -12,7 +12,7 @@ const AUTO_CHECKS = ['hours', 'tax', 'menu', 'station', 'staff', 'pickup'];
 const REOPEN_KEYS = ['equipment_checked', 'food_safety_checked', 'staff_ready', 'systems_online'];
 const CLOSURE_DISPOSITIONS = ['hand_off', 'finish', 'transfer', 'cancel'];
 const SUBSTITUTION = ['contact_customer', 'substitute_similar', 'refund_item', 'cancel_order'];
-const url = (r, tab = 'operations') => `/restaurants/${r}/manage?tab=${tab}`;
+const url = (r, tab = 'operations') => `/restaurants/${r}/portal?tab=${tab}`;
 const asMenuActor = async (db, c, source) => { await db.query("SELECT set_config('app.menu_actor', $1, true), set_config('app.menu_source', $2, true)", [String(c.userId), source]); };
 
 // 353, 354, 396 location readiness

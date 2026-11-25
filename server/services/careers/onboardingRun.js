@@ -273,13 +273,13 @@ const handlers = {
       userId: ctx.user_id,
       type: 'career_onboarding_welcome',
       params: { employerName: ctx.business_name, steps: open },
-      actionUrl: `/careers/me/onboarding/${ctx.id}`,
+      actionUrl: '/careers/me',
       deliveryKey: `career_onboarding_welcome:${ctx.id}`,
     });
     await notifyHiringTeam(db, { employer_type: 'business', business_id: ctx.business_id, created_by: ctx.offer_created_by, location_ids: ctx.location_id ? [ctx.location_id] : [] }, {
       type: 'career_onboarding_needs_action',
       params: { employerName: ctx.business_name, openingTitle: ctx.opening_title, steps: open },
-      actionUrl: `/business/${ctx.business_id}/careers/onboarding/${ctx.id}`,
+      actionUrl: `/business/${ctx.business_id}/careers`,
       deliveryKey: `career_onboarding_manager:${ctx.id}`,
     });
     return { status: 'done', detail: { open_steps: open } };
