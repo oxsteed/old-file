@@ -99,10 +99,6 @@
     "storageFailed": "This device could not save your draft. Keep this page open."
   },
   "pwaShell": {
-    "updateReady": "A new version is available.",
-    "later": "Later",
-    "refresh": "Refresh to update",
-    "updating": "Refreshing…",
     "sharedReady": "Shared photos are attached. Review the details before posting.",
     "shareError": "The shared photos could not be opened. Choose up to five supported images and try again."
   },
@@ -24433,6 +24429,22 @@
       "loadFailed": "Could not load this property profile.",
       "sent": "Maintenance request sent.",
       "sendFailed": "Could not send maintenance request."
+    },
+    "myRequests": {
+      "title": "My requests",
+      "empty": "You have no maintenance requests for this business yet.",
+      "viewEntry": "Choose entry window",
+      "hideEntry": "Hide entry windows"
+    },
+    "entryWindows": {
+      "title": "Entry windows",
+      "empty": "No entry windows have been offered yet.",
+      "notified": "You were notified",
+      "selected": "Selected window",
+      "select": "Select this window",
+      "noEntry": "No entry record yet.",
+      "consent": "Permission to enter",
+      "saved": "Window selected."
     }
   },
   "franchiseIntakePage": {
@@ -46355,7 +46367,9 @@
       "owner_must_transfer": "Transfer ownership before leaving.",
       "visit_in_progress": "Finish the visit in progress first.",
       "clocked_in": "Clock out first.",
-      "invalid_status_transition": "That step isn’t possible now."
+      "invalid_status_transition": "That step isn’t possible now.",
+      "closure_dispositions_required": "Every open order needs a disposition before closing.",
+      "closure_notice_required": "Write the customer notice before closing."
     },
     "launch": {
       "title": "Launch status",
@@ -47277,7 +47291,21 @@
       "createSchedule": "Create schedule",
       "bookOccurrence": "Book",
       "sendBudgetAlerts": "Send budget alerts",
-      "unitSpend": "Unit spending"
+      "unitSpend": "Unit spending",
+      "ownerApprovals": "Owner approvals",
+      "approvalNote": "Decision note",
+      "auditTrail": "Audit trail",
+      "showTrail": "Show history",
+      "hideTrail": "Hide history",
+      "decidedApprovals": "Decided approvals",
+      "requestedAt": "Requested",
+      "decidedAt": "Decided",
+      "ownerIncidents": "Owner incident summary",
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "uncategorised": "Uncategorised",
+      "sharedAt": "Shared",
+      "assigneeUserId": "Assignee user ID"
     },
     "ops": {
       "title": "Operations console",
@@ -47377,7 +47405,48 @@
       "hour": "Hour",
       "staff": "Staff",
       "needed": "Needed",
-      "decide": "Decide"
+      "decide": "Decide",
+      "importMenu": "Import menu",
+      "importUpload": "Choose CSV file",
+      "importPaste": "Or paste CSV",
+      "importPreview": "Preview import",
+      "importConfirm": "Confirm import",
+      "importDrafts": "Imported items land as drafts for review.",
+      "importCreated": "Created",
+      "importSkipped": "Skipped",
+      "disposition": "Disposition",
+      "dispositionNote": "Disposition note",
+      "customerNotice": "Customer notice",
+      "customerNoticeHint": "Sent to every customer with an open order.",
+      "closeBlocked": "Close is blocked until every open order has a disposition and the customer notice is written.",
+      "noticeSent": "Notice sent",
+      "suggested": "Suggested",
+      "disp": {
+        "hand_off": "Hand off",
+        "finish": "Finish then hand off",
+        "transfer": "Transfer",
+        "cancel": "Cancel"
+      },
+      "packageLabel": "Package label",
+      "printLabel": "Print label",
+      "pickupCode": "Pickup code",
+      "labelLoad": "Load label",
+      "labelScheduled": "Scheduled for",
+      "driverArrivals": "Driver arrivals",
+      "driverName": "Driver",
+      "arrived": "Arrived",
+      "notArrived": "Not arrived",
+      "etaMinutes": "ETA (min)",
+      "distance": "Distance",
+      "kitchenTickets": "Kitchen tickets",
+      "stationFilter": "Station",
+      "allStations": "All stations",
+      "unassignedStation": "Unassigned",
+      "ticketOwner": "Owner",
+      "ticketItems": "Items",
+      "packProgress": "Packed",
+      "batchPrintVisible": "Print visible tickets",
+      "ticketDetail": "Ticket detail"
     },
     "shift": {
       "title": "My shift",
@@ -47476,7 +47545,22 @@
       "handoffTo": "Hand off to (member ID)",
       "escalatedTo": "Escalated to",
       "followUpAt": "Follow up at",
-      "handoffToUser": "Hand off to (member ID)"
+      "handoffToUser": "Hand off to (member ID)",
+      "recoveryTitle": "Access change recovery",
+      "recoveryLost": "You lost access to a store while you were checked in. Release your open tickets so a teammate can take them.",
+      "recoveryTickets": "{{count}} open tickets",
+      "recoveryRecover": "Release tickets and notify managers",
+      "recoveryRecovered": "Recovered releases",
+      "recoveryManagersNotified": "Managers notified: {{count}}",
+      "recoveryReleasedAt": "Released {{time}}",
+      "managerRecoveryTitle": "Access change releases",
+      "managerRecoveryIntro": "Tickets released when a teammate lost store access. Reassign them to someone on shift.",
+      "managerRecoveryLostBy": "{{name}} lost access",
+      "managerRecoveryTeammates": "On shift",
+      "managerRecoveryAssignTo": "Assign to",
+      "managerRecoveryReassign": "Reassign",
+      "managerRecoveryNoPermission": "You cannot reassign tickets.",
+      "managerRecoveryReleased": "Released {{time}}"
     }
   }
 }

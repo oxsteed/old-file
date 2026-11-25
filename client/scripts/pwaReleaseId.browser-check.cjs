@@ -12,10 +12,10 @@ const root = path.resolve(__dirname, '..');
 
 // Mimics Vite's dynamic-import preload helper: each route injects its own
 // <link rel="modulepreload"> tags at runtime, before window load.
-const entrySource = `import React from 'react';import{createRoot}from'react-dom/client';import Notice from './src/components/ServiceWorkerUpdateNotice';import{registerServiceWorker}from './src/utils/serviceWorkerRegistration';
+const entrySource = `import React from 'react';import{createRoot}from'react-dom/client';import{registerServiceWorker}from './src/utils/serviceWorkerRegistration';
 const route=location.pathname.replace(/[^a-z]/gi,'')||'home';
 for(const name of [route,route+'Vendor']){const l=document.createElement('link');l.rel='modulepreload';l.href='/assets/'+name+'-'+route.length+'.js';document.head.appendChild(l);}
-registerServiceWorker();createRoot(document.getElementById('root')).render(<><input aria-label="Order notes"/><Notice/></>);`;
+registerServiceWorker();createRoot(document.getElementById('root')).render(<><input aria-label="Order notes"/></>);`;
 
 async function bundle(buildId) {
   const result = await build({
@@ -24,15 +24,6 @@ async function bundle(buildId) {
     write: false,
     format: 'esm',
     define: { 'import.meta.env': JSON.stringify({ VITE_APP_BUILD_ID: buildId }) },
-    plugins: [{
-      name: 'translations',
-      setup(p) {
-        p.onResolve({ filter: /^react-i18next$/ }, () => ({ path: 'i18n', namespace: 'fixture' }));
-        p.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({
-          contents: `export const useTranslation=()=>({t:key=>({'pwaShell.refresh':'Refresh to update','pwaShell.later':'Later','pwaShell.updateReady':'A new version is available.'}[key]||key)});`,
-        }));
-      },
-    }],
   });
   return result.outputFiles[0].contents;
 }

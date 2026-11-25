@@ -23,6 +23,7 @@ const redis = require('./utils/redis');
 const { errorHandler } = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 const { reloadFeeConfig } = require('./services/feeService');
+const { getRelease } = require('./utils/release');
 
 // ── MIDDLEWARE ────────────────────────────────────────────────
 const securityHeaders = require('./middleware/securityHeaders');
@@ -451,6 +452,15 @@ app.get('/api/health', async (req, res) => {
     logger.error('Health DB check failed', { message: err.message });
     res.status(503).json({ status: 'degraded', error: 'database unreachable' });
   }
+});
+
+// PWA silent updates (D-444): the build id open tabs compare against before
+// calling registration.update(). Unauthenticated and cache-free on purpose:
+// the value is public release metadata (same id the client build stamps),
+// and a cached answer would hide a fresh deploy from the tab asking.
+app.get('/api/version', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ buildId: getRelease() || '' });
 });
 
 // Deep health check for uptime monitors (DB + optional Redis).

@@ -60,6 +60,8 @@ router.post(`${O}/emergency-closures`, ...W, r(made((c, q) => ops.emergencyClose
 router.get(`${O}/locations/:locationId/closure`, ...G, r((c, q) => ops.currentClosure(c, q.params.locationId)));
 router.post(`${O}/locations/:locationId/closure/checks/:key`, ...W, r((c, q) => ops.setReopenCheck(c, q.params.locationId, q.params.key, q.body)));
 router.post(`${O}/locations/:locationId/reopen`, ...W, r((c, q) => ops.reopen(c, q.params.locationId)));
+// 431 kitchen ticket queue (D-440): open tickets with per-item stations.
+router.get(`${O}/tickets`, ...G, r((c, q) => ops.kitchenTickets(c, q.query)));
 
 const S = '/:restaurantId/shift';
 // 401-405 start of shift
@@ -95,6 +97,8 @@ router.patch(`${S}/incidents/:id`, ...W, r((c, q) => team.updateIncident(c, q.pa
 // 446-449 end of shift
 router.get(`${S}/end`, ...G, r(c => team.endShiftPreview(c)));
 router.post(`${S}/end`, ...W, r((c, q) => team.endShift(c, q.body)));
+// 450 manager view: access-change releases at the caller's stores.
+router.get(`${S}/access-recovery`, ...G, r(c => team.accessRecovery(c)));
 
 // 450 access-change recovery (no restaurant gate: the caller may have lost it)
 router.get('/me/shift-access', authenticate, send(req => team.accessStatus(req.user.id)));

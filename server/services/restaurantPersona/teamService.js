@@ -204,7 +204,7 @@ async function packageLabel(c, orderId) {
   const { rows: [r] } = await pool.query('SELECT display_name FROM food_restaurants WHERE id=$1', [c.restaurantId]);
   const name = String(o.pickup_contact_name || o.guest_name || '').trim();
   const short = name ? name.split(/\s+/).map((p, i) => (i === 0 ? p : `${p[0]}.`)).join(' ') : null;
-  return { order_id: o.id, restaurant: r?.display_name, queue_number: o.queue_number, customer: short, fulfillment_type: o.fulfillment_type, scheduled_for: o.scheduled_for, table_label: o.table_label,
+  return { order_id: o.id, restaurant: r?.display_name, queue_number: o.queue_number, customer: short, pickup_code: o.pickup_code || null, fulfillment_type: o.fulfillment_type, scheduled_for: o.scheduled_for, table_label: o.table_label,
     item_count: items.reduce((t, i) => t + i.quantity, 0), items: items.map(i => ({ name: i.item_name, quantity: i.quantity, note: i.special_instructions, allergens: i.allergens || [] })),
     allergens: [...new Set(items.flatMap(i => i.allergens || []))], printed_at: new Date().toISOString() };
 }
@@ -410,7 +410,8 @@ async function endShift(c, body) {
   if (to && out.handed_off_tickets) await notify(to, 'restaurant_ticket_transferred', { queue: String(out.handed_off_tickets) }, `restaurant_ticket_transferred:eos:${preview.checkin_id}`, url(c.restaurantId, 'kitchen'));
   return { ended: true, summary: out };
 }
-// 450 access change recovery: open check-ins where the user lost store access
+// 450 access change recovery: open check-ins where the user lost store access,
+// plus the releases already recovered (last 7 days) with live ticket state.
 async function accessStatus(userId) {
   const { rows } = await pool.query(`SELECT k.id, k.restaurant_id, k.location_id, l.name AS location_name, r.display_name AS restaurant_name FROM restaurant_shift_checkins k
     JOIN restaurant_locations l ON l.id=k.location_id JOIN food_restaurants r ON r.id=k.restaurant_id WHERE k.user_id=$1 AND k.ended_at IS NULL`, [userId]);
@@ -419,26 +420,92 @@ async function accessStatus(userId) {
     let ok = false;
     try { const restaurant = await resolveRestaurantAccess(userId, Number(k.restaurant_id)); await assertLocationAccess(restaurant, userId, k.location_id); ok = true; } catch { ok = false; }
     if (!ok) {
-      const { rows: owned } = await pool.query(`SELECT id, queue_number FROM food_orders WHERE kitchen_owner_user_id=$1 AND restaurant_id=$2 AND status IN ${OPEN_ORDER}`, [userId, k.restaurant_id]);
-      lost.push({ checkin_id: k.id, restaurant_id: k.restaurant_id, restaurant_name: k.restaurant_name, location_name: k.location_name, owned_open_tickets: owned.length });
+      const { rows: owned } = await pool.query(`SELECT id, queue_number, status FROM food_orders WHERE kitchen_owner_user_id=$1 AND restaurant_id=$2 AND status IN ${OPEN_ORDER} ORDER BY id`, [userId, k.restaurant_id]);
+      lost.push({ checkin_id: k.id, restaurant_id: k.restaurant_id, restaurant_name: k.restaurant_name, location_name: k.location_name, owned_open_tickets: owned.length, tickets: owned });
     }
   }
-  return { lost_access: lost };
+  return { lost_access: lost, recovered: await recoveredReleases(userId, null) };
+}
+// Shared release view: check-ins ended by an access change (last 7 days),
+// each with the released tickets resolved to their live owner/status and the
+// managers the recovery notified. `forUser` scopes to one person (self view);
+// null scopes to a restaurant for the manager view.
+async function recoveredReleases(forUser, restaurantId) {
+  const { rows } = await pool.query(`SELECT k.id AS checkin_id, k.user_id AS lost_user_id, k.restaurant_id, k.location_id, k.ended_at AS released_at, k.end_summary,
+      l.name AS location_name, r.display_name AS restaurant_name,
+      NULLIF(TRIM(CONCAT(u.first_name,' ',u.last_name)),'') AS lost_name
+    FROM restaurant_shift_checkins k JOIN restaurant_locations l ON l.id=k.location_id JOIN food_restaurants r ON r.id=k.restaurant_id
+    LEFT JOIN users u ON u.id=k.user_id
+    WHERE k.end_summary->>'ended_by'='access_change' AND k.ended_at > NOW() - INTERVAL '7 days'
+      AND ($1::uuid IS NULL OR k.user_id=$1) AND ($2::bigint IS NULL OR k.restaurant_id=$2)
+    ORDER BY k.ended_at DESC LIMIT 50`, [forUser, restaurantId]);
+  const out = [];
+  for (const k of rows) {
+    const released = Array.isArray(k.end_summary?.released) ? k.end_summary.released : [];
+    const tickets = [];
+    for (const t of released) {
+      const { rows: [o] } = await pool.query(`SELECT o.status, o.kitchen_owner_user_id, NULLIF(TRIM(CONCAT(u.first_name,' ',u.last_name)),'') AS owner_name
+        FROM food_orders o LEFT JOIN users u ON u.id=o.kitchen_owner_user_id WHERE o.id=$1`, [t.order_id]);
+      tickets.push({ order_id: t.order_id, queue_number: t.queue_number, status: o?.status || t.status || 'unknown',
+        owner_user_id: o?.kitchen_owner_user_id || null, owner_name: o?.owner_name || null });
+    }
+    out.push({ checkin_id: k.checkin_id, lost_user_id: k.lost_user_id, lost_name: k.lost_name, restaurant_id: k.restaurant_id,
+      restaurant_name: k.restaurant_name, location_id: k.location_id, location_name: k.location_name, released_at: k.released_at,
+      released_tickets: tickets, managers_notified: Array.isArray(k.end_summary?.managers_notified) ? k.end_summary.managers_notified : [],
+      notified_at: k.end_summary?.notified_at || null });
+  }
+  return out;
+}
+// 450 manager view: recent access-change releases at the caller's stores,
+// with live ticket state and teammates on shift for reassignment. Any staff
+// with restaurant access may read it (the restaurant gate + scope filter
+// apply); the reassign action itself is still gated by the handoff endpoint,
+// which requires kitchen.update — reported here as can_reassign so the UI
+// only offers the form when it can succeed.
+async function accessRecovery(c) {
+  const scoped = storeIds(c);
+  const releases = (await recoveredReleases(null, c.restaurantId)).filter(r => !scoped || scoped.includes(Number(r.location_id)));
+  const out = [];
+  for (const r of releases) {
+    const { rows: mates } = await pool.query(`SELECT k.user_id, NULLIF(TRIM(CONCAT(u.first_name,' ',u.last_name)),'') AS name FROM restaurant_shift_checkins k JOIN users u ON u.id=k.user_id
+      WHERE k.location_id=$1 AND k.ended_at IS NULL AND k.user_id<>$2 ORDER BY name`, [r.location_id, r.lost_user_id]);
+    out.push({ ...r, teammates_on_shift: mates });
+  }
+  return { releases: out, can_reassign: can(c, 'kitchen.update') };
 }
 async function recoverAccess(userId) {
   const { lost_access: lost } = await accessStatus(userId);
+  const releases = [];
   for (const k of lost) {
     const managers = await withTransaction(pool, async db => {
+      // End the check-in first, guarded on still-open: a concurrent recover
+      // of the same check-in ends it once and the second run skips it, so the
+      // tickets are released and the managers notified exactly once.
+      const releasedDetail = JSON.stringify(k.tickets.map(t => ({ order_id: Number(t.id), queue_number: t.queue_number, status: t.status })));
+      const { rows: [open] } = await db.query(`UPDATE restaurant_shift_checkins SET ended_at=NOW(), end_summary=jsonb_build_object('ended_by','access_change','released_tickets',$2::int,'released',$3::jsonb) WHERE id=$1 AND ended_at IS NULL RETURNING id`,
+        [k.checkin_id, k.owned_open_tickets, releasedDetail]);
+      if (!open) return null;
+      for (const t of k.tickets) {
+        await db.query(`INSERT INTO restaurant_ticket_handoffs(restaurant_id, order_id, kind, from_user_id, to_user_id, note, created_by) VALUES($1,$2,'owner',$3,NULL,'access_change',$3)`,
+          [k.restaurant_id, t.id, userId]);
+      }
       await db.query(`UPDATE food_orders SET kitchen_owner_user_id=NULL, screen_revision=COALESCE(screen_revision,0)+1 WHERE kitchen_owner_user_id=$1 AND restaurant_id=$2 AND status IN ${OPEN_ORDER}`, [userId, k.restaurant_id]);
-      await db.query(`UPDATE restaurant_shift_checkins SET ended_at=NOW(), end_summary=jsonb_build_object('ended_by','access_change','released_tickets',$2::int) WHERE id=$1`, [k.checkin_id, k.owned_open_tickets]);
       const { rows: [r] } = await db.query('SELECT business_id FROM food_restaurants WHERE id=$1', [k.restaurant_id]);
       const { rows: m } = await db.query(`SELECT user_id FROM businesses WHERE id=$1 UNION SELECT member_id FROM business_members WHERE business_id=$1 AND role='manager' AND status='active' AND member_id IS NOT NULL`, [r.business_id]);
       return m.map(x => x.user_id);
     });
-    for (const m of managers.filter(x => String(x) !== String(userId))) await notify(m, 'restaurant_access_change_handoff', { location: k.location_name }, `restaurant_access_change_handoff:${k.checkin_id}:${m}`, `/restaurants/${k.restaurant_id}/manage?tab=kitchen`);
+    if (!managers) continue;
+    const notified = managers.filter(x => String(x) !== String(userId));
+    for (const m of notified) await notify(m, 'restaurant_access_change_handoff', { location: k.location_name }, `restaurant_access_change_handoff:${k.checkin_id}:${m}`, `/restaurants/${k.restaurant_id}/manage?tab=kitchen`);
+    const notifiedAt = new Date().toISOString();
+    await pool.query(`UPDATE restaurant_shift_checkins SET end_summary = end_summary || jsonb_build_object('managers_notified', $2::jsonb, 'notified_at', $3::text) WHERE id=$1`,
+      [k.checkin_id, JSON.stringify(notified), notifiedAt]);
+    releases.push({ checkin_id: k.checkin_id, restaurant_id: k.restaurant_id, restaurant_name: k.restaurant_name, location_name: k.location_name,
+      released_tickets: k.tickets.map(t => ({ order_id: t.id, queue_number: t.queue_number, status: t.status, owner_user_id: null, owner_name: null })),
+      managers_notified: notified, notified_at: notifiedAt });
   }
-  return { recovered: lost.length };
+  return { recovered: releases.length, releases };
 }
 module.exports = { READINESS, PACK, startShift, brief, assignStation, acknowledgeReadiness, batchPrint, handoff, ticketHistory, setPack, startBreak, endBreak,
   createStockNotice, stockNotices, updateStockNotice, packageLabel, verifyPickupCode, driverArrivals, reportIssue, issues, escalateIssue, resolveIssue, lateOrders,
-  customerRespond, pendingQuestions, createIncident, incidents, updateIncident, endShiftPreview, endShift, accessStatus, recoverAccess };
+  customerRespond, pendingQuestions, createIncident, incidents, updateIncident, endShiftPreview, endShift, accessStatus, accessRecovery, recoverAccess };

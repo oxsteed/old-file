@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import useAppResume from '../../hooks/useAppResume';
+import { useSocket } from '../../hooks/useSocket';
+import { CREDIT_BALANCE_EVENT } from '../../lib/realtime';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -383,6 +386,19 @@ export default function OxsteedCreditPage() {
     load();
     return () => { loadRequestRef.current += 1; };
   }, [load]);
+
+  // Live balance (D-445): re-fetch quietly on resume, the way WalletPage
+  // does, and on the server's balance nudge. The payload carries no amounts,
+  // so this always re-fetches authoritative state.
+  useAppResume(() => load({ quiet: true }));
+
+  const { socket } = useSocket();
+  useEffect(() => {
+    if (!socket) return undefined;
+    const handler = () => load({ quiet: true });
+    socket.on(CREDIT_BALANCE_EVENT, handler);
+    return () => { socket.off(CREDIT_BALANCE_EVENT, handler); };
+  }, [socket, load]);
 
   const changeCurrency = (event) => {
     const currencyCode = event.target.value;

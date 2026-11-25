@@ -31,6 +31,7 @@ const GrowthPrivacy = lazyWithRetry(() => import('./growth/PrivacyControls'));
 const GrowthOffer = lazyWithRetry(() => import('./growth/OfferPage'));
 import ImpersonationBanner from './components/ImpersonationBanner';
 import { lazyWithRetry } from './utils/lazyWithRetry';
+import { subscribeSocketReconnect } from './hooks/useSocket';
 import { routeLoaders } from './utils/routePrefetch';
 const ImpersonatePage = lazyWithRetry(() => import('./pages/ImpersonatePage'));
 const HomePage = lazyWithRetry(() => import('./pages/HomePage'));
@@ -313,6 +314,12 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// PWA silent updates (D-446): after a socket reconnect, re-fetch the active
+// queries so the page shows live data instead of the pre-drop snapshot.
+// Registered once at module scope; the hook's registry runs listeners only
+// on a connect that follows a disconnect, never on the initial connect.
+subscribeSocketReconnect(() => queryClient.invalidateQueries());
 
 // Wraps each route element in its own error boundary so a crash in one page
 // doesn't blank the entire app - only that route shows an error.

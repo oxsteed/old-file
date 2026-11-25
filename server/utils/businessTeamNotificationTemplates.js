@@ -188,6 +188,10 @@ const businessTeamNotifications = {
     title: t('Store closed', 'Tienda cerrada', 'Magasin fermé', 'Magazen fèmen', 'تم إغلاق المتجر'),
     body: t('{location} closed for an emergency.', '{location} cerró por una emergencia.', '{location} a fermé en urgence.', '{location} fèmen pou yon ijans.', 'أُغلق {location} بسبب حالة طارئة.'),
   },
+  restaurant_closure_customer_notice: {
+    title: t('Store closed while your order was open', 'Tienda cerrada con tu pedido abierto', 'Magasin fermé pendant que votre commande était ouverte', 'Magazen fèmen pandan kòmand ou te louvri', 'أُغلق المتجر بينما كان طلبك مفتوحًا'),
+    body: t('Your order #{queue} at {location} is affected by an emergency closure. {message}', 'Tu pedido #{queue} en {location} se ve afectado por un cierre de emergencia. {message}', 'Votre commande nº {queue} à {location} est touchée par une fermeture d’urgence. {message}', 'Kòmand ou #{queue} nan {location} afekte pa yon fèmti ijans. {message}', 'طلبك رقم {queue} في {location} متأثر بإغلاق طارئ. {message}'),
+  },
   restaurant_stock_notice: {
     title: t('Stock notice', 'Aviso de inventario', 'Alerte de stock', 'Avi sou stòk', 'إشعار مخزون'),
     body: t('A teammate flagged stock at {location}.', 'Un compañero marcó un aviso de inventario en {location}.', 'Un collègue a signalé le stock à {location}.', 'Yon kolèg siyale stòk nan {location}.', 'أبلغ زميل عن المخزون في {location}.'),

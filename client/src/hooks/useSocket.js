@@ -34,6 +34,30 @@ function notifyListeners(connected, connectionState = connected ? 'connected' : 
   connListeners.forEach(fn => fn(connected, connectionState));
 }
 
+// PWA silent updates (D-446): after a reconnect the page holds a pre-drop
+// snapshot. Reconnect listeners re-fetch their live data when the socket
+// comes back; they run on `connect` only after a prior `disconnect`, never
+// on the initial connect.
+const reconnectListeners = new Set();
+
+export function subscribeSocketReconnect(fn) {
+  reconnectListeners.add(fn);
+  return () => { reconnectListeners.delete(fn); };
+}
+
+function notifyReconnectListeners() {
+  reconnectListeners.forEach((fn) => {
+    try {
+      fn();
+    } catch (err) {
+      console.error('[useSocket] reconnect listener failed', err);
+    }
+  });
+}
+
+// Set on `disconnect`, cleared on the next `connect` that notifies listeners.
+let hadPriorDisconnect = false;
+
 export const useSocket = () => {
   const { user }    = useAuth();
   const [connected, setConnected] = useState(() => !!socketInstance?.connected);
@@ -115,11 +139,13 @@ export const useSocket = () => {
             // Cost audit 2026-11-04 item 18: reconnects hammered at 500ms to
             // a 4s plateau. The floor is now 2s and the cap 30s, so the delay
             // keeps climbing steeply after the first few attempts (2s, 4s,
-            // 8s, 16s, 30s) instead of flattening at 4s. Attempt count (20)
-            // is unchanged; retries now spread over minutes, not seconds.
+            // 8s, 16s, 30s) instead of flattening at 4s.
+            // PWA silent updates (D-446): attempts are unbounded, so a long
+            // offline stretch still reconnects on its own; the 30s cap keeps
+            // the retry rate bounded.
             reconnectionDelay:       2000,
             reconnectionDelayMax:    30000,
-            reconnectionAttempts:    20,       // more attempts before giving up
+            reconnectionAttempts:    Infinity,    // never give up; the user never has to refresh
             timeout:                 10000,    // handshake timeout (ms)
           }
         );
@@ -129,10 +155,15 @@ export const useSocket = () => {
           setConnected(true);
           setConnectionState('connected');
           notifyListeners(true, 'connected');
+          if (hadPriorDisconnect) {
+            hadPriorDisconnect = false;
+            notifyReconnectListeners();
+          }
         });
 
         socketInstance.on('disconnect', () => {
           console.log('[useSocket] Socket disconnected');
+          hadPriorDisconnect = true;
           const nextState = socketInstance?.active ? 'reconnecting' : 'offline';
           setConnected(false);
           setConnectionState(nextState);

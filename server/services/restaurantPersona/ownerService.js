@@ -10,6 +10,7 @@ const { fail, invalid, posInt, optInt, str, oneOf, iso, need, storeIds, location
 const MANUAL_CHECKS = ['food_safety_inspection', 'staff_trained', 'test_order', 'soft_open'];
 const AUTO_CHECKS = ['hours', 'tax', 'menu', 'station', 'staff', 'pickup'];
 const REOPEN_KEYS = ['equipment_checked', 'food_safety_checked', 'staff_ready', 'systems_online'];
+const CLOSURE_DISPOSITIONS = ['hand_off', 'finish', 'transfer', 'cancel'];
 const SUBSTITUTION = ['contact_customer', 'substitute_similar', 'refund_item', 'cancel_order'];
 const url = (r, tab = 'operations') => `/restaurants/${r}/manage?tab=${tab}`;
 const asMenuActor = async (db, c, source) => { await db.query("SELECT set_config('app.menu_actor', $1, true), set_config('app.menu_source', $2, true)", [String(c.userId), source]); };
@@ -512,30 +513,75 @@ async function decideTransfer(c, id, body) {
 }
 // 393-395 emergency closure, open order cleanup, reopening checklist
 async function openOrders(db, locationId) {
-  const { rows } = await db.query(`SELECT id, queue_number, status, fulfillment_type, scheduled_for, guest_name, total_cents, payment_status FROM food_orders
+  const { rows } = await db.query(`SELECT id, queue_number, status, fulfillment_type, scheduled_for, guest_name, total_cents, payment_status, customer_id FROM food_orders
     WHERE location_id=$1 AND status IN ('received','accepted','preparing','ready') ORDER BY created_at`, [locationId]);
   return rows.map(o => ({ ...o, suggested: o.status === 'ready' ? 'hand_off' : o.status === 'preparing' ? 'finish_or_transfer' : 'transfer_or_cancel' }));
 }
+// D-436: the pause refuses (409, fail closed, no silent pause) while open
+// orders lack a disposition or the customer notice is missing. Dispositions
+// and the notice are recorded in the same transaction as the pause, so a
+// refused close leaves the store running and writes nothing. A disposition
+// is a coordination record only: it does not change the order's status,
+// cancel it, or refund anything — the actual handoff / transfer / cancel
+// still goes through the existing order flows. With no open orders there is
+// nothing to disposition and the close proceeds as before (a notice supplied
+// anyway is recorded).
 async function emergencyClose(c, body) {
   need(c, 'orders.manage');
   const l = await location(c, body?.location_id);
   const reason = oneOf(body?.reason, ['power', 'water', 'weather', 'equipment', 'staffing', 'safety', 'other'], 'reason');
+  const notice = typeof body?.customer_notice === 'string' ? body.customer_notice.trim().slice(0, 2000) : (typeof body?.customer_notice_message === 'string' ? body.customer_notice_message.trim().slice(0, 2000) : '');
+  const supplied = Array.isArray(body?.dispositions) ? body.dispositions : [];
   const out = await withTransaction(pool, async db => {
-    const { rows: [cl] } = await db.query(`INSERT INTO restaurant_location_closures(restaurant_id, location_id, reason, note, previous_status, closed_by) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING RETURNING *`,
-      [c.restaurantId, l.id, reason, str(body.note, 1000, { required: false }), l.status, c.userId]);
+    const { rows: [open] } = await db.query('SELECT 1 FROM restaurant_location_closures WHERE location_id=$1 AND reopened_at IS NULL', [l.id]);
+    if (open) fail(409, 'location_already_closed');
+    const openOrdersList = await openOrders(db, l.id);
+    let dispositions = [];
+    if (openOrdersList.length) {
+      if (!notice) fail(409, 'closure_notice_required', 'A customer notice is required while orders are open');
+      const byOrder = new Map();
+      for (const d of supplied) {
+        if (!d || typeof d !== 'object') invalid('dispositions');
+        const orderId = posInt(d.order_id, 'order_id');
+        const disp = oneOf(d.disposition, CLOSURE_DISPOSITIONS, 'disposition');
+        if (byOrder.has(orderId)) invalid('dispositions');
+        byOrder.set(orderId, { order_id: orderId, disposition: disp, note: typeof d.note === 'string' ? d.note.trim().slice(0, 1000) || null : null });
+      }
+      const missing = openOrdersList.filter(o => !byOrder.has(Number(o.id)));
+      if (missing.length) fail(409, 'closure_dispositions_required', `Every open order needs a disposition (${missing.length} missing)`);
+      const openIds = new Set(openOrdersList.map(o => Number(o.id)));
+      if ([...byOrder.keys()].some(id => !openIds.has(id))) invalid('dispositions');
+      dispositions = openOrdersList.map(o => byOrder.get(Number(o.id)));
+    }
+    const { rows: [cl] } = await db.query(`INSERT INTO restaurant_location_closures(restaurant_id, location_id, reason, note, previous_status, closed_by, customer_notice_message, customer_notice_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING RETURNING *`,
+    [c.restaurantId, l.id, reason, str(body.note, 1000, { required: false }), l.status, c.userId, notice || null, notice ? new Date().toISOString() : null]);
     if (!cl) fail(409, 'location_already_closed');
+    for (const d of dispositions) {
+      await db.query(`INSERT INTO restaurant_closure_order_dispositions(closure_id, order_id, disposition, note, decided_by) VALUES($1,$2,$3,$4,$5)`,
+        [cl.id, d.order_id, d.disposition, d.note, c.userId]);
+    }
     await db.query(`UPDATE restaurant_locations SET status='paused', updated_at=NOW() WHERE id=$1`, [l.id]);
-    return { closure: cl, open_orders: await openOrders(db, l.id) };
+    return { closure: cl, open_orders: openOrdersList, dispositions };
   });
   const { rows: staff } = await pool.query(`SELECT DISTINCT bm.member_id FROM restaurant_location_memberships lm JOIN business_members bm ON bm.id=lm.membership_id WHERE lm.location_id=$1 AND lm.status='active' AND bm.status='active'`, [l.id]);
   const people = new Set([...staff.map(s => String(s.member_id)), ...(await storeManagers(c, l.id)).map(String)]); people.delete(String(c.userId));
   for (const p of people) await notify(p, 'restaurant_location_emergency_closed', { location: l.name }, `restaurant_location_emergency_closed:${out.closure.id}:${p}`, url(c.restaurantId));
+  if (notice) for (const o of out.open_orders) {
+    if (o.customer_id && String(o.customer_id) !== String(c.userId)) await notify(o.customer_id, 'restaurant_closure_customer_notice', { queue: String(o.queue_number || o.id), location: l.name, message: notice }, `restaurant_closure_customer_notice:${out.closure.id}:${o.id}`, `/food/orders/${o.id}`);
+  }
   return out;
 }
 async function currentClosure(c, locationId) {
   const l = await location(c, locationId);
   const { rows: [cl] } = await pool.query('SELECT * FROM restaurant_location_closures WHERE location_id=$1 AND reopened_at IS NULL', [l.id]);
-  return { location_id: l.id, closure: cl || null, open_orders: cl ? await openOrders(pool, l.id) : [], reopen_keys: REOPEN_KEYS };
+  // Open orders are returned whether or not a closure is active, so the
+  // close form can show them (and take dispositions + a notice) before the
+  // pause is requested; D-436.
+  const open = await openOrders(pool, l.id);
+  const { rows: dispositions } = cl ? await pool.query(`SELECT d.*, NULLIF(TRIM(CONCAT(u.first_name,' ',u.last_name)),'') AS decided_by_name
+    FROM restaurant_closure_order_dispositions d LEFT JOIN users u ON u.id=d.decided_by WHERE d.closure_id=$1 ORDER BY d.decided_at`, [cl.id]) : { rows: [] };
+  return { location_id: l.id, closure: cl || null, open_orders: open, dispositions, reopen_keys: REOPEN_KEYS };
 }
 async function setReopenCheck(c, locationId, key, body) {
   need(c, 'orders.manage');
@@ -559,7 +605,34 @@ async function reopen(c, locationId) {
     return { location_id: l.id, reopened: true };
   });
 }
-module.exports = { MANUAL_CHECKS, REOPEN_KEYS, REOPEN_CHECKS, readiness, setReadinessCheck, launch, copySettings, opsSettings, updateOpsSettings, specialHours, setSpecialHours, deleteSpecialHours,
+// D-440 (431): kitchen ticket queue for the ops panel. No ticket-list read
+// path existed: the shift panel only looks up one order at a time, and the
+// kitchen screen routes are ack/events only. Lists the location's open
+// tickets with their items and per-item station labels, the ticket owner,
+// and pack progress; `station` narrows to tickets with at least one item at
+// that station, `station=unassigned` to tickets with an unlabelled item.
+// Read-only: owner, handoff and pack changes still go through the existing
+// shift endpoints (D-250), so this list cannot disturb them.
+async function kitchenTickets(c, { location_id: loc, station } = {}) {
+  const l = await location(c, loc);
+  const st = typeof station === 'string' ? station.trim().slice(0, 120) : '';
+  if (st && st !== 'unassigned') {
+    const { rows } = await pool.query('SELECT 1 FROM restaurant_kitchen_stations WHERE restaurant_id=$1 AND name=$2 AND is_active', [c.restaurantId, st]);
+    if (!rows.length) fail(404, 'station_not_found');
+  }
+  const { rows } = await pool.query(`SELECT o.id, o.queue_number, o.status, o.fulfillment_type, o.scheduled_for, o.created_at, o.kitchen_owner_user_id, o.pack_checklist,
+      NULLIF(TRIM(CONCAT(u.first_name,' ',u.last_name)),'') AS owner_name,
+      COALESCE(json_agg(json_build_object('id', i.id, 'name', i.item_name, 'quantity', i.quantity, 'station_label', i.station_label, 'kitchen_status', i.kitchen_status) ORDER BY i.id) FILTER (WHERE i.id IS NOT NULL), '[]'::json) AS items
+    FROM food_orders o LEFT JOIN food_order_items i ON i.order_id=o.id LEFT JOIN users u ON u.id=o.kitchen_owner_user_id
+    WHERE o.restaurant_id=$1 AND o.location_id=$2 AND o.status IN ('received','accepted','preparing','ready')
+      AND ($3::text IS NULL OR ($3 = 'unassigned' AND EXISTS (SELECT 1 FROM food_order_items x WHERE x.order_id=o.id AND x.station_label IS NULL))
+        OR EXISTS (SELECT 1 FROM food_order_items x WHERE x.order_id=o.id AND x.station_label=$3))
+    GROUP BY o.id, u.first_name, u.last_name ORDER BY o.created_at`,
+  [c.restaurantId, l.id, st || null]);
+  const { rows: stations } = await pool.query(`SELECT id, name FROM restaurant_kitchen_stations WHERE restaurant_id=$1 AND location_id=$2 AND is_active ORDER BY name`, [c.restaurantId, l.id]);
+  return { location_id: l.id, station: st || null, stations, tickets: rows };
+}
+module.exports = { MANUAL_CHECKS, REOPEN_KEYS, REOPEN_CHECKS, CLOSURE_DISPOSITIONS, readiness, setReadinessCheck, launch, copySettings, opsSettings, updateOpsSettings, specialHours, setSpecialHours, deleteSpecialHours,
   assertOrderAllowed, slots, pickupInfo, parseCsv, importMenu, scheduleMenuChange, scheduledChanges, cancelMenuChange, applyDueMenuChanges, menuHistory,
   unclaimed, alertUnclaimed, cancellations, followUpCancellation, dispatchDelays, prepTrends, unavailability, peakLoad, repeatIssues, capacityForecast,
-  reportDowntime, downtimeList, restoreDowntime, requestTransfer, transfers, decideTransfer, emergencyClose, currentClosure, setReopenCheck, reopen };
+  reportDowntime, downtimeList, restoreDowntime, requestTransfer, transfers, decideTransfer, emergencyClose, currentClosure, setReopenCheck, reopen, kitchenTickets };

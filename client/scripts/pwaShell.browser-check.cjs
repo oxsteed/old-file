@@ -7,33 +7,19 @@ const { build } = require('esbuild'),
   { chromium } = require('playwright-core');
 const root = path.resolve(__dirname, '..');
 test(
-  'PWA survives offline, receives photos and updates only after explicit refresh',
+  'PWA survives offline, receives photos and updates silently with no prompt',
   { timeout: 90000 },
   async () => {
     const bundle = await build({
       stdin: {
         resolveDir: root,
         loader: 'jsx',
-        contents: `import React from 'react';import{createRoot}from'react-dom/client';import Notice from './src/components/ServiceWorkerUpdateNotice';import{registerServiceWorker}from './src/utils/serviceWorkerRegistration';import{takeSharedJobDraft}from './src/utils/sharedJobDraft';window.takeShare=takeSharedJobDraft;registerServiceWorker();createRoot(document.getElementById('root')).render(<><input aria-label="Order notes"/><Notice/></>);`,
+        contents: `import React from 'react';import{createRoot}from'react-dom/client';import{registerServiceWorker}from './src/utils/serviceWorkerRegistration';import{takeSharedJobDraft}from './src/utils/sharedJobDraft';window.takeShare=takeSharedJobDraft;registerServiceWorker();createRoot(document.getElementById('root')).render(<><input aria-label="Order notes"/></>);`,
       },
       bundle: true,
       write: false,
       format: 'esm',
       define: { 'import.meta.env': '{}' },
-      plugins: [
-        {
-          name: 'translations',
-          setup(p) {
-            p.onResolve({ filter: /^react-i18next$/ }, () => ({
-              path: 'i18n',
-              namespace: 'fixture',
-            }));
-            p.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({
-              contents: `export const useTranslation=()=>({t:key=>({'pwaShell.refresh':'Refresh to update','pwaShell.later':'Later','pwaShell.updateReady':'A new version is available.'}[key]||key)});`,
-            }));
-          },
-        },
-      ],
     });
     let release = 1;
     const requests = {};
@@ -164,9 +150,15 @@ test(
         async () =>
           await (await navigator.serviceWorker.getRegistration()).update(),
       );
-      await page.getByRole('button', { name: 'Refresh to update' }).waitFor();
-      await dismissed.getByRole('button', { name: 'Later', exact: true }).click();
-      assert.equal(await dismissed.getByRole('status').count(), 0);
+      // No update notice ever appears: no banner on any tab, guarded or not.
+      await page.waitForFunction(
+        async () => !!(await navigator.serviceWorker.getRegistration()).waiting,
+      );
+      for (const tab of [page, second, dismissed]) {
+        assert.equal(await tab.getByRole('status').count(), 0, 'no update banner');
+        assert.equal(await tab.getByRole('button', { name: 'Refresh to update' }).count(), 0, 'no refresh prompt');
+      }
+      // Guarded pages keep their drafts and are never reloaded.
       assert.equal(await dismissed.getByRole('textbox', { name: 'Order notes' }).inputValue(), 'Keep my draft');
       assert.equal(await dismissed.evaluate(() => window.keepOpen), true);
       assert.ok(await dismissed.evaluate(async () => !!(await navigator.serviceWorker.getRegistration()).waiting));
@@ -174,27 +166,33 @@ test(
         await page.getByRole('textbox', { name: 'Order notes' }).inputValue(),
         'Leave checkout open',
       );
-      await Promise.all([
-        page.waitForEvent('load'),
-        page.getByRole('button', { name: 'Refresh to update' }).click(),
-      ]);
-      assert.equal(
-        await page.getByRole('textbox', { name: 'Order notes' }).inputValue(),
-        '',
-      );
       assert.equal(
         await second.getByRole('textbox', { name: 'Order notes' }).inputValue(),
         'Other checkout',
       );
       assert.equal(await second.evaluate(() => window.keepOpen), true);
+      // Leaving the guarded form (input cleared) and navigating in-app
+      // applies the waiting worker silently: the tab reloads fresh.
+      await page.getByRole('textbox', { name: 'Order notes' }).fill('');
+      await Promise.all([
+        page.waitForEvent('load'),
+        page.evaluate(() => history.pushState({}, '', '/discover')),
+      ]);
+      assert.equal(
+        await page.getByRole('textbox', { name: 'Order notes' }).inputValue(),
+        '',
+      );
+      assert.equal(await page.getByRole('status').count(), 0);
+      // The other guarded tabs still hold their drafts and their waiting worker.
+      assert.equal(await second.getByRole('textbox', { name: 'Order notes' }).inputValue(), 'Other checkout');
+      assert.equal(await second.evaluate(() => window.keepOpen), true);
       assert.equal(await dismissed.getByRole('textbox', { name: 'Order notes' }).inputValue(), 'Keep my draft');
       assert.equal(await dismissed.evaluate(() => window.keepOpen), true);
       assert.equal(await dismissed.getByRole('status').count(), 0);
       await dismissed.close();
-      await Promise.all([
-        second.waitForEvent('load'),
-        second.getByRole('button', { name: 'Refresh to update' }).click(),
-      ]);
+      // A full navigation to a new route lands on the new release.
+      await second.goto(origin + '/discover');
+      await second.waitForFunction(() => navigator.serviceWorker.controller);
       assert.equal(await second.getByRole('textbox', { name: 'Order notes' }).inputValue(), '');
       await second.close();
       await context.setOffline(true);

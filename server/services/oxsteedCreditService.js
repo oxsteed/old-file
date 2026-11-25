@@ -2532,7 +2532,28 @@ async function transferCreditInTransaction(client, { senderCustomerId, recipient
 }
 
 async function transferCredit(args) {
-  return withTransaction(pool, (client) => transferCreditInTransaction(client, args), 'credit_transfer');
+  const result = await withTransaction(pool, (client) => transferCreditInTransaction(client, args), 'credit_transfer');
+  broadcastCreditBalanceChanged(args, result);
+  return result;
+}
+
+// PWA silent updates (D-445): post-commit balance nudges for a transfer.
+// Best-effort and after the transaction commits, so a rolled-back transfer
+// never notifies; the payload carries no amounts, and the client re-fetches
+// authoritative state on receipt. A failed nudge must never fail a
+// committed transfer.
+function broadcastCreditBalanceChanged(args, result) {
+  try {
+    const socketService = require('./socketService');
+    if (typeof socketService.broadcastCreditBalance !== 'function') return;
+    const currencyCode = args?.currencyCode || 'USD';
+    const transactionId = result?.transaction?.id || result?.transferResult?.transaction?.id || null;
+    for (const customerId of new Set([args?.senderCustomerId, args?.recipientCustomerId].filter(Boolean))) {
+      socketService.broadcastCreditBalance(customerId, { kind: 'transfer', currencyCode, transactionId });
+    }
+  } catch {
+    // A failed nudge must never fail a committed transfer.
+  }
 }
 
 // Creator tips, sponsorships, and boosts use the same append-only journal,
@@ -2540,13 +2561,15 @@ async function transferCredit(args) {
 // additional recipient class is a verified helper account, which is needed for
 // creator payouts while the public Credit router remains customer-only.
 async function transferCreatorCredit(args) {
-  return withTransaction(
+  const result = await withTransaction(
     pool,
     (client) => transferCreditInTransaction(client, {
       ...args, allowCreatorRecipient: true, allowCreatorSender: true,
     }),
     'media_creator_credit_transfer'
   );
+  broadcastCreditBalanceChanged(args, result);
+  return result;
 }
 
 /**

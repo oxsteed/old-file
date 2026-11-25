@@ -417,6 +417,7 @@ const NOTIFICATION_TYPES = [
   { type: 'restaurant_order_moved', group: 'work' },
   { type: 'restaurant_equipment_down', group: 'work' },
   { type: 'restaurant_location_emergency_closed', group: 'work' },
+  { type: 'restaurant_closure_customer_notice', group: 'orders' },
   { type: 'restaurant_stock_notice', group: 'work' },
   { type: 'restaurant_ticket_transferred', group: 'work' },
   { type: 'restaurant_substitution_request', group: 'work' },

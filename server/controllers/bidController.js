@@ -6,6 +6,21 @@ const money = require('../validation/money');
 const { sendNotification } = require('../services/notificationService');
 const jobStatusPolicy = require('../services/jobStatusPolicy');
 const { bidJobSnapshot } = require('../services/jobEditService');
+const { BID_CREATED_EVENT, BID_UPDATED_EVENT, BID_WITHDRAWN_EVENT } = require('../realtime/socketEvents');
+
+// PWA silent updates (D-445): live bid events to the job room. Best-effort
+// and post-commit only: the emit must never fail a bid write, and the
+// payload is a nudge — clients re-fetch authoritative state on receipt.
+function broadcastBidEvent(jobId, event, data) {
+  try {
+    const socketService = require('../services/socketService');
+    if (typeof socketService.broadcastToJobRoom === 'function') {
+      socketService.broadcastToJobRoom(jobId, event, data);
+    }
+  } catch (err) {
+    logger.warn('Failed to broadcast bid event', { error: err.message, jobId: String(jobId || ''), event });
+  }
+}
 
 function canViewBid(user, bid) {
   if (!user || !bid) return false;
@@ -141,6 +156,9 @@ exports.createBid = async (req, res, next) => {
       );
       if (jobRow.rows[0]) {
         const { client_id, title, helper_name } = jobRow.rows[0];
+        // Live bid stream (D-445): the job room learns first, so the detail
+        // page merges the new bid in place without a reload.
+        broadcastBidEvent(result.job_id, BID_CREATED_EVENT, { bid: { ...result, helper_name } });
         await sendNotification({
           userId: client_id,
           type: 'bid_received',
@@ -430,6 +448,8 @@ exports.updateBid = async (req, res, next) => {
       ].filter(Boolean)
     });
     res.json(result.bid);
+    // Live bid stream (D-445): the job room merges the changed bid in place.
+    broadcastBidEvent(result.job.id, BID_UPDATED_EVENT, { bid: result.bid });
   } catch (err) {
     next(err);
   }
@@ -442,6 +462,8 @@ exports.reconfirmBid = async (req, res, next) => {
     const result = await reviseBid(req, { requireReconfirm: true });
     logger.info('Bid reconfirmed', { bidId: req.params.id, userId: req.user.id, jobRevision: result.bid.job_revision });
     res.json({ bid: result.bid, reconfirmed: true });
+    // Live bid stream (D-445): a reconfirm is a bid change for the room.
+    broadcastBidEvent(result.job.id, BID_UPDATED_EVENT, { bid: result.bid });
     try {
       await sendNotification({
         userId: result.job.client_id,
@@ -503,6 +525,8 @@ exports.withdrawBid = async (req, res, next) => {
 
     logger.info('Bid withdrawn', { bidId, userId, jobId: bid.job_id });
     res.json(result);
+    // Live bid stream (D-445): the room marks the bid withdrawn in place.
+    broadcastBidEvent(bid.job_id, BID_WITHDRAWN_EVENT, { bidId: result.id, bid: result });
   } catch (err) {
     next(err);
   }

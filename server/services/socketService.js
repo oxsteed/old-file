@@ -14,6 +14,7 @@ let mediaIo = null;
 const pool = require('../db');
 const logger = require('../utils/logger');
 const presence = require('./realtimePresence');
+const { CREDIT_BALANCE_EVENT, userRoom, jobRoom } = require('../realtime/socketEvents');
 
 const onlineMap = new Map();
 
@@ -89,6 +90,22 @@ function broadcastToAdmins(event, data) {
 function broadcastToRoom(room, event, data) {
   if (!io || !room) return;
   io.to(room).emit(event, data);
+}
+
+// PWA silent updates (D-445): live bid events to one job's room. Membership
+// is decided server-side on `job:join` (chatNamespace); the emit itself
+// trusts the room, never a client-supplied recipient list.
+function broadcastToJobRoom(jobId, event, data) {
+  if (!io || !jobId) return;
+  io.to(jobRoom(jobId)).emit(event, data);
+}
+
+// PWA silent updates (D-445): balance-change nudge to one user's own room.
+// The payload carries no amounts: the client re-fetches authoritative state
+// on receipt. A user only ever receives their own room (joined on connect).
+function broadcastCreditBalance(userId, data) {
+  if (!io || !userId) return;
+  io.to(userRoom(userId)).emit(CREDIT_BALANCE_EVENT, data);
 }
 
 function initMedia(namespace) {
@@ -484,7 +501,7 @@ async function validateBusinessRoomAccess(businessId, userId) {
 module.exports = {
   init, trackConnect, trackDisconnect, isOnline,
   broadcastToUser, broadcastToConversation, broadcastToAdmins,
-  broadcastToRoom, broadcastToOpsDelivery,
+  broadcastToRoom, broadcastToOpsDelivery, broadcastToJobRoom, broadcastCreditBalance,
   initMedia, broadcastToMediaPost,
   broadcastNewGuestSession, broadcastGuestSessionUpdate, broadcastGuestChatMessage,
   disconnectUserSockets, getSocketCount, validateConversationAccess,

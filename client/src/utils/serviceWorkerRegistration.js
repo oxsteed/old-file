@@ -77,11 +77,11 @@ function trySilentUpdate(worker) {
   if (appUpdatesDeferred() || isSilentUpdateSensitivePath(window.location.pathname)) return false;
   // Explicit refresh and chunk recovery already reloaded this tab. A waiting
   // worker can still be visible while activation catches up; reloading again
-  // races the next navigation, so show the notice instead.
+  // races the next navigation, so keep it waiting instead.
   if (pageInteracted || Date.now() > silentUpdateDeadline || recentDocumentReload()) return false;
   const id = worker.scriptURL || 'waiting';
   // One silent attempt per worker per tab session: if the reload comes back
-  // to the same waiting worker, fall back to the visible notice (no loops).
+  // to the same waiting worker, keep it waiting for a quiet moment (no loops).
   if (readSilentUpdateMarker() === id) return false;
   if (!writeSilentUpdateMarker(id)) return false;
   navigator.serviceWorker.addEventListener('controllerchange', reloadDocument, { once: true });
@@ -90,14 +90,40 @@ function trySilentUpdate(worker) {
 }
 
 let waitingWorker = null;
+let storedRegistration = null;
 const updateListeners = new Set();
+// Workers already announced or silently applied, so announceUpdate is
+// idempotent per worker. A silent apply never sets waitingWorker (the
+// worker is being activated, not held), so without this a second
+// detectWaiting for the same worker would fall through to the quiet
+// path and notify listeners of an update that is already applying —
+// the D-447 detectWaiting call inside watchInstalling hit exactly
+// that (serviceWorkerVersion test: "applied silently once").
+const handledWorkers = new Set();
 export const getWaitingWorker = () => waitingWorker;
+
+// The registration itself always knows synchronously whether a worker is
+// waiting. The event-driven announce path (updatefound/statechange) can
+// miss it — a fast install, a late handler, a dropped event — and then
+// every quiet-apply path silently does nothing forever, because they all
+// read the module's waitingWorker. Fall back to the registration's own
+// .waiting, unless the module already processed that worker (a silent
+// apply must not be re-applied). CI: pwaShell test 115 timed out twice
+// even after the D-447 updatefound fix, with the registration holding a
+// waiting worker the module never tracked.
+function getWaitingWorkerNow() {
+  if (waitingWorker) return waitingWorker;
+  const pending = storedRegistration?.waiting || null;
+  if (pending && !handledWorkers.has(pending)) return pending;
+  return null;
+}
 export function subscribeWorkerUpdate(listener) {
   updateListeners.add(listener);
   return () => updateListeners.delete(listener);
 }
 function announceUpdate(worker) {
-  if (waitingWorker === worker) return;
+  if (waitingWorker === worker || handledWorkers.has(worker)) return;
+  handledWorkers.add(worker);
   if (trySilentUpdate(worker)) return;
   waitingWorker = worker;
   scheduleQuietAutoUpdate();
@@ -113,13 +139,27 @@ export function hasUnsavedInput(root = typeof document === 'undefined' ? null : 
     const type = (el.type || '').toLowerCase();
     if (['hidden', 'submit', 'button', 'reset', 'image', 'file', 'password', 'search'].includes(type)) return false;
     if (type === 'checkbox' || type === 'radio') return el.checked !== el.defaultChecked;
-    if (el.tagName === 'SELECT') return Array.from(el.options || []).some(o => o.selected !== o.defaultSelected);
+    if (el.tagName === 'SELECT') {
+      // React sets the selected PROPERTY but no selected ATTRIBUTE, so
+      // comparing selected against defaultSelected reports every untouched
+      // React select as dirty — and every page carrying one (the home page
+      // has two) blocks silent updates forever. Compare the currently
+      // selected option against the default one instead: the first option
+      // carrying a selected attribute, else the first option. (CI: the
+      // PWA installed-mode matrix never reloaded after navigating home,
+      // because the post-job wizard's untouched selects read dirty.)
+      const options = Array.from(el.options || []);
+      if (el.multiple) return options.some(o => o.selected !== o.defaultSelected);
+      const current = options.find(o => o.selected);
+      const initial = options.find(o => o.defaultSelected) || options[0];
+      return current !== initial;
+    }
     return (el.value || '') !== (el.defaultValue || '');
   });
 }
 
 function canApplyQuietly(pathname) {
-  return Boolean(waitingWorker)
+  return Boolean(getWaitingWorkerNow())
     && !appUpdatesDeferred()
     && !isUpdateSensitivePath(pathname)
     && !isSilentUpdateSensitivePath(pathname)
@@ -149,8 +189,8 @@ function scheduleQuietAutoUpdate() {
   try {
     if (!canApplyQuietly(window.location.pathname)) return;
   } catch {
-    // A partial DOM (for example an embedded shell) should still receive the
-    // visible update notice rather than interrupting worker detection.
+    // A partial DOM (for example an embedded shell) should simply keep the
+    // worker waiting rather than interrupting worker detection.
     return;
   }
   const schedule = window.setTimeout || setTimeout;
@@ -167,7 +207,7 @@ function scheduleQuietAutoUpdate() {
  * Apply a waiting update without asking, at moments the reload is invisible:
  * the next in-app navigation (the new page loads fresh instead of rendering
  * in place) or when the tab is hidden. Guarded workflows, sensitive paths and
- * pages with unsaved input keep the visible notice instead.
+ * pages with unsaved input keep the worker waiting instead.
  */
 let quietWatchInstalled = false;
 function watchQuietMoments() {
@@ -186,6 +226,16 @@ function installQuietWatch() {
       return result;
     };
   }
+  // PWA silent updates (D-446): in-app replaces (redirects, tab switches
+  // that replace the entry) are quiet moments too, same as pushes.
+  if (history && typeof history.replaceState === 'function') {
+    const originalReplace = history.replaceState.bind(history);
+    history.replaceState = function replaceStateWithUpdate(...args) {
+      const result = originalReplace(...args);
+      if (canApplyQuietly(window.location.pathname)) applyWorkerUpdate();
+      return result;
+    };
+  }
   if (typeof document.addEventListener !== 'function') return;
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && canApplyQuietly(window.location.pathname)) applyWorkerUpdate();
@@ -193,16 +243,61 @@ function installQuietWatch() {
 }
 
 export function applyWorkerUpdate() {
-  if (!waitingWorker || appUpdatesDeferred() || isUpdateSensitivePath(window.location.pathname)) return false;
+  const worker = getWaitingWorkerNow();
+  if (!worker || appUpdatesDeferred() || isUpdateSensitivePath(window.location.pathname)) return false;
+  // A worker found through the registration fallback becomes the tracked
+  // one, so a late announce for it is a no-op instead of a second apply.
+  waitingWorker = worker;
   clearQuietUpdateTimer();
-  // Another tab may already have accepted this worker. Refresh this page
-  // only when its own user presses the button.
-  if (waitingWorker.state === 'activated') { reloadDocument(); return true; }
-  // Only the page whose user requested the update reloads. Other tabs keep
-  // their in-progress forms and are never forcibly reloaded on controllerchange.
+  // Another tab may already have accepted this worker. This reload only ever
+  // runs from the guarded quiet-apply paths (next navigation or hidden tab);
+  // there is no user-facing prompt anymore.
+  if (worker.state === 'activated') { reloadDocument(); return true; }
   navigator.serviceWorker.addEventListener('controllerchange', reloadDocument, { once: true });
-  waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+  worker.postMessage({ type: 'SKIP_WAITING' });
   return true;
+}
+
+// PWA silent updates (D-444): open tabs discover a new release without
+// waiting for a navigation. A cheap /api/version check runs on resume
+// (visibilitychange/focus, throttled) and registration.update() runs on a
+// 30-minute interval as a backstop, so a deploy reaches open tabs within
+// 30 minutes. update() itself is a no-op when nothing changed.
+export const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+export const UPDATE_CHECK_THROTTLE_MS = 5 * 60 * 1000;
+let updateChecksInstalled = false;
+let lastUpdateCheckAt = 0;
+
+async function checkForUpdate(registration) {
+  const now = Date.now();
+  if (now - lastUpdateCheckAt < UPDATE_CHECK_THROTTLE_MS) return;
+  lastUpdateCheckAt = now;
+  try {
+    const res = await fetch('/api/version', { cache: 'no-store' });
+    if (!res?.ok) return;
+    const { buildId } = await res.json();
+    const current = getServiceWorkerVersion();
+    // An unversioned local build has nothing stable to compare against;
+    // the interval backstop below still picks up a new worker by byte change.
+    if (!buildId || !current || current === FALLBACK_RELEASE_ID) return;
+    if (String(buildId) !== current) await registration.update();
+  } catch {
+    // The next resume or the interval retries; a failed check never prompts.
+  }
+}
+
+function installUpdateChecks(registration) {
+  if (updateChecksInstalled || typeof window === 'undefined' || typeof document === 'undefined') return;
+  updateChecksInstalled = true;
+  const check = () => { checkForUpdate(registration).catch(() => {}); };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') check();
+  });
+  window.addEventListener('focus', check);
+  const interval = (window.setInterval || setInterval)(() => {
+    registration.update().catch(() => {});
+  }, UPDATE_CHECK_INTERVAL_MS);
+  interval?.unref?.();
 }
 
 export function registerServiceWorker() {
@@ -214,6 +309,7 @@ export function registerServiceWorker() {
     navigator.serviceWorker.register(getServiceWorkerUrl(), {
       updateViaCache: 'none',
     }).then(registration => {
+      storedRegistration = registration;
       const detectWaiting = () => {
         if (registration.waiting && navigator.serviceWorker.controller) announceUpdate(registration.waiting);
       };
@@ -223,9 +319,28 @@ export function registerServiceWorker() {
         worker?.addEventListener('statechange', () => {
           if (worker.state === 'installed') detectWaiting();
         });
+        // A fast install can reach 'waiting' before the updatefound handler
+        // runs (or before this first call): registration.installing is
+        // already null, the statechange listener above never fires, and
+        // detectWaiting is never called again — so check the registration
+        // directly too. Without this, a waiting worker the module never
+        // tracks can never apply silently: the tab sits on the old release
+        // until a manual refresh, and the pushState quiet-apply path does
+        // nothing (CI: pwaShell test 115 timed out waiting for the reload
+        // after navigating). The D-444 resume/interval update() calls hit
+        // the same race.
+        detectWaiting();
       };
       registration.addEventListener('updatefound', watchInstalling);
       watchInstalling();
+      // The quiet-apply hooks (in-app navigation, hidden tab) must exist
+      // even when the announce event itself is missed: otherwise a worker
+      // the module never tracked can never apply at all, and the
+      // registration fallback in getWaitingWorkerNow has no hook to run
+      // through. Installing them here is a no-op until a worker is
+      // waiting, and announceUpdate still installs them (idempotent).
+      watchQuietMoments();
+      installUpdateChecks(registration);
     }).catch(() => { /* The app works without a worker. */ });
   };
   if (document.readyState === 'complete') register();

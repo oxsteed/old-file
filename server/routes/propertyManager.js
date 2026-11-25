@@ -93,6 +93,7 @@ router.post(`${P}/p/:propertyId/revoke`, ...adminW, h(req => portfolio.revokeAcc
 // Property owner (317, 345) and occupant (323) surfaces; scoped to req.user.
 const meRouter = express.Router();
 meRouter.get('/approvals', authenticate, h(req => work.approvalInbox(U(req))));
+meRouter.get('/approvals/:requestId/events', authenticate, h(req => work.approvalEvents(U(req), req.params.requestId)));
 meRouter.post('/approvals/:requestId', authenticate, rejectImpersonated, h(req => work.decideApproval(U(req), req.params.requestId, req.body)));
 meRouter.get('/incidents', authenticate, h(req => work.ownerIncidents(U(req))));
 meRouter.get('/entry/:requestId', authenticate, h(req => work.occupantEntry(U(req), req.params.requestId)));

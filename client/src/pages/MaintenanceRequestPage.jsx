@@ -5,8 +5,105 @@ import { AlertTriangle, Building2, Camera, CheckCircle2, Clock, Home, ShieldChec
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
-import { createMaintenanceRequest, getMaintenanceBusiness } from '../api/maintenanceRequests';
+import { createMaintenanceRequest, getMaintenanceBusiness, getOccupantEntry, listMyMaintenanceRequests, selectEntryWindow } from '../api/maintenanceRequests';
 import '../styles/MaintenanceRequestPage.css';
+
+// 323 (D-434): the occupant's own requests for this business, with the
+// entry-window picker. Hidden when signed out (a 401 on /my hides it).
+function MyRequestsSection({ businessId }) {
+  const { t } = useTranslation();
+  const [requests, setRequests] = useState(null);
+  const [openId, setOpenId] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    listMyMaintenanceRequests()
+      .then((rows) => { if (!cancelled) setRequests(rows.filter((r) => String(r.business_id) === String(businessId))); })
+      .catch(() => { if (!cancelled) setRequests(null); });
+    return () => { cancelled = true; };
+  }, [businessId]);
+  if (!requests) return null;
+  if (requests.length === 0) {
+    return (
+      <section className="mrq-panel mrq-panel-wide">
+        <h2><Clock size={18} /> {t('maintenanceRequestPage.myRequests.title')}</h2>
+        <p>{t('maintenanceRequestPage.myRequests.empty')}</p>
+      </section>
+    );
+  }
+  return (
+    <section className="mrq-panel mrq-panel-wide">
+      <h2><Clock size={18} /> {t('maintenanceRequestPage.myRequests.title')}</h2>
+      <ul className="mrq-list">
+        {requests.map((row) => (
+          <li key={row.id}>
+            <strong>{row.title}</strong> · {row.status}
+            {' '}
+            <button type="button" className="mrq-btn" onClick={() => setOpenId(openId === String(row.id) ? null : String(row.id))} data-track="ui.bc430134f8.7">
+              {openId === String(row.id) ? t('maintenanceRequestPage.myRequests.hideEntry') : t('maintenanceRequestPage.myRequests.viewEntry')}
+            </button>
+            {openId === String(row.id) && <EntryWindowPicker requestId={String(row.id)} />}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function EntryWindowPicker({ requestId }) {
+  const { t } = useTranslation();
+  const [entry, setEntry] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [picked, setPicked] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    getOccupantEntry(requestId)
+      .then((data) => { if (!cancelled) setEntry(data.entry); })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, [requestId]);
+  if (failed) return <p className="mrq-muted">{t('maintenanceRequestPage.entryWindows.noEntry')}</p>;
+  if (!entry) return <p className="mrq-muted">{t('maintenanceRequestPage.loading')}</p>;
+  const windows = Array.isArray(entry.offered_windows) ? entry.offered_windows : [];
+  const choose = async () => {
+    if (!picked || saving) return;
+    setSaving(true);
+    try {
+      const out = await selectEntryWindow(requestId, picked);
+      setSaved(out?.selected?.start || picked);
+      setEntry((cur) => (cur ? { ...cur, selected_start: out?.selected?.start || picked, selected_end: out?.selected?.end || cur.selected_end } : cur));
+    } catch {
+      toast.error(t('maintenanceRequestPage.messages.sendFailed'));
+    } finally { setSaving(false); }
+  };
+  return (
+    <div>
+      <h3>{t('maintenanceRequestPage.entryWindows.title')}</h3>
+      <p className="mrq-muted">
+        {t('maintenanceRequestPage.entryWindows.consent')}: {String(entry.consent ?? '—')}
+        {entry.occupant_notified_at ? ` · ${t('maintenanceRequestPage.entryWindows.notified')}` : ''}
+        {entry.selected_start ? ` · ${t('maintenanceRequestPage.entryWindows.selected')}: ${new Date(entry.selected_start).toLocaleString()}` : ''}
+      </p>
+      {windows.length === 0 ? <p>{t('maintenanceRequestPage.entryWindows.empty')}</p> : (
+        <>
+          <div className="mrq-field">
+            {windows.map((w) => (
+              <label key={w.start} className="mrq-check">
+                <input type="radio" name={`entry-window-${requestId}`} value={w.start} checked={picked === w.start} onChange={() => setPicked(w.start)} data-track="ui.bc430134f8.9" />
+                <span>{new Date(w.start).toLocaleString()} – {new Date(w.end).toLocaleString()}</span>
+              </label>
+            ))}
+          </div>
+          <button type="button" className="mrq-btn primary" disabled={!picked || saving} onClick={choose} data-track="ui.bc430134f8.8">
+            {t('maintenanceRequestPage.entryWindows.select')}
+          </button>
+          {saved && <p className="mrq-muted">{t('maintenanceRequestPage.entryWindows.saved')}</p>}
+        </>
+      )}
+    </div>
+  );
+}
 
 const ISSUE_CATEGORY_FALLBACKS = [
   'Plumbing',
@@ -181,6 +278,7 @@ export default function MaintenanceRequestPage() {
           </div>
         </section>
 
+        <MyRequestsSection businessId={businessId} />
         <form className="mrq-grid" onSubmit={handleSubmit} data-track="ui.bc430134f8.1">
           <section className="mrq-panel">
             <h2><Home size={18} /> {t('maintenanceRequestPage.sections.issueDetails')}</h2>

@@ -4,8 +4,8 @@
 // weight). One source of truth (the CSS value) for the offset.
 //
 // The M20 visible-while-offline rule (dimmed, untappable launcher) was
-// reversed: the overlay-coordination fixture
-// (pwaOverlayCoordination.browser-check.cjs:119) requires the launcher hidden
+// reversed: the launcher-clearance fixture
+// (supportLauncherClearance.browser-check.cjs) requires the launcher hidden
 // while the connection banner shows, and a dimmed-but-visible launcher still
 // occupies the banner/cart clearance. The launcher hides while offline and
 // returns on reconnect; help stays reachable through the banner's Retry

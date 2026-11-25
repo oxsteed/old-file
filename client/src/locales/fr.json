@@ -99,10 +99,6 @@
     "storageFailed": "Impossible d’enregistrer le brouillon. Gardez cette page ouverte."
   },
   "pwaShell": {
-    "updateReady": "Une nouvelle version est disponible.",
-    "later": "Plus tard",
-    "refresh": "Actualiser maintenant",
-    "updating": "Actualisation…",
     "sharedReady": "Les photos partagées sont jointes. Vérifiez les détails avant de publier.",
     "shareError": "Impossible d’ouvrir les photos. Choisissez jusqu’à cinq images compatibles et réessayez."
   },
@@ -24433,6 +24429,22 @@
       "loadFailed": "Impossible de charger le profil de cette propriété.",
       "sent": "Demande de maintenance envoyée.",
       "sendFailed": "Impossible d’envoyer la demande de maintenance."
+    },
+    "myRequests": {
+      "title": "Mes demandes",
+      "empty": "Vous n'avez aucune demande de maintenance pour cette entreprise pour le moment.",
+      "viewEntry": "Choisir la fenêtre d’entrée",
+      "hideEntry": "Masquer les fenêtres d’entrée"
+    },
+    "entryWindows": {
+      "title": "Fenêtres d'entrée",
+      "empty": "Aucune fenêtre d'entrée n'a encore été proposée.",
+      "notified": "Vous avez été notifié(e)",
+      "selected": "Fenêtre sélectionnée",
+      "select": "Sélectionner cette fenêtre",
+      "noEntry": "Aucun enregistrement d'entrée pour le moment.",
+      "consent": "Autorisation d’entrée",
+      "saved": "Fenêtre sélectionnée."
     }
   },
   "franchiseIntakePage": {
@@ -46355,7 +46367,9 @@
       "owner_must_transfer": "Transférez la propriété avant de partir.",
       "visit_in_progress": "Terminez d’abord l’intervention en cours.",
       "clocked_in": "Pointez votre sortie d’abord.",
-      "invalid_status_transition": "Cette étape n’est pas possible maintenant."
+      "invalid_status_transition": "Cette étape n’est pas possible maintenant.",
+      "closure_dispositions_required": "Chaque commande ouverte doit avoir une décision avant la fermeture.",
+      "closure_notice_required": "Rédigez l’avis aux clients avant de fermer."
     },
     "launch": {
       "title": "État du lancement",
@@ -47277,7 +47291,21 @@
       "createSchedule": "Créer un planning",
       "bookOccurrence": "Réserver",
       "sendBudgetAlerts": "Envoyer les alertes de budget",
-      "unitSpend": "Dépenses par unité"
+      "unitSpend": "Dépenses par unité",
+      "ownerApprovals": "Approbations du propriétaire",
+      "approvalNote": "Note de décision",
+      "auditTrail": "Journal d'audit",
+      "showTrail": "Afficher l'historique",
+      "hideTrail": "Masquer l'historique",
+      "decidedApprovals": "Approbations décidées",
+      "requestedAt": "Demandé le",
+      "decidedAt": "Décidé le",
+      "ownerIncidents": "Résumé des incidents du propriétaire",
+      "assignee": "Assigné à",
+      "unassigned": "Non assigné",
+      "uncategorised": "Sans catégorie",
+      "sharedAt": "Partagé le",
+      "assigneeUserId": "ID utilisateur assigné"
     },
     "ops": {
       "title": "Console des opérations",
@@ -47377,7 +47405,48 @@
       "hour": "Heure",
       "staff": "Personnel",
       "needed": "Requis",
-      "decide": "Décider"
+      "decide": "Décider",
+      "importMenu": "Importer le menu",
+      "importUpload": "Choisir un fichier CSV",
+      "importPaste": "Ou coller le CSV",
+      "importPreview": "Aperçu de l’import",
+      "importConfirm": "Confirmer l’import",
+      "importDrafts": "Les articles importés arrivent en brouillon pour révision.",
+      "importCreated": "Créés",
+      "importSkipped": "Ignorés",
+      "disposition": "Décision",
+      "dispositionNote": "Note de décision",
+      "customerNotice": "Avis aux clients",
+      "customerNoticeHint": "Envoyé à chaque client ayant une commande ouverte.",
+      "closeBlocked": "La fermeture est bloquée tant que chaque commande ouverte n’a pas de décision et que l’avis n’est pas rédigé.",
+      "noticeSent": "Avis envoyé",
+      "suggested": "Suggéré",
+      "disp": {
+        "hand_off": "Remettre",
+        "finish": "Terminer puis remettre",
+        "transfer": "Transférer",
+        "cancel": "Annuler"
+      },
+      "packageLabel": "Étiquette du colis",
+      "printLabel": "Imprimer l’étiquette",
+      "pickupCode": "Code de retrait",
+      "labelLoad": "Charger l’étiquette",
+      "labelScheduled": "Prévu pour",
+      "driverArrivals": "Arrivées des livreurs",
+      "driverName": "Livreur",
+      "arrived": "Arrivé",
+      "notArrived": "Pas arrivé",
+      "etaMinutes": "ETA (min)",
+      "distance": "Distance",
+      "kitchenTickets": "Tickets de cuisine",
+      "stationFilter": "Poste",
+      "allStations": "Tous les postes",
+      "unassignedStation": "Non assigné",
+      "ticketOwner": "Responsable",
+      "ticketItems": "Articles",
+      "packProgress": "Emballé",
+      "batchPrintVisible": "Imprimer les tickets visibles",
+      "ticketDetail": "Détail du ticket"
     },
     "shift": {
       "title": "Mon poste",
@@ -47476,7 +47545,22 @@
       "handoffTo": "Transmettre à (ID)",
       "escalatedTo": "Escaladé à",
       "followUpAt": "Suivi le",
-      "handoffToUser": "Transmettre à (ID)"
+      "handoffToUser": "Transmettre à (ID)",
+      "recoveryTitle": "Récupération après un changement d'accès",
+      "recoveryLost": "Vous avez perdu l'accès à un établissement pendant votre poste. Libérez vos tickets ouverts pour qu'un collègue puisse les prendre.",
+      "recoveryTickets": "{{count}} tickets ouverts",
+      "recoveryRecover": "Libérer les tickets et prévenir les responsables",
+      "recoveryRecovered": "Libérations récupérées",
+      "recoveryManagersNotified": "Responsables prévenus : {{count}}",
+      "recoveryReleasedAt": "Libéré {{time}}",
+      "managerRecoveryTitle": "Libérations après changement d'accès",
+      "managerRecoveryIntro": "Tickets libérés quand un collègue a perdu l'accès à l'établissement. Réassignez-les à quelqu'un en poste.",
+      "managerRecoveryLostBy": "{{name}} a perdu l'accès",
+      "managerRecoveryTeammates": "En poste",
+      "managerRecoveryAssignTo": "Assigner à",
+      "managerRecoveryReassign": "Réassigner",
+      "managerRecoveryNoPermission": "Vous ne pouvez pas réassigner de tickets.",
+      "managerRecoveryReleased": "Libéré {{time}}"
     }
   }
 }

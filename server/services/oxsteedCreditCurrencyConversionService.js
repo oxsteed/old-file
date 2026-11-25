@@ -570,11 +570,22 @@ async function convertCustomerCreditInTransaction(client, { customerId, quoteId,
 }
 
 async function convertCustomerCredit(args) {
-  return withTransaction(
+  const result = await withTransaction(
     pool,
     (client) => convertCustomerCreditInTransaction(client, args),
     'credit_convert_currency'
   );
+  // Live balance nudge (D-445): post-commit only; best-effort, and never
+  // fails a committed conversion. No amounts in the payload.
+  try {
+    const socketService = require('./socketService');
+    if (typeof socketService.broadcastCreditBalance === 'function') {
+      socketService.broadcastCreditBalance(args.customerId, { kind: 'conversion' });
+    }
+  } catch {
+    // A failed nudge must never fail a committed conversion.
+  }
+  return result;
 }
 
 module.exports = {

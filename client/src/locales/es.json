@@ -99,10 +99,6 @@
     "storageFailed": "No se pudo guardar el borrador. Mantén esta página abierta."
   },
   "pwaShell": {
-    "updateReady": "Hay una nueva versión disponible.",
-    "later": "Más tarde",
-    "refresh": "Actualizar ahora",
-    "updating": "Actualizando…",
     "sharedReady": "Las fotos compartidas están adjuntas. Revisa los detalles antes de publicar.",
     "shareError": "No se pudieron abrir las fotos. Elige hasta cinco imágenes compatibles e inténtalo de nuevo."
   },
@@ -24433,6 +24429,22 @@
       "loadFailed": "No se pudo cargar este perfil de propiedad.",
       "sent": "Solicitud de mantenimiento enviada.",
       "sendFailed": "No se pudo enviar la solicitud de mantenimiento."
+    },
+    "myRequests": {
+      "title": "Mis solicitudes",
+      "empty": "Aún no tienes solicitudes de mantenimiento para este negocio.",
+      "viewEntry": "Elegir ventana de entrada",
+      "hideEntry": "Ocultar ventanas de entrada"
+    },
+    "entryWindows": {
+      "title": "Ventanas de entrada",
+      "empty": "Aún no se han ofrecido ventanas de entrada.",
+      "notified": "Se te notificó",
+      "selected": "Ventana seleccionada",
+      "select": "Seleccionar esta ventana",
+      "noEntry": "Aún no hay registro de entrada.",
+      "consent": "Permiso de entrada",
+      "saved": "Ventana seleccionada."
     }
   },
   "franchiseIntakePage": {
@@ -46355,7 +46367,9 @@
       "owner_must_transfer": "Transfiere la propiedad antes de salir.",
       "visit_in_progress": "Termina primero la visita en curso.",
       "clocked_in": "Marca tu salida primero.",
-      "invalid_status_transition": "Ese paso no es posible ahora."
+      "invalid_status_transition": "Ese paso no es posible ahora.",
+      "closure_dispositions_required": "Cada pedido abierto necesita una disposición antes de cerrar.",
+      "closure_notice_required": "Escribe el aviso al cliente antes de cerrar."
     },
     "launch": {
       "title": "Estado de lanzamiento",
@@ -47277,7 +47291,21 @@
       "createSchedule": "Crear programa",
       "bookOccurrence": "Reservar",
       "sendBudgetAlerts": "Enviar alertas de presupuesto",
-      "unitSpend": "Gasto por unidad"
+      "unitSpend": "Gasto por unidad",
+      "ownerApprovals": "Aprobaciones del propietario",
+      "approvalNote": "Nota de decisión",
+      "auditTrail": "Historial de auditoría",
+      "showTrail": "Mostrar historial",
+      "hideTrail": "Ocultar historial",
+      "decidedApprovals": "Aprobaciones decididas",
+      "requestedAt": "Solicitado",
+      "decidedAt": "Decidido",
+      "ownerIncidents": "Resumen de incidentes del propietario",
+      "assignee": "Asignado a",
+      "unassigned": "Sin asignar",
+      "uncategorised": "Sin categoría",
+      "sharedAt": "Compartido",
+      "assigneeUserId": "ID de usuario asignado"
     },
     "ops": {
       "title": "Consola de operaciones",
@@ -47377,7 +47405,48 @@
       "hour": "Hora",
       "staff": "Personal",
       "needed": "Necesario",
-      "decide": "Decidir"
+      "decide": "Decidir",
+      "importMenu": "Importar menú",
+      "importUpload": "Elegir archivo CSV",
+      "importPaste": "O pegar CSV",
+      "importPreview": "Vista previa",
+      "importConfirm": "Confirmar importación",
+      "importDrafts": "Los artículos importados quedan como borradores para revisión.",
+      "importCreated": "Creados",
+      "importSkipped": "Omitidos",
+      "disposition": "Disposición",
+      "dispositionNote": "Nota de disposición",
+      "customerNotice": "Aviso al cliente",
+      "customerNoticeHint": "Se envía a cada cliente con un pedido abierto.",
+      "closeBlocked": "El cierre está bloqueado hasta que cada pedido abierto tenga una disposición y el aviso esté escrito.",
+      "noticeSent": "Aviso enviado",
+      "suggested": "Sugerido",
+      "disp": {
+        "hand_off": "Entregar",
+        "finish": "Terminar y entregar",
+        "transfer": "Trasladar",
+        "cancel": "Cancelar"
+      },
+      "packageLabel": "Etiqueta del paquete",
+      "printLabel": "Imprimir etiqueta",
+      "pickupCode": "Código de recogida",
+      "labelLoad": "Cargar etiqueta",
+      "labelScheduled": "Programado para",
+      "driverArrivals": "Llegadas de repartidores",
+      "driverName": "Repartidor",
+      "arrived": "Llegó",
+      "notArrived": "No llegó",
+      "etaMinutes": "ETA (min)",
+      "distance": "Distancia",
+      "kitchenTickets": "Tickets de cocina",
+      "stationFilter": "Estación",
+      "allStations": "Todas las estaciones",
+      "unassignedStation": "Sin asignar",
+      "ticketOwner": "Responsable",
+      "ticketItems": "Artículos",
+      "packProgress": "Empaquetado",
+      "batchPrintVisible": "Imprimir tickets visibles",
+      "ticketDetail": "Detalle del ticket"
     },
     "shift": {
       "title": "Mi turno",
@@ -47476,7 +47545,22 @@
       "handoffTo": "Entregar a (ID)",
       "escalatedTo": "Escalado a",
       "followUpAt": "Seguimiento el",
-      "handoffToUser": "Entregar a (ID)"
+      "handoffToUser": "Entregar a (ID)",
+      "recoveryTitle": "Recuperación por cambio de acceso",
+      "recoveryLost": "Perdiste el acceso a un local mientras estabas registrado. Libera tus tickets abiertos para que un compañero pueda tomarlos.",
+      "recoveryTickets": "{{count}} tickets abiertos",
+      "recoveryRecover": "Liberar tickets y avisar a los gerentes",
+      "recoveryRecovered": "Liberaciones recuperadas",
+      "recoveryManagersNotified": "Gerentes avisados: {{count}}",
+      "recoveryReleasedAt": "Liberado {{time}}",
+      "managerRecoveryTitle": "Liberaciones por cambio de acceso",
+      "managerRecoveryIntro": "Tickets liberados cuando un compañero perdió el acceso al local. Reasígnalos a alguien en turno.",
+      "managerRecoveryLostBy": "{{name}} perdió el acceso",
+      "managerRecoveryTeammates": "En turno",
+      "managerRecoveryAssignTo": "Asignar a",
+      "managerRecoveryReassign": "Reasignar",
+      "managerRecoveryNoPermission": "No puedes reasignar tickets.",
+      "managerRecoveryReleased": "Liberado {{time}}"
     }
   }
 }

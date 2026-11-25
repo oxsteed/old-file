@@ -113,6 +113,28 @@ function delay(ms) {
 
 const GLOBAL_RELOAD_KEY = 'oxs:chunk-reload:global';
 
+// Guarded one-time reload shared by the chunk-failure listeners below: the
+// same sessionStorage marker and the same guards as the lazy path
+// (canAutomaticallyReload), so a persistently missing chunk cannot loop.
+// Returns true when the reload was started; callers preventDefault the
+// source event only in that case, so a refused reload still surfaces.
+function tryGuardedGlobalReload(error, failureType) {
+  if (!isChunkLoadError(error)) return false;
+  if (!canAutomaticallyReload() || hasFreshRetryMarker(GLOBAL_RELOAD_KEY) || !setRetryMarker(GLOBAL_RELOAD_KEY)) return false;
+  automaticReloadStarted = true;
+  markDocumentLeaving();
+  Sentry.withScope((scope) => {
+    scope.setTag('failure_type', failureType);
+    scope.setTag('route', getPathname());
+    scope.setTag('release', getRelease());
+    Sentry.captureException(error);
+  });
+  const url = new URL(window.location.href);
+  url.searchParams.set('chunk-retry', 'auto-global');
+  window.location.replace(url.toString());
+  return true;
+}
+
 /**
  * installGlobalChunkReload — catches chunk-load failures from dynamic
  * import() calls that never pass through React.lazy (i18n locale chunks,
@@ -130,27 +152,34 @@ export function installGlobalChunkReload() {
     } catch {
       return;
     }
-    if (!isChunkLoadError(error)) return;
-    if (!canAutomaticallyReload() || hasFreshRetryMarker(GLOBAL_RELOAD_KEY) || !setRetryMarker(GLOBAL_RELOAD_KEY)) return;
-    automaticReloadStarted = true;
-    markDocumentLeaving();
-
+    if (!tryGuardedGlobalReload(error, 'global_chunk_load')) return;
     try {
       if (typeof event?.preventDefault === 'function') event.preventDefault();
     } catch {
       // Continue with the reload even if preventDefault fails.
     }
-    Sentry.withScope((scope) => {
-      scope.setTag('failure_type', 'global_chunk_load');
-      scope.setTag('route', getPathname());
-      scope.setTag('release', getRelease());
-      Sentry.captureException(error);
-    });
-    const url = new URL(window.location.href);
-    url.searchParams.set('chunk-retry', 'auto-global');
-    window.location.replace(url.toString());
   };
   window.addEventListener('unhandledrejection', onUnhandledRejection);
+  // PWA silent updates (D-446): Vite dispatches a cancelable
+  // `vite:preloadError` event (payload = the import error) when a preloaded
+  // chunk fails to load, and re-throws the error unless the event is
+  // default-prevented. The same guarded one-time reload applies, so a stale
+  // preload after a deploy recovers without a prompt or a dead page.
+  const onPreloadError = (event) => {
+    let error = null;
+    try {
+      error = event?.payload;
+    } catch {
+      return;
+    }
+    if (!tryGuardedGlobalReload(error, 'vite_preload_error')) return;
+    try {
+      if (typeof event?.preventDefault === 'function') event.preventDefault();
+    } catch {
+      // Continue with the reload even if preventDefault fails.
+    }
+  };
+  window.addEventListener('vite:preloadError', onPreloadError);
 }
 
 export function lazyWithRetry(loader, options = {}) {

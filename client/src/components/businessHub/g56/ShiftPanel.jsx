@@ -1,7 +1,8 @@
 // Groups 7-8 items 402-450: staff shift console. Shift brief and start,
 // station, readiness, batch print, ticket history and pack, late orders,
-// stock notices, issues, breaks, incidents, and end of shift. Server
-// enforces every permission; the panel only renders what the API returns.
+// stock notices, issues, breaks, incidents, end of shift, and access
+// change recovery (450). Server enforces every permission; the panel only
+// renders what the API returns.
 import { useState } from 'react';
 import { useBizG56 } from './useBizG56';
 import './g56.css';
@@ -25,7 +26,17 @@ function Notice({ p }) {
 export default function ShiftPanel({ restaurantId }) {
   const b = useBizG56(`/restaurants/${restaurantId}/shift`, 'shift');
   const [startForm, setStartForm] = useState({ location_id: '', shift_id: '' });
-  if (!b.data) return b.errorText ? <p className="g56-error">{b.errorText}</p> : null;
+  // 450: the recovery section mounts above the brief and stays visible even
+  // when the brief itself 403s after access loss, so the early return keeps
+  // it instead of showing only the error.
+  if (!b.data) {
+    return (
+      <section className="g56-panel" aria-label="my shift">
+        <AccessRecoverySection />
+        {b.errorText ? <p className="g56-error">{b.errorText}</p> : null}
+      </section>
+    );
+  }
   const start = async (e) => {
     e.preventDefault();
     if (!startForm.location_id) return;
@@ -36,6 +47,7 @@ export default function ShiftPanel({ restaurantId }) {
   };
   return (
     <section className="g56-panel" aria-label="my shift">
+      <AccessRecoverySection />
       <h3>{b.tr('title')}</h3>
       <p className="g56-muted">{b.tr('subtitle')}</p>
       <Notice p={b} />
@@ -66,6 +78,7 @@ export default function ShiftPanel({ restaurantId }) {
       <IncidentsSection restaurantId={restaurantId} locationId={b.data.started ? b.data.location?.id : null} />
       <TicketSection restaurantId={restaurantId} />
       {b.data.started && <EndShiftSection restaurantId={restaurantId} />}
+      <ManagerRecoverySection restaurantId={restaurantId} />
     </section>
   );
 }
@@ -121,6 +134,110 @@ function ShiftBrief({ b, restaurantId }) {
         ))}
       </ul>
       {!acked && <button type="button" disabled={b.busy} onClick={ack} data-track="ui.33e821f241.5">{b.tr('acknowledgeReadiness')}</button>}
+    </div>
+  );
+}
+
+// 450 self view: check-ins where the caller lost store access, plus the
+// releases already recovered (last 7 days). Renders nothing when there is
+// nothing lost and nothing recovered. The recover call releases the open
+// tickets and notifies managers; a second recover is a server no-op.
+function AccessRecoverySection() {
+  const p = useBizG56('/restaurants/me/shift-access', 'shift');
+  const recover = async () => { await p.send('post', '/restaurants/me/shift-access/recover', {}); };
+  if (!p.data) return p.errorText ? <p className="g56-error">{p.errorText}</p> : null;
+  const lost = p.data.lost_access || [];
+  const recovered = p.data.recovered || [];
+  if (lost.length === 0 && recovered.length === 0) return null;
+  return (
+    <div>
+      <h4>{p.tr('recoveryTitle')}</h4>
+      <Notice p={p} />
+      {lost.length > 0 && (
+        <>
+          <p className="g56-muted">{p.tr('recoveryLost')}</p>
+          <ul className="g56-list">{lost.map((k) => (
+            <li key={k.checkin_id}>
+              {k.restaurant_name} · {k.location_name} · {p.tr('recoveryTickets', { count: k.owned_open_tickets })}
+              {k.tickets?.length > 0 && (
+                <ul className="g56-list">{k.tickets.map((t) => <li key={t.id}>#{t.queue_number} · {t.status}</li>)}</ul>
+              )}
+            </li>
+          ))}</ul>
+          <button type="button" disabled={p.busy} onClick={recover} data-track="ui.33e821f241.28">{p.tr('recoveryRecover')}</button>
+        </>
+      )}
+      {recovered.length > 0 && (
+        <>
+          <h4>{p.tr('recoveryRecovered')}</h4>
+          <ul className="g56-list">{recovered.map((r) => (
+            <li key={r.checkin_id}>
+              {r.restaurant_name} · {r.location_name} · {p.tr('recoveryReleasedAt', { time: p.time(r.released_at) })}
+              {' · '}{p.tr('recoveryManagersNotified', { count: (r.managers_notified || []).length })}
+              {r.notified_at ? ` · ${p.time(r.notified_at)}` : ''}
+              {r.released_tickets?.length > 0 && (
+                <ul className="g56-list">{r.released_tickets.map((t) => (
+                  <li key={t.order_id}>#{t.queue_number} · {t.status} · {t.owner_name || '—'}</li>
+                ))}</ul>
+              )}
+            </li>
+          ))}</ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+// 450 manager view: recent access-change releases at the caller's stores,
+// with live ticket state and teammates on shift. Renders null on 403 (the
+// hook reports it as noAccess) and when there are no releases. Reassign
+// posts to the real handoff route; only unassigned tickets offer the form,
+// and only when the server says the caller can reassign.
+function ManagerRecoverySection({ restaurantId }) {
+  const p = useBizG56(`/restaurants/${restaurantId}/shift/access-recovery`, 'shift');
+  const [assignTo, setAssignTo] = useState({});
+  const reassign = async (e, orderId) => {
+    e.preventDefault();
+    const toUserId = assignTo[orderId];
+    if (!toUserId) return;
+    await p.send('post', `/restaurants/${restaurantId}/shift/orders/${orderId}/handoff`, { kind: 'owner', to_user_id: toUserId });
+  };
+  if (!p.data) return p.error === 'noAccess' ? null : (p.errorText ? <p className="g56-error">{p.errorText}</p> : null);
+  const releases = p.data.releases || [];
+  if (releases.length === 0) return null;
+  const needsReassign = releases.some((r) => (r.released_tickets || []).some((t) => !t.owner_user_id));
+  return (
+    <div>
+      <h4>{p.tr('managerRecoveryTitle')}</h4>
+      <p className="g56-muted">{p.tr('managerRecoveryIntro')}</p>
+      <Notice p={p} />
+      {!p.data.can_reassign && needsReassign && <p className="g56-muted">{p.tr('managerRecoveryNoPermission')}</p>}
+      <ul className="g56-list">{releases.map((r) => (
+        <li key={r.checkin_id}>
+          {r.lost_name ? `${p.tr('managerRecoveryLostBy', { name: r.lost_name })} · ` : ''}{r.restaurant_name} · {r.location_name} · {p.tr('managerRecoveryReleased', { time: p.time(r.released_at) })}
+          {(r.teammates_on_shift || []).length > 0 && (
+            <span> · {p.tr('managerRecoveryTeammates')}: {(r.teammates_on_shift || []).map((m) => m.name || '').filter(Boolean).join(', ')}</span>
+          )}
+          {(r.released_tickets || []).length > 0 && (
+            <ul className="g56-list">{r.released_tickets.map((t) => (
+              <li key={t.order_id}>
+                #{t.queue_number} · {t.status} · {t.owner_name || '—'}
+                {!t.owner_user_id && p.data.can_reassign && (r.teammates_on_shift || []).length > 0 && (
+                  <form onSubmit={(e) => reassign(e, t.order_id)} className="g56-row" data-track="ui.33e821f241.29">
+                    <label>{p.tr('managerRecoveryAssignTo')}
+                      <select value={assignTo[t.order_id] || ''} onChange={(e) => setAssignTo({ ...assignTo, [t.order_id]: e.target.value })}>
+                        <option value="">—</option>
+                        {(r.teammates_on_shift || []).map((m) => <option key={m.user_id} value={m.user_id}>{m.name || m.user_id}</option>)}
+                      </select>
+                    </label>
+                    <button type="submit" disabled={p.busy || !assignTo[t.order_id]} data-track="ui.33e821f241.30">{p.tr('managerRecoveryReassign')}</button>
+                  </form>
+                )}
+              </li>
+            ))}</ul>
+          )}
+        </li>
+      ))}</ul>
     </div>
   );
 }

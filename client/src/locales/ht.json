@@ -99,10 +99,6 @@
     "storageFailed": "Aparèy la pa t ka sove bouyon an. Kenbe paj sa a louvri."
   },
   "pwaShell": {
-    "updateReady": "Gen yon nouvo vèsyon ki disponib.",
-    "later": "Pita",
-    "refresh": "Rafrechi pou mete ajou",
-    "updating": "Ap rafrechi…",
     "sharedReady": "Foto ou pataje yo atache. Verifye detay yo anvan ou pibliye.",
     "shareError": "Nou pa ka ouvri foto yo. Chwazi jiska senk imaj ki sipòte epi eseye ankò."
   },
@@ -24433,6 +24429,22 @@
       "loadFailed": "Pa t kapab chaje pwofil pwopriyete sa a.",
       "sent": "Demann antretyen an voye.",
       "sendFailed": "Pa t kapab voye demann antretyen an."
+    },
+    "myRequests": {
+      "title": "Demann mwen yo",
+      "empty": "Ou poko gen okenn demann antretyen pou biznis sa a.",
+      "viewEntry": "Chwazi fenèt antre",
+      "hideEntry": "Kache fenèt antre yo"
+    },
+    "entryWindows": {
+      "title": "Fenèt antre",
+      "empty": "Yo poko ofri okenn fenèt antre.",
+      "notified": "Yo te avèti ou",
+      "selected": "Fenèt yo chwazi a",
+      "select": "Chwazi fenèt sa a",
+      "noEntry": "Poko gen okenn dosye antre.",
+      "consent": "Pèmisyon pou antre",
+      "saved": "Yo chwazi fenèt la."
     }
   },
   "franchiseIntakePage": {
@@ -46355,7 +46367,9 @@
       "owner_must_transfer": "Transfere biznis la anvan ou kite.",
       "visit_in_progress": "Fini vizit k ap fèt la anvan.",
       "clocked_in": "Make sòti ou anvan.",
-      "invalid_status_transition": "Etap sa a pa posib kounye a."
+      "invalid_status_transition": "Etap sa a pa posib kounye a.",
+      "closure_dispositions_required": "Chak kòmand louvri bezwen yon desizyon anvan fèmti.",
+      "closure_notice_required": "Ekri avi pou kliyan an anvan ou fèmen."
     },
     "launch": {
       "title": "Estati lansman",
@@ -47277,7 +47291,21 @@
       "createSchedule": "Kreye orè",
       "bookOccurrence": "Rezève",
       "sendBudgetAlerts": "Voye alèt bidjè",
-      "unitSpend": "Depans pa inite"
+      "unitSpend": "Depans pa inite",
+      "ownerApprovals": "Apwobasyon pwopriyetè",
+      "approvalNote": "Nòt desizyon",
+      "auditTrail": "Istwa odit",
+      "showTrail": "Montre istwa",
+      "hideTrail": "Kache istwa",
+      "decidedApprovals": "Apwobasyon yo deside",
+      "requestedAt": "Yo te mande l",
+      "decidedAt": "Yo te deside l",
+      "ownerIncidents": "Rezime ensidan pwopriyetè",
+      "assignee": "Moun yo asiyen l",
+      "unassigned": "Pa asiyen",
+      "uncategorised": "San kategori",
+      "sharedAt": "Yo te pataje l",
+      "assigneeUserId": "ID itilizatè yo asiyen l"
     },
     "ops": {
       "title": "Konsòl operasyon",
@@ -47377,7 +47405,48 @@
       "hour": "Lè",
       "staff": "Anplwaye",
       "needed": "Bezwen",
-      "decide": "Deside"
+      "decide": "Deside",
+      "importMenu": "Enpòte meni",
+      "importUpload": "Chwazi yon fichye CSV",
+      "importPaste": "Oswa kole CSV",
+      "importPreview": "Previzyon enpòtasyon",
+      "importConfirm": "Konfime enpòtasyon",
+      "importDrafts": "Atik yo enpòte yo vin bouyon pou revizyon.",
+      "importCreated": "Kreye",
+      "importSkipped": "Sote",
+      "disposition": "Desizyon",
+      "dispositionNote": "Nòt desizyon",
+      "customerNotice": "Avi pou kliyan",
+      "customerNoticeHint": "Voye bay tout kliyan ki gen yon kòmand louvri.",
+      "closeBlocked": "Fèmti a bloke jiskaske tout kòmand louvri gen yon desizyon epi avi a ekri.",
+      "noticeSent": "Avi voye",
+      "suggested": "Sijere",
+      "disp": {
+        "hand_off": "Remèt",
+        "finish": "Fini epi remèt",
+        "transfer": "Transfere",
+        "cancel": "Anile"
+      },
+      "packageLabel": "Etikèt pake a",
+      "printLabel": "Enprime etikèt",
+      "pickupCode": "Kòd pou vin chèche",
+      "labelLoad": "Chaje etikèt",
+      "labelScheduled": "Pwograme pou",
+      "driverArrivals": "Arive chofè yo",
+      "driverName": "Chofè",
+      "arrived": "Rive",
+      "notArrived": "Poko rive",
+      "etaMinutes": "ETA (min)",
+      "distance": "Distans",
+      "kitchenTickets": "Tikè kwizin",
+      "stationFilter": "Estasyon",
+      "allStations": "Tout estasyon",
+      "unassignedStation": "Pa asiyen",
+      "ticketOwner": "Responsab",
+      "ticketItems": "Atik",
+      "packProgress": "Anbale",
+      "batchPrintVisible": "Enprime tikè vizib yo",
+      "ticketDetail": "Detay tikè a"
     },
     "shift": {
       "title": "Chif mwen",
@@ -47476,7 +47545,22 @@
       "handoffTo": "Remèt bay (ID)",
       "escalatedTo": "Eskalade bay",
       "followUpAt": "Swivi nan dat",
-      "handoffToUser": "Remèt bay (ID)"
+      "handoffToUser": "Remèt bay (ID)",
+      "recoveryTitle": "Rekiperasyon apre yon chanjman aksè",
+      "recoveryLost": "Ou te pèdi aksè nan yon magazen pandan ou te anrejistre. Lage tikè ouvè ou yo pou yon koleg ka pran yo.",
+      "recoveryTickets": "{{count}} tikè ouvè",
+      "recoveryRecover": "Lage tikè yo epi avèti manadjè yo",
+      "recoveryRecovered": "Liberasyon yo te rekipere",
+      "recoveryManagersNotified": "Manadjè yo te avèti: {{count}}",
+      "recoveryReleasedAt": "Te lage {{time}}",
+      "managerRecoveryTitle": "Liberasyon apre chanjman aksè",
+      "managerRecoveryIntro": "Tikè yo te lage lè yon koleg te pèdi aksè nan magazen an. Bay yo bay yon moun ki an chif.",
+      "managerRecoveryLostBy": "{{name}} te pèdi aksè",
+      "managerRecoveryTeammates": "An chif",
+      "managerRecoveryAssignTo": "Bay li bay",
+      "managerRecoveryReassign": "Bay li bay yon lòt moun",
+      "managerRecoveryNoPermission": "Ou pa ka bay tikè yo bay yon lòt moun.",
+      "managerRecoveryReleased": "Te lage {{time}}"
     }
   }
 }

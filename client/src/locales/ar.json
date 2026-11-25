@@ -99,10 +99,6 @@
     "storageFailed": "تعذر حفظ المسودة على هذا الجهاز. أبقِ هذه الصفحة مفتوحة."
   },
   "pwaShell": {
-    "updateReady": "يتوفر إصدار جديد.",
-    "later": "لاحقًا",
-    "refresh": "تحديث التطبيق",
-    "updating": "جارٍ التحديث…",
     "sharedReady": "أُرفقت الصور المشتركة. راجع التفاصيل قبل النشر.",
     "shareError": "تعذر فتح الصور. اختر ما يصل إلى خمس صور مدعومة وحاول مجددًا."
   },
@@ -24444,6 +24440,22 @@
       "loadFailed": "تعذر تحميل ملف تعريف هذا العقار.",
       "sent": "تم إرسال طلب الصيانة.",
       "sendFailed": "تعذر إرسال طلب الصيانة."
+    },
+    "myRequests": {
+      "title": "طلباتي",
+      "empty": "ليس لديك أي طلبات صيانة لهذا النشاط التجاري بعد.",
+      "viewEntry": "اختيار نافذة الدخول",
+      "hideEntry": "إخفاء نوافذ الدخول"
+    },
+    "entryWindows": {
+      "title": "نوافذ الدخول",
+      "empty": "لم يتم عرض أي نوافذ دخول بعد.",
+      "notified": "تم إشعارك",
+      "selected": "النافذة المحددة",
+      "select": "اختيار هذه النافذة",
+      "noEntry": "لا يوجد سجل دخول بعد.",
+      "consent": "إذن الدخول",
+      "saved": "تم اختيار النافذة."
     }
   },
   "franchiseIntakePage": {
@@ -46469,7 +46481,9 @@
       "owner_must_transfer": "انقل الملكية قبل المغادرة.",
       "visit_in_progress": "أكمل الزيارة الجارية أولًا.",
       "clocked_in": "سجّل خروجك أولًا.",
-      "invalid_status_transition": "هذه الخطوة غير ممكنة الآن."
+      "invalid_status_transition": "هذه الخطوة غير ممكنة الآن.",
+      "closure_dispositions_required": "يحتاج كل طلب مفتوح إلى تصرف قبل الإغلاق.",
+      "closure_notice_required": "اكتب إشعار العملاء قبل الإغلاق."
     },
     "launch": {
       "title": "حالة الإطلاق",
@@ -47391,7 +47405,21 @@
       "createSchedule": "إنشاء جدولة",
       "bookOccurrence": "حجز",
       "sendBudgetAlerts": "إرسال تنبيهات الميزانية",
-      "unitSpend": "إنفاق الوحدات"
+      "unitSpend": "إنفاق الوحدات",
+      "ownerApprovals": "موافقات المالك",
+      "approvalNote": "ملاحظة القرار",
+      "auditTrail": "سجل التدقيق",
+      "showTrail": "إظهار السجل",
+      "hideTrail": "إخفاء السجل",
+      "decidedApprovals": "الموافقات المحسومة",
+      "requestedAt": "طُلب في",
+      "decidedAt": "حُسم في",
+      "ownerIncidents": "ملخص حوادث المالك",
+      "assignee": "المكلَّف",
+      "unassigned": "غير مكلَّف",
+      "uncategorised": "بلا فئة",
+      "sharedAt": "شُارك في",
+      "assigneeUserId": "معرّف المستخدم المكلَّف"
     },
     "ops": {
       "title": "وحدة تحكم العمليات",
@@ -47491,7 +47519,48 @@
       "hour": "الساعة",
       "staff": "الموظفون",
       "needed": "المطلوب",
-      "decide": "اتخاذ قرار"
+      "decide": "اتخاذ قرار",
+      "importMenu": "استيراد القائمة",
+      "importUpload": "اختر ملف CSV",
+      "importPaste": "أو الصق CSV",
+      "importPreview": "معاينة الاستيراد",
+      "importConfirm": "تأكيد الاستيراد",
+      "importDrafts": "تصل العناصر المستوردة كمسودات للمراجعة.",
+      "importCreated": "تم إنشاؤها",
+      "importSkipped": "تم تخطيها",
+      "disposition": "التصرف",
+      "dispositionNote": "ملاحظة التصرف",
+      "customerNotice": "إشعار العملاء",
+      "customerNoticeHint": "يُرسل إلى كل عميل لديه طلب مفتوح.",
+      "closeBlocked": "الإغلاق محظور حتى يكون لكل طلب مفتوح تصرف ويتم كتابة الإشعار.",
+      "noticeSent": "تم إرسال الإشعار",
+      "suggested": "مقترح",
+      "disp": {
+        "hand_off": "تسليم",
+        "finish": "أنهِ ثم سلّم",
+        "transfer": "نقل",
+        "cancel": "إلغاء"
+      },
+      "packageLabel": "ملصق الطرد",
+      "printLabel": "طباعة الملصق",
+      "pickupCode": "رمز الاستلام",
+      "labelLoad": "تحميل الملصق",
+      "labelScheduled": "مجدول لـ",
+      "driverArrivals": "وصول السائقين",
+      "driverName": "السائق",
+      "arrived": "وصل",
+      "notArrived": "لم يصل",
+      "etaMinutes": "الوقت المتوقع (دقيقة)",
+      "distance": "المسافة",
+      "kitchenTickets": "تذاكر المطبخ",
+      "stationFilter": "المحطة",
+      "allStations": "كل المحطات",
+      "unassignedStation": "غير مُسند",
+      "ticketOwner": "المسؤول",
+      "ticketItems": "العناصر",
+      "packProgress": "مُعبأ",
+      "batchPrintVisible": "طباعة التذاكر الظاهرة",
+      "ticketDetail": "تفاصيل التذكرة"
     },
     "shift": {
       "title": "ورديتي",
@@ -47590,7 +47659,22 @@
       "handoffTo": "تسليم إلى (معرّف العضو)",
       "escalatedTo": "تم التصعيد إلى",
       "followUpAt": "المتابعة في",
-      "handoffToUser": "تسليم إلى (معرّف العضو)"
+      "handoffToUser": "تسليم إلى (معرّف العضو)",
+      "recoveryTitle": "استرداد بعد تغيير الوصول",
+      "recoveryLost": "فقدت الوصول إلى أحد المتاجر أثناء تسجيل دخولك. حرّر تذاكرك المفتوحة ليتمكن أحد الزملاء من توليها.",
+      "recoveryTickets": "{{count}} تذاكر مفتوحة",
+      "recoveryRecover": "تحرير التذاكر وإشعار المديرين",
+      "recoveryRecovered": "عمليات التحرير المستردة",
+      "recoveryManagersNotified": "تم إشعار المديرين: {{count}}",
+      "recoveryReleasedAt": "تم التحرير {{time}}",
+      "managerRecoveryTitle": "عمليات التحرير بعد تغيير الوصول",
+      "managerRecoveryIntro": "تذاكر تم تحريرها عندما فقد أحد الزملاء الوصول إلى المتجر. أعد تعيينها إلى شخص موجود في الوردية.",
+      "managerRecoveryLostBy": "فقد {{name}} الوصول",
+      "managerRecoveryTeammates": "في الوردية",
+      "managerRecoveryAssignTo": "تعيين إلى",
+      "managerRecoveryReassign": "إعادة تعيين",
+      "managerRecoveryNoPermission": "لا يمكنك إعادة تعيين التذاكر.",
+      "managerRecoveryReleased": "تم التحرير {{time}}"
     }
   }
 }
