@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const express = require('express');
 const request = require('supertest');
 const pool = require('../db');
+const { sendNotification } = require('../services/notificationService');
 const describeDb = raw ? describe : describe.skip;
 const owner = crypto.randomUUID(), manager = crypto.randomUUID(), employee = crypto.randomUUID(), other = crypto.randomUUID();
 let app, bizId, serviceId, otherBiz;
@@ -72,8 +73,35 @@ describeDb('Groups 5-6: team member outcomes', () => {
     const f = q.followups.find(x => x.appointment_id === a);
     expect(f).toMatchObject({ rating: 2, routed_to: manager });
     expect((await request(app).get(`${B()}/work/feedback`).set(as(employee)).expect(200)).body.feedback[0]).toMatchObject({ rating: 2, follow_up_status: 'open' });
+    // D-475 (285, G5-22): the assigned member is notified too, with the
+    // member-facing type — the low rating must not sit only in the
+    // manager's queue while the member who could fix it never hears.
+    expect(sendNotification.mock.calls.map(([c]) => c).some((c) => c.type === 'business_feedback_for_you' && String(c.userId) === String(employee))).toBe(true);
     await request(app).patch(`${B()}/owner/feedback-followups/${f.id}`).set(as(manager)).send({ status: 'resolved' }).expect(400);
     const r = (await request(app).patch(`${B()}/owner/feedback-followups/${f.id}`).set(as(manager)).send({ status: 'resolved', note: 'Called, offered redo' }).expect(200)).body;
     expect(r.status).toBe('resolved');
+  });
+  test('285: booking feedback is scoped — managers see the business, members only their own bookings', async () => {
+    const mkBooking = async (helper, rating, body) => {
+      const { rows: [{ id: bookingId }] } = await pool.query(
+        `INSERT INTO booking_requests(business_id, customer_id, helper_id, service_name, requested_date, requested_start_time, requested_end_time, status)
+         VALUES($1,$2,$3,'Clean','2026-11-20','10:00','11:00','accepted') RETURNING id`,
+        [bizId, owner, helper],
+      );
+      await pool.query(
+        `INSERT INTO booking_recipient_feedback(booking_id, author_type, author_user_id, rating, body) VALUES($1,'recipient',$2,$3,$4)`,
+        [bookingId, owner, rating, body],
+      );
+      return bookingId;
+    };
+    const mine = await mkBooking(employee, 2, 'Late and left a mess');
+    const theirs = await mkBooking(other, 5, 'Spotless work');
+    const asManager = (await request(app).get(`${B()}/work/booking-feedback`).set(as(manager)).expect(200)).body.feedback;
+    expect(asManager.map((f) => String(f.booking_id)).sort()).toEqual([String(mine), String(theirs)].sort());
+    expect(asManager.find((f) => String(f.booking_id) === String(mine))).toMatchObject({ rating: 2, body: 'Late and left a mess', helper_name: 'Work User' });
+    const asEmployee = (await request(app).get(`${B()}/work/booking-feedback`).set(as(employee)).expect(200)).body.feedback;
+    expect(asEmployee.map((f) => String(f.booking_id))).toEqual([String(mine)]);
+    const asOther = (await request(app).get(`${B()}/work/booking-feedback`).set(as(other)).expect(200)).body.feedback;
+    expect(asOther.map((f) => String(f.booking_id))).toEqual([String(theirs)]);
   });
 });

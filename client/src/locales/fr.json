@@ -11069,7 +11069,8 @@
       "toastReplyPosted": "Réponse publiée.",
       "toastReplyPostFail": "Impossible de publier la réponse. Veuillez réessayer.",
       "toastReplyRemoved": "Réponse supprimée.",
-      "yourReply": "Votre réponse"
+      "yourReply": "Votre réponse",
+      "assignedTo": "Assigné à {{name}}"
     },
     "businessRecurringBilling": {
       "description": "Description",
@@ -47222,6 +47223,7 @@
       "tasksLabel": "Tâches",
       "handOver": "Transférer",
       "feedback": "Avis sur mes interventions",
+      "bookingFeedback": "Avis des réservations",
       "leave": "Quitter cette entreprise",
       "reviewLeave": "Voir ce qu’il me reste",
       "afterLeave": "Le travail en cours est confié à un responsable. Vous gardez un accès en lecture à vos heures et à votre historique pendant {{years}} ans.",

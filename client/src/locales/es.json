@@ -11069,7 +11069,8 @@
       "toastReplyPosted": "Respuesta publicada.",
       "toastReplyPostFail": "No se pudo publicar la respuesta. Inténtalo de nuevo.",
       "toastReplyRemoved": "Respuesta eliminada.",
-      "yourReply": "Tu respuesta"
+      "yourReply": "Tu respuesta",
+      "assignedTo": "Asignado a {{name}}"
     },
     "businessRecurringBilling": {
       "description": "Descripción",
@@ -47222,6 +47223,7 @@
       "tasksLabel": "Tareas",
       "handOver": "Traspasar",
       "feedback": "Opiniones de mis visitas",
+      "bookingFeedback": "Comentarios de reservas",
       "leave": "Salir de este negocio",
       "reviewLeave": "Revisar lo que tengo pendiente",
       "afterLeave": "El trabajo abierto pasa a un gerente. Conservas acceso de lectura a tus horas e historial por {{years}} años.",

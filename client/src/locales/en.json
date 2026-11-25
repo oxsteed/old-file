@@ -11069,7 +11069,8 @@
       "toastReplyPosted": "Reply posted.",
       "toastReplyPostFail": "Could not post the reply. Please try again.",
       "toastReplyRemoved": "Reply deleted.",
-      "yourReply": "Your reply"
+      "yourReply": "Your reply",
+      "assignedTo": "Assigned to {{name}}"
     },
     "businessRecurringBilling": {
       "description": "Description",
@@ -47222,6 +47223,7 @@
       "tasksLabel": "Tasks",
       "handOver": "Hand over",
       "feedback": "Feedback on my visits",
+      "bookingFeedback": "Booking feedback",
       "leave": "Leave this business",
       "reviewLeave": "Review what is still on me",
       "afterLeave": "Open work moves to a manager. You keep read-only access to your hours and visit history for {{years}} years.",

@@ -11069,7 +11069,8 @@
       "toastReplyPosted": "تم نشر الرد.",
       "toastReplyPostFail": "تعذّر نشر الرد. حاول مرة أخرى.",
       "toastReplyRemoved": "تم حذف الرد.",
-      "yourReply": "ردّك"
+      "yourReply": "ردّك",
+      "assignedTo": "مُسند إلى {{name}}"
     },
     "businessRecurringBilling": {
       "description": "الوصف",
@@ -47336,6 +47337,7 @@
       "tasksLabel": "المهام",
       "handOver": "تسليم",
       "feedback": "آراء العملاء في زياراتي",
+      "bookingFeedback": "ملاحظات الحجوزات",
       "leave": "مغادرة هذا النشاط",
       "reviewLeave": "مراجعة ما زال عليّ",
       "afterLeave": "ينتقل العمل المفتوح إلى مدير. تحتفظ بإمكانية قراءة ساعاتك وسجل زياراتك لمدة {{years}} سنوات.",

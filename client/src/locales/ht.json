@@ -11362,7 +11362,8 @@
       "toastReplyPosted": "Repons pibliye.",
       "toastReplyPostFail": "Nou pa t kapab pibliye repons lan. Eseye ankò.",
       "toastReplyRemoved": "Repons efase.",
-      "yourReply": "Repons ou"
+      "yourReply": "Repons ou",
+      "assignedTo": "Yo asiyen l bay {{name}}"
     },
     "businessRecurringBilling": {
       "description": "Deskripsyon",
@@ -47222,6 +47223,7 @@
       "tasksLabel": "Travay",
       "handOver": "Remèt",
       "feedback": "Fidbak sou vizit mwen",
+      "bookingFeedback": "Fidbak rezervasyon yo",
       "leave": "Kite biznis sa a",
       "reviewLeave": "Gade sa k rete sou mwen",
       "afterLeave": "Travay ki louvri ale bay yon manadjè. Ou kenbe aksè pou li èdtan ak istwa vizit ou pandan {{years}} an.",

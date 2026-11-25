@@ -100,6 +100,13 @@ const businessTeamNotifications = {
     title: t('Low customer rating to follow up', 'Calificación baja de un cliente para dar seguimiento', 'Note client basse à suivre', 'Yon kliyan bay yon nòt ki ba, fè swivi', 'تقييم منخفض من عميل يحتاج إلى متابعة'),
     body: t('A customer rated a visit 3 stars or less. Reach out from the owner console.', 'Un cliente calificó una visita con 3 estrellas o menos. Contáctalo desde la consola del dueño.', 'Un client a noté une intervention 3 étoiles ou moins. Contactez-le depuis la console du propriétaire.', 'Yon kliyan bay yon vizit 3 zetwal oswa mwens. Kontakte l nan konsòl pwopriyetè a.', 'قيّم عميل زيارة بثلاث نجوم أو أقل. تواصل معه من لوحة المالك.'),
   },
+  // D-475 (285, G5-22): the same low rating, routed to the member who did
+  // the visit — the manager copy above tells the reader to use the owner
+  // console, which is not the member's surface.
+  business_feedback_for_you: {
+    title: t('A customer rated your visit 3 stars or less', 'Un cliente calificó tu visita con 3 estrellas o menos', 'Un client a noté votre intervention 3 étoiles ou moins', 'Yon kliyan bay vizit ou a 3 zetwal oswa mwens', 'قيّم عميل زيارتك بثلاث نجوم أو أقل'),
+    body: t('See the feedback in My work — the visit may need a follow-up.', 'Consulta los comentarios en Mi trabajo; es posible que la visita necesite seguimiento.', 'Consultez les avis dans Mon travail — la visite peut nécessiter un suivi.', 'Gade fidbak la nan Travay mwen — vizit la ka bezwen yon swivi.', 'اطّلع على الملاحظات في عملي — قد تحتاج الزيارة إلى متابعة.'),
+  },
   business_shift_handover: {
     title: t('You have a shift handover', 'Tienes una entrega de turno', 'Vous avez une passation de quart', 'Ou gen yon remiz ekip', 'لديك تسليم وردية'),
     body: t('Read the notes and acknowledge them in My work.', 'Lee las notas y confírmalas en Mi trabajo.', 'Lisez les notes et confirmez-les dans Mon travail.', 'Li nòt yo epi konfime yo nan Travay mwen.', 'اقرأ الملاحظات وأكّد استلامها في عملي.'),

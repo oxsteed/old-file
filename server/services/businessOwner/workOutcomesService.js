@@ -9,7 +9,27 @@ const { workedAppointment, canManage, routeTarget } = require('./teamCommon');
 const { policyRow } = require('./policyService');
 
 const consoleUrl = id => `/business/${id}/workspace/owner-console`;
+const myWorkUrl = id => `/business/${id}/workspace/my-work`;
 const readable = (db, b, a, u, ctx, code = 'jobs.view_all') => workedAppointment(db, b, a, u, { allowManager: canManage(ctx.role, ctx.permissions, code) });
+
+// D-475 (285, G5-22): booking feedback (booking_recipient_feedback) in
+// business scope. Managers (jobs.view_all) see every booking of the
+// business; a member sees only the bookings they are the helper on.
+// Customer contact details are never included — rating + body are the
+// routable part, and the helper name tells the team whose work it was.
+async function bookingFeedback(businessId, userId, ctx) {
+  const all = canManage(ctx.role, ctx.permissions, 'jobs.view_all');
+  const { rows } = await pool.query(
+    `SELECT f.id, f.booking_id, f.author_type, f.rating, f.body, f.created_at,
+            b.service_name, b.requested_date,
+            TRIM(CONCAT(u.first_name,' ',u.last_name)) AS helper_name
+       FROM booking_recipient_feedback f JOIN booking_requests b ON b.id=f.booking_id
+       LEFT JOIN users u ON u.id=b.helper_id
+      WHERE b.business_id=$1 AND ($2 OR b.helper_id=$3)
+      ORDER BY f.created_at DESC LIMIT 100`,
+    [businessId, all, userId]);
+  return { feedback: rows };
+}
 
 // 281
 async function completion(businessId, userId, ctx, appointmentId) {
@@ -105,6 +125,13 @@ async function syncFeedback(businessId) {
     const to = await routeTarget(pool, businessId, r.staff_id);
     await pool.query('UPDATE business_feedback_followups SET routed_to=$2 WHERE id=$1', [r.id, to]);
     await notify(to, 'business_feedback_follow_up', { businessId }, `fb:${r.id}`, consoleUrl(businessId));
+    // D-475 (285, G5-22): the follow-up is also the assigned member's to
+    // see — route it to them as well, with the member-facing copy, so a
+    // 1-star visit does not sit in the manager's queue while the member
+    // who could fix it never hears about it.
+    if (String(r.staff_id) !== String(to)) {
+      await notify(r.staff_id, 'business_feedback_for_you', { businessId }, `fb-you:${r.id}`, myWorkUrl(businessId));
+    }
   }
   return rows.length;
 }
@@ -142,4 +169,4 @@ async function updateFollowup(businessId, userId, ctx, followupId, body) {
   return r;
 }
 
-module.exports = { completion, saveCompletion, assertCompletionRecord, materials, addMaterial, removeMaterial, assignmentHistory, syncFeedback, feedbackQueue, myFeedback, updateFollowup };
+module.exports = { completion, saveCompletion, assertCompletionRecord, materials, addMaterial, removeMaterial, assignmentHistory, syncFeedback, feedbackQueue, myFeedback, updateFollowup, bookingFeedback };

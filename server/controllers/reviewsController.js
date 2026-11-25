@@ -95,6 +95,35 @@ exports.submitReview = async (req, res) => {
       logger.warn('Failed to create review notification', { reviewId: review.id, error: notifErr.message });
     }
 
+    // D-475 (285, G5-22): route a low-rating review to the member the lead
+    // was assigned to, not just the owner — the member who did the work is
+    // the one who can fix it. Same 'review_received' type the owner notice
+    // uses (already catalogued); only 1-3 stars notify, matching the
+    // appointment-feedback routing. A review on an unassigned lead, or one
+    // assigned to the owner themself, notifies nobody extra.
+    if (rating <= 3) {
+      try {
+        const [assignedRes, ownerRes] = await Promise.all([
+          pool.query(`SELECT assigned_to_id FROM business_leads WHERE id = $1`, [leadId]),
+          pool.query(`SELECT user_id FROM businesses WHERE id = $1`, [businessId]),
+        ]);
+        const assignedTo = assignedRes.rows[0]?.assigned_to_id;
+        const ownerId = ownerRes.rows[0]?.user_id;
+        if (assignedTo && String(assignedTo) !== String(ownerId)) {
+          await sendNotification({
+            userId: assignedTo,
+            type: 'review_received',
+            title: 'Low-rating review on your work',
+            body: `A customer left a ${rating}-star review on work assigned to you`,
+            data: { reviewId: review.id, businessId, referenceType: 'business_review' },
+            idempotencyKey: `review-assigned:${review.id}`,
+          });
+        }
+      } catch (assignNotifErr) {
+        logger.warn('Failed to create assigned-member review notification', { reviewId: review.id, error: assignNotifErr.message });
+      }
+    }
+
     sendSuccess(res, review, 201);
   } catch (err) {
     logger.error('submitReview failed', { error: err.message, userId: req.user.id });

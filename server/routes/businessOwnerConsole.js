@@ -173,6 +173,7 @@ router.post(`${A}/materials`, ...write('any', 'business.view'), h(async (req, re
 router.delete('/:businessId/work/materials/:materialId', ...write('any', 'business.view'), h(async (req, res) => res.json(await workOutcomes.removeMaterial(req.business.id, req.user.id, ctx(req), req.params.materialId))));
 router.get(`${A}/assignment-history`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workOutcomes.assignmentHistory(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
 router.get('/:businessId/work/feedback', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workOutcomes.myFeedback(req.business.id, req.user.id))));
+router.get('/:businessId/work/booking-feedback', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workOutcomes.bookingFeedback(req.business.id, req.user.id, ctx(req)))));
 router.get('/:businessId/owner/feedback-followups', ...biz('manager'), h(async (req, res) => res.json(await workOutcomes.feedbackQueue(req.business.id, req.user.id, ctx(req), req.query))));
 router.patch('/:businessId/owner/feedback-followups/:followupId', ...write('manager'), h(async (req, res) => res.json(await workOutcomes.updateFollowup(req.business.id, req.user.id, ctx(req), req.params.followupId, req.body))));
 
