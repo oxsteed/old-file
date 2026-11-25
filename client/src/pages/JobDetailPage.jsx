@@ -816,7 +816,7 @@ function JobDetailContent() {
               </Link>
             : <Link className="jdp-btn-ghost" to={`/agreements/new?jobId=${encodeURIComponent(id)}`}>{t('jobDetail.createWorkAgreement')}</Link>)}
           {isOwner && canEditJob(job, user) && <Link className="jdp-btn-ghost" to={`/jobs/${id}/edit`}>{t('jobEdit.editJob')}</Link>}
-          {(isOwner || isAssignedHelper) && job.assigned_helper_id && action !== 'messages' && <button type="button" className="jdp-btn-ghost" onClick={openJobChat} disabled={chatOpening} data-track="ui.573dfef74b.5">{t('jobDetail.openJobChat')}</button>}
+          {(isOwner || isAssignedHelper || job.can_message_job) && job.assigned_helper_id && action !== 'messages' && <button type="button" className="jdp-btn-ghost" onClick={openJobChat} disabled={chatOpening} data-track="ui.573dfef74b.5">{t('jobDetail.openJobChat')}</button>}
           {(view.canCancelBeforeAcceptance || view.canCancelAfterAcceptance) && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)} data-track="ui.573dfef74b.6">{t('jobDetail.cancelJob')}</button>
             {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids} data-track="ui.573dfef74b.7">{t('jobDetail.retryBids')}</button>}

@@ -13,6 +13,7 @@ const { cancelJobTransaction, finalizeJobCancellation } = require('../services/j
 const { sendNotification, sendBulkNotification } = require('../services/notificationService');
 const { applyJobEdit, listJobRevisions, lockJob } = require('../services/jobEditService');
 const { serializeJob, serializeJobs, jobEtag, parseIfMatch, viewerRole } = require('../services/jobSerializer');
+const { canCrewMessageJob } = require('../services/jobCrewMessaging');
 const jobStatusPolicy = require('../services/jobStatusPolicy');
 const jobSchema = require('../validation/jobSchema');
 const { enqueueJobEvent, EVENT_TYPES } = require('../services/jobEventOutbox');
@@ -630,6 +631,12 @@ exports.getJob = async (req, res, next) => {
     // details are only for the client, the assigned helper, or an admin.
     const role = viewerRole(job, req.user);
     const result = serializeJob(job, { role });
+    // G5-14 (271): the client sees whether they may open the job's
+    // customer conversation (client/helper, or a crewing business member
+    // with message reply access on the helper's business).
+    result.can_message_job = role === 'owner' || role === 'helper' || role === 'admin'
+      ? true
+      : (req.user?.id ? await canCrewMessageJob(job, req.user.id) : false);
     if (role === 'owner' || role === 'admin') {
       const etag = jobEtag(job);
       if (etag) res.set('ETag', etag);
