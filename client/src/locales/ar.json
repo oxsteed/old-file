@@ -8802,6 +8802,7 @@
     "confirmDeleteGoal": "هل تريد حذف الهدف \"{{title}}\"؟",
     "confirmCancelInvite": "هل تريد إلغاء الدعوة إلى {{email}}؟",
     "confirmRemoveMember": "هل تريد إزالة {{name}} من هذا النشاط التجاري؟",
+    "confirmRemoveMemberWithWork": "إزالة {{name}} من هذا النشاط التجاري؟ لديه {{tasks}} مهام مفتوحة و{{visits}} زيارات قادمة، وسيتم نقلها إلى مدير.",
     "errBusinessNameRequired": "الاسم التجاري مطلوب.",
     "errClientNameRequired": "اسم العميل مطلوب.",
     "errDueDateRequired": "تاريخ الاستحقاق مطلوب.",
@@ -9152,6 +9153,8 @@
     "toastRehireFail": "فشلت إعادة التوظيف",
     "offboardingTitle": "سجل المغادرات",
     "offboardingSubtitle": "الأعضاء الذين تمت إزالتهم والعمل المعاد تعيينه ومدة الاحتفاظ بالسجلات.",
+    "offboardingRemovedSummary": "تمت إزالة {{name}}. أُعيد تعيين {{tasks}} من مهام الفريق و{{bookings}} من الحجوزات و{{appointments}} من الزيارات و{{jobs}} من الأعمال.",
+    "offboardingViewHistory": "عرض سجل المغادرات",
     "offboardingRemoved": "أُزيل",
     "offboardingReassigned": "أُعيد تعيينه",
     "offboardingRetainUntil": "الاحتفاظ حتى",
@@ -9365,6 +9368,9 @@
         "toastRequestFail": "فشل إرسال الطلب",
         "toastDecided": "تم تحديث الطلب",
         "toastDecideFail": "فشل تحديث الطلب",
+        "delegateLabel": "المفوض (يغطي هذه الإجازة)",
+        "delegateNone": "لا يوجد مفوض",
+        "toastDelegateRequired": "يلزم تعيين مفوض: {{tasks}} من المهام المفتوحة و{{visits}} من الزيارات تحتاج إلى تغطية.",
         "toastCancelled": "تم إلغاء الطلب",
         "toastCancelFail": "فشل إلغاء الطلب",
         "toastLoadFail": "فشل تحميل طلبات الإجازة"
@@ -18674,7 +18680,14 @@
     "pendingWaitingTitle": "بانتظار الموافقة",
     "pendingWaitingBody": "تم إشعار صاحب العمل. ستظهر مساحة العمل هذه في قائمتك بمجرد الموافقة عليك.",
     "manageAccessCodes": "إدارة رموز الوصول",
-    "workspacesHiddenNote": "تبديل مساحة العمل قادم قريبًا. لا يزال بإمكانك الانضمام إلى عمل برمز وصول أدناه."
+    "workspacesHiddenNote": "تبديل مساحة العمل قادم قريبًا. لا يزال بإمكانك الانضمام إلى عمل برمز وصول أدناه.",
+    "remainingAccess": {
+      "title": "الوصول المتبقي لديك",
+      "subtitle": "الأنشطة التجارية التي ما زلت تنتمي إليها، وأي منح وصول ما زلت تحملها.",
+      "businesses": "عضويات الأنشطة التجارية",
+      "grants": "منح الوصول",
+      "none": "ليس لديك أي وصول متبقٍ إلى الأنشطة التجارية."
+    }
   },
   "corporateOrg": {
     "title": "التسلسل الهرمي للشركات",
@@ -47087,6 +47100,10 @@
       "board": "عملي",
       "requests": "الطلبات",
       "requestsEmpty": "لا توجد طلبات مفتوحة.",
+      "requestReassign": "طلب إعادة التعيين",
+      "raiseReassign": "إرسال طلب إعادة التعيين",
+      "reassignCategory": "السبب",
+      "reassignDescribe": "صف السبب",
       "mine": "الخاصة بي",
       "all": "الكل",
       "dispatchedToYou": "تم إسناده إليك",
@@ -47285,6 +47302,7 @@
       "showClosed": "إظهار المغلقة",
       "escalated": "مُصعّد",
       "resolution": "الحل",
+      "reassignTo": "إعادة تعيين إلى",
       "acknowledge": "تأكيد الاستلام",
       "resolve": "حل",
       "dismiss": "رفض",

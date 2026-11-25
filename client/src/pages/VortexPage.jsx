@@ -29,6 +29,7 @@ import {
 } from '../api/vortex';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { notifyAccessChanged } from '../hooks/useAccessProjection';
+import { accessAPI } from '../api/access';
 
 function roleLabel(t, role) {
   if (!role) return '';
@@ -62,6 +63,9 @@ export default function VortexPage() {
 
   const [loadingBiz, setLoadingBiz] = useState(true);
   const [bizList, setBizList] = useState({ items: [], owned_count: 0, membership_count: 0, pending_count: 0 });
+  // 300 (G5-47): the member's progressive-access grants, for the
+  // remaining-access section below.
+  const [grants, setGrants] = useState([]);
 
   const [code, setCode] = useState('');
   const [preview, setPreview] = useState(null);
@@ -82,6 +86,10 @@ export default function VortexPage() {
         if (!cancelled) setLoadingBiz(false);
       }
     })();
+    // 300 (G5-47): progressive-access grants load beside the
+    // memberships; a failed read leaves the grants list empty, never
+    // blocks the page.
+    accessAPI.listMyGrants().then((rows) => { if (!cancelled) setGrants(Array.isArray(rows) ? rows : []); }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
@@ -250,6 +258,50 @@ export default function VortexPage() {
             {t('vortex.workspacesHiddenNote')}
           </p>
         )}
+
+        {/* 300 (G5-47): what the member can still reach, in one place.
+            Read-only access info, so it renders even while workspace
+            entry is launch-gated. The member_removed notice links here. */}
+        <section id="remaining-access" className="rounded-2xl border border-[color:var(--border-color)] bg-[color:var(--card-bg)] p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-1 text-[color:var(--app-text)]">
+            {t('vortex.remainingAccess.title')}
+          </h2>
+          <p className="text-sm text-[color:var(--muted-text)] mb-4">
+            {t('vortex.remainingAccess.subtitle')}
+          </p>
+          {loadingBiz ? (
+            <p className="text-sm text-[color:var(--muted-text)]">{t('vortex.loadingWorkspaces', { defaultValue: 'Loading your workspaces...' })}</p>
+          ) : bizList.items.filter((b) => b.status === 'active').length === 0 && grants.filter((g) => g.status === 'active').length === 0 ? (
+            <p className="text-sm text-[color:var(--muted-text)]">{t('vortex.remainingAccess.none')}</p>
+          ) : (
+            <>
+              {bizList.items.filter((b) => b.status === 'active').length > 0 && (
+                <div className="mb-3">
+                  <h3 className="text-sm font-semibold mb-2 text-[color:var(--app-text)]">{t('vortex.remainingAccess.businesses')}</h3>
+                  <ul className="space-y-1">
+                    {bizList.items.filter((b) => b.status === 'active').map((b) => (
+                      <li key={`${b.business_id}-${b.role}`} className="text-sm text-[color:var(--app-text)]">
+                        {b.business_name} · {roleLabel(t, b.role)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {grants.filter((g) => g.status === 'active').length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-2 text-[color:var(--app-text)]">{t('vortex.remainingAccess.grants')}</h3>
+                  <ul className="space-y-1">
+                    {grants.filter((g) => g.status === 'active').map((g) => (
+                      <li key={g.id} className="text-sm text-[color:var(--app-text)]">
+                        {g.capability}{g.subject_key ? ` · ${g.subject_key}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
+        </section>
 
         {/* Code entry */}
         <section className="rounded-2xl border border-[color:var(--border-color)] bg-[color:var(--card-bg)] p-6 mb-8">

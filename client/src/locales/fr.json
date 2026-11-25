@@ -8802,6 +8802,7 @@
     "confirmDeleteGoal": "Supprimer l'objectif \"{{title}}\" ?",
     "confirmCancelInvite": "Annuler l'invitation à {{email}} ?",
     "confirmRemoveMember": "Retirer {{name}} de cette entreprise ?",
+    "confirmRemoveMemberWithWork": "Retirer {{name}} de cette entreprise ? Il ou elle a {{tasks}} tâches ouvertes et {{visits}} visites à venir, qui seront transférées à un responsable.",
     "errBusinessNameRequired": "Le nom de l'entreprise est requis.",
     "errClientNameRequired": "Le nom du client est requis.",
     "errDueDateRequired": "La date d'échéance est requise.",
@@ -9152,6 +9153,8 @@
     "toastRehireFail": "Échec de la réembauche",
     "offboardingTitle": "Historique des départs",
     "offboardingSubtitle": "Membres retirés, travail réassigné et durée de conservation des dossiers.",
+    "offboardingRemovedSummary": "{{name}} a été retiré(e). {{tasks}} tâches d’équipe, {{bookings}} réservations, {{appointments}} visites et {{jobs}} emplois ont été réattribués.",
+    "offboardingViewHistory": "Voir l’historique des départs",
     "offboardingRemoved": "Retiré",
     "offboardingReassigned": "Réassigné",
     "offboardingRetainUntil": "Conserver jusqu'au",
@@ -9365,6 +9368,9 @@
         "toastRequestFail": "Échec de l'envoi de la demande",
         "toastDecided": "Demande mise à jour",
         "toastDecideFail": "Échec de la mise à jour de la demande",
+        "delegateLabel": "Remplaçant (couvre cette absence)",
+        "delegateNone": "Aucun remplaçant",
+        "toastDelegateRequired": "Un remplaçant est requis : {{tasks}} tâches ouvertes et {{visits}} visites doivent être couvertes.",
         "toastCancelled": "Demande annulée",
         "toastCancelFail": "Échec de l'annulation de la demande",
         "toastLoadFail": "Échec du chargement des demandes de congé"
@@ -18663,7 +18669,14 @@
     "pendingWaitingTitle": "En attente d’approbation",
     "pendingWaitingBody": "Le propriétaire de l’entreprise a été notifié. Cet espace de travail apparaîtra dans votre liste une fois que vous serez approuvé.",
     "manageAccessCodes": "Gérer les codes d’accès",
-    "workspacesHiddenNote": "Le changement d’espace de travail arrive bientôt. Vous pouvez toujours rejoindre une entreprise avec un code d’accès ci-dessous."
+    "workspacesHiddenNote": "Le changement d’espace de travail arrive bientôt. Vous pouvez toujours rejoindre une entreprise avec un code d’accès ci-dessous.",
+    "remainingAccess": {
+      "title": "Vos accès restants",
+      "subtitle": "Les entreprises dont vous faites encore partie et les accès que vous détenez encore.",
+      "businesses": "Adhésions aux entreprises",
+      "grants": "Accès accordés",
+      "none": "Vous n’avez plus aucun accès à une entreprise."
+    }
   },
   "corporateOrg": {
     "title": "Hierarchie corporative",
@@ -46973,6 +46986,10 @@
       "board": "Mon travail",
       "requests": "Demandes",
       "requestsEmpty": "Aucune demande ouverte.",
+      "requestReassign": "Demander une réattribution",
+      "raiseReassign": "Envoyer la demande de réattribution",
+      "reassignCategory": "Motif",
+      "reassignDescribe": "Décrivez pourquoi",
       "mine": "Miennes",
       "all": "Toutes",
       "dispatchedToYou": "Attribuée à vous",
@@ -47171,6 +47188,7 @@
       "showClosed": "Afficher les clos",
       "escalated": "Remonté",
       "resolution": "Résolution",
+      "reassignTo": "Réattribuer à",
       "acknowledge": "Accuser réception",
       "resolve": "Résoudre",
       "dismiss": "Classer",

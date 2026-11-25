@@ -8802,6 +8802,7 @@
     "confirmDeleteGoal": "Delete goal \"{{title}}\"?",
     "confirmCancelInvite": "Cancel invite to {{email}}?",
     "confirmRemoveMember": "Remove {{name}} from this business?",
+    "confirmRemoveMemberWithWork": "Remove {{name}} from this business? They have {{tasks}} open tasks and {{visits}} upcoming visits, which will move to a manager.",
     "errBusinessNameRequired": "Business name is required.",
     "errClientNameRequired": "Client name is required.",
     "errDueDateRequired": "Due date is required.",
@@ -9152,6 +9153,8 @@
     "toastRehireFail": "Failed to rehire",
     "offboardingTitle": "Offboarding history",
     "offboardingSubtitle": "Removed members, reassigned work, and how long records must be kept.",
+    "offboardingRemovedSummary": "{{name}} was removed. {{tasks}} team tasks, {{bookings}} bookings, {{appointments}} visits, and {{jobs}} jobs were reassigned.",
+    "offboardingViewHistory": "View offboarding history",
     "offboardingRemoved": "Removed",
     "offboardingReassigned": "Reassigned",
     "offboardingRetainUntil": "Keep until",
@@ -9365,6 +9368,9 @@
         "toastRequestFail": "Failed to submit request",
         "toastDecided": "Request updated",
         "toastDecideFail": "Failed to update request",
+        "delegateLabel": "Delegate (covers this time off)",
+        "delegateNone": "No delegate",
+        "toastDelegateRequired": "A delegate is required: {{tasks}} open tasks and {{visits}} visits need cover.",
         "toastCancelled": "Request cancelled",
         "toastCancelFail": "Failed to cancel request",
         "toastLoadFail": "Failed to load time-off requests"
@@ -18663,6 +18669,13 @@
       "representative": "Representative",
       "employee": "Employee",
       "support_agent": "Support agent"
+    },
+    "remainingAccess": {
+      "title": "Your remaining access",
+      "subtitle": "Businesses you still belong to, and any access grants you still hold.",
+      "businesses": "Business memberships",
+      "grants": "Access grants",
+      "none": "You have no remaining business access."
     }
   },
   "corporateOrg": {
@@ -46973,6 +46986,10 @@
       "board": "My work",
       "requests": "Requests",
       "requestsEmpty": "No open requests.",
+      "requestReassign": "Ask to reassign",
+      "raiseReassign": "Send reassignment request",
+      "reassignCategory": "Reason",
+      "reassignDescribe": "Describe why",
       "mine": "Mine",
       "all": "All",
       "dispatchedToYou": "Dispatched to you",
@@ -47171,6 +47188,7 @@
       "showClosed": "Show closed",
       "escalated": "Escalated",
       "resolution": "Resolution",
+      "reassignTo": "Reassign to",
       "acknowledge": "Acknowledge",
       "resolve": "Resolve",
       "dismiss": "Dismiss",

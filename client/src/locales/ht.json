@@ -9036,6 +9036,9 @@
         "toastRequestFail": "Voye demann lan echwe",
         "toastDecided": "Demann lan mete ajou",
         "toastDecideFail": "Mete demann lan ajou echwe",
+        "delegateLabel": "Moun k ap ranplase (kouvri absans sa a)",
+        "delegateNone": "Pa gen moun k ap ranplase",
+        "toastDelegateRequired": "Yo bezwen yon moun k ap ranplase: {{tasks}} travay ouvè ak {{visits}} vizit bezwen kouvèti.",
         "toastCancelled": "Demann lan anile",
         "toastCancelFail": "Anilasyon demann lan echwe",
         "toastLoadFail": "Chaje demann konje yo echwe"
@@ -9661,6 +9664,7 @@
     "confirmDeleteGoal": "Efase objektif \"{{title}}\"?",
     "confirmCancelInvite": "Anile envitasyon pou {{email}}?",
     "confirmRemoveMember": "Retire {{name}} nan biznis sa a?",
+    "confirmRemoveMemberWithWork": "Retire {{name}} nan biznis sa a? Li gen {{tasks}} travay ouvè ak {{visits}} vizit k ap vini, y ap pase bay yon manadjè.",
     "errBusinessNameRequired": "Non biznis la obligatwa.",
     "errClientNameRequired": "Non kliyan an obligatwa.",
     "errDueDateRequired": "Dat limit la obligatwa.",
@@ -9963,6 +9967,8 @@
     "toastRehireFail": "Anboche ankò echwe",
     "offboardingTitle": "Istorik depa",
     "offboardingSubtitle": "Manm yo retire, travay yo reasigne, ak konbyen tan pou kenbe dosye yo.",
+    "offboardingRemovedSummary": "{{name}} te retire. {{tasks}} travay ekip, {{bookings}} rezervasyon, {{appointments}} vizit ak {{jobs}} travay yo te reasiyen.",
+    "offboardingViewHistory": "Wè istwa depa yo",
     "offboardingRemoved": "Retire",
     "offboardingReassigned": "Reasigne",
     "offboardingRetainUntil": "Kenbe jiska",
@@ -18663,7 +18669,14 @@
     "pendingWaitingTitle": "Ap tann apwobasyon",
     "pendingWaitingBody": "Yo avèti pwopriyetè biznis la. Espas travay sa a ap parèt nan lis ou yon fwa yo apwouve ou.",
     "manageAccessCodes": "Jere kòd aksè yo",
-    "workspacesHiddenNote": "Chanjman espas travay ap vini byento. Ou ka toujou rantre nan yon biznis ak yon kòd aksè anba a."
+    "workspacesHiddenNote": "Chanjman espas travay ap vini byento. Ou ka toujou rantre nan yon biznis ak yon kòd aksè anba a.",
+    "remainingAccess": {
+      "title": "Aksè ou ki rete yo",
+      "subtitle": "Biznis ou fè pati yo toujou, ak tout aksè ou genyen toujou.",
+      "businesses": "Manm biznis yo",
+      "grants": "Aksè yo te bay",
+      "none": "Ou pa gen okenn aksè biznis ki rete."
+    }
   },
   "corporateOrg": {
     "title": "Yerachi konpayi",
@@ -46973,6 +46986,10 @@
       "board": "Travay mwen",
       "requests": "Demann",
       "requestsEmpty": "Pa gen demann ouvè.",
+      "requestReassign": "Mande reasiyen",
+      "raiseReassign": "Voye demann reasiyen an",
+      "reassignCategory": "Rezon",
+      "reassignDescribe": "Dekri poukisa",
       "mine": "Pa mwen",
       "all": "Tout",
       "dispatchedToYou": "Yo voye l ba ou",
@@ -47171,6 +47188,7 @@
       "showClosed": "Montre sa ki fèmen",
       "escalated": "Monte",
       "resolution": "Solisyon",
+      "reassignTo": "Reasiyen bay",
       "acknowledge": "Konfime resepsyon",
       "resolve": "Rezoud",
       "dismiss": "Rejte",

@@ -38,6 +38,9 @@ export function StaffScheduler({ businessId, isManager = false }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   // S-04: time-off request form state.
   const [timeOffForm, setTimeOffForm] = useState({ request_type: 'vacation', start_date: '', end_date: '', reason: '' });
+  // 293 (G5-9): the delegate the manager names when approving time off,
+  // keyed by request id.
+  const [delegateByRequest, setDelegateByRequest] = useState({});
   // Phase 4 Track B: PTO balances, copy-week, templates, forecast.
   const [balances, setBalances] = useState([]);
   const [copyForm, setCopyForm] = useState({ source_week_start: '', target_week_start: '' });
@@ -452,10 +455,21 @@ export function StaffScheduler({ businessId, isManager = false }) {
   };
 
   const decideTimeOff = async (id, decision) => {
-    try { await api.post(`/businesses/${businessId}/staff/time-off/${id}/decide`, { decision }); toast.success(t('businessHub.staffScheduler.timeOff.toastDecided')); loadTimeOff(); }
+    try {
+      // 293 (G5-9): approving with open work needs a delegate; the
+      // manager picks one per request, and the server records the cover.
+      const body = { decision };
+      if (decision === 'approved' && delegateByRequest[id]) body.delegate_id = delegateByRequest[id];
+      await api.post(`/businesses/${businessId}/staff/time-off/${id}/decide`, body);
+      toast.success(t('businessHub.staffScheduler.timeOff.toastDecided')); loadTimeOff();
+    }
     catch (err) {
       if (err?.response?.status === 409 && err?.response?.data?.code === 'insufficient_pto_balance') {
         toast.error(t('businessHub.staffScheduler.pto.toastInsufficient', { balance: err.response.data.balance, required: err.response.data.required }));
+        return;
+      }
+      if (err?.response?.status === 409 && err?.response?.data?.code === 'delegate_required') {
+        toast.error(t('businessHub.staffScheduler.timeOff.toastDelegateRequired', { tasks: err.response.data.open_tasks ?? 0, visits: err.response.data.visits ?? 0 }));
         return;
       }
       toast.error(t('businessHub.staffScheduler.timeOff.toastDecideFail'));
@@ -1061,7 +1075,14 @@ export function StaffScheduler({ businessId, isManager = false }) {
                 )}
               </div>
               {r.status === 'pending' && isManager && (
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className="flex items-center gap-2">
+                  <label className="sr-only" htmlFor={`delegate-${r.id}`}>{t('businessHub.staffScheduler.timeOff.delegateLabel')}</label>
+                  <select id={`delegate-${r.id}`} value={delegateByRequest[r.id] || ''} onChange={e => setDelegateByRequest(d => ({ ...d, [r.id]: e.target.value }))} className="rounded-md border border-[color:var(--border-color)] bg-[color:var(--card-bg)] px-2 py-1 text-xs text-[color:var(--app-text)]" aria-label={t('businessHub.staffScheduler.timeOff.delegateLabel')}>
+                    <option value="">{t('businessHub.staffScheduler.timeOff.delegateNone')}</option>
+                    {staffMembers.filter(m => String(m.user_id) !== String(r.user_id)).map(m => (
+                      <option key={m.user_id} value={m.user_id}>{staffName(m)}</option>
+                    ))}
+                  </select>
                   <button onClick={() => decideTimeOff(r.id, 'approved')} style={{ padding: '0.4rem 0.75rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.10">{t('businessHub.staffScheduler.timeOff.approve')}</button>
                   <button onClick={() => decideTimeOff(r.id, 'denied')} style={{ padding: '0.4rem 0.75rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }} data-track="ui.34ed3b0a4c.11">{t('businessHub.staffScheduler.timeOff.deny')}</button>
                 </div>

@@ -91,12 +91,17 @@ function Inbox({ businessId, onOpen }) {
 function Board({ businessId, onOpen }) {
   const p = useBizG56(`/businesses/${businessId}/work/board`, 'work');
   const c = useBizG56(`/businesses/${businessId}/work/conflicts`, 'work');
+  // 292 (G5-21): the member's own exceptions carry the reassignment
+  // categories, and the raise posts through this hook.
+  const ex = useBizG56(`/businesses/${businessId}/work/exceptions`, 'job');
   const navigate = useNavigate();
   const [note, setNote] = useState('');
   // D-460 (261, G5-41): the Mine filter narrows the merged requests to
   // the ones assigned to this member; appointments are already mine-scoped
   // server-side, so the filter only moves the requests.
   const [mineOnly, setMineOnly] = useState(false);
+  const [reassignTask, setReassignTask] = useState(null);
+  const [reassignForm, setReassignForm] = useState({ category: '', description: '' });
   if (!p.data) return p.errorText ? <section className="g56-panel"><p className="g56-error">{p.errorText}</p></section> : null;
   const respond = (id, response) => p.send('post', `/businesses/${businessId}/work/appointments/${id}/${response === 'attend' ? 'attendance' : 'dispatch'}`,
     response === 'attend' ? { response: 'confirm' } : { response, note: response === 'decline' ? note : undefined });
@@ -123,7 +128,25 @@ function Board({ businessId, onOpen }) {
               </div>
             </li>))}</ul>
         </div>))}
-      {p.data.tasks.length > 0 && <><h4>{p.tr('tasks')}</h4><ul className="g56-list">{p.data.tasks.map(t => <li key={t.id}>{t.title} · {p.time(t.due_at)}</li>)}</ul></>}
+      {p.data.tasks.length > 0 && <><h4>{p.tr('tasks')}</h4><ul className="g56-list">{p.data.tasks.map(t => (
+        <li key={t.id}>{t.title} · {p.time(t.due_at)}
+          <button type="button" onClick={() => { setReassignTask(reassignTask === t.id ? null : t.id); setReassignForm({ category: '', description: '' }); }} data-track="ui.9ab3b7b94b.15">{p.tr('requestReassign')}</button>
+          {reassignTask === t.id && (
+            <div className="g56-row">
+              <label>{p.tr('reassignCategory')}
+                <select value={reassignForm.category} onChange={e => setReassignForm({ ...reassignForm, category: e.target.value })}>
+                  <option value="">—</option>
+                  {(ex.data?.kinds?.reassignment_request || []).map(cat => <option key={cat} value={cat}>{ex.tr(`cat.${cat}`)}</option>)}
+                </select>
+              </label>
+              <label className="g56-grow">{p.tr('reassignDescribe')}<input value={reassignForm.description} onChange={e => setReassignForm({ ...reassignForm, description: e.target.value })} maxLength={2000} /></label>
+              <button type="button" disabled={ex.busy || !reassignForm.category || reassignForm.description.trim().length < 5} onClick={async () => {
+                if (await ex.send('post', `/businesses/${businessId}/work/exceptions`, { kind: 'reassignment_request', category: reassignForm.category, description: reassignForm.description, task_id: String(t.id), request_id: requestId() })) { setReassignTask(null); setReassignForm({ category: '', description: '' }); }
+              }} data-track="ui.9ab3b7b94b.16">{p.tr('raiseReassign')}</button>
+            </div>
+          )}
+          {ex.errorText && reassignTask === t.id && <p className="g56-error" role="alert">{ex.errorText}</p>}
+        </li>))}</ul></>}
       {/* D-460 (261, G5-41): the requests half of My work, merged with the
           appointments above. Open lands on the calendar tab, where the
           assignment queue panel holds the respond actions. */}

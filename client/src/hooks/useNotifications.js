@@ -3,6 +3,7 @@ import api from '../api/axios';
 import { getAccountSnapshot, invalidateAccountSnapshots } from '../api/accountSnapshot';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from './useSocket';
+import { notifyAccessChanged } from './useAccessProjection';
 // Cost audit 2026-11-13 item 12 (fixed): the media tab used to show media
 // rows among the latest 100 UNSCOPED notifications, filtered client-side,
 // so it undercounted whenever more than 100 recent notifications preceded
@@ -116,7 +117,22 @@ export default function useNotifications(scope = null) {
           if (store.mediaRefs) void store.refreshMedia();
         }
       };
-      const changed = () => { invalidateAccountSnapshots(userId); refreshActive(); };
+      // G5-30 (299): a membership notice changes what the member can
+      // reach. The socket payload carries the type; when it is one of
+      // the membership-change types, re-read the access projection so
+      // the switcher, hub and guards drop (or gain) the business
+      // without a reload. The same handler is wired to connect /
+      // visibilitychange / online, whose arguments carry no
+      // notification — the shape guard keeps those paths to a list
+      // refresh only.
+      const changed = (notif) => {
+        invalidateAccountSnapshots(userId);
+        if (notif && typeof notif === 'object'
+          && ['member_removed', 'member_rehired', 'member_role_changed'].includes(notif.type)) {
+          notifyAccessChanged();
+        }
+        refreshActive();
+      };
       refreshActive();
       socket?.on('notification:new', changed);
       socket?.on('connect', changed);

@@ -8735,6 +8735,9 @@
         "toastRequestFail": "No se pudo enviar la solicitud",
         "toastDecided": "Solicitud actualizada",
         "toastDecideFail": "No se pudo actualizar la solicitud",
+        "delegateLabel": "Delegado (cubre esta ausencia)",
+        "delegateNone": "Sin delegado",
+        "toastDelegateRequired": "Se requiere un delegado: {{tasks}} tareas abiertas y {{visits}} visitas necesitan cobertura.",
         "toastCancelled": "Solicitud cancelada",
         "toastCancelFail": "No se pudo cancelar la solicitud",
         "toastLoadFail": "No se pudieron cargar las solicitudes de ausencia"
@@ -9360,6 +9363,7 @@
     "confirmDeleteGoal": "¿Eliminar objetivo \"{{title}}\"?",
     "confirmCancelInvite": "¿Cancelar invitación a {{email}}?",
     "confirmRemoveMember": "¿Eliminar a {{name}} de este negocio?",
+    "confirmRemoveMemberWithWork": "¿Quitar a {{name}} de este negocio? Tiene {{tasks}} tareas abiertas y {{visits}} visitas próximas, que pasarán a un gerente.",
     "errBusinessNameRequired": "El nombre del negocio es obligatorio.",
     "errClientNameRequired": "El nombre del cliente es obligatorio.",
     "errDueDateRequired": "La fecha de vencimiento es obligatoria.",
@@ -9710,6 +9714,8 @@
     "toastRehireFail": "No se pudo recontratar",
     "offboardingTitle": "Historial de salidas",
     "offboardingSubtitle": "Miembros eliminados, trabajo reasignado y cuánto deben conservarse los registros.",
+    "offboardingRemovedSummary": "{{name}} fue eliminado. Se reasignaron {{tasks}} tareas de equipo, {{bookings}} reservas, {{appointments}} visitas y {{jobs}} trabajos.",
+    "offboardingViewHistory": "Ver el historial de salidas",
     "offboardingRemoved": "Eliminado",
     "offboardingReassigned": "Reasignado",
     "offboardingRetainUntil": "Conservar hasta",
@@ -18663,7 +18669,14 @@
     "pendingWaitingTitle": "En espera de aprobación",
     "pendingWaitingBody": "El propietario del negocio ha sido notificado. Este espacio de trabajo aparecerá en tu lista una vez que seas aprobado.",
     "manageAccessCodes": "Gestionar códigos de acceso",
-    "workspacesHiddenNote": "El cambio de espacio de trabajo llegará pronto. Aún puedes unirte a un negocio con un código de acceso a continuación."
+    "workspacesHiddenNote": "El cambio de espacio de trabajo llegará pronto. Aún puedes unirte a un negocio con un código de acceso a continuación.",
+    "remainingAccess": {
+      "title": "Tu acceso restante",
+      "subtitle": "Negocios a los que aún perteneces y concesiones de acceso que aún tienes.",
+      "businesses": "Membresías de negocios",
+      "grants": "Concesiones de acceso",
+      "none": "No tienes acceso restante a negocios."
+    }
   },
   "corporateOrg": {
     "title": "Jerarquía corporativa",
@@ -46973,6 +46986,10 @@
       "board": "Mi trabajo",
       "requests": "Solicitudes",
       "requestsEmpty": "No hay solicitudes abiertas.",
+      "requestReassign": "Pedir reasignación",
+      "raiseReassign": "Enviar solicitud de reasignación",
+      "reassignCategory": "Motivo",
+      "reassignDescribe": "Describe el motivo",
       "mine": "Mías",
       "all": "Todas",
       "dispatchedToYou": "Asignado a ti",
@@ -47171,6 +47188,7 @@
       "showClosed": "Mostrar cerrados",
       "escalated": "Escalado",
       "resolution": "Resolución",
+      "reassignTo": "Reasignar a",
       "acknowledge": "Confirmar recibido",
       "resolve": "Resolver",
       "dismiss": "Descartar",

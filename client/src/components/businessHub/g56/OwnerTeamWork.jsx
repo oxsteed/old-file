@@ -76,7 +76,11 @@ function Dispatch({ businessId }) {
 function Issues({ businessId }) {
   const [closed, setClosed] = useState(false);
   const p = useBizG56(`/businesses/${businessId}/owner/exceptions${closed ? '?status=closed' : ''}`, 'team');
+  const tm = useBizG56(`/businesses/${businessId}/work/teammates`, 'team');
   const [res, setRes] = useState({});
+  // 292 (G5-21): the member a task-linked reassignment request moves
+  // to, keyed by exception id.
+  const [reassignTo, setReassignTo] = useState({});
   if (!p.data) return null;
   return (
     <section className="g56-panel">
@@ -87,8 +91,16 @@ function Issues({ businessId }) {
           {e.escalation_level > 0 && <span className="g56-badge">{p.tr('escalated')}</span>}
           {!closed && <div className="g56-row">
             <input aria-label={p.tr('resolution')} placeholder={p.tr('resolution')} value={res[e.id] || ''} onChange={ev => setRes({ ...res, [e.id]: ev.target.value })} maxLength={1000} />
+            {e.kind === 'reassignment_request' && e.task_id && (
+              <label>{p.tr('reassignTo')}
+                <select aria-label={p.tr('reassignTo')} value={reassignTo[e.id] || ''} onChange={ev => setReassignTo({ ...reassignTo, [e.id]: ev.target.value })}>
+                  <option value="">—</option>
+                  {(tm.data?.teammates || []).filter(m => String(m.id) !== String(e.raised_by)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </label>
+            )}
             {e.status === 'open' && <button type="button" disabled={p.busy} onClick={() => p.send('patch', `/businesses/${businessId}/work/exceptions/${e.id}`, { status: 'acknowledged', expectedVersion: e.version })} data-track="ui.234c9937d9.10">{p.tr('acknowledge')}</button>}
-            <button type="button" disabled={p.busy || !(res[e.id] || '').trim()} onClick={() => p.send('patch', `/businesses/${businessId}/work/exceptions/${e.id}`, { status: 'resolved', resolution: res[e.id], expectedVersion: e.version })} data-track="ui.234c9937d9.11">{p.tr('resolve')}</button>
+            <button type="button" disabled={p.busy || !(res[e.id] || '').trim()} onClick={() => p.send('patch', `/businesses/${businessId}/work/exceptions/${e.id}`, { status: 'resolved', resolution: res[e.id], expectedVersion: e.version, ...(reassignTo[e.id] ? { reassign_to_user_id: reassignTo[e.id] } : {}) })} data-track="ui.234c9937d9.11">{p.tr('resolve')}</button>
             <button type="button" disabled={p.busy || !(res[e.id] || '').trim()} onClick={() => p.send('patch', `/businesses/${businessId}/work/exceptions/${e.id}`, { status: 'dismissed', resolution: res[e.id], expectedVersion: e.version })} data-track="ui.234c9937d9.12">{p.tr('dismiss')}</button>
           </div>}</li>))}</ul>}
       {p.errorText && <p className="g56-error" role="alert">{p.errorText}</p>}

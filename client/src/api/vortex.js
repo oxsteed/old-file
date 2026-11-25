@@ -59,5 +59,9 @@ export const denyMembership = (businessId, membershipId) =>
 export const removeMembership = (businessId, membershipId) =>
   api.post(`/businesses/${businessId}/memberships/${membershipId}/remove`).then((r) => r.data?.data);
 
+// 297 (G5-34): pending-action summary shown in the remove confirm dialog.
+export const getOffboardingPreview = (businessId, membershipId) =>
+  api.get(`/businesses/${businessId}/memberships/${membershipId}/offboarding-preview`).then((r) => r.data?.data);
+
 export const getTeamCatalog = (businessId) =>
   api.get(`/businesses/${businessId}/team/catalog`).then((r) => r.data?.data);
