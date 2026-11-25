@@ -47663,7 +47663,22 @@
       "handoffTo": "تسليم إلى (معرّف العضو)",
       "escalatedTo": "تم التصعيد إلى",
       "followUpAt": "المتابعة في",
-      "handoffToUser": "تسليم إلى (معرّف العضو)"
+      "handoffToUser": "تسليم إلى (معرّف العضو)",
+      "recoveryTitle": "استرداد بعد تغيير الوصول",
+      "recoveryLost": "فقدت الوصول إلى أحد المتاجر أثناء تسجيل دخولك. حرّر تذاكرك المفتوحة ليتمكن أحد الزملاء من توليها.",
+      "recoveryTickets": "{{count}} تذاكر مفتوحة",
+      "recoveryRecover": "تحرير التذاكر وإشعار المديرين",
+      "recoveryRecovered": "عمليات التحرير المستردة",
+      "recoveryManagersNotified": "تم إشعار المديرين: {{count}}",
+      "recoveryReleasedAt": "تم التحرير {{time}}",
+      "managerRecoveryTitle": "عمليات التحرير بعد تغيير الوصول",
+      "managerRecoveryIntro": "تذاكر تم تحريرها عندما فقد أحد الزملاء الوصول إلى المتجر. أعد تعيينها إلى شخص موجود في الوردية.",
+      "managerRecoveryLostBy": "فقد {{name}} الوصول",
+      "managerRecoveryTeammates": "في الوردية",
+      "managerRecoveryAssignTo": "تعيين إلى",
+      "managerRecoveryReassign": "إعادة تعيين",
+      "managerRecoveryNoPermission": "لا يمكنك إعادة تعيين التذاكر.",
+      "managerRecoveryReleased": "تم التحرير {{time}}"
     }
   }
 }

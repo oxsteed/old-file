@@ -47549,7 +47549,22 @@
       "handoffTo": "Transmettre à (ID)",
       "escalatedTo": "Escaladé à",
       "followUpAt": "Suivi le",
-      "handoffToUser": "Transmettre à (ID)"
+      "handoffToUser": "Transmettre à (ID)",
+      "recoveryTitle": "Récupération après un changement d'accès",
+      "recoveryLost": "Vous avez perdu l'accès à un établissement pendant votre poste. Libérez vos tickets ouverts pour qu'un collègue puisse les prendre.",
+      "recoveryTickets": "{{count}} tickets ouverts",
+      "recoveryRecover": "Libérer les tickets et prévenir les responsables",
+      "recoveryRecovered": "Libérations récupérées",
+      "recoveryManagersNotified": "Responsables prévenus : {{count}}",
+      "recoveryReleasedAt": "Libéré {{time}}",
+      "managerRecoveryTitle": "Libérations après changement d'accès",
+      "managerRecoveryIntro": "Tickets libérés quand un collègue a perdu l'accès à l'établissement. Réassignez-les à quelqu'un en poste.",
+      "managerRecoveryLostBy": "{{name}} a perdu l'accès",
+      "managerRecoveryTeammates": "En poste",
+      "managerRecoveryAssignTo": "Assigner à",
+      "managerRecoveryReassign": "Réassigner",
+      "managerRecoveryNoPermission": "Vous ne pouvez pas réassigner de tickets.",
+      "managerRecoveryReleased": "Libéré {{time}}"
     }
   }
 }

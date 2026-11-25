@@ -155,7 +155,7 @@ Status: EXISTS = shipped before this batch (evidence given); PARTIAL = extended 
 | 447 | Pickup exceptions summary | BUILD | T-H end shift | done — ShiftPanel |
 | 448 | Stock notice handoff | BUILD | T-C stock notices | done — ShiftPanel |
 | 449 | Shift completion confirmation | BUILD | T-H end shift | done — ShiftPanel |
-| 450 | Access change recovery | BUILD | T-H end shift | server done; UI pending |
+| 450 | Access change recovery | BUILD | T-H end shift | done — ShiftPanel (AccessRecoverySection + ManagerRecoverySection, D-442) |
 
 ## Slices
 
@@ -172,4 +172,4 @@ Server for 301-450 is done and tested. All five steps landed:
 4. DONE (this commit): client panels `PropertyConsolePanel.jsx`, `RestaurantOpsPanel.jsx`, `ShiftPanel.jsx` using `useBizG56`; 332 new `bizG56` copy keys synced to all 20 locales; growth coverage 1; `verify:i18n` and locale shard loaders green. Decision D-256.
 5. Remaining: update PR #809 body and `gh pr checks 809` until green. Do not merge.
 
-Open UI gaps (server done, no client surface yet): 450 access recovery. Closed by the gaps batch (D-433..D-435): 317 owner approval inbox, 323 occupant window selection, 345 owner incident summary. Closed by the gaps batch (D-436..D-440): 356 menu CSV import, 394 open-order disposition at emergency closure (now enforced server-side: pause refuses without per-order disposition + customer notice), 416 package label, 418 driver arrivals, 431 station queue filter.
+Open UI gaps (server done, no client surface yet): none — 450 access recovery closed by the gaps batch (D-442). Closed by the gaps batch (D-433..D-435): 317 owner approval inbox, 323 occupant window selection, 345 owner incident summary. Closed by the gaps batch (D-436..D-440): 356 menu CSV import, 394 open-order disposition at emergency closure (now enforced server-side: pause refuses without per-order disposition + customer notice), 416 package label, 418 driver arrivals, 431 station queue filter.

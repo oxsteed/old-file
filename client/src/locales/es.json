@@ -47549,7 +47549,22 @@
       "handoffTo": "Entregar a (ID)",
       "escalatedTo": "Escalado a",
       "followUpAt": "Seguimiento el",
-      "handoffToUser": "Entregar a (ID)"
+      "handoffToUser": "Entregar a (ID)",
+      "recoveryTitle": "Recuperación por cambio de acceso",
+      "recoveryLost": "Perdiste el acceso a un local mientras estabas registrado. Libera tus tickets abiertos para que un compañero pueda tomarlos.",
+      "recoveryTickets": "{{count}} tickets abiertos",
+      "recoveryRecover": "Liberar tickets y avisar a los gerentes",
+      "recoveryRecovered": "Liberaciones recuperadas",
+      "recoveryManagersNotified": "Gerentes avisados: {{count}}",
+      "recoveryReleasedAt": "Liberado {{time}}",
+      "managerRecoveryTitle": "Liberaciones por cambio de acceso",
+      "managerRecoveryIntro": "Tickets liberados cuando un compañero perdió el acceso al local. Reasígnalos a alguien en turno.",
+      "managerRecoveryLostBy": "{{name}} perdió el acceso",
+      "managerRecoveryTeammates": "En turno",
+      "managerRecoveryAssignTo": "Asignar a",
+      "managerRecoveryReassign": "Reasignar",
+      "managerRecoveryNoPermission": "No puedes reasignar tickets.",
+      "managerRecoveryReleased": "Liberado {{time}}"
     }
   }
 }

@@ -47549,7 +47549,22 @@
       "handoffTo": "Remèt bay (ID)",
       "escalatedTo": "Eskalade bay",
       "followUpAt": "Swivi nan dat",
-      "handoffToUser": "Remèt bay (ID)"
+      "handoffToUser": "Remèt bay (ID)",
+      "recoveryTitle": "Rekiperasyon apre yon chanjman aksè",
+      "recoveryLost": "Ou te pèdi aksè nan yon magazen pandan ou te anrejistre. Lage tikè ouvè ou yo pou yon koleg ka pran yo.",
+      "recoveryTickets": "{{count}} tikè ouvè",
+      "recoveryRecover": "Lage tikè yo epi avèti manadjè yo",
+      "recoveryRecovered": "Liberasyon yo te rekipere",
+      "recoveryManagersNotified": "Manadjè yo te avèti: {{count}}",
+      "recoveryReleasedAt": "Te lage {{time}}",
+      "managerRecoveryTitle": "Liberasyon apre chanjman aksè",
+      "managerRecoveryIntro": "Tikè yo te lage lè yon koleg te pèdi aksè nan magazen an. Bay yo bay yon moun ki an chif.",
+      "managerRecoveryLostBy": "{{name}} te pèdi aksè",
+      "managerRecoveryTeammates": "An chif",
+      "managerRecoveryAssignTo": "Bay li bay",
+      "managerRecoveryReassign": "Bay li bay yon lòt moun",
+      "managerRecoveryNoPermission": "Ou pa ka bay tikè yo bay yon lòt moun.",
+      "managerRecoveryReleased": "Te lage {{time}}"
     }
   }
 }

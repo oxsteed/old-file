@@ -47549,7 +47549,22 @@
       "handoffTo": "Hand off to (member ID)",
       "escalatedTo": "Escalated to",
       "followUpAt": "Follow up at",
-      "handoffToUser": "Hand off to (member ID)"
+      "handoffToUser": "Hand off to (member ID)",
+      "recoveryTitle": "Access change recovery",
+      "recoveryLost": "You lost access to a store while you were checked in. Release your open tickets so a teammate can take them.",
+      "recoveryTickets": "{{count}} open tickets",
+      "recoveryRecover": "Release tickets and notify managers",
+      "recoveryRecovered": "Recovered releases",
+      "recoveryManagersNotified": "Managers notified: {{count}}",
+      "recoveryReleasedAt": "Released {{time}}",
+      "managerRecoveryTitle": "Access change releases",
+      "managerRecoveryIntro": "Tickets released when a teammate lost store access. Reassign them to someone on shift.",
+      "managerRecoveryLostBy": "{{name}} lost access",
+      "managerRecoveryTeammates": "On shift",
+      "managerRecoveryAssignTo": "Assign to",
+      "managerRecoveryReassign": "Reassign",
+      "managerRecoveryNoPermission": "You cannot reassign tickets.",
+      "managerRecoveryReleased": "Released {{time}}"
     }
   }
 }
