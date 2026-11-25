@@ -50,13 +50,18 @@ async function requestApproval(businessId, requestId, user, role, body) {
     if (!r.property_id) fail(409, 'request_needs_property');
     if (r.approval_status === 'pending') fail(409, 'approval_pending');
     const p = await property(db, businessId, r.property_id);
+    const ownerUserId = p.owner_user_id || (await ownerOf(db, businessId)).user_id;
+    // D-498: an owner requesting approval of their own spend self-approves;
+    // the approval is recorded (auditable) instead of pending on another
+    // approver. A non-owner manager above the threshold still pends.
+    const isOwner = String(user) === String(ownerUserId);
     const needs = p.approval_threshold_cents != null && amount > p.approval_threshold_cents;
-    const status = needs ? 'pending' : 'approved';
+    const status = needs && !isOwner ? 'pending' : 'approved';
     await db.query(`UPDATE property_maintenance_requests SET approval_status=$2::varchar, approval_amount_cents=$3, approval_requested_at=NOW(), approval_note=$4,
       approval_decided_by=CASE WHEN $2::varchar='approved' THEN $5::uuid END, approval_decided_at=CASE WHEN $2::varchar='approved' THEN NOW() END, updated_at=NOW() WHERE id=$1`, [r.id, status, amount, note, user]);
-    await event(db, r.id, user, needs ? 'approval_requested' : 'approval_within_threshold', note, { amount_cents: amount, threshold_cents: p.approval_threshold_cents });
-    const approver = p.owner_user_id || (await ownerOf(db, businessId)).user_id;
-    return { id: r.id, approval_status: status, threshold_cents: p.approval_threshold_cents, approver: needs ? approver : null, label: p.label, title: r.title };
+    await event(db, r.id, user, needs ? (isOwner ? 'approval_self_approved' : 'approval_requested') : 'approval_within_threshold', note, { amount_cents: amount, threshold_cents: p.approval_threshold_cents });
+    const approver = ownerUserId;
+    return { id: r.id, approval_status: status, threshold_cents: p.approval_threshold_cents, approver: status === 'pending' ? approver : null, label: p.label, title: r.title };
   });
   if (out.approver) await notify(out.approver, 'property_approval_requested', { property: out.label, title: out.title }, `property_approval_requested:${out.id}:${Date.now()}`, '/business-hub');
   return { id: out.id, approval_status: out.approval_status, threshold_cents: out.threshold_cents };
@@ -179,7 +184,17 @@ async function issueWorkOrder(businessId, requestId, user, role, body) {
     const nte = cents(body?.not_to_exceed_cents ?? quote?.amount_cents, 'not_to_exceed_cents', { required: true });
     if (r.property_id) {
       const p = await property(db, businessId, r.property_id);
-      if (p.approval_threshold_cents != null && nte > p.approval_threshold_cents && !(r.approval_status === 'approved' && (r.approval_amount_cents ?? 0) >= nte)) fail(409, 'owner_approval_required');
+      const over = p.approval_threshold_cents != null && nte > p.approval_threshold_cents && !(r.approval_status === 'approved' && (r.approval_amount_cents ?? 0) >= nte);
+      if (over) {
+        // D-498: the converter is an owner of the business/property — record
+        // a self-approval (auditable) instead of blocking on another
+        // approver. A non-owner converter still stops at 409.
+        const ownerUserId = p.owner_user_id || (await ownerOf(db, businessId)).user_id;
+        if (String(user) !== String(ownerUserId)) fail(409, 'owner_approval_required');
+        await db.query(`UPDATE property_maintenance_requests SET approval_status='approved', approval_amount_cents=$2, approval_decided_by=$3, approval_decided_at=NOW(), updated_at=NOW() WHERE id=$1`, [r.id, nte, user]);
+        await event(db, r.id, user, 'approval_self_approved', null, { amount_cents: nte, threshold_cents: p.approval_threshold_cents });
+        r.approval_status = 'approved'; r.approval_amount_cents = nte;
+      }
     }
     if (r.approval_status === 'declined') fail(409, 'owner_approval_declined');
     const { rows: [{ n }] } = await db.query('SELECT COUNT(*)::int + 1 AS n FROM property_work_orders WHERE business_id=$1', [businessId]);
