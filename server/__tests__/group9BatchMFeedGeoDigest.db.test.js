@@ -152,7 +152,8 @@ ddescribe('Group 9 Batch M: feed, geo, availability, offers (454/456/459/460)', 
           '1 Origin Way', 'Columbus', $3, $4, $5, '2 Destination Way', 'Columbus', $6, $7, $8,
           8, 'medium', 20, 1,
           '{}', 1000, 700, $9, $10, $9, $11,
-          $12, 24, $13, 'batch M fixture')`,
+          $12, 24, $13, 'batch M fixture')
+       RETURNING *`,
       [`DLV-G9M-${crypto.randomBytes(4).toString('hex').toUpperCase()}`, customerId, originState, originLat, originLng,
         destinationState, destinationLat, destinationLng, start, pickupEnd, deliveryEnd,
         offerExpiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
@@ -264,9 +265,11 @@ ddescribe('Group 9 Batch M: feed, geo, availability, offers (454/456/459/460)', 
 
   test('G9-A3 (D-536): claim and assignInternal refuse an offline driver; online restores both', async () => {
     const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const assignDriverId = await makeUser('helper', { defaultMode: 'helper' });
     const customerId = await makeUser('customer');
     const adminId = await makeUser('admin');
     await makeProfile(driverId, { serviceArea: { states: ['OH'] }, available: false });
+    await makeProfile(assignDriverId, { serviceArea: { states: ['OH'] }, available: false });
     const job = await makeMarketplaceJob(customerId);
     const internalJob = await makeInternalJob(customerId);
     const vehicle = await makeVehicle();
@@ -275,19 +278,20 @@ ddescribe('Group 9 Batch M: feed, geo, availability, offers (454/456/459/460)', 
       .rejects.toMatchObject({ code: 'delivery_driver_offline' });
     await expect(assignAction(actionReq({
       jobId: internalJob.id, user: opsUser(adminId),
-      body: { driverUserId: driverId, vehicleId: String(vehicle.id) },
+      body: { driverUserId: assignDriverId, vehicleId: String(vehicle.id) },
     }))).rejects.toMatchObject({ code: 'delivery_driver_offline' });
 
     await call(localDelivery.setDriverAvailability, { user: helperUser(driverId), body: { available: true } });
+    await call(localDelivery.setDriverAvailability, { user: helperUser(assignDriverId), body: { available: true } });
 
     const claimed = await claimAction(actionReq({ jobId: job.id, user: helperUser(driverId) }));
     expect(claimed.response.success).toBe(true);
     const assigned = await assignAction(actionReq({
       jobId: internalJob.id, user: opsUser(adminId),
-      body: { driverUserId: driverId, vehicleId: String(vehicle.id) },
+      body: { driverUserId: assignDriverId, vehicleId: String(vehicle.id) },
     }));
     expect(assigned.response.success).toBe(true);
-    expect(assigned.response.job.internal_driver_user_id).toBe(driverId);
+    expect(assigned.response.job.internal_driver_user_id).toBe(assignDriverId);
   });
 
   test('G9-A19 (D-537): the feed paginates with limit/offset and a total', async () => {
@@ -346,18 +350,20 @@ ddescribe('Group 9 Batch M: feed, geo, availability, offers (454/456/459/460)', 
   });
 
   test('G9-A9 (D-538): the digest notifies only covering, available drivers, once per release', async () => {
-    // Michigan isolates this test from the Ohio jobs other tests in this
-    // file leave posted: only a Michigan-area driver can cover it.
+    // A unique random center per run: residue jobs from earlier runs sit
+    // elsewhere, so they can never fill this driver's 10-job cap (MI was
+    // shared with the cap test below and failed exactly that way).
+    const center = { lat: 41 + Math.random(), lng: -81 - Math.random() };
     const customerId = await makeUser('customer');
     const coveringId = await makeUser('helper', { defaultMode: 'helper' });
     const farAreaId = await makeUser('helper', { defaultMode: 'helper' });
     const offlineId = await makeUser('helper', { defaultMode: 'helper' });
-    await makeProfile(coveringId, { serviceArea: { states: ['MI'] }, available: true });
+    await makeProfile(coveringId, { serviceArea: { center, radiusMiles: 50 }, available: true });
     await makeProfile(farAreaId, { serviceArea: { states: ['CA'] }, available: true });
-    await makeProfile(offlineId, { serviceArea: { states: ['MI'] }, available: false });
+    await makeProfile(offlineId, { serviceArea: { center, radiusMiles: 50 }, available: false });
     const job = await makeMarketplaceJob(customerId, {
-      originState: 'MI', destinationState: 'MI', originLat: 42.3314, originLng: -83.0458,
-      destinationLat: 42.3414, destinationLng: -83.0558,
+      originState: 'WY', destinationState: 'WY', originLat: center.lat, originLng: center.lng,
+      destinationLat: center.lat, destinationLng: center.lng,
     });
 
     const sent = [];

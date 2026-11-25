@@ -39,8 +39,8 @@ async function sweepDeliveryOfferDigest(db, { now = new Date(), send = null } = 
   const windowStart = new Date(nowDate.getTime() - DIGEST_WINDOW_HOURS * 3600 * 1000).toISOString();
 
   const { rows: jobs } = await db.query(
-    `SELECT id, reference, origin_state, origin_city, origin_postal_code, origin_lat, origin_lng,
-            destination_state, destination_city, destination_postal_code, destination_lat, destination_lng,
+    `SELECT id, reference, origin_state, origin_city, origin_lat, origin_lng,
+            destination_state, destination_city, destination_lat, destination_lng,
             marketplace_released_at, offer_expires_at
        FROM delivery_jobs
       WHERE status = 'posted'
