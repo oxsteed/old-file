@@ -99,10 +99,6 @@
     "storageFailed": "Impossible d’enregistrer le brouillon. Gardez cette page ouverte."
   },
   "pwaShell": {
-    "updateReady": "Une nouvelle version est disponible.",
-    "later": "Plus tard",
-    "refresh": "Actualiser maintenant",
-    "updating": "Actualisation…",
     "sharedReady": "Les photos partagées sont jointes. Vérifiez les détails avant de publier.",
     "shareError": "Impossible d’ouvrir les photos. Choisissez jusqu’à cinq images compatibles et réessayez."
   },

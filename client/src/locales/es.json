@@ -99,10 +99,6 @@
     "storageFailed": "No se pudo guardar el borrador. Mantén esta página abierta."
   },
   "pwaShell": {
-    "updateReady": "Hay una nueva versión disponible.",
-    "later": "Más tarde",
-    "refresh": "Actualizar ahora",
-    "updating": "Actualizando…",
     "sharedReady": "Las fotos compartidas están adjuntas. Revisa los detalles antes de publicar.",
     "shareError": "No se pudieron abrir las fotos. Elige hasta cinco imágenes compatibles e inténtalo de nuevo."
   },

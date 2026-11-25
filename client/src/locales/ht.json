@@ -99,10 +99,6 @@
     "storageFailed": "Aparèy la pa t ka sove bouyon an. Kenbe paj sa a louvri."
   },
   "pwaShell": {
-    "updateReady": "Gen yon nouvo vèsyon ki disponib.",
-    "later": "Pita",
-    "refresh": "Rafrechi pou mete ajou",
-    "updating": "Ap rafrechi…",
     "sharedReady": "Foto ou pataje yo atache. Verifye detay yo anvan ou pibliye.",
     "shareError": "Nou pa ka ouvri foto yo. Chwazi jiska senk imaj ki sipòte epi eseye ankò."
   },

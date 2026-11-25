@@ -77,11 +77,11 @@ function trySilentUpdate(worker) {
   if (appUpdatesDeferred() || isSilentUpdateSensitivePath(window.location.pathname)) return false;
   // Explicit refresh and chunk recovery already reloaded this tab. A waiting
   // worker can still be visible while activation catches up; reloading again
-  // races the next navigation, so show the notice instead.
+  // races the next navigation, so keep it waiting instead.
   if (pageInteracted || Date.now() > silentUpdateDeadline || recentDocumentReload()) return false;
   const id = worker.scriptURL || 'waiting';
   // One silent attempt per worker per tab session: if the reload comes back
-  // to the same waiting worker, fall back to the visible notice (no loops).
+  // to the same waiting worker, keep it waiting for a quiet moment (no loops).
   if (readSilentUpdateMarker() === id) return false;
   if (!writeSilentUpdateMarker(id)) return false;
   navigator.serviceWorker.addEventListener('controllerchange', reloadDocument, { once: true });
@@ -149,8 +149,8 @@ function scheduleQuietAutoUpdate() {
   try {
     if (!canApplyQuietly(window.location.pathname)) return;
   } catch {
-    // A partial DOM (for example an embedded shell) should still receive the
-    // visible update notice rather than interrupting worker detection.
+    // A partial DOM (for example an embedded shell) should simply keep the
+    // worker waiting rather than interrupting worker detection.
     return;
   }
   const schedule = window.setTimeout || setTimeout;
@@ -167,7 +167,7 @@ function scheduleQuietAutoUpdate() {
  * Apply a waiting update without asking, at moments the reload is invisible:
  * the next in-app navigation (the new page loads fresh instead of rendering
  * in place) or when the tab is hidden. Guarded workflows, sensitive paths and
- * pages with unsaved input keep the visible notice instead.
+ * pages with unsaved input keep the worker waiting instead.
  */
 let quietWatchInstalled = false;
 function watchQuietMoments() {
@@ -195,11 +195,10 @@ function installQuietWatch() {
 export function applyWorkerUpdate() {
   if (!waitingWorker || appUpdatesDeferred() || isUpdateSensitivePath(window.location.pathname)) return false;
   clearQuietUpdateTimer();
-  // Another tab may already have accepted this worker. Refresh this page
-  // only when its own user presses the button.
+  // Another tab may already have accepted this worker. This reload only ever
+  // runs from the guarded quiet-apply paths (next navigation or hidden tab);
+  // there is no user-facing prompt anymore.
   if (waitingWorker.state === 'activated') { reloadDocument(); return true; }
-  // Only the page whose user requested the update reloads. Other tabs keep
-  // their in-progress forms and are never forcibly reloaded on controllerchange.
   navigator.serviceWorker.addEventListener('controllerchange', reloadDocument, { once: true });
   waitingWorker.postMessage({ type: 'SKIP_WAITING' });
   return true;

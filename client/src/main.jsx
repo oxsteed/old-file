@@ -1,5 +1,4 @@
 import './instrument.jsx';
-import ServiceWorkerUpdateNotice from './components/ServiceWorkerUpdateNotice';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
@@ -116,7 +115,6 @@ Promise.all([i18nReady, launchVisibilityReady]).then(() => {
     <React.StrictMode>
       <Sentry.ErrorBoundary fallback={sentryRootFallback}>
         <App />
-        <ServiceWorkerUpdateNotice />
       </Sentry.ErrorBoundary>
     </React.StrictMode>
   );

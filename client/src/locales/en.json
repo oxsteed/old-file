@@ -99,10 +99,6 @@
     "storageFailed": "This device could not save your draft. Keep this page open."
   },
   "pwaShell": {
-    "updateReady": "A new version is available.",
-    "later": "Later",
-    "refresh": "Refresh to update",
-    "updating": "Refreshing…",
     "sharedReady": "Shared photos are attached. Review the details before posting.",
     "shareError": "The shared photos could not be opened. Choose up to five supported images and try again."
   },
