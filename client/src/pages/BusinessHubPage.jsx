@@ -19,6 +19,9 @@ const BusinessSkillsSelector = lazyDefault(() => import('../components/BusinessS
 const AIKnowledgeTab = lazyDefault(() => import('../components/AIKnowledgeTab'));
 import RoleMenu from '../components/businessHub/RoleMenu';
 const BusinessCalendarView = lazyDefault(() => import('../components/calendar/BusinessCalendarView'));
+// G5-10 (256): the assignment queue lives in the Hub calendar tab for
+// members holding bookings.manage (not only on the helper calendar).
+const BookingRequestsPanel = lazyDefault(() => import('../components/calendar/BookingRequestsPanel'));
 const BusinessClientsTab = lazyDefault(() => import('../components/businessHub/BusinessClientsTab'));
 const BusinessOperationsOverview = lazyDefault(() => import('../components/businessHub/BusinessOperationsOverview'));
 const BusinessAnalyticsTab = lazyNamed(() => import('../components/businessHub/BusinessAnalyticsTab'), 'BusinessAnalyticsTab');
@@ -2116,6 +2119,22 @@ function BusinessHubInner() {
                       </p>
                     </div>
                     <AppointmentCalendarView key={`${user?.id}:${bizId}`} businessId={bizId} initialFilter={calendarFocus} currency={currency} />
+                  </div>
+                )}
+
+                {/* G5-10 (256): the assignment queue. Members holding
+                    bookings.manage see pending business requests here
+                    instead of only on the helper-only calendar; without
+                    the code the panel (and the requests) stay hidden. */}
+                {hasPermission('bookings.manage') && (
+                  <div className="bh-calendar-panel">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold">{t('businessHub.rooms.bookingRequestsTitle')}</h3>
+                      <p className="bh-calendar-panel-description">
+                        {t('businessHub.rooms.bookingRequestsDescription')}
+                      </p>
+                    </div>
+                    <BookingRequestsPanel compact={false} />
                   </div>
                 )}
 

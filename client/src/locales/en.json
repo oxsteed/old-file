@@ -10956,6 +10956,8 @@
       "businessHoursDescription": "Set when this business is open so customers and staff see the right operating rhythm.",
       "appointmentsTitle": "Appointments",
       "appointmentsDescription": "Manage the appointment calendar tied to this business, including bookable slots and customer reservations.",
+      "bookingRequestsTitle": "Booking Requests",
+      "bookingRequestsDescription": "Pending requests from customers, including business bookings any team member with booking access can confirm.",
       "businessCalendarTitle": "Business Calendar",
       "businessCalendarDescription": "Track team meetings, deliveries, supplier visits, training, and other events that belong to this business.",
       "waitlistTitle": "Waitlist & Follow-ups",

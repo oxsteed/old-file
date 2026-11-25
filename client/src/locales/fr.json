@@ -10956,6 +10956,8 @@
       "businessHoursDescription": "Définissez les heures d’ouverture pour que clients et équipe voient le bon rythme.",
       "appointmentsTitle": "Rendez-vous",
       "appointmentsDescription": "Gérez le calendrier, les créneaux réservables et les réservations clients.",
+      "bookingRequestsTitle": "Demandes de réservation",
+      "bookingRequestsDescription": "Demandes en attente des clients, y compris les réservations de l’entreprise que tout membre de l’équipe ayant accès aux réservations peut confirmer.",
       "businessCalendarTitle": "Calendrier de l’entreprise",
       "businessCalendarDescription": "Suivez réunions, livraisons, visites de prestataires, formations et autres événements.",
       "waitlistTitle": "Liste d’attente et suivis",

@@ -10956,6 +10956,8 @@
       "businessHoursDescription": "Define cuándo está abierto el negocio para que clientes y equipo vean el ritmo correcto.",
       "appointmentsTitle": "Citas",
       "appointmentsDescription": "Gestiona el calendario de citas, los espacios reservables y las reservas de clientes.",
+      "bookingRequestsTitle": "Solicitudes de reserva",
+      "bookingRequestsDescription": "Solicitudes pendientes de los clientes, incluidas las reservas del negocio que cualquier miembro del equipo con acceso a reservas puede confirmar.",
       "businessCalendarTitle": "Calendario del negocio",
       "businessCalendarDescription": "Registra reuniones, entregas, visitas de proveedores, capacitación y otros eventos del negocio.",
       "waitlistTitle": "Lista de espera y seguimientos",
