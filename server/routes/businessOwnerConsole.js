@@ -154,6 +154,7 @@ router.delete('/:businessId/owner/appointment-documents/:documentId', ...write('
 router.get(`${A}/handoff`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workComms.handoff(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
 router.post(`${A}/handoff/ack`, ...write('any', 'business.view'), h(async (req, res) => res.json(await workComms.acknowledgeHandoff(req.business.id, req.user.id, req.params.appointmentId))));
 router.post(`${A}/team-notes`, ...write('any', 'business.view'), h(async (req, res) => res.status(201).json(await workComms.addNote(req.business.id, req.user.id, ctx(req), req.params.appointmentId, req.body))));
+router.get(`${A}/notes`, ...biz('any', 'business.view'), h(async (req, res) => res.json(await workComms.notes(req.business.id, req.user.id, ctx(req), req.params.appointmentId))));
 router.get('/:businessId/work/inbox', ...biz('any'), h(async (req, res) => res.json(await workComms.inbox(req.business.id, req.user.id))));
 router.post('/:businessId/work/inbox/seen', ...write('any'), h(async (req, res) => res.json(await workComms.markInboxSeen(req.business.id, req.user.id, req.body))));
 router.get('/:businessId/work/coverage', ...biz('any', 'business.view'), h(async (req, res) => res.json(await workComms.coverage(req.business.id, req.user.id, ctx(req)))));

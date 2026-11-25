@@ -38,6 +38,9 @@ function Blocker({ businessId, appointmentId }) {
 export default function WorkJobDetail({ businessId, appointmentId, onClose }) {
   const base = `/businesses/${businessId}/work/appointments/${appointmentId}`;
   const hs = useBizG56(`${base}/handoff`, 'job');
+  // 272: the notes list reads from the dedicated GET, not the handoff
+  // excerpt; it falls back to the excerpt if the read fails.
+  const nt = useBizG56(`${base}/notes`, 'job');
   const cl = useBizG56(`${base}/checklist`, 'job');
   const pg = useBizG56(`${base}/progress`, 'job');
   const docs = useBizG56(`${base}/documents`, 'job');
@@ -72,7 +75,6 @@ export default function WorkJobDetail({ businessId, appointmentId, onClose }) {
       <div className="g56-row"><h3 className="g56-grow">{a.service_name} · {hs.time(a.start_time)}</h3><button type="button" onClick={onClose} data-track="ui.68ec2fbbcd.4">{hs.tr('close')}</button></div>
       <p>{a.customer_name}{a.customer_notes && <> · {a.customer_notes}</>}</p>
       <h4>{hs.tr('handoff')}</h4>
-      <ul className="g56-list">{h.notes.map(n => <li key={n.id}>{n.is_pinned && <span className="g56-badge">{hs.tr('pinned')}</span>} {n.content} · {n.author}</li>)}</ul>
       {h.open_exceptions.length > 0 && <p className="g56-miss">{hs.tr('openIssues', { count: h.open_exceptions.length })}</p>}
       {h.acknowledged_at ? <p className="g56-ok">{hs.tr('acked', { date: hs.time(h.acknowledged_at) })}</p>
         : <button type="button" disabled={hs.busy} onClick={() => hs.send('post', `${base}/handoff/ack`)} data-track="ui.68ec2fbbcd.5">{hs.tr('ack')}</button>}
@@ -101,10 +103,11 @@ export default function WorkJobDetail({ businessId, appointmentId, onClose }) {
       <ul className="g56-list">{h.crew.map(c => <li key={c.user_id}>{c.name} · {hs.tr(`crewRole.${c.role}`)} · <span className="g56-badge">{hs.tr(`attend.${c.attendance}`)}</span>{c.task_note && <> · {c.task_note}</>}</li>)}</ul>
 
       <h4>{hs.tr('notes')}</h4>
+      <ul className="g56-list">{(nt.data?.notes || h.notes).map(n => <li key={n.id}>{n.is_pinned && <span className="g56-badge">{hs.tr('pinned')}</span>} {n.content} · {n.author}</li>)}</ul>
       <div className="g56-row">
         <label className="g56-grow">{hs.tr('noteText')}<input value={noteText} onChange={e => setNoteText(e.target.value)} maxLength={4000} /></label>
         {people.length > 0 && <label>{hs.tr('mention')}<select multiple value={mentions} onChange={e => setMentions([...e.target.selectedOptions].map(o => o.value))}>{people.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}
-        <button type="button" disabled={hs.busy || !noteText.trim()} onClick={async () => { if (await hs.send('post', `${base}/team-notes`, { content: noteText, mention_user_ids: mentions })) { setNoteText(''); setMentions([]); } }} data-track="ui.68ec2fbbcd.9">{hs.tr('post')}</button>
+        <button type="button" disabled={hs.busy || !noteText.trim()} onClick={async () => { if (await hs.send('post', `${base}/team-notes`, { content: noteText, mention_user_ids: mentions })) { setNoteText(''); setMentions([]); nt.refresh(); } }} data-track="ui.68ec2fbbcd.9">{hs.tr('post')}</button>
       </div>
 
       {(docs.data?.documents || []).length > 0 && <><h4>{hs.tr('documents')}</h4>

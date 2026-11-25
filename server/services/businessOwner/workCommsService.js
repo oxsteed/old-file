@@ -234,4 +234,14 @@ async function day(businessId, userId, query) {
   };
 }
 
-module.exports = { teammates, handoff, acknowledgeHandoff, addNote, inbox, markInboxSeen, coverage, requestCoverage, claimCoverage, decideCoverage, cancelCoverage, day };
+// 272: the team-visible job-note list. The handoff carries the latest 20
+// as a summary excerpt; this is the direct read path the
+// appointment-note route lacked (it was POST-only).
+async function notes(businessId, userId, ctx, appointmentId) {
+  const { appt } = await readable(pool, businessId, appointmentId, userId, ctx);
+  const { rows } = await pool.query(`SELECT n.id, n.note_type, n.content, n.is_pinned, n.created_at, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS author
+      FROM business_appointment_notes n LEFT JOIN users u ON u.id=n.created_by_id WHERE n.appointment_id=$1 ORDER BY n.is_pinned DESC, n.created_at DESC LIMIT 50`, [appt.id]);
+  return { appointment_id: appt.id, notes: rows };
+}
+
+module.exports = { teammates, handoff, acknowledgeHandoff, addNote, notes, inbox, markInboxSeen, coverage, requestCoverage, claimCoverage, decideCoverage, cancelCoverage, day };
