@@ -61,7 +61,7 @@ Status: EXISTS = shipped before this batch (evidence given); PARTIAL = extended 
 | 353 | Location setup wizard | BUILD | R-A location readiness/template | done — RestaurantOpsPanel |
 | 354 | Launch readiness view | BUILD | R-A location readiness/template | done — RestaurantOpsPanel |
 | 355 | Operating region settings | EXISTS | `/hq/regions` (restaurantHQController) | verified |
-| 356 | Menu import | BUILD | R-B menu import/schedule/history | server done; UI pending |
+| 356 | Menu import | BUILD | R-B menu import/schedule/history | done — RestaurantOpsPanel (D-437) |
 | 357 | Location price overrides | EXISTS | `restaurant_store_menu_overrides.price_cents` via `PATCH /locations/:id/menu-items/:itemId` | verified |
 | 358 | Effective date scheduling | BUILD | R-B menu import/schedule/history | done — RestaurantOpsPanel |
 | 359 | Item availability policy | EXISTS | `availability_schedule`, manual/inventory availability, `available_again_at` | verified |
@@ -99,7 +99,7 @@ Status: EXISTS = shipped before this batch (evidence given); PARTIAL = extended 
 | 391 | Equipment downtime notice | BUILD | R-E disruptions | done — RestaurantOpsPanel |
 | 392 | Location order transfer review | BUILD | R-E disruptions | done — RestaurantOpsPanel |
 | 393 | Emergency closure workflow | BUILD | R-E disruptions | done — RestaurantOpsPanel |
-| 394 | Open order cleanup | BUILD | R-E disruptions | server done; UI pending |
+| 394 | Open order cleanup | BUILD | R-E disruptions | done — RestaurantOpsPanel + server enforcement (D-436) |
 | 395 | Reopening checklist | BUILD | R-E disruptions | done — RestaurantOpsPanel |
 | 396 | New location checklist | BUILD | R-A location readiness/template | done — RestaurantOpsPanel |
 | 397 | Location settings template | BUILD | R-A location readiness/template | done — RestaurantOpsPanel |
@@ -121,9 +121,9 @@ Status: EXISTS = shipped before this batch (evidence given); PARTIAL = extended 
 | 413 | Flag low stock | BUILD | T-C stock notices | done — ShiftPanel |
 | 414 | Record substitution options | BUILD | T-C stock notices | done — ShiftPanel |
 | 415 | Request menu correction | BUILD | T-C stock notices | done — ShiftPanel |
-| 416 | Package label | BUILD | T-D pickup | server done; UI pending |
+| 416 | Package label | BUILD | T-D pickup | done — RestaurantOpsPanel (D-438) |
 | 417 | Pickup code confirmation | BUILD | T-D pickup | done — ShiftPanel |
-| 418 | Driver arrival list | BUILD | T-D pickup | server done; UI pending |
+| 418 | Driver arrival list | BUILD | T-D pickup | done — RestaurantOpsPanel (D-439) |
 | 419 | Customer pickup confirmation | EXISTS | `handed_off_at` / `handed_off_by` on kitchen handoff | verified |
 | 420 | Handoff timestamp | EXISTS | `handed_off_at` stamped on handoff | verified |
 | 421 | Missing-item report | BUILD | T-E order issues | done — ShiftPanel |
@@ -136,7 +136,7 @@ Status: EXISTS = shipped before this batch (evidence given); PARTIAL = extended 
 | 428 | Non-color status cues | PARTIAL | T-F KDS accessibility — KDS columns titled; add text status badges on every ticket | done — FoodKitchenPage kds.a11y (D-255) |
 | 429 | Reduced motion mode | BUILD | T-F KDS accessibility | done — FoodKitchenPage kds.a11y (D-255) |
 | 430 | Localized kitchen labels | EXISTS | KDS copy via i18n `food.kds.*` in 20 locales | verified |
-| 431 | Station queue filter | BUILD | T-B stations/tickets | server done; UI pending |
+| 431 | Station queue filter | BUILD | T-B stations/tickets | done — RestaurantOpsPanel (D-440) |
 | 432 | Ticket reassignment | BUILD | T-B stations/tickets | done — ShiftPanel |
 | 433 | Special preparation notes | EXISTS | `food_order_items.special_instructions` + `kitchen_notes` | verified |
 | 434 | Prep handoff record | BUILD | T-B stations/tickets | done — ShiftPanel |
@@ -172,4 +172,4 @@ Server for 301-450 is done and tested. All five steps landed:
 4. DONE (this commit): client panels `PropertyConsolePanel.jsx`, `RestaurantOpsPanel.jsx`, `ShiftPanel.jsx` using `useBizG56`; 332 new `bizG56` copy keys synced to all 20 locales; growth coverage 1; `verify:i18n` and locale shard loaders green. Decision D-256.
 5. Remaining: update PR #809 body and `gh pr checks 809` until green. Do not merge.
 
-Open UI gaps (server done, no client surface yet): 356 menu CSV import, 394 open-order disposition at emergency closure (server pauses immediately; per-order disposition + customer notice before pause is NOT enforced server-side), 416 package label, 418 driver arrivals, 431 station queue filter, 450 access recovery. Closed by the gaps batch (D-433..D-435): 317 owner approval inbox, 323 occupant window selection, 345 owner incident summary.
+Open UI gaps (server done, no client surface yet): 450 access recovery. Closed by the gaps batch (D-433..D-435): 317 owner approval inbox, 323 occupant window selection, 345 owner incident summary. Closed by the gaps batch (D-436..D-440): 356 menu CSV import, 394 open-order disposition at emergency closure (now enforced server-side: pause refuses without per-order disposition + customer notice), 416 package label, 418 driver arrivals, 431 station queue filter.

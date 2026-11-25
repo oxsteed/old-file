@@ -23,3 +23,9 @@
 .g56-heat-4 { background: rgba(79, 70, 229, 0.85); color: #fff; }
 .g56-over { outline: 2px solid #b45309; }
 .g56-unread { font-weight: 600; }
+/* 416: package label print — only the label prints, never the whole console. */
+@media print {
+  body * { visibility: hidden; }
+  .g56-print-area, .g56-print-area * { visibility: visible; }
+  .g56-print-area { position: absolute; inset: 0 auto auto 0; width: 100%; }
+}

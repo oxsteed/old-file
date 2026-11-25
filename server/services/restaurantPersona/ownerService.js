@@ -629,7 +629,7 @@ async function kitchenTickets(c, { location_id: loc, station } = {}) {
         OR EXISTS (SELECT 1 FROM food_order_items x WHERE x.order_id=o.id AND x.station_label=$3))
     GROUP BY o.id, u.first_name, u.last_name ORDER BY o.created_at`,
   [c.restaurantId, l.id, st || null]);
-  const { rows: stations } = await pool.query(`SELECT id, name FROM restaurant_kitchen_stations WHERE restaurant_id=$1 AND is_active ORDER BY name`, [c.restaurantId]);
+  const { rows: stations } = await pool.query(`SELECT id, name FROM restaurant_kitchen_stations WHERE restaurant_id=$1 AND location_id=$2 AND is_active ORDER BY name`, [c.restaurantId, l.id]);
   return { location_id: l.id, station: st || null, stations, tickets: rows };
 }
 module.exports = { MANUAL_CHECKS, REOPEN_KEYS, REOPEN_CHECKS, CLOSURE_DISPOSITIONS, readiness, setReadinessCheck, launch, copySettings, opsSettings, updateOpsSettings, specialHours, setSpecialHours, deleteSpecialHours,

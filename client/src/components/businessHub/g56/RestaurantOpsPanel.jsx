@@ -41,9 +41,13 @@ export default function RestaurantOpsPanel({ restaurantId }) {
         <>
           <ReadinessSection base={base} locationId={selected} locations={locations} />
           <MenuSection base={base} locationId={selected} />
+          <MenuImportSection base={base} />
           <DowntimeSection base={base} locationId={selected} />
           <TransfersSection base={base} locationId={selected} locations={locations} />
           <ClosureSection base={base} locationId={selected} />
+          <PackageLabelSection restaurantId={restaurantId} />
+          <DriverArrivalsSection restaurantId={restaurantId} locationId={selected} />
+          <KitchenTicketsSection base={base} restaurantId={restaurantId} locationId={selected} />
         </>
       )}
       <ReportsSection base={base} locationId={selected} />
@@ -200,6 +204,63 @@ function MenuSection({ base, locationId }) {
       <h5>{hist.tr('menuHistory')}</h5>
       {!hist.data ? (hist.errorText && <p className="g56-error">{hist.errorText}</p>) : hist.data.changes.length === 0 ? <p>{hist.common('empty')}</p> : (
         <ul className="g56-list">{hist.data.changes.slice(0, 20).map((c) => <li key={c.id}>{c.item_name} · {c.field} · {String(c.old_value ?? '')} → {String(c.new_value ?? '')} · {c.changed_by_name || ''} · {hist.time(c.created_at)}</li>)}</ul>
+      )}
+    </div>
+  );
+}
+
+function MenuImportSection({ base }) {
+  const m = useBizG56(null, 'ops');
+  const [csv, setCsv] = useState('');
+  const [preview, setPreview] = useState(null);
+  const readFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => setCsv(String(r.result || ''));
+    r.readAsText(f);
+  };
+  const doPreview = async (e) => {
+    e.preventDefault();
+    if (!csv.trim()) return;
+    const v = await m.send('post', `${base}/menu/import`, { csv });
+    if (v) setPreview(v);
+  };
+  const confirm = async () => {
+    const v = await m.send('post', `${base}/menu/import`, { csv, dry_run: false });
+    if (v) setPreview(v);
+  };
+  return (
+    <div>
+      <h4>{m.tr('importMenu')}</h4>
+      <Notice p={m} />
+      <p className="g56-muted">{m.tr('importDrafts')}</p>
+      <form onSubmit={doPreview} className="g56-row" data-track="ui.f17c022f60.28">
+        <label>{m.tr('importUpload')}<input type="file" accept=".csv,text/csv" onChange={readFile} /></label>
+        <label>{m.tr('importPaste')}<textarea value={csv} rows={4} maxLength={500000} onChange={(e) => setCsv(e.target.value)} dir="ltr" /></label>
+        <button type="submit" disabled={m.busy || !csv.trim()} data-track="ui.f17c022f60.35">{m.tr('importPreview')}</button>
+      </form>
+      {preview && (
+        <div>
+          <p className="g56-muted">
+            {preview.dry_run ? m.tr('importPreview') : m.tr('importConfirm')} · {m.tr('importCreated')}: {preview.create ?? preview.created ?? 0} · {m.tr('importSkipped')}: {preview.skipped ?? 0}
+          </p>
+          {preview.rows?.length > 0 && (
+            <table className="g56-table">
+              <thead><tr><th scope="col">{m.common('item')}</th><th scope="col">{m.common('amount')}</th><th scope="col">{m.common('status')}</th></tr></thead>
+              <tbody>{preview.rows.map((row) => (
+                <tr key={row.line}>
+                  <td>{row.name || '—'}{row.category ? ` · ${row.category}` : ''}</td>
+                  <td>{row.price_cents != null ? `$${(row.price_cents / 100).toFixed(2)}` : '—'}</td>
+                  <td>{row.status}{row.errors?.length > 0 ? ` · ${row.errors.join(', ')}` : ''}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
+          {preview.dry_run && (preview.create ?? 0) > 0 && (
+            <button type="button" disabled={m.busy} onClick={confirm} data-track="ui.f17c022f60.29">{m.tr('importConfirm')}</button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -371,16 +432,28 @@ function TransfersSection({ base, locationId, locations }) {
   );
 }
 
+const CLOSURE_DISPOSITIONS = ['hand_off', 'finish', 'transfer', 'cancel'];
 function ClosureSection({ base, locationId }) {
   const c = useBizG56(`${base}/locations/${locationId}/closure`, 'ops');
   const [form, setForm] = useState({ reason: 'other', note: '' });
-  const close = async (e) => {
-    e.preventDefault();
-    await c.send('post', `${base}/closures`, { location_id: Number(locationId), reason: form.reason, note: form.note.trim() || undefined });
-  };
+  const [notice, setNotice] = useState('');
+  const [disps, setDisps] = useState(null);
   if (!c.data) return c.errorText ? <p className="g56-error">{c.errorText}</p> : null;
   const closure = c.data.closure;
   const checks = closure?.reopen_checklist || {};
+  const openOrders = c.data.open_orders || [];
+  const recorded = c.data.dispositions || [];
+  const defaultDisp = (o) => (o.suggested === 'hand_off' ? 'hand_off' : o.suggested === 'finish_or_transfer' ? 'finish' : 'transfer');
+  const dispFor = (o) => disps?.[o.id] || { disposition: defaultDisp(o), note: '' };
+  const setDisp = (o, patch) => setDisps({ ...(disps || {}), [o.id]: { ...dispFor(o), ...patch } });
+  const allDispositioned = openOrders.every((o) => dispFor(o).disposition);
+  const close = async (e) => {
+    e.preventDefault();
+    if (!notice.trim() || !allDispositioned) return;
+    const dispositions = openOrders.map((o) => ({ order_id: Number(o.id), disposition: dispFor(o).disposition, note: dispFor(o).note.trim() || undefined }));
+    const done = await c.send('post', `${base}/emergency-closures`, { location_id: Number(locationId), reason: form.reason, note: form.note.trim() || undefined, dispositions, customer_notice: notice.trim() });
+    if (done) { setNotice(''); setDisps(null); }
+  };
   return (
     <div>
       <h4>{c.tr('emergency')}</h4>
@@ -388,14 +461,20 @@ function ClosureSection({ base, locationId }) {
       {closure ? (
         <>
           <p className="g56-muted">{c.tr('currentClosure')}: {closure.reason} · {c.time(closure.created_at)}</p>
-          {c.data.open_orders.length > 0 && (
-            <ul className="g56-list">{c.data.open_orders.map((o) => <li key={o.id}>#{o.queue_number || o.id} · {o.status}</li>)}</ul>
+          {closure.customer_notice_message && <p className="g56-muted">{c.tr('noticeSent')}: {closure.customer_notice_message}</p>}
+          {recorded.length > 0 && (
+            <ul className="g56-list">{recorded.map((d) => (
+              <li key={d.id}>#{d.order_id} · {c.tr(`disp.${d.disposition}`)}{d.note ? ` · ${d.note}` : ''}{d.decided_by_name ? ` · ${d.decided_by_name}` : ''}</li>
+            ))}</ul>
+          )}
+          {openOrders.length > 0 && (
+            <ul className="g56-list">{openOrders.map((o) => <li key={o.id}>#{o.queue_number || o.id} · {o.status}</li>)}</ul>
           )}
           <ul className="g56-list">
             {REOPEN_KEYS.map((key) => (
               <li key={key}>
                 {c.tr(`reopenCheck.${key}`)} · {checks[key]?.done ? c.tr('ready') : c.tr('notReady')}
-                {' '}<button type="button" disabled={c.busy} onClick={() => c.send('post', `${base}/locations/${locationId}/reopen-checks/${key}`, { done: !checks[key]?.done })} data-track="ui.f17c022f60.22">{c.tr('markDone')}</button>
+                {' '}<button type="button" disabled={c.busy} onClick={() => c.send('post', `${base}/locations/${locationId}/closure/checks/${key}`, { done: !checks[key]?.done })} data-track="ui.f17c022f60.22">{c.tr('markDone')}</button>
               </li>
             ))}
           </ul>
@@ -405,9 +484,145 @@ function ClosureSection({ base, locationId }) {
         <form onSubmit={close} className="g56-row" data-track="ui.f17c022f60.24">
           <label>{c.tr('closureReason')}<select value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })}>{CLOSURE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}</select></label>
           <label>{c.common('notes')}<input value={form.note} maxLength={1000} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
-          <button type="submit" disabled={c.busy} data-track="ui.f17c022f60.25">{c.tr('closeNow')}</button>
+          {openOrders.length > 0 && (
+            <>
+              <p className="g56-muted">{c.tr('openOrders')}: {openOrders.length} · {c.tr('closeBlocked')}</p>
+              {openOrders.map((o) => (
+                <div key={o.id} className="g56-row">
+                  <span>#{o.queue_number || o.id} · {o.status} · {o.guest_name || ''}</span>
+                  <label>{c.tr('disposition')}
+                    <select value={dispFor(o).disposition} onChange={(e) => setDisp(o, { disposition: e.target.value })}>
+                      {CLOSURE_DISPOSITIONS.map((d) => <option key={d} value={d}>{c.tr(`disp.${d}`)}</option>)}
+                    </select>
+                  </label>
+                  <span className="g56-muted">{c.tr('suggested')}: {c.tr(`disp.${defaultDisp(o)}`)}</span>
+                  <label>{c.tr('dispositionNote')}<input value={dispFor(o).note} maxLength={1000} onChange={(e) => setDisp(o, { note: e.target.value })} /></label>
+                </div>
+              ))}
+              <label>{c.tr('customerNotice')}<textarea value={notice} rows={3} maxLength={2000} onChange={(e) => setNotice(e.target.value)} /></label>
+              <p className="g56-muted">{c.tr('customerNoticeHint')}</p>
+            </>
+          )}
+          <button type="submit" disabled={c.busy || (openOrders.length > 0 && (!notice.trim() || !allDispositioned))} data-track="ui.f17c022f60.25">{c.tr('closeNow')}</button>
         </form>
       )}
+    </div>
+  );
+}
+
+function PackageLabelSection({ restaurantId }) {
+  const [orderId, setOrderId] = useState('');
+  const [loadedId, setLoadedId] = useState('');
+  const t = useBizG56(loadedId ? `/restaurants/${restaurantId}/shift/orders/${loadedId}/label` : null, 'ops');
+  const load = async (e) => {
+    e.preventDefault();
+    if (!orderId.trim()) return;
+    setLoadedId(orderId.trim());
+  };
+  return (
+    <div>
+      <h4>{t.tr('packageLabel')}</h4>
+      <Notice p={t} />
+      <form onSubmit={load} className="g56-row" data-track="ui.f17c022f60.30">
+        <label>{t.tr('orderId')}<input inputMode="numeric" value={orderId} onChange={(e) => setOrderId(e.target.value)} dir="ltr" /></label>
+        <button type="submit" disabled={t.busy || !orderId.trim()} data-track="ui.f17c022f60.36">{t.tr('labelLoad')}</button>
+      </form>
+      {t.data && (
+        <div className="g56-print-area">
+          <p><strong>{t.data.restaurant || ''}</strong> · #{t.data.queue_number || t.data.order_id}</p>
+          <p>{t.tr('pickupCode')}: <strong dir="ltr">{t.data.pickup_code || '—'}</strong></p>
+          <p>{t.data.customer || ''} · {t.data.fulfillment_type}{t.data.table_label ? ` · ${t.data.table_label}` : ''}</p>
+          {t.data.scheduled_for && <p>{t.tr('labelScheduled')}: {t.time(t.data.scheduled_for)}</p>}
+          <ul className="g56-list">{t.data.items.map((item, i) => (
+            <li key={i}>{item.quantity}× {item.name}{item.note ? ` · ${item.note}` : ''}{item.allergens?.length > 0 ? ` · ${item.allergens.join(', ')}` : ''}</li>
+          ))}</ul>
+          {t.data.allergens?.length > 0 && <p>{t.data.allergens.join(', ')}</p>}
+          <button type="button" onClick={() => window.print()} data-track="ui.f17c022f60.31">{t.tr('printLabel')}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DriverArrivalsSection({ restaurantId, locationId }) {
+  const a = useBizG56(locationId ? `/restaurants/${restaurantId}/shift/driver-arrivals?location_id=${locationId}` : null, 'ops');
+  if (!a.data) return a.errorText ? <p className="g56-error">{a.errorText}</p> : null;
+  return (
+    <div>
+      <h4>{a.tr('driverArrivals')}</h4>
+      <Notice p={a} />
+      {a.data.drivers.length === 0 ? <p>{a.common('empty')}</p> : (
+        <table className="g56-table">
+          <thead><tr><th scope="col">{a.tr('driverName')}</th><th scope="col">{a.tr('orders')}</th><th scope="col">{a.common('status')}</th><th scope="col">{a.tr('etaMinutes')}</th><th scope="col">{a.tr('distance')}</th><th scope="col">{a.tr('arrived')}</th></tr></thead>
+          <tbody>{a.data.drivers.map((d) => (
+            <tr key={d.id}>
+              <td>{d.driver_name || '—'}</td>
+              <td>{d.order_reference}{d.queue_number ? ` · #${d.queue_number}` : ''}</td>
+              <td>{d.status}{d.order_status ? ` · ${d.order_status}` : ''}</td>
+              <td>{d.eta_minutes ?? '—'}</td>
+              <td>{d.distance_m != null ? `${d.distance_m} m` : '—'}</td>
+              <td>{d.arrived ? a.tr('arrived') : a.tr('notArrived')}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function KitchenTicketsSection({ base, restaurantId, locationId }) {
+  const [station, setStation] = useState('');
+  const [detailId, setDetailId] = useState('');
+  const q = station ? `&station=${encodeURIComponent(station)}` : '';
+  const k = useBizG56(locationId ? `${base}/tickets?location_id=${locationId}${q}` : null, 'ops');
+  const d = useBizG56(detailId ? `/restaurants/${restaurantId}/shift/orders/${detailId}/ticket` : null, 'ops');
+  const tickets = k.data?.tickets || [];
+  const printVisible = async () => {
+    if (!tickets.length) return;
+    await k.send('post', `/restaurants/${restaurantId}/shift/print-batch`, { order_ids: tickets.map((t) => Number(t.id)) });
+  };
+  const packDone = (t) => (t.pack_checklist ? Object.values(t.pack_checklist).filter((v) => v?.done).length : 0);
+  return (
+    <div>
+      <h4>{k.tr('kitchenTickets')}</h4>
+      <Notice p={k} />
+      <form onSubmit={(e) => e.preventDefault()} className="g56-row" data-track="ui.f17c022f60.32">
+        <label>{k.tr('stationFilter')}
+          <select value={station} onChange={(e) => setStation(e.target.value)}>
+            <option value="">{k.tr('allStations')}</option>
+            <option value="unassigned">{k.tr('unassignedStation')}</option>
+            {(k.data?.stations || []).map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+          </select>
+        </label>
+        <button type="button" disabled={k.busy || !tickets.length} onClick={printVisible} data-track="ui.f17c022f60.33">{k.tr('batchPrintVisible')}</button>
+      </form>
+      {!k.data ? (k.errorText && <p className="g56-error">{k.errorText}</p>) : tickets.length === 0 ? <p>{k.common('empty')}</p> : (
+        <table className="g56-table">
+          <thead><tr><th scope="col">{k.tr('orders')}</th><th scope="col">{k.common('status')}</th><th scope="col">{k.tr('ticketOwner')}</th><th scope="col">{k.tr('ticketItems')}</th><th scope="col">{k.tr('packProgress')}</th><th scope="col"><span className="g56-sr">{k.tr('ticketDetail')}</span></th></tr></thead>
+          <tbody>{tickets.map((t) => (
+            <tr key={t.id}>
+              <td>#{t.queue_number || t.id}{t.scheduled_for ? ` · ${k.time(t.scheduled_for)}` : ''}</td>
+              <td>{t.status} · {t.fulfillment_type}</td>
+              <td>{t.owner_name || '—'}</td>
+              <td>{t.items.map((i) => `${i.quantity}× ${i.name}${i.station_label ? ` (${i.station_label})` : ''}`).join(', ')}</td>
+              <td>{packDone(t)}/5</td>
+              <td><button type="button" disabled={k.busy} onClick={() => setDetailId(detailId === String(t.id) ? '' : String(t.id))} data-track="ui.f17c022f60.34">{k.tr('ticketDetail')}</button></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
+      {detailId && d.data && (
+        <div>
+          <p className="g56-muted">{d.tr('ticketDetail')}: #{d.data.order_id}</p>
+          {Array.isArray(d.data.pack_checklist) && d.data.pack_checklist.length > 0 && (
+            <ul className="g56-list">{d.data.pack_checklist.map((item) => (
+              <li key={item.key}>{d.t(`bizG56.shift.packItem.${item.key}`)} · {item.done ? d.tr('ready') : d.tr('notReady')}</li>
+            ))}</ul>
+          )}
+          {d.data.handoffs?.length > 0 && <ul className="g56-list">{d.data.handoffs.map((h) => <li key={h.id}>{h.kind} · {h.note || ''} · {d.time(h.created_at)}</li>)}</ul>}
+        </div>
+      )}
+      {detailId && d.errorText && <p className="g56-error">{d.errorText}</p>}
     </div>
   );
 }
