@@ -46981,7 +46981,8 @@
         "handoverMissing": "Aucune passation envoyée aujourd’hui"
       },
       "eosNotes": "Notes pour votre responsable",
-      "saveReview": "Enregistrer le bilan"
+      "saveReview": "Enregistrer le bilan",
+      "roster": "Équipe"
     },
     "job": {
       "title": "Détails de l’intervention",

@@ -93,6 +93,19 @@ describeDb('Groups 5-6: team member jobs and crews', () => {
       await pool.query('DELETE FROM business_appointments WHERE id = $1', [stalled]);
     }
   });
+  test('266: roster carries roles and member types and includes the caller', async () => {
+    await pool.query("UPDATE business_members SET member_type='subcontractor' WHERE business_id=$1 AND member_id=$2", [bizId, manager]);
+    try {
+      const r = (await request(app).get(`${B()}/work/teammates`).set(as(employee)).expect(200)).body;
+      const byId = Object.fromEntries(r.teammates.map((m) => [m.id, m]));
+      expect(byId[owner]).toMatchObject({ role: 'owner' });
+      expect(byId[manager]).toMatchObject({ role: 'manager', member_type: 'subcontractor' });
+      expect(byId[employee]).toMatchObject({ role: 'employee' });
+      expect(byId[employee].name).toBeTruthy();
+    } finally {
+      await pool.query("UPDATE business_members SET member_type='staff' WHERE business_id=$1 AND member_id=$2", [bizId, manager]);
+    }
+  });
   test('265, 286-290: exceptions route, are idempotent, cannot be self-resolved, and escalate when overdue', async () => {
     const a = await mk(employee, 5);
     const send = { kind: 'missing_instruction', category: 'access_code', description: 'No gate code given', appointment_id: a, request_id: 'r-1' };

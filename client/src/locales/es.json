@@ -46981,7 +46981,8 @@
         "handoverMissing": "No enviaste entrega hoy"
       },
       "eosNotes": "Notas para tu gerente",
-      "saveReview": "Guardar revisión"
+      "saveReview": "Guardar revisión",
+      "roster": "Equipo de trabajo"
     },
     "job": {
       "title": "Detalles del trabajo",

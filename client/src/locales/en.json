@@ -46981,7 +46981,8 @@
         "handoverMissing": "No handover sent today"
       },
       "eosNotes": "Notes for your manager",
-      "saveReview": "Save review"
+      "saveReview": "Save review",
+      "roster": "Crew roster"
     },
     "job": {
       "title": "Job details",

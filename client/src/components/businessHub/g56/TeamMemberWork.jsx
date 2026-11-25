@@ -188,6 +188,21 @@ function Day({ businessId }) {
   );
 }
 
+function Roster({ businessId }) {
+  const p = useBizG56(`/businesses/${businessId}/work/teammates`, 'work');
+  if (!p.data) return null;
+  return (
+    <section className="g56-panel">
+      <h3>{p.tr('roster')}</h3>
+      <ul className="g56-list">{(p.data.teammates || []).map(m => {
+        const key = `bizG56.work.role.${m.role}`;
+        const label = p.t(key);
+        return (<li key={m.id}>{m.name} — {label === key ? m.role : label}{m.member_type === 'subcontractor' ? ` (${p.tr('subcontractor')})` : ''}</li>);
+      })}</ul>
+    </section>
+  );
+}
+
 export default function TeamMemberWork({ businessId, role }) {
   const [open, setOpen] = useState(null);
   if (!businessId) return null;
@@ -199,6 +214,7 @@ export default function TeamMemberWork({ businessId, role }) {
       <Board businessId={businessId} onOpen={setOpen} />
       <Queue businessId={businessId} />
       <Day businessId={businessId} />
+      <Roster businessId={businessId} />
       <TeamMemberSchedule businessId={businessId} role={role} />
     </div>
   );

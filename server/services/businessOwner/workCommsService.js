@@ -195,9 +195,18 @@ async function cancelCoverage(businessId, userId, requestId) {
 
 // Teammates a member can hand work to (active staff, never contact details).
 async function teammates(businessId, userId) {
+  // D-463 (266, G5-42): the roster carries each teammate's role and
+  // member type, and includes the caller themself. The owner has no
+  // membership row, so their role resolves to 'owner'; members without a
+  // member_type resolve to 'staff'. Callers of this list that offer
+  // @mentions still reject mentioning oneself server-side (274, Batch C).
   const { STAFF_SQL } = require('./teamCommon');
-  const { rows } = await pool.query(`SELECT u.id, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS name FROM (${STAFF_SQL}) s JOIN users u ON u.id=s.user_id
-    WHERE u.id <> $2 ORDER BY u.first_name, u.last_name LIMIT 500`, [businessId, userId]);
+  const { rows } = await pool.query(`SELECT u.id, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS name,
+      CASE WHEN u.id = (SELECT user_id FROM businesses WHERE id=$1) THEN 'owner' ELSE COALESCE(bm.role, 'representative') END AS role,
+      COALESCE(bm.member_type, 'staff') AS member_type
+    FROM (${STAFF_SQL}) s JOIN users u ON u.id=s.user_id
+    LEFT JOIN business_members bm ON bm.business_id=$1 AND bm.member_id=u.id AND bm.status='active'
+    ORDER BY u.first_name, u.last_name LIMIT 500`, [businessId]);
   return { teammates: rows };
 }
 
