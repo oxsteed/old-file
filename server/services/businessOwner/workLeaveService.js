@@ -102,6 +102,21 @@ async function taskHistory(businessId, userId, ctx, taskId) {
 // 293: a member proposes a stand-in for an absence; on acceptance, open tasks
 // due in the window move to the delegate. Visits are listed for a manager to
 // reassign (a delegate is not auto-dispatched to customers).
+// Shared by respondDelegation and time-off approval (293): accepting a
+// delegation moves the absent member's open team tasks due inside the
+// window to the delegate and lists the visits a manager must reassign.
+// The window is half-open [startsAt, endsAtExclusive): endsAt is the last
+// day off, so tasks due on that day move too.
+async function applyAcceptedDelegation(db, { businessId, userId, delegateId, actorId, startsAt, endsAt }) {
+  if (!(await isStaff(db, businessId, userId))) fail(409, 'member_inactive');
+  const endsExclusive = new Date(new Date(endsAt).getTime() + 864e5).toISOString();
+  const { rows: tasks } = await db.query("SELECT id FROM business_team_tasks WHERE business_id=$1 AND assignee_id=$2 AND status='open' AND due_at < $3", [businessId, userId, endsExclusive]);
+  let moved = 0;
+  if (tasks.length) moved = await moveTasks(db, businessId, actorId, userId, delegateId, tasks.map(t => String(t.id)), 'absence_delegation');
+  const { rows: visits } = await db.query(`SELECT id FROM business_appointments WHERE business_id=$1 AND staff_id=$2 AND status = ANY($5::text[])
+    AND start_time < $4 AND end_time > $3`, [businessId, userId, startsAt, endsExclusive, OPEN_STATUSES]);
+  return { moved, visits: visits.map(v => v.id) };
+}
 async function delegations(businessId, userId) {
   const { rows } = await pool.query(`SELECT d.*, TRIM(CONCAT(u.first_name,' ',u.last_name)) AS user_name, TRIM(CONCAT(g.first_name,' ',g.last_name)) AS delegate_name
     FROM business_absence_delegations d LEFT JOIN users u ON u.id=d.user_id LEFT JOIN users g ON g.id=d.delegate_id
@@ -133,11 +148,9 @@ async function respondDelegation(businessId, userId, delegationId, body) {
     if (body.response === 'cancel' ? !['proposed', 'accepted'].includes(d.status) : d.status !== 'proposed') fail(409, 'invalid_transition');
     let moved = 0, visits = [];
     if (body.response === 'accept') {
-      if (!(await isStaff(db, businessId, d.user_id))) fail(409, 'member_inactive');
-      const { rows: tasks } = await db.query("SELECT id FROM business_team_tasks WHERE business_id=$1 AND assignee_id=$2 AND status='open' AND due_at < $3", [businessId, d.user_id, d.ends_at]);
-      if (tasks.length) moved = await moveTasks(db, businessId, userId, d.user_id, d.delegate_id, tasks.map(t => String(t.id)), 'absence_delegation');
-      ({ rows: visits } = await db.query(`SELECT id FROM business_appointments WHERE business_id=$1 AND staff_id=$2 AND status = ANY($5::text[])
-        AND start_time < $4 AND end_time > $3`, [businessId, d.user_id, d.starts_at, d.ends_at, OPEN_STATUSES]));
+      const applied = await applyAcceptedDelegation(db, { businessId, userId: d.user_id, delegateId: d.delegate_id, actorId: userId, startsAt: d.starts_at, endsAt: d.ends_at });
+      moved = applied.moved;
+      visits = applied.visits.map(id => ({ id }));
     }
     const status = { accept: 'accepted', decline: 'declined', cancel: 'cancelled' }[body.response];
     const { rows: [r] } = await db.query('UPDATE business_absence_delegations SET status=$2, responded_at=NOW(), moved_count=moved_count+$3, skipped_count=$4 WHERE id=$1 RETURNING *',
@@ -231,5 +244,5 @@ async function leave(businessId, userId, body) {
   return { left: true, redirect: '/dashboard', work_moved_to: out.to, former_workplaces: '/api/me/former-workplaces' };
 }
 
-module.exports = { handovers, createHandover, acknowledgeHandover, replaceTaskOwner, transferUnfinished, taskHistory, delegations, proposeDelegation, respondDelegation,
+module.exports = { handovers, createHandover, acknowledgeHandover, replaceTaskOwner, transferUnfinished, taskHistory, delegations, proposeDelegation, respondDelegation, applyAcceptedDelegation,
   endOfShift, saveEndOfShift, leavePreview, leave };

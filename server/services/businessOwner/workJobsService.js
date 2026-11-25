@@ -195,6 +195,7 @@ async function updateException(businessId, userId, ctx, exceptionId, body) {
   const id = int(exceptionId, { min: 1, field: 'exception' });
   if (!['acknowledged', 'resolved', 'dismissed'].includes(body?.status)) invalid('status');
   const resolution = text(body.resolution, 1000, { required: body.status !== 'acknowledged' });
+  const reassignTo = body?.reassign_to_user_id ? uuid(body.reassign_to_user_id, 'reassign_to_user_id') : null;
   const row = await withTransaction(pool, async db => {
     const { rows: [e] } = await db.query('SELECT * FROM business_work_exceptions WHERE id=$1 AND business_id=$2 FOR UPDATE', [id, businessId]);
     if (!e) fail(404, 'not_found');
@@ -202,13 +203,35 @@ async function updateException(businessId, userId, ctx, exceptionId, body) {
     if (String(e.raised_by) === String(userId) && body.status !== 'acknowledged') fail(403, 'self_review');
     if (body.expectedVersion != null && Number(body.expectedVersion) !== e.version) fail(409, 'conflict');
     if (['resolved', 'dismissed'].includes(e.status)) fail(409, 'invalid_transition');
+    // 292 (G5-21): resolving a reassignment request applies the move.
+    // A task-linked request moves the team's own task to the chosen
+    // member in this transaction (assignee change + task event trail +
+    // notice to the new assignee). An appointment-linked request has
+    // no target applied here: appointments reassign through the
+    // calendar path, which enforces the service-assignment and
+    // window-free guards — a target on such a request is a 400, and
+    // resolving without one closes the request as before.
+    let reassignedTo = null;
+    if (body.status === 'resolved' && e.kind === 'reassignment_request') {
+      if (e.appointment_id && reassignTo) fail(400, 'appointment_reassign_use_calendar');
+      if (e.task_id && reassignTo) {
+        const { rows: [t] } = await db.query("SELECT id, assignee_id FROM business_team_tasks WHERE id=$1 AND business_id=$2 AND status='open' FOR UPDATE", [e.task_id, businessId]);
+        if (!t) fail(404, 'not_found');
+        if (String(t.assignee_id) === String(reassignTo)) invalid('reassign_to_user_id');
+        if (!(await isStaff(db, businessId, reassignTo))) invalid('reassign_to_user_id');
+        await db.query('UPDATE business_team_tasks SET assignee_id=$2, version=version+1 WHERE id=$1', [t.id, reassignTo]);
+        await db.query('INSERT INTO business_team_task_events(task_id,business_id,from_user_id,to_user_id,actor_id,reason) VALUES($1,$2,$3,$4,$5,$6)', [t.id, businessId, t.assignee_id, reassignTo, userId, resolution]);
+        reassignedTo = reassignTo;
+      }
+    }
     const { rows: [r] } = await db.query(`UPDATE business_work_exceptions SET status=$2, version=version+1, updated_at=NOW(),
         acknowledged_by=COALESCE(acknowledged_by,$3), acknowledged_at=COALESCE(acknowledged_at,NOW()),
         resolved_by=CASE WHEN $2 IN ('resolved','dismissed') THEN $3::uuid END, resolved_at=CASE WHEN $2 IN ('resolved','dismissed') THEN NOW() END,
         resolution=COALESCE($4, resolution) WHERE id=$1 RETURNING *`, [e.id, body.status, userId, resolution]);
-    return r;
+    return { ...r, reassigned_to: reassignedTo };
   }, 'business_exception_update');
   await notify(row.raised_by, 'business_work_exception_updated', { businessId }, `exc-upd:${row.id}:${row.version}`, myWorkUrl(businessId));
+  if (row.reassigned_to) await notify(row.reassigned_to, 'business_task_assigned_to_you', { businessId }, `task-move:${row.task_id}:${row.reassigned_to}`, myWorkUrl(businessId));
   return row;
 }
 // 289: the person who raised it can push an overdue item one level up (to the owner).

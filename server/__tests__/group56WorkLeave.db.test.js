@@ -67,6 +67,26 @@ describeDb('Groups 5-6: team member continuity and leave', () => {
     const { rows: [moved] } = await pool.query('SELECT assignee_id FROM business_team_tasks WHERE id=$1', [t]);
     expect(moved.assignee_id).toBe(other);
   });
+  test('292: resolving a task reassignment request moves the task; appointment requests resolve without moving', async () => {
+    const t = await task(employee);
+    const e = (await request(app).post(`${B()}/work/exceptions`).set(as(employee)).send({ kind: 'reassignment_request', category: 'workload', description: 'Too much on this week', request_id: `rr-${Date.now()}`, task_id: String(t) }).expect(201)).body;
+    // Resolving without a target closes the request and moves nothing.
+    const closed = (await request(app).patch(`${B()}/work/exceptions/${e.id}`).set(as(manager)).send({ status: 'resolved', resolution: 'Handled elsewhere', expectedVersion: e.version }).expect(200)).body;
+    expect(closed).toMatchObject({ status: 'resolved', reassigned_to: null });
+    expect((await pool.query('SELECT assignee_id FROM business_team_tasks WHERE id=$1', [t])).rows[0].assignee_id).toBe(employee);
+    // A second request resolved with a target moves the task and trails an event row.
+    const e2 = (await request(app).post(`${B()}/work/exceptions`).set(as(employee)).send({ kind: 'reassignment_request', category: 'workload', description: 'Still too much', request_id: `rr2-${Date.now()}`, task_id: String(t) }).expect(201)).body;
+    const done = (await request(app).patch(`${B()}/work/exceptions/${e2.id}`).set(as(manager)).send({ status: 'resolved', resolution: 'Moved to cover', reassign_to_user_id: other, expectedVersion: e2.version }).expect(200)).body;
+    expect(done.reassigned_to).toBe(other);
+    expect((await pool.query('SELECT assignee_id FROM business_team_tasks WHERE id=$1', [t])).rows[0].assignee_id).toBe(other);
+    expect((await pool.query('SELECT 1 FROM business_team_task_events WHERE task_id=$1 AND to_user_id=$2', [t, other])).rows.length).toBeGreaterThan(0);
+    // Appointment-linked: a target is refused (calendar path owns it); resolving bare closes it.
+    const a = await mk(employee, 50);
+    const e3 = (await request(app).post(`${B()}/work/exceptions`).set(as(employee)).send({ kind: 'reassignment_request', category: 'schedule', description: 'Cannot make this visit', request_id: `rr3-${Date.now()}`, appointment_id: String(a) }).expect(201)).body;
+    await request(app).patch(`${B()}/work/exceptions/${e3.id}`).set(as(manager)).send({ status: 'resolved', resolution: 'Use the calendar', reassign_to_user_id: other, expectedVersion: e3.version }).expect(400);
+    const bare = (await request(app).patch(`${B()}/work/exceptions/${e3.id}`).set(as(manager)).send({ status: 'resolved', resolution: 'Use the calendar', expectedVersion: e3.version }).expect(200)).body;
+    expect(bare).toMatchObject({ status: 'resolved', reassigned_to: null });
+  });
   test('295: end-of-shift review lists unresolved work and saves once per day', async () => {
     const a = await mk(employee, 0.01);
     await pool.query("UPDATE business_appointments SET status='in_progress' WHERE id=$1", [a]);
