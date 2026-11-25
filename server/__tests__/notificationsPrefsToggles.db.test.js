@@ -435,6 +435,9 @@ ddescribe('Track C preference toggles (DB)', () => {
         // negotiation service; the seven types are the only ones its
         // callers pass.
         { file: 'services/helperQuoteNegotiation.js', name: 'type', expansions: ['helper_quote_received', 'helper_quote_revised', 'helper_quote_counter_proposed', 'helper_quote_counter_accepted', 'helper_quote_counter_declined', 'helper_quote_accepted', 'helper_quote_declined'] },
+        // Group 5 item 265: notifySafe fan-out in the job exception
+        // service; the two types are the only ones its callers pass.
+        { file: 'services/jobExceptionService.js', name: 'type', expansions: ['job_exception_raised', 'job_exception_updated'] },
         // Group 2: household notifyHousehold fan-out; the four types are
         // the only ones its callers pass.
         { file: 'services/householdDelegationService.js', name: 'type', expansions: ['household_delegate_invite', 'household_delegation_update', 'household_spending_request', 'household_visit_update'] },
