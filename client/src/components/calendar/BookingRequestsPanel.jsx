@@ -246,7 +246,10 @@ export default function BookingRequestsPanel({ compact = true, onBookingConfirme
                 key={booking.id}
                 booking={booking}
                 acting={null}
-                onTransfer={() => handleTransferBooking(booking.id)}
+                // G5-2: transfer follows the manager gate, not the read gate.
+                // The server 403s a non-manager member; hide the action too,
+                // like Confirm/Decline are hidden when canRespond is false.
+                onTransfer={booking.canRespond === false ? undefined : () => handleTransferBooking(booking.id)}
                 rescheduleProposal={booking.pendingRescheduleProposal || null}
                 currentUserId={user?.id}
                 onRescheduleDone={loadBookingRequests}

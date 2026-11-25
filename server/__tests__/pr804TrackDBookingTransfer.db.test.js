@@ -263,6 +263,65 @@ ddescribe('G-37 provider transfer + offboarding reassignment', () => {
     expect(notAccepted.payload.error).toMatch(/Only accepted bookings/);
   });
 
+  test('G5-2: transfer requires the manager gate — a plain member 403s, a manager transfers', async () => {
+    const owner = await makeUser('customer');
+    const manager = await makeUser('helper', { onboardingCompleted: true });
+    const plainMember = await makeUser('helper', { onboardingCompleted: true });
+    await grantHelperOfferServices(manager);
+    await grantHelperOfferServices(plainMember);
+    const { rows: [business] } = await pool.query(
+      'INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id',
+      [owner, 'G52 Plumbing'],
+    );
+    await pool.query(
+      `INSERT INTO business_services (business_id, name, base_price_cents, is_active)
+       VALUES ($1, 'Fix the sink', 5000, TRUE)`,
+      [business.id],
+    );
+    for (const [memberId, role] of [[manager, 'manager'], [plainMember, 'employee']]) {
+      await pool.query(
+        `INSERT INTO business_members (business_id, owner_id, member_id, invite_email, role, status)
+         VALUES ($1, $2, $3, $4, $5, 'active')`,
+        [business.id, owner, memberId, `g52-${memberId.slice(0, 8)}@example.invalid`, role],
+      );
+    }
+
+    const created = await createBooking({ helperId: manager, businessId: business.id });
+    expect(created.statusCode).toBe(201);
+    const bookingId = created.payload.data.id;
+    expect((await acceptBooking(bookingId, manager)).statusCode).toBe(200);
+
+    // A plain active member is a provider for reading, but not a manager:
+    // they must not move a confirmed, deposit-backed booking.
+    const forbidden = mockRes();
+    await bookingController.transferBookingRequest({
+      user: { id: plainMember, first_name: 'Test', last_name: 'Member' },
+      params: { bookingId },
+      body: { newHelperId: plainMember, reason: 'Take it myself' },
+    }, forbidden);
+    expect(forbidden.statusCode).toBe(403);
+
+    // The current provider (a manager here) can transfer to another member.
+    const moved = mockRes();
+    await bookingController.transferBookingRequest({
+      user: { id: manager, first_name: 'Test', last_name: 'Manager' },
+      params: { bookingId },
+      body: { newHelperId: plainMember, reason: 'Reassign to crew' },
+    }, moved);
+    expect(moved.statusCode).toBe(200);
+    expect((await bookingRow(bookingId)).helper_id).toBe(plainMember);
+
+    // A manager who is no longer the provider still passes the manager gate.
+    const byManager = mockRes();
+    await bookingController.transferBookingRequest({
+      user: { id: manager, first_name: 'Test', last_name: 'Manager' },
+      params: { bookingId },
+      body: { newHelperId: owner, reason: 'Back to owner' },
+    }, byManager);
+    expect(byManager.statusCode).toBe(200);
+    expect((await bookingRow(bookingId)).helper_id).toBe(owner);
+  });
+
   test('G-37: offboarding reassigns business bookings + appointments to the owner, not personal bookings', async () => {
     const owner = await makeUser('customer');
     const departing = await makeUser('helper', { onboardingCompleted: true });

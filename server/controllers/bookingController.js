@@ -1330,7 +1330,11 @@ exports.helperCancelAcceptedBooking = async (req, res) => {
  * provider). The linked two-party conversation moves with it so the new
  * provider sees the thread and the old one loses it.
  *
- * The caller must be the current provider. The new provider must be
+ * G5-2: the caller must pass the manager gate (isBookingManagerForBooking),
+ * the same gate as accept/decline — the current provider, the business
+ * owner, a manager, or a member holding bookings.manage. The previous
+ * read-level gate (isProviderForBooking) let any active member transfer a
+ * confirmed, deposit-backed booking. The new provider must be
  * eligible: for a business booking, an owner/active member of that
  * business; for a helper-owned booking, an activated helper holding
  * helper.offer_services (grant in enforce mode, legacy role otherwise).
@@ -1351,8 +1355,8 @@ exports.transferBookingRequest = async (req, res) => {
     if (!booking) {
       return sendError(res, 404, 'Booking request not found');
     }
-    if (!(await bookingLifecycle.isProviderForBooking(actorId, booking))) {
-      return sendError(res, 403, 'Only the provider can transfer this booking', 'forbidden');
+    if (!(await bookingLifecycle.isBookingManagerForBooking(actorId, booking))) {
+      return sendError(res, 403, 'Only the provider or a business manager can transfer this booking', 'forbidden');
     }
     if (booking.status !== 'accepted') {
       return sendError(res, 400, 'Only accepted bookings can be transferred');
