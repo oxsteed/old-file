@@ -24444,6 +24444,22 @@
       "loadFailed": "تعذر تحميل ملف تعريف هذا العقار.",
       "sent": "تم إرسال طلب الصيانة.",
       "sendFailed": "تعذر إرسال طلب الصيانة."
+    },
+    "myRequests": {
+      "title": "طلباتي",
+      "empty": "ليس لديك أي طلبات صيانة لهذا النشاط التجاري بعد.",
+      "viewEntry": "اختيار نافذة الدخول",
+      "hideEntry": "إخفاء نوافذ الدخول"
+    },
+    "entryWindows": {
+      "title": "نوافذ الدخول",
+      "empty": "لم يتم عرض أي نوافذ دخول بعد.",
+      "notified": "تم إشعارك",
+      "selected": "النافذة المحددة",
+      "select": "اختيار هذه النافذة",
+      "noEntry": "لا يوجد سجل دخول بعد.",
+      "consent": "إذن الدخول",
+      "saved": "تم اختيار النافذة."
     }
   },
   "franchiseIntakePage": {
@@ -47391,7 +47407,21 @@
       "createSchedule": "إنشاء جدولة",
       "bookOccurrence": "حجز",
       "sendBudgetAlerts": "إرسال تنبيهات الميزانية",
-      "unitSpend": "إنفاق الوحدات"
+      "unitSpend": "إنفاق الوحدات",
+      "ownerApprovals": "موافقات المالك",
+      "approvalNote": "ملاحظة القرار",
+      "auditTrail": "سجل التدقيق",
+      "showTrail": "إظهار السجل",
+      "hideTrail": "إخفاء السجل",
+      "decidedApprovals": "الموافقات المحسومة",
+      "requestedAt": "طُلب في",
+      "decidedAt": "حُسم في",
+      "ownerIncidents": "ملخص حوادث المالك",
+      "assignee": "المكلَّف",
+      "unassigned": "غير مكلَّف",
+      "uncategorised": "بلا فئة",
+      "sharedAt": "شُارك في",
+      "assigneeUserId": "معرّف المستخدم المكلَّف"
     },
     "ops": {
       "title": "وحدة تحكم العمليات",

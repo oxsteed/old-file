@@ -28,3 +28,14 @@ export const convertMaintenanceRequestToJob = (requestId) =>
 
 export const getMaintenanceRequest = (requestId) =>
   api.get(`/maintenance-requests/${requestId}`).then((r) => r.data);
+
+// 323 (D-434): the signed-in occupant's own requests, with the entry-window
+// picker. The server scopes both calls to the requester; a stranger gets 404.
+export const listMyMaintenanceRequests = () =>
+  api.get('/maintenance-requests/my').then((r) => r.data?.requests || []);
+
+export const getOccupantEntry = (requestId) =>
+  api.get(`/me/property/entry/${requestId}`).then((r) => r.data);
+
+export const selectEntryWindow = (requestId, start) =>
+  api.post(`/me/property/entry/${requestId}/window`, { start }).then((r) => r.data);

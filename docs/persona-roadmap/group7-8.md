@@ -22,13 +22,13 @@ Status: EXISTS = shipped before this batch (evidence given); PARTIAL = extended 
 | 314 | Duplicate request linking | BUILD | P-C intake | done — PropertyConsolePanel |
 | 315 | Urgency triage | EXISTS | `urgency` emergency/urgent/normal/low + `sla_target_at` + workflow_stage triage | verified |
 | 316 | Spending approval thresholds | BUILD | P-D approvals/vendors/work orders | done — PropertyConsolePanel |
-| 317 | Owner approval inbox | BUILD | P-D approvals/vendors/work orders | server done; UI pending |
+| 317 | Owner approval inbox | BUILD | P-D approvals/vendors/work orders | done — PropertyConsolePanel (OwnerApprovalsSection, D-433) |
 | 318 | Multi-quote comparison | BUILD | P-D approvals/vendors/work orders | done — PropertyConsolePanel |
 | 319 | Approved vendor directory | BUILD | P-D approvals/vendors/work orders | done — PropertyConsolePanel |
 | 320 | Work order issuance | BUILD | P-D approvals/vendors/work orders | done — PropertyConsolePanel |
 | 321 | Entry consent record | BUILD | P-E entry | done — PropertyConsolePanel |
 | 322 | Occupant notification | BUILD | P-E entry | done — PropertyConsolePanel |
-| 323 | Access window selection | BUILD | P-E entry | server done; UI partial — manager leg (offer windows) in console; occupant selection on /api/me/property/* has no UI yet |
+| 323 | Access window selection | BUILD | P-E entry | done — occupant picker on MaintenanceRequestPage (MyRequestsSection, D-434); manager leg in console unchanged |
 | 324 | Key handover tracking | BUILD | P-E entry | done — PropertyConsolePanel |
 | 325 | Visit instruction expiry | BUILD | P-E entry | done — PropertyConsolePanel |
 | 326 | Inspection calendar | PARTIAL | P-F prevention — `property_compliance_records.due_date`; add calendar across schedules | done — PropertyConsolePanel |
@@ -50,7 +50,7 @@ Status: EXISTS = shipped before this batch (evidence given); PARTIAL = extended 
 | 342 | Temporary relocation note | BUILD | P-I incidents | done — PropertyConsolePanel |
 | 343 | Follow-up inspection | BUILD | P-I incidents | done — PropertyConsolePanel |
 | 344 | Case evidence folder | BUILD | P-I incidents | done — PropertyConsolePanel |
-| 345 | Owner incident summary | BUILD | P-I incidents | server done; UI pending |
+| 345 | Owner incident summary | BUILD | P-I incidents | done — PropertyConsolePanel (OwnerIncidentsSection, D-435) |
 | 346 | Portfolio handover export | BUILD | P-J transfer | done — PropertyConsolePanel |
 | 347 | Property reassignment | BUILD | P-J transfer | done — PropertyConsolePanel |
 | 348 | Vendor contact handoff | BUILD | P-J transfer | done — PropertyConsolePanel |
@@ -172,4 +172,4 @@ Server for 301-450 is done and tested. All five steps landed:
 4. DONE (this commit): client panels `PropertyConsolePanel.jsx`, `RestaurantOpsPanel.jsx`, `ShiftPanel.jsx` using `useBizG56`; 332 new `bizG56` copy keys synced to all 20 locales; growth coverage 1; `verify:i18n` and locale shard loaders green. Decision D-256.
 5. Remaining: update PR #809 body and `gh pr checks 809` until green. Do not merge.
 
-Open UI gaps (server done, no client surface yet): 317 owner approval inbox, 323 occupant window selection (manager leg done), 345 owner incident summary (all three live on `/api/me/property/*`), 356 menu CSV import, 394 open-order disposition at emergency closure (server pauses immediately; per-order disposition + customer notice before pause is NOT enforced server-side), 416 package label, 418 driver arrivals, 431 station queue filter, 450 access recovery.
+Open UI gaps (server done, no client surface yet): 356 menu CSV import, 394 open-order disposition at emergency closure (server pauses immediately; per-order disposition + customer notice before pause is NOT enforced server-side), 416 package label, 418 driver arrivals, 431 station queue filter, 450 access recovery. Closed by the gaps batch (D-433..D-435): 317 owner approval inbox, 323 occupant window selection, 345 owner incident summary.

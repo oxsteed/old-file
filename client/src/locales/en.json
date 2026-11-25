@@ -24433,6 +24433,22 @@
       "loadFailed": "Could not load this property profile.",
       "sent": "Maintenance request sent.",
       "sendFailed": "Could not send maintenance request."
+    },
+    "myRequests": {
+      "title": "My requests",
+      "empty": "You have no maintenance requests for this business yet.",
+      "viewEntry": "Choose entry window",
+      "hideEntry": "Hide entry windows"
+    },
+    "entryWindows": {
+      "title": "Entry windows",
+      "empty": "No entry windows have been offered yet.",
+      "notified": "You were notified",
+      "selected": "Selected window",
+      "select": "Select this window",
+      "noEntry": "No entry record yet.",
+      "consent": "Permission to enter",
+      "saved": "Window selected."
     }
   },
   "franchiseIntakePage": {
@@ -47277,7 +47293,21 @@
       "createSchedule": "Create schedule",
       "bookOccurrence": "Book",
       "sendBudgetAlerts": "Send budget alerts",
-      "unitSpend": "Unit spending"
+      "unitSpend": "Unit spending",
+      "ownerApprovals": "Owner approvals",
+      "approvalNote": "Decision note",
+      "auditTrail": "Audit trail",
+      "showTrail": "Show history",
+      "hideTrail": "Hide history",
+      "decidedApprovals": "Decided approvals",
+      "requestedAt": "Requested",
+      "decidedAt": "Decided",
+      "ownerIncidents": "Owner incident summary",
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "uncategorised": "Uncategorised",
+      "sharedAt": "Shared",
+      "assigneeUserId": "Assignee user ID"
     },
     "ops": {
       "title": "Operations console",

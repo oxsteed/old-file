@@ -24433,6 +24433,22 @@
       "loadFailed": "Pa t kapab chaje pwofil pwopriyete sa a.",
       "sent": "Demann antretyen an voye.",
       "sendFailed": "Pa t kapab voye demann antretyen an."
+    },
+    "myRequests": {
+      "title": "Demann mwen yo",
+      "empty": "Ou poko gen okenn demann antretyen pou biznis sa a.",
+      "viewEntry": "Chwazi fenèt antre",
+      "hideEntry": "Kache fenèt antre yo"
+    },
+    "entryWindows": {
+      "title": "Fenèt antre",
+      "empty": "Yo poko ofri okenn fenèt antre.",
+      "notified": "Yo te avèti ou",
+      "selected": "Fenèt yo chwazi a",
+      "select": "Chwazi fenèt sa a",
+      "noEntry": "Poko gen okenn dosye antre.",
+      "consent": "Pèmisyon pou antre",
+      "saved": "Yo chwazi fenèt la."
     }
   },
   "franchiseIntakePage": {
@@ -47277,7 +47293,21 @@
       "createSchedule": "Kreye orè",
       "bookOccurrence": "Rezève",
       "sendBudgetAlerts": "Voye alèt bidjè",
-      "unitSpend": "Depans pa inite"
+      "unitSpend": "Depans pa inite",
+      "ownerApprovals": "Apwobasyon pwopriyetè",
+      "approvalNote": "Nòt desizyon",
+      "auditTrail": "Istwa odit",
+      "showTrail": "Montre istwa",
+      "hideTrail": "Kache istwa",
+      "decidedApprovals": "Apwobasyon yo deside",
+      "requestedAt": "Yo te mande l",
+      "decidedAt": "Yo te deside l",
+      "ownerIncidents": "Rezime ensidan pwopriyetè",
+      "assignee": "Moun yo asiyen l",
+      "unassigned": "Pa asiyen",
+      "uncategorised": "San kategori",
+      "sharedAt": "Yo te pataje l",
+      "assigneeUserId": "ID itilizatè yo asiyen l"
     },
     "ops": {
       "title": "Konsòl operasyon",

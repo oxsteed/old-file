@@ -51,6 +51,8 @@ export default function PropertyConsolePanel({ businessId }) {
       <UpkeepSection base={base} />
       <VendorsSection base={base} />
       <WorkOrdersSection base={base} />
+      <OwnerApprovalsSection />
+      <OwnerIncidentsSection />
     </section>
   );
 }
@@ -457,14 +459,17 @@ function RequestDetail({ base, requestId, onClose }) {
 
 function IncidentsSection({ base, propertyId, p }) {
   const i = useBizG56(`${base}/p/${propertyId}/incidents`, 'properties');
-  const [form, setForm] = useState({ title: '', severity: 'major', relocation_note: '' });
+  const [form, setForm] = useState({ title: '', severity: 'major', relocation_note: '', category: '', assigned_to: '' });
   const [evForm, setEvForm] = useState({ incident_id: '', url: '', label: '', kind: 'photo' });
   const [fuForm, setFuForm] = useState({ incident_id: '', follow_up_on: '' });
   const create = async (ev) => {
     ev.preventDefault();
     if (!form.title.trim()) return;
-    const created = await i.send('post', `${base}/p/${propertyId}/incidents`, { title: form.title.trim(), severity: form.severity, relocation_note: form.relocation_note.trim() || undefined });
-    if (created) setForm({ title: '', severity: 'major', relocation_note: '' });
+    const created = await i.send('post', `${base}/p/${propertyId}/incidents`, {
+      title: form.title.trim(), severity: form.severity, relocation_note: form.relocation_note.trim() || undefined,
+      category: form.category.trim() || undefined, assigned_to: form.assigned_to.trim() || undefined,
+    });
+    if (created) setForm({ title: '', severity: 'major', relocation_note: '', category: '', assigned_to: '' });
   };
   const addEvidence = async (ev) => {
     ev.preventDefault();
@@ -484,11 +489,13 @@ function IncidentsSection({ base, propertyId, p }) {
       <h4>{i.tr('incidentsTitle')}</h4>
       <Notice p={i} />
       {i.data.incidents.length === 0 ? <p>{i.common('empty')}</p> : (
-        <ul className="g56-list">{i.data.incidents.map((row) => <li key={row.id}>{row.title} · {row.severity} · {row.status}{row.unit_label ? ` · ${row.unit_label}` : ''}{row.follow_up_overdue ? ` · ${i.tr('overdue')}` : ''}</li>)}</ul>
+        <ul className="g56-list">{i.data.incidents.map((row) => <li key={row.id}>{row.title} · {row.severity} · {row.status} · {row.category || i.tr('uncategorised')} · {row.assignee_name || i.tr('unassigned')}{row.unit_label ? ` · ${row.unit_label}` : ''}{row.follow_up_overdue ? ` · ${i.tr('overdue')}` : ''}</li>)}</ul>
       )}
       <form onSubmit={create} className="g56-row" data-track="ui.e96cf59a5b.30">
         <label>{i.common('title')}<input value={form.title} maxLength={160} onChange={(ev) => setForm({ ...form, title: ev.target.value })} /></label>
         <label>{i.tr('severity')}<select value={form.severity} onChange={(ev) => setForm({ ...form, severity: ev.target.value })}>{SEVERITIES.map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
+        <label>{i.tr('category')}<input value={form.category} maxLength={80} onChange={(ev) => setForm({ ...form, category: ev.target.value })} /></label>
+        <label>{i.tr('assigneeUserId')}<input value={form.assigned_to} onChange={(ev) => setForm({ ...form, assigned_to: ev.target.value })} dir="ltr" /></label>
         <label>{i.common('notes')}<input value={form.relocation_note} maxLength={2000} onChange={(ev) => setForm({ ...form, relocation_note: ev.target.value })} /></label>
         <button type="submit" disabled={i.busy || !form.title.trim()} data-track="ui.e96cf59a5b.31">{i.tr('createIncident')}</button>
       </form>
@@ -809,6 +816,130 @@ function WorkOrdersSection({ base }) {
 }
 
 const SCHEDULE_KINDS = ['inspection', 'equipment', 'seasonal', 'vendor'];
+
+function OwnerApprovalsSection() {
+  // 317 (D-433): owner approval inbox. User-scoped: the server lists only
+  // requests this caller must approve, plus their recently decided ones.
+  const p = useBizG56('/me/property/approvals', 'properties');
+  const money = useMoney();
+  const [note, setNote] = useState('');
+  const [trailId, setTrailId] = useState(null);
+  if (!p.data) return p.errorText ? <p className="g56-error">{p.errorText}</p> : null;
+  const decide = async (id, decision) => {
+    const out = await p.send('post', `/me/property/approvals/${id}`, { decision, note: note.trim() || undefined });
+    if (out) { setNote(''); setTrailId(null); }
+  };
+  const approvals = p.data.approvals || [];
+  const decided = p.data.decided || [];
+  return (
+    <div>
+      <h3>{p.tr('ownerApprovals')}</h3>
+      <Notice p={p} />
+      {approvals.length === 0 ? <p>{p.common('empty')}</p> : (
+        <>
+          <form onSubmit={(ev) => ev.preventDefault()} className="g56-row" data-track="ui.e96cf59a5b.72">
+            <label>{p.tr('approvalNote')}<input value={note} maxLength={1000} onChange={(ev) => setNote(ev.target.value)} /></label>
+          </form>
+          <table className="g56-table">
+            <thead><tr><th scope="col">{p.tr('label')}</th><th scope="col">{p.common('title')}</th><th scope="col">{p.common('amount')}</th><th scope="col">{p.tr('urgency')}</th><th scope="col">{p.tr('unitLabel')}</th><th scope="col">{p.tr('requestedAt')}</th><th scope="col"><span className="g56-sr">{p.tr('auditTrail')}</span></th></tr></thead>
+            <tbody>{approvals.map((row) => (
+              <tr key={row.id}>
+                <td>{row.property}</td><td>{row.title}{row.approval_note ? ` · ${row.approval_note}` : ''}</td>
+                <td>{money(row.approval_amount_cents)}</td><td>{row.urgency}</td><td>{row.unit_label || '—'}</td>
+                <td>{p.time(row.approval_requested_at)}</td>
+                <td>
+                  <button type="button" disabled={p.busy} onClick={() => decide(row.id, 'approved')} data-track="ui.e96cf59a5b.68">{p.common('approve')}</button>
+                  {' '}
+                  <button type="button" disabled={p.busy} onClick={() => decide(row.id, 'declined')} data-track="ui.e96cf59a5b.69">{p.common('decline')}</button>
+                  {' '}
+                  <button type="button" onClick={() => setTrailId(trailId === String(row.id) ? null : String(row.id))} data-track="ui.e96cf59a5b.70">{trailId === String(row.id) ? p.tr('hideTrail') : p.tr('showTrail')}</button>
+                  {trailId === String(row.id) && <ApprovalTrail requestId={String(row.id)} />}
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </>
+      )}
+      {decided.length > 0 && (
+        <>
+          <h4>{p.tr('decidedApprovals')}</h4>
+          <table className="g56-table">
+            <thead><tr><th scope="col">{p.tr('label')}</th><th scope="col">{p.common('title')}</th><th scope="col">{p.common('amount')}</th><th scope="col">{p.common('status')}</th><th scope="col">{p.tr('decidedAt')}</th><th scope="col"><span className="g56-sr">{p.tr('auditTrail')}</span></th></tr></thead>
+            <tbody>{decided.map((row) => (
+              <tr key={row.id}>
+                <td>{row.property}</td><td>{row.title}</td><td>{money(row.approval_amount_cents)}</td>
+                <td>{row.approval_status}{row.decided_by ? ` · ${row.decided_by}` : ''}</td>
+                <td>{p.time(row.approval_decided_at)}</td>
+                <td>
+                  <button type="button" onClick={() => setTrailId(trailId === String(row.id) ? null : String(row.id))} data-track="ui.e96cf59a5b.71">{trailId === String(row.id) ? p.tr('hideTrail') : p.tr('showTrail')}</button>
+                  {trailId === String(row.id) && <ApprovalTrail requestId={String(row.id)} />}
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ApprovalTrail({ requestId }) {
+  const p = useBizG56(`/me/property/approvals/${requestId}/events`, 'properties');
+  if (!p.data) return p.errorText ? <p className="g56-error">{p.errorText}</p> : null;
+  if (p.data.events.length === 0) return <p>{p.common('empty')}</p>;
+  return (
+    <ul className="g56-list">
+      {p.data.events.map((ev) => (
+        <li key={ev.id}>{ev.event_type} · {ev.actor_name || '—'} · {p.time(ev.created_at)}{ev.note ? ` · ${ev.note}` : ''}</li>
+      ))}
+    </ul>
+  );
+}
+
+function OwnerIncidentsSection() {
+  // 345 (D-435): owner incident summary. Server returns only incidents
+  // shared with this owner; the UI groups them by property.
+  const p = useBizG56('/me/property/incidents', 'properties');
+  if (!p.data) return p.errorText ? <p className="g56-error">{p.errorText}</p> : null;
+  if (p.data.incidents.length === 0) {
+    return (
+      <div>
+        <h3>{p.tr('ownerIncidents')}</h3>
+        <p>{p.common('empty')}</p>
+      </div>
+    );
+  }
+  const groups = [];
+  for (const row of p.data.incidents) {
+    const g = groups.find((x) => x.property === row.property);
+    if (g) g.rows.push(row);
+    else groups.push({ property: row.property, business: row.business_name, rows: [row] });
+  }
+  return (
+    <div>
+      <h3>{p.tr('ownerIncidents')}</h3>
+      {groups.map((g) => (
+        <div key={g.property}>
+          <h4>{g.property}{g.business ? ` · ${g.business}` : ''}</h4>
+          <table className="g56-table">
+            <thead><tr><th scope="col">{p.common('title')}</th><th scope="col">{p.tr('category')}</th><th scope="col">{p.tr('assignee')}</th><th scope="col">{p.tr('severity')}</th><th scope="col">{p.common('status')}</th><th scope="col">{p.tr('followUpOn')}</th><th scope="col">{p.tr('sharedAt')}</th></tr></thead>
+            <tbody>{g.rows.map((row) => (
+              <tr key={row.id}>
+                <td>{row.title}{row.owner_summary ? ` · ${row.owner_summary}` : ''}</td>
+                <td>{row.category || p.tr('uncategorised')}</td>
+                <td>{row.assignee_name || p.tr('unassigned')}</td>
+                <td>{row.severity}</td>
+                <td>{row.status}</td>
+                <td>{row.follow_up_on ? String(row.follow_up_on).slice(0, 10) : '—'}</td>
+                <td>{p.time(row.owner_shared_at)}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function UnitSpendSection({ base, propertyId, p }) {
   const u = useBizG56(`${base}/p/${propertyId}/unit-spend`, 'properties');

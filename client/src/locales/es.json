@@ -24433,6 +24433,22 @@
       "loadFailed": "No se pudo cargar este perfil de propiedad.",
       "sent": "Solicitud de mantenimiento enviada.",
       "sendFailed": "No se pudo enviar la solicitud de mantenimiento."
+    },
+    "myRequests": {
+      "title": "Mis solicitudes",
+      "empty": "Aún no tienes solicitudes de mantenimiento para este negocio.",
+      "viewEntry": "Elegir ventana de entrada",
+      "hideEntry": "Ocultar ventanas de entrada"
+    },
+    "entryWindows": {
+      "title": "Ventanas de entrada",
+      "empty": "Aún no se han ofrecido ventanas de entrada.",
+      "notified": "Se te notificó",
+      "selected": "Ventana seleccionada",
+      "select": "Seleccionar esta ventana",
+      "noEntry": "Aún no hay registro de entrada.",
+      "consent": "Permiso de entrada",
+      "saved": "Ventana seleccionada."
     }
   },
   "franchiseIntakePage": {
@@ -47277,7 +47293,21 @@
       "createSchedule": "Crear programa",
       "bookOccurrence": "Reservar",
       "sendBudgetAlerts": "Enviar alertas de presupuesto",
-      "unitSpend": "Gasto por unidad"
+      "unitSpend": "Gasto por unidad",
+      "ownerApprovals": "Aprobaciones del propietario",
+      "approvalNote": "Nota de decisión",
+      "auditTrail": "Historial de auditoría",
+      "showTrail": "Mostrar historial",
+      "hideTrail": "Ocultar historial",
+      "decidedApprovals": "Aprobaciones decididas",
+      "requestedAt": "Solicitado",
+      "decidedAt": "Decidido",
+      "ownerIncidents": "Resumen de incidentes del propietario",
+      "assignee": "Asignado a",
+      "unassigned": "Sin asignar",
+      "uncategorised": "Sin categoría",
+      "sharedAt": "Compartido",
+      "assigneeUserId": "ID de usuario asignado"
     },
     "ops": {
       "title": "Consola de operaciones",
