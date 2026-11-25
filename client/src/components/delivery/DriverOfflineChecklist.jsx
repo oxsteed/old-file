@@ -38,7 +38,7 @@ function entryStateKey(state) {
   return state === 'synced' ? 'synced' : state === 'failed' ? 'failed' : state === 'syncing' ? 'syncing' : 'queued';
 }
 
-export default function DriverOfflineChecklist({ job, stops = [], executors, onChanged }) {
+export default function DriverOfflineChecklist({ job, stops = [], itemPhotos = [], executors, onChanged }) {
   const { t } = useTranslation();
   const jobId = job?.id;
   const [entries, setEntries] = useState([]);
@@ -55,6 +55,9 @@ export default function DriverOfflineChecklist({ job, stops = [], executors, onC
   const [recipientContact, setRecipientContact] = useState('');
   const [proofConfirmed, setProofConfirmed] = useState(false);
   const [proofFile, setProofFile] = useState(null);
+  // Group 9 partials Wave 2 Batch N (468, D-542): the customer photos
+  // for the condition acknowledgment, passed down from the detail page.
+  const pickupPhotos = (itemPhotos || []).filter((photo) => photo.url);
 
   const refreshEntries = useCallback(() => {
     if (!jobId) return;
@@ -96,8 +99,17 @@ export default function DriverOfflineChecklist({ job, stops = [], executors, onC
     }
   }, [jobId, onChanged, proofFile, refreshEntries, t]);
 
+  // Group 9 partials Wave 2 Batch N (467, G9-A5, D-541): the count
+  // starts blank and must be typed. A blank or out-of-range count
+  // never queues a pickup action: queuing the booked count would
+  // flush later as a rubber-stamp confirmation. The server 400s
+  // without a typed count too, but the queue must never hold one.
   const handlePickup = () => {
-    const pieces = Number(pickupPieces === '' ? job.pieces : pickupPieces);
+    const pieces = Number(pickupPieces);
+    if (!Number.isInteger(pieces) || pieces < 1 || pieces > 9999) {
+      setError(t('delivery.detail.pickupPiecesRequired'));
+      return;
+    }
     const payload = {
       status: 'picked_up',
       pickupConfirmedPieces: pieces,
@@ -208,9 +220,22 @@ export default function DriverOfflineChecklist({ job, stops = [], executors, onC
         <fieldset className="delivery-form-fields" disabled={busy}>
           <h3>{t('delivery.offline.pickupTitle')}</h3>
           <label className="delivery-field">{t('delivery.detail.pickupPieces')}
-            <input className="delivery-input" type="number" min="1" max="9999" value={pickupPieces === '' ? (job.pieces ?? 1) : pickupPieces} onChange={(event) => setPickupPieces(event.target.value)} />
+            <input className="delivery-input" type="number" min="1" max="9999" inputMode="numeric" value={pickupPieces} onChange={(event) => setPickupPieces(event.target.value)} />
           </label>
-          <label><input type="checkbox" checked={conditionAck} onChange={(event) => setConditionAck(event.target.checked)} data-track="ui.53919f0dd7.1" /> {t('delivery.detail.pickupCondition')}</label>
+          {/* Group 9 partials Wave 2 Batch N (468, D-542): the same
+            photos-or-no-photos statement as the detail-page form, so
+            the driver is never asserting blind from this surface. */}
+          {pickupPhotos.length ? (
+            <div className="delivery-item-photos">
+              <p>{t('delivery.detail.pickupConditionPhotos')}</p>
+              <div className="delivery-item-photos__grid">
+                {pickupPhotos.map((photo) => (
+                  <img key={photo.id} src={photo.url} alt={t('delivery.detail.itemPhoto')} />
+                ))}
+              </div>
+            </div>
+          ) : <p>{t('delivery.detail.pickupConditionNoPhotos')}</p>}
+          <label><input type="checkbox" checked={conditionAck} onChange={(event) => setConditionAck(event.target.checked)} data-track="ui.53919f0dd7.1" /> {pickupPhotos.length ? t('delivery.detail.pickupCondition') : t('delivery.detail.pickupConditionSelfChecked')}</label>
           <label className="delivery-field">{t('delivery.detail.pickupConditionNote')}
             <input className="delivery-input" value={conditionNote} onChange={(event) => setConditionNote(event.target.value)} maxLength={500} />
           </label>

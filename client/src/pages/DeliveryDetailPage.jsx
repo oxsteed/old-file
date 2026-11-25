@@ -262,6 +262,11 @@ export default function DeliveryDetailPage() {
   </div></PageShell>;
 
   const { activity = [], proofs = [], extras = [], issues = [], payments = [], rescheduleRequests = [], returns = [], itemPhotos = [] } = data;
+  // Group 9 partials Wave 2 Batch N (467/468, G9-A5, D-542): the
+  // customer photos the driver checks the items against before
+  // acknowledging the condition, shown inside the pickup form as
+  // well as in the photos section below it.
+  const pickupPhotos = itemPhotos.filter((photo) => photo.url);
   // Group 9 Slice C (items 462/463): the stop sequence and the current
   // window warnings, both from the detail read.
   const stops = data.stops || [];
@@ -362,11 +367,28 @@ export default function DeliveryDetailPage() {
           {/* Group 9 Slice D (items 467/468): pickup is a confirmation
             step, not a bare button. The driver confirms the collected
             piece count and acknowledges the item condition before the
-            pickup can complete; the server 400s without either. */}
-          {isAssigned && nextStatus === 'picked_up' && <form onSubmit={(event) => { event.preventDefault(); act(async () => { await updateDeliveryStatus(id, 'picked_up', { pickupConfirmedPieces: Number(pickupPieces === '' ? job.pieces : pickupPieces), conditionAcknowledged: conditionAck, conditionNote }); setPickupPieces(''); setConditionAck(false); setConditionNote(''); }, 'delivery.ui.saved', 'delivery.errors.status'); }} data-track="ui.4c1e141977.28"><fieldset className="delivery-form-fields" disabled={busy}>
+            pickup can complete; the server 400s without either.
+            Group 9 partials Wave 2 Batch N (467/468, G9-A5, D-541):
+            the count starts blank and the driver must type it. A blank
+            or out-of-range count never sends a request, so the booked
+            count can no longer slip through as the confirmation.
+            Batch N (468, D-542): the customer photos render inside the
+            form when present; when none exist the form says so, and the
+            checkbox covers the driver's own inspection instead. */}
+          {isAssigned && nextStatus === 'picked_up' && <form onSubmit={(event) => { event.preventDefault(); const confirmedPieces = Number(pickupPieces); if (!Number.isInteger(confirmedPieces) || confirmedPieces < 1 || confirmedPieces > 9999) { setError(t('delivery.detail.pickupPiecesRequired')); return; } act(async () => { await updateDeliveryStatus(id, 'picked_up', { pickupConfirmedPieces: confirmedPieces, conditionAcknowledged: conditionAck, conditionNote }); setPickupPieces(''); setConditionAck(false); setConditionNote(''); }, 'delivery.ui.saved', 'delivery.errors.status'); }} data-track="ui.4c1e141977.28"><fieldset className="delivery-form-fields" disabled={busy}>
             <h3>{t('delivery.detail.pickupConfirmTitle')}</h3><p>{t('delivery.detail.pickupPiecesHint')}</p>
-            <label className="delivery-field">{t('delivery.detail.pickupPieces')}<input className="delivery-input" type="number" min="1" max="9999" required value={pickupPieces === '' ? (job.pieces ?? 1) : pickupPieces} onChange={(event) => setPickupPieces(event.target.value)} /></label>
-            <label><input type="checkbox" checked={conditionAck} onChange={(event) => setConditionAck(event.target.checked)} required data-track="ui.4c1e141977.29" /> {t('delivery.detail.pickupCondition')}</label>
+            <label className="delivery-field">{t('delivery.detail.pickupPieces')}<input className="delivery-input" type="number" min="1" max="9999" inputMode="numeric" required value={pickupPieces} onChange={(event) => setPickupPieces(event.target.value)} /></label>
+            {pickupPhotos.length ? (
+              <div className="delivery-item-photos">
+                <p>{t('delivery.detail.pickupConditionPhotos')}</p>
+                <div className="delivery-item-photos__grid">
+                  {pickupPhotos.map((photo) => (
+                    <img key={photo.id} src={photo.url} alt={t('delivery.detail.itemPhoto')} />
+                  ))}
+                </div>
+              </div>
+            ) : <p>{t('delivery.detail.pickupConditionNoPhotos')}</p>}
+            <label><input type="checkbox" checked={conditionAck} onChange={(event) => setConditionAck(event.target.checked)} required data-track="ui.4c1e141977.29" /> {pickupPhotos.length ? t('delivery.detail.pickupCondition') : t('delivery.detail.pickupConditionSelfChecked')}</label>
             <label className="delivery-field">{t('delivery.detail.pickupConditionNote')}<input className="delivery-input" value={conditionNote} onChange={(event) => setConditionNote(event.target.value)} maxLength={500} /></label>
             <button className="delivery-button delivery-button--primary" data-track="ui.4c1e141977.30">{t('delivery.helper.moveTo', { status: label('helper.status', nextStatus) })}</button>
           </fieldset></form>}
@@ -411,7 +433,7 @@ export default function DeliveryDetailPage() {
         with its queued-action outbox, and the explicit connection
         recovery flow, for the assigned driver on an active job. */}
       {isAssigned && active && <DriverConnectionRecovery job={job} executors={outboxExecutors} onResync={load} />}
-      {isAssigned && active && <DriverOfflineChecklist job={job} stops={stops} executors={outboxExecutors} onChanged={load} />}
+      {isAssigned && active && <DriverOfflineChecklist job={job} stops={stops} itemPhotos={itemPhotos} executors={outboxExecutors} onChanged={load} />}
       {isAssigned && (
         <section className="delivery-panel">
           <Link to="/delivery/payouts">{t('delivery.driverPayoutHistory.viewHistory')}</Link>

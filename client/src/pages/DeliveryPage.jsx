@@ -155,7 +155,18 @@ function DeliveryCard({ job, helper, onClaim, onDecline, onStatus, busyId, t }) 
             {job.my_decline ? t('delivery.driver.declineChange') : t('delivery.driver.decline')}
           </button>
         )}
-        {canUpdate && nextStatus && (
+        {/* Group 9 partials Wave 2 Batch N (467/468, G9-A4, D-540):
+          the picked_up move needs the package-count confirmation and
+          the condition acknowledgment, which the card cannot collect:
+          the bare button 400d every time. The card links to the
+          detail page, where the confirmation form lives, instead. */}
+        {canUpdate && nextStatus === 'picked_up' && (
+          <Link className="delivery-button delivery-button--primary" to={`/delivery/jobs/${job.id}`} data-track="ui.2f5c44f3da.4">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            {t('delivery.detail.pickupConfirmTitle')}
+          </Link>
+        )}
+        {canUpdate && nextStatus && nextStatus !== 'picked_up' && (
             <button type="button" className="delivery-button delivery-button--primary" onClick={() => onStatus(job.id, nextStatus)} disabled={isBusy} data-track="ui.2f5c44f3da.4">
             {isBusy ? <Loader2 size={16} className="delivery-spin" aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
             {t('delivery.helper.moveTo', { status: statusLabel(nextStatus, t) })}

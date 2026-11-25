@@ -299,6 +299,11 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     serviceAreaRequired: ['delivery_service_area_required'],
     offline: ['delivery_driver_offline'],
     claimTooFar: ['delivery_claim_too_far'],
+    // Group 9 partials Wave 2 Batch N (467/468, G9-A4, D-540): the
+    // inbox card no longer offers a bare picked_up move, but any
+    // caller that still hits the confirmation 400 gets pointed at
+    // the detail page instead of the generic status error.
+    pickupConfirmationRequired: ['delivery_pickup_confirmation_required'],
     // Group 9 Slice G (item 498): the driver's job access expired
     // 7 days after the job reached a terminal state (D-90).
     accessExpired: ['delivery_access_expired'],
