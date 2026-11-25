@@ -358,15 +358,19 @@ exports.listBusinessRequests = async (req, res, next) => {
        LEFT JOIN users ah ON ah.id = r.assigned_helper_id
        LEFT JOIN properties p ON p.id = r.property_id
        ${where}
+       -- 315 (Batch G, D-499): triage order. Open work first, then urgency,
+       -- then the SLA deadline (earliest first), then newest. The old
+       -- status-then-created_at order buried an emergency behind routine
+       -- rows that happened to be newer.
        ORDER BY
-         CASE r.status
-           WHEN 'reported' THEN 1
-           WHEN 'accepted' THEN 2
-           WHEN 'scheduled' THEN 3
-           WHEN 'assigned' THEN 4
-           WHEN 'in_progress' THEN 5
-           ELSE 6
+         CASE WHEN r.status IN ('completed', 'cancelled', 'rejected') THEN 1 ELSE 0 END,
+         CASE r.urgency
+           WHEN 'emergency' THEN 1
+           WHEN 'urgent' THEN 2
+           WHEN 'normal' THEN 3
+           ELSE 4
          END,
+         r.sla_target_at ASC NULLS LAST,
          r.created_at DESC
        LIMIT 100`,
       params
@@ -441,6 +445,15 @@ exports.createProperty = async (req, res, next) => {
     if (!access) throw new AppError('Business not found', 404, 'not_found');
     const label = trimString(req.body.label, 200);
     if (!label) throw new AppError('A property name is required', 400, 'validation_failed');
+    // G6-17 (Batch G, D-500): no duplicate active label in the business
+    // (case-insensitive); a typo'd near-duplicate splits the portfolio.
+    // Archived properties are exempt — a sold building's label may be
+    // re-used if the building is re-acquired.
+    const { rows: dup } = await pool.query(
+      'SELECT 1 FROM properties WHERE business_id=$1 AND archived_at IS NULL AND LOWER(label)=LOWER($2) LIMIT 1',
+      [businessId, label]
+    );
+    if (dup.length) throw new AppError('A property with this name already exists', 409, 'duplicate_property');
     const { rows: [property] } = await pool.query(
       `INSERT INTO properties
          (business_id, label, address, address_city, address_state, address_zip, address_country, created_by)
@@ -516,6 +529,17 @@ exports.updateRequest = async (req, res, next) => {
           || req.body.owner_notes !== undefined) {
         throw new AppError('Only the business team can reassign or add internal notes', 403, 'assignee_scope');
       }
+    }
+
+    // G6-1: cost fields are finance writes. A caller who cannot read finance
+    // (and is not the business owner) cannot write them either — the read
+    // path already hides costs from such callers (G-8), so a member who
+    // cannot see a cost must not be able to set one.
+    const wantsCost = req.body.estimated_cost !== undefined || req.body.estimatedCost !== undefined
+      || req.body.actual_cost !== undefined || req.body.actualCost !== undefined;
+    if (wantsCost && String(existing.business_owner_id) !== String(req.user.id)
+        && !(await canReadBusinessFinance(req.user.id, existing.business_id))) {
+      throw new AppError('Finance read is required to write costs', 403, 'finance_read_required');
     }
 
     const assignedHelperId = trimString(req.body.assigned_helper_id || req.body.assignedHelperId, 80) || existing.assigned_helper_id;
@@ -647,6 +671,11 @@ exports.convertToJob = async (req, res, next) => {
       );
       property = propRow || null;
     }
+    // Batch G: a request on an archived property must not convert using
+    // that address — the building left the portfolio, so the job must not
+    // be posted against it. Fail closed; the manager re-links the request
+    // to an active property first.
+    if (property && property.status === 'archived') throw new AppError('Property is archived', 409, 'property_archived');
 
     // Review P2-9-F10: this used to INSERT into jobs directly, skipping the
     // shared job-posting validation. Run the constructed input through the

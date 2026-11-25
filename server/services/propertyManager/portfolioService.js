@@ -48,6 +48,10 @@ function profileFields(body, partial) {
 }
 async function createProperty(businessId, user, body) {
   const f = profileFields(body || {}, false);
+  // G6-17 (Batch G, D-500): same duplicate-label guard as the legacy
+  // createProperty — no duplicate active label in the business.
+  const { rows: dup } = await pool.query('SELECT 1 FROM properties WHERE business_id=$1 AND archived_at IS NULL AND LOWER(label)=LOWER($2) LIMIT 1', [businessId, f.label]);
+  if (dup.length) fail(409, 'duplicate_property');
   const keys = Object.keys(f);
   const { rows: [p] } = await pool.query(`INSERT INTO properties(business_id, created_by, ${keys.join(',')}) VALUES($1,$2,${keys.map((_, i) => `$${i + 3}`).join(',')}) RETURNING *`, [businessId, user, ...keys.map(k => f[k])]);
   return p;
