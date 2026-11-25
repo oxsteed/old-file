@@ -159,11 +159,31 @@ describe('maintenance assignment notification', () => {
     expect(sendNotification.mock.calls[0][0].data).toMatchObject({ status: 'scheduled', title: 'Leaky faucet' });
   });
 
-  test('same-status update with a requester does not notify', async () => {
+  // 349 (Batch J): the D-507 hook now also covers tenant-visible note
+  // updates. A note-only edit notifies the requester once, keyed on the
+  // update; a same-status edit with no note change still stays silent.
+  test('same-status tenant-visible note update notifies the requester once', async () => {
     routeQueries({ requester_id: TENANT_ID, status: 'reported' });
     const res = await request(buildApp())
       .patch('/maintenance-requests/55')
       .send({ status: 'reported', tenant_visible_notes: 'Parts ordered' });
+    await flush();
+
+    expect(res.status).toBe(200);
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+    expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+      userId: TENANT_ID,
+      type: 'property_request_status',
+      action_url: '/business/9/maintenance-request',
+    }));
+    expect(sendNotification.mock.calls[0][0].idempotencyKey).toContain('property-request-note:');
+  });
+
+  test('same-status update with no note change does not notify', async () => {
+    routeQueries({ requester_id: TENANT_ID, status: 'reported' });
+    const res = await request(buildApp())
+      .patch('/maintenance-requests/55')
+      .send({ status: 'reported' });
     await flush();
 
     expect(res.status).toBe(200);

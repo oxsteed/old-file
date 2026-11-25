@@ -3361,6 +3361,11 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
       vendor_name: request.vendor_name || '',
       billable_party: request.billable_party || 'owner',
       resolution_summary: request.resolution_summary || '',
+      // Batch J (342, 347): relocation note + return date, and the
+      // property the request belongs to (re-link before conversion).
+      property_id: request.property_id || '',
+      relocation_note: request.relocation_note || '',
+      relocation_until: request.relocation_until ? String(request.relocation_until).slice(0, 10) : '',
     };
   }
 
@@ -3473,6 +3478,9 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                   <div className="bh-maint-details">
                     {request.property_name && <p><strong>{t('businessHub.maintenance.property')}:</strong> {request.property_name}</p>}
                     {request.property_label && <p><strong>{t('businessHub.rooms.property')}:</strong> {request.property_label}</p>}
+                    {request.follow_up_due_at && <p><strong>{t('businessHub.rooms.followUpDue')}:</strong> {fmtDate(request.follow_up_due_at)}</p>}
+                    {request.follow_up_done_at && <p><strong>{t('businessHub.rooms.followUpDone')}:</strong> {fmtDate(request.follow_up_done_at)}</p>}
+                    {request.relocation_note && <p><strong>{t('businessHub.rooms.relocationNote')}:</strong> {request.relocation_note}{request.relocation_until ? ` (${t('businessHub.rooms.relocationUntil')} ${fmtDate(request.relocation_until)})` : ''}</p>}
                     {request.preferred_times && <p><strong>{t('businessHub.rooms.preferredTimes')}:</strong> {request.preferred_times}</p>}
                     {request.access_notes && <p><strong>{t('businessHub.rooms.access')}:</strong> {request.access_notes}</p>}
                     {request.template_intake?.location_area && <p><strong>{t('businessHub.rooms.area')}:</strong> {request.template_intake.location_area}</p>}
@@ -3522,6 +3530,23 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
                         ))}
                       </select>
                     </label>
+                    <label>
+                      {t('businessHub.rooms.moveProperty')}
+                      <select value={draft.property_id || ''} disabled={!!request.job_id} onChange={(e) => { if (e.target.value) patchDraft(request.id, { property_id: e.target.value }); }}>
+                        <option value="">—</option>
+                        {properties.map((property) => (
+                          <option key={property.id} value={property.id}>{property.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {t('businessHub.rooms.relocationNote')}
+                      <input value={draft.relocation_note || ''} onChange={(e) => patchDraft(request.id, { relocation_note: e.target.value })} maxLength={2000} />
+                    </label>
+                    <label>
+                      {t('businessHub.rooms.relocationUntil')}
+                      <input type="date" value={draft.relocation_until || ''} onChange={(e) => patchDraft(request.id, { relocation_until: e.target.value })} />
+                    </label>
                     <label className="wide">
                       {t('businessHub.rooms.tenantVisibleUpdate')}
                       <textarea value={draft.tenant_visible_notes || ''} onChange={(e) => patchDraft(request.id, { tenant_visible_notes: e.target.value })} rows={2} placeholder={t('businessHub.rooms.tenantVisiblePlaceholder')} />
@@ -3534,6 +3559,9 @@ function MaintenanceRequestsTab({ businessId, data, currency, onRefresh, onUpdat
 
                   <div className="bh-maint-actions">
                     <button className="bh-btn primary" onClick={() => onUpdate(request.id, draft)} data-track="ui.83b215c0c9.63">{t('businessHub.rooms.saveUpdate')}</button>
+                    {request.status === 'completed' && !request.follow_up_done_at && (
+                      <button className="bh-btn" onClick={() => onUpdate(request.id, { status: request.status, follow_up_done: true })} data-track="ui.83b215c0c9.117">{t('businessHub.rooms.markFollowUpDone')}</button>
+                    )}
                     <button className="bh-btn" onClick={() => onConvert(request.id)} disabled={!!request.job_id} data-track="ui.83b215c0c9.64">
                       {request.job_id ? t('businessHub.rooms.alreadyConverted') : t('businessHub.rooms.convertToJob')}
                     </button>
