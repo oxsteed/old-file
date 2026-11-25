@@ -984,28 +984,44 @@ function UnitSpendSection({ base, propertyId, p }) {
 }
 
 function ScheduleCreateSection({ base, propertyId, units, p }) {
-  const [form, setForm] = useState({ kind: 'inspection', interval_days: '', months: '', unit_id: '' });
+  const v = useBizG56(`${base}/vendors`, 'properties');
+  const [form, setForm] = useState({ kind: 'inspection', title: '', interval_days: '', months: '', unit_id: '', equipment_name: '', vendor_id: '', next_due_on: '' });
   const create = async (ev) => {
     ev.preventDefault();
-    const body = { kind: form.kind };
+    // D-509: title and next_due_on are server-required; the old form sent
+    // neither, so every schedule create 400'd. Equipment schedules carry
+    // the equipment name; vendor schedules carry the vendor.
+    if (!form.title.trim() || !form.next_due_on) return;
+    if (form.kind === 'vendor' && !form.vendor_id) return;
+    const body = { kind: form.kind, title: form.title.trim(), next_due_on: form.next_due_on };
     if (form.interval_days !== '') body.interval_days = Number(form.interval_days);
     if (form.months.trim()) {
       const months = form.months.split(',').map((s) => Number(s.trim())).filter((n) => Number.isInteger(n) && n >= 1 && n <= 12);
       if (months.length) body.months = [...new Set(months)];
     }
     if (form.unit_id) body.unit_id = form.unit_id;
+    if (form.kind === 'equipment' && form.equipment_name.trim()) body.equipment_name = form.equipment_name.trim();
+    if (form.kind === 'vendor') body.vendor_id = form.vendor_id;
     if (body.interval_days == null && !body.months) return;
     const created = await p.send('post', `${base}/p/${propertyId}/schedules`, body);
-    if (created) setForm({ kind: 'inspection', interval_days: '', months: '', unit_id: '' });
+    if (created) setForm({ kind: 'inspection', title: '', interval_days: '', months: '', unit_id: '', equipment_name: '', vendor_id: '', next_due_on: '' });
   };
   return (
     <div>
       <h4>{p.tr('calendar')}</h4>
       <form onSubmit={create} className="g56-row" data-track="ui.e96cf59a5b.66">
         <label>{p.tr('scheduleKind')}<select value={form.kind} onChange={(ev) => setForm({ ...form, kind: ev.target.value })}>{SCHEDULE_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}</select></label>
+        <label>{p.tr('scheduleTitle')}<input value={form.title} maxLength={160} onChange={(ev) => setForm({ ...form, title: ev.target.value })} /></label>
+        <label>{p.tr('nextDueOn')}<input type="date" value={form.next_due_on} onChange={(ev) => setForm({ ...form, next_due_on: ev.target.value })} /></label>
         <label>{p.tr('intervalDays')}<input type="number" min="1" max="3660" value={form.interval_days} onChange={(ev) => setForm({ ...form, interval_days: ev.target.value })} dir="ltr" /></label>
         <label>{p.tr('months')}<input value={form.months} onChange={(ev) => setForm({ ...form, months: ev.target.value })} dir="ltr" /></label>
         <label>{p.tr('unitLabel')}<select value={form.unit_id} onChange={(ev) => setForm({ ...form, unit_id: ev.target.value })}><option value="">—</option>{units.map((u) => <option key={u.id} value={u.id}>{u.unit_label}</option>)}</select></label>
+        {form.kind === 'equipment' && (
+          <label>{p.tr('equipmentName')}<input value={form.equipment_name} maxLength={160} onChange={(ev) => setForm({ ...form, equipment_name: ev.target.value })} /></label>
+        )}
+        {form.kind === 'vendor' && (
+          <label>{p.common('vendor')}<select value={form.vendor_id} onChange={(ev) => setForm({ ...form, vendor_id: ev.target.value })}><option value="">—</option>{(v.data?.vendors || []).map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.name}</option>)}</select></label>
+        )}
         <button type="submit" disabled={p.busy} data-track="ui.e96cf59a5b.67">{p.tr('createSchedule')}</button>
       </form>
     </div>
