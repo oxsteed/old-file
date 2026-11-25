@@ -11162,6 +11162,10 @@
         "title": "New shift posted",
         "body": "{{shiftLabel}} · {{startsAt}} at {{restaurantName}}"
       },
+      "crew_shift_changed": {
+        "title": "Your shift changed",
+        "body": "{{shiftLabel}} · {{startsAt}} at {{businessName}}"
+      },
       "crew_shift_cancelled": {
         "title": "Shift cancelled",
         "body": "{{shiftLabel}} · {{startsAt}} at {{restaurantName}}"

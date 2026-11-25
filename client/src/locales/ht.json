@@ -3108,6 +3108,10 @@
         "title": "Yo pibliye yon nouvo orè",
         "body": "{{shiftLabel}} · {{startsAt}} nan {{restaurantName}}"
       },
+      "crew_shift_changed": {
+        "title": "Orè travay ou chanje",
+        "body": "{{shiftLabel}} · {{startsAt}} nan {{businessName}}"
+      },
       "crew_shift_cancelled": {
         "title": "Orè a anile",
         "body": "{{shiftLabel}} · {{startsAt}} nan {{restaurantName}}"

@@ -11162,6 +11162,10 @@
         "title": "Nuevo turno publicado",
         "body": "{{shiftLabel}} · {{startsAt}} en {{restaurantName}}"
       },
+      "crew_shift_changed": {
+        "title": "Tu turno cambió",
+        "body": "{{shiftLabel}} · {{startsAt}} en {{businessName}}"
+      },
       "crew_shift_cancelled": {
         "title": "Turno cancelado",
         "body": "{{shiftLabel}} · {{startsAt}} en {{restaurantName}}"

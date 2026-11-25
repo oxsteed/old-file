@@ -226,6 +226,7 @@ exports.updateShift = async (req, res, next) => {
     if (!row.rows.length) return res.status(404).json({ error: 'Not found' });
     // S-20: a change to a published shift is Fair Workweek evidence.
     const scheduleChange = await recordScheduleChange(req, { businessId, before: beforeRow, after: row.rows[0], changeType: 'edited' });
+    if (scheduleChange) await notifyShiftChanged(req, businessId, beforeRow, 'edited', scheduleChange.id);
     const updated = scheduleChange ? { ...row.rows[0], schedule_change: scheduleChange } : row.rows[0];
     res.json(validation?.warnings?.length ? { ...updated, warnings: validation.warnings } : updated);
   } catch (err) { next(err); }
@@ -255,6 +256,7 @@ exports.deleteShift = async (req, res, next) => {
       if (!rowCount) return res.status(404).json({ error: 'Not found' });
     }
     const scheduleChange = deleted ? await recordScheduleChange(req, { businessId, before: deleted, after: null, changeType: 'deleted' }) : null;
+    if (scheduleChange) await notifyShiftChanged(req, businessId, deleted, 'deleted', scheduleChange.id);
     res.json({ success: true, ...(scheduleChange ? { schedule_change: scheduleChange } : {}) });
   } catch (err) { next(err); }
 };
@@ -1745,6 +1747,43 @@ function shiftStartIso(shift) {
     ? shift.start_time.toISOString().slice(11, 19)
     : String(shift.start_time).slice(0, 8);
   return new Date(`${d}T${t}Z`).toISOString();
+}
+
+// G5-13 (279): a published shift that is edited or cancelled notifies
+// the affected member. The caller passes the schedule-change row, so a
+// draft edit or a no-op edit (recordScheduleChange returns null) sends
+// nothing. The actor themself is never notified; a failure is logged
+// and never fails the edit/cancel.
+async function notifyShiftChanged(req, businessId, shift, changeType, changeId) {
+  if (!shift?.user_id || String(shift.user_id) === String(req.user.id)) return;
+  const { rows: [biz] } = await pool.query(
+    'SELECT business_name FROM businesses WHERE id = $1', [businessId]
+  );
+  const label = shiftSummaryLabel([shift]);
+  await sendNotification({
+    userId: shift.user_id,
+    type: 'crew_shift_changed',
+    title: 'Your shift changed',
+    body: `Your shift at ${biz?.business_name || 'your business'} changed. ${label}.`,
+    action_url: '/business-hub',
+    data: {
+      business_id: Number(businessId),
+      shift_id: shift.id,
+      change_type: changeType,
+      params: {
+        businessName: biz?.business_name || '',
+        restaurantName: biz?.business_name || '',
+        shiftLabel: label,
+        startsAt: shiftStartIso(shift),
+        changeType,
+      },
+    },
+    idempotencyKey: `shift-changed:${businessId}:${shift.id}:${changeId}`,
+  }).catch((err) => {
+    logger.warn('Shift change: staff notification failed', {
+      businessId, userId: shift.user_id, shiftId: shift.id, error: err.message,
+    });
+  });
 }
 
 exports.publishShifts = async (req, res, next) => {

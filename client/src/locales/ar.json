@@ -11162,6 +11162,10 @@
         "title": "تم نشر وردية جديدة",
         "body": "{{shiftLabel}} · {{startsAt}} في {{restaurantName}}"
       },
+      "crew_shift_changed": {
+        "title": "تم تغيير نوبتك",
+        "body": "{{shiftLabel}} · {{startsAt}} في {{businessName}}"
+      },
       "crew_shift_cancelled": {
         "title": "تم إلغاء الوردية",
         "body": "{{shiftLabel}} · {{startsAt}} في {{restaurantName}}"

@@ -127,6 +127,9 @@ const NOTIFICATION_TYPES = [
   { type: 'helper_job_support_requested', group: 'work' },
   { type: 'crew_shift_cancelled', group: 'work' },
   { type: 'crew_shift_published', group: 'work' },
+  // G5-13 (279): a published shift that is edited or cancelled notifies
+  // the affected member; publish keeps its own type above.
+  { type: 'crew_shift_changed', group: 'work' },
   { type: 'crew_task_assigned', group: 'work' },
   { type: 'crew_task_completed', group: 'work' },
   { type: 'crew_task_reviewed', group: 'work' },

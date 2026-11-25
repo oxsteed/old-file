@@ -145,6 +145,22 @@ const staffNotifications = {
       ar: '{count} نوبة في {businessName}. الأولى: {shiftLabel}.',
     },
   },
+  // G5-13 (279): a published shift is edited or cancelled. The
+  // change type ('edited'/'deleted') rides in data.params, not the
+  // body, so all five locales keep the same placeholders.
+  crew_shift_changed: {
+    title: {
+      en: 'Your shift changed', es: 'Tu turno cambió', fr: 'Votre quart a changé',
+      ht: 'Orè travay ou chanje', ar: 'تم تغيير نوبتك',
+    },
+    body: {
+      en: 'Your shift at {businessName} changed. {shiftLabel}.',
+      es: 'Tu turno en {businessName} cambió. {shiftLabel}.',
+      fr: 'Votre quart chez {businessName} a changé. {shiftLabel}.',
+      ht: 'Orè travay ou nan {businessName} chanje. {shiftLabel}.',
+      ar: 'تم تغيير نوبتك في {businessName}. {shiftLabel}.',
+    },
+  },
   time_off_decided: {
     title: {
       en: 'Time-off request {decision}', es: 'Solicitud de tiempo libre {decision}', fr: 'Demande de congé {decision}',

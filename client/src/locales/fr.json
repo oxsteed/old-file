@@ -11162,6 +11162,10 @@
         "title": "Nouveau poste publié",
         "body": "{{shiftLabel}} · {{startsAt}} chez {{restaurantName}}"
       },
+      "crew_shift_changed": {
+        "title": "Votre quart a changé",
+        "body": "{{shiftLabel}} · {{startsAt}} chez {{businessName}}"
+      },
       "crew_shift_cancelled": {
         "title": "Poste annulé",
         "body": "{{shiftLabel}} · {{startsAt}} chez {{restaurantName}}"
