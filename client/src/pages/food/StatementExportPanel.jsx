@@ -5,7 +5,7 @@ import { previousStatementMonth, validStatementPeriod } from '../../api/creditSt
 import { requestStatementExport, getStatementExport, cancelStatementExport, retryStatementExport, getStatementExportManifest, downloadStatementExportFile, requestBulkStatementExport, downloadBulkStatementPackage, downloadAccountingExport } from '../../api/statementExports';
 import ExportHistory from '../../components/statements/ExportHistory';
 
-const TERMINAL = new Set(['complete', 'failed', 'cancelled']);
+const TERMINAL = new Set(['complete', 'failed', 'cancelled', 'expired']);
 const ACCOUNTING_FORMATS = new Set(['ofx', 'qfx', 'qbo']);
 const BULK_FORMATS = ['csv', 'pdf'];
 const BULK_MAX_ITEMS = 20;
@@ -134,6 +134,23 @@ export default function StatementExportPanel({ product, accounts = [] }) {
     catch { setError(true); } finally { setBusy(false); }
   }
 
+  // D-429: an expired export is recovered by re-issue, not resurrection.
+  // A new job is created with the same parameters and a fresh idempotency
+  // key; the expired file is never served again.
+  async function reissueExpired() {
+    if (!job || job.state !== 'expired' || busy) return;
+    setBusy(true); setError(false);
+    try {
+      const input = { product: job.product, from: job.period.from, to: job.period.to,
+        currencyCode: job.currencyCode, format: job.format, language: job.language,
+        ...(job.product === 'business' ? { businessId: job.scopeId } : {}),
+        ...(['restaurant', 'restaurant_settlement'].includes(job.product) ? { restaurantId: job.scopeId } : {}) };
+      const result = await requestStatementExport(input, crypto.randomUUID());
+      const next = new URLSearchParams(search); next.set('exportJob', result.id); setSearch(next);
+      setJob(result);
+    } catch { setError(true); } finally { setBusy(false); }
+  }
+
   async function download(file) {
     if (busy) return; setBusy(true); setError(false);
     try {
@@ -232,10 +249,11 @@ export default function StatementExportPanel({ product, accounts = [] }) {
     {isAccounting && !routeJobId && <p className="sa-muted">{accountingText('formatHelp')}</p>}
     {error && <p role="alert">{isAccounting ? accountingText('downloadError') : text('exportError')} <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t('archive.retry')}</button></p>}
     {job && <div role="status" aria-live="polite">
-      <p>{text(job.state === 'complete' ? 'exportReady' : job.state === 'failed' ? 'exportError' : job.state === 'cancelled' ? 'exportCancelled' : 'exportPending')}</p>
+      <p>{text(job.state === 'complete' ? 'exportReady' : job.state === 'failed' ? 'exportError' : job.state === 'cancelled' ? 'exportCancelled' : job.state === 'expired' ? 'exportExpired' : 'exportPending')}</p>
       {job.rowsTotal != null && <p><bdi>{job.rowsRendered} / {job.rowsTotal}</bdi> {t('archive.transactionsLabel')}</p>}
       {!TERMINAL.has(job.state) && <button type="button" disabled={busy || job.cancelRequested} onClick={() => action(cancelStatementExport)}>{text('cancelExport')}</button>}
       {job.canRetry && <button type="button" disabled={busy} onClick={() => action(retryStatementExport)}>{text('retryExport')}</button>}
+      {job.state === 'expired' && <button type="button" disabled={busy} onClick={reissueExpired}>{text('requestAgain')}</button>}
     </div>}
     {manifest && <section aria-label={text('exportFiles')}><h3>{text('exportFiles')}</h3><ul className="sa-list">
       {manifest.files.map(file => <li key={file.id}><button type="button" disabled={busy} onClick={() => download(file)}>{t('archive.download')} {file.kind.toUpperCase()} · {file.part}</button><bdi> {file.rowFrom}–{file.rowTo}</bdi></li>)}
@@ -285,7 +303,7 @@ export default function StatementExportPanel({ product, accounts = [] }) {
           <ul className="sa-list">
             {bulkJobs.map(item => <li key={item.id}>
               <span>{item.product} · {item.period?.from} – {item.period?.to} · </span>
-              <span role="status">{item.state === 'complete' ? bulkText('jobReady') : item.state === 'failed' ? bulkText('jobFailed') : bulkText('jobPending')}</span>
+              <span role="status">{item.state === 'complete' ? bulkText('jobReady') : item.state === 'failed' ? bulkText('jobFailed') : item.state === 'expired' ? bulkText('jobExpired') : bulkText('jobPending')}</span>
               {!TERMINAL.has(item.state) && <button type="button" disabled={busy || item.cancelRequested} onClick={() => bulkJobAction(item.id, cancelStatementExport)}>{text('cancelExport')}</button>}
               {item.canRetry && <button type="button" disabled={busy} onClick={() => bulkJobAction(item.id, retryStatementExport)}>{text('retryExport')}</button>}
             </li>)}

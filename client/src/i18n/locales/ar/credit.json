@@ -188,8 +188,10 @@
     "exportPending": "جارٍ إعداد التصدير.",
     "exportReady": "التصدير الكامل جاهز.",
     "exportError": "تعذر إكمال التصدير.",
+    "exportExpired": "انتهت صلاحية التصدير الخاص بك. اطلبه مجددًا للحصول على نسخة جديدة.",
     "cancelExport": "إلغاء التصدير",
     "retryExport": "إعادة محاولة التصدير",
+    "requestAgain": "اطلب مجددًا",
     "exportFiles": "ملفات التصدير"
   },
   "statements": {
@@ -494,6 +496,7 @@
       "description": "اختر الحسابات لتصديرها للفترة أعلاه، ثم نزّلها معًا.",
       "downloadPackage": "تنزيل الحزمة (ZIP)",
       "downloading": "جارٍ تحضير ZIP…",
+      "jobExpired": "منتهي الصلاحية",
       "jobFailed": "فشل",
       "jobPending": "جارٍ التحضير",
       "jobReady": "جاهز",
@@ -569,6 +572,7 @@
       "rows": "{{count}} صفوف",
       "statusCancelled": "ملغى",
       "statusComplete": "مكتمل",
+      "statusExpired": "منتهي الصلاحية",
       "statusFailed": "فشل",
       "statusFreezing": "جارٍ التحضير",
       "statusPending": "قيد الانتظار",

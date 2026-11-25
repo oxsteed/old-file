@@ -188,8 +188,10 @@
     "exportPending": "Ekspòtasyon ou an ap prepare.",
     "exportReady": "Ekspòtasyon konplè ou an pare.",
     "exportError": "Nou pa t kapab fini ekspòtasyon ou an.",
+    "exportExpired": "Ekspòtasyon ou an ekspire. Mande l ankò pou w jwenn yon nouvo kopi.",
     "cancelExport": "Anile ekspòtasyon",
     "retryExport": "Reeseye ekspòtasyon",
+    "requestAgain": "Mande ankò",
     "exportFiles": "Fichye ekspòtasyon"
   },
   "statements": {
@@ -494,6 +496,7 @@
       "description": "Chwazi kont pou ekspòte pou peryòd anwo a, apre telechaje yo ansanm.",
       "downloadPackage": "Telechaje pakè a (ZIP)",
       "downloading": "Ap prepare ZIP la…",
+      "jobExpired": "Ekspire",
       "jobFailed": "Pa reyisi",
       "jobPending": "Ap prepare",
       "jobReady": "Pare",
@@ -569,6 +572,7 @@
       "rows": "{{count}} ranje",
       "statusCancelled": "Anile",
       "statusComplete": "Fini",
+      "statusExpired": "Ekspire",
       "statusFailed": "Pa reyisi",
       "statusFreezing": "Ap prepare",
       "statusPending": "Ap tann",

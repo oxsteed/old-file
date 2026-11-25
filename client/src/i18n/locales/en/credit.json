@@ -188,8 +188,10 @@
     "exportPending": "Your export is being prepared.",
     "exportReady": "Your complete export is ready.",
     "exportError": "Your export could not be completed.",
+    "exportExpired": "Your export has expired. Request it again to get a fresh copy.",
     "cancelExport": "Cancel export",
     "retryExport": "Retry export",
+    "requestAgain": "Request again",
     "exportFiles": "Export files"
   },
   "statements": {
@@ -494,6 +496,7 @@
       "description": "Select accounts to export for the period above, then download them together.",
       "downloadPackage": "Download package (ZIP)",
       "downloading": "Preparing ZIP…",
+      "jobExpired": "Expired",
       "jobFailed": "Failed",
       "jobPending": "Preparing",
       "jobReady": "Ready",
@@ -568,6 +571,7 @@
       "rows": "{{count}} rows",
       "statusCancelled": "Cancelled",
       "statusComplete": "Complete",
+      "statusExpired": "Expired",
       "statusFailed": "Failed",
       "statusFreezing": "Preparing",
       "statusPending": "Pending",

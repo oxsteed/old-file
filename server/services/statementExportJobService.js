@@ -20,16 +20,26 @@ const LANGUAGES=new Set(['en','es','fr','ht','ar']);
 const missing=()=>{throw new AppError('Statement export not found',404,'statement_export_not_found');};
 const fail=(code,status=409)=>{throw new AppError(code,status,code);};
 const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
+// D-429: export files expire EXPORT_TTL_DAYS after the job completes.
+const EXPORT_TTL_DAYS=30;
+// An expired job is a completed job whose file TTL has passed. The database
+// keeps state 'complete'; every read path reports 'expired' instead, so no
+// worker or sweeper has to flip the row for the expiry to take effect.
+function effectiveState(row,now=new Date()) {
+  if (row.state==='complete'&&row.expires_at&&new Date(row.expires_at).getTime()<=now.getTime()) return 'expired';
+  return row.state;
+}
 
 function isoDay(value) { return value instanceof Date?value.toISOString().slice(0,10):String(value); }
 function shapeJob(row) {
+  const state=effectiveState(row);
   return {id:row.id,contract:'statement-export-job-v1',product:row.product,currencyCode:row.currency_code,
-    period:{from:isoDay(row.period_from),to:isoDay(row.period_to)},format:row.format,language:row.language,state:row.state,
-    cancelRequested:row.cancel_requested===true,attempts:row.attempts,rowsTotal:row.row_count===null?null:Number(row.row_count),
+    period:{from:isoDay(row.period_from),to:isoDay(row.period_to)},format:row.format,language:row.language,state,
+    scopeId:row.scope_id,cancelRequested:row.cancel_requested===true,attempts:row.attempts,rowsTotal:row.row_count===null?null:Number(row.row_count),
     rowsRendered:Number(row.rows_rendered),sourceFrozen:!!row.frozen_header,cutoffAt:row.frozen_at,
-    errorCode:row.error_code||null,canRetry:['failed','cancelled'].includes(row.state)&&row.attempts<BUDGET.maxAttempts,
-    manifestUrl:row.state==='complete'?`/api/statements/exports/${row.id}/manifest`:null,
-    createdAt:row.created_at,completedAt:row.completed_at};
+    errorCode:row.error_code||null,canRetry:['failed','cancelled'].includes(state)&&row.attempts<BUDGET.maxAttempts,
+    manifestUrl:state==='complete'?`/api/statements/exports/${row.id}/manifest`:null,
+    createdAt:row.created_at,completedAt:row.completed_at,expiresAt:row.expires_at||null};
 }
 
 async function authorizeScope(db,userId,product,scopeId,currency,expectedAccount) {
@@ -348,10 +358,10 @@ function createService({db=require('../db'),storage=require('../utils/statementS
       await checkpoint(job,signal,{verifyScope:true});
       const {rows:[completed]}=await db.query(
         `UPDATE statement_export_jobs SET state='complete',manifest=$4,source_hash=$5,rows_rendered=row_count,
-         lease_owner=NULL,lease_until=NULL,error_code=NULL,completed_at=now(),updated_at=now()
+         lease_owner=NULL,lease_until=NULL,error_code=NULL,completed_at=now(),expires_at=now()+($6::int*interval '1 day'),updated_at=now()
          WHERE id=$1 AND lease_owner=$2 AND fence=$3 AND lease_until>now() AND state='rendering'
          AND NOT EXISTS (SELECT 1 FROM statement_export_cancellations c WHERE c.job_id=$1) RETURNING id`,
-        [job.id,job.lease_owner,job.fence,JSON.stringify(manifest),result.sourceHash]);
+        [job.id,job.lease_owner,job.fence,JSON.stringify(manifest),result.sourceHash,EXPORT_TTL_DAYS]);
       if (!completed) fail('statement_export_lease_lost');
       return manifest;
     } catch(error) {
@@ -369,7 +379,7 @@ function createService({db=require('../db'),storage=require('../utils/statementS
   }
   async function manifest(id,userId) {
     const job=await requireJob(id,userId);
-    if (job.state!=='complete'||!job.manifest?.complete) fail('statement_export_not_ready');
+    if (effectiveState(job)!=='complete'||!job.manifest?.complete) fail('statement_export_not_ready');
     return job.manifest;
   }
   async function download(id,fileId,userId) {
@@ -396,12 +406,13 @@ function createService({db=require('../db'),storage=require('../utils/statementS
   async function deliverNotifications() {
     if (!notify) return;
     const {rows}=await db.query(`SELECT * FROM statement_export_jobs WHERE state='complete' AND notification_state='pending'
+      AND (expires_at IS NULL OR expires_at>now())
       ORDER BY completed_at,id LIMIT 20`);
     for (const job of rows) {
       const {labels}=require('./creditStatementPdf').languageCopy(job.language);
       const delivered=await notify({userId:job.requested_by,type:'statement_ready',title:labels.title,body:'',
         action_url:`/statements/exports/${job.id}`,data:{exportJobId:job.id},idempotencyKey:`statement-export:${job.id}`});
-      if (delivered?.success) await db.query(`UPDATE statement_export_jobs SET notification_state='sent' WHERE id=$1 AND state='complete'`,[job.id]);
+      if (delivered?.success) await db.query(`UPDATE statement_export_jobs SET notification_state='sent' WHERE id=$1 AND state='complete' AND (expires_at IS NULL OR expires_at>now())`,[job.id]);
     }
   }
   async function runOnce() {
@@ -428,5 +439,5 @@ function createService({db=require('../db'),storage=require('../utils/statementS
 let defaultService;
 function configure(options) {if(defaultService)throw new Error('Statement export service already configured');defaultService=createService(options);return defaultService;}
 function service() {return defaultService||(defaultService=createService());}
-module.exports={createService,configure,BUDGET,parseRequest,authorizeScope,shapeJob,
+module.exports={createService,configure,BUDGET,EXPORT_TTL_DAYS,effectiveState,parseRequest,authorizeScope,shapeJob,
   ...Object.fromEntries(['request','status','cancel','retry','manifest','download','claim','process','runOnce','start','stop'].map(name=>[name,(...args)=>service()[name](...args)]))};

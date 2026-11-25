@@ -188,8 +188,10 @@
     "exportPending": "Tu exportación se está preparando.",
     "exportReady": "Tu exportación completa está lista.",
     "exportError": "No se pudo completar la exportación.",
+    "exportExpired": "Tu exportación ha caducado. Solicítala de nuevo para obtener una copia nueva.",
     "cancelExport": "Cancelar exportación",
     "retryExport": "Reintentar exportación",
+    "requestAgain": "Solicitar de nuevo",
     "exportFiles": "Archivos de exportación"
   },
   "statements": {
@@ -494,6 +496,7 @@
       "description": "Selecciona las cuentas que quieres exportar para el período de arriba y descárgalas juntas.",
       "downloadPackage": "Descargar paquete (ZIP)",
       "downloading": "Preparando el ZIP…",
+      "jobExpired": "Caducado",
       "jobFailed": "Falló",
       "jobPending": "Preparando",
       "jobReady": "Listo",
@@ -569,6 +572,7 @@
       "rows": "{{count}} filas",
       "statusCancelled": "Cancelado",
       "statusComplete": "Completado",
+      "statusExpired": "Caducado",
       "statusFailed": "Fallido",
       "statusFreezing": "Preparando",
       "statusPending": "Pendiente",
