@@ -39,6 +39,7 @@ import HelperJobSupport from '../components/HelperJobSupport';
 import JobRescheduleProposals from '../components/JobRescheduleProposals';
 import JobHandback from '../components/JobHandback';
 import JobChangeRequests from '../components/JobChangeRequests';
+import JobExceptions from '../components/JobExceptions';
 import JobSkillEndorsements from '../components/JobSkillEndorsements';
 import JobRevisionHistory from '../components/JobRevisionHistory';
 
@@ -904,6 +905,7 @@ function JobDetailContent() {
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && ['accepted', 'in_progress', 'completed', 'closed'].includes(job.status) && <JobWorkRecord jobId={id} />}
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && <JobRescheduleProposals jobId={id} userId={user?.id} canPropose={job.status === 'accepted'} onChanged={() => fetchJob(id)} />}
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && <JobChangeRequests jobId={id} userId={user?.id} isHelper={isAssignedHelper} canWrite={['accepted', 'in_progress'].includes(job.status)} currency={job.currency_code || 'USD'} onChanged={() => fetchJob(id)} />}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && <JobExceptions jobId={id} canRaise={['accepted', 'in_progress'].includes(job.status)} />}
           {isAssignedHelper && job.status === 'accepted' && !job.arrived_at && <JobHandback jobId={id} onDone={(msg) => { toast.success(msg); navigate('/dashboard'); }} />}
           {isAssignedHelper && <HelperJobSupport jobId={id} />}
           {isOwner && job.assigned_helper_id && ['completed', 'closed'].includes(job.status) && <JobSkillEndorsements jobId={id} />}

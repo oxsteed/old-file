@@ -64,6 +64,14 @@ const businessTeamNotifications = {
     title: t('Your issue was updated', 'Tu reporte fue actualizado', 'Votre signalement a été mis à jour', 'Yo mete siyalman ou ajou', 'تم تحديث بلاغك'),
     body: t('Open My work to see the status.', 'Abre Mi trabajo para ver el estado.', 'Ouvrez Mon travail pour voir le statut.', 'Louvri Travay mwen pou wè estati a.', 'افتح عملي لرؤية الحالة.'),
   },
+  job_exception_raised: {
+    title: t('A problem was reported on your job', 'Se reportó un problema en tu trabajo', 'Un problème a été signalé sur votre intervention', 'Yo siyale yon pwoblèm sou travay ou', 'تم الإبلاغ عن مشكلة في عملك'),
+    body: t('Open the job to review it.', 'Abre el trabajo para revisarlo.', 'Ouvrez l’intervention pour l’examiner.', 'Louvri travay la pou revize l.', 'افتح العمل لمراجعته.'),
+  },
+  job_exception_updated: {
+    title: t('Your job report was updated', 'Tu reporte del trabajo fue actualizado', 'Votre signalement a été mis à jour', 'Yo mete rapò travay ou ajou', 'تم تحديث بلاغ العمل الخاص بك'),
+    body: t('Open the job to see the status.', 'Abre el trabajo para ver el estado.', 'Ouvrez l’intervention pour voir le statut.', 'Louvri travay la pou wè estati a.', 'افتح العمل لرؤية الحالة.'),
+  },
   business_crew_allocated: {
     title: t('You were added to a job crew', 'Te agregaron al equipo de un trabajo', 'Vous avez été ajouté à l’équipe d’une intervention', 'Yo ajoute w nan ekip yon travay', 'تمت إضافتك إلى فريق عمل'),
     body: t('Confirm whether you can attend in My work.', 'Confirma en Mi trabajo si puedes asistir.', 'Confirmez votre présence dans Mon travail.', 'Konfime nan Travay mwen si ou ka vini.', 'أكّد في عملي ما إذا كان بإمكانك الحضور.'),

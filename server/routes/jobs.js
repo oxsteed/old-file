@@ -20,6 +20,9 @@ const {
   cancelJob, assignHelper, startJob, markJobArrived, markJobNoShow, requestJobChanges,
   completeJob, closeJob, getMyJobs, confirmJobAttendance,
 } = require('../controllers/jobController');
+const {
+  raiseJobException, getJobExceptions, updateJobException,
+} = require('../controllers/jobExceptionController');
 
 const { getDraft, saveDraft, deleteDraft } = require('../controllers/draftController');
 
@@ -99,6 +102,10 @@ const jobHandback = require('../services/jobHandbackService');
 router.post('/:id/hand-back', authenticate, rejectImpersonated, jobEditLimiter, async (req, res, next) => { try { res.json({ handback: await jobHandback.handBack(req.user.id, req.params.id, req.body) }); } catch (e) { next(e); } });
 router.post('/:id/arrive',   authenticate, markJobArrived);
 router.post('/:id/attendance', authenticate, confirmJobAttendance);
+// G5-5 (265): job exceptions, participant-scoped and manager-routed.
+router.get('/:id/exceptions', authenticate, getJobExceptions);
+router.post('/:id/exceptions', authenticate, raiseJobException);
+router.patch('/:id/exceptions/:exceptionId', authenticate, updateJobException);
 router.post('/:id/no-show',  authenticate, markJobNoShow);
 // G-16: customer asks for changes on a completion request (rework, not a dispute).
 router.post('/:id/request-changes', authenticate, requestJobChanges);

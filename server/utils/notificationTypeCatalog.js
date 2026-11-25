@@ -388,6 +388,8 @@ const NOTIFICATION_TYPES = [
   { type: 'business_dispatch_declined', group: 'work' },
   { type: 'business_work_exception_raised', group: 'work' },
   { type: 'business_work_exception_updated', group: 'work' },
+  { type: 'job_exception_raised', group: 'work' },
+  { type: 'job_exception_updated', group: 'work' },
   { type: 'business_crew_allocated', group: 'work' },
   { type: 'business_crew_declined', group: 'work' },
   { type: 'business_team_mention', group: 'work' },
