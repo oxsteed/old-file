@@ -1789,17 +1789,39 @@ exports.listDriverPayouts = async (req, res, next) => {
       throw new AppError('Driver access required', 403, 'delivery_driver_required');
     }
     const status = text(req.query.status, 24);
+    // G9-B1 (item 492, D-524): paginate like the ops list instead of
+    // silently capping at 100 rows. The default page stays 100 (the
+    // old cap), the COUNT total lets the client page through the full
+    // filtered list, and the totals below are server-side over the
+    // full set so the earnings header stops understating past 100.
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const params = [req.user.id];
     let filter = '';
-    if (status) { params.push(status); filter = ` AND status = $2`; }
+    if (status) { params.push(status); filter = ` AND p.status = $2`; }
+    const pageParams = [...params, limit, offset];
     const { rows } = await pool.query(
       `SELECT p.*, j.reference AS job_reference, j.status AS job_status
          FROM delivery_driver_payouts p
          LEFT JOIN delivery_jobs j ON j.id = p.delivery_job_id
         WHERE p.driver_user_id = $1${filter}
         ORDER BY p.created_at DESC
-        LIMIT 100`,
+        LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
+      pageParams
+    );
+    const count = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM delivery_driver_payouts p WHERE p.driver_user_id = $1${filter}`,
       params
+    );
+    // Lifetime earnings totals over the driver's full set, ignoring
+    // the list's status filter and the page: the header is the
+    // earnings summary, not a page summary. A voided payout is
+    // neither paid nor pending, so it lands in neither bucket.
+    const { rows: [totals] } = await pool.query(
+      `SELECT COALESCE(SUM(payout_cents) FILTER (WHERE status = 'paid'), 0)::int AS paid_cents,
+              COALESCE(SUM(payout_cents) FILTER (WHERE status IN ('accrued', 'approved')), 0)::int AS pending_cents
+         FROM delivery_driver_payouts WHERE driver_user_id = $1`,
+      [req.user.id]
     );
     // Group 9 Slice F (items 493/494): the explanation for any payout
     // adjustment (what changed, why, by whom, before/after) and any
@@ -1830,6 +1852,13 @@ exports.listDriverPayouts = async (req, res, next) => {
         adjustments: adjustments.get(String(row.id)) || [],
         disputes: disputesByJob.get(String(row.delivery_job_id)) || [],
       })),
+      total: Number(count.rows[0]?.total || 0),
+      limit,
+      offset,
+      totals: {
+        paidCents: Number(totals?.paid_cents || 0),
+        pendingCents: Number(totals?.pending_cents || 0),
+      },
     });
   } catch (error) {
     next(error);

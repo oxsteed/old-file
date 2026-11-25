@@ -453,4 +453,46 @@ ddescribe('Group 9 Slice G: manage continuity (496-500)', () => {
     expect(one.next).not.toHaveBeenCalled();
     expect(one.res.payload.shift.status).toBe('closed');
   });
+
+  test('500 (G9-B2): a voided payout does not count in the shift closeout', async () => {
+    const driverId = await makeUser('helper', { defaultMode: 'helper' });
+    const customerId = await makeUser('customer');
+    await makeDriverProfile(driverId);
+
+    const started = await startShift(driverId);
+    expect(started.next).not.toHaveBeenCalled();
+    const shiftId = started.res.payload.shift.id;
+
+    const job = await makeJob(customerId, { driverId, status: 'assigned' });
+    const pickedUpAt = new Date(Date.now() - 45 * 60 * 1000);
+    await pool.query(
+      "UPDATE delivery_jobs SET status = 'picked_up', picked_up_at = $2, updated_at = NOW() WHERE id = $1",
+      [job.id, pickedUpAt],
+    );
+    await pool.query(
+      "UPDATE delivery_jobs SET status = 'in_transit', updated_at = NOW() WHERE id = $1",
+      [job.id],
+    );
+    await pool.query(
+      "UPDATE delivery_jobs SET status = 'delivered', dispatch_state = 'completed', delivered_at = NOW(), proof_verified_at = NOW(), updated_at = NOW() WHERE id = $1",
+      [job.id],
+    );
+    // One live accrued payout and one voided payout in the window.
+    await makePayout(job, driverId);
+    const voidedJob = await makeJob(customerId, {
+      driverId, status: 'delivered',
+      pickedUpAt: new Date(Date.now() - 30 * 60 * 1000),
+      deliveredAt: new Date(),
+    });
+    await makePayout(voidedJob, driverId, { status: 'voided' });
+
+    const closed = await closeShift(driverId, shiftId, { confirmOpenIssues: true });
+    expect(closed.next).not.toHaveBeenCalled();
+    expect(closed.res.payload.shift.status).toBe('closed');
+    const summary = closed.res.payload.shift.closeoutSummary;
+    expect(summary.jobsCompleted).toBe(2);
+    // The voided $18.00 is not accrued earnings and not a live payout.
+    expect(summary.earningsAccruedCents).toBe(1800);
+    expect(summary.payoutsCount).toBe(1);
+  });
 });

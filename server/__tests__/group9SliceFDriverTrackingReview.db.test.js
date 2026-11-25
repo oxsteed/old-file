@@ -451,6 +451,20 @@ ddescribe('Group 9 Slice F: track shipments + review work (486-495)', () => {
     expect(payout.job_reference).toBe(job.reference);
     expect(payout.adjustments).toEqual([]);
     expect(payout.disputes).toEqual([]);
+
+    // G9-B1 (D-524): the status filter runs against the real schema
+    // (the old unqualified `status = $2` was ambiguous with the
+    // joined job's status) and the paged response carries the total
+    // and the server-side lifetime totals.
+    const filtered = await call(localDelivery.listDriverPayouts, {
+      user: helperUser(driverId), query: { status: 'paid' },
+    });
+    expect(filtered.next).not.toHaveBeenCalled();
+    expect(filtered.res.payload.payouts.map((entry) => entry.delivery_job_id)).not.toContain(job.id);
+    expect(filtered.res.payload.total).toBe(0);
+    expect(filtered.res.payload.totals).toEqual({ paidCents: 0, pendingCents: 1800 });
+    expect(filtered.res.payload.limit).toBe(100);
+    expect(filtered.res.payload.offset).toBe(0);
   });
 
   test('493: an ops payout adjustment persists the reason and before/after amounts, and the driver history surfaces it', async () => {
@@ -680,5 +694,60 @@ ddescribe('Group 9 Slice F: track shipments + review work (486-495)', () => {
       [idleId],
     );
     expect(idleRow.count).toBe(0);
+  });
+
+  test('495 (G9-B2/G9-B12): a voided payout does not count as accrued earnings, and a cancellations-only week still produces a report', async () => {
+    const weekStart = '2026-11-16';
+    const now = new Date('2026-11-23T07:00:00Z');
+    const customerId = await makeUser('customer');
+
+    // One live accrued payout plus one voided payout in the same week.
+    const driverId = await makeUser('helper', { defaultMode: 'helper', timezone: 'America/New_York' });
+    await makeDriverProfile(driverId);
+    const job = await makeJob(customerId, {
+      driverId, status: 'delivered',
+      pickedUpAt: new Date('2026-11-18T11:15:00Z'), deliveredAt: new Date('2026-11-18T12:00:00Z'),
+    });
+    await makePayout(job, driverId, { createdAt: new Date('2026-11-18T13:00:00Z') });
+    const voidedJob = await makeJob(customerId, {
+      driverId, status: 'delivered',
+      pickedUpAt: new Date('2026-11-19T11:15:00Z'), deliveredAt: new Date('2026-11-19T12:00:00Z'),
+    });
+    await makePayout(voidedJob, driverId, { status: 'voided', createdAt: new Date('2026-11-19T13:00:00Z') });
+
+    const report = await buildWeeklyReport(pool, driverId, weekStart, 'America/New_York');
+    expect(report.jobsCompleted).toBe(2);
+    // The voided $18.00 is not accrued earnings, but its bucket is
+    // still visible in the per-status breakdown.
+    expect(report.earningsAccruedCents).toBe(1800);
+    expect(report.payoutsByStatus).toContainEqual({ status: 'voided', count: 1, cents: 1800 });
+    expect(report.hasActivity).toBe(true);
+
+    // A driver whose week was all cancellations: no deliveries, no
+    // payouts, just cancelled jobs — the week still gets a report.
+    const cancelledId = await makeUser('helper', { defaultMode: 'helper', timezone: 'America/New_York' });
+    await makeDriverProfile(cancelledId);
+    await makeJob(customerId, {
+      driverId: cancelledId, status: 'cancelled',
+      cancelledAt: new Date('2026-11-18T13:00:00Z'),
+    });
+    const cancelledReport = await buildWeeklyReport(pool, cancelledId, weekStart, 'America/New_York');
+    expect(cancelledReport.jobsCompleted).toBe(0);
+    expect(cancelledReport.jobsCancelled).toBe(1);
+    expect(cancelledReport.earningsAccruedCents).toBe(0);
+    expect(cancelledReport.hasActivity).toBe(true);
+
+    // The Monday sweep stores that report: the candidate set must
+    // include cancelled-job drivers, not only delivered/payout ones.
+    const sweep = await generateWeeklyReports(pool, { now });
+    expect(sweep.generated).toBeGreaterThanOrEqual(1);
+    const { rows: [stored] } = await pool.query(
+      'SELECT * FROM delivery_driver_weekly_reports WHERE driver_user_id = $1 AND week_start = $2',
+      [cancelledId, weekStart],
+    );
+    expect(stored).toBeDefined();
+    expect(stored.jobs_completed).toBe(0);
+    expect(stored.jobs_cancelled).toBe(1);
+    expect(stored.earnings_accrued_cents).toBe(0);
   });
 });

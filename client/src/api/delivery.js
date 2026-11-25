@@ -144,8 +144,12 @@ export const revokeTrackingLink = (id, linkId, reason) => mutate('post', `/deliv
 // Weekly self-audit 2026-11-04 item 9: driver-facing payout history.
 // Read-only and scoped server-side to the signed-in driver; ops approval
 // and payment stay on the internal endpoints below.
-export const listMyDriverPayouts = (status) => {
-  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+export const listMyDriverPayouts = (status, { limit, offset } = {}) => {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (limit != null) params.set('limit', String(limit));
+  if (offset != null) params.set('offset', String(offset));
+  const query = params.toString() ? `?${params.toString()}` : '';
   return api.get(`/delivery/driver-payouts${query}`).then((response) => response.data);
 };
 
