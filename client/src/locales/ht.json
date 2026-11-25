@@ -9152,7 +9152,22 @@
         "approveFail": "Nou pa t kapab apwouve echanj la",
         "rejectFail": "Nou pa t kapab rejte echanj la",
         "requestedBy": "Mande pa {{name}}",
-        "offeredTo": "Pwopoze bay {{name}}"
+        "offeredTo": "Pwopoze bay {{name}}",
+        "requestSwap": "Mande echanj",
+        "target": "Echanj ak",
+        "targetPlaceholder": "Chwazi yon manm ekip",
+        "note": "Nòt (opsyonèl)",
+        "requested": "Echanj la mande. Yo pral mande moun nan pou l aksepte.",
+        "requestFail": "Pa t kapab mande echanj la",
+        "targetRequired": "Chwazi ak ki moun pou echanje"
+      },
+      "weekGrid": {
+        "title": "Semèn nan yon sèl kou",
+        "prevWeek": "Semèn anvan",
+        "thisWeek": "Semèn sa a",
+        "nextWeek": "Semèn pwochen",
+        "weekOf": "Semèn {{date}}",
+        "noShifts": "Pa gen orè"
       },
       "toastDeleted": "Efase",
       "toastClockedIn": "Tan kòmanse!",

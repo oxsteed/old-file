@@ -8859,7 +8859,22 @@
         "approveFail": "No se pudo aprobar el intercambio",
         "rejectFail": "No se pudo rechazar el intercambio",
         "requestedBy": "Solicitado por {{name}}",
-        "offeredTo": "Ofrecido a {{name}}"
+        "offeredTo": "Ofrecido a {{name}}",
+        "requestSwap": "Solicitar cambio",
+        "target": "Cambiar con",
+        "targetPlaceholder": "Elige un miembro del equipo",
+        "note": "Nota (opcional)",
+        "requested": "Cambio solicitado. Se pedirá a la persona que acepte.",
+        "requestFail": "No se pudo solicitar el cambio",
+        "targetRequired": "Elige con quién cambiar"
+      },
+      "weekGrid": {
+        "title": "Semana de un vistazo",
+        "prevWeek": "Semana anterior",
+        "thisWeek": "Esta semana",
+        "nextWeek": "Semana siguiente",
+        "weekOf": "Semana del {{date}}",
+        "noShifts": "Sin turnos"
       },
       "toastDeleted": "Eliminado",
       "toastClockedIn": "¡Entrada registrada!",

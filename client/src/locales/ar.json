@@ -9489,7 +9489,22 @@
         "approveFail": "تعذرت الموافقة على التبديل",
         "rejectFail": "تعذر رفض التبديل",
         "requestedBy": "طلبها {{name}}",
-        "offeredTo": "عرضت على {{name}}"
+        "offeredTo": "عرضت على {{name}}",
+        "requestSwap": "طلب تبديل",
+        "target": "التبديل مع",
+        "targetPlaceholder": "اختر عضوًا في الفريق",
+        "note": "ملاحظة (اختياري)",
+        "requested": "تم طلب التبديل. سيُطلب من الزميل الموافقة.",
+        "requestFail": "تعذّر طلب التبديل",
+        "targetRequired": "اختر من تريد التبديل معه"
+      },
+      "weekGrid": {
+        "title": "الأسبوع في لمحة",
+        "prevWeek": "الأسبوع السابق",
+        "thisWeek": "هذا الأسبوع",
+        "nextWeek": "الأسبوع التالي",
+        "weekOf": "أسبوع {{date}}",
+        "noShifts": "لا توجد نوبات"
       },
       "toastDeleted": "تم الحذف",
       "toastClockedIn": "سجلت في!",

@@ -9489,7 +9489,22 @@
         "approveFail": "Could not approve the swap",
         "rejectFail": "Could not reject the swap",
         "requestedBy": "Requested by {{name}}",
-        "offeredTo": "Offered to {{name}}"
+        "offeredTo": "Offered to {{name}}",
+        "requestSwap": "Request swap",
+        "target": "Swap with",
+        "targetPlaceholder": "Choose a team member",
+        "note": "Note (optional)",
+        "requested": "Swap requested. The target will be asked to accept.",
+        "requestFail": "Could not request the swap",
+        "targetRequired": "Choose who to swap with"
+      },
+      "weekGrid": {
+        "title": "Week at a glance",
+        "prevWeek": "Previous week",
+        "thisWeek": "This week",
+        "nextWeek": "Next week",
+        "weekOf": "Week of {{date}}",
+        "noShifts": "No shifts"
       },
       "toastDeleted": "Deleted",
       "toastClockedIn": "Clocked in!",

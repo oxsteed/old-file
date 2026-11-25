@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
+import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Clock, Users, LogIn, LogOut, Send, CalendarOff, Scale } from 'lucide-react';
 import ConfirmDialog from '../../admin/lib/ConfirmDialog';
@@ -47,6 +48,18 @@ export function StaffScheduler({ businessId, isManager = false }) {
   const [templateForm, setTemplateForm] = useState({ name: '', week_start: '' });
   const [templateTargetWeek, setTemplateTargetWeek] = useState('');
   const [policyForm, setPolicyForm] = useState({ user_id: '', request_type: 'vacation', accrual_amount: '', accrual_unit: 'days', accrual_period: 'monthly', carryover_cap: '', initial_balance: '' });
+  const { user } = useAuth();
+  // G5-26 (278): per-row swap request form state.
+  const [swapForm, setSwapForm] = useState({ shiftId: null, target_user_id: '', note: '' });
+  // G5-46 (276): the week grid shows the week containing weekStart
+  // (Monday); it renders over the same loaded shift list.
+  const [weekStart, setWeekStart] = useState(() => {
+    const d = new Date();
+    const day = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - day);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
 
   // S-24: stable ids so <label htmlFor> actually associates with its input.
   const staffFieldId = useId();
@@ -461,6 +474,48 @@ export function StaffScheduler({ businessId, isManager = false }) {
     return `${h}h ${m}m`;
   };
 
+  // G5-46 (276): the seven days of the grid week, and the loaded shifts
+  // grouped by their shift date (shift_start carries the date as text).
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+  const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const shiftsByDay = shifts.reduce((acc, s) => {
+    const key = String(s.shift_start || '').slice(0, 10);
+    if (!key) return acc;
+    (acc[key] = acc[key] || []).push(s);
+    return acc;
+  }, {});
+  const shiftWeekDay = (d) => d.toLocaleDateString(i18n.language, { weekday: 'short' });
+  const resetWeek = () => {
+    const d = new Date();
+    const day = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - day);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  // G5-26 (278): post a swap request for one shift to the existing
+  // endpoint; the target accepts, then a manager approves.
+  const requestSwap = async (shift) => {
+    if (!swapForm.target_user_id) {
+      toast.error(t('businessHub.staffScheduler.swaps.targetRequired'));
+      return;
+    }
+    try {
+      await api.post(`/businesses/${businessId}/staff/shifts/${shift.id}/swap-requests`, {
+        target_user_id: swapForm.target_user_id,
+        note: swapForm.note || undefined,
+      });
+      toast.success(t('businessHub.staffScheduler.swaps.requested'));
+      setSwapForm({ shiftId: null, target_user_id: '', note: '' });
+    } catch {
+      toast.error(t('businessHub.staffScheduler.swaps.requestFail'));
+    }
+  };
+
   const draftCount = shifts.filter((s) => !s.published).length;
   const tabDefs = [
     ['shifts', t('businessHub.staffScheduler.tabs.shifts'), <Users size={14} />],
@@ -765,20 +820,81 @@ export function StaffScheduler({ businessId, isManager = false }) {
               ))}
             </div>
           )}
-          {shifts.length === 0 ? <div className="staff-sched-empty-state"><Users size={48} className="staff-sched-empty-icon" /><p>{t('businessHub.staffScheduler.emptyShifts')}</p></div>
-        : shifts.map(s => (
-          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', padding: '0.75rem 1rem', marginBottom: '0.5rem' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>
-                {s.user_name || t('businessHub.staffScheduler.unassigned')}{s.role && ` · ${s.role}`}
-                {!s.published && <span style={{ marginInlineStart: '0.5rem', fontSize: '0.7rem', fontWeight: 600, color: '#b45309', background: '#fef3c7', borderRadius: '999px', padding: '0.15rem 0.5rem' }}>{t('businessHub.staffScheduler.draftBadge')}</span>}
+          {/* G5-46 (276): week grid over the same loaded shift list. */}
+          <div className="staff-sched-card">
+            <div className="staff-sched-week-head">
+              <h4 className="staff-sched-section-title">{t('businessHub.staffScheduler.weekGrid.title')}</h4>
+              <span className="staff-sched-text-muted">{t('businessHub.staffScheduler.weekGrid.weekOf', { date: fmtDate(weekStart) })}</span>
+              <div className="staff-sched-actions-row">
+                <button type="button" onClick={() => setWeekStart((w) => { const d = new Date(w); d.setDate(d.getDate() - 7); return d; })} className="staff-sched-btn-cancel" data-track="ui.34ed3b0a4c.29">{t('businessHub.staffScheduler.weekGrid.prevWeek')}</button>
+                <button type="button" onClick={() => setWeekStart(resetWeek)} className="staff-sched-btn-cancel" data-track="ui.34ed3b0a4c.30">{t('businessHub.staffScheduler.weekGrid.thisWeek')}</button>
+                <button type="button" onClick={() => setWeekStart((w) => { const d = new Date(w); d.setDate(d.getDate() + 7); return d; })} className="staff-sched-btn-cancel" data-track="ui.34ed3b0a4c.31">{t('businessHub.staffScheduler.weekGrid.nextWeek')}</button>
               </div>
-              <div style={{ fontSize: '0.875rem', color: 'var(--muted-text)' }}>{new Date(s.shift_start).toLocaleString(i18n.language)} – {new Date(s.shift_end).toLocaleString(i18n.language)}</div>
             </div>
-            {isManager && <button onClick={() => startEdit(s)} aria-label={t('businessHub.staffScheduler.editShiftLabel', { name: s.user_name || '' })} className="staff-sched-btn-edit-sm" data-track="ui.34ed3b0a4c.17">{t('common.edit')}</button>}
-            <button onClick={() => setDeleteTarget(s.id)} aria-label={t('businessHub.staffScheduler.deleteShiftLabel')} style={{ padding: '0.4rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }} data-track="ui.34ed3b0a4c.6"><Trash2 size={14} /></button>
+            <div className="staff-sched-week-scroll">
+              <div className="staff-sched-week-grid">
+                {weekDays.map((d) => {
+                  const dayShifts = shiftsByDay[dayKey(d)] || [];
+                  return (
+                    <div key={dayKey(d)} className="staff-sched-week-day">
+                      <div className="staff-sched-week-day-head">{shiftWeekDay(d)} · {fmtDate(d)}</div>
+                      {dayShifts.length === 0 ? <p className="staff-sched-empty-note">{t('businessHub.staffScheduler.weekGrid.noShifts')}</p> : dayShifts.map((s) => (
+                        <div key={s.id} className="staff-sched-week-shift">
+                          <span className="staff-sched-bold">{s.user_name || t('businessHub.staffScheduler.unassigned')}</span>
+                          <span className="staff-sched-text-muted">{String(s.shift_start || '').slice(11, 16)} – {String(s.shift_end || '').slice(11, 16)}{s.role ? ` · ${s.role}` : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-        ))}
+          {shifts.length === 0 ? <div className="staff-sched-empty-state"><Users size={48} className="staff-sched-empty-icon" /><p>{t('businessHub.staffScheduler.emptyShifts')}</p></div>
+        : shifts.map(s => {
+          // G5-26 (278): a manager may request a swap for any shift; a
+          // member only for their own. The server enforces the same rule.
+          const canSwap = isManager || String(s.user_id) === String(user?.id);
+          const swapOpen = swapForm.shiftId === s.id;
+          return (
+          <div key={s.id} className="staff-sched-shift-row">
+            <div className="staff-sched-shift-row-main">
+              <div className="staff-sched-flex-1">
+                <div className="staff-sched-shift-row-title">
+                  {s.user_name || t('businessHub.staffScheduler.unassigned')}{s.role && ` · ${s.role}`}
+                  {!s.published && <span className="staff-sched-draft-badge">{t('businessHub.staffScheduler.draftBadge')}</span>}
+                </div>
+                <div className="staff-sched-shift-row-sub">{new Date(s.shift_start).toLocaleString(i18n.language)} – {new Date(s.shift_end).toLocaleString(i18n.language)}</div>
+              </div>
+              {isManager && <button onClick={() => startEdit(s)} aria-label={t('businessHub.staffScheduler.editShiftLabel', { name: s.user_name || '' })} className="staff-sched-btn-edit-sm" data-track="ui.34ed3b0a4c.17">{t('common.edit')}</button>}
+              <button onClick={() => setDeleteTarget(s.id)} aria-label={t('businessHub.staffScheduler.deleteShiftLabel')} className="staff-sched-delete-btn" data-track="ui.34ed3b0a4c.6"><Trash2 size={14} /></button>
+            </div>
+            {canSwap && (
+              <div className="staff-sched-swap-form">
+                {swapOpen ? (
+                  <>
+                    <label className="staff-sched-field-label" htmlFor={`swap-target-${s.id}`}>{t('businessHub.staffScheduler.swaps.target')}</label>
+                    <select id={`swap-target-${s.id}`} value={swapForm.target_user_id} onChange={(e) => setSwapForm((f) => ({ ...f, target_user_id: e.target.value }))} className="staff-sched-field-input">
+                      <option value="">{t('businessHub.staffScheduler.swaps.targetPlaceholder')}</option>
+                      {staffMembers.filter((m) => String(m.user_id) !== String(s.user_id)).map((m) => (
+                        <option key={m.user_id} value={m.user_id}>{staffName(m)}</option>
+                      ))}
+                    </select>
+                    <label className="staff-sched-field-label" htmlFor={`swap-note-${s.id}`}>{t('businessHub.staffScheduler.swaps.note')}</label>
+                    <input id={`swap-note-${s.id}`} type="text" value={swapForm.note} onChange={(e) => setSwapForm((f) => ({ ...f, note: e.target.value }))} maxLength={1000} className="staff-sched-field-input" />
+                    <div className="staff-sched-actions-row">
+                      <button type="button" onClick={() => requestSwap(s)} className="staff-sched-btn-approve" data-track="ui.34ed3b0a4c.33">{t('businessHub.staffScheduler.swaps.requestSwap')}</button>
+                      <button type="button" onClick={() => setSwapForm({ shiftId: null, target_user_id: '', note: '' })} className="staff-sched-btn-cancel" data-track="ui.34ed3b0a4c.34">{t('common.cancel')}</button>
+                    </div>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => setSwapForm({ shiftId: s.id, target_user_id: '', note: '' })} className="staff-sched-btn-cancel" data-track="ui.34ed3b0a4c.32">{t('businessHub.staffScheduler.swaps.requestSwap')}</button>
+                )}
+              </div>
+            )}
+          </div>
+          );
+        })}
         </>
       ) : tab === 'time' ? (
         <div>

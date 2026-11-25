@@ -9489,7 +9489,22 @@
         "approveFail": "Impossible d’approuver l’échange",
         "rejectFail": "Impossible de rejeter l’échange",
         "requestedBy": "Demandé par {{name}}",
-        "offeredTo": "Proposé à {{name}}"
+        "offeredTo": "Proposé à {{name}}",
+        "requestSwap": "Demander un échange",
+        "target": "Échanger avec",
+        "targetPlaceholder": "Choisir un membre de l'équipe",
+        "note": "Note (facultatif)",
+        "requested": "Échange demandé. La personne sera invitée à accepter.",
+        "requestFail": "Impossible de demander l'échange",
+        "targetRequired": "Choisissez avec qui échanger"
+      },
+      "weekGrid": {
+        "title": "Semaine en un coup d'œil",
+        "prevWeek": "Semaine précédente",
+        "thisWeek": "Cette semaine",
+        "nextWeek": "Semaine suivante",
+        "weekOf": "Semaine du {{date}}",
+        "noShifts": "Aucun quart"
       },
       "toastDeleted": "Supprimé",
       "toastClockedIn": "Pointage d’entrée effectué !",
